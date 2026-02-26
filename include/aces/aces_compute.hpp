@@ -3,23 +3,33 @@
 
 #include "aces/aces_config.hpp"
 #include "aces/aces_state.hpp"
-#include "ESMC.h"
+#include <string>
+#include <functional>
 
 namespace aces {
 
 /**
+ * @brief Interface for resolving fields by name into Kokkos Views.
+ * This allows the compute engine to be decoupled from ESMF for testing.
+ */
+class FieldResolver {
+public:
+    virtual ~FieldResolver() = default;
+    virtual UnmanagedHostView3D ResolveImport(const std::string& name, int nx, int ny, int nz) = 0;
+    virtual UnmanagedHostView3D ResolveExport(const std::string& name, int nx, int ny, int nz) = 0;
+};
+
+/**
  * @brief Performs the emission computation for all species defined in the config.
  * @param config The ACES configuration.
- * @param importState The ESMF import state.
- * @param exportState The ESMF export state.
+ * @param resolver A FieldResolver to retrieve Kokkos Views for import/export fields.
  * @param nx Grid X dimension.
  * @param ny Grid Y dimension.
  * @param nz Grid Z dimension.
  */
 void ComputeEmissions(
     const AcesConfig& config,
-    ESMC_State importState,
-    ESMC_State exportState,
+    FieldResolver& resolver,
     int nx, int ny, int nz
 );
 

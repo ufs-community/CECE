@@ -29,11 +29,6 @@ int ESMC_GridCompSetEntryPoint(ESMC_GridComp comp, ESMC_Method method, void (*fu
 int ESMC_StateGetField(ESMC_State state, const char* name, ESMC_Field* field);
 void* ESMC_FieldGetPtr(ESMC_Field field, int localDe, int* rc);
 
-// Mock helpers
-void Mock_StateAddField(ESMC_State state, const char* name, void* ptr);
-ESMC_State Mock_StateCreate();
-void Mock_StateDestroy(ESMC_State state);
-
 #ifdef __cplusplus
 }
 #endif
