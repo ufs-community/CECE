@@ -60,6 +60,7 @@ endif()
 
 add_library(aces SHARED
   src/aces_cap.cpp
+  src/aces_compute.cpp
 )
 
 target_include_directories(aces PUBLIC
@@ -90,5 +91,16 @@ target_link_libraries(test_aces_cap
   GTest::gtest_main
 )
 
+add_executable(test_aces_compute
+  tests/test_aces_compute.cpp
+)
+
+target_link_libraries(test_aces_compute
+  PRIVATE
+  aces
+  GTest::gtest
+)
+
 include(GoogleTest)
 gtest_discover_tests(test_aces_cap)
+gtest_discover_tests(test_aces_compute)
