@@ -10,4 +10,14 @@ int ESMC_GridCompSetEntryPoint(ESMC_GridComp comp, ESMC_Method method, void (*fu
     return ESMF_SUCCESS;
 }
 
+ESMC_Field ESMC_StateGetField(ESMC_State state, const char* name, int* rc) {
+    if (rc) *rc = ESMF_SUCCESS;
+    return (ESMC_Field)state;
+}
+
+void* ESMC_FieldGetPtr(ESMC_Field field, int localDe, int* rc) {
+    if (rc) *rc = ESMF_SUCCESS;
+    return (void*)field;
+}
+
 }

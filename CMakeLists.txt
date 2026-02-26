@@ -90,5 +90,16 @@ target_link_libraries(test_aces_cap
   GTest::gtest_main
 )
 
+add_executable(test_aces_utils
+  tests/test_aces_utils.cpp
+)
+
+target_link_libraries(test_aces_utils
+  PRIVATE
+  aces
+  GTest::gtest_main
+)
+
 include(GoogleTest)
 gtest_discover_tests(test_aces_cap)
+gtest_discover_tests(test_aces_utils)

@@ -1,4 +1,6 @@
 #include "aces/aces.hpp"
+#include "aces/aces_state.hpp"
+#include "aces/aces_utils.hpp"
 #include <iostream>
 #include <Kokkos_Core.hpp>
 
@@ -20,7 +22,27 @@ void Initialize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportSta
  */
 void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESMC_Clock* clock, int* rc) {
     std::cout << "ACES_Run: Executing." << std::endl;
+
+    // TODO: Retrieve actual dimensions from ESMF Grid/Field
+    int nx = 360, ny = 180, nz = 72;
+    int status;
+
+    // Populate Import State
+    AcesImportState aces_import;
+    aces_import.temperature = WrapESMCField(
+        ESMC_StateGetField(importState, "temperature", &status), nx, ny, nz);
+    aces_import.wind_speed_10m = WrapESMCField(
+        ESMC_StateGetField(importState, "wind_speed_10m", &status), nx, ny, 1);
+    aces_import.base_anthropogenic_nox = WrapESMCField(
+        ESMC_StateGetField(importState, "base_anthropogenic_nox", &status), nx, ny, nz);
+
+    // Populate Export State
+    AcesExportState aces_export;
+    aces_export.total_nox_emissions = WrapESMCField(
+        ESMC_StateGetField(exportState, "total_nox_emissions", &status), nx, ny, nz);
+
     // Main compute logic will be added here
+
     if (rc) *rc = ESMF_SUCCESS;
 }
 
