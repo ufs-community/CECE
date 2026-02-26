@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include "ESMC.h"
 #include <iostream>
+#include <fstream>
 #include <cstring> // for memset
 
 // Declare the functions we want to test
@@ -16,6 +17,11 @@ void ACES_Finalize(ESMC_GridComp comp, ESMC_State importState, ESMC_State export
 // Testing SetServices properly requires a full ESMF application harness.
 
 TEST(ACES_Cap_Test, Lifecycle) {
+    // Create dummy config file
+    std::ofstream config_file("aces_config.yaml");
+    config_file << "species:\n  nox: []\nphysics_schemes: []\n";
+    config_file.close();
+
     int rc = -1;
     // Create dummy handles.
     // The ACES implementation of Initialize/Finalize currently does not dereference these,
