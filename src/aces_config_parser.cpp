@@ -29,6 +29,20 @@ AcesConfig ParseConfig(const std::string& filename) {
         }
     }
 
+    if (root["physics_schemes"]) {
+        for (auto const& scheme_node : root["physics_schemes"]) {
+            PhysicsSchemeConfig scheme;
+            scheme.name = scheme_node["name"].as<std::string>();
+            if (scheme_node["language"]) {
+                scheme.language = scheme_node["language"].as<std::string>();
+            }
+            if (scheme_node["options"]) {
+                scheme.options = scheme_node["options"];
+            }
+            config.physics_schemes.push_back(scheme);
+        }
+    }
+
     return config;
 }
 

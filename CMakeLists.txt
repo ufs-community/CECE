@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(ACES LANGUAGES CXX C)
+project(ACES LANGUAGES CXX C Fortran)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -71,6 +71,10 @@ add_library(aces SHARED
   src/aces_cap.cpp
   src/aces_config_parser.cpp
   src/aces_compute.cpp
+  src/aces_physics_factory.cpp
+  src/physics/aces_native_example.cpp
+  src/physics/aces_fortran_bridge.cpp
+  src/physics/legacy_fortran.F90
 )
 
 target_include_directories(aces PUBLIC
@@ -122,7 +126,18 @@ target_link_libraries(test_aces_compute
   GTest::gtest_main
 )
 
+add_executable(test_physics
+  tests/test_physics.cpp
+)
+
+target_link_libraries(test_physics
+  PRIVATE
+  aces
+  GTest::gtest_main
+)
+
 include(GoogleTest)
 gtest_discover_tests(test_aces_cap)
 gtest_discover_tests(test_aces_utils)
 gtest_discover_tests(test_aces_compute)
+gtest_discover_tests(test_physics)

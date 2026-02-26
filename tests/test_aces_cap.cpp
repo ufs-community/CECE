@@ -1,6 +1,7 @@
 #include <gtest/gtest.h>
 #include "ESMC.h"
 #include <iostream>
+#include <fstream>
 #include <cstring> // for memset
 
 // Declare the functions we want to test
@@ -16,10 +17,17 @@ void ACES_Finalize(ESMC_GridComp comp, ESMC_State importState, ESMC_State export
 // Testing SetServices properly requires a full ESMF application harness.
 
 TEST(ACES_Cap_Test, Lifecycle) {
+    // Create dummy config file
+    std::ofstream config_file("aces_config.yaml");
+    config_file << "species:\n  nox: []\nphysics_schemes: []\n";
+    config_file.close();
+
     int rc = -1;
     // Create dummy handles.
-    // The ACES implementation of Initialize/Finalize currently does not dereference these,
-    // so passing zeroed structs is safe for unit testing the logic *inside* ACES (Kokkos init).
+    // NOTE: We pass zeroed handles here to keep the unit test minimal and avoid
+    // needing a full ESMF/MPI environment. The ACES implementation contains
+    // null-pointer guards (checking comp.ptr != nullptr) to support this
+    // "shallow" testing pattern while still supporting real ESMF simulations.
     ESMC_GridComp comp;
     std::memset(&comp, 0, sizeof(comp));
 
