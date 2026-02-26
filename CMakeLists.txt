@@ -48,6 +48,7 @@ else()
   if(ACES_USE_MOCK_ESMF)
     message(STATUS "ESMF not found, using internal mock.")
     add_subdirectory(externals/esmf_mock)
+    target_compile_definitions(esmf_mock PUBLIC ACES_USING_MOCK_ESMF)
     if(NOT TARGET ESMF::ESMF)
         add_library(ESMF::ESMF ALIAS esmf_mock)
     endif()
@@ -90,5 +91,16 @@ target_link_libraries(test_aces_cap
   GTest::gtest_main
 )
 
+add_executable(test_aces_utils
+  tests/test_aces_utils.cpp
+)
+
+target_link_libraries(test_aces_utils
+  PRIVATE
+  aces
+  GTest::gtest_main
+)
+
 include(GoogleTest)
 gtest_discover_tests(test_aces_cap)
+gtest_discover_tests(test_aces_utils)
