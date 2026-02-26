@@ -24,8 +24,10 @@ TEST(ACES_Cap_Test, Lifecycle) {
 
     int rc = -1;
     // Create dummy handles.
-    // The ACES implementation of Initialize/Finalize currently does not dereference these,
-    // so passing zeroed structs is safe for unit testing the logic *inside* ACES (Kokkos init).
+    // NOTE: We pass zeroed handles here to keep the unit test minimal and avoid
+    // needing a full ESMF/MPI environment. The ACES implementation contains
+    // null-pointer guards (checking comp.ptr != nullptr) to support this
+    // "shallow" testing pattern while still supporting real ESMF simulations.
     ESMC_GridComp comp;
     std::memset(&comp, 0, sizeof(comp));
 
