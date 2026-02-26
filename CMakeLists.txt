@@ -20,6 +20,14 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(kokkos)
 
+# YAML-CPP
+FetchContent_Declare(
+  yaml-cpp
+  GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
+  GIT_TAG        0.8.0
+)
+FetchContent_MakeAvailable(yaml-cpp)
+
 # GTest
 FetchContent_Declare(
   googletest
@@ -61,6 +69,8 @@ endif()
 
 add_library(aces SHARED
   src/aces_cap.cpp
+  src/aces_config_parser.cpp
+  src/aces_compute.cpp
 )
 
 target_include_directories(aces PUBLIC
@@ -71,6 +81,7 @@ target_include_directories(aces PUBLIC
 target_link_libraries(aces PUBLIC
   Kokkos::kokkos
   ESMF::ESMF
+  yaml-cpp
 )
 
 if(MPI_FOUND)
@@ -101,6 +112,17 @@ target_link_libraries(test_aces_utils
   GTest::gtest_main
 )
 
+add_executable(test_aces_compute
+  tests/test_aces_compute.cpp
+)
+
+target_link_libraries(test_aces_compute
+  PRIVATE
+  aces
+  GTest::gtest_main
+)
+
 include(GoogleTest)
 gtest_discover_tests(test_aces_cap)
 gtest_discover_tests(test_aces_utils)
+gtest_discover_tests(test_aces_compute)
