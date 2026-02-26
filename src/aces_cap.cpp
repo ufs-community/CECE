@@ -83,8 +83,8 @@ void Initialize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportSta
 void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESMC_Clock* clock, int* rc) {
     std::cout << "ACES_Run: Executing." << std::endl;
 
-    void* data_ptr;
-    ESMC_GridCompGetInternalState(comp, &data_ptr);
+    int rc_internal;
+    void* data_ptr = ESMC_GridCompGetInternalState(comp, &rc_internal);
     auto data = static_cast<AcesInternalData*>(data_ptr);
 
     // TODO: Retrieve actual dimensions from ESMF Grid/Field
@@ -125,8 +125,8 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
 }
 
 void Finalize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESMC_Clock* clock, int* rc) {
-    void* data_ptr;
-    ESMC_GridCompGetInternalState(comp, &data_ptr);
+    int rc_internal;
+    void* data_ptr = ESMC_GridCompGetInternalState(comp, &rc_internal);
     if (data_ptr) {
         delete static_cast<AcesInternalData*>(data_ptr);
     }

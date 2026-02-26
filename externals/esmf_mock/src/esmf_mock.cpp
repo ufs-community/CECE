@@ -17,11 +17,9 @@ int ESMC_GridCompSetInternalState(ESMC_GridComp comp, void* data) {
     return ESMF_SUCCESS;
 }
 
-int ESMC_GridCompGetInternalState(ESMC_GridComp comp, void** data) {
-    if (data) {
-        *data = gridcomp_internal_data[comp.ptr];
-    }
-    return ESMF_SUCCESS;
+void* ESMC_GridCompGetInternalState(ESMC_GridComp comp, int* rc) {
+    if (rc) *rc = ESMF_SUCCESS;
+    return gridcomp_internal_data[comp.ptr];
 }
 
 int ESMC_StateGetField(ESMC_State state, const char* name, ESMC_Field* field) {
