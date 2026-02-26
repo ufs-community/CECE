@@ -27,7 +27,7 @@ typedef enum {
 int ESMC_GridCompSetEntryPoint(ESMC_GridComp comp, ESMC_Method method, void (*function)(ESMC_GridComp, ESMC_State, ESMC_State, ESMC_Clock*, int*), int phase);
 
 // Field and State operations
-ESMC_Field ESMC_StateGetField(ESMC_State state, const char* name, int* rc);
+int ESMC_StateGetField(ESMC_State state, const char* name, ESMC_Field* field);
 void* ESMC_FieldGetPtr(ESMC_Field field, int localDe, int* rc);
 
 #ifdef __cplusplus

@@ -29,17 +29,21 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
 
     // Populate Import State
     AcesImportState aces_import;
-    aces_import.temperature = WrapESMCField(
-        ESMC_StateGetField(importState, "temperature", &status), nx, ny, nz);
-    aces_import.wind_speed_10m = WrapESMCField(
-        ESMC_StateGetField(importState, "wind_speed_10m", &status), nx, ny, 1);
-    aces_import.base_anthropogenic_nox = WrapESMCField(
-        ESMC_StateGetField(importState, "base_anthropogenic_nox", &status), nx, ny, nz);
+    ESMC_Field field;
+
+    ESMC_StateGetField(importState, "temperature", &field);
+    aces_import.temperature = WrapESMCField(field, nx, ny, nz);
+
+    ESMC_StateGetField(importState, "wind_speed_10m", &field);
+    aces_import.wind_speed_10m = WrapESMCField(field, nx, ny, 1);
+
+    ESMC_StateGetField(importState, "base_anthropogenic_nox", &field);
+    aces_import.base_anthropogenic_nox = WrapESMCField(field, nx, ny, nz);
 
     // Populate Export State
     AcesExportState aces_export;
-    aces_export.total_nox_emissions = WrapESMCField(
-        ESMC_StateGetField(exportState, "total_nox_emissions", &status), nx, ny, nz);
+    ESMC_StateGetField(exportState, "total_nox_emissions", &field);
+    aces_export.total_nox_emissions = WrapESMCField(field, nx, ny, nz);
 
     // Main compute logic will be added here
 
