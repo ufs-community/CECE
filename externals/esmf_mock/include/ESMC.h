@@ -13,9 +13,9 @@ typedef void* ESMC_VM;
 
 // Enums
 typedef enum {
-  ESMC_METHOD_INITIALIZE,
-  ESMC_METHOD_RUN,
-  ESMC_METHOD_FINALIZE
+  ESMF_METHOD_INITIALIZE,
+  ESMF_METHOD_RUN,
+  ESMF_METHOD_FINALIZE
 } ESMC_Method;
 
 // Return codes

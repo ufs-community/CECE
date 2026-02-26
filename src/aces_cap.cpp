@@ -74,13 +74,13 @@ void ACES_SetServices(ESMC_GridComp comp, int* rc) {
     if (rc) *rc = ESMF_SUCCESS;
 
     // Register initialization (Phase 1)
-    ESMC_GridCompSetEntryPoint(comp, ESMC_METHOD_INITIALIZE, ACES_Initialize, 1);
+    ESMC_GridCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, ACES_Initialize, 1);
 
     // Register run (Phase 1)
-    ESMC_GridCompSetEntryPoint(comp, ESMC_METHOD_RUN, ACES_Run, 1);
+    ESMC_GridCompSetEntryPoint(comp, ESMF_METHOD_RUN, ACES_Run, 1);
 
     // Register finalize (Phase 1)
-    ESMC_GridCompSetEntryPoint(comp, ESMC_METHOD_FINALIZE, ACES_Finalize, 1);
+    ESMC_GridCompSetEntryPoint(comp, ESMF_METHOD_FINALIZE, ACES_Finalize, 1);
 
     std::cout << "ACES_SetServices: Services set." << std::endl;
 }
