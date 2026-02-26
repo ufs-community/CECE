@@ -4,8 +4,18 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <yaml-cpp/yaml.h>
 
 namespace aces {
+
+/**
+ * @brief Represents configuration for a physics scheme.
+ */
+struct PhysicsSchemeConfig {
+    std::string name;
+    std::string language;
+    YAML::Node options;
+};
 
 /**
  * @brief Represents a single layer of emissions to be applied.
@@ -22,6 +32,7 @@ struct EmissionLayer {
  */
 struct AcesConfig {
     std::map<std::string, std::vector<EmissionLayer>> species_layers;
+    std::vector<PhysicsSchemeConfig> physics_schemes;
 };
 
 /**
