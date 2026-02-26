@@ -20,6 +20,10 @@ The recommended development environment is the `jcsda/docker-gnu-openmpi-dev:1.9
     ```bash
     ./setup.sh
     ```
+    If you encounter Docker overlayfs issues or need to fix the environment, run:
+    ```bash
+    ./scripts/fix_docker_and_setup.sh
+    ```
 
 2.  **Build:**
     Inside the container:
@@ -27,6 +31,12 @@ The recommended development environment is the `jcsda/docker-gnu-openmpi-dev:1.9
     mkdir build && cd build
     cmake .. -DACES_USE_MOCK_ESMF=OFF
     make -j4
+    ```
+
+ 3.  **Run Example Driver:**
+    To see ACES in action with external data (ESMF fields):
+    ```bash
+    ./example_driver
     ```
 
 3.  **Test:**

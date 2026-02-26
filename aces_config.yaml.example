@@ -1,0 +1,9 @@
+species:
+  nox:
+    - field: "base_anthropogenic_nox"
+      operation: "add"
+      scale: 1.0
+    - field: "temperature"
+      operation: "add"
+      scale: 1.0e-12 # Just a dummy scaling to see it influence the total
+physics_schemes: []

@@ -136,6 +136,15 @@ target_link_libraries(test_physics
   GTest::gtest_main
 )
 
+add_executable(example_driver
+  tests/example_driver.cpp
+)
+
+target_link_libraries(example_driver
+  PRIVATE
+  aces
+)
+
 include(GoogleTest)
 gtest_discover_tests(test_aces_cap)
 gtest_discover_tests(test_aces_utils)
