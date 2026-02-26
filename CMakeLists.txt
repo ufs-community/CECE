@@ -37,11 +37,13 @@ find_package(ESMF QUIET)
 
 if(ESMF_FOUND)
   message(STATUS "Found ESMF: ${ESMF_VERSION}")
-  if(NOT TARGET ESMF::ESMF)
-    add_library(ESMF::ESMF INTERFACE IMPORTED)
-    target_include_directories(ESMF::ESMF INTERFACE ${ESMF_INCLUDE_DIRS})
-    target_link_libraries(ESMF::ESMF INTERFACE ${ESMF_LIBRARIES})
+
+  # Real ESMF usually requires MPI because ESMC.h includes mpi.h.
+  find_package(MPI REQUIRED)
+  if(MPI_FOUND)
+    message(STATUS "Found MPI: ${MPI_CXX_VERSION}")
   endif()
+
 else()
   if(ACES_USE_MOCK_ESMF)
     message(STATUS "ESMF not found, using internal mock.")
@@ -69,6 +71,10 @@ target_link_libraries(aces PUBLIC
   Kokkos::kokkos
   ESMF::ESMF
 )
+
+if(MPI_FOUND)
+    target_link_libraries(aces PUBLIC MPI::MPI_CXX)
+endif()
 
 # --- Tests ---
 
