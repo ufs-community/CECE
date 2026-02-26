@@ -2,6 +2,8 @@
 #include <Kokkos_Core.hpp>
 #include "aces/aces_utils.hpp"
 #include <vector>
+#include <cstring>
+#include <algorithm>
 
 namespace aces {
 namespace test {
@@ -21,8 +23,13 @@ TEST_F(AcesUtilsTest, WrapESMCFieldUpdatesRawData) {
     const int nz = 2;
     std::vector<double> raw_data(nx * ny * nz, 0.0);
 
-    // In our mock, ESMC_Field is just a void* to the data
-    ESMC_Field mockField = static_cast<ESMC_Field>(raw_data.data());
+    // We manually populate the handle's internal pointer for the test.
+    // This is safe because we are either using our mock (which we know)
+    // or the real ESMF (where handles are pointers or simple structs).
+    ESMC_Field mockField;
+    std::memset(&mockField, 0, sizeof(mockField));
+    void* ptr = raw_data.data();
+    std::memcpy(&mockField, &ptr, std::min(sizeof(ESMC_Field), sizeof(void*)));
 
     // Wrap the field
     UnmanagedHostView3D view = WrapESMCField(mockField, nx, ny, nz);

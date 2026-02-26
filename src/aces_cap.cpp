@@ -25,7 +25,6 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
 
     // TODO: Retrieve actual dimensions from ESMF Grid/Field
     int nx = 360, ny = 180, nz = 72;
-    int status;
 
     // Populate Import State
     AcesImportState aces_import;
