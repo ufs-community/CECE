@@ -1,6 +1,7 @@
 #include <Kokkos_Core.hpp>
 #include <iostream>
 #include <memory>
+#include <set>
 #include <vector>
 
 #include "aces/aces.hpp"
@@ -83,16 +84,18 @@ class AcesStateResolver : public FieldResolver {
         : import_state(imp), export_state(exp) {}
 
     UnmanagedHostView3D ResolveImport(const std::string& name, int nx, int ny, int nz) override {
-        if (name == "temperature") return import_state.temperature.view_host();
-        if (name == "wind_speed_10m") return import_state.wind_speed_10m.view_host();
-        if (name == "nox_from_atmosphere") return import_state.nox_from_atmosphere.view_host();
-        if (name == "base_anthropogenic_nox")
-            return import_state.base_anthropogenic_nox.view_host();
+        auto it = import_state.fields.find(name);
+        if (it != import_state.fields.end()) {
+            return it->second.view_host();
+        }
         return UnmanagedHostView3D();
     }
 
     UnmanagedHostView3D ResolveExport(const std::string& name, int nx, int ny, int nz) override {
-        if (name == "total_nox_emissions") return export_state.total_nox_emissions.view_host();
+        auto it = export_state.fields.find(name);
+        if (it != export_state.fields.end()) {
+            return it->second.view_host();
+        }
         return UnmanagedHostView3D();
     }
 };
@@ -166,13 +169,13 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
     // Dynamic dimension discovery from actual ESMF fields in the export state.
     int nx = 0, ny = 0, nz = 0;
     ESMC_Field field;
-    std::string ref_field_name = "total_nox_emissions";
-    if (ESMC_StateGetField(exportState, ref_field_name.c_str(), &field) != ESMF_SUCCESS) {
-        // Use any configured species as a reference if nox isn't present
-        if (!data->config.species_layers.empty()) {
-            ref_field_name = "total_" + data->config.species_layers.begin()->first + "_emissions";
-            ESMC_StateGetField(exportState, ref_field_name.c_str(), &field);
-        }
+    field.ptr = nullptr;
+
+    // Use the first available configured species as a reference for dimensions
+    if (!data->config.species_layers.empty()) {
+        std::string ref_field_name =
+            "total_" + data->config.species_layers.begin()->first + "_emissions";
+        ESMC_StateGetField(exportState, ref_field_name.c_str(), &field);
     }
 
     if (field.ptr) {
@@ -190,16 +193,46 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
                   << "x" << ny << "x" << nz << std::endl;
     }
 
-    // Lazily initialize persistent DualViews for physics plugins and export state.
-    // This avoids per-timestep allocation overhead.
-    // MUST be done before Ingest/Compute to ensure views are valid.
-    if (data->export_state.total_nox_emissions.view_host().data() == nullptr) {
-        data->export_state.total_nox_emissions =
-            GetDualView(exportState, "total_nox_emissions", nx, ny, nz);
+    // Lazily initialize persistent DualViews for export state.
+    for (auto const& [species, layers] : data->config.species_layers) {
+        std::string export_name = "total_" + species + "_emissions";
+        if (data->export_state.fields.find(export_name) == data->export_state.fields.end()) {
+            data->export_state.fields[export_name] =
+                GetDualView(exportState, export_name, nx, ny, nz);
+        }
     }
 
-    // Hybrid data ingestion
-    data->ingestor.IngestMeteorology(importState, data->import_state, nx, ny, nz);
+    // Hybrid data ingestion:
+    // 1. Meteorology/State from ESMF
+    // We dynamically identify which fields are needed from ESMF.
+    // These are fields used in 'species' definitions that are NOT provided by CDEPS.
+    std::vector<std::string> esmf_fields;
+    std::set<std::string> cdeps_fields;
+    for (const auto& s : data->config.cdeps_config.streams) cdeps_fields.insert(s.name);
+
+    for (auto const& [species, layers] : data->config.species_layers) {
+        for (const auto& layer : layers) {
+            if (cdeps_fields.find(layer.field_name) == cdeps_fields.end()) {
+                esmf_fields.push_back(layer.field_name);
+            }
+            for (const auto& sf : layer.scale_fields) {
+                if (cdeps_fields.find(sf) == cdeps_fields.end()) {
+                    esmf_fields.push_back(sf);
+                }
+            }
+            if (!layer.mask_name.empty() &&
+                cdeps_fields.find(layer.mask_name) == cdeps_fields.end()) {
+                esmf_fields.push_back(layer.mask_name);
+            }
+        }
+    }
+    // Remove duplicates
+    std::sort(esmf_fields.begin(), esmf_fields.end());
+    esmf_fields.erase(std::unique(esmf_fields.begin(), esmf_fields.end()), esmf_fields.end());
+
+    data->ingestor.IngestMeteorology(importState, esmf_fields, data->import_state, nx, ny, nz);
+
+    // 2. Emissions from CDEPS
     if (!data->config.cdeps_config.streams.empty()) {
         data->ingestor.IngestEmissionsInline(data->config.cdeps_config, data->import_state, nx, ny,
                                              nz);
@@ -218,8 +251,10 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
     }
 
     // Sync results back to host space so the ESMF framework can see updated field data.
-    if (exp.total_nox_emissions.view_host().data()) {
-        exp.total_nox_emissions.sync<Kokkos::HostSpace>();
+    for (auto& [name, dv] : exp.fields) {
+        if (dv.view_host().data()) {
+            dv.sync<Kokkos::HostSpace>();
+        }
     }
 
     if (rc) *rc = ESMF_SUCCESS;

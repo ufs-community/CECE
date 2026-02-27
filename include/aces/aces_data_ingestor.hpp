@@ -21,13 +21,14 @@ class AcesDataIngestor {
     AcesDataIngestor() = default;
 
     /**
-     * @brief Ingests meteorology from ESMF ImportState.
+     * @brief Ingests meteorological state from ESMF ImportState.
      * @param importState ESMF state containing meteorology fields.
+     * @param field_names List of field names to extract from ESMF.
      * @param aces_state ACES state to be populated.
      * @param nx, ny, nz Grid dimensions.
      */
-    void IngestMeteorology(ESMC_State importState, AcesImportState& aces_state, int nx, int ny,
-                           int nz);
+    void IngestMeteorology(ESMC_State importState, const std::vector<std::string>& field_names,
+                           AcesImportState& aces_state, int nx, int ny, int nz);
 
     /**
      * @brief Ingests emissions using CDEPS-inline.

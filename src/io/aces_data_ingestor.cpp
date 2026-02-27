@@ -30,28 +30,20 @@ static DualView3D CreateDualViewFromESMF(ESMC_State state, const char* name, int
     return DualView3D(device_view, host_view);
 }
 
-void AcesDataIngestor::IngestMeteorology(ESMC_State importState, AcesImportState& aces_state,
-                                         int nx, int ny, int nz) {
-    if (aces_state.temperature.view_host().data() == nullptr) {
-        aces_state.temperature = CreateDualViewFromESMF(importState, "temperature", nx, ny, nz);
-        aces_state.wind_speed_10m =
-            CreateDualViewFromESMF(importState, "wind_speed_10m", nx, ny, nz);
-        aces_state.nox_from_atmosphere =
-            CreateDualViewFromESMF(importState, "nox_from_atmosphere", nx, ny, nz);
-    }
+void AcesDataIngestor::IngestMeteorology(ESMC_State importState,
+                                         const std::vector<std::string>& field_names,
+                                         AcesImportState& aces_state, int nx, int ny, int nz) {
+    for (const auto& name : field_names) {
+        if (aces_state.fields.find(name) == aces_state.fields.end()) {
+            aces_state.fields[name] = CreateDualViewFromESMF(importState, name.c_str(), nx, ny, nz);
+        }
 
-    // Sync host to device to ensure Kokkos kernels see updated ESMF data
-    if (aces_state.temperature.view_host().data()) {
-        aces_state.temperature.modify<Kokkos::HostSpace>();
-        aces_state.temperature.sync<Kokkos::DefaultExecutionSpace>();
-    }
-    if (aces_state.wind_speed_10m.view_host().data()) {
-        aces_state.wind_speed_10m.modify<Kokkos::HostSpace>();
-        aces_state.wind_speed_10m.sync<Kokkos::DefaultExecutionSpace>();
-    }
-    if (aces_state.nox_from_atmosphere.view_host().data()) {
-        aces_state.nox_from_atmosphere.modify<Kokkos::HostSpace>();
-        aces_state.nox_from_atmosphere.sync<Kokkos::DefaultExecutionSpace>();
+        // Sync host to device to ensure Kokkos kernels see updated ESMF data
+        auto& dv = aces_state.fields[name];
+        if (dv.view_host().data()) {
+            dv.modify<Kokkos::HostSpace>();
+            dv.sync<Kokkos::DefaultExecutionSpace::memory_space>();
+        }
     }
 }
 
@@ -87,21 +79,21 @@ void AcesDataIngestor::IngestEmissionsInline(const AcesCdepsConfig& config,
     // 3. Initialize CDEPS-inline
     cdeps_inline_init("cdeps_in.nml");
 
-    // 4. Trigger read and map pointers
+    // 4. Trigger read and map pointers for all configured streams.
+    // This allows the ingestion layer to be fully dynamic.
     for (const auto& s : config.streams) {
-        if (s.name == "base_anthropogenic_nox") {
-            if (aces_state.base_anthropogenic_nox.view_host().data() == nullptr) {
-                Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> host_view(
-                    "host_base_anthro_nox", nx, ny, nz);
-                Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
-                    device_view("device_base_anthro_nox", nx, ny, nz);
-                aces_state.base_anthropogenic_nox = DualView3D(device_view, host_view);
-            }
-
-            cdeps_inline_read(aces_state.base_anthropogenic_nox.view_host().data(), s.name.c_str());
-            aces_state.base_anthropogenic_nox.modify<Kokkos::HostSpace>();
-            aces_state.base_anthropogenic_nox.sync<Kokkos::DefaultExecutionSpace>();
+        if (aces_state.fields.find(s.name) == aces_state.fields.end()) {
+            Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> host_view(
+                "host_" + s.name, nx, ny, nz);
+            Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> device_view(
+                "device_" + s.name, nx, ny, nz);
+            aces_state.fields[s.name] = DualView3D(device_view, host_view);
         }
+
+        auto& dv = aces_state.fields[s.name];
+        cdeps_inline_read(dv.view_host().data(), s.name.c_str());
+        dv.modify<Kokkos::HostSpace>();
+        dv.sync<Kokkos::DefaultExecutionSpace::memory_space>();
     }
 
     cdeps_inline_finalize();

@@ -2,8 +2,9 @@
 # This file demonstrates the hybrid ingestion model where data can come from
 # both ESMF (live meteorological state) and CDEPS-inline (static inventories on disk).
 
-# Fields used in 'species' definitions are looked up in a unified state.
-# ACES doesn't care where the field came from (ESMF or CDEPS); it just uses them.
+# Fields used in 'species' definitions are dynamically resolved.
+# ACES first checks if a field is provided by CDEPS-inline (see 'cdeps_inline_config').
+# If not found in CDEPS, it attempts to pull the field from the ESMF ImportState.
 species:
   nox:
     # 1. Base anthropogenic emissions read from a NetCDF file via CDEPS-inline.
@@ -13,12 +14,12 @@ species:
       scale: 1.0
       category: "anthropogenic"
       hierarchy: 1
-      # We can use meteorological fields to scale emissions
+      # Fields used in 'scale_fields' are also dynamically resolved.
+      # Here 'temperature' is pulled from the ESMF ImportState.
       scale_fields:
         - "temperature"
 
-    # 2. Influence from a field provided by another ESMF component (e.g. Atmosphere).
-    # This demonstrates hybrid access to live state data.
+    # 2. Additional NOx source provided directly by another ESMF component.
     - field: "nox_from_atmosphere"
       operation: "add"
       scale: 1.0
@@ -28,7 +29,9 @@ species:
 physics_schemes: []
 
 # CDEPS-inline configuration for reading static inventories from disk.
-# These streams are ingested and made available as fields for the species above.
+# Field names listed here will be looked up from disk.
+# Any other field names used in the 'species' section above (like 'temperature' or
+# 'nox_from_atmosphere') will be automatically pulled from the ESMF ImportState.
 cdeps_inline_config:
   streams:
     - name: "base_anthropogenic_nox"
