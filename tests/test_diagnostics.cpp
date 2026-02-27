@@ -13,11 +13,11 @@ using namespace aces;
 
 class MockPhysicsScheme : public PhysicsScheme {
    public:
-    void Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) override {
+    void Initialize(const YAML::Node& /*config*/, AcesDiagnosticManager* diag_manager) override {
         diag_ = diag_manager->RegisterDiagnostic("test_diag", 10, 10, 5);
     }
 
-    void Run(AcesImportState& import_state, AcesExportState& export_state) override {
+    void Run(AcesImportState& /*import_state*/, AcesExportState& /*export_state*/) override {
         auto device_view = diag_.view_device();
         Kokkos::deep_copy(device_view, 42.0);
         diag_.modify_device();
@@ -49,6 +49,7 @@ TEST(DiagnosticsTest, RegistrationAndWriteback) {
     // Note: We skip the actual ESMC_FieldWrite in the unit test because
     // it requires a valid internal ESMF state that is not fully set up here.
     // However, we verify that the synchronization logic works.
+    (void)template_field;
 
     // diag_manager.WriteDiagnostics(requested, template_field);
 

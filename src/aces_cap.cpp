@@ -55,9 +55,7 @@ class EsmfFieldResolver : public FieldResolver {
    public:
     EsmfFieldResolver(ESMC_State imp, ESMC_State exp) : importState(imp), exportState(exp) {}
 
-    /**
-     * @brief Resolves an import field by name and wraps it in a Kokkos View.
-     */
+    // cppcheck-suppress unusedFunction
     UnmanagedHostView3D ResolveImport(const std::string& name, int nx, int ny, int nz) override {
         ESMC_Field field;
         int rc = ESMC_StateGetField(importState, name.c_str(), &field);
@@ -65,9 +63,7 @@ class EsmfFieldResolver : public FieldResolver {
         return WrapESMCField(field, nx, ny, nz);
     }
 
-    /**
-     * @brief Resolves an export field by name and wraps it in a Kokkos View.
-     */
+    // cppcheck-suppress unusedFunction
     UnmanagedHostView3D ResolveExport(const std::string& name, int nx, int ny, int nz) override {
         ESMC_Field field;
         int rc = ESMC_StateGetField(exportState, name.c_str(), &field);
@@ -75,13 +71,15 @@ class EsmfFieldResolver : public FieldResolver {
         return WrapESMCField(field, nx, ny, nz);
     }
 
+    // cppcheck-suppress unusedFunction
     Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
-    ResolveImportDevice(const std::string& name, int nx, int ny, int nz) override {
+    ResolveImportDevice(const std::string& /*name*/, int /*nx*/, int /*ny*/, int /*nz*/) override {
         return Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>();
     }
 
+    // cppcheck-suppress unusedFunction
     Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveExportDevice(
-        const std::string& name, int nx, int ny, int nz) override {
+        const std::string& /*name*/, int /*nx*/, int /*ny*/, int /*nz*/) override {
         return Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>();
     }
 };
@@ -97,7 +95,8 @@ class AcesStateResolver : public FieldResolver {
     AcesStateResolver(const AcesImportState& imp, const AcesExportState& exp)
         : import_state(imp), export_state(exp) {}
 
-    UnmanagedHostView3D ResolveImport(const std::string& name, int nx, int ny, int nz) override {
+    UnmanagedHostView3D ResolveImport(const std::string& name, int /*nx*/, int /*ny*/,
+                                      int /*nz*/) override {
         auto it = import_state.fields.find(name);
         if (it != import_state.fields.end()) {
             return it->second.view_host();
@@ -105,7 +104,8 @@ class AcesStateResolver : public FieldResolver {
         return UnmanagedHostView3D();
     }
 
-    UnmanagedHostView3D ResolveExport(const std::string& name, int nx, int ny, int nz) override {
+    UnmanagedHostView3D ResolveExport(const std::string& name, int /*nx*/, int /*ny*/,
+                                      int /*nz*/) override {
         auto it = export_state.fields.find(name);
         if (it != export_state.fields.end()) {
             return it->second.view_host();
@@ -114,7 +114,7 @@ class AcesStateResolver : public FieldResolver {
     }
 
     Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
-    ResolveImportDevice(const std::string& name, int nx, int ny, int nz) override {
+    ResolveImportDevice(const std::string& name, int /*nx*/, int /*ny*/, int /*nz*/) override {
         auto it = import_state.fields.find(name);
         if (it != import_state.fields.end()) {
             return it->second.view_device();
@@ -123,7 +123,7 @@ class AcesStateResolver : public FieldResolver {
     }
 
     Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveExportDevice(
-        const std::string& name, int nx, int ny, int nz) override {
+        const std::string& name, int /*nx*/, int /*ny*/, int /*nz*/) override {
         auto it = export_state.fields.find(name);
         if (it != export_state.fields.end()) {
             return it->second.view_device();
@@ -152,8 +152,8 @@ static DualView3D GetDualView(ESMC_State state, const std::string& name, int nx,
 /**
  * @brief Internal implementation of Initialize phase.
  */
-void Initialize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState,
-                ESMC_Clock* clock, int* rc) {
+void Initialize(ESMC_GridComp comp, ESMC_State /*importState*/, ESMC_State /*exportState*/,
+                ESMC_Clock* /*clock*/, int* rc) {
     bool kokkos_initialized_here = false;
     if (!Kokkos::is_initialized()) {
         Kokkos::initialize();
@@ -191,7 +191,7 @@ void Initialize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportSta
 /**
  * @brief Internal implementation of Run phase.
  */
-void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESMC_Clock* clock,
+void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESMC_Clock* /*clock*/,
          int* rc) {
     std::cout << "ACES_Run: Executing." << std::endl;
 
@@ -315,8 +315,8 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
 /**
  * @brief Internal implementation of Finalize phase.
  */
-void Finalize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESMC_Clock* clock,
-              int* rc) {
+void Finalize(ESMC_GridComp comp, ESMC_State /*importState*/, ESMC_State /*exportState*/,
+              ESMC_Clock* /*clock*/, int* rc) {
     bool kokkos_initialized_here = false;
     if (comp.ptr != nullptr) {
         int rc_internal;

@@ -21,12 +21,14 @@ class MockFieldResolver : public FieldResolver {
         fields[name] = view;
     }
 
-    UnmanagedHostView3D ResolveImport(const std::string& name, int nx, int ny, int nz) override {
+    UnmanagedHostView3D ResolveImport(const std::string& name, int /*nx*/, int /*ny*/,
+                                      int /*nz*/) override {
         if (fields.count(name)) return fields[name];
         return UnmanagedHostView3D();
     }
 
-    UnmanagedHostView3D ResolveExport(const std::string& name, int nx, int ny, int nz) override {
+    UnmanagedHostView3D ResolveExport(const std::string& name, int /*nx*/, int /*ny*/,
+                                      int /*nz*/) override {
         if (fields.count(name)) return fields[name];
         return UnmanagedHostView3D();
     }
