@@ -21,6 +21,12 @@ jobs:
           source /opt/spack-environment/activate.sh
         fi
 
+        # Install CDEPS with spack if available
+        if command -v spack &> /dev/null; then
+          spack install cdeps
+          spack load cdeps
+        fi
+
         # Create build directory
         mkdir -p build
         cd build

@@ -27,17 +27,10 @@ TEST_F(AcesUtilsTest, WrapESMCFieldUpdatesRawData) {
 
     UnmanagedHostView3D view;
 
-#ifdef ACES_USING_MOCK_ESMF
-    // In our mock, we can safely populate the handle's internal pointer.
-    ESMC_Field mockField;
-    mockField.ptr = raw_data.data();
-    view = WrapESMCField(mockField, nx, ny, nz);
-#else
     // On real ESMF, ESMC_FieldGetPtr would SegFault on a fake handle.
     // We test the Kokkos wrapping logic directly here to prove that
     // LayoutLeft and Unmanaged traits work as expected for ESMF data.
     view = UnmanagedHostView3D(raw_data.data(), nx, ny, nz);
-#endif
 
     // Verify dimensions
     EXPECT_EQ(view.extent(0), nx);

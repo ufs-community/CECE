@@ -25,29 +25,6 @@ void ACES_Finalize(ESMC_GridComp comp, ESMC_State importState, ESMC_State export
                    ESMC_Clock* clock, int* rc);
 }
 
-// Global registry to simulate ESMF internal state storage.
-// In a standalone driver where ESMC_GridCompCreate might not fully work,
-// we provide these mock functions to store the component's internal pointer.
-static void* global_internal_data = nullptr;
-
-extern "C" {
-/**
- * @brief Mock implementation of ESMC_GridCompSetInternalState for standalone contexts.
- */
-int Mock_ESMC_GridCompSetInternalState(ESMC_GridComp comp, void* data) {
-    global_internal_data = data;
-    return ESMF_SUCCESS;
-}
-
-/**
- * @brief Mock implementation of ESMC_GridCompGetInternalState for standalone contexts.
- */
-void* Mock_ESMC_GridCompGetInternalState(ESMC_GridComp comp, int* rc) {
-    if (rc) *rc = ESMF_SUCCESS;
-    return global_internal_data;
-}
-}
-
 /**
  * @brief Simulates an Atmosphere component (e.g., UFS) that provides meteorology.
  *

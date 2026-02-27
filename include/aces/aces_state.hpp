@@ -8,6 +8,8 @@
 
 #include <Kokkos_Core.hpp>
 #include <Kokkos_DualView.hpp>
+#include <map>
+#include <string>
 
 namespace aces {
 
@@ -27,22 +29,20 @@ using DualView3D = Kokkos::DualView<double***, Kokkos::LayoutLeft>;
 
 /**
  * @brief Structure containing all meteorology and base emissions imported from other components.
+ *
+ * Uses a map to allow flexible addition of fields without hardcoding.
  */
 struct AcesImportState {
-    // Meteorology from Atmosphere (e.g., UFS)
-    DualView3D temperature;     ///< Air temperature [K]
-    DualView3D wind_speed_10m;  ///< Wind speed at 10m [m/s]
-
-    // Base Emissions interpolated by CDEPS
-    DualView3D base_anthropogenic_nox;  ///< Base NOX emissions [kg/m2/s]
+    /// Map of field names to their respective DualViews.
+    std::map<std::string, DualView3D> fields;
 };
 
 /**
  * @brief Structure containing all computed emissions to be exported back to the framework.
  */
 struct AcesExportState {
-    // Final calculated emissions
-    DualView3D total_nox_emissions;  ///< Total calculated NOX emissions [kg/m2/s]
+    /// Map of field names to their respective DualViews.
+    std::map<std::string, DualView3D> fields;
 };
 
 }  // namespace aces

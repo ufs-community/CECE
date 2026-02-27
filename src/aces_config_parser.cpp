@@ -72,6 +72,22 @@ AcesConfig ParseConfig(const std::string& filename) {
         }
     }
 
+    // Parse CDEPS configuration
+    if (root["cdeps_inline_config"]) {
+        auto cdeps_node = root["cdeps_inline_config"];
+        if (cdeps_node["streams"]) {
+            for (auto const& stream_node : cdeps_node["streams"]) {
+                CdepsStreamConfig stream;
+                stream.name = stream_node["name"].as<std::string>();
+                stream.file_path = stream_node["file"].as<std::string>();
+                if (stream_node["interpolation"]) {
+                    stream.interpolation_method = stream_node["interpolation"].as<std::string>();
+                }
+                config.cdeps_config.streams.push_back(stream);
+            }
+        }
+    }
+
     return config;
 }
 

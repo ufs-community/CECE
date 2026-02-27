@@ -6,7 +6,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+# Ensure Fortran modules are placed in a central directory expected by CDEPS
+set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/share)
+file(MAKE_DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY})
+
+list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
+
+# Allow find_package to use <PackageName>_ROOT variables
+if(POLICY CMP0074)
+  cmake_policy(SET CMP0074 NEW)
+endif()
 
 # --- Dependencies ---
 
@@ -38,9 +47,6 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
-# ESMF
-option(ACES_USE_MOCK_ESMF "Use internal mock ESMF if system ESMF not found" ON)
-
 # Optional Fortran support
 include(CheckLanguage)
 check_language(Fortran)
@@ -51,28 +57,135 @@ else()
   message(WARNING "Fortran compiler not found. Fortran features will be disabled.")
 endif()
 
-find_package(ESMF QUIET)
+find_package(ESMF REQUIRED)
+message(STATUS "Found ESMF: ${ESMF_VERSION}")
+message(STATUS "ESMF include dirs: ${ESMF_INCLUDE_DIRS}")
 
-if(ESMF_FOUND)
-  message(STATUS "Found ESMF: ${ESMF_VERSION}")
-
-  # Real ESMF usually requires MPI because ESMC.h includes mpi.h.
-  find_package(MPI REQUIRED)
-  if(MPI_FOUND)
-    message(STATUS "Found MPI: ${MPI_CXX_VERSION}")
-  endif()
-
-else()
-  if(ACES_USE_MOCK_ESMF)
-    message(STATUS "ESMF not found, using internal mock.")
-    add_subdirectory(externals/esmf_mock)
-    target_compile_definitions(esmf_mock PUBLIC ACES_USING_MOCK_ESMF)
-    if(NOT TARGET ESMF::ESMF)
-        add_library(ESMF::ESMF ALIAS esmf_mock)
+# Discovery PIO and NetCDF from ESMF if possible
+# CDEPS needs these as dependencies for its Fortran modules
+if(NOT NetCDF_FOUND)
+  foreach(lib ${ESMF_LIBRARIES})
+    if(lib MATCHES "^-L(.*)")
+      set(search_path "${CMAKE_MATCH_1}")
+      if(EXISTS "${search_path}/../include/netcdf.mod")
+        set(NetCDF_ROOT "${search_path}/..")
+        get_filename_component(NetCDF_ROOT "${NetCDF_ROOT}" ABSOLUTE)
+        set(NetCDF_FOUND TRUE)
+        set(ENV{NetCDF_ROOT} "${NetCDF_ROOT}")
+        message(STATUS "Found NetCDF root from ESMF path: ${NetCDF_ROOT}")
+        break()
+      endif()
     endif()
-  else()
-    message(FATAL_ERROR "ESMF not found and mock is disabled.")
+  endforeach()
+endif()
+
+if(NOT PIO_FOUND)
+  set(PIO_ROOT "$ENV{PIO_ROOT}")
+  if(NOT PIO_ROOT)
+    # ESMF often links against NetCDF/PIO, we might find them in the same view
+      foreach(lib ${ESMF_LIBRARIES})
+          if(lib MATCHES "^-L(.*)")
+              set(search_path "${CMAKE_MATCH_1}")
+              if(EXISTS "${search_path}/../include/pio.h")
+                  set(PIO_ROOT "${search_path}/..")
+                  get_filename_component(PIO_ROOT "${PIO_ROOT}" ABSOLUTE)
+                  set(PIO_FOUND TRUE)
+                  set(ENV{PIO_ROOT} "${PIO_ROOT}")
+                  message(STATUS "Found PIO root from ESMF path: ${PIO_ROOT}")
+                  break()
+              endif()
+          endif()
+      endforeach()
   endif()
+endif()
+
+find_package(MPI REQUIRED)
+message(STATUS "Found MPI: ${MPI_CXX_VERSION}")
+
+# Also discover NetCDF-Fortran for CDEPS
+if(NOT NetCDFF_FOUND)
+  foreach(lib ${ESMF_LIBRARIES})
+    if(lib MATCHES "^-L(.*)")
+      set(search_path "${CMAKE_MATCH_1}")
+      if(EXISTS "${search_path}/../include/netcdf.mod")
+        set(NetCDFF_ROOT "${search_path}/..")
+        get_filename_component(NetCDFF_ROOT "${NetCDFF_ROOT}" ABSOLUTE)
+        set(NetCDFF_FOUND TRUE)
+        set(ENV{NetCDFF_ROOT} "${NetCDFF_ROOT}")
+        message(STATUS "Found NetCDF-Fortran root from ESMF path: ${NetCDFF_ROOT}")
+        break()
+      endif()
+    endif()
+  endforeach()
+endif()
+
+# CDEPS is a required dependency for the hybrid ingestion layer.
+find_package(CDEPS QUIET)
+
+if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
+  message(STATUS "CDEPS not found on system, attempting to build from source using FetchContent...")
+
+  # Discovery PIO from ESMF path if not already found (needed for CDEPS)
+  if(NOT PIO_FOUND)
+      find_package(PIO QUIET)
+  endif()
+
+  if(PIO_FOUND)
+    # Export PIO paths for CDEPS internal find_package(PIO)
+    set(PIO_PATH "${PIO_ROOT}")
+    set(ENV{PIO_PATH} "${PIO_ROOT}")
+    set(ENV{PIO_ROOT} "${PIO_ROOT}")
+
+    FetchContent_Declare(
+      cdeps
+      GIT_REPOSITORY https://github.com/ESCOMP/CDEPS.git
+      GIT_TAG        main
+    )
+    # Force CDEPS to find the ESMF we already discovered
+    # In JCSDA container, ESMF_ROOT might not be set, but ESMF_LIBRARIES contains it
+    if(NOT ESMF_ROOT)
+        foreach(lib ${ESMF_LIBRARIES})
+            if(lib MATCHES "^-L(.*)")
+                set(search_path "${CMAKE_MATCH_1}")
+                if(EXISTS "${search_path}/../include/esmf.mod")
+                    set(ESMF_ROOT "${search_path}/..")
+                    get_filename_component(ESMF_ROOT "${ESMF_ROOT}" ABSOLUTE)
+                    break()
+                endif()
+            endif()
+        endforeach()
+    endif()
+    set(ESMF_ROOT "${ESMF_ROOT}" CACHE PATH "Path to ESMF" FORCE)
+    set(ENV{ESMF_ROOT} "${ESMF_ROOT}")
+
+    # Propagate ESMF include dirs to CDEPS if it uses ESMF_F90COMPILEPATHS
+    set(ESMF_F90COMPILEPATHS "${ESMF_INCLUDE_DIRS}" CACHE STRING "ESMF include paths for CDEPS" FORCE)
+
+    # Force CDEPS to use a larger line length for Fortran
+    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -ffree-line-length-none" CACHE STRING "Fortran flags" FORCE)
+
+    # CDEPS-standalone build has a bug where it looks for modules in ${CMAKE_BINARY_DIR}/share
+    # but they are actually in ${CMAKE_CURRENT_BINARY_DIR} of the share directory.
+    # We can override CMAKE_BINARY_DIR for the CDEPS sub-project or just link/copy the directory.
+    # Actually, if we set CMAKE_BINARY_DIR it might affect everything.
+    # Let's try to set the expected variable for CDEPS.
+    set(CDEPS_SHARE_MOD_DIR "${CMAKE_BINARY_DIR}/_deps/cdeps-build/share")
+
+    # We use a custom guard to ensure CDEPS is correctly integrated
+    FetchContent_MakeAvailable(cdeps)
+    if(TARGET streams)
+      set(CDEPS_FOUND TRUE)
+      if(NOT TARGET CDEPS::CDEPS)
+          add_library(CDEPS::CDEPS ALIAS streams)
+      endif()
+      message(STATUS "CDEPS built from source successfully.")
+    endif()
+  endif()
+endif()
+
+# Fallback: if not found and not built from source, it's an error.
+if(NOT CDEPS_FOUND)
+  message(FATAL_ERROR "CDEPS is required but was not found on the system or successfully built from source.")
 endif()
 
 # --- ACES Library ---
@@ -83,6 +196,7 @@ set(ACES_SRCS
   src/aces_compute.cpp
   src/aces_physics_factory.cpp
   src/physics/aces_native_example.cpp
+  src/io/aces_data_ingestor.cpp
 )
 
 if(ACES_HAS_FORTRAN)
@@ -109,6 +223,8 @@ target_link_libraries(aces PUBLIC
   yaml-cpp
 )
 
+target_link_libraries(aces PUBLIC CDEPS::CDEPS)
+
 if(MPI_FOUND)
     target_link_libraries(aces PUBLIC MPI::MPI_CXX)
 endif()
@@ -122,6 +238,16 @@ add_executable(test_aces_cap
 )
 
 target_link_libraries(test_aces_cap
+  PRIVATE
+  aces
+  GTest::gtest_main
+)
+
+add_executable(test_aces_ingestor
+  tests/test_aces_ingestor.cpp
+)
+
+target_link_libraries(test_aces_ingestor
   PRIVATE
   aces
   GTest::gtest_main
@@ -157,19 +283,18 @@ target_link_libraries(test_physics
   GTest::gtest_main
 )
 
-if(NOT ACES_USE_MOCK_ESMF)
-  add_executable(example_driver
-    tests/example_driver.cpp
-  )
+add_executable(example_driver
+  tests/example_driver.cpp
+)
 
-  target_link_libraries(example_driver
-    PRIVATE
-    aces
-  )
-endif()
+target_link_libraries(example_driver
+  PRIVATE
+  aces
+)
 
 include(GoogleTest)
 gtest_discover_tests(test_aces_cap)
 gtest_discover_tests(test_aces_utils)
 gtest_discover_tests(test_aces_compute)
 gtest_discover_tests(test_physics)
+gtest_discover_tests(test_aces_ingestor)

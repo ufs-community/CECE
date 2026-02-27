@@ -24,25 +24,25 @@ class PhysicsTest : public ::testing::Test {
     AcesExportState export_state;
 
     void SetUp() override {
-        import_state.temperature = create_dv("temp");
-        import_state.wind_speed_10m = create_dv("wind");
-        import_state.base_anthropogenic_nox = create_dv("base_nox");
-        export_state.total_nox_emissions = create_dv("total_nox");
+        import_state.fields["temperature"] = create_dv("temp");
+        import_state.fields["wind_speed_10m"] = create_dv("wind");
+        import_state.fields["base_anthropogenic_nox"] = create_dv("base_nox");
+        export_state.fields["total_nox_emissions"] = create_dv("total_nox");
 
-        Kokkos::deep_copy(import_state.temperature.view_host(), 300.0);
-        Kokkos::deep_copy(import_state.wind_speed_10m.view_host(), 5.0);
-        Kokkos::deep_copy(import_state.base_anthropogenic_nox.view_host(), 1.0);
-        Kokkos::deep_copy(export_state.total_nox_emissions.view_host(), 0.0);
+        Kokkos::deep_copy(import_state.fields["temperature"].view_host(), 300.0);
+        Kokkos::deep_copy(import_state.fields["wind_speed_10m"].view_host(), 5.0);
+        Kokkos::deep_copy(import_state.fields["base_anthropogenic_nox"].view_host(), 1.0);
+        Kokkos::deep_copy(export_state.fields["total_nox_emissions"].view_host(), 0.0);
 
-        import_state.temperature.modify<Kokkos::HostSpace>();
-        import_state.wind_speed_10m.modify<Kokkos::HostSpace>();
-        import_state.base_anthropogenic_nox.modify<Kokkos::HostSpace>();
-        export_state.total_nox_emissions.modify<Kokkos::HostSpace>();
+        import_state.fields["temperature"].modify<Kokkos::HostSpace>();
+        import_state.fields["wind_speed_10m"].modify<Kokkos::HostSpace>();
+        import_state.fields["base_anthropogenic_nox"].modify<Kokkos::HostSpace>();
+        export_state.fields["total_nox_emissions"].modify<Kokkos::HostSpace>();
 
-        import_state.temperature.sync<Kokkos::DefaultExecutionSpace>();
-        import_state.wind_speed_10m.sync<Kokkos::DefaultExecutionSpace>();
-        import_state.base_anthropogenic_nox.sync<Kokkos::DefaultExecutionSpace>();
-        export_state.total_nox_emissions.sync<Kokkos::DefaultExecutionSpace>();
+        import_state.fields["temperature"].sync<Kokkos::DefaultExecutionSpace>();
+        import_state.fields["wind_speed_10m"].sync<Kokkos::DefaultExecutionSpace>();
+        import_state.fields["base_anthropogenic_nox"].sync<Kokkos::DefaultExecutionSpace>();
+        export_state.fields["total_nox_emissions"].sync<Kokkos::DefaultExecutionSpace>();
     }
 
     DualView3D create_dv(std::string name) {
@@ -58,8 +58,9 @@ TEST_F(PhysicsTest, NativeSchemeTest) {
 
     scheme->Run(import_state, export_state);
 
-    export_state.total_nox_emissions.sync<Kokkos::HostSpace>();
-    auto hv = export_state.total_nox_emissions.view_host();
+    auto& dv = export_state.fields["total_nox_emissions"];
+    dv.sync<Kokkos::HostSpace>();
+    auto hv = dv.view_host();
     EXPECT_DOUBLE_EQ(hv(0, 0, 0), 2.0);  // 0.0 + 1.0 * 2.0
 }
 
@@ -71,8 +72,9 @@ TEST_F(PhysicsTest, FortranSchemeTest) {
 
     scheme->Run(import_state, export_state);
 
-    export_state.total_nox_emissions.sync<Kokkos::HostSpace>();
-    auto hv = export_state.total_nox_emissions.view_host();
+    auto& dv = export_state.fields["total_nox_emissions"];
+    dv.sync<Kokkos::HostSpace>();
+    auto hv = dv.view_host();
     EXPECT_DOUBLE_EQ(hv(0, 0, 0), 1.0);  // 0.0 + 1.0
 }
 
@@ -88,8 +90,9 @@ TEST_F(PhysicsTest, CombinedSchemesTest) {
     scheme1->Run(import_state, export_state);
     scheme2->Run(import_state, export_state);
 
-    export_state.total_nox_emissions.sync<Kokkos::HostSpace>();
-    auto hv = export_state.total_nox_emissions.view_host();
+    auto& dv = export_state.fields["total_nox_emissions"];
+    dv.sync<Kokkos::HostSpace>();
+    auto hv = dv.view_host();
     // (0.0 + 1.0 * 2.0) + 1.0 = 3.0
     EXPECT_DOUBLE_EQ(hv(0, 0, 0), 3.0);
 }

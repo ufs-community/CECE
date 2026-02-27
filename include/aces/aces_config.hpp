@@ -39,6 +39,24 @@ struct EmissionLayer {
 };
 
 /**
+ * @struct CdepsStreamConfig
+ * @brief Configuration for a single CDEPS input stream.
+ */
+struct CdepsStreamConfig {
+    std::string name;                  ///< Name of the stream.
+    std::string file_path;             ///< Path to the NetCDF file.
+    std::string interpolation_method;  ///< Interpolation method (e.g., "linear").
+};
+
+/**
+ * @struct AcesCdepsConfig
+ * @brief Configuration for CDEPS-inline data ingestion.
+ */
+struct AcesCdepsConfig {
+    std::vector<CdepsStreamConfig> streams;  ///< List of input streams.
+};
+
+/**
  * @struct AcesConfig
  * @brief Top-level configuration for ACES.
  */
@@ -47,6 +65,8 @@ struct AcesConfig {
     std::map<std::string, std::vector<EmissionLayer>> species_layers;
     /// List of active physics schemes to be executed.
     std::vector<PhysicsSchemeConfig> physics_schemes;
+    /// Configuration for CDEPS-inline data ingestion.
+    AcesCdepsConfig cdeps_config;
 };
 
 /**

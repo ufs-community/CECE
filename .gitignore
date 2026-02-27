@@ -52,6 +52,7 @@
 # ==========================================
 # General Build Directories
 build/
+build_docker/
 build-*/
 out/
 bin/

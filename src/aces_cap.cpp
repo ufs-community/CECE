@@ -1,11 +1,15 @@
 #include <Kokkos_Core.hpp>
+#include <algorithm>
 #include <iostream>
+#include <iterator>
 #include <memory>
+#include <set>
 #include <vector>
 
 #include "aces/aces.hpp"
 #include "aces/aces_compute.hpp"
 #include "aces/aces_config.hpp"
+#include "aces/aces_data_ingestor.hpp"
 #include "aces/aces_physics_factory.hpp"
 #include "aces/aces_state.hpp"
 #include "aces/aces_utils.hpp"
@@ -18,15 +22,6 @@
  * This file implements the ESMF-required entry points (Initialize, Run, Finalize)
  * and bridges the ESMF data structures with the Kokkos-based compute engine.
  */
-
-// Forward declarations for mock functions used in standalone driver.
-// Using weak symbols allows these to be optionally provided by a driver (like example_driver.cpp)
-// to bypass standard ESMF internal state management in environments where ESMC_GridCompCreate
-// fails.
-extern "C" {
-int Mock_ESMC_GridCompSetInternalState(ESMC_GridComp comp, void* data) __attribute__((weak));
-void* Mock_ESMC_GridCompGetInternalState(ESMC_GridComp comp, int* rc) __attribute__((weak));
-}
 
 namespace aces {
 
@@ -42,34 +37,9 @@ struct AcesInternalData {
         active_schemes;                    ///< List of active physics plugins.
     AcesImportState import_state;          ///< Input data views.
     AcesExportState export_state;          ///< Output emission views.
+    AcesDataIngestor ingestor;             ///< Hybrid data ingestor.
     bool kokkos_initialized_here = false;  ///< Flag to track if this component initialized Kokkos.
 };
-
-/**
- * @brief Helper to wrap internal state access to support both real ESMF and mock drivers.
- * @param comp ESMF Grid Component.
- * @param data Pointer to internal data.
- * @return ESMF success or failure.
- */
-static int InternalSetState(ESMC_GridComp comp, void* data) {
-    if (Mock_ESMC_GridCompSetInternalState) {
-        return Mock_ESMC_GridCompSetInternalState(comp, data);
-    }
-    return ESMC_GridCompSetInternalState(comp, data);
-}
-
-/**
- * @brief Helper to wrap internal state retrieval.
- * @param comp ESMF Grid Component.
- * @param rc Return code pointer.
- * @return Pointer to internal data.
- */
-static void* InternalGetState(ESMC_GridComp comp, int* rc) {
-    if (Mock_ESMC_GridCompGetInternalState) {
-        return Mock_ESMC_GridCompGetInternalState(comp, rc);
-    }
-    return ESMC_GridCompGetInternalState(comp, rc);
-}
 
 /**
  * @brief ESMF implementation of FieldResolver.
@@ -101,6 +71,34 @@ class EsmfFieldResolver : public FieldResolver {
         int rc = ESMC_StateGetField(exportState, name.c_str(), &field);
         if (rc != ESMF_SUCCESS) return UnmanagedHostView3D();
         return WrapESMCField(field, nx, ny, nz);
+    }
+};
+
+/**
+ * @brief FieldResolver that pulls from the unified AcesImportState and AcesExportState.
+ */
+class AcesStateResolver : public FieldResolver {
+    const AcesImportState& import_state;
+    const AcesExportState& export_state;
+
+   public:
+    AcesStateResolver(const AcesImportState& imp, const AcesExportState& exp)
+        : import_state(imp), export_state(exp) {}
+
+    UnmanagedHostView3D ResolveImport(const std::string& name, int nx, int ny, int nz) override {
+        auto it = import_state.fields.find(name);
+        if (it != import_state.fields.end()) {
+            return it->second.view_host();
+        }
+        return UnmanagedHostView3D();
+    }
+
+    UnmanagedHostView3D ResolveExport(const std::string& name, int nx, int ny, int nz) override {
+        auto it = export_state.fields.find(name);
+        if (it != export_state.fields.end()) {
+            return it->second.view_host();
+        }
+        return UnmanagedHostView3D();
     }
 };
 
@@ -143,7 +141,10 @@ void Initialize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportSta
             data->active_schemes.push_back(PhysicsFactory::CreateScheme(scheme_config));
         }
 
-        InternalSetState(comp, data);
+        // Initialize CDEPS if configured
+        data->ingestor.InitializeCDEPS(data->config.cdeps_config);
+
+        ESMC_GridCompSetInternalState(comp, data);
     }
 
     if (rc) *rc = ESMF_SUCCESS;
@@ -162,7 +163,7 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
     }
 
     int rc_internal;
-    void* data_ptr = InternalGetState(comp, &rc_internal);
+    void* data_ptr = ESMC_GridCompGetInternalState(comp, &rc_internal);
     if (!data_ptr) {
         std::cerr << "ACES_Run Error: Internal state not found." << std::endl;
         if (rc) *rc = -1;
@@ -173,13 +174,13 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
     // Dynamic dimension discovery from actual ESMF fields in the export state.
     int nx = 0, ny = 0, nz = 0;
     ESMC_Field field;
-    std::string ref_field_name = "total_nox_emissions";
-    if (ESMC_StateGetField(exportState, ref_field_name.c_str(), &field) != ESMF_SUCCESS) {
-        // Use any configured species as a reference if nox isn't present
-        if (!data->config.species_layers.empty()) {
-            ref_field_name = "total_" + data->config.species_layers.begin()->first + "_emissions";
-            ESMC_StateGetField(exportState, ref_field_name.c_str(), &field);
-        }
+    field.ptr = nullptr;
+
+    // Use the first available configured species as a reference for dimensions
+    if (!data->config.species_layers.empty()) {
+        std::string ref_field_name =
+            "total_" + data->config.species_layers.begin()->first + "_emissions";
+        ESMC_StateGetField(exportState, ref_field_name.c_str(), &field);
     }
 
     if (field.ptr) {
@@ -197,20 +198,51 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
                   << "x" << ny << "x" << nz << std::endl;
     }
 
-    // Run core compute engine (layer addition/replacement)
-    EsmfFieldResolver resolver(importState, exportState);
-    ComputeEmissions(data->config, resolver, nx, ny, nz);
-
-    // Lazily initialize persistent DualViews for physics plugins.
-    // This avoids per-timestep allocation overhead.
-    if (data->export_state.total_nox_emissions.view_host().data() == nullptr) {
-        data->import_state.temperature = GetDualView(importState, "temperature", nx, ny, nz);
-        data->import_state.wind_speed_10m = GetDualView(importState, "wind_speed_10m", nx, ny, nz);
-        data->import_state.base_anthropogenic_nox =
-            GetDualView(importState, "base_anthropogenic_nox", nx, ny, nz);
-        data->export_state.total_nox_emissions =
-            GetDualView(exportState, "total_nox_emissions", nx, ny, nz);
+    // Lazily initialize persistent DualViews for export state.
+    for (auto const& [species, layers] : data->config.species_layers) {
+        std::string export_name = "total_" + species + "_emissions";
+        data->export_state.fields.try_emplace(export_name,
+                                              GetDualView(exportState, export_name, nx, ny, nz));
     }
+
+    // Hybrid data ingestion:
+    // 1. Meteorology/State from ESMF
+    // We dynamically identify which fields are needed from ESMF.
+    // These are fields used in 'species' definitions that are NOT provided by CDEPS.
+    std::set<std::string> esmf_fields_set;
+    std::set<std::string> cdeps_fields;
+    for (const auto& s : data->config.cdeps_config.streams) cdeps_fields.insert(s.name);
+
+    for (auto const& [species, layers] : data->config.species_layers) {
+        for (const auto& layer : layers) {
+            if (cdeps_fields.find(layer.field_name) == cdeps_fields.end()) {
+                esmf_fields_set.insert(layer.field_name);
+            }
+
+            std::copy_if(
+                layer.scale_fields.begin(), layer.scale_fields.end(),
+                std::inserter(esmf_fields_set, esmf_fields_set.end()),
+                [&](const std::string& sf) { return cdeps_fields.find(sf) == cdeps_fields.end(); });
+
+            if (!layer.mask_name.empty() &&
+                cdeps_fields.find(layer.mask_name) == cdeps_fields.end()) {
+                esmf_fields_set.insert(layer.mask_name);
+            }
+        }
+    }
+    std::vector<std::string> esmf_fields(esmf_fields_set.begin(), esmf_fields_set.end());
+
+    data->ingestor.IngestMeteorology(importState, esmf_fields, data->import_state, nx, ny, nz);
+
+    // 2. Emissions from CDEPS
+    if (!data->config.cdeps_config.streams.empty()) {
+        data->ingestor.IngestEmissionsInline(data->config.cdeps_config, data->import_state, nx, ny,
+                                             nz);
+    }
+
+    // Run core compute engine (layer addition/replacement)
+    AcesStateResolver resolver(data->import_state, data->export_state);
+    ComputeEmissions(data->config, resolver, nx, ny, nz);
 
     auto& imp = data->import_state;
     auto& exp = data->export_state;
@@ -221,8 +253,10 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
     }
 
     // Sync results back to host space so the ESMF framework can see updated field data.
-    if (exp.total_nox_emissions.view_host().data()) {
-        exp.total_nox_emissions.sync<Kokkos::HostSpace>();
+    for (auto& [name, dv] : exp.fields) {
+        if (dv.view_host().data()) {
+            dv.sync<Kokkos::HostSpace>();
+        }
     }
 
     if (rc) *rc = ESMF_SUCCESS;
@@ -236,10 +270,14 @@ void Finalize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState
     bool kokkos_initialized_here = false;
     if (comp.ptr != nullptr) {
         int rc_internal;
-        void* data_ptr = InternalGetState(comp, &rc_internal);
+        void* data_ptr = ESMC_GridCompGetInternalState(comp, &rc_internal);
         if (data_ptr) {
             auto data = static_cast<AcesInternalData*>(data_ptr);
             kokkos_initialized_here = data->kokkos_initialized_here;
+
+            // Finalize CDEPS
+            data->ingestor.FinalizeCDEPS();
+
             delete data;
         }
     }

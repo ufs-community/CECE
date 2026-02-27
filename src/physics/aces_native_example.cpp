@@ -28,8 +28,13 @@ void NativePhysicsExample::Initialize(const YAML::Node& config) {
  * @param export_state Output data.
  */
 void NativePhysicsExample::Run(AcesImportState& import_state, AcesExportState& export_state) {
-    auto base_nox = import_state.base_anthropogenic_nox.view_device();
-    auto total_nox = export_state.total_nox_emissions.view_device();
+    auto it_base = import_state.fields.find("base_anthropogenic_nox");
+    auto it_total = export_state.fields.find("total_nox_emissions");
+
+    if (it_base == import_state.fields.end() || it_total == export_state.fields.end()) return;
+
+    auto base_nox = it_base->second.view_device();
+    auto total_nox = it_total->second.view_device();
 
     int nx = total_nox.extent(0);
     int ny = total_nox.extent(1);
@@ -50,7 +55,7 @@ void NativePhysicsExample::Run(AcesImportState& import_state, AcesExportState& e
     Kokkos::fence();
 
     // Mark the device data as modified so it can be synced back to the host correctly.
-    export_state.total_nox_emissions.modify_device();
+    it_total->second.modify_device();
 }
 
 }  // namespace aces

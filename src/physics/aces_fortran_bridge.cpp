@@ -33,30 +33,42 @@ void FortranBridgeExample::Initialize(const YAML::Node& config) {
  * @param export_state Output data.
  */
 void FortranBridgeExample::Run(AcesImportState& import_state, AcesExportState& export_state) {
+    auto it_temp = import_state.fields.find("temperature");
+    auto it_wind = import_state.fields.find("wind_speed_10m");
+    auto it_nox = export_state.fields.find("total_nox_emissions");
+
+    if (it_temp == import_state.fields.end() || it_wind == import_state.fields.end() ||
+        it_nox == export_state.fields.end())
+        return;
+
+    auto& dv_temp = it_temp->second;
+    auto& dv_wind = it_wind->second;
+    auto& dv_nox = it_nox->second;
+
     // 1. Ensure CPU has latest data by syncing to Host Execution Space
     // This is crucial if ACES is running on a GPU.
-    import_state.temperature.sync<Kokkos::DefaultHostExecutionSpace::memory_space>();
-    import_state.wind_speed_10m.sync<Kokkos::DefaultHostExecutionSpace::memory_space>();
-    export_state.total_nox_emissions.sync<Kokkos::DefaultHostExecutionSpace::memory_space>();
+    dv_temp.sync<Kokkos::DefaultHostExecutionSpace::memory_space>();
+    dv_wind.sync<Kokkos::DefaultHostExecutionSpace::memory_space>();
+    dv_nox.sync<Kokkos::DefaultHostExecutionSpace::memory_space>();
 
     // 2. Extract dimensions
-    int nx = export_state.total_nox_emissions.extent(0);
-    int ny = export_state.total_nox_emissions.extent(1);
-    int nz = export_state.total_nox_emissions.extent(2);
+    int nx = dv_nox.extent(0);
+    int ny = dv_nox.extent(1);
+    int nz = dv_nox.extent(2);
 
     if (nx == 0 || ny == 0 || nz == 0) return;
 
     // 3. Extract raw host pointers for C-Fortran interoperability
-    double* temp_ptr = import_state.temperature.view_host().data();
-    double* wind_ptr = import_state.wind_speed_10m.view_host().data();
-    double* nox_ptr = export_state.total_nox_emissions.view_host().data();
+    double* temp_ptr = dv_temp.view_host().data();
+    double* wind_ptr = dv_wind.view_host().data();
+    double* nox_ptr = dv_nox.view_host().data();
 
     // 4. Call the Fortran routine
     run_legacy_fortran(temp_ptr, wind_ptr, nox_ptr, nx, ny, nz);
 
     // 5. Mark host modified and sync back to device
-    export_state.total_nox_emissions.modify<Kokkos::DefaultHostExecutionSpace::memory_space>();
-    export_state.total_nox_emissions.sync<Kokkos::DefaultExecutionSpace::memory_space>();
+    dv_nox.modify<Kokkos::DefaultHostExecutionSpace::memory_space>();
+    dv_nox.sync<Kokkos::DefaultExecutionSpace::memory_space>();
 
     std::cout << "FortranBridgeExample: Execution complete." << std::endl;
 }
