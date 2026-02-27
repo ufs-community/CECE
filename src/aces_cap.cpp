@@ -33,7 +33,7 @@ namespace aces {
  * redundant allocations and re-parsing of configuration on every timestep.
  */
 struct AcesInternalData {
-    AcesConfig config;                                          ///< Parsed ACES configuration.
+    AcesConfig config;  ///< Parsed ACES configuration.
     std::unique_ptr<AcesDiagnosticManager> diagnostic_manager;  ///< Diagnostic manager.
     std::vector<std::unique_ptr<PhysicsScheme>>
         active_schemes;                    ///< List of active physics plugins.
