@@ -27,7 +27,19 @@ species:
       category: "met_influence"
       hierarchy: 1
 
-physics_schemes: []
+# List of physics schemes to initialize and run.
+# Schemes can register diagnostic variables that can then be enabled for output.
+physics_schemes:
+  - name: "native_example"
+    language: "cpp"
+    options:
+      scaling_factor: 2.0
+
+# Diagnostic variables to write to disk at the end of each timestep.
+# These variables must be registered by a physics scheme or the core engine.
+# ACES will synchronize these from device to host and write them to NetCDF.
+diagnostics:
+  - "native_example_diag"
 
 # CDEPS-inline configuration for reading static inventories from disk.
 # Field names listed here will be looked up from disk.
