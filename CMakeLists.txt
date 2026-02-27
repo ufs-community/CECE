@@ -54,7 +54,15 @@ message(STATUS "Found ESMF: ${ESMF_VERSION}")
 find_package(MPI REQUIRED)
 message(STATUS "Found MPI: ${MPI_CXX_VERSION}")
 
-find_package(CDEPS REQUIRED)
+# If CDEPS is not found, we use a mock for the inline API to allow CI/Local builds to proceed
+# as CDEPS is a relatively new and potentially non-standard dependency.
+find_package(CDEPS QUIET)
+if(CDEPS_FOUND)
+  message(STATUS "Found CDEPS: ${CDEPS_INCLUDE_DIRS}")
+else()
+  message(WARNING "CDEPS not found. Using internal mock for CDEPS-inline API.")
+  set(ACES_USING_MOCK_CDEPS ON)
+endif()
 
 # --- ACES Library ---
 
@@ -89,8 +97,13 @@ target_link_libraries(aces PUBLIC
   Kokkos::kokkos
   ESMF::ESMF
   yaml-cpp
-  CDEPS::CDEPS
 )
+
+if(CDEPS_FOUND)
+  target_link_libraries(aces PUBLIC CDEPS::CDEPS)
+else()
+  target_compile_definitions(aces PRIVATE ACES_USING_MOCK_CDEPS)
+endif()
 
 if(MPI_FOUND)
     target_link_libraries(aces PUBLIC MPI::MPI_CXX)

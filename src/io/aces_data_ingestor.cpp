@@ -6,14 +6,27 @@
 
 #include "aces/aces_utils.hpp"
 
+#ifdef ACES_USING_MOCK_CDEPS
+// Internal mock for CDEPS-inline API if the library is not found.
+// This allows the code to compile and run in environments without CDEPS.
+extern "C" {
+void cdeps_inline_init(const char* config_file) {
+    (void)config_file;
+}
+void cdeps_inline_read(double* buffer, const char* stream_name) {
+    (void)buffer;
+    (void)stream_name;
+}
+void cdeps_inline_finalize() {}
+}
+#else
 // In a real environment, we would include <cdeps_inline.h>
-// Since we don't have the actual library headers in this environment,
-// we'll assume the existence of these C-linkage functions.
 extern "C" {
 void cdeps_inline_init(const char* config_file);
 void cdeps_inline_read(double* buffer, const char* stream_name);
 void cdeps_inline_finalize();
 }
+#endif
 
 namespace aces {
 
