@@ -33,7 +33,8 @@ class AcesDiagnosticManager {
      * @param requested_names List of diagnostic names to output.
      * @param template_field A field used to derive grid information for output.
      */
-    void WriteDiagnostics(const std::vector<std::string>& requested_names, ESMC_Field template_field);
+    void WriteDiagnostics(const std::vector<std::string>& requested_names,
+                          ESMC_Field template_field);
 
    private:
     std::map<std::string, DualView3D> diagnostics_;
