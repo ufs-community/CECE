@@ -25,7 +25,6 @@ void ACES_Finalize(ESMC_GridComp comp, ESMC_State importState, ESMC_State export
                    ESMC_Clock* clock, int* rc);
 }
 
-
 /**
  * @brief Simulates an Atmosphere component (e.g., UFS) that provides meteorology.
  *

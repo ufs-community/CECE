@@ -38,7 +38,6 @@ struct AcesInternalData {
     bool kokkos_initialized_here = false;  ///< Flag to track if this component initialized Kokkos.
 };
 
-
 /**
  * @brief ESMF implementation of FieldResolver.
  *
@@ -86,7 +85,8 @@ class AcesStateResolver : public FieldResolver {
     UnmanagedHostView3D ResolveImport(const std::string& name, int nx, int ny, int nz) override {
         if (name == "temperature") return import_state.temperature.view_host();
         if (name == "wind_speed_10m") return import_state.wind_speed_10m.view_host();
-        if (name == "base_anthropogenic_nox") return import_state.base_anthropogenic_nox.view_host();
+        if (name == "base_anthropogenic_nox")
+            return import_state.base_anthropogenic_nox.view_host();
         return UnmanagedHostView3D();
     }
 

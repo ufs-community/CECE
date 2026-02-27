@@ -17,7 +17,8 @@ void cdeps_inline_finalize();
 
 namespace aces {
 
-static DualView3D CreateDualViewFromESMF(ESMC_State state, const char* name, int nx, int ny, int nz) {
+static DualView3D CreateDualViewFromESMF(ESMC_State state, const char* name, int nx, int ny,
+                                         int nz) {
     ESMC_Field field;
     int rc = ESMC_StateGetField(state, name, &field);
     if (rc != ESMF_SUCCESS) {
@@ -29,8 +30,8 @@ static DualView3D CreateDualViewFromESMF(ESMC_State state, const char* name, int
     return DualView3D(device_view, host_view);
 }
 
-void AcesDataIngestor::IngestMeteorology(ESMC_State importState, AcesImportState& aces_state, int nx,
-                                         int ny, int nz) {
+void AcesDataIngestor::IngestMeteorology(ESMC_State importState, AcesImportState& aces_state,
+                                         int nx, int ny, int nz) {
     if (aces_state.temperature.view_host().data() == nullptr) {
         aces_state.temperature = CreateDualViewFromESMF(importState, "temperature", nx, ny, nz);
         aces_state.wind_speed_10m =
@@ -65,7 +66,8 @@ void AcesDataIngestor::IngestEmissionsInline(const AcesCdepsConfig& config,
         stream_file << "taxmode" << id << ": cycle" << std::endl;
         stream_file << "tInterpAlgo" << id << ": " << s.interpolation_method << std::endl;
         stream_file << "stream_data_files" << id << ": " << s.file_path << std::endl;
-        stream_file << "stream_data_variables" << id << ": " << s.name << " " << s.name << std::endl;
+        stream_file << "stream_data_variables" << id << ": " << s.name << " " << s.name
+                    << std::endl;
     }
     stream_file.close();
 

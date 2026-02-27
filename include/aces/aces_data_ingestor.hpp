@@ -36,7 +36,7 @@ class AcesDataIngestor {
      * @param nx, ny, nz Grid dimensions.
      */
     void IngestEmissionsInline(const AcesCdepsConfig& config, AcesImportState& aces_state, int nx,
-                                int ny, int nz);
+                               int ny, int nz);
 };
 
 }  // namespace aces
