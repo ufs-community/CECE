@@ -92,13 +92,22 @@ if(NOT ESMF_FOUND)
     endif()
 
     # Many ESMF installations put Fortran module files in the lib directory
+    # or a separate 'mod' directory.
     foreach(lib_path ${ESMF_LIBRARIES})
+        set(lib_dir "")
         if(IS_DIRECTORY "${lib_path}")
-            list(APPEND ESMF_INCLUDE_DIRS "${lib_path}")
+            set(lib_dir "${lib_path}")
+        elseif(lib_path MATCHES "^-L(.*)")
+            set(lib_dir "${CMAKE_MATCH_1}")
         else()
             get_filename_component(lib_dir "${lib_path}" DIRECTORY)
-            if(IS_DIRECTORY "${lib_dir}")
-                list(APPEND ESMF_INCLUDE_DIRS "${lib_dir}")
+        endif()
+
+        if(IS_DIRECTORY "${lib_dir}")
+            list(APPEND ESMF_INCLUDE_DIRS "${lib_dir}")
+            # Also check for a 'mod' directory at the same level
+            if(IS_DIRECTORY "${lib_dir}/../mod")
+                list(APPEND ESMF_INCLUDE_DIRS "${lib_dir}/../mod")
             endif()
         endif()
     endforeach()

@@ -102,6 +102,10 @@ if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
       GIT_REPOSITORY https://github.com/ESCOMP/CDEPS.git
       GIT_TAG        main
     )
+    # Force CDEPS to find the ESMF we already discovered
+    set(ESMF_ROOT "${ESMF_ROOT}" CACHE PATH "Path to ESMF" FORCE)
+    set(ENV{ESMF_ROOT} "${ESMF_ROOT}")
+
     # We use a custom guard to ensure CDEPS is correctly integrated
     FetchContent_MakeAvailable(cdeps)
     if(TARGET streams)
