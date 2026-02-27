@@ -9,7 +9,6 @@
 
 // CDEPS-inline API.
 // Since CDEPS is a required dependency, we expect these symbols to be resolved at link time.
-// In a real environment, we would include <cdeps_inline.h> if it's available.
 extern "C" {
 void cdeps_inline_init(const char* config_file);
 void cdeps_inline_read(double* buffer, const char* stream_name);
@@ -37,6 +36,8 @@ void AcesDataIngestor::IngestMeteorology(ESMC_State importState, AcesImportState
         aces_state.temperature = CreateDualViewFromESMF(importState, "temperature", nx, ny, nz);
         aces_state.wind_speed_10m =
             CreateDualViewFromESMF(importState, "wind_speed_10m", nx, ny, nz);
+        aces_state.nox_from_atmosphere =
+            CreateDualViewFromESMF(importState, "nox_from_atmosphere", nx, ny, nz);
     }
 
     // Sync host to device to ensure Kokkos kernels see updated ESMF data
@@ -47,6 +48,10 @@ void AcesDataIngestor::IngestMeteorology(ESMC_State importState, AcesImportState
     if (aces_state.wind_speed_10m.view_host().data()) {
         aces_state.wind_speed_10m.modify<Kokkos::HostSpace>();
         aces_state.wind_speed_10m.sync<Kokkos::DefaultExecutionSpace>();
+    }
+    if (aces_state.nox_from_atmosphere.view_host().data()) {
+        aces_state.nox_from_atmosphere.modify<Kokkos::HostSpace>();
+        aces_state.nox_from_atmosphere.sync<Kokkos::DefaultExecutionSpace>();
     }
 }
 

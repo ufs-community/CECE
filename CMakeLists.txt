@@ -89,7 +89,9 @@ if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
   find_package(PIO QUIET)
 
   # For FetchContent to work well with CDEPS, we may need to set some variables
-  set(PIO_ROOT ${PIO_INCLUDE_DIR}/..)
+  if(PIO_INCLUDE_DIR)
+    set(PIO_ROOT ${PIO_INCLUDE_DIR}/..)
+  endif()
 
   FetchContent_Declare(
     cdeps

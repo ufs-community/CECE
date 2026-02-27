@@ -13,13 +13,15 @@ species:
       scale: 1.0
       category: "anthropogenic"
       hierarchy: 1
+      # We can use meteorological fields to scale emissions
+      scale_fields:
+        - "temperature"
 
-    # 2. Meteorological influence (e.g., temperature) pulled from the ESMF ImportState.
-    # This shows how live state data can be used directly or to scale other fields.
-    # Here we just add a tiny fraction of temperature to NOx to demonstrate hybrid access.
-    - field: "temperature"
+    # 2. Influence from a field provided by another ESMF component (e.g. Atmosphere).
+    # This demonstrates hybrid access to live state data.
+    - field: "nox_from_atmosphere"
       operation: "add"
-      scale: 1.0e-12
+      scale: 1.0
       category: "met_influence"
       hierarchy: 1
 

@@ -30,8 +30,9 @@ using DualView3D = Kokkos::DualView<double***, Kokkos::LayoutLeft>;
  */
 struct AcesImportState {
     // Meteorology from Atmosphere (e.g., UFS)
-    DualView3D temperature;     ///< Air temperature [K]
-    DualView3D wind_speed_10m;  ///< Wind speed at 10m [m/s]
+    DualView3D temperature;          ///< Air temperature [K]
+    DualView3D wind_speed_10m;       ///< Wind speed at 10m [m/s]
+    DualView3D nox_from_atmosphere;  ///< NOX provided by atmospheric component [kg/m2/s]
 
     // Base Emissions interpolated by CDEPS
     DualView3D base_anthropogenic_nox;  ///< Base NOX emissions [kg/m2/s]
