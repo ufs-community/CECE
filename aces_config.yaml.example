@@ -7,3 +7,11 @@ species:
       operation: "add"
       scale: 1.0e-12 # Just a dummy scaling to see it influence the total
 physics_schemes: []
+
+# CDEPS-inline configuration for hybrid ingestion.
+# ACES pulls meteorology from ESMF and uses CDEPS to read these emission streams from disk.
+cdeps_inline_config:
+  streams:
+    - name: "base_anthropogenic_nox"
+      file: "path/to/anthropogenic_nox_inventory.nc"
+      interpolation: "linear"
