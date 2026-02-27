@@ -17,7 +17,9 @@ class MockFieldResolver : public FieldResolver {
     std::map<std::string, UnmanagedHostView3D> fields;
 
    public:
-    void AddField(const std::string& name, UnmanagedHostView3D view) { fields[name] = view; }
+    void AddField(const std::string& name, UnmanagedHostView3D view) {
+        fields[name] = view;
+    }
 
     UnmanagedHostView3D ResolveImport(const std::string& name, int /*nx*/, int /*ny*/,
                                       int /*nz*/) override {
