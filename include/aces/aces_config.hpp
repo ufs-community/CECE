@@ -29,13 +29,13 @@ struct PhysicsSchemeConfig {
  * @brief Represents a single layer of emissions to be applied.
  */
 struct EmissionLayer {
-    std::string operation;   ///< Layer operation: "add" or "replace".
-    std::string field_name;  ///< Name of the base field in the ESMF State.
-    std::string mask_name;   ///< Name of the geographical mask field (optional).
-    double scale = 1.0;      ///< Scaling factor for this layer.
-    int hierarchy = 0;       ///< Hierarchy level (higher overwrites lower).
-    std::string category = "1"; ///< Emission category.
-    std::vector<std::string> scale_fields; ///< List of additional scale fields to apply.
+    std::string operation;                  ///< Layer operation: "add" or "replace".
+    std::string field_name;                 ///< Name of the base field in the ESMF State.
+    std::string mask_name;                  ///< Name of the geographical mask field (optional).
+    double scale = 1.0;                     ///< Scaling factor for this layer.
+    int hierarchy = 0;                      ///< Hierarchy level (higher overwrites lower).
+    std::string category = "1";             ///< Emission category.
+    std::vector<std::string> scale_fields;  ///< List of additional scale fields to apply.
 };
 
 /**

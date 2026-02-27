@@ -138,7 +138,7 @@ TEST_F(AcesComputeTest, HierarchyAndCategory) {
 
     // Overlay (Cat 1, Hier 10, Replace)
     Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> overlay_data("overlay", nx, ny,
-                                                                               nz);
+                                                                                nz);
     Kokkos::deep_copy(overlay_data, 2.0);
 
     // Another category (Cat 2, Hier 1)

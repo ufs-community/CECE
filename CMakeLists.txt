@@ -85,7 +85,7 @@ set(ACES_SRCS
   src/physics/aces_native_example.cpp
 )
 
-if(CMAKE_Fortran_COMPILER)
+if(ACES_HAS_FORTRAN)
   list(APPEND ACES_SRCS
     src/physics/aces_fortran_bridge.cpp
     src/physics/legacy_fortran.F90
