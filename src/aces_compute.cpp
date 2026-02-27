@@ -103,15 +103,23 @@ void ComputeEmissions(const AcesConfig& config, FieldResolver& resolver, int nx,
                 double replace_flag = (layer.operation == "replace") ? 1.0 : 0.0;
                 double scale = layer.scale;
 
-                // Capture resolved_scale_fields.
-                // Note: Standard C++ lambda capture of std::vector by value works for HostSpace.
+                // Use a fixed-size array for scales to avoid std::vector capture in lambda.
+                // HEMCO typically uses a limited number of scale factors per layer.
+                constexpr int MAX_SCALES = 16;
+                UnmanagedHostView3D scales_arr[MAX_SCALES];
+                int num_scales = std::min((int)resolved_scale_fields.size(), MAX_SCALES);
+                for (int s = 0; s < num_scales; ++s) {
+                    scales_arr[s] = resolved_scale_fields[s];
+                }
+
+                // Compute the layer application in parallel using Kokkos.
                 Kokkos::parallel_for(
                     "EmissionLayerKernel",
                     Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
                     KOKKOS_LAMBDA(int i, int j, int k) {
                         double combined_scale = scale;
-                        for (const auto& sf : resolved_scale_fields) {
-                            combined_scale *= sf(i, j, k);
+                        for (int s = 0; s < num_scales; ++s) {
+                            combined_scale *= scales_arr[s](i, j, k);
                         }
 
                         category_view(i, j, k) =
