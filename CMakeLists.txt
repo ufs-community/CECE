@@ -83,27 +83,26 @@ message(STATUS "Found MPI: ${MPI_CXX_VERSION}")
 # CDEPS is a required dependency for the hybrid ingestion layer.
 find_package(CDEPS QUIET)
 
-# Also look for cdeps in the current source dir if it was fetched
-if(NOT CDEPS_FOUND AND EXISTS "${CMAKE_BINARY_DIR}/_deps/cdeps-src")
-    set(CDEPS_FOUND TRUE)
-endif()
-
 if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
   message(STATUS "CDEPS not found on system, attempting to build from source using FetchContent...")
 
-  # CDEPS requires PIO
-  find_package(PIO QUIET)
+  # Discovery PIO from ESMF path if not already found (needed for CDEPS)
+  if(NOT PIO_FOUND)
+      find_package(PIO QUIET)
+  endif()
 
   if(PIO_FOUND)
-    # Set PIO_PATH for CDEPS find_package
+    # Export PIO paths for CDEPS internal find_package(PIO)
     set(PIO_PATH "${PIO_ROOT}")
     set(ENV{PIO_PATH} "${PIO_ROOT}")
+    set(ENV{PIO_ROOT} "${PIO_ROOT}")
 
     FetchContent_Declare(
       cdeps
       GIT_REPOSITORY https://github.com/ESCOMP/CDEPS.git
       GIT_TAG        main
     )
+    # We use a custom guard to ensure CDEPS is correctly integrated
     FetchContent_MakeAvailable(cdeps)
     if(TARGET streams)
       set(CDEPS_FOUND TRUE)
