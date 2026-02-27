@@ -105,14 +105,42 @@ if(NOT ESMF_FOUND)
 
         if(IS_DIRECTORY "${lib_dir}")
             list(APPEND ESMF_INCLUDE_DIRS "${lib_dir}")
-            # Also check for a 'mod' directory at the same level
+            # Also check for 'mod' and 'include' directories at the same level or one level up
             if(IS_DIRECTORY "${lib_dir}/../mod")
                 list(APPEND ESMF_INCLUDE_DIRS "${lib_dir}/../mod")
+            endif()
+            if(IS_DIRECTORY "${lib_dir}/../include")
+                list(APPEND ESMF_INCLUDE_DIRS "${lib_dir}/../include")
             endif()
         endif()
     endforeach()
     if(ESMF_INCLUDE_DIRS)
         list(REMOVE_DUPLICATES ESMF_INCLUDE_DIRS)
+    endif()
+
+    # If we still haven't found esmf.mod, search for it more broadly
+    set(esmf_mod_found FALSE)
+    foreach(dir ${ESMF_INCLUDE_DIRS})
+        if(EXISTS "${dir}/esmf.mod")
+            set(esmf_mod_found TRUE)
+            break()
+        endif()
+    endforeach()
+
+    if(NOT esmf_mod_found)
+        # Search relative to library paths and common JCSDA locations
+        foreach(lib_path ${ESMF_LIBRARIES})
+            if(lib_path MATCHES "^-L(.*)")
+                set(base_dir "${CMAKE_MATCH_1}/..")
+                find_path(EXTRA_ESMF_MOD_DIR NAMES esmf.mod
+                          PATHS "${base_dir}/include" "${base_dir}/mod" "${base_dir}/lib"
+                          NO_DEFAULT_PATH)
+                if(EXTRA_ESMF_MOD_DIR)
+                    list(APPEND ESMF_INCLUDE_DIRS "${EXTRA_ESMF_MOD_DIR}")
+                    break()
+                endif()
+            endif()
+        endforeach()
     endif()
 
   endif()

@@ -55,6 +55,7 @@ endif()
 
 find_package(ESMF REQUIRED)
 message(STATUS "Found ESMF: ${ESMF_VERSION}")
+message(STATUS "ESMF include dirs: ${ESMF_INCLUDE_DIRS}")
 
 # Discovery PIO and NetCDF from ESMF if possible
 # CDEPS needs these as dependencies for its Fortran modules
