@@ -56,7 +56,24 @@ endif()
 find_package(ESMF REQUIRED)
 message(STATUS "Found ESMF: ${ESMF_VERSION}")
 
-# Discovery PIO from ESMF if possible
+# Discovery PIO and NetCDF from ESMF if possible
+# CDEPS needs these as dependencies for its Fortran modules
+if(NOT NetCDF_FOUND)
+  foreach(lib ${ESMF_LIBRARIES})
+    if(lib MATCHES "^-L(.*)")
+      set(search_path "${CMAKE_MATCH_1}")
+      if(EXISTS "${search_path}/../include/netcdf.mod")
+        set(NetCDF_ROOT "${search_path}/..")
+        get_filename_component(NetCDF_ROOT "${NetCDF_ROOT}" ABSOLUTE)
+        set(NetCDF_FOUND TRUE)
+        set(ENV{NetCDF_ROOT} "${NetCDF_ROOT}")
+        message(STATUS "Found NetCDF root from ESMF path: ${NetCDF_ROOT}")
+        break()
+      endif()
+    endif()
+  endforeach()
+endif()
+
 if(NOT PIO_FOUND)
   set(PIO_ROOT "$ENV{PIO_ROOT}")
   if(NOT PIO_ROOT)
@@ -79,6 +96,23 @@ endif()
 
 find_package(MPI REQUIRED)
 message(STATUS "Found MPI: ${MPI_CXX_VERSION}")
+
+# Also discover NetCDF-Fortran for CDEPS
+if(NOT NetCDFF_FOUND)
+  foreach(lib ${ESMF_LIBRARIES})
+    if(lib MATCHES "^-L(.*)")
+      set(search_path "${CMAKE_MATCH_1}")
+      if(EXISTS "${search_path}/../include/netcdf.mod")
+        set(NetCDFF_ROOT "${search_path}/..")
+        get_filename_component(NetCDFF_ROOT "${NetCDFF_ROOT}" ABSOLUTE)
+        set(NetCDFF_FOUND TRUE)
+        set(ENV{NetCDFF_ROOT} "${NetCDFF_ROOT}")
+        message(STATUS "Found NetCDF-Fortran root from ESMF path: ${NetCDFF_ROOT}")
+        break()
+      endif()
+    endif()
+  endforeach()
+endif()
 
 # CDEPS is a required dependency for the hybrid ingestion layer.
 find_package(CDEPS QUIET)
@@ -103,6 +137,19 @@ if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
       GIT_TAG        main
     )
     # Force CDEPS to find the ESMF we already discovered
+    # In JCSDA container, ESMF_ROOT might not be set, but ESMF_LIBRARIES contains it
+    if(NOT ESMF_ROOT)
+        foreach(lib ${ESMF_LIBRARIES})
+            if(lib MATCHES "^-L(.*)")
+                set(search_path "${CMAKE_MATCH_1}")
+                if(EXISTS "${search_path}/../include/esmf.mod")
+                    set(ESMF_ROOT "${search_path}/..")
+                    get_filename_component(ESMF_ROOT "${ESMF_ROOT}" ABSOLUTE)
+                    break()
+                endif()
+            endif()
+        endforeach()
+    endif()
     set(ESMF_ROOT "${ESMF_ROOT}" CACHE PATH "Path to ESMF" FORCE)
     set(ENV{ESMF_ROOT} "${ESMF_ROOT}")
 
