@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(ACES LANGUAGES CXX C Fortran)
+project(ACES LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -41,6 +41,16 @@ FetchContent_MakeAvailable(googletest)
 # ESMF
 option(ACES_USE_MOCK_ESMF "Use internal mock ESMF if system ESMF not found" ON)
 
+# Optional Fortran support
+include(CheckLanguage)
+check_language(Fortran)
+if(CMAKE_Fortran_COMPILER)
+  enable_language(Fortran)
+  set(ACES_HAS_FORTRAN ON)
+else()
+  message(WARNING "Fortran compiler not found. Fortran features will be disabled.")
+endif()
+
 find_package(ESMF QUIET)
 
 if(ESMF_FOUND)
@@ -67,15 +77,26 @@ endif()
 
 # --- ACES Library ---
 
-add_library(aces SHARED
+set(ACES_SRCS
   src/aces_cap.cpp
   src/aces_config_parser.cpp
   src/aces_compute.cpp
   src/aces_physics_factory.cpp
   src/physics/aces_native_example.cpp
-  src/physics/aces_fortran_bridge.cpp
-  src/physics/legacy_fortran.F90
 )
+
+if(ACES_HAS_FORTRAN)
+  list(APPEND ACES_SRCS
+    src/physics/aces_fortran_bridge.cpp
+    src/physics/legacy_fortran.F90
+  )
+endif()
+
+add_library(aces SHARED ${ACES_SRCS})
+
+if(ACES_HAS_FORTRAN)
+  target_compile_definitions(aces PRIVATE ACES_HAS_FORTRAN)
+endif()
 
 target_include_directories(aces PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -136,14 +157,16 @@ target_link_libraries(test_physics
   GTest::gtest_main
 )
 
-add_executable(example_driver
-  tests/example_driver.cpp
-)
+if(NOT ACES_USE_MOCK_ESMF)
+  add_executable(example_driver
+    tests/example_driver.cpp
+  )
 
-target_link_libraries(example_driver
-  PRIVATE
-  aces
-)
+  target_link_libraries(example_driver
+    PRIVATE
+    aces
+  )
+endif()
 
 include(GoogleTest)
 gtest_discover_tests(test_aces_cap)

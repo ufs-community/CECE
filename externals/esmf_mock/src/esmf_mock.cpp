@@ -34,4 +34,17 @@ void* ESMC_FieldGetPtr(ESMC_Field field, int localDe, int* rc) {
     return field.ptr;
 }
 
+int ESMC_FieldGetBounds(ESMC_Field field, int* exclusiveLBound, int* exclusiveUBound, int* exclusiveCount, int rank) {
+    if (exclusiveLBound) {
+        for (int i=0; i<rank; ++i) exclusiveLBound[i] = 1;
+    }
+    if (exclusiveUBound) {
+        // Return dummy bounds
+        if (rank >= 1) exclusiveUBound[0] = 360;
+        if (rank >= 2) exclusiveUBound[1] = 180;
+        if (rank >= 3) exclusiveUBound[2] = 72;
+    }
+    return ESMF_SUCCESS;
+}
+
 }

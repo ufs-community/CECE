@@ -1,7 +1,9 @@
 #include "aces/aces_compute.hpp"
 
 #include <Kokkos_Core.hpp>
+#include <algorithm>
 #include <iostream>
+#include <map>
 
 /**
  * @file aces_compute.cpp
@@ -46,41 +48,92 @@ void ComputeEmissions(const AcesConfig& config, FieldResolver& resolver, int nx,
         // Initialize export field to 0 before accumulating layers.
         Kokkos::deep_copy(total_view, 0.0);
 
-        for (auto const& layer : layers) {
-            auto field_view = resolver.ResolveImport(layer.field_name, nx, ny, nz);
-            if (field_view.data() == nullptr) {
-                std::cerr << "ACES_Compute: Warning - Could not resolve input field "
-                          << layer.field_name << std::endl;
-                continue;
-            }
+        // Group layers by category
+        std::map<std::string, std::vector<EmissionLayer>> category_groups;
+        for (const auto& layer : layers) {
+            category_groups[layer.category].push_back(layer);
+        }
 
-            UnmanagedHostView3D mask_view;
-            if (!layer.mask_name.empty()) {
-                mask_view = resolver.ResolveImport(layer.mask_name, nx, ny, nz);
-                if (mask_view.data() == nullptr) {
-                    std::cerr << "ACES_Compute: Warning - Could not resolve mask "
-                              << layer.mask_name << ", using default 1.0" << std::endl;
+        // Process each category
+        for (auto& [category, cat_layers] : category_groups) {
+            // Sort layers in category by hierarchy (ascending)
+            std::sort(cat_layers.begin(), cat_layers.end(),
+                      [](const EmissionLayer& a, const EmissionLayer& b) {
+                          return a.hierarchy < b.hierarchy;
+                      });
+
+            // Create temporary view for category accumulation
+            Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> category_view(
+                "category_view", nx, ny, nz);
+            Kokkos::deep_copy(category_view, 0.0);
+
+            for (auto const& layer : cat_layers) {
+                auto field_view = resolver.ResolveImport(layer.field_name, nx, ny, nz);
+                if (field_view.data() == nullptr) {
+                    std::cerr << "ACES_Compute: Warning - Could not resolve input field "
+                              << layer.field_name << std::endl;
+                    continue;
+                }
+
+                // Resolve additional scale fields
+                std::vector<UnmanagedHostView3D> resolved_scale_fields;
+                for (const auto& sf_name : layer.scale_fields) {
+                    auto sf_view = resolver.ResolveImport(sf_name, nx, ny, nz);
+                    if (sf_view.data() != nullptr) {
+                        resolved_scale_fields.push_back(sf_view);
+                    } else {
+                        std::cerr << "ACES_Compute: Warning - Could not resolve scale field "
+                                  << sf_name << std::endl;
+                    }
+                }
+
+                UnmanagedHostView3D mask_view;
+                if (!layer.mask_name.empty()) {
+                    mask_view = resolver.ResolveImport(layer.mask_name, nx, ny, nz);
+                    if (mask_view.data() == nullptr) {
+                        std::cerr << "ACES_Compute: Warning - Could not resolve mask "
+                                  << layer.mask_name << ", using default 1.0" << std::endl;
+                        mask_view = default_mask;
+                    }
+                } else {
                     mask_view = default_mask;
                 }
-            } else {
-                mask_view = default_mask;
+
+                // 0.0 for 'add', 1.0 for 'replace'
+                double replace_flag = (layer.operation == "replace") ? 1.0 : 0.0;
+                double scale = layer.scale;
+
+                // Use a fixed-size array for scales to avoid std::vector capture in lambda.
+                // HEMCO typically uses a limited number of scale factors per layer.
+                constexpr int MAX_SCALES = 16;
+                UnmanagedHostView3D scales_arr[MAX_SCALES];
+                int num_scales = std::min((int)resolved_scale_fields.size(), MAX_SCALES);
+                for (int s = 0; s < num_scales; ++s) {
+                    scales_arr[s] = resolved_scale_fields[s];
+                }
+
+                // Compute the layer application in parallel using Kokkos.
+                Kokkos::parallel_for(
+                    "EmissionLayerKernel",
+                    Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
+                    KOKKOS_LAMBDA(int i, int j, int k) {
+                        double combined_scale = scale;
+                        for (int s = 0; s < num_scales; ++s) {
+                            combined_scale *= scales_arr[s](i, j, k);
+                        }
+
+                        category_view(i, j, k) =
+                            category_view(i, j, k) * (1.0 - replace_flag * mask_view(i, j, k)) +
+                            field_view(i, j, k) * combined_scale * mask_view(i, j, k);
+                    });
             }
 
-            // 0.0 for 'add', 1.0 for 'replace'
-            double replace_flag = (layer.operation == "replace") ? 1.0 : 0.0;
-            double scale = layer.scale;
-
-            // Compute the layer application in parallel using Kokkos.
-            // MDRangePolicy ensures efficient iteration over 3D space.
+            // Add category total to species total
             Kokkos::parallel_for(
-                "EmissionLayerKernel",
+                "CategoryAccumulationKernel",
                 Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
                 KOKKOS_LAMBDA(int i, int j, int k) {
-                    // Branchless logic to handle both addition and replacement in a single
-                    // GPU-friendly step.
-                    total_view(i, j, k) =
-                        total_view(i, j, k) * (1.0 - replace_flag * mask_view(i, j, k)) +
-                        field_view(i, j, k) * scale * mask_view(i, j, k);
+                    total_view(i, j, k) += category_view(i, j, k);
                 });
         }
     }

@@ -30,6 +30,7 @@ void* ESMC_GridCompGetInternalState(ESMC_GridComp comp, int* rc);
 // Field and State operations
 int ESMC_StateGetField(ESMC_State state, const char* name, ESMC_Field* field);
 void* ESMC_FieldGetPtr(ESMC_Field field, int localDe, int* rc);
+int ESMC_FieldGetBounds(ESMC_Field field, int* exclusiveLBound, int* exclusiveUBound, int* exclusiveCount, int rank);
 
 #ifdef __cplusplus
 }

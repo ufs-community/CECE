@@ -61,7 +61,7 @@ dist/
 # Make
 Makefile
 
-# CMake 
+# CMake
 CMakeCache.txt
 CMakeFiles/
 CMakeScripts/
@@ -170,4 +170,3 @@ Icon
 # Linux
 *~
 .directory
-

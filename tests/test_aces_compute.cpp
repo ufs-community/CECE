@@ -129,4 +129,69 @@ TEST_F(AcesComputeTest, YamlParsing) {
     std::remove("test_config.yaml");
 }
 
+TEST_F(AcesComputeTest, HierarchyAndCategory) {
+    int nx = 4, ny = 4, nz = 1;
+
+    // Background (Cat 1, Hier 1)
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> bg_data("bg", nx, ny, nz);
+    Kokkos::deep_copy(bg_data, 1.0);
+
+    // Overlay (Cat 1, Hier 10, Replace)
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> overlay_data("overlay", nx, ny,
+                                                                                nz);
+    Kokkos::deep_copy(overlay_data, 2.0);
+
+    // Another category (Cat 2, Hier 1)
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> cat2_data("cat2", nx, ny, nz);
+    Kokkos::deep_copy(cat2_data, 10.0);
+
+    // Scale field
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> sf_data("sf", nx, ny, nz);
+    Kokkos::deep_copy(sf_data, 1.5);
+
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> export_data("export", nx, ny,
+                                                                               nz);
+    Kokkos::deep_copy(export_data, 0.0);
+
+    MockFieldResolver resolver;
+    resolver.AddField("bg", bg_data);
+    resolver.AddField("overlay", overlay_data);
+    resolver.AddField("cat2", cat2_data);
+    resolver.AddField("sf", sf_data);
+    resolver.AddField("total_nox_emissions", export_data);
+
+    AcesConfig config;
+
+    EmissionLayer l1;
+    l1.operation = "add";
+    l1.field_name = "bg";
+    l1.category = "1";
+    l1.hierarchy = 1;
+
+    EmissionLayer l2;
+    l2.operation = "replace";
+    l2.field_name = "overlay";
+    l2.category = "1";
+    l2.hierarchy = 10;
+    l2.scale_fields = {"sf"};
+
+    EmissionLayer l3;
+    l3.operation = "add";
+    l3.field_name = "cat2";
+    l3.category = "2";
+    l3.hierarchy = 1;
+
+    // Out of order in vector to test sorting
+    config.species_layers["nox"] = {l2, l1, l3};
+
+    ComputeEmissions(config, resolver, nx, ny, nz);
+
+    // Result should be: (Overlay * sf) + Cat2 = (2.0 * 1.5) + 10.0 = 3.0 + 10.0 = 13.0
+    for (int i = 0; i < nx; ++i) {
+        for (int j = 0; j < ny; ++j) {
+            EXPECT_DOUBLE_EQ(export_data(i, j, 0), 13.0);
+        }
+    }
+}
+
 }  // namespace aces

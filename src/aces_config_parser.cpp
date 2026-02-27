@@ -40,6 +40,17 @@ AcesConfig ParseConfig(const std::string& filename) {
                 if (layer_node["scale"]) {
                     layer.scale = layer_node["scale"].as<double>();
                 }
+                if (layer_node["hierarchy"]) {
+                    layer.hierarchy = layer_node["hierarchy"].as<int>();
+                }
+                if (layer_node["category"]) {
+                    layer.category = layer_node["category"].as<std::string>();
+                }
+                if (layer_node["scale_fields"]) {
+                    for (auto const& sf_node : layer_node["scale_fields"]) {
+                        layer.scale_fields.push_back(sf_node.as<std::string>());
+                    }
+                }
                 layers.push_back(layer);
             }
             config.species_layers[species_name] = layers;

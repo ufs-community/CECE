@@ -24,8 +24,13 @@ std::unique_ptr<PhysicsScheme> PhysicsFactory::CreateScheme(const PhysicsSchemeC
     std::unique_ptr<PhysicsScheme> scheme;
 
     if (config.language == "fortran" || config.name == "fortran_bridge_example") {
+#ifdef ACES_HAS_FORTRAN
         std::cout << "ACES_PhysicsFactory: Creating Fortran scheme " << config.name << std::endl;
         scheme = std::make_unique<FortranBridgeExample>();
+#else
+        std::cerr << "ACES_PhysicsFactory: Error - Fortran scheme " << config.name
+                  << " requested but Fortran support is disabled." << std::endl;
+#endif
     } else {
         // Default to Native C++
         std::cout << "ACES_PhysicsFactory: Creating Native scheme " << config.name << std::endl;
