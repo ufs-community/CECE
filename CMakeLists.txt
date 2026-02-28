@@ -315,11 +315,30 @@ target_link_libraries(test_physics
   GTest::gtest_main
 )
 
+add_executable(test_hemco_mimic
+  tests/test_hemco_mimic.cpp
+)
+
+target_link_libraries(test_hemco_mimic
+  PRIVATE
+  aces
+  GTest::gtest_main
+)
+
 add_executable(example_driver
   tests/example_driver.cpp
 )
 
 target_link_libraries(example_driver
+  PRIVATE
+  aces
+)
+
+add_executable(hemco_mimic_driver
+  tests/hemco_mimic_driver.cpp
+)
+
+target_link_libraries(hemco_mimic_driver
   PRIVATE
   aces
 )
@@ -331,3 +350,4 @@ gtest_discover_tests(test_aces_compute)
 gtest_discover_tests(test_physics)
 gtest_discover_tests(test_aces_ingestor)
 gtest_discover_tests(test_diagnostics)
+gtest_discover_tests(test_hemco_mimic)
