@@ -1,0 +1,19 @@
+# ACES equivalent of HEMCO Example 1
+met_mapping:
+  hourly_scalfact: HOURLY_SCALFACT
+
+species:
+  co:
+    - field: "MACCITY_CO"
+      operation: "add"
+      scale: 1.0
+      scale_fields: ["hourly_scalfact"]
+
+# Note: In ACES, CDEPS-inline handles file reading.
+# You would define the streams in cdeps_config.
+cdeps_config:
+  streams:
+    - name: "MACCITY_CO"
+      file_path: "data/MACCity.nc"
+    - name: "HOURLY_SCALFACT"
+      file_path: "data/hourly.nc"

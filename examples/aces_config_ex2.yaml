@@ -1,0 +1,29 @@
+# ACES equivalent of HEMCO Example 2
+met_mapping:
+  hourly_scalfact: HOURLY_SCALFACT
+  mask_europe: MASK_EUROPE
+
+species:
+  co:
+    - field: "MACCITY_CO"
+      category: 1
+      hierarchy: 1
+      operation: "add"
+      scale_fields: ["hourly_scalfact"]
+    - field: "EMEP_CO"
+      category: 1
+      hierarchy: 2
+      operation: "replace"
+      masks: ["mask_europe"]
+      scale_fields: ["hourly_scalfact"]
+
+cdeps_config:
+  streams:
+    - name: "MACCITY_CO"
+      file_path: "data/MACCity.nc"
+    - name: "EMEP_CO"
+      file_path: "data/EMEP.nc"
+    - name: "HOURLY_SCALFACT"
+      file_path: "data/hourly.nc"
+    - name: "MASK_EUROPE"
+      file_path: "data/mask_europe.nc"

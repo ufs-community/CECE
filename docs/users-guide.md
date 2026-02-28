@@ -61,12 +61,27 @@ cmake .. -DACES_USE_MOCK_ESMF=ON
 
 ## Running the Example
 
-ACES includes an `example_driver` that demonstrates how the component is initialized and run within an ESMF-like environment.
+ACES includes an `example_driver` and a `standalone_nuopc_driver` that demonstrate how the component is initialized and run within an ESMF-like environment.
+
+### Standalone NUOPC Driver
+
+The standalone NUOPC driver (`aces_nuopc_driver`) is located in the `standalone_nuopc` directory. It demonstrates the standard NUOPC lifecycle (Initialize, Run, Finalize) and how to manage the ACES component as a child model.
+
+1.  **Configure**: Edit `standalone_nuopc/aces_config.yaml` to specify your species and layers.
+2.  **Build**: The driver is built as part of the main project.
+3.  **Run**:
+    ```bash
+    ./build/standalone_nuopc/aces_nuopc_driver
+    ```
+
+### Basic Example Driver
+
+ACES also provides a simpler `example_driver` for basic C++ integration tests.
 
 1.  **Configure**: Edit `aces_config.yaml` to specify your species and layers.
 2.  **Run**:
     ```bash
-    ./example_driver
+    ./build/example_driver
     ```
 
 ## Testing
