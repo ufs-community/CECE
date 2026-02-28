@@ -54,7 +54,7 @@ class AcesStateResolver : public FieldResolver {
     AcesStateResolver(const AcesImportState& imp, const AcesExportState& exp)
         : import_state(imp), export_state(exp) {}
 
-    // cppcheck-suppress unusedFunction
+    // cppcheck-suppress [unusedFunction,virtualCall]
     UnmanagedHostView3D ResolveImport(const std::string& name, int /*nx*/, int /*ny*/,
                                       int /*nz*/) override {
         auto it = import_state.fields.find(name);
@@ -64,7 +64,7 @@ class AcesStateResolver : public FieldResolver {
         return UnmanagedHostView3D();
     }
 
-    // cppcheck-suppress unusedFunction
+    // cppcheck-suppress [unusedFunction,virtualCall]
     UnmanagedHostView3D ResolveExport(const std::string& name, int /*nx*/, int /*ny*/,
                                       int /*nz*/) override {
         auto it = export_state.fields.find(name);
@@ -74,7 +74,7 @@ class AcesStateResolver : public FieldResolver {
         return UnmanagedHostView3D();
     }
 
-    // cppcheck-suppress unusedFunction
+    // cppcheck-suppress [unusedFunction,virtualCall]
     Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
     ResolveImportDevice(const std::string& name, int /*nx*/, int /*ny*/, int /*nz*/) override {
         auto it = import_state.fields.find(name);
@@ -84,7 +84,7 @@ class AcesStateResolver : public FieldResolver {
         return Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>();
     }
 
-    // cppcheck-suppress unusedFunction
+    // cppcheck-suppress [unusedFunction,virtualCall]
     Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveExportDevice(
         const std::string& name, int /*nx*/, int /*ny*/, int /*nz*/) override {
         auto it = export_state.fields.find(name);

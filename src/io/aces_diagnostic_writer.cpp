@@ -33,15 +33,13 @@ void AcesDiagnosticManager::WriteDiagnostics(const DiagnosticConfig& config, ESM
     // 1. Clock Check
     if (clock.ptr != nullptr && config.output_interval_seconds > 0) {
         ESMC_TimeInterval currSimTime;
-        long long stepCount;
-        // Signature in ESMF 8.8.0 C API:
-        // int ESMC_ClockGet(ESMC_Clock clock, ESMC_TimeInterval *currSimTime, ESMC_I8
-        // *currSimStepCount)
+        ESMC_I8 stepCount;
+        // Correct signature for ESMF 8.8.0
         ESMC_ClockGet(clock, &currSimTime, &stepCount);
 
-        int seconds;
-        // Extract seconds from TimeInterval
-        ESMC_TimeIntervalGet(currSimTime, NULL, NULL, NULL, &seconds, NULL, NULL);
+        ESMC_I8 seconds_i8;
+        ESMC_TimeIntervalGet(currSimTime, &seconds_i8, NULL);
+        long long seconds = (long long)seconds_i8;
 
         if (seconds % config.output_interval_seconds != 0) return;
     }
@@ -54,14 +52,14 @@ void AcesDiagnosticManager::WriteDiagnostics(const DiagnosticConfig& config, ESM
 
     if (config.grid_type == "gaussian") {
         int counts[2] = {config.nx, config.ny};
-        // Use GridCreateNoPeriDim as a proxy for Gaussian grid creation logic
-        target_grid = ESMC_GridCreateNoPeriDim("gaussian_grid", 2, counts, NULL, NULL, NULL, NULL,
-                                               NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL);
+        ESMC_InterArrayInt iCounts;
+        ESMC_InterArrayIntSet(&iCounts, counts, 2);
+        int rc;
+        target_grid = ESMC_GridCreateNoPeriDim(&iCounts, NULL, NULL, NULL, &rc);
     } else if (config.grid_type == "mesh") {
         int rc;
-        // Use ESMC_FILEFORMAT_SCRIP (correct prefix)
         target_mesh = ESMC_MeshCreateFromFile(config.grid_file.c_str(), ESMC_FILEFORMAT_SCRIP, NULL,
-                                              NULL, NULL, &rc);
+                                              NULL, NULL, NULL, NULL, &rc);
     }
 
     for (const auto& name : config.variables) {
