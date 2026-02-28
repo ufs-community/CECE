@@ -31,13 +31,13 @@ namespace aces {
 void ComputeEmissions(const AcesConfig& config, FieldResolver& resolver, int nx, int ny, int nz) {
     // Create a 1.0 mask view for layers without an explicit mask.
     // This allows us to use a unified branchless kernel for all layers.
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> default_mask("default_mask", nx,
-                                                                                ny, nz);
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> default_mask(
+        "default_mask", nx, ny, nz);
     Kokkos::deep_copy(default_mask, 1.0);
 
     for (auto const& [species, layers] : config.species_layers) {
         std::string export_name = "total_" + species + "_emissions";
-        auto total_view = resolver.ResolveExport(export_name, nx, ny, nz);
+        auto total_view = resolver.ResolveExportDevice(export_name, nx, ny, nz);
 
         if (total_view.data() == nullptr) {
             std::cerr << "ACES_Compute: Warning - Could not resolve export field " << export_name
@@ -63,12 +63,12 @@ void ComputeEmissions(const AcesConfig& config, FieldResolver& resolver, int nx,
                       });
 
             // Create temporary view for category accumulation
-            Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> category_view(
-                "category_view", nx, ny, nz);
+            Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
+                category_view("category_view", nx, ny, nz);
             Kokkos::deep_copy(category_view, 0.0);
 
             for (auto const& layer : cat_layers) {
-                auto field_view = resolver.ResolveImport(layer.field_name, nx, ny, nz);
+                auto field_view = resolver.ResolveImportDevice(layer.field_name, nx, ny, nz);
                 if (field_view.data() == nullptr) {
                     std::cerr << "ACES_Compute: Warning - Could not resolve input field "
                               << layer.field_name << std::endl;
@@ -76,9 +76,11 @@ void ComputeEmissions(const AcesConfig& config, FieldResolver& resolver, int nx,
                 }
 
                 // Resolve additional scale fields
-                std::vector<UnmanagedHostView3D> resolved_scale_fields;
+                std::vector<Kokkos::View<const double***, Kokkos::LayoutLeft,
+                                         Kokkos::DefaultExecutionSpace>>
+                    resolved_scale_fields;
                 for (const auto& sf_name : layer.scale_fields) {
-                    auto sf_view = resolver.ResolveImport(sf_name, nx, ny, nz);
+                    auto sf_view = resolver.ResolveImportDevice(sf_name, nx, ny, nz);
                     if (sf_view.data() != nullptr) {
                         resolved_scale_fields.push_back(sf_view);
                     } else {
@@ -87,9 +89,10 @@ void ComputeEmissions(const AcesConfig& config, FieldResolver& resolver, int nx,
                     }
                 }
 
-                UnmanagedHostView3D mask_view;
+                Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
+                    mask_view;
                 if (!layer.mask_name.empty()) {
-                    mask_view = resolver.ResolveImport(layer.mask_name, nx, ny, nz);
+                    mask_view = resolver.ResolveImportDevice(layer.mask_name, nx, ny, nz);
                     if (mask_view.data() == nullptr) {
                         std::cerr << "ACES_Compute: Warning - Could not resolve mask "
                                   << layer.mask_name << ", using default 1.0" << std::endl;
@@ -106,7 +109,8 @@ void ComputeEmissions(const AcesConfig& config, FieldResolver& resolver, int nx,
                 // Use a fixed-size array for scales to avoid std::vector capture in lambda.
                 // HEMCO typically uses a limited number of scale factors per layer.
                 constexpr int MAX_SCALES = 16;
-                UnmanagedHostView3D scales_arr[MAX_SCALES];
+                Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
+                    scales_arr[MAX_SCALES];
                 int num_scales = std::min((int)resolved_scale_fields.size(), MAX_SCALES);
                 for (int s = 0; s < num_scales; ++s) {
                     scales_arr[s] = resolved_scale_fields[s];

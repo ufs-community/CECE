@@ -27,7 +27,33 @@ species:
       category: "met_influence"
       hierarchy: 1
 
-physics_schemes: []
+# List of physics schemes to initialize and run.
+# Schemes can register diagnostic variables that can then be enabled for output.
+physics_schemes:
+  - name: "native_example"
+    language: "cpp"
+    options:
+      scaling_factor: 2.0
+
+# Diagnostic configuration for writeback.
+# ACES will synchronize these from device to host and write them to NetCDF.
+diagnostics:
+  # Output interval in seconds. ACES checks the ESMF clock.
+  output_interval: 3600
+
+  # Optional: Designation of the output grid.
+  # Supported types: "native", "gaussian", "mesh"
+  grid_type: "gaussian"
+  nx: 720
+  ny: 360
+
+  # For "mesh", specify the path to an ESMF mesh file.
+  # grid_type: "mesh"
+  # grid_file: "data/grids/fv3_mesh.nc"
+
+  # List of variables to output. These must be registered by schemes.
+  variables:
+    - "native_example_diag"
 
 # CDEPS-inline configuration for reading static inventories from disk.
 # Field names listed here will be looked up from disk.

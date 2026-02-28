@@ -10,6 +10,7 @@
 #include "aces/aces_compute.hpp"
 #include "aces/aces_config.hpp"
 #include "aces/aces_data_ingestor.hpp"
+#include "aces/aces_diagnostics.hpp"
 #include "aces/aces_physics_factory.hpp"
 #include "aces/aces_state.hpp"
 #include "aces/aces_utils.hpp"
@@ -32,46 +33,14 @@ namespace aces {
  * redundant allocations and re-parsing of configuration on every timestep.
  */
 struct AcesInternalData {
-    AcesConfig config;  ///< Parsed ACES configuration.
+    AcesConfig config;                                          ///< Parsed ACES configuration.
+    std::unique_ptr<AcesDiagnosticManager> diagnostic_manager;  ///< Diagnostic manager.
     std::vector<std::unique_ptr<PhysicsScheme>>
         active_schemes;                    ///< List of active physics plugins.
     AcesImportState import_state;          ///< Input data views.
     AcesExportState export_state;          ///< Output emission views.
     AcesDataIngestor ingestor;             ///< Hybrid data ingestor.
     bool kokkos_initialized_here = false;  ///< Flag to track if this component initialized Kokkos.
-};
-
-/**
- * @brief ESMF implementation of FieldResolver.
- *
- * Bridges the abstract FieldResolver interface with actual ESMF State lookups.
- */
-class EsmfFieldResolver : public FieldResolver {
-    ESMC_State importState;
-    ESMC_State exportState;
-
-   public:
-    EsmfFieldResolver(ESMC_State imp, ESMC_State exp) : importState(imp), exportState(exp) {}
-
-    /**
-     * @brief Resolves an import field by name and wraps it in a Kokkos View.
-     */
-    UnmanagedHostView3D ResolveImport(const std::string& name, int nx, int ny, int nz) override {
-        ESMC_Field field;
-        int rc = ESMC_StateGetField(importState, name.c_str(), &field);
-        if (rc != ESMF_SUCCESS) return UnmanagedHostView3D();
-        return WrapESMCField(field, nx, ny, nz);
-    }
-
-    /**
-     * @brief Resolves an export field by name and wraps it in a Kokkos View.
-     */
-    UnmanagedHostView3D ResolveExport(const std::string& name, int nx, int ny, int nz) override {
-        ESMC_Field field;
-        int rc = ESMC_StateGetField(exportState, name.c_str(), &field);
-        if (rc != ESMF_SUCCESS) return UnmanagedHostView3D();
-        return WrapESMCField(field, nx, ny, nz);
-    }
 };
 
 /**
@@ -85,7 +54,9 @@ class AcesStateResolver : public FieldResolver {
     AcesStateResolver(const AcesImportState& imp, const AcesExportState& exp)
         : import_state(imp), export_state(exp) {}
 
-    UnmanagedHostView3D ResolveImport(const std::string& name, int nx, int ny, int nz) override {
+    // cppcheck-suppress unusedFunction
+    UnmanagedHostView3D ResolveImport(const std::string& name, int /*nx*/, int /*ny*/,
+                                      int /*nz*/) override {
         auto it = import_state.fields.find(name);
         if (it != import_state.fields.end()) {
             return it->second.view_host();
@@ -93,12 +64,34 @@ class AcesStateResolver : public FieldResolver {
         return UnmanagedHostView3D();
     }
 
-    UnmanagedHostView3D ResolveExport(const std::string& name, int nx, int ny, int nz) override {
+    // cppcheck-suppress unusedFunction
+    UnmanagedHostView3D ResolveExport(const std::string& name, int /*nx*/, int /*ny*/,
+                                      int /*nz*/) override {
         auto it = export_state.fields.find(name);
         if (it != export_state.fields.end()) {
             return it->second.view_host();
         }
         return UnmanagedHostView3D();
+    }
+
+    // cppcheck-suppress unusedFunction
+    Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
+    ResolveImportDevice(const std::string& name, int /*nx*/, int /*ny*/, int /*nz*/) override {
+        auto it = import_state.fields.find(name);
+        if (it != import_state.fields.end()) {
+            return it->second.view_device();
+        }
+        return Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>();
+    }
+
+    // cppcheck-suppress unusedFunction
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveExportDevice(
+        const std::string& name, int /*nx*/, int /*ny*/, int /*nz*/) override {
+        auto it = export_state.fields.find(name);
+        if (it != export_state.fields.end()) {
+            return it->second.view_device();
+        }
+        return Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>();
     }
 };
 
@@ -122,8 +115,8 @@ static DualView3D GetDualView(ESMC_State state, const std::string& name, int nx,
 /**
  * @brief Internal implementation of Initialize phase.
  */
-void Initialize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState,
-                ESMC_Clock* clock, int* rc) {
+void Initialize(ESMC_GridComp comp, ESMC_State /*importState*/, ESMC_State /*exportState*/,
+                ESMC_Clock* /*clock*/, int* rc) {
     bool kokkos_initialized_here = false;
     if (!Kokkos::is_initialized()) {
         Kokkos::initialize();
@@ -135,10 +128,18 @@ void Initialize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportSta
         auto data = new AcesInternalData();
         data->kokkos_initialized_here = kokkos_initialized_here;
         data->config = ParseConfig("aces_config.yaml");
+        data->diagnostic_manager = std::make_unique<AcesDiagnosticManager>();
 
         // Instantiate requested physics schemes
         for (const auto& scheme_config : data->config.physics_schemes) {
-            data->active_schemes.push_back(PhysicsFactory::CreateScheme(scheme_config));
+            auto scheme = PhysicsFactory::CreateScheme(scheme_config);
+            if (scheme) {
+                scheme->Initialize(scheme_config.options, data->diagnostic_manager.get());
+                data->active_schemes.push_back(std::move(scheme));
+            } else {
+                std::cerr << "ACES_Initialize: Warning - Failed to create physics scheme: "
+                          << scheme_config.name << std::endl;
+            }
         }
 
         // Initialize CDEPS if configured
@@ -232,6 +233,7 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
     }
     std::vector<std::string> esmf_fields(esmf_fields_set.begin(), esmf_fields_set.end());
 
+    Kokkos::Profiling::pushRegion("ACES_DataIngestion");
     data->ingestor.IngestMeteorology(importState, esmf_fields, data->import_state, nx, ny, nz);
 
     // 2. Emissions from CDEPS
@@ -239,17 +241,29 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
         data->ingestor.IngestEmissionsInline(data->config.cdeps_config, data->import_state, nx, ny,
                                              nz);
     }
+    Kokkos::Profiling::popRegion();
 
     // Run core compute engine (layer addition/replacement)
+    Kokkos::Profiling::pushRegion("ACES_StackingEngine");
     AcesStateResolver resolver(data->import_state, data->export_state);
     ComputeEmissions(data->config, resolver, nx, ny, nz);
+    Kokkos::Profiling::popRegion();
 
     auto& imp = data->import_state;
     auto& exp = data->export_state;
 
     // Run active physics plugins (Sea Salt, Dust, etc.)
+    Kokkos::Profiling::pushRegion("ACES_PhysicsExtensions");
     for (auto& scheme : data->active_schemes) {
         scheme->Run(imp, exp);
+    }
+    Kokkos::Profiling::popRegion();
+
+    // Write diagnostics
+    // We use the last discovered field as a template for grid information
+    Kokkos::Profiling::pushRegion("ACES_Writeback");
+    if (clock != nullptr) {
+        data->diagnostic_manager->WriteDiagnostics(data->config.diagnostics, *clock, field);
     }
 
     // Sync results back to host space so the ESMF framework can see updated field data.
@@ -258,6 +272,7 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
             dv.sync<Kokkos::HostSpace>();
         }
     }
+    Kokkos::Profiling::popRegion();
 
     if (rc) *rc = ESMF_SUCCESS;
 }
@@ -265,8 +280,8 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
 /**
  * @brief Internal implementation of Finalize phase.
  */
-void Finalize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESMC_Clock* clock,
-              int* rc) {
+void Finalize(ESMC_GridComp comp, ESMC_State /*importState*/, ESMC_State /*exportState*/,
+              ESMC_Clock* /*clock*/, int* rc) {
     bool kokkos_initialized_here = false;
     if (comp.ptr != nullptr) {
         int rc_internal;
@@ -277,6 +292,13 @@ void Finalize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState
 
             // Finalize CDEPS
             data->ingestor.FinalizeCDEPS();
+
+            // Clear active schemes and states to ensure Views are destroyed
+            // before Kokkos::finalize is called.
+            data->active_schemes.clear();
+            data->import_state.fields.clear();
+            data->export_state.fields.clear();
+            data->diagnostic_manager.reset();
 
             delete data;
         }

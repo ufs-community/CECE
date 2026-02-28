@@ -37,10 +37,6 @@ std::unique_ptr<PhysicsScheme> PhysicsFactory::CreateScheme(const PhysicsSchemeC
         scheme = std::make_unique<NativePhysicsExample>();
     }
 
-    if (scheme) {
-        scheme->Initialize(config.options);
-    }
-
     return scheme;
 }
 

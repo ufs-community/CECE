@@ -5,6 +5,7 @@
 
 #include <memory>
 
+#include "aces/aces_diagnostics.hpp"
 #include "aces/aces_state.hpp"
 
 namespace aces {
@@ -19,8 +20,9 @@ class PhysicsScheme {
     /**
      * @brief Initializes the physics scheme with configuration options.
      * @param config YAML node containing scheme-specific options.
+     * @param diag_manager Pointer to the diagnostic manager for registering variables.
      */
-    virtual void Initialize(const YAML::Node& config) = 0;
+    virtual void Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) = 0;
 
     /**
      * @brief Executes the physics scheme.

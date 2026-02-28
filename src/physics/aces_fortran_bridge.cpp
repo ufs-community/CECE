@@ -18,8 +18,10 @@ namespace aces {
 /**
  * @brief Initializes the Fortran bridge scheme.
  * @param config YAML node containing scheme-specific options.
+ * @param diag_manager Pointer to the diagnostic manager.
  */
-void FortranBridgeExample::Initialize(const YAML::Node& config) {
+void FortranBridgeExample::Initialize(const YAML::Node& /*config*/,
+                                      AcesDiagnosticManager* /*diag_manager*/) {
     std::cout << "FortranBridgeExample: Initialized." << std::endl;
 }
 

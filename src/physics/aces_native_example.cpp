@@ -13,9 +13,15 @@ namespace aces {
 /**
  * @brief Initializes the native physics scheme.
  * @param config YAML node containing scheme-specific options.
+ * @param diag_manager Pointer to the diagnostic manager.
  */
-void NativePhysicsExample::Initialize(const YAML::Node& config) {
+void NativePhysicsExample::Initialize(const YAML::Node& /*config*/,
+                                      AcesDiagnosticManager* diag_manager) {
     std::cout << "NativePhysicsExample: Initialized." << std::endl;
+    if (diag_manager) {
+        // Register an example diagnostic variable
+        diag_manager->RegisterDiagnostic("native_example_diag", 1, 1, 1);
+    }
 }
 
 /**

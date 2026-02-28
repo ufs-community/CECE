@@ -18,6 +18,18 @@ class FieldResolver {
     virtual ~FieldResolver() = default;
     virtual UnmanagedHostView3D ResolveImport(const std::string& name, int nx, int ny, int nz) = 0;
     virtual UnmanagedHostView3D ResolveExport(const std::string& name, int nx, int ny, int nz) = 0;
+
+    /**
+     * @brief Resolves an import field and returns its device-side View.
+     */
+    virtual Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
+    ResolveImportDevice(const std::string& name, int nx, int ny, int nz) = 0;
+
+    /**
+     * @brief Resolves an export field and returns its device-side View.
+     */
+    virtual Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
+    ResolveExportDevice(const std::string& name, int nx, int ny, int nz) = 0;
 };
 
 /**

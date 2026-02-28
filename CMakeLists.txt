@@ -197,6 +197,7 @@ set(ACES_SRCS
   src/aces_physics_factory.cpp
   src/physics/aces_native_example.cpp
   src/io/aces_data_ingestor.cpp
+  src/io/aces_diagnostic_writer.cpp
 )
 
 if(ACES_HAS_FORTRAN)
@@ -241,6 +242,16 @@ target_link_libraries(test_aces_cap
   PRIVATE
   aces
   GTest::gtest_main
+)
+
+add_executable(test_diagnostics
+  tests/test_diagnostics.cpp
+)
+
+target_link_libraries(test_diagnostics
+  PRIVATE
+  aces
+  GTest::gtest
 )
 
 add_executable(test_aces_ingestor
@@ -298,3 +309,4 @@ gtest_discover_tests(test_aces_utils)
 gtest_discover_tests(test_aces_compute)
 gtest_discover_tests(test_physics)
 gtest_discover_tests(test_aces_ingestor)
+gtest_discover_tests(test_diagnostics)
