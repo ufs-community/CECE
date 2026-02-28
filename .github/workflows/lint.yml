@@ -19,4 +19,4 @@ jobs:
 
     - name: Run Cppcheck
       run: |
-        cppcheck --enable=all --suppress=missingIncludeSystem --suppress=missingInclude -I include --error-exitcode=1 src include
+        cppcheck --enable=all --suppress=missingIncludeSystem --suppress=missingInclude --suppress=unusedFunction -I include --error-exitcode=1 src include

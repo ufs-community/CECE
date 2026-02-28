@@ -54,46 +54,57 @@ class AcesStateResolver : public FieldResolver {
     AcesStateResolver(const AcesImportState& imp, const AcesExportState& exp)
         : import_state(imp), export_state(exp) {}
 
-    // cppcheck-suppress unusedFunction
-    UnmanagedHostView3D ResolveImport(const std::string& name, int /*nx*/, int /*ny*/,
-                                      int /*nz*/) override {
-        auto it = import_state.fields.find(name);
-        if (it != import_state.fields.end()) {
-            return it->second.view_host();
-        }
-        return UnmanagedHostView3D();
-    }
+    UnmanagedHostView3D ResolveImport(const std::string& name, int nx, int ny, int nz) override;
+    UnmanagedHostView3D ResolveExport(const std::string& name, int nx, int ny, int nz) override;
 
-    // cppcheck-suppress unusedFunction
-    UnmanagedHostView3D ResolveExport(const std::string& name, int /*nx*/, int /*ny*/,
-                                      int /*nz*/) override {
-        auto it = export_state.fields.find(name);
-        if (it != export_state.fields.end()) {
-            return it->second.view_host();
-        }
-        return UnmanagedHostView3D();
-    }
-
-    // cppcheck-suppress unusedFunction
     Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
-    ResolveImportDevice(const std::string& name, int /*nx*/, int /*ny*/, int /*nz*/) override {
-        auto it = import_state.fields.find(name);
-        if (it != import_state.fields.end()) {
-            return it->second.view_device();
-        }
-        return Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>();
-    }
+    ResolveImportDevice(const std::string& name, int nx, int ny, int nz) override;
 
-    // cppcheck-suppress unusedFunction
     Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveExportDevice(
-        const std::string& name, int /*nx*/, int /*ny*/, int /*nz*/) override {
-        auto it = export_state.fields.find(name);
-        if (it != export_state.fields.end()) {
-            return it->second.view_device();
-        }
-        return Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>();
-    }
+        const std::string& name, int nx, int ny, int nz) override;
 };
+
+// cppcheck-suppress unusedFunction
+UnmanagedHostView3D AcesStateResolver::ResolveImport(const std::string& name, int /*nx*/,
+                                                     int /*ny*/, int /*nz*/) {
+    auto it = import_state.fields.find(name);
+    if (it != import_state.fields.end()) {
+        return it->second.view_host();
+    }
+    return UnmanagedHostView3D();
+}
+
+// cppcheck-suppress unusedFunction
+UnmanagedHostView3D AcesStateResolver::ResolveExport(const std::string& name, int /*nx*/,
+                                                     int /*ny*/, int /*nz*/) {
+    auto it = export_state.fields.find(name);
+    if (it != export_state.fields.end()) {
+        return it->second.view_host();
+    }
+    return UnmanagedHostView3D();
+}
+
+// cppcheck-suppress unusedFunction
+Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
+AcesStateResolver::ResolveImportDevice(const std::string& name, int /*nx*/, int /*ny*/,
+                                       int /*nz*/) {
+    auto it = import_state.fields.find(name);
+    if (it != import_state.fields.end()) {
+        return it->second.view_device();
+    }
+    return Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>();
+}
+
+// cppcheck-suppress unusedFunction
+Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
+AcesStateResolver::ResolveExportDevice(const std::string& name, int /*nx*/, int /*ny*/,
+                                       int /*nz*/) {
+    auto it = export_state.fields.find(name);
+    if (it != export_state.fields.end()) {
+        return it->second.view_device();
+    }
+    return Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>();
+}
 
 /**
  * @brief Helper to create a DualView from an ESMF field.
