@@ -40,3 +40,33 @@ jobs:
 
         # Test
         ctest --output-on-failure
+
+    - name: Run HEMCO Parity Examples
+      shell: bash
+      run: |
+        if [ -f /opt/spack-environment/activate.sh ]; then
+          source /opt/spack-environment/activate.sh
+        fi
+
+        # Setup examples
+        ./scripts/setup_hemco_examples.sh
+
+        # Download data for Example 1 (MACCity CO and hourly scale factors)
+        # Note: These are example paths on the S3 bucket
+        mkdir -p data
+        ./scripts/download_hemco_data.py HEMCO/MACCITY/v2014-10/MACCity_2000.nc -o data/MACCity.nc
+
+        # Verify data
+        ./scripts/verify_hemco_data.py data/MACCity.nc --vars CO
+
+        # Run Example 1 with Standalone Driver
+        cp examples/aces_config_ex1.yaml aces_config.yaml
+
+        # Download a real (small) NetCDF to use as a proxy for hourly.nc if needed.
+        # For now, we will use the MACCity file as its own scale factor for testing purposes.
+        cp data/MACCity.nc data/hourly.nc
+
+        # Build/standalone_nuopc/aces_nuopc_driver is the path
+        # But we need to make sure the library is in the path for the executable to find it.
+        export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(pwd)/build
+        ./build/standalone_nuopc/aces_nuopc_driver

@@ -6,14 +6,17 @@ import sys
 
 def download_s3(s3_path, local_path):
     """
-    Download a file or directory from S3 using the AWS CLI or `wget`.
+    Download a file or directory from S3 using the AWS CLI or `curl`.
     """
     # HEMCO data is on an anonymous public S3 bucket: s3://geos-chem
     # URL access is also possible: https://geos-chem.s3.amazonaws.com/
 
     if s3_path.startswith("s3://"):
-        # Strip s3:// and use the URL
+        # Strip s3:// and the bucket name if it's there
+        # Expected formats: s3://geos-chem/path/to/file or s3://path/to/file
         relative_path = s3_path[5:]
+        if relative_path.startswith("geos-chem/"):
+            relative_path = relative_path[10:]
         url = f"https://geos-chem.s3.amazonaws.com/{relative_path}"
     else:
         url = f"https://geos-chem.s3.amazonaws.com/{s3_path}"
