@@ -74,8 +74,33 @@ AcesConfig ParseConfig(const std::string& filename) {
 
     // Parse diagnostics
     if (root["diagnostics"]) {
-        for (auto const& diag_node : root["diagnostics"]) {
-            config.diagnostics.push_back(diag_node.as<std::string>());
+        auto diag_node = root["diagnostics"];
+        if (diag_node.IsSequence()) {
+            // Backward compatibility for simple list
+            for (auto const& item : diag_node) {
+                config.diagnostics.variables.push_back(item.as<std::string>());
+            }
+        } else if (diag_node.IsMap()) {
+            if (diag_node["output_interval"]) {
+                config.diagnostics.output_interval_seconds = diag_node["output_interval"].as<int>();
+            }
+            if (diag_node["grid_type"]) {
+                config.diagnostics.grid_type = diag_node["grid_type"].as<std::string>();
+            }
+            if (diag_node["grid_file"]) {
+                config.diagnostics.grid_file = diag_node["grid_file"].as<std::string>();
+            }
+            if (diag_node["nx"]) {
+                config.diagnostics.nx = diag_node["nx"].as<int>();
+            }
+            if (diag_node["ny"]) {
+                config.diagnostics.ny = diag_node["ny"].as<int>();
+            }
+            if (diag_node["variables"]) {
+                for (auto const& var_node : diag_node["variables"]) {
+                    config.diagnostics.variables.push_back(var_node.as<std::string>());
+                }
+            }
         }
     }
 

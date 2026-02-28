@@ -57,6 +57,19 @@ struct AcesCdepsConfig {
 };
 
 /**
+ * @struct DiagnosticConfig
+ * @brief Configuration for diagnostic output.
+ */
+struct DiagnosticConfig {
+    int output_interval_seconds = 0;     ///< Output frequency in seconds.
+    std::string grid_type = "native";    ///< "native", "gaussian", or "mesh".
+    std::string grid_file = "";          ///< Path to ESMF mesh file if grid_type is "mesh".
+    int nx = 0;                          ///< Grid X for Gaussian or native.
+    int ny = 0;                          ///< Grid Y for Gaussian or native.
+    std::vector<std::string> variables;  ///< Variables to output.
+};
+
+/**
  * @struct AcesConfig
  * @brief Top-level configuration for ACES.
  */
@@ -65,8 +78,8 @@ struct AcesConfig {
     std::map<std::string, std::vector<EmissionLayer>> species_layers;
     /// List of active physics schemes to be executed.
     std::vector<PhysicsSchemeConfig> physics_schemes;
-    /// List of diagnostic variable names to be written to disk.
-    std::vector<std::string> diagnostics;
+    /// Configuration for diagnostic output.
+    DiagnosticConfig diagnostics;
     /// Configuration for CDEPS-inline data ingestion.
     AcesCdepsConfig cdeps_config;
 };

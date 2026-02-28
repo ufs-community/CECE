@@ -40,18 +40,24 @@ TEST(DiagnosticsTest, RegistrationAndWriteback) {
     AcesExportState export_state;
     scheme.Run(import_state, export_state);
 
-    std::vector<std::string> requested = {"test_diag"};
+    DiagnosticConfig diag_config;
+    diag_config.variables = {"test_diag"};
+    diag_config.output_interval_seconds = 0;  // Force immediate
 
-    // Create a dummy template field for the test
+    // Create a dummy template field and clock for the test
     ESMC_Field template_field;
     template_field.ptr = (void*)0xDEADBEEF;  // Mock pointer to satisfy null check
+
+    ESMC_Clock clock;
+    clock.ptr = nullptr;
 
     // Note: We skip the actual ESMC_FieldWrite in the unit test because
     // it requires a valid internal ESMF state that is not fully set up here.
     // However, we verify that the synchronization logic works.
     (void)template_field;
+    (void)clock;
 
-    // diag_manager.WriteDiagnostics(requested, template_field);
+    // diag_manager.WriteDiagnostics(diag_config, clock, template_field);
 
     // Verify Kokkos sync (manual sync for test since we skipped WriteDiagnostics)
     auto dv = diag_manager.RegisterDiagnostic("test_diag", 10, 10, 5);

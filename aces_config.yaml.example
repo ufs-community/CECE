@@ -35,11 +35,25 @@ physics_schemes:
     options:
       scaling_factor: 2.0
 
-# Diagnostic variables to write to disk at the end of each timestep.
-# These variables must be registered by a physics scheme or the core engine.
+# Diagnostic configuration for writeback.
 # ACES will synchronize these from device to host and write them to NetCDF.
 diagnostics:
-  - "native_example_diag"
+  # Output interval in seconds. ACES checks the ESMF clock.
+  output_interval: 3600
+
+  # Optional: Designation of the output grid.
+  # Supported types: "native", "gaussian", "mesh"
+  grid_type: "gaussian"
+  nx: 720
+  ny: 360
+
+  # For "mesh", specify the path to an ESMF mesh file.
+  # grid_type: "mesh"
+  # grid_file: "data/grids/fv3_mesh.nc"
+
+  # List of variables to output. These must be registered by schemes.
+  variables:
+    - "native_example_diag"
 
 # CDEPS-inline configuration for reading static inventories from disk.
 # Field names listed here will be looked up from disk.

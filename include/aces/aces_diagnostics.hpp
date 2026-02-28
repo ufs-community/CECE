@@ -6,6 +6,7 @@
 #include <vector>
 
 #include "ESMC.h"
+#include "aces/aces_config.hpp"
 #include "aces/aces_state.hpp"
 
 namespace aces {
@@ -30,10 +31,11 @@ class AcesDiagnosticManager {
 
     /**
      * @brief Writes requested diagnostics to disk.
-     * @param requested_names List of diagnostic names to output.
+     * @param config Diagnostic configuration.
+     * @param clock ESMF clock for timing.
      * @param template_field A field used to derive grid information for output.
      */
-    void WriteDiagnostics(const std::vector<std::string>& requested_names,
+    void WriteDiagnostics(const DiagnosticConfig& config, ESMC_Clock clock,
                           ESMC_Field template_field);
 
    private:

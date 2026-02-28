@@ -154,7 +154,7 @@ void Initialize(ESMC_GridComp comp, ESMC_State /*importState*/, ESMC_State /*exp
 /**
  * @brief Internal implementation of Run phase.
  */
-void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESMC_Clock* /*clock*/,
+void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESMC_Clock* clock,
          int* rc) {
     std::cout << "ACES_Run: Executing." << std::endl;
 
@@ -262,7 +262,9 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
     // Write diagnostics
     // We use the last discovered field as a template for grid information
     Kokkos::Profiling::pushRegion("ACES_Writeback");
-    data->diagnostic_manager->WriteDiagnostics(data->config.diagnostics, field);
+    if (clock != nullptr) {
+        data->diagnostic_manager->WriteDiagnostics(data->config.diagnostics, *clock, field);
+    }
 
     // Sync results back to host space so the ESMF framework can see updated field data.
     for (auto& [name, dv] : exp.fields) {
