@@ -1,0 +1,16 @@
+# ACES equivalent of HEMCO Example 6
+species:
+  no:
+    - field: "EDGAR_NO_POW"
+      category: 1
+      operation: "add"
+    - field: "CEDS_NO_AGR"
+      category: 1
+      operation: "add"
+
+cdeps_config:
+  streams:
+    - name: "EDGAR_NO_POW"
+      file_path: "data/EDGAR_v43.NOx.POW.nc"
+    - name: "CEDS_NO_AGR"
+      file_path: "data/NO-em-anthro_CMIP_CEDS.nc"

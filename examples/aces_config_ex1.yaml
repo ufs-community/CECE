@@ -9,8 +9,6 @@ species:
       scale: 1.0
       scale_fields: ["hourly_scalfact"]
 
-# Note: In ACES, CDEPS-inline handles file reading.
-# You would define the streams in cdeps_config.
 cdeps_config:
   streams:
     - name: "MACCITY_CO"

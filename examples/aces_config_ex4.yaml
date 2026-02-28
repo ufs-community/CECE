@@ -1,0 +1,19 @@
+# ACES equivalent of HEMCO Example 4
+physics_schemes:
+  - name: "GFED"
+    options:
+      version: "GFED4"
+
+species:
+  co:
+    - field: "MACCITY_CO"
+      category: 1
+      hierarchy: 1
+      operation: "add"
+
+cdeps_config:
+  streams:
+    - name: "MACCITY_CO"
+      file_path: "data/MACCity.nc"
+    - name: "GFED_WDL"
+      file_path: "data/GFED4/GFED4_gen.nc"
