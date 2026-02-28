@@ -35,7 +35,13 @@ AcesConfig ParseConfig(const std::string& filename) {
                 layer.operation = layer_node["operation"].as<std::string>();
                 layer.field_name = layer_node["field"].as<std::string>();
                 if (layer_node["mask"]) {
-                    layer.mask_name = layer_node["mask"].as<std::string>();
+                    if (layer_node["mask"].IsSequence()) {
+                        for (auto const& m : layer_node["mask"]) {
+                            layer.masks.push_back(m.as<std::string>());
+                        }
+                    } else {
+                        layer.masks.push_back(layer_node["mask"].as<std::string>());
+                    }
                 }
                 if (layer_node["scale"]) {
                     layer.scale = layer_node["scale"].as<double>();
@@ -51,9 +57,37 @@ AcesConfig ParseConfig(const std::string& filename) {
                         layer.scale_fields.push_back(sf_node.as<std::string>());
                     }
                 }
+                if (layer_node["diurnal_cycle"]) {
+                    layer.diurnal_cycle = layer_node["diurnal_cycle"].as<std::string>();
+                }
+                if (layer_node["weekly_cycle"]) {
+                    layer.weekly_cycle = layer_node["weekly_cycle"].as<std::string>();
+                }
                 layers.push_back(layer);
             }
             config.species_layers[species_name] = layers;
+        }
+    }
+
+    // Parse meteorology mapping
+    if (root["meteorology"]) {
+        for (auto const& met_node : root["meteorology"]) {
+            config.met_mapping[met_node.first.as<std::string>()] =
+                met_node.second.as<std::string>();
+        }
+    }
+
+    // Parse temporal cycles
+    if (root["temporal_cycles"]) {
+        for (auto const& cycle_node : root["temporal_cycles"]) {
+            std::string cycle_name = cycle_node.first.as<std::string>();
+            TemporalCycle cycle;
+            if (cycle_node.second.IsSequence()) {
+                for (auto const& factor : cycle_node.second) {
+                    cycle.factors.push_back(factor.as<double>());
+                }
+            }
+            config.temporal_cycles[cycle_name] = cycle;
         }
     }
 

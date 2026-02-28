@@ -7,6 +7,7 @@
  */
 
 #include "ESMC.h"
+#include "NUOPC.h"
 
 namespace aces {
 

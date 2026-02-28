@@ -31,11 +31,21 @@ struct PhysicsSchemeConfig {
 struct EmissionLayer {
     std::string operation;                  ///< Layer operation: "add" or "replace".
     std::string field_name;                 ///< Name of the base field in the ESMF State.
-    std::string mask_name;                  ///< Name of the geographical mask field (optional).
+    std::vector<std::string> masks;         ///< List of geographical mask fields.
     double scale = 1.0;                     ///< Scaling factor for this layer.
     int hierarchy = 0;                      ///< Hierarchy level (higher overwrites lower).
     std::string category = "1";             ///< Emission category.
     std::vector<std::string> scale_fields;  ///< List of additional scale fields to apply.
+    std::string diurnal_cycle;              ///< Name of the diurnal cycle to apply.
+    std::string weekly_cycle;               ///< Name of the weekly cycle to apply.
+};
+
+/**
+ * @struct TemporalCycle
+ * @brief Represents a periodic scaling cycle.
+ */
+struct TemporalCycle {
+    std::vector<double> factors;  ///< Scaling factors (e.g., 24 for diurnal, 7 for weekly).
 };
 
 /**
@@ -76,6 +86,10 @@ struct DiagnosticConfig {
 struct AcesConfig {
     /// Map of species names to their ordered list of emission layers.
     std::map<std::string, std::vector<EmissionLayer>> species_layers;
+    /// Map of internal meteorology names to external names (e.g., CF standard names).
+    std::map<std::string, std::string> met_mapping;
+    /// Map of cycle names to their temporal scaling factors.
+    std::map<std::string, TemporalCycle> temporal_cycles;
     /// List of active physics schemes to be executed.
     std::vector<PhysicsSchemeConfig> physics_schemes;
     /// Configuration for diagnostic output.

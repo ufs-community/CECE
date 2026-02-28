@@ -36,75 +36,14 @@ struct AcesInternalData {
     AcesConfig config;                                          ///< Parsed ACES configuration.
     std::unique_ptr<AcesDiagnosticManager> diagnostic_manager;  ///< Diagnostic manager.
     std::vector<std::unique_ptr<PhysicsScheme>>
-        active_schemes;                    ///< List of active physics plugins.
-    AcesImportState import_state;          ///< Input data views.
-    AcesExportState export_state;          ///< Output emission views.
-    AcesDataIngestor ingestor;             ///< Hybrid data ingestor.
+        active_schemes;            ///< List of active physics plugins.
+    AcesImportState import_state;  ///< Input data views.
+    AcesExportState export_state;  ///< Output emission views.
+    AcesDataIngestor ingestor;     ///< Hybrid data ingestor.
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
+        default_mask;                      ///< Persistent 1.0 mask.
     bool kokkos_initialized_here = false;  ///< Flag to track if this component initialized Kokkos.
 };
-
-/**
- * @brief FieldResolver that pulls from the unified AcesImportState and AcesExportState.
- */
-class AcesStateResolver : public FieldResolver {
-    const AcesImportState& import_state;
-    const AcesExportState& export_state;
-
-   public:
-    AcesStateResolver(const AcesImportState& imp, const AcesExportState& exp)
-        : import_state(imp), export_state(exp) {}
-
-    UnmanagedHostView3D ResolveImport(const std::string& name, int nx, int ny, int nz) override;
-    UnmanagedHostView3D ResolveExport(const std::string& name, int nx, int ny, int nz) override;
-
-    Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
-    ResolveImportDevice(const std::string& name, int nx, int ny, int nz) override;
-
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveExportDevice(
-        const std::string& name, int nx, int ny, int nz) override;
-};
-
-// cppcheck-suppress unusedFunction
-UnmanagedHostView3D AcesStateResolver::ResolveImport(const std::string& name, int /*nx*/,
-                                                     int /*ny*/, int /*nz*/) {
-    auto it = import_state.fields.find(name);
-    if (it != import_state.fields.end()) {
-        return it->second.view_host();
-    }
-    return UnmanagedHostView3D();
-}
-
-// cppcheck-suppress unusedFunction
-UnmanagedHostView3D AcesStateResolver::ResolveExport(const std::string& name, int /*nx*/,
-                                                     int /*ny*/, int /*nz*/) {
-    auto it = export_state.fields.find(name);
-    if (it != export_state.fields.end()) {
-        return it->second.view_host();
-    }
-    return UnmanagedHostView3D();
-}
-
-// cppcheck-suppress unusedFunction
-Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
-AcesStateResolver::ResolveImportDevice(const std::string& name, int /*nx*/, int /*ny*/,
-                                       int /*nz*/) {
-    auto it = import_state.fields.find(name);
-    if (it != import_state.fields.end()) {
-        return it->second.view_device();
-    }
-    return Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>();
-}
-
-// cppcheck-suppress unusedFunction
-Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
-AcesStateResolver::ResolveExportDevice(const std::string& name, int /*nx*/, int /*ny*/,
-                                       int /*nz*/) {
-    auto it = export_state.fields.find(name);
-    if (it != export_state.fields.end()) {
-        return it->second.view_device();
-    }
-    return Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>();
-}
 
 /**
  * @brief Helper to create a DualView from an ESMF field.
@@ -155,6 +94,18 @@ void Initialize(ESMC_GridComp comp, ESMC_State /*importState*/, ESMC_State /*exp
 
         // Initialize CDEPS if configured
         data->ingestor.InitializeCDEPS(data->config.cdeps_config);
+
+        // Advertise meteorology and emission fields in the ESMF framework using NUOPC API.
+        ESMC_State importState_real = NUOPC_ModelGetImportState(comp, NULL);
+        for (auto const& [internal_name, external_name] : data->config.met_mapping) {
+            NUOPC_Advertise(importState_real, external_name.c_str(), external_name.c_str());
+        }
+
+        ESMC_State exportState_real = NUOPC_ModelGetExportState(comp, NULL);
+        for (auto const& [species, layers] : data->config.species_layers) {
+            std::string export_name = "total_" + species + "_emissions";
+            NUOPC_Advertise(exportState_real, export_name.c_str(), export_name.c_str());
+        }
 
         ESMC_GridCompSetInternalState(comp, data);
     }
@@ -213,8 +164,19 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
     // Lazily initialize persistent DualViews for export state.
     for (auto const& [species, layers] : data->config.species_layers) {
         std::string export_name = "total_" + species + "_emissions";
-        data->export_state.fields.try_emplace(export_name,
-                                              GetDualView(exportState, export_name, nx, ny, nz));
+        if (data->export_state.fields.find(export_name) == data->export_state.fields.end()) {
+            data->export_state.fields.try_emplace(
+                export_name, GetDualView(exportState, export_name, nx, ny, nz));
+        }
+    }
+
+    // Lazily initialize persistent scratch views.
+    if (data->default_mask.extent(0) != (size_t)nx || data->default_mask.extent(1) != (size_t)ny ||
+        data->default_mask.extent(2) != (size_t)nz) {
+        data->default_mask =
+            Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>(
+                "default_mask", nx, ny, nz);
+        Kokkos::deep_copy(data->default_mask, 1.0);
     }
 
     // Hybrid data ingestion:
@@ -236,16 +198,30 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
                 std::inserter(esmf_fields_set, esmf_fields_set.end()),
                 [&](const std::string& sf) { return cdeps_fields.find(sf) == cdeps_fields.end(); });
 
-            if (!layer.mask_name.empty() &&
-                cdeps_fields.find(layer.mask_name) == cdeps_fields.end()) {
-                esmf_fields_set.insert(layer.mask_name);
+            for (const auto& m : layer.masks) {
+                if (cdeps_fields.find(m) == cdeps_fields.end()) {
+                    esmf_fields_set.insert(m);
+                }
             }
         }
     }
     std::vector<std::string> esmf_fields(esmf_fields_set.begin(), esmf_fields_set.end());
 
     Kokkos::Profiling::pushRegion("ACES_DataIngestion");
-    data->ingestor.IngestMeteorology(importState, esmf_fields, data->import_state, nx, ny, nz);
+
+    // Apply meteorology mapping to get external names for ESMF ingestion
+    std::vector<std::string> external_esmf_fields;
+    for (const auto& internal_name : esmf_fields) {
+        auto it = data->config.met_mapping.find(internal_name);
+        if (it != data->config.met_mapping.end()) {
+            external_esmf_fields.push_back(it->second);
+        } else {
+            external_esmf_fields.push_back(internal_name);
+        }
+    }
+
+    data->ingestor.IngestMeteorology(importState, external_esmf_fields, data->import_state, nx, ny,
+                                     nz);
 
     // 2. Emissions from CDEPS
     if (!data->config.cdeps_config.streams.empty()) {
@@ -254,10 +230,35 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
     }
     Kokkos::Profiling::popRegion();
 
+    // Extract time information from ESMF clock
+    int hour = 0;
+    int day_of_week = 0;
+    if (clock != nullptr) {
+        // In standard ESMF C API for version 8.8.0:
+        // int ESMC_ClockGet(ESMC_Clock clock, ESMC_TimeInterval *currSimTime, ESMC_I8
+        // *advanceCount);
+        ESMC_TimeInterval currSimTime;
+        ESMC_I8 advanceCount;
+        ESMC_ClockGet(*clock, &currSimTime, &advanceCount);
+
+        ESMC_I8 seconds_i8;
+        ESMC_TimeIntervalGet(currSimTime, &seconds_i8, NULL);
+
+        // Scientific Logic Improvement: Diurnal/Weekly cycles tied to simulation time offset.
+        // For production, this should ideally be tied to absolute UTC time from
+        // ESMC_ClockGetCurrTime (if available in bridge).
+        hour = (int)((seconds_i8 / 3600) % 24);
+        day_of_week = (int)((seconds_i8 / 86400) % 7);
+    }
+
+    // Advertise meteorology fields in the internal state metadata if requested by the driver.
+    // In NUOPC, this is usually handled via Advertise and Realize phases.
+    // Here we ensure the field names we expect (including mappings) are known.
+
     // Run core compute engine (layer addition/replacement)
     Kokkos::Profiling::pushRegion("ACES_StackingEngine");
-    AcesStateResolver resolver(data->import_state, data->export_state);
-    ComputeEmissions(data->config, resolver, nx, ny, nz);
+    AcesStateResolver resolver(data->import_state, data->export_state, data->config.met_mapping);
+    ComputeEmissions(data->config, resolver, nx, ny, nz, data->default_mask, hour, day_of_week);
     Kokkos::Profiling::popRegion();
 
     auto& imp = data->import_state;
