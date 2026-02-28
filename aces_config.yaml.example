@@ -10,22 +10,39 @@ meteorology:
   temperature: "air_temperature"
   specific_humidity: "specific_humidity"
 
+# Temporal cycles define periodic scaling factors.
+temporal_cycles:
+  diurnal_traffic: [0.5, 0.4, 0.3, 0.3, 0.4, 0.6, 1.0, 1.5, 2.0, 1.8, 1.6, 1.5, 1.5, 1.6, 1.7, 1.8, 2.0, 2.2, 1.8, 1.5, 1.2, 1.0, 0.8, 0.6]
+  weekly_standard: [1.0, 1.0, 1.0, 1.0, 1.0, 0.8, 0.7] # reductions on Sat, Sun
+
 species:
   nox:
-    # 1. Base anthropogenic emissions read from a NetCDF file via CDEPS-inline.
-    # The name "base_anthropogenic_nox" must match one of the streams defined below.
+    # 1. Global anthropogenic emissions (Base Layer)
     - field: "base_anthropogenic_nox"
       operation: "add"
       scale: 1.0
       category: "anthropogenic"
       hierarchy: 1
-      # We can use meteorological fields to scale emissions.
-      # Future support for complex thresholds or step functions can be implemented
-      # in the compute engine functors.
+      # Multiple masks can be applied. The product of all masks is used.
+      mask: ["land_mask", "ice_free_mask"]
+      # Temporal cycles can be applied per layer.
+      diurnal_cycle: "diurnal_traffic"
+      weekly_cycle: "weekly_standard"
+      # Meteorology fields can be used for spatial-temporal scaling.
       scale_fields:
         - "temperature"
 
-    # 2. Additional NOx source provided directly by another ESMF component.
+    # 2. Regional override for Europe.
+    # Hierarchy 10 > Hierarchy 1, so this layer will REPLACE the base layer
+    # wherever the 'europe_mask' is non-zero.
+    - field: "regional_nox_europe"
+      operation: "replace"
+      scale: 1.0
+      category: "regional_overrides"
+      hierarchy: 10
+      mask: "europe_mask"
+
+    # 3. Additional NOx source (Additivity across categories)
     - field: "nox_from_atmosphere"
       operation: "add"
       scale: 1.0

@@ -1,13 +1,28 @@
 #ifndef ACES_COMPUTE_HPP
 #define ACES_COMPUTE_HPP
 
+#include <Kokkos_Core.hpp>
+#include <Kokkos_DualView.hpp>
 #include <functional>
 #include <string>
 
 #include "aces/aces_config.hpp"
-#include "aces/aces_state.hpp"
 
 namespace aces {
+
+/**
+ * @brief Alias for a 3D Kokkos View with unmanaged memory and Fortran layout.
+ *
+ * This alias is used for zero-copy wrapping of ESMF field data, which
+ * follows the column-major (LayoutLeft) order and resides on the host.
+ */
+using UnmanagedHostView3D = Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace,
+                                         Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+
+/**
+ * @brief Alias for a 3D Kokkos DualView with Fortran layout.
+ */
+using DualView3D = Kokkos::DualView<double***, Kokkos::LayoutLeft>;
 
 /**
  * @brief Interface for resolving fields by name into Kokkos Views.
@@ -40,15 +55,12 @@ class FieldResolver {
  * @param ny Grid Y dimension.
  * @param nz Grid Z dimension.
  * @param default_mask Persistent 1.0 mask.
- * @param category_scratch Persistent scratch view for category accumulation.
  * @param hour Current hour of the day (0-23) for diurnal cycles.
  * @param day_of_week Current day of the week (0-6) for weekly cycles.
  */
 void ComputeEmissions(
     const AcesConfig& config, FieldResolver& resolver, int nx, int ny, int nz,
     Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> default_mask = {},
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> category_scratch =
-        {},
     int hour = 0, int day_of_week = 0);
 
 }  // namespace aces

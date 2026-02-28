@@ -260,8 +260,14 @@ TEST_F(AcesComputeTest, HierarchyAndCategory) {
     auto result = resolver.GetFieldData("total_nox_emissions");
     for (int i = 0; i < nx; ++i) {
         for (int j = 0; j < ny; ++j) {
-            // (Overlay * SF) + Cat2 = (2.0 * 1.5) + 10.0 = 13.0
-            EXPECT_DOUBLE_EQ(result(i, j, 0), 13.0);
+            // GLOBAL Hierarchy check:
+            // 1. BG (Hier 1, Add) -> Total = 1.0
+            // 2. Cat2 (Hier 1, Add) -> Total = 11.0 (since they have same hierarchy, order in list
+            // matters, but both are add)
+            // 3. Overlay (Hier 10, Replace) -> Total = (11.0 * (1-1)) + (2.0 * 1.5) = 3.0
+            // Wait, if Overlay has Hier 10 and Replace, it should replace the SUM of everything
+            // before it.
+            EXPECT_DOUBLE_EQ(result(i, j, 0), 3.0);
         }
     }
 }
@@ -305,14 +311,14 @@ TEST_F(AcesComputeTest, TemporalCycles) {
     config.temporal_cycles["weekly"] = weekly;
 
     // Test Hour 10, Day 0 (Monday) -> scale should be 2.5 * 1.0 = 2.5
-    ComputeEmissions(config, resolver, nx, ny, nz, {}, {}, 10, 0);
+    ComputeEmissions(config, resolver, nx, ny, nz, {}, 10, 0);
 
     auto result = resolver.GetFieldData("total_nox_emissions");
     EXPECT_DOUBLE_EQ(result(0, 0, 0), 2.5);
 
     // Test Hour 10, Day 5 (Saturday) -> scale should be 2.5 * 0.5 = 1.25
     Kokkos::deep_copy(resolver.GetFieldData("total_nox_emissions"), 0.0);
-    ComputeEmissions(config, resolver, nx, ny, nz, {}, {}, 10, 5);
+    ComputeEmissions(config, resolver, nx, ny, nz, {}, 10, 5);
     result = resolver.GetFieldData("total_nox_emissions");
     EXPECT_DOUBLE_EQ(result(0, 0, 0), 1.25);
 }
@@ -357,65 +363,6 @@ TEST_F(AcesComputeTest, MultipleMasks) {
     // Result should be 10.0 * (0.5 * 0.2) = 1.0
     EXPECT_DOUBLE_EQ(result(0, 0, 0), 1.0);
 }
-
-/**
- * @brief FieldResolver that pulls from the unified AcesImportState and AcesExportState.
- */
-class AcesStateResolver : public FieldResolver {
-    const AcesImportState& import_state;
-    const AcesExportState& export_state;
-    const std::map<std::string, std::string>& met_mapping;
-
-   public:
-    AcesStateResolver(const AcesImportState& imp, const AcesExportState& exp,
-                      const std::map<std::string, std::string>& mapping)
-        : import_state(imp), export_state(exp), met_mapping(mapping) {}
-
-    UnmanagedHostView3D ResolveImport(const std::string& name, int nx, int ny, int nz) override {
-        std::string resolve_name = name;
-        auto map_it = met_mapping.find(name);
-        if (map_it != met_mapping.end()) {
-            resolve_name = map_it->second;
-        }
-
-        auto it = import_state.fields.find(resolve_name);
-        if (it != import_state.fields.end()) {
-            return it->second.view_host();
-        }
-        return UnmanagedHostView3D();
-    }
-    UnmanagedHostView3D ResolveExport(const std::string& name, int nx, int ny, int nz) override {
-        auto it = export_state.fields.find(name);
-        if (it != export_state.fields.end()) {
-            return it->second.view_host();
-        }
-        return UnmanagedHostView3D();
-    }
-
-    Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
-    ResolveImportDevice(const std::string& name, int nx, int ny, int nz) override {
-        std::string resolve_name = name;
-        auto map_it = met_mapping.find(name);
-        if (map_it != met_mapping.end()) {
-            resolve_name = map_it->second;
-        }
-
-        auto it = import_state.fields.find(resolve_name);
-        if (it != import_state.fields.end()) {
-            return it->second.view_device();
-        }
-        return Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>();
-    }
-
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveExportDevice(
-        const std::string& name, int nx, int ny, int nz) override {
-        auto it = export_state.fields.find(name);
-        if (it != export_state.fields.end()) {
-            return it->second.view_device();
-        }
-        return Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>();
-    }
-};
 
 TEST_F(AcesComputeTest, MeteorologyMappingAndScaling) {
     int nx = 1, ny = 1, nz = 1;

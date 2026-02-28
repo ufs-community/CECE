@@ -41,114 +41,9 @@ struct AcesInternalData {
     AcesExportState export_state;  ///< Output emission views.
     AcesDataIngestor ingestor;     ///< Hybrid data ingestor.
     Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
-        default_mask;  ///< Persistent 1.0 mask.
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
-        category_scratch;                  ///< Scratch view for category accumulation.
+        default_mask;                      ///< Persistent 1.0 mask.
     bool kokkos_initialized_here = false;  ///< Flag to track if this component initialized Kokkos.
 };
-
-/**
- * @brief FieldResolver that pulls from the unified AcesImportState and AcesExportState.
- */
-class AcesStateResolver : public FieldResolver {
-    const AcesImportState& import_state;
-    const AcesExportState& export_state;
-    const std::map<std::string, std::string>& met_mapping;
-
-   public:
-    AcesStateResolver(const AcesImportState& imp, const AcesExportState& exp,
-                      const std::map<std::string, std::string>& mapping)
-        : import_state(imp), export_state(exp), met_mapping(mapping) {}
-
-    UnmanagedHostView3D ResolveImport(const std::string& name, int nx, int ny, int nz) override;
-    UnmanagedHostView3D ResolveExport(const std::string& name, int nx, int ny, int nz) override;
-
-    Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
-    ResolveImportDevice(const std::string& name, int nx, int ny, int nz) override;
-
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveExportDevice(
-        const std::string& name, int nx, int ny, int nz) override;
-};
-
-// cppcheck-suppress unusedFunction
-UnmanagedHostView3D AcesStateResolver::ResolveImport(const std::string& name, int nx, int ny,
-                                                     int nz) {
-    std::string resolve_name = name;
-    auto map_it = met_mapping.find(name);
-    if (map_it != met_mapping.end()) {
-        resolve_name = map_it->second;
-    }
-
-    auto it = import_state.fields.find(resolve_name);
-    if (it != import_state.fields.end()) {
-        auto view = it->second.view_host();
-        if (view.extent(0) != (size_t)nx || view.extent(1) != (size_t)ny ||
-            view.extent(2) != (size_t)nz) {
-            std::cerr << "ACES_Resolver Error: Dimension mismatch for import " << resolve_name
-                      << std::endl;
-            return UnmanagedHostView3D();
-        }
-        return view;
-    }
-    return UnmanagedHostView3D();
-}
-
-// cppcheck-suppress unusedFunction
-UnmanagedHostView3D AcesStateResolver::ResolveExport(const std::string& name, int nx, int ny,
-                                                     int nz) {
-    auto it = export_state.fields.find(name);
-    if (it != export_state.fields.end()) {
-        auto view = it->second.view_host();
-        if (view.extent(0) != (size_t)nx || view.extent(1) != (size_t)ny ||
-            view.extent(2) != (size_t)nz) {
-            std::cerr << "ACES_Resolver Error: Dimension mismatch for export " << name << std::endl;
-            return UnmanagedHostView3D();
-        }
-        return view;
-    }
-    return UnmanagedHostView3D();
-}
-
-// cppcheck-suppress unusedFunction
-Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
-AcesStateResolver::ResolveImportDevice(const std::string& name, int nx, int ny, int nz) {
-    std::string resolve_name = name;
-    auto map_it = met_mapping.find(name);
-    if (map_it != met_mapping.end()) {
-        resolve_name = map_it->second;
-    }
-
-    auto it = import_state.fields.find(resolve_name);
-    if (it != import_state.fields.end()) {
-        auto view = it->second.view_device();
-        if (view.extent(0) != (size_t)nx || view.extent(1) != (size_t)ny ||
-            view.extent(2) != (size_t)nz) {
-            std::cerr << "ACES_Resolver Error: Dimension mismatch for import " << resolve_name
-                      << " (device)" << std::endl;
-            return Kokkos::View<const double***, Kokkos::LayoutLeft,
-                                Kokkos::DefaultExecutionSpace>();
-        }
-        return view;
-    }
-    return Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>();
-}
-
-// cppcheck-suppress unusedFunction
-Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
-AcesStateResolver::ResolveExportDevice(const std::string& name, int nx, int ny, int nz) {
-    auto it = export_state.fields.find(name);
-    if (it != export_state.fields.end()) {
-        auto view = it->second.view_device();
-        if (view.extent(0) != (size_t)nx || view.extent(1) != (size_t)ny ||
-            view.extent(2) != (size_t)nz) {
-            std::cerr << "ACES_Resolver Error: Dimension mismatch for export " << name
-                      << " (device)" << std::endl;
-            return Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>();
-        }
-        return view;
-    }
-    return Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>();
-}
 
 /**
  * @brief Helper to create a DualView from an ESMF field.
@@ -282,10 +177,6 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
             Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>(
                 "default_mask", nx, ny, nz);
         Kokkos::deep_copy(data->default_mask, 1.0);
-
-        data->category_scratch =
-            Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>(
-                "category_scratch", nx, ny, nz);
     }
 
     // Hybrid data ingestion:
@@ -367,8 +258,7 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
     // Run core compute engine (layer addition/replacement)
     Kokkos::Profiling::pushRegion("ACES_StackingEngine");
     AcesStateResolver resolver(data->import_state, data->export_state, data->config.met_mapping);
-    ComputeEmissions(data->config, resolver, nx, ny, nz, data->default_mask, data->category_scratch,
-                     hour, day_of_week);
+    ComputeEmissions(data->config, resolver, nx, ny, nz, data->default_mask, hour, day_of_week);
     Kokkos::Profiling::popRegion();
 
     auto& imp = data->import_state;
