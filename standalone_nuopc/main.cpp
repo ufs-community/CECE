@@ -1,9 +1,10 @@
+#include <yaml-cpp/yaml.h>
+
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
 #include <vector>
-#include <yaml-cpp/yaml.h>
 
 #include "ESMC.h"
 #include "NUOPC.h"
@@ -73,7 +74,8 @@ int main(int argc, char** argv) {
     std::cout << "[NUOPC Driver] Grid: " << nx << "x" << ny << "x" << nz << std::endl;
     std::cout << "[NUOPC Driver] Start: " << start_year << " hour " << start_hour_of_year
               << std::endl;
-    std::cout << "[NUOPC Driver] Stop:  " << stop_year << " hour " << stop_hour_of_year << std::endl;
+    std::cout << "[NUOPC Driver] Stop:  " << stop_year << " hour " << stop_hour_of_year
+              << std::endl;
     std::cout << "[NUOPC Driver] Timestep: " << timestep_hours << " hour(s)" << std::endl;
 
     // 3. Create simulation clock

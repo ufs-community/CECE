@@ -59,20 +59,27 @@ if(NOT ESMF_FOUND)
     # Create a temporary Makefile to extract variables
     # We extract include paths and link flags separately to avoid mixing them up
     set(MK_FILE "${CMAKE_BINARY_DIR}/esmf_probe.mk")
-    file(WRITE "${MK_FILE}" "include ${ESMFMKFILE}\nprint_inc:\n\t@echo \$(ESMF_F90COMPILEPATHS)\nprint_lib:\n\t@echo \$(ESMF_F90LINKPATHS) \$(ESMF_F90LINKRPATHS) \$(ESMF_F90ESMFLINKLIBS)\n")
+    file(WRITE "${MK_FILE}" "include ${ESMFMKFILE}\nprint_inc:\n\t@echo \"__ESMF_INC__\$(ESMF_F90COMPILEPATHS)\"\nprint_lib:\n\t@echo \"__ESMF_LIB__\$(ESMF_F90LINKPATHS) \$(ESMF_F90LINKRPATHS) \$(ESMF_F90ESMFLINKLIBS)\"\n")
 
-    # Get Includes
-    execute_process(COMMAND make -f "${MK_FILE}" print_inc
+    # Get Includes - use grep to strictly capture our tagged line and avoid 'make' noise
+    execute_process(COMMAND make --no-print-directory -f "${MK_FILE}" print_inc
+                    COMMAND grep "__ESMF_INC__"
                     OUTPUT_VARIABLE ESMF_INC_RAW
                     OUTPUT_STRIP_TRAILING_WHITESPACE)
+    if(ESMF_INC_RAW MATCHES "__ESMF_INC__([^\n\r]*)")
+        set(ESMF_INC_RAW "${CMAKE_MATCH_1}")
+    endif()
 
-    # Get Libs
-    execute_process(COMMAND make -f "${MK_FILE}" print_lib
+    # Get Libs - use grep to strictly capture our tagged line and avoid 'make' noise
+    execute_process(COMMAND make --no-print-directory -f "${MK_FILE}" print_lib
+                    COMMAND grep "__ESMF_LIB__"
                     OUTPUT_VARIABLE ESMF_LIB_RAW
                     OUTPUT_STRIP_TRAILING_WHITESPACE)
+    if(ESMF_LIB_RAW MATCHES "__ESMF_LIB__([^\n\r]*)")
+        set(ESMF_LIB_RAW "${CMAKE_MATCH_1}")
+    endif()
 
     # Process Includes
-    string(REGEX REPLACE "[\r\n]" " " ESMF_INC_RAW "${ESMF_INC_RAW}")
     string(REPLACE " " ";" ESMF_INC_LIST "${ESMF_INC_RAW}")
     set(ESMF_INCLUDE_DIRS "")
     foreach(item ${ESMF_INC_LIST})
@@ -82,11 +89,10 @@ if(NOT ESMF_FOUND)
     endforeach()
 
     # Process Libs
-    string(REGEX REPLACE "[\r\n]" " " ESMF_LIB_RAW "${ESMF_LIB_RAW}")
     string(REPLACE " " ";" ESMF_LIB_LIST "${ESMF_LIB_RAW}")
     set(ESMF_LIBRARIES "")
     foreach(item ${ESMF_LIB_LIST})
-        if(item) # skip empty items
+        if(item)
             list(APPEND ESMF_LIBRARIES "${item}")
         endif()
     endforeach()
