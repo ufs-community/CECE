@@ -220,6 +220,14 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
         }
     }
 
+    // Fallback: try a generic discovery field if no species are configured yet
+    if (field.ptr == nullptr) {
+        int local_rc = ESMC_StateGetField(exportState, "total_aces_discovery_emissions", &field);
+        if (local_rc != ESMF_SUCCESS) {
+            field.ptr = nullptr;
+        }
+    }
+
     if (field.ptr) {
         int lbound[3] = {0, 0, 0};
         int ubound[3] = {0, 0, 0};

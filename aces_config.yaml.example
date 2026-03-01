@@ -5,6 +5,19 @@
 # Fields used in 'species' definitions are dynamically resolved.
 # ACES first checks if a field is provided by CDEPS-inline (see 'cdeps_inline_config').
 # If not found in CDEPS, it attempts to pull the field from the ESMF ImportState.
+# Simulation control for standalone driver.
+# These parameters are used by the standalone_nuopc driver to setup the grid and clock.
+driver:
+  nx: 72
+  ny: 46
+  nz: 1
+  start_year: 2024
+  start_hour_of_year: 0
+  stop_year: 2024
+  stop_hour_of_year: 24
+  timestep_hours: 1
+  nsteps: 2
+
 # Meteorology mapping allows internal names to be mapped to external (e.g., CF standard) names.
 meteorology:
   temperature: "air_temperature"

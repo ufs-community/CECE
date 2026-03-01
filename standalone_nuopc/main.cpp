@@ -1,3 +1,5 @@
+#include <yaml-cpp/yaml.h>
+
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -37,23 +39,57 @@ int main(int argc, char** argv) {
     CHECK_RC(rc, "ESMC_Initialize failed");
     std::cout << "[NUOPC Driver] ESMF Initialized." << std::endl;
 
-    // 2. Define simulation grid dimensions
-    const int nx = 72;
-    const int ny = 46;
-    const int nz = 1;
+    // 2. Load configuration and define simulation parameters
+    int nx = 72;
+    int ny = 46;
+    int nz = 1;
+    int start_year = 2024;
+    int start_hour_of_year = 0;
+    int stop_year = 2024;
+    int stop_hour_of_year = 24;
+    int timestep_hours = 1;
+    int nsteps = 2;
+
+    try {
+        YAML::Node config = YAML::LoadFile("aces_config.yaml");
+        if (config["driver"]) {
+            auto driver = config["driver"];
+            if (driver["nx"]) nx = driver["nx"].as<int>();
+            if (driver["ny"]) ny = driver["ny"].as<int>();
+            if (driver["nz"]) nz = driver["nz"].as<int>();
+            if (driver["start_year"]) start_year = driver["start_year"].as<int>();
+            if (driver["start_hour_of_year"])
+                start_hour_of_year = driver["start_hour_of_year"].as<int>();
+            if (driver["stop_year"]) stop_year = driver["stop_year"].as<int>();
+            if (driver["stop_hour_of_year"])
+                stop_hour_of_year = driver["stop_hour_of_year"].as<int>();
+            if (driver["timestep_hours"]) timestep_hours = driver["timestep_hours"].as<int>();
+            if (driver["nsteps"]) nsteps = driver["nsteps"].as<int>();
+            std::cout << "[NUOPC Driver] Configuration loaded from aces_config.yaml" << std::endl;
+        }
+    } catch (...) {
+        std::cout << "[NUOPC Driver] Using default simulation parameters." << std::endl;
+    }
+
+    std::cout << "[NUOPC Driver] Grid: " << nx << "x" << ny << "x" << nz << std::endl;
+    std::cout << "[NUOPC Driver] Start: " << start_year << " hour " << start_hour_of_year
+              << std::endl;
+    std::cout << "[NUOPC Driver] Stop:  " << stop_year << " hour " << stop_hour_of_year
+              << std::endl;
+    std::cout << "[NUOPC Driver] Timestep: " << timestep_hours << " hour(s)" << std::endl;
 
     // 3. Create simulation clock
     ESMC_Calendar cal = ESMC_CalendarCreate("Gregorian", ESMC_CALKIND_GREGORIAN, &rc);
     CHECK_RC(rc, "ESMC_CalendarCreate failed");
 
     ESMC_Time startTime, stopTime;
-    rc = ESMC_TimeSet(&startTime, 2024, 1, cal, ESMC_CALKIND_GREGORIAN, 0);
+    rc = ESMC_TimeSet(&startTime, start_year, start_hour_of_year, cal, ESMC_CALKIND_GREGORIAN, 0);
     CHECK_RC(rc, "ESMC_TimeSet (startTime) failed");
-    rc = ESMC_TimeSet(&stopTime, 2024, 2, cal, ESMC_CALKIND_GREGORIAN, 0);
+    rc = ESMC_TimeSet(&stopTime, stop_year, stop_hour_of_year, cal, ESMC_CALKIND_GREGORIAN, 0);
     CHECK_RC(rc, "ESMC_TimeSet (stopTime) failed");
 
     ESMC_TimeInterval timeStep;
-    rc = ESMC_TimeIntervalSet(&timeStep, 1);
+    rc = ESMC_TimeIntervalSet(&timeStep, timestep_hours);
     CHECK_RC(rc, "ESMC_TimeIntervalSet failed");
 
     ESMC_Clock clock = ESMC_ClockCreate("SimulationClock", timeStep, startTime, stopTime, &rc);
@@ -85,7 +121,7 @@ int main(int argc, char** argv) {
     // We use "total_co_emissions" to match example configuration ex1.
     ESMC_Field f_total =
         ESMC_FieldCreateGridTypeKind(grid, ESMC_TYPEKIND_R8, ESMC_STAGGERLOC_CENTER, NULL, NULL,
-                                     NULL, "total_co_emissions", &rc);
+                                     NULL, "total_aces_discovery_emissions", &rc);
     CHECK_RC(rc, "ESMC_FieldCreate (export) failed");
     rc = ESMC_StateAddField(exportState, f_total);
     CHECK_RC(rc, "ESMC_StateAddField (export) failed");
@@ -102,8 +138,8 @@ int main(int argc, char** argv) {
     CHECK_RC(rc, "ACES_Initialize failed");
 
     // 8. Main simulation loop
-    std::cout << "[NUOPC Driver] Starting simulation loop..." << std::endl;
-    for (int step = 0; step < 2; ++step) {
+    std::cout << "[NUOPC Driver] Starting simulation loop (" << nsteps << " steps)..." << std::endl;
+    for (int step = 0; step < nsteps; ++step) {
         std::cout << "--- Timestep " << step << " ---" << std::endl;
         ACES_Run(acesComp, importState, exportState, &clock, &rc);
         CHECK_RC(rc, "ACES_Run failed");

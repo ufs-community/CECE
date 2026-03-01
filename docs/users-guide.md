@@ -67,11 +67,24 @@ ACES includes an `example_driver` and a `standalone_nuopc_driver` that demonstra
 
 The standalone NUOPC driver (`aces_nuopc_driver`) is located in the `standalone_nuopc` directory. It demonstrates the standard NUOPC lifecycle (Initialize, Run, Finalize) and how to manage the ACES component as a child model.
 
-1.  **Configure**: Edit `standalone_nuopc/aces_config.yaml` to specify your species and layers.
+1.  **Configure**: Edit `aces_config.yaml` to specify your species, layers, and simulation parameters.
+    The driver can be controlled via a `driver` block in `aces_config.yaml`:
+    ```yaml
+    driver:
+      nx: 72
+      ny: 46
+      nz: 1
+      start_year: 2024
+      start_hour_of_year: 0
+      stop_year: 2024
+      stop_hour_of_year: 24
+      timestep_hours: 1
+      nsteps: 2
+    ```
 2.  **Build**: The driver is built as part of the main project.
 3.  **Run**:
     ```bash
-    ./build/standalone_nuopc/aces_nuopc_driver
+    ./build/bin/aces_nuopc_driver
     ```
 
 ### Basic Example Driver

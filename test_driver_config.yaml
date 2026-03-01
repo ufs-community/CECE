@@ -1,0 +1,10 @@
+driver:
+  nx: 100
+  ny: 50
+  nz: 2
+  start_year: 2025
+  start_hour_of_year: 100
+  stop_year: 2025
+  stop_hour_of_year: 110
+  timestep_hours: 5
+  nsteps: 2
