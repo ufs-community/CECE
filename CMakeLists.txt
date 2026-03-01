@@ -20,32 +20,44 @@ endif()
 # --- Dependencies ---
 
 include(FetchContent)
+include(GNUInstallDirs)
 
 # Kokkos
-FetchContent_Declare(
-  kokkos
-  GIT_REPOSITORY https://github.com/kokkos/kokkos.git
-  GIT_TAG        4.2.00
-)
-FetchContent_MakeAvailable(kokkos)
+find_package(Kokkos 4.2.00 QUIET)
+if(NOT Kokkos_FOUND)
+  FetchContent_Declare(
+    kokkos
+    GIT_REPOSITORY https://github.com/kokkos/kokkos.git
+    GIT_TAG        4.2.00
+  )
+  FetchContent_MakeAvailable(kokkos)
+endif()
 
 # YAML-CPP
-FetchContent_Declare(
-  yaml-cpp
-  GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
-  GIT_TAG        0.8.0
-)
-FetchContent_MakeAvailable(yaml-cpp)
+find_package(yaml-cpp QUIET)
+if(NOT yaml-cpp_FOUND)
+  FetchContent_Declare(
+    yaml-cpp
+    GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git
+    GIT_TAG        0.8.0
+  )
+  FetchContent_MakeAvailable(yaml-cpp)
+endif()
 
 # GTest
-FetchContent_Declare(
-  googletest
-  GIT_REPOSITORY https://github.com/google/googletest.git
-  GIT_TAG        v1.14.0
-)
-# For Windows: Prevent overriding the parent project's compiler/linker settings
-set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
-FetchContent_MakeAvailable(googletest)
+if(BUILD_TESTING)
+  find_package(GTest QUIET)
+  if(NOT GTest_FOUND)
+    FetchContent_Declare(
+      googletest
+      GIT_REPOSITORY https://github.com/google/googletest.git
+      GIT_TAG        v1.14.0
+    )
+    # For Windows: Prevent overriding the parent project's compiler/linker settings
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(googletest)
+  endif()
+endif()
 
 # Optional Fortran support
 include(CheckLanguage)
@@ -57,13 +69,24 @@ else()
   message(WARNING "Fortran compiler not found. Fortran features will be disabled.")
 endif()
 
-find_package(ESMF REQUIRED)
-message(STATUS "Found ESMF: ${ESMF_VERSION}")
+option(ACES_USE_MOCK_ESMF "Use Mock ESMF" OFF)
+
+if(ACES_USE_MOCK_ESMF)
+  add_library(ESMF::ESMF INTERFACE IMPORTED)
+  target_compile_definitions(ESMF::ESMF INTERFACE ACES_USE_MOCK_ESMF)
+  set(ESMF_FOUND TRUE)
+  if(NOT TARGET esmf)
+    add_library(esmf ALIAS ESMF::ESMF)
+  endif()
+else()
+  find_package(ESMF REQUIRED)
+  message(STATUS "Found ESMF: ${ESMF_VERSION}")
+endif()
 message(STATUS "ESMF include dirs: ${ESMF_INCLUDE_DIRS}")
 
 # Discovery PIO and NetCDF from ESMF if possible
 # CDEPS needs these as dependencies for its Fortran modules
-if(NOT NetCDF_FOUND)
+if(NOT NetCDF_FOUND AND DEFINED ESMF_LIBRARIES)
   foreach(lib ${ESMF_LIBRARIES})
     if(lib MATCHES "^-L(.*)")
       set(search_path "${CMAKE_MATCH_1}")
@@ -99,11 +122,16 @@ if(NOT PIO_FOUND)
   endif()
 endif()
 
-find_package(MPI REQUIRED)
-message(STATUS "Found MPI: ${MPI_CXX_VERSION}")
+if(ACES_USE_MOCK_ESMF)
+  set(MPI_FOUND TRUE)
+  add_library(MPI::MPI_CXX INTERFACE IMPORTED)
+else()
+  find_package(MPI REQUIRED)
+  message(STATUS "Found MPI: ${MPI_CXX_VERSION}")
+endif()
 
 # Also discover NetCDF-Fortran for CDEPS
-if(NOT NetCDFF_FOUND)
+if(NOT NetCDFF_FOUND AND DEFINED ESMF_LIBRARIES)
   foreach(lib ${ESMF_LIBRARIES})
     if(lib MATCHES "^-L(.*)")
       set(search_path "${CMAKE_MATCH_1}")
@@ -120,7 +148,12 @@ if(NOT NetCDFF_FOUND)
 endif()
 
 # CDEPS is a required dependency for the hybrid ingestion layer.
-find_package(CDEPS QUIET)
+if(ACES_USE_MOCK_ESMF)
+  add_library(CDEPS::CDEPS INTERFACE IMPORTED)
+  set(CDEPS_FOUND TRUE)
+else()
+  find_package(CDEPS QUIET)
+endif()
 
 if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
   message(STATUS "CDEPS not found on system, attempting to build from source using FetchContent...")
@@ -143,7 +176,7 @@ if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
     )
     # Force CDEPS to find the ESMF we already discovered
     # In JCSDA container, ESMF_ROOT might not be set, but ESMF_LIBRARIES contains it
-    if(NOT ESMF_ROOT)
+    if(NOT ESMF_ROOT AND DEFINED ESMF_LIBRARIES)
         foreach(lib ${ESMF_LIBRARIES})
             if(lib MATCHES "^-L(.*)")
                 set(search_path "${CMAKE_MATCH_1}")
@@ -242,7 +275,7 @@ target_include_directories(aces PUBLIC
 target_link_libraries(aces PUBLIC
   Kokkos::kokkos
   ESMF::ESMF
-  yaml-cpp
+  $<IF:$<TARGET_EXISTS:yaml-cpp>,yaml-cpp,yaml-cpp::yaml-cpp>
 )
 
 target_link_libraries(aces PUBLIC CDEPS::CDEPS)
@@ -253,77 +286,79 @@ endif()
 
 # --- Tests ---
 
-enable_testing()
+if(BUILD_TESTING)
+  enable_testing()
 
-add_executable(test_aces_cap
-  tests/test_aces_cap.cpp
-)
+  add_executable(test_aces_cap
+    tests/test_aces_cap.cpp
+  )
 
-target_link_libraries(test_aces_cap
-  PRIVATE
-  aces
-  GTest::gtest_main
-)
+  target_link_libraries(test_aces_cap
+    PRIVATE
+    aces
+    GTest::gtest_main
+  )
 
-add_executable(test_diagnostics
-  tests/test_diagnostics.cpp
-)
+  add_executable(test_diagnostics
+    tests/test_diagnostics.cpp
+  )
 
-target_link_libraries(test_diagnostics
-  PRIVATE
-  aces
-  GTest::gtest
-)
+  target_link_libraries(test_diagnostics
+    PRIVATE
+    aces
+    GTest::gtest
+  )
 
-add_executable(test_aces_ingestor
-  tests/test_aces_ingestor.cpp
-)
+  add_executable(test_aces_ingestor
+    tests/test_aces_ingestor.cpp
+  )
 
-target_link_libraries(test_aces_ingestor
-  PRIVATE
-  aces
-  GTest::gtest_main
-)
+  target_link_libraries(test_aces_ingestor
+    PRIVATE
+    aces
+    GTest::gtest_main
+  )
 
-add_executable(test_aces_utils
-  tests/test_aces_utils.cpp
-)
+  add_executable(test_aces_utils
+    tests/test_aces_utils.cpp
+  )
 
-target_link_libraries(test_aces_utils
-  PRIVATE
-  aces
-  GTest::gtest_main
-)
+  target_link_libraries(test_aces_utils
+    PRIVATE
+    aces
+    GTest::gtest_main
+  )
 
-add_executable(test_aces_compute
-  tests/test_aces_compute.cpp
-)
+  add_executable(test_aces_compute
+    tests/test_aces_compute.cpp
+  )
 
-target_link_libraries(test_aces_compute
-  PRIVATE
-  aces
-  GTest::gtest_main
-)
+  target_link_libraries(test_aces_compute
+    PRIVATE
+    aces
+    GTest::gtest_main
+  )
 
-add_executable(test_physics
-  tests/test_physics.cpp
-)
+  add_executable(test_physics
+    tests/test_physics.cpp
+  )
 
-target_link_libraries(test_physics
-  PRIVATE
-  aces
-  GTest::gtest_main
-)
+  target_link_libraries(test_physics
+    PRIVATE
+    aces
+    GTest::gtest_main
+  )
 
-add_executable(test_hemco_mimic
-  tests/test_hemco_mimic.cpp
-)
+  add_executable(test_hemco_mimic
+    tests/test_hemco_mimic.cpp
+  )
 
-target_link_libraries(test_hemco_mimic
-  PRIVATE
-  aces
-  GTest::gtest_main
-)
+  target_link_libraries(test_hemco_mimic
+    PRIVATE
+    aces
+    GTest::gtest_main
+  )
+endif()
 
 add_executable(example_driver
   tests/example_driver.cpp
@@ -343,11 +378,52 @@ target_link_libraries(hemco_mimic_driver
   aces
 )
 
-include(GoogleTest)
-gtest_discover_tests(test_aces_cap)
-gtest_discover_tests(test_aces_utils)
-gtest_discover_tests(test_aces_compute)
-gtest_discover_tests(test_physics)
-gtest_discover_tests(test_aces_ingestor)
-gtest_discover_tests(test_diagnostics)
-gtest_discover_tests(test_hemco_mimic)
+if(BUILD_TESTING)
+  include(GoogleTest)
+  gtest_discover_tests(test_aces_cap)
+  gtest_discover_tests(test_aces_utils)
+  gtest_discover_tests(test_aces_compute)
+  gtest_discover_tests(test_physics)
+  gtest_discover_tests(test_aces_ingestor)
+  gtest_discover_tests(test_diagnostics)
+  gtest_discover_tests(test_hemco_mimic)
+endif()
+
+# --- Installation ---
+
+install(TARGETS aces
+  EXPORT ACESTargets
+  LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
+  RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+  INCLUDES DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
+install(DIRECTORY include/aces
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+)
+
+install(EXPORT ACESTargets
+  FILE ACESTargets.cmake
+  NAMESPACE ACES::
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ACES
+)
+
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file(
+  "${CMAKE_CURRENT_BINARY_DIR}/ACESConfigVersion.cmake"
+  VERSION 0.1.0
+  COMPATIBILITY AnyNewerVersion
+)
+
+configure_package_config_file(
+  "cmake/ACESConfig.cmake.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/ACESConfig.cmake"
+  INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ACES
+)
+
+install(FILES
+  "${CMAKE_CURRENT_BINARY_DIR}/ACESConfig.cmake"
+  "${CMAKE_CURRENT_BINARY_DIR}/ACESConfigVersion.cmake"
+  DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/ACES
+)

@@ -1,0 +1,13 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+
+find_dependency(Kokkos 4.2.00)
+find_dependency(yaml-cpp)
+find_dependency(ESMF)
+find_dependency(MPI)
+find_dependency(CDEPS)
+
+include("${CMAKE_CURRENT_LIST_DIR}/ACESTargets.cmake")
+
+check_required_components(ACES)
