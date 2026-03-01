@@ -1,0 +1,5 @@
+# HEMCO Grid configuration
+NLON: 720
+NLAT: 360
+LON_RANGE: -180 180
+LAT_RANGE: -90 90

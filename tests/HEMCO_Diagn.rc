@@ -1,0 +1,4 @@
+# HEMCO Diagnostics configuration
+# Name         Spec ExtNr  Cat Hier Dim Unit     LongName
+EmisNO_Total   NO   -1     -1  -1   2   kg/m2/s  NO_emission_flux_from_all_sectors
+EmisCO_Total   CO   -1     -1  -1   2   kg/m2/s  CO_emission_flux_from_all_sectors

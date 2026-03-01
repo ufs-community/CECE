@@ -1,0 +1,51 @@
+###############################################################################
+### BEGIN SECTION SETTINGS
+###############################################################################
+
+ROOT:                        data
+GridFile:                    HEMCO_sa_Grid.rc
+DiagnFile:                   HEMCO_Diagn.rc
+DiagnFreq:                   00000000 010000
+
+### END SECTION SETTINGS ###
+
+###############################################################################
+#### BEGIN SECTION EXTENSION SWITCHES
+###############################################################################
+# ExtNr ExtName           on/off  Species
+0       Base              : on    *
+    --> MACCITY           :       true
+    --> EMEP              :       true
+111     GFED              :       off
+
+### END SECTION EXTENSION SWITCHES
+
+###############################################################################
+### BEGIN SECTION BASE EMISSIONS
+###############################################################################
+# ExtNr Name srcFile srcVar srcTime CRE Dim Unit Species ScalIDs Cat Hier
+
+0 MACCITY_CO MACCity.nc  CO 1980-2014/1-12/1/0 C xy  kg/m2/s CO 1/20/1001      1 1
+0 EMEP_CO    EMEP.nc     CO 2000-2014/1-12/1/0 C xy  kg/m2/s CO 1/20/1001 1 2
+111 GFED_CO  GFED.nc     CO 2005/1-12/1/0      C xyz kg/m2/s CO -        2 1
+
+### END SECTION BASE EMISSIONS ###
+
+###############################################################################
+#### BEGIN SECTION SCALE FACTORS
+###############################################################################
+# ScalID Name srcFile srcVar srcTime CRE Dim Unit Oper
+
+1 HOURLY_SCALFACT $ROOT/hourly.nc factor  2000/1/1/0-23 C xy 1 1
+20 GEIA_DOW       0.8/1.0/1.0/1.0/1.0/1.0/0.9 -      -      - xy 1 1
+
+### END SECTION SCALE FACTORS ###
+
+###############################################################################
+#### BEGIN SECTION MASKS
+###############################################################################
+#ScalID Name srcFile srcVar srcTime CRE Dim Unit Oper Box
+
+1001 MASK_EUROPE $ROOT/mask_europe.rc MASK 2000/1/1/0 C xy 1 1 -30/30/45/70
+
+### END SECTION MASKS ###
