@@ -38,11 +38,12 @@ std::unique_ptr<PhysicsScheme> PhysicsFactory::CreateScheme(const PhysicsSchemeC
 
     // Fallback for unknown schemes if they might be generic
     if (config.language == "cpp" || config.language == "") {
-         it = registry.find("native_example");
-         if (it != registry.end()) {
-             std::cout << "ACES_PhysicsFactory: Falling back to native_example for " << config.name << std::endl;
-             return it->second();
-         }
+        it = registry.find("native_example");
+        if (it != registry.end()) {
+            std::cout << "ACES_PhysicsFactory: Falling back to native_example for " << config.name
+                      << std::endl;
+            return it->second();
+        }
     }
 
     std::cerr << "ACES_PhysicsFactory: Error - Unknown physics scheme " << config.name << std::endl;

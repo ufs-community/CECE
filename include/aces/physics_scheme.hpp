@@ -52,7 +52,8 @@ class BasePhysicsScheme : public PhysicsScheme {
      * @brief Default implementation of Initialize.
      * Can be overridden by subclasses if they need specific setup.
      */
-    void Initialize(const YAML::Node& /*config*/, AcesDiagnosticManager* /*diag_manager*/) override {}
+    void Initialize(const YAML::Node& /*config*/,
+                    AcesDiagnosticManager* /*diag_manager*/) override {}
 
    protected:
     /**
