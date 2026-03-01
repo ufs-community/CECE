@@ -4,10 +4,20 @@ site_description = "Accelerated Component for Emission System"
 site_author = "ACES Team"
 copyright = "Copyright &copy; 2026 ACES Authors"
 
+nav = [
+    { "Introduction" = "index.md" },
+    { "Core Concepts" = "concepts.md" },
+    { "User's Guide" = "users-guide.md" },
+    { "Configuration" = "configuration.md" },
+    { "Tutorial" = "tutorial.md" },
+    { "Scripts & Utilities" = "scripts.md" },
+    { "Examples" = "examples.md" },
+    { "Migration Examples" = "migration_examples.md" },
+    { "API Reference" = "api.md" }
+]
+
 [project.theme]
 name = "material"
-
-[project.theme.features]
 features = [
     "content.code.annotate",
     "content.code.copy",
@@ -34,10 +44,3 @@ toggle.name = "Switch to light mode"
 
 [project.plugins.mkdoxy]
 projects = { aces = { src-dirs = "include/aces", full-doc = true, doxy-cfg = { RECURSIVE = "YES", GENERATE_XML = "YES" } } }
-
-[project.nav]
-"Introduction" = "index.md"
-"User's Guide" = "users-guide.md"
-"Configuration" = "configuration.md"
-"Tutorial" = "tutorial.md"
-"API Reference" = "api.md"

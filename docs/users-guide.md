@@ -29,6 +29,12 @@ The easiest way to get started is using the JCSDA development container, which c
     source /opt/spack-environment/activate.sh
     ```
 
+#### Troubleshooting Docker Issues
+If you encounter `overlayfs` errors or other Docker-related environment issues when running the setup script, you can use the provided fix utility:
+```bash
+./scripts/fix_docker_and_setup.sh
+```
+
 ## Building ACES
 
 ### Standard Build
