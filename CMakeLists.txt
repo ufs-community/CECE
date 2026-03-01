@@ -352,6 +352,10 @@ if(Python3_Interpreter_FOUND)
   add_test(NAME test_hemco_to_aces_python
            COMMAND ${Python3_EXECUTABLE} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_converters.py)
   set_tests_properties(test_hemco_to_aces_python PROPERTIES ENVIRONMENT "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/scripts")
+
+  add_test(NAME test_scripts_python
+           COMMAND ${Python3_EXECUTABLE} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_scripts.py)
+  set_tests_properties(test_scripts_python PROPERTIES ENVIRONMENT "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/scripts")
 endif()
 
 include(GoogleTest)

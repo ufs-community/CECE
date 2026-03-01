@@ -36,6 +36,9 @@ jobs:
           spack load cdeps || true
         fi
 
+        # Install Python dependencies for converter tests
+        python3 -m pip install pyyaml pytest
+
         # Ensure build directory exists
         mkdir -p build
         cd build
