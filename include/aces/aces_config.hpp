@@ -89,8 +89,14 @@ struct AcesConfig {
     /// Map of internal meteorology names to external names (e.g., CF standard
     /// names).
     std::map<std::string, std::string> met_mapping;
+    /// Map of internal scale factor names to external names.
+    std::map<std::string, std::string> scale_factor_mapping;
+    /// Map of internal mask names to external names.
+    std::map<std::string, std::string> mask_mapping;
     /// Map of cycle names to their temporal scaling factors.
     std::map<std::string, TemporalCycle> temporal_cycles;
+    /// Map of profile names to their temporal scaling factors.
+    std::map<std::string, TemporalCycle> temporal_profiles;
     /// List of active physics schemes to be executed.
     std::vector<PhysicsSchemeConfig> physics_schemes;
     /// Configuration for diagnostic output.

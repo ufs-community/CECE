@@ -182,7 +182,9 @@ def convert_hemco_to_aces(hemco_config_path, output_path):
 
     aces_config = {
         'meteorology': {},
-        'temporal_cycles': {},
+        'scale_factors': {},
+        'masks': {},
+        'temporal_profiles': {},
         'species': {},
         'cdeps_inline_config': {'streams': []}
     }
@@ -231,6 +233,7 @@ def convert_hemco_to_aces(hemco_config_path, output_path):
                 mask_entry = parser.masks[sid]
                 mask_name = mask_entry['name']
                 layer_masks.append(mask_name.lower())
+                aces_config['masks'][mask_name.lower()] = mask_name
                 if mask_entry['file'] != '-':
                     streams[mask_name] = mask_entry['file']
             elif sid in parser.scale_factors:
@@ -242,19 +245,21 @@ def convert_hemco_to_aces(hemco_config_path, output_path):
                         values = [float(x) for x in sf_entry['file'].split('/')]
                         cycle_name = sf_name.lower()
                         if len(values) == 24:
-                            aces_config['temporal_cycles'][cycle_name] = values
+                            aces_config['temporal_profiles'][cycle_name] = values
                             layer['diurnal_cycle'] = cycle_name
                         elif len(values) == 7:
-                            aces_config['temporal_cycles'][cycle_name] = values
+                            aces_config['temporal_profiles'][cycle_name] = values
                             layer['weekly_cycle'] = cycle_name
                         else:
-                            aces_config['temporal_cycles'][cycle_name] = values
+                            aces_config['temporal_profiles'][cycle_name] = values
                     except ValueError:
                         layer_scale_fields.append(sf_name.lower())
+                        aces_config['scale_factors'][sf_name.lower()] = sf_name
                         if sf_entry['file'] != '-':
                             streams[sf_name] = sf_entry['file']
                 else:
                     layer_scale_fields.append(sf_name.lower())
+                    aces_config['scale_factors'][sf_name.lower()] = sf_name
                     if sf_entry['file'] != '-':
                         streams[sf_name] = sf_entry['file']
 
@@ -277,8 +282,10 @@ def convert_hemco_to_aces(hemco_config_path, output_path):
         })
 
     for sf_id, sf in parser.scale_factors.items():
-        if 'met' in sf['name'].lower() or 'hourly' in sf['name'].lower():
+        if 'met' in sf['name'].lower():
             aces_config['meteorology'][sf['name'].lower()] = sf['name']
+            if sf['name'].lower() in aces_config['scale_factors']:
+                del aces_config['scale_factors'][sf['name'].lower()]
 
     diagnostics = {}
 

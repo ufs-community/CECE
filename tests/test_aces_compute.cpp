@@ -167,7 +167,11 @@ TEST_F(AcesComputeTest, YamlParsingExtended) {
     std::ofstream out("test_config_ext.yaml");
     out << "meteorology:\n"
         << "  temperature: air_temperature\n"
-        << "temporal_cycles:\n"
+        << "scale_factors:\n"
+        << "  sf1: SF_EXT_1\n"
+        << "masks:\n"
+        << "  m1: MASK_EXT_1\n"
+        << "temporal_profiles:\n"
         << "  diurnal: [1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, "
            "2.1, 2.2, 2.3, 2.4, "
            "2.5, 2.6, 2.7, 2.8, 2.9, 3.0, 3.1, 3.2, 3.3]\n"
@@ -182,9 +186,11 @@ TEST_F(AcesComputeTest, YamlParsingExtended) {
     AcesConfig config = ParseConfig("test_config_ext.yaml");
 
     EXPECT_EQ(config.met_mapping["temperature"], "air_temperature");
-    ASSERT_EQ(config.temporal_cycles.count("diurnal"), 1);
-    EXPECT_EQ(config.temporal_cycles["diurnal"].factors.size(), 24);
-    EXPECT_DOUBLE_EQ(config.temporal_cycles["diurnal"].factors[23], 3.3);
+    EXPECT_EQ(config.scale_factor_mapping["sf1"], "SF_EXT_1");
+    EXPECT_EQ(config.mask_mapping["m1"], "MASK_EXT_1");
+    ASSERT_EQ(config.temporal_profiles.count("diurnal"), 1);
+    EXPECT_EQ(config.temporal_profiles["diurnal"].factors.size(), 24);
+    EXPECT_DOUBLE_EQ(config.temporal_profiles["diurnal"].factors[23], 3.3);
 
     auto layers = config.species_layers["nox"];
     ASSERT_EQ(layers.size(), 1);
@@ -416,7 +422,8 @@ TEST_F(AcesComputeTest, MeteorologyMappingAndScaling) {
     exp.fields["total_nox_emissions"].modify<Kokkos::HostSpace>();
     exp.fields["total_nox_emissions"].sync<Kokkos::DefaultExecutionSpace::memory_space>();
 
-    AcesStateResolver state_resolver(imp, exp, config.met_mapping);
+    AcesStateResolver state_resolver(imp, exp, config.met_mapping, config.scale_factor_mapping,
+                                     config.mask_mapping);
 
     ComputeEmissions(config, state_resolver, nx, ny, nz);
 

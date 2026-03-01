@@ -77,7 +77,23 @@ AcesConfig ParseConfig(const std::string& filename) {
         }
     }
 
-    // Parse temporal cycles
+    // Parse scale factor mapping
+    if (root["scale_factors"]) {
+        for (auto const& sf_node : root["scale_factors"]) {
+            config.scale_factor_mapping[sf_node.first.as<std::string>()] =
+                sf_node.second.as<std::string>();
+        }
+    }
+
+    // Parse mask mapping
+    if (root["masks"]) {
+        for (auto const& mask_node : root["masks"]) {
+            config.mask_mapping[mask_node.first.as<std::string>()] =
+                mask_node.second.as<std::string>();
+        }
+    }
+
+    // Parse temporal cycles (backward compatibility)
     if (root["temporal_cycles"]) {
         for (auto const& cycle_node : root["temporal_cycles"]) {
             std::string cycle_name = cycle_node.first.as<std::string>();
@@ -88,6 +104,20 @@ AcesConfig ParseConfig(const std::string& filename) {
                 }
             }
             config.temporal_cycles[cycle_name] = cycle;
+        }
+    }
+
+    // Parse temporal profiles
+    if (root["temporal_profiles"]) {
+        for (auto const& profile_node : root["temporal_profiles"]) {
+            std::string profile_name = profile_node.first.as<std::string>();
+            TemporalCycle profile;
+            if (profile_node.second.IsSequence()) {
+                for (auto const& factor : profile_node.second) {
+                    profile.factors.push_back(factor.as<double>());
+                }
+            }
+            config.temporal_profiles[profile_name] = profile;
         }
     }
 

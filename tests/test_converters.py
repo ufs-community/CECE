@@ -37,10 +37,10 @@ def test_hemco_to_aces_conversion(tmp_path):
     assert maccity["weekly_cycle"] == "geia_dow"
     assert "hourly_scalfact" in maccity["scale_fields"]
 
-    # Check temporal cycles
-    assert "temporal_cycles" in config
-    assert "geia_dow" in config["temporal_cycles"]
-    assert len(config["temporal_cycles"]["geia_dow"]) == 7
+    # Check temporal profiles
+    assert "temporal_profiles" in config
+    assert "geia_dow" in config["temporal_profiles"]
+    assert len(config["temporal_profiles"]["geia_dow"]) == 7
 
     # Check diagnostics
     assert "diagnostics" in config

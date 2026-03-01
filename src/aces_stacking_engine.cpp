@@ -64,15 +64,25 @@ void StackingEngine::BindSpecies(CompiledSpecies& spec, FieldResolver& resolver,
 
         double scale = layer.base_scale;
         if (!layer.diurnal_cycle.empty()) {
-            auto it = m_config.temporal_cycles.find(layer.diurnal_cycle);
-            if (it != m_config.temporal_cycles.end() && it->second.factors.size() == 24) {
-                scale *= it->second.factors[hour % 24];
+            auto it_p = m_config.temporal_profiles.find(layer.diurnal_cycle);
+            if (it_p != m_config.temporal_profiles.end() && it_p->second.factors.size() == 24) {
+                scale *= it_p->second.factors[hour % 24];
+            } else {
+                auto it_c = m_config.temporal_cycles.find(layer.diurnal_cycle);
+                if (it_c != m_config.temporal_cycles.end() && it_c->second.factors.size() == 24) {
+                    scale *= it_c->second.factors[hour % 24];
+                }
             }
         }
         if (!layer.weekly_cycle.empty()) {
-            auto it = m_config.temporal_cycles.find(layer.weekly_cycle);
-            if (it != m_config.temporal_cycles.end() && it->second.factors.size() == 7) {
-                scale *= it->second.factors[day_of_week % 7];
+            auto it_p = m_config.temporal_profiles.find(layer.weekly_cycle);
+            if (it_p != m_config.temporal_profiles.end() && it_p->second.factors.size() == 7) {
+                scale *= it_p->second.factors[day_of_week % 7];
+            } else {
+                auto it_c = m_config.temporal_cycles.find(layer.weekly_cycle);
+                if (it_c != m_config.temporal_cycles.end() && it_c->second.factors.size() == 7) {
+                    scale *= it_c->second.factors[day_of_week % 7];
+                }
             }
         }
         dev.scale = scale;

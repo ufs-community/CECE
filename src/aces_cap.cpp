@@ -89,6 +89,12 @@ void Advertise(ESMC_GridComp comp, int* rc) {
             for (auto const& [internal_name, external_name] : config.met_mapping) {
                 NUOPC_Advertise(importState, external_name.c_str(), external_name.c_str());
             }
+            for (auto const& [internal_name, external_name] : config.scale_factor_mapping) {
+                NUOPC_Advertise(importState, external_name.c_str(), external_name.c_str());
+            }
+            for (auto const& [internal_name, external_name] : config.mask_mapping) {
+                NUOPC_Advertise(importState, external_name.c_str(), external_name.c_str());
+            }
         }
 
         ESMC_State exportState = NUOPC_ModelGetExportState(comp, &rc_internal);
@@ -107,6 +113,12 @@ void Advertise(ESMC_GridComp comp, int* rc) {
         ESMC_State importState = NUOPC_ModelGetImportState(comp, &rc_internal);
         if (importState.ptr) {
             for (auto const& [internal_name, external_name] : data->config.met_mapping) {
+                NUOPC_Advertise(importState, external_name.c_str(), external_name.c_str());
+            }
+            for (auto const& [internal_name, external_name] : data->config.scale_factor_mapping) {
+                NUOPC_Advertise(importState, external_name.c_str(), external_name.c_str());
+            }
+            for (auto const& [internal_name, external_name] : data->config.mask_mapping) {
                 NUOPC_Advertise(importState, external_name.c_str(), external_name.c_str());
             }
         }
@@ -167,6 +179,12 @@ void Initialize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportSta
         // Advertise if not already done (fallback for standalone drivers)
         if (!data->advertised) {
             for (auto const& [internal_name, external_name] : data->config.met_mapping) {
+                NUOPC_Advertise(importState, external_name.c_str(), external_name.c_str());
+            }
+            for (auto const& [internal_name, external_name] : data->config.scale_factor_mapping) {
+                NUOPC_Advertise(importState, external_name.c_str(), external_name.c_str());
+            }
+            for (auto const& [internal_name, external_name] : data->config.mask_mapping) {
                 NUOPC_Advertise(importState, external_name.c_str(), external_name.c_str());
             }
             for (auto const& [species, layers] : data->config.species_layers) {
@@ -297,7 +315,12 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
         for (const auto& layer : layers) {
             auto resolve_name = [&](const std::string& name) {
                 auto it = data->config.met_mapping.find(name);
-                return (it != data->config.met_mapping.end()) ? it->second : name;
+                if (it != data->config.met_mapping.end()) return it->second;
+                it = data->config.scale_factor_mapping.find(name);
+                if (it != data->config.scale_factor_mapping.end()) return it->second;
+                it = data->config.mask_mapping.find(name);
+                if (it != data->config.mask_mapping.end()) return it->second;
+                return name;
             };
 
             if (cdeps_fields.find(resolve_name(layer.field_name)) == cdeps_fields.end()) {
@@ -321,15 +344,25 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
 
     Kokkos::Profiling::pushRegion("ACES_DataIngestion");
 
-    // Apply meteorology mapping to get external names for ESMF ingestion
+    // Apply mappings to get external names for ESMF ingestion
     std::vector<std::string> external_esmf_fields;
     for (const auto& internal_name : esmf_fields) {
         auto it = data->config.met_mapping.find(internal_name);
         if (it != data->config.met_mapping.end()) {
             external_esmf_fields.push_back(it->second);
-        } else {
-            external_esmf_fields.push_back(internal_name);
+            continue;
         }
+        it = data->config.scale_factor_mapping.find(internal_name);
+        if (it != data->config.scale_factor_mapping.end()) {
+            external_esmf_fields.push_back(it->second);
+            continue;
+        }
+        it = data->config.mask_mapping.find(internal_name);
+        if (it != data->config.mask_mapping.end()) {
+            external_esmf_fields.push_back(it->second);
+            continue;
+        }
+        external_esmf_fields.push_back(internal_name);
     }
 
     data->ingestor.IngestMeteorology(importState, external_esmf_fields, data->import_state, nx, ny,
@@ -359,7 +392,8 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
 
     // Run core compute engine (layer addition/replacement)
     Kokkos::Profiling::pushRegion("ACES_StackingEngine");
-    AcesStateResolver resolver(data->import_state, data->export_state, data->config.met_mapping);
+    AcesStateResolver resolver(data->import_state, data->export_state, data->config.met_mapping,
+                               data->config.scale_factor_mapping, data->config.mask_mapping);
     ComputeEmissions(data->config, resolver, nx, ny, nz, data->default_mask, hour, day_of_week);
     Kokkos::Profiling::popRegion();
 

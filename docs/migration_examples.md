@@ -20,7 +20,7 @@ ACES maintains algorithmic parity with HEMCO's stacking engine while utilizing a
 
 ### [After] ACES
 ```yaml
-meteorology:
+scale_factors:
   hourly_scalfact: HOURLY_SCALFACT
 
 species:
@@ -55,8 +55,10 @@ cdeps_inline_config:
 
 ### [After] ACES
 ```yaml
-meteorology:
+scale_factors:
   hourly_scalfact: HOURLY_SCALFACT
+
+masks:
   mask_europe: MASK_EUROPE
 
 species:

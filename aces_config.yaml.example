@@ -23,8 +23,18 @@ meteorology:
   temperature: "air_temperature"
   specific_humidity: "specific_humidity"
 
-# Temporal cycles define periodic scaling factors.
-temporal_cycles:
+# Scale factor mapping
+scale_factors:
+  # ... mappings for scale factor fields ...
+
+# Mask mapping
+masks:
+  land_mask: "LAND_MASK"
+  ice_free_mask: "ICE_FREE_MASK"
+  europe_mask: "EUROPE_MASK"
+
+# Temporal profiles define periodic scaling factors.
+temporal_profiles:
   diurnal_traffic: [0.5, 0.4, 0.3, 0.3, 0.4, 0.6, 1.0, 1.5, 2.0, 1.8, 1.6, 1.5, 1.5, 1.6, 1.7, 1.8, 2.0, 2.2, 1.8, 1.5, 1.2, 1.0, 0.8, 0.6]
   weekly_standard: [1.0, 1.0, 1.0, 1.0, 1.0, 0.8, 0.7] # reductions on Sat, Sun
 

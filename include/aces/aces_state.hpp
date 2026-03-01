@@ -42,18 +42,37 @@ class AcesStateResolver : public FieldResolver {
     const AcesImportState& import_state;
     const AcesExportState& export_state;
     const std::map<std::string, std::string>& met_mapping;
+    const std::map<std::string, std::string>& sf_mapping;
+    const std::map<std::string, std::string>& mask_mapping;
+
+    static const std::map<std::string, std::string>& EmptyMap() {
+        static const std::map<std::string, std::string> empty;
+        return empty;
+    }
+
+    std::string ResolveName(const std::string& name) const {
+        auto it = met_mapping.find(name);
+        if (it != met_mapping.end()) return it->second;
+        it = sf_mapping.find(name);
+        if (it != sf_mapping.end()) return it->second;
+        it = mask_mapping.find(name);
+        if (it != mask_mapping.end()) return it->second;
+        return name;
+    }
 
    public:
     AcesStateResolver(const AcesImportState& imp, const AcesExportState& exp,
-                      const std::map<std::string, std::string>& mapping)
-        : import_state(imp), export_state(exp), met_mapping(mapping) {}
+                      const std::map<std::string, std::string>& met_map,
+                      const std::map<std::string, std::string>& sf_map = EmptyMap(),
+                      const std::map<std::string, std::string>& mask_map = EmptyMap())
+        : import_state(imp),
+          export_state(exp),
+          met_mapping(met_map),
+          sf_mapping(sf_map),
+          mask_mapping(mask_map) {}
 
     UnmanagedHostView3D ResolveImport(const std::string& name, int nx, int ny, int nz) override {
-        std::string resolve_name = name;
-        auto map_it = met_mapping.find(name);
-        if (map_it != met_mapping.end()) {
-            resolve_name = map_it->second;
-        }
+        std::string resolve_name = ResolveName(name);
 
         auto it = import_state.fields.find(resolve_name);
         if (it != import_state.fields.end()) {
@@ -90,11 +109,7 @@ class AcesStateResolver : public FieldResolver {
 
     Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
     ResolveImportDevice(const std::string& name, int nx, int ny, int nz) override {
-        std::string resolve_name = name;
-        auto map_it = met_mapping.find(name);
-        if (map_it != met_mapping.end()) {
-            resolve_name = map_it->second;
-        }
+        std::string resolve_name = ResolveName(name);
 
         auto it = import_state.fields.find(resolve_name);
         if (it != import_state.fields.end()) {

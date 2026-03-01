@@ -5,6 +5,18 @@ ACES is configured using a YAML file, typically named `aces_config.yaml`. This f
 ## Top-Level Structure
 
 ```yaml
+meteorology:
+  # ... meteorology name mappings ...
+
+scale_factors:
+  # ... scale factor name mappings ...
+
+masks:
+  # ... mask name mappings ...
+
+temporal_profiles:
+  # ... periodic scaling factors (diurnal, weekly, etc.) ...
+
 species:
   # ... species definitions ...
 
@@ -38,6 +50,18 @@ The `species` block defines the emission targets and the layers that contribute 
 
 **Example:**
 ```yaml
+meteorology:
+  temperature: air_temperature
+
+scale_factors:
+  hourly_scalfact: HOURLY_SCALFACT
+
+masks:
+  land_mask: LAND_MASK
+
+temporal_profiles:
+  diurnal: [1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.7, 1.8, 1.9, 2.0, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3.0, 3.1, 3.2, 3.3]
+
 species:
   nox:
     - field: "base_nox"
@@ -45,7 +69,9 @@ species:
       scale: 1.0
       category: "anthropogenic"
       hierarchy: 1
-      scale_fields: ["temperature"]
+      mask: "land_mask"
+      scale_fields: ["temperature", "hourly_scalfact"]
+      diurnal_cycle: "diurnal"
 ```
 
 ---
