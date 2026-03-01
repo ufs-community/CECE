@@ -287,17 +287,23 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
 
     for (auto const& [species, layers] : data->config.species_layers) {
         for (const auto& layer : layers) {
-            if (cdeps_fields.find(layer.field_name) == cdeps_fields.end()) {
+            auto resolve_name = [&](const std::string& name) {
+                auto it = data->config.met_mapping.find(name);
+                return (it != data->config.met_mapping.end()) ? it->second : name;
+            };
+
+            if (cdeps_fields.find(resolve_name(layer.field_name)) == cdeps_fields.end()) {
                 esmf_fields_set.insert(layer.field_name);
             }
 
-            std::copy_if(
-                layer.scale_fields.begin(), layer.scale_fields.end(),
-                std::inserter(esmf_fields_set, esmf_fields_set.end()),
-                [&](const std::string& sf) { return cdeps_fields.find(sf) == cdeps_fields.end(); });
+            for (const auto& sf : layer.scale_fields) {
+                if (cdeps_fields.find(resolve_name(sf)) == cdeps_fields.end()) {
+                    esmf_fields_set.insert(sf);
+                }
+            }
 
             for (const auto& m : layer.masks) {
-                if (cdeps_fields.find(m) == cdeps_fields.end()) {
+                if (cdeps_fields.find(resolve_name(m)) == cdeps_fields.end()) {
                     esmf_fields_set.insert(m);
                 }
             }

@@ -1,3 +1,9 @@
 build*/
 site/
 bin/
+*.ESMF_LogFile
+data/*.nc
+aces_config.yaml
+aces_emissions.streams
+cdeps_in.nml
+hemco_mimic_config.yaml

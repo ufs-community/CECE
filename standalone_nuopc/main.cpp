@@ -23,10 +23,10 @@ void ACES_Finalize(ESMC_GridComp comp, ESMC_State importState, ESMC_State export
                    ESMC_Clock* clock, int* rc);
 }
 
-#define CHECK_RC(rc, msg) \
-    if ((rc) != ESMF_SUCCESS) { \
+#define CHECK_RC(rc, msg)                                                                      \
+    if ((rc) != ESMF_SUCCESS) {                                                                \
         std::cerr << "[NUOPC Driver] Error: " << (msg) << " (rc=" << (rc) << ")" << std::endl; \
-        return 1; \
+        return 1;                                                                              \
     }
 
 int main(int argc, char** argv) {
@@ -83,8 +83,9 @@ int main(int argc, char** argv) {
 
     // Add a field to export state so ACES can discover dimensions.
     // We use "total_co_emissions" to match example configuration ex1.
-    ESMC_Field f_total = ESMC_FieldCreateGridTypeKind(
-        grid, ESMC_TYPEKIND_R8, ESMC_STAGGERLOC_CENTER, NULL, NULL, NULL, "total_co_emissions", &rc);
+    ESMC_Field f_total =
+        ESMC_FieldCreateGridTypeKind(grid, ESMC_TYPEKIND_R8, ESMC_STAGGERLOC_CENTER, NULL, NULL,
+                                     NULL, "total_co_emissions", &rc);
     CHECK_RC(rc, "ESMC_FieldCreate (export) failed");
     rc = ESMC_StateAddField(exportState, f_total);
     CHECK_RC(rc, "ESMC_StateAddField (export) failed");
@@ -124,7 +125,8 @@ int main(int argc, char** argv) {
     ESMC_CalendarDestroy(&cal);
 
     ESMC_Finalize();
-    std::cout << "[NUOPC Driver] ESMF Finalized. Standalone driver finished successfully." << std::endl;
+    std::cout << "[NUOPC Driver] ESMF Finalized. Standalone driver finished successfully."
+              << std::endl;
 
     return 0;
 }

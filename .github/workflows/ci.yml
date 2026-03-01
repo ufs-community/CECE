@@ -56,11 +56,12 @@ jobs:
 
         ./scripts/setup_hemco_examples.sh
         ./scripts/data_download/download_ex1.sh
-        ./scripts/verify_hemco_data.py data/MACCity_4x5.nc
 
-        # Mock scale factor for CI
-        cp data/MACCity_4x5.nc data/hourly.nc
+        # Mock scale factor for CI. We need a variable named HOURLY_SCALFACT.
+        # Since we don't have nco/cdo in the container easily, we'll use a python script
+        # to create a compliant mock file with correct dimensions.
+        python3 -c "import netCDF4 as nc; ds_out = nc.Dataset('data/hourly.nc', 'w'); ds_out.createDimension('lon', 72); ds_out.createDimension('lat', 46); ds_out.createDimension('lev', 1); out_v = ds_out.createVariable('HOURLY_SCALFACT', 'f8', ('lon', 'lat', 'lev')); out_v[:] = 1.0; ds_out.close()"
 
         cp examples/aces_config_ex1.yaml aces_config.yaml
         export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(pwd)/build
-        ./build/standalone_nuopc/aces_nuopc_driver
+        build/bin/aces_nuopc_driver

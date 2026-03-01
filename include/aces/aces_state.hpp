@@ -61,6 +61,8 @@ class AcesStateResolver : public FieldResolver {
             if (view.extent(0) != (size_t)nx || view.extent(1) != (size_t)ny ||
                 view.extent(2) != (size_t)nz) {
                 std::cerr << "ACES_Resolver Error: Dimension mismatch for import " << resolve_name
+                          << ". Expected " << nx << "x" << ny << "x" << nz << ", got "
+                          << view.extent(0) << "x" << view.extent(1) << "x" << view.extent(2)
                           << std::endl;
                 return UnmanagedHostView3D();
             }
@@ -76,6 +78,8 @@ class AcesStateResolver : public FieldResolver {
             if (view.extent(0) != (size_t)nx || view.extent(1) != (size_t)ny ||
                 view.extent(2) != (size_t)nz) {
                 std::cerr << "ACES_Resolver Error: Dimension mismatch for export " << name
+                          << ". Expected " << nx << "x" << ny << "x" << nz << ", got "
+                          << view.extent(0) << "x" << view.extent(1) << "x" << view.extent(2)
                           << std::endl;
                 return UnmanagedHostView3D();
             }
@@ -98,7 +102,9 @@ class AcesStateResolver : public FieldResolver {
             if (view.extent(0) != (size_t)nx || view.extent(1) != (size_t)ny ||
                 view.extent(2) != (size_t)nz) {
                 std::cerr << "ACES_Resolver Error: Dimension mismatch for import " << resolve_name
-                          << " (device)" << std::endl;
+                          << " (device). Expected " << nx << "x" << ny << "x" << nz << ", got "
+                          << view.extent(0) << "x" << view.extent(1) << "x" << view.extent(2)
+                          << std::endl;
                 return Kokkos::View<const double***, Kokkos::LayoutLeft,
                                     Kokkos::DefaultExecutionSpace>();
             }
@@ -115,7 +121,9 @@ class AcesStateResolver : public FieldResolver {
             if (view.extent(0) != (size_t)nx || view.extent(1) != (size_t)ny ||
                 view.extent(2) != (size_t)nz) {
                 std::cerr << "ACES_Resolver Error: Dimension mismatch for export " << name
-                          << " (device)" << std::endl;
+                          << " (device). Expected " << nx << "x" << ny << "x" << nz << ", got "
+                          << view.extent(0) << "x" << view.extent(1) << "x" << view.extent(2)
+                          << std::endl;
                 return Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>();
             }
             return view;
