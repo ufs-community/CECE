@@ -18,7 +18,7 @@ namespace aces {
  * handling the necessary data synchronization between Kokkos Views and
  * raw Fortran-compatible pointers.
  */
-class FortranBridgeExample : public PhysicsScheme {
+class FortranBridgeExample : public BasePhysicsScheme {
    public:
     /**
      * @brief Default constructor.

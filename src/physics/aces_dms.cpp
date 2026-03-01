@@ -5,7 +5,12 @@
 #include <cmath>
 #include <iostream>
 
+#include "aces/aces_physics_factory.hpp"
+
 namespace aces {
+
+/// Self-registration for the DMSScheme scheme.
+static PhysicsRegistration<DMSScheme> register_scheme("dms");
 
 /**
  * @brief DMS Sea-Air Flux (Ported from hcox_seaflux_mod.F90)
@@ -26,19 +31,12 @@ void DMSScheme::Initialize(const YAML::Node& /*config*/, AcesDiagnosticManager* 
 }
 
 void DMSScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
-    auto it_u10 = import_state.fields.find("wind_speed_10m");
-    auto it_tskin = import_state.fields.find("tskin");
-    auto it_seaconc = import_state.fields.find("DMS_seawater");
-    auto it_dms_emis = export_state.fields.find("total_dms_emissions");
+    auto u10m = ResolveImport("wind_speed_10m", import_state);
+    auto tskin = ResolveImport("tskin", import_state);
+    auto seaconc = ResolveImport("DMS_seawater", import_state);
+    auto dms_emis = ResolveExport("total_dms_emissions", export_state);
 
-    if (it_u10 == import_state.fields.end() || it_tskin == import_state.fields.end() ||
-        it_seaconc == import_state.fields.end() || it_dms_emis == export_state.fields.end())
-        return;
-
-    auto u10m = it_u10->second.view_device();
-    auto tskin = it_tskin->second.view_device();
-    auto seaconc = it_seaconc->second.view_device();
-    auto dms_emis = it_dms_emis->second.view_device();
+    if (!u10m.data() || !tskin.data() || !seaconc.data() || !dms_emis.data()) return;
 
     int nx = dms_emis.extent(0);
     int ny = dms_emis.extent(1);
@@ -66,7 +64,7 @@ void DMSScheme::Run(AcesImportState& import_state, AcesExportState& export_state
         });
 
     Kokkos::fence();
-    it_dms_emis->second.modify_device();
+    MarkModified("total_dms_emissions", export_state);
 }
 
 }  // namespace aces

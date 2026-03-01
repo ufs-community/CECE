@@ -9,7 +9,7 @@ namespace aces {
  * @class VolcanoScheme
  * @brief Native C++ implementation of the volcanic emission scheme.
  */
-class VolcanoScheme : public PhysicsScheme {
+class VolcanoScheme : public BasePhysicsScheme {
    public:
     VolcanoScheme() = default;
     ~VolcanoScheme() override = default;

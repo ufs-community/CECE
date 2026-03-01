@@ -3,6 +3,8 @@
 #include <Kokkos_Core.hpp>
 #include <iostream>
 
+#include "aces/aces_physics_factory.hpp"
+
 /**
  * @file aces_fortran_bridge.cpp
  * @brief Implementation of the bridge between C++ ACES and legacy Fortran
@@ -15,6 +17,11 @@ void run_legacy_fortran(double* temp, double* wind, double* nox, int nx, int ny,
 }
 
 namespace aces {
+
+#ifdef ACES_HAS_FORTRAN
+/// Self-registration for the FortranBridgeExample scheme.
+static PhysicsRegistration<FortranBridgeExample> register_scheme("fortran_bridge_example");
+#endif
 
 /**
  * @brief Initializes the Fortran bridge scheme.

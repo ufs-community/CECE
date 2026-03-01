@@ -5,7 +5,12 @@
 #include <cmath>
 #include <iostream>
 
+#include "aces/aces_physics_factory.hpp"
+
 namespace aces {
+
+/// Self-registration for the MeganScheme scheme.
+static PhysicsRegistration<MeganScheme> register_scheme("megan");
 
 /**
  * @brief MEGAN Gamma Factors (Ported from hcox_megan_mod.F90)
@@ -67,24 +72,15 @@ void MeganScheme::Initialize(const YAML::Node& /*config*/,
 }
 
 void MeganScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
-    auto it_temp = import_state.fields.find("temperature");
-    auto it_isop = export_state.fields.find("total_isoprene_emissions");
-    auto it_lai = import_state.fields.find("lai");
-    auto it_pardr = import_state.fields.find("pardr");
-    auto it_pardf = import_state.fields.find("pardf");
-    auto it_suncos = import_state.fields.find("suncos");
+    auto temp = ResolveImport("temperature", import_state);
+    auto isoprene = ResolveExport("total_isoprene_emissions", export_state);
+    auto lai = ResolveImport("lai", import_state);
+    auto pardr = ResolveImport("pardr", import_state);
+    auto pardf = ResolveImport("pardf", import_state);
+    auto suncos = ResolveImport("suncos", import_state);
 
-    if (it_temp == import_state.fields.end() || it_isop == export_state.fields.end() ||
-        it_lai == import_state.fields.end() || it_pardr == import_state.fields.end() ||
-        it_pardf == import_state.fields.end() || it_suncos == import_state.fields.end())
+    if (!temp.data() || !isoprene.data() || !lai.data() || !pardr.data() || !pardf.data() || !suncos.data())
         return;
-
-    auto temp = it_temp->second.view_device();
-    auto isoprene = it_isop->second.view_device();
-    auto lai = it_lai->second.view_device();
-    auto pardr = it_pardr->second.view_device();
-    auto pardf = it_pardf->second.view_device();
-    auto suncos = it_suncos->second.view_device();
 
     int nx = isoprene.extent(0);
     int ny = isoprene.extent(1);
@@ -129,7 +125,7 @@ void MeganScheme::Run(AcesImportState& import_state, AcesExportState& export_sta
         });
 
     Kokkos::fence();
-    it_isop->second.modify_device();
+    MarkModified("total_isoprene_emissions", export_state);
 }
 
 }  // namespace aces

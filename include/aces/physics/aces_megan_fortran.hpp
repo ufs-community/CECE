@@ -9,7 +9,7 @@ namespace aces {
  * @class MeganFortranScheme
  * @brief Fortran bridge implementation of the MEGAN biogenics emission scheme.
  */
-class MeganFortranScheme : public PhysicsScheme {
+class MeganFortranScheme : public BasePhysicsScheme {
    public:
     MeganFortranScheme() = default;
     ~MeganFortranScheme() override = default;

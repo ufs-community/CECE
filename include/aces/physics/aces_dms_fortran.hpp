@@ -9,7 +9,7 @@ namespace aces {
  * @class DMSFortranScheme
  * @brief Fortran bridge implementation of the DMS air-sea flux scheme.
  */
-class DMSFortranScheme : public PhysicsScheme {
+class DMSFortranScheme : public BasePhysicsScheme {
    public:
     DMSFortranScheme() = default;
     ~DMSFortranScheme() override = default;

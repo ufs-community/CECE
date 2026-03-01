@@ -1,6 +1,7 @@
 #include <Kokkos_Core.hpp>
 #include <iostream>
 
+#include "aces/aces_physics_factory.hpp"
 #include "aces/physics/aces_megan_fortran.hpp"
 
 extern "C" {
@@ -9,6 +10,11 @@ void run_megan_fortran(double* temp, double* lai, double* pardr, double* pardf, 
 }
 
 namespace aces {
+
+#ifdef ACES_HAS_FORTRAN
+/// Self-registration for the MeganFortranScheme scheme.
+static PhysicsRegistration<MeganFortranScheme> register_scheme("megan_fortran");
+#endif
 
 void MeganFortranScheme::Initialize(const YAML::Node& /*config*/,
                                     AcesDiagnosticManager* /*diag_manager*/) {

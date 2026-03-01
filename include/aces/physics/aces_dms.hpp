@@ -9,7 +9,7 @@ namespace aces {
  * @class DMSScheme
  * @brief Native C++ implementation of the DMS air-sea flux scheme.
  */
-class DMSScheme : public PhysicsScheme {
+class DMSScheme : public BasePhysicsScheme {
    public:
     DMSScheme() = default;
     ~DMSScheme() override = default;

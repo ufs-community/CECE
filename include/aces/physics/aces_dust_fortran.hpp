@@ -9,7 +9,7 @@ namespace aces {
  * @class DustFortranScheme
  * @brief Fortran bridge implementation of the Ginoux dust emission scheme.
  */
-class DustFortranScheme : public PhysicsScheme {
+class DustFortranScheme : public BasePhysicsScheme {
    public:
     DustFortranScheme() = default;
     ~DustFortranScheme() override = default;

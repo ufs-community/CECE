@@ -1,6 +1,7 @@
 #include <Kokkos_Core.hpp>
 #include <iostream>
 
+#include "aces/aces_physics_factory.hpp"
 #include "aces/physics/aces_dust_fortran.hpp"
 
 extern "C" {
@@ -9,6 +10,11 @@ void run_dust_fortran(double* u10m, double* gwet, double* sand, double* dust_emi
 }
 
 namespace aces {
+
+#ifdef ACES_HAS_FORTRAN
+/// Self-registration for the DustFortranScheme scheme.
+static PhysicsRegistration<DustFortranScheme> register_scheme("dust_fortran");
+#endif
 
 void DustFortranScheme::Initialize(const YAML::Node& /*config*/,
                                    AcesDiagnosticManager* /*diag_manager*/) {

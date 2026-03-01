@@ -1,6 +1,7 @@
 #include <Kokkos_Core.hpp>
 #include <iostream>
 
+#include "aces/aces_physics_factory.hpp"
 #include "aces/physics/aces_dms_fortran.hpp"
 
 extern "C" {
@@ -9,6 +10,11 @@ void run_dms_fortran(double* u10m, double* tskin, double* seaconc, double* dms_e
 }
 
 namespace aces {
+
+#ifdef ACES_HAS_FORTRAN
+/// Self-registration for the DMSFortranScheme scheme.
+static PhysicsRegistration<DMSFortranScheme> register_scheme("dms_fortran");
+#endif
 
 void DMSFortranScheme::Initialize(const YAML::Node& /*config*/,
                                   AcesDiagnosticManager* /*diag_manager*/) {

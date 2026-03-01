@@ -9,7 +9,7 @@ namespace aces {
  * @class SoilNoxFortranScheme
  * @brief Fortran bridge implementation of the Soil NOx emission scheme.
  */
-class SoilNoxFortranScheme : public PhysicsScheme {
+class SoilNoxFortranScheme : public BasePhysicsScheme {
    public:
     SoilNoxFortranScheme() = default;
     ~SoilNoxFortranScheme() override = default;

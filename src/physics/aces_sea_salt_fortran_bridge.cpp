@@ -1,6 +1,7 @@
 #include <Kokkos_Core.hpp>
 #include <iostream>
 
+#include "aces/aces_physics_factory.hpp"
 #include "aces/physics/aces_sea_salt_fortran.hpp"
 
 extern "C" {
@@ -9,6 +10,11 @@ void run_sea_salt_fortran(double* u10m_ptr, double* tskin_ptr, double* sala_ptr,
 }
 
 namespace aces {
+
+#ifdef ACES_HAS_FORTRAN
+/// Self-registration for the SeaSaltFortranScheme scheme.
+static PhysicsRegistration<SeaSaltFortranScheme> register_scheme("sea_salt_fortran");
+#endif
 
 void SeaSaltFortranScheme::Initialize(const YAML::Node& /*config*/,
                                       AcesDiagnosticManager* /*diag_manager*/) {

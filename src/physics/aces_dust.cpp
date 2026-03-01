@@ -5,7 +5,12 @@
 #include <cmath>
 #include <iostream>
 
+#include "aces/aces_physics_factory.hpp"
+
 namespace aces {
+
+/// Self-registration for the DustScheme scheme.
+static PhysicsRegistration<DustScheme> register_scheme("dust");
 
 /**
  * @brief Threshold velocity logic (Ported from hcox_dustginoux_mod.F90)
@@ -24,19 +29,12 @@ void DustScheme::Initialize(const YAML::Node& /*config*/, AcesDiagnosticManager*
 }
 
 void DustScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
-    auto it_u10 = import_state.fields.find("wind_speed_10m");
-    auto it_gwet = import_state.fields.find("gwettop");
-    auto it_sand = import_state.fields.find("GINOUX_SAND");
-    auto it_dust = export_state.fields.find("total_dust_emissions");
+    auto u10m = ResolveImport("wind_speed_10m", import_state);
+    auto gwettop = ResolveImport("gwettop", import_state);
+    auto srce_sand = ResolveImport("GINOUX_SAND", import_state);
+    auto dust_emis = ResolveExport("total_dust_emissions", export_state);
 
-    if (it_u10 == import_state.fields.end() || it_gwet == import_state.fields.end() ||
-        it_sand == import_state.fields.end() || it_dust == export_state.fields.end())
-        return;
-
-    auto u10m = it_u10->second.view_device();
-    auto gwettop = it_gwet->second.view_device();
-    auto srce_sand = it_sand->second.view_device();
-    auto dust_emis = it_dust->second.view_device();
+    if (!u10m.data() || !gwettop.data() || !srce_sand.data() || !dust_emis.data()) return;
 
     int nx = dust_emis.extent(0);
     int ny = dust_emis.extent(1);
@@ -73,7 +71,7 @@ void DustScheme::Run(AcesImportState& import_state, AcesExportState& export_stat
         });
 
     Kokkos::fence();
-    it_dust->second.modify_device();
+    MarkModified("total_dust_emissions", export_state);
 }
 
 }  // namespace aces

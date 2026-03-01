@@ -9,7 +9,7 @@ namespace aces {
  * @class SoilNoxScheme
  * @brief Native C++ implementation of the Soil NOx emission scheme.
  */
-class SoilNoxScheme : public PhysicsScheme {
+class SoilNoxScheme : public BasePhysicsScheme {
    public:
     SoilNoxScheme() = default;
     ~SoilNoxScheme() override = default;

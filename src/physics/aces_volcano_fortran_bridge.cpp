@@ -1,6 +1,7 @@
 #include <Kokkos_Core.hpp>
 #include <iostream>
 
+#include "aces/aces_physics_factory.hpp"
 #include "aces/physics/aces_volcano_fortran.hpp"
 
 extern "C" {
@@ -8,6 +9,11 @@ void run_volcano_fortran(double* zsfc, double* bxheight, double* so2, int nx, in
 }
 
 namespace aces {
+
+#ifdef ACES_HAS_FORTRAN
+/// Self-registration for the VolcanoFortranScheme scheme.
+static PhysicsRegistration<VolcanoFortranScheme> register_scheme("volcano_fortran");
+#endif
 
 void VolcanoFortranScheme::Initialize(const YAML::Node& /*config*/,
                                       AcesDiagnosticManager* /*diag_manager*/) {

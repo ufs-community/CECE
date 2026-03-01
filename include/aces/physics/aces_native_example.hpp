@@ -17,7 +17,7 @@ namespace aces {
  * This scheme demonstrates how to implement emissions logic directly in C++
  * using Kokkos kernels for high performance on both CPU and GPU.
  */
-class NativePhysicsExample : public PhysicsScheme {
+class NativePhysicsExample : public BasePhysicsScheme {
    public:
     /**
      * @brief Default constructor.

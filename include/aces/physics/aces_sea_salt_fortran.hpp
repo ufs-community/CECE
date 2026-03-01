@@ -9,7 +9,7 @@ namespace aces {
  * @class SeaSaltFortranScheme
  * @brief Fortran bridge implementation of the Sea Salt emission scheme.
  */
-class SeaSaltFortranScheme : public PhysicsScheme {
+class SeaSaltFortranScheme : public BasePhysicsScheme {
    public:
     SeaSaltFortranScheme() = default;
     ~SeaSaltFortranScheme() override = default;

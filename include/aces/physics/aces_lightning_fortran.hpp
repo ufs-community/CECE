@@ -9,7 +9,7 @@ namespace aces {
  * @class LightningFortranScheme
  * @brief Fortran bridge implementation of the Lightning NOx emission scheme.
  */
-class LightningFortranScheme : public PhysicsScheme {
+class LightningFortranScheme : public BasePhysicsScheme {
    public:
     LightningFortranScheme() = default;
     ~LightningFortranScheme() override = default;

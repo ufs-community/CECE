@@ -9,7 +9,7 @@ namespace aces {
  * @class LightningScheme
  * @brief Native C++ implementation of the Lightning NOx emission scheme.
  */
-class LightningScheme : public PhysicsScheme {
+class LightningScheme : public BasePhysicsScheme {
    public:
     LightningScheme() = default;
     ~LightningScheme() override = default;

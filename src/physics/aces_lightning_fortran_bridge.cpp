@@ -1,6 +1,7 @@
 #include <Kokkos_Core.hpp>
 #include <iostream>
 
+#include "aces/aces_physics_factory.hpp"
 #include "aces/physics/aces_lightning_fortran.hpp"
 
 extern "C" {
@@ -8,6 +9,11 @@ void run_lightning_fortran(double* conv_depth, double* light_nox, int nx, int ny
 }
 
 namespace aces {
+
+#ifdef ACES_HAS_FORTRAN
+/// Self-registration for the LightningFortranScheme scheme.
+static PhysicsRegistration<LightningFortranScheme> register_scheme("lightning_fortran");
+#endif
 
 void LightningFortranScheme::Initialize(const YAML::Node& /*config*/,
                                         AcesDiagnosticManager* /*diag_manager*/) {

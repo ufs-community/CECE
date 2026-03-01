@@ -5,7 +5,12 @@
 #include <cmath>
 #include <iostream>
 
+#include "aces/aces_physics_factory.hpp"
+
 namespace aces {
+
+/// Self-registration for the SeaSaltScheme scheme.
+static PhysicsRegistration<SeaSaltScheme> register_scheme("sea_salt");
 
 /**
  * @brief Gong (2003) Sea Salt source function dF/dr_80 [particles/m2/s/um]
@@ -25,15 +30,12 @@ void SeaSaltScheme::Initialize(const YAML::Node& /*config*/,
 }
 
 void SeaSaltScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
-    auto it_u10 = import_state.fields.find("wind_speed_10m");
-    auto it_tskin = import_state.fields.find("tskin");
-    auto it_sala = export_state.fields.find("total_SALA_emissions");
-    auto it_salc = export_state.fields.find("total_SALC_emissions");
+    auto u10m = ResolveImport("wind_speed_10m", import_state);
+    auto tskin = ResolveImport("tskin", import_state);
+    auto sala = ResolveExport("total_SALA_emissions", export_state);
+    auto salc = ResolveExport("total_SALC_emissions", export_state);
 
-    if (it_u10 == import_state.fields.end() || it_tskin == import_state.fields.end()) return;
-
-    auto u10m = it_u10->second.view_device();
-    auto tskin = it_tskin->second.view_device();
+    if (!u10m.data() || !tskin.data()) return;
 
     int nx = u10m.extent(0);
     int ny = u10m.extent(1);
@@ -47,8 +49,7 @@ void SeaSaltScheme::Run(AcesImportState& import_state, AcesExportState& export_s
     const double ss_dens = 2200.0;  // kg/m3
     const double pi = 3.14159265358979323846;
 
-    if (it_sala != export_state.fields.end()) {
-        auto sala = it_sala->second.view_device();
+    if (sala.data()) {
         Kokkos::parallel_for(
             "SeaSalt_SALA_Gong",
             Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<3>>({0, 0, 0},
@@ -72,11 +73,10 @@ void SeaSaltScheme::Run(AcesImportState& import_state, AcesExportState& export_s
                 }
                 sala(i, j, k) += scale * total_kg;
             });
-        it_sala->second.modify_device();
+        MarkModified("total_SALA_emissions", export_state);
     }
 
-    if (it_salc != export_state.fields.end()) {
-        auto salc = it_salc->second.view_device();
+    if (salc.data()) {
         Kokkos::parallel_for(
             "SeaSalt_SALC_Gong",
             Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<3>>({0, 0, 0},
@@ -100,7 +100,7 @@ void SeaSaltScheme::Run(AcesImportState& import_state, AcesExportState& export_s
                 }
                 salc(i, j, k) += scale * total_kg;
             });
-        it_salc->second.modify_device();
+        MarkModified("total_SALC_emissions", export_state);
     }
     Kokkos::fence();
 }

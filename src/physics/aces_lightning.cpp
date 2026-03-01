@@ -5,7 +5,12 @@
 #include <cmath>
 #include <iostream>
 
+#include "aces/aces_physics_factory.hpp"
+
 namespace aces {
+
+/// Self-registration for the LightningScheme scheme.
+static PhysicsRegistration<LightningScheme> register_scheme("lightning");
 
 /**
  * @brief Lightning NOx Yield and Vertical Distribution (Ported from
@@ -27,15 +32,11 @@ void LightningScheme::Initialize(const YAML::Node& /*config*/,
 }
 
 void LightningScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
-    auto it_conv_depth = import_state.fields.find("convective_cloud_top_height");
-    auto it_light_emis = export_state.fields.find("total_lightning_nox_emissions");
+    auto conv_depth = ResolveImport("convective_cloud_top_height", import_state);
+    auto light_nox = ResolveExport("total_lightning_nox_emissions", export_state);
     auto it_land = import_state.fields.find("land_mask");
 
-    if (it_conv_depth == import_state.fields.end() || it_light_emis == export_state.fields.end())
-        return;
-
-    auto conv_depth = it_conv_depth->second.view_device();
-    auto light_nox = it_light_emis->second.view_device();
+    if (!conv_depth.data() || !light_nox.data()) return;
 
     // Land mask proxy
     bool has_land_mask = (it_land != import_state.fields.end());
@@ -69,7 +70,7 @@ void LightningScheme::Run(AcesImportState& import_state, AcesExportState& export
         });
 
     Kokkos::fence();
-    it_light_emis->second.modify_device();
+    MarkModified("total_lightning_nox_emissions", export_state);
 }
 
 }  // namespace aces

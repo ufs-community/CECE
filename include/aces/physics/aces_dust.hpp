@@ -9,7 +9,7 @@ namespace aces {
  * @class DustScheme
  * @brief Native C++ implementation of the Ginoux dust emission scheme.
  */
-class DustScheme : public PhysicsScheme {
+class DustScheme : public BasePhysicsScheme {
    public:
     DustScheme() = default;
     ~DustScheme() override = default;

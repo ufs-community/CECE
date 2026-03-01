@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 project(ACES LANGUAGES CXX C)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
@@ -47,6 +47,8 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
+option(ACES_USE_MOCK_ESMF "Use mock ESMF implementation for testing" OFF)
+
 # Optional Fortran support
 include(CheckLanguage)
 check_language(Fortran)
@@ -57,7 +59,20 @@ else()
   message(WARNING "Fortran compiler not found. Fortran features will be disabled.")
 endif()
 
-find_package(ESMF REQUIRED)
+if(ACES_USE_MOCK_ESMF)
+  add_library(ESMF::ESMF INTERFACE IMPORTED)
+  target_compile_definitions(ESMF::ESMF INTERFACE ACES_USE_MOCK_ESMF)
+  target_include_directories(ESMF::ESMF INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include/mock_esmf)
+  set(ESMF_FOUND TRUE)
+  # Mock CDEPS if needed or skip parts that require it
+  set(CDEPS_FOUND TRUE)
+  add_library(CDEPS::CDEPS INTERFACE IMPORTED)
+  # Mock MPI if needed
+  if(NOT TARGET MPI::MPI_CXX)
+    add_library(MPI::MPI_CXX INTERFACE IMPORTED)
+  endif()
+else()
+  find_package(ESMF REQUIRED)
 message(STATUS "Found ESMF: ${ESMF_VERSION}")
 message(STATUS "ESMF include dirs: ${ESMF_INCLUDE_DIRS}")
 
@@ -186,6 +201,7 @@ endif()
 # Fallback: if not found and not built from source, it's an error.
 if(NOT CDEPS_FOUND)
   message(FATAL_ERROR "CDEPS is required but was not found on the system or successfully built from source.")
+endif()
 endif()
 
 # --- ACES Library ---

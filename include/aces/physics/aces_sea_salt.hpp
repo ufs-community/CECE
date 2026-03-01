@@ -9,7 +9,7 @@ namespace aces {
  * @class SeaSaltScheme
  * @brief Native C++ implementation of the Sea Salt emission scheme.
  */
-class SeaSaltScheme : public PhysicsScheme {
+class SeaSaltScheme : public BasePhysicsScheme {
    public:
     SeaSaltScheme() = default;
     ~SeaSaltScheme() override = default;

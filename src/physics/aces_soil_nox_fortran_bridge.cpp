@@ -1,6 +1,7 @@
 #include <Kokkos_Core.hpp>
 #include <iostream>
 
+#include "aces/aces_physics_factory.hpp"
 #include "aces/physics/aces_soil_nox_fortran.hpp"
 
 extern "C" {
@@ -8,6 +9,11 @@ void run_soil_nox_fortran(double* temp, double* gwet, double* soil_nox, int nx, 
 }
 
 namespace aces {
+
+#ifdef ACES_HAS_FORTRAN
+/// Self-registration for the SoilNoxFortranScheme scheme.
+static PhysicsRegistration<SoilNoxFortranScheme> register_scheme("soil_nox_fortran");
+#endif
 
 void SoilNoxFortranScheme::Initialize(const YAML::Node& /*config*/,
                                       AcesDiagnosticManager* /*diag_manager*/) {

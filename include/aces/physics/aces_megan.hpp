@@ -9,7 +9,7 @@ namespace aces {
  * @class MeganScheme
  * @brief Native C++ implementation of the MEGAN biogenics emission scheme.
  */
-class MeganScheme : public PhysicsScheme {
+class MeganScheme : public BasePhysicsScheme {
    public:
     MeganScheme() = default;
     ~MeganScheme() override = default;

@@ -5,7 +5,12 @@
 #include <cmath>
 #include <iostream>
 
+#include "aces/aces_physics_factory.hpp"
+
 namespace aces {
+
+/// Self-registration for the SoilNoxScheme scheme.
+static PhysicsRegistration<SoilNoxScheme> register_scheme("soil_nox");
 
 /**
  * @brief Soil NOx Emissions (Ported from hcox_soilnox_mod.F90)
@@ -29,17 +34,11 @@ void SoilNoxScheme::Initialize(const YAML::Node& /*config*/,
 }
 
 void SoilNoxScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
-    auto it_temp = import_state.fields.find("temperature");
-    auto it_gwet = import_state.fields.find("gwettop");
-    auto it_soil_nox = export_state.fields.find("total_soil_nox_emissions");
+    auto temp = ResolveImport("temperature", import_state);
+    auto gwet = ResolveImport("gwettop", import_state);
+    auto soil_nox = ResolveExport("total_soil_nox_emissions", export_state);
 
-    if (it_temp == import_state.fields.end() || it_gwet == import_state.fields.end() ||
-        it_soil_nox == export_state.fields.end())
-        return;
-
-    auto temp = it_temp->second.view_device();
-    auto gwet = it_gwet->second.view_device();
-    auto soil_nox = it_soil_nox->second.view_device();
+    if (!temp.data() || !gwet.data() || !soil_nox.data()) return;
 
     int nx = soil_nox.extent(0);
     int ny = soil_nox.extent(1);
@@ -72,7 +71,7 @@ void SoilNoxScheme::Run(AcesImportState& import_state, AcesExportState& export_s
         });
 
     Kokkos::fence();
-    it_soil_nox->second.modify_device();
+    MarkModified("total_soil_nox_emissions", export_state);
 }
 
 }  // namespace aces

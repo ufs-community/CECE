@@ -9,7 +9,7 @@ namespace aces {
  * @class VolcanoFortranScheme
  * @brief Fortran bridge implementation of the volcanic emission scheme.
  */
-class VolcanoFortranScheme : public PhysicsScheme {
+class VolcanoFortranScheme : public BasePhysicsScheme {
    public:
     VolcanoFortranScheme() = default;
     ~VolcanoFortranScheme() override = default;

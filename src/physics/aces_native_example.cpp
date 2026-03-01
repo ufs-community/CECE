@@ -3,12 +3,17 @@
 #include <Kokkos_Core.hpp>
 #include <iostream>
 
+#include "aces/aces_physics_factory.hpp"
+
 /**
  * @file aces_native_example.cpp
  * @brief Implementation of a sample native C++ physics scheme.
  */
 
 namespace aces {
+
+/// Self-registration for the NativePhysicsExample scheme.
+static PhysicsRegistration<NativePhysicsExample> register_scheme("native_example");
 
 /**
  * @brief Initializes the native physics scheme.
@@ -34,19 +39,14 @@ void NativePhysicsExample::Initialize(const YAML::Node& /*config*/,
  * @param export_state Output data.
  */
 void NativePhysicsExample::Run(AcesImportState& import_state, AcesExportState& export_state) {
-    auto it_base = import_state.fields.find("base_anthropogenic_nox");
-    auto it_total = export_state.fields.find("total_nox_emissions");
+    auto base_nox = ResolveImport("base_anthropogenic_nox", import_state);
+    auto total_nox = ResolveExport("total_nox_emissions", export_state);
 
-    if (it_base == import_state.fields.end() || it_total == export_state.fields.end()) return;
-
-    auto base_nox = it_base->second.view_device();
-    auto total_nox = it_total->second.view_device();
+    if (!base_nox.data() || !total_nox.data()) return;
 
     int nx = total_nox.extent(0);
     int ny = total_nox.extent(1);
     int nz = total_nox.extent(2);
-
-    if (nx == 0 || ny == 0 || nz == 0) return;
 
     // Dispatch the computational kernel to the default execution space (e.g. GPU)
     Kokkos::parallel_for(
@@ -62,7 +62,7 @@ void NativePhysicsExample::Run(AcesImportState& import_state, AcesExportState& e
 
     // Mark the device data as modified so it can be synced back to the host
     // correctly.
-    it_total->second.modify_device();
+    MarkModified("total_nox_emissions", export_state);
 }
 
 }  // namespace aces

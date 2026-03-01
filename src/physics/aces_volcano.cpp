@@ -5,7 +5,12 @@
 #include <cmath>
 #include <iostream>
 
+#include "aces/aces_physics_factory.hpp"
+
 namespace aces {
+
+/// Self-registration for the VolcanoScheme scheme.
+static PhysicsRegistration<VolcanoScheme> register_scheme("volcano");
 
 void VolcanoScheme::Initialize(const YAML::Node& /*config*/,
                                AcesDiagnosticManager* /*diag_manager*/) {
@@ -13,17 +18,11 @@ void VolcanoScheme::Initialize(const YAML::Node& /*config*/,
 }
 
 void VolcanoScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
-    auto it_so2 = export_state.fields.find("total_so2_emissions");
-    auto it_zsfc = import_state.fields.find("zsfc");
-    auto it_bxheight = import_state.fields.find("bxheight_m");
+    auto so2 = ResolveExport("total_so2_emissions", export_state);
+    auto zsfc = ResolveImport("zsfc", import_state);
+    auto bxheight = ResolveImport("bxheight_m", import_state);
 
-    if (it_so2 == export_state.fields.end() || it_zsfc == import_state.fields.end() ||
-        it_bxheight == import_state.fields.end())
-        return;
-
-    auto so2 = it_so2->second.view_device();
-    auto zsfc = it_zsfc->second.view_device();
-    auto bxheight = it_bxheight->second.view_device();
+    if (!so2.data() || !zsfc.data() || !bxheight.data()) return;
 
     int nx = so2.extent(0);
     int ny = so2.extent(1);
@@ -69,7 +68,7 @@ void VolcanoScheme::Run(AcesImportState& import_state, AcesExportState& export_s
         });
 
     Kokkos::fence();
-    it_so2->second.modify_device();
+    MarkModified("total_so2_emissions", export_state);
 }
 
 }  // namespace aces
