@@ -1,0 +1,813 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Accelerated Component for Emission System">
+      
+      
+        <meta name="author" content="ACES Team">
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.24">
+    
+    
+      
+        <title>HEMCO Migration Examples - ACES Documentation</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../assets/stylesheets/modern/main.28978c9b.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../assets/stylesheets/modern/palette.dfe2e883.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,a=__md_scope)=>JSON.parse(t.getItem(a.pathname+"."+e)),__md_set=(e,t,a=localStorage,_=__md_scope)=>{try{a.setItem(_.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#hemco-migration-examples" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="./.." title="ACES Documentation" class="md-header__button md-logo" aria-label="ACES Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            ACES Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              HEMCO Migration Examples
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="./.." title="ACES Documentation" class="md-nav__button md-logo" aria-label="ACES Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    ACES Documentation
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Introduction" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    none
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../User's Guide" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    none
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Configuration" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    none
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../Tutorial" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    none
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../API Reference" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    none
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#example-1-add-global-anthropogenic-emissions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example 1: Add global anthropogenic emissions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Example 1: Add global anthropogenic emissions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#before-hemco" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [Before] HEMCO
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#after-aces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [After] ACES
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-2-overlay-regional-emissions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example 2: Overlay regional emissions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Example 2: Overlay regional emissions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#before-hemco_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [Before] HEMCO
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#after-aces_1" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [After] ACES
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-3-adding-aircraft-emissions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example 3: Adding aircraft emissions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Example 3: Adding aircraft emissions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#before-hemco_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [Before] HEMCO
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#after-aces_2" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [After] ACES
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-4-add-biomass-burning-emissions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example 4: Add biomass burning emissions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Example 4: Add biomass burning emissions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#before-hemco_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [Before] HEMCO
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#after-aces_3" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [After] ACES
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-5-additional-species" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example 5: Additional species
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Example 5: Additional species">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#before-hemco_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [Before] HEMCO
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#after-aces_4" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [After] ACES
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#example-6-non-separated-inventories" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example 6: Non-separated inventories
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Example 6: Non-separated inventories">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#before-hemco_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [Before] HEMCO
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#after-aces_5" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        [After] ACES
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+<h1 id="hemco-migration-examples">HEMCO Migration Examples<a class="headerlink" href="#hemco-migration-examples" title="Permanent link">&para;</a></h1>
+<p>This page provides a visual comparison between classic HEMCO configuration (<code>HEMCO_Config.rc</code>) and the corresponding ACES configuration (<code>aces_config.yaml</code>).</p>
+<p>ACES maintains algorithmic parity with HEMCO's stacking engine while utilizing a modern, performance-portable YAML format.</p>
+<hr />
+<h2 id="example-1-add-global-anthropogenic-emissions">Example 1: Add global anthropogenic emissions<a class="headerlink" href="#example-1-add-global-anthropogenic-emissions" title="Permanent link">&para;</a></h2>
+<p><strong>Scenario:</strong> Monthly global anthropogenic CO emissions with gridded hourly scale factors.</p>
+<h3 id="before-hemco">[Before] HEMCO<a class="headerlink" href="#before-hemco" title="Permanent link">&para;</a></h3>
+<div class="language-fortran highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="cp"># ExtNr Name       sourceFile     sourceVar sourceTime          CRE Dim Unit     Species ScalID Cat Hier</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="mi">0</span><span class="w">      </span><span class="n">MACCITY_CO</span><span class="w">  </span><span class="err">$</span><span class="n">ROOT</span><span class="o">/</span><span class="n">MACCity</span><span class="p">.</span><span class="n">nc</span><span class="w">  </span><span class="n">CO</span><span class="w">     </span><span class="mi">1980</span><span class="o">-</span><span class="mi">2014</span><span class="o">/</span><span class="mi">1</span><span class="o">-</span><span class="mi">12</span><span class="o">/</span><span class="mi">1</span><span class="o">/</span><span class="mi">0</span><span class="w">  </span><span class="n">C</span><span class="w">   </span><span class="n">xy</span><span class="w">  </span><span class="n">kg</span><span class="o">/</span><span class="n">m2</span><span class="o">/</span><span class="n">s</span><span class="w">  </span><span class="n">CO</span><span class="w">      </span><span class="mi">500</span><span class="w">    </span><span class="mi">1</span><span class="w">   </span><span class="mi">1</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="cp"># ScalID Name            srcFile         srcVar  srcTime          CRE Dim Unit Oper</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="mi">500</span><span class="w">      </span><span class="n">HOURLY_SCALFACT</span><span class="w"> </span><span class="err">$</span><span class="n">ROOT</span><span class="o">/</span><span class="n">hourly</span><span class="p">.</span><span class="n">nc</span><span class="w"> </span><span class="n">factor</span><span class="w">  </span><span class="mi">2000</span><span class="o">/</span><span class="mi">1</span><span class="o">/</span><span class="mi">1</span><span class="o">/</span><span class="mi">0</span><span class="o">-</span><span class="mi">23</span><span class="w">    </span><span class="n">C</span><span class="w">   </span><span class="n">xy</span><span class="w">  </span><span class="mi">1</span><span class="w">    </span><span class="mi">1</span>
+</span></code></pre></div>
+<h3 id="after-aces">[After] ACES<a class="headerlink" href="#after-aces" title="Permanent link">&para;</a></h3>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">meteorology</span><span class="p">:</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">hourly_scalfact</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">HOURLY_SCALFACT</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="nt">species</span><span class="p">:</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span><span class="nt">co</span><span class="p">:</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">field</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;MACCITY_CO&quot;</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">      </span><span class="nt">operation</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;add&quot;</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">      </span><span class="nt">scale</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">      </span><span class="nt">scale_fields</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;hourly_scalfact&quot;</span><span class="p p-Indicator">]</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="nt">cdeps_inline_config</span><span class="p">:</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="w">  </span><span class="nt">streams</span><span class="p">:</span>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;MACCITY_CO&quot;</span>
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="w">      </span><span class="nt">file</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;data/MACCity_4x5.nc&quot;</span>
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;HOURLY_SCALFACT&quot;</span>
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="w">      </span><span class="nt">file</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;data/hourly.nc&quot;</span>
+</span></code></pre></div>
+<hr />
+<h2 id="example-2-overlay-regional-emissions">Example 2: Overlay regional emissions<a class="headerlink" href="#example-2-overlay-regional-emissions" title="Permanent link">&para;</a></h2>
+<p><strong>Scenario:</strong> Regional European CO emissions replace global emissions in a specific region.</p>
+<h3 id="before-hemco_1">[Before] HEMCO<a class="headerlink" href="#before-hemco_1" title="Permanent link">&para;</a></h3>
+<div class="language-fortran highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="cp">#ExtNr Name       srcFile          srcVar srcTime             CRE Dim Unit     Species ScalIDs  Cat Hier</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="mi">0</span><span class="w">      </span><span class="n">MACCITY_CO</span><span class="w"> </span><span class="err">$</span><span class="n">ROOT</span><span class="o">/</span><span class="n">MACCity</span><span class="p">.</span><span class="n">nc</span><span class="w">  </span><span class="n">CO</span><span class="w">    </span><span class="mi">1980</span><span class="o">-</span><span class="mi">2014</span><span class="o">/</span><span class="mi">1</span><span class="o">-</span><span class="mi">12</span><span class="o">/</span><span class="mi">1</span><span class="o">/</span><span class="mi">0</span><span class="w">  </span><span class="n">C</span><span class="w">   </span><span class="n">xy</span><span class="w">  </span><span class="n">kg</span><span class="o">/</span><span class="n">m2</span><span class="o">/</span><span class="n">s</span><span class="w">  </span><span class="n">CO</span><span class="w">      </span><span class="mi">500</span><span class="w">      </span><span class="mi">1</span><span class="w">   </span><span class="mi">1</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="mi">0</span><span class="w">      </span><span class="n">EMEP_CO</span><span class="w">    </span><span class="err">$</span><span class="n">ROOT</span><span class="o">/</span><span class="n">EMEP</span><span class="p">.</span><span class="n">nc</span><span class="w">     </span><span class="n">CO</span><span class="w">    </span><span class="mi">2000</span><span class="o">-</span><span class="mi">2014</span><span class="o">/</span><span class="mi">1</span><span class="o">-</span><span class="mi">12</span><span class="o">/</span><span class="mi">1</span><span class="o">/</span><span class="mi">0</span><span class="w">  </span><span class="n">C</span><span class="w">   </span><span class="n">xy</span><span class="w">  </span><span class="n">kg</span><span class="o">/</span><span class="n">m2</span><span class="o">/</span><span class="n">s</span><span class="w">  </span><span class="n">CO</span><span class="w">      </span><span class="mi">500</span><span class="o">/</span><span class="mi">1001</span><span class="w"> </span><span class="mi">1</span><span class="w">   </span><span class="mi">2</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="cp">#ScalID Name         srcFile             srcVar srcTime      CRE Dim Unit Oper Box</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="mi">1001</span><span class="w">    </span><span class="n">MASK_EUROPE</span><span class="w">  </span><span class="err">$</span><span class="n">ROOT</span><span class="o">/</span><span class="n">mask_europe</span><span class="p">.</span><span class="n">nc</span><span class="w"> </span><span class="n">MASK</span><span class="w">  </span><span class="mi">2000</span><span class="o">/</span><span class="mi">1</span><span class="o">/</span><span class="mi">1</span><span class="o">/</span><span class="mi">0</span><span class="w">   </span><span class="n">C</span><span class="w">   </span><span class="n">xy</span><span class="w">  </span><span class="mi">1</span><span class="w">    </span><span class="mi">1</span><span class="w">    </span><span class="o">-</span><span class="mi">30</span><span class="o">/</span><span class="mi">30</span><span class="o">/</span><span class="mi">45</span><span class="o">/</span><span class="mi">70</span>
+</span></code></pre></div>
+<h3 id="after-aces_1">[After] ACES<a class="headerlink" href="#after-aces_1" title="Permanent link">&para;</a></h3>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">meteorology</span><span class="p">:</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">hourly_scalfact</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">HOURLY_SCALFACT</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">  </span><span class="nt">mask_europe</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">MASK_EUROPE</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="nt">species</span><span class="p">:</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">  </span><span class="nt">co</span><span class="p">:</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">field</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;MACCITY_CO&quot;</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">      </span><span class="nt">category</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;anthropogenic&quot;</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">      </span><span class="nt">hierarchy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">      </span><span class="nt">operation</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;add&quot;</span>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="w">      </span><span class="nt">scale_fields</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;hourly_scalfact&quot;</span><span class="p p-Indicator">]</span>
+</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">field</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;EMEP_CO&quot;</span>
+</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="w">      </span><span class="nt">category</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;anthropogenic&quot;</span>
+</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="w">      </span><span class="nt">hierarchy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
+</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a><span class="w">      </span><span class="nt">operation</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;replace&quot;</span>
+</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a><span class="w">      </span><span class="nt">mask</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;mask_europe&quot;</span>
+</span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a><span class="w">      </span><span class="nt">scale_fields</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;hourly_scalfact&quot;</span><span class="p p-Indicator">]</span>
+</span></code></pre></div>
+<hr />
+<h2 id="example-3-adding-aircraft-emissions">Example 3: Adding aircraft emissions<a class="headerlink" href="#example-3-adding-aircraft-emissions" title="Permanent link">&para;</a></h2>
+<p><strong>Scenario:</strong> Adding AEIC aircraft emissions into a separate emission category.</p>
+<h3 id="before-hemco_2">[Before] HEMCO<a class="headerlink" href="#before-hemco_2" title="Permanent link">&para;</a></h3>
+<div class="language-fortran highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="cp">#ExtNr Name       srcFile          srcVar srcTime             CRE Dim Unit     Species ScalIDs  Cat Hier</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="mi">0</span><span class="w">      </span><span class="n">MACCITY_CO</span><span class="w"> </span><span class="err">$</span><span class="n">ROOT</span><span class="o">/</span><span class="n">MACCity</span><span class="p">.</span><span class="n">nc</span><span class="w">  </span><span class="n">CO</span><span class="w">    </span><span class="mi">1980</span><span class="o">-</span><span class="mi">2014</span><span class="o">/</span><span class="mi">1</span><span class="o">-</span><span class="mi">12</span><span class="o">/</span><span class="mi">1</span><span class="o">/</span><span class="mi">0</span><span class="w">  </span><span class="n">C</span><span class="w">   </span><span class="n">xy</span><span class="w">  </span><span class="n">kg</span><span class="o">/</span><span class="n">m2</span><span class="o">/</span><span class="n">s</span><span class="w">  </span><span class="n">CO</span><span class="w">      </span><span class="mi">500</span><span class="w">      </span><span class="mi">1</span><span class="w">   </span><span class="mi">1</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="mi">0</span><span class="w">      </span><span class="n">AEIC_CO</span><span class="w">    </span><span class="err">$</span><span class="n">ROOT</span><span class="o">/</span><span class="n">AEIC</span><span class="p">.</span><span class="n">nc</span><span class="w">     </span><span class="n">CO</span><span class="w">    </span><span class="mi">2005</span><span class="o">/</span><span class="mi">1</span><span class="o">-</span><span class="mi">12</span><span class="o">/</span><span class="mi">1</span><span class="o">/</span><span class="mi">0</span><span class="w">       </span><span class="n">C</span><span class="w">   </span><span class="n">xyz</span><span class="w"> </span><span class="n">kg</span><span class="o">/</span><span class="n">m2</span><span class="o">/</span><span class="n">s</span><span class="w">  </span><span class="n">CO</span><span class="w">      </span><span class="o">-</span><span class="w">        </span><span class="mi">2</span><span class="w">   </span><span class="mi">1</span>
+</span></code></pre></div>
+<h3 id="after-aces_2">[After] ACES<a class="headerlink" href="#after-aces_2" title="Permanent link">&para;</a></h3>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nt">species</span><span class="p">:</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="nt">co</span><span class="p">:</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">field</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;MACCITY_CO&quot;</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">      </span><span class="nt">category</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;anthropogenic&quot;</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">field</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;AEIC_CO&quot;</span>
+</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="w">      </span><span class="nt">category</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;aircraft&quot;</span>
+</span></code></pre></div>
+<hr />
+<h2 id="example-4-add-biomass-burning-emissions">Example 4: Add biomass burning emissions<a class="headerlink" href="#example-4-add-biomass-burning-emissions" title="Permanent link">&para;</a></h2>
+<p><strong>Scenario:</strong> Using the GFED4 extension for biomass burning.</p>
+<h3 id="before-hemco_3">[Before] HEMCO<a class="headerlink" href="#before-hemco_3" title="Permanent link">&para;</a></h3>
+<div class="language-fortran highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="cp"># ExtNr ExtName  on/off  Species</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="mi">111</span><span class="w">     </span><span class="n">GFED</span><span class="w">     </span><span class="p">:</span><span class="w"> </span><span class="n">on</span><span class="w">    </span><span class="n">CO</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">GFED4</span><span class="w">    </span><span class="p">:</span><span class="w">       </span><span class="n">true</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="cp">#ExtNr Name      srcFile          srcVar srcTime             CRE Dim Unit     Species ScalIDs  Cat Hier</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="mi">111</span><span class="w">    </span><span class="n">GFED_WDL</span><span class="w">  </span><span class="err">$</span><span class="n">ROOT</span><span class="o">/</span><span class="n">GFED4</span><span class="p">.</span><span class="n">nc</span><span class="w">   </span><span class="n">WDL_DM</span><span class="w"> </span><span class="mi">2000</span><span class="o">-</span><span class="mi">2013</span><span class="o">/</span><span class="mi">1</span><span class="o">-</span><span class="mi">12</span><span class="o">/</span><span class="mi">01</span><span class="o">/</span><span class="mi">0</span><span class="w"> </span><span class="n">C</span><span class="w">   </span><span class="n">xy</span><span class="w">  </span><span class="n">kg</span><span class="o">/</span><span class="n">m2</span><span class="o">/</span><span class="n">s</span><span class="w">  </span><span class="o">*</span><span class="w">       </span><span class="o">-</span><span class="w">        </span><span class="mi">1</span><span class="w">   </span><span class="mi">1</span>
+</span></code></pre></div>
+<h3 id="after-aces_3">[After] ACES<a class="headerlink" href="#after-aces_3" title="Permanent link">&para;</a></h3>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nt">physics_schemes</span><span class="p">:</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;GFED&quot;</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span><span class="nt">language</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;cpp&quot;</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">    </span><span class="nt">options</span><span class="p">:</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">      </span><span class="nt">version</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;GFED4&quot;</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="nt">species</span><span class="p">:</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="w">  </span><span class="nt">co</span><span class="p">:</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">field</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;MACCITY_CO&quot;</span>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="w">      </span><span class="nt">operation</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;add&quot;</span>
+</span></code></pre></div>
+<hr />
+<h2 id="example-5-additional-species">Example 5: Additional species<a class="headerlink" href="#example-5-additional-species" title="Permanent link">&para;</a></h2>
+<p><strong>Scenario:</strong> Adding NO and SO2 to the configuration.</p>
+<h3 id="before-hemco_4">[Before] HEMCO<a class="headerlink" href="#before-hemco_4" title="Permanent link">&para;</a></h3>
+<div class="language-fortran highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="mi">0</span><span class="w"> </span><span class="n">MACCITY_CO</span><span class="w">  </span><span class="err">$</span><span class="n">ROOT</span><span class="o">/</span><span class="n">MACCity</span><span class="p">.</span><span class="n">nc</span><span class="w"> </span><span class="n">CO</span><span class="w">  </span><span class="mi">1980</span><span class="o">-</span><span class="mi">2014</span><span class="o">/</span><span class="mi">1</span><span class="o">-</span><span class="mi">12</span><span class="o">/</span><span class="mi">1</span><span class="o">/</span><span class="mi">0</span><span class="w"> </span><span class="n">C</span><span class="w"> </span><span class="n">xy</span><span class="w">  </span><span class="n">kg</span><span class="o">/</span><span class="n">m2</span><span class="o">/</span><span class="n">s</span><span class="w"> </span><span class="n">CO</span><span class="w">  </span><span class="mi">500</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="mi">1</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="mi">0</span><span class="w"> </span><span class="n">MACCITY_NO</span><span class="w">  </span><span class="err">$</span><span class="n">ROOT</span><span class="o">/</span><span class="n">MACCity</span><span class="p">.</span><span class="n">nc</span><span class="w"> </span><span class="n">NO</span><span class="w">  </span><span class="mi">1980</span><span class="o">-</span><span class="mi">2014</span><span class="o">/</span><span class="mi">1</span><span class="o">-</span><span class="mi">12</span><span class="o">/</span><span class="mi">1</span><span class="o">/</span><span class="mi">0</span><span class="w"> </span><span class="n">C</span><span class="w"> </span><span class="n">xy</span><span class="w">  </span><span class="n">kg</span><span class="o">/</span><span class="n">m2</span><span class="o">/</span><span class="n">s</span><span class="w"> </span><span class="n">NO</span><span class="w">  </span><span class="mi">500</span><span class="w"> </span><span class="mi">1</span><span class="w"> </span><span class="mi">1</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="mi">0</span><span class="w"> </span><span class="n">MACCITY_SO2</span><span class="w"> </span><span class="err">$</span><span class="n">ROOT</span><span class="o">/</span><span class="n">MACCity</span><span class="p">.</span><span class="n">nc</span><span class="w"> </span><span class="n">SO2</span><span class="w"> </span><span class="mi">1980</span><span class="o">-</span><span class="mi">2014</span><span class="o">/</span><span class="mi">1</span><span class="o">-</span><span class="mi">12</span><span class="o">/</span><span class="mi">1</span><span class="o">/</span><span class="mi">0</span><span class="w"> </span><span class="n">C</span><span class="w"> </span><span class="n">xy</span><span class="w">  </span><span class="n">kg</span><span class="o">/</span><span class="n">m2</span><span class="o">/</span><span class="n">s</span><span class="w"> </span><span class="n">SO2</span><span class="w"> </span><span class="o">-</span><span class="w">   </span><span class="mi">1</span><span class="w"> </span><span class="mi">1</span>
+</span></code></pre></div>
+<h3 id="after-aces_4">[After] ACES<a class="headerlink" href="#after-aces_4" title="Permanent link">&para;</a></h3>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nt">species</span><span class="p">:</span>
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="w">  </span><span class="nt">co</span><span class="p">:</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">field</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;MACCITY_CO&quot;</span>
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">  </span><span class="nt">no</span><span class="p">:</span>
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">field</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;MACCITY_NO&quot;</span>
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">  </span><span class="nt">so2</span><span class="p">:</span>
+</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">field</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;MACCITY_SO2&quot;</span>
+</span></code></pre></div>
+<hr />
+<h2 id="example-6-non-separated-inventories">Example 6: Non-separated inventories<a class="headerlink" href="#example-6-non-separated-inventories" title="Permanent link">&para;</a></h2>
+<p><strong>Scenario:</strong> Inventories (like EDGAR/CEDS) that lump biofuels/trash with anthropogenic.</p>
+<h3 id="before-hemco_5">[Before] HEMCO<a class="headerlink" href="#before-hemco_5" title="Permanent link">&para;</a></h3>
+<div class="language-fortran highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="cp"># EDGAR NO emissions assigned to Category 1 (Anthro), but effectively covers Cat 2 (Biofuel)</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="mi">0</span><span class="w"> </span><span class="n">EDGAR_NO_POW</span><span class="w"> </span><span class="n">EDGAR</span><span class="p">.</span><span class="n">nc</span><span class="w"> </span><span class="n">emi_nox</span><span class="w"> </span><span class="mi">1970</span><span class="o">-</span><span class="mi">2010</span><span class="o">/</span><span class="mi">1</span><span class="o">/</span><span class="mi">1</span><span class="o">/</span><span class="mi">0</span><span class="w"> </span><span class="n">C</span><span class="w"> </span><span class="n">xy</span><span class="w"> </span><span class="n">kg</span><span class="o">/</span><span class="n">m2</span><span class="o">/</span><span class="n">s</span><span class="w"> </span><span class="n">NO</span><span class="w"> </span><span class="mi">1201</span><span class="o">/</span><span class="mi">25</span><span class="o">/</span><span class="mi">115</span><span class="w"> </span><span class="mi">1</span><span class="o">/</span><span class="mi">2</span><span class="w"> </span><span class="mi">2</span>
+</span></code></pre></div>
+<h3 id="after-aces_5">[After] ACES<a class="headerlink" href="#after-aces_5" title="Permanent link">&para;</a></h3>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nt">species</span><span class="p">:</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span><span class="nt">no</span><span class="p">:</span>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">field</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;EDGAR_NO_POW&quot;</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">      </span><span class="nt">category</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;anthropogenic&quot;</span>
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">      </span><span class="nt">operation</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;add&quot;</span>
+</span></code></pre></div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2026 ACES Authors
+    </div>
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      
+      <script id="__config" type="application/json">{"annotate":null,"base":"..","features":["features"],"search":"../assets/javascripts/workers/search.e2d2d235.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.16f8adc2.min.js"></script>
+      
+    
+  </body>
+</html>
