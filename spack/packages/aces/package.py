@@ -10,8 +10,8 @@ class Aces(CMakePackage):
     """Accelerated Component for Emission System (ACES) is a C++17 emissions
     compute component designed for high performance using Kokkos and ESMF."""
 
-    homepage = "https://github.com/jcsda/aces"
-    git = "https://github.com/jcsda/aces.git"
+    homepage = "https://github.com/bbakernoaa/aces"
+    git = "https://github.com/bbakernoaa/aces.git"
 
     maintainers("jules")
 
