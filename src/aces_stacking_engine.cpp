@@ -128,7 +128,7 @@ void StackingEngine::UpdateTemporalScales(CompiledSpecies& spec, int hour, int d
     Kokkos::deep_copy(spec.device_layers, spec.host_layers);
 }
 
-// cppcheck-suppress unusedFunction
+// cppcheck-suppress [unusedFunction]
 void StackingEngine::ResetBindings() {
     for (auto& spec : m_compiled) {
         spec.fields_bound = false;

@@ -25,7 +25,7 @@ namespace aces {
  * @param hour Current hour.
  * @param day_of_week Current day of week.
  */
-// cppcheck-suppress unusedFunction
+// cppcheck-suppress [unusedFunction]
 void ComputeEmissions(
     const AcesConfig& config, FieldResolver& resolver, int nx, int ny, int nz,
     Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> default_mask,

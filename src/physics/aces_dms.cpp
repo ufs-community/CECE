@@ -16,16 +16,6 @@ static PhysicsRegistration<DMSScheme> register_scheme("dms");
  * @brief DMS Sea-Air Flux (Ported from hcox_seaflux_mod.F90)
  */
 
-KOKKOS_INLINE_FUNCTION
-double get_sc_w_dms(double tc) {
-    return 2674.0 - 147.12 * tc + 3.726 * tc * tc - 0.038 * tc * tc * tc;
-}
-
-KOKKOS_INLINE_FUNCTION
-double get_kw_nightingale(double u10, double sc_w) {
-    return (0.222 * u10 * u10 + 0.333 * u10) * std::pow(sc_w / 600.0, -0.5);
-}
-
 void DMSScheme::Initialize(const YAML::Node& /*config*/, AcesDiagnosticManager* /*diag_manager*/) {
     std::cout << "DMSScheme: Initialized." << std::endl;
 }
