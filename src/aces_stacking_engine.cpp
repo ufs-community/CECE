@@ -53,7 +53,8 @@ void StackingEngine::PreCompile() {
  * @param hour Current hour.
  * @param day_of_week Current day of week.
  */
-void StackingEngine::BindSpecies(CompiledSpecies& spec, FieldResolver& resolver, int nx, int ny, int nz, int hour, int day_of_week) {
+void StackingEngine::BindSpecies(CompiledSpecies& spec, FieldResolver& resolver, int nx, int ny,
+                                 int nz, int hour, int day_of_week) {
     for (size_t i = 0; i < spec.layers.size(); ++i) {
         const auto& layer = spec.layers[i];
         DeviceLayer dev;
@@ -118,7 +119,6 @@ void StackingEngine::Execute(
     FieldResolver& resolver, int nx, int ny, int nz,
     Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> default_mask,
     int hour, int day_of_week) {
-
     if (!default_mask.data()) {
         default_mask = Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>(
             "default_mask_internal", nx, ny, nz);

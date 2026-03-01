@@ -4,8 +4,8 @@
 #include <Kokkos_Core.hpp>
 #include <memory>
 #include <string>
-#include <vector>
 #include <string_view>
+#include <vector>
 
 #include "aces/aces_compute.hpp"
 #include "aces/aces_config.hpp"
@@ -16,9 +16,9 @@ namespace aces {
  * @brief Alias for an unmanaged 3D device View, safe for use in POD-like structures
  * that are deep-copied between host and device.
  */
-using UnmanagedDeviceView3D = Kokkos::View<const double***, Kokkos::LayoutLeft,
-                                          Kokkos::DefaultExecutionSpace,
-                                          Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+using UnmanagedDeviceView3D =
+    Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace,
+                 Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
 
 /**
  * @struct DeviceLayer
@@ -50,7 +50,8 @@ struct DeviceLayer {
 
 /**
  * @class StackingEngine
- * @brief Modernized, high-performance engine for stacking emission layers using fused Kokkos kernels.
+ * @brief Modernized, high-performance engine for stacking emission layers using fused Kokkos
+ * kernels.
  */
 class StackingEngine {
    public:
@@ -89,7 +90,8 @@ class StackingEngine {
     std::vector<CompiledSpecies> m_compiled;
 
     void PreCompile();
-    void BindSpecies(CompiledSpecies& spec, FieldResolver& resolver, int nx, int ny, int nz, int hour, int day_of_week);
+    void BindSpecies(CompiledSpecies& spec, FieldResolver& resolver, int nx, int ny, int nz,
+                     int hour, int day_of_week);
 };
 
 }  // namespace aces
