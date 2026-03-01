@@ -12,6 +12,7 @@
 #include "aces/aces_data_ingestor.hpp"
 #include "aces/aces_diagnostics.hpp"
 #include "aces/aces_physics_factory.hpp"
+#include "aces/aces_stacking_engine.hpp"
 #include "aces/aces_state.hpp"
 #include "aces/aces_utils.hpp"
 #include "aces/physics_scheme.hpp"
@@ -35,6 +36,7 @@ namespace aces {
  */
 struct AcesInternalData {
     AcesConfig config;                                          ///< Parsed ACES configuration.
+    std::unique_ptr<StackingEngine> stacking_engine;            ///< Optimized compute engine.
     std::unique_ptr<AcesDiagnosticManager> diagnostic_manager;  ///< Diagnostic manager.
     std::vector<std::unique_ptr<PhysicsScheme>>
         active_schemes;            ///< List of active physics plugins.
@@ -160,6 +162,7 @@ void Initialize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportSta
             return;
         }
         data->diagnostic_manager = std::make_unique<AcesDiagnosticManager>();
+        data->stacking_engine = std::make_unique<StackingEngine>(data->config);
 
         // Instantiate requested physics schemes
         for (const auto& scheme_config : data->config.physics_schemes) {
@@ -394,7 +397,7 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
     Kokkos::Profiling::pushRegion("ACES_StackingEngine");
     AcesStateResolver resolver(data->import_state, data->export_state, data->config.met_mapping,
                                data->config.scale_factor_mapping, data->config.mask_mapping);
-    ComputeEmissions(data->config, resolver, nx, ny, nz, data->default_mask, hour, day_of_week);
+    data->stacking_engine->Execute(resolver, nx, ny, nz, data->default_mask, hour, day_of_week);
     Kokkos::Profiling::popRegion();
 
     auto& imp = data->import_state;

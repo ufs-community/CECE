@@ -8,8 +8,8 @@
 
 #include <yaml-cpp/yaml.h>
 
-#include <map>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 namespace aces {
@@ -85,18 +85,18 @@ struct DiagnosticConfig {
  */
 struct AcesConfig {
     /// Map of species names to their ordered list of emission layers.
-    std::map<std::string, std::vector<EmissionLayer>> species_layers;
+    std::unordered_map<std::string, std::vector<EmissionLayer>> species_layers;
     /// Map of internal meteorology names to external names (e.g., CF standard
     /// names).
-    std::map<std::string, std::string> met_mapping;
+    std::unordered_map<std::string, std::string> met_mapping;
     /// Map of internal scale factor names to external names.
-    std::map<std::string, std::string> scale_factor_mapping;
+    std::unordered_map<std::string, std::string> scale_factor_mapping;
     /// Map of internal mask names to external names.
-    std::map<std::string, std::string> mask_mapping;
+    std::unordered_map<std::string, std::string> mask_mapping;
     /// Map of cycle names to their temporal scaling factors.
-    std::map<std::string, TemporalCycle> temporal_cycles;
+    std::unordered_map<std::string, TemporalCycle> temporal_cycles;
     /// Map of profile names to their temporal scaling factors.
-    std::map<std::string, TemporalCycle> temporal_profiles;
+    std::unordered_map<std::string, TemporalCycle> temporal_profiles;
     /// List of active physics schemes to be executed.
     std::vector<PhysicsSchemeConfig> physics_schemes;
     /// Configuration for diagnostic output.

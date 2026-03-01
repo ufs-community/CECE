@@ -65,6 +65,12 @@ class StackingEngine {
         Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> default_mask,
         int hour, int day_of_week);
 
+    /**
+     * @brief Resets the bound field handles.
+     * @details Call this if the underlying ESMF field pointers change.
+     */
+    void ResetBindings();
+
    private:
     struct CompiledLayer {
         std::string field_name;
@@ -84,14 +90,16 @@ class StackingEngine {
         Kokkos::View<DeviceLayer*, Kokkos::DefaultExecutionSpace> device_layers;
         /// Persistent host-side mirror to avoid redundant allocations.
         typename Kokkos::View<DeviceLayer*, Kokkos::DefaultExecutionSpace>::HostMirror host_layers;
+        /// Flag to track if field handles are already resolved.
+        bool fields_bound = false;
     };
 
     AcesConfig m_config;
     std::vector<CompiledSpecies> m_compiled;
 
     void PreCompile();
-    void BindSpecies(CompiledSpecies& spec, FieldResolver& resolver, int nx, int ny, int nz,
-                     int hour, int day_of_week);
+    void BindFields(CompiledSpecies& spec, FieldResolver& resolver, int nx, int ny, int nz);
+    void UpdateTemporalScales(CompiledSpecies& spec, int hour, int day_of_week);
 };
 
 }  // namespace aces

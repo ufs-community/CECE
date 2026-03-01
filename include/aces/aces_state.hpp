@@ -7,8 +7,8 @@
  */
 
 #include <iostream>
-#include <map>
 #include <string>
+#include <unordered_map>
 
 #include "aces/aces_compute.hpp"
 
@@ -18,11 +18,11 @@ namespace aces {
  * @brief Structure containing all meteorology and base emissions imported from
  * other components.
  *
- * Uses a map to allow flexible addition of fields without hardcoding.
+ * Uses an unordered_map to allow flexible addition of fields without hardcoding.
  */
 struct AcesImportState {
     /// Map of field names to their respective DualViews.
-    std::map<std::string, DualView3D> fields;
+    std::unordered_map<std::string, DualView3D> fields;
 };
 
 /**
@@ -31,7 +31,7 @@ struct AcesImportState {
  */
 struct AcesExportState {
     /// Map of field names to their respective DualViews.
-    std::map<std::string, DualView3D> fields;
+    std::unordered_map<std::string, DualView3D> fields;
 };
 
 /**
@@ -41,12 +41,12 @@ struct AcesExportState {
 class AcesStateResolver : public FieldResolver {
     const AcesImportState& import_state;
     const AcesExportState& export_state;
-    const std::map<std::string, std::string>& met_mapping;
-    const std::map<std::string, std::string>& sf_mapping;
-    const std::map<std::string, std::string>& mask_mapping;
+    const std::unordered_map<std::string, std::string>& met_mapping;
+    const std::unordered_map<std::string, std::string>& sf_mapping;
+    const std::unordered_map<std::string, std::string>& mask_mapping;
 
-    static const std::map<std::string, std::string>& EmptyMap() {
-        static const std::map<std::string, std::string> empty;
+    static const std::unordered_map<std::string, std::string>& EmptyMap() {
+        static const std::unordered_map<std::string, std::string> empty;
         return empty;
     }
 
@@ -62,9 +62,9 @@ class AcesStateResolver : public FieldResolver {
 
    public:
     AcesStateResolver(const AcesImportState& imp, const AcesExportState& exp,
-                      const std::map<std::string, std::string>& met_map,
-                      const std::map<std::string, std::string>& sf_map = EmptyMap(),
-                      const std::map<std::string, std::string>& mask_map = EmptyMap())
+                      const std::unordered_map<std::string, std::string>& met_map,
+                      const std::unordered_map<std::string, std::string>& sf_map = EmptyMap(),
+                      const std::unordered_map<std::string, std::string>& mask_map = EmptyMap())
         : import_state(imp),
           export_state(exp),
           met_mapping(met_map),
