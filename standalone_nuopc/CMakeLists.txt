@@ -8,11 +8,13 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 add_executable(aces_nuopc_driver main.cpp)
 
 # Link against the ACES library and its dependencies
+find_package(yaml-cpp REQUIRED)
 target_link_libraries(aces_nuopc_driver
   PRIVATE
   aces
   ESMF::ESMF
   MPI::MPI_CXX
+  yaml-cpp
 )
 
 # Installation
