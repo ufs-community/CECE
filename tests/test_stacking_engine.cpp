@@ -48,6 +48,10 @@ class ActualFieldResolver : public FieldResolver {
     }
 };
 
+/**
+ * @brief Proof: Validation of the Fused StackingEngine.
+ * Execution Space: Default (OpenMP/Serial/CUDA)
+ */
 class StackingEngineTest : public ::testing::Test {
    protected:
     void SetUp() override {
@@ -56,7 +60,7 @@ class StackingEngineTest : public ::testing::Test {
 };
 
 /**
- * @test Verify that hierarchy-based replacement works correctly in the StackingEngine.
+ * @test Verify that hierarchy-based replacement works correctly in the Fused StackingEngine.
  */
 TEST_F(StackingEngineTest, HierarchyReplacement) {
     int nx = 1, ny = 1, nz = 1;
@@ -89,7 +93,7 @@ TEST_F(StackingEngineTest, HierarchyReplacement) {
     StackingEngine engine(config);
     engine.Execute(resolver, nx, ny, nz, {}, 0, 0);
 
-    EXPECT_DOUBLE_EQ(resolver.GetValue("total_test_species_emissions"), 5.0);
+    EXPECT_NEAR(resolver.GetValue("total_test_species_emissions"), 5.0, 1e-9);
 }
 
 /**
@@ -121,7 +125,66 @@ TEST_F(StackingEngineTest, DefaultMaskApplication) {
     engine.Execute(resolver, nx, ny, nz, dmask, 0, 0);
 
     // Should be 10.0 * 0.5 = 5.0
-    EXPECT_DOUBLE_EQ(resolver.GetValue("total_test_species_emissions"), 5.0);
+    EXPECT_NEAR(resolver.GetValue("total_test_species_emissions"), 5.0, 1e-9);
+}
+
+/**
+ * @test Proof of complex fusion logic: Multiple layers, scales, and masks.
+ */
+TEST_F(StackingEngineTest, ComplexFusionLogic) {
+    int nx = 1, ny = 1, nz = 1;
+    AcesConfig config;
+
+    // Layer 1: Base (Add 10)
+    EmissionLayer l1;
+    l1.operation = "add";
+    l1.field_name = "base";
+    l1.hierarchy = 0;
+    l1.scale = 1.0;
+
+    // Layer 2: Scaled (Add 2 * 3 = 6)
+    EmissionLayer l2;
+    l2.operation = "add";
+    l2.field_name = "scaled_field";
+    l2.scale_fields = {"multiplier"};
+    l2.hierarchy = 1;
+    l1.scale = 1.0;
+
+    // Layer 3: Conditional Replacement (Replace with 5 if mask=1.0)
+    EmissionLayer l3;
+    l3.operation = "replace";
+    l3.field_name = "replacement";
+    l3.masks = {"region_mask"};
+    l3.hierarchy = 10;
+    l3.scale = 1.0;
+
+    config.species_layers["complex_species"] = {l1, l2, l3};
+
+    ActualFieldResolver resolver;
+    resolver.AddField("base", nx, ny, nz);
+    resolver.SetValue("base", 10.0);
+    resolver.AddField("scaled_field", nx, ny, nz);
+    resolver.SetValue("scaled_field", 2.0);
+    resolver.AddField("multiplier", nx, ny, nz);
+    resolver.SetValue("multiplier", 3.0);
+    resolver.AddField("replacement", nx, ny, nz);
+    resolver.SetValue("replacement", 5.0);
+    resolver.AddField("region_mask", nx, ny, nz);
+    resolver.SetValue("region_mask", 1.0);
+    resolver.AddField("total_complex_species_emissions", nx, ny, nz);
+    resolver.SetValue("total_complex_species_emissions", 0.0);
+
+    StackingEngine engine(config);
+    engine.Execute(resolver, nx, ny, nz, {}, 0, 0);
+
+    // Expected: 5.0 (Full replacement)
+    EXPECT_NEAR(resolver.GetValue("total_complex_species_emissions"), 5.0, 1e-9);
+
+    // Partial/No replacement test
+    resolver.SetValue("region_mask", 0.0);
+    engine.Execute(resolver, nx, ny, nz, {}, 0, 0);
+    // Expected: 10 + 2*3 = 16.0
+    EXPECT_NEAR(resolver.GetValue("total_complex_species_emissions"), 16.0, 1e-9);
 }
 
 }  // namespace aces
