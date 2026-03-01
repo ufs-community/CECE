@@ -72,9 +72,9 @@ cdeps_inline_config:
     - name: "HOURLY_SCALFACT"
       file: "data/hourly.nc"
     - name: "MASK_EUROPE"
-      file: "data/mask_europe.nc"
+      file: "data/Canada_mask.gen.1x1.nc"
 EOF
-generate_download_script 2 "HEMCO/MACCITY/v2014-07/MACCity_4x5.nc"
+generate_download_script 2 "HEMCO/MACCITY/v2014-07/MACCity_4x5.nc" "HEMCO/MASKS/v2014-07/Canada_mask.gen.1x1.nc"
 
 # Example 3: Adding the AEIC aircraft emissions
 cat <<EOF > examples/aces_config_ex3.yaml
@@ -117,8 +117,10 @@ cdeps_inline_config:
   streams:
     - name: "MACCITY_CO"
       file: "data/MACCity_4x5.nc"
+    - name: "GFED_WDL"
+      file: "data/GFED4_gen.025x025.199701.nc"
 EOF
-generate_download_script 4 "HEMCO/MACCITY/v2014-07/MACCity_4x5.nc"
+generate_download_script 4 "HEMCO/MACCITY/v2014-07/MACCity_4x5.nc" "HEMCO/GFED4/v2015-10/1997/GFED4_gen.025x025.199701.nc"
 
 # Example 5: Tell HEMCO to use additional species
 cat <<EOF > examples/aces_config_ex5.yaml

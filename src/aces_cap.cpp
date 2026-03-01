@@ -68,6 +68,7 @@ static DualView3D GetDualView(ESMC_State state, const std::string& name, int nx,
  */
 void Initialize(ESMC_GridComp comp, ESMC_State /*importState*/, ESMC_State /*exportState*/,
                 ESMC_Clock* /*clock*/, int* rc) {
+    std::cout << "ACES_Initialize: Entering." << std::endl;
     bool kokkos_initialized_here = false;
     if (!Kokkos::is_initialized()) {
         Kokkos::initialize();
@@ -99,14 +100,18 @@ void Initialize(ESMC_GridComp comp, ESMC_State /*importState*/, ESMC_State /*exp
         // Advertise meteorology and emission fields in the ESMF framework using
         // NUOPC API.
         ESMC_State importState_real = NUOPC_ModelGetImportState(comp, NULL);
-        for (auto const& [internal_name, external_name] : data->config.met_mapping) {
-            NUOPC_Advertise(importState_real, external_name.c_str(), external_name.c_str());
+        if (importState_real.ptr) {
+            for (auto const& [internal_name, external_name] : data->config.met_mapping) {
+                NUOPC_Advertise(importState_real, external_name.c_str(), external_name.c_str());
+            }
         }
 
         ESMC_State exportState_real = NUOPC_ModelGetExportState(comp, NULL);
-        for (auto const& [species, layers] : data->config.species_layers) {
-            std::string export_name = "total_" + species + "_emissions";
-            NUOPC_Advertise(exportState_real, export_name.c_str(), export_name.c_str());
+        if (exportState_real.ptr) {
+            for (auto const& [species, layers] : data->config.species_layers) {
+                std::string export_name = "total_" + species + "_emissions";
+                NUOPC_Advertise(exportState_real, export_name.c_str(), export_name.c_str());
+            }
         }
 
         ESMC_GridCompSetInternalState(comp, data);
@@ -364,10 +369,14 @@ void ACES_Finalize(ESMC_GridComp comp, ESMC_State importState, ESMC_State export
  * Registers standard ESMF entry points.
  */
 void ACES_SetServices(ESMC_GridComp comp, int* rc) {
-    if (rc) *rc = ESMF_SUCCESS;
+    std::cout << "ACES_SetServices: Entering." << std::endl;
+
+    // Register standard ESMF entry points.
     ESMC_GridCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, ACES_Initialize, 1);
     ESMC_GridCompSetEntryPoint(comp, ESMF_METHOD_RUN, ACES_Run, 1);
     ESMC_GridCompSetEntryPoint(comp, ESMF_METHOD_FINALIZE, ACES_Finalize, 1);
+
+    if (rc) *rc = ESMF_SUCCESS;
     std::cout << "ACES_SetServices: Services set." << std::endl;
 }
 

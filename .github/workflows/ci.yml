@@ -13,6 +13,17 @@ jobs:
       with:
         submodules: recursive
 
+    - name: Cache dependencies and build
+      uses: actions/cache@v3
+      with:
+        path: |
+          build/_deps
+          build/lib
+          build/bin
+        key: ${{ runner.os }}-aces-deps-${{ hashFiles('**/CMakeLists.txt', 'cmake/*.cmake') }}
+        restore-keys: |
+          ${{ runner.os }}-aces-deps-
+
     - name: Build and Test ACES
       shell: bash
       run: |
@@ -25,10 +36,15 @@ jobs:
           spack load cdeps || true
         fi
 
+        # Ensure build directory exists
         mkdir -p build
         cd build
-        cmake .. -DACES_USE_MOCK_ESMF=OFF -DCMAKE_BUILD_TYPE=Release
-        make -j4
+
+        # Configure ACES. CMake will detect if it's already configured.
+        cmake .. -DACES_USE_MOCK_ESMF=OFF -DCMAKE_BUILD_TYPE=Release -DKokkos_ENABLE_SERIAL=ON
+
+        # Build. Make will only build what has changed.
+        make -j$(nproc)
         ctest --output-on-failure
 
     - name: Run HEMCO Parity Examples

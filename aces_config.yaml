@@ -1,0 +1,21 @@
+# Minimal ACES configuration for standalone driver testing
+met_mapping:
+  temperature: air_temperature
+  pressure: surface_air_pressure
+
+species_layers:
+  nox:
+    - field_name: nox_emissions_from_cdeps
+      hierarchy: 1
+      masks: []
+      scale_fields: []
+
+cdeps_config:
+  streams:
+    - name: nox_emissions_from_cdeps
+      file_path: "input_data/nox.nc"
+      variable_name: nox
+      mesh_file: "input_data/mesh.nc"
+
+diagnostics:
+  - total_nox_emissions
