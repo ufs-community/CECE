@@ -126,6 +126,41 @@ int main(int argc, char** argv) {
     rc = ESMC_StateAddField(exportState, f_total);
     CHECK_RC(rc, "ESMC_StateAddField (export) failed");
 
+    // Also add vertical coordinate fields if nz > 1
+    if (nz > 1) {
+        // ps (2D)
+        int maxIndex2D[2] = {nx, ny};
+        ESMC_InterArrayInt iMaxIndex2D;
+        ESMC_InterArrayIntSet(&iMaxIndex2D, maxIndex2D, 2);
+        ESMC_Grid grid2D = ESMC_GridCreateNoPeriDim(&iMaxIndex2D, NULL, NULL, NULL, &rc);
+        ESMC_Field f_ps = ESMC_FieldCreateGridTypeKind(grid2D, ESMC_TYPEKIND_R8,
+                                                       ESMC_STAGGERLOC_CENTER, NULL, NULL, NULL,
+                                                       "ps", &rc);
+        double* ps_data = (double*)ESMC_FieldGetPtr(f_ps, 0, &rc);
+        for (int i = 0; i < nx * ny; ++i) ps_data[i] = 101325.0;  // Standard sea level pressure
+        ESMC_StateAddField(importState, f_ps);
+
+        // ak, bk (1D/3D but effectively 1x1x(nz+1))
+        int maxIndexAK[3] = {1, 1, nz + 1};
+        ESMC_InterArrayInt iMaxIndexAK;
+        ESMC_InterArrayIntSet(&iMaxIndexAK, maxIndexAK, 3);
+        ESMC_Grid gridAK = ESMC_GridCreateNoPeriDim(&iMaxIndexAK, NULL, NULL, NULL, &rc);
+        ESMC_Field f_ak = ESMC_FieldCreateGridTypeKind(gridAK, ESMC_TYPEKIND_R8,
+                                                       ESMC_STAGGERLOC_CENTER, NULL, NULL, NULL,
+                                                       "hyam", &rc);
+        ESMC_Field f_bk = ESMC_FieldCreateGridTypeKind(gridAK, ESMC_TYPEKIND_R8,
+                                                       ESMC_STAGGERLOC_CENTER, NULL, NULL, NULL,
+                                                       "hybm", &rc);
+        double* ak_data = (double*)ESMC_FieldGetPtr(f_ak, 0, &rc);
+        double* bk_data = (double*)ESMC_FieldGetPtr(f_bk, 0, &rc);
+        for (int k = 0; k <= nz; ++k) {
+            ak_data[k] = 1000.0 * k;  // Mock values
+            bk_data[k] = (double)k / nz;
+        }
+        ESMC_StateAddField(importState, f_ak);
+        ESMC_StateAddField(importState, f_bk);
+    }
+
     // 7. Initialize ACES component
     std::cout << "[NUOPC Driver] Initializing ACES component..." << std::endl;
 

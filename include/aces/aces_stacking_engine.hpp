@@ -44,6 +44,15 @@ struct DeviceLayer {
     /// 1.0 for "replace", 0.0 for "add".
     double replace_flag;
 
+    // Vertical distribution
+    int vdist_method;  ///< 0:single, 1:range, 2:pressure, 3:height, 4:pbl
+    int vdist_layer_start;
+    int vdist_layer_end;
+    double vdist_p_start;
+    double vdist_p_end;
+    double vdist_h_start;
+    double vdist_h_end;
+
     /// Capacity matches the original requirements.
     static constexpr int MAX_SCALES = 16;
     Kokkos::Array<UnmanagedDeviceView3D, MAX_SCALES> scales;
@@ -88,6 +97,15 @@ class StackingEngine {
         std::vector<std::string> scale_fields;
         std::string diurnal_cycle;
         std::string weekly_cycle;
+
+        // Vertical
+        VerticalDistributionMethod vdist_method;
+        int vdist_layer_start;
+        int vdist_layer_end;
+        double vdist_p_start;
+        double vdist_p_end;
+        double vdist_h_start;
+        double vdist_h_end;
     };
 
     struct CompiledSpecies {
@@ -100,6 +118,14 @@ class StackingEngine {
         typename Kokkos::View<DeviceLayer*, Kokkos::DefaultExecutionSpace>::HostMirror host_layers;
         /// Cached handle to the export View.
         MutableUnmanagedDeviceView3D export_field;
+
+        // Vertical coordinate fields
+        UnmanagedDeviceView3D ak;
+        UnmanagedDeviceView3D bk;
+        UnmanagedDeviceView3D p_surf;
+        UnmanagedDeviceView3D z_coord;
+        UnmanagedDeviceView3D pbl_height;
+
         /// Flag to track if field handles are already resolved.
         bool fields_bound = false;
     };

@@ -26,9 +26,21 @@ void StackingEngine::PreCompile() {
         spec.name = species;
         spec.export_name = "total_" + species + "_emissions";
         for (auto const& layer : layers) {
-            spec.layers.push_back({layer.field_name, layer.operation, layer.scale, layer.hierarchy,
-                                   layer.masks, layer.scale_fields, layer.diurnal_cycle,
-                                   layer.weekly_cycle});
+            spec.layers.push_back({layer.field_name,
+                                   layer.operation,
+                                   layer.scale,
+                                   layer.hierarchy,
+                                   layer.masks,
+                                   layer.scale_fields,
+                                   layer.diurnal_cycle,
+                                   layer.weekly_cycle,
+                                   layer.vdist_method,
+                                   layer.vdist_layer_start,
+                                   layer.vdist_layer_end,
+                                   layer.vdist_p_start,
+                                   layer.vdist_p_end,
+                                   layer.vdist_h_start,
+                                   layer.vdist_h_end});
         }
 
         std::sort(spec.layers.begin(), spec.layers.end(),
@@ -60,12 +72,34 @@ void StackingEngine::BindFields(CompiledSpecies& spec, FieldResolver& resolver, 
 
     spec.export_field = resolver.ResolveExportDevice(spec.export_name, nx, ny, nz);
 
+    // Bind vertical coordinate fields if configured
+    if (m_config.vertical_config.type != VerticalCoordType::NONE) {
+        spec.p_surf = resolver.ResolveImportDevice(m_config.vertical_config.p_surf_field, nx, ny, 1);
+        if (m_config.vertical_config.type == VerticalCoordType::FV3) {
+            spec.ak = resolver.ResolveImportDevice(m_config.vertical_config.ak_field, 1, 1, nz + 1);
+            spec.bk = resolver.ResolveImportDevice(m_config.vertical_config.bk_field, 1, 1, nz + 1);
+        } else if (m_config.vertical_config.type == VerticalCoordType::MPAS ||
+                   m_config.vertical_config.type == VerticalCoordType::WRF) {
+            spec.z_coord = resolver.ResolveImportDevice(m_config.vertical_config.z_field, nx, ny, nz);
+        }
+        spec.pbl_height =
+            resolver.ResolveImportDevice(m_config.vertical_config.pbl_field, nx, ny, 1);
+    }
+
     for (size_t i = 0; i < spec.layers.size(); ++i) {
         const auto& layer = spec.layers[i];
         DeviceLayer& dev = spec.host_layers(i);
 
         dev.field = resolver.ResolveImportDevice(layer.field_name, nx, ny, nz);
         dev.replace_flag = (layer.operation == "replace") ? 1.0 : 0.0;
+
+        dev.vdist_method = static_cast<int>(layer.vdist_method);
+        dev.vdist_layer_start = layer.vdist_layer_start;
+        dev.vdist_layer_end = layer.vdist_layer_end;
+        dev.vdist_p_start = layer.vdist_p_start;
+        dev.vdist_p_end = layer.vdist_p_end;
+        dev.vdist_h_start = layer.vdist_h_start;
+        dev.vdist_h_end = layer.vdist_h_end;
 
         dev.num_scales = 0;
         for (const auto& sf_name : layer.scale_fields) {
@@ -177,6 +211,13 @@ void StackingEngine::Execute(
         auto layers = spec.device_layers;
         int num_layers = layers.extent(0);
 
+        auto ak = spec.ak;
+        auto bk = spec.bk;
+        auto ps = spec.p_surf;
+        auto z_coord = spec.z_coord;
+        auto pbl = spec.pbl_height;
+        auto vtype = m_config.vertical_config.type;
+
         Kokkos::parallel_for(
             "StackingEngine_FusedSpeciesKernel",
             Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
@@ -185,24 +226,111 @@ void StackingEngine::Execute(
                     const auto& layer = layers(l);
                     if (layer.field.data() == nullptr) continue;
 
+                    // Determine if this (i,j,k) point should receive emissions from this layer
+                    // and calculate the fractional weight for distribution if it's a 2D field.
+                    double weight = 0.0;
+                    bool in_vertical_range = false;
+
+                    if (layer.vdist_method == 0) {  // SINGLE
+                        if (k == layer.vdist_layer_start) {
+                            in_vertical_range = true;
+                            weight = 1.0;
+                        }
+                    } else if (layer.vdist_method == 1) {  // RANGE
+                        if (k >= layer.vdist_layer_start && k <= layer.vdist_layer_end) {
+                            in_vertical_range = true;
+                            weight = 1.0 / (layer.vdist_layer_end - layer.vdist_layer_start + 1);
+                        }
+                    } else if (layer.vdist_method == 2) {  // PRESSURE
+                        double p_top = 0.0, p_bot = 0.0;
+                        if (vtype == VerticalCoordType::FV3 && ak.data() && bk.data() && ps.data()) {
+                            // Correct indexing for 1D/3D coefficients
+                            p_top = ak(0, 0, k) + bk(0, 0, k) * ps(i, j, 0);
+                            p_bot = ak(0, 0, k + 1) + bk(0, 0, k + 1) * ps(i, j, 0);
+                        } else if ((vtype == VerticalCoordType::MPAS || vtype == VerticalCoordType::WRF) &&
+                                   z_coord.data()) {
+                            constexpr double P0 = 101325.0;
+                            constexpr double H = 8000.0;
+                            p_top = P0 * exp(-z_coord(i, j, k) / H);
+                            if (k + 1 < nz) {
+                                p_bot = P0 * exp(-z_coord(i, j, k + 1) / H);
+                            } else {
+                                p_bot = ps.data() ? ps(i, j, 0) : P0;
+                            }
+                        }
+                        double overlap_top = (p_top > layer.vdist_p_start) ? p_top : layer.vdist_p_start;
+                        double overlap_bot = (p_bot < layer.vdist_p_end) ? p_bot : layer.vdist_p_end;
+
+                        if (overlap_bot > overlap_top) {
+                            in_vertical_range = true;
+                            weight = (overlap_bot - overlap_top) / (layer.vdist_p_end - layer.vdist_p_start);
+                        }
+                    } else if (layer.vdist_method == 3) {  // HEIGHT
+                        if (z_coord.data()) {
+                            double z = z_coord(i, j, k);
+                            if (z >= layer.vdist_h_start && z <= layer.vdist_h_end) {
+                                in_vertical_range = true;
+                                // Per-column normalization
+                                int count = 0;
+                                for (int kk = 0; kk < nz; ++kk) {
+                                    if (z_coord(i, j, kk) >= layer.vdist_h_start &&
+                                        z_coord(i, j, kk) <= layer.vdist_h_end)
+                                        count++;
+                                }
+                                if (count > 0) weight = 1.0 / count;
+                            }
+                        }
+                    } else if (layer.vdist_method == 4) {  // PBL
+                        if (pbl.data() && z_coord.data()) {
+                            double z = z_coord(i, j, k);
+                            double h_pbl = pbl(i, j, 0);
+                            if (z <= h_pbl) {
+                                in_vertical_range = true;
+                                // Per-column normalization
+                                int count = 0;
+                                for (int kk = 0; kk < nz; ++kk) {
+                                    if (z_coord(i, j, kk) <= h_pbl) count++;
+                                }
+                                if (count > 0) weight = 1.0 / count;
+                            }
+                        }
+                    }
+
+                    if (!in_vertical_range) continue;
+
                     double combined_scale = layer.scale;
                     for (int s = 0; s < layer.num_scales; ++s) {
-                        combined_scale *= layer.scales[s](i, j, k);
+                        if (layer.scales[s].extent(2) == 1) {
+                            combined_scale *= layer.scales[s](i, j, 0);
+                        } else {
+                            combined_scale *= layer.scales[s](i, j, k);
+                        }
                     }
 
                     double combined_mask = 0.0;
                     if (layer.num_masks > 0) {
                         combined_mask = 1.0;
                         for (int m = 0; m < layer.num_masks; ++m) {
-                            combined_mask *= layer.masks[m](i, j, k);
+                            if (layer.masks[m].extent(2) == 1) {
+                                combined_mask *= layer.masks[m](i, j, 0);
+                            } else {
+                                combined_mask *= layer.masks[m](i, j, k);
+                            }
                         }
                     } else {
                         combined_mask = default_mask(i, j, k);
                     }
 
+                    double val = 0.0;
+                    if (layer.field.extent(2) == 1) {
+                        val = layer.field(i, j, 0) * weight;
+                    } else {
+                        val = layer.field(i, j, k);
+                    }
+
                     total_view(i, j, k) =
                         total_view(i, j, k) * (1.0 - layer.replace_flag * combined_mask) +
-                        layer.field(i, j, k) * combined_scale * combined_mask;
+                        val * combined_scale * combined_mask;
                 }
             });
     }

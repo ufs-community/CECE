@@ -18,6 +18,14 @@ driver:
   timestep_hours: 1
   nsteps: 2
 
+# Vertical grid configuration (Required for 3D emissions or vertical distribution)
+# vertical_grid:
+#   type: "fv3"
+#   ak_field: "hyam"
+#   bk_field: "hybm"
+#   p_surf_field: "ps"
+#   pbl_field: "hpbl"
+
 # Meteorology mapping allows internal names to be mapped to external (e.g., CF standard) names.
 meteorology:
   temperature: "air_temperature"
@@ -71,6 +79,17 @@ species:
       scale: 1.0
       category: "met_influence"
       hierarchy: 1
+
+    # 4. Aircraft emissions (example of vertical distribution)
+    - field: "aircraft_nox"
+      operation: "add"
+      scale: 1.0
+      category: "aircraft"
+      hierarchy: 5
+      vdist:
+        method: "pressure"
+        p_start: 20000.0
+        p_end: 40000.0
 
 # List of physics schemes to initialize and run.
 # Schemes can register diagnostic variables that can then be enabled for output.
