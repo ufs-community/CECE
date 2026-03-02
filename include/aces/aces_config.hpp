@@ -28,7 +28,7 @@ struct PhysicsSchemeConfig {
  * @enum VerticalCoordType
  * @brief Supported vertical coordinate systems.
  */
-enum class VerticalCoordType {
+enum class VerticalCoordType : std::uint8_t {
     NONE,  ///< 2D only
     FV3,   ///< FV3-style hybrid sigma-pressure
     MPAS,  ///< MPAS-style height-based
@@ -39,7 +39,7 @@ enum class VerticalCoordType {
  * @enum VerticalDistributionMethod
  * @brief Methods for distributing emissions vertically.
  */
-enum class VerticalDistributionMethod {
+enum class VerticalDistributionMethod : std::uint8_t {
     SINGLE = 0,    ///< Put all emissions in a single specific layer.
     RANGE = 1,     ///< Uniformly distribute emissions between two layer indices.
     PRESSURE = 2,  ///< Distribute based on a pressure range (Pa).
@@ -71,7 +71,8 @@ struct EmissionLayer {
     double scale = 1.0;                     ///< Scaling factor for this layer.
     int hierarchy = 0;                      ///< Hierarchy level (higher overwrites lower).
     std::string category = "1";             ///< Emission category.
-    std::vector<std::string> scale_fields;  ///< List of additional scale fields to apply.
+    std::vector<std::string> scale_fields;  ///< List of additional scale fields to
+                                            ///< apply.
     std::string diurnal_cycle;              ///< Name of the diurnal cycle to apply.
     std::string weekly_cycle;               ///< Name of the weekly cycle to apply.
 
@@ -119,7 +120,8 @@ struct AcesCdepsConfig {
 struct DiagnosticConfig {
     int output_interval_seconds = 0;     ///< Output frequency in seconds.
     std::string grid_type = "native";    ///< "native", "gaussian", or "mesh".
-    std::string grid_file = "";          ///< Path to ESMF mesh file if grid_type is "mesh".
+    std::string grid_file;               ///< Path to ESMF mesh file if grid_type is
+                                         ///< "mesh".
     int nx = 0;                          ///< Grid X for Gaussian or native.
     int ny = 0;                          ///< Grid Y for Gaussian or native.
     std::vector<std::string> variables;  ///< Variables to output.

@@ -18,7 +18,7 @@ static PhysicsRegistration<DMSFortranScheme> register_scheme("dms_fortran");
 
 void DMSFortranScheme::Initialize(const YAML::Node& /*config*/,
                                   AcesDiagnosticManager* /*diag_manager*/) {
-    std::cout << "DMSFortranScheme: Initialized." << std::endl;
+    std::cout << "DMSFortranScheme: Initialized." << "\n";
 }
 
 void DMSFortranScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {

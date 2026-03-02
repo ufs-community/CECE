@@ -66,11 +66,12 @@ double get_gamma_co2(double co2a) {
     return 8.9406 / (1.0 + 8.9406 * 0.0024 * co2a);
 }
 
-void MeganScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* /*diag_manager*/) {
+void MeganScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) {
+    BasePhysicsScheme::Initialize(config, diag_manager);
     double co2a = 400.0;
     if (config["co2_concentration"]) co2a = config["co2_concentration"].as<double>();
     gamma_co2_ = get_gamma_co2(co2a);
-    std::cout << "MeganScheme: Initialized. GAMMA_CO2=" << gamma_co2_ << std::endl;
+    std::cout << "MeganScheme: Initialized. GAMMA_CO2=" << gamma_co2_ << "\n";
 }
 
 void MeganScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
@@ -81,13 +82,13 @@ void MeganScheme::Run(AcesImportState& import_state, AcesExportState& export_sta
     auto pardf = ResolveImport("pardf", import_state);
     auto suncos = ResolveImport("suncos", import_state);
 
-    if (!temp.data() || !isoprene.data() || !lai.data() || !pardr.data() || !pardf.data() ||
-        !suncos.data())
+    if (temp.data() == nullptr || isoprene.data() == nullptr || lai.data() == nullptr ||
+        pardr.data() == nullptr || pardf.data() == nullptr || suncos.data() == nullptr)
         return;
 
-    int nx = isoprene.extent(0);
-    int ny = isoprene.extent(1);
-    int nz = isoprene.extent(2);
+    int nx = static_cast<int>(isoprene.extent(0));
+    int ny = static_cast<int>(isoprene.extent(1));
+    int nz = static_cast<int>(isoprene.extent(2));
 
     const double BETA = 0.13;
     const double CT1 = 95.0;
@@ -105,7 +106,9 @@ void MeganScheme::Run(AcesImportState& import_state, AcesExportState& export_sta
             double L = lai(i, j, 0);
             double sc = suncos(i, j, 0);
 
-            if (L <= 0.0) return;
+            if (L <= 0.0) {
+                return;
+            }
 
             double T_AVG_15 = 297.0;
             double PAR_AVG = 400.0;

@@ -24,7 +24,8 @@ double calculate_u_ts0(double den, double diam, double g, double rhoa) {
     return 129.0e-5 * std::sqrt(alpha) * std::sqrt(beta) / std::sqrt(gamma);
 }
 
-void DustScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* /*diag_manager*/) {
+void DustScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) {
+    BasePhysicsScheme::Initialize(config, diag_manager);
     const double G = 980.665;     // cm/s^2
     const double RHOA = 1.25e-3;  // g/cm3
 
@@ -35,7 +36,7 @@ void DustScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* /*d
     if (config["particle_diameter"]) diam = config["particle_diameter"].as<double>() * 1.0e2;
 
     u_ts0_ = calculate_u_ts0(den, diam, G, RHOA);
-    std::cout << "DustScheme: Initialized. U_TS0=" << u_ts0_ << std::endl;
+    std::cout << "DustScheme: Initialized. U_TS0=" << u_ts0_ << "\n";
 }
 
 void DustScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
@@ -44,11 +45,13 @@ void DustScheme::Run(AcesImportState& import_state, AcesExportState& export_stat
     auto srce_sand = ResolveImport("GINOUX_SAND", import_state);
     auto dust_emis = ResolveExport("total_dust_emissions", export_state);
 
-    if (!u10m.data() || !gwettop.data() || !srce_sand.data() || !dust_emis.data()) return;
+    if (u10m.data() == nullptr || gwettop.data() == nullptr || srce_sand.data() == nullptr ||
+        dust_emis.data() == nullptr)
+        return;
 
-    int nx = dust_emis.extent(0);
-    int ny = dust_emis.extent(1);
-    int nz = dust_emis.extent(2);
+    int nx = static_cast<int>(dust_emis.extent(0));
+    int ny = static_cast<int>(dust_emis.extent(1));
+    int nz = static_cast<int>(dust_emis.extent(2));
 
     const double CH_DUST = 9.375e-10;  // Default tuning factor
     double u_ts0_const = u_ts0_;

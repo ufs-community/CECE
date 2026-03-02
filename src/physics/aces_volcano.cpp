@@ -12,9 +12,9 @@ namespace aces {
 /// Self-registration for the VolcanoScheme scheme.
 static PhysicsRegistration<VolcanoScheme> register_scheme("volcano");
 
-void VolcanoScheme::Initialize(const YAML::Node& /*config*/,
-                               AcesDiagnosticManager* /*diag_manager*/) {
-    std::cout << "VolcanoScheme: Initialized." << std::endl;
+void VolcanoScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) {
+    BasePhysicsScheme::Initialize(config, diag_manager);
+    std::cout << "VolcanoScheme: Initialized." << "\n";
 }
 
 void VolcanoScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
@@ -22,11 +22,13 @@ void VolcanoScheme::Run(AcesImportState& import_state, AcesExportState& export_s
     auto zsfc = ResolveImport("zsfc", import_state);
     auto bxheight = ResolveImport("bxheight_m", import_state);
 
-    if (!so2.data() || !zsfc.data() || !bxheight.data()) return;
+    if (so2.data() == nullptr || zsfc.data() == nullptr || bxheight.data() == nullptr) {
+        return;
+    }
 
-    int nx = so2.extent(0);
-    int ny = so2.extent(1);
-    int nz = so2.extent(2);
+    int nx = static_cast<int>(so2.extent(0));
+    int ny = static_cast<int>(so2.extent(1));
+    int nz = static_cast<int>(so2.extent(2));
 
     // Mock volcano location for this port (should come from config table in real
     // port) Lat: 50.17, Lon: 6.85, Sulf: 1.0kg/s, Elv: 600m, Cld: 2000m
@@ -62,7 +64,9 @@ void VolcanoScheme::Run(AcesImportState& import_state, AcesExportState& export_s
                 return;
             }
 
-            if (z_bot_volc >= z_top_box || z_top_volc <= z_bot_box) return;
+            if (z_bot_volc >= z_top_box || z_top_volc <= z_bot_box) {
+                return;
+            }
 
             double overlap = std::min(z_top_volc, z_top_box) - std::max(z_bot_volc, z_bot_box);
             double frac = overlap / plume_hgt;

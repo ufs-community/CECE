@@ -63,7 +63,7 @@ static DualView3D GetDualView(ESMC_State state, const std::string& name, int nx,
     ESMC_Field field;
     int rc = ESMC_StateGetField(state, name.c_str(), &field);
     if (rc != ESMF_SUCCESS) {
-        return DualView3D();
+        return {};
     }
     UnmanagedHostView3D host_view = WrapESMCField(field, nx, ny, nz);
     Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> device_view(
@@ -75,24 +75,26 @@ static DualView3D GetDualView(ESMC_State state, const std::string& name, int nx,
  * @brief Internal implementation of the Advertise specialization.
  */
 void Advertise(ESMC_GridComp comp, int* rc) {
-    std::cout << "ACES_Advertise: Entering." << std::endl;
+    std::cout << "ACES_Advertise: Entering.\n";
     int rc_internal;
     void* data_ptr = ESMC_GridCompGetInternalState(comp, &rc_internal);
-    if (!data_ptr) {
-        // Internal state might not be set yet if Advertise is called before Initialize
+    if (data_ptr == nullptr) {
+        // Internal state might not be set yet if Advertise is called before
+        // Initialize
         AcesConfig config;
         try {
             config = aces::ParseConfig("aces_config.yaml");
         } catch (...) {
             std::cerr << "ACES_Advertise: Warning - Could not load aces_config.yaml. "
-                         "Bypassing Advertise phase."
-                      << std::endl;
-            if (rc) *rc = ESMF_SUCCESS;
+                         "Bypassing Advertise phase.\n";
+            if (rc != nullptr) {
+                *rc = ESMF_SUCCESS;
+            }
             return;
         }
 
         ESMC_State importState = NUOPC_ModelGetImportState(comp, &rc_internal);
-        if (importState.ptr) {
+        if (importState.ptr != nullptr) {
             for (auto const& [internal_name, external_name] : config.met_mapping) {
                 NUOPC_Advertise(importState, external_name.c_str(), external_name.c_str());
             }
@@ -105,7 +107,7 @@ void Advertise(ESMC_GridComp comp, int* rc) {
         }
 
         ESMC_State exportState = NUOPC_ModelGetExportState(comp, &rc_internal);
-        if (exportState.ptr) {
+        if (exportState.ptr != nullptr) {
             for (auto const& [species, layers] : config.species_layers) {
                 std::string export_name = "total_" + species + "_emissions";
                 NUOPC_Advertise(exportState, export_name.c_str(), export_name.c_str());
@@ -114,11 +116,13 @@ void Advertise(ESMC_GridComp comp, int* rc) {
     } else {
         auto* data = static_cast<AcesInternalData*>(data_ptr);
         if (data->advertised) {
-            if (rc) *rc = ESMF_SUCCESS;
+            if (rc != nullptr) {
+                *rc = ESMF_SUCCESS;
+            }
             return;
         }
         ESMC_State importState = NUOPC_ModelGetImportState(comp, &rc_internal);
-        if (importState.ptr) {
+        if (importState.ptr != nullptr) {
             for (auto const& [internal_name, external_name] : data->config.met_mapping) {
                 NUOPC_Advertise(importState, external_name.c_str(), external_name.c_str());
             }
@@ -130,7 +134,7 @@ void Advertise(ESMC_GridComp comp, int* rc) {
             }
         }
         ESMC_State exportState = NUOPC_ModelGetExportState(comp, &rc_internal);
-        if (exportState.ptr) {
+        if (exportState.ptr != nullptr) {
             for (auto const& [species, layers] : data->config.species_layers) {
                 std::string export_name = "total_" + species + "_emissions";
                 NUOPC_Advertise(exportState, export_name.c_str(), export_name.c_str());
@@ -138,7 +142,9 @@ void Advertise(ESMC_GridComp comp, int* rc) {
         }
         data->advertised = true;
     }
-    if (rc) *rc = ESMF_SUCCESS;
+    if (rc != nullptr) {
+        *rc = ESMF_SUCCESS;
+    }
 }
 
 /**
@@ -146,24 +152,25 @@ void Advertise(ESMC_GridComp comp, int* rc) {
  */
 void Initialize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState,
                 ESMC_Clock* /*clock*/, int* rc) {
-    std::cout << "ACES_Initialize: Entering." << std::endl;
+    std::cout << "ACES_Initialize: Entering.\n";
     bool kokkos_initialized_here = false;
     if (!Kokkos::is_initialized()) {
         Kokkos::initialize();
-        std::cout << "ACES_Initialize: Kokkos initialized." << std::endl;
+        std::cout << "ACES_Initialize: Kokkos initialized.\n";
         kokkos_initialized_here = true;
     }
 
     if (comp.ptr != nullptr) {
-        auto data = new AcesInternalData();
+        auto* data = new AcesInternalData();
         data->kokkos_initialized_here = kokkos_initialized_here;
         try {
             data->config = ParseConfig("aces_config.yaml");
         } catch (...) {
             std::cerr << "ACES_Initialize: Error - Could not load aces_config.yaml. "
-                         "Component will be improperly configured."
-                      << std::endl;
-            if (rc) *rc = -1;
+                         "Component will be improperly configured.\n";
+            if (rc != nullptr) {
+                *rc = -1;
+            }
             return;
         }
         data->diagnostic_manager = std::make_unique<AcesDiagnosticManager>();
@@ -172,12 +179,13 @@ void Initialize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportSta
         // Instantiate requested physics schemes
         for (const auto& scheme_config : data->config.physics_schemes) {
             auto scheme = PhysicsFactory::CreateScheme(scheme_config);
-            if (scheme) {
+            if (scheme != nullptr) {
                 scheme->Initialize(scheme_config.options, data->diagnostic_manager.get());
                 data->active_schemes.push_back(std::move(scheme));
             } else {
-                std::cerr << "ACES_Initialize: Warning - Failed to create physics scheme: "
-                          << scheme_config.name << std::endl;
+                std::cerr << "ACES_Initialize: Warning - Failed to create physics "
+                             "scheme: "
+                          << scheme_config.name << "\n";
             }
         }
 
@@ -205,7 +213,9 @@ void Initialize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportSta
         ESMC_GridCompSetInternalState(comp, data);
     }
 
-    if (rc) *rc = ESMF_SUCCESS;
+    if (rc != nullptr) {
+        *rc = ESMF_SUCCESS;
+    }
 }
 
 /**
@@ -213,18 +223,22 @@ void Initialize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportSta
  */
 void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESMC_Clock* clock,
          int* rc) {
-    std::cout << "ACES_Run: Executing." << std::endl;
+    std::cout << "ACES_Run: Executing.\n";
 
     if (comp.ptr == nullptr) {
-        if (rc) *rc = ESMF_SUCCESS;
+        if (rc != nullptr) {
+            *rc = ESMF_SUCCESS;
+        }
         return;
     }
 
     int rc_internal;
     void* data_ptr = ESMC_GridCompGetInternalState(comp, &rc_internal);
-    if (!data_ptr) {
-        std::cerr << "ACES_Run Error: Internal state not found." << std::endl;
-        if (rc) *rc = -1;
+    if (data_ptr == nullptr) {
+        std::cerr << "ACES_Run Error: Internal state not found.\n";
+        if (rc != nullptr) {
+            *rc = -1;
+        }
         return;
     }
     auto* data = static_cast<AcesInternalData*>(data_ptr);
@@ -238,15 +252,19 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
             std::string ref_field_name =
                 "total_" + data->config.species_layers.begin()->first + "_emissions";
             int local_rc = ESMC_StateGetField(exportState, ref_field_name.c_str(), &field);
-            if (local_rc != ESMF_SUCCESS) field.ptr = nullptr;
+            if (local_rc != ESMF_SUCCESS) {
+                field.ptr = nullptr;
+            }
         }
 
         if (field.ptr == nullptr) {
             ESMC_StateGetField(exportState, "total_aces_discovery_emissions", &field);
         }
 
-        if (field.ptr) {
-            int lbound[3] = {1, 1, 1}, ubound[3] = {1, 1, 1}, localDe = 0;
+        if (field.ptr != nullptr) {
+            int lbound[3] = {1, 1, 1};
+            int ubound[3] = {1, 1, 1};
+            int localDe = 0;
             if (ESMC_FieldGetBounds(field, &localDe, lbound, ubound, 3) == ESMF_SUCCESS) {
                 data->nx = ubound[0] - lbound[0] + 1;
                 data->ny = ubound[1] - lbound[1] + 1;
@@ -284,10 +302,11 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
     }
 
     // Lazily initialize persistent scratch views.
-    if (data->default_mask.extent(0) != (size_t)nx || data->default_mask.extent(1) != (size_t)ny ||
-        data->default_mask.extent(2) != (size_t)nz) {
+    if (data->default_mask.extent(0) != static_cast<size_t>(nx) ||
+        data->default_mask.extent(1) != static_cast<size_t>(ny) ||
+        data->default_mask.extent(2) != static_cast<size_t>(nz)) {
         std::cout << "ACES_Run: Re-initializing default mask for dimensions " << nx << "x" << ny
-                  << "x" << nz << std::endl;
+                  << "x" << nz << "\n";
         data->default_mask =
             Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>(
                 "default_mask", nx, ny, nz);
@@ -298,15 +317,23 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
     if (data->esmf_fields.empty()) {
         std::set<std::string> esmf_fields_set;
         std::set<std::string> cdeps_fields;
-        for (const auto& s : data->config.cdeps_config.streams) cdeps_fields.insert(s.name);
+        for (const auto& s : data->config.cdeps_config.streams) {
+            cdeps_fields.insert(s.name);
+        }
 
         auto resolve_name = [&](const std::string& name) {
             auto it = data->config.met_mapping.find(name);
-            if (it != data->config.met_mapping.end()) return it->second;
+            if (it != data->config.met_mapping.end()) {
+                return it->second;
+            }
             it = data->config.scale_factor_mapping.find(name);
-            if (it != data->config.scale_factor_mapping.end()) return it->second;
+            if (it != data->config.scale_factor_mapping.end()) {
+                return it->second;
+            }
             it = data->config.mask_mapping.find(name);
-            if (it != data->config.mask_mapping.end()) return it->second;
+            if (it != data->config.mask_mapping.end()) {
+                return it->second;
+            }
             return name;
         };
 
@@ -371,10 +398,10 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
         ESMC_ClockGet(*clock, &currSimTime, &advanceCount);
 
         ESMC_I8 seconds_i8;
-        ESMC_TimeIntervalGet(currSimTime, &seconds_i8, NULL);
+        ESMC_TimeIntervalGet(currSimTime, &seconds_i8, nullptr);
 
-        hour = (int)((seconds_i8 / 3600) % 24);
-        day_of_week = (int)((seconds_i8 / 86400) % 7);
+        hour = static_cast<int>((seconds_i8 / 3600) % 24);
+        day_of_week = static_cast<int>((seconds_i8 / 86400) % 7);
     }
 
     // Run core compute engine (layer addition/replacement)
@@ -410,13 +437,15 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
 
     // Sync results back to host space
     for (auto& [name, dv] : exp.fields) {
-        if (dv.view_host().data()) {
+        if (dv.view_host().data() != nullptr) {
             dv.sync<Kokkos::HostSpace>();
         }
     }
     Kokkos::Profiling::popRegion();
 
-    if (rc) *rc = ESMF_SUCCESS;
+    if (rc != nullptr) {
+        *rc = ESMF_SUCCESS;
+    }
 }
 
 /**
@@ -428,7 +457,7 @@ void Finalize(ESMC_GridComp comp, ESMC_State /*importState*/, ESMC_State /*expor
     if (comp.ptr != nullptr) {
         int rc_internal;
         void* data_ptr = ESMC_GridCompGetInternalState(comp, &rc_internal);
-        if (data_ptr) {
+        if (data_ptr != nullptr) {
             auto* data = static_cast<AcesInternalData*>(data_ptr);
             kokkos_initialized_here = data->kokkos_initialized_here;
 
@@ -452,9 +481,11 @@ void Finalize(ESMC_GridComp comp, ESMC_State /*importState*/, ESMC_State /*expor
 
     if (kokkos_initialized_here && Kokkos::is_initialized()) {
         Kokkos::finalize();
-        std::cout << "ACES_Finalize: Kokkos finalized." << std::endl;
+        std::cout << "ACES_Finalize: Kokkos finalized.\n";
     }
-    if (rc) *rc = ESMF_SUCCESS;
+    if (rc != nullptr) {
+        *rc = ESMF_SUCCESS;
+    }
 }
 
 }  // namespace aces
@@ -497,12 +528,14 @@ void ACES_Advertise(ESMC_GridComp comp, int* rc) {
  * Registers standard ESMF entry points.
  */
 void ACES_SetServices(ESMC_GridComp comp, int* rc) {
-    std::cout << "ACES_SetServices: Entering." << std::endl;
+    std::cout << "ACES_SetServices: Entering.\n";
 
     // Register the component as a NUOPC Model
     int local_rc = NUOPC_CompDerive(comp, NUOPC_ModelSetServices);
     if (local_rc != ESMF_SUCCESS) {
-        if (rc) *rc = local_rc;
+        if (rc != nullptr) {
+            *rc = local_rc;
+        }
         return;
     }
 
@@ -514,8 +547,10 @@ void ACES_SetServices(ESMC_GridComp comp, int* rc) {
     ESMC_GridCompSetEntryPoint(comp, ESMF_METHOD_RUN, ACES_Run, 1);
     ESMC_GridCompSetEntryPoint(comp, ESMF_METHOD_FINALIZE, ACES_Finalize, 1);
 
-    if (rc) *rc = ESMF_SUCCESS;
-    std::cout << "ACES_SetServices: Services set." << std::endl;
+    if (rc != nullptr) {
+        *rc = ESMF_SUCCESS;
+    }
+    std::cout << "ACES_SetServices: Services set.\n";
 }
 
 }  // extern "C"

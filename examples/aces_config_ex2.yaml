@@ -1,7 +1,5 @@
-scale_factors:
+meteorology:
   hourly_scalfact: HOURLY_SCALFACT
-
-masks:
   mask_europe: MASK_EUROPE
 
 species:

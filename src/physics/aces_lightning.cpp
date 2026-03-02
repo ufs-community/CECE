@@ -26,9 +26,9 @@ double get_lightning_yield(double rate, double mw_no, bool is_land) {
     return (rate * yield_molec) * (mw_no / 1000.0) / (AVOGADRO * 1.0e6);
 }
 
-void LightningScheme::Initialize(const YAML::Node& /*config*/,
-                                 AcesDiagnosticManager* /*diag_manager*/) {
-    std::cout << "LightningScheme: Initialized." << std::endl;
+void LightningScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) {
+    BasePhysicsScheme::Initialize(config, diag_manager);
+    std::cout << "LightningScheme: Initialized.\n";
 }
 
 void LightningScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
@@ -36,7 +36,9 @@ void LightningScheme::Run(AcesImportState& import_state, AcesExportState& export
     auto light_nox = ResolveExport("total_lightning_nox_emissions", export_state);
     auto it_land = import_state.fields.find("land_mask");
 
-    if (!conv_depth.data() || !light_nox.data()) return;
+    if (conv_depth.data() == nullptr || light_nox.data() == nullptr) {
+        return;
+    }
 
     // Land mask proxy
     bool has_land_mask = (it_land != import_state.fields.end());
@@ -45,9 +47,9 @@ void LightningScheme::Run(AcesImportState& import_state, AcesExportState& export
             ? it_land->second.view_device()
             : Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>();
 
-    int nx = light_nox.extent(0);
-    int ny = light_nox.extent(1);
-    int nz = light_nox.extent(2);
+    int nx = static_cast<int>(light_nox.extent(0));
+    int ny = static_cast<int>(light_nox.extent(1));
+    int nz = static_cast<int>(light_nox.extent(2));
 
     const double MW_NO = 30.0;
 
@@ -57,7 +59,9 @@ void LightningScheme::Run(AcesImportState& import_state, AcesExportState& export
         KOKKOS_LAMBDA(int i, int j) {
             // Use convective depth from surface or first level as representative for the column
             double h = conv_depth(i, j, 0);
-            if (h <= 0.0) return;
+            if (h <= 0.0) {
+                return;
+            }
 
             bool is_land = has_land_mask ? (land_mask(i, j, 0) > 0.5) : true;
             double h_km = h / 1000.0;

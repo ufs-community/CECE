@@ -28,9 +28,10 @@ static PhysicsRegistration<FortranBridgeExample> register_scheme("fortran_bridge
  * @param config YAML node containing scheme-specific options.
  * @param diag_manager Pointer to the diagnostic manager.
  */
-void FortranBridgeExample::Initialize(const YAML::Node& /*config*/,
-                                      AcesDiagnosticManager* /*diag_manager*/) {
-    std::cout << "FortranBridgeExample: Initialized." << std::endl;
+void FortranBridgeExample::Initialize(const YAML::Node& config,
+                                      AcesDiagnosticManager* diag_manager) {
+    BasePhysicsScheme::Initialize(config, diag_manager);
+    std::cout << "FortranBridgeExample: Initialized.\n";
 }
 
 /**
@@ -48,8 +49,9 @@ void FortranBridgeExample::Run(AcesImportState& import_state, AcesExportState& e
     auto it_nox = export_state.fields.find("total_nox_emissions");
 
     if (it_temp == import_state.fields.end() || it_wind == import_state.fields.end() ||
-        it_nox == export_state.fields.end())
+        it_nox == export_state.fields.end()) {
         return;
+    }
 
     auto& dv_temp = it_temp->second;
     auto& dv_wind = it_wind->second;
@@ -62,11 +64,13 @@ void FortranBridgeExample::Run(AcesImportState& import_state, AcesExportState& e
     dv_nox.sync<Kokkos::DefaultHostExecutionSpace::memory_space>();
 
     // 2. Extract dimensions
-    int nx = dv_nox.extent(0);
-    int ny = dv_nox.extent(1);
-    int nz = dv_nox.extent(2);
+    int nx = static_cast<int>(dv_nox.extent(0));
+    int ny = static_cast<int>(dv_nox.extent(1));
+    int nz = static_cast<int>(dv_nox.extent(2));
 
-    if (nx == 0 || ny == 0 || nz == 0) return;
+    if (nx == 0 || ny == 0 || nz == 0) {
+        return;
+    }
 
     // 3. Extract raw host pointers for C-Fortran interoperability
     double* temp_ptr = dv_temp.view_host().data();
@@ -80,7 +84,7 @@ void FortranBridgeExample::Run(AcesImportState& import_state, AcesExportState& e
     dv_nox.modify<Kokkos::DefaultHostExecutionSpace::memory_space>();
     dv_nox.sync<Kokkos::DefaultExecutionSpace::memory_space>();
 
-    std::cout << "FortranBridgeExample: Execution complete." << std::endl;
+    std::cout << "FortranBridgeExample: Execution complete.\n";
 }
 
 }  // namespace aces

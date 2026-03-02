@@ -1,4 +1,4 @@
-scale_factors:
+meteorology:
   hourly_scalfact: HOURLY_SCALFACT
 
 species:

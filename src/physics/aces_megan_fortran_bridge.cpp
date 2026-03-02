@@ -18,7 +18,7 @@ static PhysicsRegistration<MeganFortranScheme> register_scheme("megan_fortran");
 
 void MeganFortranScheme::Initialize(const YAML::Node& /*config*/,
                                     AcesDiagnosticManager* /*diag_manager*/) {
-    std::cout << "MeganFortranScheme: Initialized." << std::endl;
+    std::cout << "MeganFortranScheme: Initialized." << "\n";
 }
 
 void MeganFortranScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {

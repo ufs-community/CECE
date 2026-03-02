@@ -32,7 +32,7 @@ std::unique_ptr<PhysicsScheme> PhysicsFactory::CreateScheme(const PhysicsSchemeC
     auto it = registry.find(config.name);
 
     if (it != registry.end()) {
-        std::cout << "ACES_PhysicsFactory: Creating scheme " << config.name << std::endl;
+        std::cout << "ACES_PhysicsFactory: Creating scheme " << config.name << "\n";
         return it->second();
     }
 
@@ -41,12 +41,12 @@ std::unique_ptr<PhysicsScheme> PhysicsFactory::CreateScheme(const PhysicsSchemeC
         it = registry.find("native_example");
         if (it != registry.end()) {
             std::cout << "ACES_PhysicsFactory: Falling back to native_example for " << config.name
-                      << std::endl;
+                      << "\n";
             return it->second();
         }
     }
 
-    std::cerr << "ACES_PhysicsFactory: Error - Unknown physics scheme " << config.name << std::endl;
+    std::cerr << "ACES_PhysicsFactory: Error - Unknown physics scheme " << config.name << "\n";
     return nullptr;
 }
 

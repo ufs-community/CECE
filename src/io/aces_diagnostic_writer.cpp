@@ -27,7 +27,9 @@ static void WriteField(ESMC_Field field, const std::string& name) {
 
 void AcesDiagnosticManager::WriteDiagnostics(const DiagnosticConfig& config, ESMC_Clock clock,
                                              ESMC_Field template_field) {
-    if (config.variables.empty()) return;
+    if (config.variables.empty()) {
+        return;
+    }
 
     // 1. Clock Check
     if (clock.ptr != nullptr && config.output_interval_seconds > 0) {
@@ -37,10 +39,12 @@ void AcesDiagnosticManager::WriteDiagnostics(const DiagnosticConfig& config, ESM
         ESMC_ClockGet(clock, &currSimTime, &stepCount);
 
         ESMC_I8 seconds_i8;
-        ESMC_TimeIntervalGet(currSimTime, &seconds_i8, NULL);
-        long long seconds = (long long)seconds_i8;
+        ESMC_TimeIntervalGet(currSimTime, &seconds_i8, nullptr);
+        long long seconds = static_cast<long long>(seconds_i8);
 
-        if (seconds % config.output_interval_seconds != 0) return;
+        if (seconds % config.output_interval_seconds != 0) {
+            return;
+        }
     }
 
     // 2. Grid/Mesh Setup (Cached)
@@ -49,12 +53,12 @@ void AcesDiagnosticManager::WriteDiagnostics(const DiagnosticConfig& config, ESM
         ESMC_InterArrayInt iCounts;
         ESMC_InterArrayIntSet(&iCounts, counts, 2);
         int rc;
-        cached_grid_ = ESMC_GridCreateNoPeriDim(&iCounts, NULL, NULL, NULL, &rc);
+        cached_grid_ = ESMC_GridCreateNoPeriDim(&iCounts, nullptr, nullptr, nullptr, &rc);
     } else if (config.grid_type == "mesh" &&
                (cached_mesh_.ptr == nullptr || cached_mesh_file_ != config.grid_file)) {
         int rc;
         cached_mesh_ = ESMC_MeshCreateFromFile(config.grid_file.c_str(), ESMC_FILEFORMAT_SCRIP,
-                                               NULL, NULL, NULL, NULL, NULL, &rc);
+                                               nullptr, nullptr, nullptr, nullptr, nullptr, &rc);
         cached_mesh_file_ = config.grid_file;
     }
 
@@ -63,13 +67,15 @@ void AcesDiagnosticManager::WriteDiagnostics(const DiagnosticConfig& config, ESM
 
     for (const auto& name : config.variables) {
         auto it = diagnostics_.find(name);
-        if (it == diagnostics_.end()) continue;
+        if (it == diagnostics_.end()) {
+            continue;
+        }
 
         it->second.sync<Kokkos::DefaultHostExecutionSpace::memory_space>();
 
         if (target_grid.ptr != nullptr || target_mesh.ptr != nullptr) {
             std::cout << "ACES_Diagnostic: Interpolating '" << name << "' to " << config.grid_type
-                      << "..." << std::endl;
+                      << "...\n";
             WriteField(template_field, name);
         } else {
             WriteField(template_field, name);

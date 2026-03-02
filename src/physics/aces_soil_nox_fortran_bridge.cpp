@@ -17,7 +17,7 @@ static PhysicsRegistration<SoilNoxFortranScheme> register_scheme("soil_nox_fortr
 
 void SoilNoxFortranScheme::Initialize(const YAML::Node& /*config*/,
                                       AcesDiagnosticManager* /*diag_manager*/) {
-    std::cout << "SoilNoxFortranScheme: Initialized." << std::endl;
+    std::cout << "SoilNoxFortranScheme: Initialized." << "\n";
 }
 
 void SoilNoxFortranScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {

@@ -16,8 +16,9 @@ static PhysicsRegistration<DMSScheme> register_scheme("dms");
  * @brief DMS Sea-Air Flux (Ported from hcox_seaflux_mod.F90)
  */
 
-void DMSScheme::Initialize(const YAML::Node& /*config*/, AcesDiagnosticManager* /*diag_manager*/) {
-    std::cout << "DMSScheme: Initialized." << std::endl;
+void DMSScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) {
+    BasePhysicsScheme::Initialize(config, diag_manager);
+    std::cout << "DMSScheme: Initialized." << "\n";
 }
 
 void DMSScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
@@ -26,11 +27,13 @@ void DMSScheme::Run(AcesImportState& import_state, AcesExportState& export_state
     auto seaconc = ResolveImport("DMS_seawater", import_state);
     auto dms_emis = ResolveExport("total_dms_emissions", export_state);
 
-    if (!u10m.data() || !tskin.data() || !seaconc.data() || !dms_emis.data()) return;
+    if (u10m.data() == nullptr || tskin.data() == nullptr || seaconc.data() == nullptr ||
+        dms_emis.data() == nullptr)
+        return;
 
-    int nx = dms_emis.extent(0);
-    int ny = dms_emis.extent(1);
-    int nz = dms_emis.extent(2);
+    int nx = static_cast<int>(dms_emis.extent(0));
+    int ny = static_cast<int>(dms_emis.extent(1));
+    int nz = static_cast<int>(dms_emis.extent(2));
 
     Kokkos::parallel_for(
         "DMSKernel_Optimized",
@@ -41,7 +44,9 @@ void DMSScheme::Run(AcesImportState& import_state, AcesExportState& export_state
             double w = u10m(i, j, 0);
             double conc = seaconc(i, j, 0);
 
-            if (tc < -10.0) return;
+            if (tc < -10.0) {
+                return;
+            }
 
             // Horner's Method for Schmidt number
             double sc_w = 2674.0 + tc * (-147.12 + tc * (3.726 + tc * -0.038));

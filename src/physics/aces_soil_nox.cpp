@@ -28,9 +28,9 @@ double soil_wet_term(double gw) {
     return 5.5 * gw * std::exp(-5.55 * gw * gw);
 }
 
-void SoilNoxScheme::Initialize(const YAML::Node& /*config*/,
-                               AcesDiagnosticManager* /*diag_manager*/) {
-    std::cout << "SoilNoxScheme: Initialized with Hudman et al. (2012) logic." << std::endl;
+void SoilNoxScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) {
+    BasePhysicsScheme::Initialize(config, diag_manager);
+    std::cout << "SoilNoxScheme: Initialized with Hudman et al. (2012) logic." << "\n";
 }
 
 void SoilNoxScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
@@ -38,11 +38,13 @@ void SoilNoxScheme::Run(AcesImportState& import_state, AcesExportState& export_s
     auto gwet = ResolveImport("gwettop", import_state);
     auto soil_nox = ResolveExport("total_soil_nox_emissions", export_state);
 
-    if (!temp.data() || !gwet.data() || !soil_nox.data()) return;
+    if (temp.data() == nullptr || gwet.data() == nullptr || soil_nox.data() == nullptr) {
+        return;
+    }
 
-    int nx = soil_nox.extent(0);
-    int ny = soil_nox.extent(1);
-    int nz = soil_nox.extent(2);
+    int nx = static_cast<int>(soil_nox.extent(0));
+    int ny = static_cast<int>(soil_nox.extent(1));
+    int nz = static_cast<int>(soil_nox.extent(2));
 
     const double MW_NO = 30.0;
     const double UNITCONV = 1.0e-12 / 14.0 * MW_NO;  // ng N -> kg NO

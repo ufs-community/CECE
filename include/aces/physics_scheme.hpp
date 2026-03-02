@@ -53,10 +53,36 @@ class BasePhysicsScheme : public PhysicsScheme {
      * @brief Default implementation of Initialize.
      * Can be overridden by subclasses if they need specific setup.
      */
-    void Initialize(const YAML::Node& /*config*/,
-                    AcesDiagnosticManager* /*diag_manager*/) override {}
+    void Initialize(const YAML::Node& config, AcesDiagnosticManager* /*diag_manager*/) override {
+        if (config["input_mapping"]) {
+            for (auto const& node : config["input_mapping"]) {
+                input_mapping_[node.first.as<std::string>()] = node.second.as<std::string>();
+            }
+        }
+        if (config["output_mapping"]) {
+            for (auto const& node : config["output_mapping"]) {
+                output_mapping_[node.first.as<std::string>()] = node.second.as<std::string>();
+            }
+        }
+    }
 
    protected:
+    /**
+     * @brief Maps an internal input name to an external field name.
+     */
+    [[nodiscard]] std::string MapInput(const std::string& name) const {
+        auto it = input_mapping_.find(name);
+        return (it != input_mapping_.end()) ? it->second : name;
+    }
+
+    /**
+     * @brief Maps an internal output name to an external field name.
+     */
+    [[nodiscard]] std::string MapOutput(const std::string& name) const {
+        auto it = output_mapping_.find(name);
+        return (it != output_mapping_.end()) ? it->second : name;
+    }
+
     /**
      * @brief Helper to resolve an import field's device-side View.
      * @details Caches the View to avoid redundant map lookups.
@@ -66,16 +92,17 @@ class BasePhysicsScheme : public PhysicsScheme {
      */
     Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveImport(
         const std::string& name, AcesImportState& state) {
-        if (auto it = import_cache_.find(name); it != import_cache_.end()) {
+        std::string resolved_name = MapInput(name);
+        if (auto it = import_cache_.find(resolved_name); it != import_cache_.end()) {
             return it->second;
         }
-        auto it = state.fields.find(name);
+        auto it = state.fields.find(resolved_name);
         if (it != state.fields.end()) {
             auto view = it->second.view_device();
-            import_cache_[name] = view;
+            import_cache_[resolved_name] = view;
             return view;
         }
-        return Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>();
+        return {};
     }
 
     /**
@@ -87,16 +114,53 @@ class BasePhysicsScheme : public PhysicsScheme {
      */
     Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveExport(
         const std::string& name, AcesExportState& state) {
-        if (auto it = export_cache_.find(name); it != export_cache_.end()) {
+        std::string resolved_name = MapOutput(name);
+        if (auto it = export_cache_.find(resolved_name); it != export_cache_.end()) {
             return it->second;
         }
-        auto it = state.fields.find(name);
+        auto it = state.fields.find(resolved_name);
         if (it != state.fields.end()) {
             auto view = it->second.view_device();
-            export_cache_[name] = view;
+            export_cache_[resolved_name] = view;
             return view;
         }
-        return Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>();
+        return {};
+    }
+
+    /**
+     * @brief Helper to resolve a field from either import or export state.
+     * @details Useful for schemes that depend on emissions computed by other
+     * schemes. Checks import state first, then export state.
+     * @param name Internal name of the field.
+     * @param import_state The import state.
+     * @param export_state The export state.
+     * @return A device-side Kokkos::View (read-only).
+     */
+    Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveInput(
+        const std::string& name, AcesImportState& import_state, AcesExportState& export_state) {
+        std::string resolved_name = MapInput(name);
+
+        // Try import state first
+        if (auto it = import_cache_.find(resolved_name); it != import_cache_.end()) {
+            return it->second;
+        }
+        auto it_imp = import_state.fields.find(resolved_name);
+        if (it_imp != import_state.fields.end()) {
+            auto view = it_imp->second.view_device();
+            import_cache_[resolved_name] = view;
+            return view;
+        }
+
+        // Then try export state (read-only access to previously computed fields)
+        // We use import_cache_ for both to keep input resolution consistent
+        auto it_exp = export_state.fields.find(resolved_name);
+        if (it_exp != export_state.fields.end()) {
+            auto view = it_exp->second.view_device();
+            import_cache_[resolved_name] = view;
+            return view;
+        }
+
+        return {};
     }
 
     /**
@@ -116,7 +180,8 @@ class BasePhysicsScheme : public PhysicsScheme {
      * @param state The export state.
      */
     void MarkModified(const std::string& name, AcesExportState& state) {
-        auto it = state.fields.find(name);
+        std::string resolved_name = MapOutput(name);
+        auto it = state.fields.find(resolved_name);
         if (it != state.fields.end()) {
             it->second.modify_device();
         }
@@ -129,6 +194,9 @@ class BasePhysicsScheme : public PhysicsScheme {
     std::unordered_map<std::string,
                        Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>>
         export_cache_;
+
+    std::unordered_map<std::string, std::string> input_mapping_;
+    std::unordered_map<std::string, std::string> output_mapping_;
 };
 
 }  // namespace aces
