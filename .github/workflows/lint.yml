@@ -27,4 +27,6 @@ jobs:
         mkdir -p build && cd build
         cmake .. -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
         cd ..
-        run-clang-tidy -p build -header-filter='include/aces/.*' 'src/.*'
+        # Explicitly only check ACES source files to avoid checking dependencies
+        # like yaml-cpp or CDEPS that might be in the build directory.
+        run-clang-tidy -p build -header-filter='include/aces/.*' '^src/.*\.cpp$' '^include/aces/.*\.hpp$'
