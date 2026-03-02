@@ -246,11 +246,19 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
         }
 
         if (field.ptr) {
-            int lbound[3] = {0, 0, 0}, ubound[3] = {0, 0, 0}, localDe = 0;
+            int lbound[3] = {1, 1, 1}, ubound[3] = {1, 1, 1}, localDe = 0;
             if (ESMC_FieldGetBounds(field, &localDe, lbound, ubound, 3) == ESMF_SUCCESS) {
                 data->nx = ubound[0] - lbound[0] + 1;
                 data->ny = ubound[1] - lbound[1] + 1;
                 data->nz = ubound[2] - lbound[2] + 1;
+            } else if (ESMC_FieldGetBounds(field, &localDe, lbound, ubound, 2) == ESMF_SUCCESS) {
+                data->nx = ubound[0] - lbound[0] + 1;
+                data->ny = ubound[1] - lbound[1] + 1;
+                data->nz = 1;
+            } else if (ESMC_FieldGetBounds(field, &localDe, lbound, ubound, 1) == ESMF_SUCCESS) {
+                data->nx = ubound[0] - lbound[0] + 1;
+                data->ny = 1;
+                data->nz = 1;
             }
         }
 

@@ -203,8 +203,10 @@ AcesConfig ParseConfig(const std::string& filename) {
             else if (type_str == "wrf")
                 config.vertical_config.type = VerticalCoordType::WRF;
         }
-        if (v_node["ak_field"]) config.vertical_config.ak_field = v_node["ak_field"].as<std::string>();
-        if (v_node["bk_field"]) config.vertical_config.bk_field = v_node["bk_field"].as<std::string>();
+        if (v_node["ak_field"])
+            config.vertical_config.ak_field = v_node["ak_field"].as<std::string>();
+        if (v_node["bk_field"])
+            config.vertical_config.bk_field = v_node["bk_field"].as<std::string>();
         if (v_node["p_surf_field"])
             config.vertical_config.p_surf_field = v_node["p_surf_field"].as<std::string>();
         if (v_node["z_field"]) config.vertical_config.z_field = v_node["z_field"].as<std::string>();

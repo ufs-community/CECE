@@ -53,8 +53,8 @@ enum class VerticalDistributionMethod {
  */
 struct VerticalConfig {
     VerticalCoordType type = VerticalCoordType::NONE;
-    std::string ak_field = "hyam";  ///< Name of 'ak' coefficients field (FV3).
-    std::string bk_field = "hybm";  ///< Name of 'bk' coefficients field (FV3).
+    std::string ak_field = "hyam";    ///< Name of 'ak' coefficients field (FV3).
+    std::string bk_field = "hybm";    ///< Name of 'bk' coefficients field (FV3).
     std::string p_surf_field = "ps";  ///< Name of surface pressure field.
     std::string z_field = "height";   ///< Name of height/altitude field (MPAS/WRF).
     std::string pbl_field = "hpbl";   ///< Name of PBL height field.
@@ -80,10 +80,10 @@ struct EmissionLayer {
         VerticalDistributionMethod::SINGLE;  ///< Method for vertical distribution.
     int vdist_layer_start = 0;               ///< Start layer (0-indexed).
     int vdist_layer_end = 0;                 ///< End layer (0-indexed).
-    double vdist_p_start = 0.0;           ///< Start pressure (Pa).
-    double vdist_p_end = 0.0;             ///< End pressure (Pa).
-    double vdist_h_start = 0.0;           ///< Start height (m).
-    double vdist_h_end = 0.0;             ///< End height (m).
+    double vdist_p_start = 0.0;              ///< Start pressure (Pa).
+    double vdist_p_end = 0.0;                ///< End pressure (Pa).
+    double vdist_h_start = 0.0;              ///< Start height (m).
+    double vdist_h_end = 0.0;                ///< End height (m).
 };
 
 /**

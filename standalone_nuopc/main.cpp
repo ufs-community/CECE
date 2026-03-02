@@ -133,9 +133,8 @@ int main(int argc, char** argv) {
         ESMC_InterArrayInt iMaxIndex2D;
         ESMC_InterArrayIntSet(&iMaxIndex2D, maxIndex2D, 2);
         ESMC_Grid grid2D = ESMC_GridCreateNoPeriDim(&iMaxIndex2D, NULL, NULL, NULL, &rc);
-        ESMC_Field f_ps = ESMC_FieldCreateGridTypeKind(grid2D, ESMC_TYPEKIND_R8,
-                                                       ESMC_STAGGERLOC_CENTER, NULL, NULL, NULL,
-                                                       "ps", &rc);
+        ESMC_Field f_ps = ESMC_FieldCreateGridTypeKind(
+            grid2D, ESMC_TYPEKIND_R8, ESMC_STAGGERLOC_CENTER, NULL, NULL, NULL, "ps", &rc);
         double* ps_data = (double*)ESMC_FieldGetPtr(f_ps, 0, &rc);
         for (int i = 0; i < nx * ny; ++i) ps_data[i] = 101325.0;  // Standard sea level pressure
         ESMC_StateAddField(importState, f_ps);
@@ -145,12 +144,10 @@ int main(int argc, char** argv) {
         ESMC_InterArrayInt iMaxIndexAK;
         ESMC_InterArrayIntSet(&iMaxIndexAK, maxIndexAK, 3);
         ESMC_Grid gridAK = ESMC_GridCreateNoPeriDim(&iMaxIndexAK, NULL, NULL, NULL, &rc);
-        ESMC_Field f_ak = ESMC_FieldCreateGridTypeKind(gridAK, ESMC_TYPEKIND_R8,
-                                                       ESMC_STAGGERLOC_CENTER, NULL, NULL, NULL,
-                                                       "hyam", &rc);
-        ESMC_Field f_bk = ESMC_FieldCreateGridTypeKind(gridAK, ESMC_TYPEKIND_R8,
-                                                       ESMC_STAGGERLOC_CENTER, NULL, NULL, NULL,
-                                                       "hybm", &rc);
+        ESMC_Field f_ak = ESMC_FieldCreateGridTypeKind(
+            gridAK, ESMC_TYPEKIND_R8, ESMC_STAGGERLOC_CENTER, NULL, NULL, NULL, "hyam", &rc);
+        ESMC_Field f_bk = ESMC_FieldCreateGridTypeKind(
+            gridAK, ESMC_TYPEKIND_R8, ESMC_STAGGERLOC_CENTER, NULL, NULL, NULL, "hybm", &rc);
         double* ak_data = (double*)ESMC_FieldGetPtr(f_ak, 0, &rc);
         double* bk_data = (double*)ESMC_FieldGetPtr(f_bk, 0, &rc);
         for (int k = 0; k <= nz; ++k) {
