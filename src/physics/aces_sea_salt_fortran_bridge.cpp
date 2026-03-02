@@ -18,7 +18,7 @@ static PhysicsRegistration<SeaSaltFortranScheme> register_scheme("sea_salt_fortr
 
 void SeaSaltFortranScheme::Initialize(const YAML::Node& /*config*/,
                                       AcesDiagnosticManager* /*diag_manager*/) {
-    std::cout << "SeaSaltFortranScheme: Initialized." << std::endl;
+    std::cout << "SeaSaltFortranScheme: Initialized." << "\n";
 }
 
 void SeaSaltFortranScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {

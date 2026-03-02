@@ -24,7 +24,7 @@ int main(int argc, char** argv) {
     int rc;
 
     ESMC_Initialize(NULL, ESMC_ArgLast);
-    std::cout << "[Driver] ESMF Initialized." << std::endl;
+    std::cout << "[Driver] ESMF Initialized." << "\n";
 
     const int nx = 72;
     const int ny = 46;
@@ -76,10 +76,10 @@ int main(int argc, char** argv) {
     // Use the new config file
     std::system("cp ../hemco_mimic_config.yaml aces_config.yaml");
 
-    std::cout << "[Driver] Initializing ACES component..." << std::endl;
+    std::cout << "[Driver] Initializing ACES component..." << "\n";
     ACES_Initialize(acesComp, importState, exportState, &clock, &rc);
 
-    std::cout << "[Driver] Running ACES..." << std::endl;
+    std::cout << "[Driver] Running ACES..." << "\n";
     ACES_Run(acesComp, importState, exportState, &clock, &rc);
 
     // Verification
@@ -90,16 +90,16 @@ int main(int argc, char** argv) {
         double expected = (x > nx / 2) ? (120.0 * 1.2) : 100.0;
         if (std::abs(total_ptr[i] - expected) > 1e-6) {
             std::cerr << "Mismatch at " << i << " (x=" << x << "): expected " << expected
-                      << ", got " << total_ptr[i] << std::endl;
+                      << ", got " << total_ptr[i] << "\n";
             success = false;
             break;
         }
     }
 
     if (success) {
-        std::cout << "[Driver] Verification SUCCESSFUL!" << std::endl;
+        std::cout << "[Driver] Verification SUCCESSFUL!" << "\n";
     } else {
-        std::cout << "[Driver] Verification FAILED!" << std::endl;
+        std::cout << "[Driver] Verification FAILED!" << "\n";
     }
 
     ACES_Finalize(acesComp, importState, exportState, &clock, &rc);

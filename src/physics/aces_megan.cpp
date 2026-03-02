@@ -71,7 +71,7 @@ void MeganScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* di
     double co2a = 400.0;
     if (config["co2_concentration"]) co2a = config["co2_concentration"].as<double>();
     gamma_co2_ = get_gamma_co2(co2a);
-    std::cout << "MeganScheme: Initialized. GAMMA_CO2=" << gamma_co2_ << std::endl;
+    std::cout << "MeganScheme: Initialized. GAMMA_CO2=" << gamma_co2_ << "\n";
 }
 
 void MeganScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
@@ -82,8 +82,8 @@ void MeganScheme::Run(AcesImportState& import_state, AcesExportState& export_sta
     auto pardf = ResolveImport("pardf", import_state);
     auto suncos = ResolveImport("suncos", import_state);
 
-    if (!temp.data() || !isoprene.data() || !lai.data() || !pardr.data() || !pardf.data() ||
-        !suncos.data())
+    if (temp.data() == nullptr || isoprene.data() == nullptr || lai.data() == nullptr ||
+        pardr.data() == nullptr || pardf.data() == nullptr || suncos.data() == nullptr)
         return;
 
     int nx = isoprene.extent(0);

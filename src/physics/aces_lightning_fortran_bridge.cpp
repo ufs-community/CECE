@@ -17,7 +17,7 @@ static PhysicsRegistration<LightningFortranScheme> register_scheme("lightning_fo
 
 void LightningFortranScheme::Initialize(const YAML::Node& /*config*/,
                                         AcesDiagnosticManager* /*diag_manager*/) {
-    std::cout << "LightningFortranScheme: Initialized." << std::endl;
+    std::cout << "LightningFortranScheme: Initialized." << "\n";
 }
 
 void LightningFortranScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {

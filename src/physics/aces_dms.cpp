@@ -18,7 +18,7 @@ static PhysicsRegistration<DMSScheme> register_scheme("dms");
 
 void DMSScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
-    std::cout << "DMSScheme: Initialized." << std::endl;
+    std::cout << "DMSScheme: Initialized." << "\n";
 }
 
 void DMSScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
@@ -27,7 +27,9 @@ void DMSScheme::Run(AcesImportState& import_state, AcesExportState& export_state
     auto seaconc = ResolveImport("DMS_seawater", import_state);
     auto dms_emis = ResolveExport("total_dms_emissions", export_state);
 
-    if (!u10m.data() || !tskin.data() || !seaconc.data() || !dms_emis.data()) return;
+    if (u10m.data() == nullptr || tskin.data() == nullptr || seaconc.data() == nullptr ||
+        dms_emis.data() == nullptr)
+        return;
 
     int nx = dms_emis.extent(0);
     int ny = dms_emis.extent(1);

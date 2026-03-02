@@ -37,25 +37,25 @@ class MockFieldResolver : public FieldResolver {
     UnmanagedHostView3D ResolveImport(const std::string& name, int /*nx*/, int /*ny*/,
                                       int /*nz*/) override {
         if (fields.count(name)) return fields[name].view_host();
-        return UnmanagedHostView3D();
+        return {};
     }
 
     UnmanagedHostView3D ResolveExport(const std::string& name, int /*nx*/, int /*ny*/,
                                       int /*nz*/) override {
         if (fields.count(name)) return fields[name].view_host();
-        return UnmanagedHostView3D();
+        return {};
     }
 
     Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
     ResolveImportDevice(const std::string& name, int /*nx*/, int /*ny*/, int /*nz*/) override {
         if (fields.count(name)) return fields[name].view_device();
-        return Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>();
+        return {};
     }
 
     Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveExportDevice(
         const std::string& name, int /*nx*/, int /*ny*/, int /*nz*/) override {
         if (fields.count(name)) return fields[name].view_device();
-        return Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>();
+        return {};
     }
 };
 

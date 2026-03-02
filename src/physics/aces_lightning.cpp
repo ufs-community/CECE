@@ -28,7 +28,7 @@ double get_lightning_yield(double rate, double mw_no, bool is_land) {
 
 void LightningScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
-    std::cout << "LightningScheme: Initialized." << std::endl;
+    std::cout << "LightningScheme: Initialized." << "\n";
 }
 
 void LightningScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
@@ -36,7 +36,7 @@ void LightningScheme::Run(AcesImportState& import_state, AcesExportState& export
     auto light_nox = ResolveExport("total_lightning_nox_emissions", export_state);
     auto it_land = import_state.fields.find("land_mask");
 
-    if (!conv_depth.data() || !light_nox.data()) return;
+    if (conv_depth.data() == nullptr || light_nox.data() == nullptr) return;
 
     // Land mask proxy
     bool has_land_mask = (it_land != import_state.fields.end());

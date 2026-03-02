@@ -81,7 +81,7 @@ int main(int argc, char** argv) {
 
     // 1. Initialize ESMF Framework
     ESMC_Initialize(NULL, ESMC_ArgLast);
-    std::cout << "[Driver] ESMF Initialized." << std::endl;
+    std::cout << "[Driver] ESMF Initialized." << "\n";
 
     // 2. Define simulation grid dimensions
     const int nx = 72;
@@ -95,7 +95,7 @@ int main(int argc, char** argv) {
 
     ESMC_Grid grid = ESMC_GridCreateNoPeriDim(&iMaxIndex, NULL, NULL, NULL, &rc);
     if (rc != ESMF_SUCCESS) {
-        std::cerr << "[Driver] Error creating grid" << std::endl;
+        std::cerr << "[Driver] Error creating grid" << "\n";
         return 1;
     }
 
@@ -137,14 +137,14 @@ int main(int argc, char** argv) {
         "operation: \"add\"\n      "
         "scale: 1.0e-12\nphysics_schemes: []' > aces_config.yaml");
 
-    std::cout << "[Driver] Initializing ACES component..." << std::endl;
+    std::cout << "[Driver] Initializing ACES component..." << "\n";
     ACES_Initialize(acesComp, importState, exportState, &clock, &rc);
 
     // 8. Main simulation loop
-    std::cout << "[Driver] Starting simulation loop (5 timesteps)..." << std::endl;
+    std::cout << "[Driver] Starting simulation loop (5 timesteps)..." << "\n";
 
     for (int step = 0; step < 5; ++step) {
-        std::cout << "--- Timestep " << step << " ---" << std::endl;
+        std::cout << "--- Timestep " << step << " ---" << "\n";
 
         // STEP A: External components generate/provide data
         Atmosphere_ProvideData(f_temp, f_wind, step, nx, ny, nz);
@@ -156,13 +156,13 @@ int main(int argc, char** argv) {
         // STEP C: Process results (Diagnostics and I/O)
         double* total_ptr = (double*)ESMC_FieldGetPtr(f_total, 0, &rc);
         if (total_ptr) {
-            std::cout << "  [Driver] total_nox_emissions[0]: " << total_ptr[0] << std::endl;
+            std::cout << "  [Driver] total_nox_emissions[0]: " << total_ptr[0] << "\n";
         }
 
         // Write the calculated emissions to a NetCDF file using ESMF I/O
         char filename[64];
         std::sprintf(filename, "output_step_%d.nc", step);
-        std::cout << "  [Driver] Writing diagnostic to " << filename << std::endl;
+        std::cout << "  [Driver] Writing diagnostic to " << filename << "\n";
         ESMC_FieldWrite(f_total, filename, "total_nox", 1, ESMC_FILESTATUS_REPLACE, step + 1,
                         ESMF_IOFMT_NETCDF);
 
@@ -171,7 +171,7 @@ int main(int argc, char** argv) {
     }
 
     // 9. Finalize component and ESMF
-    std::cout << "[Driver] Finalizing ACES component..." << std::endl;
+    std::cout << "[Driver] Finalizing ACES component..." << "\n";
     ACES_Finalize(acesComp, importState, exportState, &clock, &rc);
 
     // Cleanup ESMF objects
@@ -182,7 +182,7 @@ int main(int argc, char** argv) {
     ESMC_CalendarDestroy(&cal);
 
     ESMC_Finalize();
-    std::cout << "[Driver] ESMF Finalized. Dummy driver finished successfully." << std::endl;
+    std::cout << "[Driver] ESMF Finalized. Dummy driver finished successfully." << "\n";
 
     return 0;
 }

@@ -60,7 +60,7 @@ void SeaSaltScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* 
     }
 
     std::cout << "SeaSaltScheme: Initialized. SALA_REF=" << srrc_SALA_ << " SALC_REF=" << srrc_SALC_
-              << std::endl;
+              << "\n";
 }
 
 void SeaSaltScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
@@ -69,7 +69,7 @@ void SeaSaltScheme::Run(AcesImportState& import_state, AcesExportState& export_s
     auto sala = ResolveExport("total_SALA_emissions", export_state);
     auto salc = ResolveExport("total_SALC_emissions", export_state);
 
-    if (!u10m.data() || !tskin.data()) return;
+    if (u10m.data() == nullptr || tskin.data() == nullptr) return;
 
     int nx = u10m.extent(0);
     int ny = u10m.extent(1);
@@ -78,7 +78,7 @@ void SeaSaltScheme::Run(AcesImportState& import_state, AcesExportState& export_s
     double ref_sala = srrc_SALA_;
     double ref_salc = srrc_SALC_;
 
-    if (sala.data()) {
+    if (sala.data() != nullptr) {
         Kokkos::parallel_for(
             "SeaSalt_SALA_Gong_Optimized",
             Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<2>>({0, 0}, {nx, ny}),
@@ -97,7 +97,7 @@ void SeaSaltScheme::Run(AcesImportState& import_state, AcesExportState& export_s
         MarkModified("total_SALA_emissions", export_state);
     }
 
-    if (salc.data()) {
+    if (salc.data() != nullptr) {
         Kokkos::parallel_for(
             "SeaSalt_SALC_Gong_Optimized",
             Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<2>>({0, 0}, {nx, ny}),

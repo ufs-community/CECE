@@ -17,7 +17,7 @@ static PhysicsRegistration<VolcanoFortranScheme> register_scheme("volcano_fortra
 
 void VolcanoFortranScheme::Initialize(const YAML::Node& /*config*/,
                                       AcesDiagnosticManager* /*diag_manager*/) {
-    std::cout << "VolcanoFortranScheme: Initialized." << std::endl;
+    std::cout << "VolcanoFortranScheme: Initialized." << "\n";
 }
 
 void VolcanoFortranScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {

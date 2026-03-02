@@ -18,7 +18,7 @@ static PhysicsRegistration<DustFortranScheme> register_scheme("dust_fortran");
 
 void DustFortranScheme::Initialize(const YAML::Node& /*config*/,
                                    AcesDiagnosticManager* /*diag_manager*/) {
-    std::cout << "DustFortranScheme: Initialized." << std::endl;
+    std::cout << "DustFortranScheme: Initialized." << "\n";
 }
 
 void DustFortranScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {

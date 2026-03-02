@@ -63,7 +63,7 @@ static DualView3D GetDualView(ESMC_State state, const std::string& name, int nx,
     ESMC_Field field;
     int rc = ESMC_StateGetField(state, name.c_str(), &field);
     if (rc != ESMF_SUCCESS) {
-        return DualView3D();
+        return {};
     }
     UnmanagedHostView3D host_view = WrapESMCField(field, nx, ny, nz);
     Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> device_view(
@@ -75,7 +75,7 @@ static DualView3D GetDualView(ESMC_State state, const std::string& name, int nx,
  * @brief Internal implementation of the Advertise specialization.
  */
 void Advertise(ESMC_GridComp comp, int* rc) {
-    std::cout << "ACES_Advertise: Entering." << std::endl;
+    std::cout << "ACES_Advertise: Entering." << "\n";
     int rc_internal;
     void* data_ptr = ESMC_GridCompGetInternalState(comp, &rc_internal);
     if (!data_ptr) {
@@ -86,7 +86,7 @@ void Advertise(ESMC_GridComp comp, int* rc) {
         } catch (...) {
             std::cerr << "ACES_Advertise: Warning - Could not load aces_config.yaml. "
                          "Bypassing Advertise phase."
-                      << std::endl;
+                      << "\n";
             if (rc) *rc = ESMF_SUCCESS;
             return;
         }
@@ -146,11 +146,11 @@ void Advertise(ESMC_GridComp comp, int* rc) {
  */
 void Initialize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState,
                 ESMC_Clock* /*clock*/, int* rc) {
-    std::cout << "ACES_Initialize: Entering." << std::endl;
+    std::cout << "ACES_Initialize: Entering." << "\n";
     bool kokkos_initialized_here = false;
     if (!Kokkos::is_initialized()) {
         Kokkos::initialize();
-        std::cout << "ACES_Initialize: Kokkos initialized." << std::endl;
+        std::cout << "ACES_Initialize: Kokkos initialized." << "\n";
         kokkos_initialized_here = true;
     }
 
@@ -162,7 +162,7 @@ void Initialize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportSta
         } catch (...) {
             std::cerr << "ACES_Initialize: Error - Could not load aces_config.yaml. "
                          "Component will be improperly configured."
-                      << std::endl;
+                      << "\n";
             if (rc) *rc = -1;
             return;
         }
@@ -177,7 +177,7 @@ void Initialize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportSta
                 data->active_schemes.push_back(std::move(scheme));
             } else {
                 std::cerr << "ACES_Initialize: Warning - Failed to create physics scheme: "
-                          << scheme_config.name << std::endl;
+                          << scheme_config.name << "\n";
             }
         }
 
@@ -213,7 +213,7 @@ void Initialize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportSta
  */
 void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESMC_Clock* clock,
          int* rc) {
-    std::cout << "ACES_Run: Executing." << std::endl;
+    std::cout << "ACES_Run: Executing." << "\n";
 
     if (comp.ptr == nullptr) {
         if (rc) *rc = ESMF_SUCCESS;
@@ -223,7 +223,7 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
     int rc_internal;
     void* data_ptr = ESMC_GridCompGetInternalState(comp, &rc_internal);
     if (!data_ptr) {
-        std::cerr << "ACES_Run Error: Internal state not found." << std::endl;
+        std::cerr << "ACES_Run Error: Internal state not found." << "\n";
         if (rc) *rc = -1;
         return;
     }
@@ -284,10 +284,11 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
     }
 
     // Lazily initialize persistent scratch views.
-    if (data->default_mask.extent(0) != (size_t)nx || data->default_mask.extent(1) != (size_t)ny ||
-        data->default_mask.extent(2) != (size_t)nz) {
+    if (data->default_mask.extent(0) != static_cast<size_t>(nx) ||
+        data->default_mask.extent(1) != static_cast<size_t>(ny) ||
+        data->default_mask.extent(2) != static_cast<size_t>(nz)) {
         std::cout << "ACES_Run: Re-initializing default mask for dimensions " << nx << "x" << ny
-                  << "x" << nz << std::endl;
+                  << "x" << nz << "\n";
         data->default_mask =
             Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>(
                 "default_mask", nx, ny, nz);
@@ -452,7 +453,7 @@ void Finalize(ESMC_GridComp comp, ESMC_State /*importState*/, ESMC_State /*expor
 
     if (kokkos_initialized_here && Kokkos::is_initialized()) {
         Kokkos::finalize();
-        std::cout << "ACES_Finalize: Kokkos finalized." << std::endl;
+        std::cout << "ACES_Finalize: Kokkos finalized." << "\n";
     }
     if (rc) *rc = ESMF_SUCCESS;
 }
@@ -497,7 +498,7 @@ void ACES_Advertise(ESMC_GridComp comp, int* rc) {
  * Registers standard ESMF entry points.
  */
 void ACES_SetServices(ESMC_GridComp comp, int* rc) {
-    std::cout << "ACES_SetServices: Entering." << std::endl;
+    std::cout << "ACES_SetServices: Entering." << "\n";
 
     // Register the component as a NUOPC Model
     int local_rc = NUOPC_CompDerive(comp, NUOPC_ModelSetServices);
@@ -515,7 +516,7 @@ void ACES_SetServices(ESMC_GridComp comp, int* rc) {
     ESMC_GridCompSetEntryPoint(comp, ESMF_METHOD_FINALIZE, ACES_Finalize, 1);
 
     if (rc) *rc = ESMF_SUCCESS;
-    std::cout << "ACES_SetServices: Services set." << std::endl;
+    std::cout << "ACES_SetServices: Services set." << "\n";
 }
 
 }  // extern "C"

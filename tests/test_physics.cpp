@@ -77,7 +77,7 @@ void TestParity(PhysicsTest* test, const std::string& cpp_name, const std::strin
         // Actually the factory prints "Falling back to native_example"
         // Let's just check if it's a real scheme for the test's purpose.
 #ifndef ACES_HAS_FORTRAN
-        std::cout << "Skipping parity test for " << cpp_name << " (Fortran disabled)." << std::endl;
+        std::cout << "Skipping parity test for " << cpp_name << " (Fortran disabled)." << "\n";
         return;
 #endif
     }

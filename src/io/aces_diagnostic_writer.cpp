@@ -69,7 +69,7 @@ void AcesDiagnosticManager::WriteDiagnostics(const DiagnosticConfig& config, ESM
 
         if (target_grid.ptr != nullptr || target_mesh.ptr != nullptr) {
             std::cout << "ACES_Diagnostic: Interpolating '" << name << "' to " << config.grid_type
-                      << "..." << std::endl;
+                      << "..." << "\n";
             WriteField(template_field, name);
         } else {
             WriteField(template_field, name);

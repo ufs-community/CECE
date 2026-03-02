@@ -30,7 +30,7 @@ double soil_wet_term(double gw) {
 
 void SoilNoxScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
-    std::cout << "SoilNoxScheme: Initialized with Hudman et al. (2012) logic." << std::endl;
+    std::cout << "SoilNoxScheme: Initialized with Hudman et al. (2012) logic." << "\n";
 }
 
 void SoilNoxScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
@@ -38,7 +38,7 @@ void SoilNoxScheme::Run(AcesImportState& import_state, AcesExportState& export_s
     auto gwet = ResolveImport("gwettop", import_state);
     auto soil_nox = ResolveExport("total_soil_nox_emissions", export_state);
 
-    if (!temp.data() || !gwet.data() || !soil_nox.data()) return;
+    if (temp.data() == nullptr || gwet.data() == nullptr || soil_nox.data() == nullptr) return;
 
     int nx = soil_nox.extent(0);
     int ny = soil_nox.extent(1);

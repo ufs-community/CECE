@@ -30,7 +30,7 @@ static PhysicsRegistration<FortranBridgeExample> register_scheme("fortran_bridge
  */
 void FortranBridgeExample::Initialize(const YAML::Node& /*config*/,
                                       AcesDiagnosticManager* /*diag_manager*/) {
-    std::cout << "FortranBridgeExample: Initialized." << std::endl;
+    std::cout << "FortranBridgeExample: Initialized." << "\n";
 }
 
 /**
@@ -80,7 +80,7 @@ void FortranBridgeExample::Run(AcesImportState& import_state, AcesExportState& e
     dv_nox.modify<Kokkos::DefaultHostExecutionSpace::memory_space>();
     dv_nox.sync<Kokkos::DefaultExecutionSpace::memory_space>();
 
-    std::cout << "FortranBridgeExample: Execution complete." << std::endl;
+    std::cout << "FortranBridgeExample: Execution complete." << "\n";
 }
 
 }  // namespace aces

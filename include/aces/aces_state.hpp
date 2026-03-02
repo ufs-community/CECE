@@ -50,13 +50,19 @@ class AcesStateResolver : public FieldResolver {
         return empty;
     }
 
-    std::string ResolveName(const std::string& name) const {
+    [[nodiscard]] std::string ResolveName(const std::string& name) const {
         auto it = met_mapping.find(name);
-        if (it != met_mapping.end()) return it->second;
+        if (it != met_mapping.end()) {
+            return it->second;
+        }
         it = sf_mapping.find(name);
-        if (it != sf_mapping.end()) return it->second;
+        if (it != sf_mapping.end()) {
+            return it->second;
+        }
         it = mask_mapping.find(name);
-        if (it != mask_mapping.end()) return it->second;
+        if (it != mask_mapping.end()) {
+            return it->second;
+        }
         return name;
     }
 
@@ -78,47 +84,51 @@ class AcesStateResolver : public FieldResolver {
         if (it != import_state.fields.end()) {
             auto view = it->second.view_host();
             // Handle 1D fields (like ak/bk) in a 3D context
-            if (view.extent(0) == 1 && view.extent(1) == 1 && view.extent(2) == (size_t)nz) {
+            if (view.extent(0) == 1 && view.extent(1) == 1 &&
+                view.extent(2) == static_cast<size_t>(nz)) {
                 return view;
             }
             // Handle 2D fields in a 3D context
             if (view.extent(2) == 1 && nz > 1) {
-                if (view.extent(0) != (size_t)nx || view.extent(1) != (size_t)ny) {
+                if (view.extent(0) != static_cast<size_t>(nx) ||
+                    view.extent(1) != static_cast<size_t>(ny)) {
                     std::cerr << "ACES_Resolver Error: 2D Dimension mismatch for import "
                               << resolve_name << ". Expected " << nx << "x" << ny << ", got "
-                              << view.extent(0) << "x" << view.extent(1) << std::endl;
-                    return UnmanagedHostView3D();
+                              << view.extent(0) << "x" << view.extent(1) << "\n";
+                    return {};
                 }
                 return view;
             }
-            if (view.extent(0) != (size_t)nx || view.extent(1) != (size_t)ny ||
-                view.extent(2) != (size_t)nz) {
+            if (view.extent(0) != static_cast<size_t>(nx) ||
+                view.extent(1) != static_cast<size_t>(ny) ||
+                view.extent(2) != static_cast<size_t>(nz)) {
                 std::cerr << "ACES_Resolver Error: Dimension mismatch for import " << resolve_name
                           << ". Expected " << nx << "x" << ny << "x" << nz << ", got "
                           << view.extent(0) << "x" << view.extent(1) << "x" << view.extent(2)
-                          << std::endl;
-                return UnmanagedHostView3D();
+                          << "\n";
+                return {};
             }
             return view;
         }
-        return UnmanagedHostView3D();
+        return {};
     }
 
     UnmanagedHostView3D ResolveExport(const std::string& name, int nx, int ny, int nz) override {
         auto it = export_state.fields.find(name);
         if (it != export_state.fields.end()) {
             auto view = it->second.view_host();
-            if (view.extent(0) != (size_t)nx || view.extent(1) != (size_t)ny ||
-                view.extent(2) != (size_t)nz) {
+            if (view.extent(0) != static_cast<size_t>(nx) ||
+                view.extent(1) != static_cast<size_t>(ny) ||
+                view.extent(2) != static_cast<size_t>(nz)) {
                 std::cerr << "ACES_Resolver Error: Dimension mismatch for export " << name
                           << ". Expected " << nx << "x" << ny << "x" << nz << ", got "
                           << view.extent(0) << "x" << view.extent(1) << "x" << view.extent(2)
-                          << std::endl;
-                return UnmanagedHostView3D();
+                          << "\n";
+                return {};
             }
             return view;
         }
-        return UnmanagedHostView3D();
+        return {};
     }
 
     Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
@@ -129,32 +139,33 @@ class AcesStateResolver : public FieldResolver {
         if (it != import_state.fields.end()) {
             auto view = it->second.view_device();
             // Handle 1D fields (like ak/bk) in a 3D context
-            if (view.extent(0) == 1 && view.extent(1) == 1 && view.extent(2) == (size_t)nz) {
+            if (view.extent(0) == 1 && view.extent(1) == 1 &&
+                view.extent(2) == static_cast<size_t>(nz)) {
                 return view;
             }
             // Handle 2D fields in a 3D context
             if (view.extent(2) == 1 && nz > 1) {
-                if (view.extent(0) != (size_t)nx || view.extent(1) != (size_t)ny) {
+                if (view.extent(0) != static_cast<size_t>(nx) ||
+                    view.extent(1) != static_cast<size_t>(ny)) {
                     std::cerr << "ACES_Resolver Error: 2D Dimension mismatch for import "
                               << resolve_name << " (device). Expected " << nx << "x" << ny
-                              << ", got " << view.extent(0) << "x" << view.extent(1) << std::endl;
-                    return Kokkos::View<const double***, Kokkos::LayoutLeft,
-                                        Kokkos::DefaultExecutionSpace>();
+                              << ", got " << view.extent(0) << "x" << view.extent(1) << "\n";
+                    return {};
                 }
                 return view;
             }
-            if (view.extent(0) != (size_t)nx || view.extent(1) != (size_t)ny ||
-                view.extent(2) != (size_t)nz) {
+            if (view.extent(0) != static_cast<size_t>(nx) ||
+                view.extent(1) != static_cast<size_t>(ny) ||
+                view.extent(2) != static_cast<size_t>(nz)) {
                 std::cerr << "ACES_Resolver Error: Dimension mismatch for import " << resolve_name
                           << " (device). Expected " << nx << "x" << ny << "x" << nz << ", got "
                           << view.extent(0) << "x" << view.extent(1) << "x" << view.extent(2)
-                          << std::endl;
-                return Kokkos::View<const double***, Kokkos::LayoutLeft,
-                                    Kokkos::DefaultExecutionSpace>();
+                          << "\n";
+                return {};
             }
             return view;
         }
-        return Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>();
+        return {};
     }
 
     Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveExportDevice(
@@ -162,17 +173,18 @@ class AcesStateResolver : public FieldResolver {
         auto it = export_state.fields.find(name);
         if (it != export_state.fields.end()) {
             auto view = it->second.view_device();
-            if (view.extent(0) != (size_t)nx || view.extent(1) != (size_t)ny ||
-                view.extent(2) != (size_t)nz) {
+            if (view.extent(0) != static_cast<size_t>(nx) ||
+                view.extent(1) != static_cast<size_t>(ny) ||
+                view.extent(2) != static_cast<size_t>(nz)) {
                 std::cerr << "ACES_Resolver Error: Dimension mismatch for export " << name
                           << " (device). Expected " << nx << "x" << ny << "x" << nz << ", got "
                           << view.extent(0) << "x" << view.extent(1) << "x" << view.extent(2)
-                          << std::endl;
-                return Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>();
+                          << "\n";
+                return {};
             }
             return view;
         }
-        return Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>();
+        return {};
     }
 };
 

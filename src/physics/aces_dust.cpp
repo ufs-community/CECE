@@ -36,7 +36,7 @@ void DustScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* dia
     if (config["particle_diameter"]) diam = config["particle_diameter"].as<double>() * 1.0e2;
 
     u_ts0_ = calculate_u_ts0(den, diam, G, RHOA);
-    std::cout << "DustScheme: Initialized. U_TS0=" << u_ts0_ << std::endl;
+    std::cout << "DustScheme: Initialized. U_TS0=" << u_ts0_ << "\n";
 }
 
 void DustScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
@@ -45,7 +45,9 @@ void DustScheme::Run(AcesImportState& import_state, AcesExportState& export_stat
     auto srce_sand = ResolveImport("GINOUX_SAND", import_state);
     auto dust_emis = ResolveExport("total_dust_emissions", export_state);
 
-    if (!u10m.data() || !gwettop.data() || !srce_sand.data() || !dust_emis.data()) return;
+    if (u10m.data() == nullptr || gwettop.data() == nullptr || srce_sand.data() == nullptr ||
+        dust_emis.data() == nullptr)
+        return;
 
     int nx = dust_emis.extent(0);
     int ny = dust_emis.extent(1);

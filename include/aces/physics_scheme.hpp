@@ -102,7 +102,7 @@ class BasePhysicsScheme : public PhysicsScheme {
             import_cache_[resolved_name] = view;
             return view;
         }
-        return Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>();
+        return {};
     }
 
     /**
@@ -124,7 +124,7 @@ class BasePhysicsScheme : public PhysicsScheme {
             export_cache_[resolved_name] = view;
             return view;
         }
-        return Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>();
+        return {};
     }
 
     /**
@@ -160,7 +160,7 @@ class BasePhysicsScheme : public PhysicsScheme {
             return view;
         }
 
-        return Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>();
+        return {};
     }
 
     /**

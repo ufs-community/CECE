@@ -23,7 +23,7 @@ static DualView3D CreateDualViewFromESMF(ESMC_State state, const char* name, int
     ESMC_Field field;
     int rc = ESMC_StateGetField(state, name, &field);
     if (rc != ESMF_SUCCESS) {
-        return DualView3D();
+        return {};
     }
     UnmanagedHostView3D host_view = WrapESMCField(field, nx, ny, nz);
     Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> device_view(
@@ -73,26 +73,25 @@ void AcesDataIngestor::InitializeCDEPS(const AcesCdepsConfig& config) {
 
     // 1. Programmatically write CDEPS .streams file (ESMF Config format)
     std::ofstream stream_file("aces_emissions.streams");
-    stream_file << "file_id: \"stream\"" << std::endl;
-    stream_file << "file_version: 2.0" << std::endl;
-    stream_file << "stream_info:" << std::endl;
+    stream_file << "file_id: \"stream\"" << "\n";
+    stream_file << "file_version: 2.0" << "\n";
+    stream_file << "stream_info:" << "\n";
 
     for (size_t i = 0; i < config.streams.size(); ++i) {
         const auto& s = config.streams[i];
         std::string id = (i + 1 < 10) ? ("0" + std::to_string(i + 1)) : std::to_string(i + 1);
-        stream_file << "taxmode" << id << ": cycle" << std::endl;
-        stream_file << "tInterpAlgo" << id << ": " << s.interpolation_method << std::endl;
-        stream_file << "stream_data_files" << id << ": " << s.file_path << std::endl;
-        stream_file << "stream_data_variables" << id << ": " << s.name << " " << s.name
-                    << std::endl;
+        stream_file << "taxmode" << id << ": cycle" << "\n";
+        stream_file << "tInterpAlgo" << id << ": " << s.interpolation_method << "\n";
+        stream_file << "stream_data_files" << id << ": " << s.file_path << "\n";
+        stream_file << "stream_data_variables" << id << ": " << s.name << " " << s.name << "\n";
     }
     stream_file.close();
 
     // 2. Programmatically write CDEPS namelist file
     std::ofstream nml_file("cdeps_in.nml");
-    nml_file << "&cdeps_nml" << std::endl;
-    nml_file << "  stream_file = 'aces_emissions.streams'" << std::endl;
-    nml_file << "/" << std::endl;
+    nml_file << "&cdeps_nml" << "\n";
+    nml_file << "  stream_file = 'aces_emissions.streams'" << "\n";
+    nml_file << "/" << "\n";
     nml_file.close();
 
     // 3. Initialize CDEPS-inline
