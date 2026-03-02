@@ -77,6 +77,20 @@ class AcesStateResolver : public FieldResolver {
         auto it = import_state.fields.find(resolve_name);
         if (it != import_state.fields.end()) {
             auto view = it->second.view_host();
+            // Handle 1D fields (like ak/bk) in a 3D context
+            if (view.extent(0) == 1 && view.extent(1) == 1 && view.extent(2) == (size_t)nz) {
+                return view;
+            }
+            // Handle 2D fields in a 3D context
+            if (view.extent(2) == 1 && nz > 1) {
+                if (view.extent(0) != (size_t)nx || view.extent(1) != (size_t)ny) {
+                    std::cerr << "ACES_Resolver Error: 2D Dimension mismatch for import "
+                              << resolve_name << ". Expected " << nx << "x" << ny << ", got "
+                              << view.extent(0) << "x" << view.extent(1) << std::endl;
+                    return UnmanagedHostView3D();
+                }
+                return view;
+            }
             if (view.extent(0) != (size_t)nx || view.extent(1) != (size_t)ny ||
                 view.extent(2) != (size_t)nz) {
                 std::cerr << "ACES_Resolver Error: Dimension mismatch for import " << resolve_name
@@ -114,6 +128,21 @@ class AcesStateResolver : public FieldResolver {
         auto it = import_state.fields.find(resolve_name);
         if (it != import_state.fields.end()) {
             auto view = it->second.view_device();
+            // Handle 1D fields (like ak/bk) in a 3D context
+            if (view.extent(0) == 1 && view.extent(1) == 1 && view.extent(2) == (size_t)nz) {
+                return view;
+            }
+            // Handle 2D fields in a 3D context
+            if (view.extent(2) == 1 && nz > 1) {
+                if (view.extent(0) != (size_t)nx || view.extent(1) != (size_t)ny) {
+                    std::cerr << "ACES_Resolver Error: 2D Dimension mismatch for import "
+                              << resolve_name << " (device). Expected " << nx << "x" << ny
+                              << ", got " << view.extent(0) << "x" << view.extent(1) << std::endl;
+                    return Kokkos::View<const double***, Kokkos::LayoutLeft,
+                                        Kokkos::DefaultExecutionSpace>();
+                }
+                return view;
+            }
             if (view.extent(0) != (size_t)nx || view.extent(1) != (size_t)ny ||
                 view.extent(2) != (size_t)nz) {
                 std::cerr << "ACES_Resolver Error: Dimension mismatch for import " << resolve_name

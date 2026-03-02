@@ -172,11 +172,15 @@ TEST_F(HemcoMimicTest, VerticalDistributionMimic) {
     lay1.field_name = "emit_l1";
     lay1.operation = "add";
     lay1.hierarchy = 1;
+    lay1.vdist_method = VerticalDistributionMethod::SINGLE;
+    lay1.vdist_layer_start = 0;
 
     EmissionLayer lay2;
     lay2.field_name = "emit_l2";
     lay2.operation = "add";
     lay2.hierarchy = 1;
+    lay2.vdist_method = VerticalDistributionMethod::SINGLE;
+    lay2.vdist_layer_start = 1;
 
     config.species_layers["nox"] = {lay1, lay2};
 

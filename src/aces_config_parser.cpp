@@ -63,6 +63,29 @@ AcesConfig ParseConfig(const std::string& filename) {
                 if (layer_node["weekly_cycle"]) {
                     layer.weekly_cycle = layer_node["weekly_cycle"].as<std::string>();
                 }
+                if (layer_node["vdist"]) {
+                    auto vdist = layer_node["vdist"];
+                    if (vdist["method"]) {
+                        std::string method_str = vdist["method"].as<std::string>();
+                        if (method_str == "range")
+                            layer.vdist_method = VerticalDistributionMethod::RANGE;
+                        else if (method_str == "pressure")
+                            layer.vdist_method = VerticalDistributionMethod::PRESSURE;
+                        else if (method_str == "height")
+                            layer.vdist_method = VerticalDistributionMethod::HEIGHT;
+                        else if (method_str == "pbl")
+                            layer.vdist_method = VerticalDistributionMethod::PBL;
+                        else
+                            layer.vdist_method = VerticalDistributionMethod::SINGLE;
+                    }
+                    if (vdist["layer_start"])
+                        layer.vdist_layer_start = vdist["layer_start"].as<int>();
+                    if (vdist["layer_end"]) layer.vdist_layer_end = vdist["layer_end"].as<int>();
+                    if (vdist["p_start"]) layer.vdist_p_start = vdist["p_start"].as<double>();
+                    if (vdist["p_end"]) layer.vdist_p_end = vdist["p_end"].as<double>();
+                    if (vdist["h_start"]) layer.vdist_h_start = vdist["h_start"].as<double>();
+                    if (vdist["h_end"]) layer.vdist_h_end = vdist["h_end"].as<double>();
+                }
                 layers.push_back(layer);
             }
             config.species_layers[species_name] = layers;
@@ -166,6 +189,29 @@ AcesConfig ParseConfig(const std::string& filename) {
                 }
             }
         }
+    }
+
+    // Parse vertical grid configuration
+    if (root["vertical_grid"]) {
+        auto v_node = root["vertical_grid"];
+        if (v_node["type"]) {
+            std::string type_str = v_node["type"].as<std::string>();
+            if (type_str == "fv3")
+                config.vertical_config.type = VerticalCoordType::FV3;
+            else if (type_str == "mpas")
+                config.vertical_config.type = VerticalCoordType::MPAS;
+            else if (type_str == "wrf")
+                config.vertical_config.type = VerticalCoordType::WRF;
+        }
+        if (v_node["ak_field"])
+            config.vertical_config.ak_field = v_node["ak_field"].as<std::string>();
+        if (v_node["bk_field"])
+            config.vertical_config.bk_field = v_node["bk_field"].as<std::string>();
+        if (v_node["p_surf_field"])
+            config.vertical_config.p_surf_field = v_node["p_surf_field"].as<std::string>();
+        if (v_node["z_field"]) config.vertical_config.z_field = v_node["z_field"].as<std::string>();
+        if (v_node["pbl_field"])
+            config.vertical_config.pbl_field = v_node["pbl_field"].as<std::string>();
     }
 
     // Parse CDEPS configuration

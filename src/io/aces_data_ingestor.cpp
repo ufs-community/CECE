@@ -35,8 +35,29 @@ void AcesDataIngestor::IngestMeteorology(ESMC_State importState,
                                          const std::vector<std::string>& field_names,
                                          AcesImportState& aces_state, int nx, int ny, int nz) {
     for (const auto& name : field_names) {
+        // Try to get field info to handle 2D or special 3D (like ak/bk)
+        ESMC_Field field;
+        int local_nx = nx, local_ny = ny, local_nz = nz;
+        if (ESMC_StateGetField(importState, name.c_str(), &field) == ESMF_SUCCESS) {
+            int lbound[3] = {1, 1, 1}, ubound[3] = {1, 1, 1}, localDe = 0;
+            // Robustly discover rank and dimensions by trying different dimCounts
+            if (ESMC_FieldGetBounds(field, &localDe, lbound, ubound, 3) == ESMF_SUCCESS) {
+                local_nx = ubound[0] - lbound[0] + 1;
+                local_ny = ubound[1] - lbound[1] + 1;
+                local_nz = ubound[2] - lbound[2] + 1;
+            } else if (ESMC_FieldGetBounds(field, &localDe, lbound, ubound, 2) == ESMF_SUCCESS) {
+                local_nx = ubound[0] - lbound[0] + 1;
+                local_ny = ubound[1] - lbound[1] + 1;
+                local_nz = 1;
+            } else if (ESMC_FieldGetBounds(field, &localDe, lbound, ubound, 1) == ESMF_SUCCESS) {
+                local_nx = ubound[0] - lbound[0] + 1;
+                local_ny = 1;
+                local_nz = 1;
+            }
+        }
+
         aces_state.fields.try_emplace(
-            name, CreateDualViewFromESMF(importState, name.c_str(), nx, ny, nz));
+            name, CreateDualViewFromESMF(importState, name.c_str(), local_nx, local_ny, local_nz));
 
         // Sync host to device to ensure Kokkos kernels see updated ESMF data
         auto& dv = aces_state.fields[name];

@@ -246,11 +246,19 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
         }
 
         if (field.ptr) {
-            int lbound[3] = {0, 0, 0}, ubound[3] = {0, 0, 0}, localDe = 0;
+            int lbound[3] = {1, 1, 1}, ubound[3] = {1, 1, 1}, localDe = 0;
             if (ESMC_FieldGetBounds(field, &localDe, lbound, ubound, 3) == ESMF_SUCCESS) {
                 data->nx = ubound[0] - lbound[0] + 1;
                 data->ny = ubound[1] - lbound[1] + 1;
                 data->nz = ubound[2] - lbound[2] + 1;
+            } else if (ESMC_FieldGetBounds(field, &localDe, lbound, ubound, 2) == ESMF_SUCCESS) {
+                data->nx = ubound[0] - lbound[0] + 1;
+                data->ny = ubound[1] - lbound[1] + 1;
+                data->nz = 1;
+            } else if (ESMC_FieldGetBounds(field, &localDe, lbound, ubound, 1) == ESMF_SUCCESS) {
+                data->nx = ubound[0] - lbound[0] + 1;
+                data->ny = 1;
+                data->nz = 1;
             }
         }
 
@@ -302,6 +310,19 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
             return name;
         };
 
+        // Include vertical coordinate fields if configured
+        if (data->config.vertical_config.type != VerticalCoordType::NONE) {
+            esmf_fields_set.insert(data->config.vertical_config.p_surf_field);
+            if (data->config.vertical_config.type == VerticalCoordType::FV3) {
+                esmf_fields_set.insert(data->config.vertical_config.ak_field);
+                esmf_fields_set.insert(data->config.vertical_config.bk_field);
+            } else if (data->config.vertical_config.type == VerticalCoordType::MPAS ||
+                       data->config.vertical_config.type == VerticalCoordType::WRF) {
+                esmf_fields_set.insert(data->config.vertical_config.z_field);
+            }
+            esmf_fields_set.insert(data->config.vertical_config.pbl_field);
+        }
+
         for (auto const& [species, layers] : data->config.species_layers) {
             for (const auto& layer : layers) {
                 if (cdeps_fields.find(resolve_name(layer.field_name)) == cdeps_fields.end()) {
@@ -330,6 +351,9 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
 
     data->ingestor.IngestMeteorology(importState, data->external_esmf_fields, data->import_state,
                                      nx, ny, nz);
+
+    // Some fields might be 2D or have different Z dimensions (like ak/bk)
+    // The ingestor currently assumes nx, ny, nz for all. We might need to adjust.
 
     // 2. Emissions from CDEPS
     if (!data->config.cdeps_config.streams.empty()) {
