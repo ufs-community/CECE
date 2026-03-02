@@ -31,24 +31,24 @@ class AcesDataIngestor {
                            AcesImportState& aces_state, int nx, int ny, int nz);
 
     /**
-     * @brief Initializes the CDEPS-inline library.
+     * @brief Initializes the DEMS-inline library.
      * Writes required .streams and namelist files.
-     * @param config CDEPS configuration.
+     * @param config DEMS configuration.
      */
-    void InitializeCDEPS(const AcesCdepsConfig& config);
+    void InitializeDEMS(const AcesDemsConfig& config);
 
     /**
-     * @brief Finalizes the CDEPS-inline library.
+     * @brief Finalizes the DEMS-inline library.
      */
-    void FinalizeCDEPS();
+    void FinalizeDEMS();
 
     /**
-     * @brief Ingests emissions using CDEPS-inline.
-     * @param config CDEPS configuration.
+     * @brief Ingests emissions using DEMS-inline.
+     * @param config DEMS configuration.
      * @param aces_state ACES state to be populated.
      * @param nx, ny, nz Grid dimensions.
      */
-    void IngestEmissionsInline(const AcesCdepsConfig& config, AcesImportState& aces_state, int nx,
+    void IngestEmissionsInline(const AcesDemsConfig& config, AcesImportState& aces_state, int nx,
                                int ny, int nz);
 };
 

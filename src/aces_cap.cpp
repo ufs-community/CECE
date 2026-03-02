@@ -181,8 +181,8 @@ void Initialize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportSta
             }
         }
 
-        // Initialize CDEPS if configured
-        data->ingestor.InitializeCDEPS(data->config.cdeps_config);
+        // Initialize DEMS/DEMIS if configured
+        data->ingestor.InitializeDEMS(data->config.dems_config);
 
         // Advertise if not already done (fallback for standalone drivers)
         if (!data->advertised) {
@@ -289,8 +289,8 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
     // Hybrid data ingestion (Metadata cached after first run)
     if (data->esmf_fields.empty()) {
         std::set<std::string> esmf_fields_set;
-        std::set<std::string> cdeps_fields;
-        for (const auto& s : data->config.cdeps_config.streams) cdeps_fields.insert(s.name);
+        std::set<std::string> dems_fields;
+        for (const auto& s : data->config.dems_config.streams) dems_fields.insert(s.name);
 
         auto resolve_name = [&](const std::string& name) {
             auto it = data->config.met_mapping.find(name);
@@ -304,16 +304,16 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
 
         for (auto const& [species, layers] : data->config.species_layers) {
             for (const auto& layer : layers) {
-                if (cdeps_fields.find(resolve_name(layer.field_name)) == cdeps_fields.end()) {
+                if (dems_fields.find(resolve_name(layer.field_name)) == dems_fields.end()) {
                     esmf_fields_set.insert(layer.field_name);
                 }
                 for (const auto& sf : layer.scale_fields) {
-                    if (cdeps_fields.find(resolve_name(sf)) == cdeps_fields.end()) {
+                    if (dems_fields.find(resolve_name(sf)) == dems_fields.end()) {
                         esmf_fields_set.insert(sf);
                     }
                 }
                 for (const auto& m : layer.masks) {
-                    if (cdeps_fields.find(resolve_name(m)) == cdeps_fields.end()) {
+                    if (dems_fields.find(resolve_name(m)) == dems_fields.end()) {
                         esmf_fields_set.insert(m);
                     }
                 }
@@ -331,9 +331,9 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
     data->ingestor.IngestMeteorology(importState, data->external_esmf_fields, data->import_state,
                                      nx, ny, nz);
 
-    // 2. Emissions from CDEPS
-    if (!data->config.cdeps_config.streams.empty()) {
-        data->ingestor.IngestEmissionsInline(data->config.cdeps_config, data->import_state, nx, ny,
+    // 2. Emissions from DEMS/DEMIS
+    if (!data->config.dems_config.streams.empty()) {
+        data->ingestor.IngestEmissionsInline(data->config.dems_config, data->import_state, nx, ny,
                                              nz);
     }
     Kokkos::Profiling::popRegion();
@@ -408,8 +408,8 @@ void Finalize(ESMC_GridComp comp, ESMC_State /*importState*/, ESMC_State /*expor
             auto* data = static_cast<AcesInternalData*>(data_ptr);
             kokkos_initialized_here = data->kokkos_initialized_here;
 
-            // Finalize CDEPS
-            data->ingestor.FinalizeCDEPS();
+            // Finalize DEMS/DEMIS
+            data->ingestor.FinalizeDEMS();
 
             // Clear active schemes and states to ensure Views are destroyed
             for (auto& scheme : data->active_schemes) {

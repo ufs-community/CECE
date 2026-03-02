@@ -49,21 +49,33 @@ struct TemporalCycle {
 };
 
 /**
- * @struct CdepsStreamConfig
- * @brief Configuration for a single CDEPS input stream.
+ * @struct DemsStreamConfig
+ * @brief Configuration for a single DEMS/DEMIS input stream.
+ * Provides full control over CDEPS/DEMS stream attributes.
  */
-struct CdepsStreamConfig {
-    std::string name;                  ///< Name of the stream.
-    std::string file_path;             ///< Path to the NetCDF file.
-    std::string interpolation_method;  ///< Interpolation method (e.g., "linear").
+struct DemsStreamConfig {
+    std::string name;        ///< Name of the stream.
+    std::string file_path;   ///< Path to the NetCDF file(s) (space separated).
+    std::string taxmode = "cycle";      ///< "cycle", "extend", or "limit".
+    std::string tintalgo = "linear";    ///< "linear", "nearest", "lower", "upper", "coszen".
+    std::string readmode = "single";    ///< "single" or "full_file".
+    std::string mapalgo = "bilinear";   ///< "bilinear", "nn", "consd", "consf", "redist", "map_point".
+    double dtlimit = 1.5;               ///< Delta time ratio limit.
+    int yearFirst = 0;                  ///< First year of stream data to use.
+    int yearLast = 0;                   ///< Last year of stream data to use.
+    int yearAlign = 0;                  ///< Simulation year to align with yearFirst.
+    std::string vectors = "";           ///< Paired vector field names (e.g., "u:v").
+    std::string meshfile = "";          ///< Path to stream mesh file.
+    std::string lev_dimname = "";       ///< Name of vertical dimension.
+    int offset = 0;                     ///< Time offset in seconds.
 };
 
 /**
- * @struct AcesCdepsConfig
- * @brief Configuration for CDEPS-inline data ingestion.
+ * @struct AcesDemsConfig
+ * @brief Configuration for DEMS/DEMIS data ingestion.
  */
-struct AcesCdepsConfig {
-    std::vector<CdepsStreamConfig> streams;  ///< List of input streams.
+struct AcesDemsConfig {
+    std::vector<DemsStreamConfig> streams;  ///< List of input streams.
 };
 
 /**
@@ -101,8 +113,8 @@ struct AcesConfig {
     std::vector<PhysicsSchemeConfig> physics_schemes;
     /// Configuration for diagnostic output.
     DiagnosticConfig diagnostics;
-    /// Configuration for CDEPS-inline data ingestion.
-    AcesCdepsConfig cdeps_config;
+    /// Configuration for DEMS/DEMIS data ingestion.
+    AcesDemsConfig dems_config;
 };
 
 /**
