@@ -1,6 +1,5 @@
 module aces_cdeps_bridge_mod
     use iso_c_binding
-    use ESMF
     implicit none
 
     private
@@ -10,7 +9,13 @@ module aces_cdeps_bridge_mod
     public :: aces_cdeps_read
     public :: aces_cdeps_finalize
 
-    ! These are the actual CDEPS inline symbols.
+    ! Use real CDEPS modules. These must be provided by the build system.
+    ! Since we are in the JCSDA environment, we expect them to be available
+    ! either from system-installed CDEPS or built as a dependency.
+    ! If they are not found during compilation, it means the build environment
+    ! is not set up correctly as per the "no mocks" requirement.
+
+    ! Note: We use an interface to the existing CDEPS inline API symbols.
     interface
         subroutine cdeps_inline_init(config_file) bind(c, name="cdeps_inline_init")
             import :: c_char

@@ -12,17 +12,7 @@
  * @brief Unit tests for the hybrid data ingestor.
  */
 
-extern "C" {
-void aces_cdeps_read(double* buffer, const char* name) {
-    // Fill with a non-uniform, non-zero pattern
-    for (int i = 0; i < 100; ++i) {
-        buffer[i] = static_cast<double>(i + 1);
-    }
-}
-void aces_cdeps_advance(int ymd, int tod) {}
-void aces_cdeps_init(const char* c) {}
-void aces_cdeps_finalize() {}
-}
+// No mocks here either.
 
 namespace aces {
 namespace test {

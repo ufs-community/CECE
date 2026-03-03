@@ -9,19 +9,7 @@
 #include "aces/aces_config.hpp"
 #include "aces/aces_data_ingestor.hpp"
 
-// Mock the bridge symbols for the unit test since CDEPS might not be linked.
-// This allows us to verify that ACES correctly passes data through the bridge.
-extern "C" {
-void aces_cdeps_read(double* buffer, const char* name) {
-    // Fill with a non-uniform, non-zero pattern
-    for (int i = 0; i < 100; ++i) {
-        buffer[i] = static_cast<double>(i + 1);
-    }
-}
-void aces_cdeps_advance(int ymd, int tod) {}
-void aces_cdeps_init(const char* c) {}
-void aces_cdeps_finalize() {}
-}
+// No mocks. Testing the real bridge and CDEPS layer.
 
 namespace aces {
 namespace test {

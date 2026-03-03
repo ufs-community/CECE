@@ -8,20 +8,13 @@
 
 #include "aces/aces_utils.hpp"
 
-// Forward declarations for CDEPS-inline C API.
-// We use weak attributes for flexibility in standalone development.
-// Note: We use these namespaced symbols to avoid direct conflicts with the
-// underlying library while allowing it to be linked optionally.
+// Forward declarations for CDEPS-inline C API (bridged via Fortran).
+// In a production build, these symbols are provided by src/io/aces_cdeps_bridge.F90
 extern "C" {
-void aces_cdeps_init(const char* config_file) __attribute__((weak));
-void aces_cdeps_read(double* buffer, const char* stream_name) __attribute__((weak));
-void aces_cdeps_advance(int ymd, int tod) __attribute__((weak));
-void aces_cdeps_finalize() __attribute__((weak));
-
-void cdeps_inline_init(const char* config_file) __attribute__((weak));
-void cdeps_inline_read(double* buffer, const char* stream_name) __attribute__((weak));
-void cdeps_inline_advance(int ymd, int tod) __attribute__((weak));
-void cdeps_inline_finalize() __attribute__((weak));
+void aces_cdeps_init(const char* config_file);
+void aces_cdeps_read(double* buffer, const char* stream_name);
+void aces_cdeps_advance(int ymd, int tod);
+void aces_cdeps_finalize();
 }
 
 namespace aces {
@@ -121,20 +114,12 @@ void AcesDataIngestor::InitializeCDEPS(const AcesCdepsConfig& config) {
     nml_file << "/" << "\n";
     nml_file.close();
 
-    // 3. Initialize CDEPS-inline
-    if (aces_cdeps_init != nullptr) {
-        aces_cdeps_init("cdeps_in.nml");
-    } else if (cdeps_inline_init != nullptr) {
-        cdeps_inline_init("cdeps_in.nml");
-    }
+    // 3. Initialize CDEPS-inline via Fortran bridge
+    aces_cdeps_init("cdeps_in.nml");
 }
 
 void AcesDataIngestor::FinalizeCDEPS() {
-    if (aces_cdeps_finalize != nullptr) {
-        aces_cdeps_finalize();
-    } else if (cdeps_inline_finalize != nullptr) {
-        cdeps_inline_finalize();
-    }
+    aces_cdeps_finalize();
 }
 
 void AcesDataIngestor::IngestEmissionsInline(const AcesCdepsConfig& config,
@@ -142,12 +127,8 @@ void AcesDataIngestor::IngestEmissionsInline(const AcesCdepsConfig& config,
                                              int ny, int nz) {
     if (config.streams.empty()) return;
 
-    // Advance CDEPS to current model time
-    if (aces_cdeps_advance != nullptr) {
-        aces_cdeps_advance(ymd, tod);
-    } else if (cdeps_inline_advance != nullptr) {
-        cdeps_inline_advance(ymd, tod);
-    }
+    // Advance CDEPS to current model time via Fortran bridge
+    aces_cdeps_advance(ymd, tod);
 
     // Trigger read and map pointers for all configured streams and variables.
     for (const auto& s : config.streams) {
@@ -171,11 +152,8 @@ void AcesDataIngestor::IngestEmissionsInline(const AcesCdepsConfig& config,
 
             auto& dv = aces_state.fields[internal_name];
             auto host_v = dv.view_host();
-            if (aces_cdeps_read != nullptr) {
-                aces_cdeps_read(host_v.data(), internal_name.c_str());
-            } else if (cdeps_inline_read != nullptr) {
-                cdeps_inline_read(host_v.data(), internal_name.c_str());
-            }
+            // Read data via Fortran bridge
+            aces_cdeps_read(host_v.data(), internal_name.c_str());
 
             // Data validation: ensure the ingested data is not all zero, is non-uniform, and has no
             // NaNs. This verification only happens on rank 0 in a real simulation, but here we
