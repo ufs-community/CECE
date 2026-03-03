@@ -8,17 +8,12 @@
 
 #include "aces/aces_utils.hpp"
 
-// Forward declarations for DEMS-inline C API.
+// Forward declarations for CDEPS-inline C API.
 // We use weak attributes for flexibility in standalone development.
 extern "C" {
-void dems_inline_init(const char* config_file) __attribute__((weak));
-void dems_inline_read(double* buffer, const char* stream_name) __attribute__((weak));
-void dems_inline_advance(int ymd, int tod) __attribute__((weak));
-void dems_inline_finalize() __attribute__((weak));
-
-// Backward compatibility for legacy CDEPS names
 void cdeps_inline_init(const char* config_file) __attribute__((weak));
 void cdeps_inline_read(double* buffer, const char* stream_name) __attribute__((weak));
+void cdeps_inline_advance(int ymd, int tod) __attribute__((weak));
 void cdeps_inline_finalize() __attribute__((weak));
 }
 
@@ -86,7 +81,18 @@ void AcesDataIngestor::InitializeCDEPS(const AcesCdepsConfig& config) {
     for (size_t i = 0; i < config.streams.size(); ++i) {
         const auto& s = config.streams[i];
         std::string id = (i + 1 < 10) ? ("0" + std::to_string(i + 1)) : std::to_string(i + 1);
-        stream_file << "taxmode" << id << ": cycle" << "\n";
+        stream_file << "taxmode" << id << ": " << s.taxmode << "\n";
+        stream_file << "readMode" << id << ": " << s.readMode << "\n";
+        stream_file << "mapalgo" << id << ": " << s.mapalgo << "\n";
+        stream_file << "dtlimit" << id << ": " << s.dtlimit << "\n";
+        stream_file << "yearFirst" << id << ": " << s.yearFirst << "\n";
+        stream_file << "yearLast" << id << ": " << s.yearLast << "\n";
+        stream_file << "yearAlign" << id << ": " << s.yearAlign << "\n";
+        if (!s.meshfile.empty()) {
+            stream_file << "meshfile" << id << ": " << s.meshfile << "\n";
+        }
+        stream_file << "lev_dimname" << id << ": " << s.lev_dimname << "\n";
+        stream_file << "offset" << id << ": " << s.offset << "\n";
         stream_file << "tInterpAlgo" << id << ": " << s.interpolation_method << "\n";
         stream_file << "stream_data_files" << id << ": " << s.file_path << "\n";
         stream_file << "stream_data_variables" << id << ":";
@@ -108,18 +114,14 @@ void AcesDataIngestor::InitializeCDEPS(const AcesCdepsConfig& config) {
     nml_file << "/" << "\n";
     nml_file.close();
 
-    // 3. Initialize DEMS-inline
-    if (dems_inline_init) {
-        dems_inline_init("cdeps_in.nml");
-    } else if (cdeps_inline_init) {
+    // 3. Initialize CDEPS-inline
+    if (cdeps_inline_init) {
         cdeps_inline_init("cdeps_in.nml");
     }
 }
 
 void AcesDataIngestor::FinalizeCDEPS() {
-    if (dems_inline_finalize) {
-        dems_inline_finalize();
-    } else if (cdeps_inline_finalize) {
+    if (cdeps_inline_finalize) {
         cdeps_inline_finalize();
     }
 }
@@ -129,9 +131,9 @@ void AcesDataIngestor::IngestEmissionsInline(const AcesCdepsConfig& config,
                                              int ny, int nz) {
     if (config.streams.empty()) return;
 
-    // Advance DEMS to current model time
-    if (dems_inline_advance) {
-        dems_inline_advance(ymd, tod);
+    // Advance CDEPS to current model time
+    if (cdeps_inline_advance) {
+        cdeps_inline_advance(ymd, tod);
     }
 
     // Trigger read and map pointers for all configured streams and variables.
@@ -156,9 +158,7 @@ void AcesDataIngestor::IngestEmissionsInline(const AcesCdepsConfig& config,
 
             auto& dv = aces_state.fields[internal_name];
             auto host_v = dv.view_host();
-            if (dems_inline_read) {
-                dems_inline_read(host_v.data(), internal_name.c_str());
-            } else if (cdeps_inline_read) {
+            if (cdeps_inline_read) {
                 cdeps_inline_read(host_v.data(), internal_name.c_str());
             }
 

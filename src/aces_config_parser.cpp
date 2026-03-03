@@ -253,6 +253,36 @@ AcesConfig ParseConfig(const std::string& filename) {
                 if (stream_node["interpolation"]) {
                     stream.interpolation_method = stream_node["interpolation"].as<std::string>();
                 }
+                if (stream_node["taxmode"]) {
+                    stream.taxmode = stream_node["taxmode"].as<std::string>();
+                }
+                if (stream_node["readMode"]) {
+                    stream.readMode = stream_node["readMode"].as<std::string>();
+                }
+                if (stream_node["mapalgo"]) {
+                    stream.mapalgo = stream_node["mapalgo"].as<std::string>();
+                }
+                if (stream_node["dtlimit"]) {
+                    stream.dtlimit = stream_node["dtlimit"].as<double>();
+                }
+                if (stream_node["yearFirst"]) {
+                    stream.yearFirst = stream_node["yearFirst"].as<int>();
+                }
+                if (stream_node["yearLast"]) {
+                    stream.yearLast = stream_node["yearLast"].as<int>();
+                }
+                if (stream_node["yearAlign"]) {
+                    stream.yearAlign = stream_node["yearAlign"].as<int>();
+                }
+                if (stream_node["meshfile"]) {
+                    stream.meshfile = stream_node["meshfile"].as<std::string>();
+                }
+                if (stream_node["lev_dimname"]) {
+                    stream.lev_dimname = stream_node["lev_dimname"].as<std::string>();
+                }
+                if (stream_node["offset"]) {
+                    stream.offset = stream_node["offset"].as<double>();
+                }
                 config.cdeps_config.streams.push_back(stream);
             }
         }

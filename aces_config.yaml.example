@@ -129,3 +129,10 @@ cdeps_inline_config:
       file: "data/inventories/nox_2024.nc"
       variables: ["NOx", "SO2"]
       interpolation: "linear"
+      taxmode: "cycle"
+      readMode: "single"
+      mapalgo: "bilinear"
+      dtlimit: 1.5
+      yearFirst: 2024
+      yearLast: 2024
+      yearAlign: 2024

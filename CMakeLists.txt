@@ -347,6 +347,17 @@ target_link_libraries(example_driver
   aces
 )
 
+add_executable(test_cdeps_read
+  tests/test_cdeps_read.cpp
+)
+
+target_link_libraries(test_cdeps_read
+  PRIVATE
+  aces
+  GTest::gtest
+  netcdf
+)
+
 add_executable(hemco_mimic_driver
   tests/hemco_mimic_driver.cpp
 )
@@ -380,3 +391,4 @@ gtest_discover_tests(test_physics)
 gtest_discover_tests(test_aces_ingestor)
 gtest_discover_tests(test_diagnostics)
 gtest_discover_tests(test_hemco_mimic)
+gtest_discover_tests(test_cdeps_read)

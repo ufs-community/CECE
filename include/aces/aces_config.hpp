@@ -100,10 +100,20 @@ struct TemporalCycle {
  * @brief Configuration for a single CDEPS input stream.
  */
 struct CdepsStreamConfig {
-    std::string name;                    ///< Name of the stream.
-    std::string file_path;               ///< Path to the NetCDF file.
-    std::vector<std::string> variables;  ///< Variables to read from the stream.
-    std::string interpolation_method;    ///< Interpolation method (e.g., "linear").
+    std::string name;                             ///< Name of the stream.
+    std::string file_path;                        ///< Path to the NetCDF file.
+    std::vector<std::string> variables;           ///< Variables to read from the stream.
+    std::string interpolation_method = "linear";  ///< Interpolation method (e.g., "linear").
+    std::string taxmode = "cycle";                ///< Time axis mode (e.g., "cycle", "extend").
+    std::string readMode = "single";              ///< Read mode (e.g., "single", "parallel").
+    std::string mapalgo = "bilinear";             ///< Mapping algorithm.
+    double dtlimit = 1.5;                         ///< Time difference limit.
+    int yearFirst = 1;                            ///< First year of data.
+    int yearLast = 1;                             ///< Last year of data.
+    int yearAlign = 1;                            ///< Year to align data with.
+    std::string meshfile;                         ///< Path to mesh file.
+    std::string lev_dimname = "lev";              ///< Name of the level dimension.
+    double offset = 0.0;                          ///< Time offset.
 };
 
 /**

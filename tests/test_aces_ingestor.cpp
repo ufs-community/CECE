@@ -13,13 +13,13 @@
  */
 
 extern "C" {
-void dems_inline_read(double* buffer, const char* name) {
+void cdeps_inline_read(double* buffer, const char* name) {
     // Fill with a non-uniform, non-zero pattern
     for (int i = 0; i < 100; ++i) {
         buffer[i] = static_cast<double>(i + 1);
     }
 }
-void dems_inline_advance(int ymd, int tod) {}
+void cdeps_inline_advance(int ymd, int tod) {}
 }
 
 namespace aces {
@@ -102,7 +102,7 @@ TEST_F(IngestorTest, IngestEmissionsVerifiesData) {
     dv.sync<Kokkos::HostSpace>();
     auto host_v = dv.view_host();
 
-    // Verify pattern from our mock dems_inline_read
+    // Verify pattern from our mock cdeps_inline_read
     EXPECT_DOUBLE_EQ(host_v(0, 0, 0), 1.0);
     EXPECT_DOUBLE_EQ(host_v(1, 0, 0), 2.0);
     EXPECT_FALSE(host_v(0, 0, 0) == host_v(1, 0, 0));  // Non-uniform
