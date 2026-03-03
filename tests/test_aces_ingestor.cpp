@@ -35,37 +35,44 @@ TEST_F(IngestorTest, ConfigFileGeneration) {
     AcesCdepsConfig config;
     CdepsStreamConfig s1;
     s1.name = "stream1";
-    s1.file_path = "path1.nc";
-    s1.interpolation_method = "linear";
+    s1.file_paths.push_back("path1.nc");
+    s1.tintalgo = "linear";
+    CdepsVariableConfig v1;
+    v1.name_in_file = "VAR_FILE";
+    v1.name_in_model = "VAR_MODEL";
+    s1.variables.push_back(v1);
     config.streams.push_back(s1);
 
     // This will trigger file generation even if the CDEPS library symbols are
     // missing because we used weak attributes and added null checks.
-    ingestor.InitializeCDEPS(config);
+    ESMC_GridComp gcomp;
+    gcomp.ptr = nullptr;
+    ESMC_Clock clock;
+    clock.ptr = nullptr;
+    ESMC_Mesh mesh;
+    mesh.ptr = nullptr;
+    ingestor.InitializeCDEPS(gcomp, clock, mesh, config);
 
     // Verify .streams file
     std::ifstream stream_file("aces_emissions.streams");
     ASSERT_TRUE(stream_file.good());
     std::string line;
-    bool found_stream = false;
+    bool found_file = false;
+    bool found_var = false;
     while (std::getline(stream_file, line)) {
-        if (line.find("stream_data_files01: path1.nc") != std::string::npos) {
-            found_stream = true;
+        if (line.find("- path1.nc") != std::string::npos) {
+            found_file = true;
+        }
+        if (line.find("- VAR_FILE VAR_MODEL") != std::string::npos) {
+            found_var = true;
         }
     }
-    EXPECT_TRUE(found_stream);
+    EXPECT_TRUE(found_file);
+    EXPECT_TRUE(found_var);
     stream_file.close();
-
-    // Verify namelist file
-    std::ifstream nml_file("cdeps_in.nml");
-    ASSERT_TRUE(nml_file.good());
-    std::getline(nml_file, line);
-    EXPECT_EQ(line, "&cdeps_nml");
-    nml_file.close();
 
     // Clean up
     std::remove("aces_emissions.streams");
-    std::remove("cdeps_in.nml");
 }
 
 }  // namespace test

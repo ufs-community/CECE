@@ -33,9 +33,19 @@ class AcesDataIngestor {
     /**
      * @brief Initializes the CDEPS-inline library.
      * Writes required .streams and namelist files.
+     * @param gcomp ESMF GridComp.
+     * @param clock ESMF Clock.
+     * @param mesh ESMF Mesh.
      * @param config CDEPS configuration.
      */
-    void InitializeCDEPS(const AcesCdepsConfig& config);
+    void InitializeCDEPS(ESMC_GridComp gcomp, ESMC_Clock clock, ESMC_Mesh mesh,
+                         const AcesCdepsConfig& config);
+
+    /**
+     * @brief Advances the CDEPS-inline library to the current time.
+     * @param clock ESMF Clock.
+     */
+    void AdvanceCDEPS(ESMC_Clock clock);
 
     /**
      * @brief Finalizes the CDEPS-inline library.

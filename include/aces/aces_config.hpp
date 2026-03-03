@@ -96,13 +96,32 @@ struct TemporalCycle {
 };
 
 /**
+ * @struct CdepsVariableConfig
+ * @brief Configuration for a single variable within a CDEPS stream.
+ */
+struct CdepsVariableConfig {
+    std::string name_in_file;   ///< Variable name in the NetCDF file.
+    std::string name_in_model;  ///< Internal name used by ACES.
+};
+
+/**
  * @struct CdepsStreamConfig
  * @brief Configuration for a single CDEPS input stream.
  */
 struct CdepsStreamConfig {
-    std::string name;                  ///< Name of the stream.
-    std::string file_path;             ///< Path to the NetCDF file.
-    std::string interpolation_method;  ///< Interpolation method (e.g., "linear").
+    std::string name;                             ///< Name of the stream.
+    std::vector<std::string> file_paths;          ///< Paths to the NetCDF files.
+    std::vector<CdepsVariableConfig> variables;   ///< Variables to read from this stream.
+    std::string taxmode = "cycle";                ///< Time axis mode (cycle, extend, etc.).
+    std::string tintalgo = "linear";              ///< Time interpolation algorithm.
+    std::string mapalgo = "bilinear";             ///< Spatial mapping algorithm.
+    int dtlimit = 1500000000;                     ///< Delta time limit in seconds.
+    int yearFirst = 1;                            ///< First year in data.
+    int yearLast = 1;                             ///< Last year in data.
+    int yearAlign = 1;                            ///< Year to align with model time.
+    int offset = 0;                               ///< Time offset in seconds.
+    std::string meshfile;                         ///< Path to source mesh file.
+    std::string lev_dimname = "lev";              ///< Name of vertical dimension.
 };
 
 /**

@@ -140,8 +140,9 @@ if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
 
     FetchContent_Declare(
       cdeps
-      GIT_REPOSITORY https://github.com/ESCOMP/CDEPS.git
-      GIT_TAG        main
+      GIT_REPOSITORY https://github.com/bbakernoaa/CDEPS.git
+      GIT_TAG        ae5d2c457321ebae3a0d9c9c949f871bb8f2b09c
+      PATCH_COMMAND  sed -i "s/add_subdirectory(fox)/#add_subdirectory(fox)/" CMakeLists.txt
     )
     # Force CDEPS to find the ESMF we already discovered
     # In JCSDA container, ESMF_ROOT might not be set, but ESMF_LIBRARIES contains it
@@ -214,6 +215,7 @@ if(ACES_HAS_FORTRAN)
   list(APPEND ACES_SRCS
     src/physics/aces_fortran_bridge.cpp
     src/physics/legacy_fortran.F90
+    src/io/aces_cdeps_bridge.F90
     src/physics/aces_sea_salt_fortran_bridge.cpp
     src/physics/sea_salt_kernel.F90
     src/physics/aces_megan_fortran_bridge.cpp
