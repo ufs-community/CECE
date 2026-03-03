@@ -1,5 +1,6 @@
 #include "aces/aces_data_ingestor.hpp"
 
+#include <cmath>
 #include <cstdio>
 #include <fstream>
 #include <iostream>
@@ -161,18 +162,24 @@ void AcesDataIngestor::IngestEmissionsInline(const AcesCdepsConfig& config,
                 cdeps_inline_read(host_v.data(), internal_name.c_str());
             }
 
-            // Data validation: ensure the ingested data is not all zero and is non-uniform.
-            // This verification only happens on rank 0 in a real simulation, but here we check
-            // for debugging.
+            // Data validation: ensure the ingested data is not all zero, is non-uniform, and has no
+            // NaNs. This verification only happens on rank 0 in a real simulation, but here we
+            // check for debugging.
             bool all_zero = true;
             bool uniform = true;
+            bool has_nan = false;
             double first_val = (host_v.size() > 0) ? host_v.data()[0] : 0.0;
             for (size_t i = 0; i < host_v.size(); ++i) {
                 double val = host_v.data()[i];
+                if (std::isnan(val)) has_nan = true;
                 if (val != 0.0) all_zero = false;
                 if (val != first_val) uniform = false;
             }
 
+            if (has_nan) {
+                std::cerr << "ACES_DataIngestor: ERROR - field " << internal_name
+                          << " contains NaN after ingestion.\n";
+            }
             if (all_zero) {
                 std::cerr << "ACES_DataIngestor: Warning - field " << internal_name
                           << " is all zeros after ingestion.\n";

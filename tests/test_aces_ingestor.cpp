@@ -105,7 +105,7 @@ TEST_F(IngestorTest, IngestEmissionsVerifiesData) {
     // Verify pattern from our mock dems_inline_read
     EXPECT_DOUBLE_EQ(host_v(0, 0, 0), 1.0);
     EXPECT_DOUBLE_EQ(host_v(1, 0, 0), 2.0);
-    EXPECT_FALSE(host_v(0, 0, 0) == host_v(1, 0, 0)); // Non-uniform
+    EXPECT_FALSE(host_v(0, 0, 0) == host_v(1, 0, 0));  // Non-uniform
 }
 
 }  // namespace test
