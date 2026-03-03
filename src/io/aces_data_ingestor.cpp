@@ -8,15 +8,16 @@
 
 #include "aces/aces_utils.hpp"
 
-// Forward declarations for CDEPS-inline C API (bridged via Fortran).
+// Forward declarations for CDEPS-inline C API.
 // We use weak attributes for flexibility in standalone development.
+// Note: We use these namespaced symbols to avoid direct conflicts with the
+// underlying library while allowing it to be linked optionally.
 extern "C" {
 void aces_cdeps_init(const char* config_file) __attribute__((weak));
 void aces_cdeps_read(double* buffer, const char* stream_name) __attribute__((weak));
 void aces_cdeps_advance(int ymd, int tod) __attribute__((weak));
 void aces_cdeps_finalize() __attribute__((weak));
 
-// Support for direct CDEPS symbols if available
 void cdeps_inline_init(const char* config_file) __attribute__((weak));
 void cdeps_inline_read(double* buffer, const char* stream_name) __attribute__((weak));
 void cdeps_inline_advance(int ymd, int tod) __attribute__((weak));
@@ -121,17 +122,17 @@ void AcesDataIngestor::InitializeCDEPS(const AcesCdepsConfig& config) {
     nml_file.close();
 
     // 3. Initialize CDEPS-inline
-    if (aces_cdeps_init) {
+    if (aces_cdeps_init != nullptr) {
         aces_cdeps_init("cdeps_in.nml");
-    } else if (cdeps_inline_init) {
+    } else if (cdeps_inline_init != nullptr) {
         cdeps_inline_init("cdeps_in.nml");
     }
 }
 
 void AcesDataIngestor::FinalizeCDEPS() {
-    if (aces_cdeps_finalize) {
+    if (aces_cdeps_finalize != nullptr) {
         aces_cdeps_finalize();
-    } else if (cdeps_inline_finalize) {
+    } else if (cdeps_inline_finalize != nullptr) {
         cdeps_inline_finalize();
     }
 }
@@ -142,9 +143,9 @@ void AcesDataIngestor::IngestEmissionsInline(const AcesCdepsConfig& config,
     if (config.streams.empty()) return;
 
     // Advance CDEPS to current model time
-    if (aces_cdeps_advance) {
+    if (aces_cdeps_advance != nullptr) {
         aces_cdeps_advance(ymd, tod);
-    } else if (cdeps_inline_advance) {
+    } else if (cdeps_inline_advance != nullptr) {
         cdeps_inline_advance(ymd, tod);
     }
 
@@ -170,9 +171,9 @@ void AcesDataIngestor::IngestEmissionsInline(const AcesCdepsConfig& config,
 
             auto& dv = aces_state.fields[internal_name];
             auto host_v = dv.view_host();
-            if (aces_cdeps_read) {
+            if (aces_cdeps_read != nullptr) {
                 aces_cdeps_read(host_v.data(), internal_name.c_str());
-            } else if (cdeps_inline_read) {
+            } else if (cdeps_inline_read != nullptr) {
                 cdeps_inline_read(host_v.data(), internal_name.c_str());
             }
 
