@@ -46,10 +46,12 @@ class AcesDataIngestor {
      * @brief Ingests emissions using CDEPS-inline.
      * @param config CDEPS configuration.
      * @param aces_state ACES state to be populated.
+     * @param ymd Current year-month-day (YYYYMMDD).
+     * @param tod Current time-of-day in seconds.
      * @param nx, ny, nz Grid dimensions.
      */
-    void IngestEmissionsInline(const AcesCdepsConfig& config, AcesImportState& aces_state, int nx,
-                               int ny, int nz);
+    void IngestEmissionsInline(const AcesCdepsConfig& config, AcesImportState& aces_state, int ymd,
+                               int tod, int nx, int ny, int nz);
 };
 
 }  // namespace aces

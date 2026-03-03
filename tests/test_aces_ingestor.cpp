@@ -12,6 +12,16 @@
  * @brief Unit tests for the hybrid data ingestor.
  */
 
+extern "C" {
+void dems_inline_read(double* buffer, const char* name) {
+    // Fill with a non-uniform, non-zero pattern
+    for (int i = 0; i < 100; ++i) {
+        buffer[i] = static_cast<double>(i + 1);
+    }
+}
+void dems_inline_advance(int ymd, int tod) {}
+}
+
 namespace aces {
 namespace test {
 
@@ -73,6 +83,29 @@ TEST_F(IngestorTest, ConfigFileGeneration) {
     // Clean up
     std::remove("aces_emissions.streams");
     std::remove("cdeps_in.nml");
+}
+
+TEST_F(IngestorTest, IngestEmissionsVerifiesData) {
+    AcesDataIngestor ingestor;
+    AcesCdepsConfig config;
+    CdepsStreamConfig s1;
+    s1.name = "stream1";
+    s1.variables = {"VAR1"};
+    config.streams.push_back(s1);
+
+    AcesImportState state;
+    // We expect the internal name to be stream1_VAR1
+    ingestor.IngestEmissionsInline(config, state, 20240101, 0, 10, 10, 1);
+
+    ASSERT_TRUE(state.fields.count("stream1_VAR1") > 0);
+    auto& dv = state.fields["stream1_VAR1"];
+    dv.sync<Kokkos::HostSpace>();
+    auto host_v = dv.view_host();
+
+    // Verify pattern from our mock dems_inline_read
+    EXPECT_DOUBLE_EQ(host_v(0, 0, 0), 1.0);
+    EXPECT_DOUBLE_EQ(host_v(1, 0, 0), 2.0);
+    EXPECT_FALSE(host_v(0, 0, 0) == host_v(1, 0, 0)); // Non-uniform
 }
 
 }  // namespace test

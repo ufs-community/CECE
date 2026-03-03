@@ -388,10 +388,23 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
     // Some fields might be 2D or have different Z dimensions (like ak/bk)
     // The ingestor currently assumes nx, ny, nz for all. We might need to adjust.
 
-    // 2. Emissions from CDEPS
+    // 2. Emissions from DEMS/CDEPS
     if (!data->config.cdeps_config.streams.empty()) {
-        data->ingestor.IngestEmissionsInline(data->config.cdeps_config, data->import_state, nx, ny,
-                                             nz);
+        int ymd = 0;
+        int tod = 0;
+        if (clock != nullptr) {
+            ESMC_Time currTime;
+            int year, month, day;
+            int h, m, s;
+            ESMC_ClockGet(*clock, &currTime);
+            // ESMF C API for TimeGet: year, month, day, hours, minutes, seconds, seconds-of-day,
+            // calendar-type
+            ESMC_CalendarType cal;
+            ESMC_TimeGet(currTime, &year, &month, &day, &h, &m, &s, &tod, &cal);
+            ymd = year * 10000 + month * 100 + day;
+        }
+        data->ingestor.IngestEmissionsInline(data->config.cdeps_config, data->import_state, ymd, tod,
+                                             nx, ny, nz);
     }
     Kokkos::Profiling::popRegion();
 
