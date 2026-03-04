@@ -22,7 +22,7 @@ void LightningFortranScheme::Initialize(const YAML::Node& /*config*/,
 
 void LightningFortranScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
     auto it_conv_depth = import_state.fields.find("convective_cloud_top_height");
-    auto it_light_emis = export_state.fields.find("total_lightning_nox_emissions");
+    auto it_light_emis = export_state.fields.find("lightning_nox");
 
     if (it_conv_depth == import_state.fields.end() || it_light_emis == export_state.fields.end()) {
         return;
@@ -34,9 +34,9 @@ void LightningFortranScheme::Run(AcesImportState& import_state, AcesExportState&
     dv_conv_depth.sync<Kokkos::HostSpace>();
     dv_light_emis.sync<Kokkos::HostSpace>();
 
-    int nx = dv_light_emis.extent(0);
-    int ny = dv_light_emis.extent(1);
-    int nz = dv_light_emis.extent(2);
+    int nx = static_cast<int>(dv_light_emis.extent(0));
+    int ny = static_cast<int>(dv_light_emis.extent(1));
+    int nz = static_cast<int>(dv_light_emis.extent(2));
 
     run_lightning_fortran(dv_conv_depth.view_host().data(), dv_light_emis.view_host().data(), nx,
                           ny, nz);

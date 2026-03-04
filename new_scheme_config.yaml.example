@@ -8,5 +8,5 @@ imports:
   - name: "wind_speed_10m"
     var_name: "u10"
 exports:
-  - name: "total_nox_emissions"
+  - name: "nox"
     var_name: "nox"

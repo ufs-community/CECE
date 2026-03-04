@@ -98,6 +98,9 @@ physics_schemes:
     language: "cpp"
     options:
       scaling_factor: 2.0
+      # Physics schemes can now have configurable diagnostics
+      diagnostics:
+        - "nox_multiplier_effect"
 
 # Diagnostic configuration for writeback.
 # ACES will synchronize these from device to host and write them to NetCDF.
@@ -115,9 +118,12 @@ diagnostics:
   # grid_type: "mesh"
   # grid_file: "data/grids/fv3_mesh.nc"
 
-  # List of variables to output. These must be registered by schemes.
+  # List of variables to output.
+  # This can include species (e.g., 'nox') or diagnostic variables registered by schemes.
   variables:
+    - "nox"
     - "native_example_diag"
+    - "nox_multiplier_effect"
 
 # CDEPS-inline configuration for reading static inventories from disk.
 # Field names listed here will be looked up from disk.

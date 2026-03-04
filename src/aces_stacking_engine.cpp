@@ -11,9 +11,7 @@ namespace aces {
  * @brief Constructs the StackingEngine and performs initial configuration compilation.
  * @param config The ACES configuration.
  */
-StackingEngine::StackingEngine(const AcesConfig& config) : m_config(config) {
-    PreCompile();
-}
+StackingEngine::StackingEngine(const AcesConfig& config) : m_config(config) { PreCompile(); }
 
 /**
  * @brief Pre-compiles the emission layers, sorting them by hierarchy.
@@ -25,7 +23,7 @@ void StackingEngine::PreCompile() {
     for (auto const& [species, layers] : m_config.species_layers) {
         CompiledSpecies spec;
         spec.name = species;
-        spec.export_name = "total_" + species + "_emissions";
+        spec.export_name = species;
         for (auto const& layer : layers) {
             spec.layers.push_back({layer.field_name, layer.operation, layer.scale, layer.hierarchy,
                                    layer.masks, layer.scale_fields, layer.diurnal_cycle,
@@ -59,14 +57,15 @@ void StackingEngine::PreCompile() {
  */
 void StackingEngine::BindFields(CompiledSpecies& spec, FieldResolver& resolver, int nx, int ny,
                                 int nz) {
-    if (spec.fields_bound) return;
+    if (spec.fields_bound) {
+        return;
+    }
 
     spec.export_field = resolver.ResolveExportDevice(spec.export_name, nx, ny, nz);
 
     // Bind vertical coordinate fields if configured
     if (m_config.vertical_config.type != VerticalCoordType::NONE) {
-        spec.p_surf =
-            resolver.ResolveImportDevice(m_config.vertical_config.p_surf_field, nx, ny, 1);
+        spec.p_surf = resolver.ResolveImportDevice(m_config.vertical_config.p_surf_field, nx, ny, 1);
         if (m_config.vertical_config.type == VerticalCoordType::FV3) {
             spec.ak = resolver.ResolveImportDevice(m_config.vertical_config.ak_field, 1, 1, nz + 1);
             spec.bk = resolver.ResolveImportDevice(m_config.vertical_config.bk_field, 1, 1, nz + 1);
@@ -96,7 +95,9 @@ void StackingEngine::BindFields(CompiledSpecies& spec, FieldResolver& resolver, 
 
         dev.num_scales = 0;
         for (const auto& sf_name : layer.scale_fields) {
-            if (dev.num_scales >= DeviceLayer::MAX_SCALES) break;
+            if (dev.num_scales >= DeviceLayer::MAX_SCALES) {
+                break;
+            }
             auto sf_view = resolver.ResolveImportDevice(sf_name, nx, ny, nz);
             if (sf_view.data() != nullptr) {
                 dev.scales[dev.num_scales++] = sf_view;
@@ -105,7 +106,9 @@ void StackingEngine::BindFields(CompiledSpecies& spec, FieldResolver& resolver, 
 
         dev.num_masks = 0;
         for (const auto& m_name : layer.masks) {
-            if (dev.num_masks >= DeviceLayer::MAX_MASKS) break;
+            if (dev.num_masks >= DeviceLayer::MAX_MASKS) {
+                break;
+            }
             auto m_view = resolver.ResolveImportDevice(m_name, nx, ny, nz);
             if (m_view.data() != nullptr) {
                 dev.masks[dev.num_masks++] = m_view;
@@ -202,7 +205,7 @@ void StackingEngine::Execute(
         Kokkos::deep_copy(total_view, 0.0);
 
         auto layers = spec.device_layers;
-        int num_layers = layers.extent(0);
+        int num_layers = static_cast<int>(layers.extent(0));
 
         auto ak = spec.ak;
         auto bk = spec.bk;
@@ -217,7 +220,9 @@ void StackingEngine::Execute(
             KOKKOS_LAMBDA(int i, int j, int k) {
                 for (int l = 0; l < num_layers; ++l) {
                     const auto& layer = layers(l);
-                    if (layer.field.data() == nullptr) continue;
+                    if (layer.field.data() == nullptr) {
+                        continue;
+                    }
 
                     // Determine if this (i,j,k) point should receive emissions from this layer
                     // and calculate the fractional weight for distribution if it's a 2D field.
@@ -236,8 +241,7 @@ void StackingEngine::Execute(
                         }
                     } else if (layer.vdist_method == 2) {  // PRESSURE
                         double p_top = 0.0, p_bot = 0.0;
-                        if (vtype == VerticalCoordType::FV3 && ak.data() && bk.data() &&
-                            ps.data()) {
+                        if (vtype == VerticalCoordType::FV3 && ak.data() && bk.data() && ps.data()) {
                             // Correct indexing for 1D/3D coefficients
                             p_top = ak(0, 0, k) + bk(0, 0, k) * ps(i, j, 0);
                             p_bot = ak(0, 0, k + 1) + bk(0, 0, k + 1) * ps(i, j, 0);
@@ -272,10 +276,13 @@ void StackingEngine::Execute(
                                 int count = 0;
                                 for (int kk = 0; kk < nz; ++kk) {
                                     if (z_coord(i, j, kk) >= layer.vdist_h_start &&
-                                        z_coord(i, j, kk) <= layer.vdist_h_end)
+                                        z_coord(i, j, kk) <= layer.vdist_h_end) {
                                         count++;
+                                    }
                                 }
-                                if (count > 0) weight = 1.0 / count;
+                                if (count > 0) {
+                                    weight = 1.0 / count;
+                                }
                             }
                         }
                     } else if (layer.vdist_method == 4) {  // PBL
@@ -287,14 +294,20 @@ void StackingEngine::Execute(
                                 // Per-column normalization
                                 int count = 0;
                                 for (int kk = 0; kk < nz; ++kk) {
-                                    if (z_coord(i, j, kk) <= h_pbl) count++;
+                                    if (z_coord(i, j, kk) <= h_pbl) {
+                                        count++;
+                                    }
                                 }
-                                if (count > 0) weight = 1.0 / count;
+                                if (count > 0) {
+                                    weight = 1.0 / count;
+                                }
                             }
                         }
                     }
 
-                    if (!in_vertical_range) continue;
+                    if (!in_vertical_range) {
+                        continue;
+                    }
 
                     double combined_scale = layer.scale;
                     for (int s = 0; s < layer.num_scales; ++s) {

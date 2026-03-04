@@ -8,13 +8,14 @@
 namespace aces {
 
 DualView3D AcesDiagnosticManager::RegisterDiagnostic(const std::string& name, int nx, int ny,
-                                                     int nz) {
+                                                     int nz, const std::string& units,
+                                                     const std::string& long_name) {
     auto it = diagnostics_.find(name);
     if (it == diagnostics_.end()) {
-        diagnostics_[name] = DualView3D("diag_" + name, nx, ny, nz);
-        return diagnostics_[name];
+        diagnostics_[name] = {DualView3D("diag_" + name, nx, ny, nz), units, long_name};
+        return diagnostics_[name].data;
     }
-    return it->second;
+    return it->second.data;
 }
 
 /**
@@ -26,7 +27,9 @@ static void WriteField(ESMC_Field field, const std::string& name) {
 }
 
 void AcesDiagnosticManager::WriteDiagnostics(const DiagnosticConfig& config, ESMC_Clock clock,
-                                             ESMC_Field template_field) {
+                                             ESMC_Field template_field,
+                                             const AcesExportState& export_state,
+                                             ESMC_State export_state_esmf) {
     if (config.variables.empty()) {
         return;
     }
@@ -35,7 +38,6 @@ void AcesDiagnosticManager::WriteDiagnostics(const DiagnosticConfig& config, ESM
     if (clock.ptr != nullptr && config.output_interval_seconds > 0) {
         ESMC_TimeInterval currSimTime;
         ESMC_I8 stepCount;
-        // Correct signature for ESMF 8.8.0
         ESMC_ClockGet(clock, &currSimTime, &stepCount);
 
         ESMC_I8 seconds_i8;
@@ -62,23 +64,65 @@ void AcesDiagnosticManager::WriteDiagnostics(const DiagnosticConfig& config, ESM
         cached_mesh_file_ = config.grid_file;
     }
 
-    ESMC_Grid target_grid = cached_grid_;
-    ESMC_Mesh target_mesh = cached_mesh_;
-
     for (const auto& name : config.variables) {
+        // First check internal diagnostics
         auto it = diagnostics_.find(name);
-        if (it == diagnostics_.end()) {
+        if (it != diagnostics_.end()) {
+            it->second.data.sync<Kokkos::HostSpace>();
+            double* diag_ptr = it->second.data.view_host().data();
+
+            int rc;
+            double* template_ptr = static_cast<double*>(ESMC_FieldGetPtr(template_field, 0, &rc));
+            if (rc == ESMF_SUCCESS && template_ptr != nullptr) {
+                // Get dimensions and total size
+                int lbound[3] = {1, 1, 1}, ubound[3] = {1, 1, 1}, localDe = 0;
+                int rank = 0;
+                // Try 3D
+                if (ESMC_FieldGetBounds(template_field, &localDe, lbound, ubound, 3) ==
+                    ESMF_SUCCESS) {
+                    rank = 3;
+                } else if (ESMC_FieldGetBounds(template_field, &localDe, lbound, ubound, 2) ==
+                           ESMF_SUCCESS) {
+                    rank = 2;
+                } else if (ESMC_FieldGetBounds(template_field, &localDe, lbound, ubound, 1) ==
+                           ESMF_SUCCESS) {
+                    rank = 1;
+                }
+
+                if (rank > 0) {
+                    size_t size = 1;
+                    for (int d = 0; d < rank; ++d) {
+                        size *= static_cast<size_t>(ubound[d] - lbound[d] + 1);
+                    }
+
+                    // Copy diagnostic data to template field for writing
+                    std::vector<double> backup(size);
+                    std::copy(template_ptr, template_ptr + size, backup.begin());
+                    std::copy(diag_ptr, diag_ptr + size, template_ptr);
+
+                    WriteField(template_field, name);
+
+                    // Restore template field data
+                    std::copy(backup.begin(), backup.end(), template_ptr);
+                }
+            }
             continue;
         }
 
-        it->second.sync<Kokkos::DefaultHostExecutionSpace::memory_space>();
+        // Then check export state (species emissions)
+        auto it_exp = export_state.fields.find(name);
+        if (it_exp != export_state.fields.end()) {
+            const_cast<DualView3D&>(it_exp->second).sync<Kokkos::HostSpace>();
 
-        if (target_grid.ptr != nullptr || target_mesh.ptr != nullptr) {
-            std::cout << "ACES_Diagnostic: Interpolating '" << name << "' to " << config.grid_type
-                      << "...\n";
-            WriteField(template_field, name);
-        } else {
-            WriteField(template_field, name);
+            // Look up the actual ESMF field to write
+            ESMC_Field species_field;
+            int rc = ESMC_StateGetField(export_state_esmf, name.c_str(), &species_field);
+            if (rc == ESMF_SUCCESS) {
+                WriteField(species_field, name);
+            } else {
+                WriteField(template_field, name);
+            }
+            continue;
         }
     }
 }

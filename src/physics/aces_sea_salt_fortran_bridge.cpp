@@ -24,8 +24,8 @@ void SeaSaltFortranScheme::Initialize(const YAML::Node& /*config*/,
 void SeaSaltFortranScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
     auto it_u10 = import_state.fields.find("wind_speed_10m");
     auto it_tskin = import_state.fields.find("tskin");
-    auto it_sala = export_state.fields.find("total_SALA_emissions");
-    auto it_salc = export_state.fields.find("total_SALC_emissions");
+    auto it_sala = export_state.fields.find("SALA");
+    auto it_salc = export_state.fields.find("SALC");
 
     if (it_u10 == import_state.fields.end() || it_tskin == import_state.fields.end()) {
         return;

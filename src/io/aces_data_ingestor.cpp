@@ -71,7 +71,9 @@ void AcesDataIngestor::IngestMeteorology(ESMC_State importState,
 
 void AcesDataIngestor::InitializeCDEPS(ESMC_GridComp gcomp, ESMC_Clock clock, ESMC_Mesh mesh,
                                        const AcesCdepsConfig& config) {
-    if (config.streams.empty()) return;
+    if (config.streams.empty()) {
+        return;
+    }
 
     // 1. Programmatically write CDEPS .streams file (ESMF Config format)
     std::ofstream stream_file("aces_emissions.streams");
@@ -133,7 +135,9 @@ void AcesDataIngestor::FinalizeCDEPS() {
 
 void AcesDataIngestor::IngestEmissionsInline(const AcesCdepsConfig& config,
                                              AcesImportState& aces_state, int nx, int ny, int nz) {
-    if (config.streams.empty()) return;
+    if (config.streams.empty()) {
+        return;
+    }
 
     // Trigger read and map pointers for all configured streams.
     // This allows the ingestion layer to be fully dynamic.

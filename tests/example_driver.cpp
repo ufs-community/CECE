@@ -114,7 +114,7 @@ int main(int argc, char** argv) {
     ESMC_Field f_temp = createField(importState, "temperature");
     ESMC_Field f_wind = createField(importState, "wind_speed_10m");
     ESMC_Field f_anthro = createField(importState, "base_anthropogenic_nox");
-    ESMC_Field f_total = createField(exportState, "total_nox_emissions");
+    ESMC_Field f_total = createField(exportState, "nox");
 
     // 6. Create simulation clock
     ESMC_Time startTime;
@@ -128,7 +128,7 @@ int main(int argc, char** argv) {
 
     // 7. Initialize ACES component
     ESMC_GridComp acesComp;
-    acesComp.ptr = (void*)0x1;  // Standalone dummy handle used for state tracking
+    acesComp.ptr = reinterpret_cast<void*>(0x1);  // Standalone dummy handle used for state tracking
 
     // Setup component configuration file
     std::system(
@@ -157,14 +157,13 @@ int main(int argc, char** argv) {
         // STEP C: Process results (Diagnostics and I/O)
         double* total_ptr = static_cast<double*>(ESMC_FieldGetPtr(f_total, 0, &rc));
         if (total_ptr != nullptr) {
-            std::cout << "  [Driver] total_nox_emissions[0]: " << total_ptr[0] << "\n";
+            std::cout << "  [Driver] nox[0]: " << total_ptr[0] << "\n";
         }
 
         // Write the calculated emissions to a NetCDF file using ESMF I/O
-        char filename[64];
-        std::sprintf(filename, "output_step_%d.nc", step);
+        std::string filename = "output_step_" + std::to_string(step) + ".nc";
         std::cout << "  [Driver] Writing diagnostic to " << filename << "\n";
-        ESMC_FieldWrite(f_total, filename, "total_nox", 1, ESMC_FILESTATUS_REPLACE, step + 1,
+        ESMC_FieldWrite(f_total, filename.c_str(), "nox", 1, ESMC_FILESTATUS_REPLACE, step + 1,
                         ESMF_IOFMT_NETCDF);
 
         // STEP D: Advance simulation clock

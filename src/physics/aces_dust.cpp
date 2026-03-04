@@ -32,8 +32,12 @@ void DustScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* dia
     double den = 2500.0 * 1.0e-3;         // g/cm3
     double diam = 2.0 * 0.73e-6 * 1.0e2;  // cm
 
-    if (config["particle_density"]) den = config["particle_density"].as<double>() * 1.0e-3;
-    if (config["particle_diameter"]) diam = config["particle_diameter"].as<double>() * 1.0e2;
+    if (config["particle_density"]) {
+        den = config["particle_density"].as<double>() * 1.0e-3;
+    }
+    if (config["particle_diameter"]) {
+        diam = config["particle_diameter"].as<double>() * 1.0e2;
+    }
 
     u_ts0_ = calculate_u_ts0(den, diam, G, RHOA);
     std::cout << "DustScheme: Initialized. U_TS0=" << u_ts0_ << "\n";
@@ -43,15 +47,15 @@ void DustScheme::Run(AcesImportState& import_state, AcesExportState& export_stat
     auto u10m = ResolveImport("wind_speed_10m", import_state);
     auto gwettop = ResolveImport("gwettop", import_state);
     auto srce_sand = ResolveImport("GINOUX_SAND", import_state);
-    auto dust_emis = ResolveExport("total_dust_emissions", export_state);
+    auto dust_emis = ResolveExport("dust", export_state);
 
     if (u10m.data() == nullptr || gwettop.data() == nullptr || srce_sand.data() == nullptr ||
-        dust_emis.data() == nullptr)
+        dust_emis.data() == nullptr) {
         return;
+    }
 
     int nx = static_cast<int>(dust_emis.extent(0));
     int ny = static_cast<int>(dust_emis.extent(1));
-    int nz = static_cast<int>(dust_emis.extent(2));
 
     const double CH_DUST = 9.375e-10;  // Default tuning factor
     double u_ts0_const = u_ts0_;
@@ -75,7 +79,7 @@ void DustScheme::Run(AcesImportState& import_state, AcesExportState& export_stat
         });
 
     Kokkos::fence();
-    MarkModified("total_dust_emissions", export_state);
+    MarkModified("dust", export_state);
 }
 
 }  // namespace aces

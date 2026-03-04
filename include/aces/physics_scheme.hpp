@@ -33,6 +33,11 @@ class PhysicsScheme {
     virtual void Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) = 0;
 
     /**
+     * @brief Finalizes the physics scheme.
+     */
+    virtual void Finalize() {}
+
+    /**
      * @brief Executes the physics scheme.
      * @param import_state The input meteorology and base emissions.
      * @param export_state The output emissions to be updated.
@@ -53,7 +58,8 @@ class BasePhysicsScheme : public PhysicsScheme {
      * @brief Default implementation of Initialize.
      * Can be overridden by subclasses if they need specific setup.
      */
-    void Initialize(const YAML::Node& config, AcesDiagnosticManager* /*diag_manager*/) override {
+    void Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) override {
+        diag_manager_ = diag_manager;
         if (config["input_mapping"]) {
             for (auto const& node : config["input_mapping"]) {
                 input_mapping_[node.first.as<std::string>()] = node.second.as<std::string>();
@@ -62,6 +68,19 @@ class BasePhysicsScheme : public PhysicsScheme {
         if (config["output_mapping"]) {
             for (auto const& node : config["output_mapping"]) {
                 output_mapping_[node.first.as<std::string>()] = node.second.as<std::string>();
+            }
+        }
+
+        if (diag_manager_ != nullptr && config["diagnostics"]) {
+            // Read dimensions if available in options, otherwise use defaults
+            int nx = config["nx"] ? config["nx"].as<int>() : 1;
+            int ny = config["ny"] ? config["ny"].as<int>() : 1;
+            int nz = config["nz"] ? config["nz"].as<int>() : 1;
+
+            for (auto const& node : config["diagnostics"]) {
+                std::string diag_name = node.as<std::string>();
+                diag_manager_->RegisterDiagnostic(diag_name, nx, ny, nz);
+                registered_diagnostics_.push_back(diag_name);
             }
         }
     }
@@ -175,6 +194,18 @@ class BasePhysicsScheme : public PhysicsScheme {
 
    protected:
     /**
+     * @brief Helper to resolve a diagnostic field.
+     */
+    DualView3D ResolveDiagnostic(const std::string& name, int nx, int ny, int nz,
+                                 const std::string& units = "", const std::string& long_name = "") {
+        if (diag_manager_ == nullptr) {
+            return {};
+        }
+        // Use RegisterDiagnostic which also acts as a getter if already registered
+        return diag_manager_->RegisterDiagnostic(name, nx, ny, nz, units, long_name);
+    }
+
+    /**
      * @brief Marks an export field as modified on the device.
      * @param name Name of the field.
      * @param state The export state.
@@ -197,6 +228,9 @@ class BasePhysicsScheme : public PhysicsScheme {
 
     std::unordered_map<std::string, std::string> input_mapping_;
     std::unordered_map<std::string, std::string> output_mapping_;
+
+    AcesDiagnosticManager* diag_manager_ = nullptr;
+    std::vector<std::string> registered_diagnostics_;
 };
 
 }  // namespace aces

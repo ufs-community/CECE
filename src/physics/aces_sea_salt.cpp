@@ -18,7 +18,9 @@ static PhysicsRegistration<SeaSaltScheme> register_scheme("sea_salt");
  */
 KOKKOS_INLINE_FUNCTION
 double gong_source_normalized(double r80) {
-    if (r80 <= 0.0) return 0.0;
+    if (r80 <= 0.0) {
+        return 0.0;
+    }
     double a = 4.7 * std::pow(1.0 + 30.0 * r80, -0.017 * std::pow(r80, -1.44));
     double b = (0.433 - std::log10(r80)) / 0.433;
     return 1.373 * std::pow(r80, -a) * (1.0 + 0.057 * std::pow(r80, 3.45)) *
@@ -36,10 +38,18 @@ void SeaSaltScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* 
     double r_sala_min = 0.01, r_sala_max = 0.5;
     double r_salc_min = 0.5, r_salc_max = 8.0;
 
-    if (config["r_sala_min"]) r_sala_min = config["r_sala_min"].as<double>();
-    if (config["r_sala_max"]) r_sala_max = config["r_sala_max"].as<double>();
-    if (config["r_salc_min"]) r_salc_min = config["r_salc_min"].as<double>();
-    if (config["r_salc_max"]) r_salc_max = config["r_salc_max"].as<double>();
+    if (config["r_sala_min"]) {
+        r_sala_min = config["r_sala_min"].as<double>();
+    }
+    if (config["r_sala_max"]) {
+        r_sala_max = config["r_sala_max"].as<double>();
+    }
+    if (config["r_salc_min"]) {
+        r_salc_min = config["r_salc_min"].as<double>();
+    }
+    if (config["r_salc_max"]) {
+        r_salc_max = config["r_salc_max"].as<double>();
+    }
 
     srrc_SALA_ = 0.0;
     for (double r = r_sala_min; r < r_sala_max; r += dr) {
@@ -66,8 +76,8 @@ void SeaSaltScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* 
 void SeaSaltScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
     auto u10m = ResolveImport("wind_speed_10m", import_state);
     auto tskin = ResolveImport("tskin", import_state);
-    auto sala = ResolveExport("total_SALA_emissions", export_state);
-    auto salc = ResolveExport("total_SALC_emissions", export_state);
+    auto sala = ResolveExport("SALA", export_state);
+    auto salc = ResolveExport("SALC", export_state);
 
     if (u10m.data() == nullptr || tskin.data() == nullptr) {
         return;
@@ -75,7 +85,6 @@ void SeaSaltScheme::Run(AcesImportState& import_state, AcesExportState& export_s
 
     int nx = static_cast<int>(u10m.extent(0));
     int ny = static_cast<int>(u10m.extent(1));
-    int nz = static_cast<int>(u10m.extent(2));
 
     double ref_sala = srrc_SALA_;
     double ref_salc = srrc_SALC_;
@@ -96,7 +105,7 @@ void SeaSaltScheme::Run(AcesImportState& import_state, AcesExportState& export_s
                 double u_factor = std::pow(u, 3.41);
                 sala(i, j, 0) += scale * u_factor * ref_sala;
             });
-        MarkModified("total_SALA_emissions", export_state);
+        MarkModified("SALA", export_state);
     }
 
     if (salc.data() != nullptr) {
@@ -112,7 +121,7 @@ void SeaSaltScheme::Run(AcesImportState& import_state, AcesExportState& export_s
                 double u_factor = std::pow(u, 3.41);
                 salc(i, j, 0) += scale * u_factor * ref_salc;
             });
-        MarkModified("total_SALC_emissions", export_state);
+        MarkModified("SALC", export_state);
     }
     Kokkos::fence();
 }

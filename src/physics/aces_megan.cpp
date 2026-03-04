@@ -17,9 +17,7 @@ static PhysicsRegistration<MeganScheme> register_scheme("megan");
  */
 
 KOKKOS_INLINE_FUNCTION
-double get_gamma_lai(double lai) {
-    return 0.49 * lai / std::sqrt(1.0 + 0.2 * lai * lai);
-}
+double get_gamma_lai(double lai) { return 0.49 * lai / std::sqrt(1.0 + 0.2 * lai * lai); }
 
 KOKKOS_INLINE_FUNCTION
 double get_gamma_t_li(double temp, double beta) {
@@ -45,7 +43,9 @@ double get_gamma_par_pceea(double q_dir, double q_diff, double par_avg, double s
     const double WM2_TO_UMOLM2S = 4.766;
     const double PI = 3.14159265358979323846;
 
-    if (suncos <= 0.0) return 0.0;
+    if (suncos <= 0.0) {
+        return 0.0;
+    }
 
     double pac_instant = (q_dir + q_diff) * WM2_TO_UMOLM2S;
     double pac_daily = par_avg * WM2_TO_UMOLM2S;
@@ -69,26 +69,28 @@ double get_gamma_co2(double co2a) {
 void MeganScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
     double co2a = 400.0;
-    if (config["co2_concentration"]) co2a = config["co2_concentration"].as<double>();
+    if (config["co2_concentration"]) {
+        co2a = config["co2_concentration"].as<double>();
+    }
     gamma_co2_ = get_gamma_co2(co2a);
     std::cout << "MeganScheme: Initialized. GAMMA_CO2=" << gamma_co2_ << "\n";
 }
 
 void MeganScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
     auto temp = ResolveImport("temperature", import_state);
-    auto isoprene = ResolveExport("total_isoprene_emissions", export_state);
+    auto isoprene = ResolveExport("isoprene", export_state);
     auto lai = ResolveImport("lai", import_state);
     auto pardr = ResolveImport("pardr", import_state);
     auto pardf = ResolveImport("pardf", import_state);
     auto suncos = ResolveImport("suncos", import_state);
 
     if (temp.data() == nullptr || isoprene.data() == nullptr || lai.data() == nullptr ||
-        pardr.data() == nullptr || pardf.data() == nullptr || suncos.data() == nullptr)
+        pardr.data() == nullptr || pardf.data() == nullptr || suncos.data() == nullptr) {
         return;
+    }
 
     int nx = static_cast<int>(isoprene.extent(0));
     int ny = static_cast<int>(isoprene.extent(1));
-    int nz = static_cast<int>(isoprene.extent(2));
 
     const double BETA = 0.13;
     const double CT1 = 95.0;
@@ -117,8 +119,7 @@ void MeganScheme::Run(AcesImportState& import_state, AcesExportState& export_sta
             double gamma_lai = get_gamma_lai(L);
             double gamma_t_li = get_gamma_t_li(T, BETA);
             double gamma_t_ld = get_gamma_t_ld(T, T_AVG_15, CT1, CEO);
-            double gamma_par =
-                get_gamma_par_pceea(pardr(i, j, 0), pardf(i, j, 0), PAR_AVG, sc, doy);
+            double gamma_par = get_gamma_par_pceea(pardr(i, j, 0), pardf(i, j, 0), PAR_AVG, sc, doy);
 
             double megan_emis = NORM_FAC * AEF_ISOP * gamma_lai * gamma_co2_const *
                                 ((1.0 - LDF) * gamma_t_li + (LDF * gamma_par * gamma_t_ld));
@@ -127,7 +128,7 @@ void MeganScheme::Run(AcesImportState& import_state, AcesExportState& export_sta
         });
 
     Kokkos::fence();
-    MarkModified("total_isoprene_emissions", export_state);
+    MarkModified("isoprene", export_state);
 }
 
 }  // namespace aces

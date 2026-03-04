@@ -18,7 +18,7 @@ void VolcanoScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* 
 }
 
 void VolcanoScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
-    auto so2 = ResolveExport("total_so2_emissions", export_state);
+    auto so2 = ResolveExport("so2", export_state);
     auto zsfc = ResolveImport("zsfc", import_state);
     auto bxheight = ResolveImport("bxheight_m", import_state);
 
@@ -26,8 +26,6 @@ void VolcanoScheme::Run(AcesImportState& import_state, AcesExportState& export_s
         return;
     }
 
-    int nx = static_cast<int>(so2.extent(0));
-    int ny = static_cast<int>(so2.extent(1));
     int nz = static_cast<int>(so2.extent(2));
 
     // Mock volcano location for this port (should come from config table in real
@@ -47,7 +45,9 @@ void VolcanoScheme::Run(AcesImportState& import_state, AcesExportState& export_s
             int j = target_j;
 
             double z_bot_box = zsfc(i, j, 0);
-            for (int l = 0; l < k; ++l) z_bot_box += bxheight(i, j, l);
+            for (int l = 0; l < k; ++l) {
+                z_bot_box += bxheight(i, j, l);
+            }
             double z_top_box = z_bot_box + bxheight(i, j, k);
 
             double z_bot_volc = std::max(volcano_elv, zsfc(i, j, 0));
@@ -60,7 +60,9 @@ void VolcanoScheme::Run(AcesImportState& import_state, AcesExportState& export_s
 
             double plume_hgt = z_top_volc - z_bot_volc;
             if (plume_hgt <= 0.0) {
-                if (k == 0) so2(i, j, k) += volcano_sulf;
+                if (k == 0) {
+                    so2(i, j, k) += volcano_sulf;
+                }
                 return;
             }
 
@@ -74,7 +76,7 @@ void VolcanoScheme::Run(AcesImportState& import_state, AcesExportState& export_s
         });
 
     Kokkos::fence();
-    MarkModified("total_so2_emissions", export_state);
+    MarkModified("so2", export_state);
 }
 
 }  // namespace aces

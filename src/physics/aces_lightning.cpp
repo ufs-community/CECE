@@ -33,12 +33,16 @@ void LightningScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager
 
 void LightningScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
     auto conv_depth = ResolveImport("convective_cloud_top_height", import_state);
-    auto light_nox = ResolveExport("total_lightning_nox_emissions", export_state);
+    auto light_nox = ResolveExport("lightning_nox", export_state);
     auto it_land = import_state.fields.find("land_mask");
 
     if (conv_depth.data() == nullptr || light_nox.data() == nullptr) {
         return;
     }
+
+    int nx = static_cast<int>(light_nox.extent(0));
+    int ny = static_cast<int>(light_nox.extent(1));
+    int nz = static_cast<int>(light_nox.extent(2));
 
     // Land mask proxy
     bool has_land_mask = (it_land != import_state.fields.end());
@@ -46,10 +50,6 @@ void LightningScheme::Run(AcesImportState& import_state, AcesExportState& export
         has_land_mask
             ? it_land->second.view_device()
             : Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>();
-
-    int nx = static_cast<int>(light_nox.extent(0));
-    int ny = static_cast<int>(light_nox.extent(1));
-    int nz = static_cast<int>(light_nox.extent(2));
 
     const double MW_NO = 30.0;
 
@@ -68,7 +68,7 @@ void LightningScheme::Run(AcesImportState& import_state, AcesExportState& export
             double flash_rate = 3.44e-5 * std::pow(h_km, 4.9);
 
             double total_yield = get_lightning_yield(flash_rate, MW_NO, is_land);
-            double level_yield = total_yield / nz;
+            double level_yield = total_yield / static_cast<double>(nz);
 
             // Vertically distribute (Ott et al. proxy) - Optimized column fill
             for (int k = 0; k < nz; ++k) {
@@ -77,7 +77,7 @@ void LightningScheme::Run(AcesImportState& import_state, AcesExportState& export
         });
 
     Kokkos::fence();
-    MarkModified("total_lightning_nox_emissions", export_state);
+    MarkModified("lightning_nox", export_state);
 }
 
 }  // namespace aces

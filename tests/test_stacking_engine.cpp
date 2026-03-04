@@ -87,13 +87,13 @@ TEST_F(StackingEngineTest, HierarchyReplacement) {
     resolver.SetValue("f1", 10.0);
     resolver.AddField("f2", nx, ny, nz);
     resolver.SetValue("f2", 5.0);
-    resolver.AddField("total_test_species_emissions", nx, ny, nz);
-    resolver.SetValue("total_test_species_emissions", 0.0);
+    resolver.AddField("test_species", nx, ny, nz);
+    resolver.SetValue("test_species", 0.0);
 
     StackingEngine engine(config);
     engine.Execute(resolver, nx, ny, nz, {}, 0, 0);
 
-    EXPECT_NEAR(resolver.GetValue("total_test_species_emissions"), 5.0, 1e-9);
+    EXPECT_NEAR(resolver.GetValue("test_species"), 5.0, 1e-9);
 }
 
 /**
@@ -113,8 +113,8 @@ TEST_F(StackingEngineTest, DefaultMaskApplication) {
     ActualFieldResolver resolver;
     resolver.AddField("f1", nx, ny, nz);
     resolver.SetValue("f1", 10.0);
-    resolver.AddField("total_test_species_emissions", nx, ny, nz);
-    resolver.SetValue("total_test_species_emissions", 0.0);
+    resolver.AddField("test_species", nx, ny, nz);
+    resolver.SetValue("test_species", 0.0);
 
     // Provide a default mask of 0.5
     Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> dmask("dmask", nx,
@@ -125,7 +125,7 @@ TEST_F(StackingEngineTest, DefaultMaskApplication) {
     engine.Execute(resolver, nx, ny, nz, dmask, 0, 0);
 
     // Should be 10.0 * 0.5 = 5.0
-    EXPECT_NEAR(resolver.GetValue("total_test_species_emissions"), 5.0, 1e-9);
+    EXPECT_NEAR(resolver.GetValue("test_species"), 5.0, 1e-9);
 }
 
 /**
@@ -171,20 +171,20 @@ TEST_F(StackingEngineTest, ComplexFusionLogic) {
     resolver.SetValue("replacement", 5.0);
     resolver.AddField("region_mask", nx, ny, nz);
     resolver.SetValue("region_mask", 1.0);
-    resolver.AddField("total_complex_species_emissions", nx, ny, nz);
-    resolver.SetValue("total_complex_species_emissions", 0.0);
+    resolver.AddField("complex_species", nx, ny, nz);
+    resolver.SetValue("complex_species", 0.0);
 
     StackingEngine engine(config);
     engine.Execute(resolver, nx, ny, nz, {}, 0, 0);
 
     // Expected: 5.0 (Full replacement)
-    EXPECT_NEAR(resolver.GetValue("total_complex_species_emissions"), 5.0, 1e-9);
+    EXPECT_NEAR(resolver.GetValue("complex_species"), 5.0, 1e-9);
 
     // Partial/No replacement test
     resolver.SetValue("region_mask", 0.0);
     engine.Execute(resolver, nx, ny, nz, {}, 0, 0);
     // Expected: 10 + 2*3 = 16.0
-    EXPECT_NEAR(resolver.GetValue("total_complex_species_emissions"), 16.0, 1e-9);
+    EXPECT_NEAR(resolver.GetValue("complex_species"), 16.0, 1e-9);
 }
 
 }  // namespace aces

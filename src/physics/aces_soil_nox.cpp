@@ -18,7 +18,9 @@ static PhysicsRegistration<SoilNoxScheme> register_scheme("soil_nox");
 
 KOKKOS_INLINE_FUNCTION
 double soil_temp_term(double tc) {
-    if (tc <= 0.0) return 0.0;
+    if (tc <= 0.0) {
+        return 0.0;
+    }
     return std::exp(0.103 * std::min(30.0, tc));
 }
 
@@ -36,7 +38,7 @@ void SoilNoxScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* 
 void SoilNoxScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
     auto temp = ResolveImport("temperature", import_state);
     auto gwet = ResolveImport("gwettop", import_state);
-    auto soil_nox = ResolveExport("total_soil_nox_emissions", export_state);
+    auto soil_nox = ResolveExport("soil_nox", export_state);
 
     if (temp.data() == nullptr || gwet.data() == nullptr || soil_nox.data() == nullptr) {
         return;
@@ -44,7 +46,6 @@ void SoilNoxScheme::Run(AcesImportState& import_state, AcesExportState& export_s
 
     int nx = static_cast<int>(soil_nox.extent(0));
     int ny = static_cast<int>(soil_nox.extent(1));
-    int nz = static_cast<int>(soil_nox.extent(2));
 
     const double MW_NO = 30.0;
     const double UNITCONV = 1.0e-12 / 14.0 * MW_NO;  // ng N -> kg NO
@@ -69,7 +70,7 @@ void SoilNoxScheme::Run(AcesImportState& import_state, AcesExportState& export_s
         });
 
     Kokkos::fence();
-    MarkModified("total_soil_nox_emissions", export_state);
+    MarkModified("soil_nox", export_state);
 }
 
 }  // namespace aces

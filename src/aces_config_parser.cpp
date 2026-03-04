@@ -1,6 +1,8 @@
 #include <yaml-cpp/yaml.h>
 
 #include <iostream>
+#include <string>
+#include <vector>
 
 #include "aces/aces_config.hpp"
 
