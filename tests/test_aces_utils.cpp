@@ -49,5 +49,4 @@ TEST_F(AcesUtilsTest, WrapESMCFieldUpdatesRawData) {
     EXPECT_DOUBLE_EQ(view(2, 3, 1), 42.0);
 }
 
-}  // namespace test
-}  // namespace aces
+}  // namespace aces::test

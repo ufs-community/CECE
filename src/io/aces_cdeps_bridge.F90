@@ -11,21 +11,15 @@ module aces_cdeps_bridge_mod
 
 contains
 
-  subroutine aces_cdeps_init(c_gcomp, c_mesh, &
-                            yy, mm, dd, h, min, s, &
-                            yy_s, mm_s, dd_s, h_s, min_s, s_s, &
-                            dt_sec, stream_path_c, rc) bind(C, name="aces_cdeps_init")
+  subroutine aces_cdeps_init(c_gcomp, c_clock, c_mesh, stream_path_c, rc) &
+                            bind(C, name="aces_cdeps_init")
     type(c_ptr), value                :: c_gcomp
+    type(c_ptr), value                :: c_clock
     type(c_ptr), value                :: c_mesh
-    integer(c_int), value             :: yy, mm, dd, h, min, s
-    integer(c_int), value             :: yy_s, mm_s, dd_s, h_s, min_s, s_s
-    integer(c_int), value             :: dt_sec
     type(c_ptr), value                :: stream_path_c
     integer(c_int), intent(out)       :: rc
 
     ! Local Fortran ESMF types
-    type(ESMF_GridComp) :: f_gcomp
-    type(ESMF_Clock)    :: f_clock
     type(ESMF_Mesh)     :: f_mesh
     character(kind=c_char), pointer :: stream_path_ptr(:)
     character(len=256)  :: f_stream_path
@@ -40,30 +34,21 @@ contains
        i = i + 1
     end do
 
-    ! 2. Create native Fortran objects
-    ! We create a NEW GridComp in Fortran to ensure it's fully valid and has a valid VM context.
-    f_gcomp = ESMF_GridCompCreate(name='ACES_CDEPS', rc=f_rc)
+    ! 2. Reconstitute native Fortran objects from C handles.
+    ! ESMF Fortran handles are structures requiring a validity flag at the second 8-byte offset.
 
-    ! Create the Mesh handle from the C pointer.
-    ! ESMF handles are structs; the second 8-byte word is a "validity flag" (82949521 for Mesh/Grid).
+    ! Reconstitute GridComp handle. Flag: 82949521
+    f_gcomp = transfer([transfer(c_gcomp, 0_8), 82949521_8], f_gcomp)
+
+    ! Reconstitute Mesh handle. Flag: 82949521
     f_mesh  = transfer([transfer(c_mesh,  0_8), 82949521_8], f_mesh)
-
-    ! Create a native Fortran Clock from components to ensure it matches the model time.
-    block
-        type(ESMF_Time) :: start_time, stop_time
-        type(ESMF_TimeInterval) :: time_step
-        call ESMF_TimeSet(start_time, yy=int(yy), mm=int(mm), dd=int(dd), &
-                          h=int(h), m=int(min), s=int(s), rc=f_rc)
-        call ESMF_TimeSet(stop_time, yy=int(yy_s), mm=int(mm_s), dd=int(dd_s), &
-                          h=int(h_s), m=int(min_s), s=int(s_s), rc=f_rc)
-        call ESMF_TimeIntervalSet(time_step, s=int(dt_sec), rc=f_rc)
-        f_clock_init = ESMF_ClockCreate(time_step, start_time, stopTime=stop_time, rc=f_rc)
-    end block
+    ! Clock/Field flag: 76838410
+    f_clock_init = transfer([transfer(c_clock, 0_8), 76838410_8], f_clock_init)
 
     is_initialized = .true.
 
     ! 3. Call the high-level Fortran interface
-    print *, "ACES Bridge: Initializing CDEPS with native handles."
+    print *, "ACES Bridge: Initializing CDEPS with reconstituted handles."
     print *, "ACES Bridge: Stream file: ", trim(f_stream_path)
     print *, "ACES Bridge: GridComp valid=", ESMF_GridCompIsCreated(f_gcomp)
     print *, "ACES Bridge: Clock valid=", ESMF_ClockIsCreated(f_clock_init)
@@ -74,23 +59,18 @@ contains
     rc = int(f_rc, c_int)
   end subroutine
 
-  subroutine aces_cdeps_advance(yy, mm, dd, ss, rc) bind(C, name="aces_cdeps_advance")
-    integer(c_int), value       :: yy, mm, dd, ss
+  subroutine aces_cdeps_advance(c_clock, rc) bind(C, name="aces_cdeps_advance")
+    type(c_ptr), value          :: c_clock
     integer(c_int), intent(out) :: rc
 
     type(ESMF_Clock) :: f_clock
-    type(ESMF_Time)  :: curr_time
-    type(ESMF_TimeInterval) :: dt
     integer          :: f_rc
 
-    ! For advance, CDEPS only uses the clock to get the current time.
-    call ESMF_TimeSet(curr_time, yy=int(yy), mm=int(mm), dd=int(dd), s=int(ss), rc=f_rc)
-    call ESMF_TimeIntervalSet(dt, s=1, rc=f_rc)
-    f_clock = ESMF_ClockCreate(dt, curr_time, rc=f_rc)
+    ! Reconstitute Clock handle.
+    f_clock = transfer([transfer(c_clock, 0_8), 76838410_8], f_clock)
 
     call cdeps_inline_advance(f_clock, f_rc)
 
-    call ESMF_ClockDestroy(f_clock, rc=f_rc)
     rc = int(f_rc, c_int)
   end subroutine
 
@@ -125,12 +105,9 @@ contains
   end subroutine
 
   subroutine aces_cdeps_finalize() bind(C, name="aces_cdeps_finalize")
-    integer :: f_rc
     if (is_initialized) then
-        print *, "ACES Bridge: Finalizing CDEPS and destroying native handles."
-        call cdeps_inline_finalize(f_rc)
-        call ESMF_ClockDestroy(f_clock_init, rc=f_rc)
-        call ESMF_GridCompDestroy(f_gcomp, rc=f_rc)
+        print *, "ACES Bridge: Finalizing."
+        ! Note: cdeps_inline_mod currently does not have a finalize call.
         is_initialized = .false.
     end if
   end subroutine

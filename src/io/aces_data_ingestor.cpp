@@ -9,10 +9,9 @@
 
 // Forward declarations for ACES-CDEPS bridge (defined in aces_cdeps_bridge.F90)
 extern "C" {
-void aces_cdeps_init(void* gcomp, void* mesh, int yy, int mm, int dd, int h, int min, int s,
-                     int yy_s, int mm_s, int dd_s, int h_s, int min_s, int s_s, int dt_sec,
-                     const char* stream_file, int* rc) __attribute__((weak));
-void aces_cdeps_advance(int yy, int mm, int dd, int ss, int* rc) __attribute__((weak));
+void aces_cdeps_init(void* gcomp, void* clock, void* mesh, const char* stream_file, int* rc)
+    __attribute__((weak));
+void aces_cdeps_advance(void* clock, int* rc) __attribute__((weak));
 void aces_cdeps_get_ptr(int stream_idx, const char* fldname, void** data_ptr, int* rc)
     __attribute__((weak));
 void aces_cdeps_finalize() __attribute__((weak));
@@ -112,26 +111,7 @@ void AcesDataIngestor::InitializeCDEPS(ESMC_GridComp gcomp, ESMC_Clock clock, ES
     if (aces_cdeps_init) {
         int rc = 0;
         std::string stream_file_path = "aces_emissions.streams";
-
-        // Extract time components from ESMF clock
-        int yy, mm, dd, h, min, s;
-        int yy_s, mm_s, dd_s, h_s, min_s, s_s;
-        int dt_sec;
-
-        ESMC_Time start_time, stop_time;
-        ESMC_TimeInterval dt;
-        ESMC_ClockGet(clock, &dt, nullptr, &start_time, &stop_time);
-
-        ESMC_TimeGet(start_time, &yy, &mm, &dd, &h, &min, &s, nullptr, nullptr);
-        ESMC_TimeGet(stop_time, &yy_s, &mm_s, &dd_s, &h_s, &min_s, &s_s, nullptr, nullptr);
-
-        ESMC_I8 dt_i8;
-        ESMC_TimeIntervalGet(dt, &dt_i8, nullptr, nullptr);
-        dt_sec = static_cast<int>(dt_i8);
-
-        aces_cdeps_init(gcomp.ptr, mesh.ptr, yy, mm, dd, h, min, s, yy_s, mm_s, dd_s, h_s, min_s,
-                        s_s, dt_sec, stream_file_path.c_str(), &rc);
-
+        aces_cdeps_init(gcomp.ptr, clock.ptr, mesh.ptr, stream_file_path.c_str(), &rc);
         if (rc != 0) {
             std::cerr << "ACES: Error initializing CDEPS. RC=" << rc << "\n";
         }
@@ -141,17 +121,7 @@ void AcesDataIngestor::InitializeCDEPS(ESMC_GridComp gcomp, ESMC_Clock clock, ES
 void AcesDataIngestor::AdvanceCDEPS(ESMC_Clock clock) {
     if (aces_cdeps_advance) {
         int rc = 0;
-
-        // Extract current time components
-        ESMC_Time curr_time;
-        ESMC_ClockGet(clock, nullptr, nullptr, nullptr, nullptr, &curr_time);
-
-        int yy, mm, dd, h, min, s;
-        ESMC_TimeGet(curr_time, &yy, &mm, &dd, &h, &min, &s, nullptr, nullptr);
-
-        int ss = h * 3600 + min * 60 + s;
-
-        aces_cdeps_advance(yy, mm, dd, ss, &rc);
+        aces_cdeps_advance(clock.ptr, &rc);
     }
 }
 
