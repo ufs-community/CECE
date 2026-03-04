@@ -206,7 +206,9 @@ void Initialize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportSta
         if (discovery_field.ptr != nullptr) {
             int local_rc;
             aces_get_mesh_from_field(discovery_field.ptr, &mesh.ptr, &local_rc);
-            if (local_rc != ESMF_SUCCESS) mesh.ptr = nullptr;
+            if (local_rc != ESMF_SUCCESS) {
+                mesh.ptr = nullptr;
+            }
         }
 
         if (clock != nullptr) {

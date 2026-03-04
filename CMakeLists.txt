@@ -6,9 +6,10 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-# Ensure Fortran modules are placed in a central directory expected by CDEPS
-set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/share)
-file(MAKE_DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY})
+# Ensure Fortran modules are placed in a consistent directory
+if(NOT CMAKE_Fortran_MODULE_DIRECTORY)
+  set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/share)
+endif()
 
 list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
@@ -160,13 +161,6 @@ if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
     # Disable FoX in CDEPS
     set(DISABLE_FoX ON CACHE BOOL "Disable FoX library" FORCE)
     set(COMPILER "gnu" CACHE STRING "Compiler type")
-
-    # CDEPS-standalone build has a bug where it looks for modules in ${CMAKE_BINARY_DIR}/share
-    # but they are actually in ${CMAKE_CURRENT_BINARY_DIR} of the share directory.
-    # We can override CMAKE_BINARY_DIR for the CDEPS sub-project or just link/copy the directory.
-    # Actually, if we set CMAKE_BINARY_DIR it might affect everything.
-    # Let's try to set the expected variable for CDEPS.
-    set(CDEPS_SHARE_MOD_DIR "${CMAKE_BINARY_DIR}/_deps/cdeps-build/share")
 
     # We use a custom guard to ensure CDEPS is correctly integrated
     FetchContent_MakeAvailable(cdeps)

@@ -50,16 +50,16 @@ void MyScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* diag)
 
 void MyScheme::Run(AcesImportState& import, AcesExportState& export_s) {
     auto base_nox = import.fields["base_nox"].view_device();
-    auto total_nox = export_s.fields["nox"].view_device();
+    auto nox = export_s.fields["nox"].view_device();
 
-    int nx = total_nox.extent(0);
-    int ny = total_nox.extent(1);
-    int nz = total_nox.extent(2);
+    int nx = nox.extent(0);
+    int ny = nox.extent(1);
+    int nz = nox.extent(2);
 
     Kokkos::parallel_for("MyKernel",
         Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0,0,0}, {nx,ny,nz}),
         KOKKOS_LAMBDA(int i, int j, int k) {
-            total_nox(i,j,k) += base_nox(i,j,k) * 0.5;
+            nox(i,j,k) += base_nox(i,j,k) * 0.5;
         });
 }
 }

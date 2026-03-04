@@ -197,7 +197,9 @@ class BasePhysicsScheme : public PhysicsScheme {
      * @brief Helper to resolve a diagnostic field.
      */
     DualView3D ResolveDiagnostic(const std::string& name, int nx, int ny, int nz) {
-        if (diag_manager_ == nullptr) return {};
+        if (diag_manager_ == nullptr) {
+            return {};
+        }
         // Use RegisterDiagnostic which also acts as a getter if already registered
         return diag_manager_->RegisterDiagnostic(name, nx, ny, nz);
     }

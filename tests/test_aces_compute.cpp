@@ -21,7 +21,7 @@ class MockFieldResolver : public FieldResolver {
         fields[name] = DualView3D("mock_" + name, nx, ny, nz);
     }
 
-    void SetFieldData(const std::string& name, UnmanagedHostView3D host_view) {
+    void SetFieldData(const std::string& name, const UnmanagedHostView3D& host_view) {
         Kokkos::deep_copy(fields[name].view_host(), host_view);
         fields[name].modify<Kokkos::HostSpace>();
         fields[name].sync<Kokkos::DefaultExecutionSpace::memory_space>();
@@ -34,19 +34,23 @@ class MockFieldResolver : public FieldResolver {
 
     UnmanagedHostView3D ResolveImport(const std::string& name, int /*nx*/, int /*ny*/,
                                       int /*nz*/) override {
-        if (fields.count(name)) return fields[name].view_host();
+        if (fields.find(name) != fields.end()) {
+            return fields[name].view_host();
+        }
         return {};
     }
 
     UnmanagedHostView3D ResolveExport(const std::string& name, int /*nx*/, int /*ny*/,
                                       int /*nz*/) override {
-        if (fields.count(name)) return fields[name].view_host();
+        if (fields.find(name) != fields.end()) {
+            return fields[name].view_host();
+        }
         return {};
     }
 
     Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
     ResolveImportDevice(const std::string& name, int /*nx*/, int /*ny*/, int /*nz*/) override {
-        if (fields.count(name)) {
+        if (fields.find(name) != fields.end()) {
             return fields[name].view_device();
         }
         return {};
@@ -54,7 +58,7 @@ class MockFieldResolver : public FieldResolver {
 
     Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveExportDevice(
         const std::string& name, int /*nx*/, int /*ny*/, int /*nz*/) override {
-        if (fields.count(name)) {
+        if (fields.find(name) != fields.end()) {
             return fields[name].view_device();
         }
         return {};
@@ -71,7 +75,9 @@ class AcesComputeTest : public ::testing::Test {
 };
 
 TEST_F(AcesComputeTest, BranchlessReplaceLogic) {
-    int nx = 10, ny = 10, nz = 1;
+    int nx = 10;
+    int ny = 10;
+    int nz = 1;
 
     Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> background_data("background", nx,
                                                                                    ny, nz);
@@ -145,7 +151,7 @@ TEST_F(AcesComputeTest, YamlParsing) {
 
     AcesConfig config = ParseConfig("test_config.yaml");
 
-    ASSERT_EQ(config.species_layers.count("nox"), 1);
+    ASSERT_EQ(config.species_layers.find("nox") != config.species_layers.end(), 1);
     auto layers = config.species_layers["nox"];
     ASSERT_EQ(layers.size(), 2);
 
@@ -188,7 +194,7 @@ TEST_F(AcesComputeTest, YamlParsingExtended) {
     EXPECT_EQ(config.met_mapping["temperature"], "air_temperature");
     EXPECT_EQ(config.scale_factor_mapping["sf1"], "SF_EXT_1");
     EXPECT_EQ(config.mask_mapping["m1"], "MASK_EXT_1");
-    ASSERT_EQ(config.temporal_profiles.count("diurnal"), 1);
+    ASSERT_EQ(config.temporal_profiles.find("diurnal") != config.temporal_profiles.end(), 1);
     EXPECT_EQ(config.temporal_profiles["diurnal"].factors.size(), 24);
     EXPECT_DOUBLE_EQ(config.temporal_profiles["diurnal"].factors[23], 3.3);
 
@@ -203,7 +209,9 @@ TEST_F(AcesComputeTest, YamlParsingExtended) {
 }
 
 TEST_F(AcesComputeTest, HierarchyAndCategory) {
-    int nx = 4, ny = 4, nz = 1;
+    int nx = 4;
+    int ny = 4;
+    int nz = 1;
 
     // Background (Cat 1, Hier 1)
     Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> bg_data("bg", nx, ny, nz);
@@ -280,7 +288,9 @@ TEST_F(AcesComputeTest, HierarchyAndCategory) {
 }
 
 TEST_F(AcesComputeTest, TemporalCycles) {
-    int nx = 1, ny = 1, nz = 1;
+    int nx = 1;
+    int ny = 1;
+    int nz = 1;
 
     Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> field_data("field", nx, ny, nz);
     Kokkos::deep_copy(field_data, 1.0);
@@ -331,7 +341,9 @@ TEST_F(AcesComputeTest, TemporalCycles) {
 }
 
 TEST_F(AcesComputeTest, MultipleMasks) {
-    int nx = 1, ny = 1, nz = 1;
+    int nx = 1;
+    int ny = 1;
+    int nz = 1;
 
     Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> field_data("field", nx, ny, nz);
     Kokkos::deep_copy(field_data, 10.0);
@@ -372,7 +384,9 @@ TEST_F(AcesComputeTest, MultipleMasks) {
 }
 
 TEST_F(AcesComputeTest, MeteorologyMappingAndScaling) {
-    int nx = 1, ny = 1, nz = 1;
+    int nx = 1;
+    int ny = 1;
+    int nz = 1;
 
     Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> emissions_data("emi", nx, ny,
                                                                                   nz);

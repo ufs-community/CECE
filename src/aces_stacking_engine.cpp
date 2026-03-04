@@ -59,7 +59,9 @@ void StackingEngine::PreCompile() {
  */
 void StackingEngine::BindFields(CompiledSpecies& spec, FieldResolver& resolver, int nx, int ny,
                                 int nz) {
-    if (spec.fields_bound) return;
+    if (spec.fields_bound) {
+        return;
+    }
 
     spec.export_field = resolver.ResolveExportDevice(spec.export_name, nx, ny, nz);
 
@@ -96,7 +98,9 @@ void StackingEngine::BindFields(CompiledSpecies& spec, FieldResolver& resolver, 
 
         dev.num_scales = 0;
         for (const auto& sf_name : layer.scale_fields) {
-            if (dev.num_scales >= DeviceLayer::MAX_SCALES) break;
+            if (dev.num_scales >= DeviceLayer::MAX_SCALES) {
+                break;
+            }
             auto sf_view = resolver.ResolveImportDevice(sf_name, nx, ny, nz);
             if (sf_view.data() != nullptr) {
                 dev.scales[dev.num_scales++] = sf_view;
@@ -105,7 +109,9 @@ void StackingEngine::BindFields(CompiledSpecies& spec, FieldResolver& resolver, 
 
         dev.num_masks = 0;
         for (const auto& m_name : layer.masks) {
-            if (dev.num_masks >= DeviceLayer::MAX_MASKS) break;
+            if (dev.num_masks >= DeviceLayer::MAX_MASKS) {
+                break;
+            }
             auto m_view = resolver.ResolveImportDevice(m_name, nx, ny, nz);
             if (m_view.data() != nullptr) {
                 dev.masks[dev.num_masks++] = m_view;
@@ -217,7 +223,9 @@ void StackingEngine::Execute(
             KOKKOS_LAMBDA(int i, int j, int k) {
                 for (int l = 0; l < num_layers; ++l) {
                     const auto& layer = layers(l);
-                    if (layer.field.data() == nullptr) continue;
+                    if (layer.field.data() == nullptr) {
+                        continue;
+                    }
 
                     // Determine if this (i,j,k) point should receive emissions from this layer
                     // and calculate the fractional weight for distribution if it's a 2D field.
@@ -294,7 +302,9 @@ void StackingEngine::Execute(
                         }
                     }
 
-                    if (!in_vertical_range) continue;
+                    if (!in_vertical_range) {
+                        continue;
+                    }
 
                     double combined_scale = layer.scale;
                     for (int s = 0; s < layer.num_scales; ++s) {

@@ -28,7 +28,9 @@ class MockPhysicsScheme : public PhysicsScheme {
 };
 
 TEST(DiagnosticsTest, RegistrationAndWriteback) {
-    if (!Kokkos::is_initialized()) Kokkos::initialize();
+    if (!Kokkos::is_initialized()) {
+        Kokkos::initialize();
+    }
 
     AcesDiagnosticManager diag_manager;
     MockPhysicsScheme scheme;
@@ -46,7 +48,7 @@ TEST(DiagnosticsTest, RegistrationAndWriteback) {
 
     // Create a dummy template field and clock for the test
     ESMC_Field template_field;
-    template_field.ptr = (void*)0xDEADBEEF;  // Mock pointer to satisfy null check
+    template_field.ptr = reinterpret_cast<void*>(0xDEADBEEF);  // Mock pointer to satisfy null check
 
     ESMC_Clock clock;
     clock.ptr = nullptr;

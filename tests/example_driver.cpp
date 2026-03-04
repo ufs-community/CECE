@@ -89,9 +89,9 @@ int main(int argc, char** argv) {
     const int nz = 10;
 
     // 3. Create ESMF Grid and decomposition
-    int maxIndex3D[3] = {nx, ny, nz};
+    std::array<int, 3> maxIndex3D = {nx, ny, nz};
     ESMC_InterArrayInt iMaxIndex;
-    ESMC_InterArrayIntSet(&iMaxIndex, maxIndex3D, 3);
+    ESMC_InterArrayIntSet(&iMaxIndex, maxIndex3D.data(), 3);
 
     ESMC_Grid grid = ESMC_GridCreateNoPeriDim(&iMaxIndex, nullptr, nullptr, nullptr, &rc);
     if (rc != ESMF_SUCCESS) {
@@ -128,7 +128,7 @@ int main(int argc, char** argv) {
 
     // 7. Initialize ACES component
     ESMC_GridComp acesComp;
-    acesComp.ptr = (void*)0x1;  // Standalone dummy handle used for state tracking
+    acesComp.ptr = reinterpret_cast<void*>(0x1);  // Standalone dummy handle used for state tracking
 
     // Setup component configuration file
     std::system(
@@ -161,10 +161,9 @@ int main(int argc, char** argv) {
         }
 
         // Write the calculated emissions to a NetCDF file using ESMF I/O
-        char filename[64];
-        std::sprintf(filename, "output_step_%d.nc", step);
+        std::string filename = "output_step_" + std::to_string(step) + ".nc";
         std::cout << "  [Driver] Writing diagnostic to " << filename << "\n";
-        ESMC_FieldWrite(f_total, filename, "total_nox", 1, ESMC_FILESTATUS_REPLACE, step + 1,
+        ESMC_FieldWrite(f_total, filename.c_str(), "nox", 1, ESMC_FILESTATUS_REPLACE, step + 1,
                         ESMF_IOFMT_NETCDF);
 
         // STEP D: Advance simulation clock

@@ -47,7 +47,7 @@ class PhysicsTest : public ::testing::Test {
         export_state.fields["soil_nox"] = create_dv("soil", 0.0);
         export_state.fields["dust"] = create_dv("dust", 0.0);
         export_state.fields["so2"] = create_dv("so2", 0.0);
-        export_state.fields["nox"] = create_dv("total_nox", 0.0);
+        export_state.fields["nox"] = create_dv("nox", 0.0);
         import_state.fields["base_anthropogenic_nox"] = create_dv("base_nox", 1.0);
     }
 

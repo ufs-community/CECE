@@ -26,8 +26,9 @@ void SoilNoxFortranScheme::Run(AcesImportState& import_state, AcesExportState& e
     auto it_soil_nox = export_state.fields.find("soil_nox");
 
     if (it_temp == import_state.fields.end() || it_gwet == import_state.fields.end() ||
-        it_soil_nox == export_state.fields.end())
+        it_soil_nox == export_state.fields.end()) {
         return;
+    }
 
     auto& dv_temp = it_temp->second;
     auto& dv_gwet = it_gwet->second;
@@ -37,9 +38,9 @@ void SoilNoxFortranScheme::Run(AcesImportState& import_state, AcesExportState& e
     dv_gwet.sync<Kokkos::HostSpace>();
     dv_soil_nox.sync<Kokkos::HostSpace>();
 
-    int nx = dv_soil_nox.extent(0);
-    int ny = dv_soil_nox.extent(1);
-    int nz = dv_soil_nox.extent(2);
+    int nx = static_cast<int>(dv_soil_nox.extent(0));
+    int ny = static_cast<int>(dv_soil_nox.extent(1));
+    int nz = static_cast<int>(dv_soil_nox.extent(2));
 
     run_soil_nox_fortran(dv_temp.view_host().data(), dv_gwet.view_host().data(),
                          dv_soil_nox.view_host().data(), nx, ny, nz);
