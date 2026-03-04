@@ -6,11 +6,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
-# Ensure Fortran modules are placed in a consistent directory
-if(NOT CMAKE_Fortran_MODULE_DIRECTORY)
-  set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/share)
-endif()
-
 list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 # Allow find_package to use <PackageName>_ROOT variables

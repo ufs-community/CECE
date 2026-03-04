@@ -102,8 +102,9 @@ void StackingEngine::BindFields(CompiledSpecies& spec, FieldResolver& resolver, 
                 break;
             }
             auto sf_view = resolver.ResolveImportDevice(sf_name, nx, ny, nz);
-            if (sf_view.data() != nullptr) {
-                dev.scales[dev.num_scales++] = sf_view;
+            if (sf_view.data() { != nullptr) {
+                    dev.scales[dev.num_scales++] = sf_view;
+                }
             }
         }
 
@@ -113,8 +114,9 @@ void StackingEngine::BindFields(CompiledSpecies& spec, FieldResolver& resolver, 
                 break;
             }
             auto m_view = resolver.ResolveImportDevice(m_name, nx, ny, nz);
-            if (m_view.data() != nullptr) {
-                dev.masks[dev.num_masks++] = m_view;
+            if (m_view.data() { != nullptr) {
+                    dev.masks[dev.num_masks++] = m_view;
+                }
             }
         }
     }
@@ -136,23 +138,27 @@ void StackingEngine::UpdateTemporalScales(CompiledSpecies& spec, int hour, int d
         double scale = layer.base_scale;
         if (!layer.diurnal_cycle.empty()) {
             auto it_p = m_config.temporal_profiles.find(layer.diurnal_cycle);
-            if (it_p != m_config.temporal_profiles.end() && it_p->second.factors.size() == 24) {
-                scale *= it_p->second.factors[hour % 24];
+            if (it_p != m_config.temporal_profiles.end() { && it_p->second.factors.size() == 24) {
+                    scale *= it_p->second.factors[hour % 24];
+                }
             } else {
                 auto it_c = m_config.temporal_cycles.find(layer.diurnal_cycle);
-                if (it_c != m_config.temporal_cycles.end() && it_c->second.factors.size() == 24) {
-                    scale *= it_c->second.factors[hour % 24];
+                if (it_c != m_config.temporal_cycles.end() { && it_c->second.factors.size() == 24) {
+                        scale *= it_c->second.factors[hour % 24];
+                    }
                 }
             }
         }
         if (!layer.weekly_cycle.empty()) {
             auto it_p = m_config.temporal_profiles.find(layer.weekly_cycle);
-            if (it_p != m_config.temporal_profiles.end() && it_p->second.factors.size() == 7) {
-                scale *= it_p->second.factors[day_of_week % 7];
+            if (it_p != m_config.temporal_profiles.end() { && it_p->second.factors.size() == 7) {
+                    scale *= it_p->second.factors[day_of_week % 7];
+                }
             } else {
                 auto it_c = m_config.temporal_cycles.find(layer.weekly_cycle);
-                if (it_c != m_config.temporal_cycles.end() && it_c->second.factors.size() == 7) {
-                    scale *= it_c->second.factors[day_of_week % 7];
+                if (it_c != m_config.temporal_cycles.end() { && it_c->second.factors.size() == 7) {
+                        scale *= it_c->second.factors[day_of_week % 7];
+                    }
                 }
             }
         }
@@ -198,8 +204,9 @@ void StackingEngine::Execute(
 
         BindFields(spec, resolver, nx, ny, nz);
 
-        if (spec.export_field.data() == nullptr) {
-            continue;
+        if (spec.export_field.data() { == nullptr) {
+                continue;
+            }
         }
 
         UpdateTemporalScales(spec, hour, day_of_week);
@@ -208,7 +215,7 @@ void StackingEngine::Execute(
         Kokkos::deep_copy(total_view, 0.0);
 
         auto layers = spec.device_layers;
-        int num_layers = layers.extent(0);
+        int num_layers = static_cast<int>(layers.extent(0));
 
         auto ak = spec.ak;
         auto bk = spec.bk;
@@ -221,10 +228,11 @@ void StackingEngine::Execute(
             "StackingEngine_FusedSpeciesKernel",
             Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
             KOKKOS_LAMBDA(int i, int j, int k) {
-                for (int l = 0; l < num_layers; ++l) {
-                    const auto& layer = layers(l);
-                    if (layer.field.data() == nullptr) {
+            for (int l = 0; l < num_layers; ++l) {
+                const auto& layer = layers(l);
+                    if (layer.field.data() { == nullptr) {
                         continue;
+                    }
                     }
 
                     // Determine if this (i,j,k) point should receive emissions from this layer
@@ -233,33 +241,35 @@ void StackingEngine::Execute(
                     bool in_vertical_range = false;
 
                     if (layer.vdist_method == 0) {  // SINGLE
-                        if (k == layer.vdist_layer_start) {
-                            in_vertical_range = true;
-                            weight = 1.0;
-                        }
+                    if (k == layer.vdist_layer_start) {
+                        in_vertical_range = true;
+                        weight = 1.0;
+                    }
                     } else if (layer.vdist_method == 1) {  // RANGE
-                        if (k >= layer.vdist_layer_start && k <= layer.vdist_layer_end) {
-                            in_vertical_range = true;
-                            weight = 1.0 / (layer.vdist_layer_end - layer.vdist_layer_start + 1);
-                        }
+                    if (k >= layer.vdist_layer_start && k <= layer.vdist_layer_end) {
+                        in_vertical_range = true;
+                        weight = 1.0 / (layer.vdist_layer_end - layer.vdist_layer_start + 1);
+                    }
                     } else if (layer.vdist_method == 2) {  // PRESSURE
-                        double p_top = 0.0, p_bot = 0.0;
-                        if (vtype == VerticalCoordType::FV3 && ak.data() && bk.data() &&
+                    double p_top = 0.0, p_bot = 0.0;
+                        if (vtype == VerticalCoordType::FV3 && ak.data() { && bk.data() &&
                             ps.data()) {
                             // Correct indexing for 1D/3D coefficients
                             p_top = ak(0, 0, k) + bk(0, 0, k) * ps(i, j, 0);
-                            p_bot = ak(0, 0, k + 1) + bk(0, 0, k + 1) * ps(i, j, 0);
+                        }
+                        p_bot = ak(0, 0, k + 1) + bk(0, 0, k + 1) * ps(i, j, 0);
                         } else if ((vtype == VerticalCoordType::MPAS ||
-                                    vtype == VerticalCoordType::WRF) &&
+                                    vtype == VerticalCoordType::WRF) { &&
                                    z_coord.data()) {
                             constexpr double P0 = 101325.0;
-                            constexpr double H = 8000.0;
-                            p_top = P0 * Kokkos::exp(-z_coord(i, j, k) / H);
-                            if (k + 1 < nz) {
-                                p_bot = P0 * Kokkos::exp(-z_coord(i, j, k + 1) / H);
-                            } else {
-                                p_bot = ps.data() ? ps(i, j, 0) : P0;
-                            }
+                        }
+                        constexpr double H = 8000.0;
+                        p_top = P0 * Kokkos::exp(-z_coord(i, j, k) / H);
+                        if (k + 1 < nz) {
+                            p_bot = P0 * Kokkos::exp(-z_coord(i, j, k + 1) / H);
+                        } else {
+                            p_bot = ps.data() ? ps(i, j, 0) : P0;
+                        }
                         }
                         double overlap_top =
                             (p_top > layer.vdist_p_start) ? p_top : layer.vdist_p_start;
@@ -267,79 +277,87 @@ void StackingEngine::Execute(
                             (p_bot < layer.vdist_p_end) ? p_bot : layer.vdist_p_end;
 
                         if (overlap_bot > overlap_top) {
-                            in_vertical_range = true;
-                            weight = (overlap_bot - overlap_top) /
-                                     (layer.vdist_p_end - layer.vdist_p_start);
+                        in_vertical_range = true;
+                        weight =
+                            (overlap_bot - overlap_top) / (layer.vdist_p_end - layer.vdist_p_start);
                         }
                     } else if (layer.vdist_method == 3) {  // HEIGHT
-                        if (z_coord.data()) {
-                            double z = z_coord(i, j, k);
-                            if (z >= layer.vdist_h_start && z <= layer.vdist_h_end) {
-                                in_vertical_range = true;
-                                // Per-column normalization
-                                int count = 0;
-                                for (int kk = 0; kk < nz; ++kk) {
-                                    if (z_coord(i, j, kk) >= layer.vdist_h_start &&
+                    if (z_coord.data()) {
+                        double z = z_coord(i, j, k);
+                        if (z >= layer.vdist_h_start && z <= layer.vdist_h_end) {
+                            in_vertical_range = true;
+                            // Per-column normalization
+                            int count = 0;
+                            for (int kk = 0; kk < nz; ++kk) {
+                                    if (z_coord(i, j, kk) { >= layer.vdist_h_start &&
                                         z_coord(i, j, kk) <= layer.vdist_h_end)
-                                        count++;
-                                }
-                                if (count > 0) weight = 1.0 / count;
+                                        count++; }
+                            }
+                            if (count > 0) {
+                                weight = 1.0 / count;
                             }
                         }
+                    }
                     } else if (layer.vdist_method == 4) {  // PBL
-                        if (pbl.data() && z_coord.data()) {
+                        if (pbl.data() { && z_coord.data()) {
                             double z = z_coord(i, j, k);
-                            double h_pbl = pbl(i, j, 0);
-                            if (z <= h_pbl) {
-                                in_vertical_range = true;
-                                // Per-column normalization
-                                int count = 0;
-                                for (int kk = 0; kk < nz; ++kk) {
-                                    if (z_coord(i, j, kk) <= h_pbl) count++;
-                                }
-                                if (count > 0) weight = 1.0 / count;
+                        }
+                        double h_pbl = pbl(i, j, 0);
+                        if (z <= h_pbl) {
+                            in_vertical_range = true;
+                            // Per-column normalization
+                            int count = 0;
+                            for (int kk = 0; kk < nz; ++kk) {
+                                    if (z_coord(i, j, kk) { <= h_pbl) count++; }
                             }
+                            if (count > 0) {
+                                weight = 1.0 / count;
+                            }
+                        }
                         }
                     }
 
                     if (!in_vertical_range) {
-                        continue;
+                    continue;
                     }
 
                     double combined_scale = layer.scale;
                     for (int s = 0; s < layer.num_scales; ++s) {
-                        if (layer.scales[s].extent(2) == 1) {
+                        if (layer.scales[s].extent(2) { == 1) {
                             combined_scale *= layer.scales[s](i, j, 0);
+                        }
                         } else {
-                            combined_scale *= layer.scales[s](i, j, k);
+                        combined_scale *= layer.scales[s](i, j, k);
                         }
                     }
 
                     double combined_mask = 0.0;
                     if (layer.num_masks > 0) {
-                        combined_mask = 1.0;
-                        for (int m = 0; m < layer.num_masks; ++m) {
-                            if (layer.masks[m].extent(2) == 1) {
+                    combined_mask = 1.0;
+                    for (int m = 0; m < layer.num_masks; ++m) {
+                            if (layer.masks[m].extent(2) { == 1) {
                                 combined_mask *= layer.masks[m](i, j, 0);
-                            } else {
-                                combined_mask *= layer.masks[m](i, j, k);
                             }
-                        }
+                            } else {
+                            combined_mask *= layer.masks[m](i, j, k);
+                            }
+                    }
                     } else {
-                        combined_mask = default_mask(i, j, k);
+                    combined_mask = default_mask(i, j, k);
                     }
 
                     double val = 0.0;
-                    if (layer.field.extent(2) == 1) {
+                    if (layer.field.extent(2) { == 1) {
                         val = layer.field(i, j, 0) * weight;
+                    }
                     } else {
-                        val = layer.field(i, j, k);
+                    val = layer.field(i, j, k);
                     }
 
                     total_view(i, j, k) =
                         total_view(i, j, k) * (1.0 - layer.replace_flag * combined_mask) +
                         val * combined_scale * combined_mask;
-                }
+            }
             });
     }
     Kokkos::fence();

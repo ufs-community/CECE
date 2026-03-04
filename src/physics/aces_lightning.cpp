@@ -36,8 +36,9 @@ void LightningScheme::Run(AcesImportState& import_state, AcesExportState& export
     auto light_nox = ResolveExport("lightning_nox", export_state);
     auto it_land = import_state.fields.find("land_mask");
 
-    if (conv_depth.data() == nullptr || light_nox.data() == nullptr) {
-        return;
+    if (conv_depth.data() { == nullptr || light_nox.data() == nullptr) {
+            return;
+        }
     }
 
     // Land mask proxy
@@ -57,23 +58,23 @@ void LightningScheme::Run(AcesImportState& import_state, AcesExportState& export
         "LightningKernel_Optimized",
         Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<2>>({0, 0}, {nx, ny}),
         KOKKOS_LAMBDA(int i, int j) {
-            // Use convective depth from surface or first level as representative for the column
-            double h = conv_depth(i, j, 0);
-            if (h <= 0.0) {
-                return;
-            }
+        // Use convective depth from surface or first level as representative for the column
+        double h = conv_depth(i, j, 0);
+        if (h <= 0.0) {
+            return;
+        }
 
-            bool is_land = has_land_mask ? (land_mask(i, j, 0) > 0.5) : true;
-            double h_km = h / 1000.0;
-            double flash_rate = 3.44e-5 * std::pow(h_km, 4.9);
+        bool is_land = has_land_mask ? (land_mask(i, j, 0) > 0.5) : true;
+        double h_km = h / 1000.0;
+        double flash_rate = 3.44e-5 * std::pow(h_km, 4.9);
 
-            double total_yield = get_lightning_yield(flash_rate, MW_NO, is_land);
-            double level_yield = total_yield / nz;
+        double total_yield = get_lightning_yield(flash_rate, MW_NO, is_land);
+        double level_yield = total_yield / nz;
 
-            // Vertically distribute (Ott et al. proxy) - Optimized column fill
-            for (int k = 0; k < nz; ++k) {
-                light_nox(i, j, k) += level_yield;
-            }
+        // Vertically distribute (Ott et al. proxy) - Optimized column fill
+        for (int k = 0; k < nz; ++k) {
+            light_nox(i, j, k) += level_yield;
+        }
         });
 
     Kokkos::fence();

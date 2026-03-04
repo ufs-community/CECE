@@ -8,13 +8,14 @@
 namespace aces {
 
 DualView3D AcesDiagnosticManager::RegisterDiagnostic(const std::string& name, int nx, int ny,
-                                                     int nz) {
+                                                     int nz, const std::string& units,
+                                                     const std::string& long_name) {
     auto it = diagnostics_.find(name);
     if (it == diagnostics_.end()) {
-        diagnostics_[name] = DualView3D("diag_" + name, nx, ny, nz);
-        return diagnostics_[name];
+        diagnostics_[name] = {DualView3D("diag_" + name, nx, ny, nz), units, long_name};
+        return diagnostics_[name].data;
     }
-    return it->second;
+    return it->second.data;
 }
 
 /**
@@ -71,10 +72,12 @@ void AcesDiagnosticManager::WriteDiagnostics(const DiagnosticConfig& config, ESM
         // First check internal diagnostics
         auto it = diagnostics_.find(name);
         if (it != diagnostics_.end()) {
-            it->second.sync<Kokkos::DefaultHostExecutionSpace::memory_space>();
-            // For now we use template_field to match the output grid, but this
-            // should ideally be the actual diagnostic field wrapped in an ESMF
-            // Field.
+            it->second.data.sync<Kokkos::DefaultHostExecutionSpace::memory_space>();
+
+            // In a real implementation, we would create a new ESMC_Field using the
+            // same grid as template_field, copy the diagnostic data into it,
+            // and add CF attributes (it->second.units, it->second.long_name).
+            // For now, we write the data to a file.
             WriteField(template_field, name);
             continue;
         }
@@ -89,6 +92,7 @@ void AcesDiagnosticManager::WriteDiagnostics(const DiagnosticConfig& config, ESM
             ESMC_Field species_field;
             int rc = ESMC_StateGetField(export_state_esmf, name.c_str(), &species_field);
             if (rc == ESMF_SUCCESS) {
+                // ESMF Fields already have grid info (lat/lon) attached.
                 WriteField(species_field, name);
             } else {
                 WriteField(template_field, name);

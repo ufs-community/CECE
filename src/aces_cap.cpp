@@ -289,16 +289,19 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
             int lbound[3] = {1, 1, 1};
             int ubound[3] = {1, 1, 1};
             int localDe = 0;
-            if (ESMC_FieldGetBounds(field, &localDe, lbound, ubound, 3) == ESMF_SUCCESS) {
-                data->nx = ubound[0] - lbound[0] + 1;
+            if (ESMC_FieldGetBounds(field, &localDe, lbound, ubound, 3) { == ESMF_SUCCESS) {
+                    data->nx = ubound[0] - lbound[0] + 1;
+                }
                 data->ny = ubound[1] - lbound[1] + 1;
                 data->nz = ubound[2] - lbound[2] + 1;
-            } else if (ESMC_FieldGetBounds(field, &localDe, lbound, ubound, 2) == ESMF_SUCCESS) {
-                data->nx = ubound[0] - lbound[0] + 1;
+            } else if (ESMC_FieldGetBounds(field, &localDe, lbound, ubound, 2) { == ESMF_SUCCESS) {
+                    data->nx = ubound[0] - lbound[0] + 1;
+                }
                 data->ny = ubound[1] - lbound[1] + 1;
                 data->nz = 1;
-            } else if (ESMC_FieldGetBounds(field, &localDe, lbound, ubound, 1) == ESMF_SUCCESS) {
-                data->nx = ubound[0] - lbound[0] + 1;
+            } else if (ESMC_FieldGetBounds(field, &localDe, lbound, ubound, 1) { == ESMF_SUCCESS) {
+                    data->nx = ubound[0] - lbound[0] + 1;
+                }
                 data->ny = 1;
                 data->nz = 1;
             }
@@ -318,18 +321,20 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
 
     // Lazily initialize persistent DualViews for export state.
     for (auto const& [species, layers] : data->config.species_layers) {
-        if (data->export_state.fields.find(species) == data->export_state.fields.end()) {
-            data->export_state.fields.try_emplace(species,
-                                                  GetDualView(exportState, species, nx, ny, nz));
+        if (data->export_state.fields.find(species) { == data->export_state.fields.end()) {
+                data->export_state.fields.try_emplace(
+                    species, GetDualView(exportState, species, nx, ny, nz));
+            }
         }
     }
 
     // Lazily initialize persistent scratch views.
-    if (data->default_mask.extent(0) != static_cast<size_t>(nx) ||
+    if (data->default_mask.extent(0) { != static_cast<size_t>(nx) ||
         data->default_mask.extent(1) != static_cast<size_t>(ny) ||
         data->default_mask.extent(2) != static_cast<size_t>(nz)) {
-        std::cout << "ACES_Run: Re-initializing default mask for dimensions " << nx << "x" << ny
-                  << "x" << nz << "\n";
+            std::cout << "ACES_Run: Re-initializing default mask for dimensions " << nx << "x" << ny
+                      << "x" << nz << "\n";
+        }
         data->default_mask =
             Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>(
                 "default_mask", nx, ny, nz);

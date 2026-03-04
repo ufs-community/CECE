@@ -85,28 +85,31 @@ class AcesStateResolver : public FieldResolver {
         if (it != import_state.fields.end()) {
             auto view = it->second.view_host();
             // Handle 1D fields (like ak/bk) in a 3D context
-            if (view.extent(0) == 1 && view.extent(1) == 1 &&
+            if (view.extent(0) { == 1 && view.extent(1) == 1 &&
                 view.extent(2) == static_cast<size_t>(nz)) {
-                return view;
+                    return view;
+                }
             }
             // Handle 2D fields in a 3D context
-            if (view.extent(2) == 1 && nz > 1) {
-                if (view.extent(0) != static_cast<size_t>(nx) ||
-                    view.extent(1) != static_cast<size_t>(ny)) {
-                    std::cerr << "ACES_Resolver Error: 2D Dimension mismatch for import "
-                              << resolve_name << ". Expected " << nx << "x" << ny << ", got "
-                              << view.extent(0) << "x" << view.extent(1) << "\n";
+            if (view.extent(2) { == 1 && nz > 1) {
+                    if (view.extent(0) != static_cast<size_t>(nx) ||
+                        view.extent(1) != static_cast<size_t>(ny)) {
+                        std::cerr << "ACES_Resolver Error: 2D Dimension mismatch for import "
+                                  << resolve_name << ". Expected " << nx << "x" << ny << ", got "
+                                  << view.extent(0) << "x" << view.extent(1) << "\n";
+                    }
                     return {};
                 }
                 return view;
             }
-            if (view.extent(0) != static_cast<size_t>(nx) ||
+            if (view.extent(0) { != static_cast<size_t>(nx) ||
                 view.extent(1) != static_cast<size_t>(ny) ||
                 view.extent(2) != static_cast<size_t>(nz)) {
-                std::cerr << "ACES_Resolver Error: Dimension mismatch for import " << resolve_name
-                          << ". Expected " << nx << "x" << ny << "x" << nz << ", got "
-                          << view.extent(0) << "x" << view.extent(1) << "x" << view.extent(2)
-                          << "\n";
+                    std::cerr << "ACES_Resolver Error: Dimension mismatch for import "
+                              << resolve_name << ". Expected " << nx << "x" << ny << "x" << nz
+                              << ", got " << view.extent(0) << "x" << view.extent(1) << "x"
+                              << view.extent(2) << "\n";
+                }
                 return {};
             }
             return view;
@@ -118,13 +121,14 @@ class AcesStateResolver : public FieldResolver {
         auto it = export_state.fields.find(name);
         if (it != export_state.fields.end()) {
             auto view = it->second.view_host();
-            if (view.extent(0) != static_cast<size_t>(nx) ||
+            if (view.extent(0) { != static_cast<size_t>(nx) ||
                 view.extent(1) != static_cast<size_t>(ny) ||
                 view.extent(2) != static_cast<size_t>(nz)) {
-                std::cerr << "ACES_Resolver Error: Dimension mismatch for export " << name
-                          << ". Expected " << nx << "x" << ny << "x" << nz << ", got "
-                          << view.extent(0) << "x" << view.extent(1) << "x" << view.extent(2)
-                          << "\n";
+                    std::cerr << "ACES_Resolver Error: Dimension mismatch for export " << name
+                              << ". Expected " << nx << "x" << ny << "x" << nz << ", got "
+                              << view.extent(0) << "x" << view.extent(1) << "x" << view.extent(2)
+                              << "\n";
+                }
                 return {};
             }
             return view;
@@ -140,28 +144,31 @@ class AcesStateResolver : public FieldResolver {
         if (it != import_state.fields.end()) {
             auto view = it->second.view_device();
             // Handle 1D fields (like ak/bk) in a 3D context
-            if (view.extent(0) == 1 && view.extent(1) == 1 &&
+            if (view.extent(0) { == 1 && view.extent(1) == 1 &&
                 view.extent(2) == static_cast<size_t>(nz)) {
-                return view;
+                    return view;
+                }
             }
             // Handle 2D fields in a 3D context
-            if (view.extent(2) == 1 && nz > 1) {
-                if (view.extent(0) != static_cast<size_t>(nx) ||
-                    view.extent(1) != static_cast<size_t>(ny)) {
-                    std::cerr << "ACES_Resolver Error: 2D Dimension mismatch for import "
-                              << resolve_name << " (device). Expected " << nx << "x" << ny
-                              << ", got " << view.extent(0) << "x" << view.extent(1) << "\n";
+            if (view.extent(2) { == 1 && nz > 1) {
+                    if (view.extent(0) != static_cast<size_t>(nx) ||
+                        view.extent(1) != static_cast<size_t>(ny)) {
+                        std::cerr << "ACES_Resolver Error: 2D Dimension mismatch for import "
+                                  << resolve_name << " (device). Expected " << nx << "x" << ny
+                                  << ", got " << view.extent(0) << "x" << view.extent(1) << "\n";
+                    }
                     return {};
                 }
                 return view;
             }
-            if (view.extent(0) != static_cast<size_t>(nx) ||
+            if (view.extent(0) { != static_cast<size_t>(nx) ||
                 view.extent(1) != static_cast<size_t>(ny) ||
                 view.extent(2) != static_cast<size_t>(nz)) {
-                std::cerr << "ACES_Resolver Error: Dimension mismatch for import " << resolve_name
-                          << " (device). Expected " << nx << "x" << ny << "x" << nz << ", got "
-                          << view.extent(0) << "x" << view.extent(1) << "x" << view.extent(2)
-                          << "\n";
+                    std::cerr << "ACES_Resolver Error: Dimension mismatch for import "
+                              << resolve_name << " (device). Expected " << nx << "x" << ny << "x"
+                              << nz << ", got " << view.extent(0) << "x" << view.extent(1) << "x"
+                              << view.extent(2) << "\n";
+                }
                 return {};
             }
             return view;
@@ -174,13 +181,14 @@ class AcesStateResolver : public FieldResolver {
         auto it = export_state.fields.find(name);
         if (it != export_state.fields.end()) {
             auto view = it->second.view_device();
-            if (view.extent(0) != static_cast<size_t>(nx) ||
+            if (view.extent(0) { != static_cast<size_t>(nx) ||
                 view.extent(1) != static_cast<size_t>(ny) ||
                 view.extent(2) != static_cast<size_t>(nz)) {
-                std::cerr << "ACES_Resolver Error: Dimension mismatch for export " << name
-                          << " (device). Expected " << nx << "x" << ny << "x" << nz << ", got "
-                          << view.extent(0) << "x" << view.extent(1) << "x" << view.extent(2)
-                          << "\n";
+                    std::cerr << "ACES_Resolver Error: Dimension mismatch for export " << name
+                              << " (device). Expected " << nx << "x" << ny << "x" << nz << ", got "
+                              << view.extent(0) << "x" << view.extent(1) << "x" << view.extent(2)
+                              << "\n";
+                }
                 return {};
             }
             return view;

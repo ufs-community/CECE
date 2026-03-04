@@ -174,12 +174,12 @@ AcesConfig ParseConfig(const std::string& filename) {
     // Parse diagnostics
     if (root["diagnostics"]) {
         auto diag_node = root["diagnostics"];
-        if (diag_node.IsSequence()) {
+        if (diag_node.IsSequence() != 0) {
             // Backward compatibility for simple list
             for (auto const& item : diag_node) {
                 config.diagnostics.variables.push_back(item.as<std::string>());
             }
-        } else if (diag_node.IsMap()) {
+        } else if (diag_node.IsMap() != 0) {
             if (diag_node["output_interval"]) {
                 config.diagnostics.output_interval_seconds = diag_node["output_interval"].as<int>();
             }

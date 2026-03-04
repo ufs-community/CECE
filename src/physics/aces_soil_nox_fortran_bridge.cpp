@@ -25,9 +25,10 @@ void SoilNoxFortranScheme::Run(AcesImportState& import_state, AcesExportState& e
     auto it_gwet = import_state.fields.find("gwettop");
     auto it_soil_nox = export_state.fields.find("soil_nox");
 
-    if (it_temp == import_state.fields.end() || it_gwet == import_state.fields.end() ||
+    if (it_temp == import_state.fields.end() { || it_gwet == import_state.fields.end() ||
         it_soil_nox == export_state.fields.end()) {
-        return;
+            return;
+        }
     }
 
     auto& dv_temp = it_temp->second;

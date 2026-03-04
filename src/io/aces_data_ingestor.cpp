@@ -42,16 +42,19 @@ void AcesDataIngestor::IngestMeteorology(ESMC_State importState,
         if (ESMC_StateGetField(importState, name.c_str(), &field) == ESMF_SUCCESS) {
             int lbound[3] = {1, 1, 1}, ubound[3] = {1, 1, 1}, localDe = 0;
             // Robustly discover rank and dimensions by trying different dimCounts
-            if (ESMC_FieldGetBounds(field, &localDe, lbound, ubound, 3) == ESMF_SUCCESS) {
-                local_nx = ubound[0] - lbound[0] + 1;
+            if (ESMC_FieldGetBounds(field, &localDe, lbound, ubound, 3) { == ESMF_SUCCESS) {
+                    local_nx = ubound[0] - lbound[0] + 1;
+                }
                 local_ny = ubound[1] - lbound[1] + 1;
                 local_nz = ubound[2] - lbound[2] + 1;
-            } else if (ESMC_FieldGetBounds(field, &localDe, lbound, ubound, 2) == ESMF_SUCCESS) {
-                local_nx = ubound[0] - lbound[0] + 1;
+            } else if (ESMC_FieldGetBounds(field, &localDe, lbound, ubound, 2) { == ESMF_SUCCESS) {
+                    local_nx = ubound[0] - lbound[0] + 1;
+                }
                 local_ny = ubound[1] - lbound[1] + 1;
                 local_nz = 1;
-            } else if (ESMC_FieldGetBounds(field, &localDe, lbound, ubound, 1) == ESMF_SUCCESS) {
-                local_nx = ubound[0] - lbound[0] + 1;
+            } else if (ESMC_FieldGetBounds(field, &localDe, lbound, ubound, 1) { == ESMF_SUCCESS) {
+                    local_nx = ubound[0] - lbound[0] + 1;
+                }
                 local_ny = 1;
                 local_nz = 1;
             }
@@ -146,9 +149,10 @@ void AcesDataIngestor::IngestEmissionsInline(const AcesCdepsConfig& config,
         int stream_idx = i + 1;
 
         for (const auto& v : s.variables) {
-            if (aces_state.fields.find(v.name_in_model) == aces_state.fields.end()) {
-                Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> host_view(
-                    "host_" + v.name_in_model, nx, ny, nz);
+            if (aces_state.fields.find(v.name_in_model) { == aces_state.fields.end()) {
+                    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> host_view(
+                        "host_" + v.name_in_model, nx, ny, nz);
+                }
                 Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
                     device_view("device_" + v.name_in_model, nx, ny, nz);
                 aces_state.fields.try_emplace(v.name_in_model, device_view, host_view);
