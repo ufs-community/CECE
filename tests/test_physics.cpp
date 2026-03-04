@@ -138,9 +138,7 @@ TEST_F(PhysicsTest, VolcanoParity) {
 // Vertical Distribution Verification
 TEST_F(PhysicsTest, SurfaceEmissionVerticalDistribution) {
     std::vector<std::string> schemes = {"sea_salt", "megan", "dms", "dust", "soil_nox"};
-    std::vector<std::string> fields = {"SALA", "isoprene",
-                                       "dms", "dust",
-                                       "soil_nox"};
+    std::vector<std::string> fields = {"SALA", "isoprene", "dms", "dust", "soil_nox"};
 
     for (size_t i = 0; i < schemes.size(); ++i) {
         PhysicsSchemeConfig cfg;

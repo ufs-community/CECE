@@ -317,8 +317,8 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
     // Lazily initialize persistent DualViews for export state.
     for (auto const& [species, layers] : data->config.species_layers) {
         if (data->export_state.fields.find(species) == data->export_state.fields.end()) {
-            data->export_state.fields.try_emplace(
-                species, GetDualView(exportState, species, nx, ny, nz));
+            data->export_state.fields.try_emplace(species,
+                                                  GetDualView(exportState, species, nx, ny, nz));
         }
     }
 
@@ -456,8 +456,8 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
             std::string ref_field_name = data->config.species_layers.begin()->first;
             ESMC_StateGetField(exportState, ref_field_name.c_str(), &template_field);
         }
-        data->diagnostic_manager->WriteDiagnostics(data->config.diagnostics, *clock,
-                                                   template_field, data->export_state, exportState);
+        data->diagnostic_manager->WriteDiagnostics(data->config.diagnostics, *clock, template_field,
+                                                   data->export_state, exportState);
     }
 
     // Sync results back to host space
