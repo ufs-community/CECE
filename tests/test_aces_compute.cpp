@@ -98,8 +98,8 @@ TEST_F(AcesComputeTest, BranchlessReplaceLogic) {
     resolver.SetFieldData("regional_field", regional_data);
     resolver.AddField("half_mask", nx, ny, nz);
     resolver.SetFieldData("half_mask", mask_data);
-    resolver.AddField("total_nox_emissions", nx, ny, nz);
-    resolver.SetFieldData("total_nox_emissions", export_data);
+    resolver.AddField("nox", nx, ny, nz);
+    resolver.SetFieldData("nox", export_data);
 
     AcesConfig config;
 
@@ -118,7 +118,7 @@ TEST_F(AcesComputeTest, BranchlessReplaceLogic) {
 
     ComputeEmissions(config, resolver, nx, ny, nz);
 
-    auto result = resolver.GetFieldData("total_nox_emissions");
+    auto result = resolver.GetFieldData("nox");
     for (int i = 0; i < nx; ++i) {
         for (int j = 0; j < ny; ++j) {
             if (i < nx / 2) {
@@ -235,8 +235,8 @@ TEST_F(AcesComputeTest, HierarchyAndCategory) {
     resolver.SetFieldData("cat2", cat2_data);
     resolver.AddField("sf", nx, ny, nz);
     resolver.SetFieldData("sf", sf_data);
-    resolver.AddField("total_nox_emissions", nx, ny, nz);
-    resolver.SetFieldData("total_nox_emissions", export_data);
+    resolver.AddField("nox", nx, ny, nz);
+    resolver.SetFieldData("nox", export_data);
 
     AcesConfig config;
 
@@ -264,7 +264,7 @@ TEST_F(AcesComputeTest, HierarchyAndCategory) {
 
     ComputeEmissions(config, resolver, nx, ny, nz);
 
-    auto result = resolver.GetFieldData("total_nox_emissions");
+    auto result = resolver.GetFieldData("nox");
     for (int i = 0; i < nx; ++i) {
         for (int j = 0; j < ny; ++j) {
             // GLOBAL Hierarchy check:
@@ -292,8 +292,8 @@ TEST_F(AcesComputeTest, TemporalCycles) {
     MockFieldResolver resolver;
     resolver.AddField("base_field", nx, ny, nz);
     resolver.SetFieldData("base_field", field_data);
-    resolver.AddField("total_nox_emissions", nx, ny, nz);
-    resolver.SetFieldData("total_nox_emissions", export_data);
+    resolver.AddField("nox", nx, ny, nz);
+    resolver.SetFieldData("nox", export_data);
 
     AcesConfig config;
 
@@ -320,13 +320,13 @@ TEST_F(AcesComputeTest, TemporalCycles) {
     // Test Hour 10, Day 0 (Monday) -> scale should be 2.5 * 1.0 = 2.5
     ComputeEmissions(config, resolver, nx, ny, nz, {}, 10, 0);
 
-    auto result = resolver.GetFieldData("total_nox_emissions");
+    auto result = resolver.GetFieldData("nox");
     EXPECT_DOUBLE_EQ(result(0, 0, 0), 2.5);
 
     // Test Hour 10, Day 5 (Saturday) -> scale should be 2.5 * 0.5 = 1.25
-    Kokkos::deep_copy(resolver.GetFieldData("total_nox_emissions"), 0.0);
+    Kokkos::deep_copy(resolver.GetFieldData("nox"), 0.0);
     ComputeEmissions(config, resolver, nx, ny, nz, {}, 10, 5);
-    result = resolver.GetFieldData("total_nox_emissions");
+    result = resolver.GetFieldData("nox");
     EXPECT_DOUBLE_EQ(result(0, 0, 0), 1.25);
 }
 
@@ -353,8 +353,8 @@ TEST_F(AcesComputeTest, MultipleMasks) {
     resolver.SetFieldData("m1", mask1);
     resolver.AddField("m2", nx, ny, nz);
     resolver.SetFieldData("m2", mask2);
-    resolver.AddField("total_nox_emissions", nx, ny, nz);
-    resolver.SetFieldData("total_nox_emissions", export_data);
+    resolver.AddField("nox", nx, ny, nz);
+    resolver.SetFieldData("nox", export_data);
 
     AcesConfig config;
     EmissionLayer layer;
@@ -366,7 +366,7 @@ TEST_F(AcesComputeTest, MultipleMasks) {
 
     ComputeEmissions(config, resolver, nx, ny, nz);
 
-    auto result = resolver.GetFieldData("total_nox_emissions");
+    auto result = resolver.GetFieldData("nox");
     // Result should be 10.0 * (0.5 * 0.2) = 1.0
     EXPECT_DOUBLE_EQ(result(0, 0, 0), 1.0);
 }
@@ -390,8 +390,8 @@ TEST_F(AcesComputeTest, MeteorologyMappingAndScaling) {
     resolver.SetFieldData("base_emi", emissions_data);
     resolver.AddField("air_temperature", nx, ny, nz);
     resolver.SetFieldData("air_temperature", temp_data);
-    resolver.AddField("total_nox_emissions", nx, ny, nz);
-    resolver.SetFieldData("total_nox_emissions", export_data);
+    resolver.AddField("nox", nx, ny, nz);
+    resolver.SetFieldData("nox", export_data);
 
     AcesConfig config;
     config.met_mapping["temperature"] = "air_temperature";
@@ -417,18 +417,18 @@ TEST_F(AcesComputeTest, MeteorologyMappingAndScaling) {
     imp.fields["air_temperature"].modify<Kokkos::HostSpace>();
     imp.fields["air_temperature"].sync<Kokkos::DefaultExecutionSpace::memory_space>();
 
-    exp.fields["total_nox_emissions"] = DualView3D("total_nox_emissions", nx, ny, nz);
-    Kokkos::deep_copy(exp.fields["total_nox_emissions"].view_host(), export_data);
-    exp.fields["total_nox_emissions"].modify<Kokkos::HostSpace>();
-    exp.fields["total_nox_emissions"].sync<Kokkos::DefaultExecutionSpace::memory_space>();
+    exp.fields["nox"] = DualView3D("nox", nx, ny, nz);
+    Kokkos::deep_copy(exp.fields["nox"].view_host(), export_data);
+    exp.fields["nox"].modify<Kokkos::HostSpace>();
+    exp.fields["nox"].sync<Kokkos::DefaultExecutionSpace::memory_space>();
 
     AcesStateResolver state_resolver(imp, exp, config.met_mapping, config.scale_factor_mapping,
                                      config.mask_mapping);
 
     ComputeEmissions(config, state_resolver, nx, ny, nz);
 
-    exp.fields["total_nox_emissions"].sync<Kokkos::HostSpace>();
-    auto result = exp.fields["total_nox_emissions"].view_host();
+    exp.fields["nox"].sync<Kokkos::HostSpace>();
+    auto result = exp.fields["nox"].view_host();
     EXPECT_DOUBLE_EQ(result(0, 0, 0), 120.0);
 }
 

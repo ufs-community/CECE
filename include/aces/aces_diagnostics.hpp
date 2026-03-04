@@ -36,7 +36,8 @@ class AcesDiagnosticManager {
      * @param template_field A field used to derive grid information for output.
      */
     void WriteDiagnostics(const DiagnosticConfig& config, ESMC_Clock clock,
-                          ESMC_Field template_field);
+                          ESMC_Field template_field, const AcesExportState& export_state,
+                          ESMC_State export_state_esmf);
 
    private:
     std::unordered_map<std::string, DualView3D> diagnostics_;

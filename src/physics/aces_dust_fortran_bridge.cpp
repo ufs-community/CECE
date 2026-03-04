@@ -25,7 +25,7 @@ void DustFortranScheme::Run(AcesImportState& import_state, AcesExportState& expo
     auto it_u10 = import_state.fields.find("wind_speed_10m");
     auto it_gwet = import_state.fields.find("gwettop");
     auto it_sand = import_state.fields.find("GINOUX_SAND");
-    auto it_dust = export_state.fields.find("total_dust_emissions");
+    auto it_dust = export_state.fields.find("dust");
 
     if (it_u10 == import_state.fields.end() || it_gwet == import_state.fields.end() ||
         it_sand == import_state.fields.end() || it_dust == export_state.fields.end())

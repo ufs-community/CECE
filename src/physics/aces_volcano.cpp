@@ -18,7 +18,7 @@ void VolcanoScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* 
 }
 
 void VolcanoScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
-    auto so2 = ResolveExport("total_so2_emissions", export_state);
+    auto so2 = ResolveExport("so2", export_state);
     auto zsfc = ResolveImport("zsfc", import_state);
     auto bxheight = ResolveImport("bxheight_m", import_state);
 
@@ -74,7 +74,7 @@ void VolcanoScheme::Run(AcesImportState& import_state, AcesExportState& export_s
         });
 
     Kokkos::fence();
-    MarkModified("total_so2_emissions", export_state);
+    MarkModified("so2", export_state);
 }
 
 }  // namespace aces

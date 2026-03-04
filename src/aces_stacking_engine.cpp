@@ -25,7 +25,7 @@ void StackingEngine::PreCompile() {
     for (auto const& [species, layers] : m_config.species_layers) {
         CompiledSpecies spec;
         spec.name = species;
-        spec.export_name = "total_" + species + "_emissions";
+        spec.export_name = species;
         for (auto const& layer : layers) {
             spec.layers.push_back({layer.field_name, layer.operation, layer.scale, layer.hierarchy,
                                    layer.masks, layer.scale_fields, layer.diurnal_cycle,

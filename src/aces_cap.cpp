@@ -113,8 +113,7 @@ void Advertise(ESMC_GridComp comp, int* rc) {
         ESMC_State exportState = NUOPC_ModelGetExportState(comp, &rc_internal);
         if (exportState.ptr != nullptr) {
             for (auto const& [species, layers] : config.species_layers) {
-                std::string export_name = "total_" + species + "_emissions";
-                NUOPC_Advertise(exportState, export_name.c_str(), export_name.c_str());
+                NUOPC_Advertise(exportState, species.c_str(), species.c_str());
             }
         }
     } else {
@@ -140,8 +139,7 @@ void Advertise(ESMC_GridComp comp, int* rc) {
         ESMC_State exportState = NUOPC_ModelGetExportState(comp, &rc_internal);
         if (exportState.ptr != nullptr) {
             for (auto const& [species, layers] : data->config.species_layers) {
-                std::string export_name = "total_" + species + "_emissions";
-                NUOPC_Advertise(exportState, export_name.c_str(), export_name.c_str());
+                NUOPC_Advertise(exportState, species.c_str(), species.c_str());
             }
         }
         data->advertised = true;
@@ -201,8 +199,7 @@ void Initialize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportSta
         ESMC_Field discovery_field;
         discovery_field.ptr = nullptr;
         if (!data->config.species_layers.empty()) {
-            std::string ref_name =
-                "total_" + data->config.species_layers.begin()->first + "_emissions";
+            std::string ref_name = data->config.species_layers.begin()->first;
             ESMC_StateGetField(exportState, ref_name.c_str(), &discovery_field);
         }
 
@@ -231,8 +228,7 @@ void Initialize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportSta
                 NUOPC_Advertise(importState, external_name.c_str(), external_name.c_str());
             }
             for (auto const& [species, layers] : data->config.species_layers) {
-                std::string export_name = "total_" + species + "_emissions";
-                NUOPC_Advertise(exportState, export_name.c_str(), export_name.c_str());
+                NUOPC_Advertise(exportState, species.c_str(), species.c_str());
             }
             data->advertised = true;
         }
@@ -276,8 +272,7 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
         field.ptr = nullptr;
 
         if (!data->config.species_layers.empty()) {
-            std::string ref_field_name =
-                "total_" + data->config.species_layers.begin()->first + "_emissions";
+            std::string ref_field_name = data->config.species_layers.begin()->first;
             int local_rc = ESMC_StateGetField(exportState, ref_field_name.c_str(), &field);
             if (local_rc != ESMF_SUCCESS) {
                 field.ptr = nullptr;
@@ -285,7 +280,7 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
         }
 
         if (field.ptr == nullptr) {
-            ESMC_StateGetField(exportState, "total_aces_discovery_emissions", &field);
+            ESMC_StateGetField(exportState, "aces_discovery_emissions", &field);
         }
 
         if (field.ptr != nullptr) {
@@ -321,10 +316,9 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
 
     // Lazily initialize persistent DualViews for export state.
     for (auto const& [species, layers] : data->config.species_layers) {
-        std::string export_name = "total_" + species + "_emissions";
-        if (data->export_state.fields.find(export_name) == data->export_state.fields.end()) {
+        if (data->export_state.fields.find(species) == data->export_state.fields.end()) {
             data->export_state.fields.try_emplace(
-                export_name, GetDualView(exportState, export_name, nx, ny, nz));
+                species, GetDualView(exportState, species, nx, ny, nz));
         }
     }
 
@@ -459,12 +453,11 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
         ESMC_Field template_field;
         template_field.ptr = nullptr;
         if (!data->config.species_layers.empty()) {
-            std::string ref_field_name =
-                "total_" + data->config.species_layers.begin()->first + "_emissions";
+            std::string ref_field_name = data->config.species_layers.begin()->first;
             ESMC_StateGetField(exportState, ref_field_name.c_str(), &template_field);
         }
         data->diagnostic_manager->WriteDiagnostics(data->config.diagnostics, *clock,
-                                                   template_field);
+                                                   template_field, data->export_state, exportState);
     }
 
     // Sync results back to host space

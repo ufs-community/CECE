@@ -33,7 +33,7 @@ void LightningScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager
 
 void LightningScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
     auto conv_depth = ResolveImport("convective_cloud_top_height", import_state);
-    auto light_nox = ResolveExport("total_lightning_nox_emissions", export_state);
+    auto light_nox = ResolveExport("lightning_nox", export_state);
     auto it_land = import_state.fields.find("land_mask");
 
     if (conv_depth.data() == nullptr || light_nox.data() == nullptr) {
@@ -77,7 +77,7 @@ void LightningScheme::Run(AcesImportState& import_state, AcesExportState& export
         });
 
     Kokkos::fence();
-    MarkModified("total_lightning_nox_emissions", export_state);
+    MarkModified("lightning_nox", export_state);
 }
 
 }  // namespace aces

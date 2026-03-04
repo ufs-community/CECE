@@ -23,7 +23,7 @@ void SoilNoxFortranScheme::Initialize(const YAML::Node& /*config*/,
 void SoilNoxFortranScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
     auto it_temp = import_state.fields.find("temperature");
     auto it_gwet = import_state.fields.find("gwettop");
-    auto it_soil_nox = export_state.fields.find("total_soil_nox_emissions");
+    auto it_soil_nox = export_state.fields.find("soil_nox");
 
     if (it_temp == import_state.fields.end() || it_gwet == import_state.fields.end() ||
         it_soil_nox == export_state.fields.end())

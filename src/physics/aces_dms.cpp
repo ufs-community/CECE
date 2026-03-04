@@ -25,7 +25,7 @@ void DMSScheme::Run(AcesImportState& import_state, AcesExportState& export_state
     auto u10m = ResolveImport("wind_speed_10m", import_state);
     auto tskin = ResolveImport("tskin", import_state);
     auto seaconc = ResolveImport("DMS_seawater", import_state);
-    auto dms_emis = ResolveExport("total_dms_emissions", export_state);
+    auto dms_emis = ResolveExport("dms", export_state);
 
     if (u10m.data() == nullptr || tskin.data() == nullptr || seaconc.data() == nullptr ||
         dms_emis.data() == nullptr)
@@ -58,7 +58,7 @@ void DMSScheme::Run(AcesImportState& import_state, AcesExportState& export_state
         });
 
     Kokkos::fence();
-    MarkModified("total_dms_emissions", export_state);
+    MarkModified("dms", export_state);
 }
 
 }  // namespace aces

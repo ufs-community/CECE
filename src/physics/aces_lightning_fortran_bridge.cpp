@@ -22,7 +22,7 @@ void LightningFortranScheme::Initialize(const YAML::Node& /*config*/,
 
 void LightningFortranScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
     auto it_conv_depth = import_state.fields.find("convective_cloud_top_height");
-    auto it_light_emis = export_state.fields.find("total_lightning_nox_emissions");
+    auto it_light_emis = export_state.fields.find("lightning_nox");
 
     if (it_conv_depth == import_state.fields.end() || it_light_emis == export_state.fields.end()) {
         return;

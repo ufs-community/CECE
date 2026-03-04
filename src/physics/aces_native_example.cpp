@@ -42,15 +42,17 @@ void NativePhysicsExample::Initialize(const YAML::Node& config,
 void NativePhysicsExample::Run(AcesImportState& import_state, AcesExportState& export_state) {
     auto base_nox = ResolveImport("base_anthropogenic_nox", import_state);
     auto secondary_input = ResolveInput("secondary_input", import_state, export_state);
-    auto total_nox = ResolveExport("total_nox_emissions", export_state);
+    auto nox = ResolveExport("nox", export_state);
 
-    if (base_nox.data() == nullptr || total_nox.data() == nullptr) {
+    if (base_nox.data() == nullptr || nox.data() == nullptr) {
         return;
     }
 
-    int nx = static_cast<int>(total_nox.extent(0));
-    int ny = static_cast<int>(total_nox.extent(1));
-    int nz = static_cast<int>(total_nox.extent(2));
+    int nx = static_cast<int>(nox.extent(0));
+    int ny = static_cast<int>(nox.extent(1));
+    int nz = static_cast<int>(nox.extent(2));
+
+    auto multiplier_diag = ResolveDiagnostic("nox_multiplier_effect", nx, ny, nz);
 
     // Dispatch the computational kernel to the default execution space (e.g. GPU)
     Kokkos::parallel_for(
@@ -63,14 +65,22 @@ void NativePhysicsExample::Run(AcesImportState& import_state, AcesExportState& e
                 multiplier = secondary_input(i, j, k);
             }
             // Apply a dummy calculation
-            total_nox(i, j, k) += base_nox(i, j, k) * multiplier;
+            double effect = base_nox(i, j, k) * multiplier;
+            nox(i, j, k) += effect;
+
+            if (multiplier_diag.view_device().data() != nullptr) {
+                multiplier_diag.view_device()(i, j, k) = effect;
+            }
         });
     // Fence to ensure completion before returning control
     Kokkos::fence();
 
     // Mark the device data as modified so it can be synced back to the host
     // correctly.
-    MarkModified("total_nox_emissions", export_state);
+    MarkModified("nox", export_state);
+    if (multiplier_diag.view_device().data() != nullptr) {
+        multiplier_diag.modify_device();
+    }
 }
 
 }  // namespace aces

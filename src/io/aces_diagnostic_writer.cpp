@@ -26,7 +26,9 @@ static void WriteField(ESMC_Field field, const std::string& name) {
 }
 
 void AcesDiagnosticManager::WriteDiagnostics(const DiagnosticConfig& config, ESMC_Clock clock,
-                                             ESMC_Field template_field) {
+                                             ESMC_Field template_field,
+                                             const AcesExportState& export_state,
+                                             ESMC_State export_state_esmf) {
     if (config.variables.empty()) {
         return;
     }
@@ -66,19 +68,32 @@ void AcesDiagnosticManager::WriteDiagnostics(const DiagnosticConfig& config, ESM
     ESMC_Mesh target_mesh = cached_mesh_;
 
     for (const auto& name : config.variables) {
+        // First check internal diagnostics
         auto it = diagnostics_.find(name);
-        if (it == diagnostics_.end()) {
+        if (it != diagnostics_.end()) {
+            it->second.sync<Kokkos::DefaultHostExecutionSpace::memory_space>();
+            // For now we use template_field to match the output grid, but this
+            // should ideally be the actual diagnostic field wrapped in an ESMF
+            // Field.
+            WriteField(template_field, name);
             continue;
         }
 
-        it->second.sync<Kokkos::DefaultHostExecutionSpace::memory_space>();
+        // Then check export state (species emissions)
+        auto it_exp = export_state.fields.find(name);
+        if (it_exp != export_state.fields.end()) {
+            const_cast<DualView3D&>(it_exp->second)
+                .sync<Kokkos::DefaultHostExecutionSpace::memory_space>();
 
-        if (target_grid.ptr != nullptr || target_mesh.ptr != nullptr) {
-            std::cout << "ACES_Diagnostic: Interpolating '" << name << "' to " << config.grid_type
-                      << "...\n";
-            WriteField(template_field, name);
-        } else {
-            WriteField(template_field, name);
+            // Look up the actual ESMF field to write
+            ESMC_Field species_field;
+            int rc = ESMC_StateGetField(export_state_esmf, name.c_str(), &species_field);
+            if (rc == ESMF_SUCCESS) {
+                WriteField(species_field, name);
+            } else {
+                WriteField(template_field, name);
+            }
+            continue;
         }
     }
 }

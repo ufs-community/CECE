@@ -25,7 +25,7 @@ void DMSFortranScheme::Run(AcesImportState& import_state, AcesExportState& expor
     auto it_u10 = import_state.fields.find("wind_speed_10m");
     auto it_tskin = import_state.fields.find("tskin");
     auto it_seaconc = import_state.fields.find("DMS_seawater");
-    auto it_dms_emis = export_state.fields.find("total_dms_emissions");
+    auto it_dms_emis = export_state.fields.find("dms");
 
     if (it_u10 == import_state.fields.end() || it_tskin == import_state.fields.end() ||
         it_seaconc == import_state.fields.end() || it_dms_emis == export_state.fields.end())

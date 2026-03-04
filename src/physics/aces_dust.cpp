@@ -43,7 +43,7 @@ void DustScheme::Run(AcesImportState& import_state, AcesExportState& export_stat
     auto u10m = ResolveImport("wind_speed_10m", import_state);
     auto gwettop = ResolveImport("gwettop", import_state);
     auto srce_sand = ResolveImport("GINOUX_SAND", import_state);
-    auto dust_emis = ResolveExport("total_dust_emissions", export_state);
+    auto dust_emis = ResolveExport("dust", export_state);
 
     if (u10m.data() == nullptr || gwettop.data() == nullptr || srce_sand.data() == nullptr ||
         dust_emis.data() == nullptr)
@@ -75,7 +75,7 @@ void DustScheme::Run(AcesImportState& import_state, AcesExportState& export_stat
         });
 
     Kokkos::fence();
-    MarkModified("total_dust_emissions", export_state);
+    MarkModified("dust", export_state);
 }
 
 }  // namespace aces

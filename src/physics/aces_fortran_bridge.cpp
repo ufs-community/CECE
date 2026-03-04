@@ -46,7 +46,7 @@ void FortranBridgeExample::Initialize(const YAML::Node& config,
 void FortranBridgeExample::Run(AcesImportState& import_state, AcesExportState& export_state) {
     auto it_temp = import_state.fields.find("temperature");
     auto it_wind = import_state.fields.find("wind_speed_10m");
-    auto it_nox = export_state.fields.find("total_nox_emissions");
+    auto it_nox = export_state.fields.find("nox");
 
     if (it_temp == import_state.fields.end() || it_wind == import_state.fields.end() ||
         it_nox == export_state.fields.end()) {

@@ -48,7 +48,7 @@ int main(int argc, char** argv) {
     ESMC_Field f_base = createField(importState, "base_nox");
     ESMC_Field f_euro = createField(importState, "europe_nox");
     ESMC_Field f_mask = createField(importState, "mask_europe");
-    ESMC_Field f_total = createField(exportState, "total_nox_emissions");
+    ESMC_Field f_total = createField(exportState, "nox");
 
     // Provide data
     double* base_ptr = static_cast<double*>(ESMC_FieldGetPtr(f_base, 0, &rc));

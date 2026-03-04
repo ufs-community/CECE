@@ -23,7 +23,7 @@ void MeganFortranScheme::Initialize(const YAML::Node& /*config*/,
 
 void MeganFortranScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
     auto it_temp = import_state.fields.find("temperature");
-    auto it_isop = export_state.fields.find("total_isoprene_emissions");
+    auto it_isop = export_state.fields.find("isoprene");
     auto it_lai = import_state.fields.find("lai");
     auto it_pardr = import_state.fields.find("pardr");
     auto it_pardf = import_state.fields.find("pardf");

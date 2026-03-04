@@ -133,10 +133,10 @@ int main(int argc, char** argv) {
     CHECK_RC(rc, "ESMC_StateCreate (export) failed");
 
     // Add a field to export state so ACES can discover dimensions.
-    // We use "total_co_emissions" to match example configuration ex1.
+    // We use "co" to match example configuration ex1.
     ESMC_Field f_total =
         ESMC_FieldCreateGridTypeKind(grid, ESMC_TYPEKIND_R8, ESMC_STAGGERLOC_CENTER, nullptr,
-                                     nullptr, nullptr, "total_aces_discovery_emissions", &rc);
+                                     nullptr, nullptr, "aces_discovery_emissions", &rc);
     CHECK_RC(rc, "ESMC_FieldCreate (export) failed");
     rc = ESMC_StateAddField(exportState, f_total);
     CHECK_RC(rc, "ESMC_StateAddField (export) failed");

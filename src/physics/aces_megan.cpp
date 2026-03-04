@@ -76,7 +76,7 @@ void MeganScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* di
 
 void MeganScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
     auto temp = ResolveImport("temperature", import_state);
-    auto isoprene = ResolveExport("total_isoprene_emissions", export_state);
+    auto isoprene = ResolveExport("isoprene", export_state);
     auto lai = ResolveImport("lai", import_state);
     auto pardr = ResolveImport("pardr", import_state);
     auto pardf = ResolveImport("pardf", import_state);
@@ -127,7 +127,7 @@ void MeganScheme::Run(AcesImportState& import_state, AcesExportState& export_sta
         });
 
     Kokkos::fence();
-    MarkModified("total_isoprene_emissions", export_state);
+    MarkModified("isoprene", export_state);
 }
 
 }  // namespace aces

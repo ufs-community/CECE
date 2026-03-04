@@ -22,7 +22,7 @@ void VolcanoFortranScheme::Initialize(const YAML::Node& config,
 }
 
 void VolcanoFortranScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
-    auto it_so2 = export_state.fields.find("total_so2_emissions");
+    auto it_so2 = export_state.fields.find("so2");
     auto it_zsfc = import_state.fields.find("zsfc");
     auto it_bxheight = import_state.fields.find("bxheight_m");
 

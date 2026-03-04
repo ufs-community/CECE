@@ -50,7 +50,7 @@ void MyScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* diag)
 
 void MyScheme::Run(AcesImportState& import, AcesExportState& export_s) {
     auto base_nox = import.fields["base_nox"].view_device();
-    auto total_nox = export_s.fields["total_nox_emissions"].view_device();
+    auto total_nox = export_s.fields["nox"].view_device();
 
     int nx = total_nox.extent(0);
     int ny = total_nox.extent(1);
@@ -91,7 +91,7 @@ extern "C" {
 }
 
 void MyBridge::Run(AcesImportState& import, AcesExportState& export_s) {
-    auto& dv_nox = export_s.fields["total_nox_emissions"];
+    auto& dv_nox = export_s.fields["nox"];
 
     // 1. Sync to Host (Fortran runs on CPU)
     dv_nox.sync<Kokkos::HostSpace>();

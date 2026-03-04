@@ -93,7 +93,7 @@ TEST_F(HemcoMimicTest, RegionalOverrideMimic) {
     // 1. Setup Fields
     resolver.AddField("test_1_global", nx, ny, nz, 5.0);
     resolver.AddField("test_2_regional", nx, ny, nz, 12.0);
-    resolver.AddField("total_nox_emissions", nx, ny, nz, 0.0);
+    resolver.AddField("nox", nx, ny, nz, 0.0);
 
     // Define a mask (top half of the grid)
     resolver.AddField("regional_mask", nx, ny, nz, 0.0);
@@ -130,7 +130,7 @@ TEST_F(HemcoMimicTest, RegionalOverrideMimic) {
     ComputeEmissions(config, resolver, nx, ny, nz);
 
     // 4. Verification
-    auto result = resolver.GetFieldData("total_nox_emissions");
+    auto result = resolver.GetFieldData("nox");
     for (int i = 0; i < nx; ++i) {
         for (int j = 0; j < ny; ++j) {
             if (j >= ny / 2) {
@@ -159,7 +159,7 @@ TEST_F(HemcoMimicTest, VerticalDistributionMimic) {
 
     resolver.AddField("emit_l1", nx, ny, nz, 10.0);
     resolver.AddField("emit_l2", nx, ny, nz, 3.0);
-    resolver.AddField("total_nox_emissions", nx, ny, nz, 0.0);
+    resolver.AddField("nox", nx, ny, nz, 0.0);
 
     // In ACES, vertical distribution for base emissions is usually handled
     // by specific fields having data only in certain levels, or by masks.
@@ -204,7 +204,7 @@ TEST_F(HemcoMimicTest, VerticalDistributionMimic) {
 
     ComputeEmissions(config, resolver, nx, ny, nz);
 
-    auto result = resolver.GetFieldData("total_nox_emissions");
+    auto result = resolver.GetFieldData("nox");
     for (int i = 0; i < nx; ++i) {
         for (int j = 0; j < ny; ++j) {
             EXPECT_DOUBLE_EQ(result(i, j, 0), 10.0);
