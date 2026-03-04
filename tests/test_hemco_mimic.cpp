@@ -36,25 +36,33 @@ class MockFieldResolver : public FieldResolver {
 
     UnmanagedHostView3D ResolveImport(const std::string& name, int /*nx*/, int /*ny*/,
                                       int /*nz*/) override {
-        if (fields.count(name)) return fields[name].view_host();
+        if (fields.find(name) != fields.end()) {
+            return fields[name].view_host();
+        }
         return {};
     }
 
     UnmanagedHostView3D ResolveExport(const std::string& name, int /*nx*/, int /*ny*/,
                                       int /*nz*/) override {
-        if (fields.count(name)) return fields[name].view_host();
+        if (fields.find(name) != fields.end()) {
+            return fields[name].view_host();
+        }
         return {};
     }
 
     Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
     ResolveImportDevice(const std::string& name, int /*nx*/, int /*ny*/, int /*nz*/) override {
-        if (fields.count(name)) return fields[name].view_device();
+        if (fields.find(name) != fields.end()) {
+            return fields[name].view_device();
+        }
         return {};
     }
 
     Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveExportDevice(
         const std::string& name, int /*nx*/, int /*ny*/, int /*nz*/) override {
-        if (fields.count(name)) return fields[name].view_device();
+        if (fields.find(name) != fields.end()) {
+            return fields[name].view_device();
+        }
         return {};
     }
 };
@@ -77,7 +85,9 @@ class HemcoMimicTest : public ::testing::Test {
  * - Expected: Within the mask, total emission should be 12.0. Outside the mask, 5.0.
  */
 TEST_F(HemcoMimicTest, RegionalOverrideMimic) {
-    int nx = 10, ny = 10, nz = 1;
+    int nx = 10;
+    int ny = 10;
+    int nz = 1;
     MockFieldResolver resolver;
 
     // 1. Setup Fields
@@ -90,7 +100,9 @@ TEST_F(HemcoMimicTest, RegionalOverrideMimic) {
     auto mask_hv = resolver.GetFieldData("regional_mask");
     for (int i = 0; i < nx; ++i) {
         for (int j = 0; j < ny; ++j) {
-            if (j >= ny / 2) mask_hv(i, j, 0) = 1.0;
+            if (j >= ny / 2) {
+                mask_hv(i, j, 0) = 1.0;
+            }
         }
     }
     // Sync mask to device
@@ -140,7 +152,9 @@ TEST_F(HemcoMimicTest, RegionalOverrideMimic) {
  * - EMIT_L2: Level 2 emission, value 3.0.
  */
 TEST_F(HemcoMimicTest, VerticalDistributionMimic) {
-    int nx = 4, ny = 4, nz = 5;
+    int nx = 4;
+    int ny = 4;
+    int nz = 5;
     MockFieldResolver resolver;
 
     resolver.AddField("emit_l1", nx, ny, nz, 10.0);
@@ -159,8 +173,12 @@ TEST_F(HemcoMimicTest, VerticalDistributionMimic) {
     for (int i = 0; i < nx; ++i) {
         for (int j = 0; j < ny; ++j) {
             for (int k = 0; k < nz; ++k) {
-                if (k != 0) l1_hv(i, j, k) = 0.0;
-                if (k != 1) l2_hv(i, j, k) = 0.0;
+                if (k != 0) {
+                    l1_hv(i, j, k) = 0.0;
+                }
+                if (k != 1) {
+                    l2_hv(i, j, k) = 0.0;
+                }
             }
         }
     }

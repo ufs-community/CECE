@@ -125,6 +125,16 @@ diagnostics:
 # 'nox_from_atmosphere') will be automatically pulled from the ESMF ImportState.
 cdeps_inline_config:
   streams:
-    - name: "base_anthropogenic_nox"
-      file: "data/inventories/nox_2024.nc"
-      interpolation: "linear"
+    - name: "anthropogenic"
+      file: ["data/inventories/nox_2024.nc", "data/inventories/so2_2024.nc"]
+      variables:
+        - file: "NOx"
+          model: "base_anthropogenic_nox"
+        - file: "SO2"
+          model: "base_anthropogenic_so2"
+      taxmode: "cycle"
+      tintalgo: "linear"
+      mapalgo: "bilinear"
+      yearFirst: 2024
+      yearLast: 2024
+      yearAlign: 2024

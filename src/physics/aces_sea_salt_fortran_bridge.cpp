@@ -27,7 +27,9 @@ void SeaSaltFortranScheme::Run(AcesImportState& import_state, AcesExportState& e
     auto it_sala = export_state.fields.find("total_SALA_emissions");
     auto it_salc = export_state.fields.find("total_SALC_emissions");
 
-    if (it_u10 == import_state.fields.end() || it_tskin == import_state.fields.end()) return;
+    if (it_u10 == import_state.fields.end() || it_tskin == import_state.fields.end()) {
+        return;
+    }
 
     auto& dv_u10 = it_u10->second;
     auto& dv_tskin = it_tskin->second;
@@ -35,9 +37,9 @@ void SeaSaltFortranScheme::Run(AcesImportState& import_state, AcesExportState& e
     dv_u10.sync<Kokkos::HostSpace>();
     dv_tskin.sync<Kokkos::HostSpace>();
 
-    int nx = dv_u10.extent(0);
-    int ny = dv_u10.extent(1);
-    int nz = dv_u10.extent(2);
+    int nx = static_cast<int>(dv_u10.extent(0));
+    int ny = static_cast<int>(dv_u10.extent(1));
+    int nz = static_cast<int>(dv_u10.extent(2));
 
     double* sala_ptr = nullptr;
     double* salc_ptr = nullptr;

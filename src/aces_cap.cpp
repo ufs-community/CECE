@@ -17,6 +17,10 @@
 #include "aces/aces_utils.hpp"
 #include "aces/physics_scheme.hpp"
 
+extern "C" {
+void aces_get_mesh_from_field(void* field, void** mesh, int* rc);
+}
+
 /**
  * @file aces_cap.cpp
  * @brief ESMF cap for the ACES component.
@@ -151,7 +155,7 @@ void Advertise(ESMC_GridComp comp, int* rc) {
  * @brief Internal implementation of Initialize phase.
  */
 void Initialize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState,
-                ESMC_Clock* /*clock*/, int* rc) {
+                ESMC_Clock* clock, int* rc) {
     std::cout << "ACES_Initialize: Entering.\n";
     bool kokkos_initialized_here = false;
     if (!Kokkos::is_initialized()) {
@@ -190,7 +194,30 @@ void Initialize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportSta
         }
 
         // Initialize CDEPS if configured
-        data->ingestor.InitializeCDEPS(data->config.cdeps_config);
+        ESMC_Mesh mesh;
+        mesh.ptr = nullptr;
+
+        // Attempt to discovery mesh from grid if possible
+        ESMC_Field discovery_field;
+        discovery_field.ptr = nullptr;
+        if (!data->config.species_layers.empty()) {
+            std::string ref_name =
+                "total_" + data->config.species_layers.begin()->first + "_emissions";
+            ESMC_StateGetField(exportState, ref_name.c_str(), &discovery_field);
+        }
+
+        if (discovery_field.ptr != nullptr) {
+            int local_rc;
+            aces_get_mesh_from_field(discovery_field.ptr, &mesh.ptr, &local_rc);
+            if (local_rc != ESMF_SUCCESS) mesh.ptr = nullptr;
+        }
+
+        if (clock != nullptr) {
+            data->ingestor.InitializeCDEPS(comp, *clock, mesh, data->config.cdeps_config);
+        } else {
+            std::cerr
+                << "ACES_Initialize: Warning - Clock is null. CDEPS initialization skipped.\n";
+        }
 
         // Advertise if not already done (fallback for standalone drivers)
         if (!data->advertised) {
@@ -318,7 +345,9 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
         std::set<std::string> esmf_fields_set;
         std::set<std::string> cdeps_fields;
         for (const auto& s : data->config.cdeps_config.streams) {
-            cdeps_fields.insert(s.name);
+            for (const auto& v : s.variables) {
+                cdeps_fields.insert(v.name_in_model);
+            }
         }
 
         auto resolve_name = [&](const std::string& name) {
@@ -384,6 +413,9 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
 
     // 2. Emissions from CDEPS
     if (!data->config.cdeps_config.streams.empty()) {
+        if (clock != nullptr) {
+            data->ingestor.AdvanceCDEPS(*clock);
+        }
         data->ingestor.IngestEmissionsInline(data->config.cdeps_config, data->import_state, nx, ny,
                                              nz);
     }

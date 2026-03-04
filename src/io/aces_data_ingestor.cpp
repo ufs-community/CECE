@@ -7,13 +7,14 @@
 
 #include "aces/aces_utils.hpp"
 
-// Forward declarations for CDEPS-inline API (as it would appear in a production
-// bridge). In this task, we assume the existence of these symbols in a real
-// CDEPS environment.
+// Forward declarations for ACES-CDEPS bridge (defined in aces_cdeps_bridge.F90)
 extern "C" {
-void cdeps_inline_init(const char* config_file) __attribute__((weak));
-void cdeps_inline_read(double* buffer, const char* stream_name) __attribute__((weak));
-void cdeps_inline_finalize() __attribute__((weak));
+void aces_cdeps_init(void* gcomp, void* clock, void* mesh, const char* stream_file, int* rc)
+    __attribute__((weak));
+void aces_cdeps_advance(void* clock, int* rc) __attribute__((weak));
+void aces_cdeps_get_ptr(int stream_idx, const char* fldname, void** data_ptr, int* rc)
+    __attribute__((weak));
+void aces_cdeps_finalize() __attribute__((weak));
 }
 
 namespace aces {
@@ -68,7 +69,8 @@ void AcesDataIngestor::IngestMeteorology(ESMC_State importState,
     }
 }
 
-void AcesDataIngestor::InitializeCDEPS(const AcesCdepsConfig& config) {
+void AcesDataIngestor::InitializeCDEPS(ESMC_GridComp gcomp, ESMC_Clock clock, ESMC_Mesh mesh,
+                                       const AcesCdepsConfig& config) {
     if (config.streams.empty()) return;
 
     // 1. Programmatically write CDEPS .streams file (ESMF Config format)
@@ -80,29 +82,52 @@ void AcesDataIngestor::InitializeCDEPS(const AcesCdepsConfig& config) {
     for (size_t i = 0; i < config.streams.size(); ++i) {
         const auto& s = config.streams[i];
         std::string id = (i + 1 < 10) ? ("0" + std::to_string(i + 1)) : std::to_string(i + 1);
-        stream_file << "taxmode" << id << ": cycle" << "\n";
-        stream_file << "tInterpAlgo" << id << ": " << s.interpolation_method << "\n";
-        stream_file << "stream_data_files" << id << ": " << s.file_path << "\n";
-        stream_file << "stream_data_variables" << id << ": " << s.name << " " << s.name << "\n";
+        stream_file << "taxmode" << id << ": " << s.taxmode << "\n";
+        stream_file << "tInterpAlgo" << id << ": " << s.tintalgo << "\n";
+        stream_file << "mapAlgo" << id << ": " << s.mapalgo << "\n";
+        stream_file << "dtlimit" << id << ": " << s.dtlimit << "\n";
+        stream_file << "yearFirst" << id << ": " << s.yearFirst << "\n";
+        stream_file << "yearLast" << id << ": " << s.yearLast << "\n";
+        stream_file << "yearAlign" << id << ": " << s.yearAlign << "\n";
+        stream_file << "offset" << id << ": " << s.offset << "\n";
+        if (!s.meshfile.empty()) {
+            stream_file << "meshfile" << id << ": " << s.meshfile << "\n";
+        }
+        stream_file << "lev_dimname" << id << ": " << s.lev_dimname << "\n";
+
+        stream_file << "stream_data_files" << id << ": " << "\n";
+        for (const auto& f : s.file_paths) {
+            stream_file << "  " << f << "\n";
+        }
+
+        stream_file << "stream_data_variables" << id << ": " << "\n";
+        for (const auto& v : s.variables) {
+            stream_file << "  " << v.name_in_file << " " << v.name_in_model << "\n";
+        }
     }
     stream_file.close();
 
-    // 2. Programmatically write CDEPS namelist file
-    std::ofstream nml_file("cdeps_in.nml");
-    nml_file << "&cdeps_nml" << "\n";
-    nml_file << "  stream_file = 'aces_emissions.streams'" << "\n";
-    nml_file << "/" << "\n";
-    nml_file.close();
+    // 2. Initialize CDEPS-inline
+    if (aces_cdeps_init) {
+        int rc = 0;
+        std::string stream_file_path = "aces_emissions.streams";
+        aces_cdeps_init(gcomp.ptr, clock.ptr, mesh.ptr, stream_file_path.c_str(), &rc);
+        if (rc != 0) {
+            std::cerr << "ACES: Error initializing CDEPS. RC=" << rc << "\n";
+        }
+    }
+}
 
-    // 3. Initialize CDEPS-inline
-    if (cdeps_inline_init) {
-        cdeps_inline_init("cdeps_in.nml");
+void AcesDataIngestor::AdvanceCDEPS(ESMC_Clock clock) {
+    if (aces_cdeps_advance) {
+        int rc = 0;
+        aces_cdeps_advance(clock.ptr, &rc);
     }
 }
 
 void AcesDataIngestor::FinalizeCDEPS() {
-    if (cdeps_inline_finalize) {
-        cdeps_inline_finalize();
+    if (aces_cdeps_finalize) {
+        aces_cdeps_finalize();
     }
 }
 
@@ -112,21 +137,37 @@ void AcesDataIngestor::IngestEmissionsInline(const AcesCdepsConfig& config,
 
     // Trigger read and map pointers for all configured streams.
     // This allows the ingestion layer to be fully dynamic.
-    for (const auto& s : config.streams) {
-        if (aces_state.fields.find(s.name) == aces_state.fields.end()) {
-            Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> host_view(
-                "host_" + s.name, nx, ny, nz);
-            Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> device_view(
-                "device_" + s.name, nx, ny, nz);
-            aces_state.fields.try_emplace(s.name, device_view, host_view);
-        }
+    for (size_t i = 0; i < config.streams.size(); ++i) {
+        const auto& s = config.streams[i];
+        int stream_idx = i + 1;
 
-        auto& dv = aces_state.fields[s.name];
-        if (cdeps_inline_read) {
-            cdeps_inline_read(dv.view_host().data(), s.name.c_str());
+        for (const auto& v : s.variables) {
+            if (aces_state.fields.find(v.name_in_model) == aces_state.fields.end()) {
+                Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> host_view(
+                    "host_" + v.name_in_model, nx, ny, nz);
+                Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
+                    device_view("device_" + v.name_in_model, nx, ny, nz);
+                aces_state.fields.try_emplace(v.name_in_model, device_view, host_view);
+            }
+
+            auto& dv = aces_state.fields[v.name_in_model];
+            if (aces_cdeps_get_ptr) {
+                void* data_ptr = nullptr;
+                int rc = 0;
+                aces_cdeps_get_ptr(stream_idx, v.name_in_model.c_str(), &data_ptr, &rc);
+                if (rc == 0 && data_ptr != nullptr) {
+                    // Copy data from CDEPS internal pointer to our host view.
+                    // Assuming dimensions match. CDEPS data is often 1D (flattened).
+                    double* dptr = static_cast<double*>(data_ptr);
+                    std::copy(dptr, dptr + nx * ny * nz, dv.view_host().data());
+                } else if (rc != 0) {
+                    std::cerr << "ACES: Error getting field pointer from CDEPS for "
+                              << v.name_in_model << ". RC=" << rc << "\n";
+                }
+            }
+            dv.modify<Kokkos::HostSpace>();
+            dv.sync<Kokkos::DefaultExecutionSpace::memory_space>();
         }
-        dv.modify<Kokkos::HostSpace>();
-        dv.sync<Kokkos::DefaultExecutionSpace::memory_space>();
     }
 }
 

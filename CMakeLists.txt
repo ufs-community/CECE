@@ -65,61 +65,44 @@ message(STATUS "ESMF include dirs: ${ESMF_INCLUDE_DIRS}")
 
 # Discovery PIO and NetCDF from ESMF if possible
 # CDEPS needs these as dependencies for its Fortran modules
-if(NOT NetCDF_FOUND)
-  foreach(lib ${ESMF_LIBRARIES})
-    if(lib MATCHES "^-L(.*)")
-      set(search_path "${CMAKE_MATCH_1}")
-      if(EXISTS "${search_path}/../include/netcdf.mod")
-        set(NetCDF_ROOT "${search_path}/..")
-        get_filename_component(NetCDF_ROOT "${NetCDF_ROOT}" ABSOLUTE)
-        set(NetCDF_FOUND TRUE)
-        set(ENV{NetCDF_ROOT} "${NetCDF_ROOT}")
-        message(STATUS "Found NetCDF root from ESMF path: ${NetCDF_ROOT}")
-        break()
-      endif()
-    endif()
-  endforeach()
-endif()
 
-if(NOT PIO_FOUND)
-  set(PIO_ROOT "$ENV{PIO_ROOT}")
-  if(NOT PIO_ROOT)
-    # ESMF often links against NetCDF/PIO, we might find them in the same view
-      foreach(lib ${ESMF_LIBRARIES})
-          if(lib MATCHES "^-L(.*)")
-              set(search_path "${CMAKE_MATCH_1}")
-              if(EXISTS "${search_path}/../include/pio.h")
-                  set(PIO_ROOT "${search_path}/..")
-                  get_filename_component(PIO_ROOT "${PIO_ROOT}" ABSOLUTE)
-                  set(PIO_FOUND TRUE)
-                  set(ENV{PIO_ROOT} "${PIO_ROOT}")
-                  message(STATUS "Found PIO root from ESMF path: ${PIO_ROOT}")
-                  break()
-              endif()
-          endif()
-      endforeach()
+# Helper function to find a library root based on a file existence
+function(find_root_by_file root_var filename)
+  if(NOT ${root_var})
+    foreach(lib ${ESMF_LIBRARIES})
+      if(lib MATCHES "^-L(.*)")
+        set(search_path "${CMAKE_MATCH_1}")
+        if(EXISTS "${search_path}/../include/${filename}")
+          set(root "${search_path}/..")
+          get_filename_component(root "${root}" ABSOLUTE)
+          set(${root_var} "${root}" PARENT_SCOPE)
+          message(STATUS "Found ${root_var} from ESMF path: ${root}")
+          return()
+        endif()
+      endif()
+    endforeach()
   endif()
+endfunction()
+
+find_root_by_file(NetCDF_ROOT "netcdf.h")
+find_root_by_file(NetCDFF_ROOT "netcdf.mod")
+find_root_by_file(PIO_ROOT "pio.h")
+
+if(NetCDF_ROOT)
+  set(NetCDF_FOUND TRUE)
+  set(ENV{NetCDF_ROOT} "${NetCDF_ROOT}")
+endif()
+if(NetCDFF_ROOT)
+  set(NetCDFF_FOUND TRUE)
+  set(ENV{NetCDFF_ROOT} "${NetCDFF_ROOT}")
+endif()
+if(PIO_ROOT)
+  set(PIO_FOUND TRUE)
+  set(ENV{PIO_ROOT} "${PIO_ROOT}")
 endif()
 
 find_package(MPI REQUIRED)
 message(STATUS "Found MPI: ${MPI_CXX_VERSION}")
-
-# Also discover NetCDF-Fortran for CDEPS
-if(NOT NetCDFF_FOUND)
-  foreach(lib ${ESMF_LIBRARIES})
-    if(lib MATCHES "^-L(.*)")
-      set(search_path "${CMAKE_MATCH_1}")
-      if(EXISTS "${search_path}/../include/netcdf.mod")
-        set(NetCDFF_ROOT "${search_path}/..")
-        get_filename_component(NetCDFF_ROOT "${NetCDFF_ROOT}" ABSOLUTE)
-        set(NetCDFF_FOUND TRUE)
-        set(ENV{NetCDFF_ROOT} "${NetCDFF_ROOT}")
-        message(STATUS "Found NetCDF-Fortran root from ESMF path: ${NetCDFF_ROOT}")
-        break()
-      endif()
-    endif()
-  endforeach()
-endif()
 
 # CDEPS is a required dependency for the hybrid ingestion layer.
 find_package(CDEPS QUIET)
@@ -140,9 +123,17 @@ if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
 
     FetchContent_Declare(
       cdeps
-      GIT_REPOSITORY https://github.com/ESCOMP/CDEPS.git
-      GIT_TAG        main
+      GIT_REPOSITORY https://github.com/bbakernoaa/CDEPS.git
+      GIT_TAG        ae5d2c457321ebae3a0d9c9c949f871bb8f2b09c
+      GIT_SUBMODULES_RECURSE ON
+      PATCH_COMMAND  sed -i "s/add_subdirectory(fox)/#add_subdirectory(fox)/" CMakeLists.txt
     )
+    # Explicitly set PIO and NetCDF paths for CDEPS
+    set(PIO_Fortran_INCLUDE_DIR "${PIO_ROOT}/include" CACHE PATH "" FORCE)
+    set(PIO_C_INCLUDE_DIR "${PIO_ROOT}/include" CACHE PATH "" FORCE)
+    set(NetCDF_Fortran_INCLUDE_DIR "${NetCDFF_ROOT}/include" CACHE PATH "" FORCE)
+    set(NetCDF_C_INCLUDE_DIR "${NetCDF_ROOT}/include" CACHE PATH "" FORCE)
+
     # Force CDEPS to find the ESMF we already discovered
     # In JCSDA container, ESMF_ROOT might not be set, but ESMF_LIBRARIES contains it
     if(NOT ESMF_ROOT)
@@ -163,8 +154,12 @@ if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
     # Propagate ESMF include dirs to CDEPS if it uses ESMF_F90COMPILEPATHS
     set(ESMF_F90COMPILEPATHS "${ESMF_INCLUDE_DIRS}" CACHE STRING "ESMF include paths for CDEPS" FORCE)
 
-    # Force CDEPS to use a larger line length for Fortran
-    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -ffree-line-length-none" CACHE STRING "Fortran flags" FORCE)
+    # Force CDEPS to use a larger line length for Fortran and define CPRGNU
+    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -ffree-line-length-none -DCPRGNU" CACHE STRING "Fortran flags" FORCE)
+
+    # Disable FoX in CDEPS
+    set(DISABLE_FoX ON CACHE BOOL "Disable FoX library" FORCE)
+    set(COMPILER "gnu" CACHE STRING "Compiler type")
 
     # CDEPS-standalone build has a bug where it looks for modules in ${CMAKE_BINARY_DIR}/share
     # but they are actually in ${CMAKE_CURRENT_BINARY_DIR} of the share directory.
@@ -175,11 +170,8 @@ if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
 
     # We use a custom guard to ensure CDEPS is correctly integrated
     FetchContent_MakeAvailable(cdeps)
-    if(TARGET streams)
+    if(TARGET dshr)
       set(CDEPS_FOUND TRUE)
-      if(NOT TARGET CDEPS::CDEPS)
-          add_library(CDEPS::CDEPS ALIAS streams)
-      endif()
       message(STATUS "CDEPS built from source successfully.")
     endif()
   endif()
@@ -214,6 +206,7 @@ if(ACES_HAS_FORTRAN)
   list(APPEND ACES_SRCS
     src/physics/aces_fortran_bridge.cpp
     src/physics/legacy_fortran.F90
+    src/io/aces_cdeps_bridge.F90
     src/physics/aces_sea_salt_fortran_bridge.cpp
     src/physics/sea_salt_kernel.F90
     src/physics/aces_megan_fortran_bridge.cpp
@@ -248,7 +241,28 @@ target_link_libraries(aces PUBLIC
   yaml-cpp
 )
 
-target_link_libraries(aces PUBLIC CDEPS::CDEPS)
+if(CDEPS_FOUND)
+  target_link_libraries(aces PUBLIC dshr streams cdeps_share)
+  # CDEPS dependencies (NetCDF and PIO) discovered from ESMF
+  if(PIO_FOUND)
+    if(EXISTS "${PIO_ROOT}/lib/libpiof.so")
+      target_link_libraries(aces PUBLIC "${PIO_ROOT}/lib/libpiof.so")
+    endif()
+    if(EXISTS "${PIO_ROOT}/lib/libpioc.so")
+      target_link_libraries(aces PUBLIC "${PIO_ROOT}/lib/libpioc.so")
+    endif()
+  endif()
+  if(NetCDFF_FOUND)
+    if(EXISTS "${NetCDFF_ROOT}/lib/libnetcdff.so")
+      target_link_libraries(aces PUBLIC "${NetCDFF_ROOT}/lib/libnetcdff.so")
+    endif()
+  endif()
+  if(NetCDF_ROOT)
+    if(EXISTS "${NetCDF_ROOT}/lib/libnetcdf.so")
+      target_link_libraries(aces PUBLIC "${NetCDF_ROOT}/lib/libnetcdf.so")
+    endif()
+  endif()
+endif()
 
 if(MPI_FOUND)
     target_link_libraries(aces PUBLIC MPI::MPI_CXX)

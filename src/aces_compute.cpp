@@ -27,9 +27,9 @@ namespace aces {
  */
 void ComputeEmissions(
     const AcesConfig& config, FieldResolver& resolver, int nx, int ny, int nz,
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> default_mask,
+    const Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>& default_mask,
     int hour, int day_of_week, StackingEngine* engine) {
-    if (engine) {
+    if (engine != nullptr) {
         engine->Execute(resolver, nx, ny, nz, default_mask, hour, day_of_week);
     } else {
         StackingEngine stack_engine(config);
