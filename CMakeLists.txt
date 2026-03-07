@@ -13,6 +13,8 @@ if(CMAKE_Fortran_COMPILER)
     enable_language(Fortran)
     set(ACES_HAS_FORTRAN ON)
     # Ensure Fortran modules are placed in a central directory
+    # We set it here only if it's not already defined to avoid overriding
+    # subproject settings if they are already doing something specific.
     if(NOT CMAKE_Fortran_MODULE_DIRECTORY)
         set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/fortran_modules)
     endif()
