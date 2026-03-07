@@ -19,6 +19,8 @@ if(CMAKE_Fortran_COMPILER)
         set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/fortran_modules)
     endif()
     include_directories(${CMAKE_Fortran_MODULE_DIRECTORY})
+    # Also add the directory to search paths for subprojects
+    set(ENV{CMAKE_Fortran_MODULE_DIRECTORY} ${CMAKE_Fortran_MODULE_DIRECTORY})
 else()
     message(WARNING "Fortran compiler not found. Fortran features will be disabled.")
 endif()

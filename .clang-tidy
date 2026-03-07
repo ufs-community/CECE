@@ -13,7 +13,8 @@ Checks: >
   -modernize-use-auto,
   -bugprone-easily-swappable-parameters,
   -google-readability-todo,
-  -google-runtime-int
+  -google-runtime-int,
+  -readability-function-cognitive-complexity
 
 HeaderFilterRegex: 'include/aces/.*'
 FormatStyle: google

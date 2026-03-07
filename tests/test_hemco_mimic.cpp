@@ -133,13 +133,8 @@ TEST_F(HemcoMimicTest, RegionalOverrideMimic) {
     auto result = resolver.GetFieldData("nox");
     for (int i = 0; i < nx; ++i) {
         for (int j = 0; j < ny; ++j) {
-            if (j >= ny / 2) {
-                // Inside mask, regional (12.0) should replace global (5.0)
-                EXPECT_DOUBLE_EQ(result(i, j, 0), 12.0) << "Failed at i=" << i << ", j=" << j;
-            } else {
-                // Outside mask, only global (5.0) should be present
-                EXPECT_DOUBLE_EQ(result(i, j, 0), 5.0) << "Failed at i=" << i << ", j=" << j;
-            }
+            double expected = (j >= ny / 2) ? 12.0 : 5.0;
+            EXPECT_DOUBLE_EQ(result(i, j, 0), expected) << "Failed at i=" << i << ", j=" << j;
         }
     }
 }
@@ -207,9 +202,9 @@ TEST_F(HemcoMimicTest, VerticalDistributionMimic) {
     auto result = resolver.GetFieldData("nox");
     for (int i = 0; i < nx; ++i) {
         for (int j = 0; j < ny; ++j) {
-            EXPECT_DOUBLE_EQ(result(i, j, 0), 10.0);
-            EXPECT_DOUBLE_EQ(result(i, j, 1), 3.0);
-            EXPECT_DOUBLE_EQ(result(i, j, 2), 0.0);
+            EXPECT_DOUBLE_EQ(result(i, j, 0), 10.0) << "L1 failed at " << i << "," << j;
+            EXPECT_DOUBLE_EQ(result(i, j, 1), 3.0) << "L2 failed at " << i << "," << j;
+            EXPECT_DOUBLE_EQ(result(i, j, 2), 0.0) << "L3 failed at " << i << "," << j;
         }
     }
 }
