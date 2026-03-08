@@ -26,4 +26,4 @@ CheckOptions:
     value: true
 
 FormatStyle: file
-HeaderFilterRegex: '(algorithms|benchmarks|containers|core|example|simd).*\.hpp'
+HeaderFilterRegex: 'include/aces/.*'

@@ -10,6 +10,11 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 include(CheckLanguage)
 check_language(Fortran)
 if(CMAKE_Fortran_COMPILER)
+    # Ensure Fortran modules are placed in a central directory
+    if(NOT CMAKE_Fortran_MODULE_DIRECTORY)
+        set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/fortran_modules)
+    endif()
+    include_directories(${CMAKE_Fortran_MODULE_DIRECTORY})
     enable_language(Fortran)
     set(ACES_HAS_FORTRAN ON)
 else()
@@ -236,40 +241,6 @@ add_library(aces SHARED ${ACES_SRCS})
 
 if(ACES_HAS_FORTRAN)
     target_compile_definitions(aces PRIVATE ACES_HAS_FORTRAN)
-
-    # Use per-target module directory for ACES to avoid race conditions
-    set_target_properties(aces PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/fortran_modules/aces)
-    target_include_directories(aces PUBLIC $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/fortran_modules/aces>)
-
-    # Resolve Fortran module collisions and dependencies for CDEPS targets
-    foreach(target cdeps_share streams dshr datm dice dglc dlnd docn drof dwav)
-        if(TARGET ${target})
-            set_target_properties(${target} PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/fortran_modules/${target})
-            target_include_directories(${target} PUBLIC $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/fortran_modules/${target}>)
-        endif()
-    endforeach()
-
-    # Explicitly link CDEPS module dependencies internally
-    if(TARGET streams)
-        target_include_directories(streams PRIVATE $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/fortran_modules/cdeps_share>)
-    endif()
-    if(TARGET dshr)
-        target_include_directories(dshr PRIVATE $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/fortran_modules/cdeps_share> $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/fortran_modules/streams>)
-    endif()
-    foreach(comp datm dice dglc dlnd docn drof dwav)
-        if(TARGET ${comp})
-            target_include_directories(${comp} PRIVATE
-                $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/fortran_modules/cdeps_share>
-                $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/fortran_modules/streams>
-                $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/fortran_modules/dshr>)
-        endif()
-    endforeach()
-
-    # Ensure ACES can find necessary CDEPS modules
-    target_include_directories(aces PRIVATE
-        $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/fortran_modules/cdeps_share>
-        $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/fortran_modules/streams>
-        $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/fortran_modules/dshr>)
 endif()
 
 target_include_directories(
