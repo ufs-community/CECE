@@ -10,13 +10,13 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 include(CheckLanguage)
 check_language(Fortran)
 if(CMAKE_Fortran_COMPILER)
-    enable_language(Fortran)
-    set(ACES_HAS_FORTRAN ON)
     # Ensure Fortran modules are placed in a central directory
     if(NOT CMAKE_Fortran_MODULE_DIRECTORY)
         set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/fortran_modules)
     endif()
     include_directories(${CMAKE_Fortran_MODULE_DIRECTORY})
+    enable_language(Fortran)
+    set(ACES_HAS_FORTRAN ON)
 else()
     message(WARNING "Fortran compiler not found. Fortran features will be disabled.")
 endif()
@@ -128,7 +128,8 @@ if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
             GIT_REPOSITORY https://github.com/bbakernoaa/CDEPS.git
             GIT_TAG ae5d2c457321ebae3a0d9c9c949f871bb8f2b09c
             GIT_SUBMODULES_RECURSE ON
-            PATCH_COMMAND sed -i "s/add_subdirectory(fox)/#add_subdirectory(fox)/" CMakeLists.txt)
+            PATCH_COMMAND bash -c "sed -i 's/add_subdirectory(fox)/#add_subdirectory(fox)/' CMakeLists.txt; find . -name CMakeLists.txt -exec sed -i 's/install(/#install(/g' {} +")
+
         # Explicitly set PIO and NetCDF paths for CDEPS
         set(PIO_Fortran_INCLUDE_DIR
             "${PIO_ROOT}/include"
@@ -144,7 +145,6 @@ if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
             CACHE PATH "" FORCE)
 
         # Force CDEPS to find the ESMF we already discovered
-        # In JCSDA container, ESMF_ROOT might not be set, but ESMF_LIBRARIES contains it
         if(NOT ESMF_ROOT)
             foreach(lib ${ESMF_LIBRARIES})
                 if(lib MATCHES "^-L(.*)")
@@ -162,12 +162,12 @@ if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
             CACHE PATH "Path to ESMF" FORCE)
         set(ENV{ESMF_ROOT} "${ESMF_ROOT}")
 
-        # Propagate ESMF include dirs to CDEPS if it uses ESMF_F90COMPILEPATHS
+        # Propagate ESMF include dirs to CDEPS
         set(ESMF_F90COMPILEPATHS
             "${ESMF_INCLUDE_DIRS}"
             CACHE STRING "ESMF include paths for CDEPS" FORCE)
 
-        # Force CDEPS to use a larger line length for Fortran and define CPRGNU
+        # Force CDEPS flags
         set(CMAKE_Fortran_FLAGS
             "${CMAKE_Fortran_FLAGS} -ffree-line-length-none -DCPRGNU"
             CACHE STRING "Fortran flags" FORCE)
@@ -180,7 +180,6 @@ if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
             "gnu"
             CACHE STRING "Compiler type")
 
-        # We use a custom guard to ensure CDEPS is correctly integrated
         FetchContent_MakeAvailable(cdeps)
         if(TARGET dshr)
             set(CDEPS_FOUND TRUE)
@@ -189,7 +188,7 @@ if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
     endif()
 endif()
 
-# Fallback: if not found and not built from source, it's an error.
+# Fallback
 if(NOT CDEPS_FOUND)
     message(
         FATAL_ERROR
@@ -253,7 +252,6 @@ target_link_libraries(aces PUBLIC Kokkos::kokkos ESMF::ESMF yaml-cpp)
 
 if(CDEPS_FOUND)
     target_link_libraries(aces PUBLIC dshr streams cdeps_share)
-    # CDEPS dependencies (NetCDF and PIO) discovered from ESMF
     if(PIO_FOUND)
         if(EXISTS "${PIO_ROOT}/lib/libpiof.so")
             target_link_libraries(aces PUBLIC "${PIO_ROOT}/lib/libpiof.so")
@@ -283,43 +281,33 @@ endif()
 enable_testing()
 
 add_executable(test_aces_cap tests/test_aces_cap.cpp)
-
 target_link_libraries(test_aces_cap PRIVATE aces GTest::gtest_main)
 
 add_executable(test_diagnostics tests/test_diagnostics.cpp)
-
 target_link_libraries(test_diagnostics PRIVATE aces GTest::gtest)
 
 add_executable(test_aces_ingestor tests/test_aces_ingestor.cpp)
-
 target_link_libraries(test_aces_ingestor PRIVATE aces GTest::gtest_main)
 
 add_executable(test_aces_utils tests/test_aces_utils.cpp)
-
 target_link_libraries(test_aces_utils PRIVATE aces GTest::gtest_main)
 
 add_executable(test_aces_compute tests/test_aces_compute.cpp)
-
 target_link_libraries(test_aces_compute PRIVATE aces GTest::gtest_main)
 
 add_executable(test_physics tests/test_physics.cpp)
-
 target_link_libraries(test_physics PRIVATE aces GTest::gtest_main)
 
 add_executable(test_hemco_mimic tests/test_hemco_mimic.cpp)
-
 target_link_libraries(test_hemco_mimic PRIVATE aces GTest::gtest_main)
 
 add_executable(test_stacking_engine tests/test_stacking_engine.cpp)
-
 target_link_libraries(test_stacking_engine PRIVATE aces GTest::gtest_main)
 
 add_executable(example_driver tests/example_driver.cpp)
-
 target_link_libraries(example_driver PRIVATE aces)
 
 add_executable(hemco_mimic_driver tests/hemco_mimic_driver.cpp)
-
 target_link_libraries(hemco_mimic_driver PRIVATE aces)
 
 # Standalone NUOPC driver

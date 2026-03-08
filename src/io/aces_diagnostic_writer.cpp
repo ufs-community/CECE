@@ -1,3 +1,4 @@
+#include <array>
 #include <iostream>
 #include <vector>
 
@@ -51,9 +52,9 @@ void AcesDiagnosticManager::WriteDiagnostics(const DiagnosticConfig& config, ESM
 
     // 2. Grid/Mesh Setup (Cached)
     if (config.grid_type == "gaussian" && cached_grid_.ptr == nullptr) {
-        int counts[2] = {config.nx, config.ny};
+        std::array<int, 2> counts = {config.nx, config.ny};
         ESMC_InterArrayInt iCounts;
-        ESMC_InterArrayIntSet(&iCounts, counts, 2);
+        ESMC_InterArrayIntSet(&iCounts, counts.data(), 2);
         int rc;
         cached_grid_ = ESMC_GridCreateNoPeriDim(&iCounts, nullptr, nullptr, nullptr, &rc);
     } else if (config.grid_type == "mesh" &&
@@ -75,24 +76,26 @@ void AcesDiagnosticManager::WriteDiagnostics(const DiagnosticConfig& config, ESM
             double* template_ptr = static_cast<double*>(ESMC_FieldGetPtr(template_field, 0, &rc));
             if (rc == ESMF_SUCCESS && template_ptr != nullptr) {
                 // Get dimensions and total size
-                int lbound[3] = {1, 1, 1}, ubound[3] = {1, 1, 1}, localDe = 0;
+                std::array<int, 3> lbound = {1, 1, 1}, ubound = {1, 1, 1};
+                int localDe = 0;
                 int rank = 0;
                 // Try 3D
-                if (ESMC_FieldGetBounds(template_field, &localDe, lbound, ubound, 3) ==
-                    ESMF_SUCCESS) {
+                if (ESMC_FieldGetBounds(template_field, &localDe, lbound.data(), ubound.data(),
+                                        3) == ESMF_SUCCESS) {
                     rank = 3;
-                } else if (ESMC_FieldGetBounds(template_field, &localDe, lbound, ubound, 2) ==
-                           ESMF_SUCCESS) {
+                } else if (ESMC_FieldGetBounds(template_field, &localDe, lbound.data(),
+                                               ubound.data(), 2) == ESMF_SUCCESS) {
                     rank = 2;
-                } else if (ESMC_FieldGetBounds(template_field, &localDe, lbound, ubound, 1) ==
-                           ESMF_SUCCESS) {
+                } else if (ESMC_FieldGetBounds(template_field, &localDe, lbound.data(),
+                                               ubound.data(), 1) == ESMF_SUCCESS) {
                     rank = 1;
                 }
 
                 if (rank > 0) {
                     size_t size = 1;
                     for (int d = 0; d < rank; ++d) {
-                        size *= static_cast<size_t>(ubound[d] - lbound[d] + 1);
+                        auto idx = static_cast<size_t>(d);
+                        size *= static_cast<size_t>(ubound[idx] - lbound[idx] + 1);
                     }
 
                     // Copy diagnostic data to template field for writing

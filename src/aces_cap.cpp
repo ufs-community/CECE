@@ -1,5 +1,6 @@
 #include <Kokkos_Core.hpp>
 #include <algorithm>
+#include <array>
 #include <iostream>
 #include <iterator>
 #include <memory>
@@ -286,18 +287,21 @@ void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESM
         }
 
         if (field.ptr != nullptr) {
-            int lbound[3] = {1, 1, 1};
-            int ubound[3] = {1, 1, 1};
+            std::array<int, 3> lbound = {1, 1, 1};
+            std::array<int, 3> ubound = {1, 1, 1};
             int localDe = 0;
-            if (ESMC_FieldGetBounds(field, &localDe, lbound, ubound, 3) == ESMF_SUCCESS) {
+            if (ESMC_FieldGetBounds(field, &localDe, lbound.data(), ubound.data(), 3) ==
+                ESMF_SUCCESS) {
                 data->nx = ubound[0] - lbound[0] + 1;
                 data->ny = ubound[1] - lbound[1] + 1;
                 data->nz = ubound[2] - lbound[2] + 1;
-            } else if (ESMC_FieldGetBounds(field, &localDe, lbound, ubound, 2) == ESMF_SUCCESS) {
+            } else if (ESMC_FieldGetBounds(field, &localDe, lbound.data(), ubound.data(), 2) ==
+                       ESMF_SUCCESS) {
                 data->nx = ubound[0] - lbound[0] + 1;
                 data->ny = ubound[1] - lbound[1] + 1;
                 data->nz = 1;
-            } else if (ESMC_FieldGetBounds(field, &localDe, lbound, ubound, 1) == ESMF_SUCCESS) {
+            } else if (ESMC_FieldGetBounds(field, &localDe, lbound.data(), ubound.data(), 1) ==
+                       ESMF_SUCCESS) {
                 data->nx = ubound[0] - lbound[0] + 1;
                 data->ny = 1;
                 data->nz = 1;

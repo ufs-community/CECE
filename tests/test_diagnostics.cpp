@@ -9,7 +9,7 @@
 #include "aces/aces_diagnostics.hpp"
 #include "aces/physics_scheme.hpp"
 
-using namespace aces;
+namespace aces {
 
 class MockPhysicsScheme : public PhysicsScheme {
    public:
@@ -67,6 +67,8 @@ TEST(DiagnosticsTest, RegistrationAndWriteback) {
     auto host_view = dv.view_host();
     EXPECT_DOUBLE_EQ(host_view(0, 0, 0), 42.0);
 }
+
+}  // namespace aces
 
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);

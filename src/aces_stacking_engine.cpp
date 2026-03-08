@@ -11,7 +11,9 @@ namespace aces {
  * @brief Constructs the StackingEngine and performs initial configuration compilation.
  * @param config The ACES configuration.
  */
-StackingEngine::StackingEngine(const AcesConfig& config) : m_config(config) { PreCompile(); }
+StackingEngine::StackingEngine(AcesConfig config) : m_config(std::move(config)) {
+    PreCompile();
+}
 
 /**
  * @brief Pre-compiles the emission layers, sorting them by hierarchy.
@@ -56,7 +58,7 @@ void StackingEngine::PreCompile() {
  * @param nz Z dimension.
  */
 void StackingEngine::BindFields(CompiledSpecies& spec, FieldResolver& resolver, int nx, int ny,
-                                int nz) {
+                                int nz) const {
     if (spec.fields_bound) {
         return;
     }
@@ -65,7 +67,8 @@ void StackingEngine::BindFields(CompiledSpecies& spec, FieldResolver& resolver, 
 
     // Bind vertical coordinate fields if configured
     if (m_config.vertical_config.type != VerticalCoordType::NONE) {
-        spec.p_surf = resolver.ResolveImportDevice(m_config.vertical_config.p_surf_field, nx, ny, 1);
+        spec.p_surf =
+            resolver.ResolveImportDevice(m_config.vertical_config.p_surf_field, nx, ny, 1);
         if (m_config.vertical_config.type == VerticalCoordType::FV3) {
             spec.ak = resolver.ResolveImportDevice(m_config.vertical_config.ak_field, 1, 1, nz + 1);
             spec.bk = resolver.ResolveImportDevice(m_config.vertical_config.bk_field, 1, 1, nz + 1);
@@ -182,7 +185,7 @@ void StackingEngine::Execute(
     FieldResolver& resolver, int nx, int ny, int nz,
     Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> default_mask,
     int hour, int day_of_week) {
-    if (!default_mask.data()) {
+    if (default_mask.data() == nullptr) {
         default_mask = Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>(
             "default_mask_internal", nx, ny, nz);
         Kokkos::deep_copy(default_mask, 1.0);
@@ -241,20 +244,21 @@ void StackingEngine::Execute(
                         }
                     } else if (layer.vdist_method == 2) {  // PRESSURE
                         double p_top = 0.0, p_bot = 0.0;
-                        if (vtype == VerticalCoordType::FV3 && ak.data() && bk.data() && ps.data()) {
+                        if (vtype == VerticalCoordType::FV3 && ak.data() != nullptr &&
+                            bk.data() != nullptr && ps.data() != nullptr) {
                             // Correct indexing for 1D/3D coefficients
                             p_top = ak(0, 0, k) + bk(0, 0, k) * ps(i, j, 0);
                             p_bot = ak(0, 0, k + 1) + bk(0, 0, k + 1) * ps(i, j, 0);
                         } else if ((vtype == VerticalCoordType::MPAS ||
                                     vtype == VerticalCoordType::WRF) &&
-                                   z_coord.data()) {
+                                   z_coord.data() != nullptr) {
                             constexpr double P0 = 101325.0;
                             constexpr double H = 8000.0;
                             p_top = P0 * Kokkos::exp(-z_coord(i, j, k) / H);
                             if (k + 1 < nz) {
                                 p_bot = P0 * Kokkos::exp(-z_coord(i, j, k + 1) / H);
                             } else {
-                                p_bot = ps.data() ? ps(i, j, 0) : P0;
+                                p_bot = ps.data() != nullptr ? ps(i, j, 0) : P0;
                             }
                         }
                         double overlap_top =
@@ -268,7 +272,7 @@ void StackingEngine::Execute(
                                      (layer.vdist_p_end - layer.vdist_p_start);
                         }
                     } else if (layer.vdist_method == 3) {  // HEIGHT
-                        if (z_coord.data()) {
+                        if (z_coord.data() != nullptr) {
                             double z = z_coord(i, j, k);
                             if (z >= layer.vdist_h_start && z <= layer.vdist_h_end) {
                                 in_vertical_range = true;
@@ -286,7 +290,7 @@ void StackingEngine::Execute(
                             }
                         }
                     } else if (layer.vdist_method == 4) {  // PBL
-                        if (pbl.data() && z_coord.data()) {
+                        if (pbl.data() != nullptr && z_coord.data() != nullptr) {
                             double z = z_coord(i, j, k);
                             double h_pbl = pbl(i, j, 0);
                             if (z <= h_pbl) {

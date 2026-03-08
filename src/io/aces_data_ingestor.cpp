@@ -1,5 +1,6 @@
 #include "aces/aces_data_ingestor.hpp"
 
+#include <array>
 #include <cstdio>
 #include <fstream>
 #include <iostream>
@@ -40,17 +41,21 @@ void AcesDataIngestor::IngestMeteorology(ESMC_State importState,
         ESMC_Field field;
         int local_nx = nx, local_ny = ny, local_nz = nz;
         if (ESMC_StateGetField(importState, name.c_str(), &field) == ESMF_SUCCESS) {
-            int lbound[3] = {1, 1, 1}, ubound[3] = {1, 1, 1}, localDe = 0;
+            std::array<int, 3> lbound = {1, 1, 1}, ubound = {1, 1, 1};
+            int localDe = 0;
             // Robustly discover rank and dimensions by trying different dimCounts
-            if (ESMC_FieldGetBounds(field, &localDe, lbound, ubound, 3) == ESMF_SUCCESS) {
+            if (ESMC_FieldGetBounds(field, &localDe, lbound.data(), ubound.data(), 3) ==
+                ESMF_SUCCESS) {
                 local_nx = ubound[0] - lbound[0] + 1;
                 local_ny = ubound[1] - lbound[1] + 1;
                 local_nz = ubound[2] - lbound[2] + 1;
-            } else if (ESMC_FieldGetBounds(field, &localDe, lbound, ubound, 2) == ESMF_SUCCESS) {
+            } else if (ESMC_FieldGetBounds(field, &localDe, lbound.data(), ubound.data(), 2) ==
+                       ESMF_SUCCESS) {
                 local_nx = ubound[0] - lbound[0] + 1;
                 local_ny = ubound[1] - lbound[1] + 1;
                 local_nz = 1;
-            } else if (ESMC_FieldGetBounds(field, &localDe, lbound, ubound, 1) == ESMF_SUCCESS) {
+            } else if (ESMC_FieldGetBounds(field, &localDe, lbound.data(), ubound.data(), 1) ==
+                       ESMF_SUCCESS) {
                 local_nx = ubound[0] - lbound[0] + 1;
                 local_ny = 1;
                 local_nz = 1;
@@ -62,7 +67,7 @@ void AcesDataIngestor::IngestMeteorology(ESMC_State importState,
 
         // Sync host to device to ensure Kokkos kernels see updated ESMF data
         auto& dv = aces_state.fields[name];
-        if (dv.view_host().data()) {
+        if (dv.view_host().data() != nullptr) {
             dv.modify<Kokkos::HostSpace>();
             dv.sync<Kokkos::DefaultExecutionSpace::memory_space>();
         }
@@ -110,7 +115,7 @@ void AcesDataIngestor::InitializeCDEPS(ESMC_GridComp gcomp, ESMC_Clock clock, ES
     stream_file.close();
 
     // 2. Initialize CDEPS-inline
-    if (aces_cdeps_init) {
+    if (aces_cdeps_init != nullptr) {
         int rc = 0;
         std::string stream_file_path = "aces_emissions.streams";
         aces_cdeps_init(gcomp.ptr, clock.ptr, mesh.ptr, stream_file_path.c_str(), &rc);
@@ -121,14 +126,14 @@ void AcesDataIngestor::InitializeCDEPS(ESMC_GridComp gcomp, ESMC_Clock clock, ES
 }
 
 void AcesDataIngestor::AdvanceCDEPS(ESMC_Clock clock) {
-    if (aces_cdeps_advance) {
+    if (aces_cdeps_advance != nullptr) {
         int rc = 0;
         aces_cdeps_advance(clock.ptr, &rc);
     }
 }
 
 void AcesDataIngestor::FinalizeCDEPS() {
-    if (aces_cdeps_finalize) {
+    if (aces_cdeps_finalize != nullptr) {
         aces_cdeps_finalize();
     }
 }
@@ -155,7 +160,7 @@ void AcesDataIngestor::IngestEmissionsInline(const AcesCdepsConfig& config,
             }
 
             auto& dv = aces_state.fields[v.name_in_model];
-            if (aces_cdeps_get_ptr) {
+            if (aces_cdeps_get_ptr != nullptr) {
                 void* data_ptr = nullptr;
                 int rc = 0;
                 aces_cdeps_get_ptr(stream_idx, v.name_in_model.c_str(), &data_ptr, &rc);

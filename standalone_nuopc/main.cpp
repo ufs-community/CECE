@@ -1,5 +1,6 @@
 #include <yaml-cpp/yaml.h>
 
+#include <array>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -111,9 +112,9 @@ int main(int argc, char** argv) {
     CHECK_RC(rc, "ESMC_ClockCreate failed");
 
     // 4. Setup Grid and Fields
-    int maxIndex3D[3] = {nx, ny, nz};
+    std::array<int, 3> maxIndex3D = {nx, ny, nz};
     ESMC_InterArrayInt iMaxIndex;
-    rc = ESMC_InterArrayIntSet(&iMaxIndex, maxIndex3D, 3);
+    rc = ESMC_InterArrayIntSet(&iMaxIndex, maxIndex3D.data(), 3);
     CHECK_RC(rc, "ESMC_InterArrayIntSet failed");
     ESMC_Grid grid = ESMC_GridCreateNoPeriDim(&iMaxIndex, nullptr, nullptr, nullptr, &rc);
     CHECK_RC(rc, "ESMC_GridCreate failed");
@@ -143,9 +144,9 @@ int main(int argc, char** argv) {
     // Also add vertical coordinate fields if nz > 1
     if (nz > 1) {
         // ps (2D)
-        int maxIndex2D[2] = {nx, ny};
+        std::array<int, 2> maxIndex2D = {nx, ny};
         ESMC_InterArrayInt iMaxIndex2D;
-        ESMC_InterArrayIntSet(&iMaxIndex2D, maxIndex2D, 2);
+        ESMC_InterArrayIntSet(&iMaxIndex2D, maxIndex2D.data(), 2);
         ESMC_Grid grid2D = ESMC_GridCreateNoPeriDim(&iMaxIndex2D, nullptr, nullptr, nullptr, &rc);
         ESMC_Field f_ps = ESMC_FieldCreateGridTypeKind(
             grid2D, ESMC_TYPEKIND_R8, ESMC_STAGGERLOC_CENTER, nullptr, nullptr, nullptr, "ps", &rc);
@@ -156,9 +157,9 @@ int main(int argc, char** argv) {
         ESMC_StateAddField(importState, f_ps);
 
         // ak, bk (1D/3D but effectively 1x1x(nz+1))
-        int maxIndexAK[3] = {1, 1, nz + 1};
+        std::array<int, 3> maxIndexAK = {1, 1, nz + 1};
         ESMC_InterArrayInt iMaxIndexAK;
-        ESMC_InterArrayIntSet(&iMaxIndexAK, maxIndexAK, 3);
+        ESMC_InterArrayIntSet(&iMaxIndexAK, maxIndexAK.data(), 3);
         ESMC_Grid gridAK = ESMC_GridCreateNoPeriDim(&iMaxIndexAK, nullptr, nullptr, nullptr, &rc);
         ESMC_Field f_ak =
             ESMC_FieldCreateGridTypeKind(gridAK, ESMC_TYPEKIND_R8, ESMC_STAGGERLOC_CENTER, nullptr,

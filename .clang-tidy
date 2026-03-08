@@ -1,20 +1,29 @@
----
-# ACES Clang-Tidy Configuration
 Checks: >
+  -*,
   bugprone-*,
-  modernize-*,
-  performance-*,
-  readability-*,
-  google-*,
-  -modernize-use-trailing-return-type,
-  -readability-identifier-length,
-  -readability-magic-numbers,
-  -readability-else-after-return,
-  -modernize-use-auto,
+  -bugprone-argument-comment,
   -bugprone-easily-swappable-parameters,
-  -google-readability-todo,
-  -google-runtime-int
+  -bugprone-exception-escape,
+  -bugprone-macro-parentheses,
+  -bugprone-narrowing-conversions,
+  -bugprone-random-generator-seed,
+  -bugprone-suspicious-include,
+  -bugprone-throwing-static-initialization,
+  cppcoreguidelines-pro-type-cstyle-cast,
+  cppcoreguidelines-rvalue-reference-param-not-moved,
+  cppcoreguidelines-special-member-functions,
+  modernize-type-traits,
+  modernize-use-nullptr,
+  modernize-use-using,
+  kokkos-*
 
+CheckOptions:
+  - key: cppcoreguidelines-rvalue-reference-param-not-moved.AllowPartialMove
+    value: true
+  - key: cppcoreguidelines-special-member-functions.AllowMissingMoveFunctionsWhenCopyIsDeleted
+    value: true
+  - key: cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor
+    value: true
+
+FormatStyle: file
 HeaderFilterRegex: 'include/aces/.*'
-FormatStyle: google
-...

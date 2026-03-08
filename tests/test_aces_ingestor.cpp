@@ -12,8 +12,7 @@
  * @brief Unit tests for the hybrid data ingestor.
  */
 
-namespace aces {
-namespace test {
+namespace aces::test {
 
 class IngestorTest : public ::testing::Test {
    protected:
@@ -35,7 +34,7 @@ TEST_F(IngestorTest, ConfigFileGeneration) {
     AcesCdepsConfig config;
     CdepsStreamConfig s1;
     s1.name = "stream1";
-    s1.file_paths.push_back("path1.nc");
+    s1.file_paths.emplace_back("path1.nc");
     s1.tintalgo = "linear";
     CdepsVariableConfig v1;
     v1.name_in_file = "VAR_FILE";
@@ -75,5 +74,9 @@ TEST_F(IngestorTest, ConfigFileGeneration) {
     std::remove("aces_emissions.streams");
 }
 
-}  // namespace test
-}  // namespace aces
+}  // namespace aces::test
+
+int main(int argc, char** argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
+}

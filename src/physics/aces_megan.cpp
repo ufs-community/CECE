@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <numbers>
 
 #include "aces/aces_physics_factory.hpp"
 
@@ -17,7 +18,9 @@ static PhysicsRegistration<MeganScheme> register_scheme("megan");
  */
 
 KOKKOS_INLINE_FUNCTION
-double get_gamma_lai(double lai) { return 0.49 * lai / std::sqrt(1.0 + 0.2 * lai * lai); }
+double get_gamma_lai(double lai) {
+    return 0.49 * lai / std::sqrt(1.0 + 0.2 * lai * lai);
+}
 
 KOKKOS_INLINE_FUNCTION
 double get_gamma_t_li(double temp, double beta) {
@@ -41,7 +44,7 @@ double get_gamma_t_ld(double T, double PT_15, double CT1, double CEO) {
 KOKKOS_INLINE_FUNCTION
 double get_gamma_par_pceea(double q_dir, double q_diff, double par_avg, double suncos, int doy) {
     const double WM2_TO_UMOLM2S = 4.766;
-    const double PI = 3.14159265358979323846;
+    const double PI = std::numbers::pi;
 
     if (suncos <= 0.0) {
         return 0.0;
@@ -119,7 +122,8 @@ void MeganScheme::Run(AcesImportState& import_state, AcesExportState& export_sta
             double gamma_lai = get_gamma_lai(L);
             double gamma_t_li = get_gamma_t_li(T, BETA);
             double gamma_t_ld = get_gamma_t_ld(T, T_AVG_15, CT1, CEO);
-            double gamma_par = get_gamma_par_pceea(pardr(i, j, 0), pardf(i, j, 0), PAR_AVG, sc, doy);
+            double gamma_par =
+                get_gamma_par_pceea(pardr(i, j, 0), pardf(i, j, 0), PAR_AVG, sc, doy);
 
             double megan_emis = NORM_FAC * AEF_ISOP * gamma_lai * gamma_co2_const *
                                 ((1.0 - LDF) * gamma_t_li + (LDF * gamma_par * gamma_t_ld));
