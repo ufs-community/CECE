@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <numbers>
 
 #include "aces/aces_physics_factory.hpp"
 
@@ -43,7 +44,7 @@ double get_gamma_t_ld(double T, double PT_15, double CT1, double CEO) {
 KOKKOS_INLINE_FUNCTION
 double get_gamma_par_pceea(double q_dir, double q_diff, double par_avg, double suncos, int doy) {
     const double WM2_TO_UMOLM2S = 4.766;
-    const double PI = 3.14159265358979323846;
+    const double PI = std::numbers::pi;
 
     if (suncos <= 0.0) {
         return 0.0;

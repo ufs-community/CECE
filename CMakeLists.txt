@@ -123,7 +123,8 @@ if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
             GIT_REPOSITORY https://github.com/bbakernoaa/CDEPS.git
             GIT_TAG ae5d2c457321ebae3a0d9c9c949f871bb8f2b09c
             GIT_SUBMODULES_RECURSE ON
-            PATCH_COMMAND sed -i "s/add_subdirectory(fox)/#add_subdirectory(fox)/" CMakeLists.txt)
+            PATCH_COMMAND bash -c "sed -i 's/add_subdirectory(fox)/#add_subdirectory(fox)/' CMakeLists.txt; find . -name CMakeLists.txt -exec sed -i 's/install(/#install(/g' {} +")
+
         # Explicitly set PIO and NetCDF paths for CDEPS
         set(PIO_Fortran_INCLUDE_DIR
             "${PIO_ROOT}/include"
@@ -139,7 +140,6 @@ if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
             CACHE PATH "" FORCE)
 
         # Force CDEPS to find the ESMF we already discovered
-        # In JCSDA container, ESMF_ROOT might not be set, but ESMF_LIBRARIES contains it
         if(NOT ESMF_ROOT)
             foreach(lib ${ESMF_LIBRARIES})
                 if(lib MATCHES "^-L(.*)")
@@ -157,12 +157,12 @@ if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
             CACHE PATH "Path to ESMF" FORCE)
         set(ENV{ESMF_ROOT} "${ESMF_ROOT}")
 
-        # Propagate ESMF include dirs to CDEPS if it uses ESMF_F90COMPILEPATHS
+        # Propagate ESMF include dirs to CDEPS
         set(ESMF_F90COMPILEPATHS
             "${ESMF_INCLUDE_DIRS}"
             CACHE STRING "ESMF include paths for CDEPS" FORCE)
 
-        # Force CDEPS to use a larger line length for Fortran and define CPRGNU
+        # Force CDEPS flags
         set(CMAKE_Fortran_FLAGS
             "${CMAKE_Fortran_FLAGS} -ffree-line-length-none -DCPRGNU"
             CACHE STRING "Fortran flags" FORCE)
@@ -175,7 +175,6 @@ if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
             "gnu"
             CACHE STRING "Compiler type")
 
-        # We use a custom guard to ensure CDEPS is correctly integrated
         FetchContent_MakeAvailable(cdeps)
         if(TARGET dshr)
             set(CDEPS_FOUND TRUE)
@@ -184,7 +183,7 @@ if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
     endif()
 endif()
 
-# Fallback: if not found and not built from source, it's an error.
+# Fallback
 if(NOT CDEPS_FOUND)
     message(
         FATAL_ERROR
@@ -237,18 +236,40 @@ add_library(aces SHARED ${ACES_SRCS})
 
 if(ACES_HAS_FORTRAN)
     target_compile_definitions(aces PRIVATE ACES_HAS_FORTRAN)
-    set_target_properties(aces PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/aces_modules)
-    target_include_directories(aces PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/aces_modules)
-    # Ensure ACES can find CDEPS modules when built via FetchContent
-    if(TARGET cdeps_share)
-        get_target_property(CDEPS_SHARE_MOD_DIR cdeps_share Fortran_MODULE_DIRECTORY)
-        if(CDEPS_SHARE_MOD_DIR)
-            target_include_directories(aces PRIVATE ${CDEPS_SHARE_MOD_DIR})
-        else()
-            # Fallback if not explicitly set on target
-            target_include_directories(aces PRIVATE ${CMAKE_BINARY_DIR}/_deps/cdeps-build/share)
+
+    # Use per-target module directory for ACES to avoid race conditions
+    set_target_properties(aces PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/fortran_modules/aces)
+    target_include_directories(aces PUBLIC $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/fortran_modules/aces>)
+
+    # Resolve Fortran module collisions and dependencies for CDEPS targets
+    foreach(target cdeps_share streams dshr datm dice dglc dlnd docn drof dwav)
+        if(TARGET ${target})
+            set_target_properties(${target} PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/fortran_modules/${target})
+            target_include_directories(${target} PUBLIC $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/fortran_modules/${target}>)
         endif()
+    endforeach()
+
+    # Explicitly link CDEPS module dependencies internally
+    if(TARGET streams)
+        target_include_directories(streams PRIVATE $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/fortran_modules/cdeps_share>)
     endif()
+    if(TARGET dshr)
+        target_include_directories(dshr PRIVATE $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/fortran_modules/cdeps_share> $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/fortran_modules/streams>)
+    endif()
+    foreach(comp datm dice dglc dlnd docn drof dwav)
+        if(TARGET ${comp})
+            target_include_directories(${comp} PRIVATE
+                $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/fortran_modules/cdeps_share>
+                $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/fortran_modules/streams>
+                $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/fortran_modules/dshr>)
+        endif()
+    endforeach()
+
+    # Ensure ACES can find necessary CDEPS modules
+    target_include_directories(aces PRIVATE
+        $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/fortran_modules/cdeps_share>
+        $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/fortran_modules/streams>
+        $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/fortran_modules/dshr>)
 endif()
 
 target_include_directories(
@@ -260,7 +281,6 @@ target_link_libraries(aces PUBLIC Kokkos::kokkos ESMF::ESMF yaml-cpp)
 
 if(CDEPS_FOUND)
     target_link_libraries(aces PUBLIC dshr streams cdeps_share)
-    # CDEPS dependencies (NetCDF and PIO) discovered from ESMF
     if(PIO_FOUND)
         if(EXISTS "${PIO_ROOT}/lib/libpiof.so")
             target_link_libraries(aces PUBLIC "${PIO_ROOT}/lib/libpiof.so")
@@ -290,43 +310,33 @@ endif()
 enable_testing()
 
 add_executable(test_aces_cap tests/test_aces_cap.cpp)
-
 target_link_libraries(test_aces_cap PRIVATE aces GTest::gtest_main)
 
 add_executable(test_diagnostics tests/test_diagnostics.cpp)
-
 target_link_libraries(test_diagnostics PRIVATE aces GTest::gtest)
 
 add_executable(test_aces_ingestor tests/test_aces_ingestor.cpp)
-
 target_link_libraries(test_aces_ingestor PRIVATE aces GTest::gtest_main)
 
 add_executable(test_aces_utils tests/test_aces_utils.cpp)
-
 target_link_libraries(test_aces_utils PRIVATE aces GTest::gtest_main)
 
 add_executable(test_aces_compute tests/test_aces_compute.cpp)
-
 target_link_libraries(test_aces_compute PRIVATE aces GTest::gtest_main)
 
 add_executable(test_physics tests/test_physics.cpp)
-
 target_link_libraries(test_physics PRIVATE aces GTest::gtest_main)
 
 add_executable(test_hemco_mimic tests/test_hemco_mimic.cpp)
-
 target_link_libraries(test_hemco_mimic PRIVATE aces GTest::gtest_main)
 
 add_executable(test_stacking_engine tests/test_stacking_engine.cpp)
-
 target_link_libraries(test_stacking_engine PRIVATE aces GTest::gtest_main)
 
 add_executable(example_driver tests/example_driver.cpp)
-
 target_link_libraries(example_driver PRIVATE aces)
 
 add_executable(hemco_mimic_driver tests/hemco_mimic_driver.cpp)
-
 target_link_libraries(hemco_mimic_driver PRIVATE aces)
 
 # Standalone NUOPC driver

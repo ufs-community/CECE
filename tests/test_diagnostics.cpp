@@ -9,7 +9,7 @@
 #include "aces/aces_diagnostics.hpp"
 #include "aces/physics_scheme.hpp"
 
-using namespace aces;
+namespace aces {
 
 class MockPhysicsScheme : public PhysicsScheme {
    public:
@@ -75,3 +75,5 @@ int main(int argc, char** argv) {
     Kokkos::finalize();
     return result;
 }
+
+}  // namespace aces

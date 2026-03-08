@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <numbers>
 
 #include "aces/aces_physics_factory.hpp"
 
@@ -33,7 +34,7 @@ void SeaSaltScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* 
     const double dr = 0.05;         // Integration step in um (dry)
     const double betha = 2.0;       // r80 / r_dry
     const double ss_dens = 2200.0;  // kg/m3
-    const double pi = 3.14159265358979323846;
+    const double pi = std::numbers::pi;
 
     double r_sala_min = 0.01, r_sala_max = 0.5;
     double r_salc_min = 0.5, r_salc_max = 8.0;

@@ -20,7 +20,7 @@ void ACES_Finalize(ESMC_GridComp comp, ESMC_State importState, ESMC_State export
 // can cause a segmentation fault (dereferencing invalid handle).
 // Testing SetServices properly requires a full ESMF application harness.
 
-TEST(ACES_Cap_Test, Lifecycle) {
+TEST(ACESCapTest, Lifecycle) {
     // Create dummy config file
     std::ofstream config_file("aces_config.yaml");
     config_file << "species:\n  nox: []\nphysics_schemes: []\n";

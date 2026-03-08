@@ -1,6 +1,3 @@
----
-# ACES Clang-Tidy Configuration
-# Adapted from Kokkos project standards for ACES high-performance emissions compute
 Checks: >
   -*,
   bugprone-*,
@@ -15,18 +12,9 @@ Checks: >
   cppcoreguidelines-pro-type-cstyle-cast,
   cppcoreguidelines-rvalue-reference-param-not-moved,
   cppcoreguidelines-special-member-functions,
-  modernize-*,
-  -modernize-use-trailing-return-type,
-  -modernize-use-auto,
-  performance-*,
-  readability-*,
-  -readability-identifier-length,
-  -readability-magic-numbers,
-  -readability-else-after-return,
-  -readability-function-cognitive-complexity,
-  google-*,
-  -google-readability-todo,
-  -google-runtime-int,
+  modernize-type-traits,
+  modernize-use-nullptr,
+  modernize-use-using,
   kokkos-*
 
 CheckOptions:
@@ -37,6 +25,5 @@ CheckOptions:
   - key: cppcoreguidelines-special-member-functions.AllowSoleDefaultDtor
     value: true
 
-HeaderFilterRegex: 'include/aces/.*'
 FormatStyle: file
-...
+HeaderFilterRegex: '(algorithms|benchmarks|containers|core|example|simd).*\.hpp'

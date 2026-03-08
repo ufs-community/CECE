@@ -71,7 +71,7 @@ struct DeviceLayer {
  */
 class StackingEngine {
    public:
-    explicit StackingEngine(const AcesConfig& config);
+    explicit StackingEngine(AcesConfig config);
 
     /**
      * @brief Executes the emission stacking for all species.
@@ -134,7 +134,7 @@ class StackingEngine {
     std::vector<CompiledSpecies> m_compiled;
 
     void PreCompile();
-    void BindFields(CompiledSpecies& spec, FieldResolver& resolver, int nx, int ny, int nz);
+    void BindFields(CompiledSpecies& spec, FieldResolver& resolver, int nx, int ny, int nz) const;
     void UpdateTemporalScales(CompiledSpecies& spec, int hour, int day_of_week);
 };
 

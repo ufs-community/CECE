@@ -1,3 +1,4 @@
+#include <array>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -89,7 +90,7 @@ int main(int argc, char** argv) {
     const int nz = 10;
 
     // 3. Create ESMF Grid and decomposition
-    int maxIndex3D[3] = {nx, ny, nz};
+    std::array<int, 3> maxIndex3D = {nx, ny, nz};
     ESMC_InterArrayInt iMaxIndex;
     ESMC_InterArrayIntSet(&iMaxIndex, maxIndex3D, 3);
 
