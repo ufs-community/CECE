@@ -80,8 +80,8 @@ void AcesDiagnosticManager::WriteDiagnostics(const DiagnosticConfig& config, ESM
                 int localDe = 0;
                 int rank = 0;
                 // Try 3D
-                if (ESMC_FieldGetBounds(template_field, &localDe, lbound.data(), ubound.data(), 3) ==
-                    ESMF_SUCCESS) {
+                if (ESMC_FieldGetBounds(template_field, &localDe, lbound.data(), ubound.data(),
+                                        3) == ESMF_SUCCESS) {
                     rank = 3;
                 } else if (ESMC_FieldGetBounds(template_field, &localDe, lbound.data(),
                                                ubound.data(), 2) == ESMF_SUCCESS) {
