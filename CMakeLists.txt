@@ -12,11 +12,6 @@ check_language(Fortran)
 if(CMAKE_Fortran_COMPILER)
     enable_language(Fortran)
     set(ACES_HAS_FORTRAN ON)
-    # Ensure Fortran modules are placed in a central directory
-    if(NOT CMAKE_Fortran_MODULE_DIRECTORY)
-        set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/fortran_modules)
-    endif()
-    include_directories(${CMAKE_Fortran_MODULE_DIRECTORY})
 else()
     message(WARNING "Fortran compiler not found. Fortran features will be disabled.")
 endif()
@@ -242,6 +237,18 @@ add_library(aces SHARED ${ACES_SRCS})
 
 if(ACES_HAS_FORTRAN)
     target_compile_definitions(aces PRIVATE ACES_HAS_FORTRAN)
+    set_target_properties(aces PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/aces_modules)
+    target_include_directories(aces PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/aces_modules)
+    # Ensure ACES can find CDEPS modules when built via FetchContent
+    if(TARGET cdeps_share)
+        get_target_property(CDEPS_SHARE_MOD_DIR cdeps_share Fortran_MODULE_DIRECTORY)
+        if(CDEPS_SHARE_MOD_DIR)
+            target_include_directories(aces PRIVATE ${CDEPS_SHARE_MOD_DIR})
+        else()
+            # Fallback if not explicitly set on target
+            target_include_directories(aces PRIVATE ${CMAKE_BINARY_DIR}/_deps/cdeps-build/share)
+        endif()
+    endif()
 endif()
 
 target_include_directories(

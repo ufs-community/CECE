@@ -38,5 +38,5 @@ CheckOptions:
     value: true
 
 HeaderFilterRegex: 'include/aces/.*'
-FormatStyle: google
+FormatStyle: file
 ...
