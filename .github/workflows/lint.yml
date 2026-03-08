@@ -33,4 +33,4 @@ jobs:
         # This prevents linting external dependencies like googletest, kokkos, and yaml-cpp.
         python3 -c "import json, os; db=json.load(open('build/compile_commands.json')); db=[e for e in db if any(x in e['file'] for x in ['/src/', '/tests/', '/standalone_nuopc/']) and not '_deps' in e['file']]; json.dump(db, open('build/compile_commands.json', 'w'))"
         # Run clang-tidy on the filtered database.
-        run-clang-tidy -p build -header-filter='include/aces/.*'
+        run-clang-tidy -p build
