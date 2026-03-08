@@ -68,6 +68,8 @@ TEST(DiagnosticsTest, RegistrationAndWriteback) {
     EXPECT_DOUBLE_EQ(host_view(0, 0, 0), 42.0);
 }
 
+}  // namespace aces
+
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     Kokkos::initialize(argc, argv);
@@ -75,5 +77,3 @@ int main(int argc, char** argv) {
     Kokkos::finalize();
     return result;
 }
-
-}  // namespace aces
