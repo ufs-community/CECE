@@ -6,21 +6,16 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+# Define dummy install macro for subprojects to prevent export errors during build
+macro(aces_dummy_install)
+endmacro()
+
 # Optional Fortran support
 include(CheckLanguage)
 check_language(Fortran)
 if(CMAKE_Fortran_COMPILER)
     enable_language(Fortran)
     set(ACES_HAS_FORTRAN ON)
-    # Ensure Fortran modules are placed in a central directory
-    # We set it here only if it's not already defined to avoid overriding
-    # subproject settings if they are already doing something specific.
-    if(NOT CMAKE_Fortran_MODULE_DIRECTORY)
-        set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/fortran_modules)
-    endif()
-    include_directories(${CMAKE_Fortran_MODULE_DIRECTORY})
-    # Also add the directory to search paths for subprojects
-    set(ENV{CMAKE_Fortran_MODULE_DIRECTORY} ${CMAKE_Fortran_MODULE_DIRECTORY})
 else()
     message(WARNING "Fortran compiler not found. Fortran features will be disabled.")
 endif()
@@ -62,15 +57,11 @@ set(gtest_force_shared_crt
 FetchContent_MakeAvailable(googletest)
 
 # ESMF and NUOPC are required dependencies.
-# NOTE: Mocking ESMF/NUOPC is strictly forbidden to ensure real-world parity.
 find_package(ESMF REQUIRED)
 message(STATUS "Found ESMF: ${ESMF_VERSION}")
 message(STATUS "ESMF include dirs: ${ESMF_INCLUDE_DIRS}")
 
 # Discovery PIO and NetCDF from ESMF if possible
-# CDEPS needs these as dependencies for its Fortran modules
-
-# Helper function to find a library root based on a file existence
 function(find_root_by_file root_var filename)
     if(NOT ${root_var})
         foreach(lib ${ESMF_LIBRARIES})
@@ -116,13 +107,11 @@ find_package(CDEPS QUIET)
 if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
     message(STATUS "CDEPS not found on system, attempting to build from source using FetchContent...")
 
-    # Discovery PIO from ESMF path if not already found (needed for CDEPS)
     if(NOT PIO_FOUND)
         find_package(PIO QUIET)
     endif()
 
     if(PIO_FOUND)
-        # Export PIO paths for CDEPS internal find_package(PIO)
         set(PIO_PATH "${PIO_ROOT}")
         set(ENV{PIO_PATH} "${PIO_ROOT}")
         set(ENV{PIO_ROOT} "${PIO_ROOT}")
@@ -132,23 +121,17 @@ if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
             GIT_REPOSITORY https://github.com/bbakernoaa/CDEPS.git
             GIT_TAG ae5d2c457321ebae3a0d9c9c949f871bb8f2b09c
             GIT_SUBMODULES_RECURSE ON
-            PATCH_COMMAND sed -i "s/add_subdirectory(fox)/#add_subdirectory(fox)/" CMakeLists.txt)
-        # Explicitly set PIO and NetCDF paths for CDEPS
-        set(PIO_Fortran_INCLUDE_DIR
-            "${PIO_ROOT}/include"
-            CACHE PATH "" FORCE)
-        set(PIO_C_INCLUDE_DIR
-            "${PIO_ROOT}/include"
-            CACHE PATH "" FORCE)
-        set(NetCDF_Fortran_INCLUDE_DIR
-            "${NetCDFF_ROOT}/include"
-            CACHE PATH "" FORCE)
-        set(NetCDF_C_INCLUDE_DIR
-            "${NetCDF_ROOT}/include"
-            CACHE PATH "" FORCE)
+            PATCH_COMMAND sed -i "s/add_subdirectory(fox)/#add_subdirectory(fox)/" CMakeLists.txt
+            COMMAND sed -i "s/install(/aces_dummy_install(/g" CMakeLists.txt streams/CMakeLists.txt dshr/CMakeLists.txt share/CMakeLists.txt datm/CMakeLists.txt dice/CMakeLists.txt dglc/CMakeLists.txt dlnd/CMakeLists.txt docn/CMakeLists.txt drof/CMakeLists.txt dwav/CMakeLists.txt
+            COMMAND sed -i "s|\\\${CMAKE_BINARY_DIR}/share|\\\${CMAKE_Fortran_MODULE_DIRECTORY}|g" CMakeLists.txt streams/CMakeLists.txt dshr/CMakeLists.txt
+            COMMAND sed -i "s|\\\${CMAKE_CURRENT_BINARY_DIR}/share|\\\${CMAKE_Fortran_MODULE_DIRECTORY}|g" CMakeLists.txt
+            COMMAND sed -i "s|\\\${CMAKE_CURRENT_BINARY_DIR}/../share|\\\${CMAKE_Fortran_MODULE_DIRECTORY}|g" streams/CMakeLists.txt dshr/CMakeLists.txt
+        )
+        set(PIO_Fortran_INCLUDE_DIR "${PIO_ROOT}/include" CACHE PATH "" FORCE)
+        set(PIO_C_INCLUDE_DIR "${PIO_ROOT}/include" CACHE PATH "" FORCE)
+        set(NetCDF_Fortran_INCLUDE_DIR "${NetCDFF_ROOT}/include" CACHE PATH "" FORCE)
+        set(NetCDF_C_INCLUDE_DIR "${NetCDF_ROOT}/include" CACHE PATH "" FORCE)
 
-        # Force CDEPS to find the ESMF we already discovered
-        # In JCSDA container, ESMF_ROOT might not be set, but ESMF_LIBRARIES contains it
         if(NOT ESMF_ROOT)
             foreach(lib ${ESMF_LIBRARIES})
                 if(lib MATCHES "^-L(.*)")
@@ -161,31 +144,22 @@ if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
                 endif()
             endforeach()
         endif()
-        set(ESMF_ROOT
-            "${ESMF_ROOT}"
-            CACHE PATH "Path to ESMF" FORCE)
+        set(ESMF_ROOT "${ESMF_ROOT}" CACHE PATH "Path to ESMF" FORCE)
         set(ENV{ESMF_ROOT} "${ESMF_ROOT}")
 
-        # Propagate ESMF include dirs to CDEPS if it uses ESMF_F90COMPILEPATHS
-        set(ESMF_F90COMPILEPATHS
-            "${ESMF_INCLUDE_DIRS}"
-            CACHE STRING "ESMF include paths for CDEPS" FORCE)
+        set(ESMF_F90COMPILEPATHS "${ESMF_INCLUDE_DIRS}" CACHE STRING "ESMF include paths for CDEPS" FORCE)
 
-        # Force CDEPS to use a larger line length for Fortran and define CPRGNU
-        set(CMAKE_Fortran_FLAGS
-            "${CMAKE_Fortran_FLAGS} -ffree-line-length-none -DCPRGNU"
-            CACHE STRING "Fortran flags" FORCE)
+        set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -ffree-line-length-none -DCPRGNU" CACHE STRING "Fortran flags" FORCE)
 
-        # Disable FoX in CDEPS
-        set(DISABLE_FoX
-            ON
-            CACHE BOOL "Disable FoX library" FORCE)
-        set(COMPILER
-            "gnu"
-            CACHE STRING "Compiler type")
+        set(DISABLE_FoX ON CACHE BOOL "Disable FoX library" FORCE)
+        set(COMPILER "gnu" CACHE STRING "Compiler type")
 
-        # We use a custom guard to ensure CDEPS is correctly integrated
+        # Use a dedicated module directory for CDEPS to avoid parallel build race conditions
+        set(OLD_FORTRAN_MOD_DIR ${CMAKE_Fortran_MODULE_DIRECTORY})
+        set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/cdeps_modules)
         FetchContent_MakeAvailable(cdeps)
+        set(CMAKE_Fortran_MODULE_DIRECTORY ${OLD_FORTRAN_MOD_DIR})
+
         if(TARGET dshr)
             set(CDEPS_FOUND TRUE)
             message(STATUS "CDEPS built from source successfully.")
@@ -193,11 +167,8 @@ if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
     endif()
 endif()
 
-# Fallback: if not found and not built from source, it's an error.
 if(NOT CDEPS_FOUND)
-    message(
-        FATAL_ERROR
-            "CDEPS is required but was not found on the system or successfully built from source.")
+    message(FATAL_ERROR "CDEPS is required but was not found or built from source.")
 endif()
 
 # --- ACES Library ---
@@ -220,9 +191,7 @@ set(ACES_SRCS
     src/io/aces_diagnostic_writer.cpp)
 
 if(ACES_HAS_FORTRAN)
-    list(
-        APPEND
-        ACES_SRCS
+    list(APPEND ACES_SRCS
         src/physics/aces_fortran_bridge.cpp
         src/physics/legacy_fortran.F90
         src/io/aces_cdeps_bridge.F90
@@ -246,10 +215,16 @@ add_library(aces SHARED ${ACES_SRCS})
 
 if(ACES_HAS_FORTRAN)
     target_compile_definitions(aces PRIVATE ACES_HAS_FORTRAN)
+    # Avoid global CMAKE_Fortran_MODULE_DIRECTORY to prevent race conditions.
+    # Each target manages its own module output.
+    set_target_properties(aces PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/fortran_modules)
+    target_include_directories(aces PUBLIC ${CMAKE_BINARY_DIR}/fortran_modules)
+    if(CDEPS_FOUND)
+        target_include_directories(aces PRIVATE ${CMAKE_BINARY_DIR}/cdeps_modules)
+    endif()
 endif()
 
-target_include_directories(
-    aces
+target_include_directories(aces
     PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include>
            ${ESMF_INCLUDE_DIRS})
 
@@ -257,7 +232,6 @@ target_link_libraries(aces PUBLIC Kokkos::kokkos ESMF::ESMF yaml-cpp)
 
 if(CDEPS_FOUND)
     target_link_libraries(aces PUBLIC dshr streams cdeps_share)
-    # CDEPS dependencies (NetCDF and PIO) discovered from ESMF
     if(PIO_FOUND)
         if(EXISTS "${PIO_ROOT}/lib/libpiof.so")
             target_link_libraries(aces PUBLIC "${PIO_ROOT}/lib/libpiof.so")
@@ -287,72 +261,55 @@ endif()
 enable_testing()
 
 add_executable(test_aces_cap tests/test_aces_cap.cpp)
-
 target_link_libraries(test_aces_cap PRIVATE aces GTest::gtest_main)
 
 add_executable(test_diagnostics tests/test_diagnostics.cpp)
-
 target_link_libraries(test_diagnostics PRIVATE aces GTest::gtest)
 
 add_executable(test_aces_ingestor tests/test_aces_ingestor.cpp)
-
 target_link_libraries(test_aces_ingestor PRIVATE aces GTest::gtest_main)
 
 add_executable(test_aces_utils tests/test_aces_utils.cpp)
-
 target_link_libraries(test_aces_utils PRIVATE aces GTest::gtest_main)
 
 add_executable(test_aces_compute tests/test_aces_compute.cpp)
-
 target_link_libraries(test_aces_compute PRIVATE aces GTest::gtest_main)
 
 add_executable(test_physics tests/test_physics.cpp)
-
 target_link_libraries(test_physics PRIVATE aces GTest::gtest_main)
 
 add_executable(test_hemco_mimic tests/test_hemco_mimic.cpp)
-
 target_link_libraries(test_hemco_mimic PRIVATE aces GTest::gtest_main)
 
 add_executable(test_stacking_engine tests/test_stacking_engine.cpp)
-
 target_link_libraries(test_stacking_engine PRIVATE aces GTest::gtest_main)
 
 add_executable(example_driver tests/example_driver.cpp)
-
 target_link_libraries(example_driver PRIVATE aces)
 
 add_executable(hemco_mimic_driver tests/hemco_mimic_driver.cpp)
-
 target_link_libraries(hemco_mimic_driver PRIVATE aces)
 
-# Standalone NUOPC driver
 add_subdirectory(standalone_nuopc)
 
 # Python script tests
 find_package(Python3 COMPONENTS Interpreter)
 if(Python3_Interpreter_FOUND)
-    # Check if pytest is available before adding python tests
     execute_process(
         COMMAND ${Python3_EXECUTABLE} -c "import pytest"
         RESULT_VARIABLE PYTEST_RESULT
         OUTPUT_QUIET ERROR_QUIET)
 
     if(PYTEST_RESULT EQUAL 0)
-        add_test(
-            NAME test_hemco_to_aces_python
+        add_test(NAME test_hemco_to_aces_python
             COMMAND ${Python3_EXECUTABLE} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_converters.py)
-        set_tests_properties(test_hemco_to_aces_python PROPERTIES ENVIRONMENT
-                                                                 "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/scripts")
+        set_tests_properties(test_hemco_to_aces_python PROPERTIES ENVIRONMENT "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/scripts")
 
-        add_test(
-            NAME test_scripts_python
+        add_test(NAME test_scripts_python
             COMMAND ${Python3_EXECUTABLE} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_scripts.py)
-        set_tests_properties(test_scripts_python PROPERTIES ENVIRONMENT
-                                                            "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/scripts")
+        set_tests_properties(test_scripts_python PROPERTIES ENVIRONMENT "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/scripts")
     else()
-        message(WARNING "pytest not found. Python-based tests will be skipped. "
-                        "Install with: pip install pytest pyyaml jinja2")
+        message(WARNING "pytest not found. Python-based tests will be skipped.")
     endif()
 endif()
 

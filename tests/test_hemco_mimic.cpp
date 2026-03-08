@@ -156,13 +156,6 @@ TEST_F(HemcoMimicTest, VerticalDistributionMimic) {
     resolver.AddField("emit_l2", nx, ny, nz, 3.0);
     resolver.AddField("nox", nx, ny, nz, 0.0);
 
-    // In ACES, vertical distribution for base emissions is usually handled
-    // by specific fields having data only in certain levels, or by masks.
-    // For this test, we'll assume the input fields already have the values
-    // but we apply them selectively.
-    // Note: ComputeEmissions applies 2D fields to 3D by default if not masked vertically.
-    // However, if the source field is 3D and has zeros in other levels, it works.
-
     auto l1_hv = resolver.GetFieldData("emit_l1");
     auto l2_hv = resolver.GetFieldData("emit_l2");
     for (int i = 0; i < nx; ++i) {
