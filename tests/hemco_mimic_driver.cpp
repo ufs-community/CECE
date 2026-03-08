@@ -33,7 +33,7 @@ int main(int argc, char** argv) {
 
     std::array<int, 3> maxIndex3D = {nx, ny, nz};
     ESMC_InterArrayInt iMaxIndex;
-    ESMC_InterArrayIntSet(&iMaxIndex, maxIndex3D, 3);
+    ESMC_InterArrayIntSet(&iMaxIndex, maxIndex3D.data(), 3);
 
     ESMC_Grid grid = ESMC_GridCreateNoPeriDim(&iMaxIndex, nullptr, nullptr, nullptr, &rc);
     ESMC_State importState = ESMC_StateCreate("ImportState", &rc);

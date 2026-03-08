@@ -114,7 +114,7 @@ int main(int argc, char** argv) {
     // 4. Setup Grid and Fields
     std::array<int, 3> maxIndex3D = {nx, ny, nz};
     ESMC_InterArrayInt iMaxIndex;
-    rc = ESMC_InterArrayIntSet(&iMaxIndex, maxIndex3D, 3);
+    rc = ESMC_InterArrayIntSet(&iMaxIndex, maxIndex3D.data(), 3);
     CHECK_RC(rc, "ESMC_InterArrayIntSet failed");
     ESMC_Grid grid = ESMC_GridCreateNoPeriDim(&iMaxIndex, nullptr, nullptr, nullptr, &rc);
     CHECK_RC(rc, "ESMC_GridCreate failed");
@@ -146,7 +146,7 @@ int main(int argc, char** argv) {
         // ps (2D)
         std::array<int, 2> maxIndex2D = {nx, ny};
         ESMC_InterArrayInt iMaxIndex2D;
-        ESMC_InterArrayIntSet(&iMaxIndex2D, maxIndex2D, 2);
+        ESMC_InterArrayIntSet(&iMaxIndex2D, maxIndex2D.data(), 2);
         ESMC_Grid grid2D = ESMC_GridCreateNoPeriDim(&iMaxIndex2D, nullptr, nullptr, nullptr, &rc);
         ESMC_Field f_ps = ESMC_FieldCreateGridTypeKind(
             grid2D, ESMC_TYPEKIND_R8, ESMC_STAGGERLOC_CENTER, nullptr, nullptr, nullptr, "ps", &rc);
@@ -159,7 +159,7 @@ int main(int argc, char** argv) {
         // ak, bk (1D/3D but effectively 1x1x(nz+1))
         std::array<int, 3> maxIndexAK = {1, 1, nz + 1};
         ESMC_InterArrayInt iMaxIndexAK;
-        ESMC_InterArrayIntSet(&iMaxIndexAK, maxIndexAK, 3);
+        ESMC_InterArrayIntSet(&iMaxIndexAK, maxIndexAK.data(), 3);
         ESMC_Grid gridAK = ESMC_GridCreateNoPeriDim(&iMaxIndexAK, nullptr, nullptr, nullptr, &rc);
         ESMC_Field f_ak =
             ESMC_FieldCreateGridTypeKind(gridAK, ESMC_TYPEKIND_R8, ESMC_STAGGERLOC_CENTER, nullptr,
