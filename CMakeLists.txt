@@ -10,13 +10,15 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 include(CheckLanguage)
 check_language(Fortran)
 if(CMAKE_Fortran_COMPILER)
-    # Ensure Fortran modules are placed in a central directory
-    if(NOT CMAKE_Fortran_MODULE_DIRECTORY)
-        set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/fortran_modules)
-    endif()
-    include_directories(${CMAKE_Fortran_MODULE_DIRECTORY})
     enable_language(Fortran)
     set(ACES_HAS_FORTRAN ON)
+
+    # Define a main module directory for ACES and subprojects to share
+    set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/fortran_modules)
+    file(MAKE_DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY})
+
+    # CDEPS and PIO sometimes expect a share directory in the build root
+    file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/share)
 else()
     message(WARNING "Fortran compiler not found. Fortran features will be disabled.")
 endif()
@@ -128,7 +130,14 @@ if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
             GIT_REPOSITORY https://github.com/bbakernoaa/CDEPS.git
             GIT_TAG ae5d2c457321ebae3a0d9c9c949f871bb8f2b09c
             GIT_SUBMODULES_RECURSE ON
-            PATCH_COMMAND bash -c "sed -i 's/add_subdirectory(fox)/#add_subdirectory(fox)/' CMakeLists.txt; find . -name CMakeLists.txt -exec sed -i 's/install(/#install(/g' {} +")
+            PATCH_COMMAND bash -c " \
+                sed -i 's/add_subdirectory(fox)/#add_subdirectory(fox)/' CMakeLists.txt; \
+                find . -name CMakeLists.txt -exec sed -i 's/install(/#install(/g' {} +; \
+                sed -i \"s|\\\${CMAKE_BINARY_DIR}/share|${CMAKE_Fortran_MODULE_DIRECTORY}|g\" streams/CMakeLists.txt; \
+                sed -i \"s|\\\${CMAKE_BINARY_DIR}/share|${CMAKE_Fortran_MODULE_DIRECTORY}|g\" dshr/CMakeLists.txt; \
+                sed -i '/add_library(streams/a \  add_dependencies(streams cdeps_share)' streams/CMakeLists.txt; \
+                sed -i '/add_library(dshr/a \  add_dependencies(dshr cdeps_share)' dshr/CMakeLists.txt; \
+            ")
 
         # Explicitly set PIO and NetCDF paths for CDEPS
         set(PIO_Fortran_INCLUDE_DIR
@@ -184,6 +193,16 @@ if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
         if(TARGET dshr)
             set(CDEPS_FOUND TRUE)
             message(STATUS "CDEPS built from source successfully.")
+
+            # Ensure CDEPS can find ESMF modules
+            target_include_directories(streams PRIVATE ${ESMF_INCLUDE_DIRS})
+            target_include_directories(dshr PRIVATE ${ESMF_INCLUDE_DIRS})
+            target_include_directories(cdeps_share PRIVATE ${ESMF_INCLUDE_DIRS})
+
+            # Share the global module directory with CDEPS targets
+            set_target_properties(cdeps_share PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY})
+            set_target_properties(streams PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY})
+            set_target_properties(dshr PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY})
         endif()
     endif()
 endif()
@@ -198,7 +217,6 @@ endif()
 # --- ACES Library ---
 
 set(ACES_SRCS
-    src/aces_cap.cpp
     src/aces_config_parser.cpp
     src/aces_compute.cpp
     src/aces_stacking_engine.cpp
@@ -212,12 +230,14 @@ set(ACES_SRCS
     src/physics/aces_dust.cpp
     src/physics/aces_volcano.cpp
     src/io/aces_data_ingestor.cpp
-    src/io/aces_diagnostic_writer.cpp)
+    src/io/aces_diagnostic_writer.cpp
+    src/aces_core_fortran_bridge.cpp)
 
 if(ACES_HAS_FORTRAN)
     list(
         APPEND
         ACES_SRCS
+        src/aces_cap.F90
         src/physics/aces_fortran_bridge.cpp
         src/physics/legacy_fortran.F90
         src/io/aces_cdeps_bridge.F90
@@ -241,6 +261,13 @@ add_library(aces SHARED ${ACES_SRCS})
 
 if(ACES_HAS_FORTRAN)
     target_compile_definitions(aces PRIVATE ACES_HAS_FORTRAN)
+    if(CDEPS_FOUND)
+        target_compile_definitions(aces PRIVATE ACES_HAS_CDEPS)
+    endif()
+
+    # Use the shared module directory
+    set_target_properties(aces PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY})
+    target_include_directories(aces PUBLIC ${CMAKE_Fortran_MODULE_DIRECTORY})
 endif()
 
 target_include_directories(
