@@ -10,13 +10,11 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 include(CheckLanguage)
 check_language(Fortran)
 if(CMAKE_Fortran_COMPILER)
-    # Ensure Fortran modules are placed in a central directory
-    if(NOT CMAKE_Fortran_MODULE_DIRECTORY)
-        set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/fortran_modules)
-    endif()
-    include_directories(${CMAKE_Fortran_MODULE_DIRECTORY})
     enable_language(Fortran)
     set(ACES_HAS_FORTRAN ON)
+    # Define a specific module directory for ACES to avoid race conditions with subprojects
+    set(ACES_FORTRAN_MODULE_DIR ${CMAKE_BINARY_DIR}/aces_modules)
+    file(MAKE_DIRECTORY ${ACES_FORTRAN_MODULE_DIR})
 else()
     message(WARNING "Fortran compiler not found. Fortran features will be disabled.")
 endif()
@@ -242,12 +240,24 @@ add_library(aces SHARED ${ACES_SRCS})
 
 if(ACES_HAS_FORTRAN)
     target_compile_definitions(aces PRIVATE ACES_HAS_FORTRAN)
+    if(CDEPS_FOUND)
+        target_compile_definitions(aces PRIVATE ACES_HAS_CDEPS)
+    endif()
+    set_target_properties(aces PROPERTIES Fortran_MODULE_DIRECTORY ${ACES_FORTRAN_MODULE_DIR})
 endif()
 
 target_include_directories(
     aces
     PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include>
            ${ESMF_INCLUDE_DIRS})
+
+if(ACES_HAS_FORTRAN)
+    # ACES needs to find modules from CDEPS and its own modules
+    target_include_directories(aces PRIVATE ${ACES_FORTRAN_MODULE_DIR})
+    # If CDEPS is built via FetchContent, it might put modules in its own build dir
+    # We'll add the general build dir for module discovery if CDEPS doesn't use a fixed path
+    target_include_directories(aces PRIVATE ${CMAKE_BINARY_DIR}/fortran_modules)
+endif()
 
 target_link_libraries(aces PUBLIC Kokkos::kokkos ESMF::ESMF yaml-cpp)
 

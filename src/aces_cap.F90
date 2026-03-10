@@ -2,7 +2,9 @@ module aces_cap_mod
   use iso_c_binding
   use ESMF
   use NUOPC
+#ifdef ACES_HAS_CDEPS
   use cdeps_inline_mod
+#endif
   implicit none
 
   ! C interface to ACES core
@@ -36,6 +38,15 @@ contains
     type(ESMF_GridComp)  :: comp
     integer, intent(out) :: rc
 
+    ! 1. Inherit from NUOPC_Model
+    call NUOPC_CompDerive(comp, NUOPC_ModelSetServices, rc=rc)
+    if (rc /= ESMF_SUCCESS) return
+
+    ! 2. Specialize NUOPC_Model
+    call NUOPC_CompSpecialize(comp, specRoutine=ACES_Advertise, &
+      specLabel=label_Advertise, rc=rc)
+    if (rc /= ESMF_SUCCESS) return
+
     ! 3. Register standard ESMF entry points
     call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, userRoutine=ACES_Initialize, phase=1, rc=rc)
     call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_RUN, userRoutine=ACES_Run, phase=1, rc=rc)
@@ -67,8 +78,9 @@ contains
 
     integer(c_int) :: c_rc
     type(c_ptr) :: data_ptr
-    type(ESMF_Field) :: f_discovery
+    type(ESMF_Field) :: field
     type(ESMF_Mesh) :: mesh
+    character(len=ESMF_MAXSTR) :: fieldName
 
     ! 1. Call ACES core C bridge
     call aces_core_initialize(data_ptr, &
@@ -84,8 +96,17 @@ contains
     if (rc /= ESMF_SUCCESS) return
 
     ! 3. Initialize CDEPS (Direct Fortran call)
+#ifdef ACES_HAS_CDEPS
+    ! Try to discover mesh from existing fields in exportState
+    fieldName = "aces_discovery_emissions"
+    call ESMF_StateGet(exportState, trim(fieldName), field, rc=rc)
+    if (rc == ESMF_SUCCESS) then
+        call ESMF_FieldGet(field, mesh=mesh, rc=rc)
+    endif
+
     ! Standard standalone case: config creates streams file
     call cdeps_inline_init(comp, clock, mesh, "aces_emissions.streams", rc)
+#endif
 
     rc = ESMF_SUCCESS
   end subroutine
@@ -104,11 +125,13 @@ contains
     if (rc /= ESMF_SUCCESS) return
 
     ! 2. Advance CDEPS
+#ifdef ACES_HAS_CDEPS
     call cdeps_inline_advance(clock, rc)
     if (rc /= ESMF_SUCCESS) then
         ! We treat CDEPS failure as non-fatal to allow ESMF meteorology to proceed
         rc = ESMF_SUCCESS
     end if
+#endif
 
     ! 3. Call ACES core C bridge for compute
     call aces_core_run(data_ptr, &

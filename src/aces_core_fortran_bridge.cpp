@@ -12,24 +12,17 @@
 #include "aces/aces_state.hpp"
 #include "aces/aces_utils.hpp"
 
-extern "C" {
-void ACES_Initialize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState,
-                     ESMC_Clock* clock, int* rc) {
-    aces::Initialize(comp, importState, exportState, clock, rc);
-}
-
-void ACES_Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESMC_Clock* clock,
-              int* rc) {
-    aces::Run(comp, importState, exportState, clock, rc);
-}
-
-void ACES_Finalize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState,
-                   ESMC_Clock* clock, int* rc) {
-    aces::Finalize(comp, importState, exportState, clock, rc);
-}
-}
+#include <ESMC.h>
+#include <NUOPC.h>
 
 namespace aces {
+
+void Initialize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState,
+                ESMC_Clock* clock, int* rc);
+void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESMC_Clock* clock,
+         int* rc);
+void Finalize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESMC_Clock* clock,
+              int* rc);
 
 static DualView3D GetDualView(void* state_ptr, const std::string& name, int nx, int ny, int nz) {
     ESMC_State state = {state_ptr};
@@ -254,8 +247,6 @@ void aces_core_finalize(void* data_ptr, int* rc) {
     if (kh && Kokkos::is_initialized()) Kokkos::finalize();
 }
 
-}  // extern "C"
-
 void Initialize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState,
                 ESMC_Clock* clock, int* rc) {
     void* data_ptr = nullptr;
@@ -281,3 +272,20 @@ void Finalize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState
 }
 
 }  // namespace aces
+
+extern "C" {
+void ACES_Initialize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState,
+                     ESMC_Clock* clock, int* rc) {
+    aces::Initialize(comp, importState, exportState, clock, rc);
+}
+
+void ACES_Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESMC_Clock* clock,
+              int* rc) {
+    aces::Run(comp, importState, exportState, clock, rc);
+}
+
+void ACES_Finalize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState,
+                   ESMC_Clock* clock, int* rc) {
+    aces::Finalize(comp, importState, exportState, clock, rc);
+}
+}
