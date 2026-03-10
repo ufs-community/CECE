@@ -198,7 +198,6 @@ endif()
 # --- ACES Library ---
 
 set(ACES_SRCS
-    src/aces_cap.cpp
     src/aces_config_parser.cpp
     src/aces_compute.cpp
     src/aces_stacking_engine.cpp
@@ -212,12 +211,14 @@ set(ACES_SRCS
     src/physics/aces_dust.cpp
     src/physics/aces_volcano.cpp
     src/io/aces_data_ingestor.cpp
-    src/io/aces_diagnostic_writer.cpp)
+    src/io/aces_diagnostic_writer.cpp
+    src/aces_core_fortran_bridge.cpp)
 
 if(ACES_HAS_FORTRAN)
     list(
         APPEND
         ACES_SRCS
+        src/aces_cap.F90
         src/physics/aces_fortran_bridge.cpp
         src/physics/legacy_fortran.F90
         src/io/aces_cdeps_bridge.F90
