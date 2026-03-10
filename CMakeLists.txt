@@ -200,13 +200,13 @@ if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
             set_target_properties(dshr PROPERTIES Fortran_MODULE_DIRECTORY ${DSHR_MODS})
 
             # Ensure CDEPS targets find ESMF and their own modules
-            target_include_directories(cdeps_share PRIVATE ${ESMF_INCLUDE_DIRS})
-            target_include_directories(streams PRIVATE ${ESMF_INCLUDE_DIRS} ${CD_SHARE_MODS})
-            target_include_directories(dshr PRIVATE ${ESMF_INCLUDE_DIRS} ${CD_SHARE_MODS})
+            target_include_directories(cdeps_share PUBLIC ${ESMF_INCLUDE_DIRS} ${CD_SHARE_MODS})
+            target_include_directories(streams PUBLIC ${ESMF_INCLUDE_DIRS} ${STREAMS_MODS} ${CD_SHARE_MODS})
+            target_include_directories(dshr PUBLIC ${ESMF_INCLUDE_DIRS} ${DSHR_MODS} ${CD_SHARE_MODS} ${STREAMS_MODS})
 
             # Force dependency chain within CDEPS to ensure serial module creation
             add_dependencies(streams cdeps_share)
-            add_dependencies(dshr cdeps_share)
+            add_dependencies(dshr cdeps_share streams)
         endif()
     endif()
 endif()
@@ -278,8 +278,6 @@ if(ACES_HAS_FORTRAN)
     target_compile_definitions(aces PRIVATE ACES_HAS_FORTRAN)
     if(CDEPS_FOUND)
         target_compile_definitions(aces PRIVATE ACES_HAS_CDEPS)
-        # Link ACES to CDEPS modules
-        target_include_directories(aces PRIVATE ${CD_SHARE_MODS} ${STREAMS_MODS} ${DSHR_MODS})
     endif()
 
     # Use a specific module directory for the aces target
