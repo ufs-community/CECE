@@ -192,7 +192,7 @@ if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
             set(CDEPS_FOUND TRUE)
             message(STATUS "CDEPS built from source successfully.")
 
-            # Ensure CDEPS targets find ESMF
+            # Ensure CDEPS can find ESMF modules
             target_include_directories(cdeps_share PRIVATE ${ESMF_INCLUDE_DIRS})
             target_include_directories(streams PRIVATE ${ESMF_INCLUDE_DIRS})
             target_include_directories(dshr PRIVATE ${ESMF_INCLUDE_DIRS})
