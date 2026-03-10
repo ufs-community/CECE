@@ -20,6 +20,8 @@ class SeaSaltScheme : public BasePhysicsScheme {
    private:
     double srrc_SALA_ = 0.0;
     double srrc_SALC_ = 0.0;
+    double sst_c0_, sst_c1_, sst_c2_, sst_c3_;
+    double u_pow_ = 3.41;
 };
 
 }  // namespace aces

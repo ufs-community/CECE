@@ -52,6 +52,27 @@ void SeaSaltScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* 
         r_salc_max = config["r_salc_max"].as<double>();
     }
 
+    // Default SST scaling coefficients
+    sst_c0_ = 0.329;
+    sst_c1_ = 0.0904;
+    sst_c2_ = -0.00717;
+    sst_c3_ = 0.000207;
+
+    if (config["sst_coeff"]) {
+        auto sc = config["sst_coeff"];
+        if (sc.IsSequence() && sc.size() == 4) {
+            sst_c0_ = sc[0].as<double>();
+            sst_c1_ = sc[1].as<double>();
+            sst_c2_ = sc[2].as<double>();
+            sst_c3_ = sc[3].as<double>();
+        }
+    }
+
+    u_pow_ = 3.41;
+    if (config["u_power"]) {
+        u_pow_ = config["u_power"].as<double>();
+    }
+
     srrc_SALA_ = 0.0;
     for (double r = r_sala_min; r < r_sala_max; r += dr) {
         double r_mid = r + 0.5 * dr;
@@ -89,6 +110,8 @@ void SeaSaltScheme::Run(AcesImportState& import_state, AcesExportState& export_s
 
     double ref_sala = srrc_SALA_;
     double ref_salc = srrc_SALC_;
+    double c0 = sst_c0_, c1 = sst_c1_, c2 = sst_c2_, c3 = sst_c3_;
+    double u_pow = u_pow_;
 
     if (sala.data() != nullptr) {
         Kokkos::parallel_for(
@@ -100,10 +123,10 @@ void SeaSaltScheme::Run(AcesImportState& import_state, AcesExportState& export_s
                 sst = std::max(0.0, std::min(30.0, sst));
 
                 // Horner's Method for SST scaling polynomial
-                double scale = 0.329 + sst * (0.0904 + sst * (-0.00717 + sst * 0.000207));
+                double scale = c0 + sst * (c1 + sst * (c2 + sst * c3));
 
-                // Gong (2003) normalized: df/dr80 proportional to u^3.41
-                double u_factor = std::pow(u, 3.41);
+                // Gong (2003) normalized: df/dr80 proportional to u^u_pow
+                double u_factor = std::pow(u, u_pow);
                 sala(i, j, 0) += scale * u_factor * ref_sala;
             });
         MarkModified("SALA", export_state);
@@ -118,8 +141,8 @@ void SeaSaltScheme::Run(AcesImportState& import_state, AcesExportState& export_s
                 double sst = tskin(i, j, 0) - 273.15;
                 sst = std::max(0.0, std::min(30.0, sst));
 
-                double scale = 0.329 + sst * (0.0904 + sst * (-0.00717 + sst * 0.000207));
-                double u_factor = std::pow(u, 3.41);
+                double scale = c0 + sst * (c1 + sst * (c2 + sst * c3));
+                double u_factor = std::pow(u, u_pow);
                 salc(i, j, 0) += scale * u_factor * ref_salc;
             });
         MarkModified("SALC", export_state);

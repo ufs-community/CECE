@@ -19,6 +19,11 @@ class MeganScheme : public BasePhysicsScheme {
 
    private:
     double gamma_co2_ = 0.0;
+    double beta_ = 0.13;
+    double ct1_ = 95.0;
+    double ceo_ = 2.0;
+    double ldf_ = 1.0;
+    double aef_isop_ = 1.0e-9;
 };
 
 }  // namespace aces

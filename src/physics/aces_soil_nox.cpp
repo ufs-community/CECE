@@ -32,6 +32,10 @@ double soil_wet_term(double gw) {
 
 void SoilNoxScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
+    a_biome_wet_ = 0.5;
+    if (config["biome_coefficient_wet"]) {
+        a_biome_wet_ = config["biome_coefficient_wet"].as<double>();
+    }
     std::cout << "SoilNoxScheme: Initialized with Hudman et al. (2012) logic." << "\n";
 }
 
@@ -49,7 +53,7 @@ void SoilNoxScheme::Run(AcesImportState& import_state, AcesExportState& export_s
 
     const double MW_NO = 30.0;
     const double UNITCONV = 1.0e-12 / 14.0 * MW_NO;  // ng N -> kg NO
-    const double A_BIOME_WET = 0.5;                  // Example wet biome coefficient
+    double a_biome_wet = a_biome_wet_;
 
     Kokkos::parallel_for(
         "SoilNoxKernel_Optimized",
@@ -65,7 +69,7 @@ void SoilNoxScheme::Run(AcesImportState& import_state, AcesExportState& export_s
             double pulse = 1.0;
 
             // Total emission [kg NO/m2/s]
-            double emiss = A_BIOME_WET * UNITCONV * t_term * w_term * pulse;
+            double emiss = a_biome_wet * UNITCONV * t_term * w_term * pulse;
             soil_nox(i, j, 0) += emiss;
         });
 

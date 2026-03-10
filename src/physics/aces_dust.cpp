@@ -40,7 +40,13 @@ void DustScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* dia
     }
 
     u_ts0_ = calculate_u_ts0(den, diam, G, RHOA);
-    std::cout << "DustScheme: Initialized. U_TS0=" << u_ts0_ << "\n";
+
+    ch_dust_ = 9.375e-10;
+    if (config["tuning_factor"]) {
+        ch_dust_ = config["tuning_factor"].as<double>();
+    }
+
+    std::cout << "DustScheme: Initialized. U_TS0=" << u_ts0_ << " CH_DUST=" << ch_dust_ << "\n";
 }
 
 void DustScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
@@ -57,7 +63,7 @@ void DustScheme::Run(AcesImportState& import_state, AcesExportState& export_stat
     int nx = static_cast<int>(dust_emis.extent(0));
     int ny = static_cast<int>(dust_emis.extent(1));
 
-    const double CH_DUST = 9.375e-10;  // Default tuning factor
+    double tuning = ch_dust_;
     double u_ts0_const = u_ts0_;
 
     Kokkos::parallel_for(
@@ -73,7 +79,7 @@ void DustScheme::Run(AcesImportState& import_state, AcesExportState& export_stat
 
             if (u10 > u_ts) {
                 double srce = srce_sand(i, j, 0);
-                double flux = CH_DUST * srce * w2 * (u10 - u_ts);
+                double flux = tuning * srce * w2 * (u10 - u_ts);
                 dust_emis(i, j, 0) += std::max(0.0, flux);
             }
         });

@@ -337,6 +337,9 @@ target_link_libraries(example_driver PRIVATE aces)
 add_executable(hemco_mimic_driver tests/hemco_mimic_driver.cpp)
 target_link_libraries(hemco_mimic_driver PRIVATE aces)
 
+add_executable(hemco_comparison_driver tests/hemco_comparison_driver.cpp)
+target_link_libraries(hemco_comparison_driver PRIVATE aces)
+
 # Standalone NUOPC driver
 add_subdirectory(standalone_nuopc)
 

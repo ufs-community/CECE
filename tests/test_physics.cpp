@@ -308,6 +308,40 @@ TEST_F(PhysicsTest, NativeExampleMultipleInputs) {
     }
 }
 
+TEST_F(PhysicsTest, ConfigurableParameters) {
+    // Test DMS with custom coefficients
+    PhysicsSchemeConfig cfg;
+    cfg.name = "dms";
+    cfg.options = YAML::Load(
+        "schmidt_coeff: [2000.0, -100.0, 2.0, -0.01]\n"
+        "kw_coeff: [0.5, 0.5]");
+
+    auto scheme = PhysicsFactory::CreateScheme(cfg);
+    scheme->Initialize(cfg.options, nullptr);
+
+    SetFieldValue("dms", 0.0, false);
+    SetFieldValue("wind_speed_10m", 10.0);
+    SetFieldValue("tskin", 273.15 + 20.0);  // 20C
+    SetFieldValue("DMS_seawater", 1.0e-6);
+
+    scheme->Run(import_state, export_state);
+
+    auto& dv = export_state.fields["dms"];
+    dv.sync<Kokkos::HostSpace>();
+    double val = dv.view_host()(0, 0, 0);
+
+    // tc = 20.0
+    // sc_w = 2000.0 + 20.0 * (-100.0 + 20.0 * (2.0 + 20.0 * -0.01))
+    // sc_w = 2000.0 + 20.0 * (-100.0 + 20.0 * (1.8))
+    // sc_w = 2000.0 + 20.0 * (-100.0 + 36.0) = 2000.0 - 1280.0 = 720.0
+    // kw = (0.5 * 10^2 + 0.5 * 10) * (720 / 600)^-0.5
+    // kw = 55.0 * (1.2)^-0.5 = 55.0 * 0.91287 = 50.208 cm/hr
+    // kw = 50.208 / 360000 = 1.3946e-4 m/s
+    // expected = 1.3946e-4 * 1.0e-6 = 1.3946e-10
+
+    EXPECT_NEAR(val, 1.3946e-10, 1e-13);
+}
+
 }  // namespace aces
 
 int main(int argc, char** argv) {

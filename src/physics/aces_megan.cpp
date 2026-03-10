@@ -76,6 +76,19 @@ void MeganScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* di
         co2a = config["co2_concentration"].as<double>();
     }
     gamma_co2_ = get_gamma_co2(co2a);
+
+    beta_ = 0.13;
+    ct1_ = 95.0;
+    ceo_ = 2.0;
+    ldf_ = 1.0;
+    aef_isop_ = 1.0e-9;
+
+    if (config["beta"]) beta_ = config["beta"].as<double>();
+    if (config["ct1"]) ct1_ = config["ct1"].as<double>();
+    if (config["ceo"]) ceo_ = config["ceo"].as<double>();
+    if (config["ldf"]) ldf_ = config["ldf"].as<double>();
+    if (config["aef_isop"]) aef_isop_ = config["aef_isop"].as<double>();
+
     std::cout << "MeganScheme: Initialized. GAMMA_CO2=" << gamma_co2_ << "\n";
 }
 
@@ -95,12 +108,12 @@ void MeganScheme::Run(AcesImportState& import_state, AcesExportState& export_sta
     int nx = static_cast<int>(isoprene.extent(0));
     int ny = static_cast<int>(isoprene.extent(1));
 
-    const double BETA = 0.13;
-    const double CT1 = 95.0;
-    const double CEO = 2.0;
-    const double LDF = 1.0;
+    double beta = beta_;
+    double ct1 = ct1_;
+    double ceo = ceo_;
+    double ldf = ldf_;
+    double aef_isop = aef_isop_;
     const double NORM_FAC = 1.0 / 1.0101081;
-    const double AEF_ISOP = 1.0e-9;
     double gamma_co2_const = gamma_co2_;
 
     Kokkos::parallel_for(
@@ -120,13 +133,13 @@ void MeganScheme::Run(AcesImportState& import_state, AcesExportState& export_sta
             int doy = 180;
 
             double gamma_lai = get_gamma_lai(L);
-            double gamma_t_li = get_gamma_t_li(T, BETA);
-            double gamma_t_ld = get_gamma_t_ld(T, T_AVG_15, CT1, CEO);
+            double gamma_t_li = get_gamma_t_li(T, beta);
+            double gamma_t_ld = get_gamma_t_ld(T, T_AVG_15, ct1, ceo);
             double gamma_par =
                 get_gamma_par_pceea(pardr(i, j, 0), pardf(i, j, 0), PAR_AVG, sc, doy);
 
-            double megan_emis = NORM_FAC * AEF_ISOP * gamma_lai * gamma_co2_const *
-                                ((1.0 - LDF) * gamma_t_li + (LDF * gamma_par * gamma_t_ld));
+            double megan_emis = NORM_FAC * aef_isop * gamma_lai * gamma_co2_const *
+                                ((1.0 - ldf) * gamma_t_li + (ldf * gamma_par * gamma_t_ld));
 
             isoprene(i, j, 0) += megan_emis;
         });

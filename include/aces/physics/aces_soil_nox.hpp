@@ -16,6 +16,9 @@ class SoilNoxScheme : public BasePhysicsScheme {
 
     void Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) override;
     void Run(AcesImportState& import_state, AcesExportState& export_state) override;
+
+   private:
+    double a_biome_wet_ = 0.5;
 };
 
 }  // namespace aces

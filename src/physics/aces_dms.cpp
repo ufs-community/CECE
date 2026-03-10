@@ -18,6 +18,35 @@ static PhysicsRegistration<DMSScheme> register_scheme("dms");
 
 void DMSScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
+
+    // Default Schmidt number coefficients for DMS
+    sc_c0_ = 2674.0;
+    sc_c1_ = -147.12;
+    sc_c2_ = 3.726;
+    sc_c3_ = -0.038;
+
+    // Default transfer velocity coefficients
+    kw_c0_ = 0.222;
+    kw_c1_ = 0.333;
+
+    if (config["schmidt_coeff"]) {
+        auto sc = config["schmidt_coeff"];
+        if (sc.IsSequence() && sc.size() == 4) {
+            sc_c0_ = sc[0].as<double>();
+            sc_c1_ = sc[1].as<double>();
+            sc_c2_ = sc[2].as<double>();
+            sc_c3_ = sc[3].as<double>();
+        }
+    }
+
+    if (config["kw_coeff"]) {
+        auto kw = config["kw_coeff"];
+        if (kw.IsSequence() && kw.size() == 2) {
+            kw_c0_ = kw[0].as<double>();
+            kw_c1_ = kw[1].as<double>();
+        }
+    }
+
     std::cout << "DMSScheme: Initialized." << "\n";
 }
 
@@ -35,6 +64,9 @@ void DMSScheme::Run(AcesImportState& import_state, AcesExportState& export_state
     int nx = static_cast<int>(dms_emis.extent(0));
     int ny = static_cast<int>(dms_emis.extent(1));
 
+    double sc0 = sc_c0_, sc1 = sc_c1_, sc2 = sc_c2_, sc3 = sc_c3_;
+    double kw0 = kw_c0_, kw1 = kw_c1_;
+
     Kokkos::parallel_for(
         "DMSKernel_Optimized",
         Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<2>>({0, 0}, {nx, ny}),
@@ -49,9 +81,9 @@ void DMSScheme::Run(AcesImportState& import_state, AcesExportState& export_state
             }
 
             // Horner's Method for Schmidt number
-            double sc_w = 2674.0 + tc * (-147.12 + tc * (3.726 + tc * -0.038));
+            double sc_w = sc0 + tc * (sc1 + tc * (sc2 + tc * sc3));
 
-            double k_w = (0.222 * w * w + 0.333 * w) * std::pow(sc_w / 600.0, -0.5);  // cm/hr
+            double k_w = (kw0 * w * w + kw1 * w) * std::pow(sc_w / 600.0, -0.5);  // cm/hr
             k_w /= 360000.0;  // cm/hr -> m/s
 
             dms_emis(i, j, 0) += k_w * conc;
