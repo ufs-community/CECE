@@ -10,6 +10,8 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 include(CheckLanguage)
 check_language(Fortran)
 if(CMAKE_Fortran_COMPILER)
+    set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/fortran_modules)
+    file(MAKE_DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY})
     enable_language(Fortran)
     set(ACES_HAS_FORTRAN ON)
 
@@ -189,12 +191,10 @@ if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
             set(CDEPS_FOUND TRUE)
             message(STATUS "CDEPS built from source successfully.")
 
-            # Ensure CDEPS can find ESMF modules
+            # Ensure CDEPS targets find ESMF
+            target_include_directories(cdeps_share PRIVATE ${ESMF_INCLUDE_DIRS})
             target_include_directories(streams PRIVATE ${ESMF_INCLUDE_DIRS})
             target_include_directories(dshr PRIVATE ${ESMF_INCLUDE_DIRS})
-            target_include_directories(cdeps_share PRIVATE ${ESMF_INCLUDE_DIRS})
-
-
         endif()
     endif()
 endif()
@@ -268,9 +268,9 @@ if(ACES_HAS_FORTRAN)
         target_compile_definitions(aces PRIVATE ACES_HAS_CDEPS)
     endif()
 
-    # Use a specific module directory for the aces target
-    set_target_properties(aces PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/aces_fortran_modules)
-    target_include_directories(aces PUBLIC ${CMAKE_BINARY_DIR}/aces_fortran_modules)
+    # Use the shared module directory
+    set_target_properties(aces PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY})
+    target_include_directories(aces PUBLIC ${CMAKE_Fortran_MODULE_DIRECTORY})
 endif()
 
 target_include_directories(
