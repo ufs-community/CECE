@@ -3,15 +3,15 @@
 
 #include <Kokkos_Core.hpp>
 #include <memory>
-#include <vector>
 #include <string>
+#include <vector>
 
 #include "aces/aces_config.hpp"
-#include "aces/aces_stacking_engine.hpp"
-#include "aces/aces_diagnostics.hpp"
-#include "aces/physics_scheme.hpp"
-#include "aces/aces_state.hpp"
 #include "aces/aces_data_ingestor.hpp"
+#include "aces/aces_diagnostics.hpp"
+#include "aces/aces_stacking_engine.hpp"
+#include "aces/aces_state.hpp"
+#include "aces/physics_scheme.hpp"
 
 namespace aces {
 
@@ -38,6 +38,6 @@ struct AcesInternalData {
     std::vector<std::string> external_esmf_fields;  ///< External names of fields to ingest.
 };
 
-} // namespace aces
+}  // namespace aces
 
-#endif // ACES_INTERNAL_HPP
+#endif  // ACES_INTERNAL_HPP
