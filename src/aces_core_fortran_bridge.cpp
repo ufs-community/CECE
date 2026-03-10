@@ -1,3 +1,6 @@
+#include <ESMC.h>
+#include <NUOPC.h>
+
 #include <Kokkos_Core.hpp>
 #include <iostream>
 #include <memory>
@@ -12,17 +15,7 @@
 #include "aces/aces_state.hpp"
 #include "aces/aces_utils.hpp"
 
-#include <ESMC.h>
-#include <NUOPC.h>
-
 namespace aces {
-
-void Initialize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState,
-                ESMC_Clock* clock, int* rc);
-void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESMC_Clock* clock,
-         int* rc);
-void Finalize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESMC_Clock* clock,
-              int* rc);
 
 static DualView3D GetDualView(void* state_ptr, const std::string& name, int nx, int ny, int nz) {
     ESMC_State state = {state_ptr};
@@ -40,14 +33,17 @@ static DualView3D GetDualView(void* state_ptr, const std::string& name, int nx, 
     return DualView3D(device_view, host_view);
 }
 
+}  // namespace aces
+
 extern "C" {
 
 void aces_core_advertise(void* importState_ptr, void* exportState_ptr, int* rc) {
     if (rc != nullptr) *rc = 0;
-    AcesConfig config;
+    aces::AcesConfig config;
     try {
-        config = ParseConfig("aces_config.yaml");
+        config = aces::ParseConfig("aces_config.yaml");
     } catch (...) {
+        if (rc != nullptr) *rc = -1;
         return;
     }
     ESMC_State importState = {importState_ptr};
@@ -74,25 +70,27 @@ void aces_core_advertise(void* importState_ptr, void* exportState_ptr, int* rc) 
 void aces_core_initialize(void** data_out, void* importState_ptr, void* exportState_ptr,
                           void* clock_ptr, int* rc) {
     if (rc != nullptr) *rc = 0;
+    if (data_out != nullptr) *data_out = nullptr;
+
     bool kokkos_initialized_here = false;
     if (!Kokkos::is_initialized()) {
         Kokkos::initialize();
         kokkos_initialized_here = true;
     }
-    auto* data = new AcesInternalData();
+    auto* data = new aces::AcesInternalData();
     data->kokkos_initialized_here = kokkos_initialized_here;
     try {
-        data->config = ParseConfig("aces_config.yaml");
+        data->config = aces::ParseConfig("aces_config.yaml");
     } catch (...) {
         std::cerr << "aces_core_initialize: Error loading aces_config.yaml\n";
         if (rc != nullptr) *rc = -1;
         delete data;
         return;
     }
-    data->diagnostic_manager = std::make_unique<AcesDiagnosticManager>();
-    data->stacking_engine = std::make_unique<StackingEngine>(data->config);
+    data->diagnostic_manager = std::make_unique<aces::AcesDiagnosticManager>();
+    data->stacking_engine = std::make_unique<aces::StackingEngine>(data->config);
     for (const auto& scheme_config : data->config.physics_schemes) {
-        auto scheme = PhysicsFactory::CreateScheme(scheme_config);
+        auto scheme = aces::PhysicsFactory::CreateScheme(scheme_config);
         if (scheme) {
             scheme->Initialize(scheme_config.options, data->diagnostic_manager.get());
             data->active_schemes.push_back(std::move(scheme));
@@ -105,10 +103,12 @@ void aces_core_run(void* data_ptr, void* importState_ptr, void* exportState_ptr,
                    int* rc) {
     if (rc != nullptr) *rc = 0;
     if (!data_ptr) return;
-    auto* data = static_cast<AcesInternalData*>(data_ptr);
+    auto* data = static_cast<aces::AcesInternalData*>(data_ptr);
     ESMC_State importState = {importState_ptr};
     ESMC_State exportState = {exportState_ptr};
-    ESMC_Clock clock = {clock_ptr};
+    ESMC_Clock clock;
+    clock.ptr = clock_ptr;
+
     if (data->nx == 0) {
         ESMC_Field field;
         field.ptr = nullptr;
@@ -144,7 +144,7 @@ void aces_core_run(void* data_ptr, void* importState_ptr, void* exportState_ptr,
     for (auto const& [species, layers] : data->config.species_layers) {
         if (data->export_state.fields.find(species) == data->export_state.fields.end()) {
             data->export_state.fields.try_emplace(
-                species, GetDualView(exportState.ptr, species, nx, ny, nz));
+                species, aces::GetDualView(exportState.ptr, species, nx, ny, nz));
         }
     }
     if (data->default_mask.extent(0) != static_cast<size_t>(nx)) {
@@ -178,13 +178,13 @@ void aces_core_run(void* data_ptr, void* importState_ptr, void* exportState_ptr,
                         esmf_fields_set.insert(m);
             }
         }
-        if (data->config.vertical_config.type != VerticalCoordType::NONE) {
+        if (data->config.vertical_config.type != aces::VerticalCoordType::NONE) {
             esmf_fields_set.insert(data->config.vertical_config.p_surf_field);
-            if (data->config.vertical_config.type == VerticalCoordType::FV3) {
+            if (data->config.vertical_config.type == aces::VerticalCoordType::FV3) {
                 esmf_fields_set.insert(data->config.vertical_config.ak_field);
                 esmf_fields_set.insert(data->config.vertical_config.bk_field);
-            } else if (data->config.vertical_config.type == VerticalCoordType::MPAS ||
-                       data->config.vertical_config.type == VerticalCoordType::WRF) {
+            } else if (data->config.vertical_config.type == aces::VerticalCoordType::MPAS ||
+                       data->config.vertical_config.type == aces::VerticalCoordType::WRF) {
                 esmf_fields_set.insert(data->config.vertical_config.z_field);
             }
             esmf_fields_set.insert(data->config.vertical_config.pbl_field);
@@ -198,7 +198,7 @@ void aces_core_run(void* data_ptr, void* importState_ptr, void* exportState_ptr,
         const std::string& external_name = data->external_esmf_fields[i];
         if (data->import_state.fields.find(internal_name) == data->import_state.fields.end()) {
             data->import_state.fields.try_emplace(
-                internal_name, GetDualView(importState.ptr, external_name, nx, ny, nz));
+                internal_name, aces::GetDualView(importState.ptr, external_name, nx, ny, nz));
         }
     }
     data->ingestor.IngestMeteorology(importState, data->external_esmf_fields, data->import_state,
@@ -214,8 +214,8 @@ void aces_core_run(void* data_ptr, void* importState_ptr, void* exportState_ptr,
         hour = static_cast<int>((seconds_i8 / 3600) % 24);
         dow = static_cast<int>((seconds_i8 / 86400) % 7);
     }
-    AcesStateResolver resolver(data->import_state, data->export_state, data->config.met_mapping,
-                               data->config.scale_factor_mapping, data->config.mask_mapping);
+    aces::AcesStateResolver resolver(data->import_state, data->export_state, data->config.met_mapping,
+                                     data->config.scale_factor_mapping, data->config.mask_mapping);
     data->stacking_engine->Execute(resolver, nx, ny, nz, data->default_mask, hour, dow);
     for (auto& scheme : data->active_schemes) scheme->Run(data->import_state, data->export_state);
     if (clock.ptr) {
@@ -235,57 +235,40 @@ void aces_core_run(void* data_ptr, void* importState_ptr, void* exportState_ptr,
 void aces_core_finalize(void* data_ptr, int* rc) {
     if (rc != nullptr) *rc = 0;
     if (!data_ptr) return;
-    auto* data = static_cast<AcesInternalData*>(data_ptr);
+    auto* data = static_cast<aces::AcesInternalData*>(data_ptr);
     data->import_state.fields.clear();
     data->export_state.fields.clear();
     data->default_mask = {};
     for (auto& scheme : data->active_schemes)
-        if (auto* base = dynamic_cast<BasePhysicsScheme*>(scheme.get())) base->ClearPhysicsCache();
+        if (auto* base = dynamic_cast<aces::BasePhysicsScheme*>(scheme.get()))
+            base->ClearPhysicsCache();
     data->active_schemes.clear();
     bool kh = data->kokkos_initialized_here;
     delete data;
     if (kh && Kokkos::is_initialized()) Kokkos::finalize();
 }
 
-void Initialize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState,
-                ESMC_Clock* clock, int* rc) {
+void ACES_Initialize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState,
+                     ESMC_Clock* clock, int* rc) {
     void* data_ptr = nullptr;
     aces_core_initialize(&data_ptr, importState.ptr, exportState.ptr,
                          (clock ? clock->ptr : nullptr), rc);
     if (rc && *rc == 0 && comp.ptr) ESMC_GridCompSetInternalState(comp, data_ptr);
 }
 
-void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESMC_Clock* clock,
-         int* rc) {
+void ACES_Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESMC_Clock* clock,
+              int* rc) {
     int rc_internal;
     void* data_ptr = nullptr;
     if (comp.ptr) data_ptr = ESMC_GridCompGetInternalState(comp, &rc_internal);
     aces_core_run(data_ptr, importState.ptr, exportState.ptr, (clock ? clock->ptr : nullptr), rc);
 }
 
-void Finalize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESMC_Clock* clock,
-              int* rc) {
+void ACES_Finalize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState,
+                   ESMC_Clock* clock, int* rc) {
     int rc_internal;
     void* data_ptr = nullptr;
     if (comp.ptr) data_ptr = ESMC_GridCompGetInternalState(comp, &rc_internal);
     aces_core_finalize(data_ptr, rc);
-}
-
-}  // namespace aces
-
-extern "C" {
-void ACES_Initialize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState,
-                     ESMC_Clock* clock, int* rc) {
-    aces::Initialize(comp, importState, exportState, clock, rc);
-}
-
-void ACES_Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESMC_Clock* clock,
-              int* rc) {
-    aces::Run(comp, importState, exportState, clock, rc);
-}
-
-void ACES_Finalize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState,
-                   ESMC_Clock* clock, int* rc) {
-    aces::Finalize(comp, importState, exportState, clock, rc);
 }
 }

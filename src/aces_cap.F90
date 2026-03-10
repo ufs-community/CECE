@@ -2,6 +2,7 @@ module aces_cap_mod
   use iso_c_binding
   use ESMF
   use NUOPC
+  use NUOPC_Model, modelSS => SetServices
 #ifdef ACES_HAS_CDEPS
   use cdeps_inline_mod
 #endif
@@ -39,12 +40,12 @@ contains
     integer, intent(out) :: rc
 
     ! 1. Inherit from NUOPC_Model
-    call NUOPC_CompDerive(comp, NUOPC_ModelSetServices, rc=rc)
+    call NUOPC_CompDerive(comp, modelSS, rc=rc)
     if (rc /= ESMF_SUCCESS) return
 
     ! 2. Specialize NUOPC_Model
     call NUOPC_CompSpecialize(comp, specRoutine=ACES_Advertise, &
-      specLabel=label_Advertise, rc=rc)
+      specLabel="ModelBase_Advertise", rc=rc)
     if (rc /= ESMF_SUCCESS) return
 
     ! 3. Register standard ESMF entry points
