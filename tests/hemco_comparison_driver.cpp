@@ -60,7 +60,7 @@ int main(int argc, char** argv) {
 
     for (int i = 0; i < nx * ny * nz; ++i) {
         u10_ptr[i] = 10.0;
-        tskin_ptr[i] = 293.15; // 20C
+        tskin_ptr[i] = 293.15;  // 20C
         seaconc_ptr[i] = 1.0e-6;
         dms_ptr[i] = 0.0;
     }
@@ -113,8 +113,8 @@ int main(int argc, char** argv) {
     bool success = true;
     for (int i = 0; i < nx * ny * nz; ++i) {
         if (std::abs(dms_ptr[i] - expected) / expected > 0.01) {
-            std::cerr << "Mismatch at " << i << ": expected ~" << expected
-                      << ", got " << dms_ptr[i] << "\n";
+            std::cerr << "Mismatch at " << i << ": expected ~" << expected << ", got " << dms_ptr[i]
+                      << "\n";
             success = false;
             break;
         }

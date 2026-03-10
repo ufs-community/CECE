@@ -84,7 +84,7 @@ void DMSScheme::Run(AcesImportState& import_state, AcesExportState& export_state
             double sc_w = sc0 + tc * (sc1 + tc * (sc2 + tc * sc3));
 
             double k_w = (kw0 * w * w + kw1 * w) * std::pow(sc_w / 600.0, -0.5);  // cm/hr
-            k_w /= 360000.0;  // cm/hr -> m/s
+            k_w /= 360000.0;                                                      // cm/hr -> m/s
 
             dms_emis(i, j, 0) += k_w * conc;
         });

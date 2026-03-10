@@ -199,10 +199,7 @@ if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
             target_include_directories(dshr PRIVATE ${ESMF_INCLUDE_DIRS})
             target_include_directories(cdeps_share PRIVATE ${ESMF_INCLUDE_DIRS})
 
-            # Share the global module directory with CDEPS targets
-            set_target_properties(cdeps_share PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY})
-            set_target_properties(streams PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY})
-            set_target_properties(dshr PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY})
+
         endif()
     endif()
 endif()
@@ -258,6 +255,17 @@ if(ACES_HAS_FORTRAN)
 endif()
 
 add_library(aces SHARED ${ACES_SRCS})
+
+# Ensure ACES depends on CDEPS targets to serialize module generation if they are built from source
+if(TARGET cdeps_share)
+    add_dependencies(aces cdeps_share)
+endif()
+if(TARGET streams)
+    add_dependencies(aces streams)
+endif()
+if(TARGET dshr)
+    add_dependencies(aces dshr)
+endif()
 
 if(ACES_HAS_FORTRAN)
     target_compile_definitions(aces PRIVATE ACES_HAS_FORTRAN)
