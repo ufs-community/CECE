@@ -33,6 +33,13 @@ static DualView3D GetDualView(void* state_ptr, const std::string& name, int nx, 
     return DualView3D(device_view, host_view);
 }
 
+void Initialize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState,
+                ESMC_Clock* clock, int* rc);
+void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESMC_Clock* clock,
+         int* rc);
+void Finalize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESMC_Clock* clock,
+              int* rc);
+
 }  // namespace aces
 
 extern "C" {
@@ -273,3 +280,22 @@ void ACES_Finalize(ESMC_GridComp comp, ESMC_State importState, ESMC_State export
     aces_core_finalize(data_ptr, rc);
 }
 }
+
+namespace aces {
+
+void Initialize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState,
+                ESMC_Clock* clock, int* rc) {
+    ::ACES_Initialize(comp, importState, exportState, clock, rc);
+}
+
+void Run(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESMC_Clock* clock,
+         int* rc) {
+    ::ACES_Run(comp, importState, exportState, clock, rc);
+}
+
+void Finalize(ESMC_GridComp comp, ESMC_State importState, ESMC_State exportState, ESMC_Clock* clock,
+              int* rc) {
+    ::ACES_Finalize(comp, importState, exportState, clock, rc);
+}
+
+}  // namespace aces
