@@ -214,8 +214,9 @@ void aces_core_run(void* data_ptr, void* importState_ptr, void* exportState_ptr,
         hour = static_cast<int>((seconds_i8 / 3600) % 24);
         dow = static_cast<int>((seconds_i8 / 86400) % 7);
     }
-    aces::AcesStateResolver resolver(data->import_state, data->export_state, data->config.met_mapping,
-                                     data->config.scale_factor_mapping, data->config.mask_mapping);
+    aces::AcesStateResolver resolver(data->import_state, data->export_state,
+                                     data->config.met_mapping, data->config.scale_factor_mapping,
+                                     data->config.mask_mapping);
     data->stacking_engine->Execute(resolver, nx, ny, nz, data->default_mask, hour, dow);
     for (auto& scheme : data->active_schemes) scheme->Run(data->import_state, data->export_state);
     if (clock.ptr) {
