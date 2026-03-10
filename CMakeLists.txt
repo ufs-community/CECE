@@ -10,11 +10,12 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 include(CheckLanguage)
 check_language(Fortran)
 if(CMAKE_Fortran_COMPILER)
-    set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/fortran_modules)
-    file(MAKE_DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY})
     enable_language(Fortran)
     set(ACES_HAS_FORTRAN ON)
 
+    # Define a main module directory for ACES and subprojects to share
+    set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/fortran_modules)
+    file(MAKE_DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY})
 
     # CDEPS and PIO sometimes expect a share directory in the build root
     file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/share)
