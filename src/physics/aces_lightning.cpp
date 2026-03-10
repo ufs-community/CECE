@@ -32,9 +32,13 @@ void LightningScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager
 
     yield_land_ = 3.011e26;
     yield_ocean_ = 1.566e26;
+    flash_rate_coeff_ = 3.44e-5;
+    flash_rate_pow_ = 4.9;
 
     if (config["yield_land"]) yield_land_ = config["yield_land"].as<double>();
     if (config["yield_ocean"]) yield_ocean_ = config["yield_ocean"].as<double>();
+    if (config["flash_rate_coeff"]) flash_rate_coeff_ = config["flash_rate_coeff"].as<double>();
+    if (config["flash_rate_power"]) flash_rate_pow_ = config["flash_rate_power"].as<double>();
 
     std::cout << "LightningScheme: Initialized.\n";
 }
@@ -62,6 +66,8 @@ void LightningScheme::Run(AcesImportState& import_state, AcesExportState& export
     const double MW_NO = 30.0;
     double y_land = yield_land_;
     double y_ocean = yield_ocean_;
+    double fr_coeff = flash_rate_coeff_;
+    double fr_pow = flash_rate_pow_;
 
     Kokkos::parallel_for(
         "LightningKernel_Optimized",
@@ -75,7 +81,7 @@ void LightningScheme::Run(AcesImportState& import_state, AcesExportState& export
 
             bool is_land = has_land_mask ? (land_mask(i, j, 0) > 0.5) : true;
             double h_km = h / 1000.0;
-            double flash_rate = 3.44e-5 * std::pow(h_km, 4.9);
+            double flash_rate = fr_coeff * std::pow(h_km, fr_pow);
 
             double total_yield = get_lightning_yield(flash_rate, MW_NO, is_land, y_land, y_ocean);
             double level_yield = total_yield / static_cast<double>(nz);

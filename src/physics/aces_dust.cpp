@@ -26,8 +26,11 @@ double calculate_u_ts0(double den, double diam, double g, double rhoa) {
 
 void DustScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
-    const double G = 980.665;     // cm/s^2
-    const double RHOA = 1.25e-3;  // g/cm3
+    G_const_ = 980.665;     // cm/s^2
+    RHOA_const_ = 1.25e-3;  // g/cm3
+
+    if (config["g_constant"]) G_const_ = config["g_constant"].as<double>();
+    if (config["air_density"]) RHOA_const_ = config["air_density"].as<double>();
 
     double den = 2500.0 * 1.0e-3;         // g/cm3
     double diam = 2.0 * 0.73e-6 * 1.0e2;  // cm
@@ -39,7 +42,7 @@ void DustScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* dia
         diam = config["particle_diameter"].as<double>() * 1.0e2;
     }
 
-    u_ts0_ = calculate_u_ts0(den, diam, G, RHOA);
+    u_ts0_ = calculate_u_ts0(den, diam, G_const_, RHOA_const_);
 
     ch_dust_ = 9.375e-10;
     if (config["tuning_factor"]) {

@@ -216,10 +216,15 @@ if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
                     set_target_properties(${target} PROPERTIES Fortran_MODULE_DIRECTORY ${TARGET_MODS})
                     target_include_directories(
                         ${target} PUBLIC ${ESMF_INCLUDE_DIRS} $<BUILD_INTERFACE:${TARGET_MODS}>
-                                         $<BUILD_INTERFACE:${CD_SHARE_MODS}> $<BUILD_INTERFACE:${STREAMS_MODS}>)
-                    add_dependencies(${target} cdeps_share streams)
+                                         $<BUILD_INTERFACE:${CD_SHARE_MODS}> $<BUILD_INTERFACE:${STREAMS_MODS}>
+                                         $<BUILD_INTERFACE:${DSHR_MODS}>)
+                    add_dependencies(${target} cdeps_share streams dshr)
+                    target_link_libraries(${target} PUBLIC dshr streams cdeps_share)
+                    # Use a single-threaded build for CDEPS components to avoid module copy race conditions
+                    set_target_properties(${target} PROPERTIES JOB_POOL_COMPILE solo_pool)
                 endif()
             endforeach()
+            set_property(GLOBAL PROPERTY JOB_POOLS solo_pool=1)
         endif()
     endif()
 endif()

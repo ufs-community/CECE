@@ -31,10 +31,14 @@ double gong_source_normalized(double r80) {
 void SeaSaltScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
     // Pre-calculate the integral of the Gong source function (normalized to u10=1.0)
-    const double dr = 0.05;         // Integration step in um (dry)
-    const double betha = 2.0;       // r80 / r_dry
-    const double ss_dens = 2200.0;  // kg/m3
+    double dr = 0.05;         // Integration step in um (dry)
+    double betha = 2.0;       // r80 / r_dry
+    double ss_dens = 2200.0;  // kg/m3
     const double pi = std::numbers::pi;
+
+    if (config["integration_step"]) dr = config["integration_step"].as<double>();
+    if (config["r80_dry_ratio"]) betha = config["r80_dry_ratio"].as<double>();
+    if (config["sea_salt_density"]) ss_dens = config["sea_salt_density"].as<double>();
 
     double r_sala_min = 0.01, r_sala_max = 0.5;
     double r_salc_min = 0.5, r_salc_max = 8.0;

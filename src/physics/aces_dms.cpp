@@ -58,6 +58,11 @@ void DMSScheme::Run(AcesImportState& import_state, AcesExportState& export_state
 
     if (u10m.data() == nullptr || tskin.data() == nullptr || seaconc.data() == nullptr ||
         dms_emis.data() == nullptr) {
+        std::cout << "DMSScheme: Missing data pointers! "
+                  << "u10m=" << (void*)u10m.data() << " "
+                  << "tskin=" << (void*)tskin.data() << " "
+                  << "seaconc=" << (void*)seaconc.data() << " "
+                  << "dms_emis=" << (void*)dms_emis.data() << std::endl;
         return;
     }
 
