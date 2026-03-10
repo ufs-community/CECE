@@ -13,10 +13,6 @@ if(CMAKE_Fortran_COMPILER)
     enable_language(Fortran)
     set(ACES_HAS_FORTRAN ON)
 
-    # Define a main module directory for ACES and subprojects to share
-    set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/fortran_modules)
-    file(MAKE_DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY})
-
     # CDEPS and PIO sometimes expect a share directory in the build root
     file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/share)
 else()
@@ -133,8 +129,6 @@ if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
             PATCH_COMMAND bash -c " \
                 sed -i 's/add_subdirectory(fox)/#add_subdirectory(fox)/' CMakeLists.txt; \
                 find . -name CMakeLists.txt -exec sed -i 's/install(/#install(/g' {} +; \
-                sed -i '/add_library(streams/a \  add_dependencies(streams cdeps_share)' streams/CMakeLists.txt; \
-                sed -i '/add_library(dshr/a \  add_dependencies(dshr cdeps_share)' dshr/CMakeLists.txt; \
             ")
 
         # Explicitly set PIO and NetCDF paths for CDEPS
@@ -192,10 +186,27 @@ if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
             set(CDEPS_FOUND TRUE)
             message(STATUS "CDEPS built from source successfully.")
 
-            # Ensure CDEPS can find ESMF modules
+            # Unique module directories per target to avoid race conditions
+            set(CD_SHARE_MODS ${CMAKE_BINARY_DIR}/mod/cdeps_share)
+            set(STREAMS_MODS ${CMAKE_BINARY_DIR}/mod/streams)
+            set(DSHR_MODS ${CMAKE_BINARY_DIR}/mod/dshr)
+
+            file(MAKE_DIRECTORY ${CD_SHARE_MODS})
+            file(MAKE_DIRECTORY ${STREAMS_MODS})
+            file(MAKE_DIRECTORY ${DSHR_MODS})
+
+            set_target_properties(cdeps_share PROPERTIES Fortran_MODULE_DIRECTORY ${CD_SHARE_MODS})
+            set_target_properties(streams PROPERTIES Fortran_MODULE_DIRECTORY ${STREAMS_MODS})
+            set_target_properties(dshr PROPERTIES Fortran_MODULE_DIRECTORY ${DSHR_MODS})
+
+            # Ensure CDEPS targets find ESMF and their own modules
             target_include_directories(cdeps_share PRIVATE ${ESMF_INCLUDE_DIRS})
-            target_include_directories(streams PRIVATE ${ESMF_INCLUDE_DIRS})
-            target_include_directories(dshr PRIVATE ${ESMF_INCLUDE_DIRS})
+            target_include_directories(streams PRIVATE ${ESMF_INCLUDE_DIRS} ${CD_SHARE_MODS})
+            target_include_directories(dshr PRIVATE ${ESMF_INCLUDE_DIRS} ${CD_SHARE_MODS})
+
+            # Force dependency chain within CDEPS to ensure serial module creation
+            add_dependencies(streams cdeps_share)
+            add_dependencies(dshr cdeps_share)
         endif()
     endif()
 endif()
@@ -267,11 +278,13 @@ if(ACES_HAS_FORTRAN)
     target_compile_definitions(aces PRIVATE ACES_HAS_FORTRAN)
     if(CDEPS_FOUND)
         target_compile_definitions(aces PRIVATE ACES_HAS_CDEPS)
+        # Link ACES to CDEPS modules
+        target_include_directories(aces PRIVATE ${CD_SHARE_MODS} ${STREAMS_MODS} ${DSHR_MODS})
     endif()
 
-    # Use the shared module directory
-    set_target_properties(aces PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY})
-    target_include_directories(aces PUBLIC ${CMAKE_Fortran_MODULE_DIRECTORY})
+    # Use a specific module directory for the aces target
+    set_target_properties(aces PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/mod/aces)
+    target_include_directories(aces PUBLIC ${CMAKE_BINARY_DIR}/mod/aces)
 endif()
 
 target_include_directories(
