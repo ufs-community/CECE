@@ -207,6 +207,19 @@ if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
             # Force dependency chain within CDEPS to ensure serial module creation
             add_dependencies(streams cdeps_share)
             add_dependencies(dshr cdeps_share streams)
+
+            set(CDEPS_EXTRA_TARGETS datm dice dglc dlnd docn drof dwav)
+            foreach(target ${CDEPS_EXTRA_TARGETS})
+                if(TARGET ${target})
+                    set(TARGET_MODS ${CMAKE_BINARY_DIR}/mod/${target})
+                    file(MAKE_DIRECTORY ${TARGET_MODS})
+                    set_target_properties(${target} PROPERTIES Fortran_MODULE_DIRECTORY ${TARGET_MODS})
+                    target_include_directories(
+                        ${target} PUBLIC ${ESMF_INCLUDE_DIRS} $<BUILD_INTERFACE:${TARGET_MODS}>
+                                         $<BUILD_INTERFACE:${CD_SHARE_MODS}> $<BUILD_INTERFACE:${STREAMS_MODS}>)
+                    add_dependencies(${target} cdeps_share streams)
+                endif()
+            endforeach()
         endif()
     endif()
 endif()

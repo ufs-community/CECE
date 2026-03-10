@@ -97,10 +97,66 @@ physics_schemes:
   - name: "native_example"
     language: "cpp"
     options:
-      scaling_factor: 2.0
+      multiplier: 2.0
       # Physics schemes can now have configurable diagnostics
       diagnostics:
         - "nox_multiplier_effect"
+
+  - name: "volcano"
+    language: "cpp"
+    options:
+      target_i: 1
+      target_j: 1
+      sulfur_emission: 1.0
+      elevation: 600.0
+      cloud_top: 2000.0
+
+  - name: "dms"
+    language: "cpp"
+    options:
+      # Schmidt number coefficients: sc_w = c0 + tc * (c1 + tc * (c2 + tc * c3))
+      schmidt_coeff: [2674.0, -147.12, 3.726, -0.038]
+      # Transfer velocity coefficients: kw = (c0 * w^2 + c1 * w) * (sc_w / 600.0)^-0.5
+      kw_coeff: [0.222, 0.333]
+
+  - name: "dust"
+    language: "cpp"
+    options:
+      particle_density: 2.5 # kg/m3 * 1e-3 (internal)
+      particle_diameter: 0.73e-6 # m * 1e2 (internal)
+      tuning_factor: 9.375e-10
+
+  - name: "lightning"
+    language: "cpp"
+    options:
+      yield_land: 3.011e26
+      yield_ocean: 1.566e26
+
+  - name: "megan"
+    language: "cpp"
+    options:
+      co2_concentration: 400.0
+      beta: 0.13
+      ct1: 95.0
+      ceo: 2.0
+      ldf: 1.0
+      aef_isop: 1.0e-9
+
+  - name: "sea_salt"
+    language: "cpp"
+    options:
+      r_sala_min: 0.01
+      r_sala_max: 0.5
+      r_salc_min: 0.5
+      r_salc_max: 8.0
+      # SST scaling coefficients: scale = c0 + sst * (c1 + sst * (c2 + sst * c3))
+      sst_coeff: [0.329, 0.0904, -0.00717, 0.000207]
+      u_power: 3.41
+
+  - name: "soil_nox"
+    language: "cpp"
+    options:
+      biome_coefficient_wet: 0.5
 
 # Diagnostic configuration for writeback.
 # ACES will synchronize these from device to host and write them to NetCDF.
