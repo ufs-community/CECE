@@ -23,6 +23,11 @@ static PhysicsRegistration<NativePhysicsExample> register_scheme("native_example
 void NativePhysicsExample::Initialize(const YAML::Node& config,
                                       AcesDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
+
+    if (config["multiplier"]) {
+        multiplier_ = config["multiplier"].as<double>();
+    }
+
     std::cout << "NativePhysicsExample: Initialized.\n";
     if (diag_manager != nullptr) {
         // Register an example diagnostic variable
@@ -54,13 +59,15 @@ void NativePhysicsExample::Run(AcesImportState& import_state, AcesExportState& e
 
     auto multiplier_diag = ResolveDiagnostic("nox_multiplier_effect", nx, ny, nz);
 
+    double default_multiplier = multiplier_;
+
     // Dispatch the computational kernel to the default execution space (e.g. GPU)
     Kokkos::parallel_for(
         "NativePhysicsExampleKernel",
         Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<3>>({0, 0, 0},
                                                                               {nx, ny, nz}),
         KOKKOS_LAMBDA(int i, int j, int k) {
-            double multiplier = 2.0;
+            double multiplier = default_multiplier;
             if (secondary_input.data() != nullptr) {
                 multiplier = secondary_input(i, j, k);
             }

@@ -200,9 +200,9 @@ if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
             set_target_properties(dshr PROPERTIES Fortran_MODULE_DIRECTORY ${DSHR_MODS})
 
             # Ensure CDEPS targets find ESMF and their own modules
-            target_include_directories(cdeps_share PUBLIC ${ESMF_INCLUDE_DIRS} ${CD_SHARE_MODS})
-            target_include_directories(streams PUBLIC ${ESMF_INCLUDE_DIRS} ${STREAMS_MODS} ${CD_SHARE_MODS})
-            target_include_directories(dshr PUBLIC ${ESMF_INCLUDE_DIRS} ${DSHR_MODS} ${CD_SHARE_MODS} ${STREAMS_MODS})
+            target_include_directories(cdeps_share PUBLIC ${ESMF_INCLUDE_DIRS} $<BUILD_INTERFACE:${CD_SHARE_MODS}>)
+            target_include_directories(streams PUBLIC ${ESMF_INCLUDE_DIRS} $<BUILD_INTERFACE:${STREAMS_MODS}> $<BUILD_INTERFACE:${CD_SHARE_MODS}>)
+            target_include_directories(dshr PUBLIC ${ESMF_INCLUDE_DIRS} $<BUILD_INTERFACE:${DSHR_MODS}> $<BUILD_INTERFACE:${CD_SHARE_MODS}> $<BUILD_INTERFACE:${STREAMS_MODS}>)
 
             # Force dependency chain within CDEPS to ensure serial module creation
             add_dependencies(streams cdeps_share)
@@ -282,7 +282,7 @@ if(ACES_HAS_FORTRAN)
 
     # Use a specific module directory for the aces target
     set_target_properties(aces PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/mod/aces)
-    target_include_directories(aces PUBLIC ${CMAKE_BINARY_DIR}/mod/aces)
+    target_include_directories(aces PUBLIC $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/mod/aces>)
 endif()
 
 target_include_directories(
@@ -354,6 +354,7 @@ target_link_libraries(hemco_mimic_driver PRIVATE aces)
 
 add_executable(hemco_comparison_driver tests/hemco_comparison_driver.cpp)
 target_link_libraries(hemco_comparison_driver PRIVATE aces)
+add_test(NAME test_hemco_comparison COMMAND hemco_comparison_driver)
 
 # Standalone NUOPC driver
 add_subdirectory(standalone_nuopc)
