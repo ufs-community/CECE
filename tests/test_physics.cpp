@@ -268,6 +268,7 @@ TEST_F(PhysicsTest, NativeExampleMultipleInputs) {
         auto scheme = PhysicsFactory::CreateScheme(cfg);
         scheme->Initialize(cfg.options, nullptr);
 
+        SetFieldValue("nox", 0.0, false);
         SetFieldValue("base_anthropogenic_nox", 1.0);
         scheme->Run(import_state, export_state);
 
@@ -281,7 +282,7 @@ TEST_F(PhysicsTest, NativeExampleMultipleInputs) {
     {
         ClearExports();
         PhysicsSchemeConfig cfg_mapped = cfg;
-        cfg_mapped.options = YAML::Load("input_mapping: {secondary_input: custom_import}");
+        cfg_mapped.options = YAML::Load("input_mapping: {multiplier_input: custom_import}");
 
         auto scheme = PhysicsFactory::CreateScheme(cfg_mapped);
         scheme->Initialize(cfg_mapped.options, nullptr);
@@ -300,11 +301,12 @@ TEST_F(PhysicsTest, NativeExampleMultipleInputs) {
     {
         ClearExports();
         PhysicsSchemeConfig cfg_chained = cfg;
-        cfg_chained.options = YAML::Load("input_mapping: {secondary_input: secondary_input}");
+        cfg_chained.options = YAML::Load("input_mapping: {multiplier_input: secondary_input}");
 
         auto scheme = PhysicsFactory::CreateScheme(cfg_chained);
         scheme->Initialize(cfg_chained.options, nullptr);
 
+        SetFieldValue("nox", 0.0, false);
         SetFieldValue("secondary_input", 10.0, false);
         SetFieldValue("base_anthropogenic_nox", 1.0);
 

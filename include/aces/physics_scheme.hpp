@@ -60,6 +60,10 @@ class BasePhysicsScheme : public PhysicsScheme {
      */
     void Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) override {
         diag_manager_ = diag_manager;
+        ClearPhysicsCache();
+        input_mapping_.clear();
+        output_mapping_.clear();
+
         if (config["input_mapping"]) {
             for (auto const& node : config["input_mapping"]) {
                 input_mapping_[node.first.as<std::string>()] = node.second.as<std::string>();

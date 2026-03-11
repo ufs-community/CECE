@@ -13,6 +13,10 @@ if(CMAKE_Fortran_COMPILER)
     enable_language(Fortran)
     set(ACES_HAS_FORTRAN ON)
 
+    # Global module directory prevents race conditions and lookup errors during parallel builds
+    set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/fortran_modules)
+    file(MAKE_DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY})
+
     # CDEPS and PIO sometimes expect a share directory in the build root
     file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/share)
 else()
@@ -186,45 +190,24 @@ if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
             set(CDEPS_FOUND TRUE)
             message(STATUS "CDEPS built from source successfully.")
 
-            # Unique module directories per target to avoid race conditions
-            set(CD_SHARE_MODS ${CMAKE_BINARY_DIR}/mod/cdeps_share)
-            set(STREAMS_MODS ${CMAKE_BINARY_DIR}/mod/streams)
-            set(DSHR_MODS ${CMAKE_BINARY_DIR}/mod/dshr)
-
-            file(MAKE_DIRECTORY ${CD_SHARE_MODS})
-            file(MAKE_DIRECTORY ${STREAMS_MODS})
-            file(MAKE_DIRECTORY ${DSHR_MODS})
-
-            set_target_properties(cdeps_share PROPERTIES Fortran_MODULE_DIRECTORY ${CD_SHARE_MODS})
-            set_target_properties(streams PROPERTIES Fortran_MODULE_DIRECTORY ${STREAMS_MODS})
-            set_target_properties(dshr PROPERTIES Fortran_MODULE_DIRECTORY ${DSHR_MODS})
-
-            # Ensure CDEPS targets find ESMF and their own modules
-            target_include_directories(cdeps_share PUBLIC ${ESMF_INCLUDE_DIRS} $<BUILD_INTERFACE:${CD_SHARE_MODS}>)
-            target_include_directories(streams PUBLIC ${ESMF_INCLUDE_DIRS} $<BUILD_INTERFACE:${STREAMS_MODS}> $<BUILD_INTERFACE:${CD_SHARE_MODS}>)
-            target_include_directories(dshr PUBLIC ${ESMF_INCLUDE_DIRS} $<BUILD_INTERFACE:${DSHR_MODS}> $<BUILD_INTERFACE:${CD_SHARE_MODS}> $<BUILD_INTERFACE:${STREAMS_MODS}>)
-
             # Force dependency chain within CDEPS to ensure serial module creation
             add_dependencies(streams cdeps_share)
             add_dependencies(dshr cdeps_share streams)
 
-            set(CDEPS_EXTRA_TARGETS datm dice dglc dlnd docn drof dwav)
-            foreach(target ${CDEPS_EXTRA_TARGETS})
+            set(CDEPS_ALL_TARGETS cdeps_share streams dshr datm dice dglc dlnd docn drof dwav)
+            set_property(GLOBAL PROPERTY JOB_POOLS solo_pool=1)
+
+            foreach(target ${CDEPS_ALL_TARGETS})
                 if(TARGET ${target})
-                    set(TARGET_MODS ${CMAKE_BINARY_DIR}/mod/${target})
-                    file(MAKE_DIRECTORY ${TARGET_MODS})
-                    set_target_properties(${target} PROPERTIES Fortran_MODULE_DIRECTORY ${TARGET_MODS})
-                    target_include_directories(
-                        ${target} PUBLIC ${ESMF_INCLUDE_DIRS} $<BUILD_INTERFACE:${TARGET_MODS}>
-                                         $<BUILD_INTERFACE:${CD_SHARE_MODS}> $<BUILD_INTERFACE:${STREAMS_MODS}>
-                                         $<BUILD_INTERFACE:${DSHR_MODS}>)
-                    add_dependencies(${target} cdeps_share streams dshr)
-                    target_link_libraries(${target} PUBLIC dshr streams cdeps_share)
+                    target_include_directories(${target} PUBLIC ${ESMF_INCLUDE_DIRS}
+                                                                $<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}>)
+                    if(NOT "${target}" STREQUAL "cdeps_share")
+                        add_dependencies(${target} cdeps_share)
+                    endif()
                     # Use a single-threaded build for CDEPS components to avoid module copy race conditions
                     set_target_properties(${target} PROPERTIES JOB_POOL_COMPILE solo_pool)
                 endif()
             endforeach()
-            set_property(GLOBAL PROPERTY JOB_POOLS solo_pool=1)
         endif()
     endif()
 endif()
@@ -298,9 +281,7 @@ if(ACES_HAS_FORTRAN)
         target_compile_definitions(aces PRIVATE ACES_HAS_CDEPS)
     endif()
 
-    # Use a specific module directory for the aces target
-    set_target_properties(aces PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/mod/aces)
-    target_include_directories(aces PUBLIC $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/mod/aces>)
+    target_include_directories(aces PUBLIC $<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}>)
 endif()
 
 target_include_directories(

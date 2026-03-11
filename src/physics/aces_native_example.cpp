@@ -46,7 +46,7 @@ void NativePhysicsExample::Initialize(const YAML::Node& config,
  */
 void NativePhysicsExample::Run(AcesImportState& import_state, AcesExportState& export_state) {
     auto base_nox = ResolveImport("base_anthropogenic_nox", import_state);
-    auto secondary_input = ResolveInput("secondary_input", import_state, export_state);
+    auto multiplier_input = ResolveInput("multiplier_input", import_state, export_state);
     auto nox = ResolveExport("nox", export_state);
 
     if (base_nox.data() == nullptr || nox.data() == nullptr) {
@@ -68,8 +68,8 @@ void NativePhysicsExample::Run(AcesImportState& import_state, AcesExportState& e
                                                                               {nx, ny, nz}),
         KOKKOS_LAMBDA(int i, int j, int k) {
             double multiplier = default_multiplier;
-            if (secondary_input.data() != nullptr) {
-                multiplier = secondary_input(i, j, k);
+            if (multiplier_input.data() != nullptr) {
+                multiplier = multiplier_input(i, j, k);
             }
             // Apply a dummy calculation
             double effect = base_nox(i, j, k) * multiplier;
