@@ -148,6 +148,77 @@ void aces_core_run(void* data_ptr, void* importState_ptr, void* exportState_ptr,
         }
     }
     int nx = data->nx, ny = data->ny, nz = data->nz;
+
+    // Discover all fields that might be in ESMF but not yet in our internal state
+    std::set<std::pair<std::string, std::string>> fields_to_sync;
+
+    // Explicit mappings from YAML
+    for (auto const& [int_n, ext_n] : data->config.met_mapping)
+        fields_to_sync.insert({int_n, ext_n});
+    for (auto const& [int_n, ext_n] : data->config.scale_factor_mapping)
+        fields_to_sync.insert({int_n, ext_n});
+    for (auto const& [int_n, ext_n] : data->config.mask_mapping)
+        fields_to_sync.insert({int_n, ext_n});
+
+    // Vertical grid fields
+    if (!data->config.vertical_config.ak_field.empty())
+        fields_to_sync.insert(
+            {data->config.vertical_config.ak_field, data->config.vertical_config.ak_field});
+    if (!data->config.vertical_config.bk_field.empty())
+        fields_to_sync.insert(
+            {data->config.vertical_config.bk_field, data->config.vertical_config.bk_field});
+    if (!data->config.vertical_config.p_surf_field.empty())
+        fields_to_sync.insert(
+            {data->config.vertical_config.p_surf_field, data->config.vertical_config.p_surf_field});
+    if (!data->config.vertical_config.z_field.empty())
+        fields_to_sync.insert(
+            {data->config.vertical_config.z_field, data->config.vertical_config.z_field});
+    if (!data->config.vertical_config.pbl_field.empty())
+        fields_to_sync.insert(
+            {data->config.vertical_config.pbl_field, data->config.vertical_config.pbl_field});
+
+    // StackingEngine requirements
+    for (auto const& [species, layers] : data->config.species_layers) {
+        for (const auto& layer : layers) {
+            fields_to_sync.insert({layer.field_name, layer.field_name});
+            for (const auto& sf : layer.scale_fields) fields_to_sync.insert({sf, sf});
+            for (const auto& m : layer.masks) fields_to_sync.insert({m, m});
+        }
+    }
+
+    // Physics schemes requirements (including mappings)
+    for (const auto& scheme_cfg : data->config.physics_schemes) {
+        if (scheme_cfg.options["input_mapping"]) {
+            for (auto const& node : scheme_cfg.options["input_mapping"]) {
+                fields_to_sync.insert({node.first.as<std::string>(), node.second.as<std::string>()});
+            }
+        }
+        // Also sync fields used directly without mapping if they aren't already covered
+        // This is a safety for schemes like Lightning that might use "land_mask" directly
+    }
+
+    for (auto const& field_pair : fields_to_sync) {
+        std::string internal_name = field_pair.first;
+        std::string external_name = field_pair.second;
+        ESMC_Field field;
+        if (ESMC_StateGetField(importState, external_name.c_str(), &field) == ESMF_SUCCESS) {
+            if (data->import_state.fields.find(internal_name) == data->import_state.fields.end()) {
+                data->import_state.fields.try_emplace(
+                    internal_name, aces::GetDualView(importState.ptr, external_name, nx, ny, nz));
+            }
+            auto& dv = data->import_state.fields[internal_name];
+            int rc_i;
+            double* dataPtr = static_cast<double*>(ESMC_FieldGetPtr(field, 0, &rc_i));
+            if (dataPtr) {
+                if (dataPtr != dv.view_host().data()) {
+                    std::copy(dataPtr, dataPtr + dv.view_host().span(), dv.view_host().data());
+                }
+                dv.modify<Kokkos::HostSpace>();
+                dv.sync<Kokkos::DefaultExecutionSpace::memory_space>();
+            }
+        }
+    }
+
     for (auto const& [species, layers] : data->config.species_layers) {
         if (data->export_state.fields.find(species) == data->export_state.fields.end()) {
             data->export_state.fields.try_emplace(
@@ -159,58 +230,17 @@ void aces_core_run(void* data_ptr, void* importState_ptr, void* exportState_ptr,
             Kokkos::View<double***, Kokkos::LayoutLeft>("default_mask", nx, ny, nz);
         Kokkos::deep_copy(data->default_mask, 1.0);
     }
-    if (data->esmf_fields.empty()) {
-        std::set<std::string> esmf_fields_set;
-        std::set<std::string> cdeps_fields;
-        for (const auto& s : data->config.cdeps_config.streams)
-            for (const auto& v : s.variables) cdeps_fields.insert(v.name_in_model);
-        auto resolve_name = [&](const std::string& name) {
-            auto it = data->config.met_mapping.find(name);
-            if (it != data->config.met_mapping.end()) return it->second;
-            it = data->config.scale_factor_mapping.find(name);
-            if (it != data->config.scale_factor_mapping.end()) return it->second;
-            it = data->config.mask_mapping.find(name);
-            if (it != data->config.mask_mapping.end()) return it->second;
-            return name;
-        };
-        for (auto const& [species, layers] : data->config.species_layers) {
-            for (const auto& layer : layers) {
-                if (cdeps_fields.find(resolve_name(layer.field_name)) == cdeps_fields.end())
-                    esmf_fields_set.insert(layer.field_name);
-                for (const auto& sf : layer.scale_fields)
-                    if (cdeps_fields.find(resolve_name(sf)) == cdeps_fields.end())
-                        esmf_fields_set.insert(sf);
-                for (const auto& m : layer.masks)
-                    if (cdeps_fields.find(resolve_name(m)) == cdeps_fields.end())
-                        esmf_fields_set.insert(m);
-            }
-        }
-        if (data->config.vertical_config.type != aces::VerticalCoordType::NONE) {
-            esmf_fields_set.insert(data->config.vertical_config.p_surf_field);
-            if (data->config.vertical_config.type == aces::VerticalCoordType::FV3) {
-                esmf_fields_set.insert(data->config.vertical_config.ak_field);
-                esmf_fields_set.insert(data->config.vertical_config.bk_field);
-            } else if (data->config.vertical_config.type == aces::VerticalCoordType::MPAS ||
-                       data->config.vertical_config.type == aces::VerticalCoordType::WRF) {
-                esmf_fields_set.insert(data->config.vertical_config.z_field);
-            }
-            esmf_fields_set.insert(data->config.vertical_config.pbl_field);
-        }
-        data->esmf_fields.assign(esmf_fields_set.begin(), esmf_fields_set.end());
-        for (const auto& internal_name : data->esmf_fields)
-            data->external_esmf_fields.push_back(resolve_name(internal_name));
-    }
-    for (size_t i = 0; i < data->esmf_fields.size(); ++i) {
-        const std::string& internal_name = data->esmf_fields[i];
-        const std::string& external_name = data->external_esmf_fields[i];
-        if (data->import_state.fields.find(internal_name) == data->import_state.fields.end()) {
-            data->import_state.fields.try_emplace(
-                internal_name, aces::GetDualView(importState.ptr, external_name, nx, ny, nz));
-        }
-    }
-    data->ingestor.IngestMeteorology(importState, data->external_esmf_fields, data->import_state,
-                                     nx, ny, nz);
+
     data->ingestor.IngestEmissionsInline(data->config.cdeps_config, data->import_state, nx, ny, nz);
+
+    // After CDEPS ingestion, ensure all import fields are synced to device
+    for (auto& [name, dv] : data->import_state.fields) {
+        if (dv.view_host().data() != nullptr) {
+            dv.modify<Kokkos::HostSpace>();
+            dv.sync<Kokkos::DefaultExecutionSpace::memory_space>();
+        }
+    }
+
     int hour = 0, dow = 0;
     if (clock.ptr) {
         ESMC_TimeInterval currSimTime;
@@ -225,6 +255,15 @@ void aces_core_run(void* data_ptr, void* importState_ptr, void* exportState_ptr,
                                      data->config.met_mapping, data->config.scale_factor_mapping,
                                      data->config.mask_mapping);
     data->stacking_engine->Execute(resolver, nx, ny, nz, data->default_mask, hour, dow);
+
+    // Stacking engine modifies export fields on device
+    for (auto const& [species, layers] : data->config.species_layers) {
+        auto it = data->export_state.fields.find(species);
+        if (it != data->export_state.fields.end()) {
+            it->second.modify_device();
+        }
+    }
+
     for (auto& scheme : data->active_schemes) scheme->Run(data->import_state, data->export_state);
     if (clock.ptr) {
         ESMC_Field template_field;
@@ -236,8 +275,23 @@ void aces_core_run(void* data_ptr, void* importState_ptr, void* exportState_ptr,
         data->diagnostic_manager->WriteDiagnostics(data->config.diagnostics, clock, template_field,
                                                    data->export_state, exportState);
     }
-    for (auto& [name, dv] : data->export_state.fields)
-        if (dv.view_host().data() != nullptr) dv.sync<Kokkos::HostSpace>();
+
+    // Sync all export fields back to host and copy to ESMF if necessary
+    for (auto& [name, dv] : data->export_state.fields) {
+        if (dv.view_host().data() != nullptr) {
+            dv.modify<Kokkos::DefaultExecutionSpace::memory_space>();
+            dv.sync<Kokkos::HostSpace>();
+            ESMC_Field field;
+            if (ESMC_StateGetField(exportState, name.c_str(), &field) == ESMF_SUCCESS) {
+                int rc_i;
+                double* dataPtr = static_cast<double*>(ESMC_FieldGetPtr(field, 0, &rc_i));
+                if (dataPtr && dataPtr != dv.view_host().data()) {
+                    std::copy(dv.view_host().data(), dv.view_host().data() + dv.view_host().span(),
+                              dataPtr);
+                }
+            }
+        }
+    }
 }
 
 void aces_core_finalize(void* data_ptr, int* rc) {

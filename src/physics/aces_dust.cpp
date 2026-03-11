@@ -26,8 +26,11 @@ double calculate_u_ts0(double den, double diam, double g, double rhoa) {
 
 void DustScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
-    const double G = 980.665;     // cm/s^2
-    const double RHOA = 1.25e-3;  // g/cm3
+    G_const_ = 980.665;     // cm/s^2
+    RHOA_const_ = 1.25e-3;  // g/cm3
+
+    if (config["g_constant"]) G_const_ = config["g_constant"].as<double>();
+    if (config["air_density"]) RHOA_const_ = config["air_density"].as<double>();
 
     double den = 2500.0 * 1.0e-3;         // g/cm3
     double diam = 2.0 * 0.73e-6 * 1.0e2;  // cm
@@ -39,15 +42,21 @@ void DustScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* dia
         diam = config["particle_diameter"].as<double>() * 1.0e2;
     }
 
-    u_ts0_ = calculate_u_ts0(den, diam, G, RHOA);
-    std::cout << "DustScheme: Initialized. U_TS0=" << u_ts0_ << "\n";
+    u_ts0_ = calculate_u_ts0(den, diam, G_const_, RHOA_const_);
+
+    ch_dust_ = 9.375e-10;
+    if (config["tuning_factor"]) {
+        ch_dust_ = config["tuning_factor"].as<double>();
+    }
+
+    std::cout << "DustScheme: Initialized. U_TS0=" << u_ts0_ << " CH_DUST=" << ch_dust_ << "\n";
 }
 
 void DustScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
-    auto u10m = ResolveImport("wind_speed_10m", import_state);
-    auto gwettop = ResolveImport("gwettop", import_state);
-    auto srce_sand = ResolveImport("GINOUX_SAND", import_state);
-    auto dust_emis = ResolveExport("dust", export_state);
+    auto u10m = ResolveImport("wind_speed", import_state);
+    auto gwettop = ResolveImport("soil_moisture", import_state);
+    auto srce_sand = ResolveImport("erodibility", import_state);
+    auto dust_emis = ResolveExport("dust_emissions", export_state);
 
     if (u10m.data() == nullptr || gwettop.data() == nullptr || srce_sand.data() == nullptr ||
         dust_emis.data() == nullptr) {
@@ -57,7 +66,7 @@ void DustScheme::Run(AcesImportState& import_state, AcesExportState& export_stat
     int nx = static_cast<int>(dust_emis.extent(0));
     int ny = static_cast<int>(dust_emis.extent(1));
 
-    const double CH_DUST = 9.375e-10;  // Default tuning factor
+    double tuning = ch_dust_;
     double u_ts0_const = u_ts0_;
 
     Kokkos::parallel_for(
@@ -73,13 +82,13 @@ void DustScheme::Run(AcesImportState& import_state, AcesExportState& export_stat
 
             if (u10 > u_ts) {
                 double srce = srce_sand(i, j, 0);
-                double flux = CH_DUST * srce * w2 * (u10 - u_ts);
+                double flux = tuning * srce * w2 * (u10 - u_ts);
                 dust_emis(i, j, 0) += std::max(0.0, flux);
             }
         });
 
     Kokkos::fence();
-    MarkModified("dust", export_state);
+    MarkModified("dust_emissions", export_state);
 }
 
 }  // namespace aces

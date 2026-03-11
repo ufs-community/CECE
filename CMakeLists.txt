@@ -13,7 +13,7 @@ if(CMAKE_Fortran_COMPILER)
     enable_language(Fortran)
     set(ACES_HAS_FORTRAN ON)
 
-    # Define a main module directory for ACES and subprojects to share
+    # Global module directory prevents race conditions and lookup errors during parallel builds
     set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/fortran_modules)
     file(MAKE_DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY})
 
@@ -133,10 +133,6 @@ if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
             PATCH_COMMAND bash -c " \
                 sed -i 's/add_subdirectory(fox)/#add_subdirectory(fox)/' CMakeLists.txt; \
                 find . -name CMakeLists.txt -exec sed -i 's/install(/#install(/g' {} +; \
-                sed -i \"s|\\\${CMAKE_BINARY_DIR}/share|${CMAKE_Fortran_MODULE_DIRECTORY}|g\" streams/CMakeLists.txt; \
-                sed -i \"s|\\\${CMAKE_BINARY_DIR}/share|${CMAKE_Fortran_MODULE_DIRECTORY}|g\" dshr/CMakeLists.txt; \
-                sed -i '/add_library(streams/a \  add_dependencies(streams cdeps_share)' streams/CMakeLists.txt; \
-                sed -i '/add_library(dshr/a \  add_dependencies(dshr cdeps_share)' dshr/CMakeLists.txt; \
             ")
 
         # Explicitly set PIO and NetCDF paths for CDEPS
@@ -194,15 +190,24 @@ if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
             set(CDEPS_FOUND TRUE)
             message(STATUS "CDEPS built from source successfully.")
 
-            # Ensure CDEPS can find ESMF modules
-            target_include_directories(streams PRIVATE ${ESMF_INCLUDE_DIRS})
-            target_include_directories(dshr PRIVATE ${ESMF_INCLUDE_DIRS})
-            target_include_directories(cdeps_share PRIVATE ${ESMF_INCLUDE_DIRS})
+            # Force dependency chain within CDEPS to ensure serial module creation
+            add_dependencies(streams cdeps_share)
+            add_dependencies(dshr cdeps_share streams)
 
-            # Share the global module directory with CDEPS targets
-            set_target_properties(cdeps_share PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY})
-            set_target_properties(streams PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY})
-            set_target_properties(dshr PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY})
+            set(CDEPS_ALL_TARGETS cdeps_share streams dshr datm dice dglc dlnd docn drof dwav)
+            set_property(GLOBAL PROPERTY JOB_POOLS solo_pool=1)
+
+            foreach(target ${CDEPS_ALL_TARGETS})
+                if(TARGET ${target})
+                    target_include_directories(${target} PUBLIC ${ESMF_INCLUDE_DIRS}
+                                                                $<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}>)
+                    if(NOT "${target}" STREQUAL "cdeps_share")
+                        add_dependencies(${target} cdeps_share)
+                    endif()
+                    # Use a single-threaded build for CDEPS components to avoid module copy race conditions
+                    set_target_properties(${target} PROPERTIES JOB_POOL_COMPILE solo_pool)
+                endif()
+            endforeach()
         endif()
     endif()
 endif()
@@ -259,15 +264,24 @@ endif()
 
 add_library(aces SHARED ${ACES_SRCS})
 
+# Ensure ACES depends on CDEPS targets to serialize module generation if they are built from source
+if(TARGET cdeps_share)
+    add_dependencies(aces cdeps_share)
+endif()
+if(TARGET streams)
+    add_dependencies(aces streams)
+endif()
+if(TARGET dshr)
+    add_dependencies(aces dshr)
+endif()
+
 if(ACES_HAS_FORTRAN)
     target_compile_definitions(aces PRIVATE ACES_HAS_FORTRAN)
     if(CDEPS_FOUND)
         target_compile_definitions(aces PRIVATE ACES_HAS_CDEPS)
     endif()
 
-    # Use the shared module directory
-    set_target_properties(aces PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY})
-    target_include_directories(aces PUBLIC ${CMAKE_Fortran_MODULE_DIRECTORY})
+    target_include_directories(aces PUBLIC $<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}>)
 endif()
 
 target_include_directories(
@@ -336,6 +350,10 @@ target_link_libraries(example_driver PRIVATE aces)
 
 add_executable(hemco_mimic_driver tests/hemco_mimic_driver.cpp)
 target_link_libraries(hemco_mimic_driver PRIVATE aces)
+
+add_executable(hemco_comparison_driver tests/hemco_comparison_driver.cpp)
+target_link_libraries(hemco_comparison_driver PRIVATE aces)
+add_test(NAME test_hemco_comparison COMMAND hemco_comparison_driver)
 
 # Standalone NUOPC driver
 add_subdirectory(standalone_nuopc)

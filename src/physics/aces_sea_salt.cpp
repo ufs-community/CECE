@@ -31,10 +31,14 @@ double gong_source_normalized(double r80) {
 void SeaSaltScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
     // Pre-calculate the integral of the Gong source function (normalized to u10=1.0)
-    const double dr = 0.05;         // Integration step in um (dry)
-    const double betha = 2.0;       // r80 / r_dry
-    const double ss_dens = 2200.0;  // kg/m3
+    double dr = 0.05;         // Integration step in um (dry)
+    double betha = 2.0;       // r80 / r_dry
+    double ss_dens = 2200.0;  // kg/m3
     const double pi = std::numbers::pi;
+
+    if (config["integration_step"]) dr = config["integration_step"].as<double>();
+    if (config["r80_dry_ratio"]) betha = config["r80_dry_ratio"].as<double>();
+    if (config["sea_salt_density"]) ss_dens = config["sea_salt_density"].as<double>();
 
     double r_sala_min = 0.01, r_sala_max = 0.5;
     double r_salc_min = 0.5, r_salc_max = 8.0;
@@ -50,6 +54,27 @@ void SeaSaltScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* 
     }
     if (config["r_salc_max"]) {
         r_salc_max = config["r_salc_max"].as<double>();
+    }
+
+    // Default SST scaling coefficients
+    sst_c0_ = 0.329;
+    sst_c1_ = 0.0904;
+    sst_c2_ = -0.00717;
+    sst_c3_ = 0.000207;
+
+    if (config["sst_coeff"]) {
+        auto sc = config["sst_coeff"];
+        if (sc.IsSequence() && sc.size() == 4) {
+            sst_c0_ = sc[0].as<double>();
+            sst_c1_ = sc[1].as<double>();
+            sst_c2_ = sc[2].as<double>();
+            sst_c3_ = sc[3].as<double>();
+        }
+    }
+
+    u_pow_ = 3.41;
+    if (config["u_power"]) {
+        u_pow_ = config["u_power"].as<double>();
     }
 
     srrc_SALA_ = 0.0;
@@ -75,10 +100,10 @@ void SeaSaltScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* 
 }
 
 void SeaSaltScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
-    auto u10m = ResolveImport("wind_speed_10m", import_state);
+    auto u10m = ResolveImport("wind_speed", import_state);
     auto tskin = ResolveImport("tskin", import_state);
-    auto sala = ResolveExport("SALA", export_state);
-    auto salc = ResolveExport("SALC", export_state);
+    auto sala = ResolveExport("secondary_input", export_state);
+    auto salc = ResolveExport("coarse_input", export_state);
 
     if (u10m.data() == nullptr || tskin.data() == nullptr) {
         return;
@@ -89,6 +114,8 @@ void SeaSaltScheme::Run(AcesImportState& import_state, AcesExportState& export_s
 
     double ref_sala = srrc_SALA_;
     double ref_salc = srrc_SALC_;
+    double c0 = sst_c0_, c1 = sst_c1_, c2 = sst_c2_, c3 = sst_c3_;
+    double u_pow = u_pow_;
 
     if (sala.data() != nullptr) {
         Kokkos::parallel_for(
@@ -100,13 +127,13 @@ void SeaSaltScheme::Run(AcesImportState& import_state, AcesExportState& export_s
                 sst = std::max(0.0, std::min(30.0, sst));
 
                 // Horner's Method for SST scaling polynomial
-                double scale = 0.329 + sst * (0.0904 + sst * (-0.00717 + sst * 0.000207));
+                double scale = c0 + sst * (c1 + sst * (c2 + sst * c3));
 
-                // Gong (2003) normalized: df/dr80 proportional to u^3.41
-                double u_factor = std::pow(u, 3.41);
+                // Gong (2003) normalized: df/dr80 proportional to u^u_pow
+                double u_factor = std::pow(u, u_pow);
                 sala(i, j, 0) += scale * u_factor * ref_sala;
             });
-        MarkModified("SALA", export_state);
+        MarkModified("secondary_input", export_state);
     }
 
     if (salc.data() != nullptr) {
@@ -118,11 +145,11 @@ void SeaSaltScheme::Run(AcesImportState& import_state, AcesExportState& export_s
                 double sst = tskin(i, j, 0) - 273.15;
                 sst = std::max(0.0, std::min(30.0, sst));
 
-                double scale = 0.329 + sst * (0.0904 + sst * (-0.00717 + sst * 0.000207));
-                double u_factor = std::pow(u, 3.41);
+                double scale = c0 + sst * (c1 + sst * (c2 + sst * c3));
+                double u_factor = std::pow(u, u_pow);
                 salc(i, j, 0) += scale * u_factor * ref_salc;
             });
-        MarkModified("SALC", export_state);
+        MarkModified("coarse_input", export_state);
     }
     Kokkos::fence();
 }

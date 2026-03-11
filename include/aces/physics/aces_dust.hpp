@@ -19,6 +19,9 @@ class DustScheme : public BasePhysicsScheme {
 
    private:
     double u_ts0_ = 0.0;
+    double ch_dust_ = 9.375e-10;
+    double G_const_ = 980.665;
+    double RHOA_const_ = 1.25e-3;
 };
 
 }  // namespace aces

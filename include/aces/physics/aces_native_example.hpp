@@ -42,6 +42,9 @@ class NativePhysicsExample : public BasePhysicsScheme {
      * @param export_state Output emissions to be updated.
      */
     void Run(AcesImportState& import_state, AcesExportState& export_state) override;
+
+   private:
+    double multiplier_ = 2.0;
 };
 
 }  // namespace aces

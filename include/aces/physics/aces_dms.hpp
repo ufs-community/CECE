@@ -16,6 +16,10 @@ class DMSScheme : public BasePhysicsScheme {
 
     void Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) override;
     void Run(AcesImportState& import_state, AcesExportState& export_state) override;
+
+   private:
+    double sc_c0_, sc_c1_, sc_c2_, sc_c3_;
+    double kw_c0_, kw_c1_;
 };
 
 }  // namespace aces

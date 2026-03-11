@@ -14,13 +14,26 @@ static PhysicsRegistration<VolcanoScheme> register_scheme("volcano");
 
 void VolcanoScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
+
+    target_i_ = 1;
+    target_j_ = 1;
+    volcano_sulf_ = 1.0;
+    volcano_elv_ = 600.0;
+    volcano_cld_ = 2000.0;
+
+    if (config["target_i"]) target_i_ = config["target_i"].as<int>();
+    if (config["target_j"]) target_j_ = config["target_j"].as<int>();
+    if (config["sulfur_emission"]) volcano_sulf_ = config["sulfur_emission"].as<double>();
+    if (config["elevation"]) volcano_elv_ = config["elevation"].as<double>();
+    if (config["cloud_top"]) volcano_cld_ = config["cloud_top"].as<double>();
+
     std::cout << "VolcanoScheme: Initialized." << "\n";
 }
 
 void VolcanoScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
-    auto so2 = ResolveExport("so2", export_state);
-    auto zsfc = ResolveImport("zsfc", import_state);
-    auto bxheight = ResolveImport("bxheight_m", import_state);
+    auto so2 = ResolveExport("volcanic_so2", export_state);
+    auto zsfc = ResolveImport("surface_altitude", import_state);
+    auto bxheight = ResolveImport("layer_thickness", import_state);
 
     if (so2.data() == nullptr || zsfc.data() == nullptr || bxheight.data() == nullptr) {
         return;
@@ -28,12 +41,11 @@ void VolcanoScheme::Run(AcesImportState& import_state, AcesExportState& export_s
 
     int nz = static_cast<int>(so2.extent(2));
 
-    // Mock volcano location for this port (should come from config table in real
-    // port) Lat: 50.17, Lon: 6.85, Sulf: 1.0kg/s, Elv: 600m, Cld: 2000m
-    const int target_i = 1, target_j = 1;
-    const double volcano_sulf = 1.0;
-    const double volcano_elv = 600.0;
-    const double volcano_cld = 2000.0;
+    int target_i = target_i_;
+    int target_j = target_j_;
+    double volcano_sulf = volcano_sulf_;
+    double volcano_elv = volcano_elv_;
+    double volcano_cld = volcano_cld_;
 
     Kokkos::parallel_for(
         "VolcanoKernel_Optimized", Kokkos::RangePolicy<Kokkos::DefaultExecutionSpace>(0, nz),
@@ -76,7 +88,7 @@ void VolcanoScheme::Run(AcesImportState& import_state, AcesExportState& export_s
         });
 
     Kokkos::fence();
-    MarkModified("so2", export_state);
+    MarkModified("volcanic_so2", export_state);
 }
 
 }  // namespace aces
