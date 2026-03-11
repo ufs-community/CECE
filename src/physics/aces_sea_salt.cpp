@@ -100,10 +100,10 @@ void SeaSaltScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* 
 }
 
 void SeaSaltScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
-    auto u10m = ResolveImport("wind_speed_10m", import_state);
+    auto u10m = ResolveImport("wind_speed", import_state);
     auto tskin = ResolveImport("tskin", import_state);
-    auto sala = ResolveExport("SALA", export_state);
-    auto salc = ResolveExport("SALC", export_state);
+    auto sala = ResolveExport("secondary_input", export_state);
+    auto salc = ResolveExport("coarse_input", export_state);
 
     if (u10m.data() == nullptr || tskin.data() == nullptr) {
         return;
@@ -133,7 +133,7 @@ void SeaSaltScheme::Run(AcesImportState& import_state, AcesExportState& export_s
                 double u_factor = std::pow(u, u_pow);
                 sala(i, j, 0) += scale * u_factor * ref_sala;
             });
-        MarkModified("SALA", export_state);
+        MarkModified("secondary_input", export_state);
     }
 
     if (salc.data() != nullptr) {
@@ -149,7 +149,7 @@ void SeaSaltScheme::Run(AcesImportState& import_state, AcesExportState& export_s
                 double u_factor = std::pow(u, u_pow);
                 salc(i, j, 0) += scale * u_factor * ref_salc;
             });
-        MarkModified("SALC", export_state);
+        MarkModified("coarse_input", export_state);
     }
     Kokkos::fence();
 }

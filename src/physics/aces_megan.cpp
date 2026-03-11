@@ -129,11 +129,11 @@ void MeganScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* di
 
 void MeganScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
     auto temp = ResolveImport("temperature", import_state);
-    auto isoprene = ResolveExport("isoprene", export_state);
-    auto lai = ResolveImport("lai", import_state);
-    auto pardr = ResolveImport("pardr", import_state);
-    auto pardf = ResolveImport("pardf", import_state);
-    auto suncos = ResolveImport("suncos", import_state);
+    auto isoprene = ResolveExport("isoprene_emissions", export_state);
+    auto lai = ResolveImport("leaf_area_index", import_state);
+    auto pardr = ResolveImport("par_direct", import_state);
+    auto pardf = ResolveImport("par_diffuse", import_state);
+    auto suncos = ResolveImport("solar_cosine", import_state);
 
     if (temp.data() == nullptr || isoprene.data() == nullptr || lai.data() == nullptr ||
         pardr.data() == nullptr || pardf.data() == nullptr || suncos.data() == nullptr) {
@@ -185,10 +185,11 @@ void MeganScheme::Run(AcesImportState& import_state, AcesExportState& export_sta
 
             double gamma_lai = get_gamma_lai(L, lai_c1, lai_c2);
             double gamma_t_li = get_gamma_t_li(T, beta, std_t);
-            double gamma_t_ld = get_gamma_t_ld(T, T_AVG_15, ct1, ceo, R, ct2, t_opt_c1, t_opt_c2, e_opt_c);
-            double gamma_par = get_gamma_par_pceea(pardr(i, j, 0), pardf(i, j, 0), PAR_AVG, sc, doy,
-                                                   wm2_umol, ptoa_c1, ptoa_c2, gp_c1, gp_c2, gp_c3,
-                                                   gp_c4);
+            double gamma_t_ld =
+                get_gamma_t_ld(T, T_AVG_15, ct1, ceo, R, ct2, t_opt_c1, t_opt_c2, e_opt_c);
+            double gamma_par =
+                get_gamma_par_pceea(pardr(i, j, 0), pardf(i, j, 0), PAR_AVG, sc, doy, wm2_umol,
+                                    ptoa_c1, ptoa_c2, gp_c1, gp_c2, gp_c3, gp_c4);
 
             double megan_emis = NORM_FAC * aef_isop * gamma_lai * gamma_co2_const *
                                 ((1.0 - ldf) * gamma_t_li + (ldf * gamma_par * gamma_t_ld));
@@ -197,7 +198,7 @@ void MeganScheme::Run(AcesImportState& import_state, AcesExportState& export_sta
         });
 
     Kokkos::fence();
-    MarkModified("isoprene", export_state);
+    MarkModified("isoprene_emissions", export_state);
 }
 
 }  // namespace aces

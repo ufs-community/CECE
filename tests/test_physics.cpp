@@ -22,33 +22,58 @@ class PhysicsTest : public ::testing::Test {
     AcesExportState export_state;
 
     void SetUp() override {
-        // Common fields
+        // Common fields (Logical names)
         import_state.fields["temperature"] = create_dv("temp", 300.0);
-        import_state.fields["wind_speed_10m"] = create_dv("wind", 15.0);  // High enough for dust
+        import_state.fields["wind_speed"] = create_dv("wind", 15.0);
         import_state.fields["tskin"] = create_dv("tskin", 300.0);
-        import_state.fields["lai"] = create_dv("lai", 3.0);
-        import_state.fields["pardr"] = create_dv("pardr", 100.0);
-        import_state.fields["pardf"] = create_dv("pardf", 50.0);
-        import_state.fields["suncos"] = create_dv("suncos", 1.0);
-        import_state.fields["DMS_seawater"] = create_dv("DMS_seawater", 1.0e-6);
-        import_state.fields["convective_cloud_top_height"] = create_dv("conv_h", 5000.0);
-        import_state.fields["gwettop"] = create_dv("gwettop", 0.1);  // Dry for dust
+        import_state.fields["leaf_area_index"] = create_dv("lai", 3.0);
+        import_state.fields["par_direct"] = create_dv("pardr", 100.0);
+        import_state.fields["par_diffuse"] = create_dv("pardf", 50.0);
+        import_state.fields["solar_cosine"] = create_dv("suncos", 1.0);
+        import_state.fields["seawater_conc"] = create_dv("seawater_conc", 1.0e-6);
+        import_state.fields["cloud_top_height"] = create_dv("conv_h", 5000.0);
+        import_state.fields["soil_moisture"] = create_dv("gwettop", 0.1);
         import_state.fields["land_mask"] = create_dv("land_mask", 1.0);
-        import_state.fields["GINOUX_SAND"] = create_dv("sand", 0.1);
-        import_state.fields["zsfc"] = create_dv("zsfc", 100.0);
-        import_state.fields["bxheight_m"] = create_dv("bxh", 1000.0);
+        import_state.fields["erodibility"] = create_dv("sand", 0.1);
+        import_state.fields["surface_altitude"] = create_dv("zsfc", 100.0);
+        import_state.fields["layer_thickness"] = create_dv("bxh", 1000.0);
 
-        // Export fields
-        export_state.fields["SALA"] = create_dv("sala", 0.0);
-        export_state.fields["SALC"] = create_dv("salc", 0.0);
-        export_state.fields["isoprene"] = create_dv("isop", 0.0);
-        export_state.fields["dms"] = create_dv("dms", 0.0);
-        export_state.fields["lightning_nox"] = create_dv("light", 0.0);
-        export_state.fields["soil_nox"] = create_dv("soil", 0.0);
-        export_state.fields["dust"] = create_dv("dust", 0.0);
-        export_state.fields["so2"] = create_dv("so2", 0.0);
+        // Export fields (Logical names)
+        export_state.fields["secondary_input"] = create_dv("sala", 0.0);
+        export_state.fields["coarse_input"] = create_dv("salc", 0.0);
+        export_state.fields["isoprene_emissions"] = create_dv("isop", 0.0);
+        export_state.fields["dms_emissions"] = create_dv("dms", 0.0);
+        export_state.fields["lightning_nox_emissions"] = create_dv("light", 0.0);
+        export_state.fields["soil_nox_emissions"] = create_dv("soil", 0.0);
+        export_state.fields["dust_emissions"] = create_dv("dust", 0.0);
+        export_state.fields["volcanic_so2"] = create_dv("so2", 0.0);
         export_state.fields["nox"] = create_dv("nox", 0.0);
         import_state.fields["base_anthropogenic_nox"] = create_dv("base_nox", 1.0);
+
+        // Compatibility aliases for tests that expect hardcoded framework names
+        import_state.fields["wind_speed_10m"] = import_state.fields["wind_speed"];
+        import_state.fields["DMS_seawater"] = import_state.fields["seawater_conc"];
+        import_state.fields["gwettop"] = import_state.fields["soil_moisture"];
+        import_state.fields["lai"] = import_state.fields["leaf_area_index"];
+        import_state.fields["convective_cloud_top_height"] = import_state.fields["cloud_top_height"];
+        import_state.fields["GINOUX_SAND"] = import_state.fields["erodibility"];
+
+        export_state.fields["SALA"] = export_state.fields["secondary_input"];
+        export_state.fields["SALC"] = export_state.fields["coarse_input"];
+        export_state.fields["isoprene"] = export_state.fields["isoprene_emissions"];
+        export_state.fields["dms"] = export_state.fields["dms_emissions"];
+        export_state.fields["lightning_nox"] = export_state.fields["lightning_nox_emissions"];
+        export_state.fields["soil_nox"] = export_state.fields["soil_nox_emissions"];
+        export_state.fields["dust"] = export_state.fields["dust_emissions"];
+        export_state.fields["so2"] = export_state.fields["volcanic_so2"];
+    }
+
+    void ClearExports() {
+        for (auto& [name, dv] : export_state.fields) {
+            Kokkos::deep_copy(dv.view_host(), 0.0);
+            dv.modify<Kokkos::HostSpace>();
+            dv.sync<Kokkos::DefaultExecutionSpace>();
+        }
     }
 
     [[nodiscard]] DualView3D create_dv(const std::string& name, double val) const {
@@ -138,7 +163,8 @@ TEST_F(PhysicsTest, VolcanoParity) {
 // Vertical Distribution Verification
 TEST_F(PhysicsTest, SurfaceEmissionVerticalDistribution) {
     std::vector<std::string> schemes = {"sea_salt", "megan", "dms", "dust", "soil_nox"};
-    std::vector<std::string> fields = {"SALA", "isoprene", "dms", "dust", "soil_nox"};
+    std::vector<std::string> fields = {"secondary_input", "isoprene_emissions", "dms_emissions",
+                                       "dust_emissions", "soil_nox_emissions"};
 
     for (size_t i = 0; i < schemes.size(); ++i) {
         PhysicsSchemeConfig cfg;
@@ -166,29 +192,29 @@ TEST_F(PhysicsTest, SeaSaltSensitivity) {
     scheme->Initialize(cfg.options, nullptr);
 
     // Test Wind Speed Sensitivity
-    SetFieldValue("wind_speed_10m", 5.0);
-    SetFieldValue("SALA", 0.0, false);
+    SetFieldValue("wind_speed", 5.0);
+    SetFieldValue("secondary_input", 0.0, false);
     scheme->Run(import_state, export_state);
-    double em_low = export_state.fields["SALA"].view_host()(0, 0, 0);
+    double em_low = export_state.fields["secondary_input"].view_host()(0, 0, 0);
 
-    SetFieldValue("wind_speed_10m", 10.0);
-    SetFieldValue("SALA", 0.0, false);
+    SetFieldValue("wind_speed", 10.0);
+    SetFieldValue("secondary_input", 0.0, false);
     scheme->Run(import_state, export_state);
-    double em_high = export_state.fields["SALA"].view_host()(0, 0, 0);
+    double em_high = export_state.fields["secondary_input"].view_host()(0, 0, 0);
 
     EXPECT_GT(em_high, em_low * 10.0);  // U^3.41 dependency: 2^3.41 approx 10.6
 
     // Test SST Sensitivity
-    SetFieldValue("wind_speed_10m", 10.0);
+    SetFieldValue("wind_speed", 10.0);
     SetFieldValue("tskin", 273.15 + 0.0);  // 0C
-    SetFieldValue("SALA", 0.0, false);
+    SetFieldValue("secondary_input", 0.0, false);
     scheme->Run(import_state, export_state);
-    double em_0c = export_state.fields["SALA"].view_host()(0, 0, 0);
+    double em_0c = export_state.fields["secondary_input"].view_host()(0, 0, 0);
 
     SetFieldValue("tskin", 273.15 + 20.0);  // 20C
-    SetFieldValue("SALA", 0.0, false);
+    SetFieldValue("secondary_input", 0.0, false);
     scheme->Run(import_state, export_state);
-    double em_20c = export_state.fields["SALA"].view_host()(0, 0, 0);
+    double em_20c = export_state.fields["secondary_input"].view_host()(0, 0, 0);
 
     EXPECT_GT(em_20c, em_0c);
 }
@@ -200,16 +226,16 @@ TEST_F(PhysicsTest, MeganSensitivity) {
     scheme->Initialize(cfg.options, nullptr);
 
     // Test Light Sensitivity
-    SetFieldValue("lai", 3.0);
-    SetFieldValue("suncos", 0.0);  // Night
-    SetFieldValue("isoprene", 0.0, false);
+    SetFieldValue("leaf_area_index", 3.0);
+    SetFieldValue("solar_cosine", 0.0);  // Night
+    SetFieldValue("isoprene_emissions", 0.0, false);
     scheme->Run(import_state, export_state);
-    EXPECT_DOUBLE_EQ(export_state.fields["isoprene"].view_host()(0, 0, 0), 0.0);
+    EXPECT_DOUBLE_EQ(export_state.fields["isoprene_emissions"].view_host()(0, 0, 0), 0.0);
 
-    SetFieldValue("suncos", 1.0);  // Day
-    SetFieldValue("isoprene", 0.0, false);
+    SetFieldValue("solar_cosine", 1.0);  // Day
+    SetFieldValue("isoprene_emissions", 0.0, false);
     scheme->Run(import_state, export_state);
-    EXPECT_GT(export_state.fields["isoprene"].view_host()(0, 0, 0), 0.0);
+    EXPECT_GT(export_state.fields["isoprene_emissions"].view_host()(0, 0, 0), 0.0);
 }
 
 TEST_F(PhysicsTest, SoilNoxSensitivity) {
@@ -219,15 +245,15 @@ TEST_F(PhysicsTest, SoilNoxSensitivity) {
     scheme->Initialize(cfg.options, nullptr);
 
     // Test Moisture Sensitivity (Poisson-like)
-    SetFieldValue("gwettop", 0.01);
-    SetFieldValue("soil_nox", 0.0, false);
+    SetFieldValue("soil_moisture", 0.01);
+    SetFieldValue("soil_nox_emissions", 0.0, false);
     scheme->Run(import_state, export_state);
-    double em_dry = export_state.fields["soil_nox"].view_host()(0, 0, 0);
+    double em_dry = export_state.fields["soil_nox_emissions"].view_host()(0, 0, 0);
 
-    SetFieldValue("gwettop", 0.3);  // Optimal
-    SetFieldValue("soil_nox", 0.0, false);
+    SetFieldValue("soil_moisture", 0.3);  // Optimal
+    SetFieldValue("soil_nox_emissions", 0.0, false);
     scheme->Run(import_state, export_state);
-    double em_opt = export_state.fields["soil_nox"].view_host()(0, 0, 0);
+    double em_opt = export_state.fields["soil_nox_emissions"].view_host()(0, 0, 0);
 
     EXPECT_GT(em_opt, em_dry);
 }
@@ -238,21 +264,22 @@ TEST_F(PhysicsTest, NativeExampleMultipleInputs) {
 
     // Test case 1: Default (no secondary input)
     {
+        ClearExports();
         auto scheme = PhysicsFactory::CreateScheme(cfg);
         scheme->Initialize(cfg.options, nullptr);
 
-        SetFieldValue("nox", 0.0, false);
         SetFieldValue("base_anthropogenic_nox", 1.0);
-
         scheme->Run(import_state, export_state);
 
         auto& dv = export_state.fields["nox"];
         dv.sync<Kokkos::HostSpace>();
-        EXPECT_NEAR(dv.view_host()(0, 0, 0), 2.0, 1e-6);  // 1.0 * 2.0 (default multiplier)
+        // default multiplier is 2.0. Result should be 1.0 * 2.0 = 2.0
+        EXPECT_NEAR(dv.view_host()(0, 0, 0), 2.0, 1e-6);
     }
 
     // Test case 2: Secondary input from Import State with mapping
     {
+        ClearExports();
         PhysicsSchemeConfig cfg_mapped = cfg;
         cfg_mapped.options = YAML::Load("input_mapping: {secondary_input: custom_import}");
 
@@ -260,7 +287,6 @@ TEST_F(PhysicsTest, NativeExampleMultipleInputs) {
         scheme->Initialize(cfg_mapped.options, nullptr);
 
         import_state.fields["custom_import"] = create_dv("custom_import", 5.0);
-        SetFieldValue("nox", 0.0, false);
         SetFieldValue("base_anthropogenic_nox", 1.0);
 
         scheme->Run(import_state, export_state);
@@ -272,14 +298,14 @@ TEST_F(PhysicsTest, NativeExampleMultipleInputs) {
 
     // Test case 3: Secondary input from Export State (chaining schemes)
     {
+        ClearExports();
         PhysicsSchemeConfig cfg_chained = cfg;
-        cfg_chained.options = YAML::Load("input_mapping: {secondary_input: SALA}");
+        cfg_chained.options = YAML::Load("input_mapping: {secondary_input: secondary_input}");
 
         auto scheme = PhysicsFactory::CreateScheme(cfg_chained);
         scheme->Initialize(cfg_chained.options, nullptr);
 
-        SetFieldValue("SALA", 10.0, false);
-        SetFieldValue("nox", 0.0, false);
+        SetFieldValue("secondary_input", 10.0, false);
         SetFieldValue("base_anthropogenic_nox", 1.0);
 
         scheme->Run(import_state, export_state);
@@ -291,6 +317,7 @@ TEST_F(PhysicsTest, NativeExampleMultipleInputs) {
 
     // Test case 4: Output mapping verification
     {
+        ClearExports();
         PhysicsSchemeConfig cfg_out_mapped = cfg;
         cfg_out_mapped.options = YAML::Load("output_mapping: {nox: custom_nox}");
 
@@ -319,14 +346,14 @@ TEST_F(PhysicsTest, ConfigurableParameters) {
     auto scheme = PhysicsFactory::CreateScheme(cfg);
     scheme->Initialize(cfg.options, nullptr);
 
-    SetFieldValue("dms", 0.0, false);
-    SetFieldValue("wind_speed_10m", 10.0);
+    SetFieldValue("dms_emissions", 0.0, false);
+    SetFieldValue("wind_speed", 10.0);
     SetFieldValue("tskin", 273.15 + 20.0);  // 20C
-    SetFieldValue("DMS_seawater", 1.0e-6);
+    SetFieldValue("seawater_conc", 1.0e-6);
 
     scheme->Run(import_state, export_state);
 
-    auto& dv = export_state.fields["dms"];
+    auto& dv = export_state.fields["dms_emissions"];
     dv.sync<Kokkos::HostSpace>();
     double val = dv.view_host()(0, 0, 0);
 

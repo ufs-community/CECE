@@ -52,8 +52,8 @@ void SoilNoxScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* 
 
 void SoilNoxScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
     auto temp = ResolveImport("temperature", import_state);
-    auto gwet = ResolveImport("gwettop", import_state);
-    auto soil_nox = ResolveExport("soil_nox", export_state);
+    auto gwet = ResolveImport("soil_moisture", import_state);
+    auto soil_nox = ResolveExport("soil_nox_emissions", export_state);
 
     if (temp.data() == nullptr || gwet.data() == nullptr || soil_nox.data() == nullptr) {
         return;
@@ -89,7 +89,7 @@ void SoilNoxScheme::Run(AcesImportState& import_state, AcesExportState& export_s
         });
 
     Kokkos::fence();
-    MarkModified("soil_nox", export_state);
+    MarkModified("soil_nox_emissions", export_state);
 }
 
 }  // namespace aces

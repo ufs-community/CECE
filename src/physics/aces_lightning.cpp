@@ -44,9 +44,9 @@ void LightningScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager
 }
 
 void LightningScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
-    auto conv_depth = ResolveImport("convective_cloud_top_height", import_state);
-    auto light_nox = ResolveExport("lightning_nox", export_state);
-    auto it_land = import_state.fields.find("land_mask");
+    auto conv_depth = ResolveImport("cloud_top_height", import_state);
+    auto light_nox = ResolveExport("lightning_nox_emissions", export_state);
+    auto land_mask_view = ResolveImport("land_mask", import_state);
 
     if (conv_depth.data() == nullptr || light_nox.data() == nullptr) {
         return;
@@ -57,11 +57,7 @@ void LightningScheme::Run(AcesImportState& import_state, AcesExportState& export
     int nz = static_cast<int>(light_nox.extent(2));
 
     // Land mask proxy
-    bool has_land_mask = (it_land != import_state.fields.end());
-    auto land_mask =
-        has_land_mask
-            ? it_land->second.view_device()
-            : Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>();
+    bool has_land_mask = (land_mask_view.data() != nullptr);
 
     const double MW_NO = 30.0;
     double y_land = yield_land_;
@@ -79,7 +75,7 @@ void LightningScheme::Run(AcesImportState& import_state, AcesExportState& export
                 return;
             }
 
-            bool is_land = has_land_mask ? (land_mask(i, j, 0) > 0.5) : true;
+            bool is_land = has_land_mask ? (land_mask_view(i, j, 0) > 0.5) : true;
             double h_km = h / 1000.0;
             double flash_rate = fr_coeff * std::pow(h_km, fr_pow);
 
@@ -93,7 +89,7 @@ void LightningScheme::Run(AcesImportState& import_state, AcesExportState& export
         });
 
     Kokkos::fence();
-    MarkModified("lightning_nox", export_state);
+    MarkModified("lightning_nox_emissions", export_state);
 }
 
 }  // namespace aces

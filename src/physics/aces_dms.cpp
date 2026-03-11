@@ -51,18 +51,13 @@ void DMSScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* diag
 }
 
 void DMSScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
-    auto u10m = ResolveImport("wind_speed_10m", import_state);
+    auto u10m = ResolveImport("wind_speed", import_state);
     auto tskin = ResolveImport("tskin", import_state);
-    auto seaconc = ResolveImport("DMS_seawater", import_state);
-    auto dms_emis = ResolveExport("dms", export_state);
+    auto seaconc = ResolveImport("seawater_conc", import_state);
+    auto dms_emis = ResolveExport("dms_emissions", export_state);
 
     if (u10m.data() == nullptr || tskin.data() == nullptr || seaconc.data() == nullptr ||
         dms_emis.data() == nullptr) {
-        std::cout << "DMSScheme: Missing data pointers! "
-                  << "u10m=" << (void*)u10m.data() << " "
-                  << "tskin=" << (void*)tskin.data() << " "
-                  << "seaconc=" << (void*)seaconc.data() << " "
-                  << "dms_emis=" << (void*)dms_emis.data() << std::endl;
         return;
     }
 
@@ -95,7 +90,7 @@ void DMSScheme::Run(AcesImportState& import_state, AcesExportState& export_state
         });
 
     Kokkos::fence();
-    MarkModified("dms", export_state);
+    MarkModified("dms_emissions", export_state);
 }
 
 }  // namespace aces

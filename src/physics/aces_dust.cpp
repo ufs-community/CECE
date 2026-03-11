@@ -53,10 +53,10 @@ void DustScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* dia
 }
 
 void DustScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
-    auto u10m = ResolveImport("wind_speed_10m", import_state);
-    auto gwettop = ResolveImport("gwettop", import_state);
-    auto srce_sand = ResolveImport("GINOUX_SAND", import_state);
-    auto dust_emis = ResolveExport("dust", export_state);
+    auto u10m = ResolveImport("wind_speed", import_state);
+    auto gwettop = ResolveImport("soil_moisture", import_state);
+    auto srce_sand = ResolveImport("erodibility", import_state);
+    auto dust_emis = ResolveExport("dust_emissions", export_state);
 
     if (u10m.data() == nullptr || gwettop.data() == nullptr || srce_sand.data() == nullptr ||
         dust_emis.data() == nullptr) {
@@ -88,7 +88,7 @@ void DustScheme::Run(AcesImportState& import_state, AcesExportState& export_stat
         });
 
     Kokkos::fence();
-    MarkModified("dust", export_state);
+    MarkModified("dust_emissions", export_state);
 }
 
 }  // namespace aces
