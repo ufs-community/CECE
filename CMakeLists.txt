@@ -14,10 +14,12 @@ if(CMAKE_Fortran_COMPILER)
     set(ACES_HAS_FORTRAN ON)
 
     # Global module directory prevents race conditions and lookup errors during parallel builds
-    set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/fortran_modules)
-    file(MAKE_DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY})
+    # set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/fortran_modules)
+
+    # file(MAKE_DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY})
 
     # CDEPS and PIO sometimes expect a share directory in the build root
+
     file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/share)
 else()
     message(WARNING "Fortran compiler not found. Fortran features will be disabled.")
@@ -225,15 +227,18 @@ if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
 
             foreach(target ${CDEPS_ALL_TARGETS})
                 if(TARGET ${target})
-                    target_include_directories(${target} PUBLIC ${ESMF_INCLUDE_DIRS}
-                                                                $<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}>)
+                    # Use a single-threaded build for CDEPS components to avoid module copy race conditions
+                    set_target_properties(${target} PROPERTIES JOB_POOL_COMPILE solo_pool)
+
+                    target_include_directories(${target} PUBLIC ${ESMF_INCLUDE_DIRS})
+                    # If CMAKE_Fortran_MODULE_DIRECTORY was set, we added it here. Now relying on link targets.
+
                     if(NOT "${target}" STREQUAL "cdeps_share")
                         add_dependencies(${target} cdeps_share)
                     endif()
-                    # Use a single-threaded build for CDEPS components to avoid module copy race conditions
-                    set_target_properties(${target} PROPERTIES JOB_POOL_COMPILE solo_pool)
                 endif()
             endforeach()
+
         endif()
     endif()
 endif()
@@ -316,8 +321,9 @@ if(ACES_HAS_FORTRAN)
         target_compile_definitions(aces PRIVATE ACES_HAS_CDEPS)
     endif()
 
-    target_include_directories(aces PUBLIC $<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}>)
+    # target_include_directories(aces PUBLIC $<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}>)
 endif()
+
 
 target_include_directories(
     aces
@@ -420,10 +426,10 @@ target_link_libraries(test_realize_phase PRIVATE aces GTest::gtest_main)
 
 if(ACES_HAS_FORTRAN)
     add_library(test_helpers STATIC tests/test_helpers.F90)
-    target_include_directories(test_helpers PUBLIC ${ESMF_INCLUDE_DIRS}
-                                                   ${CMAKE_Fortran_MODULE_DIRECTORY})
+    target_include_directories(test_helpers PUBLIC ${ESMF_INCLUDE_DIRS})
     target_link_libraries(test_helpers PUBLIC ESMF::ESMF)
 endif()
+
 
 add_executable(test_initialize_phases tests/test_initialize_phases.cpp)
 if(ACES_HAS_FORTRAN AND TARGET test_helpers)

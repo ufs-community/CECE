@@ -34,8 +34,8 @@ add_executable(aces_nuopc_single_driver single_driver.F90)
 target_include_directories(aces_nuopc_single_driver
   PRIVATE
   ${ESMF_INCLUDE_DIRS}
-  ${CMAKE_Fortran_MODULE_DIRECTORY}
 )
+
 
 target_link_libraries(aces_nuopc_single_driver
   PRIVATE
