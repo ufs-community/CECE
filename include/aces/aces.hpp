@@ -8,6 +8,7 @@
 
 #include "ESMC.h"
 #include "NUOPC.h"
+#include "aces/aces_kokkos_config.hpp"
 
 namespace aces {
 

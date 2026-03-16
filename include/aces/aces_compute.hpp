@@ -65,7 +65,8 @@ class FieldResolver {
 void ComputeEmissions(const AcesConfig& config, FieldResolver& resolver, int nx, int ny, int nz,
                       const Kokkos::View<double***, Kokkos::LayoutLeft,
                                          Kokkos::DefaultExecutionSpace>& default_mask = {},
-                      int hour = 0, int day_of_week = 0, StackingEngine* engine = nullptr);
+                      int hour = 0, int day_of_week = 0, int month = 0,
+                      StackingEngine* engine = nullptr);
 
 }  // namespace aces
 

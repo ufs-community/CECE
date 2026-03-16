@@ -1,11 +1,74 @@
 module {{ scheme_name }}_kernel_mod
+    !! @file {{ scheme_name }}_kernel.F90
+    !! @brief Fortran kernel for {{ description }}
+    !!
+    !! This module provides a Fortran implementation of the physics kernel
+    !! that can be called from C++ using Fortran-C interoperability.
+    !!
+    !! ## Usage Pattern
+    !! 1. Implement the physics computation in run_{{ scheme_name }}_kernel()
+    !! 2. Call this kernel from the C++ scheme using iso_c_binding
+    !! 3. Pass Kokkos::View pointers as C pointers to the Fortran subroutine
+    !!
+    !! ## Performance Notes
+    !! - Use OpenMP directives for parallelization on CPU
+    !! - Avoid allocatable arrays; use assumed-shape arrays instead
+    !! - Use explicit loops rather than array operations for better control
+    !! - Consider cache locality when accessing multi-dimensional arrays
+
     use iso_c_binding
     implicit none
+    private
+
+    public :: run_{{ scheme_name }}_kernel
 
 contains
 
-    subroutine run_{{ scheme_name }}_kernel({% for field in imports %}{{ field.var_name }}_ptr, {% endfor %}{% for field in exports %}{{ field.var_name }}_ptr, {% endfor %}nx, ny, nz) bind(C, name="run_{{ scheme_name }}_fortran")
+    !! @brief Main physics kernel for {{ scheme_name }}
+    !!
+    !! This subroutine implements the core physics computation. It receives
+    !! pointers to input and output fields and performs the computation
+    !! in-place or writes to output fields.
+    !!
+    !! @param[in] nx Number of grid points in x direction
+    !! @param[in] ny Number of grid points in y direction
+    !! @param[in] nz Number of grid points in z direction
+    {% for option in options %}
+    !! @param[in] {{ option.name }} {{ option.description }}
+    {% endfor %}
+    {% for field in imports %}
+    !! @param[in] {{ field.var_name }}_ptr Pointer to input field {{ field.name }}
+    !!                                       Shape: (nx, ny, nz)
+    {% endfor %}
+    {% for field in exports %}
+    !! @param[inout] {{ field.var_name }}_ptr Pointer to output field {{ field.name }}
+    !!                                         Shape: (nx, ny, nz)
+    {% endfor %}
+    !!
+    !! @note This subroutine is called from C++ with C pointers. The Fortran
+    !!       compiler will interpret these as assumed-shape arrays.
+    !!
+    !! @note Array indices in Fortran are 1-based, but the C++ caller uses
+    !!       0-based indexing. Adjust accordingly if needed.
+
+    subroutine run_{{ scheme_name }}_kernel(nx, ny, nz, &
+                                            {% for option in options %}{{ option.name }}, {% endfor %}&
+                                            {% for field in imports %}{{ field.var_name }}_ptr, {% endfor %}&
+                                            {% for field in exports %}{{ field.var_name }}_ptr{% if not loop.last %}, {% endif %}{% endfor %}) &
+        bind(C, name="run_{{ scheme_name }}_fortran")
+        !!
+        !! Fortran-C interoperability binding. The C++ code calls this using:
+        !!   extern "C" void run_{{ scheme_name }}_fortran(
+        !!       int nx, int ny, int nz,
+        !!       {% for option in options %}{{ option.c_type }} {{ option.name }},{% endfor %}
+        !!       {% for field in imports %}double* {{ field.var_name }}_ptr,{% endfor %}
+        !!       {% for field in exports %}double* {{ field.var_name }}_ptr{% if not loop.last %},{% endif %}{% endfor %}
+        !!   );
+
         integer(c_int), intent(in), value :: nx, ny, nz
+        {% for option in options %}
+        {{ option.fortran_type }}(c_{{ option.fortran_kind }}), intent(in), value :: {{ option.name }}
+        {% endfor %}
         {% for field in imports %}
         real(c_double), intent(in) :: {{ field.var_name }}_ptr(nx, ny, nz)
         {% endfor %}
@@ -15,14 +78,40 @@ contains
 
         integer :: i, j, k
 
-        !$omp parallel do collapse(3)
+        ! ====================================================================
+        ! Parallel Region Setup
+        ! ====================================================================
+        ! Use OpenMP for parallelization on CPU. The collapse(3) clause
+        ! tells OpenMP to parallelize all three nested loops together,
+        ! which can improve load balancing for irregular loop counts.
+
+        !$omp parallel do collapse(3) default(shared) private(i, j, k)
         do k = 1, nz
             do j = 1, ny
                 do i = 1, nx
-                    ! TODO: Implement legacy physics logic here
+                    ! ========================================================
+                    ! TODO: Implement your physics computation here
+                    ! ========================================================
+                    ! This is where you implement the actual physics logic.
+                    ! You have access to all input and output fields through
+                    ! the assumed-shape array arguments.
+                    !
+                    ! Example: Compute emissions based on temperature
+                    ! if ({{ imports[0].var_name }}_ptr(i, j, k) > 273.15_c_double) then
+                    !     {{ exports[0].var_name }}_ptr(i, j, k) = &
+                    !         {{ imports[0].var_name }}_ptr(i, j, k) * {{ option.name }}
+                    ! end if
+                    !
+                    ! Performance Tips:
+                    ! - Minimize floating-point operations (use Horner's method)
+                    ! - Avoid function calls inside loops
+                    ! - Use local variables to cache frequently accessed values
+                    ! - Consider vectorization opportunities
+
                 end do
             end do
         end do
+        !$omp end parallel do
 
     end subroutine run_{{ scheme_name }}_kernel
 

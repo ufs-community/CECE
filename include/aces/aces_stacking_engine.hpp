@@ -9,6 +9,7 @@
 
 #include "aces/aces_compute.hpp"
 #include "aces/aces_config.hpp"
+#include "aces/aces_provenance.hpp"
 
 namespace aces {
 
@@ -79,13 +80,29 @@ class StackingEngine {
     void Execute(
         FieldResolver& resolver, int nx, int ny, int nz,
         Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> default_mask,
-        int hour, int day_of_week);
+        int hour, int day_of_week, int month = 0,
+        ProvenanceTracker* provenance = nullptr);
 
     /**
      * @brief Resets the bound field handles.
      * @details Call this if the underlying ESMF field pointers change.
      */
     void ResetBindings();
+
+    /**
+     * @brief Dynamically adds a new species to the engine without full recompilation.
+     * @details Appends the species layers from config and compiles only the new entry.
+     *          Call after AddSpecies() mutates the config. Existing bindings are preserved.
+     * @param species_name The species to add (must exist in m_config.species_layers).
+     */
+    void AddSpecies(const std::string& species_name);
+
+    /**
+     * @brief Returns the provenance tracker for inspection or diagnostic output.
+     */
+    [[nodiscard]] const ProvenanceTracker& GetProvenance() const {
+        return m_provenance_tracker;
+    }
 
    private:
     struct CompiledLayer {
@@ -97,6 +114,7 @@ class StackingEngine {
         std::vector<std::string> scale_fields;
         std::string diurnal_cycle;
         std::string weekly_cycle;
+        std::string seasonal_cycle;
 
         // Vertical
         VerticalDistributionMethod vdist_method;
@@ -132,10 +150,11 @@ class StackingEngine {
 
     AcesConfig m_config;
     std::vector<CompiledSpecies> m_compiled;
+    ProvenanceTracker m_provenance_tracker;
 
     void PreCompile();
     void BindFields(CompiledSpecies& spec, FieldResolver& resolver, int nx, int ny, int nz) const;
-    void UpdateTemporalScales(CompiledSpecies& spec, int hour, int day_of_week);
+    void UpdateTemporalScales(CompiledSpecies& spec, int hour, int day_of_week, int month = 0);
 };
 
 }  // namespace aces
