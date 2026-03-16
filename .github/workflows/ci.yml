@@ -52,36 +52,54 @@ jobs:
     - name: Run Unit Tests
       shell: bash
       run: |
+        if [ -f /opt/spack-environment/activate.sh ]; then
+          source /opt/spack-environment/activate.sh
+        fi
         cd build
         ctest --output-on-failure -L "unit"
 
     - name: Run Property-Based Tests
       shell: bash
       run: |
+        if [ -f /opt/spack-environment/activate.sh ]; then
+          source /opt/spack-environment/activate.sh
+        fi
         cd build
         ctest --output-on-failure -L "property"
 
     - name: Run Integration Tests
       shell: bash
       run: |
+        if [ -f /opt/spack-environment/activate.sh ]; then
+          source /opt/spack-environment/activate.sh
+        fi
         cd build
         ctest --output-on-failure -L "integration"
 
     - name: Run HEMCO Parity Tests
       shell: bash
       run: |
+        if [ -f /opt/spack-environment/activate.sh ]; then
+          source /opt/spack-environment/activate.sh
+        fi
         cd build
         ctest --output-on-failure -L "hemco"
 
     - name: Run All Tests with Coverage
       shell: bash
       run: |
+        if [ -f /opt/spack-environment/activate.sh ]; then
+          source /opt/spack-environment/activate.sh
+        fi
         cd build
         ctest --output-on-failure
 
     - name: Generate Test Coverage Report
       shell: bash
       run: |
+        if [ -f /opt/spack-environment/activate.sh ]; then
+          source /opt/spack-environment/activate.sh
+        fi
         cd build
         # Generate coverage report if gcov is available
         if command -v gcov &> /dev/null; then
