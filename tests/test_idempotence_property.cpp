@@ -195,7 +195,7 @@ class IdempotencePropertyTest : public ::testing::Test {
      * @return TestExecutionResult with captured outputs
      */
     TestExecutionResult ExecuteTestConfiguration(int config_id, int nx, int ny, int nz,
-                                                  const std::vector<double>& emissions) {
+                                                 const std::vector<double>& emissions) {
         TestExecutionResult result;
 
         try {
@@ -246,7 +246,8 @@ class IdempotencePropertyTest : public ::testing::Test {
             for (int i = 0; i < nx; ++i) {
                 for (int j = 0; j < ny; ++j) {
                     for (int k = 0; k < nz; ++k) {
-                        result.numerical_outputs.push_back(resolver.GetValue("output_emissions", i, j, k));
+                        result.numerical_outputs.push_back(
+                            resolver.GetValue("output_emissions", i, j, k));
                     }
                 }
             }

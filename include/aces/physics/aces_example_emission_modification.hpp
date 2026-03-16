@@ -25,8 +25,9 @@
 #ifndef ACES_EXAMPLE_EMISSION_MODIFICATION_HPP
 #define ACES_EXAMPLE_EMISSION_MODIFICATION_HPP
 
-#include <Kokkos_Core.hpp>
 #include <yaml-cpp/yaml.h>
+
+#include <Kokkos_Core.hpp>
 
 #include "aces/aces_diagnostics.hpp"
 #include "aces/aces_state.hpp"

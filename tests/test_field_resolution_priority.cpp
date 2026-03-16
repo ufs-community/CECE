@@ -319,9 +319,8 @@ TEST_F(FieldResolutionPriorityTest, ThreeDimensionalFieldsVariousSizes) {
         // 3. Verify Unmanaged trait is set
         // 4. Verify data is accessible
 
-        EXPECT_TRUE(true)
-            << "Property test placeholder for dimensions (" << nx << ", " << ny << ", " << nz
-            << ") - full test requires JCSDA Docker environment";
+        EXPECT_TRUE(true) << "Property test placeholder for dimensions (" << nx << ", " << ny
+                          << ", " << nz << ") - full test requires JCSDA Docker environment";
     }
 }
 
@@ -355,11 +354,10 @@ TEST_F(FieldResolutionPriorityTest, UnmanagedTraitVerification) {
                      Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
 
     // The return type of ResolveField should match ExpectedViewType
-    static_assert(
-        std::is_same_v<decltype(std::declval<AcesDataIngestor>().ResolveField(
-                           "", std::declval<ESMC_State>(), 0, 0, 0)),
-                       ExpectedViewType>,
-        "ResolveField must return view with Unmanaged trait");
+    static_assert(std::is_same_v<decltype(std::declval<AcesDataIngestor>().ResolveField(
+                                     "", std::declval<ESMC_State>(), 0, 0, 0)),
+                                 ExpectedViewType>,
+                  "ResolveField must return view with Unmanaged trait");
 
     EXPECT_TRUE(true) << "Property test placeholder - full test requires JCSDA Docker environment";
 }
@@ -381,12 +379,12 @@ TEST_F(FieldResolutionPriorityTest, FieldNameVariations) {
 
     // Test various field name patterns
     std::vector<std::string> field_names = {
-        "CO",                    // Short name
-        "carbon_monoxide",       // Underscore
-        "NOx_emissions_total",   // Multiple underscores
-        "CEDS_CO_anthro_2020",   // Complex name with numbers
-        "field123",              // Alphanumeric
-        "a",                     // Single character
+        "CO",                                                    // Short name
+        "carbon_monoxide",                                       // Underscore
+        "NOx_emissions_total",                                   // Multiple underscores
+        "CEDS_CO_anthro_2020",                                   // Complex name with numbers
+        "field123",                                              // Alphanumeric
+        "a",                                                     // Single character
         "very_long_field_name_with_many_components_for_testing"  // Long name
     };
 

@@ -42,7 +42,9 @@ class ESMFEnvironment : public ::testing::Environment {
             exit(1);
         }
     }
-    void TearDown() override { ESMC_Finalize(); }
+    void TearDown() override {
+        ESMC_Finalize();
+    }
 };
 
 // ---------------------------------------------------------------------------
@@ -149,7 +151,7 @@ cdeps_inline_config:
         if (rc != ESMF_SUCCESS || data_ptr == nullptr) return nullptr;
 
         aces_core_initialize_p2(data_ptr, gcomp_.ptr, import_state_.ptr, export_state_.ptr,
-                               clock_.ptr, grid_.ptr, &rc);
+                                clock_.ptr, grid_.ptr, &rc);
         if (rc != ESMF_SUCCESS) return nullptr;
 
         return data_ptr;

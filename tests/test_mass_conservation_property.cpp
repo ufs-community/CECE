@@ -229,9 +229,9 @@ TEST_F(MassConservationPropertyTest, SingleMethodMassConservation) {
         double expected = scale * total_2d;
         double rel_error = std::abs(total_3d - expected) / expected;
 
-        EXPECT_LT(rel_error, 1e-10) << "Iteration " << iteration << ": Grid (" << nx << "," << ny
-                                     << "," << nz << "), Layer " << layer << ", Scale " << scale
-                                     << ", Rel Error: " << rel_error;
+        EXPECT_LT(rel_error, 1e-10)
+            << "Iteration " << iteration << ": Grid (" << nx << "," << ny << "," << nz
+            << "), Layer " << layer << ", Scale " << scale << ", Rel Error: " << rel_error;
     }
 }
 
@@ -282,9 +282,8 @@ TEST_F(MassConservationPropertyTest, RangeMethodMassConservation) {
         double rel_error = std::abs(total_3d - expected) / expected;
 
         EXPECT_LT(rel_error, 1e-10) << "Iteration " << iteration << ": Grid (" << nx << "," << ny
-                                     << "," << nz << "), Range [" << start_layer << ","
-                                     << end_layer << "], Scale " << scale
-                                     << ", Rel Error: " << rel_error;
+                                    << "," << nz << "), Range [" << start_layer << "," << end_layer
+                                    << "], Scale " << scale << ", Rel Error: " << rel_error;
     }
 }
 
@@ -343,9 +342,9 @@ TEST_F(MassConservationPropertyTest, MultipleLayersAddMassConservation) {
         double total_3d = ComputeTotalColumnMass(resolver, "TestSpecies", nx, ny, nz);
         double rel_error = std::abs(total_3d - expected_total) / expected_total;
 
-        EXPECT_LT(rel_error, 1e-10) << "Iteration " << iteration << ": Grid (" << nx << "," << ny
-                                     << "," << nz << "), Layers " << num_layers
-                                     << ", Rel Error: " << rel_error;
+        EXPECT_LT(rel_error, 1e-10)
+            << "Iteration " << iteration << ": Grid (" << nx << "," << ny << "," << nz
+            << "), Layers " << num_layers << ", Rel Error: " << rel_error;
     }
 }
 
@@ -390,7 +389,7 @@ TEST_F(MassConservationPropertyTest, MultipleLayersReplaceMassConservation) {
             layer_config.hierarchy = layer_idx;
             layer_config.scale = scale;
             layer_config.vdist_method = VerticalDistributionMethod::SINGLE;
-            layer_config.vdist_layer_start = 0; // Fixed layer for all to ensure replacement
+            layer_config.vdist_layer_start = 0;  // Fixed layer for all to ensure replacement
             layer_config.vdist_layer_end = 0;
 
             config.species_layers["TestSpecies"].push_back(layer_config);
@@ -408,9 +407,9 @@ TEST_F(MassConservationPropertyTest, MultipleLayersReplaceMassConservation) {
         double total_3d = ComputeTotalColumnMass(resolver, "TestSpecies", nx, ny, nz);
         double rel_error = std::abs(total_3d - expected_total) / expected_total;
 
-        EXPECT_LT(rel_error, 1e-10) << "Iteration " << iteration << ": Grid (" << nx << "," << ny
-                                     << "," << nz << "), Layers " << num_layers
-                                     << ", Rel Error: " << rel_error;
+        EXPECT_LT(rel_error, 1e-10)
+            << "Iteration " << iteration << ": Grid (" << nx << "," << ny << "," << nz
+            << "), Layers " << num_layers << ", Rel Error: " << rel_error;
     }
 }
 
@@ -467,9 +466,9 @@ TEST_F(MassConservationPropertyTest, LargeGridMassConservation) {
         double expected = scale * total_2d;
         double rel_error = std::abs(total_3d - expected) / expected;
 
-        EXPECT_LT(rel_error, 1e-10) << "Iteration " << iteration << ": Large Grid (" << nx << ","
-                                     << ny << "," << nz << "), Layer " << layer << ", Scale "
-                                     << scale << ", Rel Error: " << rel_error;
+        EXPECT_LT(rel_error, 1e-10)
+            << "Iteration " << iteration << ": Large Grid (" << nx << "," << ny << "," << nz
+            << "), Layer " << layer << ", Scale " << scale << ", Rel Error: " << rel_error;
     }
 }
 
@@ -511,7 +510,7 @@ TEST_F(MassConservationPropertyTest, ZeroEmissionsMassConservation) {
         double total_3d = ComputeTotalColumnMass(resolver, "TestSpecies", nx, ny, nz);
 
         EXPECT_NEAR(total_3d, 0.0, 1e-15) << "Iteration " << iteration << ": Grid (" << nx << ","
-                                           << ny << "," << nz << "), Total: " << total_3d;
+                                          << ny << "," << nz << "), Total: " << total_3d;
     }
 }
 
@@ -562,7 +561,7 @@ TEST_F(MassConservationPropertyTest, SmallEmissionsMassConservation) {
         double rel_error = std::abs(total_3d - total_2d) / total_2d;
 
         EXPECT_LT(rel_error, 1e-10) << "Iteration " << iteration << ": Grid (" << nx << "," << ny
-                                     << "," << nz << "), Small Emissions, Rel Error: " << rel_error;
+                                    << "," << nz << "), Small Emissions, Rel Error: " << rel_error;
     }
 }
 
@@ -613,7 +612,7 @@ TEST_F(MassConservationPropertyTest, LargeEmissionsMassConservation) {
         double rel_error = std::abs(total_3d - total_2d) / total_2d;
 
         EXPECT_LT(rel_error, 1e-10) << "Iteration " << iteration << ": Grid (" << nx << "," << ny
-                                     << "," << nz << "), Large Emissions, Rel Error: " << rel_error;
+                                    << "," << nz << "), Large Emissions, Rel Error: " << rel_error;
     }
 }
 

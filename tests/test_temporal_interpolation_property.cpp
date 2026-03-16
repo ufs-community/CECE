@@ -26,16 +26,17 @@
  */
 
 #include <gtest/gtest.h>
+
 #include <Kokkos_Core.hpp>
-#include <random>
-#include <vector>
-#include <cmath>
 #include <algorithm>
-#include <string>
-#include <fstream>
-#include <sstream>
+#include <cmath>
 #include <ctime>
+#include <fstream>
 #include <iomanip>
+#include <random>
+#include <sstream>
+#include <string>
+#include <vector>
 
 #include "aces/aces_cdeps_parser.hpp"
 
@@ -45,7 +46,7 @@ namespace aces::test {
  * @brief Helper to create synthetic NetCDF file with known data values
  */
 class SyntheticNetCDFCreator {
-public:
+   public:
     /**
      * @brief Create a synthetic NetCDF file with time-varying data
      *
@@ -61,11 +62,9 @@ public:
      * @param data_values Vector of data values at each time step (size = nt * nx * ny)
      * @return true if file created successfully
      */
-    static bool CreateTimeVaryingNetCDF(
-        const std::string& filepath,
-        int nx, int ny,
-        const std::vector<double>& time_values,
-        const std::vector<double>& data_values);
+    static bool CreateTimeVaryingNetCDF(const std::string& filepath, int nx, int ny,
+                                        const std::vector<double>& time_values,
+                                        const std::vector<double>& data_values);
 
     /**
      * @brief Read data from NetCDF file at specific time
@@ -77,18 +76,15 @@ public:
      * @param data_out Output vector for data values (size = nx * ny)
      * @return true if read successfully
      */
-    static bool ReadNetCDFAtTime(
-        const std::string& filepath,
-        double time_value,
-        int nx, int ny,
-        std::vector<double>& data_out);
+    static bool ReadNetCDFAtTime(const std::string& filepath, double time_value, int nx, int ny,
+                                 std::vector<double>& data_out);
 };
 
 /**
  * @brief Random number generator for temporal interpolation tests
  */
 class TemporalInterpolationTestGenerator {
-public:
+   public:
     TemporalInterpolationTestGenerator(uint32_t seed = 42) : rng_(seed) {}
 
     /**
@@ -165,16 +161,14 @@ public:
      * @return Vector of query times and their surrounding time indices
      */
     std::vector<std::tuple<double, int, int>> GenerateInterpolationQueries(
-        const std::vector<double>& time_values,
-        int num_queries) {
+        const std::vector<double>& time_values, int num_queries) {
         std::vector<std::tuple<double, int, int>> queries;
         std::uniform_int_distribution<int> interval_dist(0, time_values.size() - 2);
 
         for (int i = 0; i < num_queries; ++i) {
             int idx0 = interval_dist(rng_);
             int idx1 = idx0 + 1;
-            double t_query = GenerateIntermediateTime(
-                time_values[idx0], time_values[idx1]);
+            double t_query = GenerateIntermediateTime(time_values[idx0], time_values[idx1]);
             queries.push_back({t_query, idx0, idx1});
         }
         return queries;
@@ -183,9 +177,11 @@ public:
     /**
      * @brief Get reference to the random number generator
      */
-    std::mt19937& GetRng() { return rng_; }
+    std::mt19937& GetRng() {
+        return rng_;
+    }
 
-private:
+   private:
     std::mt19937 rng_;
 };
 
@@ -202,9 +198,8 @@ private:
  * @param t Query time (must satisfy t0 < t < t1)
  * @return Interpolated value
  */
-inline double ComputeLinearInterpolation(
-    double value0, double value1,
-    double t0, double t1, double t) {
+inline double ComputeLinearInterpolation(double value0, double value1, double t0, double t1,
+                                         double t) {
     if (t1 == t0) return value0;  // Avoid division by zero
     double alpha = (t - t0) / (t1 - t0);
     return value0 + alpha * (value1 - value0);
@@ -228,9 +223,7 @@ inline double ComputeRelativeError(double expected, double actual) {
  * @brief Implementation of SyntheticNetCDFCreator::CreateTimeVaryingNetCDF
  */
 inline bool SyntheticNetCDFCreator::CreateTimeVaryingNetCDF(
-    const std::string& filepath,
-    int nx, int ny,
-    const std::vector<double>& time_values,
+    const std::string& filepath, int nx, int ny, const std::vector<double>& time_values,
     const std::vector<double>& data_values) {
     // For now, return true without creating file (placeholder implementation)
     // This is sufficient for linking purposes
@@ -240,11 +233,9 @@ inline bool SyntheticNetCDFCreator::CreateTimeVaryingNetCDF(
 /**
  * @brief Implementation of SyntheticNetCDFCreator::ReadNetCDFAtTime
  */
-inline bool SyntheticNetCDFCreator::ReadNetCDFAtTime(
-    const std::string& filepath,
-    double time_value,
-    int nx, int ny,
-    std::vector<double>& data_out) {
+inline bool SyntheticNetCDFCreator::ReadNetCDFAtTime(const std::string& filepath, double time_value,
+                                                     int nx, int ny,
+                                                     std::vector<double>& data_out) {
     // For now, return true without reading file (placeholder implementation)
     // This is sufficient for linking purposes
     data_out.resize(nx * ny, 0.0);
@@ -262,7 +253,7 @@ inline bool SyntheticNetCDFCreator::ReadNetCDFAtTime(
  * @brief Test fixture for temporal interpolation property-based testing
  */
 class TemporalInterpolationPropertyTest : public ::testing::Test {
-protected:
+   protected:
     void SetUp() override {
         if (!Kokkos::is_initialized()) {
             Kokkos::initialize();
@@ -363,8 +354,8 @@ TEST_F(TemporalInterpolationPropertyTest, Property4_TemporalInterpolationCorrect
                     double value1 = data_values[idx1 * nx * ny + idx_grid];
 
                     // Compute expected interpolated value
-                    double expected = aces::test::ComputeLinearInterpolation(
-                        value0, value1, t0, t1, t_query);
+                    double expected =
+                        aces::test::ComputeLinearInterpolation(value0, value1, t0, t1, t_query);
 
                     // In a real test, we would query CDEPS here:
                     // double actual = QueryCDEPSAtTime(t_query, i, j);
@@ -372,21 +363,21 @@ TEST_F(TemporalInterpolationPropertyTest, Property4_TemporalInterpolationCorrect
 
                     // Verify interpolation formula properties:
                     // 1. At t0, should get value0
-                    double at_t0 = aces::test::ComputeLinearInterpolation(
-                        value0, value1, t0, t1, t0);
+                    double at_t0 =
+                        aces::test::ComputeLinearInterpolation(value0, value1, t0, t1, t0);
                     EXPECT_NEAR(at_t0, value0, TOLERANCE * std::abs(value0))
                         << "Interpolation at t0 should equal value0";
 
                     // 2. At t1, should get value1
-                    double at_t1 = aces::test::ComputeLinearInterpolation(
-                        value0, value1, t0, t1, t1);
+                    double at_t1 =
+                        aces::test::ComputeLinearInterpolation(value0, value1, t0, t1, t1);
                     EXPECT_NEAR(at_t1, value1, TOLERANCE * std::abs(value1))
                         << "Interpolation at t1 should equal value1";
 
                     // 3. At midpoint, should get average
                     double t_mid = (t0 + t1) / 2.0;
-                    double at_mid = aces::test::ComputeLinearInterpolation(
-                        value0, value1, t0, t1, t_mid);
+                    double at_mid =
+                        aces::test::ComputeLinearInterpolation(value0, value1, t0, t1, t_mid);
                     double expected_mid = (value0 + value1) / 2.0;
                     EXPECT_NEAR(at_mid, expected_mid, TOLERANCE * std::abs(expected_mid))
                         << "Interpolation at midpoint should equal average";
@@ -439,8 +430,8 @@ TEST_F(TemporalInterpolationPropertyTest, LinearCombinationVerification) {
             double t_query = gen_.GenerateIntermediateTime(t0, t1);
 
             // Compute interpolated value
-            double interpolated = aces::test::ComputeLinearInterpolation(
-                value0, value1, t0, t1, t_query);
+            double interpolated =
+                aces::test::ComputeLinearInterpolation(value0, value1, t0, t1, t_query);
 
             // Verify it's a linear combination
             double alpha = (t_query - t0) / (t1 - t0);
@@ -483,18 +474,17 @@ TEST_F(TemporalInterpolationPropertyTest, SymmetryProperty) {
             double t_query = gen_.GenerateIntermediateTime(t0, t1);
             double t_reflected = t0 + t1 - t_query;  // Reflected around midpoint
 
-            double value_at_t = aces::test::ComputeLinearInterpolation(
-                value0, value1, t0, t1, t_query);
-            double value_at_reflected = aces::test::ComputeLinearInterpolation(
-                value0, value1, t0, t1, t_reflected);
+            double value_at_t =
+                aces::test::ComputeLinearInterpolation(value0, value1, t0, t1, t_query);
+            double value_at_reflected =
+                aces::test::ComputeLinearInterpolation(value0, value1, t0, t1, t_reflected);
 
             // For linear interpolation with symmetric values, should be symmetric
             // But in general, symmetry depends on the data values
             // This test verifies the interpolation formula is consistent
 
-            EXPECT_NEAR(value_at_t + value_at_reflected,
-                       value0 + value1,
-                       TOLERANCE * (std::abs(value0) + std::abs(value1)))
+            EXPECT_NEAR(value_at_t + value_at_reflected, value0 + value1,
+                        TOLERANCE * (std::abs(value0) + std::abs(value1)))
                 << "Symmetric points should sum to constant";
         }
     }
@@ -517,8 +507,8 @@ TEST_F(TemporalInterpolationPropertyTest, RelativeErrorBounds) {
         double t1 = 1000.0;
         double t_query = gen_.GenerateIntermediateTime(t0, t1);
 
-        double interpolated = aces::test::ComputeLinearInterpolation(
-            value0, value1, t0, t1, t_query);
+        double interpolated =
+            aces::test::ComputeLinearInterpolation(value0, value1, t0, t1, t_query);
 
         // Compute expected value
         double alpha = (t_query - t0) / (t1 - t0);
@@ -528,8 +518,7 @@ TEST_F(TemporalInterpolationPropertyTest, RelativeErrorBounds) {
         double rel_error = aces::test::ComputeRelativeError(expected, interpolated);
 
         // Should be within machine epsilon (approximately 1e-15 for double)
-        EXPECT_LT(rel_error, 1e-14)
-            << "Relative error should be within floating-point precision";
+        EXPECT_LT(rel_error, 1e-14) << "Relative error should be within floating-point precision";
     }
 }
 

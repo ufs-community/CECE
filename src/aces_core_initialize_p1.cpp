@@ -23,8 +23,8 @@
  */
 
 #include <ESMC.h>
-#include <Kokkos_Core.hpp>
 
+#include <Kokkos_Core.hpp>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -106,7 +106,8 @@ void aces_core_initialize_p1(void** data_ptr_ptr, int* rc) {
                 std::cout << "INFO: Setting CUDA device ID to " << dev_id << std::endl;
             }
         } else {
-            std::cout << "INFO: ACES_DEVICE_ID not set - using default CUDA device (0)" << std::endl;
+            std::cout << "INFO: ACES_DEVICE_ID not set - using default CUDA device (0)"
+                      << std::endl;
         }
 #endif
 
@@ -141,10 +142,12 @@ void aces_core_initialize_p1(void** data_ptr_ptr, int* rc) {
         Kokkos::initialize(args);
         kokkos_initialized_here = true;
         std::cout << "INFO: Kokkos initialized successfully" << std::endl;
-        std::cout << "INFO: Default execution space: " << Kokkos::DefaultExecutionSpace::name() << std::endl;
+        std::cout << "INFO: Default execution space: " << Kokkos::DefaultExecutionSpace::name()
+                  << std::endl;
     } else {
         std::cout << "INFO: Kokkos already initialized - using existing instance" << std::endl;
-        std::cout << "INFO: Default execution space: " << Kokkos::DefaultExecutionSpace::name() << std::endl;
+        std::cout << "INFO: Default execution space: " << Kokkos::DefaultExecutionSpace::name()
+                  << std::endl;
     }
 
     // 2. Parse YAML configuration
@@ -153,8 +156,10 @@ void aces_core_initialize_p1(void** data_ptr_ptr, int* rc) {
     try {
         config = aces::ParseConfig("aces_config.yaml");
         std::cout << "INFO: Configuration parsed successfully" << std::endl;
-        std::cout << "INFO: Found " << config.species_layers.size() << " emission species" << std::endl;
-        std::cout << "INFO: Found " << config.physics_schemes.size() << " physics schemes" << std::endl;
+        std::cout << "INFO: Found " << config.species_layers.size() << " emission species"
+                  << std::endl;
+        std::cout << "INFO: Found " << config.physics_schemes.size() << " physics schemes"
+                  << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "ERROR in aces_core_initialize_p1: Failed to parse aces_config.yaml: "
                   << e.what() << std::endl;
@@ -277,7 +282,8 @@ void aces_core_initialize_p1(void** data_ptr_ptr, int* rc) {
             std::cout << "INFO: Output frequency: every " << config.output_config.frequency_steps
                       << " time steps" << std::endl;
         } catch (const std::exception& e) {
-            std::cerr << "ERROR: Failed to initialize AcesStandaloneWriter: " << e.what() << std::endl;
+            std::cerr << "ERROR: Failed to initialize AcesStandaloneWriter: " << e.what()
+                      << std::endl;
             if (rc != nullptr) {
                 *rc = -1;
             }
@@ -288,7 +294,8 @@ void aces_core_initialize_p1(void** data_ptr_ptr, int* rc) {
             return;
         }
     } else {
-        std::cout << "INFO: No output configuration found - standalone writer disabled" << std::endl;
+        std::cout << "INFO: No output configuration found - standalone writer disabled"
+                  << std::endl;
         internal_data->standalone_mode = false;
     }
 

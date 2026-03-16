@@ -17,17 +17,16 @@ namespace aces {
 
 // Helper function to trim whitespace
 std::string CdepsStreamsParser::Trim(const std::string& str) {
-    auto start = std::find_if_not(str.begin(), str.end(),
-                                  [](unsigned char ch) { return std::isspace(ch); });
-    auto end = std::find_if_not(str.rbegin(), str.rend(),
-                                [](unsigned char ch) { return std::isspace(ch); })
-                   .base();
+    auto start =
+        std::find_if_not(str.begin(), str.end(), [](unsigned char ch) { return std::isspace(ch); });
+    auto end = std::find_if_not(str.rbegin(), str.rend(), [](unsigned char ch) {
+                   return std::isspace(ch);
+               }).base();
     return (start < end) ? std::string(start, end) : std::string();
 }
 
 // Parse variable mapping string
-std::vector<CdepsVariableConfig> CdepsStreamsParser::ParseVariables(
-    const std::string& var_string) {
+std::vector<CdepsVariableConfig> CdepsStreamsParser::ParseVariables(const std::string& var_string) {
     std::vector<CdepsVariableConfig> variables;
 
     // Split by comma
@@ -59,10 +58,8 @@ std::vector<CdepsVariableConfig> CdepsStreamsParser::ParseVariables(
 }
 
 // Parse a single stream block
-CdepsStreamConfig CdepsStreamsParser::ParseStreamBlock(
-    const std::vector<std::string>& lines,
-    size_t start_idx,
-    size_t& end_idx) {
+CdepsStreamConfig CdepsStreamsParser::ParseStreamBlock(const std::vector<std::string>& lines,
+                                                       size_t start_idx, size_t& end_idx) {
     CdepsStreamConfig stream;
 
     // Extract stream name from "stream::name" line
@@ -179,7 +176,7 @@ bool CdepsStreamsParser::IsNetCDFFile(const std::string& filepath) {
 
 // Check if variable exists in NetCDF file
 bool CdepsStreamsParser::NetCDFHasVariable(const std::string& filepath,
-                                          const std::string& varname) {
+                                           const std::string& varname) {
     int ncid, varid;
     int status = nc_open(filepath.c_str(), NC_NOWRITE, &ncid);
     if (status != NC_NOERR) {
@@ -194,7 +191,7 @@ bool CdepsStreamsParser::NetCDFHasVariable(const std::string& filepath,
 
 // Validate file paths
 void CdepsStreamsParser::ValidateFilePaths(const CdepsStreamConfig& stream,
-                                          std::vector<std::string>& errors) {
+                                           std::vector<std::string>& errors) {
     if (stream.file_paths.empty()) {
         errors.push_back("Stream '" + stream.name + "': No file paths specified");
         return;
@@ -212,14 +209,14 @@ void CdepsStreamsParser::ValidateFilePaths(const CdepsStreamConfig& stream,
         // Check if it's a valid NetCDF file
         if (!IsNetCDFFile(filepath)) {
             errors.push_back("Stream '" + stream.name +
-                           "': File is not a valid NetCDF file: " + filepath);
+                             "': File is not a valid NetCDF file: " + filepath);
         }
     }
 }
 
 // Validate variables
 void CdepsStreamsParser::ValidateVariables(const CdepsStreamConfig& stream,
-                                          std::vector<std::string>& errors) {
+                                           std::vector<std::string>& errors) {
     if (stream.variables.empty()) {
         errors.push_back("Stream '" + stream.name + "': No variables specified");
         return;
@@ -234,8 +231,8 @@ void CdepsStreamsParser::ValidateVariables(const CdepsStreamConfig& stream,
 
         for (const auto& var : stream.variables) {
             if (!NetCDFHasVariable(filepath, var.name_in_file)) {
-                errors.push_back("Stream '" + stream.name + "': Variable '" +
-                               var.name_in_file + "' not found in file: " + filepath);
+                errors.push_back("Stream '" + stream.name + "': Variable '" + var.name_in_file +
+                                 "' not found in file: " + filepath);
             }
         }
     }
@@ -243,28 +240,27 @@ void CdepsStreamsParser::ValidateVariables(const CdepsStreamConfig& stream,
 
 // Validate interpolation mode
 void CdepsStreamsParser::ValidateInterpolationMode(const CdepsStreamConfig& stream,
-                                                  std::vector<std::string>& errors) {
+                                                   std::vector<std::string>& errors) {
     // Valid temporal interpolation algorithms
     const std::vector<std::string> valid_tintalgo = {"none", "linear", "nearest", "lower", "upper"};
     if (std::find(valid_tintalgo.begin(), valid_tintalgo.end(), stream.tintalgo) ==
         valid_tintalgo.end()) {
-        errors.push_back("Stream '" + stream.name +
-                       "': Invalid temporal interpolation mode '" + stream.tintalgo +
-                       "'. Valid options: none, linear, nearest, lower, upper");
+        errors.push_back("Stream '" + stream.name + "': Invalid temporal interpolation mode '" +
+                         stream.tintalgo + "'. Valid options: none, linear, nearest, lower, upper");
     }
 
     // Valid time axis modes
     const std::vector<std::string> valid_taxmode = {"cycle", "extend", "limit"};
     if (std::find(valid_taxmode.begin(), valid_taxmode.end(), stream.taxmode) ==
         valid_taxmode.end()) {
-        errors.push_back("Stream '" + stream.name + "': Invalid time axis mode '" +
-                       stream.taxmode + "'. Valid options: cycle, extend, limit");
+        errors.push_back("Stream '" + stream.name + "': Invalid time axis mode '" + stream.taxmode +
+                         "'. Valid options: cycle, extend, limit");
     }
 }
 
 // Validate streams configuration
 bool CdepsStreamsParser::ValidateStreamsConfig(const AcesCdepsConfig& config,
-                                              std::vector<std::string>& errors) {
+                                               std::vector<std::string>& errors) {
     if (config.streams.empty()) {
         errors.push_back("No streams defined in configuration");
         return false;
@@ -291,7 +287,7 @@ bool CdepsStreamsParser::ValidateStreamsConfig(const AcesCdepsConfig& config,
 
 // Write streams file
 void CdepsStreamsParser::WriteStreamsFile(const std::string& filepath,
-                                         const AcesCdepsConfig& config) {
+                                          const AcesCdepsConfig& config) {
     std::ofstream file(filepath);
     if (!file.is_open()) {
         throw std::runtime_error("Failed to open file for writing: " + filepath);

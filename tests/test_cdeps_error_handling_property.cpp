@@ -63,7 +63,7 @@ namespace test {
  * Generates various error conditions and verifies ACES handles them gracefully.
  */
 class CDEPSErrorHandlingPropertyTest : public ::testing::Test {
-protected:
+   protected:
     std::mt19937 rng_{42};  // Random number generator with fixed seed
     ESMC_GridComp gcomp_;
     ESMC_Clock clock_;
@@ -343,8 +343,8 @@ TEST_F(CDEPSErrorHandlingPropertyTest, Property22_MissingFileError) {
         aces_cdeps_init(gcomp_.ptr, clock_.ptr, mesh_.ptr, streams_file.c_str(), &rc);
 
         // Verify non-zero return code
-        EXPECT_NE(rc, 0) << "Expected non-zero error code for missing file (iteration "
-                         << iteration << ")";
+        EXPECT_NE(rc, 0) << "Expected non-zero error code for missing file (iteration " << iteration
+                         << ")";
 
         // Clean up
         std::remove(streams_file.c_str());
@@ -427,8 +427,8 @@ TEST_F(CDEPSErrorHandlingPropertyTest, Property22_InvalidModeError) {
         aces_cdeps_init(gcomp_.ptr, clock_.ptr, mesh_.ptr, streams_file.c_str(), &rc);
 
         // Verify non-zero return code
-        EXPECT_NE(rc, 0) << "Expected non-zero error code for invalid mode (iteration "
-                         << iteration << ")";
+        EXPECT_NE(rc, 0) << "Expected non-zero error code for invalid mode (iteration " << iteration
+                         << ")";
 
         // Clean up
         std::remove(streams_file.c_str());
@@ -511,8 +511,8 @@ TEST_F(CDEPSErrorHandlingPropertyTest, Property22_EmptyStreamsError) {
         aces_cdeps_init(gcomp_.ptr, clock_.ptr, mesh_.ptr, streams_file.c_str(), &rc);
 
         // Verify non-zero return code
-        EXPECT_NE(rc, 0) << "Expected non-zero error code for empty file (iteration "
-                         << iteration << ")";
+        EXPECT_NE(rc, 0) << "Expected non-zero error code for empty file (iteration " << iteration
+                         << ")";
 
         // Clean up
         std::remove(streams_file.c_str());

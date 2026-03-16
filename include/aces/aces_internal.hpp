@@ -35,15 +35,17 @@ struct AcesInternalData {
     bool kokkos_initialized_here = false;  ///< Flag to track if this component initialized Kokkos.
     bool advertised = false;               ///< Flag to track if the Advertise phase has run.
     bool standalone_mode = false;          ///< True when running via the single-model driver.
-    std::unique_ptr<AcesStandaloneWriter> standalone_writer;  ///< Output writer for standalone mode.
-    int step_count = 0;                    ///< Current time step counter for output frequency gating.
-    std::string start_time_iso8601;        ///< Start time in ISO 8601 format for output.
+    std::unique_ptr<AcesStandaloneWriter>
+        standalone_writer;           ///< Output writer for standalone mode.
+    int step_count = 0;              ///< Current time step counter for output frequency gating.
+    std::string start_time_iso8601;  ///< Start time in ISO 8601 format for output.
 
     // Cached metadata
     int nx = 0, ny = 0, nz = 0;            ///< Cached grid dimensions.
     std::vector<std::string> esmf_fields;  ///< Internal names of fields to ingest from ESMF.
     std::vector<std::string> external_esmf_fields;  ///< External names of fields to ingest.
-    std::vector<std::string> realized_fields;  ///< Fields already added to export state (for multi-cycle support).
+    std::vector<std::string>
+        realized_fields;  ///< Fields already added to export state (for multi-cycle support).
 };
 
 }  // namespace aces

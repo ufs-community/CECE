@@ -28,8 +28,7 @@ void ProvenanceTracker::UpdateTemporalScales(const std::string& species_name, in
     }
 }
 
-const SpeciesProvenance* ProvenanceTracker::GetProvenance(
-    const std::string& species_name) const {
+const SpeciesProvenance* ProvenanceTracker::GetProvenance(const std::string& species_name) const {
     auto it = records_.find(species_name);
     return (it != records_.end()) ? &it->second : nullptr;
 }
@@ -39,18 +38,14 @@ std::string ProvenanceTracker::FormatReport() const {
     oss << "=== ACES Emission Provenance Report ===\n";
     for (const auto& [name, prov] : records_) {
         oss << "\nSpecies: " << name << "\n";
-        oss << "  Time context: hour=" << prov.last_hour
-            << " dow=" << prov.last_day_of_week
+        oss << "  Time context: hour=" << prov.last_hour << " dow=" << prov.last_day_of_week
             << " month=" << prov.last_month << "\n";
         oss << "  Contributing layers (" << prov.contributions.size() << "):\n";
         for (size_t i = 0; i < prov.contributions.size(); ++i) {
             const auto& c = prov.contributions[i];
-            oss << "    [" << i << "] field=" << c.field_name
-                << " op=" << c.operation
-                << " hier=" << c.hierarchy
-                << " cat=" << c.category
-                << " base_scale=" << c.base_scale
-                << " eff_scale=" << c.effective_scale;
+            oss << "    [" << i << "] field=" << c.field_name << " op=" << c.operation
+                << " hier=" << c.hierarchy << " cat=" << c.category
+                << " base_scale=" << c.base_scale << " eff_scale=" << c.effective_scale;
             if (!c.masks.empty()) {
                 oss << " masks=[";
                 for (size_t m = 0; m < c.masks.size(); ++m) {
@@ -68,7 +63,7 @@ std::string ProvenanceTracker::FormatReport() const {
                 oss << "]";
             }
             if (!c.diurnal_cycle.empty()) oss << " diurnal=" << c.diurnal_cycle;
-            if (!c.weekly_cycle.empty())  oss << " weekly=" << c.weekly_cycle;
+            if (!c.weekly_cycle.empty()) oss << " weekly=" << c.weekly_cycle;
             if (!c.seasonal_cycle.empty()) oss << " seasonal=" << c.seasonal_cycle;
             oss << "\n";
         }

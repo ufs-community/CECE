@@ -62,8 +62,8 @@ class DynamicSpeciesFieldResolver : public FieldResolver {
     ResolveImportDevice(const std::string& name, int, int, int) override {
         return fields_.at(name).view_device();
     }
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
-    ResolveExportDevice(const std::string& name, int, int, int) override {
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveExportDevice(
+        const std::string& name, int, int, int) override {
         return fields_.at(name).view_device();
     }
 };
@@ -84,10 +84,10 @@ class DynamicSpeciesRegistrationPropertyTest : public ::testing::Test {
 
     /** Generate a random valid species name. */
     std::string GenerateSpeciesName(int id) {
-        const std::vector<std::string> prefixes = {"CO", "NOx", "SO2", "NH3", "VOC",
-                                                    "BC", "OC", "PM25", "CH4", "N2O"};
-        const std::vector<std::string> suffixes = {"_anthro", "_biogenic", "_fire",
-                                                    "_natural", "_ship", "_aircraft"};
+        const std::vector<std::string> prefixes = {"CO", "NOx", "SO2",  "NH3", "VOC",
+                                                   "BC", "OC",  "PM25", "CH4", "N2O"};
+        const std::vector<std::string> suffixes = {"_anthro",  "_biogenic", "_fire",
+                                                   "_natural", "_ship",     "_aircraft"};
         std::uniform_int_distribution<int> p(0, prefixes.size() - 1);
         std::uniform_int_distribution<int> s(0, suffixes.size() - 1);
         return prefixes[p(rng_)] + suffixes[s(rng_)] + "_" + std::to_string(id);
@@ -345,11 +345,9 @@ TEST_F(DynamicSpeciesRegistrationPropertyTest, AddingSpeciesDoesNotAffectExistin
         for (int k = 0; k < n_existing; ++k) {
             std::string name = "existing_" + std::to_string(k);
             ASSERT_EQ(config.species_layers.count(name), 1u);
-            EXPECT_EQ(config.species_layers.at(name).size(),
-                      snapshot.at(name).size())
+            EXPECT_EQ(config.species_layers.at(name).size(), snapshot.at(name).size())
                 << "Existing species " << name << " layer count should be unchanged";
-            EXPECT_EQ(config.species_layers.at(name)[0].field_name,
-                      snapshot.at(name)[0].field_name)
+            EXPECT_EQ(config.species_layers.at(name)[0].field_name, snapshot.at(name)[0].field_name)
                 << "Existing species " << name << " field name should be unchanged";
         }
     }

@@ -12,6 +12,7 @@
  */
 
 #include <gtest/gtest.h>
+
 #include <Kokkos_Core.hpp>
 #include <cstdlib>
 #include <iostream>
@@ -20,7 +21,7 @@
 #include "aces/aces_kokkos_config.hpp"
 
 class KokkosConfigurationTest : public ::testing::Test {
-protected:
+   protected:
     void SetUp() override {
         // Kokkos should already be initialized by the test framework
         ASSERT_TRUE(Kokkos::is_initialized());
@@ -44,8 +45,8 @@ TEST_F(KokkosConfigurationTest, GetDefaultExecutionSpaceName) {
     EXPECT_FALSE(space_name.empty());
 
     // Should be one of the enabled execution spaces
-    bool valid_space = (space_name == "Serial" || space_name == "OpenMP" ||
-                        space_name == "CUDA" || space_name == "HIP");
+    bool valid_space = (space_name == "Serial" || space_name == "OpenMP" || space_name == "CUDA" ||
+                        space_name == "HIP");
     EXPECT_TRUE(valid_space) << "Unexpected execution space: " << space_name;
 }
 

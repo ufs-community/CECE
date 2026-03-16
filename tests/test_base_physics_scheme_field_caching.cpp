@@ -29,6 +29,7 @@
  */
 
 #include <gtest/gtest.h>
+
 #include <memory>
 #include <unordered_map>
 
@@ -47,20 +48,26 @@ namespace aces::test {
  * allowing us to verify that caching prevents redundant lookups.
  */
 class MockCountingImportState : public AcesImportState {
- public:
-  MockCountingImportState() = default;
+   public:
+    MockCountingImportState() = default;
 
-  // Override the fields map access to count lookups
-  // We'll track this via a custom find method
-  int GetLookupCount(const std::string& name) const { return lookup_counts_[name]; }
+    // Override the fields map access to count lookups
+    // We'll track this via a custom find method
+    int GetLookupCount(const std::string& name) const {
+        return lookup_counts_[name];
+    }
 
-  void ResetLookupCounts() { lookup_counts_.clear(); }
+    void ResetLookupCounts() {
+        lookup_counts_.clear();
+    }
 
-  // Helper to simulate a field lookup and increment counter
-  void IncrementLookupCount(const std::string& name) { lookup_counts_[name]++; }
+    // Helper to simulate a field lookup and increment counter
+    void IncrementLookupCount(const std::string& name) {
+        lookup_counts_[name]++;
+    }
 
- private:
-  mutable std::unordered_map<std::string, int> lookup_counts_;
+   private:
+    mutable std::unordered_map<std::string, int> lookup_counts_;
 };
 
 /**
@@ -68,17 +75,23 @@ class MockCountingImportState : public AcesImportState {
  * @brief Mock AcesExportState that counts field lookups
  */
 class MockCountingExportState : public AcesExportState {
- public:
-  MockCountingExportState() = default;
+   public:
+    MockCountingExportState() = default;
 
-  int GetLookupCount(const std::string& name) const { return lookup_counts_[name]; }
+    int GetLookupCount(const std::string& name) const {
+        return lookup_counts_[name];
+    }
 
-  void ResetLookupCounts() { lookup_counts_.clear(); }
+    void ResetLookupCounts() {
+        lookup_counts_.clear();
+    }
 
-  void IncrementLookupCount(const std::string& name) { lookup_counts_[name]++; }
+    void IncrementLookupCount(const std::string& name) {
+        lookup_counts_[name]++;
+    }
 
- private:
-  mutable std::unordered_map<std::string, int> lookup_counts_;
+   private:
+    mutable std::unordered_map<std::string, int> lookup_counts_;
 };
 
 /**
@@ -89,36 +102,38 @@ class MockCountingExportState : public AcesExportState {
  * for testing purposes.
  */
 class TestPhysicsScheme : public BasePhysicsScheme {
- public:
-  TestPhysicsScheme() = default;
-  ~TestPhysicsScheme() override = default;
+   public:
+    TestPhysicsScheme() = default;
+    ~TestPhysicsScheme() override = default;
 
-  void Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) override {
-    BasePhysicsScheme::Initialize(config, diag_manager);
-  }
+    void Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) override {
+        BasePhysicsScheme::Initialize(config, diag_manager);
+    }
 
-  void Run(AcesImportState& import_state, AcesExportState& export_state) override {
-    // Not used in caching tests
-  }
+    void Run(AcesImportState& import_state, AcesExportState& export_state) override {
+        // Not used in caching tests
+    }
 
-  // Public accessors for testing
-  Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
-  PublicResolveImport(const std::string& name, AcesImportState& state) {
-    return ResolveImport(name, state);
-  }
+    // Public accessors for testing
+    Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
+    PublicResolveImport(const std::string& name, AcesImportState& state) {
+        return ResolveImport(name, state);
+    }
 
-  Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
-  PublicResolveExport(const std::string& name, AcesExportState& state) {
-    return ResolveExport(name, state);
-  }
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> PublicResolveExport(
+        const std::string& name, AcesExportState& state) {
+        return ResolveExport(name, state);
+    }
 
-  Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
-  PublicResolveInput(const std::string& name, AcesImportState& import_state,
-                     AcesExportState& export_state) {
-    return ResolveInput(name, import_state, export_state);
-  }
+    Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
+    PublicResolveInput(const std::string& name, AcesImportState& import_state,
+                       AcesExportState& export_state) {
+        return ResolveInput(name, import_state, export_state);
+    }
 
-  void PublicClearCache() { ClearPhysicsCache(); }
+    void PublicClearCache() {
+        ClearPhysicsCache();
+    }
 };
 
 /**
@@ -126,75 +141,75 @@ class TestPhysicsScheme : public BasePhysicsScheme {
  * @brief Test fixture for field caching tests
  */
 class FieldCachingTest : public ::testing::Test {
- protected:
-  void SetUp() override {
-    // Initialize Kokkos if not already initialized
-    if (!Kokkos::is_initialized()) {
-      Kokkos::initialize();
-    }
-
-    // Create test scheme
-    scheme_ = std::make_unique<TestPhysicsScheme>();
-
-    // Create test fields with dimensions 4x5x6
-    nx_ = 4;
-    ny_ = 5;
-    nz_ = 6;
-
-    // Create import fields
-    import_state_.fields["temperature"] = DualView3D("temperature", nx_, ny_, nz_);
-    import_state_.fields["pressure"] = DualView3D("pressure", nx_, ny_, nz_);
-    import_state_.fields["wind_speed"] = DualView3D("wind_speed", nx_, ny_, nz_);
-
-    // Create export fields
-    export_state_.fields["CO"] = DualView3D("CO", nx_, ny_, nz_);
-    export_state_.fields["NOx"] = DualView3D("NOx", nx_, ny_, nz_);
-    export_state_.fields["ISOP"] = DualView3D("ISOP", nx_, ny_, nz_);
-
-    // Initialize fields with test data
-    InitializeTestFields();
-  }
-
-  void TearDown() override {
-    scheme_.reset();
-    import_state_.fields.clear();
-    export_state_.fields.clear();
-  }
-
-  void InitializeTestFields() {
-    // Fill import fields with test data
-    for (auto& [name, field] : import_state_.fields) {
-      auto host_view = field.view_host();
-      for (int i = 0; i < nx_; ++i) {
-        for (int j = 0; j < ny_; ++j) {
-          for (int k = 0; k < nz_; ++k) {
-            host_view(i, j, k) = static_cast<double>(i + j + k);
-          }
+   protected:
+    void SetUp() override {
+        // Initialize Kokkos if not already initialized
+        if (!Kokkos::is_initialized()) {
+            Kokkos::initialize();
         }
-      }
-      field.modify_host();
-      field.sync_device();
+
+        // Create test scheme
+        scheme_ = std::make_unique<TestPhysicsScheme>();
+
+        // Create test fields with dimensions 4x5x6
+        nx_ = 4;
+        ny_ = 5;
+        nz_ = 6;
+
+        // Create import fields
+        import_state_.fields["temperature"] = DualView3D("temperature", nx_, ny_, nz_);
+        import_state_.fields["pressure"] = DualView3D("pressure", nx_, ny_, nz_);
+        import_state_.fields["wind_speed"] = DualView3D("wind_speed", nx_, ny_, nz_);
+
+        // Create export fields
+        export_state_.fields["CO"] = DualView3D("CO", nx_, ny_, nz_);
+        export_state_.fields["NOx"] = DualView3D("NOx", nx_, ny_, nz_);
+        export_state_.fields["ISOP"] = DualView3D("ISOP", nx_, ny_, nz_);
+
+        // Initialize fields with test data
+        InitializeTestFields();
     }
 
-    // Fill export fields with test data
-    for (auto& [name, field] : export_state_.fields) {
-      auto host_view = field.view_host();
-      for (int i = 0; i < nx_; ++i) {
-        for (int j = 0; j < ny_; ++j) {
-          for (int k = 0; k < nz_; ++k) {
-            host_view(i, j, k) = static_cast<double>(i * j * k);
-          }
+    void TearDown() override {
+        scheme_.reset();
+        import_state_.fields.clear();
+        export_state_.fields.clear();
+    }
+
+    void InitializeTestFields() {
+        // Fill import fields with test data
+        for (auto& [name, field] : import_state_.fields) {
+            auto host_view = field.view_host();
+            for (int i = 0; i < nx_; ++i) {
+                for (int j = 0; j < ny_; ++j) {
+                    for (int k = 0; k < nz_; ++k) {
+                        host_view(i, j, k) = static_cast<double>(i + j + k);
+                    }
+                }
+            }
+            field.modify_host();
+            field.sync_device();
         }
-      }
-      field.modify_host();
-      field.sync_device();
-    }
-  }
 
-  std::unique_ptr<TestPhysicsScheme> scheme_;
-  AcesImportState import_state_;
-  AcesExportState export_state_;
-  int nx_, ny_, nz_;
+        // Fill export fields with test data
+        for (auto& [name, field] : export_state_.fields) {
+            auto host_view = field.view_host();
+            for (int i = 0; i < nx_; ++i) {
+                for (int j = 0; j < ny_; ++j) {
+                    for (int k = 0; k < nz_; ++k) {
+                        host_view(i, j, k) = static_cast<double>(i * j * k);
+                    }
+                }
+            }
+            field.modify_host();
+            field.sync_device();
+        }
+    }
+
+    std::unique_ptr<TestPhysicsScheme> scheme_;
+    AcesImportState import_state_;
+    AcesExportState export_state_;
+    int nx_, ny_, nz_;
 };
 
 /**
@@ -205,23 +220,23 @@ class FieldCachingTest : public ::testing::Test {
  * that the returned Kokkos::View handles are identical (same data pointer).
  */
 TEST_F(FieldCachingTest, ResolveImportCachingBasic) {
-  // First call to ResolveImport
-  auto view1 = scheme_->PublicResolveImport("temperature", import_state_);
+    // First call to ResolveImport
+    auto view1 = scheme_->PublicResolveImport("temperature", import_state_);
 
-  // Second call to ResolveImport with same field name
-  auto view2 = scheme_->PublicResolveImport("temperature", import_state_);
+    // Second call to ResolveImport with same field name
+    auto view2 = scheme_->PublicResolveImport("temperature", import_state_);
 
-  // Verify both views are valid
-  EXPECT_NE(view1.data(), nullptr);
-  EXPECT_NE(view2.data(), nullptr);
+    // Verify both views are valid
+    EXPECT_NE(view1.data(), nullptr);
+    EXPECT_NE(view2.data(), nullptr);
 
-  // Verify they point to the same data
-  EXPECT_EQ(view1.data(), view2.data());
+    // Verify they point to the same data
+    EXPECT_EQ(view1.data(), view2.data());
 
-  // Verify dimensions match
-  EXPECT_EQ(view1.extent(0), view2.extent(0));
-  EXPECT_EQ(view1.extent(1), view2.extent(1));
-  EXPECT_EQ(view1.extent(2), view2.extent(2));
+    // Verify dimensions match
+    EXPECT_EQ(view1.extent(0), view2.extent(0));
+    EXPECT_EQ(view1.extent(1), view2.extent(1));
+    EXPECT_EQ(view1.extent(2), view2.extent(2));
 }
 
 /**
@@ -232,22 +247,22 @@ TEST_F(FieldCachingTest, ResolveImportCachingBasic) {
  * different fields independently.
  */
 TEST_F(FieldCachingTest, ResolveImportMultipleFields) {
-  // Resolve first field twice
-  auto temp1 = scheme_->PublicResolveImport("temperature", import_state_);
-  auto temp2 = scheme_->PublicResolveImport("temperature", import_state_);
+    // Resolve first field twice
+    auto temp1 = scheme_->PublicResolveImport("temperature", import_state_);
+    auto temp2 = scheme_->PublicResolveImport("temperature", import_state_);
 
-  // Resolve second field twice
-  auto press1 = scheme_->PublicResolveImport("pressure", import_state_);
-  auto press2 = scheme_->PublicResolveImport("pressure", import_state_);
+    // Resolve second field twice
+    auto press1 = scheme_->PublicResolveImport("pressure", import_state_);
+    auto press2 = scheme_->PublicResolveImport("pressure", import_state_);
 
-  // Verify caching for first field
-  EXPECT_EQ(temp1.data(), temp2.data());
+    // Verify caching for first field
+    EXPECT_EQ(temp1.data(), temp2.data());
 
-  // Verify caching for second field
-  EXPECT_EQ(press1.data(), press2.data());
+    // Verify caching for second field
+    EXPECT_EQ(press1.data(), press2.data());
 
-  // Verify they are different fields
-  EXPECT_NE(temp1.data(), press1.data());
+    // Verify they are different fields
+    EXPECT_NE(temp1.data(), press1.data());
 }
 
 /**
@@ -255,23 +270,23 @@ TEST_F(FieldCachingTest, ResolveImportMultipleFields) {
  * @brief Verify that ResolveExport returns identical handles on repeated calls
  */
 TEST_F(FieldCachingTest, ResolveExportCachingBasic) {
-  // First call to ResolveExport
-  auto view1 = scheme_->PublicResolveExport("CO", export_state_);
+    // First call to ResolveExport
+    auto view1 = scheme_->PublicResolveExport("CO", export_state_);
 
-  // Second call to ResolveExport with same field name
-  auto view2 = scheme_->PublicResolveExport("CO", export_state_);
+    // Second call to ResolveExport with same field name
+    auto view2 = scheme_->PublicResolveExport("CO", export_state_);
 
-  // Verify both views are valid
-  EXPECT_NE(view1.data(), nullptr);
-  EXPECT_NE(view2.data(), nullptr);
+    // Verify both views are valid
+    EXPECT_NE(view1.data(), nullptr);
+    EXPECT_NE(view2.data(), nullptr);
 
-  // Verify they point to the same data
-  EXPECT_EQ(view1.data(), view2.data());
+    // Verify they point to the same data
+    EXPECT_EQ(view1.data(), view2.data());
 
-  // Verify dimensions match
-  EXPECT_EQ(view1.extent(0), view2.extent(0));
-  EXPECT_EQ(view1.extent(1), view2.extent(1));
-  EXPECT_EQ(view1.extent(2), view2.extent(2));
+    // Verify dimensions match
+    EXPECT_EQ(view1.extent(0), view2.extent(0));
+    EXPECT_EQ(view1.extent(1), view2.extent(1));
+    EXPECT_EQ(view1.extent(2), view2.extent(2));
 }
 
 /**
@@ -279,22 +294,22 @@ TEST_F(FieldCachingTest, ResolveExportCachingBasic) {
  * @brief Verify export caching works correctly with multiple different fields
  */
 TEST_F(FieldCachingTest, ResolveExportMultipleFields) {
-  // Resolve first field twice
-  auto co1 = scheme_->PublicResolveExport("CO", export_state_);
-  auto co2 = scheme_->PublicResolveExport("CO", export_state_);
+    // Resolve first field twice
+    auto co1 = scheme_->PublicResolveExport("CO", export_state_);
+    auto co2 = scheme_->PublicResolveExport("CO", export_state_);
 
-  // Resolve second field twice
-  auto nox1 = scheme_->PublicResolveExport("NOx", export_state_);
-  auto nox2 = scheme_->PublicResolveExport("NOx", export_state_);
+    // Resolve second field twice
+    auto nox1 = scheme_->PublicResolveExport("NOx", export_state_);
+    auto nox2 = scheme_->PublicResolveExport("NOx", export_state_);
 
-  // Verify caching for first field
-  EXPECT_EQ(co1.data(), co2.data());
+    // Verify caching for first field
+    EXPECT_EQ(co1.data(), co2.data());
 
-  // Verify caching for second field
-  EXPECT_EQ(nox1.data(), nox2.data());
+    // Verify caching for second field
+    EXPECT_EQ(nox1.data(), nox2.data());
 
-  // Verify they are different fields
-  EXPECT_NE(co1.data(), nox1.data());
+    // Verify they are different fields
+    EXPECT_NE(co1.data(), nox1.data());
 }
 
 /**
@@ -305,19 +320,19 @@ TEST_F(FieldCachingTest, ResolveExportMultipleFields) {
  * calls to ResolveImport will retrieve fresh handles from the state.
  */
 TEST_F(FieldCachingTest, CacheClearingBehavior) {
-  // First resolution
-  auto view1 = scheme_->PublicResolveImport("temperature", import_state_);
-  EXPECT_NE(view1.data(), nullptr);
+    // First resolution
+    auto view1 = scheme_->PublicResolveImport("temperature", import_state_);
+    EXPECT_NE(view1.data(), nullptr);
 
-  // Clear the cache
-  scheme_->PublicClearCache();
+    // Clear the cache
+    scheme_->PublicClearCache();
 
-  // Second resolution after cache clear
-  auto view2 = scheme_->PublicResolveImport("temperature", import_state_);
-  EXPECT_NE(view2.data(), nullptr);
+    // Second resolution after cache clear
+    auto view2 = scheme_->PublicResolveImport("temperature", import_state_);
+    EXPECT_NE(view2.data(), nullptr);
 
-  // Both should point to the same underlying data (same field)
-  EXPECT_EQ(view1.data(), view2.data());
+    // Both should point to the same underlying data (same field)
+    EXPECT_EQ(view1.data(), view2.data());
 }
 
 /**
@@ -328,18 +343,18 @@ TEST_F(FieldCachingTest, CacheClearingBehavior) {
  * This test verifies caching works for the import state path.
  */
 TEST_F(FieldCachingTest, ResolveInputCachingImportState) {
-  // First call to ResolveInput (should find in import state)
-  auto view1 = scheme_->PublicResolveInput("temperature", import_state_, export_state_);
+    // First call to ResolveInput (should find in import state)
+    auto view1 = scheme_->PublicResolveInput("temperature", import_state_, export_state_);
 
-  // Second call to ResolveInput with same field name
-  auto view2 = scheme_->PublicResolveInput("temperature", import_state_, export_state_);
+    // Second call to ResolveInput with same field name
+    auto view2 = scheme_->PublicResolveInput("temperature", import_state_, export_state_);
 
-  // Verify both views are valid
-  EXPECT_NE(view1.data(), nullptr);
-  EXPECT_NE(view2.data(), nullptr);
+    // Verify both views are valid
+    EXPECT_NE(view1.data(), nullptr);
+    EXPECT_NE(view2.data(), nullptr);
 
-  // Verify they point to the same data
-  EXPECT_EQ(view1.data(), view2.data());
+    // Verify they point to the same data
+    EXPECT_EQ(view1.data(), view2.data());
 }
 
 /**
@@ -350,21 +365,21 @@ TEST_F(FieldCachingTest, ResolveInputCachingImportState) {
  * This test verifies caching works for the export state path.
  */
 TEST_F(FieldCachingTest, ResolveInputCachingExportState) {
-  // Add a field only to export state (not in import state)
-  export_state_.fields["custom_field"] = DualView3D("custom_field", nx_, ny_, nz_);
+    // Add a field only to export state (not in import state)
+    export_state_.fields["custom_field"] = DualView3D("custom_field", nx_, ny_, nz_);
 
-  // First call to ResolveInput (should find in export state)
-  auto view1 = scheme_->PublicResolveInput("custom_field", import_state_, export_state_);
+    // First call to ResolveInput (should find in export state)
+    auto view1 = scheme_->PublicResolveInput("custom_field", import_state_, export_state_);
 
-  // Second call to ResolveInput with same field name
-  auto view2 = scheme_->PublicResolveInput("custom_field", import_state_, export_state_);
+    // Second call to ResolveInput with same field name
+    auto view2 = scheme_->PublicResolveInput("custom_field", import_state_, export_state_);
 
-  // Verify both views are valid
-  EXPECT_NE(view1.data(), nullptr);
-  EXPECT_NE(view2.data(), nullptr);
+    // Verify both views are valid
+    EXPECT_NE(view1.data(), nullptr);
+    EXPECT_NE(view2.data(), nullptr);
 
-  // Verify they point to the same data
-  EXPECT_EQ(view1.data(), view2.data());
+    // Verify they point to the same data
+    EXPECT_EQ(view1.data(), view2.data());
 }
 
 /**
@@ -376,32 +391,32 @@ TEST_F(FieldCachingTest, ResolveInputCachingExportState) {
  * field names are mapped.
  */
 TEST_F(FieldCachingTest, FieldNameMappingWithCaching) {
-  // Create a YAML config with input mapping
-  YAML::Node config;
-  config["input_mapping"]["internal_temp"] = "temperature";
-  config["output_mapping"]["internal_co"] = "CO";
+    // Create a YAML config with input mapping
+    YAML::Node config;
+    config["input_mapping"]["internal_temp"] = "temperature";
+    config["output_mapping"]["internal_co"] = "CO";
 
-  // Initialize scheme with mapping
-  scheme_->Initialize(config, nullptr);
+    // Initialize scheme with mapping
+    scheme_->Initialize(config, nullptr);
 
-  // First call with internal name (should map to "temperature")
-  auto view1 = scheme_->PublicResolveImport("internal_temp", import_state_);
+    // First call with internal name (should map to "temperature")
+    auto view1 = scheme_->PublicResolveImport("internal_temp", import_state_);
 
-  // Second call with internal name (should use cache)
-  auto view2 = scheme_->PublicResolveImport("internal_temp", import_state_);
+    // Second call with internal name (should use cache)
+    auto view2 = scheme_->PublicResolveImport("internal_temp", import_state_);
 
-  // Verify both views are valid and identical
-  EXPECT_NE(view1.data(), nullptr);
-  EXPECT_NE(view2.data(), nullptr);
-  EXPECT_EQ(view1.data(), view2.data());
+    // Verify both views are valid and identical
+    EXPECT_NE(view1.data(), nullptr);
+    EXPECT_NE(view2.data(), nullptr);
+    EXPECT_EQ(view1.data(), view2.data());
 
-  // Same test for export
-  auto exp1 = scheme_->PublicResolveExport("internal_co", export_state_);
-  auto exp2 = scheme_->PublicResolveExport("internal_co", export_state_);
+    // Same test for export
+    auto exp1 = scheme_->PublicResolveExport("internal_co", export_state_);
+    auto exp2 = scheme_->PublicResolveExport("internal_co", export_state_);
 
-  EXPECT_NE(exp1.data(), nullptr);
-  EXPECT_NE(exp2.data(), nullptr);
-  EXPECT_EQ(exp1.data(), exp2.data());
+    EXPECT_NE(exp1.data(), nullptr);
+    EXPECT_NE(exp2.data(), nullptr);
+    EXPECT_EQ(exp1.data(), exp2.data());
 }
 
 /**
@@ -412,24 +427,24 @@ TEST_F(FieldCachingTest, FieldNameMappingWithCaching) {
  * This test verifies that they don't interfere with each other.
  */
 TEST_F(FieldCachingTest, CacheIndependenceImportExport) {
-  // Resolve an import field
-  auto import_view = scheme_->PublicResolveImport("temperature", import_state_);
+    // Resolve an import field
+    auto import_view = scheme_->PublicResolveImport("temperature", import_state_);
 
-  // Resolve an export field
-  auto export_view = scheme_->PublicResolveExport("CO", export_state_);
+    // Resolve an export field
+    auto export_view = scheme_->PublicResolveExport("CO", export_state_);
 
-  // Resolve the same import field again (should use cache)
-  auto import_view2 = scheme_->PublicResolveImport("temperature", import_state_);
+    // Resolve the same import field again (should use cache)
+    auto import_view2 = scheme_->PublicResolveImport("temperature", import_state_);
 
-  // Resolve the same export field again (should use cache)
-  auto export_view2 = scheme_->PublicResolveExport("CO", export_state_);
+    // Resolve the same export field again (should use cache)
+    auto export_view2 = scheme_->PublicResolveExport("CO", export_state_);
 
-  // Verify caching worked for both
-  EXPECT_EQ(import_view.data(), import_view2.data());
-  EXPECT_EQ(export_view.data(), export_view2.data());
+    // Verify caching worked for both
+    EXPECT_EQ(import_view.data(), import_view2.data());
+    EXPECT_EQ(export_view.data(), export_view2.data());
 
-  // Verify they are different fields
-  EXPECT_NE(import_view.data(), export_view.data());
+    // Verify they are different fields
+    EXPECT_NE(import_view.data(), export_view.data());
 }
 
 /**
@@ -440,15 +455,15 @@ TEST_F(FieldCachingTest, CacheIndependenceImportExport) {
  * should return an empty view (data() == nullptr).
  */
 TEST_F(FieldCachingTest, NonexistentFieldHandling) {
-  // Request a field that doesn't exist
-  auto view = scheme_->PublicResolveImport("nonexistent_field", import_state_);
+    // Request a field that doesn't exist
+    auto view = scheme_->PublicResolveImport("nonexistent_field", import_state_);
 
-  // Should return empty view
-  EXPECT_EQ(view.data(), nullptr);
+    // Should return empty view
+    EXPECT_EQ(view.data(), nullptr);
 
-  // Second call should also return empty view (not cached)
-  auto view2 = scheme_->PublicResolveImport("nonexistent_field", import_state_);
-  EXPECT_EQ(view2.data(), nullptr);
+    // Second call should also return empty view (not cached)
+    auto view2 = scheme_->PublicResolveImport("nonexistent_field", import_state_);
+    EXPECT_EQ(view2.data(), nullptr);
 }
 
 /**
@@ -459,16 +474,16 @@ TEST_F(FieldCachingTest, NonexistentFieldHandling) {
  * remains consistent and doesn't degrade over time.
  */
 TEST_F(FieldCachingTest, CacheConsistencyAcrossMultipleCalls) {
-  // Get the first view
-  auto view_first = scheme_->PublicResolveImport("temperature", import_state_);
-  EXPECT_NE(view_first.data(), nullptr);
+    // Get the first view
+    auto view_first = scheme_->PublicResolveImport("temperature", import_state_);
+    EXPECT_NE(view_first.data(), nullptr);
 
-  // Make 100 repeated calls
-  for (int i = 0; i < 100; ++i) {
-    auto view = scheme_->PublicResolveImport("temperature", import_state_);
-    EXPECT_NE(view.data(), nullptr);
-    EXPECT_EQ(view.data(), view_first.data());
-  }
+    // Make 100 repeated calls
+    for (int i = 0; i < 100; ++i) {
+        auto view = scheme_->PublicResolveImport("temperature", import_state_);
+        EXPECT_NE(view.data(), nullptr);
+        EXPECT_EQ(view.data(), view_first.data());
+    }
 }
 
 /**
@@ -479,26 +494,26 @@ TEST_F(FieldCachingTest, CacheConsistencyAcrossMultipleCalls) {
  * that caching works correctly for each.
  */
 TEST_F(FieldCachingTest, CacheWithDifferentFieldTypes) {
-  // Create a 2D field (nz=1)
-  import_state_.fields["surface_field"] = DualView3D("surface_field", nx_, ny_, 1);
+    // Create a 2D field (nz=1)
+    import_state_.fields["surface_field"] = DualView3D("surface_field", nx_, ny_, 1);
 
-  // Create a 1D field (nx=1, ny=1)
-  import_state_.fields["profile_field"] = DualView3D("profile_field", 1, 1, nz_);
+    // Create a 1D field (nx=1, ny=1)
+    import_state_.fields["profile_field"] = DualView3D("profile_field", 1, 1, nz_);
 
-  // Resolve 2D field twice
-  auto surf1 = scheme_->PublicResolveImport("surface_field", import_state_);
-  auto surf2 = scheme_->PublicResolveImport("surface_field", import_state_);
+    // Resolve 2D field twice
+    auto surf1 = scheme_->PublicResolveImport("surface_field", import_state_);
+    auto surf2 = scheme_->PublicResolveImport("surface_field", import_state_);
 
-  // Resolve 1D field twice
-  auto prof1 = scheme_->PublicResolveImport("profile_field", import_state_);
-  auto prof2 = scheme_->PublicResolveImport("profile_field", import_state_);
+    // Resolve 1D field twice
+    auto prof1 = scheme_->PublicResolveImport("profile_field", import_state_);
+    auto prof2 = scheme_->PublicResolveImport("profile_field", import_state_);
 
-  // Verify caching for both
-  EXPECT_EQ(surf1.data(), surf2.data());
-  EXPECT_EQ(prof1.data(), prof2.data());
+    // Verify caching for both
+    EXPECT_EQ(surf1.data(), surf2.data());
+    EXPECT_EQ(prof1.data(), prof2.data());
 
-  // Verify they are different
-  EXPECT_NE(surf1.data(), prof1.data());
+    // Verify they are different
+    EXPECT_NE(surf1.data(), prof1.data());
 }
 
 }  // namespace aces::test

@@ -58,8 +58,7 @@ void PopulateStates(const aces::AcesConfig& cfg, aces::AcesImportState& imp,
         exp.fields[sp].sync<Kokkos::DefaultExecutionSpace>();
 
         for (const auto& lay : layers) {
-            imp.fields[lay.field_name] =
-                aces::DualView3D("imp_" + lay.field_name, nx, ny, 1);
+            imp.fields[lay.field_name] = aces::DualView3D("imp_" + lay.field_name, nx, ny, 1);
             Kokkos::deep_copy(imp.fields[lay.field_name].view_host(), 1.0e-9);
             imp.fields[lay.field_name].modify<Kokkos::HostSpace>();
             imp.fields[lay.field_name].sync<Kokkos::DefaultExecutionSpace>();
@@ -109,22 +108,32 @@ int main(int argc, char** argv) {
             static int pos = 0;
             int val = std::atoi(arg.c_str());
             switch (pos++) {
-                case 0: nx = val; break;
-                case 1: ny = val; break;
-                case 2: nz = val; break;
-                case 3: nspecies = val; break;
-                case 4: nlayers = val; break;
-                case 5: iters = val; break;
+                case 0:
+                    nx = val;
+                    break;
+                case 1:
+                    ny = val;
+                    break;
+                case 2:
+                    nz = val;
+                    break;
+                case 3:
+                    nspecies = val;
+                    break;
+                case 4:
+                    nlayers = val;
+                    break;
+                case 5:
+                    iters = val;
+                    break;
             }
         }
     }
 
     Kokkos::initialize(argc, argv);
     {
-        std::cout << "[Benchmark] Mode=" << mode
-                  << " Grid=" << nx << "x" << ny << "x" << nz
-                  << " Species=" << nspecies << " Layers=" << nlayers
-                  << " Iters=" << iters << "\n";
+        std::cout << "[Benchmark] Mode=" << mode << " Grid=" << nx << "x" << ny << "x" << nz
+                  << " Species=" << nspecies << " Layers=" << nlayers << " Iters=" << iters << "\n";
 
         double avg_s = RunAcesBenchmark(nx, ny, nz, nspecies, nlayers, iters);
 

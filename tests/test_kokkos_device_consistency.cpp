@@ -72,7 +72,9 @@ class DeviceConsistencyFieldResolver : public FieldResolver {
         return fields[name].view_device();
     }
 
-    DualView3D& GetField(const std::string& name) { return fields[name]; }
+    DualView3D& GetField(const std::string& name) {
+        return fields[name];
+    }
 };
 
 /**
@@ -659,8 +661,8 @@ TEST_F(KokkosDeviceConsistencyTest, ParallelReductionConsistency) {
     auto [nx, ny, nz] = GenerateRandomGridDimensions();
 
     // Create test data
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> data(
-        "test_data", nx, ny, nz);
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> data("test_data", nx,
+                                                                                    ny, nz);
 
     // Fill with random values
     auto host_data = Kokkos::create_mirror_view(data);
@@ -677,10 +679,8 @@ TEST_F(KokkosDeviceConsistencyTest, ParallelReductionConsistency) {
     // Compute sum using parallel_reduce
     double sum = 0.0;
     Kokkos::parallel_reduce(
-        "SumReduction",
-        Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
-        KOKKOS_LAMBDA(int i, int j, int k, double& local_sum) { local_sum += data(i, j, k); },
-        sum);
+        "SumReduction", Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
+        KOKKOS_LAMBDA(int i, int j, int k, double& local_sum) { local_sum += data(i, j, k); }, sum);
 
     // Verify sum is positive
     EXPECT_GT(sum, 0.0) << "Parallel reduction should produce positive sum";
@@ -708,13 +708,13 @@ TEST_F(KokkosDeviceConsistencyTest, AtomicOperationsConsistency) {
     int nz = 8;
 
     // Create accumulation field
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> accum(
-        "accumulation", nx, ny, nz);
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> accum("accumulation",
+                                                                                     nx, ny, nz);
     Kokkos::deep_copy(accum, 0.0);
 
     // Create source data
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> source(
-        "source", nx, ny, nz);
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> source("source", nx,
+                                                                                      ny, nz);
     auto host_source = Kokkos::create_mirror_view(source);
     std::uniform_real_distribution<double> dist(0.1, 10.0);
     for (size_t i = 0; i < host_source.extent(0); ++i) {
@@ -728,8 +728,7 @@ TEST_F(KokkosDeviceConsistencyTest, AtomicOperationsConsistency) {
 
     // Accumulate using atomic operations
     Kokkos::parallel_for(
-        "AtomicAccumulation",
-        Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
+        "AtomicAccumulation", Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
         KOKKOS_LAMBDA(int i, int j, int k) {
             Kokkos::atomic_add(&accum(i, j, k), source(i, j, k));
         });
@@ -744,9 +743,8 @@ TEST_F(KokkosDeviceConsistencyTest, AtomicOperationsConsistency) {
                 double expected = host_source(i, j, k);
                 double actual = host_accum(i, j, k);
                 double rel_error = ComputeRelativeError(expected, actual);
-                EXPECT_LT(rel_error, 1e-12)
-                    << "Atomic operation produced inconsistent result at (" << i << "," << j
-                    << "," << k << ")";
+                EXPECT_LT(rel_error, 1e-12) << "Atomic operation produced inconsistent result at ("
+                                            << i << "," << j << "," << k << ")";
             }
         }
     }
@@ -766,8 +764,7 @@ TEST_F(KokkosDeviceConsistencyTest, MemoryLayoutConsistency) {
 
     // Fill with pattern
     Kokkos::parallel_for(
-        "FillPattern",
-        Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
+        "FillPattern", Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
         KOKKOS_LAMBDA(int i, int j, int k) { data_left(i, j, k) = i + j * 100 + k * 10000; });
 
     // Verify pattern on host
@@ -779,8 +776,8 @@ TEST_F(KokkosDeviceConsistencyTest, MemoryLayoutConsistency) {
             for (int k = 0; k < nz; ++k) {
                 double expected = i + j * 100 + k * 10000;
                 double actual = host_data(i, j, k);
-                EXPECT_EQ(actual, expected) << "Memory layout pattern mismatch at (" << i << ","
-                                            << j << "," << k << ")";
+                EXPECT_EQ(actual, expected)
+                    << "Memory layout pattern mismatch at (" << i << "," << j << "," << k << ")";
             }
         }
     }
@@ -814,8 +811,7 @@ TEST_F(KokkosDeviceConsistencyTest, DualViewSynchronizationConsistency) {
     // Verify on device
     auto device_view = dual_view.view_device();
     Kokkos::parallel_for(
-        "VerifySync",
-        Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
+        "VerifySync", Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
         KOKKOS_LAMBDA(int i, int j, int k) {
             // Just verify we can read the values
             double val = device_view(i, j, k);
@@ -832,8 +828,8 @@ TEST_F(KokkosDeviceConsistencyTest, DualViewSynchronizationConsistency) {
             for (size_t k = 0; k < host_view_verify.extent(2); ++k) {
                 double expected = host_view(i, j, k);
                 double actual = host_view_verify(i, j, k);
-                EXPECT_EQ(actual, expected) << "DualView synchronization mismatch at (" << i
-                                            << "," << j << "," << k << ")";
+                EXPECT_EQ(actual, expected)
+                    << "DualView synchronization mismatch at (" << i << "," << j << "," << k << ")";
             }
         }
     }

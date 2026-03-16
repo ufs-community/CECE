@@ -76,8 +76,8 @@ void ExampleDiagnosticComputation::Run(AcesImportState& import_state,
 
     Kokkos::parallel_for(
         "ExampleDiagnosticComputationKernel",
-        Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<3>>(
-            {0, 0, 0}, {nx, ny, nz}),
+        Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<3>>({0, 0, 0},
+                                                                              {nx, ny, nz}),
         KOKKOS_LAMBDA(int i, int j, int k) {
             // Get input values
             double temp = temperature(i, j, k);

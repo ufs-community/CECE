@@ -58,7 +58,8 @@ extern "C" {
  *
  * Requirements: 4.5, 4.6
  */
-void aces_core_realize(void* data_ptr, void* importState_ptr, void* exportState_ptr, void* grid_ptr, int* rc) {
+void aces_core_realize(void* data_ptr, void* importState_ptr, void* exportState_ptr, void* grid_ptr,
+                       int* rc) {
     // Initialize return code to success
     if (rc != nullptr) {
         *rc = 0;
@@ -117,19 +118,18 @@ void aces_core_realize(void* data_ptr, void* importState_ptr, void* exportState_
     }
 
     // Create export fields for all emission species
-    std::cout << "INFO: Creating export fields for " << config.species_layers.size()
-              << " species" << std::endl;
+    std::cout << "INFO: Creating export fields for " << config.species_layers.size() << " species"
+              << std::endl;
 
     for (const auto& [species, layers] : config.species_layers) {
         // Check if this field has already been realized (for multi-cycle support)
         // Only check if internal_data is available
         if (internal_data != nullptr) {
             auto it = std::find(internal_data->realized_fields.begin(),
-                               internal_data->realized_fields.end(),
-                               species);
+                                internal_data->realized_fields.end(), species);
             if (it != internal_data->realized_fields.end()) {
-                std::cout << "INFO: Field '" << species << "' already realized, skipping re-creation"
-                          << std::endl;
+                std::cout << "INFO: Field '" << species
+                          << "' already realized, skipping re-creation" << std::endl;
                 continue;
             }
         }
@@ -138,15 +138,15 @@ void aces_core_realize(void* data_ptr, void* importState_ptr, void* exportState_
         // Use ESMC_FieldCreateGridTypeKind which creates a field on the grid
         // with the specified data type and stagger location
         // The field will have the same dimensions as the grid
-        ESMC_Field field = ESMC_FieldCreateGridTypeKind(
-            grid,
-            ESMC_TYPEKIND_R8,           // Double precision floating point
-            ESMC_STAGGERLOC_CENTER,     // Cell center stagger location
-            nullptr,                     // No ungriddedLBound
-            nullptr,                     // No ungriddedUBound
-            nullptr,                     // No gridToFieldMap
-            species.c_str(),            // Field name
-            &local_rc);
+        ESMC_Field field =
+            ESMC_FieldCreateGridTypeKind(grid,
+                                         ESMC_TYPEKIND_R8,        // Double precision floating point
+                                         ESMC_STAGGERLOC_CENTER,  // Cell center stagger location
+                                         nullptr,                 // No ungriddedLBound
+                                         nullptr,                 // No ungriddedUBound
+                                         nullptr,                 // No gridToFieldMap
+                                         species.c_str(),         // Field name
+                                         &local_rc);
 
         if (local_rc != ESMF_SUCCESS) {
             std::cerr << "ERROR in aces_core_realize: Failed to create field for species '"
@@ -176,8 +176,8 @@ void aces_core_realize(void* data_ptr, void* importState_ptr, void* exportState_
         std::cout << "INFO: Created and allocated export field: " << species << std::endl;
     }
 
-    std::cout << "INFO: Successfully created " << config.species_layers.size()
-              << " export fields" << std::endl;
+    std::cout << "INFO: Successfully created " << config.species_layers.size() << " export fields"
+              << std::endl;
 
     // Verify required import fields exist
     // In a proper NUOPC coupling, import fields should already be realized by other components
@@ -187,17 +187,21 @@ void aces_core_realize(void* data_ptr, void* importState_ptr, void* exportState_
 
         // Log expected meteorological fields
         if (!config.met_mapping.empty()) {
-            std::cout << "INFO: Meteorological fields (" << config.met_mapping.size() << "):" << std::endl;
+            std::cout << "INFO: Meteorological fields (" << config.met_mapping.size()
+                      << "):" << std::endl;
             for (const auto& [internal_name, external_name] : config.met_mapping) {
-                std::cout << "  - " << external_name << " (internal: " << internal_name << ")" << std::endl;
+                std::cout << "  - " << external_name << " (internal: " << internal_name << ")"
+                          << std::endl;
             }
         }
 
         // Log expected scale factor fields
         if (!config.scale_factor_mapping.empty()) {
-            std::cout << "INFO: Scale factor fields (" << config.scale_factor_mapping.size() << "):" << std::endl;
+            std::cout << "INFO: Scale factor fields (" << config.scale_factor_mapping.size()
+                      << "):" << std::endl;
             for (const auto& [internal_name, external_name] : config.scale_factor_mapping) {
-                std::cout << "  - " << external_name << " (internal: " << internal_name << ")" << std::endl;
+                std::cout << "  - " << external_name << " (internal: " << internal_name << ")"
+                          << std::endl;
             }
         }
 
@@ -205,7 +209,8 @@ void aces_core_realize(void* data_ptr, void* importState_ptr, void* exportState_
         if (!config.mask_mapping.empty()) {
             std::cout << "INFO: Mask fields (" << config.mask_mapping.size() << "):" << std::endl;
             for (const auto& [internal_name, external_name] : config.mask_mapping) {
-                std::cout << "  - " << external_name << " (internal: " << internal_name << ")" << std::endl;
+                std::cout << "  - " << external_name << " (internal: " << internal_name << ")"
+                          << std::endl;
             }
         }
 

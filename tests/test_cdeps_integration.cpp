@@ -52,7 +52,7 @@ namespace test {
  * Uses simplified ESMF API calls compatible with ESMF 8.8.0.
  */
 class CDEPSIntegrationTest : public ::testing::Test {
-protected:
+   protected:
     ESMC_GridComp gcomp_;
     ESMC_Clock clock_;
     ESMC_Mesh mesh_;
@@ -100,7 +100,7 @@ protected:
             // GridComp creation failed - this is expected in some environments
             // Skip all tests that require ESMF objects
             GTEST_SKIP() << "GridComp creation failed (rc=" << rc << ") - skipping CDEPS tests. "
-                        << "This is expected when running outside full ESMF environment.";
+                         << "This is expected when running outside full ESMF environment.";
         }
 
         // Create simple time interval (3600 seconds = 1 hour)
@@ -168,7 +168,7 @@ protected:
                 int n2 = (j + 1) * (nx + 1) + (i + 1);
                 int n3 = (j + 1) * (nx + 1) + i;
 
-                elemConn[4 * elemIdx] = n0 + 1;      // 1-based
+                elemConn[4 * elemIdx] = n0 + 1;  // 1-based
                 elemConn[4 * elemIdx + 1] = n1 + 1;
                 elemConn[4 * elemIdx + 2] = n2 + 1;
                 elemConn[4 * elemIdx + 3] = n3 + 1;

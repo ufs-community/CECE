@@ -6,12 +6,12 @@
 #ifndef ACES_LOGGER_HPP
 #define ACES_LOGGER_HPP
 
-#include <iostream>
-#include <sstream>
-#include <string>
-#include <memory>
 #include <ctime>
 #include <iomanip>
+#include <iostream>
+#include <memory>
+#include <sstream>
+#include <string>
 
 namespace aces {
 
@@ -41,7 +41,7 @@ enum class LogLevel {
  * ```
  */
 class AcesLogger {
- public:
+   public:
     /**
      * @brief Get the singleton logger instance
      * @return Reference to the logger
@@ -115,7 +115,7 @@ class AcesLogger {
         }
     }
 
- private:
+   private:
     LogLevel log_level_ = LogLevel::INFO;
 
     AcesLogger() = default;
@@ -130,15 +130,14 @@ class AcesLogger {
     /**
      * @brief Internal method to log a message with formatting
      */
-    void LogMessage(const std::string& level, const std::string& message,
-                   const std::string& file, int line, std::ostream& stream) {
+    void LogMessage(const std::string& level, const std::string& message, const std::string& file,
+                    int line, std::ostream& stream) {
         // Get current time
         auto now = std::time(nullptr);
         auto tm = *std::localtime(&now);
 
         // Format: [TIMESTAMP] [LEVEL] [FILE:LINE] MESSAGE
-        stream << "[" << std::put_time(&tm, "%Y-%m-%d %H:%M:%S") << "] "
-               << "[" << level << "] ";
+        stream << "[" << std::put_time(&tm, "%Y-%m-%d %H:%M:%S") << "] " << "[" << level << "] ";
 
         if (!file.empty() && line > 0) {
             stream << "[" << file << ":" << line << "] ";
@@ -151,16 +150,12 @@ class AcesLogger {
 }  // namespace aces
 
 // Convenience macros for logging
-#define ACES_LOG_ERROR(msg) \
-    aces::AcesLogger::GetInstance().LogError(msg, __FILE__, __LINE__)
+#define ACES_LOG_ERROR(msg) aces::AcesLogger::GetInstance().LogError(msg, __FILE__, __LINE__)
 
-#define ACES_LOG_WARNING(msg) \
-    aces::AcesLogger::GetInstance().LogWarning(msg, __FILE__, __LINE__)
+#define ACES_LOG_WARNING(msg) aces::AcesLogger::GetInstance().LogWarning(msg, __FILE__, __LINE__)
 
-#define ACES_LOG_INFO(msg) \
-    aces::AcesLogger::GetInstance().LogInfo(msg, __FILE__, __LINE__)
+#define ACES_LOG_INFO(msg) aces::AcesLogger::GetInstance().LogInfo(msg, __FILE__, __LINE__)
 
-#define ACES_LOG_DEBUG(msg) \
-    aces::AcesLogger::GetInstance().LogDebug(msg, __FILE__, __LINE__)
+#define ACES_LOG_DEBUG(msg) aces::AcesLogger::GetInstance().LogDebug(msg, __FILE__, __LINE__)
 
 #endif  // ACES_LOGGER_HPP

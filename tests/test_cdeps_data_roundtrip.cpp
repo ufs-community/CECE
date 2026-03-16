@@ -25,8 +25,6 @@
  * @see Requirements 1.9, 7.13, Property 2, Property 16
  */
 
-#include "aces/aces_cdeps_parser.hpp"
-
 #include <gtest/gtest.h>
 #include <netcdf.h>
 
@@ -38,6 +36,8 @@
 #include <sstream>
 #include <string>
 #include <vector>
+
+#include "aces/aces_cdeps_parser.hpp"
 
 namespace aces {
 namespace {
@@ -52,15 +52,12 @@ namespace {
  * Writes an (nx × ny) double array to a new NetCDF-4 file.
  * Returns true on success.
  */
-static bool CreateNetCDFFile(const std::string& filepath,
-                              const std::string& var_name,
-                              int nx, int ny,
-                              const std::vector<double>& values) {
+static bool CreateNetCDFFile(const std::string& filepath, const std::string& var_name, int nx,
+                             int ny, const std::vector<double>& values) {
     int ncid, x_dimid, y_dimid, varid;
     int dims[2];
 
-    if (nc_create(filepath.c_str(), NC_CLOBBER | NC_NETCDF4, &ncid) != NC_NOERR)
-        return false;
+    if (nc_create(filepath.c_str(), NC_CLOBBER | NC_NETCDF4, &ncid) != NC_NOERR) return false;
 
     if (nc_def_dim(ncid, "x", static_cast<size_t>(nx), &x_dimid) != NC_NOERR ||
         nc_def_dim(ncid, "y", static_cast<size_t>(ny), &y_dimid) != NC_NOERR) {
@@ -94,12 +91,10 @@ static bool CreateNetCDFFile(const std::string& filepath,
  *
  * Returns true on success; populates `out` with nx*ny values.
  */
-static bool ReadNetCDFVariable(const std::string& filepath,
-                                const std::string& var_name,
-                                std::vector<double>& out) {
+static bool ReadNetCDFVariable(const std::string& filepath, const std::string& var_name,
+                               std::vector<double>& out) {
     int ncid, varid;
-    if (nc_open(filepath.c_str(), NC_NOWRITE, &ncid) != NC_NOERR)
-        return false;
+    if (nc_open(filepath.c_str(), NC_NOWRITE, &ncid) != NC_NOERR) return false;
 
     if (nc_inq_varid(ncid, var_name.c_str(), &varid) != NC_NOERR) {
         nc_close(ncid);
@@ -135,14 +130,10 @@ static bool ReadNetCDFVariable(const std::string& filepath,
 /**
  * @brief Writes a streams file referencing a single NetCDF file and variable.
  */
-static void WriteStreamsFile(const std::string& streams_path,
-                              const std::string& stream_name,
-                              const std::string& nc_path,
-                              const std::string& var_in_file,
-                              const std::string& var_in_model,
-                              const std::string& tintalgo,
-                              const std::string& taxmode,
-                              int year) {
+static void WriteStreamsFile(const std::string& streams_path, const std::string& stream_name,
+                             const std::string& nc_path, const std::string& var_in_file,
+                             const std::string& var_in_model, const std::string& tintalgo,
+                             const std::string& taxmode, int year) {
     std::ofstream f(streams_path);
     f << "# Auto-generated test streams file\n";
     f << "stream::" << stream_name << "\n";
@@ -162,8 +153,7 @@ static void WriteStreamsFile(const std::string& streams_path,
  *
  * Uses |a - b| / max(|b|, epsilon) to avoid division by zero.
  */
-static double MaxRelativeError(const std::vector<double>& a,
-                                const std::vector<double>& b) {
+static double MaxRelativeError(const std::vector<double>& a, const std::vector<double>& b) {
     double max_err = 0.0;
     for (size_t i = 0; i < a.size(); ++i) {
         double denom = std::max(std::abs(b[i]), 1e-300);
@@ -183,7 +173,7 @@ static double MaxRelativeError(const std::vector<double>& a,
  * generating random configurations.
  */
 class CdepsDataRoundTripTest : public ::testing::Test {
-protected:
+   protected:
     void SetUp() override {
         rng_.seed(20240101);
     }
@@ -230,8 +220,7 @@ TEST_F(CdepsDataRoundTripTest, ParseHandCraftedStreamsFile) {
     std::vector<double> data(4 * 6, 1.0);
     ASSERT_TRUE(CreateNetCDFFile(nc_path, "CO_emis", 4, 6, data));
 
-    WriteStreamsFile(streams_path, "anthro_co", nc_path,
-                    "CO_emis", "CO", "linear", "cycle", 2020);
+    WriteStreamsFile(streams_path, "anthro_co", nc_path, "CO_emis", "CO", "linear", "cycle", 2020);
 
     AcesCdepsConfig config = CdepsStreamsParser::ParseStreamsFile(streams_path);
 
@@ -282,9 +271,8 @@ TEST_F(CdepsDataRoundTripTest, NetCDFValuesMatchOriginalWithinPrecision) {
 
     ASSERT_EQ(readback.size(), original.size());
     double max_rel_err = MaxRelativeError(readback, original);
-    EXPECT_LT(max_rel_err, 1e-15)
-        << "NetCDF round-trip relative error " << max_rel_err
-        << " exceeds 1e-15 tolerance";
+    EXPECT_LT(max_rel_err, 1e-15) << "NetCDF round-trip relative error " << max_rel_err
+                                  << " exceeds 1e-15 tolerance";
 }
 
 /**
@@ -323,10 +311,7 @@ TEST_F(CdepsDataRoundTripTest, ExtremeValuesPreservedWithinPrecision) {
     const int nx = 2, ny = 4;
     const std::string nc_path = TempName(".nc");
 
-    std::vector<double> original = {
-        1e-300, 1e-100, 1e-10, 1.0,
-        1e10,   1e100,  1e300, -1e-10
-    };
+    std::vector<double> original = {1e-300, 1e-100, 1e-10, 1.0, 1e10, 1e100, 1e300, -1e-10};
 
     ASSERT_TRUE(CreateNetCDFFile(nc_path, "extreme_field", nx, ny, original));
 
@@ -335,8 +320,7 @@ TEST_F(CdepsDataRoundTripTest, ExtremeValuesPreservedWithinPrecision) {
 
     ASSERT_EQ(readback.size(), original.size());
     double max_rel_err = MaxRelativeError(readback, original);
-    EXPECT_LT(max_rel_err, 1e-15)
-        << "Extreme-value round-trip relative error " << max_rel_err;
+    EXPECT_LT(max_rel_err, 1e-15) << "Extreme-value round-trip relative error " << max_rel_err;
 }
 
 // ---------------------------------------------------------------------------
@@ -359,8 +343,8 @@ TEST_F(CdepsDataRoundTripTest, StreamsConfigRoundTripIsLossless) {
     std::vector<double> data(5 * 7, 3.14);
     ASSERT_TRUE(CreateNetCDFFile(nc_path, "NOx_emis", 5, 7, data));
 
-    WriteStreamsFile(streams1, "biogenic_nox", nc_path,
-                    "NOx_emis", "NOx", "nearest", "extend", 2019);
+    WriteStreamsFile(streams1, "biogenic_nox", nc_path, "NOx_emis", "NOx", "nearest", "extend",
+                     2019);
 
     // First parse
     AcesCdepsConfig config1 = CdepsStreamsParser::ParseStreamsFile(streams1);
@@ -376,18 +360,18 @@ TEST_F(CdepsDataRoundTripTest, StreamsConfigRoundTripIsLossless) {
     const auto& s1 = config1.streams[0];
     const auto& s2 = config2.streams[0];
 
-    EXPECT_EQ(s1.name,       s2.name);
+    EXPECT_EQ(s1.name, s2.name);
     EXPECT_EQ(s1.file_paths, s2.file_paths);
-    EXPECT_EQ(s1.taxmode,    s2.taxmode);
-    EXPECT_EQ(s1.tintalgo,   s2.tintalgo);
-    EXPECT_EQ(s1.mapalgo,    s2.mapalgo);
-    EXPECT_EQ(s1.yearFirst,  s2.yearFirst);
-    EXPECT_EQ(s1.yearLast,   s2.yearLast);
-    EXPECT_EQ(s1.yearAlign,  s2.yearAlign);
-    EXPECT_EQ(s1.offset,     s2.offset);
+    EXPECT_EQ(s1.taxmode, s2.taxmode);
+    EXPECT_EQ(s1.tintalgo, s2.tintalgo);
+    EXPECT_EQ(s1.mapalgo, s2.mapalgo);
+    EXPECT_EQ(s1.yearFirst, s2.yearFirst);
+    EXPECT_EQ(s1.yearLast, s2.yearLast);
+    EXPECT_EQ(s1.yearAlign, s2.yearAlign);
+    EXPECT_EQ(s1.offset, s2.offset);
 
     ASSERT_EQ(s1.variables.size(), s2.variables.size());
-    EXPECT_EQ(s1.variables[0].name_in_file,  s2.variables[0].name_in_file);
+    EXPECT_EQ(s1.variables[0].name_in_file, s2.variables[0].name_in_file);
     EXPECT_EQ(s1.variables[0].name_in_model, s2.variables[0].name_in_model);
 }
 
@@ -402,11 +386,11 @@ TEST_F(CdepsDataRoundTripTest, StreamsConfigRoundTripIsLossless) {
 TEST_F(CdepsDataRoundTripTest, MultiStreamConfigRoundTrip) {
     const std::string nc1 = TempName("_a.nc");
     const std::string nc2 = TempName("_b.nc");
-    const std::string streams_in  = TempName("_in.streams");
+    const std::string streams_in = TempName("_in.streams");
     const std::string streams_out = TempName("_out.streams");
 
     std::vector<double> d1(3 * 3, 1.0), d2(6 * 4, 2.0);
-    ASSERT_TRUE(CreateNetCDFFile(nc1, "CO_emis",  3, 3, d1));
+    ASSERT_TRUE(CreateNetCDFFile(nc1, "CO_emis", 3, 3, d1));
     ASSERT_TRUE(CreateNetCDFFile(nc2, "SO2_emis", 6, 4, d2));
 
     // Write a two-stream file manually
@@ -442,14 +426,14 @@ TEST_F(CdepsDataRoundTripTest, MultiStreamConfigRoundTrip) {
     ASSERT_EQ(cfg2.streams.size(), 2u);
 
     for (size_t i = 0; i < 2; ++i) {
-        EXPECT_EQ(cfg1.streams[i].name,       cfg2.streams[i].name);
+        EXPECT_EQ(cfg1.streams[i].name, cfg2.streams[i].name);
         EXPECT_EQ(cfg1.streams[i].file_paths, cfg2.streams[i].file_paths);
-        EXPECT_EQ(cfg1.streams[i].taxmode,    cfg2.streams[i].taxmode);
-        EXPECT_EQ(cfg1.streams[i].tintalgo,   cfg2.streams[i].tintalgo);
-        EXPECT_EQ(cfg1.streams[i].yearFirst,  cfg2.streams[i].yearFirst);
-        EXPECT_EQ(cfg1.streams[i].yearLast,   cfg2.streams[i].yearLast);
-        EXPECT_EQ(cfg1.streams[i].yearAlign,  cfg2.streams[i].yearAlign);
-        EXPECT_EQ(cfg1.streams[i].offset,     cfg2.streams[i].offset);
+        EXPECT_EQ(cfg1.streams[i].taxmode, cfg2.streams[i].taxmode);
+        EXPECT_EQ(cfg1.streams[i].tintalgo, cfg2.streams[i].tintalgo);
+        EXPECT_EQ(cfg1.streams[i].yearFirst, cfg2.streams[i].yearFirst);
+        EXPECT_EQ(cfg1.streams[i].yearLast, cfg2.streams[i].yearLast);
+        EXPECT_EQ(cfg1.streams[i].yearAlign, cfg2.streams[i].yearAlign);
+        EXPECT_EQ(cfg1.streams[i].offset, cfg2.streams[i].offset);
     }
 }
 
@@ -472,19 +456,17 @@ TEST_F(CdepsDataRoundTripTest, ValidationPassesForWellFormedConfig) {
     std::vector<double> data(10 * 10, 5.0);
     ASSERT_TRUE(CreateNetCDFFile(nc_path, "dust_emis", 10, 10, data));
 
-    WriteStreamsFile(streams_path, "dust_stream", nc_path,
-                    "dust_emis", "DUST", "none", "cycle", 2021);
+    WriteStreamsFile(streams_path, "dust_stream", nc_path, "dust_emis", "DUST", "none", "cycle",
+                     2021);
 
     AcesCdepsConfig config = CdepsStreamsParser::ParseStreamsFile(streams_path);
 
     std::vector<std::string> errors;
     bool valid = CdepsStreamsParser::ValidateStreamsConfig(config, errors);
 
-    EXPECT_TRUE(valid)
-        << "Well-formed config should pass validation. Errors: "
-        << (errors.empty() ? "(none)" : errors[0]);
-    EXPECT_TRUE(errors.empty())
-        << "Expected no validation errors. Got: " << errors[0];
+    EXPECT_TRUE(valid) << "Well-formed config should pass validation. Errors: "
+                       << (errors.empty() ? "(none)" : errors[0]);
+    EXPECT_TRUE(errors.empty()) << "Expected no validation errors. Got: " << errors[0];
 }
 
 /**
@@ -493,9 +475,7 @@ TEST_F(CdepsDataRoundTripTest, ValidationPassesForWellFormedConfig) {
  * @see Requirement 7.6
  */
 TEST_F(CdepsDataRoundTripTest, AllValidTintalgoValuesPassValidation) {
-    const std::vector<std::string> valid_modes = {
-        "none", "linear", "nearest", "lower", "upper"
-    };
+    const std::vector<std::string> valid_modes = {"none", "linear", "nearest", "lower", "upper"};
 
     for (const auto& mode : valid_modes) {
         const std::string nc_path = TempName(".nc");
@@ -503,16 +483,15 @@ TEST_F(CdepsDataRoundTripTest, AllValidTintalgoValuesPassValidation) {
 
         std::vector<double> data(4 * 4, 1.0);
         ASSERT_TRUE(CreateNetCDFFile(nc_path, "test_var", 4, 4, data));
-        WriteStreamsFile(streams_path, "s_" + mode, nc_path,
-                        "test_var", "VAR", mode, "cycle", 2020);
+        WriteStreamsFile(streams_path, "s_" + mode, nc_path, "test_var", "VAR", mode, "cycle",
+                         2020);
 
         AcesCdepsConfig config = CdepsStreamsParser::ParseStreamsFile(streams_path);
         std::vector<std::string> errors;
         bool valid = CdepsStreamsParser::ValidateStreamsConfig(config, errors);
 
-        EXPECT_TRUE(valid)
-            << "tintalgo='" << mode << "' should be valid. Error: "
-            << (errors.empty() ? "(none)" : errors[0]);
+        EXPECT_TRUE(valid) << "tintalgo='" << mode << "' should be valid. Error: "
+                           << (errors.empty() ? "(none)" : errors[0]);
     }
 }
 
@@ -544,34 +523,27 @@ TEST_F(CdepsDataRoundTripTest, RandomizedDataRoundTripProperty) {
     std::uniform_int_distribution<int> year_dist(2000, 2030);
     std::uniform_int_distribution<int> offset_dist(0, 86400);
 
-    const std::vector<std::string> tintalgo_options = {
-        "none", "linear", "nearest", "lower", "upper"
-    };
-    const std::vector<std::string> taxmode_options = {
-        "cycle", "extend", "limit"
-    };
-    std::uniform_int_distribution<int> tint_dist(
-        0, static_cast<int>(tintalgo_options.size()) - 1);
-    std::uniform_int_distribution<int> tax_dist(
-        0, static_cast<int>(taxmode_options.size()) - 1);
+    const std::vector<std::string> tintalgo_options = {"none", "linear", "nearest", "lower",
+                                                       "upper"};
+    const std::vector<std::string> taxmode_options = {"cycle", "extend", "limit"};
+    std::uniform_int_distribution<int> tint_dist(0, static_cast<int>(tintalgo_options.size()) - 1);
+    std::uniform_int_distribution<int> tax_dist(0, static_cast<int>(taxmode_options.size()) - 1);
 
     constexpr int kIterations = 100;
 
     for (int iter = 0; iter < kIterations; ++iter) {
         const int nx = dim_dist(rng_);
         const int ny = dim_dist(rng_);
-        const int n  = nx * ny;
+        const int n = nx * ny;
 
         // Generate a unique variable name for this iteration
-        const std::string var_name  = "emis_" + std::to_string(iter);
+        const std::string var_name = "emis_" + std::to_string(iter);
         const std::string model_name = "MODEL_" + std::to_string(iter);
         const std::string stream_name = "stream_iter_" + std::to_string(iter);
 
         // Random interpolation settings
-        const std::string tintalgo = tintalgo_options[
-            static_cast<size_t>(tint_dist(rng_))];
-        const std::string taxmode = taxmode_options[
-            static_cast<size_t>(tax_dist(rng_))];
+        const std::string tintalgo = tintalgo_options[static_cast<size_t>(tint_dist(rng_))];
+        const std::string taxmode = taxmode_options[static_cast<size_t>(tax_dist(rng_))];
         const int year = year_dist(rng_);
 
         // Generate random field values
@@ -587,34 +559,26 @@ TEST_F(CdepsDataRoundTripTest, RandomizedDataRoundTripProperty) {
 
         // Write streams file
         const std::string streams_path = TempName("_iter" + std::to_string(iter) + ".streams");
-        WriteStreamsFile(streams_path, stream_name, nc_path,
-                        var_name, model_name, tintalgo, taxmode, year);
+        WriteStreamsFile(streams_path, stream_name, nc_path, var_name, model_name, tintalgo,
+                         taxmode, year);
 
         // --- Parse and verify config attributes ---
         AcesCdepsConfig config = CdepsStreamsParser::ParseStreamsFile(streams_path);
 
-        ASSERT_EQ(config.streams.size(), 1u)
-            << "Iter " << iter << ": expected 1 stream";
+        ASSERT_EQ(config.streams.size(), 1u) << "Iter " << iter << ": expected 1 stream";
 
         const auto& s = config.streams[0];
-        EXPECT_EQ(s.name, stream_name)
-            << "Iter " << iter << ": stream name mismatch";
-        ASSERT_EQ(s.file_paths.size(), 1u)
-            << "Iter " << iter << ": expected 1 file path";
-        EXPECT_EQ(s.file_paths[0], nc_path)
-            << "Iter " << iter << ": file path mismatch";
-        ASSERT_EQ(s.variables.size(), 1u)
-            << "Iter " << iter << ": expected 1 variable";
+        EXPECT_EQ(s.name, stream_name) << "Iter " << iter << ": stream name mismatch";
+        ASSERT_EQ(s.file_paths.size(), 1u) << "Iter " << iter << ": expected 1 file path";
+        EXPECT_EQ(s.file_paths[0], nc_path) << "Iter " << iter << ": file path mismatch";
+        ASSERT_EQ(s.variables.size(), 1u) << "Iter " << iter << ": expected 1 variable";
         EXPECT_EQ(s.variables[0].name_in_file, var_name)
             << "Iter " << iter << ": name_in_file mismatch";
         EXPECT_EQ(s.variables[0].name_in_model, model_name)
             << "Iter " << iter << ": name_in_model mismatch";
-        EXPECT_EQ(s.tintalgo, tintalgo)
-            << "Iter " << iter << ": tintalgo mismatch";
-        EXPECT_EQ(s.taxmode, taxmode)
-            << "Iter " << iter << ": taxmode mismatch";
-        EXPECT_EQ(s.yearFirst, year)
-            << "Iter " << iter << ": yearFirst mismatch";
+        EXPECT_EQ(s.tintalgo, tintalgo) << "Iter " << iter << ": tintalgo mismatch";
+        EXPECT_EQ(s.taxmode, taxmode) << "Iter " << iter << ": taxmode mismatch";
+        EXPECT_EQ(s.yearFirst, year) << "Iter " << iter << ": yearFirst mismatch";
 
         // --- Read NetCDF values and verify data fidelity ---
         std::vector<double> readback;
@@ -626,11 +590,8 @@ TEST_F(CdepsDataRoundTripTest, RandomizedDataRoundTripProperty) {
 
         double max_rel_err = MaxRelativeError(readback, original);
         EXPECT_LT(max_rel_err, 1e-15)
-            << "Iter " << iter
-            << " (nx=" << nx << " ny=" << ny
-            << " tintalgo=" << tintalgo << ")"
-            << ": NetCDF round-trip relative error " << max_rel_err
-            << " exceeds 1e-15 tolerance";
+            << "Iter " << iter << " (nx=" << nx << " ny=" << ny << " tintalgo=" << tintalgo << ")"
+            << ": NetCDF round-trip relative error " << max_rel_err << " exceeds 1e-15 tolerance";
     }
 }
 
@@ -653,16 +614,11 @@ TEST_F(CdepsDataRoundTripTest, RandomizedStreamsConfigRoundTripProperty) {
     std::uniform_int_distribution<int> offset_dist(0, 7200);
     std::uniform_int_distribution<int> num_vars_dist(1, 4);
 
-    const std::vector<std::string> tintalgo_options = {
-        "none", "linear", "nearest", "lower", "upper"
-    };
-    const std::vector<std::string> taxmode_options = {
-        "cycle", "extend", "limit"
-    };
-    std::uniform_int_distribution<int> tint_dist(
-        0, static_cast<int>(tintalgo_options.size()) - 1);
-    std::uniform_int_distribution<int> tax_dist(
-        0, static_cast<int>(taxmode_options.size()) - 1);
+    const std::vector<std::string> tintalgo_options = {"none", "linear", "nearest", "lower",
+                                                       "upper"};
+    const std::vector<std::string> taxmode_options = {"cycle", "extend", "limit"};
+    std::uniform_int_distribution<int> tint_dist(0, static_cast<int>(tintalgo_options.size()) - 1);
+    std::uniform_int_distribution<int> tax_dist(0, static_cast<int>(taxmode_options.size()) - 1);
 
     constexpr int kIterations = 100;
 
@@ -671,25 +627,22 @@ TEST_F(CdepsDataRoundTripTest, RandomizedStreamsConfigRoundTripProperty) {
         const int ny = dim_dist(rng_);
         const int num_vars = num_vars_dist(rng_);
         const int year_first = year_dist(rng_);
-        const int year_last  = year_first + (iter % 5);
-        const int offset     = offset_dist(rng_);
-        const std::string tintalgo = tintalgo_options[
-            static_cast<size_t>(tint_dist(rng_))];
-        const std::string taxmode = taxmode_options[
-            static_cast<size_t>(tax_dist(rng_))];
+        const int year_last = year_first + (iter % 5);
+        const int offset = offset_dist(rng_);
+        const std::string tintalgo = tintalgo_options[static_cast<size_t>(tint_dist(rng_))];
+        const std::string taxmode = taxmode_options[static_cast<size_t>(tax_dist(rng_))];
 
         // Create a NetCDF file with all variables for this iteration
         const std::string nc_path = TempName("_rt" + std::to_string(iter) + ".nc");
         {
             // Write the first variable; additional variables share the same file
             std::vector<double> data(static_cast<size_t>(nx * ny), 1.0);
-            ASSERT_TRUE(CreateNetCDFFile(nc_path, "var_0_" + std::to_string(iter),
-                                         nx, ny, data))
+            ASSERT_TRUE(CreateNetCDFFile(nc_path, "var_0_" + std::to_string(iter), nx, ny, data))
                 << "Iter " << iter << ": failed to create NetCDF file";
         }
 
         // Build the streams file manually with multiple variables
-        const std::string streams_in  = TempName("_rt_in"  + std::to_string(iter) + ".streams");
+        const std::string streams_in = TempName("_rt_in" + std::to_string(iter) + ".streams");
         const std::string streams_out = TempName("_rt_out" + std::to_string(iter) + ".streams");
         {
             std::ofstream f(streams_in);
@@ -700,16 +653,15 @@ TEST_F(CdepsDataRoundTripTest, RandomizedStreamsConfigRoundTripProperty) {
             f << "  variables = ";
             for (int v = 0; v < num_vars; ++v) {
                 if (v > 0) f << ", ";
-                f << "var_" << v << "_" << iter
-                  << ":MODEL_" << v << "_" << iter;
+                f << "var_" << v << "_" << iter << ":MODEL_" << v << "_" << iter;
             }
             f << "\n";
-            f << "  taxmode = "   << taxmode   << "\n";
-            f << "  tintalgo = "  << tintalgo  << "\n";
+            f << "  taxmode = " << taxmode << "\n";
+            f << "  tintalgo = " << tintalgo << "\n";
             f << "  yearFirst = " << year_first << "\n";
-            f << "  yearLast = "  << year_last  << "\n";
+            f << "  yearLast = " << year_last << "\n";
             f << "  yearAlign = " << year_first << "\n";
-            f << "  offset = "    << offset     << "\n";
+            f << "  offset = " << offset << "\n";
             f << "::\n";
         }
 
@@ -729,29 +681,27 @@ TEST_F(CdepsDataRoundTripTest, RandomizedStreamsConfigRoundTripProperty) {
         const auto& s1 = cfg1.streams[0];
         const auto& s2 = cfg2.streams[0];
 
-        EXPECT_EQ(s1.name,       s2.name)
-            << "Iter " << iter << ": stream name changed after round-trip";
+        EXPECT_EQ(s1.name, s2.name) << "Iter " << iter << ": stream name changed after round-trip";
         EXPECT_EQ(s1.file_paths, s2.file_paths)
             << "Iter " << iter << ": file_paths changed after round-trip";
-        EXPECT_EQ(s1.taxmode,    s2.taxmode)
+        EXPECT_EQ(s1.taxmode, s2.taxmode)
             << "Iter " << iter << ": taxmode changed after round-trip";
-        EXPECT_EQ(s1.tintalgo,   s2.tintalgo)
+        EXPECT_EQ(s1.tintalgo, s2.tintalgo)
             << "Iter " << iter << ": tintalgo changed after round-trip";
-        EXPECT_EQ(s1.mapalgo,    s2.mapalgo)
+        EXPECT_EQ(s1.mapalgo, s2.mapalgo)
             << "Iter " << iter << ": mapalgo changed after round-trip";
-        EXPECT_EQ(s1.yearFirst,  s2.yearFirst)
+        EXPECT_EQ(s1.yearFirst, s2.yearFirst)
             << "Iter " << iter << ": yearFirst changed after round-trip";
-        EXPECT_EQ(s1.yearLast,   s2.yearLast)
+        EXPECT_EQ(s1.yearLast, s2.yearLast)
             << "Iter " << iter << ": yearLast changed after round-trip";
-        EXPECT_EQ(s1.yearAlign,  s2.yearAlign)
+        EXPECT_EQ(s1.yearAlign, s2.yearAlign)
             << "Iter " << iter << ": yearAlign changed after round-trip";
-        EXPECT_EQ(s1.offset,     s2.offset)
-            << "Iter " << iter << ": offset changed after round-trip";
+        EXPECT_EQ(s1.offset, s2.offset) << "Iter " << iter << ": offset changed after round-trip";
 
         ASSERT_EQ(s1.variables.size(), s2.variables.size())
             << "Iter " << iter << ": variable count changed after round-trip";
         for (size_t v = 0; v < s1.variables.size(); ++v) {
-            EXPECT_EQ(s1.variables[v].name_in_file,  s2.variables[v].name_in_file)
+            EXPECT_EQ(s1.variables[v].name_in_file, s2.variables[v].name_in_file)
                 << "Iter " << iter << " var " << v << ": name_in_file changed";
             EXPECT_EQ(s1.variables[v].name_in_model, s2.variables[v].name_in_model)
                 << "Iter " << iter << " var " << v << ": name_in_model changed";
@@ -782,30 +732,28 @@ TEST_F(CdepsDataRoundTripTest, MultipleVariablesAllPreserved) {
 
         int dims[2] = {x_dimid, y_dimid};
         int varid_co, varid_nox;
-        ASSERT_EQ(nc_def_var(ncid, "CO_emis",  NC_DOUBLE, 2, dims, &varid_co),  NC_NOERR);
+        ASSERT_EQ(nc_def_var(ncid, "CO_emis", NC_DOUBLE, 2, dims, &varid_co), NC_NOERR);
         ASSERT_EQ(nc_def_var(ncid, "NOx_emis", NC_DOUBLE, 2, dims, &varid_nox), NC_NOERR);
         ASSERT_EQ(nc_enddef(ncid), NC_NOERR);
 
         std::vector<double> co_data(static_cast<size_t>(nx * ny));
         std::vector<double> nox_data(static_cast<size_t>(nx * ny));
         for (int i = 0; i < nx * ny; ++i) {
-            co_data[static_cast<size_t>(i)]  = static_cast<double>(i) * 1.1e-8;
+            co_data[static_cast<size_t>(i)] = static_cast<double>(i) * 1.1e-8;
             nox_data[static_cast<size_t>(i)] = static_cast<double>(i) * 2.3e-9;
         }
 
-        ASSERT_EQ(nc_put_var_double(ncid, varid_co,  co_data.data()),  NC_NOERR);
+        ASSERT_EQ(nc_put_var_double(ncid, varid_co, co_data.data()), NC_NOERR);
         ASSERT_EQ(nc_put_var_double(ncid, varid_nox, nox_data.data()), NC_NOERR);
         nc_close(ncid);
 
         // Verify both variables round-trip correctly
         std::vector<double> co_back, nox_back;
-        ASSERT_TRUE(ReadNetCDFVariable(nc_path, "CO_emis",  co_back));
+        ASSERT_TRUE(ReadNetCDFVariable(nc_path, "CO_emis", co_back));
         ASSERT_TRUE(ReadNetCDFVariable(nc_path, "NOx_emis", nox_back));
 
-        EXPECT_LT(MaxRelativeError(co_back,  co_data),  1e-15)
-            << "CO_emis round-trip failed";
-        EXPECT_LT(MaxRelativeError(nox_back, nox_data), 1e-15)
-            << "NOx_emis round-trip failed";
+        EXPECT_LT(MaxRelativeError(co_back, co_data), 1e-15) << "CO_emis round-trip failed";
+        EXPECT_LT(MaxRelativeError(nox_back, nox_data), 1e-15) << "NOx_emis round-trip failed";
     }
 
     // Verify the streams config correctly maps both variables
@@ -827,9 +775,9 @@ TEST_F(CdepsDataRoundTripTest, MultipleVariablesAllPreserved) {
     AcesCdepsConfig config = CdepsStreamsParser::ParseStreamsFile(streams_path);
     ASSERT_EQ(config.streams.size(), 1u);
     ASSERT_EQ(config.streams[0].variables.size(), 2u);
-    EXPECT_EQ(config.streams[0].variables[0].name_in_file,  "CO_emis");
+    EXPECT_EQ(config.streams[0].variables[0].name_in_file, "CO_emis");
     EXPECT_EQ(config.streams[0].variables[0].name_in_model, "CO");
-    EXPECT_EQ(config.streams[0].variables[1].name_in_file,  "NOx_emis");
+    EXPECT_EQ(config.streams[0].variables[1].name_in_file, "NOx_emis");
     EXPECT_EQ(config.streams[0].variables[1].name_in_model, "NOx");
 }
 
@@ -854,8 +802,7 @@ TEST_F(CdepsDataRoundTripTest, SpatiallyVaryingFieldPreserved) {
     for (int i = 0; i < nx; ++i) {
         for (int j = 0; j < ny; ++j) {
             original[static_cast<size_t>(i * ny + j)] =
-                std::sin(static_cast<double>(i)) *
-                std::cos(static_cast<double>(j)) * 1e-6;
+                std::sin(static_cast<double>(i)) * std::cos(static_cast<double>(j)) * 1e-6;
         }
     }
 
@@ -866,8 +813,7 @@ TEST_F(CdepsDataRoundTripTest, SpatiallyVaryingFieldPreserved) {
 
     ASSERT_EQ(readback.size(), original.size());
     double max_rel_err = MaxRelativeError(readback, original);
-    EXPECT_LT(max_rel_err, 1e-15)
-        << "Spatially varying field round-trip error " << max_rel_err;
+    EXPECT_LT(max_rel_err, 1e-15) << "Spatially varying field round-trip error " << max_rel_err;
 }
 
 }  // namespace

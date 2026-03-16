@@ -9,8 +9,8 @@
 #include <stdexcept>
 
 #include "aces/aces_internal.hpp"
-#include "aces/aces_state.hpp"
 #include "aces/aces_stacking_engine.hpp"
+#include "aces/aces_state.hpp"
 #include "aces/physics_scheme.hpp"
 
 namespace aces {
@@ -78,8 +78,8 @@ extern "C" {
  * @param clock_ptr Pointer to ESMF_Clock.
  * @param rc Return code (ESMF_SUCCESS on success).
  */
-void aces_core_run(void* data_ptr, void* import_state_ptr, void* export_state_ptr,
-                   void* clock_ptr, int* rc) {
+void aces_core_run(void* data_ptr, void* import_state_ptr, void* export_state_ptr, void* clock_ptr,
+                   int* rc) {
     *rc = ESMF_SUCCESS;
 
     try {
@@ -96,8 +96,8 @@ void aces_core_run(void* data_ptr, void* import_state_ptr, void* export_state_pt
         int day_of_week = 0;
         aces::ExtractTimeInfo(clock_ptr, hour, day_of_week);
 
-        std::cout << "ACES_Run: Current time - Hour: " << hour
-                  << ", Day of week: " << day_of_week << " (0=Sunday)\n";
+        std::cout << "ACES_Run: Current time - Hour: " << hour << ", Day of week: " << day_of_week
+                  << " (0=Sunday)\n";
 
         // 3. Execute StackingEngine with hybrid field resolution
         if (internal_data->stacking_engine) {
@@ -105,23 +105,14 @@ void aces_core_run(void* data_ptr, void* import_state_ptr, void* export_state_pt
 
             // Create field resolver from import/export states
             aces::AcesStateResolver resolver(
-                internal_data->import_state,
-                internal_data->export_state,
-                internal_data->config.met_mapping,
-                internal_data->config.scale_factor_mapping,
-                internal_data->config.mask_mapping
-            );
+                internal_data->import_state, internal_data->export_state,
+                internal_data->config.met_mapping, internal_data->config.scale_factor_mapping,
+                internal_data->config.mask_mapping);
 
             // Execute stacking engine
-            internal_data->stacking_engine->Execute(
-                resolver,
-                internal_data->nx,
-                internal_data->ny,
-                internal_data->nz,
-                internal_data->default_mask,
-                hour,
-                day_of_week
-            );
+            internal_data->stacking_engine->Execute(resolver, internal_data->nx, internal_data->ny,
+                                                    internal_data->nz, internal_data->default_mask,
+                                                    hour, day_of_week);
 
             std::cout << "ACES_Run: StackingEngine execution complete\n";
         } else {
@@ -137,10 +128,11 @@ void aces_core_run(void* data_ptr, void* import_state_ptr, void* export_state_pt
             if (scheme) {
                 try {
                     scheme->Run(internal_data->import_state, internal_data->export_state);
-                    std::cout << "ACES_Run: Physics scheme " << (i + 1) << " executed successfully\n";
+                    std::cout << "ACES_Run: Physics scheme " << (i + 1)
+                              << " executed successfully\n";
                 } catch (const std::exception& e) {
-                    std::cerr << "ACES_Run: Physics scheme " << (i + 1)
-                              << " failed: " << e.what() << "\n";
+                    std::cerr << "ACES_Run: Physics scheme " << (i + 1) << " failed: " << e.what()
+                              << "\n";
                     // Continue with other schemes (non-fatal)
                 }
             }
@@ -163,8 +155,8 @@ void aces_core_run(void* data_ptr, void* import_state_ptr, void* export_state_pt
                 field.sync_host();
                 std::cout << "ACES_Run: Field '" << name << "' synchronized to host\n";
             } catch (const std::exception& e) {
-                std::cerr << "ACES_Run: Failed to sync field '" << name
-                          << "' to host: " << e.what() << "\n";
+                std::cerr << "ACES_Run: Failed to sync field '" << name << "' to host: " << e.what()
+                          << "\n";
                 sync_errors++;
             }
         }
@@ -190,11 +182,11 @@ void aces_core_run(void* data_ptr, void* import_state_ptr, void* export_state_pt
                     // In a real implementation, this would come from the ESMF_Clock
                     double time_seconds = static_cast<double>(internal_data->step_count) * 3600.0;
 
-                    std::cout << "ACES_Run: Writing output at step " << internal_data->step_count << "\n";
+                    std::cout << "ACES_Run: Writing output at step " << internal_data->step_count
+                              << "\n";
 
                     int write_rc = internal_data->standalone_writer->WriteTimeStep(
-                        internal_data->export_state.fields,
-                        time_seconds,
+                        internal_data->export_state.fields, time_seconds,
                         internal_data->step_count);
 
                     if (write_rc != 0) {
@@ -205,8 +197,8 @@ void aces_core_run(void* data_ptr, void* import_state_ptr, void* export_state_pt
                         std::cout << "ACES_Run: Output written successfully\n";
                     }
                 } catch (const std::exception& e) {
-                    std::cerr << "ACES_Run: Warning - Exception during output write: "
-                              << e.what() << "\n";
+                    std::cerr << "ACES_Run: Warning - Exception during output write: " << e.what()
+                              << "\n";
                     // Non-fatal: continue execution even if write fails
                 }
             }

@@ -37,81 +37,81 @@ namespace test {
  * @brief Property-based test fixture for temporal cycle application.
  */
 class TemporalCyclePropertyTest : public ::testing::Test {
- protected:
-  std::mt19937 rng_{42};
+   protected:
+    std::mt19937 rng_{42};
 
-  void SetUp() override {
-    if (!Kokkos::is_initialized()) {
-      Kokkos::initialize();
+    void SetUp() override {
+        if (!Kokkos::is_initialized()) {
+            Kokkos::initialize();
+        }
     }
-  }
 
-  /**
-   * @brief Generate a random diurnal cycle (24 hourly factors).
-   */
-  TemporalCycle GenerateDiurnalCycle() {
-    TemporalCycle cycle;
-    cycle.factors.resize(24);
-    std::uniform_real_distribution<double> dist(0.5, 2.0);
-    for (int i = 0; i < 24; ++i) {
-      cycle.factors[i] = dist(rng_);
+    /**
+     * @brief Generate a random diurnal cycle (24 hourly factors).
+     */
+    TemporalCycle GenerateDiurnalCycle() {
+        TemporalCycle cycle;
+        cycle.factors.resize(24);
+        std::uniform_real_distribution<double> dist(0.5, 2.0);
+        for (int i = 0; i < 24; ++i) {
+            cycle.factors[i] = dist(rng_);
+        }
+        return cycle;
     }
-    return cycle;
-  }
 
-  /**
-   * @brief Generate a random weekly cycle (7 daily factors).
-   */
-  TemporalCycle GenerateWeeklyCycle() {
-    TemporalCycle cycle;
-    cycle.factors.resize(7);
-    std::uniform_real_distribution<double> dist(0.7, 1.5);
-    for (int i = 0; i < 7; ++i) {
-      cycle.factors[i] = dist(rng_);
+    /**
+     * @brief Generate a random weekly cycle (7 daily factors).
+     */
+    TemporalCycle GenerateWeeklyCycle() {
+        TemporalCycle cycle;
+        cycle.factors.resize(7);
+        std::uniform_real_distribution<double> dist(0.7, 1.5);
+        for (int i = 0; i < 7; ++i) {
+            cycle.factors[i] = dist(rng_);
+        }
+        return cycle;
     }
-    return cycle;
-  }
 
-  /**
-   * @brief Generate a random seasonal cycle (12 monthly factors).
-   */
-  TemporalCycle GenerateSeasonalCycle() {
-    TemporalCycle cycle;
-    cycle.factors.resize(12);
-    std::uniform_real_distribution<double> dist(0.8, 1.3);
-    for (int i = 0; i < 12; ++i) {
-      cycle.factors[i] = dist(rng_);
+    /**
+     * @brief Generate a random seasonal cycle (12 monthly factors).
+     */
+    TemporalCycle GenerateSeasonalCycle() {
+        TemporalCycle cycle;
+        cycle.factors.resize(12);
+        std::uniform_real_distribution<double> dist(0.8, 1.3);
+        for (int i = 0; i < 12; ++i) {
+            cycle.factors[i] = dist(rng_);
+        }
+        return cycle;
     }
-    return cycle;
-  }
 
-  /**
-   * @brief Create a minimal ACES config with temporal cycles.
-   */
-  AcesConfig CreateConfigWithCycles(
-      const std::unordered_map<std::string, TemporalCycle>& cycles) {
-    AcesConfig config;
-    config.temporal_cycles = cycles;
+    /**
+     * @brief Create a minimal ACES config with temporal cycles.
+     */
+    AcesConfig CreateConfigWithCycles(
+        const std::unordered_map<std::string, TemporalCycle>& cycles) {
+        AcesConfig config;
+        config.temporal_cycles = cycles;
 
-    // Add a simple species with one layer
-    EmissionLayer layer;
-    layer.field_name = "base_emissions";
-    layer.operation = "add";
-    layer.scale = 1.0;
-    layer.hierarchy = 0;
+        // Add a simple species with one layer
+        EmissionLayer layer;
+        layer.field_name = "base_emissions";
+        layer.operation = "add";
+        layer.scale = 1.0;
+        layer.hierarchy = 0;
 
-    config.species_layers["CO"] = {layer};
+        config.species_layers["CO"] = {layer};
 
-    return config;
-  }
+        return config;
+    }
 
-  /**
-   * @brief Compute expected scale given base scale and cycle factors.
-   */
-  double ComputeExpectedScale(double base_scale, double diurnal_factor,
-                              double weekly_factor, double seasonal_factor) {
-    return base_scale * diurnal_factor * weekly_factor * seasonal_factor;
-  }
+    /**
+     * @brief Compute expected scale given base scale and cycle factors.
+     */
+    double ComputeExpectedScale(double base_scale, double diurnal_factor, double weekly_factor,
+                                double seasonal_factor) {
+        return base_scale * diurnal_factor * weekly_factor * seasonal_factor;
+    }
 };
 
 /**
@@ -122,36 +122,36 @@ class TemporalCyclePropertyTest : public ::testing::Test {
  * the diurnal factor for that hour.
  */
 TEST_F(TemporalCyclePropertyTest, DiurnalCycleApplication) {
-  // Generate random diurnal cycle
-  TemporalCycle diurnal = GenerateDiurnalCycle();
+    // Generate random diurnal cycle
+    TemporalCycle diurnal = GenerateDiurnalCycle();
 
-  // Create config with diurnal cycle
-  AcesConfig config;
-  config.temporal_cycles["diurnal_default"] = diurnal;
+    // Create config with diurnal cycle
+    AcesConfig config;
+    config.temporal_cycles["diurnal_default"] = diurnal;
 
-  // Create layer with diurnal cycle
-  EmissionLayer layer;
-  layer.field_name = "base_emissions";
-  layer.operation = "add";
-  layer.scale = 1.0;
-  layer.hierarchy = 0;
-  layer.diurnal_cycle = "diurnal_default";
+    // Create layer with diurnal cycle
+    EmissionLayer layer;
+    layer.field_name = "base_emissions";
+    layer.operation = "add";
+    layer.scale = 1.0;
+    layer.hierarchy = 0;
+    layer.diurnal_cycle = "diurnal_default";
 
-  config.species_layers["CO"] = {layer};
+    config.species_layers["CO"] = {layer};
 
-  // Create stacking engine
-  StackingEngine engine(config);
+    // Create stacking engine
+    StackingEngine engine(config);
 
-  // Test each hour
-  for (int hour = 0; hour < 24; ++hour) {
-    // Verify that the diurnal factor for this hour is correct
-    double expected_factor = diurnal.factors[hour];
+    // Test each hour
+    for (int hour = 0; hour < 24; ++hour) {
+        // Verify that the diurnal factor for this hour is correct
+        double expected_factor = diurnal.factors[hour];
 
-    // The actual verification would require executing the engine and checking
-    // the output, but we can at least verify the cycle data is accessible
-    EXPECT_GE(expected_factor, 0.0) << "Diurnal factor should be non-negative";
-    EXPECT_LE(expected_factor, 10.0) << "Diurnal factor should be reasonable";
-  }
+        // The actual verification would require executing the engine and checking
+        // the output, but we can at least verify the cycle data is accessible
+        EXPECT_GE(expected_factor, 0.0) << "Diurnal factor should be non-negative";
+        EXPECT_LE(expected_factor, 10.0) << "Diurnal factor should be reasonable";
+    }
 }
 
 /**
@@ -162,34 +162,34 @@ TEST_F(TemporalCyclePropertyTest, DiurnalCycleApplication) {
  * the weekly factor for that day.
  */
 TEST_F(TemporalCyclePropertyTest, WeeklyCycleApplication) {
-  // Generate random weekly cycle
-  TemporalCycle weekly = GenerateWeeklyCycle();
+    // Generate random weekly cycle
+    TemporalCycle weekly = GenerateWeeklyCycle();
 
-  // Create config with weekly cycle
-  AcesConfig config;
-  config.temporal_cycles["weekly_default"] = weekly;
+    // Create config with weekly cycle
+    AcesConfig config;
+    config.temporal_cycles["weekly_default"] = weekly;
 
-  // Create layer with weekly cycle
-  EmissionLayer layer;
-  layer.field_name = "base_emissions";
-  layer.operation = "add";
-  layer.scale = 1.0;
-  layer.hierarchy = 0;
-  layer.weekly_cycle = "weekly_default";
+    // Create layer with weekly cycle
+    EmissionLayer layer;
+    layer.field_name = "base_emissions";
+    layer.operation = "add";
+    layer.scale = 1.0;
+    layer.hierarchy = 0;
+    layer.weekly_cycle = "weekly_default";
 
-  config.species_layers["CO"] = {layer};
+    config.species_layers["CO"] = {layer};
 
-  // Create stacking engine
-  StackingEngine engine(config);
+    // Create stacking engine
+    StackingEngine engine(config);
 
-  // Test each day of week
-  for (int day = 0; day < 7; ++day) {
-    // Verify that the weekly factor for this day is correct
-    double expected_factor = weekly.factors[day];
+    // Test each day of week
+    for (int day = 0; day < 7; ++day) {
+        // Verify that the weekly factor for this day is correct
+        double expected_factor = weekly.factors[day];
 
-    EXPECT_GE(expected_factor, 0.0) << "Weekly factor should be non-negative";
-    EXPECT_LE(expected_factor, 10.0) << "Weekly factor should be reasonable";
-  }
+        EXPECT_GE(expected_factor, 0.0) << "Weekly factor should be non-negative";
+        EXPECT_LE(expected_factor, 10.0) << "Weekly factor should be reasonable";
+    }
 }
 
 /**
@@ -200,34 +200,34 @@ TEST_F(TemporalCyclePropertyTest, WeeklyCycleApplication) {
  * the seasonal factor for that month.
  */
 TEST_F(TemporalCyclePropertyTest, SeasonalCycleApplication) {
-  // Generate random seasonal cycle
-  TemporalCycle seasonal = GenerateSeasonalCycle();
+    // Generate random seasonal cycle
+    TemporalCycle seasonal = GenerateSeasonalCycle();
 
-  // Create config with seasonal cycle
-  AcesConfig config;
-  config.temporal_cycles["seasonal_default"] = seasonal;
+    // Create config with seasonal cycle
+    AcesConfig config;
+    config.temporal_cycles["seasonal_default"] = seasonal;
 
-  // Create layer with seasonal cycle
-  EmissionLayer layer;
-  layer.field_name = "base_emissions";
-  layer.operation = "add";
-  layer.scale = 1.0;
-  layer.hierarchy = 0;
-  layer.seasonal_cycle = "seasonal_default";
+    // Create layer with seasonal cycle
+    EmissionLayer layer;
+    layer.field_name = "base_emissions";
+    layer.operation = "add";
+    layer.scale = 1.0;
+    layer.hierarchy = 0;
+    layer.seasonal_cycle = "seasonal_default";
 
-  config.species_layers["CO"] = {layer};
+    config.species_layers["CO"] = {layer};
 
-  // Create stacking engine
-  StackingEngine engine(config);
+    // Create stacking engine
+    StackingEngine engine(config);
 
-  // Test each month
-  for (int month = 0; month < 12; ++month) {
-    // Verify that the seasonal factor for this month is correct
-    double expected_factor = seasonal.factors[month];
+    // Test each month
+    for (int month = 0; month < 12; ++month) {
+        // Verify that the seasonal factor for this month is correct
+        double expected_factor = seasonal.factors[month];
 
-    EXPECT_GE(expected_factor, 0.0) << "Seasonal factor should be non-negative";
-    EXPECT_LE(expected_factor, 10.0) << "Seasonal factor should be reasonable";
-  }
+        EXPECT_GE(expected_factor, 0.0) << "Seasonal factor should be non-negative";
+        EXPECT_LE(expected_factor, 10.0) << "Seasonal factor should be reasonable";
+    }
 }
 
 /**
@@ -238,51 +238,50 @@ TEST_F(TemporalCyclePropertyTest, SeasonalCycleApplication) {
  * scale SHALL be base_scale * diurnal_factor * weekly_factor * seasonal_factor.
  */
 TEST_F(TemporalCyclePropertyTest, MultipleCyclesProduct) {
-  // Generate random cycles
-  TemporalCycle diurnal = GenerateDiurnalCycle();
-  TemporalCycle weekly = GenerateWeeklyCycle();
-  TemporalCycle seasonal = GenerateSeasonalCycle();
+    // Generate random cycles
+    TemporalCycle diurnal = GenerateDiurnalCycle();
+    TemporalCycle weekly = GenerateWeeklyCycle();
+    TemporalCycle seasonal = GenerateSeasonalCycle();
 
-  // Create config with all cycles
-  AcesConfig config;
-  config.temporal_cycles["diurnal"] = diurnal;
-  config.temporal_cycles["weekly"] = weekly;
-  config.temporal_cycles["seasonal"] = seasonal;
+    // Create config with all cycles
+    AcesConfig config;
+    config.temporal_cycles["diurnal"] = diurnal;
+    config.temporal_cycles["weekly"] = weekly;
+    config.temporal_cycles["seasonal"] = seasonal;
 
-  // Create layer with all cycles
-  EmissionLayer layer;
-  layer.field_name = "base_emissions";
-  layer.operation = "add";
-  layer.scale = 2.5;  // Non-unity base scale
-  layer.hierarchy = 0;
-  layer.diurnal_cycle = "diurnal";
-  layer.weekly_cycle = "weekly";
-  layer.seasonal_cycle = "seasonal";
+    // Create layer with all cycles
+    EmissionLayer layer;
+    layer.field_name = "base_emissions";
+    layer.operation = "add";
+    layer.scale = 2.5;  // Non-unity base scale
+    layer.hierarchy = 0;
+    layer.diurnal_cycle = "diurnal";
+    layer.weekly_cycle = "weekly";
+    layer.seasonal_cycle = "seasonal";
 
-  config.species_layers["CO"] = {layer};
+    config.species_layers["CO"] = {layer};
 
-  // Create stacking engine
-  StackingEngine engine(config);
+    // Create stacking engine
+    StackingEngine engine(config);
 
-  // Test various time combinations
-  std::uniform_int_distribution<int> hour_dist(0, 23);
-  std::uniform_int_distribution<int> day_dist(0, 6);
-  std::uniform_int_distribution<int> month_dist(0, 11);
+    // Test various time combinations
+    std::uniform_int_distribution<int> hour_dist(0, 23);
+    std::uniform_int_distribution<int> day_dist(0, 6);
+    std::uniform_int_distribution<int> month_dist(0, 11);
 
-  for (int iter = 0; iter < 50; ++iter) {
-    int hour = hour_dist(rng_);
-    int day = day_dist(rng_);
-    int month = month_dist(rng_);
+    for (int iter = 0; iter < 50; ++iter) {
+        int hour = hour_dist(rng_);
+        int day = day_dist(rng_);
+        int month = month_dist(rng_);
 
-    // Compute expected scale
-    double expected_scale = ComputeExpectedScale(
-        layer.scale, diurnal.factors[hour], weekly.factors[day],
-        seasonal.factors[month]);
+        // Compute expected scale
+        double expected_scale = ComputeExpectedScale(layer.scale, diurnal.factors[hour],
+                                                     weekly.factors[day], seasonal.factors[month]);
 
-    // Verify scale is positive and reasonable
-    EXPECT_GT(expected_scale, 0.0) << "Combined scale should be positive";
-    EXPECT_LT(expected_scale, 100.0) << "Combined scale should be reasonable";
-  }
+        // Verify scale is positive and reasonable
+        EXPECT_GT(expected_scale, 0.0) << "Combined scale should be positive";
+        EXPECT_LT(expected_scale, 100.0) << "Combined scale should be reasonable";
+    }
 }
 
 /**
@@ -293,35 +292,35 @@ TEST_F(TemporalCyclePropertyTest, MultipleCyclesProduct) {
  * SHALL wrap using modulo arithmetic.
  */
 TEST_F(TemporalCyclePropertyTest, CycleWrapping) {
-  // Generate random cycles
-  TemporalCycle diurnal = GenerateDiurnalCycle();
-  TemporalCycle weekly = GenerateWeeklyCycle();
-  TemporalCycle seasonal = GenerateSeasonalCycle();
+    // Generate random cycles
+    TemporalCycle diurnal = GenerateDiurnalCycle();
+    TemporalCycle weekly = GenerateWeeklyCycle();
+    TemporalCycle seasonal = GenerateSeasonalCycle();
 
-  // Create config
-  AcesConfig config;
-  config.temporal_cycles["diurnal"] = diurnal;
-  config.temporal_cycles["weekly"] = weekly;
-  config.temporal_cycles["seasonal"] = seasonal;
+    // Create config
+    AcesConfig config;
+    config.temporal_cycles["diurnal"] = diurnal;
+    config.temporal_cycles["weekly"] = weekly;
+    config.temporal_cycles["seasonal"] = seasonal;
 
-  // Test wrapping behavior
-  for (int hour = 0; hour < 72; ++hour) {
-    int wrapped_hour = hour % 24;
-    double expected_factor = diurnal.factors[wrapped_hour];
-    EXPECT_GE(expected_factor, 0.0);
-  }
+    // Test wrapping behavior
+    for (int hour = 0; hour < 72; ++hour) {
+        int wrapped_hour = hour % 24;
+        double expected_factor = diurnal.factors[wrapped_hour];
+        EXPECT_GE(expected_factor, 0.0);
+    }
 
-  for (int day = 0; day < 21; ++day) {
-    int wrapped_day = day % 7;
-    double expected_factor = weekly.factors[wrapped_day];
-    EXPECT_GE(expected_factor, 0.0);
-  }
+    for (int day = 0; day < 21; ++day) {
+        int wrapped_day = day % 7;
+        double expected_factor = weekly.factors[wrapped_day];
+        EXPECT_GE(expected_factor, 0.0);
+    }
 
-  for (int month = 0; month < 36; ++month) {
-    int wrapped_month = month % 12;
-    double expected_factor = seasonal.factors[wrapped_month];
-    EXPECT_GE(expected_factor, 0.0);
-  }
+    for (int month = 0; month < 36; ++month) {
+        int wrapped_month = month % 12;
+        double expected_factor = seasonal.factors[wrapped_month];
+        EXPECT_GE(expected_factor, 0.0);
+    }
 }
 
 /**
@@ -332,27 +331,27 @@ TEST_F(TemporalCyclePropertyTest, CycleWrapping) {
  * treated as a factor of 1.0 (no scaling).
  */
 TEST_F(TemporalCyclePropertyTest, MissingCycleHandling) {
-  // Create config WITHOUT cycles
-  AcesConfig config;
+    // Create config WITHOUT cycles
+    AcesConfig config;
 
-  // Create layer that references non-existent cycles
-  EmissionLayer layer;
-  layer.field_name = "base_emissions";
-  layer.operation = "add";
-  layer.scale = 1.5;
-  layer.hierarchy = 0;
-  layer.diurnal_cycle = "nonexistent_diurnal";
-  layer.weekly_cycle = "nonexistent_weekly";
-  layer.seasonal_cycle = "nonexistent_seasonal";
+    // Create layer that references non-existent cycles
+    EmissionLayer layer;
+    layer.field_name = "base_emissions";
+    layer.operation = "add";
+    layer.scale = 1.5;
+    layer.hierarchy = 0;
+    layer.diurnal_cycle = "nonexistent_diurnal";
+    layer.weekly_cycle = "nonexistent_weekly";
+    layer.seasonal_cycle = "nonexistent_seasonal";
 
-  config.species_layers["CO"] = {layer};
+    config.species_layers["CO"] = {layer};
 
-  // Create stacking engine - should not crash
-  StackingEngine engine(config);
+    // Create stacking engine - should not crash
+    StackingEngine engine(config);
 
-  // The engine should handle missing cycles gracefully
-  // (treating them as 1.0 factors)
-  EXPECT_TRUE(true);  // If we get here, missing cycles were handled
+    // The engine should handle missing cycles gracefully
+    // (treating them as 1.0 factors)
+    EXPECT_TRUE(true);  // If we get here, missing cycles were handled
 }
 
 /**
@@ -363,45 +362,44 @@ TEST_F(TemporalCyclePropertyTest, MissingCycleHandling) {
  * correctly scale the base value.
  */
 TEST_F(TemporalCyclePropertyTest, CycleWithVariousBaseScales) {
-  // Generate random cycles
-  TemporalCycle diurnal = GenerateDiurnalCycle();
-  TemporalCycle weekly = GenerateWeeklyCycle();
+    // Generate random cycles
+    TemporalCycle diurnal = GenerateDiurnalCycle();
+    TemporalCycle weekly = GenerateWeeklyCycle();
 
-  // Create config
-  AcesConfig config;
-  config.temporal_cycles["diurnal"] = diurnal;
-  config.temporal_cycles["weekly"] = weekly;
+    // Create config
+    AcesConfig config;
+    config.temporal_cycles["diurnal"] = diurnal;
+    config.temporal_cycles["weekly"] = weekly;
 
-  // Test various base scales
-  std::vector<double> base_scales = {0.1, 1.0, 10.0, 100.0};
+    // Test various base scales
+    std::vector<double> base_scales = {0.1, 1.0, 10.0, 100.0};
 
-  for (double base_scale : base_scales) {
-    EmissionLayer layer;
-    layer.field_name = "base_emissions";
-    layer.operation = "add";
-    layer.scale = base_scale;
-    layer.hierarchy = 0;
-    layer.diurnal_cycle = "diurnal";
-    layer.weekly_cycle = "weekly";
+    for (double base_scale : base_scales) {
+        EmissionLayer layer;
+        layer.field_name = "base_emissions";
+        layer.operation = "add";
+        layer.scale = base_scale;
+        layer.hierarchy = 0;
+        layer.diurnal_cycle = "diurnal";
+        layer.weekly_cycle = "weekly";
 
-    config.species_layers["CO"] = {layer};
+        config.species_layers["CO"] = {layer};
 
-    // Create stacking engine
-    StackingEngine engine(config);
+        // Create stacking engine
+        StackingEngine engine(config);
 
-    // Verify that scales are applied correctly
-    for (int hour = 0; hour < 24; ++hour) {
-      for (int day = 0; day < 7; ++day) {
-        double expected_scale =
-            base_scale * diurnal.factors[hour] * weekly.factors[day];
+        // Verify that scales are applied correctly
+        for (int hour = 0; hour < 24; ++hour) {
+            for (int day = 0; day < 7; ++day) {
+                double expected_scale = base_scale * diurnal.factors[hour] * weekly.factors[day];
 
-        EXPECT_GT(expected_scale, 0.0)
-            << "Scale should be positive for base_scale=" << base_scale;
-        EXPECT_LT(expected_scale, 1000.0)
-            << "Scale should be reasonable for base_scale=" << base_scale;
-      }
+                EXPECT_GT(expected_scale, 0.0)
+                    << "Scale should be positive for base_scale=" << base_scale;
+                EXPECT_LT(expected_scale, 1000.0)
+                    << "Scale should be reasonable for base_scale=" << base_scale;
+            }
+        }
     }
-  }
 }
 
 /**
@@ -411,25 +409,25 @@ TEST_F(TemporalCyclePropertyTest, CycleWithVariousBaseScales) {
  * FOR ALL cycles, all factors SHALL be >= 0.0 (no negative scaling).
  */
 TEST_F(TemporalCyclePropertyTest, CycleFactorsNonNegative) {
-  // Generate multiple random cycles
-  for (int iter = 0; iter < 20; ++iter) {
-    TemporalCycle diurnal = GenerateDiurnalCycle();
-    TemporalCycle weekly = GenerateWeeklyCycle();
-    TemporalCycle seasonal = GenerateSeasonalCycle();
+    // Generate multiple random cycles
+    for (int iter = 0; iter < 20; ++iter) {
+        TemporalCycle diurnal = GenerateDiurnalCycle();
+        TemporalCycle weekly = GenerateWeeklyCycle();
+        TemporalCycle seasonal = GenerateSeasonalCycle();
 
-    // Verify all factors are non-negative
-    for (double factor : diurnal.factors) {
-      EXPECT_GE(factor, 0.0) << "Diurnal factor should be non-negative";
-    }
+        // Verify all factors are non-negative
+        for (double factor : diurnal.factors) {
+            EXPECT_GE(factor, 0.0) << "Diurnal factor should be non-negative";
+        }
 
-    for (double factor : weekly.factors) {
-      EXPECT_GE(factor, 0.0) << "Weekly factor should be non-negative";
-    }
+        for (double factor : weekly.factors) {
+            EXPECT_GE(factor, 0.0) << "Weekly factor should be non-negative";
+        }
 
-    for (double factor : seasonal.factors) {
-      EXPECT_GE(factor, 0.0) << "Seasonal factor should be non-negative";
+        for (double factor : seasonal.factors) {
+            EXPECT_GE(factor, 0.0) << "Seasonal factor should be non-negative";
+        }
     }
-  }
 }
 
 /**
@@ -440,13 +438,13 @@ TEST_F(TemporalCyclePropertyTest, CycleFactorsNonNegative) {
  * and seasonal SHALL have 12 factors.
  */
 TEST_F(TemporalCyclePropertyTest, CycleSizeValidation) {
-  TemporalCycle diurnal = GenerateDiurnalCycle();
-  TemporalCycle weekly = GenerateWeeklyCycle();
-  TemporalCycle seasonal = GenerateSeasonalCycle();
+    TemporalCycle diurnal = GenerateDiurnalCycle();
+    TemporalCycle weekly = GenerateWeeklyCycle();
+    TemporalCycle seasonal = GenerateSeasonalCycle();
 
-  EXPECT_EQ(diurnal.factors.size(), 24) << "Diurnal cycle should have 24 factors";
-  EXPECT_EQ(weekly.factors.size(), 7) << "Weekly cycle should have 7 factors";
-  EXPECT_EQ(seasonal.factors.size(), 12) << "Seasonal cycle should have 12 factors";
+    EXPECT_EQ(diurnal.factors.size(), 24) << "Diurnal cycle should have 24 factors";
+    EXPECT_EQ(weekly.factors.size(), 7) << "Weekly cycle should have 7 factors";
+    EXPECT_EQ(seasonal.factors.size(), 12) << "Seasonal cycle should have 12 factors";
 }
 
 /**
@@ -456,28 +454,28 @@ TEST_F(TemporalCyclePropertyTest, CycleSizeValidation) {
  * FOR ALL temporal_profiles, they SHALL be treated identically to temporal_cycles.
  */
 TEST_F(TemporalCyclePropertyTest, TemporalProfilesBackwardCompatibility) {
-  // Generate random cycles
-  TemporalCycle diurnal = GenerateDiurnalCycle();
+    // Generate random cycles
+    TemporalCycle diurnal = GenerateDiurnalCycle();
 
-  // Create config with temporal_profiles (backward compatibility)
-  AcesConfig config;
-  config.temporal_profiles["diurnal_profile"] = diurnal;
+    // Create config with temporal_profiles (backward compatibility)
+    AcesConfig config;
+    config.temporal_profiles["diurnal_profile"] = diurnal;
 
-  // Create layer referencing the profile
-  EmissionLayer layer;
-  layer.field_name = "base_emissions";
-  layer.operation = "add";
-  layer.scale = 1.0;
-  layer.hierarchy = 0;
-  layer.diurnal_cycle = "diurnal_profile";
+    // Create layer referencing the profile
+    EmissionLayer layer;
+    layer.field_name = "base_emissions";
+    layer.operation = "add";
+    layer.scale = 1.0;
+    layer.hierarchy = 0;
+    layer.diurnal_cycle = "diurnal_profile";
 
-  config.species_layers["CO"] = {layer};
+    config.species_layers["CO"] = {layer};
 
-  // Create stacking engine
-  StackingEngine engine(config);
+    // Create stacking engine
+    StackingEngine engine(config);
 
-  // Verify that profiles are accessible
-  EXPECT_TRUE(true);  // If we get here, profiles were handled
+    // Verify that profiles are accessible
+    EXPECT_TRUE(true);  // If we get here, profiles were handled
 }
 
 /**
@@ -488,41 +486,41 @@ TEST_F(TemporalCyclePropertyTest, TemporalProfilesBackwardCompatibility) {
  * its own cycles independently.
  */
 TEST_F(TemporalCyclePropertyTest, MultipleLayersWithDifferentCycles) {
-  // Generate random cycles
-  TemporalCycle diurnal1 = GenerateDiurnalCycle();
-  TemporalCycle diurnal2 = GenerateDiurnalCycle();
-  TemporalCycle weekly = GenerateWeeklyCycle();
+    // Generate random cycles
+    TemporalCycle diurnal1 = GenerateDiurnalCycle();
+    TemporalCycle diurnal2 = GenerateDiurnalCycle();
+    TemporalCycle weekly = GenerateWeeklyCycle();
 
-  // Create config with multiple cycles
-  AcesConfig config;
-  config.temporal_cycles["diurnal1"] = diurnal1;
-  config.temporal_cycles["diurnal2"] = diurnal2;
-  config.temporal_cycles["weekly"] = weekly;
+    // Create config with multiple cycles
+    AcesConfig config;
+    config.temporal_cycles["diurnal1"] = diurnal1;
+    config.temporal_cycles["diurnal2"] = diurnal2;
+    config.temporal_cycles["weekly"] = weekly;
 
-  // Create two layers with different cycles
-  EmissionLayer layer1;
-  layer1.field_name = "emissions1";
-  layer1.operation = "add";
-  layer1.scale = 1.0;
-  layer1.hierarchy = 0;
-  layer1.diurnal_cycle = "diurnal1";
-  layer1.weekly_cycle = "weekly";
+    // Create two layers with different cycles
+    EmissionLayer layer1;
+    layer1.field_name = "emissions1";
+    layer1.operation = "add";
+    layer1.scale = 1.0;
+    layer1.hierarchy = 0;
+    layer1.diurnal_cycle = "diurnal1";
+    layer1.weekly_cycle = "weekly";
 
-  EmissionLayer layer2;
-  layer2.field_name = "emissions2";
-  layer2.operation = "add";
-  layer2.scale = 1.0;
-  layer2.hierarchy = 1;
-  layer2.diurnal_cycle = "diurnal2";
-  layer2.weekly_cycle = "weekly";
+    EmissionLayer layer2;
+    layer2.field_name = "emissions2";
+    layer2.operation = "add";
+    layer2.scale = 1.0;
+    layer2.hierarchy = 1;
+    layer2.diurnal_cycle = "diurnal2";
+    layer2.weekly_cycle = "weekly";
 
-  config.species_layers["CO"] = {layer1, layer2};
+    config.species_layers["CO"] = {layer1, layer2};
 
-  // Create stacking engine
-  StackingEngine engine(config);
+    // Create stacking engine
+    StackingEngine engine(config);
 
-  // Verify that both layers are configured
-  EXPECT_TRUE(true);  // If we get here, multiple layers were handled
+    // Verify that both layers are configured
+    EXPECT_TRUE(true);  // If we get here, multiple layers were handled
 }
 
 }  // namespace test

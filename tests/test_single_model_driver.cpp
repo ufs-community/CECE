@@ -134,7 +134,9 @@ class ESMFEnvironment : public ::testing::Environment {
             exit(1);
         }
     }
-    void TearDown() override { ESMC_Finalize(); }
+    void TearDown() override {
+        ESMC_Finalize();
+    }
 };
 
 // ---------------------------------------------------------------------------
@@ -236,7 +238,7 @@ class SingleModelDriverTest : public ::testing::Test {
         if (rc != ESMF_SUCCESS || !data_ptr) return nullptr;
 
         aces_core_initialize_p2(data_ptr, gcomp_.ptr, import_state_.ptr, export_state_.ptr,
-                               clock_.ptr, grid_.ptr, &rc);
+                                clock_.ptr, grid_.ptr, &rc);
         if (rc != ESMF_SUCCESS) return nullptr;
 
         return data_ptr;
@@ -251,7 +253,9 @@ class SingleModelDriverTest : public ::testing::Test {
     }
 
     /// Return the expected number of run steps for the current clock config.
-    int ExpectedSteps() const { return (total_hours_ * 3600) / time_step_secs_; }
+    int ExpectedSteps() const {
+        return (total_hours_ * 3600) / time_step_secs_;
+    }
 };
 
 // ---------------------------------------------------------------------------
@@ -411,8 +415,8 @@ TEST_F(SingleModelDriverTest, FullDriverExecutionNoESMFErrors) {
     ASSERT_NE(data_ptr, nullptr);
 
     // Initialize P2
-    aces_core_initialize_p2(data_ptr, gcomp_.ptr, import_state_.ptr, export_state_.ptr,
-                           clock_.ptr, grid_.ptr, &rc);
+    aces_core_initialize_p2(data_ptr, gcomp_.ptr, import_state_.ptr, export_state_.ptr, clock_.ptr,
+                            grid_.ptr, &rc);
     ASSERT_EQ(rc, ESMF_SUCCESS) << "Initialize P2 returned ESMF error";
 
     // Run (one step)
@@ -596,8 +600,7 @@ TEST_F(SingleModelDriverTest, MultipleTimeStepsExecuteSuccessfully) {
         ++steps;
     }
 
-    EXPECT_EQ(steps, ExpectedSteps())
-        << "Expected " << ExpectedSteps() << " steps for 24h / 1h dt";
+    EXPECT_EQ(steps, ExpectedSteps()) << "Expected " << ExpectedSteps() << " steps for 24h / 1h dt";
 
     aces_core_finalize(data_ptr, &rc);
     EXPECT_EQ(rc, ESMF_SUCCESS);

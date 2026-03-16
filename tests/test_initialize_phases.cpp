@@ -11,9 +11,9 @@
  */
 
 #include <ESMC.h>
-#include <Kokkos_Core.hpp>
 #include <gtest/gtest.h>
 
+#include <Kokkos_Core.hpp>
 #include <fstream>
 #include <string>
 
@@ -39,9 +39,14 @@ class ESMFEnvironment : public ::testing::Environment {
     void SetUp() override {
         if (!Kokkos::is_initialized()) Kokkos::initialize();
         int rc = ESMC_Initialize(nullptr, ESMC_ArgLast);
-        if (rc != ESMF_SUCCESS) { std::cerr << "ESMF init failed\n"; exit(1); }
+        if (rc != ESMF_SUCCESS) {
+            std::cerr << "ESMF init failed\n";
+            exit(1);
+        }
     }
-    void TearDown() override { ESMC_Finalize(); }
+    void TearDown() override {
+        ESMC_Finalize();
+    }
 };
 
 // ---------------------------------------------------------------------------
@@ -171,7 +176,8 @@ TEST_F(InitializePhasesTest, Phase1_InitializesSuccessfully) {
     EXPECT_TRUE(internal_data->config.species_layers.count("NOx") > 0);
     EXPECT_GT(internal_data->active_schemes.size(), 0u) << "Should have at least 1 physics scheme";
     EXPECT_NE(internal_data->stacking_engine, nullptr) << "StackingEngine must be initialized";
-    EXPECT_NE(internal_data->diagnostic_manager, nullptr) << "DiagnosticManager must be initialized";
+    EXPECT_NE(internal_data->diagnostic_manager, nullptr)
+        << "DiagnosticManager must be initialized";
 
     aces_core_finalize(data_ptr, &rc);
 }
@@ -212,7 +218,8 @@ TEST_F(InitializePhasesTest, Phase1_TracksKokkosOwnership) {
         << "ACES must not claim Kokkos ownership when it was pre-initialized";
 
     aces_core_finalize(data_ptr, &rc);
-    EXPECT_TRUE(Kokkos::is_initialized()) << "Kokkos must remain initialized when not owned by ACES";
+    EXPECT_TRUE(Kokkos::is_initialized())
+        << "Kokkos must remain initialized when not owned by ACES";
 }
 
 /**
@@ -239,8 +246,8 @@ TEST_F(InitializePhasesTest, Phase2_HandlesNullGrid) {
     ASSERT_NE(data_ptr, nullptr);
 
     rc = ESMF_SUCCESS;
-    aces_core_initialize_p2(data_ptr, gcomp_.ptr, import_state_.ptr, export_state_.ptr,
-                            clock_.ptr, nullptr, &rc);
+    aces_core_initialize_p2(data_ptr, gcomp_.ptr, import_state_.ptr, export_state_.ptr, clock_.ptr,
+                            nullptr, &rc);
     EXPECT_NE(rc, ESMF_SUCCESS) << "Phase 2 must fail with null grid";
 
     delete static_cast<aces::AcesInternalData*>(data_ptr);
@@ -262,8 +269,8 @@ TEST_F(InitializePhasesTest, BothPhases_CompleteSuccessfully) {
 
     // Phase 2
     rc = -1;
-    aces_core_initialize_p2(data_ptr, gcomp_.ptr, import_state_.ptr, export_state_.ptr,
-                            clock_.ptr, grid_.ptr, &rc);
+    aces_core_initialize_p2(data_ptr, gcomp_.ptr, import_state_.ptr, export_state_.ptr, clock_.ptr,
+                            grid_.ptr, &rc);
     ASSERT_EQ(rc, ESMF_SUCCESS) << "Phase 2 must succeed";
 
     auto* internal_data = static_cast<aces::AcesInternalData*>(data_ptr);

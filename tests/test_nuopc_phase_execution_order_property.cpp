@@ -58,7 +58,9 @@ class ESMFEnvironment : public ::testing::Environment {
             exit(1);
         }
     }
-    void TearDown() override { ESMC_Finalize(); }
+    void TearDown() override {
+        ESMC_Finalize();
+    }
 };
 
 // ---------------------------------------------------------------------------
@@ -79,8 +81,7 @@ class PhaseExecutionConfigGenerator {
      * @param num_species Number of species to include (1-5)
      * @param num_schemes Number of physics schemes to include (1-3)
      */
-    void GenerateConfig(const std::string& config_file, int num_species = 1,
-                       int num_schemes = 1) {
+    void GenerateConfig(const std::string& config_file, int num_species = 1, int num_schemes = 1) {
         std::uniform_int_distribution<int> species_dist(1, 5);
         std::uniform_int_distribution<int> scheme_dist(1, 3);
 
@@ -176,8 +177,7 @@ class NuopcPhaseExecutionOrderPropertyTest : public ::testing::Test {
         if (rc != ESMF_SUCCESS || clock_.ptr == nullptr) GTEST_SKIP() << "Clock creation failed";
 
         test_create_gridcomp("ACES", clock_.ptr, &gcomp_.ptr, &rc);
-        if (rc != ESMF_SUCCESS || gcomp_.ptr == nullptr)
-            GTEST_SKIP() << "GridComp creation failed";
+        if (rc != ESMF_SUCCESS || gcomp_.ptr == nullptr) GTEST_SKIP() << "GridComp creation failed";
 
         auto [nx, ny, nz] = gen_.GenerateGridDimensions();
         int maxIndex[3] = {nx, ny, nz};
@@ -234,7 +234,7 @@ class NuopcPhaseExecutionOrderPropertyTest : public ::testing::Test {
 
         // Initialize p2
         aces_core_initialize_p2(data_ptr, gcomp_.ptr, import_state_.ptr, export_state_.ptr,
-                               clock_.ptr, grid_.ptr, &rc);
+                                clock_.ptr, grid_.ptr, &rc);
         if (rc != ESMF_SUCCESS) {
             std::cerr << "Initialize p2 failed with rc=" << rc << "\n";
             aces_core_finalize(data_ptr, &rc);
@@ -325,14 +325,12 @@ TEST_F(NuopcPhaseExecutionOrderPropertyTest, Property5_EachPhaseCompletesBeforeN
 
     // Verify internal state after p1
     auto* internal = static_cast<aces::AcesInternalData*>(data_ptr);
-    EXPECT_FALSE(internal->config.species_layers.empty())
-        << "Config not loaded after p1";
-    EXPECT_GT(internal->active_schemes.size(), 0u)
-        << "No schemes instantiated after p1";
+    EXPECT_FALSE(internal->config.species_layers.empty()) << "Config not loaded after p1";
+    EXPECT_GT(internal->active_schemes.size(), 0u) << "No schemes instantiated after p1";
 
     // Phase 4: Initialize p2
-    aces_core_initialize_p2(data_ptr, gcomp_.ptr, import_state_.ptr, export_state_.ptr,
-                           clock_.ptr, grid_.ptr, &rc);
+    aces_core_initialize_p2(data_ptr, gcomp_.ptr, import_state_.ptr, export_state_.ptr, clock_.ptr,
+                            grid_.ptr, &rc);
     ASSERT_EQ(rc, ESMF_SUCCESS) << "Initialize p2 failed";
 
     // Verify internal state after p2
@@ -374,8 +372,7 @@ TEST_F(NuopcPhaseExecutionOrderPropertyTest, Property5_MultipleRunCyclesAfterIni
     for (int iter = 0; iter < NUM_ITERATIONS; ++iter) {
         int rc;
         aces_core_run(data_ptr, import_state_.ptr, export_state_.ptr, clock_.ptr, &rc);
-        EXPECT_EQ(rc, ESMF_SUCCESS)
-            << "Run cycle failed at iteration " << iter;
+        EXPECT_EQ(rc, ESMF_SUCCESS) << "Run cycle failed at iteration " << iter;
     }
 
     // Finalize
@@ -410,8 +407,7 @@ TEST_F(NuopcPhaseExecutionOrderPropertyTest, Property5_OutOfOrderPhasesFail) {
         // Test 2: Call Run with null data_ptr (missing initialization)
         void* null_ptr = nullptr;
         aces_core_run(null_ptr, import_state_.ptr, export_state_.ptr, clock_.ptr, &rc);
-        EXPECT_NE(rc, ESMF_SUCCESS)
-            << "Run with null data_ptr should fail at iteration " << iter;
+        EXPECT_NE(rc, ESMF_SUCCESS) << "Run with null data_ptr should fail at iteration " << iter;
 
         // Test 3: Call Finalize with null data_ptr
         aces_core_finalize(null_ptr, &rc);
@@ -453,24 +449,20 @@ TEST_F(NuopcPhaseExecutionOrderPropertyTest, Property5_InternalStateConsistency)
     auto* internal = static_cast<aces::AcesInternalData*>(data_ptr);
 
     // Verify state after p1
-    EXPECT_NE(internal->stacking_engine, nullptr)
-        << "StackingEngine not initialized after p1";
-    EXPECT_FALSE(internal->config.species_layers.empty())
-        << "Species not loaded after p1";
-    EXPECT_GT(internal->active_schemes.size(), 0u)
-        << "Physics schemes not instantiated after p1";
+    EXPECT_NE(internal->stacking_engine, nullptr) << "StackingEngine not initialized after p1";
+    EXPECT_FALSE(internal->config.species_layers.empty()) << "Species not loaded after p1";
+    EXPECT_GT(internal->active_schemes.size(), 0u) << "Physics schemes not instantiated after p1";
 
     // Initialize p2
-    aces_core_initialize_p2(data_ptr, gcomp_.ptr, import_state_.ptr, export_state_.ptr,
-                           clock_.ptr, grid_.ptr, &rc);
+    aces_core_initialize_p2(data_ptr, gcomp_.ptr, import_state_.ptr, export_state_.ptr, clock_.ptr,
+                            grid_.ptr, &rc);
     ASSERT_EQ(rc, ESMF_SUCCESS);
 
     // Verify state after p2
     EXPECT_GT(internal->nx, 0) << "nx not set after p2";
     EXPECT_GT(internal->ny, 0) << "ny not set after p2";
     EXPECT_GT(internal->nz, 0) << "nz not set after p2";
-    EXPECT_GT(internal->default_mask.extent(0), 0u)
-        << "default_mask not allocated after p2";
+    EXPECT_GT(internal->default_mask.extent(0), 0u) << "default_mask not allocated after p2";
 
     // Run multiple times to verify state consistency
     for (int iter = 0; iter < NUM_ITERATIONS; ++iter) {

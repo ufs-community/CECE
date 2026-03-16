@@ -20,18 +20,18 @@
 
 #include <gtest/gtest.h>
 #include <netcdf.h>
-#include <Kokkos_Core.hpp>
-#include "ESMC.h"
 
+#include <Kokkos_Core.hpp>
 #include <cmath>
 #include <cstdlib>
 #include <fstream>
+#include <iomanip>
 #include <random>
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include <iomanip>
 
+#include "ESMC.h"
 #include "aces/aces_standalone_writer.hpp"
 
 // ---------------------------------------------------------------------------
@@ -67,10 +67,9 @@ static double RelativeError(double a, double b) {
  * @param max_val Maximum random value
  * @return Kokkos::View<double***, Kokkos::LayoutLeft>
  */
-static aces::DualView3D
-CreateRandomField(int nx, int ny, int nz, double min_val = 0.0, double max_val = 1.0) {
-    auto view = aces::DualView3D(
-        "random_field", nx, ny, nz);
+static aces::DualView3D CreateRandomField(int nx, int ny, int nz, double min_val = 0.0,
+                                          double max_val = 1.0) {
+    auto view = aces::DualView3D("random_field", nx, ny, nz);
 
     auto host_view = view.view_host();
     for (int i = 0; i < nx; ++i) {
@@ -152,8 +151,8 @@ class ESMFEnvironment : public ::testing::Environment {
         int rc;
         ESMC_Initialize(&rc, ESMC_ArgLast);
         if (rc != ESMF_SUCCESS) {
-             std::cerr << "ESMF initialization failed" << std::endl;
-             std::exit(1);
+            std::cerr << "ESMF initialization failed" << std::endl;
+            std::exit(1);
         }
     }
 
@@ -161,7 +160,6 @@ class ESMFEnvironment : public ::testing::Environment {
         ESMC_Finalize();
     }
 };
-
 
 // ---------------------------------------------------------------------------
 // Test fixture
@@ -197,8 +195,8 @@ class OutputRoundTripTest : public ::testing::Test {
      * output file path.
      */
     std::string WriteExportFields(
-        const std::unordered_map<std::string, aces::DualView3D>& export_fields,
-        int nx, int ny, int nz, int num_timesteps = 3, int frequency_steps = 1) {
+        const std::unordered_map<std::string, aces::DualView3D>& export_fields, int nx, int ny,
+        int nz, int num_timesteps = 3, int frequency_steps = 1) {
         aces::AcesOutputConfig config;
         config.directory = output_dir_;
         config.filename_pattern = "test_output_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc";
@@ -270,12 +268,13 @@ TEST_F(OutputRoundTripTest, BasicSingleField) {
 
     auto host_field = field.view_host();
     double max_rel_error = 0.0;
-    for (int i = 0; i < nx*ny*nz; ++i) {
-        int k = i / (nx*ny);
+    for (int i = 0; i < nx * ny * nz; ++i) {
+        int k = i / (nx * ny);
         int j = (i / nx) % ny;
         int ii = i % nx;
         // LayoutLeft check
-        int ll_idx = ii + j*nx + k*nx*ny; // This is not what ReadNetCDF returns, it returns LayoutLeft
+        int ll_idx = ii + j * nx +
+                     k * nx * ny;  // This is not what ReadNetCDF returns, it returns LayoutLeft
         // Wait, helper already returns LayoutLeft.
         // It converts from row-major to LayoutLeft.
         // So read_data IS LayoutLeft.
@@ -290,7 +289,7 @@ TEST_F(OutputRoundTripTest, BasicSingleField) {
         // So read_data is indexed by LayoutLeft logic.
         // My loop: i, j, k logic.
         // If I compute ll_idx for host_field(ii, j, k), it is indeed ii + j*nx + k*nx*ny.
-        int flat_idx = ii + j*nx + k*nx*ny;
+        int flat_idx = ii + j * nx + k * nx * ny;
 
         double rel_err = RelativeError(val, read_data[flat_idx]);
         max_rel_error = std::max(max_rel_error, rel_err);
@@ -328,11 +327,13 @@ TEST_F(OutputRoundTripTest, MultipleFields) {
         auto read_data = ReadNetCDFVariable(ncid, varid, nx, ny, nz, 0);
         auto host_field = co_field.view_host();
         double max_err = 0.0;
-        for(int k=0; k<nz; ++k) for(int j=0; j<ny; ++j) for(int i=0; i<nx; ++i) {
-            double val = host_field(i,j,k);
-            int idx = i + j*nx + k*nx*ny;
-            max_err = std::max(max_err, RelativeError(val, read_data[idx]));
-        }
+        for (int k = 0; k < nz; ++k)
+            for (int j = 0; j < ny; ++j)
+                for (int i = 0; i < nx; ++i) {
+                    double val = host_field(i, j, k);
+                    int idx = i + j * nx + k * nx * ny;
+                    max_err = std::max(max_err, RelativeError(val, read_data[idx]));
+                }
         EXPECT_LT(max_err, 1e-14);
     }
     // Verify NOx
@@ -343,11 +344,13 @@ TEST_F(OutputRoundTripTest, MultipleFields) {
         auto read_data = ReadNetCDFVariable(ncid, varid, nx, ny, nz, 0);
         auto host_field = nox_field.view_host();
         double max_err = 0.0;
-        for(int k=0; k<nz; ++k) for(int j=0; j<ny; ++j) for(int i=0; i<nx; ++i) {
-            double val = host_field(i,j,k);
-            int idx = i + j*nx + k*nx*ny;
-            max_err = std::max(max_err, RelativeError(val, read_data[idx]));
-        }
+        for (int k = 0; k < nz; ++k)
+            for (int j = 0; j < ny; ++j)
+                for (int i = 0; i < nx; ++i) {
+                    double val = host_field(i, j, k);
+                    int idx = i + j * nx + k * nx * ny;
+                    max_err = std::max(max_err, RelativeError(val, read_data[idx]));
+                }
         EXPECT_LT(max_err, 1e-14);
     }
     nc_close(ncid);
@@ -363,12 +366,12 @@ TEST_F(OutputRoundTripTest, MultipleTimeRecords) {
 
     std::vector<aces::DualView3D> time_fields;
     for (int t = 0; t < num_timesteps; ++t) {
-         time_fields.push_back(CreateRandomField(nx, ny, nz, t*1.0, (t+1)*10.0));
+        time_fields.push_back(CreateRandomField(nx, ny, nz, t * 1.0, (t + 1) * 10.0));
     }
 
     aces::AcesOutputConfig config;
     config.directory = output_dir_;
-    config.filename_pattern = "test_output_{HH}.nc"; // Unique per hour
+    config.filename_pattern = "test_output_{HH}.nc";  // Unique per hour
     config.frequency_steps = 1;
     config.fields = {"CO"};
 
@@ -396,15 +399,17 @@ TEST_F(OutputRoundTripTest, MultipleTimeRecords) {
         rc = nc_inq_varid(ncid, "CO", &varid);
         ASSERT_EQ(rc, NC_NOERR);
 
-        auto read_data = ReadNetCDFVariable(ncid, varid, nx, ny, nz, 0); // Snapshot index 0
+        auto read_data = ReadNetCDFVariable(ncid, varid, nx, ny, nz, 0);  // Snapshot index 0
 
         auto host_field = time_fields[t].view_host();
         double max_err = 0.0;
-        for(int k=0; k<nz; ++k) for(int j=0; j<ny; ++j) for(int i=0; i<nx; ++i) {
-            double val = host_field(i,j,k);
-            int idx = i + j*nx + k*nx*ny;
-            max_err = std::max(max_err, RelativeError(val, read_data[idx]));
-        }
+        for (int k = 0; k < nz; ++k)
+            for (int j = 0; j < ny; ++j)
+                for (int i = 0; i < nx; ++i) {
+                    double val = host_field(i, j, k);
+                    int idx = i + j * nx + k * nx * ny;
+                    max_err = std::max(max_err, RelativeError(val, read_data[idx]));
+                }
         EXPECT_LT(max_err, 1e-14) << "Mismatch at time " << t;
         nc_close(ncid);
     }
@@ -417,7 +422,7 @@ TEST_F(OutputRoundTripTest, MultipleTimeRecords) {
 TEST_F(OutputRoundTripTest, FrequencyGating) {
     const int nx = 4, ny = 4, nz = 5;
     const int num_timesteps = 10;
-    const int frequency_steps = 3; // Dump on 0, 3, 6, 9
+    const int frequency_steps = 3;  // Dump on 0, 3, 6, 9
 
     auto field = CreateRandomField(nx, ny, nz);
     std::unordered_map<std::string, aces::DualView3D> export_fields;
@@ -476,7 +481,7 @@ TEST_F(OutputRoundTripTest, CFCompliance) {
     int ndims;
     rc = nc_inq_ndims(ncid, &ndims);
     ASSERT_EQ(rc, NC_NOERR);
-    EXPECT_GE(ndims, 3); // x, y, z at least. ESMF might add time?
+    EXPECT_GE(ndims, 3);  // x, y, z at least. ESMF might add time?
 
     // Attempt to read CO
     int varid;
@@ -492,4 +497,3 @@ int main(int argc, char** argv) {
     ::testing::AddGlobalTestEnvironment(new KokkosEnvironment());
     return RUN_ALL_TESTS();
 }
-

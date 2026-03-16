@@ -69,14 +69,13 @@ class HemcoParityTest : public ::testing::Test {
 
     /** Computes max relative error between result and expected scalar. */
     static double MaxRelError(
-        const Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace>& view,
-        double expected, int nz = kNz) {
+        const Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace>& view, double expected,
+        int nz = kNz) {
         double max_err = 0.0;
         for (int i = 0; i < kNx; ++i)
             for (int j = 0; j < kNy; ++j)
                 for (int k = 0; k < nz; ++k) {
-                    double err = std::abs(view(i, j, k) - expected) /
-                                 (std::abs(expected) + 1e-30);
+                    double err = std::abs(view(i, j, k) - expected) / (std::abs(expected) + 1e-30);
                     if (err > max_err) max_err = err;
                 }
         return max_err;
@@ -103,8 +102,7 @@ TEST_F(HemcoParityTest, AnthropogenicCategory) {
     cfg.species_layers["co"] = {lay};
 
     auto result = RunEngine(cfg, imp, exp);
-    EXPECT_LT(MaxRelError(result, 2.0e-9), 1e-10)
-        << "Anthropogenic CO emission mismatch";
+    EXPECT_LT(MaxRelError(result, 2.0e-9), 1e-10) << "Anthropogenic CO emission mismatch";
 }
 
 TEST_F(HemcoParityTest, BiogenicCategory) {
@@ -234,8 +232,7 @@ TEST_F(HemcoParityTest, WeeklyCycleScaling) {
 
     // day_of_week=1 -> factor 1.5 -> emission = 1.5e-9
     auto result = RunEngine(cfg, imp, exp, /*hour=*/0, /*dow=*/1, /*month=*/0);
-    EXPECT_LT(MaxRelError(result, 1.5e-9), 1e-10)
-        << "Weekly cycle not applied correctly on day 1";
+    EXPECT_LT(MaxRelError(result, 1.5e-9), 1e-10) << "Weekly cycle not applied correctly on day 1";
 }
 
 TEST_F(HemcoParityTest, SeasonalCycleScaling) {
@@ -385,8 +382,7 @@ TEST_F(HemcoParityTest, HierarchyRegionalOverride) {
     DualView3D mask("mask", kNx, kNy, 1);
     auto mask_h = mask.view_host();
     for (int i = 0; i < kNx; ++i)
-        for (int j = 0; j < kNy; ++j)
-            mask_h(i, j, 0) = (j >= kNy / 2) ? 1.0 : 0.0;
+        for (int j = 0; j < kNy; ++j) mask_h(i, j, 0) = (j >= kNy / 2) ? 1.0 : 0.0;
     mask.modify<Kokkos::HostSpace>();
     mask.sync<Kokkos::DefaultExecutionSpace>();
     imp.fields["region_mask"] = mask;
@@ -415,8 +411,7 @@ TEST_F(HemcoParityTest, HierarchyRegionalOverride) {
                 EXPECT_NEAR(result(i, j, 0), 12.0e-9, 1e-20)
                     << "Inside mask: regional should replace global";
             } else {
-                EXPECT_NEAR(result(i, j, 0), 5.0e-9, 1e-20)
-                    << "Outside mask: global should remain";
+                EXPECT_NEAR(result(i, j, 0), 5.0e-9, 1e-20) << "Outside mask: global should remain";
             }
         }
 }
@@ -462,8 +457,7 @@ TEST_F(HemcoParityTest, SpatiallyVaryingScaleFactor) {
     cfg.species_layers["co"] = {lay};
 
     auto result = RunEngine(cfg, imp, exp);
-    EXPECT_LT(MaxRelError(result, 2.0e-9), 1e-10)
-        << "Spatially varying scale factor not applied";
+    EXPECT_LT(MaxRelError(result, 2.0e-9), 1e-10) << "Spatially varying scale factor not applied";
 }
 
 // ---------------------------------------------------------------------------
@@ -487,8 +481,7 @@ TEST_F(HemcoParityTest, DynamicSpeciesRegistration) {
     AddSpecies(cfg, "new_species", {lay});
 
     auto result = RunEngine(cfg, imp, exp);
-    EXPECT_LT(MaxRelError(result, 7.0e-10), 1e-10)
-        << "Dynamically registered species not computed";
+    EXPECT_LT(MaxRelError(result, 7.0e-10), 1e-10) << "Dynamically registered species not computed";
 }
 
 TEST_F(HemcoParityTest, DynamicScaleFactorRegistration) {

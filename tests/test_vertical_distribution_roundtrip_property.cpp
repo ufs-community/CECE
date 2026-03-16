@@ -218,9 +218,9 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, SingleMethodRoundTrip) {
         // Verify round-trip
         double max_rel_error = ComputeMaxRelativeError(emissions_2d, recovered_2d);
 
-        EXPECT_LT(max_rel_error, 1e-10) << "Iteration " << iteration << ": Grid (" << nx << ","
-                                         << ny << "," << nz << "), Layer " << layer
-                                         << ", Max Rel Error: " << max_rel_error;
+        EXPECT_LT(max_rel_error, 1e-10)
+            << "Iteration " << iteration << ": Grid (" << nx << "," << ny << "," << nz
+            << "), Layer " << layer << ", Max Rel Error: " << max_rel_error;
     }
 }
 
@@ -272,8 +272,8 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, RangeMethodRoundTrip) {
         double max_rel_error = ComputeMaxRelativeError(emissions_2d, recovered_2d);
 
         EXPECT_LT(max_rel_error, 1e-10) << "Iteration " << iteration << ": Grid (" << nx << ","
-                                         << ny << "," << nz << "), Range [" << start_layer << ","
-                                         << end_layer << "], Max Rel Error: " << max_rel_error;
+                                        << ny << "," << nz << "), Range [" << start_layer << ","
+                                        << end_layer << "], Max Rel Error: " << max_rel_error;
     }
 }
 
@@ -329,9 +329,9 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, PressureMethodRoundTrip) {
         // Verify round-trip
         double max_rel_error = ComputeMaxRelativeError(emissions_2d, recovered_2d);
 
-        EXPECT_LT(max_rel_error, 1e-10) << "Iteration " << iteration << ": Grid (" << nx << ","
-                                         << ny << "," << nz << "), Pressure [" << p_start << ","
-                                         << p_end << "], Max Rel Error: " << max_rel_error;
+        EXPECT_LT(max_rel_error, 1e-10)
+            << "Iteration " << iteration << ": Grid (" << nx << "," << ny << "," << nz
+            << "), Pressure [" << p_start << "," << p_end << "], Max Rel Error: " << max_rel_error;
     }
 }
 
@@ -387,9 +387,9 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, HeightMethodRoundTrip) {
         // Verify round-trip
         double max_rel_error = ComputeMaxRelativeError(emissions_2d, recovered_2d);
 
-        EXPECT_LT(max_rel_error, 1e-10) << "Iteration " << iteration << ": Grid (" << nx << ","
-                                         << ny << "," << nz << "), Height [" << h_start << ","
-                                         << h_end << "], Max Rel Error: " << max_rel_error;
+        EXPECT_LT(max_rel_error, 1e-10)
+            << "Iteration " << iteration << ": Grid (" << nx << "," << ny << "," << nz
+            << "), Height [" << h_start << "," << h_end << "], Max Rel Error: " << max_rel_error;
     }
 }
 
@@ -446,9 +446,9 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, PBLMethodRoundTrip) {
         // Verify round-trip
         double max_rel_error = ComputeMaxRelativeError(emissions_2d, recovered_2d);
 
-        EXPECT_LT(max_rel_error, 1e-10) << "Iteration " << iteration << ": Grid (" << nx << ","
-                                         << ny << "," << nz
-                                         << "), PBL, Max Rel Error: " << max_rel_error;
+        EXPECT_LT(max_rel_error, 1e-10)
+            << "Iteration " << iteration << ": Grid (" << nx << "," << ny << "," << nz
+            << "), PBL, Max Rel Error: " << max_rel_error;
     }
 }
 
@@ -462,12 +462,9 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, PBLMethodRoundTrip) {
  */
 TEST_F(VerticalDistributionRoundTripPropertyTest, AllMethodsWithScaleFactors) {
     std::vector<VerticalDistributionMethod> methods = {
-        VerticalDistributionMethod::SINGLE,
-        VerticalDistributionMethod::RANGE,
-        VerticalDistributionMethod::PRESSURE,
-        VerticalDistributionMethod::HEIGHT,
-        VerticalDistributionMethod::PBL
-    };
+        VerticalDistributionMethod::SINGLE, VerticalDistributionMethod::RANGE,
+        VerticalDistributionMethod::PRESSURE, VerticalDistributionMethod::HEIGHT,
+        VerticalDistributionMethod::PBL};
 
     for (int iteration = 0; iteration < 20; ++iteration) {
         auto [nx, ny, nz] = GenerateRandomGridDimensions();
@@ -552,10 +549,10 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, AllMethodsWithScaleFactors) {
         // Verify round-trip
         double max_rel_error = ComputeMaxRelativeError(scaled_emissions, recovered_2d);
 
-        EXPECT_LT(max_rel_error, 1e-10) << "Iteration " << iteration << ": Grid (" << nx << ","
-                                         << ny << "," << nz << "), Method " << static_cast<int>(method)
-                                         << ", Scale " << scale
-                                         << ", Max Rel Error: " << max_rel_error;
+        EXPECT_LT(max_rel_error, 1e-10)
+            << "Iteration " << iteration << ": Grid (" << nx << "," << ny << "," << nz
+            << "), Method " << static_cast<int>(method) << ", Scale " << scale
+            << ", Max Rel Error: " << max_rel_error;
     }
 }
 
@@ -569,12 +566,9 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, AllMethodsWithScaleFactors) {
  */
 TEST_F(VerticalDistributionRoundTripPropertyTest, LargeGridRoundTrip) {
     std::vector<VerticalDistributionMethod> methods = {
-        VerticalDistributionMethod::SINGLE,
-        VerticalDistributionMethod::RANGE,
-        VerticalDistributionMethod::PRESSURE,
-        VerticalDistributionMethod::HEIGHT,
-        VerticalDistributionMethod::PBL
-    };
+        VerticalDistributionMethod::SINGLE, VerticalDistributionMethod::RANGE,
+        VerticalDistributionMethod::PRESSURE, VerticalDistributionMethod::HEIGHT,
+        VerticalDistributionMethod::PBL};
 
     for (int iteration = 0; iteration < 10; ++iteration) {
         std::uniform_int_distribution<int> nx_dist(100, 360);
@@ -656,10 +650,9 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, LargeGridRoundTrip) {
         // Verify round-trip
         double max_rel_error = ComputeMaxRelativeError(emissions_2d, recovered_2d);
 
-        EXPECT_LT(max_rel_error, 1e-10) << "Iteration " << iteration << ": Large Grid (" << nx
-                                         << "," << ny << "," << nz << "), Method "
-                                         << static_cast<int>(method)
-                                         << ", Max Rel Error: " << max_rel_error;
+        EXPECT_LT(max_rel_error, 1e-10)
+            << "Iteration " << iteration << ": Large Grid (" << nx << "," << ny << "," << nz
+            << "), Method " << static_cast<int>(method) << ", Max Rel Error: " << max_rel_error;
     }
 }
 
@@ -673,12 +666,9 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, LargeGridRoundTrip) {
  */
 TEST_F(VerticalDistributionRoundTripPropertyTest, ZeroEmissionsRoundTrip) {
     std::vector<VerticalDistributionMethod> methods = {
-        VerticalDistributionMethod::SINGLE,
-        VerticalDistributionMethod::RANGE,
-        VerticalDistributionMethod::PRESSURE,
-        VerticalDistributionMethod::HEIGHT,
-        VerticalDistributionMethod::PBL
-    };
+        VerticalDistributionMethod::SINGLE, VerticalDistributionMethod::RANGE,
+        VerticalDistributionMethod::PRESSURE, VerticalDistributionMethod::HEIGHT,
+        VerticalDistributionMethod::PBL};
 
     for (int iteration = 0; iteration < 10; ++iteration) {
         auto [nx, ny, nz] = GenerateRandomGridDimensions();
@@ -745,10 +735,9 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, ZeroEmissionsRoundTrip) {
 
         // Verify all recovered values are zero
         for (size_t i = 0; i < recovered_2d.size(); ++i) {
-            EXPECT_NEAR(recovered_2d[i], 0.0, 1e-15) << "Iteration " << iteration << ": Grid ("
-                                                      << nx << "," << ny << "," << nz
-                                                      << "), Method " << static_cast<int>(method)
-                                                      << ", Index " << i;
+            EXPECT_NEAR(recovered_2d[i], 0.0, 1e-15)
+                << "Iteration " << iteration << ": Grid (" << nx << "," << ny << "," << nz
+                << "), Method " << static_cast<int>(method) << ", Index " << i;
         }
     }
 }
@@ -763,12 +752,9 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, ZeroEmissionsRoundTrip) {
  */
 TEST_F(VerticalDistributionRoundTripPropertyTest, SmallEmissionsRoundTrip) {
     std::vector<VerticalDistributionMethod> methods = {
-        VerticalDistributionMethod::SINGLE,
-        VerticalDistributionMethod::RANGE,
-        VerticalDistributionMethod::PRESSURE,
-        VerticalDistributionMethod::HEIGHT,
-        VerticalDistributionMethod::PBL
-    };
+        VerticalDistributionMethod::SINGLE, VerticalDistributionMethod::RANGE,
+        VerticalDistributionMethod::PRESSURE, VerticalDistributionMethod::HEIGHT,
+        VerticalDistributionMethod::PBL};
 
     for (int iteration = 0; iteration < 10; ++iteration) {
         auto [nx, ny, nz] = GenerateRandomGridDimensions();
@@ -846,10 +832,10 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, SmallEmissionsRoundTrip) {
         // Verify round-trip
         double max_rel_error = ComputeMaxRelativeError(emissions_2d, recovered_2d);
 
-        EXPECT_LT(max_rel_error, 1e-10) << "Iteration " << iteration << ": Grid (" << nx << ","
-                                         << ny << "," << nz << "), Method "
-                                         << static_cast<int>(method) << ", Small Emissions"
-                                         << ", Max Rel Error: " << max_rel_error;
+        EXPECT_LT(max_rel_error, 1e-10)
+            << "Iteration " << iteration << ": Grid (" << nx << "," << ny << "," << nz
+            << "), Method " << static_cast<int>(method) << ", Small Emissions"
+            << ", Max Rel Error: " << max_rel_error;
     }
 }
 
@@ -863,12 +849,9 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, SmallEmissionsRoundTrip) {
  */
 TEST_F(VerticalDistributionRoundTripPropertyTest, LargeEmissionsRoundTrip) {
     std::vector<VerticalDistributionMethod> methods = {
-        VerticalDistributionMethod::SINGLE,
-        VerticalDistributionMethod::RANGE,
-        VerticalDistributionMethod::PRESSURE,
-        VerticalDistributionMethod::HEIGHT,
-        VerticalDistributionMethod::PBL
-    };
+        VerticalDistributionMethod::SINGLE, VerticalDistributionMethod::RANGE,
+        VerticalDistributionMethod::PRESSURE, VerticalDistributionMethod::HEIGHT,
+        VerticalDistributionMethod::PBL};
 
     for (int iteration = 0; iteration < 10; ++iteration) {
         auto [nx, ny, nz] = GenerateRandomGridDimensions();
@@ -946,10 +929,10 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, LargeEmissionsRoundTrip) {
         // Verify round-trip
         double max_rel_error = ComputeMaxRelativeError(emissions_2d, recovered_2d);
 
-        EXPECT_LT(max_rel_error, 1e-10) << "Iteration " << iteration << ": Grid (" << nx << ","
-                                         << ny << "," << nz << "), Method "
-                                         << static_cast<int>(method) << ", Large Emissions"
-                                         << ", Max Rel Error: " << max_rel_error;
+        EXPECT_LT(max_rel_error, 1e-10)
+            << "Iteration " << iteration << ": Grid (" << nx << "," << ny << "," << nz
+            << "), Method " << static_cast<int>(method) << ", Large Emissions"
+            << ", Max Rel Error: " << max_rel_error;
     }
 }
 

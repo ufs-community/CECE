@@ -51,8 +51,7 @@ class ScaleFactorCommutativityTest : public ::testing::Test {
     }
 
     /** Creates a DualView filled with a constant value. */
-    static DualView3D MakeField(const std::string& name, double val,
-                                int nx, int ny, int nz = 1) {
+    static DualView3D MakeField(const std::string& name, double val, int nx, int ny, int nz = 1) {
         DualView3D dv(name, nx, ny, nz);
         Kokkos::deep_copy(dv.view_host(), val);
         dv.modify<Kokkos::HostSpace>();
@@ -64,12 +63,10 @@ class ScaleFactorCommutativityTest : public ::testing::Test {
      * @brief Runs the StackingEngine with a given scale_fields order and
      *        returns the host-side result view.
      */
-    static Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace>
-    RunWithScaleOrder(const std::string& base_field_name,
-                      double base_val,
-                      const std::vector<std::string>& scale_names,
-                      const std::vector<double>& scale_vals,
-                      int nx, int ny, int nz = 1) {
+    static Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> RunWithScaleOrder(
+        const std::string& base_field_name, double base_val,
+        const std::vector<std::string>& scale_names, const std::vector<double>& scale_vals, int nx,
+        int ny, int nz = 1) {
         AcesImportState imp;
         AcesExportState exp;
 
@@ -99,8 +96,8 @@ class ScaleFactorCommutativityTest : public ::testing::Test {
     /** Returns the max absolute difference between two result views. */
     static double MaxAbsDiff(
         const Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace>& a,
-        const Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace>& b,
-        int nx, int ny, int nz = 1) {
+        const Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace>& b, int nx, int ny,
+        int nz = 1) {
         double diff = 0.0;
         for (int i = 0; i < nx; ++i)
             for (int j = 0; j < ny; ++j)
@@ -195,8 +192,7 @@ TEST_F(ScaleFactorCommutativityTest, IdentityScaleFactorIsNeutral) {
         RunWithScaleOrder("base", base, {"sf_one", "sf_real"}, {1.0, sf_real}, nx, ny);
     auto result_with_identity_last =
         RunWithScaleOrder("base", base, {"sf_real", "sf_one"}, {sf_real, 1.0}, nx, ny);
-    auto result_no_scale =
-        RunWithScaleOrder("base", base, {"sf_real"}, {sf_real}, nx, ny);
+    auto result_no_scale = RunWithScaleOrder("base", base, {"sf_real"}, {sf_real}, nx, ny);
 
     EXPECT_LT(MaxAbsDiff(result_with_identity_first, result_with_identity_last, nx, ny), 1e-15)
         << "Identity scale factor position must not matter";
@@ -469,8 +465,8 @@ TEST_F(ScaleFactorCommutativityTest, RandomizedCommutativityProperty) {
         }
 
         // Canonical result: scale_fields in original order
-        auto canonical = RunWithScaleOrder(
-            "base_" + std::to_string(iter), base_val, scale_names, scale_vals, nx, ny);
+        auto canonical = RunWithScaleOrder("base_" + std::to_string(iter), base_val, scale_names,
+                                           scale_vals, nx, ny);
 
         // Test all permutations
         std::vector<int> perm_idx(num_scales);
@@ -485,14 +481,13 @@ TEST_F(ScaleFactorCommutativityTest, RandomizedCommutativityProperty) {
                 perm_vals.push_back(scale_vals[idx]);
             }
 
-            auto permuted = RunWithScaleOrder(
-                "base_" + std::to_string(iter), base_val, perm_names, perm_vals, nx, ny);
+            auto permuted = RunWithScaleOrder("base_" + std::to_string(iter), base_val, perm_names,
+                                              perm_vals, nx, ny);
 
             double diff = MaxAbsDiff(canonical, permuted, nx, ny);
             EXPECT_LT(diff, 1e-15)
-                << "Iter " << iter << " permutation " << perm_count
-                << " (nx=" << nx << " ny=" << ny << " num_scales=" << num_scales
-                << "): max abs diff = " << diff;
+                << "Iter " << iter << " permutation " << perm_count << " (nx=" << nx << " ny=" << ny
+                << " num_scales=" << num_scales << "): max abs diff = " << diff;
 
             ++perm_count;
         } while (std::next_permutation(perm_idx.begin(), perm_idx.end()));

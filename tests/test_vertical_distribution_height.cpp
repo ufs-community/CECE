@@ -551,7 +551,8 @@ TEST_F(VerticalDistributionHeightTest, LargeGridMassConservation) {
 
     double rel_error = std::abs(total_3d - total_2d) / total_2d;
     if (rel_error >= 1e-10) {
-        printf("DEBUG: total_2d = %e, total_3d = %e, rel_error = %e\n", total_2d, total_3d, rel_error);
+        printf("DEBUG: total_2d = %e, total_3d = %e, rel_error = %e\n", total_2d, total_3d,
+               rel_error);
     }
     EXPECT_LT(rel_error, 1e-10);
 }

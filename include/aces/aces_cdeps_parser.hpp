@@ -12,10 +12,10 @@
  * @see Requirements 1.1, 1.2, 7.1-7.10
  */
 
-#include "aces/aces_config.hpp"
-
 #include <string>
 #include <vector>
+
+#include "aces/aces_config.hpp"
 
 namespace aces {
 
@@ -44,7 +44,7 @@ namespace aces {
  * @endcode
  */
 class CdepsStreamsParser {
-public:
+   public:
     /**
      * @brief Parse ESMF Config format streams file.
      *
@@ -77,7 +77,7 @@ public:
      * @see Requirements 7.2-7.10
      */
     static bool ValidateStreamsConfig(const AcesCdepsConfig& config,
-                                     std::vector<std::string>& errors);
+                                      std::vector<std::string>& errors);
 
     /**
      * @brief Write streams configuration to ESMF Config format file.
@@ -92,10 +92,9 @@ public:
      *
      * @see Requirements 7.13, Property 16
      */
-    static void WriteStreamsFile(const std::string& filepath,
-                                const AcesCdepsConfig& config);
+    static void WriteStreamsFile(const std::string& filepath, const AcesCdepsConfig& config);
 
-private:
+   private:
     /**
      * @brief Validate file paths in a stream configuration.
      *
@@ -108,7 +107,7 @@ private:
      * @see Requirements 7.3, 7.4, 7.8
      */
     static void ValidateFilePaths(const CdepsStreamConfig& stream,
-                                 std::vector<std::string>& errors);
+                                  std::vector<std::string>& errors);
 
     /**
      * @brief Validate variables in a stream configuration.
@@ -122,7 +121,7 @@ private:
      * @see Requirements 7.5, 7.9
      */
     static void ValidateVariables(const CdepsStreamConfig& stream,
-                                 std::vector<std::string>& errors);
+                                  std::vector<std::string>& errors);
 
     /**
      * @brief Validate interpolation mode in a stream configuration.
@@ -136,7 +135,7 @@ private:
      * @see Requirements 7.6, 7.10
      */
     static void ValidateInterpolationMode(const CdepsStreamConfig& stream,
-                                         std::vector<std::string>& errors);
+                                          std::vector<std::string>& errors);
 
     /**
      * @brief Parse a single stream block from ESMF Config format.
@@ -149,10 +148,8 @@ private:
      * @param end_idx Output parameter for ending line index.
      * @return CdepsStreamConfig object for this stream.
      */
-    static CdepsStreamConfig ParseStreamBlock(
-        const std::vector<std::string>& lines,
-        size_t start_idx,
-        size_t& end_idx);
+    static CdepsStreamConfig ParseStreamBlock(const std::vector<std::string>& lines,
+                                              size_t start_idx, size_t& end_idx);
 
     /**
      * @brief Parse variable mapping string.
@@ -163,8 +160,7 @@ private:
      * @param var_string Variable mapping string from config file.
      * @return Vector of CdepsVariableConfig objects.
      */
-    static std::vector<CdepsVariableConfig> ParseVariables(
-        const std::string& var_string);
+    static std::vector<CdepsVariableConfig> ParseVariables(const std::string& var_string);
 
     /**
      * @brief Trim whitespace from string.
@@ -189,8 +185,7 @@ private:
      * @param varname Name of variable to check.
      * @return true if variable exists, false otherwise.
      */
-    static bool NetCDFHasVariable(const std::string& filepath,
-                                 const std::string& varname);
+    static bool NetCDFHasVariable(const std::string& filepath, const std::string& varname);
 };
 
 }  // namespace aces

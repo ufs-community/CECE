@@ -42,8 +42,8 @@ void ExampleEmissionGeneration::Initialize(const YAML::Node& config,
     // Register diagnostic fields for output
     // These will be written to NetCDF if diagnostics are enabled
     if (diag_manager != nullptr) {
-        temperature_factor_ = ResolveDiagnostic("temperature_factor", 1, 1, 1,
-                                                "dimensionless", "Temperature scaling factor");
+        temperature_factor_ = ResolveDiagnostic("temperature_factor", 1, 1, 1, "dimensionless",
+                                                "Temperature scaling factor");
         solar_factor_diag_ = ResolveDiagnostic("solar_factor", 1, 1, 1, "dimensionless",
                                                "Solar radiation scaling factor");
     }
@@ -87,8 +87,8 @@ void ExampleEmissionGeneration::Run(AcesImportState& import_state, AcesExportSta
 
     Kokkos::parallel_for(
         "ExampleEmissionGenerationKernel",
-        Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<3>>(
-            {0, 0, 0}, {nx, ny, nz}),
+        Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<3>>({0, 0, 0},
+                                                                              {nx, ny, nz}),
         KOKKOS_LAMBDA(int i, int j, int k) {
             // Get meteorological inputs for this grid point
             double temp = temperature(i, j, k);

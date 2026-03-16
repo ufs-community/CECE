@@ -31,13 +31,8 @@ jobs:
           source /opt/spack-environment/activate.sh
         fi
 
-        if command -v spack &> /dev/null; then
-          spack install cdeps || true
-          spack load cdeps || true
-        fi
-
         # Install Python dependencies for converter tests
-        python3 -m pip install pyyaml pytest
+        python3 -m pip install pyyaml pytest netCDF4
 
         # Ensure build directory exists
         mkdir -p build
@@ -116,13 +111,20 @@ jobs:
         fi
 
         ./scripts/setup_hemco_examples.sh
-        ./scripts/data_download/download_ex1.sh
+        # Attempt to download real data, but don't fail if it's not possible in CI
+        ./scripts/data_download/download_ex1.sh || true
 
-        # Mock scale factor for CI. We need a variable named HOURLY_SCALFACT.
+        # Mock essential files for CI. We need variables MACCITY and HOURLY_SCALFACT.
         # Since we don't have nco/cdo in the container easily, we'll use a python script
-        # to create a compliant mock file with correct dimensions.
-        python3 -c "import netCDF4 as nc; ds_out = nc.Dataset('data/hourly.nc', 'w'); ds_out.createDimension('lon', 72); ds_out.createDimension('lat', 46); ds_out.createDimension('lev', 1); out_v = ds_out.createVariable('HOURLY_SCALFACT', 'f8', ('lon', 'lat', 'lev')); out_v[:] = 1.0; ds_out.close()"
+        # to create compliant mock files with correct dimensions.
+        python3 -c "import netCDF4 as nc; import os; os.makedirs('data', exist_ok=True); ds_out = nc.Dataset('data/hourly.nc', 'w'); ds_out.createDimension('lon', 72); ds_out.createDimension('lat', 46); ds_out.createDimension('lev', 1); out_v = ds_out.createVariable('HOURLY_SCALFACT', 'f8', ('lon', 'lat', 'lev')); out_v[:] = 1.0; ds_out.close()"
+        python3 -c "import netCDF4 as nc; import os; os.makedirs('data', exist_ok=True); ds_out = nc.Dataset('data/MACCity_4x5.nc', 'a' if os.path.exists('data/MACCity_4x5.nc') else 'w'); \
+            if 'lon' not in ds_out.dimensions: ds_out.createDimension('lon', 72); \
+            if 'lat' not in ds_out.dimensions: ds_out.createDimension('lat', 46); \
+            if 'lev' not in ds_out.dimensions: ds_out.createDimension('lev', 1); \
+            if 'MACCITY' not in ds_out.variables: ds_out.createVariable('MACCITY', 'f8', ('lon', 'lat', 'lev')); \
+            ds_out.variables['MACCITY'][:] = 1.0; ds_out.close()"
 
         cp examples/aces_config_ex1.yaml aces_config.yaml
         export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(pwd)/build
-        build/bin/aces_nuopc_driver
+        ./build/bin/aces_nuopc_driver

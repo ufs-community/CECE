@@ -503,9 +503,9 @@ TEST_F(VerticalDistributionPressureTest, PressureMultipleLayersReplace) {
     engine.Execute(resolver, nx, ny, nz, {}, 0, 0);
 
     // Verify: replacement occurred (5.0 total, not 10.0)
-    // Note: The total 3D field value should be the sum of the override_emissions over all grid points.
-    // nx=2, ny=2 -> 4 grid points. Each should have 5.0 total column emissions.
-    // Total 3D should be 4 * 5.0 = 20.0.
+    // Note: The total 3D field value should be the sum of the override_emissions over all grid
+    // points. nx=2, ny=2 -> 4 grid points. Each should have 5.0 total column emissions. Total 3D
+    // should be 4 * 5.0 = 20.0.
     double expected_total = static_cast<double>(nx * ny) * 5.0;
     double total_3d = 0.0;
     for (int i = 0; i < nx; ++i) {
@@ -556,7 +556,8 @@ TEST_F(VerticalDistributionPressureTest, LargeGridMassConservation) {
 
     // Set up realistic pressure coefficients
     // ak values must be non-increasing for pressure from top (0) to bottom (nz)
-    // Here we use ak for pressure, so ak[0] should be top (e.g., 0) and ak[nz] should be bottom (e.g., 100000)
+    // Here we use ak for pressure, so ak[0] should be top (e.g., 0) and ak[nz] should be bottom
+    // (e.g., 100000)
     for (int k = 0; k <= nz; ++k) {
         double ak = 100000.0 * std::pow(static_cast<double>(k) / nz, 2.0);
         resolver.SetValue("ak", 0, 0, k, ak);
