@@ -1,4 +1,4 @@
-# ACES: Accelerated Component for Emission System
+# ACES: Atmospheric Chemistry Emission System
 
 ACES is a high-performance, performance-portable emissions compute component for Earth System Models. It is built using C++17 and the Kokkos programming model, designed to run efficiently on both multi-core CPUs and GPUs.
 
