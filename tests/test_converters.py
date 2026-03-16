@@ -46,8 +46,9 @@ def test_hemco_to_aces_conversion(tmp_path):
     assert "diagnostics" in config
     assert config["diagnostics"]["nx"] == 720
     assert config["diagnostics"]["ny"] == 360
-    assert "EmisNO_Total" in config["diagnostics"]["variables"]
+    # The diagnostics variables is a list of objects, not a list of names
+    assert any(v["name"] == "EmisNO_Total" for v in config["diagnostics"]["variables"])
 
     # Check ROOT replacement (our test rc has ROOT: data)
-    stream = next(s for s in config["cdeps_inline_config"]["streams"] if s["name"] == "HOURLY_SCALFACT")
+    stream = next(s for s in config["cdeps_inline_config"]["streams"] if s["name"] == "hourly_scalfact")
     assert stream["file"] == "data/hourly.nc"

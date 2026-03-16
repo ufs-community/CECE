@@ -1,0 +1,60 @@
+meteorology: {}
+scale_factors:
+  hourly_scalfact: HOURLY_SCALFACT
+masks:
+  mask_europe: MASK_EUROPE
+temporal_profiles:
+  geia_dow:
+  - 0.8
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 1.0
+  - 0.9
+species:
+  co:
+  - field: MACCITY_CO
+    operation: add
+    scale: 1.0
+    category: anthropogenic
+    hierarchy: 1
+    weekly_cycle: geia_dow
+    mask: mask_europe
+    scale_fields:
+    - hourly_scalfact
+  - field: EMEP_CO
+    operation: replace
+    scale: 1.0
+    category: anthropogenic
+    hierarchy: 2
+    weekly_cycle: geia_dow
+    mask: mask_europe
+    scale_fields:
+    - hourly_scalfact
+cdeps_inline_config:
+  streams:
+  - name: hourly_scalfact
+    file: data/hourly.nc
+  - name: mask_europe
+    file: data/mask_europe.rc
+  - name: MACCITY_CO
+    file: MACCity.nc
+  - name: EMEP_CO
+    file: EMEP.nc
+diagnostics:
+  grid_type: gaussian
+  nx: 720
+  ny: 360
+  output_interval: 3600
+  variables:
+  - name: EmisNO_Total
+    species: 'NO'
+    units: kg/m2/s
+    long_name: NO_emission_flux_from_all_sectors
+    dim: 2
+  - name: EmisCO_Total
+    species: CO
+    units: kg/m2/s
+    long_name: CO_emission_flux_from_all_sectors
+    dim: 2

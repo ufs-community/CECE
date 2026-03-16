@@ -80,8 +80,8 @@ int AcesStandaloneWriter::WriteTimeStep(ESMC_State export_state, double time_sec
             // Use OLD for subsequent fields to append variables to the existing file.
             int status = first_field ? ESMC_FILESTATUS_REPLACE : ESMC_FILESTATUS_OLD;
 
-            rc = ESMC_FieldWrite(field, filepath.c_str(), name.c_str(), 0,
-                                 (enum ESMC_FileStatus_Flag)status, 1, ESMF_IOFMT_NETCDF);
+            rc = ESMC_FieldWrite(field, filepath.c_str(), NULL, 0, (enum ESMC_FileStatus_Flag)status,
+                                 1, ESMF_IOFMT_NETCDF);
             if (rc != ESMF_SUCCESS) {
                 std::cerr << "ERROR: ESMC_FieldWrite failed for " << name << " to " << filepath
                           << " rc=" << rc << std::endl;

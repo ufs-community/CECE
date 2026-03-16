@@ -8,6 +8,7 @@
  * Requirements: 11.6, 11.7, 11.9, 11.11, 11.13
  */
 
+#include <ESMC.h>
 #include <gtest/gtest.h>
 #include <netcdf.h>
 #include <sys/stat.h>
@@ -100,9 +101,11 @@ class KokkosEnvironment : public ::testing::Environment {
         if (!Kokkos::is_initialized()) {
             Kokkos::initialize();
         }
+        ESMC_Initialize(nullptr, ESMC_ArgLast);
     }
 
     void TearDown() override {
+        ESMC_Finalize();
         if (Kokkos::is_initialized()) {
             Kokkos::finalize();
         }
@@ -134,13 +137,13 @@ class StandaloneWriterUnitTest : public ::testing::Test {
     }
 
     void TearDown() override {
-        try {
-            if (std::filesystem::exists(test_dir_)) {
-                std::filesystem::remove_all(test_dir_);
-            }
-        } catch (const std::exception& e) {
-            // Ignore cleanup errors
-        }
+        // try {
+        //     if (std::filesystem::exists(test_dir_)) {
+        //         std::filesystem::remove_all(test_dir_);
+        //     }
+        // } catch (const std::exception& e) {
+        //     // Ignore cleanup errors
+        // }
     }
 
     /**

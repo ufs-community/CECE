@@ -101,7 +101,7 @@ void StackingEngine::BindFields(CompiledSpecies& spec, FieldResolver& resolver, 
         } else if (m_config.vertical_config.type == VerticalCoordType::MPAS ||
                    m_config.vertical_config.type == VerticalCoordType::WRF) {
             spec.z_coord =
-                resolver.ResolveImportDevice(m_config.vertical_config.z_field, nx, ny, nz);
+                resolver.ResolveImportDevice(m_config.vertical_config.z_field, nx, ny, nz + 1);
         }
         spec.pbl_height =
             resolver.ResolveImportDevice(m_config.vertical_config.pbl_field, nx, ny, 1);

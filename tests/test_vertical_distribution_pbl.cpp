@@ -594,12 +594,12 @@ TEST_F(VerticalDistributionPBLTest, LargeGridMassConservation) {
     PBLDistributionFieldResolver resolver;
     resolver.AddField("emissions_2d", nx, ny, 1);
     resolver.AddField("CO2", nx, ny, nz);
-    resolver.AddField("height", nx, ny, nz);
+    resolver.AddField("height", nx, ny, nz + 1);
     resolver.AddField("pbl_height", nx, ny, 1);
 
     // Set up realistic height field
-    for (int k = 0; k < nz; ++k) {
-        double z = 100.0 * std::pow(static_cast<double>(k) / nz, 1.5);
+    for (int k = 0; k <= nz; ++k) {
+        double z = 2000.0 * std::pow(static_cast<double>(k) / nz, 1.5);
         for (int i = 0; i < nx; ++i) {
             for (int j = 0; j < ny; ++j) {
                 resolver.SetValue("height", i, j, k, z);
