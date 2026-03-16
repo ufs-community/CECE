@@ -231,7 +231,7 @@ if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
                     set_target_properties(${target} PROPERTIES JOB_POOL_COMPILE solo_pool)
 
                     target_include_directories(${target} PUBLIC ${ESMF_INCLUDE_DIRS})
-                    
+
                     # Manually add module directories for CDEPS targets since we disabled global buffering
                     target_include_directories(${target} PUBLIC $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/_deps/cdeps-build/share>)
                     target_include_directories(${target} PUBLIC $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/_deps/cdeps-build/streams>)
@@ -321,8 +321,14 @@ if(TARGET dshr)
 endif()
 
 if(ACES_HAS_FORTRAN)
+    # Set a target-specific module directory for aces to allow consumers to find it
+    set_target_properties(aces PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/fortran_modules/aces)
+    target_include_directories(aces PUBLIC $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/fortran_modules/aces>)
+
     target_compile_definitions(aces PRIVATE ACES_HAS_FORTRAN)
     if(CDEPS_FOUND)
+
+
         target_compile_definitions(aces PRIVATE ACES_HAS_CDEPS)
     endif()
 
