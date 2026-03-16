@@ -1,7 +1,7 @@
 # ACES Developer Guide
 
 ## Project Overview
-ACES (Accelerated Component for Emission System) is a C++20 emissions compute component designed for high performance using Kokkos and ESMF.
+ACES (Atmospheric Chemistry Emission System) is a C++20 emissions compute component designed for high performance using Kokkos and ESMF.
 
 ## Core Architecture & Philosophy
 ACES is designed as a modular, performance-portable emissions framework. Key components include:

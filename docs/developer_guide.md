@@ -4,7 +4,7 @@ This guide provides an overview of the ACES architecture, component interactions
 
 ## ACES Architecture Overview
 
-ACES (Accelerated Component for Emission System) is a modular, performance-portable emissions compute component designed for Earth System Models. The architecture consists of several key components:
+ACES (Atmospheric Chemistry Emission System) is a modular, performance-portable emissions compute component designed for Earth System Models. The architecture consists of several key components:
 
 ### High-Level Architecture
 
