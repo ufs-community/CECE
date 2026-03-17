@@ -12,6 +12,7 @@
 #include <netcdf.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <unistd.h>
 
 #include <Kokkos_Core.hpp>
 #include <cmath>
@@ -620,14 +621,21 @@ TEST_F(StandaloneWriterUnitTest, ErrorHandlingUnwritableDirectory) {
     aces::AcesStandaloneWriter writer(config);
     int rc = writer.Initialize("2020-01-01T00:00:00", nx, ny, nz);
 
-    // Should fail or succeed depending on permissions
-    // If it fails, rc should be non-zero
-    // If it succeeds, WriteTimeStep should fail
-    if (rc == 0) {
-        rc = writer.WriteTimeStep(export_fields, 0.0, 0);
-        EXPECT_NE(rc, 0) << "Expected error when writing to read-only directory";
+    // In CI environments running as root, permission restrictions don't apply
+    // So we skip the error check if we're running as root
+    if (geteuid() != 0) {
+        // Should fail or succeed depending on permissions
+        // If it fails, rc should be non-zero
+        // If it succeeds, WriteTimeStep should fail
+        if (rc == 0) {
+            rc = writer.WriteTimeStep(export_fields, 0.0, 0);
+            EXPECT_NE(rc, 0) << "Expected error when writing to read-only directory";
+        } else {
+            EXPECT_NE(rc, 0) << "Expected error during initialization";
+        }
     } else {
-        EXPECT_NE(rc, 0) << "Expected error during initialization";
+        // Running as root - permissions don't restrict, so just verify no crash
+        EXPECT_GE(rc, 0) << "Should not crash when initializing with read-only directory";
     }
 
     writer.Finalize();
