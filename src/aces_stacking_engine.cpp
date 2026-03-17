@@ -553,6 +553,7 @@ void StackingEngine::Execute(
                 // Single write to output field
                 total_view(i, j, k) = accumulated;
             });
+        spec.export_field.modify<Kokkos::DefaultExecutionSpace>();
     }
     Kokkos::fence();
 }
