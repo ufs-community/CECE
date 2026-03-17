@@ -19,7 +19,7 @@ jobs:
         if [ -f /opt/spack-environment/activate.sh ]; then
           source /opt/spack-environment/activate.sh
         fi
-        apt-get update -qq && apt-get install -y -qq clang-format clang-tools 2>&1 | tail -3
+        apt-get update -qq && apt-get install -y -qq clang-format clang-tidy 2>&1 | tail -3
 
     - name: Run clang-format check
       shell: bash
@@ -33,19 +33,6 @@ jobs:
           clang-format --dry-run --Werror "$file" || exit 1
         done
         echo "✓ clang-format check passed"
-
-    - name: Run clang-tidy check
-      shell: bash
-      run: |
-        if [ -f /opt/spack-environment/activate.sh ]; then
-          source /opt/spack-environment/activate.sh
-        fi
-
-        # Run clang-tidy on ACES source code only (include/aces and src directories)
-        find include/aces src -name "*.cpp" -o -name "*.hpp" | head -20 | while read file; do
-          clang-tidy "$file" -- -I/work/include -I/work/build/_deps/kokkos-src/core/src -I/work/build/_deps/yaml-cpp-src/include || true
-        done
-        echo "✓ clang-tidy check completed"
 
     - name: Cache dependencies and build
       uses: actions/cache@v3
@@ -79,6 +66,19 @@ jobs:
 
         # Build. Make will only build what has changed.
         make -j$(nproc)
+
+    - name: Run clang-tidy check
+      shell: bash
+      run: |
+        if [ -f /opt/spack-environment/activate.sh ]; then
+          source /opt/spack-environment/activate.sh
+        fi
+
+        # Run clang-tidy on ACES source code only (include/aces and src directories)
+        find include/aces src -name "*.cpp" -o -name "*.hpp" | head -20 | while read file; do
+          clang-tidy "$file" -- -I./include -I./build/_deps/kokkos-src/core/src -I./build/_deps/yaml-cpp-src/include 2>&1 | grep -E "error:|warning:" || true
+        done
+        echo "✓ clang-tidy check completed"
 
     - name: Install Python Dependencies
       shell: bash
