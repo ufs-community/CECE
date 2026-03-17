@@ -239,11 +239,12 @@ class TestSuiteIdempotenceTest : public ::testing::Test {
                 }
             }
 
-            // Create stacking engine configuration
+            // Create stacking engine configuration.
+            // Species name must match the export field name in resolver.
             AcesConfig config;
-            config.species_layers["test_species"] = {};
+            config.species_layers["output_emissions"] = {};
 
-            // Create a simple layer. Ensure field_name matches an added field.
+            // Create a simple layer. Ensure field_name matches an added field in resolver.
             EmissionLayer layer;
             layer.field_name = "base_emissions";
             layer.hierarchy = 1;
@@ -252,7 +253,7 @@ class TestSuiteIdempotenceTest : public ::testing::Test {
             layer.vdist_layer_start = 0;
             layer.vdist_layer_end = 0;
 
-            config.species_layers["test_species"].push_back(layer);
+            config.species_layers["output_emissions"].push_back(layer);
 
             // Create stacking engine
             StackingEngine engine(config);

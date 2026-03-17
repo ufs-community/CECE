@@ -281,10 +281,13 @@ class GeneratedSchemeCompilationTest : public ::testing::Test {
         // We use ACES_TEST_COMPILE_FLAGS environment variable to pass include paths,
         // which avoids hardcoding environment-specific paths in the source code.
         const char* extra_flags = std::getenv("ACES_TEST_COMPILE_FLAGS");
-        std::string flags = extra_flags ? std::string(extra_flags) : "-Iinclude";
+        std::string flags = extra_flags ? std::string(extra_flags) : "";
 
-        std::string compile_cmd = "g++ -std=c++20 -fPIC -fopenmp " + flags + " -c " + impl_file +
-                                  " -o /tmp/test_" + scheme_name + ".o 2>&1";
+        // Also ensure we look in the current directory for the header.
+        // We need -Iinclude to find the generated header in build/include/aces/physics/...
+        // and -I. for general project headers.
+        std::string compile_cmd = "g++ -std=c++20 -fPIC -fopenmp -I. -Iinclude " + flags +
+                                  " -c " + impl_file + " -o /tmp/test_" + scheme_name + ".o 2>&1";
 
         int result = std::system(compile_cmd.c_str());
 

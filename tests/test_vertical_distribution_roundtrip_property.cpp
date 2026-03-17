@@ -558,7 +558,6 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, AllMethodsWithScaleFactors) {
         VerticalDistributionRoundTripFieldResolver resolver;
         resolver.AddField("emissions_2d", nx, ny, 1);
         resolver.AddField("TestSpecies", nx, ny, nz);
-        SetupCoordinates(config, resolver, nx, ny, nz, method);
 
         SetupCoordinates(config, resolver, nx, ny, nz, method);
 
@@ -657,7 +656,6 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, LargeGridRoundTrip) {
         VerticalDistributionRoundTripFieldResolver resolver;
         resolver.AddField("emissions_2d", nx, ny, 1);
         resolver.AddField("TestSpecies", nx, ny, nz);
-        SetupCoordinates(config, resolver, nx, ny, nz, method);
 
         SetupCoordinates(config, resolver, nx, ny, nz, method);
 
@@ -818,7 +816,6 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, SmallEmissionsRoundTrip) {
         VerticalDistributionRoundTripFieldResolver resolver;
         resolver.AddField("emissions_2d", nx, ny, 1);
         resolver.AddField("TestSpecies", nx, ny, nz);
-        SetupCoordinates(config, resolver, nx, ny, nz, method);
 
         SetupCoordinates(config, resolver, nx, ny, nz, method);
 
@@ -907,7 +904,6 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, LargeEmissionsRoundTrip) {
         VerticalDistributionRoundTripFieldResolver resolver;
         resolver.AddField("emissions_2d", nx, ny, 1);
         resolver.AddField("TestSpecies", nx, ny, nz);
-        SetupCoordinates(config, resolver, nx, ny, nz, method);
 
         SetupCoordinates(config, resolver, nx, ny, nz, method);
 

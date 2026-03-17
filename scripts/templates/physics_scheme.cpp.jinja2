@@ -111,9 +111,9 @@ void {{ class_name }}::Run(AcesImportState& import_state, AcesExportState& expor
     // Extract dimensions from the first export field. All fields should have
     // compatible dimensions.
 
-    int nx = {{ exports[0].var_name }}.extent(0);
-    int ny = {{ exports[0].var_name }}.extent(1);
-    int nz = {{ exports[0].var_name }}.extent(2);
+    int nx = static_cast<int>({{ exports[0].var_name }}.extent(0));
+    int ny = static_cast<int>({{ exports[0].var_name }}.extent(1));
+    int nz = static_cast<int>({{ exports[0].var_name }}.extent(2));
 
     // ========================================================================
     // Execute Kokkos Parallel Kernel
