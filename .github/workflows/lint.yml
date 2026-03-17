@@ -33,7 +33,8 @@ jobs:
         # Explicitly only check ACES source files to avoid checking dependencies
         # like yaml-cpp or CDEPS that might be in the build directory.
         # Filter the compilation database to only include ACES source and test files.
-        # This prevents linting external dependencies like googletest, kokkos, and yaml-cpp.
-        python3 -c "import json, os; db=json.load(open('build/compile_commands.json')); db=[e for e in db if any(x in e['file'] for x in ['/src/', '/tests/', '/standalone_nuopc/']) and not '_deps' in e['file'] and e['file'].endswith(('.cpp', '.hpp', '.c', '.h'))]; json.dump(db, open('build/compile_commands.json', 'w'))"
+        # This strictly prevents linting third-party dependencies located in build/_deps.
+        # It also ensures only C/C++ source files are processed.
+        python3 -c "import json, os; db=json.load(open('build/compile_commands.json')); workspace=os.getcwd(); db=[e for e in db if (e['file'].startswith(workspace) and any(x in e['file'] for x in ['/src/', '/tests/', '/standalone_nuopc/', '/include/']) and not '_deps' in e['file'] and e['file'].lower().endswith(('.cpp', '.hpp', '.c', '.h')))]; json.dump(db, open('build/compile_commands.json', 'w'))"
         # Run clang-tidy on the filtered database.
         run-clang-tidy -p build
