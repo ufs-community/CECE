@@ -1,7 +1,7 @@
 # Doxygen Configuration for ACES
 # Generated for API documentation generation
 
-PROJECT_NAME           = "ACES (Accelerated Component for Emission System)"
+PROJECT_NAME           = "ACES (Atmospheric Chemistry Emission System)"
 PROJECT_NUMBER         = "1.0"
 PROJECT_BRIEF          = "High-performance emissions compute component for Earth System Models"
 PROJECT_LOGO           =
