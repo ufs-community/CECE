@@ -1,0 +1,72 @@
+# CDEPS Streams Configuration Example for ACES
+# This file demonstrates the ESMF Config format for CDEPS-inline data ingestion
+#
+# Format:
+#   stream::<stream_name>
+#     file_paths = <comma-separated list of NetCDF files>
+#     variables = <var_in_file:var_in_model, ...>
+#     taxmode = <cycle|extend|limit>
+#     tintalgo = <none|linear|nearest|lower|upper>
+#     mapalgo = <bilinear|patch|...>
+#     yearFirst = <first year in data>
+#     yearLast = <last year in data>
+#     yearAlign = <year to align with model time>
+#     offset = <time offset in seconds>
+#   ::
+
+# Example 1: Anthropogenic emissions from CEDS inventory
+stream::ceds_anthro
+  file_paths = /data/emissions/CEDS_CO_anthro_2020.nc, /data/emissions/CEDS_NOx_anthro_2020.nc
+  variables = CO_emis:CEDS_CO, NOx_emis:CEDS_NOx
+  taxmode = cycle
+  tintalgo = linear
+  mapalgo = bilinear
+  yearFirst = 2020
+  yearLast = 2020
+  yearAlign = 2020
+  offset = 0
+::
+
+# Example 2: Biogenic emissions from MEGAN
+stream::megan_biogenic
+  file_paths = /data/emissions/MEGAN_ISOP_2020.nc
+  variables = ISOP_emis:MEGAN_ISOP, MONOTERP_emis:MEGAN_MONOTERP
+  taxmode = cycle
+  tintalgo = linear
+  yearFirst = 2020
+  yearLast = 2020
+  yearAlign = 2020
+::
+
+# Example 3: Biomass burning emissions with temporal interpolation
+stream::gfed_biomass
+  file_paths = /data/emissions/GFED_CO_2020.nc
+  variables = CO_bb:GFED_CO, BC_bb:GFED_BC, OC_bb:GFED_OC
+  taxmode = extend
+  tintalgo = nearest
+  yearFirst = 2020
+  yearLast = 2020
+  yearAlign = 2020
+::
+
+# Example 4: Meteorological fields for physics schemes
+stream::met_fields
+  file_paths = /data/met/ERA5_2020.nc
+  variables = temperature:T, pressure:P, wind_u:U, wind_v:V, pbl_height:HPBL
+  taxmode = cycle
+  tintalgo = linear
+  yearFirst = 2020
+  yearLast = 2020
+  yearAlign = 2020
+::
+
+# Example 5: Scale factors for temporal variation
+stream::scale_factors
+  file_paths = /data/scale_factors/diurnal_cycles.nc, /data/scale_factors/weekly_cycles.nc
+  variables = diurnal_traffic:DIURNAL_TRAFFIC, weekly_industry:WEEKLY_INDUSTRY
+  taxmode = cycle
+  tintalgo = none
+  yearFirst = 2020
+  yearLast = 2020
+  yearAlign = 2020
+::

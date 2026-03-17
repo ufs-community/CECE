@@ -1,46 +1,202 @@
 #include "aces/physics/{{ header_name }}"
 
 #include <Kokkos_Core.hpp>
-#include <iostream>
+#include <algorithm>
+#include <cmath>
 
 #include "aces/aces_physics_factory.hpp"
 
 namespace aces {
 
-/// Self-registration for the {{ class_name }} scheme.
-static PhysicsRegistration<{{ class_name }}> register_scheme("{{ scheme_name }}");
+// ============================================================================
+// Self-Registration
+// ============================================================================
+// This pattern allows the PhysicsFactory to automatically discover and
+// instantiate this scheme without manual factory updates.
+// The string "{{ scheme_name }}" is used as the scheme identifier in YAML configs.
+static PhysicsRegistration<{{ class_name }}> register_{{ scheme_name }}("{{ scheme_name }}");
 
+// ============================================================================
+// Initialize Phase
+// ============================================================================
 void {{ class_name }}::Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) {
-    std::cout << "{{ class_name }}: Initialized." << std::endl;
+    // Call base class initialization to set up field name mappings and diagnostics
+    BasePhysicsScheme::Initialize(config, diag_manager);
+
+    // ========================================================================
+    // Read Configuration Parameters
+    // ========================================================================
+    // All tunable parameters should be read from the YAML config block.
+    // This allows scientists to adjust parameters without recompilation.
+    // Example YAML config:
+    //   physics_schemes:
+    //     - name: {{ scheme_name }}
+    //       options:
+    //         emission_factor: 1.0e-6
+    //         temperature_threshold: 273.15
+
+    {% for option in options %}
+    if (config["{{ option.name }}"]) {
+        {{ option.name }}_ = config["{{ option.name }}"].as<{{ option.type }}>();
+    }
+    {% endfor %}
+
+    // ========================================================================
+    // Register Diagnostic Fields
+    // ========================================================================
+    // Diagnostic fields allow you to output intermediate variables for
+    // validation and debugging. They are written to NetCDF files if
+    // diagnostics are enabled in the output configuration.
+
+    {% for diagnostic in diagnostics %}
+    if (diag_manager != nullptr) {
+        {{ diagnostic.name }}_ = ResolveDiagnostic("{{ diagnostic.name }}",
+                                                   1, 1, 1,  // TODO: Set actual dimensions
+                                                   "{{ diagnostic.units }}",
+                                                   "{{ diagnostic.description }}");
+    }
+    {% endfor %}
+
+    // ========================================================================
+    // Validation
+    // ========================================================================
+    // Add any parameter validation here. For example:
+    // if (param_name_ < 0.0) {
+    //     throw std::invalid_argument("param_name must be non-negative");
+    // }
 }
 
+// ============================================================================
+// Run Phase
+// ============================================================================
 void {{ class_name }}::Run(AcesImportState& import_state, AcesExportState& export_state) {
-    // Resolve handles (leveraging BasePhysicsScheme caching)
+    // ========================================================================
+    // Resolve Input Fields
+    // ========================================================================
+    // ResolveImport() retrieves fields from the import state and caches them
+    // to avoid redundant ESMF lookups. The returned Kokkos::View is on the
+    // device (GPU or CPU) and can be used directly in parallel kernels.
+
     {% for field in imports %}
     auto {{ field.var_name }} = ResolveImport("{{ field.name }}", import_state);
     {% endfor %}
+
+    // ========================================================================
+    // Resolve Output Fields
+    // ========================================================================
+    // ResolveExport() retrieves fields from the export state. These are the
+    // fields that this scheme will compute or modify.
+
     {% for field in exports %}
     auto {{ field.var_name }} = ResolveExport("{{ field.name }}", export_state);
     {% endfor %}
 
+    // ========================================================================
+    // Validate Field Resolution
+    // ========================================================================
+    // Check that all required fields were successfully resolved. If any field
+    // is missing, return early to avoid segmentation faults.
+
     if ({% for field in imports %}{{ field.var_name }}.data() == nullptr || {% endfor %}{% for field in exports %}{{ field.var_name }}.data() == nullptr {% if not loop.last %}|| {% endif %}{% endfor %}) {
+        // One or more required fields could not be resolved
+        // This can happen if the field is not in the state or has wrong dimensions
         return;
     }
 
+    // ========================================================================
+    // Get Grid Dimensions
+    // ========================================================================
+    // Extract dimensions from the first export field. All fields should have
+    // compatible dimensions.
+
     int nx = {{ exports[0].var_name }}.extent(0);
     int ny = {{ exports[0].var_name }}.extent(1);
+    int nz = {{ exports[0].var_name }}.extent(2);
+
+    // ========================================================================
+    // Execute Kokkos Parallel Kernel
+    // ========================================================================
+    // Use Kokkos::parallel_for for performance portability across CPUs and GPUs.
+    // The kernel name "{{ class_name }}Kernel" is used for profiling and debugging.
+    //
+    // Key points:
+    // - Use Kokkos::DefaultExecutionSpace for automatic device dispatch
+    // - Use KOKKOS_LAMBDA for device-compatible lambda functions
+    // - Avoid std::cout, file I/O, and other blocking operations
+    // - Use Kokkos::atomic_add for race-condition-free accumulation
+    // - Use Kokkos::parallel_reduce for global reductions
+    //
+    // Example patterns:
+    //
+    // 1. Simple 2D loop:
+    //    Kokkos::parallel_for("KernelName",
+    //        Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<2>>
+    //            ({0, 0}, {nx, ny}),
+    //        KOKKOS_LAMBDA(int i, int j) {
+    //            output(i, j, 0) = input(i, j, 0) * scale;
+    //        });
+    //
+    // 2. 3D loop with reduction:
+    //    double total = 0.0;
+    //    Kokkos::parallel_reduce("KernelName",
+    //        Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<3>>
+    //            ({0, 0, 0}, {nx, ny, nz}),
+    //        KOKKOS_LAMBDA(int i, int j, int k, double& local_sum) {
+    //            local_sum += output(i, j, k);
+    //        }, total);
+    //
+    // 3. Atomic operations for accumulation:
+    //    Kokkos::parallel_for("KernelName",
+    //        Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<3>>
+    //            ({0, 0, 0}, {nx, ny, nz}),
+    //        KOKKOS_LAMBDA(int i, int j, int k) {
+    //            Kokkos::atomic_add(&output(i, j, 0), input(i, j, k));
+    //        });
 
     Kokkos::parallel_for(
         "{{ class_name }}Kernel",
-        Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<2>>({0, 0}, {nx, ny}),
-        KOKKOS_LAMBDA(int i, int j) {
-            // TODO: Implement physics logic here
+        Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<3>>(
+            {0, 0, 0}, {nx, ny, nz}),
+        KOKKOS_LAMBDA(int i, int j, int k) {
+            // ================================================================
+            // TODO: Implement your physics computation here
+            // ================================================================
+            // This is where you implement the actual physics logic.
+            // You have access to all input and output fields through the
+            // Kokkos::View handles resolved above.
+            //
+            // Example: Compute emissions based on temperature
+            // if (imports[0].var_name(i, j, k) > 273.15) {
+            //     exports[0].var_name(i, j, k) =
+            //         imports[0].var_name(i, j, k) * param_name_;
+            // }
         });
 
+    // Ensure all threads complete before proceeding
     Kokkos::fence();
+
+    // ========================================================================
+    // Mark Modified Fields
+    // ========================================================================
+    // Signal to ACES that these export fields have been updated on the device.
+    // This ensures proper device-to-host synchronization before ESMF accesses
+    // the data.
+
     {% for field in exports %}
     MarkModified("{{ field.name }}", export_state);
     {% endfor %}
+}
+
+// ============================================================================
+// Finalize Phase
+// ============================================================================
+void {{ class_name }}::Finalize() {
+    // BasePhysicsScheme provides a default no-op implementation.
+    // Override this method if your scheme needs to release resources.
+    // Example:
+    //   if (internal_buffer_.data() != nullptr) {
+    //       Kokkos::kokkos_free(internal_buffer_);
+    //   }
 }
 
 }  // namespace aces

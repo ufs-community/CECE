@@ -1,3 +1,4 @@
+#include <sys/stat.h>
 #include <yaml-cpp/yaml.h>
 
 #include <iostream>
@@ -64,6 +65,9 @@ AcesConfig ParseConfig(const std::string& filename) {
                 }
                 if (layer_node["weekly_cycle"]) {
                     layer.weekly_cycle = layer_node["weekly_cycle"].as<std::string>();
+                }
+                if (layer_node["seasonal_cycle"]) {
+                    layer.seasonal_cycle = layer_node["seasonal_cycle"].as<std::string>();
                 }
                 if (layer_node["vdist"]) {
                     auto vdist = layer_node["vdist"];
@@ -319,7 +323,70 @@ AcesConfig ParseConfig(const std::string& filename) {
         }
     }
 
+    // Parse standalone output configuration (Requirement 11.12)
+    if (root["output"]) {
+        auto out_node = root["output"];
+        config.output_config.enabled = true;
+
+        if (out_node["directory"]) {
+            config.output_config.directory = out_node["directory"].as<std::string>();
+        }
+        if (out_node["filename_pattern"]) {
+            config.output_config.filename_pattern = out_node["filename_pattern"].as<std::string>();
+        }
+        if (out_node["frequency_steps"]) {
+            config.output_config.frequency_steps = out_node["frequency_steps"].as<int>();
+        }
+        if (out_node["fields"]) {
+            for (auto const& f : out_node["fields"]) {
+                config.output_config.fields.push_back(f.as<std::string>());
+            }
+        }
+        if (out_node["diagnostics"]) {
+            config.output_config.include_diagnostics = out_node["diagnostics"].as<bool>();
+        }
+
+        // Validate output directory writability; log INFO if it needs to be created.
+        // Actual directory creation is deferred to AcesStandaloneWriter::Initialize.
+        const std::string& dir = config.output_config.directory;
+        struct stat st {};
+        if (stat(dir.c_str(), &st) != 0) {
+            std::cout << "[ACES INFO] Output directory '" << dir
+                      << "' does not exist and will be created at runtime.\n";
+        } else if (!(st.st_mode & S_IWUSR)) {
+            std::cerr << "[ACES ERROR] Output directory '" << dir << "' is not writable.\n";
+        }
+    }
+
     return config;
+}
+
+// ---------------------------------------------------------------------------
+// Runtime dynamic registration helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * @brief Adds a new emission species with its layers to an existing config at runtime.
+ */
+void AddSpecies(AcesConfig& config, const std::string& species_name,
+                std::vector<EmissionLayer> layers) {
+    config.species_layers[species_name] = std::move(layers);
+}
+
+/**
+ * @brief Adds a new scale factor mapping to an existing config at runtime.
+ */
+void AddScaleFactor(AcesConfig& config, const std::string& internal_name,
+                    const std::string& external_name) {
+    config.scale_factor_mapping[internal_name] = external_name;
+}
+
+/**
+ * @brief Adds a new mask mapping to an existing config at runtime.
+ */
+void AddMask(AcesConfig& config, const std::string& internal_name,
+             const std::string& external_name) {
+    config.mask_mapping[internal_name] = external_name;
 }
 
 }  // namespace aces

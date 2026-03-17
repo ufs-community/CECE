@@ -3,6 +3,8 @@ module aces_cap_mod
   use ESMF
   use NUOPC
   use NUOPC_Model, modelSS => SetServices
+  use NUOPC_Model, only : model_label_Advance => label_Advance
+  use NUOPC_Model, only : model_label_Finalize => label_Finalize
 #ifdef ACES_HAS_CDEPS
   use cdeps_inline_mod
 #endif
@@ -15,10 +17,19 @@ module aces_cap_mod
       type(c_ptr), value :: importState, exportState
       integer(c_int), intent(out) :: rc
     end subroutine
-    subroutine aces_core_initialize(data_ptr, importState, exportState, clock, rc) bind(C)
+    subroutine aces_core_realize(data_ptr, importState, exportState, grid, rc) bind(C)
+      import :: c_ptr, c_int
+      type(c_ptr), value :: data_ptr, importState, exportState, grid
+      integer(c_int), intent(out) :: rc
+    end subroutine
+    subroutine aces_core_initialize_p1(data_ptr, rc) bind(C)
       import :: c_ptr, c_int
       type(c_ptr), intent(out) :: data_ptr
-      type(c_ptr), value :: importState, exportState, clock
+      integer(c_int), intent(out) :: rc
+    end subroutine
+    subroutine aces_core_initialize_p2(data_ptr, gcomp, importState, exportState, clock, grid, rc) bind(C)
+      import :: c_ptr, c_int
+      type(c_ptr), value :: data_ptr, gcomp, importState, exportState, clock, grid
       integer(c_int), intent(out) :: rc
     end subroutine
     subroutine aces_core_run(data_ptr, importState, exportState, clock, rc) bind(C)
@@ -43,15 +54,40 @@ contains
     call NUOPC_CompDerive(comp, modelSS, rc=rc)
     if (rc /= ESMF_SUCCESS) return
 
-    ! 2. Specialize NUOPC_Model
+    ! 2. Specialize NUOPC_Model phases
     call NUOPC_CompSpecialize(comp, specRoutine=ACES_Advertise, &
       specLabel="ModelBase_Advertise", rc=rc)
     if (rc /= ESMF_SUCCESS) return
 
-    ! 3. Register standard ESMF entry points
-    call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, userRoutine=ACES_Initialize, phase=1, rc=rc)
-    call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_RUN, userRoutine=ACES_Run, phase=1, rc=rc)
-    call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_FINALIZE, userRoutine=ACES_Finalize, phase=1, rc=rc)
+    call NUOPC_CompSpecialize(comp, specRoutine=ACES_Realize, &
+      specLabel="ModelBase_Realize", rc=rc)
+    if (rc /= ESMF_SUCCESS) return
+
+    ! 3. Register multi-phase initialization using NUOPC_CompSetEntryPoint
+    ! Phase 1 (IPDv00p1): Core initialization (Kokkos, config, PhysicsFactory)
+    call NUOPC_CompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, &
+      phaseLabelList=(/"IPDv00p1"/), userRoutine=ACES_InitializeP1, rc=rc)
+    if (rc /= ESMF_SUCCESS) return
+
+    ! Phase 2 (IPDv00p2): CDEPS and field binding
+    call NUOPC_CompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, &
+      phaseLabelList=(/"IPDv00p2"/), userRoutine=ACES_InitializeP2, rc=rc)
+    if (rc /= ESMF_SUCCESS) return
+
+    ! 4. Declare phase dependencies using NUOPC_CompAttributeSet
+    ! This maps NUOPC Initialize Phase Definitions (IPD) to actual phase numbers
+    call NUOPC_CompAttributeSet(comp, "InitializePhaseMap", &
+      "IPDv00p1=1,IPDv00p2=2", rc=rc)
+    if (rc /= ESMF_SUCCESS) return
+
+    ! 5. Register Run and Finalize phases using NUOPC_CompSpecialize
+    call NUOPC_CompSpecialize(comp, specLabel=model_label_Advance, &
+      specRoutine=ACES_Run, rc=rc)
+    if (rc /= ESMF_SUCCESS) return
+
+    call NUOPC_CompSpecialize(comp, specLabel=model_label_Finalize, &
+      specRoutine=ACES_Finalize, rc=rc)
+    if (rc /= ESMF_SUCCESS) return
 
     rc = ESMF_SUCCESS
   end subroutine
@@ -71,7 +107,32 @@ contains
     rc = int(c_rc)
   end subroutine
 
-  subroutine ACES_Initialize(comp, importState, exportState, clock, rc)
+  subroutine ACES_Realize(comp, rc)
+    type(ESMF_GridComp)  :: comp
+    integer, intent(out) :: rc
+    type(ESMF_State) :: importState, exportState
+    type(ESMF_Grid) :: grid
+    integer(c_int) :: c_rc
+    type(c_ptr) :: data_ptr
+
+    ! Get import/export states and grid from component
+    call ESMF_GridCompGet(comp, importState=importState, exportState=exportState, grid=grid, rc=rc)
+    if (rc /= ESMF_SUCCESS) return
+
+    ! Retrieve internal state pointer from Phase 1
+    call ESMF_GridCompGetInternalState(comp, data_ptr, rc)
+    if (rc /= ESMF_SUCCESS) return
+
+    ! Call C++ bridge to create and allocate export fields
+    call aces_core_realize(data_ptr, &
+                           transfer(importState, c_null_ptr), &
+                           transfer(exportState, c_null_ptr), &
+                           transfer(grid, c_null_ptr), &
+                           c_rc)
+    rc = int(c_rc)
+  end subroutine
+
+  subroutine ACES_InitializeP1(comp, importState, exportState, clock, rc)
     type(ESMF_GridComp)  :: comp
     type(ESMF_State)     :: importState, exportState
     type(ESMF_Clock)     :: clock
@@ -79,24 +140,65 @@ contains
 
     integer(c_int) :: c_rc
     type(c_ptr) :: data_ptr
+
+    ! Phase 1 (IPDv00p1): Core initialization
+    ! - Initialize Kokkos if not already initialized
+    ! - Parse YAML configuration
+    ! - Allocate AcesInternalData structure
+    ! - Initialize PhysicsFactory and instantiate all physics schemes
+    ! - Initialize StackingEngine
+    ! - Initialize DiagnosticManager
+
+    call aces_core_initialize_p1(data_ptr, c_rc)
+    rc = int(c_rc)
+    if (rc /= ESMF_SUCCESS) return
+
+    ! Store internal state pointer in GridComp for Phase 2
+    call ESMF_GridCompSetInternalState(comp, data_ptr, rc)
+    if (rc /= ESMF_SUCCESS) return
+
+    rc = ESMF_SUCCESS
+  end subroutine
+
+  subroutine ACES_InitializeP2(comp, importState, exportState, clock, rc)
+    type(ESMF_GridComp)  :: comp
+    type(ESMF_State)     :: importState, exportState
+    type(ESMF_Clock)     :: clock
+    integer, intent(out) :: rc
+
+    integer(c_int) :: c_rc
+    type(c_ptr) :: data_ptr
+    type(ESMF_Grid) :: grid
     type(ESMF_Field) :: field
     type(ESMF_Mesh) :: mesh
     character(len=ESMF_MAXSTR) :: fieldName
 
-    ! 1. Call ACES core C bridge
-    call aces_core_initialize(data_ptr, &
-                              transfer(importState, c_null_ptr), &
-                              transfer(exportState, c_null_ptr), &
-                              transfer(clock, c_null_ptr), &
-                              c_rc)
-    rc = int(c_rc)
-    if (rc /= 0) return
+    ! Phase 2 (IPDv00p2): CDEPS and field binding
+    ! - Initialize CDEPS_Inline if streams are configured
+    ! - Extract grid dimensions from ESMF_Grid
+    ! - Allocate default mask (all 1.0)
+    ! - Cache field metadata for efficient runtime access
 
-    ! 2. Store internal state pointer in GridComp
-    call ESMF_GridCompSetInternalState(comp, data_ptr, rc)
+    ! 1. Retrieve internal state pointer from Phase 1
+    call ESMF_GridCompGetInternalState(comp, data_ptr, rc)
     if (rc /= ESMF_SUCCESS) return
 
-    ! 3. Initialize CDEPS (Direct Fortran call)
+    ! 2. Get grid from component
+    call ESMF_GridCompGet(comp, grid=grid, rc=rc)
+    if (rc /= ESMF_SUCCESS) return
+
+    ! 3. Call C++ bridge for Phase 2 initialization
+    call aces_core_initialize_p2(data_ptr, &
+                                 transfer(comp, c_null_ptr), &
+                                 transfer(importState, c_null_ptr), &
+                                 transfer(exportState, c_null_ptr), &
+                                 transfer(clock, c_null_ptr), &
+                                 transfer(grid, c_null_ptr), &
+                                 c_rc)
+    rc = int(c_rc)
+    if (rc /= ESMF_SUCCESS) return
+
+    ! 4. Initialize CDEPS (Direct Fortran call)
 #ifdef ACES_HAS_CDEPS
     ! Try to discover mesh from existing fields in exportState
     fieldName = "aces_discovery_emissions"
@@ -112,14 +214,19 @@ contains
     rc = ESMF_SUCCESS
   end subroutine
 
-  subroutine ACES_Run(comp, importState, exportState, clock, rc)
+  subroutine ACES_Run(comp, rc)
     type(ESMF_GridComp)  :: comp
-    type(ESMF_State)     :: importState, exportState
-    type(ESMF_Clock)     :: clock
     integer, intent(out) :: rc
 
+    type(ESMF_State)     :: importState, exportState
+    type(ESMF_Clock)     :: clock
     integer(c_int) :: c_rc
     type(c_ptr) :: data_ptr
+
+    ! Get import/export states and clock from component
+    call ESMF_GridCompGet(comp, importState=importState, exportState=exportState, &
+                         clock=clock, rc=rc)
+    if (rc /= ESMF_SUCCESS) return
 
     ! 1. Retrieve internal state pointer
     call ESMF_GridCompGetInternalState(comp, data_ptr, rc)
@@ -143,10 +250,8 @@ contains
     rc = int(c_rc)
   end subroutine
 
-  subroutine ACES_Finalize(comp, importState, exportState, clock, rc)
+  subroutine ACES_Finalize(comp, rc)
     type(ESMF_GridComp)  :: comp
-    type(ESMF_State)     :: importState, exportState
-    type(ESMF_Clock)     :: clock
     integer, intent(out) :: rc
 
     integer(c_int) :: c_rc

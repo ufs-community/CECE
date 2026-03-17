@@ -48,9 +48,11 @@ TEST_F(IngestorTest, ConfigFileGeneration) {
     gcomp.ptr = nullptr;
     ESMC_Clock clock;
     clock.ptr = nullptr;
+    ESMC_State exportState;
+    exportState.ptr = nullptr;
     ESMC_Mesh mesh;
     mesh.ptr = nullptr;
-    ingestor.InitializeCDEPS(gcomp, clock, mesh, config);
+    ingestor.InitializeCDEPS(gcomp, clock, exportState, mesh, config);
 
     // Verify .streams file
     std::ifstream stream_file("aces_emissions.streams");

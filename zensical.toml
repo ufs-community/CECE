@@ -1,6 +1,6 @@
 [project]
 site_name = "ACES Documentation"
-site_description = "Accelerated Component for Emission System"
+site_description = "Atmospheric Chemistry Emission System"
 site_author = "ACES Team"
 copyright = "Copyright &copy; 2026 ACES Authors"
 

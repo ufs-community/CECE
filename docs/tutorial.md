@@ -1,132 +1,391 @@
-# Tutorial: Adding New Physics Schemes
+# Tutorials
 
-ACES is designed to be extensible. You can add new physics logic by implementing a "Physics Scheme." This tutorial shows how to add both native C++ schemes and Fortran-based schemes.
+This section provides step-by-step guides for common ACES extension tasks.
 
-## 1. The `PhysicsScheme` Interface
+## Tutorial 1: Adding a New Emission Species
 
-All schemes must inherit from the `aces::PhysicsScheme` base class defined in `include/aces/physics_scheme.hpp`:
+This tutorial shows how to add a new emission species to ACES without recompilation.
 
-```cpp
-class PhysicsScheme {
-public:
-    virtual void Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) = 0;
-    virtual void Run(AcesImportState& import_state, AcesExportState& export_state) = 0;
-};
+### Step 1: Define the Species in YAML
+
+Edit your `aces_config.yaml` and add the new species to the `species` section:
+
+```yaml
+species:
+  - name: CO
+    units: kg/m2/s
+    long_name: "Carbon Monoxide"
+
+  - name: PM25
+    units: kg/m2/s
+    long_name: "Fine Particulate Matter"
 ```
+
+### Step 2: Add Emission Layers
+
+Add layers that contribute to the new species:
+
+```yaml
+layers:
+  - name: anthropogenic_pm25
+    species: PM25
+    hierarchy: 1
+    operation: add
+    file: /data/emissions/CEDS_PM25_2020.nc
+    variable: PM25_emis
+    vertical_distribution:
+      method: SINGLE
+      layer: 0
+    scale_factors:
+      - name: temporal_scale
+        file: /data/scales/diurnal_pm25.nc
+        variable: DIURNAL_SCALE
+
+  - name: biomass_burning_pm25
+    species: PM25
+    hierarchy: 2
+    operation: add
+    file: /data/emissions/GFED4_PM25_2020.nc
+    variable: PM25_emis
+    vertical_distribution:
+      method: PBL
+    scale_factors:
+      - name: seasonal_scale
+        file: /data/scales/seasonal_pm25.nc
+        variable: SEASONAL_SCALE
+```
+
+### Step 3: Configure Output
+
+Add the new species to the output configuration:
+
+```yaml
+output:
+  directory: ./aces_output
+  filename_pattern: "aces_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
+  frequency_steps: 1
+  fields:
+    - CO
+    - PM25
+  diagnostics: false
+```
+
+### Step 4: Run ACES
+
+```bash
+./build/bin/aces_nuopc_driver --config aces_config.yaml
+```
+
+The new species will be automatically created and computed without recompilation!
 
 ---
 
-## 2. Adding a Native C++ (Kokkos) Scheme
+## Tutorial 2: Adding a New Physics Parameterization
 
-Native schemes are preferred for performance, as they can run on both CPUs and GPUs.
+This tutorial shows how to add a new physics scheme to ACES.
 
-### Step A: Create the Header
-Create `include/aces/physics/my_scheme.hpp`:
+### Step 1: Using the Scheme Generator (Recommended)
 
+The easiest way is to use the automatic scheme generator:
+
+```bash
+# Create a configuration file for your scheme
+cat > my_scheme_config.yaml << 'EOF'
+scheme:
+  name: MyEmissionScheme
+  language: cpp
+  description: "My custom emission parameterization"
+
+imports:
+  - name: temperature
+    units: K
+    dimensions: 3D
+  - name: wind_speed
+    units: m/s
+    dimensions: 3D
+  - name: humidity
+    units: kg/kg
+    dimensions: 3D
+
+exports:
+  - name: my_emissions
+    units: kg/m2/s
+    dimensions: 2D
+
+diagnostics:
+  - name: intermediate_value
+    units: kg/m3
+    dimensions: 3D
+
+options:
+  - name: emission_factor
+    type: double
+    default: 1.0e-6
+    description: "Base emission factor"
+  - name: temperature_threshold
+    type: double
+    default: 273.15
+    description: "Minimum temperature for emissions"
+EOF
+
+# Generate the scheme
+python3 scripts/generate_physics_scheme.py my_scheme_config.yaml
+```
+
+This creates:
+- `include/aces/physics/aces_my_emission_scheme.hpp`
+- `src/physics/aces_my_emission_scheme.cpp`
+- Updated `CMakeLists.txt` entries
+
+### Step 2: Implement the Physics Kernel
+
+Edit `src/physics/aces_my_emission_scheme.cpp` and implement the `Run` method:
+
+```cpp
+void MyEmissionScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
+    // Resolve input fields
+    auto temperature = ResolveImport("temperature", import_state);
+    auto wind_speed = ResolveImport("wind_speed", import_state);
+    auto humidity = ResolveImport("humidity", import_state);
+
+    // Resolve output fields
+    auto emissions = ResolveExport("my_emissions", export_state);
+
+    // Resolve diagnostic fields
+    auto intermediate = ResolveDiagnostic("intermediate_value", nx, ny, nz);
+
+    // Get grid dimensions
+    int nx = emissions.extent(0);
+    int ny = emissions.extent(1);
+
+    // Implement physics kernel using Kokkos
+    Kokkos::parallel_for("MyEmissionScheme_Kernel",
+        Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0,0}, {nx,ny}),
+        KOKKOS_LAMBDA(int i, int j) {
+            // Get meteorological inputs at surface (layer 0)
+            double T = temperature(i, j, 0);
+            double U = wind_speed(i, j, 0);
+            double Q = humidity(i, j, 0);
+
+            // Compute emissions based on temperature
+            double temp_factor = 0.0;
+            if (T > emission_factor_) {
+                temp_factor = std::exp(0.1 * (T - 298.15));
+            }
+
+            // Compute emissions based on wind speed
+            double wind_factor = 1.0 + 0.01 * U;
+
+            // Combine factors
+            emissions(i, j) = emission_factor_ * temp_factor * wind_factor;
+
+            // Store intermediate value for diagnostics
+            intermediate(i, j, 0) = temp_factor;
+        });
+
+    // Mark fields as modified
+    MarkModified("my_emissions", export_state);
+}
+```
+
+### Step 3: Configure the Scheme
+
+Add the scheme to your `aces_config.yaml`:
+
+```yaml
+physics_schemes:
+  - name: MyEmissionScheme
+    enabled: true
+    options:
+      emission_factor: 1.5e-6
+      temperature_threshold: 280.0
+```
+
+### Step 4: Build and Run
+
+```bash
+cd build
+cmake ..
+make -j4
+ctest --output-on-failure
+./bin/aces_nuopc_driver --config ../aces_config.yaml
+```
+
+### Step 5: Manual Implementation (Advanced)
+
+If you prefer manual implementation without the generator:
+
+**Header** (`include/aces/physics/aces_my_scheme.hpp`):
 ```cpp
 #include "aces/physics_scheme.hpp"
 
 namespace aces {
-class MyScheme : public PhysicsScheme {
+
+class MyScheme : public BasePhysicsScheme {
 public:
-    void Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) override;
-    void Run(AcesImportState& import_state, AcesExportState& export_state) override;
+    void Initialize(const YAML::Node& config,
+                   AcesDiagnosticManager* diag_manager) override;
+    void Run(AcesImportState& import_state,
+            AcesExportState& export_state) override;
+    void Finalize() override;
+
+private:
+    double emission_factor_ = 1.0e-6;
+    double temperature_threshold_ = 273.15;
 };
-}
+
+// Self-registration
+static PhysicsRegistration<MyScheme> registration_my_scheme("MyScheme");
+
+}  // namespace aces
 ```
 
-### Step B: Implement the Logic
-Create `src/physics/my_scheme.cpp`:
-
+**Implementation** (`src/physics/aces_my_scheme.cpp`):
 ```cpp
-#include "aces/physics/my_scheme.hpp"
-#include <Kokkos_Core.hpp>
+#include "aces/physics/aces_my_scheme.hpp"
 
 namespace aces {
-void MyScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* diag) {
-    // Register diagnostics if needed
-    diag->RegisterDiagnostic("my_diagnostic", ...);
-}
 
-void MyScheme::Run(AcesImportState& import, AcesExportState& export_s) {
-    auto base_nox = import.fields["base_nox"].view_device();
-    auto nox = export_s.fields["nox"].view_device();
+void MyScheme::Initialize(const YAML::Node& config,
+                         AcesDiagnosticManager* diag_manager) {
+    BasePhysicsScheme::Initialize(config, diag_manager);
 
-    int nx = static_cast<int>(nox.extent(0));
-    int ny = static_cast<int>(nox.extent(1));
-    int nz = static_cast<int>(nox.extent(2));
-
-    Kokkos::parallel_for("MyKernel",
-        Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0,0,0}, {nx,ny,nz}),
-        KOKKOS_LAMBDA(int i, int j, int k) {
-            nox(i,j,k) += base_nox(i,j,k) * 0.5;
-        });
-}
-}
-```
-
----
-
-## 3. Adding a Fortran Scheme
-
-If you have legacy Fortran code, you can wrap it using a C++ bridge.
-
-### Step A: Your Fortran Code
-In `src/physics/my_fortran_code.f90`:
-```fortran
-subroutine compute_something(nox, nx, ny, nz) bind(c, name="compute_something")
-    use iso_c_binding
-    integer(c_int), intent(in) :: nx, ny, nz
-    real(c_double), intent(inout) :: nox(nx, ny, nz)
-    ! ... logic ...
-end subroutine
-```
-
-### Step B: The C++ Bridge Implementation
-In `src/physics/my_fortran_bridge.cpp`:
-
-```cpp
-extern "C" {
-    void compute_something(double* nox, int nx, int ny, int nz);
-}
-
-void MyBridge::Run(AcesImportState& import, AcesExportState& export_s) {
-    auto& dv_nox = export_s.fields["nox"];
-
-    // 1. Sync to Host (Fortran runs on CPU)
-    dv_nox.sync<Kokkos::HostSpace>();
-
-    // 2. Call Fortran
-    compute_something(dv_nox.view_host().data(), nx, ny, nz);
-
-    // 3. Mark Host modified and Sync to Device
-    dv_nox.modify<Kokkos::HostSpace>();
-    dv_nox.sync<Kokkos::DefaultExecutionSpace>();
-}
-```
-
----
-
-## 4. Registering Your Scheme
-
-Finally, you must tell the `PhysicsFactory` how to create your scheme.
-
-Edit `src/aces_physics_factory.cpp`:
-
-```cpp
-#include "aces/physics/my_scheme.hpp"
-
-std::unique_ptr<PhysicsScheme> PhysicsFactory::CreateScheme(const PhysicsSchemeConfig& config) {
-    if (config.name == "my_new_scheme") {
-        return std::make_unique<MyScheme>();
+    if (config["emission_factor"]) {
+        emission_factor_ = config["emission_factor"].as<double>();
     }
-    // ...
+    if (config["temperature_threshold"]) {
+        temperature_threshold_ = config["temperature_threshold"].as<double>();
+    }
 }
+
+void MyScheme::Run(AcesImportState& import_state,
+                  AcesExportState& export_state) {
+    auto temperature = ResolveImport("temperature", import_state);
+    auto emissions = ResolveExport("my_emissions", export_state);
+
+    int nx = emissions.extent(0);
+    int ny = emissions.extent(1);
+
+    Kokkos::parallel_for("MyScheme_Kernel",
+        Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0,0}, {nx,ny}),
+        KOKKOS_LAMBDA(int i, int j) {
+            double T = temperature(i, j, 0);
+            if (T > temperature_threshold_) {
+                emissions(i, j) = emission_factor_ * std::exp(0.1 * (T - 298.15));
+            }
+        });
+
+    MarkModified("my_emissions", export_state);
+}
+
+void MyScheme::Finalize() {
+    // Cleanup if needed
+}
+
+}  // namespace aces
 ```
 
-Now you can enable it in `aces_config.yaml`:
-```yaml
-physics_schemes:
-  - name: "my_new_scheme"
-    language: "cpp"
+---
+
+## Tutorial 3: Adding a New Physics Scheme (Legacy Fortran)
+
+If you have existing Fortran code, you can wrap it in a C++ bridge.
+
+### Step 1: Create Fortran Kernel
+
+Create `src/physics/my_fortran_kernel.F90`:
+
+```fortran
+module my_fortran_kernel_mod
+    use iso_c_binding
+    implicit none
+    private
+    public :: compute_emissions
+
+contains
+
+    subroutine compute_emissions(temperature, emissions, nx, ny) bind(c, name="compute_emissions")
+        integer(c_int), intent(in) :: nx, ny
+        real(c_double), intent(in) :: temperature(nx, ny)
+        real(c_double), intent(inout) :: emissions(nx, ny)
+        integer :: i, j
+
+        do j = 1, ny
+            do i = 1, nx
+                if (temperature(i, j) > 273.15) then
+                    emissions(i, j) = 1.0e-6 * exp(0.1 * (temperature(i, j) - 298.15))
+                else
+                    emissions(i, j) = 0.0
+                end if
+            end do
+        end do
+    end subroutine compute_emissions
+
+end module my_fortran_kernel_mod
 ```
+
+### Step 2: Create C++ Bridge
+
+Create `src/physics/aces_my_fortran_scheme.cpp`:
+
+```cpp
+#include "aces/physics_scheme.hpp"
+
+extern "C" {
+    void compute_emissions(double* temperature, double* emissions, int nx, int ny);
+}
+
+namespace aces {
+
+class MyFortranScheme : public BasePhysicsScheme {
+public:
+    void Initialize(const YAML::Node& config,
+                   AcesDiagnosticManager* diag_manager) override {
+        BasePhysicsScheme::Initialize(config, diag_manager);
+    }
+
+    void Run(AcesImportState& import_state,
+            AcesExportState& export_state) override {
+        auto& temp_dv = import_state.fields["temperature"];
+        auto& emis_dv = export_state.fields["my_emissions"];
+
+        int nx = emis_dv.view_host().extent(0);
+        int ny = emis_dv.view_host().extent(1);
+
+        // Sync to host (Fortran runs on CPU)
+        temp_dv.sync<Kokkos::HostSpace>();
+        emis_dv.sync<Kokkos::HostSpace>();
+
+        // Call Fortran kernel
+        compute_emissions(temp_dv.view_host().data(),
+                         emis_dv.view_host().data(),
+                         nx, ny);
+
+        // Mark modified and sync back to device
+        emis_dv.modify<Kokkos::HostSpace>();
+        emis_dv.sync<Kokkos::DefaultExecutionSpace>();
+
+        MarkModified("my_emissions", export_state);
+    }
+};
+
+static PhysicsRegistration<MyFortranScheme> registration_my_fortran("MyFortranScheme");
+
+}  // namespace aces
+```
+
+### Step 3: Update CMakeLists.txt
+
+Add the Fortran source to the build:
+
+```cmake
+add_library(aces_my_fortran_kernel src/physics/my_fortran_kernel.F90)
+target_link_libraries(aces_my_fortran_kernel PUBLIC aces)
+
+add_library(aces_my_fortran_scheme src/physics/aces_my_fortran_scheme.cpp)
+target_link_libraries(aces_my_fortran_scheme PUBLIC aces aces_my_fortran_kernel)
+```
+
+---
+
+## Tutorial 4: Adding New Physics Schemes

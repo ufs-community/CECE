@@ -73,8 +73,9 @@ struct EmissionLayer {
     std::string category = "1";             ///< Emission category.
     std::vector<std::string> scale_fields;  ///< List of additional scale fields to
                                             ///< apply.
-    std::string diurnal_cycle;              ///< Name of the diurnal cycle to apply.
-    std::string weekly_cycle;               ///< Name of the weekly cycle to apply.
+    std::string diurnal_cycle;              ///< Name of the diurnal cycle to apply (24 factors).
+    std::string weekly_cycle;               ///< Name of the weekly cycle to apply (7 factors).
+    std::string seasonal_cycle;             ///< Name of the seasonal cycle to apply (12 factors).
 
     // Vertical distribution
     VerticalDistributionMethod vdist_method =
@@ -133,6 +134,20 @@ struct AcesCdepsConfig {
 };
 
 /**
+ * @struct AcesOutputConfig
+ * @brief Configuration for standalone NetCDF output (Requirement 11.12).
+ */
+struct AcesOutputConfig {
+    std::string directory = ".";  ///< Output directory (created if absent).
+    std::string filename_pattern =
+        "aces_output_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc";  ///< Filename pattern with time tokens.
+    int frequency_steps = 1;                           ///< Write every N time steps.
+    std::vector<std::string> fields;   ///< Fields to write; empty means all export fields.
+    bool include_diagnostics = false;  ///< Also write diagnostic fields when true.
+    bool enabled = false;              ///< True when an output block is present in the YAML.
+};
+
+/**
  * @struct DiagnosticConfig
  * @brief Configuration for diagnostic output.
  */
@@ -172,6 +187,8 @@ struct AcesConfig {
     AcesCdepsConfig cdeps_config;
     /// Configuration for vertical grid.
     VerticalConfig vertical_config;
+    /// Configuration for standalone NetCDF output.
+    AcesOutputConfig output_config;
 };
 
 /**
@@ -181,6 +198,35 @@ struct AcesConfig {
  * @throws YAML::Exception if the file is invalid or missing.
  */
 AcesConfig ParseConfig(const std::string& filename);
+
+/**
+ * @brief Adds a new emission species with its layers to an existing config at runtime.
+ * @details Allows dynamic addition of species without recompilation. The
+ *          StackingEngine must call ResetBindings() after this to pick up the change.
+ * @param config The config to mutate.
+ * @param species_name Internal species name.
+ * @param layers Ordered list of emission layers for this species.
+ */
+void AddSpecies(AcesConfig& config, const std::string& species_name,
+                std::vector<EmissionLayer> layers);
+
+/**
+ * @brief Adds a new scale factor mapping to an existing config at runtime.
+ * @param config The config to mutate.
+ * @param internal_name Internal scale factor name used in layer definitions.
+ * @param external_name External field name in the ESMF state.
+ */
+void AddScaleFactor(AcesConfig& config, const std::string& internal_name,
+                    const std::string& external_name);
+
+/**
+ * @brief Adds a new mask mapping to an existing config at runtime.
+ * @param config The config to mutate.
+ * @param internal_name Internal mask name used in layer definitions.
+ * @param external_name External field name in the ESMF state.
+ */
+void AddMask(AcesConfig& config, const std::string& internal_name,
+             const std::string& external_name);
 
 }  // namespace aces
 
