@@ -45,8 +45,7 @@ class HierarchyPrioritizationTest : public ::testing::Test {
     }
 
     /** Creates a DualView of given dimensions filled with a constant value. */
-    static DualView3D MakeField(const std::string& name, double val,
-                                int nx, int ny, int nz = 1) {
+    static DualView3D MakeField(const std::string& name, double val, int nx, int ny, int nz = 1) {
         DualView3D dv(name, nx, ny, nz);
         Kokkos::deep_copy(dv.view_host(), val);
         dv.modify<Kokkos::HostSpace>();
@@ -55,23 +54,21 @@ class HierarchyPrioritizationTest : public ::testing::Test {
     }
 
     /** Creates a mask DualView: 1.0 where predicate(i,j) is true, else 0.0. */
-    static DualView3D MakeMask(const std::string& name,
-                               int nx, int ny,
+    static DualView3D MakeMask(const std::string& name, int nx, int ny,
                                std::function<bool(int, int)> predicate) {
         DualView3D dv(name, nx, ny, 1);
         auto h = dv.view_host();
         for (int i = 0; i < nx; ++i)
-            for (int j = 0; j < ny; ++j)
-                h(i, j, 0) = predicate(i, j) ? 1.0 : 0.0;
+            for (int j = 0; j < ny; ++j) h(i, j, 0) = predicate(i, j) ? 1.0 : 0.0;
         dv.modify<Kokkos::HostSpace>();
         dv.sync<Kokkos::DefaultExecutionSpace>();
         return dv;
     }
 
     /** Runs the StackingEngine and syncs the named export field to host. */
-    static Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace>
-    RunEngine(AcesConfig& cfg, AcesImportState& imp, AcesExportState& exp,
-              const std::string& species, int nx, int ny, int nz = 1) {
+    static Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> RunEngine(
+        AcesConfig& cfg, AcesImportState& imp, AcesExportState& exp, const std::string& species,
+        int nx, int ny, int nz = 1) {
         std::unordered_map<std::string, std::string> empty;
         AcesStateResolver resolver(imp, exp, empty);
         StackingEngine engine(cfg);
@@ -82,23 +79,19 @@ class HierarchyPrioritizationTest : public ::testing::Test {
 
     /** Returns the max absolute error across all cells vs an expected scalar. */
     static double MaxAbsError(
-        const Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace>& v,
-        double expected, int nx, int ny, int nz = 1) {
+        const Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace>& v, double expected,
+        int nx, int ny, int nz = 1) {
         double err = 0.0;
         for (int i = 0; i < nx; ++i)
             for (int j = 0; j < ny; ++j)
-                for (int k = 0; k < nz; ++k)
-                    err = std::max(err, std::abs(v(i, j, k) - expected));
+                for (int k = 0; k < nz; ++k) err = std::max(err, std::abs(v(i, j, k) - expected));
         return err;
     }
 
     /** Creates a properly initialized EmissionLayer with all fields set. */
     static aces::EmissionLayer MakeLayer(
-        const std::string& field_name,
-        const std::string& operation,
-        int hierarchy,
-        double scale = 1.0,
-        const std::vector<std::string>& masks = {},
+        const std::string& field_name, const std::string& operation, int hierarchy,
+        double scale = 1.0, const std::vector<std::string>& masks = {},
         aces::VerticalDistributionMethod vdist = aces::VerticalDistributionMethod::SINGLE) {
         aces::EmissionLayer layer;
         layer.field_name = field_name;
@@ -216,8 +209,7 @@ TEST_F(HierarchyPrioritizationTest, ThreeLevelHierarchy) {
     imp.fields["top"] = MakeField("top", 15.0, nx, ny);
     imp.fields["mask_mid"] =
         MakeMask("mask_mid", nx, ny, [](int, int j) { return j >= 4 && j <= 7; });
-    imp.fields["mask_top"] =
-        MakeMask("mask_top", nx, ny, [](int, int j) { return j >= 8; });
+    imp.fields["mask_top"] = MakeMask("mask_top", nx, ny, [](int, int j) { return j >= 8; });
     exp.fields["nox"] = MakeField("nox", 0.0, nx, ny);
 
     AcesConfig cfg;
@@ -312,8 +304,8 @@ TEST_F(HierarchyPrioritizationTest, RandomizedHierarchyProperty) {
 
             // Replace layers get a checkerboard mask based on layer index
             if (ops[l] == "replace") {
-                imp.fields[mname] = MakeMask(mname, nx, ny,
-                    [l](int i, int j) { return ((i + j + l) % 2) == 0; });
+                imp.fields[mname] =
+                    MakeMask(mname, nx, ny, [l](int i, int j) { return ((i + j + l) % 2) == 0; });
                 lay.masks = {mname};
             }
 
@@ -368,8 +360,7 @@ TEST_F(HierarchyPrioritizationTest, HierarchyIsPerSpecies) {
     imp.fields["co_regional"] = MakeField("co_regional", 9.0, nx, ny);
     imp.fields["nox_global"] = MakeField("nox_global", 1.0, nx, ny);
     imp.fields["nox_regional"] = MakeField("nox_regional", 7.0, nx, ny);
-    imp.fields["co_mask"] =
-        MakeMask("co_mask", nx, ny, [&](int, int j) { return j >= ny / 2; });
+    imp.fields["co_mask"] = MakeMask("co_mask", nx, ny, [&](int, int j) { return j >= ny / 2; });
     // nox has no mask on its replace layer -> full override
     exp.fields["co"] = MakeField("co", 0.0, nx, ny);
     exp.fields["nox"] = MakeField("nox", 0.0, nx, ny);
@@ -422,14 +413,13 @@ TEST_F(HierarchyPrioritizationTest, HierarchyWith3DFields) {
     imp.fields["base_2d"] = MakeField("base_2d", 2.0, nx, ny, 1);
     imp.fields["override_2d"] = MakeField("override_2d", 8.0, nx, ny, 1);
     // 2D mask - applies to all k levels
-    imp.fields["mask_2d"] =
-        MakeMask("mask_2d", nx, ny, [&](int i, int) { return i >= nx / 2; });
+    imp.fields["mask_2d"] = MakeMask("mask_2d", nx, ny, [&](int i, int) { return i >= nx / 2; });
     exp.fields["so2"] = MakeField("so2", 0.0, nx, ny, nz);
 
     AcesConfig cfg;
     // Use SINGLE distribution (default) - emissions only at k=0
-    aces::EmissionLayer low = MakeLayer("base_2d", "add", 1, 1.0, {},
-                                        aces::VerticalDistributionMethod::SINGLE);
+    aces::EmissionLayer low =
+        MakeLayer("base_2d", "add", 1, 1.0, {}, aces::VerticalDistributionMethod::SINGLE);
     low.vdist_layer_start = 0;
     low.vdist_layer_end = 0;
 
@@ -507,8 +497,7 @@ TEST_F(HierarchyPrioritizationTest, ReplaceWithScaleFactor) {
     AcesExportState exp;
     imp.fields["base"] = MakeField("base", 5.0, nx, ny);
     imp.fields["regional"] = MakeField("regional", 10.0, nx, ny);
-    imp.fields["mask"] =
-        MakeMask("mask", nx, ny, [&](int, int j) { return j >= ny / 2; });
+    imp.fields["mask"] = MakeMask("mask", nx, ny, [&](int, int j) { return j >= ny / 2; });
     exp.fields["co"] = MakeField("co", 0.0, nx, ny);
 
     AcesConfig cfg;
@@ -545,8 +534,7 @@ TEST_F(HierarchyPrioritizationTest, MultipleAddLayersThenReplace) {
     imp.fields["add2"] = MakeField("add2", 4.0, nx, ny);
     imp.fields["add3"] = MakeField("add3", 2.0, nx, ny);
     imp.fields["rep"] = MakeField("rep", 20.0, nx, ny);
-    imp.fields["mask"] =
-        MakeMask("mask", nx, ny, [&](int i, int) { return i >= nx / 2; });
+    imp.fields["mask"] = MakeMask("mask", nx, ny, [&](int i, int) { return i >= nx / 2; });
     exp.fields["co"] = MakeField("co", 0.0, nx, ny);
 
     AcesConfig cfg;

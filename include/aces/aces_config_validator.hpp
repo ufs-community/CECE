@@ -6,9 +6,10 @@
 #ifndef ACES_CONFIG_VALIDATOR_HPP
 #define ACES_CONFIG_VALIDATOR_HPP
 
+#include <yaml-cpp/yaml.h>
+
 #include <string>
 #include <vector>
-#include <yaml-cpp/yaml.h>
 
 namespace aces {
 
@@ -17,9 +18,9 @@ namespace aces {
  * @brief Represents a configuration validation error
  */
 struct ValidationError {
-    std::string field;        ///< Field that failed validation
-    std::string message;      ///< Error message
-    std::string suggestion;   ///< Suggested corrective action
+    std::string field;       ///< Field that failed validation
+    std::string message;     ///< Error message
+    std::string suggestion;  ///< Suggested corrective action
 };
 
 /**
@@ -27,9 +28,9 @@ struct ValidationError {
  * @brief Result of configuration validation
  */
 struct ValidationResult {
-    bool is_valid = true;                           ///< Whether configuration is valid
-    std::vector<ValidationError> errors;            ///< List of validation errors
-    std::vector<std::string> warnings;              ///< List of warnings
+    bool is_valid = true;                 ///< Whether configuration is valid
+    std::vector<ValidationError> errors;  ///< List of validation errors
+    std::vector<std::string> warnings;    ///< List of warnings
 
     /**
      * @brief Check if validation passed
@@ -61,7 +62,7 @@ struct ValidationResult {
  * @brief Comprehensive configuration validation for ACES
  */
 class ConfigValidator {
- public:
+   public:
     /**
      * @brief Validate ACES configuration
      * @param config YAML configuration node
@@ -69,7 +70,7 @@ class ConfigValidator {
      */
     static ValidationResult ValidateConfig(const YAML::Node& config);
 
- private:
+   private:
     /**
      * @brief Validate species definitions
      */

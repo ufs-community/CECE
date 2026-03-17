@@ -19,12 +19,13 @@
 
 // C interface to realize phase
 extern "C" {
-void aces_core_realize(void* data_ptr, void* importState_ptr, void* exportState_ptr, void* grid_ptr, int* rc);
+void aces_core_realize(void* data_ptr, void* importState_ptr, void* exportState_ptr, void* grid_ptr,
+                       int* rc);
 }
 
 // Global ESMF initialization - done once for all tests
 class ESMFEnvironment : public ::testing::Environment {
-public:
+   public:
     void SetUp() override {
         int rc = ESMC_Initialize(nullptr, ESMC_ArgLast);
         if (rc != ESMF_SUCCESS) {
@@ -39,7 +40,7 @@ public:
 };
 
 class RealizePhaseTest : public ::testing::Test {
-protected:
+   protected:
     void SetUp() override {
         int rc;
 

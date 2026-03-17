@@ -16,14 +16,14 @@
  * @see Requirements 1.1, 1.2, 7.1-7.10, 7.13, Property 16
  */
 
-#include "aces/aces_cdeps_parser.hpp"
-
 #include <gtest/gtest.h>
 
 #include <fstream>
 #include <sstream>
 #include <string>
 #include <vector>
+
+#include "aces/aces_cdeps_parser.hpp"
 
 namespace aces {
 namespace {
@@ -40,8 +40,7 @@ static void WriteFile(const std::string& filename, const std::string& content) {
 }
 
 /** Return true if any error string contains the given substring. */
-static bool AnyErrorContains(const std::vector<std::string>& errors,
-                              const std::string& substr) {
+static bool AnyErrorContains(const std::vector<std::string>& errors, const std::string& substr) {
     for (const auto& e : errors) {
         if (e.find(substr) != std::string::npos) return true;
     }
@@ -58,7 +57,7 @@ static bool AnyErrorContains(const std::vector<std::string>& errors,
  * Creates temporary test files and cleans them up after each test.
  */
 class CdepsParserTest : public ::testing::Test {
-protected:
+   protected:
     void SetUp() override {
         CreateValidStreamsFile("test_streams_valid.txt");
         CreateInvalidStreamsFile("test_streams_invalid.txt");
@@ -75,37 +74,37 @@ protected:
 
     void CreateValidStreamsFile(const std::string& filename) {
         WriteFile(filename,
-            "# CDEPS Streams Configuration Test\n"
-            "# Valid configuration for testing\n\n"
-            "stream::test_emissions\n"
-            "  file_paths = /data/test_emissions.nc\n"
-            "  variables = CO_emis:CO, NOx_emis:NOx\n"
-            "  taxmode = cycle\n"
-            "  tintalgo = linear\n"
-            "  mapalgo = bilinear\n"
-            "  yearFirst = 2020\n"
-            "  yearLast = 2020\n"
-            "  yearAlign = 2020\n"
-            "  offset = 0\n"
-            "::\n\n"
-            "stream::met_data\n"
-            "  file_paths = /data/met_2020.nc, /data/met_2021.nc\n"
-            "  variables = temperature:T, pressure:P\n"
-            "  taxmode = extend\n"
-            "  tintalgo = nearest\n"
-            "  yearFirst = 2020\n"
-            "  yearLast = 2021\n"
-            "  yearAlign = 2020\n"
-            "::\n");
+                  "# CDEPS Streams Configuration Test\n"
+                  "# Valid configuration for testing\n\n"
+                  "stream::test_emissions\n"
+                  "  file_paths = /data/test_emissions.nc\n"
+                  "  variables = CO_emis:CO, NOx_emis:NOx\n"
+                  "  taxmode = cycle\n"
+                  "  tintalgo = linear\n"
+                  "  mapalgo = bilinear\n"
+                  "  yearFirst = 2020\n"
+                  "  yearLast = 2020\n"
+                  "  yearAlign = 2020\n"
+                  "  offset = 0\n"
+                  "::\n\n"
+                  "stream::met_data\n"
+                  "  file_paths = /data/met_2020.nc, /data/met_2021.nc\n"
+                  "  variables = temperature:T, pressure:P\n"
+                  "  taxmode = extend\n"
+                  "  tintalgo = nearest\n"
+                  "  yearFirst = 2020\n"
+                  "  yearLast = 2021\n"
+                  "  yearAlign = 2020\n"
+                  "::\n");
     }
 
     void CreateInvalidStreamsFile(const std::string& filename) {
         WriteFile(filename,
-            "stream::invalid_stream\n"
-            "  # Missing file_paths and variables\n"
-            "  taxmode = invalid_mode\n"
-            "  tintalgo = bad_interp\n"
-            "::\n");
+                  "stream::invalid_stream\n"
+                  "  # Missing file_paths and variables\n"
+                  "  taxmode = invalid_mode\n"
+                  "  tintalgo = bad_interp\n"
+                  "::\n");
     }
 };
 
@@ -165,12 +164,12 @@ TEST_F(CdepsParserTest, ParseValidStreamsFile) {
  */
 TEST_F(CdepsParserTest, ParseVariablesWithoutMapping) {
     WriteFile("test_streams_simple.txt",
-        "stream::simple\n"
-        "  file_paths = /data/test.nc\n"
-        "  variables = CO, NOx, SO2\n"
-        "  taxmode = cycle\n"
-        "  tintalgo = linear\n"
-        "::\n");
+              "stream::simple\n"
+              "  file_paths = /data/test.nc\n"
+              "  variables = CO, NOx, SO2\n"
+              "  taxmode = cycle\n"
+              "  tintalgo = linear\n"
+              "::\n");
 
     AcesCdepsConfig config = CdepsStreamsParser::ParseStreamsFile("test_streams_simple.txt");
 
@@ -193,16 +192,16 @@ TEST_F(CdepsParserTest, ParseVariablesWithoutMapping) {
  */
 TEST_F(CdepsParserTest, ParseWithCommentsAndWhitespace) {
     WriteFile("test_streams_comments.txt",
-        "# This is a comment\n"
-        "\n"
-        "stream::test\n"
-        "  # Another comment\n"
-        "  file_paths = /data/test.nc\n"
-        "\n"
-        "  variables = CO:carbon_monoxide\n"
-        "  taxmode = cycle\n"
-        "  tintalgo = linear\n"
-        "::\n");
+              "# This is a comment\n"
+              "\n"
+              "stream::test\n"
+              "  # Another comment\n"
+              "  file_paths = /data/test.nc\n"
+              "\n"
+              "  variables = CO:carbon_monoxide\n"
+              "  taxmode = cycle\n"
+              "  tintalgo = linear\n"
+              "::\n");
 
     AcesCdepsConfig config = CdepsStreamsParser::ParseStreamsFile("test_streams_comments.txt");
 
@@ -221,20 +220,20 @@ TEST_F(CdepsParserTest, ParseWithCommentsAndWhitespace) {
  */
 TEST_F(CdepsParserTest, ParseWithAllOptionalAttributes) {
     WriteFile("test_streams_full.txt",
-        "stream::full_test\n"
-        "  file_paths = /data/test.nc\n"
-        "  variables = CO:carbon_monoxide\n"
-        "  taxmode = limit\n"
-        "  tintalgo = upper\n"
-        "  mapalgo = patch\n"
-        "  dtlimit = 2000000000\n"
-        "  yearFirst = 2015\n"
-        "  yearLast = 2025\n"
-        "  yearAlign = 2020\n"
-        "  offset = 3600\n"
-        "  meshfile = /data/mesh.nc\n"
-        "  lev_dimname = level\n"
-        "::\n");
+              "stream::full_test\n"
+              "  file_paths = /data/test.nc\n"
+              "  variables = CO:carbon_monoxide\n"
+              "  taxmode = limit\n"
+              "  tintalgo = upper\n"
+              "  mapalgo = patch\n"
+              "  dtlimit = 2000000000\n"
+              "  yearFirst = 2015\n"
+              "  yearLast = 2025\n"
+              "  yearAlign = 2020\n"
+              "  offset = 3600\n"
+              "  meshfile = /data/mesh.nc\n"
+              "  lev_dimname = level\n"
+              "::\n");
 
     AcesCdepsConfig config = CdepsStreamsParser::ParseStreamsFile("test_streams_full.txt");
 
@@ -382,11 +381,9 @@ TEST_F(CdepsParserTest, ValidateMissingNetCDFVariableMessageContent) {
 
     // Either "not a valid NetCDF file" or "Variable not found" — both are actionable
     bool actionable = AnyErrorContains(errors, fake_nc) ||
-                      AnyErrorContains(errors, "MISSING_VAR") ||
-                      AnyErrorContains(errors, "NetCDF");
-    EXPECT_TRUE(actionable)
-        << "Error should reference the file or variable name. Errors: "
-        << (errors.empty() ? "(none)" : errors[0]);
+                      AnyErrorContains(errors, "MISSING_VAR") || AnyErrorContains(errors, "NetCDF");
+    EXPECT_TRUE(actionable) << "Error should reference the file or variable name. Errors: "
+                            << (errors.empty() ? "(none)" : errors[0]);
 
     std::remove(fake_nc.c_str());
 }
@@ -414,8 +411,7 @@ TEST_F(CdepsParserTest, ValidateInvalidTintalgoWithValidOptionsListed) {
     EXPECT_TRUE(AnyErrorContains(errors, "bad_interp"))
         << "Error should echo the invalid value back to the user";
     // Must list at least one valid option so the user knows what to use
-    bool lists_valid = AnyErrorContains(errors, "none") ||
-                       AnyErrorContains(errors, "linear") ||
+    bool lists_valid = AnyErrorContains(errors, "none") || AnyErrorContains(errors, "linear") ||
                        AnyErrorContains(errors, "nearest");
     EXPECT_TRUE(lists_valid)
         << "Error should list valid tintalgo options (none, linear, nearest, ...)";
@@ -436,11 +432,9 @@ TEST_F(CdepsParserTest, ValidateInvalidTaxmodeWithValidOptionsListed) {
         << "Error should describe the problem (invalid taxmode)";
     EXPECT_TRUE(AnyErrorContains(errors, "invalid_mode"))
         << "Error should echo the invalid taxmode value back to the user";
-    bool lists_valid = AnyErrorContains(errors, "cycle") ||
-                       AnyErrorContains(errors, "extend") ||
+    bool lists_valid = AnyErrorContains(errors, "cycle") || AnyErrorContains(errors, "extend") ||
                        AnyErrorContains(errors, "limit");
-    EXPECT_TRUE(lists_valid)
-        << "Error should list valid taxmode options (cycle, extend, limit)";
+    EXPECT_TRUE(lists_valid) << "Error should list valid taxmode options (cycle, extend, limit)";
 }
 
 /**
@@ -554,8 +548,7 @@ TEST_F(CdepsParserTest, MultipleErrorsAllReported) {
 
     // The invalid stream has: no file_paths, no variables, bad tintalgo, bad taxmode
     // We expect at least 3 distinct errors
-    EXPECT_GE(errors.size(), 3u)
-        << "Validator should report all errors, not stop at the first one";
+    EXPECT_GE(errors.size(), 3u) << "Validator should report all errors, not stop at the first one";
 }
 
 // ===========================================================================
@@ -608,9 +601,8 @@ TEST_F(CdepsParserTest, RoundTripSerialization) {
 TEST_F(CdepsParserTest, WriteToUnwritablePathThrows) {
     AcesCdepsConfig config = CdepsStreamsParser::ParseStreamsFile("test_streams_valid.txt");
 
-    EXPECT_THROW(
-        CdepsStreamsParser::WriteStreamsFile("/nonexistent_dir/output.txt", config),
-        std::runtime_error);
+    EXPECT_THROW(CdepsStreamsParser::WriteStreamsFile("/nonexistent_dir/output.txt", config),
+                 std::runtime_error);
 }
 
 }  // namespace

@@ -120,10 +120,10 @@ class PerformanceMetrics {
      */
     static double MeasureMemoryBandwidth(int nx, int ny, int nz, int iterations = 10) {
         // Create source and destination views
-        Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> src(
-            "src", nx, ny, nz);
-        Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> dst(
-            "dst", nx, ny, nz);
+        Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> src("src", nx,
+                                                                                       ny, nz);
+        Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> dst("dst", nx,
+                                                                                       ny, nz);
 
         // Initialize source
         Kokkos::parallel_for(
@@ -134,8 +134,7 @@ class PerformanceMetrics {
         // Measure copy bandwidth
         auto copy_kernel = [&]() {
             Kokkos::parallel_for(
-                "copy_kernel",
-                Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
+                "copy_kernel", Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
                 KOKKOS_LAMBDA(int i, int j, int k) { dst(i, j, k) = src(i, j, k); });
         };
 
@@ -198,8 +197,7 @@ class KokkosParallelEfficiencyTest : public ::testing::Test {
 
         // Initialize inputs
         Kokkos::parallel_for(
-            "init_inputs",
-            Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
+            "init_inputs", Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
             KOKKOS_LAMBDA(int i, int j, int k) {
                 base_emissions(i, j, k) = 1.0 + 0.1 * (i + j + k);
                 layer1(i, j, k) = 0.5 + 0.05 * (i + j + k);
@@ -212,8 +210,7 @@ class KokkosParallelEfficiencyTest : public ::testing::Test {
         // Measure stacking kernel execution time
         auto stacking_kernel = [&]() {
             Kokkos::parallel_for(
-                "stacking_kernel",
-                Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
+                "stacking_kernel", Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
                 KOKKOS_LAMBDA(int i, int j, int k) {
                     // Simulate layer aggregation with scale factors and masks
                     double result = base_emissions(i, j, k) * scale_factors(i, j, k);
@@ -255,8 +252,7 @@ class KokkosParallelEfficiencyTest : public ::testing::Test {
 
         // Initialize inputs
         Kokkos::parallel_for(
-            "init_physics",
-            Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
+            "init_physics", Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
             KOKKOS_LAMBDA(int i, int j, int k) {
                 temperature(i, j, k) = 273.15 + 15.0 + 0.1 * (i + j + k);
                 pressure(i, j, k) = 101325.0 + 100.0 * k;
@@ -268,8 +264,7 @@ class KokkosParallelEfficiencyTest : public ::testing::Test {
         // Measure physics kernel execution time
         auto physics_kernel = [&]() {
             Kokkos::parallel_for(
-                "physics_kernel",
-                Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
+                "physics_kernel", Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
                 KOKKOS_LAMBDA(int i, int j, int k) {
                     // Simulate temperature-dependent emission scaling
                     double t_ref = 298.15;
@@ -323,8 +318,8 @@ TEST_F(KokkosParallelEfficiencyTest, CPUParallelEfficiencyStackingEngine) {
 
     // Measure baseline (single-threaded)
     double t1 = ExecuteStackingEngineKernel(nx, ny, nz);
-    std::cout << "\nBaseline (1 thread): " << std::fixed << std::setprecision(6) << t1
-              << " seconds" << std::endl;
+    std::cout << "\nBaseline (1 thread): " << std::fixed << std::setprecision(6) << t1 << " seconds"
+              << std::endl;
 
     // Measure with multiple threads
     std::vector<int> thread_counts = {1, 2, 4, 8, 16};
@@ -351,10 +346,10 @@ TEST_F(KokkosParallelEfficiencyTest, CPUParallelEfficiencyStackingEngine) {
 
     // Verify 16-thread efficiency is at least 80%
     double efficiency_16 = efficiencies.back();
-    std::cout << "\n16-Thread Efficiency: " << std::fixed << std::setprecision(2)
-              << efficiency_16 << "%" << std::endl;
+    std::cout << "\n16-Thread Efficiency: " << std::fixed << std::setprecision(2) << efficiency_16
+              << "%" << std::endl;
 
-        // Note: Efficiency below 80% may be expected for small kernels due to
+    // Note: Efficiency below 80% may be expected for small kernels due to
     // Kokkos initialization overhead and thread management. The test verifies
     // that the kernel runs correctly and reports efficiency metrics.
     std::cout << "Note: Efficiency target is 80%, but actual efficiency depends on "
@@ -390,8 +385,8 @@ TEST_F(KokkosParallelEfficiencyTest, CPUParallelEfficiencyPhysicsScheme) {
 
     // Measure baseline (single-threaded)
     double t1 = ExecutePhysicsSchemeKernel(nx, ny, nz);
-    std::cout << "\nBaseline (1 thread): " << std::fixed << std::setprecision(6) << t1
-              << " seconds" << std::endl;
+    std::cout << "\nBaseline (1 thread): " << std::fixed << std::setprecision(6) << t1 << " seconds"
+              << std::endl;
 
     // Measure with multiple threads
     std::vector<int> thread_counts = {1, 2, 4, 8, 16};
@@ -416,10 +411,10 @@ TEST_F(KokkosParallelEfficiencyTest, CPUParallelEfficiencyPhysicsScheme) {
 
     // Verify 16-thread efficiency is at least 80%
     double efficiency_16 = efficiencies.back();
-    std::cout << "\n16-Thread Efficiency: " << std::fixed << std::setprecision(2)
-              << efficiency_16 << "%" << std::endl;
+    std::cout << "\n16-Thread Efficiency: " << std::fixed << std::setprecision(2) << efficiency_16
+              << "%" << std::endl;
 
-        // Note: Efficiency below 80% may be expected for small kernels due to
+    // Note: Efficiency below 80% may be expected for small kernels due to
     // Kokkos initialization overhead and thread management. The test verifies
     // that the kernel runs correctly and reports efficiency metrics.
     std::cout << "Note: Efficiency target is 80%, but actual efficiency depends on "
@@ -458,8 +453,8 @@ TEST_F(KokkosParallelEfficiencyTest, GPUMemoryBandwidthUtilization) {
     double peak_bandwidth = PerformanceMetrics::GetPeakMemoryBandwidth();
     double bandwidth_efficiency = (achieved_bandwidth / peak_bandwidth) * 100.0;
 
-    std::cout << "\nPeak Memory Bandwidth: " << std::fixed << std::setprecision(2)
-              << peak_bandwidth << " GB/s" << std::endl;
+    std::cout << "\nPeak Memory Bandwidth: " << std::fixed << std::setprecision(2) << peak_bandwidth
+              << " GB/s" << std::endl;
     std::cout << "Achieved Memory Bandwidth: " << std::fixed << std::setprecision(2)
               << achieved_bandwidth << " GB/s" << std::endl;
     std::cout << "Bandwidth Efficiency: " << std::fixed << std::setprecision(2)
@@ -499,17 +494,16 @@ TEST_F(KokkosParallelEfficiencyTest, GPUMemoryBandwidthStackingEngine) {
     // Create synthetic emission layers
     Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> base_emissions(
         "base", nx, ny, nz);
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> layer1("layer1",
-                                                                                        nx, ny, nz);
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> layer1("layer1", nx,
+                                                                                      ny, nz);
     Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> scale_factors(
         "scales", nx, ny, nz);
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> output("output",
-                                                                                       nx, ny, nz);
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> output("output", nx,
+                                                                                      ny, nz);
 
     // Initialize inputs
     Kokkos::parallel_for(
-        "init_gpu_stacking",
-        Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
+        "init_gpu_stacking", Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
         KOKKOS_LAMBDA(int i, int j, int k) {
             base_emissions(i, j, k) = 1.0 + 0.1 * (i + j + k);
             layer1(i, j, k) = 0.5 + 0.05 * (i + j + k);
@@ -521,8 +515,7 @@ TEST_F(KokkosParallelEfficiencyTest, GPUMemoryBandwidthStackingEngine) {
     // Measure stacking kernel execution time
     auto stacking_kernel = [&]() {
         Kokkos::parallel_for(
-            "gpu_stacking_kernel",
-            Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
+            "gpu_stacking_kernel", Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
             KOKKOS_LAMBDA(int i, int j, int k) {
                 double result = base_emissions(i, j, k) * scale_factors(i, j, k);
                 result += layer1(i, j, k) * scale_factors(i, j, k) * 0.8;
@@ -530,7 +523,8 @@ TEST_F(KokkosParallelEfficiencyTest, GPUMemoryBandwidthStackingEngine) {
             });
     };
 
-    double time_per_iter = PerformanceMetrics::MeasureKernelTime("gpu_stacking", 20, stacking_kernel);
+    double time_per_iter =
+        PerformanceMetrics::MeasureKernelTime("gpu_stacking", 20, stacking_kernel);
 
     // Calculate bandwidth
     // Each iteration reads 3 * nx*ny*nz doubles and writes 1 * nx*ny*nz doubles
@@ -540,8 +534,8 @@ TEST_F(KokkosParallelEfficiencyTest, GPUMemoryBandwidthStackingEngine) {
     double peak_bandwidth = PerformanceMetrics::GetPeakMemoryBandwidth();
     double bandwidth_efficiency = (achieved_bandwidth / peak_bandwidth) * 100.0;
 
-    std::cout << "\nPeak Memory Bandwidth: " << std::fixed << std::setprecision(2)
-              << peak_bandwidth << " GB/s" << std::endl;
+    std::cout << "\nPeak Memory Bandwidth: " << std::fixed << std::setprecision(2) << peak_bandwidth
+              << " GB/s" << std::endl;
     std::cout << "Achieved Memory Bandwidth: " << std::fixed << std::setprecision(2)
               << achieved_bandwidth << " GB/s" << std::endl;
     std::cout << "Bandwidth Efficiency: " << std::fixed << std::setprecision(2)

@@ -24,17 +24,18 @@
  */
 
 #include <gtest/gtest.h>
+
 #include <Kokkos_Core.hpp>
-#include <random>
-#include <vector>
-#include <string>
-#include <fstream>
-#include <sstream>
-#include <iomanip>
-#include <cstdlib>
-#include <filesystem>
 #include <cmath>
+#include <cstdlib>
 #include <ctime>
+#include <filesystem>
+#include <fstream>
+#include <iomanip>
+#include <random>
+#include <sstream>
+#include <string>
+#include <vector>
 
 namespace fs = std::filesystem;
 
@@ -93,11 +94,8 @@ static std::string GenerateRandomDateTime(int year_offset = 0) {
     int hour = hour_dist(gen);
 
     std::ostringstream oss;
-    oss << std::setfill('0')
-        << std::setw(4) << year << "-"
-        << std::setw(2) << month << "-"
-        << std::setw(2) << day << "T"
-        << std::setw(2) << hour << ":00:00";
+    oss << std::setfill('0') << std::setw(4) << year << "-" << std::setw(2) << month << "-"
+        << std::setw(2) << day << "T" << std::setw(2) << hour << ":00:00";
     return oss.str();
 }
 
@@ -154,23 +152,14 @@ static std::string CreateTempStreamsFile(const std::string& content) {
 /**
  * @brief Build command-line arguments for driver
  */
-static std::string BuildDriverCommand(
-    const std::string& config_path,
-    const std::string& streams_path,
-    const std::string& start_time,
-    const std::string& end_time,
-    int time_step,
-    int nx,
-    int ny) {
+static std::string BuildDriverCommand(const std::string& config_path,
+                                      const std::string& streams_path,
+                                      const std::string& start_time, const std::string& end_time,
+                                      int time_step, int nx, int ny) {
     std::ostringstream cmd;
-    cmd << "./aces_nuopc_single_driver"
-        << " --config " << config_path
-        << " --streams " << streams_path
-        << " --start-time " << start_time
-        << " --end-time " << end_time
-        << " --time-step " << time_step
-        << " --nx " << nx
-        << " --ny " << ny;
+    cmd << "./aces_nuopc_single_driver" << " --config " << config_path << " --streams "
+        << streams_path << " --start-time " << start_time << " --end-time " << end_time
+        << " --time-step " << time_step << " --nx " << nx << " --ny " << ny;
     return cmd.str();
 }
 
@@ -185,7 +174,7 @@ static std::string BuildDriverCommand(
  * @brief Test fixture for command-line configuration property testing
  */
 class CommandLineConfigurationTest : public ::testing::Test {
- protected:
+   protected:
     void SetUp() override {
         if (!Kokkos::is_initialized()) {
             Kokkos::initialize();
@@ -222,13 +211,11 @@ TEST_F(CommandLineConfigurationTest, ConfigFilePathArgumentParsing) {
         std::string config_path = aces::test::CreateTempConfigFile(config_content);
 
         // Verify file was created
-        EXPECT_TRUE(fs::exists(config_path))
-            << "Config file should be created at: " << config_path;
+        EXPECT_TRUE(fs::exists(config_path)) << "Config file should be created at: " << config_path;
 
         // Verify file is readable
         std::ifstream file(config_path);
-        EXPECT_TRUE(file.is_open())
-            << "Config file should be readable: " << config_path;
+        EXPECT_TRUE(file.is_open()) << "Config file should be readable: " << config_path;
         file.close();
 
         // Clean up
@@ -257,8 +244,7 @@ TEST_F(CommandLineConfigurationTest, StreamsFilePathArgumentParsing) {
 
         // Verify file is readable
         std::ifstream file(streams_path);
-        EXPECT_TRUE(file.is_open())
-            << "Streams file should be readable: " << streams_path;
+        EXPECT_TRUE(file.is_open()) << "Streams file should be readable: " << streams_path;
         file.close();
 
         // Clean up
@@ -289,12 +275,10 @@ TEST_F(CommandLineConfigurationTest, TimeParameterParsing) {
             << "End time should be ISO8601 format (YYYY-MM-DDTHH:MM:SS)";
 
         // Verify time step is positive
-        EXPECT_GT(time_step, 0)
-            << "Time step should be positive";
+        EXPECT_GT(time_step, 0) << "Time step should be positive";
 
         // Verify time step is reasonable (between 1 second and 1 day)
-        EXPECT_LE(time_step, 86400)
-            << "Time step should not exceed 1 day";
+        EXPECT_LE(time_step, 86400) << "Time step should not exceed 1 day";
     }
 
     EXPECT_TRUE(true);  // Property validated
@@ -346,8 +330,8 @@ TEST_F(CommandLineConfigurationTest, CommandLineArgumentConsistency) {
         auto [nx, ny] = aces::test::GenerateRandomGridDimensions();
 
         // Build command
-        std::string cmd = aces::test::BuildDriverCommand(
-            config_path, streams_path, start_time, end_time, time_step, nx, ny);
+        std::string cmd = aces::test::BuildDriverCommand(config_path, streams_path, start_time,
+                                                         end_time, time_step, nx, ny);
 
         // Verify command is well-formed
         EXPECT_NE(cmd.find("--config"), std::string::npos)
@@ -360,10 +344,8 @@ TEST_F(CommandLineConfigurationTest, CommandLineArgumentConsistency) {
             << "Command should contain --end-time argument";
         EXPECT_NE(cmd.find("--time-step"), std::string::npos)
             << "Command should contain --time-step argument";
-        EXPECT_NE(cmd.find("--nx"), std::string::npos)
-            << "Command should contain --nx argument";
-        EXPECT_NE(cmd.find("--ny"), std::string::npos)
-            << "Command should contain --ny argument";
+        EXPECT_NE(cmd.find("--nx"), std::string::npos) << "Command should contain --nx argument";
+        EXPECT_NE(cmd.find("--ny"), std::string::npos) << "Command should contain --ny argument";
 
         // Clean up
         fs::remove(config_path);
@@ -436,8 +418,8 @@ TEST_F(CommandLineConfigurationTest, EdgeCaseMinimalConfiguration) {
     int nx = 2;
     int ny = 2;
 
-    std::string cmd = aces::test::BuildDriverCommand(
-        config_path, streams_path, start_time, end_time, time_step, nx, ny);
+    std::string cmd = aces::test::BuildDriverCommand(config_path, streams_path, start_time,
+                                                     end_time, time_step, nx, ny);
 
     // Verify command is well-formed
     EXPECT_NE(cmd.find("--config"), std::string::npos);
@@ -472,8 +454,8 @@ TEST_F(CommandLineConfigurationTest, EdgeCaseLargeConfiguration) {
     int nx = 100;
     int ny = 100;
 
-    std::string cmd = aces::test::BuildDriverCommand(
-        config_path, streams_path, start_time, end_time, time_step, nx, ny);
+    std::string cmd = aces::test::BuildDriverCommand(config_path, streams_path, start_time,
+                                                     end_time, time_step, nx, ny);
 
     // Verify command is well-formed
     EXPECT_NE(cmd.find("--config"), std::string::npos);
@@ -506,25 +488,18 @@ TEST_F(CommandLineConfigurationTest, ArgumentOrderIndependence) {
 
     // Order 1: config, streams, times, grid
     commands.push_back(
-        "./aces_nuopc_single_driver --config " + config_path +
-        " --streams " + streams_path +
-        " --start-time 2020-01-01T00:00:00 --end-time 2020-01-02T00:00:00" +
-        " --nx 4 --ny 4");
+        "./aces_nuopc_single_driver --config " + config_path + " --streams " + streams_path +
+        " --start-time 2020-01-01T00:00:00 --end-time 2020-01-02T00:00:00" + " --nx 4 --ny 4");
 
     // Order 2: grid, times, streams, config
-    commands.push_back(
-        std::string("./aces_nuopc_single_driver --nx 4 --ny 4") +
-        " --start-time 2020-01-01T00:00:00 --end-time 2020-01-02T00:00:00" +
-        " --streams " + streams_path +
-        " --config " + config_path);
+    commands.push_back(std::string("./aces_nuopc_single_driver --nx 4 --ny 4") +
+                       " --start-time 2020-01-01T00:00:00 --end-time 2020-01-02T00:00:00" +
+                       " --streams " + streams_path + " --config " + config_path);
 
     // Order 3: times, config, grid, streams
-    commands.push_back(
-        std::string("./aces_nuopc_single_driver --start-time 2020-01-01T00:00:00") +
-        " --config " + config_path +
-        " --nx 4 --ny 4" +
-        " --streams " + streams_path +
-        " --end-time 2020-01-02T00:00:00");
+    commands.push_back(std::string("./aces_nuopc_single_driver --start-time 2020-01-01T00:00:00") +
+                       " --config " + config_path + " --nx 4 --ny 4" + " --streams " +
+                       streams_path + " --end-time 2020-01-02T00:00:00");
 
     // Verify all commands are well-formed
     for (const auto& cmd : commands) {

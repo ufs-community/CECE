@@ -20,17 +20,17 @@ namespace aces {
  * @brief Records the contribution of a single emission layer to a species.
  */
 struct LayerContribution {
-    std::string field_name;               ///< Source field name.
-    std::string operation;                ///< "add" or "replace".
-    int hierarchy = 0;                    ///< Hierarchy level.
-    std::string category;                 ///< Emission category label.
-    double base_scale = 1.0;             ///< Base scale factor applied.
-    std::vector<std::string> masks;       ///< Mask field names applied.
-    std::vector<std::string> scale_fields; ///< Additional scale field names.
-    std::string diurnal_cycle;            ///< Diurnal cycle name (if any).
-    std::string weekly_cycle;             ///< Weekly cycle name (if any).
-    std::string seasonal_cycle;           ///< Seasonal cycle name (if any).
-    double effective_scale = 1.0;        ///< Combined temporal scale at last execution.
+    std::string field_name;                 ///< Source field name.
+    std::string operation;                  ///< "add" or "replace".
+    int hierarchy = 0;                      ///< Hierarchy level.
+    std::string category;                   ///< Emission category label.
+    double base_scale = 1.0;                ///< Base scale factor applied.
+    std::vector<std::string> masks;         ///< Mask field names applied.
+    std::vector<std::string> scale_fields;  ///< Additional scale field names.
+    std::string diurnal_cycle;              ///< Diurnal cycle name (if any).
+    std::string weekly_cycle;               ///< Weekly cycle name (if any).
+    std::string seasonal_cycle;             ///< Seasonal cycle name (if any).
+    double effective_scale = 1.0;           ///< Combined temporal scale at last execution.
 };
 
 /**
@@ -38,11 +38,11 @@ struct LayerContribution {
  * @brief Provenance record for a single emission species.
  */
 struct SpeciesProvenance {
-    std::string species_name;                    ///< Species identifier.
-    std::vector<LayerContribution> contributions; ///< Ordered list of contributing layers.
-    int last_hour = -1;                          ///< Hour at last execution.
-    int last_day_of_week = -1;                   ///< Day-of-week at last execution.
-    int last_month = -1;                         ///< Month at last execution.
+    std::string species_name;                      ///< Species identifier.
+    std::vector<LayerContribution> contributions;  ///< Ordered list of contributing layers.
+    int last_hour = -1;                            ///< Hour at last execution.
+    int last_day_of_week = -1;                     ///< Day-of-week at last execution.
+    int last_month = -1;                           ///< Month at last execution.
 };
 
 /**
@@ -72,22 +72,21 @@ class ProvenanceTracker {
      * @param month Current month (0-11).
      * @param effective_scales Per-layer effective scales after temporal application.
      */
-    void UpdateTemporalScales(const std::string& species_name, int hour, int day_of_week,
-                              int month, const std::vector<double>& effective_scales);
+    void UpdateTemporalScales(const std::string& species_name, int hour, int day_of_week, int month,
+                              const std::vector<double>& effective_scales);
 
     /**
      * @brief Returns the provenance record for a species.
      * @param species_name Species identifier.
      * @return Pointer to SpeciesProvenance, or nullptr if not found.
      */
-    [[nodiscard]] const SpeciesProvenance* GetProvenance(
-        const std::string& species_name) const;
+    [[nodiscard]] const SpeciesProvenance* GetProvenance(const std::string& species_name) const;
 
     /**
      * @brief Returns all provenance records.
      */
-    [[nodiscard]] const std::unordered_map<std::string, SpeciesProvenance>&
-    GetAllProvenance() const {
+    [[nodiscard]] const std::unordered_map<std::string, SpeciesProvenance>& GetAllProvenance()
+        const {
         return records_;
     }
 

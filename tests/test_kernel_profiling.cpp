@@ -66,13 +66,12 @@ TEST_F(KernelProfilingTest, ProfileStackingEngineSingleLayer) {
     // Create synthetic emission layer
     Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> base_emissions(
         "base", nx, ny, nz);
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> output(
-        "output", nx, ny, nz);
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> output("output", nx,
+                                                                                      ny, nz);
 
     // Initialize
     Kokkos::parallel_for(
-        "init_single_layer",
-        Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
+        "init_single_layer", Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
         KOKKOS_LAMBDA(int i, int j, int k) {
             base_emissions(i, j, k) = 1.0 + 0.1 * (i + j + k);
             output(i, j, k) = 0.0;
@@ -93,9 +92,8 @@ TEST_F(KernelProfilingTest, ProfileStackingEngineSingleLayer) {
     // Profile kernel
     // Bytes accessed: 1 read (base_emissions) + 1 write (output) = 2 * nx*ny*nz * 8
     long long bytes_accessed = 2LL * nx * ny * nz * sizeof(double);
-    KernelMetrics metrics =
-        KernelProfiler::ProfileKernel("StackingEngine_SingleLayer", nx, ny, nz, bytes_accessed,
-                                      kernel, 20);
+    KernelMetrics metrics = KernelProfiler::ProfileKernel("StackingEngine_SingleLayer", nx, ny, nz,
+                                                          bytes_accessed, kernel, 20);
 
     KernelProfiler::PrintMetrics(metrics);
 
@@ -128,21 +126,20 @@ TEST_F(KernelProfilingTest, ProfileStackingEngineMultipleLayers) {
     int nz = 32;
 
     // Create synthetic emission layers
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> layer1(
-        "layer1", nx, ny, nz);
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> layer2(
-        "layer2", nx, ny, nz);
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> layer3(
-        "layer3", nx, ny, nz);
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> layer1("layer1", nx,
+                                                                                      ny, nz);
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> layer2("layer2", nx,
+                                                                                      ny, nz);
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> layer3("layer3", nx,
+                                                                                      ny, nz);
     Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> scale_factors(
         "scales", nx, ny, nz);
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> output(
-        "output", nx, ny, nz);
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> output("output", nx,
+                                                                                      ny, nz);
 
     // Initialize
     Kokkos::parallel_for(
-        "init_multi_layer",
-        Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
+        "init_multi_layer", Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
         KOKKOS_LAMBDA(int i, int j, int k) {
             layer1(i, j, k) = 1.0 + 0.1 * (i + j + k);
             layer2(i, j, k) = 0.5 + 0.05 * (i + j + k);
@@ -170,9 +167,8 @@ TEST_F(KernelProfilingTest, ProfileStackingEngineMultipleLayers) {
     // Profile fused kernel
     // Bytes accessed: 4 reads (3 layers + scales) + 1 write = 5 * nx*ny*nz * 8
     long long bytes_accessed = 5LL * nx * ny * nz * sizeof(double);
-    KernelMetrics metrics_fused =
-        KernelProfiler::ProfileKernel("StackingEngine_FusedLayers", nx, ny, nz, bytes_accessed,
-                                      fused_kernel, 20);
+    KernelMetrics metrics_fused = KernelProfiler::ProfileKernel(
+        "StackingEngine_FusedLayers", nx, ny, nz, bytes_accessed, fused_kernel, 20);
 
     KernelProfiler::PrintMetrics(metrics_fused);
 
@@ -209,17 +205,16 @@ TEST_F(KernelProfilingTest, ProfileStackingEngineWithMasksAndScales) {
         "base", nx, ny, nz);
     Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> scale_factors(
         "scales", nx, ny, nz);
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> mask1("mask1",
-                                                                                       nx, ny, nz);
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> mask2("mask2",
-                                                                                       nx, ny, nz);
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> output(
-        "output", nx, ny, nz);
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> mask1("mask1", nx,
+                                                                                     ny, nz);
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> mask2("mask2", nx,
+                                                                                     ny, nz);
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> output("output", nx,
+                                                                                      ny, nz);
 
     // Initialize
     Kokkos::parallel_for(
-        "init_masks_scales",
-        Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
+        "init_masks_scales", Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
         KOKKOS_LAMBDA(int i, int j, int k) {
             base_emissions(i, j, k) = 1.0 + 0.1 * (i + j + k);
             scale_factors(i, j, k) = 1.0 + 0.01 * (i + j + k);
@@ -245,9 +240,8 @@ TEST_F(KernelProfilingTest, ProfileStackingEngineWithMasksAndScales) {
     // Profile kernel
     // Bytes accessed: 4 reads (base, scales, mask1, mask2) + 1 write = 5 * nx*ny*nz * 8
     long long bytes_accessed = 5LL * nx * ny * nz * sizeof(double);
-    KernelMetrics metrics =
-        KernelProfiler::ProfileKernel("StackingEngine_MasksScales", nx, ny, nz, bytes_accessed,
-                                      kernel, 20);
+    KernelMetrics metrics = KernelProfiler::ProfileKernel("StackingEngine_MasksScales", nx, ny, nz,
+                                                          bytes_accessed, kernel, 20);
 
     KernelProfiler::PrintMetrics(metrics);
 
@@ -281,15 +275,14 @@ TEST_F(KernelProfilingTest, ProfilePhysicsSchemeTemperatureScaling) {
     // Create synthetic fields
     Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> temperature(
         "temp", nx, ny, nz);
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> emissions(
-        "emis", nx, ny, nz);
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> output(
-        "output", nx, ny, nz);
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> emissions("emis", nx,
+                                                                                         ny, nz);
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> output("output", nx,
+                                                                                      ny, nz);
 
     // Initialize
     Kokkos::parallel_for(
-        "init_physics",
-        Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
+        "init_physics", Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
         KOKKOS_LAMBDA(int i, int j, int k) {
             temperature(i, j, k) = 273.15 + 15.0 + 0.1 * (i + j + k);
             emissions(i, j, k) = 1.0 + 0.1 * (i + j + k);
@@ -300,8 +293,7 @@ TEST_F(KernelProfilingTest, ProfilePhysicsSchemeTemperatureScaling) {
     // Define physics kernel
     auto kernel = [&]() {
         Kokkos::parallel_for(
-            "physics_temp_scaling",
-            Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
+            "physics_temp_scaling", Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
             KOKKOS_LAMBDA(int i, int j, int k) {
                 // Temperature-dependent scaling
                 double t_ref = 298.15;
@@ -316,9 +308,8 @@ TEST_F(KernelProfilingTest, ProfilePhysicsSchemeTemperatureScaling) {
     // Profile kernel
     // Bytes accessed: 2 reads (temp, emis) + 1 write = 3 * nx*ny*nz * 8
     long long bytes_accessed = 3LL * nx * ny * nz * sizeof(double);
-    KernelMetrics metrics =
-        KernelProfiler::ProfileKernel("PhysicsScheme_TempScaling", nx, ny, nz, bytes_accessed,
-                                      kernel, 20);
+    KernelMetrics metrics = KernelProfiler::ProfileKernel("PhysicsScheme_TempScaling", nx, ny, nz,
+                                                          bytes_accessed, kernel, 20);
 
     KernelProfiler::PrintMetrics(metrics);
 
@@ -359,31 +350,29 @@ TEST_F(KernelProfilingTest, ProfileMemoryBandwidthScaling) {
     };
 
     for (const auto& [nx, ny, nz] : grid_sizes) {
-        Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> src(
-            "src", nx, ny, nz);
-        Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> dst(
-            "dst", nx, ny, nz);
+        Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> src("src", nx,
+                                                                                       ny, nz);
+        Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> dst("dst", nx,
+                                                                                       ny, nz);
 
         // Initialize
         Kokkos::parallel_for(
-            "init_bw",
-            Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
+            "init_bw", Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
             KOKKOS_LAMBDA(int i, int j, int k) { src(i, j, k) = i + j + k; });
         Kokkos::fence();
 
         // Define copy kernel
         auto kernel = [&]() {
             Kokkos::parallel_for(
-                "copy_bw",
-                Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
+                "copy_bw", Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
                 KOKKOS_LAMBDA(int i, int j, int k) { dst(i, j, k) = src(i, j, k); });
         };
 
         // Profile
         long long bytes_accessed = 2LL * nx * ny * nz * sizeof(double);
         KernelMetrics metrics = KernelProfiler::ProfileKernel(
-            "Copy_" + std::to_string(nx) + "x" + std::to_string(ny) + "x" + std::to_string(nz),
-            nx, ny, nz, bytes_accessed, kernel, 20);
+            "Copy_" + std::to_string(nx) + "x" + std::to_string(ny) + "x" + std::to_string(nz), nx,
+            ny, nz, bytes_accessed, kernel, 20);
 
         metrics_list.push_back(metrics);
     }
@@ -415,21 +404,19 @@ TEST_F(KernelProfilingTest, ProfileMemoryCoalescing) {
             "dst_left", nx, ny, nz);
 
         Kokkos::parallel_for(
-            "init_left",
-            Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
+            "init_left", Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
             KOKKOS_LAMBDA(int i, int j, int k) { src_left(i, j, k) = i + j + k; });
         Kokkos::fence();
 
         auto kernel_left = [&]() {
             Kokkos::parallel_for(
-                "copy_left",
-                Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
+                "copy_left", Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
                 KOKKOS_LAMBDA(int i, int j, int k) { dst_left(i, j, k) = src_left(i, j, k); });
         };
 
         long long bytes_accessed = 2LL * nx * ny * nz * sizeof(double);
-        KernelMetrics metrics_left = KernelProfiler::ProfileKernel(
-            "Copy_LayoutLeft", nx, ny, nz, bytes_accessed, kernel_left, 20);
+        KernelMetrics metrics_left = KernelProfiler::ProfileKernel("Copy_LayoutLeft", nx, ny, nz,
+                                                                   bytes_accessed, kernel_left, 20);
 
         KernelProfiler::PrintMetrics(metrics_left);
     }
@@ -442,15 +429,13 @@ TEST_F(KernelProfilingTest, ProfileMemoryCoalescing) {
             "dst_right", nx, ny, nz);
 
         Kokkos::parallel_for(
-            "init_right",
-            Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
+            "init_right", Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
             KOKKOS_LAMBDA(int i, int j, int k) { src_right(i, j, k) = i + j + k; });
         Kokkos::fence();
 
         auto kernel_right = [&]() {
             Kokkos::parallel_for(
-                "copy_right",
-                Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
+                "copy_right", Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
                 KOKKOS_LAMBDA(int i, int j, int k) { dst_right(i, j, k) = src_right(i, j, k); });
         };
 

@@ -23,8 +23,8 @@
  */
 
 #include <ESMC.h>
-#include <Kokkos_Core.hpp>
 
+#include <Kokkos_Core.hpp>
 #include <iostream>
 #include <string>
 
@@ -198,9 +198,9 @@ void aces_core_initialize_p2(void* data_ptr, void* gcomp_ptr, void* importState_
     // 4. Allocate default mask (all 1.0)
     std::cout << "INFO: Allocating default mask" << std::endl;
     try {
-        internal_data->default_mask = Kokkos::View<double***, Kokkos::LayoutLeft,
-                                                   Kokkos::DefaultExecutionSpace>(
-            "default_mask", internal_data->nx, internal_data->ny, internal_data->nz);
+        internal_data->default_mask =
+            Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>(
+                "default_mask", internal_data->nx, internal_data->ny, internal_data->nz);
 
         // Initialize mask to 1.0 on device
         Kokkos::deep_copy(internal_data->default_mask, 1.0);
@@ -233,8 +233,8 @@ void aces_core_initialize_p2(void* data_ptr, void* gcomp_ptr, void* importState_
         internal_data->esmf_fields.push_back(internal_name);
     }
 
-    std::cout << "INFO: Cached " << internal_data->esmf_fields.size()
-              << " import field mappings" << std::endl;
+    std::cout << "INFO: Cached " << internal_data->esmf_fields.size() << " import field mappings"
+              << std::endl;
 
     // 6. Prepare import/export state containers
     // Note: Actual field binding is lazy and happens on first access in Run phase

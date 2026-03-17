@@ -70,8 +70,7 @@ class KernelProfiler {
         Kokkos::fence();
         auto t1 = std::chrono::high_resolution_clock::now();
 
-        double elapsed_ms =
-            std::chrono::duration<double, std::milli>(t1 - t0).count() / iterations;
+        double elapsed_ms = std::chrono::duration<double, std::milli>(t1 - t0).count() / iterations;
         return elapsed_ms;
     }
 
@@ -125,10 +124,10 @@ class KernelProfiler {
      * @return Achieved memory bandwidth in GB/s
      */
     static double MeasureMemoryBandwidth(int nx, int ny, int nz, int iterations = 10) {
-        Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> src(
-            "src", nx, ny, nz);
-        Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> dst(
-            "dst", nx, ny, nz);
+        Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> src("src", nx,
+                                                                                       ny, nz);
+        Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> dst("dst", nx,
+                                                                                       ny, nz);
 
         // Initialize source
         Kokkos::parallel_for(
@@ -139,8 +138,7 @@ class KernelProfiler {
         // Measure copy bandwidth
         auto copy_kernel = [&]() {
             Kokkos::parallel_for(
-                "copy_kernel",
-                Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
+                "copy_kernel", Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
                 KOKKOS_LAMBDA(int i, int j, int k) { dst(i, j, k) = src(i, j, k); });
         };
 
@@ -166,8 +164,8 @@ class KernelProfiler {
      * @return KernelMetrics structure with profiling results
      */
     static KernelMetrics ProfileKernel(const std::string& kernel_name, int nx, int ny, int nz,
-                                       long long bytes_accessed,
-                                       std::function<void()> kernel_func, int iterations = 10) {
+                                       long long bytes_accessed, std::function<void()> kernel_func,
+                                       int iterations = 10) {
         KernelMetrics metrics;
         metrics.kernel_name = kernel_name;
         metrics.grid_size_x = nx;
@@ -217,8 +215,7 @@ class KernelProfiler {
     static void PrintComparison(const std::vector<KernelMetrics>& metrics_list) {
         std::cout << "\n=== Kernel Performance Comparison ===" << std::endl;
         std::cout << std::left << std::setw(30) << "Kernel" << std::setw(15) << "Time (ms)"
-                  << std::setw(15) << "BW (GB/s)" << std::setw(15) << "Efficiency (%)"
-                  << std::endl;
+                  << std::setw(15) << "BW (GB/s)" << std::setw(15) << "Efficiency (%)" << std::endl;
         std::cout << std::string(75, '-') << std::endl;
 
         for (const auto& m : metrics_list) {

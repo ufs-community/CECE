@@ -72,13 +72,13 @@ void ExampleEmissionModification::Run(AcesImportState& import_state,
 
     if (apply_diurnal_cycle_) {
         // Create a device copy of the diurnal cycle factors
-        auto diurnal_cycle_device = Kokkos::create_mirror_view_and_copy(
-            Kokkos::DefaultExecutionSpace(), diurnal_cycle_);
+        auto diurnal_cycle_device =
+            Kokkos::create_mirror_view_and_copy(Kokkos::DefaultExecutionSpace(), diurnal_cycle_);
 
         Kokkos::parallel_for(
             "ExampleEmissionModificationKernel",
-            Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<3>>(
-                {0, 0, 0}, {nx, ny, nz}),
+            Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<3>>({0, 0, 0},
+                                                                                  {nx, ny, nz}),
             KOKKOS_LAMBDA(int i, int j, int k) {
                 // Apply diurnal cycle factor to emissions
                 // This scales emissions based on the time of day

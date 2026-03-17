@@ -247,7 +247,7 @@ class TestSuiteIdempotenceTest : public ::testing::Test {
 
             // Create a simple layer
             EmissionLayer layer;
-            layer.field_name = "test_layer";
+            layer.field_name = "base_emissions";
             layer.hierarchy = 1;
             layer.operation = "add";
             layer.vdist_method = aces::VerticalDistributionMethod::SINGLE;
@@ -293,6 +293,8 @@ class TestSuiteIdempotenceTest : public ::testing::Test {
      * @return Aggregated TestSuiteResult
      */
     TestSuiteResult RunTestSuite(int num_configs) {
+        // Reset RNG to deterministic seed so each call produces identical results
+        rng = std::mt19937{42};
         TestSuiteResult aggregated;
 
         for (int config_id = 0; config_id < num_configs; ++config_id) {
@@ -307,8 +309,8 @@ class TestSuiteIdempotenceTest : public ::testing::Test {
 
             // Append numerical outputs
             aggregated.numerical_outputs.insert(aggregated.numerical_outputs.end(),
-                                               result.numerical_outputs.begin(),
-                                               result.numerical_outputs.end());
+                                                result.numerical_outputs.begin(),
+                                                result.numerical_outputs.end());
 
             if (!result.overall_success) {
                 aggregated.overall_success = false;
@@ -463,14 +465,12 @@ TEST_F(TestSuiteIdempotenceTest, NumericalOutputIdempotence) {
             if (max_abs > 0) {
                 double rel_error = abs_diff / max_abs;
                 EXPECT_LE(rel_error, 1e-15)
-                    << "Numerical output mismatch at index " << j << " between run 0 and run "
-                    << i << ": " << std::scientific << std::setprecision(17) << val1 << " vs "
-                    << val2;
+                    << "Numerical output mismatch at index " << j << " between run 0 and run " << i
+                    << ": " << std::scientific << std::setprecision(17) << val1 << " vs " << val2;
             } else {
                 EXPECT_LE(abs_diff, 1e-15)
-                    << "Numerical output mismatch at index " << j << " between run 0 and run "
-                    << i << ": " << std::scientific << std::setprecision(17) << val1 << " vs "
-                    << val2;
+                    << "Numerical output mismatch at index " << j << " between run 0 and run " << i
+                    << ": " << std::scientific << std::setprecision(17) << val1 << " vs " << val2;
             }
         }
     }

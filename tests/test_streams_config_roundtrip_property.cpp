@@ -85,7 +85,7 @@ class StreamsConfigRoundTripPropertyTest : public ::testing::Test {
     std::string GenerateValidStreamsFile(const std::string& tag, int n_streams) {
         const std::vector<std::string> taxmodes = {"cycle", "extend", "limit"};
         const std::vector<std::string> tintalgo = {"none", "linear", "nearest"};
-        const std::vector<std::string> mapalgo  = {"bilinear", "patch", "nearestdtos"};
+        const std::vector<std::string> mapalgo = {"bilinear", "patch", "nearestdtos"};
 
         std::string content;
         for (int s = 0; s < n_streams; ++s) {
@@ -173,8 +173,7 @@ TEST_F(StreamsConfigRoundTripPropertyTest, MultiStreamRoundTrip) {
         EXPECT_EQ(config1.streams.size(), config2.streams.size())
             << "Stream count mismatch after round-trip, iteration " << i;
         EXPECT_TRUE(ConfigsEquivalent(config1, config2))
-            << "Round-trip failed for multi-stream iteration " << i
-            << " (" << n << " streams)";
+            << "Round-trip failed for multi-stream iteration " << i << " (" << n << " streams)";
     }
 }
 
@@ -273,13 +272,13 @@ TEST_F(StreamsConfigRoundTripPropertyTest, TemporalSettingsPreserved) {
         AcesCdepsConfig c2 = CdepsStreamsParser::ParseStreamsFile(out);
 
         for (size_t s = 0; s < c1.streams.size(); ++s) {
-            EXPECT_EQ(c1.streams[s].taxmode,    c2.streams[s].taxmode)    << "taxmode mismatch";
-            EXPECT_EQ(c1.streams[s].tintalgo,   c2.streams[s].tintalgo)   << "tintalgo mismatch";
-            EXPECT_EQ(c1.streams[s].mapalgo,    c2.streams[s].mapalgo)    << "mapalgo mismatch";
-            EXPECT_EQ(c1.streams[s].yearFirst,  c2.streams[s].yearFirst)  << "yearFirst mismatch";
-            EXPECT_EQ(c1.streams[s].yearLast,   c2.streams[s].yearLast)   << "yearLast mismatch";
-            EXPECT_EQ(c1.streams[s].yearAlign,  c2.streams[s].yearAlign)  << "yearAlign mismatch";
-            EXPECT_EQ(c1.streams[s].offset,     c2.streams[s].offset)     << "offset mismatch";
+            EXPECT_EQ(c1.streams[s].taxmode, c2.streams[s].taxmode) << "taxmode mismatch";
+            EXPECT_EQ(c1.streams[s].tintalgo, c2.streams[s].tintalgo) << "tintalgo mismatch";
+            EXPECT_EQ(c1.streams[s].mapalgo, c2.streams[s].mapalgo) << "mapalgo mismatch";
+            EXPECT_EQ(c1.streams[s].yearFirst, c2.streams[s].yearFirst) << "yearFirst mismatch";
+            EXPECT_EQ(c1.streams[s].yearLast, c2.streams[s].yearLast) << "yearLast mismatch";
+            EXPECT_EQ(c1.streams[s].yearAlign, c2.streams[s].yearAlign) << "yearAlign mismatch";
+            EXPECT_EQ(c1.streams[s].offset, c2.streams[s].offset) << "offset mismatch";
         }
     }
 }
@@ -294,7 +293,7 @@ TEST_F(StreamsConfigRoundTripPropertyTest, TemporalSettingsPreserved) {
  */
 TEST_F(StreamsConfigRoundTripPropertyTest, TripleRoundTripStable) {
     for (int i = 0; i < 20; ++i) {
-        std::string src  = GenerateValidStreamsFile("tr_" + std::to_string(i), 2);
+        std::string src = GenerateValidStreamsFile("tr_" + std::to_string(i), 2);
         std::string out1 = TmpFile("tr_out1_" + std::to_string(i));
         std::string out2 = TmpFile("tr_out2_" + std::to_string(i));
 
@@ -304,8 +303,7 @@ TEST_F(StreamsConfigRoundTripPropertyTest, TripleRoundTripStable) {
         CdepsStreamsParser::WriteStreamsFile(out2, c2);
         AcesCdepsConfig c3 = CdepsStreamsParser::ParseStreamsFile(out2);
 
-        EXPECT_TRUE(ConfigsEquivalent(c2, c3))
-            << "Triple round-trip not stable at iteration " << i;
+        EXPECT_TRUE(ConfigsEquivalent(c2, c3)) << "Triple round-trip not stable at iteration " << i;
     }
 }
 

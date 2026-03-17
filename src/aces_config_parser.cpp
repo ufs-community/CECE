@@ -1,6 +1,5 @@
-#include <yaml-cpp/yaml.h>
-
 #include <sys/stat.h>
+#include <yaml-cpp/yaml.h>
 
 #include <iostream>
 #include <string>
@@ -333,8 +332,7 @@ AcesConfig ParseConfig(const std::string& filename) {
             config.output_config.directory = out_node["directory"].as<std::string>();
         }
         if (out_node["filename_pattern"]) {
-            config.output_config.filename_pattern =
-                out_node["filename_pattern"].as<std::string>();
+            config.output_config.filename_pattern = out_node["filename_pattern"].as<std::string>();
         }
         if (out_node["frequency_steps"]) {
             config.output_config.frequency_steps = out_node["frequency_steps"].as<int>();
@@ -356,8 +354,7 @@ AcesConfig ParseConfig(const std::string& filename) {
             std::cout << "[ACES INFO] Output directory '" << dir
                       << "' does not exist and will be created at runtime.\n";
         } else if (!(st.st_mode & S_IWUSR)) {
-            std::cerr << "[ACES ERROR] Output directory '" << dir
-                      << "' is not writable.\n";
+            std::cerr << "[ACES ERROR] Output directory '" << dir << "' is not writable.\n";
         }
     }
 

@@ -10,8 +10,10 @@
 
 #include <gtest/gtest.h>
 #include <netcdf.h>
-#include <Kokkos_Core.hpp>
+#include <sys/stat.h>
+#include <sys/types.h>
 
+#include <Kokkos_Core.hpp>
 #include <cmath>
 #include <cstdlib>
 #include <filesystem>
@@ -20,8 +22,6 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-#include <sys/stat.h>
-#include <sys/types.h>
 
 #include "aces/aces_standalone_writer.hpp"
 
@@ -41,8 +41,8 @@ static double RandomDouble(double min_val = 0.0, double max_val = 1.0) {
 /**
  * @brief Create a 3D Kokkos::View filled with random data.
  */
-static Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
-CreateRandomField(int nx, int ny, int nz, double min_val = 0.0, double max_val = 1.0) {
+static Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> CreateRandomField(
+    int nx, int ny, int nz, double min_val = 0.0, double max_val = 1.0) {
     auto view = Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>(
         "random_field", nx, ny, nz);
 
@@ -119,7 +119,7 @@ class KokkosEnvironment : public ::testing::Environment {
  */
 class StandaloneWriterUnitTest : public ::testing::Test {
    protected:
-    std::string test_dir_ = "./test_standalone_writer_unit";
+    std::string test_dir_ = "./test_standalone_writer_output";
 
     void SetUp() override {
         // Clean up any existing directory first using filesystem operations
@@ -362,7 +362,7 @@ TEST_F(StandaloneWriterUnitTest, FrequencyGatingSkipsIntermediateSteps) {
 
     aces::AcesOutputConfig config;
     config.directory = test_dir_;
-    config.filename_pattern = "test_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc";
+    config.filename_pattern = "test_output.nc";  // Fixed name so all records go to one file
     config.frequency_steps = frequency;
     config.fields = {"CO"};
 
@@ -394,9 +394,9 @@ TEST_F(StandaloneWriterUnitTest, FrequencyGatingSkipsIntermediateSteps) {
 
     // Expected: ceil(num_steps / frequency)
     int expected = (num_steps + frequency - 1) / frequency;
-    EXPECT_EQ(time_len, expected)
-        << "Expected " << expected << " records with frequency=" << frequency
-        << ", got " << time_len;
+    EXPECT_EQ(time_len, expected) << "Expected " << expected
+                                  << " records with frequency=" << frequency << ", got "
+                                  << time_len;
 
     nc_close(ncid);
 }
@@ -416,7 +416,7 @@ TEST_F(StandaloneWriterUnitTest, FrequencyGatingFrequencyOne) {
 
     aces::AcesOutputConfig config;
     config.directory = test_dir_;
-    config.filename_pattern = "test_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc";
+    config.filename_pattern = "test_output.nc";  // Fixed name so all records go to one file
     config.frequency_steps = 1;
     config.fields = {"CO"};
 

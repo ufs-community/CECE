@@ -141,8 +141,8 @@ struct AcesOutputConfig {
     std::string directory = ".";  ///< Output directory (created if absent).
     std::string filename_pattern =
         "aces_output_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc";  ///< Filename pattern with time tokens.
-    int frequency_steps = 1;                            ///< Write every N time steps.
-    std::vector<std::string> fields;  ///< Fields to write; empty means all export fields.
+    int frequency_steps = 1;                           ///< Write every N time steps.
+    std::vector<std::string> fields;   ///< Fields to write; empty means all export fields.
     bool include_diagnostics = false;  ///< Also write diagnostic fields when true.
     bool enabled = false;              ///< True when an output block is present in the YAML.
 };

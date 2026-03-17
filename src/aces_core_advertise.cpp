@@ -92,17 +92,20 @@ void aces_core_advertise(void* importState_ptr, void* exportState_ptr, int* rc) 
 
         // Meteorological fields
         for (const auto& [internal_name, external_name] : config.met_mapping) {
-            std::cout << "  - Meteorology: " << external_name << " (internal: " << internal_name << ")" << std::endl;
+            std::cout << "  - Meteorology: " << external_name << " (internal: " << internal_name
+                      << ")" << std::endl;
         }
 
         // Scale factor fields
         for (const auto& [internal_name, external_name] : config.scale_factor_mapping) {
-            std::cout << "  - Scale factor: " << external_name << " (internal: " << internal_name << ")" << std::endl;
+            std::cout << "  - Scale factor: " << external_name << " (internal: " << internal_name
+                      << ")" << std::endl;
         }
 
         // Mask fields
         for (const auto& [internal_name, external_name] : config.mask_mapping) {
-            std::cout << "  - Mask: " << external_name << " (internal: " << internal_name << ")" << std::endl;
+            std::cout << "  - Mask: " << external_name << " (internal: " << internal_name << ")"
+                      << std::endl;
         }
     }
 

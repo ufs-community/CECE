@@ -34,12 +34,11 @@ void StackingEngine::PreCompile() {
         std::vector<LayerContribution> contributions;
 
         for (auto const& layer : layers) {
-            spec.layers.push_back({layer.field_name, layer.operation, layer.scale, layer.hierarchy,
-                                   layer.masks, layer.scale_fields, layer.diurnal_cycle,
-                                   layer.weekly_cycle, layer.seasonal_cycle,
-                                   layer.vdist_method, layer.vdist_layer_start,
-                                   layer.vdist_layer_end, layer.vdist_p_start, layer.vdist_p_end,
-                                   layer.vdist_h_start, layer.vdist_h_end});
+            spec.layers.push_back(
+                {layer.field_name, layer.operation, layer.scale, layer.hierarchy, layer.masks,
+                 layer.scale_fields, layer.diurnal_cycle, layer.weekly_cycle, layer.seasonal_cycle,
+                 layer.vdist_method, layer.vdist_layer_start, layer.vdist_layer_end,
+                 layer.vdist_p_start, layer.vdist_p_end, layer.vdist_h_start, layer.vdist_h_end});
 
             LayerContribution contrib;
             contrib.field_name = layer.field_name;
@@ -238,10 +237,9 @@ void StackingEngine::AddSpecies(const std::string& species_name) {
     for (const auto& layer : it->second) {
         spec.layers.push_back({layer.field_name, layer.operation, layer.scale, layer.hierarchy,
                                layer.masks, layer.scale_fields, layer.diurnal_cycle,
-                               layer.weekly_cycle, layer.seasonal_cycle,
-                               layer.vdist_method, layer.vdist_layer_start,
-                               layer.vdist_layer_end, layer.vdist_p_start, layer.vdist_p_end,
-                               layer.vdist_h_start, layer.vdist_h_end});
+                               layer.weekly_cycle, layer.seasonal_cycle, layer.vdist_method,
+                               layer.vdist_layer_start, layer.vdist_layer_end, layer.vdist_p_start,
+                               layer.vdist_p_end, layer.vdist_h_start, layer.vdist_h_end});
 
         LayerContribution contrib;
         contrib.field_name = layer.field_name;
@@ -257,10 +255,9 @@ void StackingEngine::AddSpecies(const std::string& species_name) {
         contributions.push_back(std::move(contrib));
     }
 
-    std::sort(spec.layers.begin(), spec.layers.end(),
-              [](const CompiledLayer& a, const CompiledLayer& b) {
-                  return a.hierarchy < b.hierarchy;
-              });
+    std::sort(
+        spec.layers.begin(), spec.layers.end(),
+        [](const CompiledLayer& a, const CompiledLayer& b) { return a.hierarchy < b.hierarchy; });
     std::sort(contributions.begin(), contributions.end(),
               [](const LayerContribution& a, const LayerContribution& b) {
                   return a.hierarchy < b.hierarchy;
@@ -366,12 +363,14 @@ void StackingEngine::Execute(
                 double accumulated = 0.0;
 
                 // Pre-compute total overlap for the column (i,j) for vertical distribution methods
-                // This is computed once per column, not per layer, since the distribution range is the same for all layers
+                // This is computed once per column, not per layer, since the distribution range is
+                // the same for all layers
                 double total_overlap_pressure = 0.0;
                 double total_overlap_height = 0.0;
                 double total_overlap_pbl = 0.0;
 
-                // Find the first layer with each vertical distribution method to get the distribution range
+                // Find the first layer with each vertical distribution method to get the
+                // distribution range
                 double vdist_p_start = 0.0, vdist_p_end = 0.0;
                 double vdist_h_start = 0.0, vdist_h_end = 0.0;
                 bool has_pressure = false, has_height = false, has_pbl = false;
@@ -387,8 +386,9 @@ void StackingEngine::Execute(
                     if (layer.vdist_method == 4) has_pbl = true;
                 }
 
-                // Note: total_overlap_* and distribution logic are now handled inside the layer loop
-                // to support per-layer distribution ranges correctly and ensure mass conservation.
+                // Note: total_overlap_* and distribution logic are now handled inside the layer
+                // loop to support per-layer distribution ranges correctly and ensure mass
+                // conservation.
 
                 for (int l = 0; l < num_layers; ++l) {
                     const auto& layer = layers(l);
@@ -435,8 +435,10 @@ void StackingEngine::Execute(
                                     p_bot2 = ps.data() != nullptr ? ps(i, j, 0) : P0;
                                 }
                             }
-                            double overlap_top2 = (p_top2 > layer.vdist_p_start) ? p_top2 : layer.vdist_p_start;
-                            double overlap_bot2 = (p_bot2 < layer.vdist_p_end) ? p_bot2 : layer.vdist_p_end;
+                            double overlap_top2 =
+                                (p_top2 > layer.vdist_p_start) ? p_top2 : layer.vdist_p_start;
+                            double overlap_bot2 =
+                                (p_bot2 < layer.vdist_p_end) ? p_bot2 : layer.vdist_p_end;
                             if (overlap_bot2 > overlap_top2) {
                                 layer_total_overlap += (overlap_bot2 - overlap_top2);
                             }
@@ -460,8 +462,10 @@ void StackingEngine::Execute(
                                 p_bot = ps.data() != nullptr ? ps(i, j, 0) : P0;
                             }
                         }
-                        double overlap_top = (p_top > layer.vdist_p_start) ? p_top : layer.vdist_p_start;
-                        double overlap_bot = (p_bot < layer.vdist_p_end) ? p_bot : layer.vdist_p_end;
+                        double overlap_top =
+                            (p_top > layer.vdist_p_start) ? p_top : layer.vdist_p_start;
+                        double overlap_bot =
+                            (p_bot < layer.vdist_p_end) ? p_bot : layer.vdist_p_end;
 
                         if (overlap_bot > overlap_top && layer_total_overlap > 0.0) {
                             in_vertical_range = true;
@@ -474,11 +478,13 @@ void StackingEngine::Execute(
                             for (int l2 = 0; l2 < nz; ++l2) {
                                 double z_t = z_coord(i, j, l2);
                                 double z_b = z_coord(i, j, l2 + 1);
-                                double z_top2 = (z_t > z_b) ? z_t : z_b; // max
-                                double z_bot2 = (z_t < z_b) ? z_t : z_b; // min
+                                double z_top2 = (z_t > z_b) ? z_t : z_b;  // max
+                                double z_bot2 = (z_t < z_b) ? z_t : z_b;  // min
 
-                                double overlap_top2 = (z_top2 < layer.vdist_h_end) ? z_top2 : layer.vdist_h_end;
-                                double overlap_bot2 = (z_bot2 > layer.vdist_h_start) ? z_bot2 : layer.vdist_h_start;
+                                double overlap_top2 =
+                                    (z_top2 < layer.vdist_h_end) ? z_top2 : layer.vdist_h_end;
+                                double overlap_bot2 =
+                                    (z_bot2 > layer.vdist_h_start) ? z_bot2 : layer.vdist_h_start;
                                 if (overlap_top2 > overlap_bot2) {
                                     layer_total_overlap += (overlap_top2 - overlap_bot2);
                                 }
@@ -490,8 +496,10 @@ void StackingEngine::Execute(
                             double z_top = (z_t > z_b) ? z_t : z_b;
                             double z_bot = (z_t < z_b) ? z_t : z_b;
 
-                            double overlap_top = (z_top < layer.vdist_h_end) ? z_top : layer.vdist_h_end;
-                            double overlap_bot = (z_bot > layer.vdist_h_start) ? z_bot : layer.vdist_h_start;
+                            double overlap_top =
+                                (z_top < layer.vdist_h_end) ? z_top : layer.vdist_h_end;
+                            double overlap_bot =
+                                (z_bot > layer.vdist_h_start) ? z_bot : layer.vdist_h_start;
 
                             if (overlap_top > overlap_bot && layer_total_overlap > 0.0) {
                                 in_vertical_range = true;
@@ -505,35 +513,43 @@ void StackingEngine::Execute(
                             // Compute total overlap for this specific layer's PBL range
                             double layer_total_overlap = 0.0;
                             for (int l2 = 0; l2 < nz; ++l2) {
-                                double z_top2 = z_coord(i, j, l2);
-                                double z_bot2 = z_coord(i, j, l2 + 1);
-                                double overlap_top2 = (z_top2 > 0.0) ? z_top2 : 0.0;
-                                double overlap_bot2 = (z_bot2 < h_pbl) ? z_bot2 : h_pbl;
-                                if (overlap_bot2 > overlap_top2) {
-                                    layer_total_overlap += (overlap_bot2 - overlap_top2);
+                                double z_a = z_coord(i, j, l2);
+                                double z_b2 = z_coord(i, j, l2 + 1);
+                                // Layer spans [z_bot2, z_top2] regardless of coordinate direction
+                                double z_top2 = (z_a > z_b2) ? z_a : z_b2;
+                                double z_bot2 = (z_a < z_b2) ? z_a : z_b2;
+                                // Overlap with [0, h_pbl]
+                                double ov_top = (z_top2 < h_pbl) ? z_top2 : h_pbl;
+                                double ov_bot = (z_bot2 > 0.0) ? z_bot2 : 0.0;
+                                if (ov_top > ov_bot) {
+                                    layer_total_overlap += (ov_top - ov_bot);
                                 }
                             }
 
                             // Compute the overlap for the current layer (k)
-                            double z_top = z_coord(i, j, k);
-                            double z_bot = z_coord(i, j, k + 1);
-                            double overlap_top = (z_top > 0.0) ? z_top : 0.0;
-                            double overlap_bot = (z_bot < h_pbl) ? z_bot : h_pbl;
+                            double z_a = z_coord(i, j, k);
+                            double z_b2 = z_coord(i, j, k + 1);
+                            double z_top = (z_a > z_b2) ? z_a : z_b2;
+                            double z_bot = (z_a < z_b2) ? z_a : z_b2;
+                            double ov_top = (z_top < h_pbl) ? z_top : h_pbl;
+                            double ov_bot = (z_bot > 0.0) ? z_bot : 0.0;
 
-                            if (overlap_bot > overlap_top && layer_total_overlap > 0.0) {
+                            if (ov_top > ov_bot && layer_total_overlap > 0.0) {
                                 in_vertical_range = true;
-                                weight = (overlap_bot - overlap_top) / layer_total_overlap;
+                                weight = (ov_top - ov_bot) / layer_total_overlap;
                             }
                         }
                     }
 
-                    if (!in_vertical_range && !is_3d_field) {
+                    if (!in_vertical_range) {
                         continue;
                     }
 
-                    // For 3D fields, the weight is effectively 1.0 (already distributed)
-                    // and we read from k index. For 2D fields, we read from 0 index and apply weight.
-                    double val = is_3d_field ? layer.field(i, j, k) : (layer.field(i, j, 0) * weight);
+                    // For 3D fields with explicit vertical distribution, apply the weight.
+                    // For 3D fields with no distribution (vdist_method==0 at k==0), weight=1.
+                    // For 2D fields, read from k=0 and apply weight.
+                    double val = is_3d_field ? (layer.field(i, j, k) * weight)
+                                             : (layer.field(i, j, 0) * weight);
 
                     // Fused scale factor application: multiply all scales in single pass
                     double combined_scale = layer.scale;  // Pre-computed temporal scale

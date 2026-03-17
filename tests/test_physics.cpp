@@ -55,7 +55,8 @@ class PhysicsTest : public ::testing::Test {
         import_state.fields["DMS_seawater"] = import_state.fields["seawater_conc"];
         import_state.fields["gwettop"] = import_state.fields["soil_moisture"];
         import_state.fields["lai"] = import_state.fields["leaf_area_index"];
-        import_state.fields["convective_cloud_top_height"] = import_state.fields["cloud_top_height"];
+        import_state.fields["convective_cloud_top_height"] =
+            import_state.fields["cloud_top_height"];
         import_state.fields["GINOUX_SAND"] = import_state.fields["erodibility"];
 
         export_state.fields["SALA"] = export_state.fields["secondary_input"];

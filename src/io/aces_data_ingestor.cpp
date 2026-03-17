@@ -170,8 +170,10 @@ void AcesDataIngestor::InitializeCDEPS(ESMC_GridComp gcomp, ESMC_Clock clock,
         aces_cdeps_init(gcomp.ptr, clock.ptr, resolved_mesh.ptr, stream_file_path.c_str(), &rc);
         if (rc != 0) {
             std::cerr << "ACES: Error initializing CDEPS. RC=" << rc << "\n";
-            std::cerr << "ACES: CORRECTIVE ACTION - Check streams file format and NetCDF data files\n";
-            std::cerr << "ACES: CORRECTIVE ACTION - Verify all variables in streams file exist in NetCDF files\n";
+            std::cerr
+                << "ACES: CORRECTIVE ACTION - Check streams file format and NetCDF data files\n";
+            std::cerr << "ACES: CORRECTIVE ACTION - Verify all variables in streams file exist in "
+                         "NetCDF files\n";
             return;
         }
         cdeps_initialized_ = true;

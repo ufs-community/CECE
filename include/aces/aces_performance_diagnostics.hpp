@@ -6,11 +6,11 @@
 #ifndef ACES_PERFORMANCE_DIAGNOSTICS_HPP
 #define ACES_PERFORMANCE_DIAGNOSTICS_HPP
 
+#include <chrono>
+#include <iostream>
 #include <string>
 #include <unordered_map>
-#include <chrono>
 #include <vector>
-#include <iostream>
 
 namespace aces {
 
@@ -19,11 +19,11 @@ namespace aces {
  * @brief Timing information for a component
  */
 struct TimingData {
-    std::string name;                   ///< Component name
-    double total_time_ms = 0.0;         ///< Total execution time in milliseconds
-    int call_count = 0;                 ///< Number of times called
-    double min_time_ms = 1e9;           ///< Minimum execution time
-    double max_time_ms = 0.0;           ///< Maximum execution time
+    std::string name;            ///< Component name
+    double total_time_ms = 0.0;  ///< Total execution time in milliseconds
+    int call_count = 0;          ///< Number of times called
+    double min_time_ms = 1e9;    ///< Minimum execution time
+    double max_time_ms = 0.0;    ///< Maximum execution time
 
     /**
      * @brief Get average execution time
@@ -39,9 +39,9 @@ struct TimingData {
  * @brief Memory usage information
  */
 struct MemoryData {
-    std::string name;                   ///< Component name
-    long long peak_memory_bytes = 0;    ///< Peak memory usage in bytes
-    long long current_memory_bytes = 0; ///< Current memory usage in bytes
+    std::string name;                    ///< Component name
+    long long peak_memory_bytes = 0;     ///< Peak memory usage in bytes
+    long long current_memory_bytes = 0;  ///< Current memory usage in bytes
 };
 
 /**
@@ -49,7 +49,7 @@ struct MemoryData {
  * @brief Singleton for collecting performance timing and memory diagnostics
  */
 class PerformanceDiagnostics {
- public:
+   public:
     /**
      * @brief Get the singleton instance
      * @return Reference to the diagnostics instance
@@ -75,8 +75,7 @@ class PerformanceDiagnostics {
         auto end = std::chrono::high_resolution_clock::now();
         auto it = timers_.find(name);
         if (it != timers_.end()) {
-            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(
-                end - it->second);
+            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - it->second);
             double elapsed_ms = static_cast<double>(duration.count());
 
             auto& timing = timing_data_[name];
@@ -136,15 +135,17 @@ class PerformanceDiagnostics {
     void PrintTimingSummary() const {
         std::cout << "\n=== ACES Performance Timing Summary ===" << std::endl;
         std::cout << std::string(70, '-') << std::endl;
-        std::cout << "Component                    | Total (ms) | Calls | Avg (ms) | Min (ms) | Max (ms)" << std::endl;
+        std::cout
+            << "Component                    | Total (ms) | Calls | Avg (ms) | Min (ms) | Max (ms)"
+            << std::endl;
         std::cout << std::string(70, '-') << std::endl;
 
         double total_time = 0.0;
         for (const auto& [name, timing] : timing_data_) {
             total_time += timing.total_time_ms;
-            printf("%-28s | %10.2f | %5d | %8.2f | %8.2f | %8.2f\n",
-                   name.c_str(), timing.total_time_ms, timing.call_count,
-                   timing.GetAverageTime(), timing.min_time_ms, timing.max_time_ms);
+            printf("%-28s | %10.2f | %5d | %8.2f | %8.2f | %8.2f\n", name.c_str(),
+                   timing.total_time_ms, timing.call_count, timing.GetAverageTime(),
+                   timing.min_time_ms, timing.max_time_ms);
         }
 
         std::cout << std::string(70, '-') << std::endl;
@@ -166,16 +167,13 @@ class PerformanceDiagnostics {
         for (const auto& [name, mem] : memory_data_) {
             total_current += mem.current_memory_bytes;
             total_peak += mem.peak_memory_bytes;
-            printf("%-28s | %12.2f | %8.2f\n",
-                   name.c_str(),
+            printf("%-28s | %12.2f | %8.2f\n", name.c_str(),
                    mem.current_memory_bytes / 1024.0 / 1024.0,
                    mem.peak_memory_bytes / 1024.0 / 1024.0);
         }
 
         std::cout << std::string(60, '-') << std::endl;
-        printf("%-28s | %12.2f | %8.2f\n",
-               "TOTAL",
-               total_current / 1024.0 / 1024.0,
+        printf("%-28s | %12.2f | %8.2f\n", "TOTAL", total_current / 1024.0 / 1024.0,
                total_peak / 1024.0 / 1024.0);
         std::cout << std::string(60, '-') << std::endl;
     }
@@ -189,7 +187,7 @@ class PerformanceDiagnostics {
         timers_.clear();
     }
 
- private:
+   private:
     PerformanceDiagnostics() = default;
     ~PerformanceDiagnostics() = default;
 
@@ -209,7 +207,7 @@ class PerformanceDiagnostics {
  * @brief RAII timer for automatic timing of code blocks
  */
 class ScopedTimer {
- public:
+   public:
     /**
      * @brief Create a scoped timer
      * @param name Component name
@@ -225,21 +223,18 @@ class ScopedTimer {
         PerformanceDiagnostics::GetInstance().StopTimer(name_);
     }
 
- private:
+   private:
     std::string name_;
 };
 
 }  // namespace aces
 
 // Convenience macros for timing
-#define ACES_TIMER_START(name) \
-    aces::PerformanceDiagnostics::GetInstance().StartTimer(name)
+#define ACES_TIMER_START(name) aces::PerformanceDiagnostics::GetInstance().StartTimer(name)
 
-#define ACES_TIMER_STOP(name) \
-    aces::PerformanceDiagnostics::GetInstance().StopTimer(name)
+#define ACES_TIMER_STOP(name) aces::PerformanceDiagnostics::GetInstance().StopTimer(name)
 
-#define ACES_SCOPED_TIMER(name) \
-    aces::ScopedTimer _timer_##__LINE__(name)
+#define ACES_SCOPED_TIMER(name) aces::ScopedTimer _timer_##__LINE__(name)
 
 #define ACES_RECORD_MEMORY(name, bytes) \
     aces::PerformanceDiagnostics::GetInstance().RecordMemory(name, bytes)

@@ -19,13 +19,14 @@
  */
 
 #include <gtest/gtest.h>
+
 #include <Kokkos_Core.hpp>
-#include <random>
-#include <vector>
-#include <cmath>
 #include <algorithm>
+#include <cmath>
 #include <numeric>
+#include <random>
 #include <string>
+#include <vector>
 
 #include "aces/aces_cdeps_parser.hpp"
 
@@ -36,8 +37,7 @@ namespace test {
 /**
  * @brief Helper function to check if any error string contains a substring
  */
-static bool AnyErrorContains(const std::vector<std::string>& errors,
-                              const std::string& substr) {
+static bool AnyErrorContains(const std::vector<std::string>& errors, const std::string& substr) {
     for (const auto& e : errors) {
         if (e.find(substr) != std::string::npos) return true;
     }
@@ -48,7 +48,7 @@ static bool AnyErrorContains(const std::vector<std::string>& errors,
  * @brief Random number generator for property-based testing
  */
 class PropertyTestGenerator {
- public:
+   public:
     PropertyTestGenerator(uint32_t seed = 42) : rng_(seed) {}
 
     /**
@@ -146,7 +146,7 @@ class PropertyTestGenerator {
         return mask;
     }
 
- private:
+   private:
     std::mt19937 rng_;
 };
 
@@ -162,7 +162,7 @@ class PropertyTestGenerator {
  * @brief Base test fixture for property-based testing
  */
 class PropertiesTest : public ::testing::Test {
- protected:
+   protected:
     void SetUp() override {
         if (!Kokkos::is_initialized()) {
             Kokkos::initialize();
@@ -237,7 +237,8 @@ TEST_F(PropertiesTest, Property1_CDEPSStreamFileValidation) {
         aces::CdepsStreamsParser::ValidateStreamsConfig(config, errors);
 
         EXPECT_GT(errors.size(), 0u) << "Should report error for non-existent file";
-        EXPECT_TRUE(aces::test::AnyErrorContains(errors, "/nonexistent/path/file_" + std::to_string(i) + ".nc"))
+        EXPECT_TRUE(aces::test::AnyErrorContains(
+            errors, "/nonexistent/path/file_" + std::to_string(i) + ".nc"))
             << "Error should contain the missing file path";
     }
 
@@ -264,9 +265,8 @@ TEST_F(PropertiesTest, Property1_CDEPSStreamFileValidation) {
     }
 
     // Test 4: Invalid tintalgo modes
-    const std::vector<std::string> invalid_tintalgo = {
-        "invalid", "bilinear", "cubic", "spline", "bad_mode", "NONE", "LINEAR", "NEAREST"
-    };
+    const std::vector<std::string> invalid_tintalgo = {"invalid",  "bilinear", "cubic",  "spline",
+                                                       "bad_mode", "NONE",     "LINEAR", "NEAREST"};
     for (size_t i = 0; i < invalid_tintalgo.size(); ++i) {
         aces::AcesCdepsConfig config;
         aces::CdepsStreamConfig stream;
@@ -280,23 +280,22 @@ TEST_F(PropertiesTest, Property1_CDEPSStreamFileValidation) {
         std::vector<std::string> errors;
         aces::CdepsStreamsParser::ValidateStreamsConfig(config, errors);
 
-        EXPECT_GT(errors.size(), 0u) << "Should report error for invalid tintalgo: " << invalid_tintalgo[i];
+        EXPECT_GT(errors.size(), 0u)
+            << "Should report error for invalid tintalgo: " << invalid_tintalgo[i];
         EXPECT_TRUE(aces::test::AnyErrorContains(errors, "Invalid temporal interpolation mode"))
             << "Error should describe invalid tintalgo";
         EXPECT_TRUE(aces::test::AnyErrorContains(errors, invalid_tintalgo[i]))
             << "Error should echo the invalid value";
         // Verify valid options are listed
         bool lists_valid = aces::test::AnyErrorContains(errors, "none") ||
-                          aces::test::AnyErrorContains(errors, "linear") ||
-                          aces::test::AnyErrorContains(errors, "nearest");
-        EXPECT_TRUE(lists_valid)
-            << "Error should list valid tintalgo options";
+                           aces::test::AnyErrorContains(errors, "linear") ||
+                           aces::test::AnyErrorContains(errors, "nearest");
+        EXPECT_TRUE(lists_valid) << "Error should list valid tintalgo options";
     }
 
     // Test 5: Invalid taxmode modes
-    const std::vector<std::string> invalid_taxmode = {
-        "invalid", "repeat", "wrap", "extend_mode", "CYCLE", "EXTEND", "LIMIT"
-    };
+    const std::vector<std::string> invalid_taxmode = {"invalid", "repeat", "wrap", "extend_mode",
+                                                      "CYCLE",   "EXTEND", "LIMIT"};
     for (size_t i = 0; i < invalid_taxmode.size(); ++i) {
         aces::AcesCdepsConfig config;
         aces::CdepsStreamConfig stream;
@@ -310,17 +309,17 @@ TEST_F(PropertiesTest, Property1_CDEPSStreamFileValidation) {
         std::vector<std::string> errors;
         aces::CdepsStreamsParser::ValidateStreamsConfig(config, errors);
 
-        EXPECT_GT(errors.size(), 0u) << "Should report error for invalid taxmode: " << invalid_taxmode[i];
+        EXPECT_GT(errors.size(), 0u)
+            << "Should report error for invalid taxmode: " << invalid_taxmode[i];
         EXPECT_TRUE(aces::test::AnyErrorContains(errors, "Invalid time axis mode"))
             << "Error should describe invalid taxmode";
         EXPECT_TRUE(aces::test::AnyErrorContains(errors, invalid_taxmode[i]))
             << "Error should echo the invalid value";
         // Verify valid options are listed
         bool lists_valid = aces::test::AnyErrorContains(errors, "cycle") ||
-                          aces::test::AnyErrorContains(errors, "extend") ||
-                          aces::test::AnyErrorContains(errors, "limit");
-        EXPECT_TRUE(lists_valid)
-            << "Error should list valid taxmode options";
+                           aces::test::AnyErrorContains(errors, "extend") ||
+                           aces::test::AnyErrorContains(errors, "limit");
+        EXPECT_TRUE(lists_valid) << "Error should list valid taxmode options";
     }
 
     // Test 6: Multiple errors in single stream
@@ -328,8 +327,8 @@ TEST_F(PropertiesTest, Property1_CDEPSStreamFileValidation) {
         aces::AcesCdepsConfig config;
         aces::CdepsStreamConfig stream;
         stream.name = "multi_error_stream_" + std::to_string(i);
-        stream.file_paths = {};  // Missing
-        stream.variables = {};   // Missing
+        stream.file_paths = {};           // Missing
+        stream.variables = {};            // Missing
         stream.taxmode = "invalid_mode";  // Invalid
         stream.tintalgo = "bad_interp";   // Invalid
         config.streams.push_back(stream);
@@ -674,8 +673,7 @@ TEST_F(PropertiesTest, Property17_TestIdempotence) {
             double scale1 = gen1.GenerateScale();
             double scale2 = gen2.GenerateScale();
 
-            EXPECT_DOUBLE_EQ(scale1, scale2)
-                << "Scale factors should be identical with same seed";
+            EXPECT_DOUBLE_EQ(scale1, scale2) << "Scale factors should be identical with same seed";
         }
     }
 
@@ -750,14 +748,16 @@ TEST_F(PropertiesTest, Property17_TestIdempotence) {
         Kokkos::View<double***> result2("result2", nx, ny, nz);
 
         // First execution
-        Kokkos::parallel_for("IdempotenceTest1", Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0,0,0}, {nx,ny,nz}),
+        Kokkos::parallel_for(
+            "IdempotenceTest1", Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
             KOKKOS_LAMBDA(int i, int j, int k) {
                 result1(i, j, k) = (i + j + k) * 1.5 + std::sin(i * 0.1) * std::cos(j * 0.2);
             });
         Kokkos::fence();
 
         // Second execution with identical kernel
-        Kokkos::parallel_for("IdempotenceTest2", Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0,0,0}, {nx,ny,nz}),
+        Kokkos::parallel_for(
+            "IdempotenceTest2", Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
             KOKKOS_LAMBDA(int i, int j, int k) {
                 result2(i, j, k) = (i + j + k) * 1.5 + std::sin(i * 0.1) * std::cos(j * 0.2);
             });
@@ -956,8 +956,10 @@ TEST_F(PropertiesTest, Property10_PhysicsSchemeAutoRegistration) {
  * - Output is consistent across runs
  *
  * Requirements: 2.11, 2.12
- * - Requirement 2.11: Single_Model_Driver SHALL support command-line specification of YAML_Config file path
- * - Requirement 2.12: Single_Model_Driver SHALL support command-line specification of Streams_File path
+ * - Requirement 2.11: Single_Model_Driver SHALL support command-line specification of YAML_Config
+ * file path
+ * - Requirement 2.12: Single_Model_Driver SHALL support command-line specification of Streams_File
+ * path
  */
 TEST_F(PropertiesTest, Property21_CommandLineConfiguration) {
     // This property is validated by test_single_model_driver.cpp with comprehensive

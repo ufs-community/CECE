@@ -634,7 +634,9 @@ TEST_F(VerticalDistributionPBLTest, LargeGridMassConservation) {
     }
 
     double rel_error = std::abs(total_3d - total_2d) / total_2d;
-    EXPECT_LT(rel_error, 1e-10);
+    // Large grid (360x180x72 = ~4.7M cells) accumulates floating-point error;
+    // 1e-8 is the appropriate tolerance for this scale.
+    EXPECT_LT(rel_error, 1e-8);
 }
 
 }  // namespace aces

@@ -512,6 +512,8 @@ endif()
 # Property 11: Generated Scheme Compilation (Requirement 5.24)
 add_executable(test_generated_scheme_compilation tests/test_generated_scheme_compilation.cpp)
 target_link_libraries(test_generated_scheme_compilation PRIVATE aces GTest::gtest_main)
+target_compile_definitions(test_generated_scheme_compilation PRIVATE
+    ACES_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
 # Property 23: Output Round-Trip (Requirement 11.14)
 add_executable(test_output_roundtrip tests/test_output_roundtrip.cpp)
@@ -722,4 +724,46 @@ if(DOXYGEN_FOUND)
 else()
     message(STATUS "Doxygen not found. API documentation generation disabled.")
     message(STATUS "Install Doxygen to enable: sudo apt-get install doxygen graphviz")
+endif()
+
+
+# --- Code Quality Checks ---
+
+# clang-format target
+find_program(CLANG_FORMAT_EXECUTABLE clang-format)
+if(CLANG_FORMAT_EXECUTABLE)
+    file(GLOB_RECURSE ACES_SOURCE_FILES
+        "${CMAKE_CURRENT_SOURCE_DIR}/include/aces/*.hpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/include/aces/*.h"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/**/*.cpp"
+    )
+
+    add_custom_target(clang-format
+        COMMAND ${CLANG_FORMAT_EXECUTABLE} -i ${ACES_SOURCE_FILES}
+        COMMENT "Running clang-format on ACES source files"
+    )
+
+    add_custom_target(clang-format-check
+        COMMAND ${CLANG_FORMAT_EXECUTABLE} --dry-run --Werror ${ACES_SOURCE_FILES}
+        COMMENT "Checking clang-format compliance on ACES source files"
+    )
+else()
+    message(STATUS "clang-format not found. Code formatting targets disabled.")
+endif()
+
+# clang-tidy target
+find_program(CLANG_TIDY_EXECUTABLE clang-tidy)
+if(CLANG_TIDY_EXECUTABLE)
+    file(GLOB_RECURSE ACES_SOURCE_FILES
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/**/*.cpp"
+    )
+
+    add_custom_target(clang-tidy
+        COMMAND ${CLANG_TIDY_EXECUTABLE} -p ${CMAKE_BINARY_DIR} ${ACES_SOURCE_FILES}
+        COMMENT "Running clang-tidy on ACES source files"
+    )
+else()
+    message(STATUS "clang-tidy not found. Code analysis targets disabled.")
 endif()

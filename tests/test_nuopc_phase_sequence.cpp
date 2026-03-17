@@ -56,7 +56,9 @@ class ESMFEnvironment : public ::testing::Environment {
             exit(1);
         }
     }
-    void TearDown() override { ESMC_Finalize(); }
+    void TearDown() override {
+        ESMC_Finalize();
+    }
 };
 
 // ---------------------------------------------------------------------------
@@ -174,7 +176,7 @@ cdeps_inline_config:
         if (rc != ESMF_SUCCESS || data_ptr == nullptr) return nullptr;
 
         aces_core_initialize_p2(data_ptr, gcomp_.ptr, import_state_.ptr, export_state_.ptr,
-                               clock_.ptr, grid_.ptr, &rc);
+                                clock_.ptr, grid_.ptr, &rc);
         if (rc != ESMF_SUCCESS) return nullptr;
 
         return data_ptr;
@@ -216,8 +218,8 @@ TEST_F(NuopcPhaseSequenceTest, FullPhaseSequenceCompletes) {
     ASSERT_NE(data_ptr, nullptr) << "data_ptr must be non-null after p1";
 
     // Initialize p2
-    aces_core_initialize_p2(data_ptr, gcomp_.ptr, import_state_.ptr, export_state_.ptr,
-                           clock_.ptr, grid_.ptr, &rc);
+    aces_core_initialize_p2(data_ptr, gcomp_.ptr, import_state_.ptr, export_state_.ptr, clock_.ptr,
+                            grid_.ptr, &rc);
     ASSERT_EQ(rc, ESMF_SUCCESS) << "Initialize p2 failed";
 
     // Run
@@ -337,8 +339,8 @@ TEST_F(NuopcPhaseSequenceTest, MultiPhaseInitializationIPDv00) {
     EXPECT_NE(internal->stacking_engine, nullptr) << "StackingEngine must be initialized after p1";
 
     // --- Phase 2 ---
-    aces_core_initialize_p2(data_ptr, gcomp_.ptr, import_state_.ptr, export_state_.ptr,
-                           clock_.ptr, grid_.ptr, &rc);
+    aces_core_initialize_p2(data_ptr, gcomp_.ptr, import_state_.ptr, export_state_.ptr, clock_.ptr,
+                            grid_.ptr, &rc);
     ASSERT_EQ(rc, ESMF_SUCCESS) << "IPDv00p2 must return ESMF_SUCCESS";
 
     EXPECT_GT(internal->nx, 0) << "nx must be populated after p2";
@@ -408,8 +410,7 @@ TEST_F(NuopcPhaseSequenceTest, PhaseOrderEnforcedByReturnCodes) {
 
     // Calling Run without prior initialization must fail gracefully.
     aces_core_run(null_ptr, import_state_.ptr, export_state_.ptr, clock_.ptr, &rc);
-    EXPECT_NE(rc, ESMF_SUCCESS)
-        << "Run with null data_ptr must return a non-zero (failure) rc";
+    EXPECT_NE(rc, ESMF_SUCCESS) << "Run with null data_ptr must return a non-zero (failure) rc";
 }
 
 // ---------------------------------------------------------------------------

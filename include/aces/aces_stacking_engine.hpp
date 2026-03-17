@@ -80,8 +80,7 @@ class StackingEngine {
     void Execute(
         FieldResolver& resolver, int nx, int ny, int nz,
         Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> default_mask,
-        int hour, int day_of_week, int month = 0,
-        ProvenanceTracker* provenance = nullptr);
+        int hour, int day_of_week, int month = 0, ProvenanceTracker* provenance = nullptr);
 
     /**
      * @brief Resets the bound field handles.

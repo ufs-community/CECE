@@ -169,6 +169,60 @@ class VerticalDistributionRoundTripPropertyTest : public ::testing::Test {
         }
         return max_rel_error;
     }
+
+    /**
+     * @brief Set up MPAS-style height coordinate fields for vertical distribution tests.
+     *
+     * Populates z_coord (nx x ny x nz) with monotonically decreasing heights
+     * from ~20000 m at k=0 to ~0 m at k=nz-1, and pbl_height (nx x ny x 1)
+     * with random values in [500, 2000] m.  Also configures vertical_config on
+     * the supplied AcesConfig to use VerticalCoordType::MPAS so the stacking
+     * engine will bind and use these fields.
+     *
+     * @param config   AcesConfig to configure (vertical_config is mutated).
+     * @param resolver Field resolver to add fields to.
+     * @param nx       X dimension.
+     * @param ny       Y dimension.
+     * @param nz       Z dimension.
+     */
+    void SetupMPASCoords(AcesConfig& config, VerticalDistributionRoundTripFieldResolver& resolver,
+                         int nx, int ny, int nz) {
+        config.vertical_config.type = VerticalCoordType::MPAS;
+        config.vertical_config.z_field = "height";
+        config.vertical_config.pbl_field = "pbl_height";
+        config.vertical_config.p_surf_field = "ps";
+
+        // z_coord: layer mid-point heights, decreasing from top (k=0) to surface (k=nz-1)
+        // Use nz+1 interface heights so the engine can access z_coord(i,j,k+1) safely.
+        // The engine accesses z_coord(i,j,k) and z_coord(i,j,k+1) for HEIGHT/PBL.
+        // We store nz+1 levels but the field is declared with extent nz; the engine
+        // only accesses indices 0..nz-1 for k and k+1 up to nz-1+1=nz.
+        // To be safe, allocate nz+1 in z dimension.
+        resolver.AddField("height", nx, ny, nz + 1);
+        double z_top = 20000.0;
+        double dz = z_top / nz;
+        for (int i = 0; i < nx; ++i) {
+            for (int j = 0; j < ny; ++j) {
+                for (int k = 0; k <= nz; ++k) {
+                    // Interface heights: z_top at k=0, 0 at k=nz
+                    resolver.SetValue("height", i, j, k, z_top - k * dz);
+                }
+            }
+        }
+
+        // Surface pressure (not used for MPAS pressure calc but bound anyway)
+        resolver.AddField("ps", nx, ny, 1);
+        resolver.SetValue("ps", 101325.0);
+
+        // PBL height
+        resolver.AddField("pbl_height", nx, ny, 1);
+        std::uniform_real_distribution<double> pbl_dist(500.0, 2000.0);
+        for (int i = 0; i < nx; ++i) {
+            for (int j = 0; j < ny; ++j) {
+                resolver.SetValue("pbl_height", i, j, 0, pbl_dist(rng));
+            }
+        }
+    }
 };
 
 /**
@@ -218,9 +272,9 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, SingleMethodRoundTrip) {
         // Verify round-trip
         double max_rel_error = ComputeMaxRelativeError(emissions_2d, recovered_2d);
 
-        EXPECT_LT(max_rel_error, 1e-10) << "Iteration " << iteration << ": Grid (" << nx << ","
-                                         << ny << "," << nz << "), Layer " << layer
-                                         << ", Max Rel Error: " << max_rel_error;
+        EXPECT_LT(max_rel_error, 1e-10)
+            << "Iteration " << iteration << ": Grid (" << nx << "," << ny << "," << nz
+            << "), Layer " << layer << ", Max Rel Error: " << max_rel_error;
     }
 }
 
@@ -272,8 +326,8 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, RangeMethodRoundTrip) {
         double max_rel_error = ComputeMaxRelativeError(emissions_2d, recovered_2d);
 
         EXPECT_LT(max_rel_error, 1e-10) << "Iteration " << iteration << ": Grid (" << nx << ","
-                                         << ny << "," << nz << "), Range [" << start_layer << ","
-                                         << end_layer << "], Max Rel Error: " << max_rel_error;
+                                        << ny << "," << nz << "), Range [" << start_layer << ","
+                                        << end_layer << "], Max Rel Error: " << max_rel_error;
     }
 }
 
@@ -291,8 +345,10 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, PressureMethodRoundTrip) {
         auto [nx, ny, nz] = GenerateRandomGridDimensions();
         auto emissions_2d = GenerateRandom2DEmissions(nx, ny);
 
-        // Generate random pressure range (Pa)
-        std::uniform_real_distribution<double> pressure_dist(10000.0, 100000.0);
+        // Generate random pressure range (Pa) within the hydrostatic range
+        // z_coord goes from 20000 m (k=0) to 0 m (k=nz), so pressure goes from
+        // ~9000 Pa at top to ~101325 Pa at surface.
+        std::uniform_real_distribution<double> pressure_dist(9000.0, 101325.0);
         double p_start = pressure_dist(rng);
         double p_end = pressure_dist(rng);
         if (p_start > p_end) std::swap(p_start, p_end);
@@ -312,6 +368,7 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, PressureMethodRoundTrip) {
         VerticalDistributionRoundTripFieldResolver resolver;
         resolver.AddField("emissions_2d", nx, ny, 1);
         resolver.AddField("TestSpecies", nx, ny, nz);
+        SetupMPASCoords(config, resolver, nx, ny, nz);
 
         // Set 2D emissions
         for (int i = 0; i < nx; ++i) {
@@ -329,9 +386,9 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, PressureMethodRoundTrip) {
         // Verify round-trip
         double max_rel_error = ComputeMaxRelativeError(emissions_2d, recovered_2d);
 
-        EXPECT_LT(max_rel_error, 1e-10) << "Iteration " << iteration << ": Grid (" << nx << ","
-                                         << ny << "," << nz << "), Pressure [" << p_start << ","
-                                         << p_end << "], Max Rel Error: " << max_rel_error;
+        EXPECT_LT(max_rel_error, 1e-10)
+            << "Iteration " << iteration << ": Grid (" << nx << "," << ny << "," << nz
+            << "), Pressure [" << p_start << "," << p_end << "], Max Rel Error: " << max_rel_error;
     }
 }
 
@@ -349,7 +406,7 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, HeightMethodRoundTrip) {
         auto [nx, ny, nz] = GenerateRandomGridDimensions();
         auto emissions_2d = GenerateRandom2DEmissions(nx, ny);
 
-        // Generate random height range (m)
+        // Generate random height range (m) within the coordinate range [0, 20000]
         std::uniform_real_distribution<double> height_dist(0.0, 20000.0);
         double h_start = height_dist(rng);
         double h_end = height_dist(rng);
@@ -370,6 +427,7 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, HeightMethodRoundTrip) {
         VerticalDistributionRoundTripFieldResolver resolver;
         resolver.AddField("emissions_2d", nx, ny, 1);
         resolver.AddField("TestSpecies", nx, ny, nz);
+        SetupMPASCoords(config, resolver, nx, ny, nz);
 
         // Set 2D emissions
         for (int i = 0; i < nx; ++i) {
@@ -387,9 +445,9 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, HeightMethodRoundTrip) {
         // Verify round-trip
         double max_rel_error = ComputeMaxRelativeError(emissions_2d, recovered_2d);
 
-        EXPECT_LT(max_rel_error, 1e-10) << "Iteration " << iteration << ": Grid (" << nx << ","
-                                         << ny << "," << nz << "), Height [" << h_start << ","
-                                         << h_end << "], Max Rel Error: " << max_rel_error;
+        EXPECT_LT(max_rel_error, 1e-10)
+            << "Iteration " << iteration << ": Grid (" << nx << "," << ny << "," << nz
+            << "), Height [" << h_start << "," << h_end << "], Max Rel Error: " << max_rel_error;
     }
 }
 
@@ -420,15 +478,8 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, PBLMethodRoundTrip) {
         VerticalDistributionRoundTripFieldResolver resolver;
         resolver.AddField("emissions_2d", nx, ny, 1);
         resolver.AddField("TestSpecies", nx, ny, nz);
-
-        // Create PBL height field (random heights between 500-2000 m)
-        resolver.AddField("pbl_height", nx, ny, 1);
-        std::uniform_real_distribution<double> pbl_dist(500.0, 2000.0);
-        for (int i = 0; i < nx; ++i) {
-            for (int j = 0; j < ny; ++j) {
-                resolver.SetValue("pbl_height", i, j, 0, pbl_dist(rng));
-            }
-        }
+        // SetupMPASCoords sets vertical_config, z_coord, pbl_height, and ps
+        SetupMPASCoords(config, resolver, nx, ny, nz);
 
         // Set 2D emissions
         for (int i = 0; i < nx; ++i) {
@@ -446,9 +497,9 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, PBLMethodRoundTrip) {
         // Verify round-trip
         double max_rel_error = ComputeMaxRelativeError(emissions_2d, recovered_2d);
 
-        EXPECT_LT(max_rel_error, 1e-10) << "Iteration " << iteration << ": Grid (" << nx << ","
-                                         << ny << "," << nz
-                                         << "), PBL, Max Rel Error: " << max_rel_error;
+        EXPECT_LT(max_rel_error, 1e-10)
+            << "Iteration " << iteration << ": Grid (" << nx << "," << ny << "," << nz
+            << "), PBL, Max Rel Error: " << max_rel_error;
     }
 }
 
@@ -462,12 +513,9 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, PBLMethodRoundTrip) {
  */
 TEST_F(VerticalDistributionRoundTripPropertyTest, AllMethodsWithScaleFactors) {
     std::vector<VerticalDistributionMethod> methods = {
-        VerticalDistributionMethod::SINGLE,
-        VerticalDistributionMethod::RANGE,
-        VerticalDistributionMethod::PRESSURE,
-        VerticalDistributionMethod::HEIGHT,
-        VerticalDistributionMethod::PBL
-    };
+        VerticalDistributionMethod::SINGLE, VerticalDistributionMethod::RANGE,
+        VerticalDistributionMethod::PRESSURE, VerticalDistributionMethod::HEIGHT,
+        VerticalDistributionMethod::PBL};
 
     for (int iteration = 0; iteration < 20; ++iteration) {
         auto [nx, ny, nz] = GenerateRandomGridDimensions();
@@ -526,15 +574,11 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, AllMethodsWithScaleFactors) {
             }
         }
 
-        // Add PBL field if needed
-        if (method == VerticalDistributionMethod::PBL) {
-            resolver.AddField("pbl_height", nx, ny, 1);
-            std::uniform_real_distribution<double> pbl_dist(500.0, 2000.0);
-            for (int i = 0; i < nx; ++i) {
-                for (int j = 0; j < ny; ++j) {
-                    resolver.SetValue("pbl_height", i, j, 0, pbl_dist(rng));
-                }
-            }
+        // Set up coordinate fields for methods that need them
+        if (method == VerticalDistributionMethod::PRESSURE ||
+            method == VerticalDistributionMethod::HEIGHT ||
+            method == VerticalDistributionMethod::PBL) {
+            SetupMPASCoords(config, resolver, nx, ny, nz);
         }
 
         StackingEngine engine(config);
@@ -552,10 +596,10 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, AllMethodsWithScaleFactors) {
         // Verify round-trip
         double max_rel_error = ComputeMaxRelativeError(scaled_emissions, recovered_2d);
 
-        EXPECT_LT(max_rel_error, 1e-10) << "Iteration " << iteration << ": Grid (" << nx << ","
-                                         << ny << "," << nz << "), Method " << static_cast<int>(method)
-                                         << ", Scale " << scale
-                                         << ", Max Rel Error: " << max_rel_error;
+        EXPECT_LT(max_rel_error, 1e-10)
+            << "Iteration " << iteration << ": Grid (" << nx << "," << ny << "," << nz
+            << "), Method " << static_cast<int>(method) << ", Scale " << scale
+            << ", Max Rel Error: " << max_rel_error;
     }
 }
 
@@ -569,12 +613,9 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, AllMethodsWithScaleFactors) {
  */
 TEST_F(VerticalDistributionRoundTripPropertyTest, LargeGridRoundTrip) {
     std::vector<VerticalDistributionMethod> methods = {
-        VerticalDistributionMethod::SINGLE,
-        VerticalDistributionMethod::RANGE,
-        VerticalDistributionMethod::PRESSURE,
-        VerticalDistributionMethod::HEIGHT,
-        VerticalDistributionMethod::PBL
-    };
+        VerticalDistributionMethod::SINGLE, VerticalDistributionMethod::RANGE,
+        VerticalDistributionMethod::PRESSURE, VerticalDistributionMethod::HEIGHT,
+        VerticalDistributionMethod::PBL};
 
     for (int iteration = 0; iteration < 10; ++iteration) {
         std::uniform_int_distribution<int> nx_dist(100, 360);
@@ -636,15 +677,11 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, LargeGridRoundTrip) {
             }
         }
 
-        // Add PBL field if needed
-        if (method == VerticalDistributionMethod::PBL) {
-            resolver.AddField("pbl_height", nx, ny, 1);
-            std::uniform_real_distribution<double> pbl_dist(500.0, 2000.0);
-            for (int i = 0; i < nx; ++i) {
-                for (int j = 0; j < ny; ++j) {
-                    resolver.SetValue("pbl_height", i, j, 0, pbl_dist(rng));
-                }
-            }
+        // Set up coordinate fields for methods that need them
+        if (method == VerticalDistributionMethod::PRESSURE ||
+            method == VerticalDistributionMethod::HEIGHT ||
+            method == VerticalDistributionMethod::PBL) {
+            SetupMPASCoords(config, resolver, nx, ny, nz);
         }
 
         StackingEngine engine(config);
@@ -656,10 +693,9 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, LargeGridRoundTrip) {
         // Verify round-trip
         double max_rel_error = ComputeMaxRelativeError(emissions_2d, recovered_2d);
 
-        EXPECT_LT(max_rel_error, 1e-10) << "Iteration " << iteration << ": Large Grid (" << nx
-                                         << "," << ny << "," << nz << "), Method "
-                                         << static_cast<int>(method)
-                                         << ", Max Rel Error: " << max_rel_error;
+        EXPECT_LT(max_rel_error, 1e-10)
+            << "Iteration " << iteration << ": Large Grid (" << nx << "," << ny << "," << nz
+            << "), Method " << static_cast<int>(method) << ", Max Rel Error: " << max_rel_error;
     }
 }
 
@@ -673,12 +709,9 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, LargeGridRoundTrip) {
  */
 TEST_F(VerticalDistributionRoundTripPropertyTest, ZeroEmissionsRoundTrip) {
     std::vector<VerticalDistributionMethod> methods = {
-        VerticalDistributionMethod::SINGLE,
-        VerticalDistributionMethod::RANGE,
-        VerticalDistributionMethod::PRESSURE,
-        VerticalDistributionMethod::HEIGHT,
-        VerticalDistributionMethod::PBL
-    };
+        VerticalDistributionMethod::SINGLE, VerticalDistributionMethod::RANGE,
+        VerticalDistributionMethod::PRESSURE, VerticalDistributionMethod::HEIGHT,
+        VerticalDistributionMethod::PBL};
 
     for (int iteration = 0; iteration < 10; ++iteration) {
         auto [nx, ny, nz] = GenerateRandomGridDimensions();
@@ -726,15 +759,11 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, ZeroEmissionsRoundTrip) {
         resolver.SetValue("emissions_2d", 0.0);  // All zeros
         resolver.AddField("TestSpecies", nx, ny, nz);
 
-        // Add PBL field if needed
-        if (method == VerticalDistributionMethod::PBL) {
-            resolver.AddField("pbl_height", nx, ny, 1);
-            std::uniform_real_distribution<double> pbl_dist(500.0, 2000.0);
-            for (int i = 0; i < nx; ++i) {
-                for (int j = 0; j < ny; ++j) {
-                    resolver.SetValue("pbl_height", i, j, 0, pbl_dist(rng));
-                }
-            }
+        // Set up coordinate fields for methods that need them
+        if (method == VerticalDistributionMethod::PRESSURE ||
+            method == VerticalDistributionMethod::HEIGHT ||
+            method == VerticalDistributionMethod::PBL) {
+            SetupMPASCoords(config, resolver, nx, ny, nz);
         }
 
         StackingEngine engine(config);
@@ -745,10 +774,9 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, ZeroEmissionsRoundTrip) {
 
         // Verify all recovered values are zero
         for (size_t i = 0; i < recovered_2d.size(); ++i) {
-            EXPECT_NEAR(recovered_2d[i], 0.0, 1e-15) << "Iteration " << iteration << ": Grid ("
-                                                      << nx << "," << ny << "," << nz
-                                                      << "), Method " << static_cast<int>(method)
-                                                      << ", Index " << i;
+            EXPECT_NEAR(recovered_2d[i], 0.0, 1e-15)
+                << "Iteration " << iteration << ": Grid (" << nx << "," << ny << "," << nz
+                << "), Method " << static_cast<int>(method) << ", Index " << i;
         }
     }
 }
@@ -763,12 +791,9 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, ZeroEmissionsRoundTrip) {
  */
 TEST_F(VerticalDistributionRoundTripPropertyTest, SmallEmissionsRoundTrip) {
     std::vector<VerticalDistributionMethod> methods = {
-        VerticalDistributionMethod::SINGLE,
-        VerticalDistributionMethod::RANGE,
-        VerticalDistributionMethod::PRESSURE,
-        VerticalDistributionMethod::HEIGHT,
-        VerticalDistributionMethod::PBL
-    };
+        VerticalDistributionMethod::SINGLE, VerticalDistributionMethod::RANGE,
+        VerticalDistributionMethod::PRESSURE, VerticalDistributionMethod::HEIGHT,
+        VerticalDistributionMethod::PBL};
 
     for (int iteration = 0; iteration < 10; ++iteration) {
         auto [nx, ny, nz] = GenerateRandomGridDimensions();
@@ -826,15 +851,11 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, SmallEmissionsRoundTrip) {
             }
         }
 
-        // Add PBL field if needed
-        if (method == VerticalDistributionMethod::PBL) {
-            resolver.AddField("pbl_height", nx, ny, 1);
-            std::uniform_real_distribution<double> pbl_dist(500.0, 2000.0);
-            for (int i = 0; i < nx; ++i) {
-                for (int j = 0; j < ny; ++j) {
-                    resolver.SetValue("pbl_height", i, j, 0, pbl_dist(rng));
-                }
-            }
+        // Set up coordinate fields for methods that need them
+        if (method == VerticalDistributionMethod::PRESSURE ||
+            method == VerticalDistributionMethod::HEIGHT ||
+            method == VerticalDistributionMethod::PBL) {
+            SetupMPASCoords(config, resolver, nx, ny, nz);
         }
 
         StackingEngine engine(config);
@@ -846,10 +867,10 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, SmallEmissionsRoundTrip) {
         // Verify round-trip
         double max_rel_error = ComputeMaxRelativeError(emissions_2d, recovered_2d);
 
-        EXPECT_LT(max_rel_error, 1e-10) << "Iteration " << iteration << ": Grid (" << nx << ","
-                                         << ny << "," << nz << "), Method "
-                                         << static_cast<int>(method) << ", Small Emissions"
-                                         << ", Max Rel Error: " << max_rel_error;
+        EXPECT_LT(max_rel_error, 1e-10)
+            << "Iteration " << iteration << ": Grid (" << nx << "," << ny << "," << nz
+            << "), Method " << static_cast<int>(method) << ", Small Emissions"
+            << ", Max Rel Error: " << max_rel_error;
     }
 }
 
@@ -863,12 +884,9 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, SmallEmissionsRoundTrip) {
  */
 TEST_F(VerticalDistributionRoundTripPropertyTest, LargeEmissionsRoundTrip) {
     std::vector<VerticalDistributionMethod> methods = {
-        VerticalDistributionMethod::SINGLE,
-        VerticalDistributionMethod::RANGE,
-        VerticalDistributionMethod::PRESSURE,
-        VerticalDistributionMethod::HEIGHT,
-        VerticalDistributionMethod::PBL
-    };
+        VerticalDistributionMethod::SINGLE, VerticalDistributionMethod::RANGE,
+        VerticalDistributionMethod::PRESSURE, VerticalDistributionMethod::HEIGHT,
+        VerticalDistributionMethod::PBL};
 
     for (int iteration = 0; iteration < 10; ++iteration) {
         auto [nx, ny, nz] = GenerateRandomGridDimensions();
@@ -926,15 +944,11 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, LargeEmissionsRoundTrip) {
             }
         }
 
-        // Add PBL field if needed
-        if (method == VerticalDistributionMethod::PBL) {
-            resolver.AddField("pbl_height", nx, ny, 1);
-            std::uniform_real_distribution<double> pbl_dist(500.0, 2000.0);
-            for (int i = 0; i < nx; ++i) {
-                for (int j = 0; j < ny; ++j) {
-                    resolver.SetValue("pbl_height", i, j, 0, pbl_dist(rng));
-                }
-            }
+        // Set up coordinate fields for methods that need them
+        if (method == VerticalDistributionMethod::PRESSURE ||
+            method == VerticalDistributionMethod::HEIGHT ||
+            method == VerticalDistributionMethod::PBL) {
+            SetupMPASCoords(config, resolver, nx, ny, nz);
         }
 
         StackingEngine engine(config);
@@ -946,10 +960,10 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, LargeEmissionsRoundTrip) {
         // Verify round-trip
         double max_rel_error = ComputeMaxRelativeError(emissions_2d, recovered_2d);
 
-        EXPECT_LT(max_rel_error, 1e-10) << "Iteration " << iteration << ": Grid (" << nx << ","
-                                         << ny << "," << nz << "), Method "
-                                         << static_cast<int>(method) << ", Large Emissions"
-                                         << ", Max Rel Error: " << max_rel_error;
+        EXPECT_LT(max_rel_error, 1e-10)
+            << "Iteration " << iteration << ": Grid (" << nx << "," << ny << "," << nz
+            << "), Method " << static_cast<int>(method) << ", Large Emissions"
+            << ", Max Rel Error: " << max_rel_error;
     }
 }
 
