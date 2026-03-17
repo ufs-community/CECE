@@ -362,7 +362,6 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, PressureMethodRoundTrip) {
         resolver.AddField("TestSpecies", nx, ny, nz);
         SetupCoordinates(config, resolver, nx, ny, nz, VerticalDistributionMethod::PRESSURE);
 
-
         // Set 2D emissions
         for (int i = 0; i < nx; ++i) {
             for (int j = 0; j < ny; ++j) {
@@ -421,7 +420,6 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, HeightMethodRoundTrip) {
         resolver.AddField("emissions_2d", nx, ny, 1);
         resolver.AddField("TestSpecies", nx, ny, nz);
         SetupCoordinates(config, resolver, nx, ny, nz, VerticalDistributionMethod::HEIGHT);
-
 
         // Set 2D emissions
         for (int i = 0; i < nx; ++i) {
@@ -562,7 +560,6 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, AllMethodsWithScaleFactors) {
         resolver.AddField("TestSpecies", nx, ny, nz);
         SetupCoordinates(config, resolver, nx, ny, nz, method);
 
-
         SetupCoordinates(config, resolver, nx, ny, nz, method);
 
         // Set 2D emissions
@@ -661,7 +658,6 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, LargeGridRoundTrip) {
         resolver.AddField("emissions_2d", nx, ny, 1);
         resolver.AddField("TestSpecies", nx, ny, nz);
         SetupCoordinates(config, resolver, nx, ny, nz, method);
-
 
         SetupCoordinates(config, resolver, nx, ny, nz, method);
 
@@ -824,7 +820,6 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, SmallEmissionsRoundTrip) {
         resolver.AddField("TestSpecies", nx, ny, nz);
         SetupCoordinates(config, resolver, nx, ny, nz, method);
 
-
         SetupCoordinates(config, resolver, nx, ny, nz, method);
 
         // Set very small emissions
@@ -913,7 +908,6 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, LargeEmissionsRoundTrip) {
         resolver.AddField("emissions_2d", nx, ny, 1);
         resolver.AddField("TestSpecies", nx, ny, nz);
         SetupCoordinates(config, resolver, nx, ny, nz, method);
-
 
         SetupCoordinates(config, resolver, nx, ny, nz, method);
 

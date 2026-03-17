@@ -405,7 +405,8 @@ void StackingEngine::Execute(
                             }
                             double p_min = (p_t < p_b) ? p_t : p_b;
                             double p_max = (p_t > p_b) ? p_t : p_b;
-                            double o_min = (p_min > layer.vdist_p_start) ? p_min : layer.vdist_p_start;
+                            double o_min =
+                                (p_min > layer.vdist_p_start) ? p_min : layer.vdist_p_start;
                             double o_max = (p_max < layer.vdist_p_end) ? p_max : layer.vdist_p_end;
                             if (o_max > o_min) {
                                 layer_total_overlap += (o_max - o_min);
@@ -443,8 +444,10 @@ void StackingEngine::Execute(
                                 double z_b = z_coord(i, j, l2 + 1);
                                 double z_min = (z_t < z_b) ? z_t : z_b;
                                 double z_max = (z_t > z_b) ? z_t : z_b;
-                                double o_min = (z_min > layer.vdist_h_start) ? z_min : layer.vdist_h_start;
-                                double o_max = (z_max < layer.vdist_h_end) ? z_max : layer.vdist_h_end;
+                                double o_min =
+                                    (z_min > layer.vdist_h_start) ? z_min : layer.vdist_h_start;
+                                double o_max =
+                                    (z_max < layer.vdist_h_end) ? z_max : layer.vdist_h_end;
                                 if (o_max > o_min) {
                                     layer_total_overlap += (o_max - o_min);
                                 }
@@ -454,7 +457,8 @@ void StackingEngine::Execute(
                             double z_b = z_coord(i, j, k + 1);
                             double z_min = (z_t < z_b) ? z_t : z_b;
                             double z_max = (z_t > z_b) ? z_t : z_b;
-                            double o_min = (z_min > layer.vdist_h_start) ? z_min : layer.vdist_h_start;
+                            double o_min =
+                                (z_min > layer.vdist_h_start) ? z_min : layer.vdist_h_start;
                             double o_max = (z_max < layer.vdist_h_end) ? z_max : layer.vdist_h_end;
 
                             if (o_max > o_min && layer_total_overlap > 0.0) {

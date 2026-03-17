@@ -31,8 +31,8 @@ jobs:
           source /opt/spack-environment/activate.sh
         fi
 
-        # Install Python dependencies for converter tests
-        python3 -m pip install pyyaml pytest netCDF4
+        # Install Python dependencies for converter tests and scheme generation
+        python3 -m pip install pyyaml pytest netCDF4 jinja2
 
         # Ensure build directory exists
         mkdir -p build
@@ -61,6 +61,8 @@ jobs:
           source /opt/spack-environment/activate.sh
         fi
         cd build
+        # Pass include paths to GeneratedSchemeCompilationTest via environment variable
+        export ACES_TEST_COMPILE_FLAGS=$(grep "CXX_INCLUDES =" CMakeFiles/aces.dir/flags.make | sed 's/CXX_INCLUDES = //' | sed 's/-I\/work\//-I..\//g')
         ctest --output-on-failure -L "property"
 
     - name: Run Integration Tests

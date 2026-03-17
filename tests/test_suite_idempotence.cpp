@@ -293,6 +293,8 @@ class TestSuiteIdempotenceTest : public ::testing::Test {
      * @return Aggregated TestSuiteResult
      */
     TestSuiteResult RunTestSuite(int num_configs) {
+        // Reset RNG seed for deterministic behavior across calls to RunTestSuite
+        rng.seed(42);
         TestSuiteResult aggregated;
 
         for (int config_id = 0; config_id < num_configs; ++config_id) {

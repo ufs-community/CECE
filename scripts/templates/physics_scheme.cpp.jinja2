@@ -61,9 +61,11 @@ void {{ class_name }}::Initialize(const YAML::Node& config, AcesDiagnosticManage
     // Validation
     // ========================================================================
     // Add any parameter validation here. For example:
-    // if ({{ option.name }}_ < 0.0) {
-    //     throw std::invalid_argument("{{ option.name }} must be non-negative");
+    {% if options %}
+    // if ({{ options[0].name }}_ < 0.0) {
+    //     throw std::invalid_argument("{{ options[0].name }} must be non-negative");
     // }
+    {% endif %}
 }
 
 // ============================================================================
@@ -166,10 +168,12 @@ void {{ class_name }}::Run(AcesImportState& import_state, AcesExportState& expor
             // Kokkos::View handles resolved above.
             //
             // Example: Compute emissions based on temperature
+            {% if imports and options %}
             // if ({{ imports[0].var_name }}(i, j, k) > 273.15) {
             //     {{ exports[0].var_name }}(i, j, k) =
-            //         {{ imports[0].var_name }}(i, j, k) * {{ option.name }}_;
+            //         {{ imports[0].var_name }}(i, j, k) * {{ options[0].name }}_;
             // }
+            {% endif %}
         });
 
     // Ensure all threads complete before proceeding

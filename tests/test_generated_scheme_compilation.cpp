@@ -270,9 +270,14 @@ class GeneratedSchemeCompilationTest : public ::testing::Test {
         test_src << "}\n";
         test_src.close();
 
-        // Attempt compilation with g++
-        std::string compile_cmd =
-            "g++ -std=c++20 -I. -c " + impl_file + " -o /tmp/test_" + scheme_name + ".o 2>&1";
+        // Attempt compilation with g++.
+        // We use ACES_TEST_COMPILE_FLAGS environment variable to pass include paths,
+        // which avoids hardcoding environment-specific paths in the source code.
+        const char* extra_flags = std::getenv("ACES_TEST_COMPILE_FLAGS");
+        std::string flags = extra_flags ? std::string(extra_flags) : "-Iinclude";
+
+        std::string compile_cmd = "g++ -std=c++20 -fPIC -fopenmp " + flags + " -c " + impl_file +
+                                  " -o /tmp/test_" + scheme_name + ".o 2>&1";
 
         int result = std::system(compile_cmd.c_str());
 
