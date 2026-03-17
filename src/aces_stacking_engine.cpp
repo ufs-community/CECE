@@ -362,34 +362,6 @@ void StackingEngine::Execute(
             KOKKOS_LAMBDA(int i, int j, int k) {
                 double accumulated = 0.0;
 
-                // Pre-compute total overlap for the column (i,j) for vertical distribution methods
-                // This is computed once per column, not per layer, since the distribution range is
-                // the same for all layers
-                double total_overlap_pressure = 0.0;
-                double total_overlap_height = 0.0;
-                double total_overlap_pbl = 0.0;
-
-                // Find the first layer with each vertical distribution method to get the
-                // distribution range
-                double vdist_p_start = 0.0, vdist_p_end = 0.0;
-                double vdist_h_start = 0.0, vdist_h_end = 0.0;
-                bool has_pressure = false, has_height = false, has_pbl = false;
-
-                // Determine if any layer uses PRESSURE, HEIGHT, or PBL
-                for (int l = 0; l < num_layers; ++l) {
-                    const auto& layer = layers(l);
-                    if (layer.field.data() == nullptr) {
-                        continue;
-                    }
-                    if (layer.vdist_method == 2) has_pressure = true;
-                    if (layer.vdist_method == 3) has_height = true;
-                    if (layer.vdist_method == 4) has_pbl = true;
-                }
-
-                // Note: total_overlap_* and distribution logic are now handled inside the layer
-                // loop to support per-layer distribution ranges correctly and ensure mass
-                // conservation.
-
                 for (int l = 0; l < num_layers; ++l) {
                     const auto& layer = layers(l);
                     if (layer.field.data() == nullptr) {
@@ -418,119 +390,104 @@ void StackingEngine::Execute(
                         // Compute total overlap for this specific layer's pressure range
                         double layer_total_overlap = 0.0;
                         for (int l2 = 0; l2 < nz; ++l2) {
-                            double p_top2 = 0.0, p_bot2 = 0.0;
+                            double p_t = 0.0, p_b = 0.0;
                             if (vtype == VerticalCoordType::FV3 && ak.data() != nullptr &&
                                 bk.data() != nullptr && ps.data() != nullptr) {
-                                p_top2 = ak(0, 0, l2) + bk(0, 0, l2) * ps(i, j, 0);
-                                p_bot2 = ak(0, 0, l2 + 1) + bk(0, 0, l2 + 1) * ps(i, j, 0);
+                                p_t = ak(0, 0, l2) + bk(0, 0, l2) * ps(i, j, 0);
+                                p_b = ak(0, 0, l2 + 1) + bk(0, 0, l2 + 1) * ps(i, j, 0);
                             } else if ((vtype == VerticalCoordType::MPAS ||
                                         vtype == VerticalCoordType::WRF) &&
                                        z_coord.data() != nullptr) {
                                 constexpr double P0 = 101325.0;
                                 constexpr double H = 8000.0;
-                                p_top2 = P0 * Kokkos::exp(-z_coord(i, j, l2) / H);
-                                if (l2 + 1 < nz) {
-                                    p_bot2 = P0 * Kokkos::exp(-z_coord(i, j, l2 + 1) / H);
-                                } else {
-                                    p_bot2 = ps.data() != nullptr ? ps(i, j, 0) : P0;
-                                }
+                                p_t = P0 * Kokkos::exp(-z_coord(i, j, l2) / H);
+                                p_b = P0 * Kokkos::exp(-z_coord(i, j, l2 + 1) / H);
                             }
-                            double overlap_top2 =
-                                (p_top2 > layer.vdist_p_start) ? p_top2 : layer.vdist_p_start;
-                            double overlap_bot2 =
-                                (p_bot2 < layer.vdist_p_end) ? p_bot2 : layer.vdist_p_end;
-                            if (overlap_bot2 > overlap_top2) {
-                                layer_total_overlap += (overlap_bot2 - overlap_top2);
+                            double p_min = (p_t < p_b) ? p_t : p_b;
+                            double p_max = (p_t > p_b) ? p_t : p_b;
+                            double o_min = (p_min > layer.vdist_p_start) ? p_min : layer.vdist_p_start;
+                            double o_max = (p_max < layer.vdist_p_end) ? p_max : layer.vdist_p_end;
+                            if (o_max > o_min) {
+                                layer_total_overlap += (o_max - o_min);
                             }
                         }
 
                         // Compute the overlap for the current layer (k)
-                        double p_top = 0.0, p_bot = 0.0;
+                        double p_t = 0.0, p_b = 0.0;
                         if (vtype == VerticalCoordType::FV3 && ak.data() != nullptr &&
                             bk.data() != nullptr && ps.data() != nullptr) {
-                            p_top = ak(0, 0, k) + bk(0, 0, k) * ps(i, j, 0);
-                            p_bot = ak(0, 0, k + 1) + bk(0, 0, k + 1) * ps(i, j, 0);
+                            p_t = ak(0, 0, k) + bk(0, 0, k) * ps(i, j, 0);
+                            p_b = ak(0, 0, k + 1) + bk(0, 0, k + 1) * ps(i, j, 0);
                         } else if ((vtype == VerticalCoordType::MPAS ||
                                     vtype == VerticalCoordType::WRF) &&
                                    z_coord.data() != nullptr) {
                             constexpr double P0 = 101325.0;
                             constexpr double H = 8000.0;
-                            p_top = P0 * Kokkos::exp(-z_coord(i, j, k) / H);
-                            if (k + 1 < nz) {
-                                p_bot = P0 * Kokkos::exp(-z_coord(i, j, k + 1) / H);
-                            } else {
-                                p_bot = ps.data() != nullptr ? ps(i, j, 0) : P0;
-                            }
+                            p_t = P0 * Kokkos::exp(-z_coord(i, j, k) / H);
+                            p_b = P0 * Kokkos::exp(-z_coord(i, j, k + 1) / H);
                         }
-                        double overlap_top =
-                            (p_top > layer.vdist_p_start) ? p_top : layer.vdist_p_start;
-                        double overlap_bot =
-                            (p_bot < layer.vdist_p_end) ? p_bot : layer.vdist_p_end;
+                        double p_min = (p_t < p_b) ? p_t : p_b;
+                        double p_max = (p_t > p_b) ? p_t : p_b;
+                        double o_min = (p_min > layer.vdist_p_start) ? p_min : layer.vdist_p_start;
+                        double o_max = (p_max < layer.vdist_p_end) ? p_max : layer.vdist_p_end;
 
-                        if (overlap_bot > overlap_top && layer_total_overlap > 0.0) {
+                        if (o_max > o_min && layer_total_overlap > 0.0) {
                             in_vertical_range = true;
-                            weight = (overlap_bot - overlap_top) / layer_total_overlap;
+                            weight = (o_max - o_min) / layer_total_overlap;
                         }
                     } else if (layer.vdist_method == 3) {  // HEIGHT
                         if (z_coord.data() != nullptr) {
-                            // Compute total overlap for this specific layer's height range
                             double layer_total_overlap = 0.0;
                             for (int l2 = 0; l2 < nz; ++l2) {
                                 double z_t = z_coord(i, j, l2);
                                 double z_b = z_coord(i, j, l2 + 1);
-                                double z_top2 = (z_t > z_b) ? z_t : z_b;  // max
-                                double z_bot2 = (z_t < z_b) ? z_t : z_b;  // min
-
-                                double overlap_top2 =
-                                    (z_top2 < layer.vdist_h_end) ? z_top2 : layer.vdist_h_end;
-                                double overlap_bot2 =
-                                    (z_bot2 > layer.vdist_h_start) ? z_bot2 : layer.vdist_h_start;
-                                if (overlap_top2 > overlap_bot2) {
-                                    layer_total_overlap += (overlap_top2 - overlap_bot2);
+                                double z_min = (z_t < z_b) ? z_t : z_b;
+                                double z_max = (z_t > z_b) ? z_t : z_b;
+                                double o_min = (z_min > layer.vdist_h_start) ? z_min : layer.vdist_h_start;
+                                double o_max = (z_max < layer.vdist_h_end) ? z_max : layer.vdist_h_end;
+                                if (o_max > o_min) {
+                                    layer_total_overlap += (o_max - o_min);
                                 }
                             }
 
-                            // Compute the overlap for the current layer (k)
                             double z_t = z_coord(i, j, k);
                             double z_b = z_coord(i, j, k + 1);
-                            double z_top = (z_t > z_b) ? z_t : z_b;
-                            double z_bot = (z_t < z_b) ? z_t : z_b;
+                            double z_min = (z_t < z_b) ? z_t : z_b;
+                            double z_max = (z_t > z_b) ? z_t : z_b;
+                            double o_min = (z_min > layer.vdist_h_start) ? z_min : layer.vdist_h_start;
+                            double o_max = (z_max < layer.vdist_h_end) ? z_max : layer.vdist_h_end;
 
-                            double overlap_top =
-                                (z_top < layer.vdist_h_end) ? z_top : layer.vdist_h_end;
-                            double overlap_bot =
-                                (z_bot > layer.vdist_h_start) ? z_bot : layer.vdist_h_start;
-
-                            if (overlap_top > overlap_bot && layer_total_overlap > 0.0) {
+                            if (o_max > o_min && layer_total_overlap > 0.0) {
                                 in_vertical_range = true;
-                                weight = (overlap_top - overlap_bot) / layer_total_overlap;
+                                weight = (o_max - o_min) / layer_total_overlap;
                             }
                         }
                     } else if (layer.vdist_method == 4) {  // PBL
                         if (pbl.data() != nullptr && z_coord.data() != nullptr) {
                             double h_pbl = pbl(i, j, 0);
-
-                            // Compute total overlap for this specific layer's PBL range
                             double layer_total_overlap = 0.0;
                             for (int l2 = 0; l2 < nz; ++l2) {
-                                double z_top2 = z_coord(i, j, l2);
-                                double z_bot2 = z_coord(i, j, l2 + 1);
-                                double overlap_top2 = (z_top2 > 0.0) ? z_top2 : 0.0;
-                                double overlap_bot2 = (z_bot2 < h_pbl) ? z_bot2 : h_pbl;
-                                if (overlap_bot2 > overlap_top2) {
-                                    layer_total_overlap += (overlap_bot2 - overlap_top2);
+                                double z_t = z_coord(i, j, l2);
+                                double z_b = z_coord(i, j, l2 + 1);
+                                double z_min = (z_t < z_b) ? z_t : z_b;
+                                double z_max = (z_t > z_b) ? z_t : z_b;
+                                double o_min = (z_min > 0.0) ? z_min : 0.0;
+                                double o_max = (z_max < h_pbl) ? z_max : h_pbl;
+                                if (o_max > o_min) {
+                                    layer_total_overlap += (o_max - o_min);
                                 }
                             }
 
-                            // Compute the overlap for the current layer (k)
-                            double z_top = z_coord(i, j, k);
-                            double z_bot = z_coord(i, j, k + 1);
-                            double overlap_top = (z_top > 0.0) ? z_top : 0.0;
-                            double overlap_bot = (z_bot < h_pbl) ? z_bot : h_pbl;
+                            double z_t = z_coord(i, j, k);
+                            double z_b = z_coord(i, j, k + 1);
+                            double z_min = (z_t < z_b) ? z_t : z_b;
+                            double z_max = (z_t > z_b) ? z_t : z_b;
+                            double o_min = (z_min > 0.0) ? z_min : 0.0;
+                            double o_max = (z_max < h_pbl) ? z_max : h_pbl;
 
-                            if (overlap_bot > overlap_top && layer_total_overlap > 0.0) {
+                            if (o_max > o_min && layer_total_overlap > 0.0) {
                                 in_vertical_range = true;
-                                weight = (overlap_bot - overlap_top) / layer_total_overlap;
+                                weight = (o_max - o_min) / layer_total_overlap;
                             }
                         }
                     }

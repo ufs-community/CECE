@@ -162,12 +162,56 @@ class VerticalDistributionRoundTripPropertyTest : public ::testing::Test {
                                    const std::vector<double>& recovered) {
         double max_rel_error = 0.0;
         for (size_t i = 0; i < original.size(); ++i) {
-            if (original[i] != 0.0) {
+            if (std::abs(original[i]) > 1e-20) {
                 double rel_error = std::abs(recovered[i] - original[i]) / std::abs(original[i]);
                 max_rel_error = std::max(max_rel_error, rel_error);
+            } else if (std::abs(recovered[i]) > 1e-20) {
+                max_rel_error = std::max(max_rel_error, 1.0);
             }
         }
         return max_rel_error;
+    }
+
+    void SetupCoordinates(AcesConfig& config, VerticalDistributionRoundTripFieldResolver& resolver,
+                          int nx, int ny, int nz, VerticalDistributionMethod method) {
+        if (method == VerticalDistributionMethod::PRESSURE) {
+            config.vertical_config.type = VerticalCoordType::FV3;
+            config.vertical_config.ak_field = "ak";
+            config.vertical_config.bk_field = "bk";
+            config.vertical_config.p_surf_field = "ps";
+            resolver.AddField("ak", 1, 1, nz + 1);
+            resolver.AddField("bk", 1, 1, nz + 1);
+            resolver.AddField("ps", nx, ny, 1);
+            for (int k = 0; k <= nz; ++k) {
+                double ak = 100000.0 * std::pow(static_cast<double>(k) / nz, 2.0);
+                resolver.SetValue("ak", 0, 0, k, ak);
+                resolver.SetValue("bk", 0, 0, k, 0.0);
+            }
+            resolver.SetValue("ps", 100000.0);
+        } else if (method == VerticalDistributionMethod::HEIGHT ||
+                   method == VerticalDistributionMethod::PBL) {
+            config.vertical_config.type = VerticalCoordType::MPAS;
+            config.vertical_config.z_field = "height";
+            resolver.AddField("height", nx, ny, nz + 1);
+            for (int k = 0; k <= nz; ++k) {
+                double z = 20000.0 * (1.0 - static_cast<double>(k) / nz);
+                for (int i = 0; i < nx; ++i) {
+                    for (int j = 0; j < ny; ++j) {
+                        resolver.SetValue("height", i, j, k, z);
+                    }
+                }
+            }
+            if (method == VerticalDistributionMethod::PBL) {
+                config.vertical_config.pbl_field = "pbl_height";
+                resolver.AddField("pbl_height", nx, ny, 1);
+                std::uniform_real_distribution<double> pbl_dist(500.0, 2000.0);
+                for (int i = 0; i < nx; ++i) {
+                    for (int j = 0; j < ny; ++j) {
+                        resolver.SetValue("pbl_height", i, j, 0, pbl_dist(rng));
+                    }
+                }
+            }
+        }
     }
 };
 
@@ -201,6 +245,8 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, SingleMethodRoundTrip) {
         VerticalDistributionRoundTripFieldResolver resolver;
         resolver.AddField("emissions_2d", nx, ny, 1);
         resolver.AddField("TestSpecies", nx, ny, nz);
+
+        SetupCoordinates(config, resolver, nx, ny, nz, VerticalDistributionMethod::PRESSURE);
 
         // Set 2D emissions
         for (int i = 0; i < nx; ++i) {
@@ -254,6 +300,8 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, RangeMethodRoundTrip) {
         VerticalDistributionRoundTripFieldResolver resolver;
         resolver.AddField("emissions_2d", nx, ny, 1);
         resolver.AddField("TestSpecies", nx, ny, nz);
+
+        SetupCoordinates(config, resolver, nx, ny, nz, VerticalDistributionMethod::HEIGHT);
 
         // Set 2D emissions
         for (int i = 0; i < nx; ++i) {
@@ -312,6 +360,8 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, PressureMethodRoundTrip) {
         VerticalDistributionRoundTripFieldResolver resolver;
         resolver.AddField("emissions_2d", nx, ny, 1);
         resolver.AddField("TestSpecies", nx, ny, nz);
+        SetupCoordinates(config, resolver, nx, ny, nz, VerticalDistributionMethod::PRESSURE);
+
 
         // Set 2D emissions
         for (int i = 0; i < nx; ++i) {
@@ -370,6 +420,8 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, HeightMethodRoundTrip) {
         VerticalDistributionRoundTripFieldResolver resolver;
         resolver.AddField("emissions_2d", nx, ny, 1);
         resolver.AddField("TestSpecies", nx, ny, nz);
+        SetupCoordinates(config, resolver, nx, ny, nz, VerticalDistributionMethod::HEIGHT);
+
 
         // Set 2D emissions
         for (int i = 0; i < nx; ++i) {
@@ -421,14 +473,7 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, PBLMethodRoundTrip) {
         resolver.AddField("emissions_2d", nx, ny, 1);
         resolver.AddField("TestSpecies", nx, ny, nz);
 
-        // Create PBL height field (random heights between 500-2000 m)
-        resolver.AddField("pbl_height", nx, ny, 1);
-        std::uniform_real_distribution<double> pbl_dist(500.0, 2000.0);
-        for (int i = 0; i < nx; ++i) {
-            for (int j = 0; j < ny; ++j) {
-                resolver.SetValue("pbl_height", i, j, 0, pbl_dist(rng));
-            }
-        }
+        SetupCoordinates(config, resolver, nx, ny, nz, VerticalDistributionMethod::PBL);
 
         // Set 2D emissions
         for (int i = 0; i < nx; ++i) {
@@ -515,22 +560,15 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, AllMethodsWithScaleFactors) {
         VerticalDistributionRoundTripFieldResolver resolver;
         resolver.AddField("emissions_2d", nx, ny, 1);
         resolver.AddField("TestSpecies", nx, ny, nz);
+        SetupCoordinates(config, resolver, nx, ny, nz, method);
+
+
+        SetupCoordinates(config, resolver, nx, ny, nz, method);
 
         // Set 2D emissions
         for (int i = 0; i < nx; ++i) {
             for (int j = 0; j < ny; ++j) {
                 resolver.SetValue("emissions_2d", i, j, 0, emissions_2d[i * ny + j]);
-            }
-        }
-
-        // Add PBL field if needed
-        if (method == VerticalDistributionMethod::PBL) {
-            resolver.AddField("pbl_height", nx, ny, 1);
-            std::uniform_real_distribution<double> pbl_dist(500.0, 2000.0);
-            for (int i = 0; i < nx; ++i) {
-                for (int j = 0; j < ny; ++j) {
-                    resolver.SetValue("pbl_height", i, j, 0, pbl_dist(rng));
-                }
             }
         }
 
@@ -622,22 +660,15 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, LargeGridRoundTrip) {
         VerticalDistributionRoundTripFieldResolver resolver;
         resolver.AddField("emissions_2d", nx, ny, 1);
         resolver.AddField("TestSpecies", nx, ny, nz);
+        SetupCoordinates(config, resolver, nx, ny, nz, method);
+
+
+        SetupCoordinates(config, resolver, nx, ny, nz, method);
 
         // Set 2D emissions
         for (int i = 0; i < nx; ++i) {
             for (int j = 0; j < ny; ++j) {
                 resolver.SetValue("emissions_2d", i, j, 0, emissions_2d[i * ny + j]);
-            }
-        }
-
-        // Add PBL field if needed
-        if (method == VerticalDistributionMethod::PBL) {
-            resolver.AddField("pbl_height", nx, ny, 1);
-            std::uniform_real_distribution<double> pbl_dist(500.0, 2000.0);
-            for (int i = 0; i < nx; ++i) {
-                for (int j = 0; j < ny; ++j) {
-                    resolver.SetValue("pbl_height", i, j, 0, pbl_dist(rng));
-                }
             }
         }
 
@@ -716,16 +747,7 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, ZeroEmissionsRoundTrip) {
         resolver.SetValue("emissions_2d", 0.0);  // All zeros
         resolver.AddField("TestSpecies", nx, ny, nz);
 
-        // Add PBL field if needed
-        if (method == VerticalDistributionMethod::PBL) {
-            resolver.AddField("pbl_height", nx, ny, 1);
-            std::uniform_real_distribution<double> pbl_dist(500.0, 2000.0);
-            for (int i = 0; i < nx; ++i) {
-                for (int j = 0; j < ny; ++j) {
-                    resolver.SetValue("pbl_height", i, j, 0, pbl_dist(rng));
-                }
-            }
-        }
+        SetupCoordinates(config, resolver, nx, ny, nz, method);
 
         StackingEngine engine(config);
         engine.Execute(resolver, nx, ny, nz, {}, 0, 0);
@@ -800,6 +822,10 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, SmallEmissionsRoundTrip) {
         VerticalDistributionRoundTripFieldResolver resolver;
         resolver.AddField("emissions_2d", nx, ny, 1);
         resolver.AddField("TestSpecies", nx, ny, nz);
+        SetupCoordinates(config, resolver, nx, ny, nz, method);
+
+
+        SetupCoordinates(config, resolver, nx, ny, nz, method);
 
         // Set very small emissions
         std::uniform_real_distribution<double> small_emis_dist(1e-10, 1e-5);
@@ -809,17 +835,6 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, SmallEmissionsRoundTrip) {
                 double val = small_emis_dist(rng);
                 emissions_2d[i * ny + j] = val;
                 resolver.SetValue("emissions_2d", i, j, 0, val);
-            }
-        }
-
-        // Add PBL field if needed
-        if (method == VerticalDistributionMethod::PBL) {
-            resolver.AddField("pbl_height", nx, ny, 1);
-            std::uniform_real_distribution<double> pbl_dist(500.0, 2000.0);
-            for (int i = 0; i < nx; ++i) {
-                for (int j = 0; j < ny; ++j) {
-                    resolver.SetValue("pbl_height", i, j, 0, pbl_dist(rng));
-                }
             }
         }
 
@@ -897,6 +912,10 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, LargeEmissionsRoundTrip) {
         VerticalDistributionRoundTripFieldResolver resolver;
         resolver.AddField("emissions_2d", nx, ny, 1);
         resolver.AddField("TestSpecies", nx, ny, nz);
+        SetupCoordinates(config, resolver, nx, ny, nz, method);
+
+
+        SetupCoordinates(config, resolver, nx, ny, nz, method);
 
         // Set very large emissions
         std::uniform_real_distribution<double> large_emis_dist(1e6, 1e12);
@@ -906,17 +925,6 @@ TEST_F(VerticalDistributionRoundTripPropertyTest, LargeEmissionsRoundTrip) {
                 double val = large_emis_dist(rng);
                 emissions_2d[i * ny + j] = val;
                 resolver.SetValue("emissions_2d", i, j, 0, val);
-            }
-        }
-
-        // Add PBL field if needed
-        if (method == VerticalDistributionMethod::PBL) {
-            resolver.AddField("pbl_height", nx, ny, 1);
-            std::uniform_real_distribution<double> pbl_dist(500.0, 2000.0);
-            for (int i = 0; i < nx; ++i) {
-                for (int j = 0; j < ny; ++j) {
-                    resolver.SetValue("pbl_height", i, j, 0, pbl_dist(rng));
-                }
             }
         }
 
