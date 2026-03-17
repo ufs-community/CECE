@@ -146,7 +146,8 @@ def generate_scheme(config_path):
     }
 
     # Set up Jinja2 environment
-    env = Environment(loader=FileSystemLoader("scripts/templates"))
+    template_dir = Path(__file__).parent / "templates"
+    env = Environment(loader=FileSystemLoader(str(template_dir)))
 
     # Create output directories if they don't exist
     Path("include/aces/physics").mkdir(parents=True, exist_ok=True)

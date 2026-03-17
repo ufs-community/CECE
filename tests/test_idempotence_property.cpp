@@ -202,11 +202,15 @@ class IdempotencePropertyTest : public ::testing::Test {
             // Create field resolver
             IdempotenceFieldResolver resolver;
 
-            // Add fields
+            // Add fields. Zero-initialize to ensure determinism.
             resolver.AddField("base_emissions", nx, ny, 1);
+            resolver.SetValue("base_emissions", 0.0);
             resolver.AddField("output_emissions", nx, ny, nz);
+            resolver.SetValue("output_emissions", 0.0);
             resolver.AddField("scale_factor", nx, ny, 1);
+            resolver.SetValue("scale_factor", 1.0);
             resolver.AddField("mask", nx, ny, 1);
+            resolver.SetValue("mask", 1.0);
 
             // Initialize base emissions
             for (int i = 0; i < nx; ++i) {
@@ -215,19 +219,13 @@ class IdempotencePropertyTest : public ::testing::Test {
                 }
             }
 
-            // Initialize scale factor to 1.0
-            resolver.SetValue("scale_factor", 1.0);
-
-            // Initialize mask to 1.0
-            resolver.SetValue("mask", 1.0);
-
             // Create stacking engine configuration
             AcesConfig config;
             config.species_layers["test_species"] = {};
 
-            // Create a simple layer
+            // Create a simple layer. Ensure field_name matches an added field.
             EmissionLayer layer;
-            layer.field_name = "test_layer";
+            layer.field_name = "base_emissions";
             layer.hierarchy = 1;
             layer.operation = "add";
             layer.vdist_method = aces::VerticalDistributionMethod::SINGLE;
@@ -240,7 +238,7 @@ class IdempotencePropertyTest : public ::testing::Test {
             StackingEngine engine(config);
 
             // Execute stacking engine
-            engine.Execute(resolver, nx, ny, nz, {}, 12, 3);
+            engine.Execute(resolver, nx, ny, nz, {}, 12, 3, 0);
 
             // Capture numerical outputs
             for (int i = 0; i < nx; ++i) {

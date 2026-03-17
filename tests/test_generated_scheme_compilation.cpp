@@ -179,14 +179,21 @@ class GeneratedSchemeCompilationTest : public ::testing::Test {
      * @return True if generator succeeded, false otherwise
      */
     bool RunSchemeGenerator(const std::string& config_path) {
-        // Build command to run the generator
-        std::string cmd = "python3 scripts/generate_physics_scheme.py " + config_path;
+        // Build command to run the generator.
+        // Try multiple potential paths to the generator script.
+        std::vector<std::string> paths = {"scripts/generate_physics_scheme.py",
+                                          "../scripts/generate_physics_scheme.py"};
 
-        // Redirect output to suppress generator messages
-        cmd += " > /dev/null 2>&1";
+        for (const auto& path : paths) {
+            if (fs::exists(path)) {
+                std::string cmd = "python3 " + path + " " + config_path;
+                cmd += " > /dev/null 2>&1";
+                int result = std::system(cmd.c_str());
+                return result == 0;
+            }
+        }
 
-        int result = std::system(cmd.c_str());
-        return result == 0;
+        return false;
     }
 
     /**
