@@ -78,51 +78,8 @@ jobs:
         find include/aces src -name "*.cpp" -o -name "*.hpp" | head -20 | while read file; do
           clang-tidy "$file" -- -I./include -I./build/_deps/kokkos-src/core/src -I./build/_deps/yaml-cpp-src/include 2>&1 | grep -E "error:|warning:" || true
         done
-        echo "✓ clang-tidy check completed"
+        echo "✓ clang-tidy check completed
 
-    - name: Install Python Dependencies
-      shell: bash
-      run: |
-        if [ -f /opt/spack-environment/activate.sh ]; then
-          source /opt/spack-environment/activate.sh
-        fi
-        python3 -m pip install pyyaml pytest jinja2 2>&1 | tail -5
-
-    - name: Run Unit Tests
-      shell: bash
-      run: |
-        if [ -f /opt/spack-environment/activate.sh ]; then
-          source /opt/spack-environment/activate.sh
-        fi
-        cd build
-        ctest --output-on-failure -L "unit"
-
-    - name: Run Property-Based Tests
-      shell: bash
-      run: |
-        if [ -f /opt/spack-environment/activate.sh ]; then
-          source /opt/spack-environment/activate.sh
-        fi
-        cd build
-        ctest --output-on-failure -L "property"
-
-    - name: Run Integration Tests
-      shell: bash
-      run: |
-        if [ -f /opt/spack-environment/activate.sh ]; then
-          source /opt/spack-environment/activate.sh
-        fi
-        cd build
-        ctest --output-on-failure -L "integration"
-
-    - name: Run HEMCO Parity Tests
-      shell: bash
-      run: |
-        if [ -f /opt/spack-environment/activate.sh ]; then
-          source /opt/spack-environment/activate.sh
-        fi
-        cd build
-        ctest --output-on-failure -L "hemco"
 
     - name: Run All Tests with Coverage
       shell: bash
