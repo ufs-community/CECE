@@ -137,7 +137,7 @@ program aces_nuopc_single_driver
   ! 6. Create ACES GridComp and register via SetServices (Requirements 2.1, 2.2)
   ! -----------------------------------------------------------------------
   write(*,'(A)') "INFO: [Driver] Creating ACES component"
-  acesComp = ESMF_GridCompCreate(name="ACES", clock=clock, rc=rc)
+  acesComp = ESMF_GridCompCreate(name="ACES", contextflag=ESMF_CONTEXT_PARENT_VM, rc=rc)
   if (rc /= ESMF_SUCCESS) call driver_abort("Failed to create ACES GridComp", rc)
 
   ! Attach grid so Realize phase can access dimensions
@@ -145,9 +145,9 @@ program aces_nuopc_single_driver
   if (rc /= ESMF_SUCCESS) call driver_abort("Failed to attach grid to ACES component", rc)
 
   ! Register all ACES phase methods (Advertise, Realize, InitP1, InitP2, Run, Finalize)
-  write(*,'(A)') "INFO: [Driver] Calling ACES_SetServices"
-  call ACES_SetServices(acesComp, rc=rc)
-  if (rc /= ESMF_SUCCESS) call driver_abort("ACES_SetServices failed", rc)
+  write(*,'(A)') "INFO: [Driver] Calling ESMF_GridCompSetServices"
+  call ESMF_GridCompSetServices(acesComp, ACES_SetServices, rc=rc)
+  if (rc /= ESMF_SUCCESS) call driver_abort("ESMF_GridCompSetServices failed", rc)
 
   ! -----------------------------------------------------------------------
   ! 7. NUOPC Phase: Advertise (Requirement 2.5)
@@ -209,10 +209,6 @@ program aces_nuopc_single_driver
     write(msg,'(A,I0)') "INFO: [Driver] Run step ", total_steps
     write(*,'(A)') trim(msg)
 
-    ! Advance clock before run (driver advances, ACES reads current time)
-    call ESMF_ClockAdvance(clock, rc=rc)
-    if (rc /= ESMF_SUCCESS) call driver_abort("Failed to advance clock", rc)
-
     ! Execute ACES Run phase (model_label_Advance, phase=1)
     call ESMF_GridCompRun(acesComp, importState=importState, &
                           exportState=exportState, clock=clock, &
@@ -221,6 +217,10 @@ program aces_nuopc_single_driver
       write(msg,'(A,I0)') "ACES Run phase failed at step ", total_steps
       call driver_abort(trim(msg), rc)
     end if
+
+    ! Advance clock after run
+    call ESMF_ClockAdvance(clock, rc=rc)
+    if (rc /= ESMF_SUCCESS) call driver_abort("Failed to advance clock", rc)
 
     clock_done = ESMF_ClockIsStopTime(clock, rc=rc)
     if (rc /= ESMF_SUCCESS) call driver_abort("Failed to check clock stop time", rc)

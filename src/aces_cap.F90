@@ -3,6 +3,8 @@ module aces_cap_mod
   use ESMF
   use NUOPC
   use NUOPC_Model, modelSS => SetServices
+  use NUOPC_Model, only : label_Advertise
+  use NUOPC_Model, only : label_RealizeProvided
   use NUOPC_Model, only : model_label_Advance => label_Advance
   use NUOPC_Model, only : model_label_Finalize => label_Finalize
 #ifdef ACES_HAS_CDEPS
@@ -55,29 +57,23 @@ contains
     if (rc /= ESMF_SUCCESS) return
 
     ! 2. Specialize NUOPC_Model phases
-    call NUOPC_CompSpecialize(comp, specRoutine=ACES_Advertise, &
-      specLabel="ModelBase_Advertise", rc=rc)
+    call NUOPC_CompSpecialize(comp, specLabel=label_Advertise, &
+      specRoutine=ACES_Advertise, rc=rc)
     if (rc /= ESMF_SUCCESS) return
 
-    call NUOPC_CompSpecialize(comp, specRoutine=ACES_Realize, &
-      specLabel="ModelBase_Realize", rc=rc)
+    call NUOPC_CompSpecialize(comp, specLabel=label_RealizeProvided, &
+      specRoutine=ACES_Realize, rc=rc)
     if (rc /= ESMF_SUCCESS) return
 
     ! 3. Register multi-phase initialization using NUOPC_CompSetEntryPoint
-    ! Phase 1 (IPDv00p1): Core initialization (Kokkos, config, PhysicsFactory)
+    ! Phase 3: Core initialization (Kokkos, config, PhysicsFactory)
     call NUOPC_CompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, &
-      phaseLabelList=(/"IPDv00p1"/), userRoutine=ACES_InitializeP1, rc=rc)
+      userRoutine=ACES_InitializeP1, phase=3, phaseLabelList=(/"IPDv00p1"/), rc=rc)
     if (rc /= ESMF_SUCCESS) return
 
-    ! Phase 2 (IPDv00p2): CDEPS and field binding
+    ! Phase 4: CDEPS and field binding
     call NUOPC_CompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, &
-      phaseLabelList=(/"IPDv00p2"/), userRoutine=ACES_InitializeP2, rc=rc)
-    if (rc /= ESMF_SUCCESS) return
-
-    ! 4. Declare phase dependencies using NUOPC_CompAttributeSet
-    ! This maps NUOPC Initialize Phase Definitions (IPD) to actual phase numbers
-    call NUOPC_CompAttributeSet(comp, "InitializePhaseMap", &
-      "IPDv00p1=1,IPDv00p2=2", rc=rc)
+      userRoutine=ACES_InitializeP2, phase=4, phaseLabelList=(/"IPDv00p2"/), rc=rc)
     if (rc /= ESMF_SUCCESS) return
 
     ! 5. Register Run and Finalize phases using NUOPC_CompSpecialize
@@ -98,7 +94,8 @@ contains
     type(ESMF_State) :: importState, exportState
     integer(c_int) :: c_rc
 
-    call ESMF_GridCompGet(comp, importState=importState, exportState=exportState, rc=rc)
+    call NUOPC_ModelGet(comp, importState=importState, exportState=exportState, rc=rc)
+    if (rc /= ESMF_SUCCESS) return
 
     ! Call C++ bridge to parse config and advertise fields
     call aces_core_advertise(transfer(importState, c_null_ptr), &
