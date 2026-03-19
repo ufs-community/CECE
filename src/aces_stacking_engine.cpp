@@ -399,6 +399,9 @@ void StackingEngine::Execute(
                     // Determine if this (i,j,k) point should receive emissions from this layer
                     // and calculate the fractional weight for distribution if it's a 2D field.
                     double weight = 0.0;
+                    if (i==0 && j==0 && k==0) {
+                        Kokkos::printf("DEBUG: Layer %d Method %d Addr=%p\n", l, layer.vdist_method, layer.field.data());
+                    }
                     bool in_vertical_range = false;
 
                     // Support 3D emission fields natively
@@ -470,6 +473,13 @@ void StackingEngine::Execute(
                         if (overlap_bot > overlap_top && layer_total_overlap > 0.0) {
                             in_vertical_range = true;
                             weight = (overlap_bot - overlap_top) / layer_total_overlap;
+                        }
+                        
+                        if (i==0 && j==0 && k==0) {
+                            Kokkos::printf("DEBUG: Method 2. P_Start=%f P_End=%f TotalOverlap=%f P_Top(0)=%f P_Bot(0)=%f Weight=%f InRange=%d\n", 
+                                layer.vdist_p_start, layer.vdist_p_end, layer_total_overlap, p_top, p_bot, weight, in_vertical_range);
+                        } else if (i==0 && j==0 && k==nz-1) {
+                             Kokkos::printf("DEBUG: Method 2. Bottom k=%d P_Top=%f P_Bot=%f Weight=%f\n", k, p_top, p_bot, weight);
                         }
                     } else if (layer.vdist_method == 3) {  // HEIGHT
                         if (z_coord.data() != nullptr) {

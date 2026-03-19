@@ -50,9 +50,16 @@ ACES (Atmospheric Chemistry Emission System) is a modular, performance-portable 
   - `aces_core_advertise.cpp`: Declare import/export fields
   - `aces_core_realize.cpp`: Create and allocate fields
   - `aces_core_initialize_p1.cpp`: Initialize Kokkos, config, physics
-  - `aces_core_initialize_p2.cpp`: Initialize CDEPS, bind fields
+  - `aces_core_initialize_p2.cpp`: Receive grid dimensions, bind fields, initialize CDEPS
   - `aces_core_run.cpp`: Execute emission computation
   - `aces_core_finalize.cpp`: Cleanup resources
+
+**Important Note**: The C++ core does NOT make ESMF/ESMC calls. All ESMF field management is handled by the Fortran cap. The C++ core receives:
+- Grid dimensions as simple integers
+- Field data pointers as void pointers
+- Configuration data structures
+
+This design ensures the C++ core is framework-independent and can be tested without ESMF.
 
 #### 3. Configuration Parser
 - **File**: `src/aces_config_parser.cpp`
@@ -109,22 +116,49 @@ ACES (Atmospheric Chemistry Emission System) is a modular, performance-portable 
 ```
 1. NUOPC Driver creates ACES component
 2. ACES_SetServices registers phase methods
-3. Advertise Phase:
+3. Advertise Phase (IPDv01p1):
    - Parse YAML config
    - Declare import fields (meteorology)
    - Declare export fields (emissions)
-4. Realize Phase:
-   - Create export fields
-   - Verify import fields exist
-5. Initialize Phase P1:
    - Initialize Kokkos
    - Create internal state (AcesInternalData)
    - Instantiate physics schemes
-6. Initialize Phase P2:
-   - Initialize CDEPS
-   - Bind frequently accessed fields
-   - Prepare for run loop
+4. Realize Phase (IPDv01p3):
+   - Extract grid dimensions from ESMF grid (Fortran cap)
+   - Call aces_core_initialize_p2 with grid dimensions (C++)
+   - Create ESMF fields for each species (Fortran cap)
+   - Extract field data pointers (Fortran cap)
+   - Call aces_core_bind_fields with field pointers (C++)
+   - Initialize CDEPS with created fields (Fortran cap)
 ```
+
+### Field Management Architecture
+
+The refactored field management maintains clean separation of concerns:
+
+**Fortran Cap Responsibilities** (src/aces_cap.F90):
+- Extract grid dimensions from ESMF grid using `ESMF_GridGet()` and `ESMF_DistGridGet()`
+- Create ESMF fields for each species using `ESMF_FieldCreate()`
+- Add fields to export state using `ESMF_StateAddField()`
+- Extract field data pointers using `ESMF_FieldGetDataPointer()`
+- Pass grid dimensions and field pointers to C++ core
+- Initialize CDEPS with created fields using `aces_cdeps_init()`
+
+**C++ Core Responsibilities** (src/aces_core_initialize_p2.cpp):
+- Receive grid dimensions as simple integers
+- Store grid dimensions in `AcesInternalData`
+- Allocate default mask with correct dimensions
+- Cache field metadata for efficient runtime access
+- Receive field data pointers from Fortran cap
+- Store field pointers in `AcesInternalData` for Run phase access
+- NO ESMF/ESMC calls - all framework interactions in Fortran
+
+**Key Design Decisions**:
+1. Grid dimensions passed as integers (not ESMF objects)
+2. Field data pointers passed as void pointers (direct memory access)
+3. Two-stage initialization: Phase 2a (grid dims), Phase 2b (field pointers)
+4. All ESMF/NUOPC/CDEPS interactions in Fortran cap
+5. C++ core remains framework-independent
 
 ### Run Loop Sequence
 
@@ -145,6 +179,62 @@ For each time step:
    e. Synchronize device to host (for GPU)
    f. Write output (if standalone mode)
 3. NUOPC Driver continues to next time step
+```
+
+### Field Management Flow
+
+The refactored field management separates framework concerns from computation:
+
+**Phase 1 (Advertise - IPDv01p1)**:
+```
+Fortran cap:
+  - Calls aces_core_initialize_p1
+
+C++ core:
+  - Initializes Kokkos
+  - Parses YAML configuration
+  - Instantiates physics schemes
+  - Returns AcesInternalData pointer
+```
+
+**Phase 2 (Realize - IPDv01p3)**:
+```
+Fortran cap:
+  - Extracts grid dimensions from ESMF grid
+  - Calls aces_core_initialize_p2(data_ptr, nx, ny, nz, rc)
+
+C++ core:
+  - Stores grid dimensions in AcesInternalData
+  - Allocates default mask (all 1.0)
+  - Caches field metadata
+
+Fortran cap:
+  - Creates ESMF fields for each species
+  - Adds fields to export state
+  - Extracts field data pointers
+  - Calls aces_core_bind_fields(data_ptr, field_ptrs, num_fields, rc)
+
+C++ core:
+  - Stores field data pointers in AcesInternalData
+  - Validates pointer validity
+
+Fortran cap:
+  - Initializes CDEPS with created fields
+```
+
+**Run Phase**:
+```
+Fortran cap:
+  - Calls aces_core_run(data_ptr, importState, exportState, clock, rc)
+
+C++ core:
+  - Accesses field data via stored pointers
+  - Executes StackingEngine
+  - Executes physics schemes
+  - Synchronizes device to host
+
+Fortran cap:
+  - Returns to NUOPC framework
 ```
 
 ### Data Flow
@@ -185,6 +275,29 @@ External Data (NetCDF)
 
 ## NUOPC Phase Handling Patterns
 
+### Fortran Cap vs C++ Core Responsibilities
+
+**Fortran Cap (src/aces_cap.F90)** handles all framework interactions:
+- ESMF grid management and dimension extraction
+- ESMF field creation and state management
+- NUOPC phase transitions
+- CDEPS initialization and data ingestion
+- Fortran/C++ bridge via C interface bindings
+
+**C++ Core (src/aces_core_*.cpp)** handles pure computation:
+- Configuration parsing and validation
+- Physics scheme instantiation and execution
+- StackingEngine layer aggregation
+- Kokkos-based parallel computation
+- Diagnostic tracking and output
+- NO ESMF/ESMC calls - framework-independent
+
+This separation ensures:
+- C++ code can be tested without ESMF
+- Fortran code handles all framework complexity
+- Clear responsibility boundaries
+- Easier maintenance and debugging
+
 ### Phase Dependency Declaration
 
 ACES declares phase dependencies using NUOPC_CompAttributeSet:
@@ -203,18 +316,27 @@ This ensures:
 
 ACES uses two-phase initialization to separate concerns:
 
-**Phase 1 (aces_core_initialize_p1)**:
+**Phase 1 (IPDv01p1 - Advertise)**:
 - Initialize Kokkos
 - Parse configuration
-- Create internal state
+- Create internal state (AcesInternalData)
 - Instantiate physics schemes
+- Advertise fields to NUOPC framework
 
-**Phase 2 (aces_core_initialize_p2)**:
-- Initialize CDEPS
-- Bind frequently accessed fields
+**Phase 2 (IPDv01p3 - Realize)**:
+- Extract grid dimensions from ESMF grid (Fortran)
+- Pass grid dimensions to C++ core
+- Create ESMF fields for each species (Fortran)
+- Extract field data pointers (Fortran)
+- Pass field pointers to C++ core
+- Initialize CDEPS with created fields (Fortran)
 - Prepare for run loop
 
-This separation allows other components to initialize in between phases if needed.
+This separation allows:
+- Other components to initialize between phases
+- Clear responsibility boundaries
+- Efficient resource allocation
+- Proper error handling at each stage
 
 ### Error Handling in Phases
 
@@ -297,6 +419,89 @@ Kokkos::parallel_reduce("reduction_name",
 - Avoid `std::cout` or file I/O inside kernels
 - Use `Kokkos::atomic_add` for race-condition-free accumulation
 - Use `DualView` for automatic host/device synchronization
+
+## Field Management Architecture
+
+### Data Flow Through Initialization Phases
+
+The refactored field management architecture ensures clean separation between framework concerns (Fortran) and computation (C++):
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ Phase 1 (Advertise - IPDv01p1)                                  │
+├─────────────────────────────────────────────────────────────────┤
+│ Fortran Cap:                                                    │
+│   - Calls aces_core_initialize_p1                              │
+│                                                                 │
+│ C++ Core:                                                       │
+│   - Initialize Kokkos                                          │
+│   - Parse YAML configuration                                  │
+│   - Instantiate physics schemes                               │
+│   - Return AcesInternalData pointer                           │
+└─────────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────────┐
+│ Phase 2 (Realize - IPDv01p3)                                    │
+├─────────────────────────────────────────────────────────────────┤
+│ Fortran Cap:                                                    │
+│   - Extract grid dimensions from ESMF grid                     │
+│   - Call aces_core_initialize_p2(data_ptr, nx, ny, nz, rc)   │
+│                                                                 │
+│ C++ Core:                                                       │
+│   - Store grid dimensions in AcesInternalData                 │
+│   - Allocate default mask (all 1.0)                           │
+│   - Cache field metadata                                      │
+│                                                                 │
+│ Fortran Cap:                                                    │
+│   - Create ESMF fields for each species                       │
+│   - Add fields to export state                                │
+│   - Extract field data pointers                               │
+│   - Call aces_core_bind_fields(data_ptr, field_ptrs, ...)   │
+│                                                                 │
+│ C++ Core:                                                       │
+│   - Store field data pointers in AcesInternalData             │
+│   - Validate pointer validity                                 │
+│                                                                 │
+│ Fortran Cap:                                                    │
+│   - Initialize CDEPS with created fields                      │
+└─────────────────────────────────────────────────────────────────┘
+                            ↓
+┌─────────────────────────────────────────────────────────────────┐
+│ Run Phase (for each time step)                                  │
+├─────────────────────────────────────────────────────────────────┤
+│ Fortran Cap:                                                    │
+│   - Call aces_core_run(data_ptr, importState, exportState)   │
+│                                                                 │
+│ C++ Core:                                                       │
+│   - Access field data via stored pointers                     │
+│   - Execute StackingEngine                                    │
+│   - Execute physics schemes                                  │
+│   - Synchronize device to host                               │
+│                                                                 │
+│ Fortran Cap:                                                    │
+│   - Return to NUOPC framework                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Key Design Principles
+
+1. **Grid Dimensions as Integers**: Fortran extracts grid dimensions from ESMF grid and passes them as simple integers to C++. This avoids ESMF dependencies in C++.
+
+2. **Field Data Pointers**: Fortran extracts field data pointers after field creation and passes them to C++. C++ accesses field data directly without ESMF calls.
+
+3. **Two-Stage Initialization**: Phase 2a receives grid dimensions, Phase 2b receives field pointers. This allows proper sequencing of ESMF operations.
+
+4. **No ESMF in C++**: All ESMF/NUOPC/CDEPS interactions are in Fortran. C++ core is framework-independent.
+
+5. **Cached Metadata**: Field metadata is cached in AcesInternalData for efficient runtime access without repeated ESMF queries.
+
+### Benefits of This Architecture
+
+- **Testability**: C++ code can be unit tested without ESMF
+- **Maintainability**: Clear responsibility boundaries
+- **Portability**: Works in both standalone and coupled modes
+- **Performance**: Direct pointer access avoids ESMF overhead
+- **Robustness**: Linker issues eliminated by removing ESMC calls from C++
 
 ## Adding New Physics Schemes
 

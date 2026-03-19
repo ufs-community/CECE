@@ -83,20 +83,14 @@ void aces_core_finalize(void* data_ptr, int* rc) {
         std::cerr << "WARNING: FinalizeCDEPS threw: " << e.what() << "\n";
     }
 
-    // 4. Capture Kokkos ownership flag before deleting internal_data (Req 4.17)
-    const bool owns_kokkos = internal_data->kokkos_initialized_here;
-
-    // 5. Delete internal state — this destroys all Kokkos::Views BEFORE Kokkos::finalize()
+    // 4. Delete internal state — this destroys all Kokkos::Views.
+    // NOTE: Do NOT call Kokkos::finalize() here. When running inside an ESMF component,
+    // ESMF 8.8.0 uses Kokkos internally and owns the Kokkos lifecycle. Calling
+    // Kokkos::finalize() before ESMF_Finalize() causes a segfault in ESMF teardown.
+    // Kokkos will be finalized by ESMF_Finalize() in the driver.
     delete internal_data;
     std::cout << "INFO: AcesInternalData deleted\n";
-
-    // 5. Finalize Kokkos only if ACES initialized it (Req 4.17)
-    if (owns_kokkos && Kokkos::is_initialized()) {
-        std::cout << "INFO: Finalizing Kokkos (owned by ACES)\n";
-        Kokkos::finalize();
-    } else {
-        std::cout << "INFO: Skipping Kokkos finalization (not owned by ACES)\n";
-    }
+    std::cout << "INFO: Skipping Kokkos finalization (owned by ESMF)\n";
 
     std::cout << "INFO: ACES Finalize completed successfully\n";
 

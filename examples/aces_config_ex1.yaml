@@ -1,16 +1,24 @@
-meteorology:
-  hourly_scalfact: HOURLY_SCALFACT
 
 species:
-  co:
-    - field: "MACCITY"
-      operation: "add"
+  CO:
+    - operation: add
+      field: CO_anthro
+      hierarchy: 0
       scale: 1.0
-      scale_fields: ["hourly_scalfact"]
+  NOx:
+    - operation: add
+      field: NOx_anthro
+      hierarchy: 0
+      scale: 1.0
+
+meteorology:
+  temperature: air_temperature
+
+physics_schemes: []
+
+diagnostics:
+  output_interval_seconds: 3600
+  variables: []
 
 cdeps_inline_config:
-  streams:
-    - name: "MACCITY"
-      file: "data/MACCity_4x5.nc"
-    - name: "HOURLY_SCALFACT"
-      file: "data/hourly.nc"
+  streams: []

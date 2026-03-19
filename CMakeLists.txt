@@ -279,9 +279,11 @@ set(ACES_SRCS
     src/aces_core_realize.cpp
     src/aces_core_initialize_p1.cpp
     src/aces_core_initialize_p2.cpp
+    src/aces_core_field_helpers.cpp
     src/aces_core_run.cpp
     src/aces_core_finalize.cpp
-    src/aces_core_fortran_bridge.cpp)
+    src/aces_core_fortran_bridge.cpp
+    src/aces_config_path.cpp)
 
 if(ACES_HAS_FORTRAN)
     list(
@@ -308,6 +310,13 @@ if(ACES_HAS_FORTRAN)
 endif()
 
 add_library(aces SHARED ${ACES_SRCS})
+
+# Use Fortran compiler as linker when Fortran code is present
+if(ACES_HAS_FORTRAN)
+    set_target_properties(aces PROPERTIES LINKER_LANGUAGE Fortran)
+    # Allow undefined symbols in shared library - they'll be resolved at runtime
+    target_link_options(aces PRIVATE "LINKER:--allow-shlib-undefined")
+endif()
 
 # Ensure ACES depends on CDEPS targets to serialize module generation if they are built from source
 if(TARGET cdeps_share)
@@ -341,7 +350,14 @@ target_include_directories(
     PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include>
            ${ESMF_INCLUDE_DIRS})
 
-target_link_libraries(aces PUBLIC Kokkos::kokkos ESMF::ESMF yaml-cpp)
+target_link_libraries(aces PUBLIC Kokkos::kokkos ESMF::ESMF yaml-cpp ${ESMF_LIBRARIES})
+
+# Ensure Fortran runtime is linked when Fortran code is present
+if(ACES_HAS_FORTRAN)
+    target_link_libraries(aces PUBLIC ${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES})
+    # Allow undefined symbols from shared library for consumers
+    target_link_options(aces INTERFACE "LINKER:--allow-shlib-undefined")
+endif()
 
 # Link NetCDF for CDEPS parser
 if(NetCDF_ROOT)
@@ -381,22 +397,28 @@ endif()
 enable_testing()
 
 add_executable(test_aces_cap tests/test_aces_cap.cpp)
-target_link_libraries(test_aces_cap PRIVATE aces GTest::gtest_main)
+target_link_libraries(test_aces_cap PRIVATE aces GTest::gtest_main ${ESMF_LIBRARIES} ${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES})
+target_link_options(test_aces_cap PRIVATE "LINKER:--allow-shlib-undefined")
 
 add_executable(test_diagnostics tests/test_diagnostics.cpp)
-target_link_libraries(test_diagnostics PRIVATE aces GTest::gtest)
+target_link_libraries(test_diagnostics PRIVATE aces GTest::gtest ${ESMF_LIBRARIES} ${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES})
+target_link_options(test_diagnostics PRIVATE "LINKER:--allow-shlib-undefined")
 
 add_executable(test_aces_ingestor tests/test_aces_ingestor.cpp)
-target_link_libraries(test_aces_ingestor PRIVATE aces GTest::gtest_main)
+target_link_libraries(test_aces_ingestor PRIVATE aces GTest::gtest_main ${ESMF_LIBRARIES} ${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES})
+target_link_options(test_aces_ingestor PRIVATE "LINKER:--allow-shlib-undefined")
 
 add_executable(test_aces_utils tests/test_aces_utils.cpp)
-target_link_libraries(test_aces_utils PRIVATE aces GTest::gtest_main)
+target_link_libraries(test_aces_utils PRIVATE aces GTest::gtest_main ${ESMF_LIBRARIES} ${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES})
+target_link_options(test_aces_utils PRIVATE "LINKER:--allow-shlib-undefined")
 
 add_executable(test_aces_compute tests/test_aces_compute.cpp)
-target_link_libraries(test_aces_compute PRIVATE aces GTest::gtest_main)
+target_link_libraries(test_aces_compute PRIVATE aces GTest::gtest_main ${ESMF_LIBRARIES} ${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES})
+target_link_options(test_aces_compute PRIVATE "LINKER:--allow-shlib-undefined")
 
 add_executable(test_physics tests/test_physics.cpp)
-target_link_libraries(test_physics PRIVATE aces GTest::gtest_main)
+target_link_libraries(test_physics PRIVATE aces GTest::gtest_main ${ESMF_LIBRARIES} ${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES})
+target_link_options(test_physics PRIVATE "LINKER:--allow-shlib-undefined")
 
 add_executable(test_hemco_mimic tests/test_hemco_mimic.cpp)
 target_link_libraries(test_hemco_mimic PRIVATE aces GTest::gtest_main)
@@ -427,6 +449,18 @@ target_link_libraries(test_field_resolution_priority PRIVATE aces GTest::gtest_m
 
 add_executable(test_cdeps_integration tests/test_cdeps_integration.cpp)
 target_link_libraries(test_cdeps_integration PRIVATE aces GTest::gtest_main)
+
+# Task 4.2: Verify CDEPS can read data
+add_executable(test_cdeps_read_data tests/test_cdeps_read_data.cpp)
+target_link_libraries(test_cdeps_read_data PRIVATE aces GTest::gtest_main)
+
+# Task 4.3: Handle CDEPS initialization failure
+add_executable(test_cdeps_initialization_failure tests/test_cdeps_initialization_failure.cpp)
+target_link_libraries(test_cdeps_initialization_failure PRIVATE aces GTest::gtest_main)
+
+# Task 4.4: Write integration tests for CDEPS
+add_executable(test_cdeps_integration_comprehensive tests/test_cdeps_integration_comprehensive.cpp)
+target_link_libraries(test_cdeps_integration_comprehensive PRIVATE aces GTest::gtest_main)
 
 # Property 22: CDEPS Error Handling (Requirement 1.7)
 add_executable(test_cdeps_error_handling_property tests/test_cdeps_error_handling_property.cpp)
@@ -560,6 +594,10 @@ add_executable(test_vertical_distribution_roundtrip_property
     tests/test_vertical_distribution_roundtrip_property.cpp)
 target_link_libraries(test_vertical_distribution_roundtrip_property PRIVATE aces GTest::gtest_main)
 
+# Temporary Reproduction Test
+add_executable(test_repro_failure tests/repro_failure.cpp)
+target_link_libraries(test_repro_failure PRIVATE aces GTest::gtest_main)
+
 # Property 14: Mass Conservation Invariant (Requirement 6.23)
 add_executable(test_mass_conservation_property tests/test_mass_conservation_property.cpp)
 target_link_libraries(test_mass_conservation_property PRIVATE aces GTest::gtest_main)
@@ -622,6 +660,22 @@ add_executable(test_streams_config_roundtrip_property
     tests/test_streams_config_roundtrip_property.cpp)
 target_link_libraries(test_streams_config_roundtrip_property PRIVATE aces GTest::gtest_main)
 
+# Unit tests for field creation (Requirement R4)
+add_executable(test_field_creation tests/test_field_creation.cpp)
+if(ACES_HAS_FORTRAN AND TARGET test_helpers)
+    target_link_libraries(test_field_creation PRIVATE aces test_helpers GTest::gtest_main)
+else()
+    target_link_libraries(test_field_creation PRIVATE aces GTest::gtest_main)
+endif()
+
+# Unit tests for field pointer passing (Requirement R5)
+add_executable(test_field_pointer_passing tests/test_field_pointer_passing.cpp)
+if(ACES_HAS_FORTRAN AND TARGET test_helpers)
+    target_link_libraries(test_field_pointer_passing PRIVATE aces test_helpers GTest::gtest_main)
+else()
+    target_link_libraries(test_field_pointer_passing PRIVATE aces GTest::gtest_main)
+endif()
+
 # Standalone NUOPC driver
 add_subdirectory(standalone_nuopc)
 
@@ -679,6 +733,7 @@ gtest_discover_tests(test_command_line_configuration_property)
 gtest_discover_tests(test_idempotence_property)
 gtest_discover_tests(test_suite_idempotence)
 gtest_discover_tests(test_vertical_distribution_roundtrip_property)
+gtest_discover_tests(test_repro_failure)
 gtest_discover_tests(test_mass_conservation_property)
 gtest_discover_tests(test_temporal_cycle_application_property)
 gtest_discover_tests(test_nuopc_phase_execution_order_property)
@@ -689,6 +744,8 @@ gtest_discover_tests(test_standalone_writer_unit)
 gtest_discover_tests(test_kernel_profiling)
 gtest_discover_tests(test_dynamic_species_registration_property)
 gtest_discover_tests(test_streams_config_roundtrip_property)
+gtest_discover_tests(test_field_creation)
+gtest_discover_tests(test_field_pointer_passing)
 
 # --- Doxygen Documentation ---
 

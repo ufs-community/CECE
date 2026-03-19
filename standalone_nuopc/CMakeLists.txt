@@ -18,11 +18,15 @@ target_link_libraries(aces_nuopc_driver
   aces
   ESMF::ESMF
   yaml-cpp
+  ${ESMF_LIBRARIES}
 )
 
 if(TARGET MPI::MPI_Fortran)
   target_link_libraries(aces_nuopc_driver PRIVATE MPI::MPI_Fortran)
 endif()
+
+# Allow undefined symbols from shared library (will be resolved at runtime)
+target_link_options(aces_nuopc_driver PRIVATE "LINKER:--allow-shlib-undefined")
 
 # -----------------------------------------------------------------------
 # NUOPC Single-Model Driver (Requirements 2.1-2.15)
@@ -42,11 +46,15 @@ target_link_libraries(aces_nuopc_single_driver
   aces
   ESMF::ESMF
   yaml-cpp
+  ${ESMF_LIBRARIES}
 )
 
 if(TARGET MPI::MPI_Fortran)
   target_link_libraries(aces_nuopc_single_driver PRIVATE MPI::MPI_Fortran)
 endif()
+
+# Allow undefined symbols from shared library (will be resolved at runtime)
+target_link_options(aces_nuopc_single_driver PRIVATE "LINKER:--allow-shlib-undefined")
 
 # Ensure Fortran modules from aces are available before building the driver
 if(TARGET aces)

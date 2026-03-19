@@ -30,6 +30,7 @@
 #include <string>
 
 #include "aces/aces_config.hpp"
+#include "aces/aces_config_path.hpp"
 #include "aces/aces_diagnostics.hpp"
 #include "aces/aces_internal.hpp"
 #include "aces/aces_physics_factory.hpp"
@@ -151,10 +152,11 @@ void aces_core_initialize_p1(void** data_ptr_ptr, int* rc) {
     }
 
     // 2. Parse YAML configuration
-    std::cout << "INFO: Parsing aces_config.yaml" << std::endl;
+    const std::string& config_path = aces::GetConfigFilePath();
+    std::cout << "INFO: Parsing " << config_path << std::endl;
     aces::AcesConfig config;
     try {
-        config = aces::ParseConfig("aces_config.yaml");
+        config = aces::ParseConfig(config_path);
         std::cout << "INFO: Configuration parsed successfully" << std::endl;
         std::cout << "INFO: Found " << config.species_layers.size() << " emission species"
                   << std::endl;

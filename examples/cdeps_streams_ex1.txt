@@ -1,0 +1,33 @@
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+:: ACES Example 1 Streams Configuration
+:: ESMF Config Format for CDEPS-inline data ingestion
+:::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::
+
+::
+:: MACCITY anthropogenic emissions
+::
+stream::MACCITY
+  file_paths = data/MACCity_4x5.nc
+  variables = CO:CO
+  taxmode = cycle
+  tintalgo = linear
+  mapalgo = bilinear
+  yearFirst = 2000
+  yearLast = 2020
+  yearAlign = 2000
+  offset = 0
+::
+
+::
+:: Hourly scale factors
+::
+stream::HOURLY_SCALFACT
+  file_paths = data/hourly.nc
+  variables = HOURLY_SCALFACT:HOURLY_SCALFACT
+  taxmode = cycle
+  tintalgo = linear
+  yearFirst = 2000
+  yearLast = 2020
+  yearAlign = 2000
+  offset = 0
+::

@@ -6,10 +6,11 @@
 !>
 !> Phase execution order (NUOPC_Model specialization pattern):
 !>   ESMF_GridCompInitialize phase=1  -> NUOPC Advertise (ModelBase_Advertise)
-!>   ESMF_GridCompInitialize phase=2  -> NUOPC Realize   (ModelBase_Realize)
-!>   ESMF_GridCompInitialize phase=3  -> ACES InitializeP1 (IPDv00p1)
-!>   ESMF_GridCompInitialize phase=4  -> ACES InitializeP2 (IPDv00p2)
+!>   ESMF_GridCompInitialize phase=2  -> NUOPC Realize   (ModelBase_RealizeProvided)
+!>   ESMF_GridCompInitialize phase=3  -> ACES DataInitialize (label_DataInitialize)
+!>                                       Combines P1 (Kokkos/config) + P2 (CDEPS/fields)
 !>   ESMF_GridCompRun        phase=1  -> ACES Run (model_label_Advance)
+!>                                       NUOPC advances clock internally before calling Advance
 !>   ESMF_GridCompFinalize   phase=1  -> ACES Finalize (model_label_Finalize)
 !>
 !> Usage:
@@ -137,66 +138,56 @@ program aces_nuopc_single_driver
   ! 6. Create ACES GridComp and register via SetServices (Requirements 2.1, 2.2)
   ! -----------------------------------------------------------------------
   write(*,'(A)') "INFO: [Driver] Creating ACES component"
-  acesComp = ESMF_GridCompCreate(name="ACES", clock=clock, rc=rc)
+  ! Use ESMF_CONTEXT_PARENT_VM to reuse the parent MPI communicator.
+  ! Without this, ESMF creates a new MPI sub-communicator which requires
+  ! the component to be initialized via ESMF_GridCompSetServices (not direct call).
+  acesComp = ESMF_GridCompCreate(name="ACES", contextflag=ESMF_CONTEXT_PARENT_VM, rc=rc)
   if (rc /= ESMF_SUCCESS) call driver_abort("Failed to create ACES GridComp", rc)
 
-  ! Attach grid so Realize phase can access dimensions
-  call ESMF_GridCompSet(acesComp, grid=grid, rc=rc)
-  if (rc /= ESMF_SUCCESS) call driver_abort("Failed to attach grid to ACES component", rc)
+  ! Attach grid and clock so Realize phase can access dimensions
+  ! and NUOPC_ModelBase's Advance wrapper can retrieve the clock
+  call ESMF_GridCompSet(acesComp, grid=grid, clock=clock, rc=rc)
+  if (rc /= ESMF_SUCCESS) call driver_abort("Failed to attach grid and clock to ACES component", rc)
 
-  ! Register all ACES phase methods (Advertise, Realize, InitP1, InitP2, Run, Finalize)
+  ! Set the configuration file path before SetServices
+  call ACES_SetConfigPath(trim(config_file), rc)
+  if (rc /= ESMF_SUCCESS) call driver_abort("Failed to set ACES config path", rc)
+
+  ! Register all ACES phase methods via ESMF_GridCompSetServices.
+  ! This properly initializes the component VM and function table.
+  ! Direct calls to ACES_SetServices bypass VM initialization and cause rc=526.
   write(*,'(A)') "INFO: [Driver] Calling ACES_SetServices"
-  call ACES_SetServices(acesComp, rc=rc)
+  call ESMF_GridCompSetServices(acesComp, userRoutine=ACES_SetServices, rc=rc)
   if (rc /= ESMF_SUCCESS) call driver_abort("ACES_SetServices failed", rc)
 
   ! -----------------------------------------------------------------------
-  ! 7. NUOPC Phase: Advertise (Requirement 2.5)
-  !    NUOPC_Model phase 1 = ModelBase_Advertise
-  !    Components declare import/export field names without allocating memory
+  ! 7. NUOPC Phase: Advertise + Core Init (IPDv01p1)
+  !    Runs Kokkos init, YAML config, PhysicsFactory, StackingEngine,
+  !    and advertises all export fields.
   ! -----------------------------------------------------------------------
-  write(*,'(A)') "INFO: [Driver] === Phase: Advertise ==="
+  write(*,'(A)') "INFO: [Driver] === Phase: Advertise+Init (IPDv01p1) ==="
   call ESMF_GridCompInitialize(acesComp, importState=importState, &
                                 exportState=exportState, clock=clock, &
                                 phase=1, rc=rc)
-  if (rc /= ESMF_SUCCESS) call driver_abort("ACES Advertise phase failed", rc)
-  write(*,'(A)') "INFO: [Driver] Advertise phase complete"
+  if (rc /= ESMF_SUCCESS) call driver_abort("ACES Advertise+Init phase failed", rc)
+  write(*,'(A)') "INFO: [Driver] Advertise+Init phase complete"
 
   ! -----------------------------------------------------------------------
-  ! 8. NUOPC Phase: Realize (Requirement 2.6)
-  !    NUOPC_Model phase 2 = ModelBase_Realize
-  !    Components create and allocate fields; import fields verified
+  ! 8. NUOPC Phase: Realize + Field Binding (IPDv01p3)
+  !    Creates/allocates ESMF fields and binds CDEPS data streams.
   ! -----------------------------------------------------------------------
-  write(*,'(A)') "INFO: [Driver] === Phase: Realize ==="
+  write(*,'(A)') "INFO: [Driver] === Phase: Realize+Bind (IPDv01p3) ==="
   call ESMF_GridCompInitialize(acesComp, importState=importState, &
                                 exportState=exportState, clock=clock, &
                                 phase=2, rc=rc)
-  if (rc /= ESMF_SUCCESS) call driver_abort("ACES Realize phase failed", rc)
-  write(*,'(A)') "INFO: [Driver] Realize phase complete"
+  if (rc /= ESMF_SUCCESS) call driver_abort("ACES Realize+Bind phase failed", rc)
+  write(*,'(A)') "INFO: [Driver] Realize+Bind phase complete"
 
   ! -----------------------------------------------------------------------
-  ! 9. NUOPC Phase: Initialize P1 - IPDv00p1 (Requirement 2.7)
-  !    Kokkos init, YAML config parse, PhysicsFactory, StackingEngine
-  ! -----------------------------------------------------------------------
-  write(*,'(A)') "INFO: [Driver] === Phase: Initialize P1 (IPDv00p1) ==="
-  call ESMF_GridCompInitialize(acesComp, importState=importState, &
-                                exportState=exportState, clock=clock, &
-                                phase=3, rc=rc)
-  if (rc /= ESMF_SUCCESS) call driver_abort("ACES Initialize P1 (IPDv00p1) failed", rc)
-  write(*,'(A)') "INFO: [Driver] Initialize P1 complete"
-
-  ! -----------------------------------------------------------------------
-  ! 10. NUOPC Phase: Initialize P2 - IPDv00p2 (Requirement 2.7)
-  !     CDEPS initialization and field binding
-  ! -----------------------------------------------------------------------
-  write(*,'(A)') "INFO: [Driver] === Phase: Initialize P2 (IPDv00p2) ==="
-  call ESMF_GridCompInitialize(acesComp, importState=importState, &
-                                exportState=exportState, clock=clock, &
-                                phase=4, rc=rc)
-  if (rc /= ESMF_SUCCESS) call driver_abort("ACES Initialize P2 (IPDv00p2) failed", rc)
-  write(*,'(A)') "INFO: [Driver] Initialize P2 complete"
-
-  ! -----------------------------------------------------------------------
-  ! 11. Run loop: advance clock and execute ACES each step (Requirements 2.8, 2.9)
+  ! 10. Run loop: advance clock and execute ACES each step (Requirements 2.8, 2.9)
+  !    In a standalone driver, the clock must be advanced manually after each
+  !    ESMF_GridCompRun call. NUOPC_Model only auto-advances the clock when
+  !    driven by a full NUOPC_Driver framework.
   ! -----------------------------------------------------------------------
   total_steps = 0
   clock_done  = .false.
@@ -209,11 +200,10 @@ program aces_nuopc_single_driver
     write(msg,'(A,I0)') "INFO: [Driver] Run step ", total_steps
     write(*,'(A)') trim(msg)
 
-    ! Advance clock before run (driver advances, ACES reads current time)
-    call ESMF_ClockAdvance(clock, rc=rc)
-    if (rc /= ESMF_SUCCESS) call driver_abort("Failed to advance clock", rc)
-
-    ! Execute ACES Run phase (model_label_Advance, phase=1)
+    ! Execute ACES Run phase (model_label_Advance, phase=1).
+    ! In a standalone driver (not a full NUOPC_Driver), the clock is NOT
+    ! advanced automatically by NUOPC_Model. We must advance it manually
+    ! after each run step so the stop-time check terminates the loop.
     call ESMF_GridCompRun(acesComp, importState=importState, &
                           exportState=exportState, clock=clock, &
                           phase=1, rc=rc)
@@ -221,6 +211,10 @@ program aces_nuopc_single_driver
       write(msg,'(A,I0)') "ACES Run phase failed at step ", total_steps
       call driver_abort(trim(msg), rc)
     end if
+
+    ! Advance the clock by one time step
+    call ESMF_ClockAdvance(clock, rc=rc)
+    if (rc /= ESMF_SUCCESS) call driver_abort("Failed to advance clock", rc)
 
     clock_done = ESMF_ClockIsStopTime(clock, rc=rc)
     if (rc /= ESMF_SUCCESS) call driver_abort("Failed to check clock stop time", rc)
