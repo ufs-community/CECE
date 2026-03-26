@@ -459,12 +459,12 @@ def convert_hemco_to_aces(hemco_config_path, output_path, diagn_path=None):
 
         aces_config["species"][species_name].append(layer)
 
-        # Register base emission file as a CDEPS stream
+        # Register base emission file as a TIDE stream
         if be["file"] not in ("-", ""):
             streams[be["name"]] = _resolve_path(be["file"], root_val)
 
     # ------------------------------------------------------------------
-    # Build CDEPS streams list
+    # Build TIDE streams list
     # ------------------------------------------------------------------
     for name, file_path in streams.items():
         aces_config["aces_data"]["streams"].append(

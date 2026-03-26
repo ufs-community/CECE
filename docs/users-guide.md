@@ -12,7 +12,7 @@ To build ACES, you need the following dependencies:
 - **ESMF** (8.0+)
 - **MPI** (OpenMPI, MPICH, etc.)
 - **yaml-cpp** (0.7+)
-- **CDEPS** (inline version)
+- **TIDE** (Temporal Interpolation & Data Extraction)
 - **NetCDF** (C and Fortran interfaces)
 - **Python 3.8+** (for scripts and testing)
 
@@ -139,9 +139,9 @@ physics_schemes:
     options:
       dust_source_strength: 1.0
 
-# CDEPS configuration (optional)
-cdeps:
-  streams_file: /path/to/streams.txt
+# TIDE configuration (optional)
+aces_data:
+  streams_yaml: /path/to/streams.yaml
   data_root: /data/emissions
 
 # Output configuration (for standalone mode)
@@ -164,12 +164,9 @@ diagnostics:
     - scale_factors_applied
 ```
 
-## CDEPS Streams Configuration
+## TIDE Streams Configuration
 
-CDEPS streams are configured in ESMF Config format. Example `streams.txt`:
-
-```
-# CDEPS Streams Configuration for ACES
+TIDE streams are configured in YAML format. Example `streams.yaml`:
 
 streams:
   - name: anthro_emissions
@@ -302,9 +299,9 @@ cmake .. -DCMAKE_CXX_COMPILER=g++-10
 
 ### Runtime Issues
 
-**Problem**: CDEPS fails to read streams file
+**Problem**: TIDE fails to read streams file
 ```
-Error: Cannot open streams file /path/to/streams.txt
+Error: Cannot open streams file /path/to/streams.yaml
 ```
 
 **Solution**: Verify the streams file path is correct and the file exists:

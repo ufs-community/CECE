@@ -1,8 +1,8 @@
-# CDEPS Streams Configuration Parser
+# TIDE Streams Configuration Parser
 
 ## Overview
 
-The CDEPS Streams Configuration Parser provides functionality to parse, validate, and serialize ESMF Config format streams files used by CDEPS-inline for data ingestion in ACES. This enables hybrid data ingestion where static emission inventories from NetCDF files are combined with live meteorological fields from ESMF.
+The TIDE Streams Configuration Parser provides functionality to parse, validate, and serialize YAML format streams files used by TIDE for data ingestion in ACES. This enables hybrid data ingestion where static emission inventories from NetCDF files are combined with live meteorological fields from ESMF.
 
 ## Features
 
@@ -12,9 +12,9 @@ The CDEPS Streams Configuration Parser provides functionality to parse, validate
 - **Detailed Error Messages**: Provides actionable error messages for configuration issues
 - **NetCDF Integration**: Validates that variables exist in specified NetCDF files
 
-## ESMF Config Format
+## YAML Format
 
-The ESMF Config format for CDEPS streams uses a simple key-value syntax:
+The YAML format for TIDE streams uses a simple key-value syntax:
 
 ```
 stream::<stream_name>
@@ -63,14 +63,14 @@ stream::<stream_name>
 ### Parsing a Streams File
 
 ```cpp
-#include "aces/aces_cdeps_parser.hpp"
+#include "aces/aces_tide_yaml_serializer.hpp"
 
 // Parse streams file
-aces::AcesCdepsConfig config =
-    aces::CdepsStreamsParser::ParseStreamsFile("aces_emissions.streams");
+aces::AcesDataConfig config =
+    aces::SerializeTideYaml("aces_emissions.yaml");
 
 // Access parsed streams
-for (const auto& stream : config.streams) {
+for (const auto& stream : config.aces_data.streams) {
     std::cout << "Stream: " << stream.name << std::endl;
     std::cout << "  Files: " << stream.file_paths.size() << std::endl;
     std::cout << "  Variables: " << stream.variables.size() << std::endl;
@@ -80,13 +80,12 @@ for (const auto& stream : config.streams) {
 ### Validating a Configuration
 
 ```cpp
-#include "aces/aces_cdeps_parser.hpp"
+#include "aces/aces_config_validator.hpp"
 
-aces::AcesCdepsConfig config =
-    aces::CdepsStreamsParser::ParseStreamsFile("aces_emissions.streams");
+aces::AcesDataConfig config = /* ... */;
 
 std::vector<std::string> errors;
-bool is_valid = aces::CdepsStreamsParser::ValidateStreamsConfig(config, errors);
+bool is_valid = aces::ConfigValidator::ValidateTIDE(config, errors);
 
 if (!is_valid) {
     std::cerr << "Configuration validation failed:" << std::endl;
@@ -99,20 +98,37 @@ if (!is_valid) {
 ### Writing a Streams File
 
 ```cpp
-#include "aces/aces_cdeps_parser.hpp"
+#include "aces/aces_tide_yaml_serializer.hpp"
 
 // Create configuration programmatically
-aces::AcesCdepsConfig config;
-aces::CdepsStreamConfig stream;
+aces::AcesDataConfig config;
+aces::AcesDataStreamConfig stream;
+
+stream.name = "test_emissions";
+stream.file_paths = {"/data/emissions.nc"};
+stream.variables = {{"SO2", "so2_flux"}};
+
+config.aces_data.streams.push_back(stream);
+
+// Write to file
+aces::SerializeTideYaml(config, "output.yaml");
+```
+
+```cpp
+#include "aces/aces_tide_yaml_serializer.hpp"
+
+// Create configuration programmatically
+aces::AcesDataConfig config;
+aces::AcesDataStreamConfig stream;
 stream.name = "test_emissions";
 stream.file_paths = {"/data/emissions.nc"};
 stream.variables = {{"CO_emis", "CO"}, {"NOx_emis", "NOx"}};
 stream.taxmode = "cycle";
 stream.tintalgo = "linear";
-config.streams.push_back(stream);
+config.aces_data.streams.push_back(stream);
 
 // Write to file
-aces::CdepsStreamsParser::WriteStreamsFile("output.streams", config);
+aces::SerializeTideYaml(config, "output.yaml");
 ```
 
 ## Validation
@@ -156,13 +172,13 @@ The parser supports round-trip serialization (Property 16):
 
 ```cpp
 // Parse original file
-auto config1 = aces::CdepsStreamsParser::ParseStreamsFile("original.streams");
+auto config1 = aces::ParseTideYaml("original.yaml");
 
 // Write to new file
-aces::CdepsStreamsParser::WriteStreamsFile("copy.streams", config1);
+aces::SerializeTideYaml(config1, "copy.yaml");
 
 // Parse the copy
-auto config2 = aces::CdepsStreamsParser::ParseStreamsFile("copy.streams");
+auto config2 = aces::ParseTideYaml("copy.yaml");
 
 // config1 and config2 should be equivalent
 ```
@@ -180,22 +196,21 @@ The parser integrates with ACES configuration:
 // In aces_config.hpp
 struct AcesConfig {
     // ... other fields ...
-    AcesCdepsConfig cdeps_config;  // Parsed streams configuration
+    AcesDataConfig aces_data;  // Parsed streams configuration
 };
 
 // In aces_data_ingestor.cpp
-void AcesDataIngestor::InitializeCDEPS(
-    ESMC_GridComp gcomp,
-    ESMC_Clock clock,
-    ESMC_State exportState,
-    const AcesCdepsConfig& config) {
-    // Use parsed configuration to initialize CDEPS
+void AcesDataIngestor::IngestEmissionsInline(
+    const AcesDataConfig& config,
+    AcesImportState& aces_state,
+    int nx, int ny, int nz) {
+    // Use parsed configuration to ingest emissions from TIDE
 }
 ```
 
 ## Examples
 
-See `examples/cdeps_streams_example.txt` for complete examples demonstrating:
+See `examples/aces_config_ex*.yaml` for complete examples demonstrating:
 - Anthropogenic emissions from CEDS
 - Biogenic emissions from MEGAN
 - Biomass burning emissions from GFED
@@ -204,18 +219,18 @@ See `examples/cdeps_streams_example.txt` for complete examples demonstrating:
 
 ## Testing
 
-Unit tests are provided in `tests/test_cdeps_parser.cpp`:
+Unit tests are provided in `tests/cf_ingestor/test_tide_yaml_serializer.cpp`:
 
 ```bash
 # Build and run tests
 mkdir build && cd build
 cmake ..
-make test_cdeps_parser
-./test_cdeps_parser
+make test_tide_yaml_serializer
+./test_tide_yaml_serializer
 ```
 
 Tests cover:
-- Parsing valid streams files
+- Parsing valid YAML streams files
 - Handling missing files
 - Validating interpolation modes
 - Detecting missing attributes
@@ -229,9 +244,10 @@ Tests cover:
 
 This implementation satisfies the following requirements:
 
-- **Requirement 1.1**: CDEPS-Inline Hybrid Data Ingestion
-- **Requirement 1.2**: CDEPS configuration validation
-- **Requirement 7.1-7.10**: CDEPS Streams Configuration Parser
+- **Requirement 4.1**: TIDE YAML Configuration
+- **Requirement 4.3**: TIDE YAML Serialization
+- **Requirement 4.4**: TIDE YAML Round-Trip
+- **Requirement 4.6**: TIDE YAML Error Handling
   - 7.1: Parse ESMF Config format
   - 7.2: Validate required attributes
   - 7.3: Validate file paths
@@ -250,7 +266,7 @@ This implementation satisfies the following requirements:
 Potential future enhancements:
 - Support for YAML format as alternative to ESMF Config
 - Schema validation using JSON Schema or similar
-- Integration with CDEPS validation tools
+- Integration with TIDE validation tools
 - Support for stream templates and includes
 - Automatic mesh file discovery
 - Variable dimension validation

@@ -27,7 +27,7 @@ ACES (Atmospheric Chemistry Emission System) is a modular, performance-portable 
         ┌────────────┼────────────┐
         ▼            ▼            ▼
     ┌────────┐  ┌──────────┐  ┌──────────────┐
-    │ Config │  │  CDEPS   │  │ StackEngine  │
+    │ Config │  │  TIDE    │  │ StackEngine  │
     │ Parser │  │ Ingestor │  │ + Physics    │
     └────────┘  └──────────┘  └──────────────┘
 ```
@@ -41,7 +41,7 @@ ACES (Atmospheric Chemistry Emission System) is a modular, performance-portable 
   - Register ACES as a NUOPC model component
   - Manage NUOPC phase transitions
   - Bridge between Fortran ESMF and C++ core
-  - Handle CDEPS initialization
+  - Handle TIDE initialization
 
 #### 2. C++ Bridge Layer
 - **Files**: `src/aces_core_*.cpp`
@@ -50,7 +50,7 @@ ACES (Atmospheric Chemistry Emission System) is a modular, performance-portable 
   - `aces_core_advertise.cpp`: Declare import/export fields
   - `aces_core_realize.cpp`: Create and allocate fields
   - `aces_core_initialize_p1.cpp`: Initialize Kokkos, config, physics
-  - `aces_core_initialize_p2.cpp`: Receive grid dimensions, bind fields, initialize CDEPS
+  - `aces_core_initialize_p2.cpp`: Receive grid dimensions, bind fields, initialize TIDE
   - `aces_core_run.cpp`: Execute emission computation
   - `aces_core_finalize.cpp`: Cleanup resources
 
@@ -70,12 +70,12 @@ This design ensures the C++ core is framework-independent and can be tested with
   - Parse physics scheme options
   - Validate configuration
 
-#### 4. CDEPS Data Ingestor
+#### 4. TIDE Data Ingestor
 - **File**: `src/io/aces_data_ingestor.cpp`
-- **Purpose**: Hybrid data ingestion from CDEPS and ESMF
+- **Purpose**: Hybrid data ingestion from TIDE and ESMF
 - **Responsibilities**:
-  - Initialize CDEPS with streams configuration
-  - Resolve fields with priority: CDEPS > ESMF
+  - Initialize TIDE with streams configuration
+  - Resolve fields with priority: TIDE > ESMF
   - Cache field handles for performance
   - Wrap data in Kokkos::View
 
@@ -129,7 +129,7 @@ This design ensures the C++ core is framework-independent and can be tested with
    - Create ESMF fields for each species (Fortran cap)
    - Extract field data pointers (Fortran cap)
    - Call aces_core_bind_fields with field pointers (C++)
-   - Initialize CDEPS with created fields (Fortran cap)
+   - Initialize TIDE with created fields (Fortran cap)
 ```
 
 ### Field Management Architecture
@@ -142,7 +142,7 @@ The refactored field management maintains clean separation of concerns:
 - Add fields to export state using `ESMF_StateAddField()`
 - Extract field data pointers using `ESMF_FieldGetDataPointer()`
 - Pass grid dimensions and field pointers to C++ core
-- Initialize CDEPS with created fields using `aces_cdeps_init()`
+- Initialize TIDE with created fields (Fortran cap)
 
 **C++ Core Responsibilities** (src/aces_core_initialize_p2.cpp):
 - Receive grid dimensions as simple integers
@@ -157,7 +157,7 @@ The refactored field management maintains clean separation of concerns:
 1. Grid dimensions passed as integers (not ESMF objects)
 2. Field data pointers passed as void pointers (direct memory access)
 3. Two-stage initialization: Phase 2a (grid dims), Phase 2b (field pointers)
-4. All ESMF/NUOPC/CDEPS interactions in Fortran cap
+4. All ESMF/NUOPC/TIDE interactions in Fortran cap
 5. C++ core remains framework-independent
 
 ### Run Loop Sequence
@@ -166,7 +166,7 @@ The refactored field management maintains clean separation of concerns:
 For each time step:
 1. NUOPC Driver advances clock
 2. Run Phase:
-   a. Advance CDEPS to current time
+   a. Advance TIDE to current time
    b. Extract current hour and day-of-week
    c. Execute StackingEngine:
       - Aggregate layers with priorities
@@ -219,7 +219,7 @@ C++ core:
   - Validates pointer validity
 
 Fortran cap:
-  - Initializes CDEPS with created fields
+  - Initializes TIDE with created fields
 ```
 
 **Run Phase**:
@@ -243,17 +243,17 @@ Fortran cap:
 External Data (NetCDF)
         │
         ▼
-    CDEPS_Inline
+    TIDE_Inline
         │
         ├─────────────────┐
         │                 │
         ▼                 ▼
-   CDEPS Fields    ESMF ImportState
+   TIDE Fields    ESMF ImportState
         │                 │
         └────────┬────────┘
                  │
                  ▼
-        Field Resolver (Priority: CDEPS > ESMF)
+        Field Resolver (Priority: TIDE > ESMF)
                  │
                  ▼
         StackingEngine (Layer Aggregation)
@@ -281,7 +281,7 @@ External Data (NetCDF)
 - ESMF grid management and dimension extraction
 - ESMF field creation and state management
 - NUOPC phase transitions
-- CDEPS initialization and data ingestion
+- TIDE initialization and data ingestion
 - Fortran/C++ bridge via C interface bindings
 
 **C++ Core (src/aces_core_*.cpp)** handles pure computation:
@@ -310,7 +310,7 @@ call NUOPC_CompAttributeSet(comp, "InitializePhaseMap", &
 
 This ensures:
 - Phase 1 (IPDv00p1): Core initialization
-- Phase 2 (IPDv00p2): CDEPS and field binding
+- Phase 2 (IPDv00p2): TIDE and field binding
 
 ### Multi-Phase Initialization
 
@@ -329,7 +329,7 @@ ACES uses two-phase initialization to separate concerns:
 - Create ESMF fields for each species (Fortran)
 - Extract field data pointers (Fortran)
 - Pass field pointers to C++ core
-- Initialize CDEPS with created fields (Fortran)
+- Initialize TIDE with created fields (Fortran)
 - Prepare for run loop
 
 This separation allows:
@@ -463,7 +463,7 @@ The refactored field management architecture ensures clean separation between fr
 │   - Validate pointer validity                                 │
 │                                                                 │
 │ Fortran Cap:                                                    │
-│   - Initialize CDEPS with created fields                      │
+│   - Initialize TIDE with created fields                      │
 └─────────────────────────────────────────────────────────────────┘
                             ↓
 ┌─────────────────────────────────────────────────────────────────┐
@@ -491,7 +491,7 @@ The refactored field management architecture ensures clean separation between fr
 
 3. **Two-Stage Initialization**: Phase 2a receives grid dimensions, Phase 2b receives field pointers. This allows proper sequencing of ESMF operations.
 
-4. **No ESMF in C++**: All ESMF/NUOPC/CDEPS interactions are in Fortran. C++ core is framework-independent.
+4. **No ESMF in C++**: All ESMF/NUOPC/TIDE interactions are in Fortran. C++ core is framework-independent.
 
 5. **Cached Metadata**: Field metadata is cached in AcesInternalData for efficient runtime access without repeated ESMF queries.
 

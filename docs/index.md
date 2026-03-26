@@ -5,7 +5,7 @@
 ## Key Features
 
 - **Performance Portability**: Write once, run anywhere. ACES uses Kokkos to target NVIDIA GPUs, multi-core CPUs (OpenMP), and more without changing the source code.
-- **Hybrid Data Ingestion**: Pull live meteorological data (temperature, wind speed, etc.) from ESMF while simultaneously reading static emission inventories from disk using CDEPS-inline.
+- **Hybrid Data Ingestion**: Pull live meteorological data (temperature, wind speed, etc.) from ESMF while simultaneously reading static emission inventories from disk using TIDE.
 - **Modular Physics Engine**: Easily extend ACES with new physics schemes. Supports both native C++ (Kokkos) and legacy Fortran plugins.
 - **Flexible Stacking Engine**: Combine multiple emission layers using prioritized categories and hierarchy levels. Apply geographical masks and multiple scale factors per layer.
 - **Built-in Diagnostics**: Integrated diagnostic manager for registering and writing intermediate variables to NetCDF files.
@@ -14,15 +14,15 @@
 
 ACES operates as an ESMF Grid Component. It follows the standard NUOPC/ESMF lifecycle:
 
-1.  **Initialize**: Parses YAML configuration, instantiates physics schemes, and initializes CDEPS-inline.
+1.  **Initialize**: Parses YAML configuration, instantiates physics schemes, and initializes TIDE.
 2.  **Run**:
     - Discovers grid dimensions from ESMF fields.
-    - Ingests data from ESMF and CDEPS.
+    - Ingests data from ESMF and TIDE.
     - Executes the Stacking Engine to process base emissions.
     - Runs active Physics Extensions.
     - Writes diagnostics to disk.
     - Synchronizes computed emissions back to the ESMF host state.
-3.  **Finalize**: Cleans up resources and finalizes Kokkos/CDEPS.
+3.  **Finalize**: Cleans up resources and finalizes Kokkos/TIDE.
 
 ## Get Started
 

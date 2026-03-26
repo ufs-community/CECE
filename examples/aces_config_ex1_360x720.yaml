@@ -1,0 +1,25 @@
+# ACES Example 1 Configuration with 360x720 grid
+driver:
+  nx: 360
+  ny: 720
+  nz: 10
+
+meteorology: {}
+
+species:
+  co:
+    - field: "co"
+      operation: "add"
+      scale: 1.0
+
+aces_data:
+  streams:
+    - name: "MACCITY"
+      file: "/work/data/MACCity_4x5.nc"
+      variables:
+        - file: "MACCity"
+          model: "co"
+
+diagnostics:
+  output_interval_seconds: 3600
+  variables: []

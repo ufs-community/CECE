@@ -164,7 +164,7 @@ if(ESMF_FOUND)
     target_include_directories(ESMF::ESMF INTERFACE ${ESMF_INCLUDE_DIRS})
     target_link_libraries(ESMF::ESMF INTERFACE ${ESMF_LIBRARIES})
   endif()
-  # Provide lowercase alias for compatibility with projects like CDEPS
+  # Provide lowercase alias for compatibility with projects like TIDE
   if(NOT TARGET esmf)
     add_library(esmf ALIAS ESMF::ESMF)
   endif()

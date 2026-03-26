@@ -60,17 +60,23 @@ class AcesDataIngestor {
      * @brief Generates a TIDE-compatible YAML configuration string from the
      * AcesDataConfig.
      *
-     * This serialized YAML is passed to the TIDE layer (CDEPS) to initialize
+     * This serialized YAML is passed to the TIDE layer to initialize
      * data streams dynamically.
-    /**
-     * @brief Generates a TIDE-compatible ESMF Config resource string from the
-     * AcesDataConfig.
-     *
-     * This serialized string is written to a file and passed to the TIDE layer
-     * via shr_strdata_init_from_config.
      *
      * @param config The data ingestion configuration.
-     * @return An ESMF Config formatted string describing the streams.
+     * @return A YAML formatted string describing the streams.
+     */
+    std::string SerializeTideYaml(const AcesDataConfig& config);
+
+    /**
+     * @brief Generates a TIDE-compatible ESMF configuration string from the
+     * AcesDataConfig.
+     *
+     * This serialized configuration is passed to the TIDE layer for ESMF
+     * initialization.
+     *
+     * @param config The data ingestion configuration.
+     * @return An ESMF formatted configuration string.
      */
     std::string SerializeTideESMFConfig(const AcesDataConfig& config);
 

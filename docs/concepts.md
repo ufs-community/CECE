@@ -19,7 +19,7 @@ Layers are organized into **Categories** (e.g., `anthropogenic`, `biomass_burnin
 
 Each layer can be modified by:
 -   **Geographical Masks**: 2D or 3D fields that restrict where a layer's emissions are applied.
--   **Scale Factors**: Multipliers applied to the base emission field. These can be static values or dynamic fields (like temperature or wind speed) pulled from ESMF or CDEPS.
+-   **Scale Factors**: Multipliers applied to the base emission field. These can be static values or dynamic fields (like temperature or wind speed) pulled from ESMF or TIDE.
 
 ### Optimized Fused Kernels
 
@@ -40,14 +40,14 @@ ACES is implemented as a NUOPC-compliant ESMF component. It follows a standard l
 -   **Dimension Discovery**: ACES dynamically determines the grid dimensions from the ESMF fields at runtime.
 -   **Data Ingestion**:
     -   Live meteorological data is pulled from the ESMF Import State.
-    -   Static emission inventories are read from disk using the CDEPS-inline engine.
+    -   Static emission inventories are read from disk using the TIDE engine.
 -   **Stacking Execution**: The fused Kokkos kernels are launched to compute the base emissions.
 -   **Physics Execution**: Active physics schemes (like Sea Salt or MEGAN) are executed to modify or generate new emissions.
 -   **Diagnostics**: Intermediate variables are captured by the `AcesDiagnosticManager` and written to NetCDF files if configured.
 -   **State Synchronization**: Final emissions are deep-copied back to the ESMF Export State.
 
 ### 3. Finalize Phase
--   Resources are released, and Kokkos/CDEPS are finalized.
+-   Resources are released, and Kokkos/TIDE are finalized.
 
 ---
 

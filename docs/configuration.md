@@ -27,7 +27,7 @@ diagnostics:
   # ... diagnostic settings ...
 
 aces_data:
-  # ... CDEPS settings ...
+  # ... TIDE settings ...
 ```
 
 ---
@@ -40,7 +40,7 @@ The `species` block defines the emission targets and the layers that contribute 
 
 | Key | Type | Description |
 | --- | --- | --- |
-| `field` | String | Name of the input field. ACES looks in CDEPS first, then ESMF ImportState. |
+| `field` | String | Name of the input field. ACES looks in TIDE first, then ESMF ImportState. |
 | `operation` | String | `add` (accumulate) or `replace` (overwrite existing value). |
 | `scale` | Float | Base scaling factor (Default: `1.0`). |
 | `category` | String | Grouping for layers. |
@@ -113,7 +113,7 @@ Configures the output of intermediate variables.
 
 ## `aces_data`
 
-Configures the CDEPS-inline streams for reading data from disk.
+Configures the TIDE streams for reading data from disk.
 
 | Key | Type | Description |
 | --- | --- | --- |
