@@ -7,9 +7,9 @@ species:
       category: "anthropogenic"
       operation: "add"
 
-cdeps_inline_config:
+aces_data:
   streams:
     - name: "EDGAR_NO_POW"
-      file: "data/EDGAR_v43.NOx.POW.nc"
+      file: "/work/data/EDGAR_v43.NOx.POW.nc"
     - name: "CEDS_NO_AGR"
-      file: "data/ALK4_butanes-em-total-anthro_CEDS_1970.nc"
+      file: "/work/data/ALK4_butanes-em-total-anthro_CEDS_1970.nc"

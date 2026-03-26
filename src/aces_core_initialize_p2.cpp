@@ -24,6 +24,7 @@
 
 #include <Kokkos_Core.hpp>
 #include <iostream>
+#include <set>
 #include <string>
 
 #include "aces/aces_data_ingestor.hpp"
@@ -105,11 +106,11 @@ void aces_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc)
     std::cout << "INFO: Grid dimensions received: nx=" << internal_data->nx
               << ", ny=" << internal_data->ny << ", nz=" << internal_data->nz << std::endl;
 
-    // 3. Initialize CDEPS_Inline if streams are configured
-    if (!internal_data->config.cdeps_config.streams.empty()) {
-        std::cout << "INFO: CDEPS streams configured - initializing CDEPS_Inline" << std::endl;
+    // 3. Initialize data ingestor if streams are configured
+    if (!internal_data->config.aces_data.streams.empty()) {
+        std::cout << "INFO: aces_data streams configured - initializing data ingestor" << std::endl;
         std::cout << "INFO: Number of streams: "
-                  << internal_data->config.cdeps_config.streams.size() << std::endl;
+                  << internal_data->config.aces_data.streams.size() << std::endl;
 
         try {
             // Initialize CDEPS through the data ingestor

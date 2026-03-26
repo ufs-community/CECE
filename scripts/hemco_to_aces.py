@@ -351,7 +351,7 @@ def convert_hemco_to_aces(hemco_config_path, output_path, diagn_path=None):
         "masks": {},
         "temporal_profiles": {},
         "species": {},
-        "cdeps_inline_config": {"streams": []},
+        "aces_data": {"streams": []},
     }
 
     # ------------------------------------------------------------------
@@ -467,7 +467,7 @@ def convert_hemco_to_aces(hemco_config_path, output_path, diagn_path=None):
     # Build CDEPS streams list
     # ------------------------------------------------------------------
     for name, file_path in streams.items():
-        aces_config["cdeps_inline_config"]["streams"].append(
+        aces_config["aces_data"]["streams"].append(
             {"name": name, "file": file_path}
         )
 

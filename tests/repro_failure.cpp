@@ -61,14 +61,14 @@ class VerticalDistributionReproResolver : public FieldResolver {
 class ReproTest : public ::testing::Test {
    protected:
     std::mt19937 rng{42};
-    
+
     std::tuple<int, int, int> GenerateRandomGridDimensions() {
         std::uniform_int_distribution<int> nx_dist(2, 20);
         std::uniform_int_distribution<int> ny_dist(2, 20);
         std::uniform_int_distribution<int> nz_dist(5, 50);
         return {nx_dist(rng), ny_dist(rng), nz_dist(rng)};
     }
-    
+
     void SetUp() override {
         if (!Kokkos::is_initialized()) Kokkos::initialize();
     }
@@ -92,7 +92,7 @@ TEST_F(ReproTest, ReplicateFailurePrecise) {
 
         if (iteration != 7) continue;
 
-        std::cout << "Iteration 7 reached. Method: " << static_cast<int>(method) 
+        std::cout << "Iteration 7 reached. Method: " << static_cast<int>(method)
                   << " Grid: " << nx << "," << ny << "," << nz << std::endl;
 
         AcesConfig config;
@@ -113,16 +113,16 @@ TEST_F(ReproTest, ReplicateFailurePrecise) {
         } else if ...
         */
         // I need to implement helper functions to match RNG consumption.
-        
-        // ... Wait, this is getting complicated to replicate exact RNG state 
+
+        // ... Wait, this is getting complicated to replicate exact RNG state
         // because I need all helper functions.
         // But the user GAVE me the parameters!
         // Grid (11,8,29). Method 2 (PRESSURE).
-        
+
         // I'll just use those.
         nx = 11; ny = 8; nz = 29;
         method = VerticalDistributionMethod::PRESSURE;
-        
+
         layer_config.vdist_method = method; // Correction: Update layer config!
 
         // Now I need to generate P start/end using the same logic as the specific method block
@@ -131,10 +131,10 @@ TEST_F(ReproTest, ReplicateFailurePrecise) {
         double p_start = pressure_dist(rng); // Calling this advances RNG
         double p_end = pressure_dist(rng);
         if (p_start > p_end) std::swap(p_start, p_end);
-        
+
         layer_config.vdist_p_start = p_start;
         layer_config.vdist_p_end = p_end;
-        
+
         std::cout << "P Start: " << p_start << " P End: " << p_end << std::endl;
 
         config.species_layers["TestSpecies"] = {layer_config};
@@ -163,8 +163,8 @@ TEST_F(ReproTest, ReplicateFailurePrecise) {
             }
 
             resolver.AddField("ps", nx, ny, 1);
-            for(int i=0; i<nx; ++i) 
-                for(int j=0; j<ny; ++j) 
+            for(int i=0; i<nx; ++i)
+                for(int j=0; j<ny; ++j)
                  resolver.SetValue("ps", i, j, 0, 101325.0);
 
             resolver.AddField("pbl_height", nx, ny, 1);
@@ -186,7 +186,7 @@ TEST_F(ReproTest, ReplicateFailurePrecise) {
                 resolver.SetValue("emissions_2d", i, j, 0, val);
             }
         }
-        
+
         // Sanity check
         std::cout << "Sample emission: " << emissions_2d[0] << std::endl;
 
@@ -210,7 +210,7 @@ TEST_F(ReproTest, ReplicateFailurePrecise) {
                 max_rel_error = std::max(max_rel_error, rel_error);
             }
         }
-        
+
         std::cout << "Max Rel Error: " << max_rel_error << std::endl;
         EXPECT_LT(max_rel_error, 1e-10);
     }

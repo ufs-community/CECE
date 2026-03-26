@@ -11,9 +11,15 @@ species:
       hierarchy: 1
       operation: "add"
 
-cdeps_inline_config:
+aces_data:
   streams:
     - name: "MACCITY_CO"
-      file: "data/MACCity_4x5.nc"
+      file: "/work/data/MACCity_4x5.nc"
+      variables:
+        - file: "MACCity"
+          model: "MACCITY_CO"
     - name: "GFED_WDL"
-      file: "data/GFED4_gen.025x025.199701.nc"
+      file: "/work/data/GFED4_gen.025x025.199701.nc"
+      variables:
+        - file: "DM_TOTL"
+          model: "GFED_WDL"

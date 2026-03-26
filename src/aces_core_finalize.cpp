@@ -11,12 +11,12 @@
  * Requirements: 4.15-4.17
  */
 
-#include <ESMC.h>
-
 #include <Kokkos_Core.hpp>
 #include <iostream>
 
 #include "aces/aces_internal.hpp"
+
+
 
 extern "C" {
 
@@ -28,13 +28,13 @@ extern "C" {
  * Kokkos::finalize() is called, satisfying the Kokkos teardown contract.
  *
  * @param data_ptr Pointer to AcesInternalData structure.
- * @param rc Return code (ESMF_SUCCESS on success).
+ * @param rc Return code (0 on success).
  *
  * Requirements: 4.15-4.17
  */
 void aces_core_finalize(void* data_ptr, int* rc) {
     if (rc != nullptr) {
-        *rc = ESMF_SUCCESS;
+        *rc = 0;
     }
 
     std::cout << "INFO: ACES Finalize - beginning cleanup\n";
@@ -42,7 +42,7 @@ void aces_core_finalize(void* data_ptr, int* rc) {
     if (data_ptr == nullptr) {
         std::cerr << "ERROR in aces_core_finalize: data_ptr is null\n";
         if (rc != nullptr) {
-            *rc = ESMF_FAILURE;
+            *rc = -1;
         }
         return;
     }
@@ -73,17 +73,7 @@ void aces_core_finalize(void* data_ptr, int* rc) {
         }
     }
 
-    // 3. Finalize CDEPS if it was initialized (Req 4.16)
-    // FinalizeCDEPS is a no-op when the CDEPS bridge symbol is not available,
-    // so it is safe to call unconditionally.
-    try {
-        internal_data->ingestor.FinalizeCDEPS();
-        std::cout << "INFO: CDEPS finalized\n";
-    } catch (const std::exception& e) {
-        std::cerr << "WARNING: FinalizeCDEPS threw: " << e.what() << "\n";
-    }
-
-    // 4. Delete internal state — this destroys all Kokkos::Views.
+    // 3. Delete internal state — this destroys all Kokkos::Views.
     // NOTE: Do NOT call Kokkos::finalize() here. When running inside an ESMF component,
     // ESMF 8.8.0 uses Kokkos internally and owns the Kokkos lifecycle. Calling
     // Kokkos::finalize() before ESMF_Finalize() causes a segfault in ESMF teardown.
@@ -95,7 +85,7 @@ void aces_core_finalize(void* data_ptr, int* rc) {
     std::cout << "INFO: ACES Finalize completed successfully\n";
 
     if (rc != nullptr) {
-        *rc = ESMF_SUCCESS;
+        *rc = 0;
     }
 }
 

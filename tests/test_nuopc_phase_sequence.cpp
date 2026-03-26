@@ -28,7 +28,7 @@ void aces_core_realize(void* data_ptr, void* importState, void* exportState, voi
 void aces_core_initialize_p1(void** data_ptr, int* rc);
 void aces_core_initialize_p2(void* data_ptr, void* gcomp, void* importState, void* exportState,
                              void* clock, void* grid, int* rc);
-void aces_core_run(void* data_ptr, void* importState, void* exportState, void* clock, int* rc);
+void aces_core_run(void* data_ptr, int hour, int day_of_week, int* rc);
 void aces_core_finalize(void* data_ptr, int* rc);
 
 /// Fortran helper: creates ESMF_GridComp with ESMF_CONTEXT_PARENT_VM to avoid
@@ -155,7 +155,7 @@ diagnostics:
   variables:
     - CO
 
-cdeps_inline_config:
+aces_data:
   streams: []
 )";
     }
@@ -167,17 +167,17 @@ cdeps_inline_config:
         void* data_ptr = nullptr;
 
         aces_core_advertise(import_state_.ptr, export_state_.ptr, &rc);
-        if (rc != ESMF_SUCCESS) return nullptr;
+        if (rc != 0) return nullptr;
 
         aces_core_realize(nullptr, import_state_.ptr, export_state_.ptr, grid_.ptr, &rc);
-        if (rc != ESMF_SUCCESS) return nullptr;
+        if (rc != 0) return nullptr;
 
         aces_core_initialize_p1(&data_ptr, &rc);
-        if (rc != ESMF_SUCCESS || data_ptr == nullptr) return nullptr;
+        if (rc != 0 || data_ptr == nullptr) return nullptr;
 
         aces_core_initialize_p2(data_ptr, gcomp_.ptr, import_state_.ptr, export_state_.ptr,
                                 clock_.ptr, grid_.ptr, &rc);
-        if (rc != ESMF_SUCCESS) return nullptr;
+        if (rc != 0) return nullptr;
 
         return data_ptr;
     }
@@ -205,30 +205,30 @@ TEST_F(NuopcPhaseSequenceTest, FullPhaseSequenceCompletes) {
 
     // Advertise
     aces_core_advertise(import_state_.ptr, export_state_.ptr, &rc);
-    ASSERT_EQ(rc, ESMF_SUCCESS) << "Advertise phase failed";
+    ASSERT_EQ(rc, 0) << "Advertise phase failed";
 
     // Realize
     aces_core_realize(nullptr, import_state_.ptr, export_state_.ptr, grid_.ptr, &rc);
-    ASSERT_EQ(rc, ESMF_SUCCESS) << "Realize phase failed";
+    ASSERT_EQ(rc, 0) << "Realize phase failed";
 
     // Initialize p1
     void* data_ptr = nullptr;
     aces_core_initialize_p1(&data_ptr, &rc);
-    ASSERT_EQ(rc, ESMF_SUCCESS) << "Initialize p1 failed";
+    ASSERT_EQ(rc, 0) << "Initialize p1 failed";
     ASSERT_NE(data_ptr, nullptr) << "data_ptr must be non-null after p1";
 
     // Initialize p2
     aces_core_initialize_p2(data_ptr, gcomp_.ptr, import_state_.ptr, export_state_.ptr, clock_.ptr,
                             grid_.ptr, &rc);
-    ASSERT_EQ(rc, ESMF_SUCCESS) << "Initialize p2 failed";
+    ASSERT_EQ(rc, 0) << "Initialize p2 failed";
 
     // Run
-    aces_core_run(data_ptr, import_state_.ptr, export_state_.ptr, clock_.ptr, &rc);
-    EXPECT_EQ(rc, ESMF_SUCCESS) << "Run phase failed";
+    aces_core_run(data_ptr, 12, 3, &rc);  // hour=12, day_of_week=3
+    EXPECT_EQ(rc, 0) << "Run phase failed";
 
     // Finalize
     aces_core_finalize(data_ptr, &rc);
-    EXPECT_EQ(rc, ESMF_SUCCESS) << "Finalize phase failed";
+    EXPECT_EQ(rc, 0) << "Finalize phase failed";
 }
 
 /**
@@ -247,7 +247,7 @@ TEST_F(NuopcPhaseSequenceTest, FullPhaseSequenceCompletes) {
 TEST_F(NuopcPhaseSequenceTest, AdvertisePhaseDeclaresFieldsWithoutAllocation) {
     int rc;
     aces_core_advertise(import_state_.ptr, export_state_.ptr, &rc);
-    EXPECT_EQ(rc, ESMF_SUCCESS) << "Advertise phase should succeed";
+    EXPECT_EQ(rc, 0) << "Advertise phase should succeed";
 
     // Before Realize, the export state should NOT contain a realized CO field.
     ESMC_Field field;
@@ -278,10 +278,10 @@ TEST_F(NuopcPhaseSequenceTest, RealizePhaseAllocatesExportFields) {
     int rc;
 
     aces_core_advertise(import_state_.ptr, export_state_.ptr, &rc);
-    ASSERT_EQ(rc, ESMF_SUCCESS) << "Advertise phase failed";
+    ASSERT_EQ(rc, 0) << "Advertise phase failed";
 
     aces_core_realize(nullptr, import_state_.ptr, export_state_.ptr, grid_.ptr, &rc);
-    ASSERT_EQ(rc, ESMF_SUCCESS) << "Realize phase failed";
+    ASSERT_EQ(rc, 0) << "Realize phase failed";
 
     // The CO field must now exist in the export state.
     ESMC_Field field;
@@ -319,14 +319,14 @@ TEST_F(NuopcPhaseSequenceTest, MultiPhaseInitializationIPDv00) {
 
     // Advertise + Realize must precede initialization.
     aces_core_advertise(import_state_.ptr, export_state_.ptr, &rc);
-    ASSERT_EQ(rc, ESMF_SUCCESS);
+    ASSERT_EQ(rc, 0);
     aces_core_realize(nullptr, import_state_.ptr, export_state_.ptr, grid_.ptr, &rc);
-    ASSERT_EQ(rc, ESMF_SUCCESS);
+    ASSERT_EQ(rc, 0);
 
     // --- Phase 1 ---
     void* data_ptr = nullptr;
     aces_core_initialize_p1(&data_ptr, &rc);
-    ASSERT_EQ(rc, ESMF_SUCCESS) << "IPDv00p1 must return ESMF_SUCCESS";
+    ASSERT_EQ(rc, 0) << "IPDv00p1 must return 0";
     ASSERT_NE(data_ptr, nullptr) << "data_ptr must be non-null after p1";
 
     EXPECT_TRUE(Kokkos::is_initialized()) << "Kokkos must be initialized after p1";
@@ -341,7 +341,7 @@ TEST_F(NuopcPhaseSequenceTest, MultiPhaseInitializationIPDv00) {
     // --- Phase 2 ---
     aces_core_initialize_p2(data_ptr, gcomp_.ptr, import_state_.ptr, export_state_.ptr, clock_.ptr,
                             grid_.ptr, &rc);
-    ASSERT_EQ(rc, ESMF_SUCCESS) << "IPDv00p2 must return ESMF_SUCCESS";
+    ASSERT_EQ(rc, 0) << "IPDv00p2 must return 0";
 
     EXPECT_GT(internal->nx, 0) << "nx must be populated after p2";
     EXPECT_GT(internal->ny, 0) << "ny must be populated after p2";
@@ -350,7 +350,7 @@ TEST_F(NuopcPhaseSequenceTest, MultiPhaseInitializationIPDv00) {
 
     // Cleanup
     aces_core_finalize(data_ptr, &rc);
-    EXPECT_EQ(rc, ESMF_SUCCESS);
+    EXPECT_EQ(rc, 0);
 }
 
 /**
@@ -365,17 +365,17 @@ TEST_F(NuopcPhaseSequenceTest, RunPhaseExecutesAfterFullInit) {
     ASSERT_NE(data_ptr, nullptr) << "Setup phases failed";
 
     int rc;
-    aces_core_run(data_ptr, import_state_.ptr, export_state_.ptr, clock_.ptr, &rc);
-    EXPECT_EQ(rc, ESMF_SUCCESS) << "Run phase must return ESMF_SUCCESS after full init";
+    aces_core_run(data_ptr, 12, 3, &rc);  // hour=12, day_of_week=3
+    EXPECT_EQ(rc, 0) << "Run phase must return 0 after full init";
 
     aces_core_finalize(data_ptr, &rc);
-    EXPECT_EQ(rc, ESMF_SUCCESS);
+    EXPECT_EQ(rc, 0);
 }
 
 /**
  * @test FinalizePhaseReleasesResources
  * @brief Runs the complete sequence through Run, then calls Finalize and
- *        verifies rc == ESMF_SUCCESS.  Kokkos must remain initialized because
+ *        verifies rc == 0.  Kokkos must remain initialized because
  *        the ESMFEnvironment pre-initialized it (owns_kokkos == false).
  *
  * Validates: Requirements 2.10, 4.15-4.17
@@ -385,11 +385,11 @@ TEST_F(NuopcPhaseSequenceTest, FinalizePhaseReleasesResources) {
     ASSERT_NE(data_ptr, nullptr) << "Setup phases failed";
 
     int rc;
-    aces_core_run(data_ptr, import_state_.ptr, export_state_.ptr, clock_.ptr, &rc);
-    ASSERT_EQ(rc, ESMF_SUCCESS) << "Run phase failed before Finalize test";
+    aces_core_run(data_ptr, 12, 3, &rc);  // hour=12, day_of_week=3
+    ASSERT_EQ(rc, 0) << "Run phase failed before Finalize test";
 
     aces_core_finalize(data_ptr, &rc);
-    EXPECT_EQ(rc, ESMF_SUCCESS) << "Finalize must return ESMF_SUCCESS";
+    EXPECT_EQ(rc, 0) << "Finalize must return 0";
 
     // Kokkos was pre-initialized by ESMFEnvironment, so ACES must NOT finalize it.
     EXPECT_TRUE(Kokkos::is_initialized())
@@ -405,12 +405,12 @@ TEST_F(NuopcPhaseSequenceTest, FinalizePhaseReleasesResources) {
  * Validates: Requirements 2.9 (robustness), 4.12
  */
 TEST_F(NuopcPhaseSequenceTest, PhaseOrderEnforcedByReturnCodes) {
-    int rc = ESMF_SUCCESS;
+    int rc = 0;
     void* null_ptr = nullptr;
 
     // Calling Run without prior initialization must fail gracefully.
-    aces_core_run(null_ptr, import_state_.ptr, export_state_.ptr, clock_.ptr, &rc);
-    EXPECT_NE(rc, ESMF_SUCCESS) << "Run with null data_ptr must return a non-zero (failure) rc";
+    aces_core_run(null_ptr, 12, 3, &rc);  // hour=12, day_of_week=3
+    EXPECT_NE(rc, 0) << "Run with null data_ptr must return a non-zero (failure) rc";
 }
 
 // ---------------------------------------------------------------------------

@@ -22,12 +22,11 @@
  * Requirements: 4.7-4.10, 4.18, 4.19
  */
 
-#include <ESMC.h>
-
 #include <Kokkos_Core.hpp>
 #include <iostream>
 #include <memory>
 #include <string>
+#include <set>
 
 #include "aces/aces_config.hpp"
 #include "aces/aces_config_path.hpp"
@@ -70,7 +69,7 @@ extern "C" {
 void aces_core_initialize_p1(void** data_ptr_ptr, int* rc) {
     // Initialize return code to success
     if (rc != nullptr) {
-        *rc = ESMF_SUCCESS;
+        *rc = 0;
     }
 
     std::cout << "INFO: ACES Initialize Phase 1 (IPDv00p1) - Core initialization" << std::endl;
@@ -192,6 +191,24 @@ void aces_core_initialize_p1(void** data_ptr_ptr, int* rc) {
     internal_data->config = config;
     internal_data->kokkos_initialized_here = kokkos_initialized_here;
 
+    // Populate unique_input_fields
+    std::set<std::string> unique_fields;
+    for (const auto& [species_name, layers] : config.species_layers) {
+        for (const auto& layer : layers) {
+            if (!layer.field_name.empty()) {
+                unique_fields.insert(layer.field_name);
+            }
+            for (const auto& sf : layer.scale_fields) {
+                 unique_fields.insert(sf);
+            }
+            for (const auto& m : layer.masks) {
+                 unique_fields.insert(m);
+            }
+        }
+    }
+    internal_data->unique_input_fields.assign(unique_fields.begin(), unique_fields.end());
+    std::cout << "INFO: Found " << internal_data->unique_input_fields.size() << " unique input fields required" << std::endl;
+
     // 4. Initialize PhysicsFactory and instantiate all physics schemes
     std::cout << "INFO: Initializing physics schemes" << std::endl;
     for (const auto& scheme_config : config.physics_schemes) {
@@ -309,7 +326,7 @@ void aces_core_initialize_p1(void** data_ptr_ptr, int* rc) {
     std::cout << "INFO: ACES Initialize Phase 1 completed successfully" << std::endl;
 
     if (rc != nullptr) {
-        *rc = ESMF_SUCCESS;
+        *rc = 0;
     }
 }
 

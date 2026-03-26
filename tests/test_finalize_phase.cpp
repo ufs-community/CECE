@@ -131,7 +131,7 @@ diagnostics:
   variables:
     - CO
 
-cdeps_inline_config:
+aces_data:
   streams: []
 )";
     }

@@ -17,7 +17,7 @@ void aces_core_realize(void* data_ptr, void* importState, void* exportState, voi
 void aces_core_initialize_p1(void** data_ptr, int* rc);
 void aces_core_initialize_p2(void* data_ptr, void* gcomp, void* importState, void* exportState,
                              void* clock, void* grid, int* rc);
-void aces_core_run(void* data_ptr, void* importState, void* exportState, void* clock, int* rc);
+void aces_core_run(void* data_ptr, int hour, int day_of_week, int* rc);
 void aces_core_finalize(void* data_ptr, int* rc);
 
 // Fortran helper: creates ESMF_GridComp with ESMF_CONTEXT_PARENT_VM to avoid
@@ -135,7 +135,7 @@ diagnostics:
   variables:
     - CO
 
-cdeps_inline_config:
+aces_data:
   streams: []
 )";
     }
@@ -177,11 +177,11 @@ TEST_F(RunPhaseTest, BasicRunPhaseExecution) {
     ASSERT_NE(data_ptr, nullptr) << "Setup phases failed";
 
     int rc;
-    aces_core_run(data_ptr, import_state_.ptr, export_state_.ptr, clock_.ptr, &rc);
-    EXPECT_EQ(rc, ESMF_SUCCESS) << "Run phase failed";
+    aces_core_run(data_ptr, 12, 3, &rc);  // hour=12, day_of_week=3 (Wednesday)
+    EXPECT_EQ(rc, 0) << "Run phase failed";
 
     aces_core_finalize(data_ptr, &rc);
-    EXPECT_EQ(rc, ESMF_SUCCESS);
+    EXPECT_EQ(rc, 0);
 }
 
 TEST_F(RunPhaseTest, MultipleRunPhaseExecutions) {
@@ -190,20 +190,20 @@ TEST_F(RunPhaseTest, MultipleRunPhaseExecutions) {
 
     int rc;
     for (int step = 0; step < 3; ++step) {
-        aces_core_run(data_ptr, import_state_.ptr, export_state_.ptr, clock_.ptr, &rc);
-        EXPECT_EQ(rc, ESMF_SUCCESS) << "Run phase failed at step " << (step + 1);
+        aces_core_run(data_ptr, 12, 3, &rc);  // hour=12, day_of_week=3
+        EXPECT_EQ(rc, 0) << "Run phase failed at step " << (step + 1);
         ESMC_ClockAdvance(clock_);
     }
 
     aces_core_finalize(data_ptr, &rc);
-    EXPECT_EQ(rc, ESMF_SUCCESS);
+    EXPECT_EQ(rc, 0);
 }
 
 TEST_F(RunPhaseTest, RunPhaseWithNullDataPtr) {
     int rc;
     void* null_ptr = nullptr;
-    aces_core_run(null_ptr, import_state_.ptr, export_state_.ptr, clock_.ptr, &rc);
-    EXPECT_EQ(rc, ESMF_FAILURE) << "Run phase should fail with null data pointer";
+    aces_core_run(null_ptr, 12, 3, &rc);  // hour=12, day_of_week=3
+    EXPECT_EQ(rc, -1) << "Run phase should fail with null data pointer";
 }
 
 TEST_F(RunPhaseTest, DeviceToHostSynchronization) {
@@ -211,11 +211,11 @@ TEST_F(RunPhaseTest, DeviceToHostSynchronization) {
     ASSERT_NE(data_ptr, nullptr) << "Setup phases failed";
 
     int rc;
-    aces_core_run(data_ptr, import_state_.ptr, export_state_.ptr, clock_.ptr, &rc);
-    EXPECT_EQ(rc, ESMF_SUCCESS) << "Run phase (device-to-host sync) failed";
+    aces_core_run(data_ptr, 12, 3, &rc);  // hour=12, day_of_week=3
+    EXPECT_EQ(rc, 0) << "Run phase (device-to-host sync) failed";
 
     aces_core_finalize(data_ptr, &rc);
-    EXPECT_EQ(rc, ESMF_SUCCESS);
+    EXPECT_EQ(rc, 0);
 }
 
 TEST_F(RunPhaseTest, DeviceToHostSynchronizationMultipleSteps) {
@@ -230,8 +230,8 @@ TEST_F(RunPhaseTest, DeviceToHostSynchronizationMultipleSteps) {
 
     for (int step = 0; step < num_steps; ++step) {
         // Execute run phase (which includes device-to-host sync)
-        aces_core_run(data_ptr, import_state_.ptr, export_state_.ptr, clock_.ptr, &rc);
-        EXPECT_EQ(rc, ESMF_SUCCESS) << "Run phase failed at step " << (step + 1);
+        aces_core_run(data_ptr, 12, 3, &rc);  // hour=12, day_of_week=3
+        EXPECT_EQ(rc, 0) << "Run phase failed at step " << (step + 1);
 
         // Advance clock for next iteration
         if (step < num_steps - 1) {
@@ -240,7 +240,7 @@ TEST_F(RunPhaseTest, DeviceToHostSynchronizationMultipleSteps) {
     }
 
     aces_core_finalize(data_ptr, &rc);
-    EXPECT_EQ(rc, ESMF_SUCCESS);
+    EXPECT_EQ(rc, 0);
 }
 
 TEST_F(RunPhaseTest, SynchronizationPreservesFieldValues) {
@@ -253,15 +253,15 @@ TEST_F(RunPhaseTest, SynchronizationPreservesFieldValues) {
     int rc;
 
     // Run the phase (which executes kernels and syncs to host)
-    aces_core_run(data_ptr, import_state_.ptr, export_state_.ptr, clock_.ptr, &rc);
-    EXPECT_EQ(rc, ESMF_SUCCESS) << "Run phase failed";
+    aces_core_run(data_ptr, 12, 3, &rc);  // hour=12, day_of_week=3
+    EXPECT_EQ(rc, 0) << "Run phase failed";
 
     // After sync_host(), ESMF should be able to access the field data
     // This is implicitly tested by the fact that the run phase completes
     // without errors and the finalize phase can access the fields.
 
     aces_core_finalize(data_ptr, &rc);
-    EXPECT_EQ(rc, ESMF_SUCCESS);
+    EXPECT_EQ(rc, 0);
 }
 
 // ---------------------------------------------------------------------------

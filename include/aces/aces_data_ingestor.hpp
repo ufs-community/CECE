@@ -3,12 +3,18 @@
 
 /**
  * @file aces_data_ingestor.hpp
- * @brief Hybrid data ingestion for ACES (ESMF + CDEPS).
+ * @brief Data ingestion for ACES — field cache for TIDE-interp data.
+ *
+ * This header is free of ESMF includes. It maintains a cache of interpolated
+ * field data received from the NUOPC layer via the C bridge.
  */
 
+#include <memory>
+#include <string>
 #include <unordered_map>
 
-#include "ESMC.h"
+#include <Kokkos_Core.hpp>
+
 #include "aces/aces_config.hpp"
 #include "aces/aces_state.hpp"
 
@@ -16,97 +22,67 @@ namespace aces {
 
 /**
  * @class AcesDataIngestor
- * @brief Handles ingestion of meteorology from ESMF and emissions from CDEPS.
+ * @brief Manages a cache of interpolated emission fields.
  *
- * Implements hybrid field resolution with priority: CDEPS first, then ESMF ImportState.
- * Caches field pointers to avoid redundant queries.
+ * The cache stores fields as rank-3 Kokkos::Views (n_lev, n_elem, 1).
+ * 2D fields use n_lev=1.
  */
 class AcesDataIngestor {
    public:
-    AcesDataIngestor() = default;
+    AcesDataIngestor();
+    ~AcesDataIngestor();
+
+    // Non-copyable
+    AcesDataIngestor(const AcesDataIngestor&) = delete;
+    AcesDataIngestor& operator=(const AcesDataIngestor&) = delete;
 
     /**
-     * @brief Ingests meteorological state from ESMF ImportState.
-     * @param importState ESMF state containing meteorology fields.
-     * @param field_names List of field names to extract from ESMF.
-     * @param aces_state ACES state to be populated.
-     * @param nx, ny, nz Grid dimensions.
+     * @brief Stores field data in the cache.
+     * Called from the C bridge once per time step per field.
      */
-    void IngestMeteorology(ESMC_State importState, const std::vector<std::string>& field_names,
-                           AcesImportState& aces_state, int nx, int ny, int nz);
+    void SetField(const std::string& name, const double* data, int n_lev, int n_elem,
+                  int nx, int ny, int nz, int* rc);
 
     /**
-     * @brief Initializes the CDEPS-inline library with automatic mesh discovery.
-     * @details Attempts to extract mesh from exportState fields if mesh is null.
-     *          Falls back to provided mesh if extraction fails.
-     *          Implements Requirement 1.5: Automatic mesh discovery from ESMF fields.
-     * @param gcomp ESMF GridComp.
-     * @param clock ESMF Clock.
-     * @param exportState ESMF ExportState for mesh discovery (can be null).
-     * @param mesh ESMF Mesh (can be null for automatic discovery).
-     * @param config CDEPS configuration.
+     * @brief Ingests emissions from the cache into the import state.
      */
-    void InitializeCDEPS(ESMC_GridComp gcomp, ESMC_Clock clock, ESMC_State exportState,
-                         ESMC_Mesh mesh, const AcesCdepsConfig& config);
+    void IngestEmissionsInline(const AcesDataConfig& config, AcesImportState& aces_state,
+                               int nx, int ny, int nz);
 
     /**
-     * @brief Advances the CDEPS-inline library to the current time.
-     * @param clock ESMF Clock.
-     */
-    void AdvanceCDEPS(ESMC_Clock clock);
-
-    /**
-     * @brief Finalizes the CDEPS-inline library.
-     */
-    void FinalizeCDEPS();
-
-    /**
-     * @brief Ingests emissions using CDEPS-inline.
-     * @param config CDEPS configuration.
-     * @param aces_state ACES state to be populated.
-     * @param nx, ny, nz Grid dimensions.
-     */
-    void IngestEmissionsInline(const AcesCdepsConfig& config, AcesImportState& aces_state, int nx,
-                               int ny, int nz);
-
-    /**
-     * @brief Resolves a field with priority: CDEPS first, then ESMF ImportState.
-     * @details Implements field resolution priority as per Requirements 1.5, 1.6.
-     *          When a field exists in both CDEPS and ESMF, returns CDEPS version.
-     *          Wraps CDEPS data pointers in Kokkos::View with Unmanaged trait.
-     *          Caches results to avoid redundant queries.
-     * @param name Field name to resolve.
-     * @param importState ESMF ImportState to query if not in CDEPS.
-     * @param nx, ny, nz Grid dimensions.
-     * @return Kokkos::View with Unmanaged trait pointing to field data.
+     * @brief Resolves a field from the cache as an unmanaged device view.
      */
     Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace,
                  Kokkos::MemoryTraits<Kokkos::Unmanaged>>
-    ResolveField(const std::string& name, ESMC_State importState, int nx, int ny, int nz);
+    ResolveField(const std::string& name, int nx, int ny, int nz);
 
     /**
-     * @brief Checks if a field exists in CDEPS cache.
-     * @param name Field name to check.
-     * @return True if field exists in CDEPS, false otherwise.
-     */
-    bool HasCDEPSField(const std::string& name) const;
-
+     * @brief Generates a TIDE-compatible YAML configuration string from the
+     * AcesDataConfig.
+     *
+     * This serialized YAML is passed to the TIDE layer (CDEPS) to initialize
+     * data streams dynamically.
     /**
-     * @brief Checks if a field exists in ESMF State.
-     * @param name Field name to check.
-     * @param state ESMF State to query.
-     * @return True if field exists in ESMF State, false otherwise.
+     * @brief Generates a TIDE-compatible ESMF Config resource string from the
+     * AcesDataConfig.
+     *
+     * This serialized string is written to a file and passed to the TIDE layer
+     * via shr_strdata_init_from_config.
+     *
+     * @param config The data ingestion configuration.
+     * @return An ESMF Config formatted string describing the streams.
      */
-    bool HasESMFField(const std::string& name, ESMC_State state) const;
+    std::string SerializeTideESMFConfig(const AcesDataConfig& config);
+
+    /** @brief Returns true if the named field exists in the cache. */
+    bool HasCachedField(const std::string& name) const;
+
+    /** @brief Compatibility alias for HasCachedField. */
+    bool HasDataIngesterField(const std::string& name) const { return HasCachedField(name); }
 
    private:
-    bool cdeps_initialized_ = false;
-
-    /// Cache of CDEPS field pointers (field name -> raw pointer)
-    std::unordered_map<std::string, void*> cdeps_field_cache_;
-
-    /// Cache of ESMF fields (field name -> DualView3D)
-    std::unordered_map<std::string, DualView3D> esmf_field_cache_;
+    std::unordered_map<std::string, Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>>
+        field_cache_;
 };
 
 }  // namespace aces

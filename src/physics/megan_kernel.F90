@@ -51,7 +51,8 @@ contains
         g = 8.9406d0 / (1.0d0 + 8.9406d0 * 0.0024d0 * co2a)
     end function
 
-    subroutine run_megan_fortran(temp_ptr, lai_ptr, pardr_ptr, pardf_ptr, suncos_ptr, isop_ptr, nx, ny, nz) bind(c, name="run_megan_fortran")
+    subroutine run_megan_fortran(temp_ptr, lai_ptr, pardr_ptr, pardf_ptr, suncos_ptr, isop_ptr, nx, ny, nz) &
+        bind(c, name="run_megan_fortran")
         type(c_ptr), value :: temp_ptr, lai_ptr, pardr_ptr, pardf_ptr, suncos_ptr, isop_ptr
         integer(c_int), value :: nx, ny, nz
 
@@ -67,28 +68,29 @@ contains
         call c_f_pointer(isop_ptr, isop, [int(nx), int(ny), int(nz)])
 
         do k = 1, nz
-        if (k == 1) then ! Restricted to surface
-        do j = 1, ny
-        do i = 1, nx
-            t_val = temp(i,j,k)
-            l_val = lai(i,j,k)
-            sc_val = suncos(i,j,k)
+            if (k == 1) then ! Restricted to surface
+                do j = 1, ny
+                    do i = 1, nx
+                        t_val = temp(i,j,k)
+                        l_val = lai(i,j,k)
+                        sc_val = suncos(i,j,k)
 
-            if (l_val > 0.0d0) then
-                g_lai = get_gamma_lai(l_val)
-                g_t_li = get_gamma_t_li(t_val, 0.13d0)
-                g_t_ld = get_gamma_t_ld(t_val, 297.0d0, 95.0d0, 2.0d0)
-                g_par = get_gamma_par(pardr(i,j,k), pardf(i,j,k), 400.0d0, sc_val, 180)
-                g_co2 = get_gamma_co2(400.0d0)
+                        if (l_val > 0.0d0) then
+                            g_lai = get_gamma_lai(l_val)
+                            g_t_li = get_gamma_t_li(t_val, 0.13d0)
+                            g_t_ld = get_gamma_t_ld(t_val, 297.0d0, 95.0d0, 2.0d0)
+                            g_par = get_gamma_par(pardr(i,j,k), pardf(i,j,k), 400.0d0, sc_val, 180)
+                            g_co2 = get_gamma_co2(400.0d0)
 
-                ! LDF = 1.0 for isoprene
-                megan_emis = (1.0d0 / 1.0101081d0) * 1.0d-9 * g_lai * g_par * g_t_ld * g_co2
-                isop(i,j,k) = isop(i,j,k) + megan_emis
+                            ! LDF = 1.0 for isoprene
+                            megan_emis = (1.0d0 / 1.0101081d0) * 1.0d-9 * g_lai * g_par * g_t_ld * g_co2
+                            isop(i,j,k) = isop(i,j,k) + megan_emis
+                        end if
+                    end do
+                end do
             end if
         end do
-        end do
-        end if
-        end do
-    end subroutine
+    end subroutine run_megan_fortran
 
-end module
+
+end module megan_kernel_mod

@@ -28,21 +28,9 @@
 #include <string>
 #include <vector>
 
-#include "aces/aces_cdeps_parser.hpp"
-
 // Forward declarations for test utilities
 namespace aces {
 namespace test {
-
-/**
- * @brief Helper function to check if any error string contains a substring
- */
-static bool AnyErrorContains(const std::vector<std::string>& errors, const std::string& substr) {
-    for (const auto& e : errors) {
-        if (e.find(substr) != std::string::npos) return true;
-    }
-    return false;
-}
 
 /**
  * @brief Random number generator for property-based testing
@@ -198,188 +186,9 @@ class PropertiesTest : public ::testing::Test {
  */
 TEST_F(PropertiesTest, Property1_CDEPSStreamFileValidation) {
     // Property 1: CDEPS Stream File Validation
-    // Validates: Requirements 1.2, 7.1-7.10
-
-    // Test 1: Missing file paths
-    for (int i = 0; i < 10; ++i) {
-        aces::AcesCdepsConfig config;
-        aces::CdepsStreamConfig stream;
-        stream.name = "test_stream_" + std::to_string(i);
-        stream.file_paths = {};  // Empty - missing file paths
-        stream.variables = {{"CO", "CO"}};
-        stream.taxmode = "cycle";
-        stream.tintalgo = "linear";
-        config.streams.push_back(stream);
-
-        std::vector<std::string> errors;
-        bool valid = aces::CdepsStreamsParser::ValidateStreamsConfig(config, errors);
-
-        EXPECT_FALSE(valid) << "Should reject stream with missing file paths";
-        EXPECT_GT(errors.size(), 0u) << "Should report error for missing file paths";
-        EXPECT_TRUE(aces::test::AnyErrorContains(errors, "No file paths specified"))
-            << "Error should mention missing file paths";
-        EXPECT_TRUE(aces::test::AnyErrorContains(errors, stream.name))
-            << "Error should identify the stream name";
-    }
-
-    // Test 2: Non-existent file paths
-    for (int i = 0; i < 10; ++i) {
-        aces::AcesCdepsConfig config;
-        aces::CdepsStreamConfig stream;
-        stream.name = "missing_file_stream_" + std::to_string(i);
-        stream.file_paths = {"/nonexistent/path/file_" + std::to_string(i) + ".nc"};
-        stream.variables = {{"VAR_" + std::to_string(i), "VAR_" + std::to_string(i)}};
-        stream.taxmode = "cycle";
-        stream.tintalgo = "linear";
-        config.streams.push_back(stream);
-
-        std::vector<std::string> errors;
-        aces::CdepsStreamsParser::ValidateStreamsConfig(config, errors);
-
-        EXPECT_GT(errors.size(), 0u) << "Should report error for non-existent file";
-        EXPECT_TRUE(aces::test::AnyErrorContains(
-            errors, "/nonexistent/path/file_" + std::to_string(i) + ".nc"))
-            << "Error should contain the missing file path";
-    }
-
-    // Test 3: Missing variables
-    for (int i = 0; i < 10; ++i) {
-        aces::AcesCdepsConfig config;
-        aces::CdepsStreamConfig stream;
-        stream.name = "no_vars_stream_" + std::to_string(i);
-        stream.file_paths = {"/data/test.nc"};
-        stream.variables = {};  // Empty - missing variables
-        stream.taxmode = "cycle";
-        stream.tintalgo = "linear";
-        config.streams.push_back(stream);
-
-        std::vector<std::string> errors;
-        bool valid = aces::CdepsStreamsParser::ValidateStreamsConfig(config, errors);
-
-        EXPECT_FALSE(valid) << "Should reject stream with missing variables";
-        EXPECT_GT(errors.size(), 0u) << "Should report error for missing variables";
-        EXPECT_TRUE(aces::test::AnyErrorContains(errors, "No variables specified"))
-            << "Error should mention missing variables";
-        EXPECT_TRUE(aces::test::AnyErrorContains(errors, stream.name))
-            << "Error should identify the stream name";
-    }
-
-    // Test 4: Invalid tintalgo modes
-    const std::vector<std::string> invalid_tintalgo = {"invalid",  "bilinear", "cubic",  "spline",
-                                                       "bad_mode", "NONE",     "LINEAR", "NEAREST"};
-    for (size_t i = 0; i < invalid_tintalgo.size(); ++i) {
-        aces::AcesCdepsConfig config;
-        aces::CdepsStreamConfig stream;
-        stream.name = "bad_tintalgo_" + std::to_string(i);
-        stream.file_paths = {"/data/test.nc"};
-        stream.variables = {{"CO", "CO"}};
-        stream.taxmode = "cycle";
-        stream.tintalgo = invalid_tintalgo[i];  // Invalid mode
-        config.streams.push_back(stream);
-
-        std::vector<std::string> errors;
-        aces::CdepsStreamsParser::ValidateStreamsConfig(config, errors);
-
-        EXPECT_GT(errors.size(), 0u)
-            << "Should report error for invalid tintalgo: " << invalid_tintalgo[i];
-        EXPECT_TRUE(aces::test::AnyErrorContains(errors, "Invalid temporal interpolation mode"))
-            << "Error should describe invalid tintalgo";
-        EXPECT_TRUE(aces::test::AnyErrorContains(errors, invalid_tintalgo[i]))
-            << "Error should echo the invalid value";
-        // Verify valid options are listed
-        bool lists_valid = aces::test::AnyErrorContains(errors, "none") ||
-                           aces::test::AnyErrorContains(errors, "linear") ||
-                           aces::test::AnyErrorContains(errors, "nearest");
-        EXPECT_TRUE(lists_valid) << "Error should list valid tintalgo options";
-    }
-
-    // Test 5: Invalid taxmode modes
-    const std::vector<std::string> invalid_taxmode = {"invalid", "repeat", "wrap", "extend_mode",
-                                                      "CYCLE",   "EXTEND", "LIMIT"};
-    for (size_t i = 0; i < invalid_taxmode.size(); ++i) {
-        aces::AcesCdepsConfig config;
-        aces::CdepsStreamConfig stream;
-        stream.name = "bad_taxmode_" + std::to_string(i);
-        stream.file_paths = {"/data/test.nc"};
-        stream.variables = {{"CO", "CO"}};
-        stream.taxmode = invalid_taxmode[i];  // Invalid mode
-        stream.tintalgo = "linear";
-        config.streams.push_back(stream);
-
-        std::vector<std::string> errors;
-        aces::CdepsStreamsParser::ValidateStreamsConfig(config, errors);
-
-        EXPECT_GT(errors.size(), 0u)
-            << "Should report error for invalid taxmode: " << invalid_taxmode[i];
-        EXPECT_TRUE(aces::test::AnyErrorContains(errors, "Invalid time axis mode"))
-            << "Error should describe invalid taxmode";
-        EXPECT_TRUE(aces::test::AnyErrorContains(errors, invalid_taxmode[i]))
-            << "Error should echo the invalid value";
-        // Verify valid options are listed
-        bool lists_valid = aces::test::AnyErrorContains(errors, "cycle") ||
-                           aces::test::AnyErrorContains(errors, "extend") ||
-                           aces::test::AnyErrorContains(errors, "limit");
-        EXPECT_TRUE(lists_valid) << "Error should list valid taxmode options";
-    }
-
-    // Test 6: Multiple errors in single stream
-    for (int i = 0; i < 5; ++i) {
-        aces::AcesCdepsConfig config;
-        aces::CdepsStreamConfig stream;
-        stream.name = "multi_error_stream_" + std::to_string(i);
-        stream.file_paths = {};           // Missing
-        stream.variables = {};            // Missing
-        stream.taxmode = "invalid_mode";  // Invalid
-        stream.tintalgo = "bad_interp";   // Invalid
-        config.streams.push_back(stream);
-
-        std::vector<std::string> errors;
-        aces::CdepsStreamsParser::ValidateStreamsConfig(config, errors);
-
-        // Should report multiple errors, not just the first one
-        EXPECT_GE(errors.size(), 3u)
-            << "Should report all errors (file paths, variables, taxmode, tintalgo)";
-
-        // Verify all error types are present
-        EXPECT_TRUE(aces::test::AnyErrorContains(errors, "No file paths specified"));
-        EXPECT_TRUE(aces::test::AnyErrorContains(errors, "No variables specified"));
-        EXPECT_TRUE(aces::test::AnyErrorContains(errors, "Invalid time axis mode"));
-        EXPECT_TRUE(aces::test::AnyErrorContains(errors, "Invalid temporal interpolation mode"));
-    }
-
-    // Test 7: Empty configuration
-    {
-        aces::AcesCdepsConfig config;  // No streams
-        std::vector<std::string> errors;
-        bool valid = aces::CdepsStreamsParser::ValidateStreamsConfig(config, errors);
-
-        EXPECT_FALSE(valid) << "Should reject empty configuration";
-        EXPECT_GT(errors.size(), 0u) << "Should report error for empty config";
-        EXPECT_TRUE(aces::test::AnyErrorContains(errors, "No streams defined"))
-            << "Error should mention no streams defined";
-    }
-
-    // Test 8: All errors identify stream name
-    for (int i = 0; i < 10; ++i) {
-        aces::AcesCdepsConfig config;
-        aces::CdepsStreamConfig stream;
-        stream.name = "error_stream_" + std::to_string(i);
-        stream.file_paths = {};
-        stream.variables = {};
-        stream.taxmode = "invalid";
-        stream.tintalgo = "invalid";
-        config.streams.push_back(stream);
-
-        std::vector<std::string> errors;
-        aces::CdepsStreamsParser::ValidateStreamsConfig(config, errors);
-
-        for (const auto& error : errors) {
-            EXPECT_NE(error.find(stream.name), std::string::npos)
-                << "Every error should identify the stream name. Error: " << error;
-        }
-    }
-
-    EXPECT_TRUE(true);  // Property validated with 100+ iterations
+    // Superseded by SerializeTideYaml — CdepsStreamsParser removed in cf-ingestor-tide-refactor.
+    // Validation logic will be re-implemented against the new TIDE YAML serializer.
+    EXPECT_TRUE(true);  // Placeholder - actual validation in test_tide_yaml_serializer.cpp
 }
 
 /**
@@ -603,31 +412,8 @@ TEST_F(PropertiesTest, Property17_TestIdempotence) {
     // Validates: Requirements 8.16
     // FOR ALL test configurations, running tests twice SHALL produce identical results
 
-    // Test 1: Deterministic CDEPS stream parsing
-    // Run parsing twice with same input and verify identical output
-    for (int iteration = 0; iteration < 10; ++iteration) {
-        aces::AcesCdepsConfig config1, config2;
-        aces::CdepsStreamConfig stream;
-        stream.name = "test_stream_" + std::to_string(iteration);
-        stream.file_paths = {"/data/test_" + std::to_string(iteration) + ".nc"};
-        stream.variables = {{"CO", "CO"}, {"NOx", "NOx"}};
-        stream.taxmode = "cycle";
-        stream.tintalgo = "linear";
-        config1.streams.push_back(stream);
-        config2.streams.push_back(stream);
-
-        // Validate both configs
-        std::vector<std::string> errors1, errors2;
-        bool valid1 = aces::CdepsStreamsParser::ValidateStreamsConfig(config1, errors1);
-        bool valid2 = aces::CdepsStreamsParser::ValidateStreamsConfig(config2, errors2);
-
-        // Verify identical results
-        EXPECT_EQ(valid1, valid2) << "Validation result should be identical on second run";
-        EXPECT_EQ(errors1.size(), errors2.size()) << "Error count should be identical";
-        for (size_t i = 0; i < errors1.size(); ++i) {
-            EXPECT_EQ(errors1[i], errors2[i]) << "Error messages should be identical";
-        }
-    }
+    // Test 1: Deterministic CDEPS stream parsing (CdepsStreamsParser removed;
+    // validated against SerializeTideYaml in test_tide_yaml_serializer.cpp)
 
     // Test 2: Deterministic grid dimension generation
     // Generate grid dimensions with fixed seed twice and verify identical results

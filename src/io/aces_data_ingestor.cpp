@@ -1,316 +1,194 @@
 #include "aces/aces_data_ingestor.hpp"
-
-#include <array>
-#include <cstdio>
-#include <fstream>
+#include <Kokkos_Core.hpp>
+#include "aces/aces_logger.hpp"
+#include "aces/aces_state.hpp"
+#include <yaml-cpp/yaml.h>
 #include <iostream>
-#include <vector>
-
-#include "aces/aces_utils.hpp"
-
-// Forward declarations for ACES-CDEPS bridge (defined in aces_cdeps_bridge.F90)
-extern "C" {
-void aces_cdeps_init(void* gcomp, void* clock, void* mesh, const char* stream_file, int* rc)
-    __attribute__((weak));
-void aces_cdeps_advance(void* clock, int* rc) __attribute__((weak));
-void aces_cdeps_get_ptr(int stream_idx, const char* fldname, void** data_ptr, int* rc)
-    __attribute__((weak));
-void aces_cdeps_finalize() __attribute__((weak));
-void aces_get_mesh_from_field(void* field, void** mesh, int* rc) __attribute__((weak));
-}
+#include <cstring>
 
 namespace aces {
 
-static DualView3D CreateDualViewFromESMF(ESMC_State state, const char* name, int nx, int ny,
-                                         int nz) {
-    ESMC_Field field;
-    int rc = ESMC_StateGetField(state, name, &field);
-    if (rc != ESMF_SUCCESS) {
-        return {};
-    }
-    UnmanagedHostView3D host_view = WrapESMCField(field, nx, ny, nz);
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> device_view(
-        std::string("device_") + name, nx, ny, nz);
-    return DualView3D(device_view, host_view);
-}
+AcesDataIngestor::AcesDataIngestor() {}
+AcesDataIngestor::~AcesDataIngestor() {}
 
-void AcesDataIngestor::IngestMeteorology(ESMC_State importState,
-                                         const std::vector<std::string>& field_names,
-                                         AcesImportState& aces_state, int nx, int ny, int nz) {
-    for (const auto& name : field_names) {
-        // Try to get field info to handle 2D or special 3D (like ak/bk)
-        ESMC_Field field;
-        int local_nx = nx, local_ny = ny, local_nz = nz;
-        if (ESMC_StateGetField(importState, name.c_str(), &field) == ESMF_SUCCESS) {
-            std::array<int, 3> lbound = {1, 1, 1}, ubound = {1, 1, 1};
-            int localDe = 0;
-            // Robustly discover rank and dimensions by trying different dimCounts
-            if (ESMC_FieldGetBounds(field, &localDe, lbound.data(), ubound.data(), 3) ==
-                ESMF_SUCCESS) {
-                local_nx = ubound[0] - lbound[0] + 1;
-                local_ny = ubound[1] - lbound[1] + 1;
-                local_nz = ubound[2] - lbound[2] + 1;
-            } else if (ESMC_FieldGetBounds(field, &localDe, lbound.data(), ubound.data(), 2) ==
-                       ESMF_SUCCESS) {
-                local_nx = ubound[0] - lbound[0] + 1;
-                local_ny = ubound[1] - lbound[1] + 1;
-                local_nz = 1;
-            } else if (ESMC_FieldGetBounds(field, &localDe, lbound.data(), ubound.data(), 1) ==
-                       ESMF_SUCCESS) {
-                local_nx = ubound[0] - lbound[0] + 1;
-                local_ny = 1;
-                local_nz = 1;
-            }
-        }
-
-        aces_state.fields.try_emplace(
-            name, CreateDualViewFromESMF(importState, name.c_str(), local_nx, local_ny, local_nz));
-
-        // Sync host to device to ensure Kokkos kernels see updated ESMF data
-        auto& dv = aces_state.fields[name];
-        if (dv.view_host().data() != nullptr) {
-            dv.modify<Kokkos::HostSpace>();
-            dv.sync<Kokkos::DefaultExecutionSpace::memory_space>();
-        }
-    }
-}
-
-void AcesDataIngestor::InitializeCDEPS(ESMC_GridComp gcomp, ESMC_Clock clock,
-                                       ESMC_State exportState, ESMC_Mesh mesh,
-                                       const AcesCdepsConfig& config) {
-    if (config.streams.empty()) {
+void AcesDataIngestor::SetField(const std::string& name, const double* data, int n_lev, int n_elem,
+                                int nx, int ny, int nz, int* rc) {
+    if (!data) {
+        ACES_LOG_ERROR("[ACES] SetField received null data pointer for field: " + name);
+        if (rc) *rc = -1;
         return;
     }
 
-    // 1. Automatic mesh discovery if mesh is null (Requirement 1.5)
-    ESMC_Mesh resolved_mesh = mesh;
-    if (mesh.ptr == nullptr && aces_get_mesh_from_field != nullptr && exportState.ptr != nullptr) {
-        std::cerr << "ACES: Mesh is null, attempting automatic mesh discovery from ESMF field\n";
+    if (n_lev * n_elem != nx * ny * nz && n_lev * n_elem != nx * ny) {
+        ACES_LOG_WARNING("[ACES] SetField dimension mismatch for field: " + name +
+                         " Received: " + std::to_string(n_lev) + "x" + std::to_string(n_elem) +
+                         " (total: " + std::to_string(n_lev * n_elem) + ")" +
+                         " Expected: " + std::to_string(nx) + "x" + std::to_string(ny) + "x" + std::to_string(nz) +
+                         " (total: " + std::to_string(nx * ny * nz) + ")");
+    }
 
-        // Try to extract mesh from a known field in exportState
-        // We'll try common field names that are likely to exist
-        std::vector<std::string> candidate_fields = {
-            "aces_discovery_emissions",  // Discovery field
-        };
+    std::cout << "[ACES] SetField: Setting field " << name << " " << n_elem << "x" << n_lev << " (total=" << (n_lev*n_elem) << ")" << std::endl;
 
-        // Also try the first species from config if available
-        if (!config.streams.empty() && !config.streams[0].variables.empty()) {
-            candidate_fields.push_back(config.streams[0].variables[0].name_in_model);
-        }
+    // Create a host mirror view with correct dimensions (nx, ny, n_lev)
+    // Assuming n_elem corresponds to the horizontal grid (nx * ny), but we know the data layout
+    // is compatible with LayoutLeft (Fortran) regardless of dimensionality interpretation.
 
-        for (const auto& field_name : candidate_fields) {
-            ESMC_Field field;
-            int rc = ESMC_StateGetField(exportState, field_name.c_str(), &field);
+    // We omit HostSpace explicit template arg to rely on default execution space (CPU)
+    // This avoids potential template deduction issues if HostSpace isn't strictly compatible
+    // with certain View specializations in this context.
+    using HostMirrorView = Kokkos::View<double***, Kokkos::LayoutLeft>;
+    HostMirrorView host_view("host_" + name, nx, ny, n_lev);
 
-            if (rc == ESMF_SUCCESS && field.ptr != nullptr) {
-                // Extract mesh from field
-                void* mesh_ptr = nullptr;
-                int mesh_rc = 0;
-                aces_get_mesh_from_field(field.ptr, &mesh_ptr, &mesh_rc);
+    // Copy data from raw pointer to host mirror
+    // We use a flat copy for efficiency
+    std::memcpy(host_view.data(), data, n_lev * n_elem * sizeof(double));
 
-                if (mesh_rc == 0 && mesh_ptr != nullptr) {
-                    resolved_mesh.ptr = mesh_ptr;
-                    std::cerr << "ACES: Successfully extracted mesh from field '" << field_name
-                              << "'\n";
-                    break;
-                } else {
-                    std::cerr << "ACES: Failed to extract mesh from field '" << field_name
-                              << "'. RC=" << mesh_rc << "\n";
+    // Allocate device view if it doesn't exist or has wrong shape
+    // Assuming DefaultExecutionSpace is compatible with Host copy for now (since CUDA=OFF)
+    if (field_cache_.find(name) == field_cache_.end() ||
+        field_cache_[name].extent(0) != (size_t)nx ||
+        field_cache_[name].extent(1) != (size_t)ny ||
+        field_cache_[name].extent(2) != (size_t)n_lev) {
+
+        using DeviceView = Kokkos::View<double***, Kokkos::LayoutLeft>;
+        field_cache_[name] = DeviceView(name, nx, ny, n_lev);
+    }
+
+    // Deep copy to device
+    Kokkos::deep_copy(field_cache_[name], host_view);
+
+    if (rc) *rc = 0;
+}
+
+void AcesDataIngestor::IngestEmissionsInline(const AcesDataConfig& config, AcesImportState& aces_state,
+                                            int nx, int ny, int nz) {
+    for (const auto& stream : config.streams) {
+        for (const auto& var : stream.variables) {
+            const std::string& model_name = var.name_in_model;
+
+            if (HasCachedField(model_name)) {
+                auto cached_view = field_cache_[model_name];
+
+                // Ensure the field exists in the import state
+                auto it = aces_state.fields.find(model_name);
+                if (it == aces_state.fields.end()) {
+                    // Create the DualView3D if not already present
+                    // We deduce dimensions from the cached view
+                    int c_nx = cached_view.extent(0);
+                    int c_ny = cached_view.extent(1);
+                    int c_nz = cached_view.extent(2);
+
+                    // Create uninitialized DualView
+                    DualView3D new_field(model_name, c_nx, c_ny, c_nz);
+                    aces_state.fields.emplace(model_name, new_field);
+                    it = aces_state.fields.find(model_name);
+
+                    ACES_LOG_INFO("[ACES] IngestEmissionsInline: Created import field " + model_name +
+                                  " (" + std::to_string(c_nx) + "x" + std::to_string(c_ny) + "x" + std::to_string(c_nz) + ")");
                 }
-            }
-        }
 
-        // Final check: if mesh is still null, log warning
-        if (resolved_mesh.ptr == nullptr) {
-            std::cerr << "ACES: WARNING - Mesh is null and automatic discovery failed. "
-                      << "CDEPS initialization may fail.\n";
-            std::cerr << "ACES: CORRECTIVE ACTION - Provide a valid mesh or ensure an ESMF field "
-                      << "exists for mesh extraction.\n";
-        }
-    }
+                auto& dual_view = it->second;
+                auto device_view = dual_view.view_device();
 
-    // 2. Programmatically write CDEPS .streams file (ESMF Config format)
-    std::ofstream stream_file("aces_emissions.streams");
-    stream_file << "file_id: \"stream\"" << "\n";
-    stream_file << "file_version: 2.0" << "\n";
-    stream_file << "stream_info:" << "\n";
-
-    for (size_t i = 0; i < config.streams.size(); ++i) {
-        const auto& s = config.streams[i];
-        std::string id = (i + 1 < 10) ? ("0" + std::to_string(i + 1)) : std::to_string(i + 1);
-        stream_file << "taxmode" << id << ": " << s.taxmode << "\n";
-        stream_file << "tInterpAlgo" << id << ": " << s.tintalgo << "\n";
-        stream_file << "mapAlgo" << id << ": " << s.mapalgo << "\n";
-        stream_file << "dtlimit" << id << ": " << s.dtlimit << "\n";
-        stream_file << "yearFirst" << id << ": " << s.yearFirst << "\n";
-        stream_file << "yearLast" << id << ": " << s.yearLast << "\n";
-        stream_file << "yearAlign" << id << ": " << s.yearAlign << "\n";
-        stream_file << "offset" << id << ": " << s.offset << "\n";
-        if (!s.meshfile.empty()) {
-            stream_file << "meshfile" << id << ": " << s.meshfile << "\n";
-        }
-        stream_file << "lev_dimname" << id << ": " << s.lev_dimname << "\n";
-
-        stream_file << "stream_data_files" << id << ": " << "\n";
-        for (const auto& f : s.file_paths) {
-            stream_file << "  " << f << "\n";
-        }
-
-        stream_file << "stream_data_variables" << id << ": " << "\n";
-        for (const auto& v : s.variables) {
-            stream_file << "  " << v.name_in_file << " " << v.name_in_model << "\n";
-        }
-    }
-    stream_file.close();
-
-    // 3. Initialize CDEPS-inline
-    if (aces_cdeps_init != nullptr) {
-        int rc = 0;
-        std::string stream_file_path = "aces_emissions.streams";
-        aces_cdeps_init(gcomp.ptr, clock.ptr, resolved_mesh.ptr, stream_file_path.c_str(), &rc);
-        if (rc != 0) {
-            std::cerr << "ACES: Error initializing CDEPS. RC=" << rc << "\n";
-            std::cerr
-                << "ACES: CORRECTIVE ACTION - Check streams file format and NetCDF data files\n";
-            std::cerr << "ACES: CORRECTIVE ACTION - Verify all variables in streams file exist in "
-                         "NetCDF files\n";
-            return;
-        }
-        cdeps_initialized_ = true;
-        std::cerr << "ACES: CDEPS initialization successful\n";
-    } else {
-        std::cerr << "ACES: WARNING - CDEPS bridge not available (aces_cdeps_init is null)\n";
-    }
-}
-
-void AcesDataIngestor::AdvanceCDEPS(ESMC_Clock clock) {
-    if (aces_cdeps_advance != nullptr) {
-        int rc = 0;
-        aces_cdeps_advance(clock.ptr, &rc);
-    }
-}
-
-void AcesDataIngestor::FinalizeCDEPS() {
-    if (aces_cdeps_finalize != nullptr) {
-        aces_cdeps_finalize();
-    }
-}
-
-void AcesDataIngestor::IngestEmissionsInline(const AcesCdepsConfig& config,
-                                             AcesImportState& aces_state, int nx, int ny, int nz) {
-    if (config.streams.empty()) {
-        return;
-    }
-
-    // Trigger read and map pointers for all configured streams.
-    // This allows the ingestion layer to be fully dynamic.
-    for (size_t i = 0; i < config.streams.size(); ++i) {
-        const auto& s = config.streams[i];
-        int stream_idx = i + 1;
-
-        for (const auto& v : s.variables) {
-            if (aces_state.fields.find(v.name_in_model) == aces_state.fields.end()) {
-                Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> host_view(
-                    "host_" + v.name_in_model, nx, ny, nz);
-                Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
-                    device_view("device_" + v.name_in_model, nx, ny, nz);
-                aces_state.fields.try_emplace(v.name_in_model, device_view, host_view);
-            }
-
-            auto& dv = aces_state.fields[v.name_in_model];
-            if (aces_cdeps_get_ptr != nullptr) {
-                void* data_ptr = nullptr;
-                int rc = 0;
-                aces_cdeps_get_ptr(stream_idx, v.name_in_model.c_str(), &data_ptr, &rc);
-                if (rc == 0 && data_ptr != nullptr) {
-                    // Copy data from CDEPS internal pointer to our host view.
-                    // Assuming dimensions match. CDEPS data is often 1D (flattened).
-                    double* dptr = static_cast<double*>(data_ptr);
-                    std::copy(dptr, dptr + nx * ny * nz, dv.view_host().data());
-
-                    // Cache the CDEPS pointer for future ResolveField calls
-                    cdeps_field_cache_[v.name_in_model] = data_ptr;
-                } else if (rc != 0) {
-                    std::cerr << "ACES: Error getting field pointer from CDEPS for "
-                              << v.name_in_model << ". RC=" << rc << "\n";
+                // Validate dimensions match
+                if (device_view.extent(0) != cached_view.extent(0) ||
+                    device_view.extent(1) != cached_view.extent(1) ||
+                    device_view.extent(2) != cached_view.extent(2)) {
+                    ACES_LOG_ERROR("[ACES] IngestEmissionsInline: Dimension mismatch for field " + model_name +
+                                   ". Expected " + std::to_string(device_view.extent(0)) + "x" +
+                                   std::to_string(device_view.extent(1)) + "x" + std::to_string(device_view.extent(2)) +
+                                   " but cached view is " + std::to_string(cached_view.extent(0)) + "x" +
+                                   std::to_string(cached_view.extent(1)) + "x" + std::to_string(cached_view.extent(2)));
+                    continue;
                 }
+
+                // Copy data from cache to the state field
+                Kokkos::deep_copy(device_view, cached_view);
+
+                // Mark device as modified so subsequent syncs work correctly
+                dual_view.modify_device();
+
+                // Debug log
+                // ACES_LOG_INFO("[ACES] IngestEmissionsInline: Ingested " + model_name);
+            } else {
+                 // ACES_LOG_WARNING("[ACES] IngestEmissionsInline: Field not found in cache: " + model_name);
             }
-            dv.modify<Kokkos::HostSpace>();
-            dv.sync<Kokkos::DefaultExecutionSpace::memory_space>();
         }
     }
 }
 
 Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace,
              Kokkos::MemoryTraits<Kokkos::Unmanaged>>
-AcesDataIngestor::ResolveField(const std::string& name, ESMC_State importState, int nx, int ny,
-                               int nz) {
-    // Priority 1: Check CDEPS field cache (Requirements 1.5, 1.6)
-    // When a field exists in both CDEPS and ESMF, CDEPS version takes priority
-    auto cdeps_it = cdeps_field_cache_.find(name);
-    if (cdeps_it != cdeps_field_cache_.end() && cdeps_it->second != nullptr) {
-        // Wrap CDEPS data pointer in Kokkos::View with Unmanaged trait (Requirement 1.8)
-        // This prevents Kokkos from deallocating CDEPS-managed memory
-        double* data_ptr = static_cast<double*>(cdeps_it->second);
+AcesDataIngestor::ResolveField(const std::string& name, int nx, int ny, int nz) {
+    if (!HasCachedField(name)) {
+        ACES_LOG_ERROR("[ACES] ResolveField: field not found in cache: " + name);
         return Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace,
-                            Kokkos::MemoryTraits<Kokkos::Unmanaged>>(data_ptr, nx, ny, nz);
+                            Kokkos::MemoryTraits<Kokkos::Unmanaged>>();
     }
 
-    // Priority 2: Check ESMF field cache
-    auto esmf_cache_it = esmf_field_cache_.find(name);
-    if (esmf_cache_it != esmf_field_cache_.end()) {
-        // Return cached ESMF field as unmanaged view
-        auto device_view = esmf_cache_it->second.view_device();
-        return Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace,
-                            Kokkos::MemoryTraits<Kokkos::Unmanaged>>(
-            device_view.data(), device_view.extent(0), device_view.extent(1),
-            device_view.extent(2));
-    }
-
-    // Priority 3: Query ESMF ImportState and cache result
-    ESMC_Field field;
-    int rc = ESMC_StateGetField(importState, name.c_str(), &field);
-    if (rc == ESMF_SUCCESS) {
-        // Create DualView from ESMF field
-        UnmanagedHostView3D host_view = WrapESMCField(field, nx, ny, nz);
-        Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> device_view(
-            std::string("device_") + name, nx, ny, nz);
-
-        DualView3D dual_view(device_view, host_view);
-        dual_view.modify<Kokkos::HostSpace>();
-        dual_view.sync<Kokkos::DefaultExecutionSpace::memory_space>();
-
-        // Cache the field for subsequent queries (avoids redundant ESMF queries)
-        esmf_field_cache_[name] = dual_view;
-
-        // Return as unmanaged view
-        return Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace,
-                            Kokkos::MemoryTraits<Kokkos::Unmanaged>>(
-            device_view.data(), device_view.extent(0), device_view.extent(1),
-            device_view.extent(2));
-    }
-
-    // Field not found in either CDEPS or ESMF
-    std::cerr << "ACES: WARNING - Field '" << name << "' not found in CDEPS or ESMF ImportState\n";
-    return Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace,
-                        Kokkos::MemoryTraits<Kokkos::Unmanaged>>();
+    return field_cache_[name];
 }
 
-bool AcesDataIngestor::HasCDEPSField(const std::string& name) const {
-    auto it = cdeps_field_cache_.find(name);
-    return (it != cdeps_field_cache_.end() && it->second != nullptr);
+bool AcesDataIngestor::HasCachedField(const std::string& name) const {
+    return field_cache_.find(name) != field_cache_.end();
 }
 
-bool AcesDataIngestor::HasESMFField(const std::string& name, ESMC_State state) const {
-    // Check cache first
-    if (esmf_field_cache_.find(name) != esmf_field_cache_.end()) {
-        return true;
+std::string AcesDataIngestor::SerializeTideESMFConfig(const AcesDataConfig& config) {
+    YAML::Node root;
+    YAML::Node streams_list_node = YAML::Node(YAML::NodeType::Sequence);
+
+    for (const auto& stream : config.streams) {
+        YAML::Node stream_node;
+
+        // TIDE configuration mapping
+        stream_node["name"] = stream.name;
+
+        // Input files
+        stream_node["input_files"] = YAML::Node(YAML::NodeType::Sequence);
+        for (const auto& path : stream.file_paths) {
+            stream_node["input_files"].push_back(path);
+        }
+
+        // Field maps
+        stream_node["field_maps"] = YAML::Node(YAML::NodeType::Sequence);
+        for (const auto& var : stream.variables) {
+            YAML::Node field_map;
+            field_map["file_var"] = var.name_in_file;
+            field_map["model_var"] = var.name_in_model;
+            stream_node["field_maps"].push_back(field_map);
+        }
+
+        // Configuration parameters
+        stream_node["tax_mode"] = stream.taxmode;
+        stream_node["time_interp"] = stream.tintalgo;
+        stream_node["map_algo"] = stream.mapalgo;
+        stream_node["read_mode"] = "single"; // Default as per tide_yaml_c.cpp fallback
+        stream_node["dt_limit"] = stream.dtlimit;
+        stream_node["year_first"] = stream.yearFirst;
+        stream_node["year_last"] = stream.yearLast;
+        stream_node["year_align"] = stream.yearAlign;
+        stream_node["offset"] = stream.offset;
+
+        if (!stream.lev_dimname.empty()) {
+            stream_node["lev_dimname"] = stream.lev_dimname;
+        } else {
+             stream_node["lev_dimname"] = "";
+        }
+
+        if (!stream.meshfile.empty()) {
+            stream_node["mesh_file"] = stream.meshfile;
+        } else {
+             stream_node["mesh_file"] = "";
+        }
+
+        streams_list_node.push_back(stream_node);
     }
 
-    // Query ESMF State
-    ESMC_Field field;
-    int rc = ESMC_StateGetField(state, name.c_str(), &field);
-    return (rc == ESMF_SUCCESS);
+    root["streams"] = streams_list_node;
+
+    YAML::Emitter out;
+    out << root;
+    return std::string(out.c_str());
 }
 
 }  // namespace aces

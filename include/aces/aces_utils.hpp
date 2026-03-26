@@ -3,31 +3,26 @@
 
 /**
  * @file aces_utils.hpp
- * @brief Utility functions for ESMF-Kokkos interoperability.
+ * @brief Utility functions for Kokkos view wrapping.
  */
 
-#include "ESMC.h"
 #include "aces/aces_state.hpp"
 
 namespace aces {
 
 /**
- * @brief Wraps an ESMC_Field into an UnmanagedHostView3D.
+ * @brief Wraps a raw double pointer into an UnmanagedHostView3D.
  *
- * This function extracts the raw data pointer from an ESMF Field and
- * wraps it in a Kokkos View with LayoutLeft to match ESMF's column-major
- * memory layout. The memory remains managed by ESMF.
+ * The memory remains managed by the caller. No copy is performed.
  *
- * @param field The ESMC_Field to wrap.
- * @param dim1 Size of the first dimension (usually lon/nx).
- * @param dim2 Size of the second dimension (usually lat/ny).
- * @param dim3 Size of the third dimension (usually lev/nz).
- * @return UnmanagedHostView3D Wrapped Kokkos View pointing to ESMF data.
+ * @param ptr Raw pointer to the data.
+ * @param dim1 Size of the first dimension.
+ * @param dim2 Size of the second dimension.
+ * @param dim3 Size of the third dimension.
+ * @return UnmanagedHostView3D wrapping the provided pointer.
  */
-inline UnmanagedHostView3D WrapESMCField(ESMC_Field field, int dim1, int dim2, int dim3) {
-    int rc;
-    double* dataPtr = static_cast<double*>(ESMC_FieldGetPtr(field, 0, &rc));
-    return UnmanagedHostView3D(dataPtr, dim1, dim2, dim3);
+inline UnmanagedHostView3D WrapRawPtr(double* ptr, int dim1, int dim2, int dim3) {
+    return UnmanagedHostView3D(ptr, dim1, dim2, dim3);
 }
 
 }  // namespace aces

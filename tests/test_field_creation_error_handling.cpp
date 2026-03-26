@@ -141,7 +141,7 @@ diagnostics:
   output_interval_seconds: 3600
   variables: []
 
-cdeps_inline_config:
+aces_data:
   streams: []
 )";
     }

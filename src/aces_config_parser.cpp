@@ -239,87 +239,85 @@ AcesConfig ParseConfig(const std::string& filename) {
         }
     }
 
-    // Parse CDEPS configuration
-    if (root["cdeps_inline_config"]) {
-        auto cdeps_node = root["cdeps_inline_config"];
-        if (cdeps_node["streams"]) {
-            for (auto const& stream_node : cdeps_node["streams"]) {
-                CdepsStreamConfig stream;
-                if (stream_node["name"]) {
-                    stream.name = stream_node["name"].as<std::string>();
-                }
+    // Parse aces_data configuration
+    YAML::Node data_node;
+    if (root["aces_data"]) {
+        data_node = root["aces_data"];
+    }
+    if (data_node && data_node["streams"]) {
+        for (auto const& stream_node : data_node["streams"]) {
+            AcesDataStreamConfig stream;
+            if (stream_node["name"]) {
+                stream.name = stream_node["name"].as<std::string>();
+            }
 
-                if (stream_node["file"]) {
-                    if (stream_node["file"].IsSequence()) {
-                        for (auto const& f : stream_node["file"]) {
-                            stream.file_paths.push_back(f.as<std::string>());
-                        }
-                    } else {
-                        stream.file_paths.push_back(stream_node["file"].as<std::string>());
+            if (stream_node["file"]) {
+                if (stream_node["file"].IsSequence()) {
+                    for (auto const& f : stream_node["file"]) {
+                        stream.file_paths.push_back(f.as<std::string>());
                     }
+                } else {
+                    stream.file_paths.push_back(stream_node["file"].as<std::string>());
                 }
+            }
 
-                if (stream_node["variables"]) {
-                    for (auto const& var_node : stream_node["variables"]) {
-                        CdepsVariableConfig var;
-                        if (var_node.IsScalar()) {
-                            var.name_in_file = var_node.as<std::string>();
-                            var.name_in_model = var.name_in_file;
-                        } else if (var_node.IsMap()) {
-                            if (var_node["file"]) {
-                                var.name_in_file = var_node["file"].as<std::string>();
-                            }
-                            if (var_node["model"]) {
-                                var.name_in_model = var_node["model"].as<std::string>();
-                            }
+            if (stream_node["variables"]) {
+                for (auto const& var_node : stream_node["variables"]) {
+                    AcesDataVariableConfig var;
+                    if (var_node.IsScalar()) {
+                        var.name_in_file = var_node.as<std::string>();
+                        var.name_in_model = var.name_in_file;
+                    } else if (var_node.IsMap()) {
+                        if (var_node["file"]) {
+                            var.name_in_file = var_node["file"].as<std::string>();
                         }
-                        stream.variables.push_back(var);
+                        if (var_node["model"]) {
+                            var.name_in_model = var_node["model"].as<std::string>();
+                        }
                     }
-                } else if (!stream.name.empty()) {
-                    // Fallback to stream name if no variables specified
-                    CdepsVariableConfig var;
-                    var.name_in_file = stream.name;
-                    var.name_in_model = stream.name;
                     stream.variables.push_back(var);
                 }
-
-                if (stream_node["taxmode"]) {
-                    stream.taxmode = stream_node["taxmode"].as<std::string>();
-                }
-                if (stream_node["tintalgo"]) {
-                    stream.tintalgo = stream_node["tintalgo"].as<std::string>();
-                } else if (stream_node["interpolation"]) {
-                    // Backward compatibility
-                    stream.tintalgo = stream_node["interpolation"].as<std::string>();
-                }
-
-                if (stream_node["mapalgo"]) {
-                    stream.mapalgo = stream_node["mapalgo"].as<std::string>();
-                }
-                if (stream_node["dtlimit"]) {
-                    stream.dtlimit = stream_node["dtlimit"].as<int>();
-                }
-                if (stream_node["yearFirst"]) {
-                    stream.yearFirst = stream_node["yearFirst"].as<int>();
-                }
-                if (stream_node["yearLast"]) {
-                    stream.yearLast = stream_node["yearLast"].as<int>();
-                }
-                if (stream_node["yearAlign"]) {
-                    stream.yearAlign = stream_node["yearAlign"].as<int>();
-                }
-                if (stream_node["offset"]) {
-                    stream.offset = stream_node["offset"].as<int>();
-                }
-                if (stream_node["meshfile"]) {
-                    stream.meshfile = stream_node["meshfile"].as<std::string>();
-                }
-                if (stream_node["lev_dimname"]) {
-                    stream.lev_dimname = stream_node["lev_dimname"].as<std::string>();
-                }
-
-                config.cdeps_config.streams.push_back(stream);
+            } else if (!stream.name.empty()) {
+                AcesDataVariableConfig var;
+                var.name_in_file = stream.name;
+                var.name_in_model = stream.name;
+                stream.variables.push_back(var);
             }
+
+            if (stream_node["taxmode"]) {
+                stream.taxmode = stream_node["taxmode"].as<std::string>();
+            }
+            if (stream_node["tintalgo"]) {
+                stream.tintalgo = stream_node["tintalgo"].as<std::string>();
+            } else if (stream_node["interpolation"]) {
+                stream.tintalgo = stream_node["interpolation"].as<std::string>();
+            }
+            if (stream_node["mapalgo"]) {
+                stream.mapalgo = stream_node["mapalgo"].as<std::string>();
+            }
+            if (stream_node["dtlimit"]) {
+                stream.dtlimit = stream_node["dtlimit"].as<int>();
+            }
+            if (stream_node["yearFirst"]) {
+                stream.yearFirst = stream_node["yearFirst"].as<int>();
+            }
+            if (stream_node["yearLast"]) {
+                stream.yearLast = stream_node["yearLast"].as<int>();
+            }
+            if (stream_node["yearAlign"]) {
+                stream.yearAlign = stream_node["yearAlign"].as<int>();
+            }
+            if (stream_node["offset"]) {
+                stream.offset = stream_node["offset"].as<int>();
+            }
+            if (stream_node["meshfile"]) {
+                stream.meshfile = stream_node["meshfile"].as<std::string>();
+            }
+            if (stream_node["lev_dimname"]) {
+                stream.lev_dimname = stream_node["lev_dimname"].as<std::string>();
+            }
+
+            config.aces_data.streams.push_back(stream);
         }
     }
 

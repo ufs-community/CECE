@@ -87,6 +87,15 @@ set(gtest_force_shared_crt
     CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
+# RapidCheck (Property-Based Testing)
+FetchContent_Declare(
+    rapidcheck
+    GIT_REPOSITORY https://github.com/emil-e/rapidcheck.git
+    GIT_TAG        master
+)
+set(RC_ENABLE_GTEST ON CACHE BOOL "Enable RapidCheck GTest integration" FORCE)
+FetchContent_MakeAvailable(rapidcheck)
+
 # ESMF and NUOPC are required dependencies.
 # NOTE: Mocking ESMF/NUOPC is strictly forbidden to ensure real-world parity.
 find_package(ESMF REQUIRED)
@@ -136,125 +145,6 @@ endif()
 find_package(MPI REQUIRED)
 message(STATUS "Found MPI: ${MPI_CXX_VERSION}")
 
-# CDEPS is a required dependency for the hybrid ingestion layer.
-find_package(CDEPS QUIET)
-
-if(NOT CDEPS_FOUND AND ACES_HAS_FORTRAN)
-    message(STATUS "CDEPS not found on system, attempting to build from source using FetchContent...")
-
-    # Discovery PIO from ESMF path if not already found (needed for CDEPS)
-    if(NOT PIO_FOUND)
-        find_package(PIO QUIET)
-    endif()
-
-    if(PIO_FOUND)
-        # Export PIO paths for CDEPS internal find_package(PIO)
-        set(PIO_PATH "${PIO_ROOT}")
-        set(ENV{PIO_PATH} "${PIO_ROOT}")
-        set(ENV{PIO_ROOT} "${PIO_ROOT}")
-
-        FetchContent_Declare(
-            cdeps
-            GIT_REPOSITORY https://github.com/bbakernoaa/CDEPS.git
-            GIT_TAG ae5d2c457321ebae3a0d9c9c949f871bb8f2b09c
-            GIT_SUBMODULES_RECURSE ON
-            PATCH_COMMAND bash -c " \
-                sed -i 's/add_subdirectory(fox)/#add_subdirectory(fox)/' CMakeLists.txt; \
-                find . -name CMakeLists.txt -exec sed -i 's/install(/#install(/g' {} +; \
-            ")
-
-        # Explicitly set PIO and NetCDF paths for CDEPS
-        set(PIO_Fortran_INCLUDE_DIR
-            "${PIO_ROOT}/include"
-            CACHE PATH "" FORCE)
-        set(PIO_C_INCLUDE_DIR
-            "${PIO_ROOT}/include"
-            CACHE PATH "" FORCE)
-        set(NetCDF_Fortran_INCLUDE_DIR
-            "${NetCDFF_ROOT}/include"
-            CACHE PATH "" FORCE)
-        set(NetCDF_C_INCLUDE_DIR
-            "${NetCDF_ROOT}/include"
-            CACHE PATH "" FORCE)
-
-        # Force CDEPS to find the ESMF we already discovered
-        if(NOT ESMF_ROOT)
-            foreach(lib ${ESMF_LIBRARIES})
-                if(lib MATCHES "^-L(.*)")
-                    set(search_path "${CMAKE_MATCH_1}")
-                    if(EXISTS "${search_path}/../include/esmf.mod")
-                        set(ESMF_ROOT "${search_path}/..")
-                        get_filename_component(ESMF_ROOT "${ESMF_ROOT}" ABSOLUTE)
-                        break()
-                    endif()
-                endif()
-            endforeach()
-        endif()
-        set(ESMF_ROOT
-            "${ESMF_ROOT}"
-            CACHE PATH "Path to ESMF" FORCE)
-        set(ENV{ESMF_ROOT} "${ESMF_ROOT}")
-
-        # Propagate ESMF include dirs to CDEPS
-        set(ESMF_F90COMPILEPATHS
-            "${ESMF_INCLUDE_DIRS}"
-            CACHE STRING "ESMF include paths for CDEPS" FORCE)
-
-        # Force CDEPS flags
-        set(CMAKE_Fortran_FLAGS
-            "${CMAKE_Fortran_FLAGS} -ffree-line-length-none -DCPRGNU"
-            CACHE STRING "Fortran flags" FORCE)
-
-        # Disable FoX in CDEPS
-        set(DISABLE_FoX
-            ON
-            CACHE BOOL "Disable FoX library" FORCE)
-        set(COMPILER
-            "gnu"
-            CACHE STRING "Compiler type")
-
-        FetchContent_MakeAvailable(cdeps)
-        if(TARGET dshr)
-            set(CDEPS_FOUND TRUE)
-            message(STATUS "CDEPS built from source successfully.")
-
-            # Force dependency chain within CDEPS to ensure serial module creation
-            add_dependencies(streams cdeps_share)
-            add_dependencies(dshr cdeps_share streams)
-
-            set(CDEPS_ALL_TARGETS cdeps_share streams dshr datm dice dglc dlnd docn drof dwav)
-            set_property(GLOBAL PROPERTY JOB_POOLS solo_pool=1)
-
-            foreach(target ${CDEPS_ALL_TARGETS})
-                if(TARGET ${target})
-                    # Use a single-threaded build for CDEPS components to avoid module copy race conditions
-                    set_target_properties(${target} PROPERTIES JOB_POOL_COMPILE solo_pool)
-
-                    target_include_directories(${target} PUBLIC ${ESMF_INCLUDE_DIRS})
-
-                    # Manually add module directories for CDEPS targets since we disabled global buffering
-                    target_include_directories(${target} PUBLIC $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/_deps/cdeps-build/share>)
-                    target_include_directories(${target} PUBLIC $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/_deps/cdeps-build/streams>)
-                    target_include_directories(${target} PUBLIC $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/_deps/cdeps-build/dshr>)
-
-                    if(NOT "${target}" STREQUAL "cdeps_share")
-                        add_dependencies(${target} cdeps_share)
-                    endif()
-                endif()
-            endforeach()
-
-
-        endif()
-    endif()
-endif()
-
-# Fallback
-if(NOT CDEPS_FOUND)
-    message(
-        FATAL_ERROR
-            "CDEPS is required but was not found on the system or successfully built from source.")
-endif()
-
 # --- ACES Library ---
 
 set(ACES_SRCS
@@ -272,9 +162,9 @@ set(ACES_SRCS
     src/physics/aces_dust.cpp
     src/physics/aces_volcano.cpp
     src/io/aces_data_ingestor.cpp
-    src/io/aces_diagnostic_writer.cpp
-    src/io/aces_cdeps_parser.cpp
+    src/io/aces_diagnostic_manager.cpp
     src/io/aces_standalone_writer.cpp
+    src/aces_core_writer_init.cpp
     src/aces_core_advertise.cpp
     src/aces_core_realize.cpp
     src/aces_core_initialize_p1.cpp
@@ -282,17 +172,17 @@ set(ACES_SRCS
     src/aces_core_field_helpers.cpp
     src/aces_core_run.cpp
     src/aces_core_finalize.cpp
-    src/aces_core_fortran_bridge.cpp
     src/aces_config_path.cpp)
 
 if(ACES_HAS_FORTRAN)
+    add_subdirectory(src/io/tide)
+
     list(
         APPEND
         ACES_SRCS
         src/aces_cap.F90
         src/physics/aces_fortran_bridge.cpp
         src/physics/legacy_fortran.F90
-        src/io/aces_cdeps_bridge.F90
         src/physics/aces_sea_salt_fortran_bridge.cpp
         src/physics/sea_salt_kernel.F90
         src/physics/aces_megan_fortran_bridge.cpp
@@ -306,28 +196,11 @@ if(ACES_HAS_FORTRAN)
         src/physics/aces_dust_fortran_bridge.cpp
         src/physics/dust_kernel.F90
         src/physics/aces_volcano_fortran_bridge.cpp
-        src/physics/volcano_kernel.F90)
+        src/physics/volcano_kernel.F90
+        src/aces_ingestor_bridge.cpp)
 endif()
 
 add_library(aces SHARED ${ACES_SRCS})
-
-# Use Fortran compiler as linker when Fortran code is present
-if(ACES_HAS_FORTRAN)
-    set_target_properties(aces PROPERTIES LINKER_LANGUAGE Fortran)
-    # Allow undefined symbols in shared library - they'll be resolved at runtime
-    target_link_options(aces PRIVATE "LINKER:--allow-shlib-undefined")
-endif()
-
-# Ensure ACES depends on CDEPS targets to serialize module generation if they are built from source
-if(TARGET cdeps_share)
-    add_dependencies(aces cdeps_share)
-endif()
-if(TARGET streams)
-    add_dependencies(aces streams)
-endif()
-if(TARGET dshr)
-    add_dependencies(aces dshr)
-endif()
 
 if(ACES_HAS_FORTRAN)
     # Set a target-specific module directory for aces to allow consumers to find it
@@ -335,11 +208,6 @@ if(ACES_HAS_FORTRAN)
     target_include_directories(aces PUBLIC $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/fortran_modules/aces>)
 
     target_compile_definitions(aces PRIVATE ACES_HAS_FORTRAN)
-    if(CDEPS_FOUND)
-
-
-        target_compile_definitions(aces PRIVATE ACES_HAS_CDEPS)
-    endif()
 
     # target_include_directories(aces PUBLIC $<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}>)
 endif()
@@ -350,41 +218,16 @@ target_include_directories(
     PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include>
            ${ESMF_INCLUDE_DIRS})
 
-target_link_libraries(aces PUBLIC Kokkos::kokkos ESMF::ESMF yaml-cpp ${ESMF_LIBRARIES})
+target_link_libraries(aces PUBLIC Kokkos::kokkos ESMF::ESMF yaml-cpp)
 
-# Ensure Fortran runtime is linked when Fortran code is present
 if(ACES_HAS_FORTRAN)
-    target_link_libraries(aces PUBLIC ${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES})
-    # Allow undefined symbols from shared library for consumers
-    target_link_options(aces INTERFACE "LINKER:--allow-shlib-undefined")
+    target_link_libraries(aces PUBLIC tide)
 endif()
 
 # Link NetCDF for CDEPS parser
 if(NetCDF_ROOT)
     if(EXISTS "${NetCDF_ROOT}/lib/libnetcdf.so")
         target_link_libraries(aces PUBLIC "${NetCDF_ROOT}/lib/libnetcdf.so")
-    endif()
-endif()
-
-if(CDEPS_FOUND)
-    target_link_libraries(aces PUBLIC dshr streams cdeps_share)
-    if(PIO_FOUND)
-        if(EXISTS "${PIO_ROOT}/lib/libpiof.so")
-            target_link_libraries(aces PUBLIC "${PIO_ROOT}/lib/libpiof.so")
-        endif()
-        if(EXISTS "${PIO_ROOT}/lib/libpioc.so")
-            target_link_libraries(aces PUBLIC "${PIO_ROOT}/lib/libpioc.so")
-        endif()
-    endif()
-    if(NetCDFF_FOUND)
-        if(EXISTS "${NetCDFF_ROOT}/lib/libnetcdff.so")
-            target_link_libraries(aces PUBLIC "${NetCDFF_ROOT}/lib/libnetcdff.so")
-        endif()
-    endif()
-    if(NetCDF_ROOT)
-        if(EXISTS "${NetCDF_ROOT}/lib/libnetcdf.so")
-            target_link_libraries(aces PUBLIC "${NetCDF_ROOT}/lib/libnetcdf.so")
-        endif()
     endif()
 endif()
 
@@ -397,28 +240,22 @@ endif()
 enable_testing()
 
 add_executable(test_aces_cap tests/test_aces_cap.cpp)
-target_link_libraries(test_aces_cap PRIVATE aces GTest::gtest_main ${ESMF_LIBRARIES} ${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES})
-target_link_options(test_aces_cap PRIVATE "LINKER:--allow-shlib-undefined")
+target_link_libraries(test_aces_cap PRIVATE aces GTest::gtest_main)
 
 add_executable(test_diagnostics tests/test_diagnostics.cpp)
-target_link_libraries(test_diagnostics PRIVATE aces GTest::gtest ${ESMF_LIBRARIES} ${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES})
-target_link_options(test_diagnostics PRIVATE "LINKER:--allow-shlib-undefined")
+target_link_libraries(test_diagnostics PRIVATE aces GTest::gtest)
 
 add_executable(test_aces_ingestor tests/test_aces_ingestor.cpp)
-target_link_libraries(test_aces_ingestor PRIVATE aces GTest::gtest_main ${ESMF_LIBRARIES} ${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES})
-target_link_options(test_aces_ingestor PRIVATE "LINKER:--allow-shlib-undefined")
+target_link_libraries(test_aces_ingestor PRIVATE aces GTest::gtest_main)
 
 add_executable(test_aces_utils tests/test_aces_utils.cpp)
-target_link_libraries(test_aces_utils PRIVATE aces GTest::gtest_main ${ESMF_LIBRARIES} ${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES})
-target_link_options(test_aces_utils PRIVATE "LINKER:--allow-shlib-undefined")
+target_link_libraries(test_aces_utils PRIVATE aces GTest::gtest_main)
 
 add_executable(test_aces_compute tests/test_aces_compute.cpp)
-target_link_libraries(test_aces_compute PRIVATE aces GTest::gtest_main ${ESMF_LIBRARIES} ${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES})
-target_link_options(test_aces_compute PRIVATE "LINKER:--allow-shlib-undefined")
+target_link_libraries(test_aces_compute PRIVATE aces GTest::gtest_main)
 
 add_executable(test_physics tests/test_physics.cpp)
-target_link_libraries(test_physics PRIVATE aces GTest::gtest_main ${ESMF_LIBRARIES} ${CMAKE_Fortran_IMPLICIT_LINK_LIBRARIES})
-target_link_options(test_physics PRIVATE "LINKER:--allow-shlib-undefined")
+target_link_libraries(test_physics PRIVATE aces GTest::gtest_main)
 
 add_executable(test_hemco_mimic tests/test_hemco_mimic.cpp)
 target_link_libraries(test_hemco_mimic PRIVATE aces GTest::gtest_main)
@@ -441,30 +278,8 @@ target_link_libraries(test_vertical_distribution_height PRIVATE aces GTest::gtes
 add_executable(test_vertical_distribution_pbl tests/test_vertical_distribution_pbl.cpp)
 target_link_libraries(test_vertical_distribution_pbl PRIVATE aces GTest::gtest_main)
 
-add_executable(test_cdeps_parser tests/test_cdeps_parser.cpp)
-target_link_libraries(test_cdeps_parser PRIVATE aces GTest::gtest_main)
-
 add_executable(test_field_resolution_priority tests/test_field_resolution_priority.cpp)
 target_link_libraries(test_field_resolution_priority PRIVATE aces GTest::gtest_main)
-
-add_executable(test_cdeps_integration tests/test_cdeps_integration.cpp)
-target_link_libraries(test_cdeps_integration PRIVATE aces GTest::gtest_main)
-
-# Task 4.2: Verify CDEPS can read data
-add_executable(test_cdeps_read_data tests/test_cdeps_read_data.cpp)
-target_link_libraries(test_cdeps_read_data PRIVATE aces GTest::gtest_main)
-
-# Task 4.3: Handle CDEPS initialization failure
-add_executable(test_cdeps_initialization_failure tests/test_cdeps_initialization_failure.cpp)
-target_link_libraries(test_cdeps_initialization_failure PRIVATE aces GTest::gtest_main)
-
-# Task 4.4: Write integration tests for CDEPS
-add_executable(test_cdeps_integration_comprehensive tests/test_cdeps_integration_comprehensive.cpp)
-target_link_libraries(test_cdeps_integration_comprehensive PRIVATE aces GTest::gtest_main)
-
-# Property 22: CDEPS Error Handling (Requirement 1.7)
-add_executable(test_cdeps_error_handling_property tests/test_cdeps_error_handling_property.cpp)
-target_link_libraries(test_cdeps_error_handling_property PRIVATE aces GTest::gtest_main)
 
 add_executable(test_realize_phase tests/test_realize_phase.cpp)
 target_link_libraries(test_realize_phase PRIVATE aces GTest::gtest_main)
@@ -511,11 +326,11 @@ else()
     target_link_libraries(test_single_model_driver PRIVATE aces GTest::gtest_main)
 endif()
 
-add_executable(example_driver tests/example_driver.cpp)
-target_link_libraries(example_driver PRIVATE aces)
+# add_executable(example_driver tests/example_driver.cpp)
+# target_link_libraries(example_driver PRIVATE aces)
 
-add_executable(hemco_mimic_driver tests/hemco_mimic_driver.cpp)
-target_link_libraries(hemco_mimic_driver PRIVATE aces)
+# add_executable(hemco_mimic_driver tests/hemco_mimic_driver.cpp)
+# target_link_libraries(hemco_mimic_driver PRIVATE aces)
 
 add_executable(hemco_comparison_driver tests/hemco_comparison_driver.cpp)
 target_link_libraries(hemco_comparison_driver PRIVATE aces)
@@ -533,15 +348,6 @@ target_link_libraries(test_hierarchy_prioritization PRIVATE aces GTest::gtest_ma
 add_executable(test_scale_factor_commutativity tests/test_scale_factor_commutativity.cpp)
 target_link_libraries(test_scale_factor_commutativity PRIVATE aces GTest::gtest_main)
 
-# Property 2: CDEPS Data Round-Trip (Requirement 1.9, Property 16)
-add_executable(test_cdeps_data_roundtrip tests/test_cdeps_data_roundtrip.cpp)
-target_link_libraries(test_cdeps_data_roundtrip PRIVATE aces GTest::gtest_main)
-if(NetCDF_ROOT)
-    target_include_directories(test_cdeps_data_roundtrip PRIVATE "${NetCDF_ROOT}/include")
-    if(EXISTS "${NetCDF_ROOT}/lib/libnetcdf.so")
-        target_link_libraries(test_cdeps_data_roundtrip PRIVATE "${NetCDF_ROOT}/lib/libnetcdf.so")
-    endif()
-endif()
 
 # Property 11: Generated Scheme Compilation (Requirement 5.24)
 add_executable(test_generated_scheme_compilation tests/test_generated_scheme_compilation.cpp)
@@ -616,10 +422,6 @@ else()
     target_link_libraries(test_nuopc_phase_execution_order_property PRIVATE aces GTest::gtest_main)
 endif()
 
-# Property 4: Temporal Interpolation Correctness (Requirements 1.4, 1.10)
-add_executable(test_temporal_interpolation_property
-    tests/test_temporal_interpolation_property.cpp)
-target_link_libraries(test_temporal_interpolation_property PRIVATE aces GTest::gtest_main)
 
 # Property 12: BasePhysicsScheme Field Caching (Requirement 5.16)
 add_executable(test_base_physics_scheme_field_caching
@@ -655,10 +457,6 @@ add_executable(test_dynamic_species_registration_property
     tests/test_dynamic_species_registration_property.cpp)
 target_link_libraries(test_dynamic_species_registration_property PRIVATE aces GTest::gtest_main)
 
-# Property 16: Streams Configuration Round-Trip (Requirement 7.13)
-add_executable(test_streams_config_roundtrip_property
-    tests/test_streams_config_roundtrip_property.cpp)
-target_link_libraries(test_streams_config_roundtrip_property PRIVATE aces GTest::gtest_main)
 
 # Unit tests for field creation (Requirement R4)
 add_executable(test_field_creation tests/test_field_creation.cpp)
@@ -709,10 +507,8 @@ gtest_discover_tests(test_physics)
 gtest_discover_tests(test_aces_ingestor)
 gtest_discover_tests(test_diagnostics)
 gtest_discover_tests(test_hemco_mimic)
-gtest_discover_tests(test_cdeps_parser)
 gtest_discover_tests(test_field_resolution_priority)
-gtest_discover_tests(test_cdeps_integration)
-gtest_discover_tests(test_cdeps_error_handling_property)
+
 gtest_discover_tests(test_realize_phase)
 gtest_discover_tests(test_initialize_phases)
 gtest_discover_tests(test_run_phase)
@@ -722,7 +518,6 @@ gtest_discover_tests(test_single_model_driver)
 gtest_discover_tests(test_hemco_parity)
 gtest_discover_tests(test_hierarchy_prioritization)
 gtest_discover_tests(test_scale_factor_commutativity)
-gtest_discover_tests(test_cdeps_data_roundtrip)
 gtest_discover_tests(test_generated_scheme_compilation)
 gtest_discover_tests(test_output_roundtrip)
 gtest_discover_tests(test_kokkos_configuration)
@@ -737,13 +532,13 @@ gtest_discover_tests(test_repro_failure)
 gtest_discover_tests(test_mass_conservation_property)
 gtest_discover_tests(test_temporal_cycle_application_property)
 gtest_discover_tests(test_nuopc_phase_execution_order_property)
-gtest_discover_tests(test_temporal_interpolation_property)
+
 gtest_discover_tests(test_base_physics_scheme_field_caching)
 gtest_discover_tests(test_physics_scheme_autoregistration)
 gtest_discover_tests(test_standalone_writer_unit)
 gtest_discover_tests(test_kernel_profiling)
 gtest_discover_tests(test_dynamic_species_registration_property)
-gtest_discover_tests(test_streams_config_roundtrip_property)
+
 gtest_discover_tests(test_field_creation)
 gtest_discover_tests(test_field_pointer_passing)
 

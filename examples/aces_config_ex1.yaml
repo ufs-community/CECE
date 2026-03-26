@@ -1,24 +1,19 @@
+meteorology: {}
 
 species:
-  CO:
-    - operation: add
-      field: CO_anthro
-      hierarchy: 0
-      scale: 1.0
-  NOx:
-    - operation: add
-      field: NOx_anthro
-      hierarchy: 0
+  co:
+    - field: "co"
+      operation: "add"
       scale: 1.0
 
-meteorology:
-  temperature: air_temperature
-
-physics_schemes: []
+aces_data:
+  streams:
+    - name: "MACCITY"
+      file: "/work/data/MACCity_4x5.nc"
+      variables:
+        - file: "MACCity"
+          model: "co"
 
 diagnostics:
   output_interval_seconds: 3600
   variables: []
-
-cdeps_inline_config:
-  streams: []

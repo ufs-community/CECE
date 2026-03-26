@@ -7,7 +7,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include "ESMC.h"
 #include "aces_compute.hpp"
 #include "aces_config.hpp"
 
@@ -19,8 +18,6 @@ class AcesStandaloneWriter {
     ~AcesStandaloneWriter();
 
     int Initialize(const std::string& start_time_iso8601, int nx, int ny, int nz);
-
-    int WriteTimeStep(ESMC_State export_state, double time_seconds_since_start, int step_index);
 
     int WriteTimeStep(const std::unordered_map<std::string, DualView3D>& export_fields,
                       double time_seconds_since_start, int step_index);

@@ -37,7 +37,7 @@ void aces_core_realize(void* data_ptr, void* importState, void* exportState, voi
 void aces_core_initialize_p1(void** data_ptr, int* rc);
 void aces_core_initialize_p2(void* data_ptr, void* gcomp, void* importState, void* exportState,
                              void* clock, void* grid, int* rc);
-void aces_core_run(void* data_ptr, void* importState, void* exportState, void* clock, int* rc);
+void aces_core_run(void* data_ptr, int hour, int day_of_week, int* rc);
 void aces_core_finalize(void* data_ptr, int* rc);
 
 void test_create_gridcomp(const char* name, void* clock_ptr, void** gcomp_ptr, int* rc);
@@ -121,7 +121,7 @@ class PhaseExecutionConfigGenerator {
             f << "    - " << species_names[i] << "\n";
         }
 
-        f << "\ncdeps_inline_config:\n";
+        f << "\naces_data:\n";
         f << "  streams: []\n";
     }
 
@@ -280,7 +280,9 @@ TEST_F(NuopcPhaseExecutionOrderPropertyTest, Property5_PhaseExecutionOrderCorrec
     for (int iter = 0; iter < NUM_ITERATIONS; ++iter) {
         // Run phase
         int rc;
-        aces_core_run(data_ptr, import_state_.ptr, export_state_.ptr, clock_.ptr, &rc);
+        int hour = 12;  // Default to noon
+        int day_of_week = 0;  // Default to Sunday
+        aces_core_run(data_ptr, hour, day_of_week, &rc);
         EXPECT_EQ(rc, ESMF_SUCCESS) << "Run phase failed at iteration " << iter;
     }
 
@@ -340,7 +342,9 @@ TEST_F(NuopcPhaseExecutionOrderPropertyTest, Property5_EachPhaseCompletesBeforeN
 
     // Phase 5: Run multiple times
     for (int iter = 0; iter < NUM_ITERATIONS; ++iter) {
-        aces_core_run(data_ptr, import_state_.ptr, export_state_.ptr, clock_.ptr, &rc);
+        int hour = 12;  // Default to noon
+        int day_of_week = 0;  // Default to Sunday
+        aces_core_run(data_ptr, hour, day_of_week, &rc);
         EXPECT_EQ(rc, ESMF_SUCCESS) << "Run failed at iteration " << iter;
     }
 
@@ -371,7 +375,9 @@ TEST_F(NuopcPhaseExecutionOrderPropertyTest, Property5_MultipleRunCyclesAfterIni
     // Execute multiple Run cycles (NUM_ITERATIONS times)
     for (int iter = 0; iter < NUM_ITERATIONS; ++iter) {
         int rc;
-        aces_core_run(data_ptr, import_state_.ptr, export_state_.ptr, clock_.ptr, &rc);
+        int hour = 12;  // Default to noon
+        int day_of_week = 0;  // Default to Sunday
+        aces_core_run(data_ptr, hour, day_of_week, &rc);
         EXPECT_EQ(rc, ESMF_SUCCESS) << "Run cycle failed at iteration " << iter;
     }
 
@@ -406,7 +412,9 @@ TEST_F(NuopcPhaseExecutionOrderPropertyTest, Property5_OutOfOrderPhasesFail) {
 
         // Test 2: Call Run with null data_ptr (missing initialization)
         void* null_ptr = nullptr;
-        aces_core_run(null_ptr, import_state_.ptr, export_state_.ptr, clock_.ptr, &rc);
+        int hour = 12;  // Default to noon
+        int day_of_week = 0;  // Default to Sunday
+        aces_core_run(null_ptr, hour, day_of_week, &rc);
         EXPECT_NE(rc, ESMF_SUCCESS) << "Run with null data_ptr should fail at iteration " << iter;
 
         // Test 3: Call Finalize with null data_ptr
@@ -466,7 +474,9 @@ TEST_F(NuopcPhaseExecutionOrderPropertyTest, Property5_InternalStateConsistency)
 
     // Run multiple times to verify state consistency
     for (int iter = 0; iter < NUM_ITERATIONS; ++iter) {
-        aces_core_run(data_ptr, import_state_.ptr, export_state_.ptr, clock_.ptr, &rc);
+        int hour = 12;  // Default to noon
+        int day_of_week = 0;  // Default to Sunday
+        aces_core_run(data_ptr, hour, day_of_week, &rc);
         EXPECT_EQ(rc, ESMF_SUCCESS) << "Run failed at iteration " << iter;
     }
 
@@ -499,7 +509,9 @@ TEST_F(NuopcPhaseExecutionOrderPropertyTest, Property5_PhaseTransitionLogging) {
     // Run multiple times to verify logging consistency
     for (int iter = 0; iter < NUM_ITERATIONS; ++iter) {
         int rc;
-        aces_core_run(data_ptr, import_state_.ptr, export_state_.ptr, clock_.ptr, &rc);
+        int hour = 12;  // Default to noon
+        int day_of_week = 0;  // Default to Sunday
+        aces_core_run(data_ptr, hour, day_of_week, &rc);
         EXPECT_EQ(rc, ESMF_SUCCESS) << "Run failed at iteration " << iter;
     }
 

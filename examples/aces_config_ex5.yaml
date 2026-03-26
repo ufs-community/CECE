@@ -9,11 +9,20 @@ species:
     - field: "MACCITY_SO2"
       operation: "add"
 
-cdeps_inline_config:
+aces_data:
   streams:
     - name: "MACCITY_CO"
-      file: "data/MACCity_4x5.nc"
+      file: "/work/data/MACCity_4x5.nc"
+      variables:
+        - file: "MACCity"
+          model: "MACCITY_CO"
     - name: "MACCITY_NO"
-      file: "data/MACCity_anthro_NOx_2000-2010_16080.nc"
+      file: "/work/data/MACCity_anthro_NOx_2000-2010_16080.nc"
+      variables:
+        - file: "MACCity"
+          model: "MACCITY_NO"
     - name: "MACCITY_SO2"
-      file: "data/MACCity_anthro_SO2_2000-2010_16080.nc"
+      file: "/work/data/MACCity_anthro_SO2_2000-2010_16080.nc"
+      variables:
+        - file: "MACCity"
+          model: "MACCITY_SO2"

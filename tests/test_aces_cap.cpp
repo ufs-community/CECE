@@ -4,12 +4,9 @@
 #include <fstream>
 #include <iostream>
 
-#include "ESMC.h"
-
-// Declare the functions we want to test
+// Declare the functions we want to test (decoupled architecture - no ESMF)
 extern "C" {
-void aces_core_initialize(void** data_ptr, void* importState, void* exportState, void* clock,
-                          int* rc);
+void aces_core_initialize_p1(void** data_ptr_ptr, int* rc);
 void aces_core_finalize(void* data_ptr, int* rc);
 }
 
@@ -22,20 +19,8 @@ TEST(ACESCapTest, Lifecycle) {
     int rc = -1;
     void* data_ptr = nullptr;
 
-    ESMC_State importState;
-    std::memset(&importState, 0, sizeof(importState));
-    importState.ptr = nullptr;
-
-    ESMC_State exportState;
-    std::memset(&exportState, 0, sizeof(exportState));
-    exportState.ptr = nullptr;
-
-    ESMC_Clock clock;
-    std::memset(&clock, 0, sizeof(clock));
-    clock.ptr = nullptr;
-
-    std::cout << "Test: Calling aces_core_initialize" << std::endl;
-    aces_core_initialize(&data_ptr, importState.ptr, exportState.ptr, clock.ptr, &rc);
+    std::cout << "Test: Calling aces_core_initialize_p1" << std::endl;
+    aces_core_initialize_p1(&data_ptr, &rc);
     EXPECT_EQ(rc, 0);
     EXPECT_NE(data_ptr, nullptr);
 

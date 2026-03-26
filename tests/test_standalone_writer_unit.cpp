@@ -336,6 +336,7 @@ TEST_F(StandaloneWriterUnitTest, CFAttributeSource) {
     ASSERT_EQ(rc, NC_NOERR);
 
     char source[256];
+    memset(source, 0, sizeof(source));  // Initialize buffer to zeros
     rc = nc_get_att_text(ncid, NC_GLOBAL, "source", source);
     ASSERT_EQ(rc, NC_NOERR) << "source attribute missing";
     EXPECT_STREQ(source, "ACES");

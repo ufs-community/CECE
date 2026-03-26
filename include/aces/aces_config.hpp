@@ -97,40 +97,40 @@ struct TemporalCycle {
 };
 
 /**
- * @struct CdepsVariableConfig
- * @brief Configuration for a single variable within a CDEPS stream.
+ * @struct AcesDataVariableConfig
+ * @brief Configuration for a single variable within an aces_data stream.
  */
-struct CdepsVariableConfig {
+struct AcesDataVariableConfig {
     std::string name_in_file;   ///< Variable name in the NetCDF file.
     std::string name_in_model;  ///< Internal name used by ACES.
 };
 
 /**
- * @struct CdepsStreamConfig
- * @brief Configuration for a single CDEPS input stream.
+ * @struct AcesDataStreamConfig
+ * @brief Configuration for a single aces_data input stream.
  */
-struct CdepsStreamConfig {
-    std::string name;                            ///< Name of the stream.
-    std::vector<std::string> file_paths;         ///< Paths to the NetCDF files.
-    std::vector<CdepsVariableConfig> variables;  ///< Variables to read from this stream.
-    std::string taxmode = "cycle";               ///< Time axis mode (cycle, extend, etc.).
-    std::string tintalgo = "linear";             ///< Time interpolation algorithm.
-    std::string mapalgo = "bilinear";            ///< Spatial mapping algorithm.
-    int dtlimit = 1500000000;                    ///< Delta time limit in seconds.
-    int yearFirst = 1;                           ///< First year in data.
-    int yearLast = 1;                            ///< Last year in data.
-    int yearAlign = 1;                           ///< Year to align with model time.
-    int offset = 0;                              ///< Time offset in seconds.
-    std::string meshfile;                        ///< Path to source mesh file.
-    std::string lev_dimname = "lev";             ///< Name of vertical dimension.
+struct AcesDataStreamConfig {
+    std::string name;                                ///< Name of the stream.
+    std::vector<std::string> file_paths;             ///< Paths to the NetCDF files.
+    std::vector<AcesDataVariableConfig> variables;   ///< Variables to read from this stream.
+    std::string taxmode = "cycle";                   ///< Time axis mode (cycle, extend, etc.).
+    std::string tintalgo = "linear";                 ///< Time interpolation algorithm.
+    std::string mapalgo = "bilinear";                ///< Spatial mapping algorithm (default: bilinear for robustness).
+    int dtlimit = 1500000000;                        ///< Delta time limit in seconds.
+    int yearFirst = 1;                               ///< First year in data.
+    int yearLast = 1;                                ///< Last year in data.
+    int yearAlign = 1;                               ///< Year to align with model time.
+    int offset = 0;                                  ///< Time offset in seconds.
+    std::string meshfile;                            ///< Path to source mesh file.
+    std::string lev_dimname = "lev";                 ///< Name of vertical dimension.
 };
 
 /**
- * @struct AcesCdepsConfig
- * @brief Configuration for CDEPS-inline data ingestion.
+ * @struct AcesDataConfig
+ * @brief Configuration for CF-compliant data ingestion (aces_data section).
  */
-struct AcesCdepsConfig {
-    std::vector<CdepsStreamConfig> streams;  ///< List of input streams.
+struct AcesDataConfig {
+    std::vector<AcesDataStreamConfig> streams;  ///< List of input streams.
 };
 
 /**
@@ -183,8 +183,8 @@ struct AcesConfig {
     std::vector<PhysicsSchemeConfig> physics_schemes;
     /// Configuration for diagnostic output.
     DiagnosticConfig diagnostics;
-    /// Configuration for CDEPS-inline data ingestion.
-    AcesCdepsConfig cdeps_config;
+    /// Configuration for CF-compliant data ingestion (aces_data section).
+    AcesDataConfig aces_data;
     /// Configuration for vertical grid.
     VerticalConfig vertical_config;
     /// Configuration for standalone NetCDF output.

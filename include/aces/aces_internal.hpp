@@ -46,6 +46,7 @@ struct AcesInternalData {
     std::vector<std::string> external_esmf_fields;  ///< External names of fields to ingest.
     std::vector<std::string>
         realized_fields;  ///< Fields already added to export state (for multi-cycle support).
+    std::vector<std::string> unique_input_fields; ///< List of all unique input fields required by configuration.
 
     // Field data pointers and metadata
     std::vector<void*> field_pointers;      ///< Data pointers for ESMF fields (one per species).

@@ -54,5 +54,5 @@ def test_hemco_to_aces_conversion(tmp_path):
         assert "EmisNO_Total" in diag_vars
 
     # Check ROOT replacement (our test rc has ROOT: data)
-    stream = next(s for s in config["cdeps_inline_config"]["streams"] if s["name"].upper() == "HOURLY_SCALFACT")
+    stream = next(s for s in config["aces_data"]["streams"] if s["name"].upper() == "HOURLY_SCALFACT")
     assert stream["file"] == "data/hourly.nc"

@@ -18,7 +18,6 @@ target_link_libraries(aces_nuopc_driver
   aces
   ESMF::ESMF
   yaml-cpp
-  ${ESMF_LIBRARIES}
 )
 
 if(TARGET MPI::MPI_Fortran)

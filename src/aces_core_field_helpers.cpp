@@ -1,3 +1,5 @@
+#include <fstream>
+#include <cstring>
 /**
  * @file aces_core_field_helpers.cpp
  * @brief Helper functions for field management in ACES.
@@ -154,7 +156,24 @@ void aces_core_bind_fields(void* data_ptr, void** field_ptrs, int* num_fields, i
         return;
     }
 
-    if (field_ptrs == nullptr || num_fields == nullptr) {
+    if (num_fields == nullptr) {
+        std::cerr << "ERROR: aces_core_bind_fields - num_fields pointer is null" << std::endl;
+        if (rc != nullptr) {
+            *rc = -1;
+        }
+        return;
+    }
+
+    // Special case: zero fields is a valid no-op
+    if (*num_fields == 0) {
+        std::cout << "INFO: aces_core_bind_fields - zero fields requested (no-op)" << std::endl;
+        if (rc != nullptr) {
+            *rc = 0;
+        }
+        return;
+    }
+
+    if (field_ptrs == nullptr) {
         std::cerr << "ERROR: aces_core_bind_fields - null pointer argument" << std::endl;
         if (rc != nullptr) {
             *rc = -1;
@@ -162,8 +181,8 @@ void aces_core_bind_fields(void* data_ptr, void** field_ptrs, int* num_fields, i
         return;
     }
 
-    if (*num_fields <= 0) {
-        std::cerr << "ERROR: aces_core_bind_fields - num_fields must be positive: "
+    if (*num_fields < 0) {
+        std::cerr << "ERROR: aces_core_bind_fields - num_fields must be non-negative: "
                   << *num_fields << std::endl;
         if (rc != nullptr) {
             *rc = -1;
@@ -237,14 +256,14 @@ void aces_core_bind_fields(void* data_ptr, void** field_ptrs, int* num_fields, i
  *
  * Requirements: R6
  */
-void aces_core_get_cdeps_streams_path(void* data_ptr, char* streams_path, int* path_len,
-                                      int* rc) {
+void aces_core_get_ingestor_streams_path(void* data_ptr, char* streams_path, int* path_len,
+                                         int* rc) {
     if (rc != nullptr) {
         *rc = 0;
     }
 
     if (data_ptr == nullptr) {
-        std::cerr << "ERROR: aces_core_get_cdeps_streams_path - data_ptr is null" << std::endl;
+        std::cerr << "ERROR: aces_core_get_ingestor_streams_path - data_ptr is null" << std::endl;
         if (rc != nullptr) {
             *rc = -1;
         }
@@ -252,7 +271,7 @@ void aces_core_get_cdeps_streams_path(void* data_ptr, char* streams_path, int* p
     }
 
     if (streams_path == nullptr || path_len == nullptr) {
-        std::cerr << "ERROR: aces_core_get_cdeps_streams_path - null pointer argument"
+        std::cerr << "ERROR: aces_core_get_ingestor_streams_path - null pointer argument"
                   << std::endl;
         if (rc != nullptr) {
             *rc = -1;
@@ -262,10 +281,8 @@ void aces_core_get_cdeps_streams_path(void* data_ptr, char* streams_path, int* p
 
     auto* internal_data = static_cast<aces::AcesInternalData*>(data_ptr);
 
-    // Check if CDEPS streams are configured
-    if (internal_data->config.cdeps_config.streams.empty()) {
-        std::cout << "INFO: aces_core_get_cdeps_streams_path - no CDEPS streams configured"
-                  << std::endl;
+    // Check if ingestor streams are configured
+    if (internal_data->config.aces_data.streams.empty()) {
         streams_path[0] = '\0';
         *path_len = 0;
         if (rc != nullptr) {
@@ -274,21 +291,246 @@ void aces_core_get_cdeps_streams_path(void* data_ptr, char* streams_path, int* p
         return;
     }
 
-    // For now, return a default streams file path
-    // In production, this would be read from config or environment
-    std::string default_path = "examples/cdeps_streams_ex1.txt";
-    int len = static_cast<int>(default_path.length());
+    // Generate TIDE ESMF configuration
+    std::string config_content = internal_data->ingestor.SerializeTideESMFConfig(internal_data->config.aces_data);
 
-    // Ensure we don't overflow the buffer
-    for (int i = 0; i < len; ++i) {
-        streams_path[i] = default_path[i];
+    // Write to file (using .rc extension common for ESMF resources)
+    std::string filename = "aces_data_streams.rc";
+    std::ofstream outfile(filename);
+    if (!outfile.is_open()) {
+        std::cerr << "ERROR: Failed to open output file for TIDE streams: " << filename << std::endl;
+        if (rc != nullptr) *rc = -1;
+        return;
     }
-    streams_path[len] = '\0';  // Null-terminate
+    outfile << config_content;
+    outfile.close();
 
-    *path_len = len;
+    // Return filename
+    if (filename.length() >= 512) { // Assuming 512 is buffer size from Fortran
+        std::cerr << "ERROR: streams path too long" << std::endl;
+        if (rc != nullptr) *rc = -1;
+        return;
+    }
 
-    std::cout << "INFO: aces_core_get_cdeps_streams_path returned: " << default_path
-              << std::endl;
+    std::strncpy(streams_path, filename.c_str(), 512);
+    *path_len = filename.length();
+
+    if (rc != nullptr) {
+        *rc = 0;
+    }
+}
+
+/**
+ * @brief Initialize the CF data ingestor from the Fortran cap.
+ *
+ * Called by the NUOPC cap (aces_cap.F90) after mesh creation when ingestor
+ * streams are configured.  Delegates to AcesDataIngestor::InitializeCDEPS
+ * which in turn delegates to CfDataIngestor.
+ *
+ * @param data_ptr  Pointer to AcesInternalData.
+ * @param c_clock   Opaque pointer to ESMF Clock handle.
+ * @param c_mesh    Opaque pointer to ESMF Mesh (target mesh).
+ * @param rc        Return code (0 = success, non-zero = error).
+ */
+void aces_ingestor_init(void* data_ptr, void* c_clock, void* c_mesh, int* rc) {
+    if (rc != nullptr) *rc = 0;
+
+    if (data_ptr == nullptr) {
+        std::cerr << "ERROR: aces_ingestor_init - data_ptr is null" << std::endl;
+        if (rc != nullptr) *rc = -1;
+        return;
+    }
+
+    // In the new architecture, we do not initialize a C++ ingestor.
+    // TIDE operates in Fortran.
+    if (rc != nullptr) *rc = 0;
+}
+
+/**
+ * @brief Register an ESMF export field data pointer in the internal field map.
+ *
+ * Called from the Fortran cap during ACES_InitializeRealize after
+ * ESMF_FieldGet(farrayPtr=fptr) for each species.
+ *
+ * @param data_ptr   Pointer to AcesInternalData.
+ * @param name       Species name (not null-terminated; use name_len).
+ * @param name_len   Length of the name string.
+ * @param field_data Raw pointer to the field data (from c_loc(fptr(1,1,1))).
+ * @param nx, ny, nz Grid dimensions.
+ * @param rc         Return code (0 = success, -1 = error).
+ */
+void aces_core_set_export_field(void* data_ptr, const char* name, int name_len,
+                                double* field_data, int nx, int ny, int nz, int* rc) {
+    if (rc != nullptr) {
+        *rc = 0;
+    }
+
+    if (data_ptr == nullptr) {
+        std::cerr << "ERROR: aces_core_set_export_field - data_ptr is null" << std::endl;
+        if (rc != nullptr) *rc = -1;
+        return;
+    }
+
+    if (name == nullptr || name_len <= 0) {
+        std::cerr << "ERROR: aces_core_set_export_field - invalid name argument" << std::endl;
+        if (rc != nullptr) *rc = -1;
+        return;
+    }
+
+    if (field_data == nullptr) {
+        std::cerr << "ERROR: aces_core_set_export_field - field_data is null" << std::endl;
+        if (rc != nullptr) *rc = -1;
+        return;
+    }
+
+    auto* internal_data = static_cast<aces::AcesInternalData*>(data_ptr);
+    std::string name_str(name, static_cast<size_t>(name_len));
+
+    // Wrap the ESMF-owned memory as an unmanaged host view (zero-copy)
+    using UnmanagedHost = Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace,
+                                       Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+    UnmanagedHost h_view(field_data, nx, ny, nz);
+
+    // Allocate a managed DualView3D and deep-copy the host data into it.
+    // This ensures the DualView owns its memory and can be safely used
+    // throughout the simulation lifetime.
+    aces::DualView3D dv(name_str, nx, ny, nz);
+    Kokkos::deep_copy(dv.view_host(), h_view);
+    dv.modify_host();
+    dv.sync_device();
+
+    internal_data->export_state.fields[name_str] = dv;
+
+    std::cout << "INFO: aces_core_set_export_field - registered field '" << name_str
+              << "' (" << nx << "x" << ny << "x" << nz << ")" << std::endl;
+
+    if (rc != nullptr) {
+        *rc = 0;
+    }
+}
+
+/**
+ * @brief Write one output timestep via the standalone writer.
+ *
+ * No-op if not in standalone mode or writer is null.
+ * Respects the output frequency configured in output_config.frequency_steps.
+ *
+ * @param data_ptr     Pointer to AcesInternalData.
+ * @param time_seconds Elapsed time in seconds since simulation start.
+ * @param step_index   Current step index (0-based).
+ * @param rc           Return code (0 = success, -1 = error).
+ */
+void aces_core_write_step(void* data_ptr, double time_seconds, int step_index, int* rc) {
+    if (rc != nullptr) *rc = 0;
+
+    if (data_ptr == nullptr) {
+        std::cerr << "ERROR: aces_core_write_step - data_ptr is null" << std::endl;
+        if (rc != nullptr) *rc = -1;
+        return;
+    }
+
+    auto* d = static_cast<aces::AcesInternalData*>(data_ptr);
+
+    if (!d->standalone_mode || !d->standalone_writer) return;
+
+    const int freq = d->config.output_config.frequency_steps;
+    if (step_index % freq != 0) return;
+
+    int w = d->standalone_writer->WriteTimeStep(d->export_state.fields, time_seconds, step_index);
+    if (w != 0) {
+        std::cerr << "WARNING: aces_core_write_step - WriteTimeStep returned " << w << std::endl;
+        if (rc != nullptr) *rc = w;
+    }
+}
+
+
+
+/**
+ * @brief Get the number of unique input fields required by the configuration.
+ *
+ * @param data_ptr Pointer to AcesInternalData
+ * @param count Output: number of unique input fields
+ * @param rc Return code (0 = success, non-zero = error)
+ */
+void aces_core_get_input_field_count(void* data_ptr, int* count, int* rc) {
+    if (rc != nullptr) {
+        *rc = 0;
+    }
+
+    if (data_ptr == nullptr) {
+        std::cerr << "ERROR: aces_core_get_input_field_count - data_ptr is null" << std::endl;
+        if (rc != nullptr) {
+            *rc = -1;
+        }
+        return;
+    }
+
+    if (count == nullptr) {
+        std::cerr << "ERROR: aces_core_get_input_field_count - count pointer is null" << std::endl;
+        if (rc != nullptr) {
+            *rc = -1;
+        }
+        return;
+    }
+
+    auto* internal_data = static_cast<aces::AcesInternalData*>(data_ptr);
+    *count = static_cast<int>(internal_data->unique_input_fields.size());
+
+    if (rc != nullptr) {
+        *rc = 0;
+    }
+}
+
+/**
+ * @brief Get the name of a required input field by index.
+ *
+ * @param data_ptr Pointer to AcesInternalData
+ * @param index Zero-based index of the input field
+ * @param name Output: input field name (C string, null-terminated)
+ * @param name_len Output: length of the name (excluding null terminator)
+ * @param rc Return code (0 = success, non-zero = error)
+ */
+void aces_core_get_input_field_name(void* data_ptr, int* index, char* name, int* name_len,
+                                    int* rc) {
+    if (rc != nullptr) {
+        *rc = 0;
+    }
+
+    if (data_ptr == nullptr) {
+        std::cerr << "ERROR: aces_core_get_input_field_name - data_ptr is null" << std::endl;
+        if (rc != nullptr) {
+            *rc = -1;
+        }
+        return;
+    }
+
+    if (index == nullptr || name == nullptr || name_len == nullptr) {
+        std::cerr << "ERROR: aces_core_get_input_field_name - null pointer argument" << std::endl;
+        if (rc != nullptr) {
+            *rc = -1;
+        }
+        return;
+    }
+
+    auto* internal_data = static_cast<aces::AcesInternalData*>(data_ptr);
+    int idx = *index;
+
+    if (idx < 0 || idx >= static_cast<int>(internal_data->unique_input_fields.size())) {
+        std::cerr << "ERROR: aces_core_get_input_field_name - index out of bounds: " << idx
+                  << " (size: " << internal_data->unique_input_fields.size() << ")" << std::endl;
+        if (rc != nullptr) {
+            *rc = -1;
+        }
+        return;
+    }
+
+    const std::string& field_name = internal_data->unique_input_fields[idx];
+
+    // Check buffer size (assuming caller provides enough space, typically 256)
+    // We safeguard against overflow purely by length check if we knew buffer size,
+    // but here we assume standard Fortran string passing.
+    std::strncpy(name, field_name.c_str(), 256);
+    *name_len = field_name.length();
 
     if (rc != nullptr) {
         *rc = 0;

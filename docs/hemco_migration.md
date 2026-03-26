@@ -76,7 +76,7 @@ species:
       scale: 1.0
       scale_fields: [hourly_scalfact]
 
-cdeps_inline_config:
+aces_data:
   streams:
     - name: MACCITY_CO
       file: data/MACCity.nc
@@ -273,7 +273,7 @@ species:
       scale: 1.0
       mask: mask_europe
 
-cdeps_inline_config:
+aces_data:
   streams:
     - name: CEDS_CO
       file: data/CEDS_CO.nc
@@ -317,7 +317,7 @@ species:
       scale: 1.0
       mask: mask_europe
 
-cdeps_inline_config:
+aces_data:
   streams:
     - name: hourly_sf
       file: data/hourly.nc
@@ -381,7 +381,7 @@ engine.AddSpecies("new_species");  // picks up from updated config
 
 ### "Field not found" errors
 
-Ensure the field name in `species[].field` matches the `name` in `cdeps_inline_config.streams`
+Ensure the field name in `species[].field` matches the `name` in `aces_data.streams`
 or the external name in `meteorology:`.
 
 ### Temporal profiles not applied

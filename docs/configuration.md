@@ -26,7 +26,7 @@ physics_schemes:
 diagnostics:
   # ... diagnostic settings ...
 
-cdeps_inline_config:
+aces_data:
   # ... CDEPS settings ...
 ```
 
@@ -111,7 +111,7 @@ Configures the output of intermediate variables.
 
 ---
 
-## `cdeps_inline_config`
+## `aces_data`
 
 Configures the CDEPS-inline streams for reading data from disk.
 
@@ -126,7 +126,7 @@ Configures the CDEPS-inline streams for reading data from disk.
 
 **Example:**
 ```yaml
-cdeps_inline_config:
+aces_data:
   streams:
     - name: "base_nox"
       file: "data/inventories/nox_2024.nc"

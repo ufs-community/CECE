@@ -104,7 +104,7 @@ diagnostics:
   output_interval_seconds: 3600
   variables: []
 
-cdeps_inline_config:
+aces_data:
   streams: []
 )";
         f.close();
@@ -189,12 +189,12 @@ TEST_F(FieldPointerPassingTest, FieldPointerPassing_FieldNamesStoredCorrectly) {
     EXPECT_EQ(internal_data->field_names.size(), num_species)
         << "Should store " << num_species << " field names";
 
-    // Verify field names match species names
-    std::vector<std::string> expected_names = {"CO", "NOx", "SO2"};
-    for (int i = 0; i < num_species; ++i) {
-        EXPECT_EQ(internal_data->field_names[i], expected_names[i])
-            << "Field name " << i << " should match species name";
-    }
+    // Verify field names match species names (order may vary due to unordered_map)
+    std::set<std::string> expected_names = {"CO", "NOx", "SO2"};
+    std::set<std::string> actual_names(internal_data->field_names.begin(),
+                                       internal_data->field_names.end());
+    EXPECT_EQ(actual_names, expected_names)
+        << "Field names should match species names (order may vary)";
 
     FreeFieldPointers(field_ptrs, num_species);
 }

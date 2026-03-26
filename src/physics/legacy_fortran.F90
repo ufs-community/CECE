@@ -1,21 +1,37 @@
+!> @file legacy_fortran.F90
+!> @brief Legacy Fortran physics implementation for testing the bridge.
+!>
+!> This module contains a simple physics kernel to demonstrate
+!> interoperability with C++ ACES components.
+
 module legacy_fortran_mod
-    use iso_c_binding
-    implicit none
+  use iso_c_binding
+  implicit none
 
 contains
 
-    subroutine run_legacy_fortran(temp_ptr, wind_ptr, nox_ptr, nx, ny, nz) bind(c, name="run_legacy_fortran")
-        type(c_ptr), value :: temp_ptr, wind_ptr, nox_ptr
-        integer(c_int), value :: nx, ny, nz
+  !> @brief Run legacy Fortran physics calculation.
+  !>
+  !> Computes NOx emissions based on temperature and wind speed.
+  !> exposed to C++ via bind(C)
+  subroutine run_legacy_fortran(temp, wind, nox, nx, ny, nz) bind(C, name="run_legacy_fortran")
+    real(c_double), intent(in)  :: temp(nx, ny, nz) !< Air temperature (K)
+    real(c_double), intent(in)  :: wind(nx, ny, nz) !< Wind speed (m/s)
+    real(c_double), intent(out) :: nox(nx, ny, nz)  !< Calculated NOx
+    integer(c_int), value, intent(in) :: nx, ny, nz
 
-        real(c_double), pointer :: temp(:,:,:), wind(:,:,:), nox(:,:,:)
+    integer :: i, j, k
 
-        call c_f_pointer(temp_ptr, temp, [int(nx), int(ny), int(nz)])
-        call c_f_pointer(wind_ptr, wind, [int(nx), int(ny), int(nz)])
-        call c_f_pointer(nox_ptr, nox, [int(nx), int(ny), int(nz)])
+    ! Simple Kernel: NOx = temp * 0.1 + wind * 0.5
+    ! This is purely for demonstration purposes.
+    do k = 1, nz
+       do j = 1, ny
+          do i = 1, nx
+             nox(i,j,k) = temp(i,j,k) * 0.1d0 + wind(i,j,k) * 0.5d0
+          end do
+       end do
+    end do
 
-        ! Simple operation: add 1.0 to all NOX emissions
-        nox = nox + 1.0
-    end subroutine
+  end subroutine run_legacy_fortran
 
-end module
+end module legacy_fortran_mod

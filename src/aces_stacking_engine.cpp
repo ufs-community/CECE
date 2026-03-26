@@ -321,7 +321,6 @@ void StackingEngine::Execute(
         if (spec.layers.empty()) {
             continue;
         }
-
         BindFields(spec, resolver, nx, ny, nz);
 
         if (spec.export_field.data() == nullptr) {
@@ -362,191 +361,148 @@ void StackingEngine::Execute(
             KOKKOS_LAMBDA(int i, int j, int k) {
                 double accumulated = 0.0;
 
-                // Pre-compute total overlap for the column (i,j) for vertical distribution methods
-                // This is computed once per column, not per layer, since the distribution range is
-                // the same for all layers
-                double total_overlap_pressure = 0.0;
-                double total_overlap_height = 0.0;
-                double total_overlap_pbl = 0.0;
-
-                // Find the first layer with each vertical distribution method to get the
-                // distribution range
-                double vdist_p_start = 0.0, vdist_p_end = 0.0;
-                double vdist_h_start = 0.0, vdist_h_end = 0.0;
-                bool has_pressure = false, has_height = false, has_pbl = false;
-
-                // Determine if any layer uses PRESSURE, HEIGHT, or PBL
-                for (int l = 0; l < num_layers; ++l) {
-                    const auto& layer = layers(l);
-                    if (layer.field.data() == nullptr) {
-                        continue;
-                    }
-                    if (layer.vdist_method == 2) has_pressure = true;
-                    if (layer.vdist_method == 3) has_height = true;
-                    if (layer.vdist_method == 4) has_pbl = true;
-                }
-
-                // Note: total_overlap_* and distribution logic are now handled inside the layer
-                // loop to support per-layer distribution ranges correctly and ensure mass
-                // conservation.
-
+                // Iterate over all layers
                 for (int l = 0; l < num_layers; ++l) {
                     const auto& layer = layers(l);
                     if (layer.field.data() == nullptr) {
                         continue;
                     }
 
-                    // Determine if this (i,j,k) point should receive emissions from this layer
-                    // and calculate the fractional weight for distribution if it's a 2D field.
+                    // Determine distribution weight
                     double weight = 0.0;
-                    if (i==0 && j==0 && k==0) {
-                        Kokkos::printf("DEBUG: Layer %d Method %d Addr=%p\n", l, layer.vdist_method, layer.field.data());
-                    }
                     bool in_vertical_range = false;
 
                     // Support 3D emission fields natively
-                    bool is_3d_field = (layer.field.extent(2) > 1);
+                    bool is_3d_field = (layer.field.extent(2) == nz);
 
-                    if (layer.vdist_method == 0) {  // SINGLE
-                        if (k == layer.vdist_layer_start) {
-                            in_vertical_range = true;
-                            weight = 1.0;
-                        }
-                    } else if (layer.vdist_method == 1) {  // RANGE
-                        if (k >= layer.vdist_layer_start && k <= layer.vdist_layer_end) {
-                            in_vertical_range = true;
-                            weight = 1.0 / (layer.vdist_layer_end - layer.vdist_layer_start + 1);
-                        }
-                    } else if (layer.vdist_method == 2) {  // PRESSURE
-                        // Compute total overlap for this specific layer's pressure range
-                        double layer_total_overlap = 0.0;
-                        for (int l2 = 0; l2 < nz; ++l2) {
-                            double p_top2 = 0.0, p_bot2 = 0.0;
+                    if (is_3d_field) {
+                         in_vertical_range = true;
+                         weight = 1.0;
+                    } else {
+                        // 2D field logic
+                        if (layer.vdist_method == 0) {  // SINGLE
+                            if (k == layer.vdist_layer_start) {
+                                in_vertical_range = true;
+                                weight = 1.0;
+                            }
+                        } else if (layer.vdist_method == 1) {  // RANGE
+                            if (k >= layer.vdist_layer_start && k <= layer.vdist_layer_end) {
+                                in_vertical_range = true;
+                                weight = 1.0 / (layer.vdist_layer_end - layer.vdist_layer_start + 1);
+                            }
+                        } else if (layer.vdist_method == 2) {  // PRESSURE
+                            // Compute total overlap for this specific layer's pressure range
+                            double layer_total_overlap = 0.0;
+                            for (int l2 = 0; l2 < nz; ++l2) {
+                                double p_top2 = 0.0, p_bot2 = 0.0;
+                                if (vtype == VerticalCoordType::FV3 && ak.data() != nullptr &&
+                                    bk.data() != nullptr && ps.data() != nullptr) {
+                                    p_top2 = ak(0, 0, l2) + bk(0, 0, l2) * ps(i, j, 0);
+                                    p_bot2 = ak(0, 0, l2 + 1) + bk(0, 0, l2 + 1) * ps(i, j, 0);
+                                } else if ((vtype == VerticalCoordType::MPAS ||
+                                            vtype == VerticalCoordType::WRF) &&
+                                           z_coord.data() != nullptr) {
+                                    constexpr double P0 = 101325.0;
+                                    constexpr double H = 8000.0;
+                                    p_top2 = P0 * Kokkos::exp(-z_coord(i, j, l2) / H);
+                                    if (l2 + 1 < nz) {
+                                        p_bot2 = P0 * Kokkos::exp(-z_coord(i, j, l2 + 1) / H);
+                                    } else {
+                                        p_bot2 = ps.data() != nullptr ? ps(i, j, 0) : P0;
+                                    }
+                                }
+                                double overlap_top2 =
+                                    (p_top2 > layer.vdist_p_start) ? p_top2 : layer.vdist_p_start;
+                                double overlap_bot2 =
+                                    (p_bot2 < layer.vdist_p_end) ? p_bot2 : layer.vdist_p_end;
+                                if (overlap_bot2 > overlap_top2) {
+                                    layer_total_overlap += (overlap_bot2 - overlap_top2);
+                                }
+                            }
+
+                            double p_top = 0.0, p_bot = 0.0;
                             if (vtype == VerticalCoordType::FV3 && ak.data() != nullptr &&
                                 bk.data() != nullptr && ps.data() != nullptr) {
-                                p_top2 = ak(0, 0, l2) + bk(0, 0, l2) * ps(i, j, 0);
-                                p_bot2 = ak(0, 0, l2 + 1) + bk(0, 0, l2 + 1) * ps(i, j, 0);
+                                p_top = ak(0, 0, k) + bk(0, 0, k) * ps(i, j, 0);
+                                p_bot = ak(0, 0, k + 1) + bk(0, 0, k + 1) * ps(i, j, 0);
                             } else if ((vtype == VerticalCoordType::MPAS ||
                                         vtype == VerticalCoordType::WRF) &&
-                                       z_coord.data() != nullptr) {
+                                   z_coord.data() != nullptr) {
                                 constexpr double P0 = 101325.0;
                                 constexpr double H = 8000.0;
-                                p_top2 = P0 * Kokkos::exp(-z_coord(i, j, l2) / H);
-                                if (l2 + 1 < nz) {
-                                    p_bot2 = P0 * Kokkos::exp(-z_coord(i, j, l2 + 1) / H);
+                                p_top = P0 * Kokkos::exp(-z_coord(i, j, k) / H);
+                                if (k + 1 < nz) {
+                                    p_bot = P0 * Kokkos::exp(-z_coord(i, j, k + 1) / H);
                                 } else {
-                                    p_bot2 = ps.data() != nullptr ? ps(i, j, 0) : P0;
+                                    p_bot = ps.data() != nullptr ? ps(i, j, 0) : P0;
                                 }
                             }
-                            double overlap_top2 =
-                                (p_top2 > layer.vdist_p_start) ? p_top2 : layer.vdist_p_start;
-                            double overlap_bot2 =
-                                (p_bot2 < layer.vdist_p_end) ? p_bot2 : layer.vdist_p_end;
-                            if (overlap_bot2 > overlap_top2) {
-                                layer_total_overlap += (overlap_bot2 - overlap_top2);
-                            }
-                        }
-
-                        // Compute the overlap for the current layer (k)
-                        double p_top = 0.0, p_bot = 0.0;
-                        if (vtype == VerticalCoordType::FV3 && ak.data() != nullptr &&
-                            bk.data() != nullptr && ps.data() != nullptr) {
-                            p_top = ak(0, 0, k) + bk(0, 0, k) * ps(i, j, 0);
-                            p_bot = ak(0, 0, k + 1) + bk(0, 0, k + 1) * ps(i, j, 0);
-                        } else if ((vtype == VerticalCoordType::MPAS ||
-                                    vtype == VerticalCoordType::WRF) &&
-                                   z_coord.data() != nullptr) {
-                            constexpr double P0 = 101325.0;
-                            constexpr double H = 8000.0;
-                            p_top = P0 * Kokkos::exp(-z_coord(i, j, k) / H);
-                            if (k + 1 < nz) {
-                                p_bot = P0 * Kokkos::exp(-z_coord(i, j, k + 1) / H);
-                            } else {
-                                p_bot = ps.data() != nullptr ? ps(i, j, 0) : P0;
-                            }
-                        }
-                        double overlap_top =
-                            (p_top > layer.vdist_p_start) ? p_top : layer.vdist_p_start;
-                        double overlap_bot =
-                            (p_bot < layer.vdist_p_end) ? p_bot : layer.vdist_p_end;
-
-                        if (overlap_bot > overlap_top && layer_total_overlap > 0.0) {
-                            in_vertical_range = true;
-                            weight = (overlap_bot - overlap_top) / layer_total_overlap;
-                        }
-                        
-                        if (i==0 && j==0 && k==0) {
-                            Kokkos::printf("DEBUG: Method 2. P_Start=%f P_End=%f TotalOverlap=%f P_Top(0)=%f P_Bot(0)=%f Weight=%f InRange=%d\n", 
-                                layer.vdist_p_start, layer.vdist_p_end, layer_total_overlap, p_top, p_bot, weight, in_vertical_range);
-                        } else if (i==0 && j==0 && k==nz-1) {
-                             Kokkos::printf("DEBUG: Method 2. Bottom k=%d P_Top=%f P_Bot=%f Weight=%f\n", k, p_top, p_bot, weight);
-                        }
-                    } else if (layer.vdist_method == 3) {  // HEIGHT
-                        if (z_coord.data() != nullptr) {
-                            // Compute total overlap for this specific layer's height range
-                            double layer_total_overlap = 0.0;
-                            for (int l2 = 0; l2 < nz; ++l2) {
-                                double z_t = z_coord(i, j, l2);
-                                double z_b = z_coord(i, j, l2 + 1);
-                                double z_top2 = (z_t > z_b) ? z_t : z_b;  // max
-                                double z_bot2 = (z_t < z_b) ? z_t : z_b;  // min
-
-                                double overlap_top2 =
-                                    (z_top2 < layer.vdist_h_end) ? z_top2 : layer.vdist_h_end;
-                                double overlap_bot2 =
-                                    (z_bot2 > layer.vdist_h_start) ? z_bot2 : layer.vdist_h_start;
-                                if (overlap_top2 > overlap_bot2) {
-                                    layer_total_overlap += (overlap_top2 - overlap_bot2);
-                                }
-                            }
-
-                            // Compute the overlap for the current layer (k)
-                            double z_t = z_coord(i, j, k);
-                            double z_b = z_coord(i, j, k + 1);
-                            double z_top = (z_t > z_b) ? z_t : z_b;
-                            double z_bot = (z_t < z_b) ? z_t : z_b;
-
                             double overlap_top =
-                                (z_top < layer.vdist_h_end) ? z_top : layer.vdist_h_end;
+                                (p_top > layer.vdist_p_start) ? p_top : layer.vdist_p_start;
                             double overlap_bot =
-                                (z_bot > layer.vdist_h_start) ? z_bot : layer.vdist_h_start;
+                                (p_bot < layer.vdist_p_end) ? p_bot : layer.vdist_p_end;
 
-                            if (overlap_top > overlap_bot && layer_total_overlap > 0.0) {
+                            if (overlap_bot > overlap_top && layer_total_overlap > 0.0) {
                                 in_vertical_range = true;
-                                weight = (overlap_top - overlap_bot) / layer_total_overlap;
+                                weight = (overlap_bot - overlap_top) / layer_total_overlap;
                             }
-                        }
-                    } else if (layer.vdist_method == 4) {  // PBL
-                        if (pbl.data() != nullptr && z_coord.data() != nullptr) {
-                            double h_pbl = pbl(i, j, 0);
+                        } else if (layer.vdist_method == 3) {  // HEIGHT
+                            if (z_coord.data() != nullptr) {
+                                double layer_total_overlap = 0.0;
+                                for (int l2 = 0; l2 < nz; ++l2) {
+                                    double z_t = z_coord(i, j, l2);
+                                    double z_b = z_coord(i, j, l2 + 1);
+                                    double z_top2 = (z_t > z_b) ? z_t : z_b;
+                                    double z_bot2 = (z_t < z_b) ? z_t : z_b;
+                                    double overlap_top2 =
+                                        (z_top2 < layer.vdist_h_end) ? z_top2 : layer.vdist_h_end;
+                                    double overlap_bot2 =
+                                        (z_bot2 > layer.vdist_h_start) ? z_bot2 : layer.vdist_h_start;
+                                    if (overlap_top2 > overlap_bot2) {
+                                        layer_total_overlap += (overlap_top2 - overlap_bot2);
+                                    }
+                                }
 
-                            // Compute total overlap for this specific layer's PBL range
-                            double layer_total_overlap = 0.0;
-                            for (int l2 = 0; l2 < nz; ++l2) {
-                                double z_a = z_coord(i, j, l2);
-                                double z_b2 = z_coord(i, j, l2 + 1);
-                                // Layer spans [z_bot2, z_top2] regardless of coordinate direction
-                                double z_top2 = (z_a > z_b2) ? z_a : z_b2;
-                                double z_bot2 = (z_a < z_b2) ? z_a : z_b2;
-                                // Overlap with [0, h_pbl]
-                                double ov_top = (z_top2 < h_pbl) ? z_top2 : h_pbl;
-                                double ov_bot = (z_bot2 > 0.0) ? z_bot2 : 0.0;
-                                if (ov_top > ov_bot) {
-                                    layer_total_overlap += (ov_top - ov_bot);
+                                double z_t = z_coord(i, j, k);
+                                double z_b = z_coord(i, j, k + 1);
+                                double z_top = (z_t > z_b) ? z_t : z_b;
+                                double z_bot = (z_t < z_b) ? z_t : z_b;
+                                double overlap_top =
+                                    (z_top < layer.vdist_h_end) ? z_top : layer.vdist_h_end;
+                                double overlap_bot =
+                                    (z_bot > layer.vdist_h_start) ? z_bot : layer.vdist_h_start;
+
+                                if (overlap_top > overlap_bot && layer_total_overlap > 0.0) {
+                                    in_vertical_range = true;
+                                    weight = (overlap_top - overlap_bot) / layer_total_overlap;
                                 }
                             }
+                        } else if (layer.vdist_method == 4) {  // PBL
+                            if (pbl.data() != nullptr && z_coord.data() != nullptr) {
+                                double h_pbl = pbl(i, j, 0);
+                                double layer_total_overlap = 0.0;
+                                for (int l2 = 0; l2 < nz; ++l2) {
+                                    double z_a = z_coord(i, j, l2);
+                                    double z_b2 = z_coord(i, j, l2 + 1);
+                                    double z_top2 = (z_a > z_b2) ? z_a : z_b2;
+                                    double z_bot2 = (z_a < z_b2) ? z_a : z_b2;
+                                    double ov_top = (z_top2 < h_pbl) ? z_top2 : h_pbl;
+                                    double ov_bot = (z_bot2 > 0.0) ? z_bot2 : 0.0;
+                                    if (ov_top > ov_bot) {
+                                        layer_total_overlap += (ov_top - ov_bot);
+                                    }
+                                }
+                                double z_a = z_coord(i, j, k);
+                                double z_b2 = z_coord(i, j, k + 1);
+                                double z_top = (z_a > z_b2) ? z_a : z_b2;
+                                double z_bot = (z_a < z_b2) ? z_a : z_b2;
+                                double ov_top = (z_top < h_pbl) ? z_top : h_pbl;
+                                double ov_bot = (z_bot > 0.0) ? z_bot : 0.0;
 
-                            // Compute the overlap for the current layer (k)
-                            double z_a = z_coord(i, j, k);
-                            double z_b2 = z_coord(i, j, k + 1);
-                            double z_top = (z_a > z_b2) ? z_a : z_b2;
-                            double z_bot = (z_a < z_b2) ? z_a : z_b2;
-                            double ov_top = (z_top < h_pbl) ? z_top : h_pbl;
-                            double ov_bot = (z_bot > 0.0) ? z_bot : 0.0;
-
-                            if (ov_top > ov_bot && layer_total_overlap > 0.0) {
-                                in_vertical_range = true;
-                                weight = (ov_top - ov_bot) / layer_total_overlap;
+                                if (ov_top > ov_bot && layer_total_overlap > 0.0) {
+                                    in_vertical_range = true;
+                                    weight = (ov_top - ov_bot) / layer_total_overlap;
+                                }
                             }
                         }
                     }
@@ -555,57 +511,39 @@ void StackingEngine::Execute(
                         continue;
                     }
 
-                    // For 3D fields with explicit vertical distribution, apply the weight.
-                    // For 3D fields with no distribution (vdist_method==0 at k==0), weight=1.
-                    // For 2D fields, read from k=0 and apply weight.
-                    double val = is_3d_field ? (layer.field(i, j, k) * weight)
-                                             : (layer.field(i, j, 0) * weight);
+                    double val = 0.0;
+                    if (is_3d_field) {
+                        val = layer.field(i, j, k) * weight;
+                    } else {
+                        val = layer.field(i, j, 0) * weight;
+                    }
 
-                    // Fused scale factor application: multiply all scales in single pass
-                    double combined_scale = layer.scale;  // Pre-computed temporal scale
+                    // Fused scale/mask
+                    double combined_scale = layer.scale;
                     for (int s = 0; s < layer.num_scales; ++s) {
-                        double scale_val = 0.0;
-                        if (layer.scales[s].extent(2) == 1) {
-                            scale_val = layer.scales[s](i, j, 0);
-                        } else {
-                            scale_val = layer.scales[s](i, j, k);
-                        }
+                        double scale_val = (layer.scales[s].extent(2) == 1) ? layer.scales[s](i, j, 0) : layer.scales[s](i, j, k);
                         combined_scale *= scale_val;
                     }
 
-                    // Fused mask application: multiply all masks in single pass
-                    double combined_mask = 0.0;
+                    double combined_mask = 1.0;
                     if (layer.num_masks > 0) {
-                        combined_mask = 1.0;
                         for (int m = 0; m < layer.num_masks; ++m) {
-                            double mask_val = 0.0;
-                            if (layer.masks[m].extent(2) == 1) {
-                                mask_val = layer.masks[m](i, j, 0);
-                            } else {
-                                mask_val = layer.masks[m](i, j, k);
-                            }
+                            double mask_val = (layer.masks[m].extent(2) == 1) ? layer.masks[m](i, j, 0) : layer.masks[m](i, j, k);
                             combined_mask *= mask_val;
                         }
                     } else {
                         combined_mask = default_mask(i, j, k);
                     }
 
-                    // Apply scale and mask to emission value
                     double contribution = val * combined_scale * combined_mask;
 
-                    // Handle replace vs add operation
-                    if (layer.replace_flag > 0.5) {  // replace operation
-                        // For replace: only replace where mask is non-zero
-                        // Outside mask (combined_mask == 0), keep accumulated value
-                        if (combined_mask > 0.0) {
-                            accumulated = contribution;
-                        }
-                    } else {  // add operation
+                    if (layer.replace_flag > 0.5) {
+                        if (combined_mask > 0.0) accumulated = contribution;
+                    } else {
                         accumulated += contribution;
                     }
                 }
 
-                // Single write to output field
                 total_view(i, j, k) = accumulated;
             });
     }

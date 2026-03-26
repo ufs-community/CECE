@@ -30,7 +30,7 @@ species:
       scale: 1.0
       scale_fields: ["hourly_scalfact"]
 
-cdeps_inline_config:
+aces_data:
   streams:
     - name: "MACCITY_CO"
       file: "data/MACCity_4x5.nc"

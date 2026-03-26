@@ -41,6 +41,7 @@ program aces_nuopc_single_driver
   type(ESMF_TimeInterval) :: timeStep
   type(ESMF_Calendar) :: calendar
   type(ESMF_Grid)     :: grid
+  type(ESMF_Mesh)     :: mesh
 
   !--- Command-line configuration (with defaults) ---
   character(len=512) :: config_file    = "aces_config.yaml"
@@ -123,6 +124,84 @@ program aces_nuopc_single_driver
   write(msg,'(A,I0,A,I0,A)') "INFO: [Driver] Grid created: ", nx, " x ", ny, " (nx x ny)"
   write(*,'(A)') trim(msg)
 
+  ! Create Mesh MANUALLY
+  mesh = ESMF_MeshCreate(parametricDim=2, spatialDim=2, coordSys=ESMF_COORDSYS_SPH_DEG, rc=rc)
+  if (rc /= ESMF_SUCCESS) call driver_abort("Failed to create empty mesh", rc)
+
+  block
+    integer :: i, j, nid, eid, n_nodes, n_elems
+    real(ESMF_KIND_R8), pointer :: nodeCoords(:)
+    integer, pointer :: nodeIds(:)
+    real(ESMF_KIND_R8), pointer :: elemCoords(:)
+    integer, pointer :: elemIds(:)
+    integer, pointer :: elemConn(:)
+    real(ESMF_KIND_R8) :: dlon, dlat
+    integer, pointer :: elemTypes(:)
+
+    ! Set dimensions
+    n_nodes = (nx+1) * (ny+1)
+    n_elems = nx * ny
+
+    dlon = 360.0d0 / real(nx, ESMF_KIND_R8)
+    dlat = 180.0d0 / real(ny, ESMF_KIND_R8)
+
+    ! --- 1. Nodes ---
+    allocate(nodeIds(n_nodes))
+    allocate(nodeCoords(2*n_nodes))
+
+    nid = 0
+    do j = 1, ny+1
+      do i = 1, nx+1
+        nid = nid + 1
+        nodeIds(nid) = nid
+        nodeCoords(2*nid-1) = (real(i, ESMF_KIND_R8) - 1.0d0) * dlon - 180.0d0
+        nodeCoords(2*nid)   = (real(j, ESMF_KIND_R8) - 1.0d0) * dlat - 90.0d0
+      end do
+    end do
+
+    call ESMF_MeshAddNodes(mesh, nodeIds=nodeIds, &
+                           nodeCoords=nodeCoords, rc=rc)
+    if (rc /= ESMF_SUCCESS) call driver_abort("Failed to add mesh nodes", rc)
+    deallocate(nodeIds, nodeCoords)
+
+    ! --- 2. Elements ---
+    allocate(elemIds(n_elems))
+    allocate(elemCoords(2*n_elems))
+    allocate(elemConn(4*n_elems))
+    allocate(elemTypes(n_elems))
+
+    eid = 0
+    do j = 1, ny
+      do i = 1, nx
+        eid = eid + 1
+        elemIds(eid) = eid
+        ! Element Center Coords
+        elemCoords(2*eid-1) = (real(i, ESMF_KIND_R8) - 0.5d0) * dlon - 180.0d0
+        elemCoords(2*eid)   = (real(j, ESMF_KIND_R8) - 0.5d0) * dlat - 90.0d0
+
+        ! Element Type (Quad)
+        elemTypes(eid) = ESMF_MESHELEMTYPE_QUAD
+
+        ! Connectivity (CCW): (i,j), (i+1,j), (i+1,j+1), (i,j+1)
+        ! Nodes index map: nid(i,j) = (j-1)*(nx+1) + i
+        elemConn(4*eid-3) = (j-1)*(nx+1) + i
+        elemConn(4*eid-2) = (j-1)*(nx+1) + i + 1
+        elemConn(4*eid-1) = j*(nx+1) + i + 1
+        elemConn(4*eid)   = j*(nx+1) + i
+      end do
+    end do
+
+    call ESMF_MeshAddElements(mesh, elementIds=elemIds, &
+                              elementTypes=elemTypes, &
+                              elementConn=elemConn, &
+                              elementCoords=elemCoords, rc=rc)
+    if (rc /= ESMF_SUCCESS) call driver_abort("Failed to add mesh elements", rc)
+
+    deallocate(elemIds, elemCoords, elemConn, elemTypes)
+  end block
+
+  write(*,'(A)') "INFO: [Driver] Mesh created MANUALLY with element coords"
+
   ! -----------------------------------------------------------------------
   ! 5. Create ESMF States
   ! -----------------------------------------------------------------------
@@ -144,10 +223,10 @@ program aces_nuopc_single_driver
   acesComp = ESMF_GridCompCreate(name="ACES", contextflag=ESMF_CONTEXT_PARENT_VM, rc=rc)
   if (rc /= ESMF_SUCCESS) call driver_abort("Failed to create ACES GridComp", rc)
 
-  ! Attach grid and clock so Realize phase can access dimensions
+  ! Attach grid, mesh, and clock so Realize phase can access dimensions
   ! and NUOPC_ModelBase's Advance wrapper can retrieve the clock
-  call ESMF_GridCompSet(acesComp, grid=grid, clock=clock, rc=rc)
-  if (rc /= ESMF_SUCCESS) call driver_abort("Failed to attach grid and clock to ACES component", rc)
+  call ESMF_GridCompSet(acesComp, grid=grid, mesh=mesh, clock=clock, rc=rc)
+  if (rc /= ESMF_SUCCESS) call driver_abort("Failed to attach grid/mesh/clock to ACES component", rc)
 
   ! Set the configuration file path before SetServices
   call ACES_SetConfigPath(trim(config_file), rc)

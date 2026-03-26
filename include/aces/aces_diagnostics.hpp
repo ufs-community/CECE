@@ -5,7 +5,6 @@
 #include <unordered_map>
 #include <vector>
 
-#include "ESMC.h"
 #include "aces/aces_config.hpp"
 #include "aces/aces_state.hpp"
 
@@ -35,14 +34,14 @@ class AcesDiagnosticManager {
     /**
      * @brief Writes requested diagnostics to disk.
      * @param config Diagnostic configuration.
-     * @param clock ESMF clock for timing.
-     * @param template_field A field used to derive grid information for output.
+     * @param hour Current hour of day (0-23).
+     * @param day_of_week Current day of week (0-6).
      * @param export_state Internal export state.
-     * @param export_state_esmf ESMF export state for species lookup.
+     * @param output_path Optional output directory path.
      */
-    void WriteDiagnostics(const DiagnosticConfig& config, ESMC_Clock clock,
-                          ESMC_Field template_field, const AcesExportState& export_state,
-                          ESMC_State export_state_esmf);
+    void WriteDiagnostics(const DiagnosticConfig& config, int hour, int day_of_week,
+                          const AcesExportState& export_state,
+                          const std::string& output_path = "");
 
    private:
     struct DiagnosticField {
@@ -52,9 +51,6 @@ class AcesDiagnosticManager {
     };
 
     std::unordered_map<std::string, DiagnosticField> diagnostics_;
-    ESMC_Grid cached_grid_{nullptr};
-    ESMC_Mesh cached_mesh_{nullptr};
-    std::string cached_mesh_file_;
 };
 
 }  // namespace aces

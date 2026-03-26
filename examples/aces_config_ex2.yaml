@@ -1,5 +1,4 @@
 meteorology:
-  hourly_scalfact: HOURLY_SCALFACT
   mask_europe: MASK_EUROPE
 
 species:
@@ -8,21 +7,32 @@ species:
       category: "anthropogenic"
       hierarchy: 1
       operation: "add"
-      scale_fields: ["hourly_scalfact"]
     - field: "EMEP_CO"
       category: "anthropogenic"
       hierarchy: 2
       operation: "replace"
       mask: "mask_europe"
-      scale_fields: ["hourly_scalfact"]
 
-cdeps_inline_config:
+aces_data:
   streams:
     - name: "MACCITY_CO"
-      file: "data/MACCity_4x5.nc"
+      file: "/work/data/MACCity_4x5.nc"
+      yearFirst: 2000
+      yearLast: 2010
+      yearAlign: 2020
+      variables:
+        - file: "MACCity"
+          model: "MACCITY_CO"
     - name: "EMEP_CO"
-      file: "data/EMEP_2000.nc"
-    - name: "HOURLY_SCALFACT"
-      file: "data/hourly.nc"
+      file: "/work/data/EMEP.2000.co.nc"
+      yearFirst: 2000
+      yearLast: 2010
+      yearAlign: 2020
+      variables:
+        - file: "MACCity"
+          model: "EMEP_CO"
     - name: "MASK_EUROPE"
-      file: "data/Canada_mask.gen.1x1.nc"
+      file: "/work/data/Canada_mask.gen.1x1.nc"
+      variables:
+        - file: "Canada_mask"
+          model: "MASK_EUROPE"
