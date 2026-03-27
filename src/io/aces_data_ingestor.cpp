@@ -156,7 +156,7 @@ bool AcesDataIngestor::HasCachedField(const std::string& name) const {
 
 std::string AcesDataIngestor::SerializeTideESMFConfig(const AcesDataConfig& config) {
     std::ostringstream oss;
-    
+
     // ESMF RC file header
     oss << "file_id: \"streams\"\n";
     oss << "file_version: 1.0\n";
@@ -166,7 +166,7 @@ std::string AcesDataIngestor::SerializeTideESMFConfig(const AcesDataConfig& conf
     int stream_idx = 1;
     for (const auto& stream : config.streams) {
         std::string idx = (stream_idx < 10 ? "0" : "") + std::to_string(stream_idx);
-        
+
         // Required ESMF RC parameters with stream index
         oss << "taxmode" << idx << ": " << stream.taxmode << "\n";
         oss << "tInterpAlgo" << idx << ": " << stream.tintalgo << "\n";
@@ -178,15 +178,15 @@ std::string AcesDataIngestor::SerializeTideESMFConfig(const AcesDataConfig& conf
         oss << "yearAlign" << idx << ": " << std::to_string(stream.yearAlign) << "\n";
         oss << "stream_offset" << idx << ": " << std::to_string(stream.offset) << "\n";
         oss << "stream_lev_dimname" << idx << ": " << stream.lev_dimname << "\n";
-        
+
         // Coordinate variable configuration
         oss << "time_var" << idx << ": " << stream.time_var << "\n";
-        oss << "lon_var" << idx << ": " << stream.lon_var << "\n"; 
+        oss << "lon_var" << idx << ": " << stream.lon_var << "\n";
         oss << "lat_var" << idx << ": " << stream.lat_var << "\n";
-        
+
         // Required stream_mesh_file parameter (dummy value for grid-based data)
         oss << "stream_mesh_file" << idx << ": " << (stream.meshfile.empty() ? "none" : stream.meshfile) << "\n";
-        
+
         // Data files (ESMF format: comma-separated values)
         oss << "stream_data_files" << idx << ": ";
         for (size_t i = 0; i < stream.file_paths.size(); ++i) {
@@ -194,7 +194,7 @@ std::string AcesDataIngestor::SerializeTideESMFConfig(const AcesDataConfig& conf
             oss << stream.file_paths[i];
         }
         oss << "\n";
-        
+
         // Data variables (ESMF format: comma-separated pairs)
         oss << "stream_data_variables" << idx << ": ";
         for (size_t i = 0; i < stream.variables.size(); ++i) {
@@ -206,7 +206,7 @@ std::string AcesDataIngestor::SerializeTideESMFConfig(const AcesDataConfig& conf
         // Debug: Log coordinate variable configuration
         std::cout << "DEBUG: Stream '" << stream.name << "' time_var='" << stream.time_var
                   << "' lon_var='" << stream.lon_var << "' lat_var='" << stream.lat_var << "'" << std::endl;
-                  
+
         oss << "\n";
         stream_idx++;
     }
