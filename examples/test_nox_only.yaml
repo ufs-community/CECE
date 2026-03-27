@@ -1,0 +1,16 @@
+streams:
+  - name: "nox_stream"
+    data:
+      - path: "/work/data/MACCity_anthro_NOx_2000-2010_16080.nc"
+        field: "MACCity"
+        yearFirst: 2000
+        yearLast: 2010
+        yearAlign: 2000
+        scale_factor: 1.0
+        offset: 0.0
+
+mesh_file: "/work/data/MACCity_4x5.nc"
+
+prop_dict:
+  - key: "X"
+    value: "ESMF_REGRIDVERTICAL_LINEAR"

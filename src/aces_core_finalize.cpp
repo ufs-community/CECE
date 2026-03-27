@@ -4,7 +4,7 @@
  *
  * Performs ordered teardown:
  * 1. Finalize all physics schemes
- * 2. Finalize CDEPS if initialized
+ * 2. Finalize TIDE if initialized
  * 3. Finalize Kokkos only if ACES initialized it (owns_kokkos)
  * 4. Delete AcesInternalData structure
  *
@@ -13,6 +13,8 @@
 
 #include <Kokkos_Core.hpp>
 #include <iostream>
+#include <chrono>
+#include <thread>
 
 #include "aces/aces_internal.hpp"
 
@@ -35,6 +37,28 @@ extern "C" {
 void aces_core_finalize(void* data_ptr, int* rc) {
     if (rc != nullptr) {
         *rc = 0;
+    }
+
+    // Critical: Synchronize all Kokkos operations before cleanup
+    std::cout << "INFO: ACES Finalize - synchronizing device operations...\n";
+    Kokkos::fence();
+
+    // Additional synchronization for large grids
+    auto* internal_data_check = static_cast<aces::AcesInternalData*>(data_ptr);
+    if (internal_data_check && (internal_data_check->nx * internal_data_check->ny > 50000)) {
+        std::cout << "INFO: Large grid (" << (internal_data_check->nx * internal_data_check->ny)
+                  << " points) - extended device synchronization...\n";
+
+        // Multiple Kokkos fence barriers for comprehensive synchronization
+        Kokkos::fence("ACES::Finalize::LargeGrid::Phase1");
+        Kokkos::fence("ACES::Finalize::LargeGrid::Phase2");
+        Kokkos::fence("ACES::Finalize::LargeGrid::Phase3");
+
+        std::cout.flush();
+        std::cout << "INFO: Large grid synchronization complete\n";
+    } else {
+        // Single fence for smaller grids
+        Kokkos::fence("ACES::Finalize::StandardGrid");
     }
 
     std::cout << "INFO: ACES Finalize - beginning cleanup\n";

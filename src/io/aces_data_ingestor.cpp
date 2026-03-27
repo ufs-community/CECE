@@ -4,6 +4,7 @@
 #include "aces/aces_state.hpp"
 #include <yaml-cpp/yaml.h>
 #include <iostream>
+#include <sstream>
 #include <cstring>
 
 namespace aces {
@@ -19,39 +20,54 @@ void AcesDataIngestor::SetField(const std::string& name, const double* data, int
         return;
     }
 
-    if (n_lev * n_elem != nx * ny * nz && n_lev * n_elem != nx * ny) {
-        ACES_LOG_WARNING("[ACES] SetField dimension mismatch for field: " + name +
-                         " Received: " + std::to_string(n_lev) + "x" + std::to_string(n_elem) +
-                         " (total: " + std::to_string(n_lev * n_elem) + ")" +
-                         " Expected: " + std::to_string(nx) + "x" + std::to_string(ny) + "x" + std::to_string(nz) +
-                         " (total: " + std::to_string(nx * ny * nz) + ")");
+    // Determine if this is 2D emission data from TIDE
+    // TIDE provides 2D data where n_lev * n_elem == nx * ny (horizontal grid)
+    bool is_2d_emission = (n_lev * n_elem == nx * ny);
+
+    int actual_nz;
+    if (is_2d_emission) {
+        // For 2D emission data, use single vertical level initially
+        actual_nz = 1;
+        std::cout << "[ACES] SetField: Setting 2D emission field " << name << " "
+                  << nx << "x" << ny << "x" << actual_nz
+                  << " (from " << n_lev << "x" << n_elem << " TIDE data)" << std::endl;
+    } else {
+        // For 3D data, use provided dimensions
+        actual_nz = (n_lev * n_elem == nx * ny * nz) ? nz : n_lev;
+        std::cout << "[ACES] SetField: Setting 3D field " << name << " "
+                  << nx << "x" << ny << "x" << actual_nz
+                  << " (total=" << (n_lev*n_elem) << ")" << std::endl;
     }
 
-    std::cout << "[ACES] SetField: Setting field " << name << " " << n_elem << "x" << n_lev << " (total=" << (n_lev*n_elem) << ")" << std::endl;
-
-    // Create a host mirror view with correct dimensions (nx, ny, n_lev)
-    // Assuming n_elem corresponds to the horizontal grid (nx * ny), but we know the data layout
-    // is compatible with LayoutLeft (Fortran) regardless of dimensionality interpretation.
-
-    // We omit HostSpace explicit template arg to rely on default execution space (CPU)
-    // This avoids potential template deduction issues if HostSpace isn't strictly compatible
-    // with certain View specializations in this context.
+    // Create a host mirror view with correct dimensions
     using HostMirrorView = Kokkos::View<double***, Kokkos::LayoutLeft>;
-    HostMirrorView host_view("host_" + name, nx, ny, n_lev);
+    HostMirrorView host_view("host_" + name, nx, ny, actual_nz);
 
-    // Copy data from raw pointer to host mirror
-    // We use a flat copy for efficiency
-    std::memcpy(host_view.data(), data, n_lev * n_elem * sizeof(double));
+    if (is_2d_emission) {
+        // For 2D emission data, reshape from 1D array to 2D grid with 1 vertical level
+        for (int i = 0; i < nx; ++i) {
+            for (int j = 0; j < ny; ++j) {
+                int linear_idx = i * ny + j;  // Assuming column-major (Fortran) ordering
+                if (linear_idx < n_lev * n_elem) {
+                    host_view(i, j, 0) = data[linear_idx];
+                } else {
+                    host_view(i, j, 0) = 0.0;  // Fill with zeros if data is insufficient
+                }
+            }
+        }
+    } else {
+        // For 3D data, use direct memory copy
+        std::memcpy(host_view.data(), data, n_lev * n_elem * sizeof(double));
+    }
 
     // Allocate device view if it doesn't exist or has wrong shape
-    // Assuming DefaultExecutionSpace is compatible with Host copy for now (since CUDA=OFF)
     if (field_cache_.find(name) == field_cache_.end() ||
         field_cache_[name].extent(0) != (size_t)nx ||
         field_cache_[name].extent(1) != (size_t)ny ||
-        field_cache_[name].extent(2) != (size_t)n_lev) {
+        field_cache_[name].extent(2) != (size_t)actual_nz) {
 
         using DeviceView = Kokkos::View<double***, Kokkos::LayoutLeft>;
-        field_cache_[name] = DeviceView(name, nx, ny, n_lev);
+        field_cache_[name] = DeviceView(name, nx, ny, actual_nz);
     }
 
     // Deep copy to device
@@ -108,8 +124,13 @@ void AcesDataIngestor::IngestEmissionsInline(const AcesDataConfig& config, AcesI
                 // Mark device as modified so subsequent syncs work correctly
                 dual_view.modify_device();
 
-                // Debug log
-                // ACES_LOG_INFO("[ACES] IngestEmissionsInline: Ingested " + model_name);
+                // Ensure proper synchronization
+                Kokkos::fence();
+
+                // Debug log - verify field is properly set
+                std::cout << "[ACES] IngestEmissionsInline: Successfully ingested " << model_name
+                          << " with device view extents: " << device_view.extent(0) << "x"
+                          << device_view.extent(1) << "x" << device_view.extent(2) << std::endl;
             } else {
                  // ACES_LOG_WARNING("[ACES] IngestEmissionsInline: Field not found in cache: " + model_name);
             }
@@ -134,61 +155,63 @@ bool AcesDataIngestor::HasCachedField(const std::string& name) const {
 }
 
 std::string AcesDataIngestor::SerializeTideESMFConfig(const AcesDataConfig& config) {
-    YAML::Node root;
-    YAML::Node streams_list_node = YAML::Node(YAML::NodeType::Sequence);
+    std::ostringstream oss;
+    
+    // ESMF RC file header
+    oss << "file_id: \"streams\"\n";
+    oss << "file_version: 1.0\n";
+    oss << "stream_info: " << config.streams.size() << "\n";
+    oss << "\n";
 
+    int stream_idx = 1;
     for (const auto& stream : config.streams) {
-        YAML::Node stream_node;
-
-        // TIDE configuration mapping
-        stream_node["name"] = stream.name;
-
-        // Input files
-        stream_node["input_files"] = YAML::Node(YAML::NodeType::Sequence);
-        for (const auto& path : stream.file_paths) {
-            stream_node["input_files"].push_back(path);
+        std::string idx = (stream_idx < 10 ? "0" : "") + std::to_string(stream_idx);
+        
+        // Required ESMF RC parameters with stream index
+        oss << "taxmode" << idx << ": " << stream.taxmode << "\n";
+        oss << "tInterpAlgo" << idx << ": " << stream.tintalgo << "\n";
+        oss << "readMode" << idx << ": single\n";
+        oss << "mapalgo" << idx << ": " << stream.mapalgo << "\n";
+        oss << "dtlimit" << idx << ": " << std::to_string(stream.dtlimit) << "\n";
+        oss << "yearFirst" << idx << ": " << std::to_string(stream.yearFirst) << "\n";
+        oss << "yearLast" << idx << ": " << std::to_string(stream.yearLast) << "\n";
+        oss << "yearAlign" << idx << ": " << std::to_string(stream.yearAlign) << "\n";
+        oss << "stream_offset" << idx << ": " << std::to_string(stream.offset) << "\n";
+        oss << "stream_lev_dimname" << idx << ": " << stream.lev_dimname << "\n";
+        
+        // Coordinate variable configuration
+        oss << "time_var" << idx << ": " << stream.time_var << "\n";
+        oss << "lon_var" << idx << ": " << stream.lon_var << "\n"; 
+        oss << "lat_var" << idx << ": " << stream.lat_var << "\n";
+        
+        // Required stream_mesh_file parameter (dummy value for grid-based data)
+        oss << "stream_mesh_file" << idx << ": " << (stream.meshfile.empty() ? "none" : stream.meshfile) << "\n";
+        
+        // Data files (ESMF format: comma-separated values)
+        oss << "stream_data_files" << idx << ": ";
+        for (size_t i = 0; i < stream.file_paths.size(); ++i) {
+            if (i > 0) oss << ", ";
+            oss << stream.file_paths[i];
         }
-
-        // Field maps
-        stream_node["field_maps"] = YAML::Node(YAML::NodeType::Sequence);
-        for (const auto& var : stream.variables) {
-            YAML::Node field_map;
-            field_map["file_var"] = var.name_in_file;
-            field_map["model_var"] = var.name_in_model;
-            stream_node["field_maps"].push_back(field_map);
+        oss << "\n";
+        
+        // Data variables (ESMF format: comma-separated pairs)
+        oss << "stream_data_variables" << idx << ": ";
+        for (size_t i = 0; i < stream.variables.size(); ++i) {
+            if (i > 0) oss << ", ";
+            oss << stream.variables[i].name_in_file << " " << stream.variables[i].name_in_model;
         }
+        oss << "\n";
 
-        // Configuration parameters
-        stream_node["tax_mode"] = stream.taxmode;
-        stream_node["time_interp"] = stream.tintalgo;
-        stream_node["map_algo"] = stream.mapalgo;
-        stream_node["read_mode"] = "single"; // Default as per tide_yaml_c.cpp fallback
-        stream_node["dt_limit"] = stream.dtlimit;
-        stream_node["year_first"] = stream.yearFirst;
-        stream_node["year_last"] = stream.yearLast;
-        stream_node["year_align"] = stream.yearAlign;
-        stream_node["offset"] = stream.offset;
-
-        if (!stream.lev_dimname.empty()) {
-            stream_node["lev_dimname"] = stream.lev_dimname;
-        } else {
-             stream_node["lev_dimname"] = "";
-        }
-
-        if (!stream.meshfile.empty()) {
-            stream_node["mesh_file"] = stream.meshfile;
-        } else {
-             stream_node["mesh_file"] = "";
-        }
-
-        streams_list_node.push_back(stream_node);
+        // Debug: Log coordinate variable configuration
+        std::cout << "DEBUG: Stream '" << stream.name << "' time_var='" << stream.time_var
+                  << "' lon_var='" << stream.lon_var << "' lat_var='" << stream.lat_var << "'" << std::endl;
+                  
+        oss << "\n";
+        stream_idx++;
     }
 
-    root["streams"] = streams_list_node;
-
-    YAML::Emitter out;
-    out << root;
-    return std::string(out.c_str());
+    return oss.str();
 }
 
 }  // namespace aces

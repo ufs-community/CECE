@@ -8,7 +8,7 @@
 !>   ESMF_GridCompInitialize phase=1  -> NUOPC Advertise (ModelBase_Advertise)
 !>   ESMF_GridCompInitialize phase=2  -> NUOPC Realize   (ModelBase_RealizeProvided)
 !>   ESMF_GridCompInitialize phase=3  -> ACES DataInitialize (label_DataInitialize)
-!>                                       Combines P1 (Kokkos/config) + P2 (CDEPS/fields)
+!>                                       Combines P1 (Kokkos/config) + P2 (TIDE/fields)
 !>   ESMF_GridCompRun        phase=1  -> ACES Run (model_label_Advance)
 !>                                       NUOPC advances clock internally before calling Advance
 !>   ESMF_GridCompFinalize   phase=1  -> ACES Finalize (model_label_Finalize)
@@ -18,7 +18,7 @@
 !>
 !> Options:
 !>   --config <path>       ACES YAML config file (default: aces_config.yaml)
-!>   --streams <path>      CDEPS streams file (default: aces_emissions.streams)
+!>   --streams <path>      TIDE streams file (default: aces_emissions.yaml)
 !>   --start-time <ISO>    Start time YYYY-MM-DDTHH:MM:SS (default: 2020-01-01T00:00:00)
 !>   --end-time <ISO>      End time YYYY-MM-DDTHH:MM:SS (default: 2020-01-02T00:00:00)
 !>   --time-step <secs>    Time step in seconds (default: 3600)
@@ -42,6 +42,7 @@ program aces_nuopc_single_driver
   type(ESMF_Calendar) :: calendar
   type(ESMF_Grid)     :: grid
   type(ESMF_Mesh)     :: mesh
+  type(ESMF_VM)       :: vm
 
   !--- Command-line configuration (with defaults) ---
   character(len=512) :: config_file    = "aces_config.yaml"
@@ -79,6 +80,10 @@ program aces_nuopc_single_driver
     stop 1
   end if
   write(*,'(A)') "INFO: [Driver] ESMF initialized"
+
+  ! Get VM for synchronization operations
+  call ESMF_VMGetCurrent(vm, rc=rc)
+  if (rc /= ESMF_SUCCESS) call driver_abort("Failed to get ESMF VM", rc)
 
   ! -----------------------------------------------------------------------
   ! 3. Create ESMF_Clock with configurable parameters (Requirements 2.3, 2.11, 2.12)
@@ -123,6 +128,40 @@ program aces_nuopc_single_driver
 
   write(msg,'(A,I0,A,I0,A)') "INFO: [Driver] Grid created: ", nx, " x ", ny, " (nx x ny)"
   write(*,'(A)') trim(msg)
+
+  ! Add coordinates to the grid for coordinate extraction
+  call ESMF_GridAddCoord(grid, staggerloc=ESMF_STAGGERLOC_CENTER, rc=rc)
+  if (rc /= ESMF_SUCCESS) call driver_abort("Failed to add coordinates to grid", rc)
+
+  ! Set grid coordinate values
+  block
+    real(ESMF_KIND_R8), pointer :: grid_lon(:,:), grid_lat(:,:)
+    real(ESMF_KIND_R8) :: dlon, dlat
+    integer :: i, j
+
+    dlon = 360.0d0 / real(nx, ESMF_KIND_R8)
+    dlat = 180.0d0 / real(ny, ESMF_KIND_R8)
+
+    ! Get coordinate arrays from grid
+    call ESMF_GridGetCoord(grid, coordDim=1, localDE=0, staggerloc=ESMF_STAGGERLOC_CENTER, &
+                          farrayPtr=grid_lon, rc=rc)
+    if (rc /= ESMF_SUCCESS) call driver_abort("Failed to get longitude coordinate pointer", rc)
+
+    call ESMF_GridGetCoord(grid, coordDim=2, localDE=0, staggerloc=ESMF_STAGGERLOC_CENTER, &
+                          farrayPtr=grid_lat, rc=rc)
+    if (rc /= ESMF_SUCCESS) call driver_abort("Failed to get latitude coordinate pointer", rc)
+
+    ! Fill coordinate arrays (cell centers)
+    do j = 1, ny
+      do i = 1, nx
+        grid_lon(i,j) = (real(i, ESMF_KIND_R8) - 0.5d0) * dlon - 180.0d0
+        grid_lat(i,j) = (real(j, ESMF_KIND_R8) - 0.5d0) * dlat - 90.0d0
+      end do
+    end do
+
+    write(*,'(A,2F10.3)') "INFO: [Driver] Grid coordinates: lon ", grid_lon(1,1), grid_lon(nx,1)
+    write(*,'(A,2F10.3)') "INFO: [Driver] Grid coordinates: lat ", grid_lat(1,1), grid_lat(1,ny)
+  end block
 
   ! Create Mesh MANUALLY
   mesh = ESMF_MeshCreate(parametricDim=2, spatialDim=2, coordSys=ESMF_COORDSYS_SPH_DEG, rc=rc)
@@ -253,7 +292,7 @@ program aces_nuopc_single_driver
 
   ! -----------------------------------------------------------------------
   ! 8. NUOPC Phase: Realize + Field Binding (IPDv01p3)
-  !    Creates/allocates ESMF fields and binds CDEPS data streams.
+  !    Creates/allocates ESMF fields and binds TIDE data streams.
   ! -----------------------------------------------------------------------
   write(*,'(A)') "INFO: [Driver] === Phase: Realize+Bind (IPDv01p3) ==="
   call ESMF_GridCompInitialize(acesComp, importState=importState, &
@@ -304,24 +343,93 @@ program aces_nuopc_single_driver
 
   ! -----------------------------------------------------------------------
   ! 12. NUOPC Phase: Finalize (Requirement 2.10)
-  !     Release Kokkos views, CDEPS, and all resources
+  !     Release Kokkos views, TIDE, and all resources
   ! -----------------------------------------------------------------------
   write(*,'(A)') "INFO: [Driver] === Phase: Finalize ==="
+
+  ! Critical: For large grids, ensure all async operations complete BEFORE finalization
+  if (nx * ny > 50000) then
+    write(msg,'(A,I0,A)') "INFO: [Driver] Large grid (", nx * ny, " points) - comprehensive pre-finalize sync..."
+    write(*,'(A)') trim(msg)
+    call ESMF_VMBarrier(vm, rc=rc)  ! VM barrier instead of sleep
+    if (rc /= ESMF_SUCCESS) write(*,'(A,I0)') "WARNING: [Driver] VM barrier failed, rc=", rc
+  else
+    write(*,'(A)') "INFO: [Driver] Standard pre-finalize synchronization..."
+    call ESMF_VMBarrier(vm, rc=rc)  ! Standard VM barrier
+    if (rc /= ESMF_SUCCESS) write(*,'(A,I0)') "WARNING: [Driver] VM barrier failed, rc=", rc
+  end if
+
   call ESMF_GridCompFinalize(acesComp, importState=importState, &
                               exportState=exportState, clock=clock, &
                               phase=1, rc=rc)
   if (rc /= ESMF_SUCCESS) call driver_abort("ACES Finalize phase failed", rc)
   write(*,'(A)') "INFO: [Driver] Finalize phase complete"
 
+  ! Critical: Comprehensive cleanup stabilization - proper VM synchronization
+  write(*,'(A)') "INFO: [Driver] Phase 1 cleanup stabilization..."
+  call ESMF_VMBarrier(vm, rc=rc)
+  if (rc /= ESMF_SUCCESS) write(*,'(A,I0)') "WARNING: [Driver] Phase 1 VM barrier failed, rc=", rc
+
+  ! Grid-size dependent synchronization - larger grids need more barriers
+  if (nx * ny > 500000) then
+    write(msg,'(A,I0,A)') "INFO: [Driver] Very large grid (", nx * ny, " points) - maximum stabilization..."
+    write(*,'(A)') trim(msg)
+    ! Multiple VM barriers for very large grids
+    call ESMF_VMBarrier(vm, rc=rc)
+    call ESMF_VMBarrier(vm, rc=rc)
+    call ESMF_VMBarrier(vm, rc=rc)
+  else if (nx * ny > 100000) then
+    write(msg,'(A,I0,A)') "INFO: [Driver] Large grid (", nx * ny, " points) - extended stabilization..."
+    write(*,'(A)') trim(msg)
+    ! Dual VM barriers for large grids
+    call ESMF_VMBarrier(vm, rc=rc)
+    call ESMF_VMBarrier(vm, rc=rc)
+  else if (nx * ny > 50000) then
+    write(msg,'(A,I0,A)') "INFO: [Driver] Medium-large grid (", nx * ny, " points) - enhanced stabilization..."
+    write(*,'(A)') trim(msg)
+    call ESMF_VMBarrier(vm, rc=rc)
+  end if
+
+  write(*,'(A)') "INFO: [Driver] Phase 2 cleanup stabilization..."
+  call ESMF_VMBarrier(vm, rc=rc)  ! Final barrier for all grid sizes
+  if (rc /= ESMF_SUCCESS) write(*,'(A,I0)') "WARNING: [Driver] Phase 2 VM barrier failed, rc=", rc
   ! -----------------------------------------------------------------------
-  ! 13. Destroy ESMF objects
+  ! 13. Destroy ESMF objects (with proper error checking)
   ! -----------------------------------------------------------------------
+  write(*,'(A)') "INFO: [Driver] Destroying ESMF objects in safe order..."
   call ESMF_StateDestroy(importState, rc=rc)
+  if (rc /= ESMF_SUCCESS) write(*,'(A,I0)') "WARNING: [Driver] Failed to destroy importState, rc=", rc
+
   call ESMF_StateDestroy(exportState, rc=rc)
+  if (rc /= ESMF_SUCCESS) write(*,'(A,I0)') "WARNING: [Driver] Failed to destroy exportState, rc=", rc
+
+  ! Critical: Grid-dependent VM barrier before destroying grid objects
+  if (nx * ny > 100000) then
+    write(msg,'(A,I0,A)') "INFO: [Driver] Large grid (", nx * ny, " points) - extended grid destruction prep..."
+    write(*,'(A)') trim(msg)
+    ! Multiple barriers for large grids
+    call ESMF_VMBarrier(vm, rc=rc)
+    call ESMF_VMBarrier(vm, rc=rc)
+  else
+    write(*,'(A)') "INFO: [Driver] Standard grid destruction prep..."
+    call ESMF_VMBarrier(vm, rc=rc)  ! Single barrier for smaller grids
+  end if
+  if (rc /= ESMF_SUCCESS) write(*,'(A,I0)') "WARNING: [Driver] Grid destruction prep VM barrier failed, rc=", rc
+
+  call ESMF_MeshDestroy(mesh, rc=rc)
+  if (rc /= ESMF_SUCCESS) write(*,'(A,I0)') "WARNING: [Driver] Failed to destroy mesh, rc=", rc
+
   call ESMF_GridDestroy(grid, rc=rc)
+  if (rc /= ESMF_SUCCESS) write(*,'(A,I0)') "WARNING: [Driver] Failed to destroy grid, rc=", rc
+
   call ESMF_ClockDestroy(clock, rc=rc)
+  if (rc /= ESMF_SUCCESS) write(*,'(A,I0)') "WARNING: [Driver] Failed to destroy clock, rc=", rc
+
   call ESMF_CalendarDestroy(calendar, rc=rc)
+  if (rc /= ESMF_SUCCESS) write(*,'(A,I0)') "WARNING: [Driver] Failed to destroy calendar, rc=", rc
+
   call ESMF_GridCompDestroy(acesComp, rc=rc)
+  if (rc /= ESMF_SUCCESS) write(*,'(A,I0)') "WARNING: [Driver] Failed to destroy acesComp, rc=", rc
 
   ! -----------------------------------------------------------------------
   ! 14. Finalize ESMF
@@ -406,7 +514,7 @@ contains
     write(*,'(A)') ""
     write(*,'(A)') "Options:"
     write(*,'(A)') "  --config <path>       ACES YAML config file (default: aces_config.yaml)"
-    write(*,'(A)') "  --streams <path>      CDEPS streams file (default: aces_emissions.streams)"
+    write(*,'(A)') "  --streams <path>      TIDE streams file (default: aces_emissions.yaml)"
     write(*,'(A)') "  --start-time <ISO>    Start time YYYY-MM-DDTHH:MM:SS (default: 2020-01-01T00:00:00)"
     write(*,'(A)') "  --end-time <ISO>      End time YYYY-MM-DDTHH:MM:SS (default: 2020-01-02T00:00:00)"
     write(*,'(A)') "  --time-step <secs>    Time step in seconds (default: 3600)"

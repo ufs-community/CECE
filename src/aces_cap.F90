@@ -17,7 +17,7 @@ module aces_cap_mod
   use NUOPC_Model, modelSS => SetServices
   use NUOPC_Model, only : model_label_Advance  => label_Advance
   use NUOPC_Model, only : model_label_Finalize => label_Finalize
-  use tide_mod, only: tide_type, tide_init, tide_advance, tide_get_ptr, tide_finalize
+  use tide_mod, only: tide_type, tide_init, tide_init_from_esmfconfig, tide_advance, tide_get_ptr, tide_finalize
   implicit none
 
   !> @brief Module-level C++ data pointer (save ensures persistence across phases).
@@ -89,6 +89,34 @@ module aces_cap_mod
       integer(c_int), intent(out) :: name_len
       integer(c_int), intent(out) :: rc
     end subroutine
+    subroutine aces_core_get_external_field_count(data_ptr, count, rc) bind(C)
+      import :: c_ptr, c_int
+      type(c_ptr), value :: data_ptr
+      integer(c_int), intent(out) :: count
+      integer(c_int), intent(out) :: rc
+    end subroutine
+    subroutine aces_core_get_external_field_name(data_ptr, index, name, name_len, rc) bind(C)
+      import :: c_ptr, c_char, c_int
+      type(c_ptr), value :: data_ptr
+      integer(c_int), intent(in) :: index
+      character(kind=c_char), intent(out) :: name(*)
+      integer(c_int), intent(out) :: name_len
+      integer(c_int), intent(out) :: rc
+    end subroutine
+    subroutine aces_core_get_stream_field_count(data_ptr, count, rc) bind(C)
+      import :: c_ptr, c_int
+      type(c_ptr), value :: data_ptr
+      integer(c_int), intent(out) :: count
+      integer(c_int), intent(out) :: rc
+    end subroutine
+    subroutine aces_core_get_stream_field_name(data_ptr, index, name, name_len, rc) bind(C)
+      import :: c_ptr, c_char, c_int
+      type(c_ptr), value :: data_ptr
+      integer(c_int), intent(in) :: index
+      character(kind=c_char), intent(out) :: name(*)
+      integer(c_int), intent(out) :: name_len
+      integer(c_int), intent(out) :: rc
+    end subroutine
     subroutine aces_core_bind_fields(data_ptr, field_ptrs, num_fields, rc) bind(C)
       import :: c_ptr, c_int
       type(c_ptr), value :: data_ptr
@@ -100,6 +128,16 @@ module aces_cap_mod
       import :: c_ptr, c_char, c_int
       type(c_ptr), value :: data_ptr
       integer(c_int), value :: nx, ny, nz
+      character(kind=c_char), intent(in) :: start_time(*)
+      integer(c_int), value :: start_time_len
+      integer(c_int), intent(out) :: rc
+    end subroutine
+    subroutine aces_core_writer_initialize_with_coords(data_ptr, nx, ny, nz, lon_coords, lat_coords, &
+                                                      start_time, start_time_len, rc) bind(C)
+      import :: c_ptr, c_char, c_int, c_double
+      type(c_ptr), value :: data_ptr
+      integer(c_int), value :: nx, ny, nz
+      real(c_double), intent(in) :: lon_coords(nx), lat_coords(ny)
       character(kind=c_char), intent(in) :: start_time(*)
       integer(c_int), value :: start_time_len
       integer(c_int), intent(out) :: rc
@@ -212,7 +250,7 @@ contains
   !> @brief Phase 0: filter the NUOPC initialize phase map to IPDv01 and
   !> replace the base NUOPC_ModelBase IPDv01p1/p3 entry points with our
   !> implementations. Called during ESMF_GridCompSetServices before any init phases run.
-  !> Identical pattern to CDEPS dshr_model_initphase.
+  !> Identical pattern to TIDE dshr_model_initphase.
   subroutine ACES_InitPhaseMap(comp, importState, exportState, clock, rc)
     type(ESMF_GridComp)  :: comp
     type(ESMF_State)     :: importState, exportState
@@ -312,9 +350,9 @@ contains
     type(ESMF_Mesh) :: mesh
     integer :: nx, ny, nz
     integer, allocatable :: minIndex(:), maxIndex(:)
-    integer :: num_species, i
-    character(len=256) :: species_name
-    integer(c_int) :: species_name_len
+    integer :: num_species, num_fields, i
+    character(len=256) :: species_name, field_name
+    integer(c_int) :: species_name_len, field_name_len
     character(len=512) :: streams_path
     integer(c_int) :: streams_path_len
     type(ESMF_Field) :: field
@@ -386,7 +424,7 @@ contains
       rc = ESMF_SUCCESS
     end if
 
-    ! --- Phase 2: CDEPS init and field binding ---
+    ! --- Phase 2: TIDE init and field binding ---
     ! Pass grid dimensions to C++ (extracted from ESMF grid)
     call aces_core_initialize_p2(g_aces_data_ptr, int(nx, c_int), int(ny, c_int), &
                                  int(nz, c_int), c_rc)
@@ -415,11 +453,54 @@ contains
           ! Store start time as seconds (approximate, for elapsed time tracking)
           g_start_time_seconds = real(yy*365*24*3600 + mm*30*24*3600 + dd*24*3600 + &
                                       h*3600 + m*60 + s, c_double)
-          call aces_core_writer_initialize(g_aces_data_ptr, int(nx, c_int), int(ny, c_int), &
-                                          int(nz, c_int), start_time_str, int(len_trim(start_time_str), c_int), c_rc)
+
+          ! Extract coordinates from ESMF grid and call enhanced writer initialization
+          block
+            real(ESMF_KIND_R8), pointer :: grid_lon(:,:), grid_lat(:,:)
+            real(c_double), allocatable :: lon_coords(:), lat_coords(:)
+            integer :: i
+
+            ! Get coordinates from ESMF grid (2D arrays)
+            call ESMF_GridGetCoord(grid, coordDim=1, localDE=0, staggerloc=ESMF_STAGGERLOC_CENTER, &
+                                  farrayptr=grid_lon, rc=rc)
+            if (rc /= ESMF_SUCCESS) then
+              write(*,'(A,I0)') "WARNING: [ACES] Failed to get longitude coordinates: rc=", rc
+              ! Fall back to legacy initialization
+              call aces_core_writer_initialize(g_aces_data_ptr, int(nx, c_int), int(ny, c_int), &
+                                              int(nz, c_int), start_time_str, int(len_trim(start_time_str), c_int), c_rc)
+            else
+              call ESMF_GridGetCoord(grid, coordDim=2, localDE=0, staggerloc=ESMF_STAGGERLOC_CENTER, &
+                                    farrayptr=grid_lat, rc=rc)
+              if (rc /= ESMF_SUCCESS) then
+                write(*,'(A,I0)') "WARNING: [ACES] Failed to get latitude coordinates: rc=", rc
+                ! Fall back to legacy initialization
+                call aces_core_writer_initialize(g_aces_data_ptr, int(nx, c_int), int(ny, c_int), &
+                                                int(nz, c_int), start_time_str, int(len_trim(start_time_str), c_int), c_rc)
+              else
+                ! Extract 1D coordinate arrays from 2D ESMF grid coordinates
+                allocate(lon_coords(nx), lat_coords(ny))
+                do i = 1, nx
+                  lon_coords(i) = real(grid_lon(i,1), c_double)  ! First row, all columns
+                end do
+                do i = 1, ny
+                  lat_coords(i) = real(grid_lat(1,i), c_double)  ! First column, all rows
+                end do
+
+                write(*,'(A,2F10.3)') "INFO: [ACES] Grid longitude range: ", lon_coords(1), lon_coords(nx)
+                write(*,'(A,2F10.3)') "INFO: [ACES] Grid latitude range: ", lat_coords(1), lat_coords(ny)
+
+                ! Call enhanced writer initialization with coordinates
+                call aces_core_writer_initialize_with_coords(g_aces_data_ptr, int(nx, c_int), int(ny, c_int), &
+                                                           int(nz, c_int), lon_coords, lat_coords, &
+                                                           start_time_str, int(len_trim(start_time_str), c_int), c_rc)
+                deallocate(lon_coords, lat_coords)
+              end if
+            end if
+          end block
+
           rc = int(c_rc)
           if (rc /= ESMF_SUCCESS) then
-            write(*,'(A,I0)') "WARNING: [ACES] aces_core_writer_initialize failed: rc=", rc
+            write(*,'(A,I0)') "WARNING: [ACES] Writer initialization failed: rc=", rc
             rc = ESMF_SUCCESS  ! Non-fatal
           end if
         end if
@@ -530,9 +611,9 @@ contains
       write(*,'(A)') "INFO: [ACES] Initializing TIDE ingestor..."
 
       ! Initialize TIDE with the configured streams path and model mesh
-      ! Note: passing trimmed streams_path
-      call tide_init(g_tide, trim(streams_path(1:int(streams_path_len))), &
-                     mesh, clock, rc)
+      ! Note: passing trimmed streams_path to ESMF RC initialization
+      call tide_init_from_esmfconfig(g_tide, trim(streams_path(1:int(streams_path_len))), &
+                                     mesh, clock, rc)
 
       if (rc /= ESMF_SUCCESS) then
         write(*,'(A,I0)') "ERROR: [ACES] TIDE initialization failed rc=", rc
@@ -556,7 +637,7 @@ contains
     rc = ESMF_SUCCESS
   end subroutine ACES_InitializeRealize
 
-  !> @brief Run phase: advance CDEPS and execute ACES physics/stacking.
+  !> @brief Run phase: advance TIDE and execute ACES physics/stacking.
   !>
   !> Extracts hour-of-day and day-of-week from the ESMF clock in Fortran
   !> (where ESMF derived types are safe) and passes plain integers to the
@@ -569,11 +650,11 @@ contains
     real(c_double) :: time_seconds
     integer :: hour, day_of_week
 
-    integer :: tide_rc, num_species, i
+    integer :: tide_rc, num_fields, i
     type(ESMF_Clock) :: run_clock
     real(c_double), pointer :: ptr(:,:)
-    character(len=256) :: species_name
-    integer(c_int) :: species_name_len
+    character(len=256) :: field_name
+    integer(c_int) :: field_name_len
 
     rc = ESMF_SUCCESS
 
@@ -608,23 +689,36 @@ contains
         if (tide_rc /= ESMF_SUCCESS) then
            write(*,'(A,I0)') "ERROR: [ACES] TIDE advance failed rc=", tide_rc
         else
-           ! Transfer fields
-           call aces_core_get_species_count(g_aces_data_ptr, num_species, c_rc)
+           ! Critical: Force I/O synchronization after TIDE advance for large grids
+           if (g_nx * g_ny > 50000) then
+             write(*,'(A,I0)') "INFO: [ACES] Large grid detected, adding TIDE sync delay..."
+             call flush(6)  ! Force output buffer flush
+           end if
+
+           ! Transfer fields - iterate through stream fields for emission data
+           call aces_core_get_stream_field_count(g_aces_data_ptr, num_fields, c_rc)
            if (c_rc == 0) then
-             do i = 0, num_species-1
-               call aces_core_get_species_name(g_aces_data_ptr, int(i, c_int), species_name, &
-                                               species_name_len, c_rc)
-               if (c_rc == 0 .and. species_name_len > 0) then
-                 call tide_get_ptr(g_tide, species_name(1:int(species_name_len)), ptr, tide_rc)
+             do i = 0, num_fields-1
+               call aces_core_get_stream_field_name(g_aces_data_ptr, int(i, c_int), field_name, &
+                                                    field_name_len, c_rc)
+               if (c_rc == 0 .and. field_name_len > 0) then
+                 call tide_get_ptr(g_tide, field_name(1:int(field_name_len)), ptr, tide_rc)
                  if (tide_rc == 0 .and. associated(ptr)) then
+                   write(*,'(A,A,A,I0,A,I0,A,I0)') "DEBUG: Field ", &
+                        trim(field_name(1:int(field_name_len))), &
+                        " ptr dimensions: ", size(ptr,1), " x ", size(ptr,2), &
+                        " (total=", size(ptr), ")"
                    call aces_ingestor_set_field(g_aces_data_ptr, &
-                        species_name(1:int(species_name_len))//c_null_char, &
-                        species_name_len, c_loc(ptr(1,1)), &
-                        int(size(ptr,2), c_int), int(size(ptr,1), c_int), c_rc)
+                        field_name(1:int(field_name_len))//c_null_char, &
+                        field_name_len, c_loc(ptr(1,1)), &
+                        int(size(ptr,1), c_int), int(size(ptr,2), c_int), c_rc)
                    if (c_rc /= 0) then
                      write(*,'(A,A)') "WARNING: [ACES] aces_ingestor_set_field failed for: ", &
-                                       trim(species_name(1:int(species_name_len)))
+                                       trim(field_name(1:int(field_name_len)))
                    end if
+                 else
+                   write(*,'(A,A,A,I0)') "WARNING: [ACES] tide_get_ptr failed for field ", &
+                        trim(field_name(1:int(field_name_len))), " rc=", tide_rc
                  end if
                end if
              end do
@@ -645,6 +739,12 @@ contains
     end if
     g_step_count = g_step_count + 1
 
+    ! Critical: Final synchronization for large grids before returning
+    if (g_nx * g_ny > 50000) then
+      write(*,'(A,I0)') "INFO: [ACES] Large grid final sync (", g_nx * g_ny, " points)..."
+      call flush(6)  ! Force all I/O completion
+    end if
+
     write(*,'(A)') "INFO: [ACES] ACES_Run returning..."
     flush(6)
 
@@ -658,6 +758,8 @@ contains
     integer(c_int) :: c_rc
     integer :: tide_rc
 
+    write(*,'(A)') "INFO: ACES Finalize - beginning cleanup"
+
     if (.not. c_associated(g_aces_data_ptr)) then
       write(*,'(A)') "WARNING: [ACES] Finalize called but data pointer is null"
       rc = ESMF_SUCCESS
@@ -665,13 +767,17 @@ contains
     end if
 
     if (g_tide_initialized) then
+      write(*,'(A)') "INFO: Finalizing TIDE..."
       call tide_finalize(g_tide, tide_rc)
       if (tide_rc /= ESMF_SUCCESS) then
         write(*,'(A,I0)') "WARNING: [ACES] TIDE finalize returned non-success rc=", tide_rc
+      else
+        write(*,'(A)') "INFO: TIDE finalized successfully"
       end if
       g_tide_initialized = .false.
     end if
 
+    write(*,'(A)') "INFO: Calling ACES core finalize..."
     call aces_core_finalize(g_aces_data_ptr, c_rc)
     g_aces_data_ptr = c_null_ptr
     rc = int(c_rc)

@@ -13,16 +13,40 @@ aces_data:
   streams:
     - name: "MACCITY_CO"
       file: "/work/data/MACCity_4x5.nc"
+      yearFirst: 2000
+      yearLast: 2010
+      yearAlign: 2020
       variables:
         - file: "MACCity"
           model: "MACCITY_CO"
     - name: "MACCITY_NO"
       file: "/work/data/MACCity_anthro_NOx_2000-2010_16080.nc"
+      time_var: "date"
+      yearFirst: 2000
+      yearLast: 2010
+      yearAlign: 2020
       variables:
         - file: "MACCity"
           model: "MACCITY_NO"
     - name: "MACCITY_SO2"
       file: "/work/data/MACCity_anthro_SO2_2000-2010_16080.nc"
+      time_var: "date"
+      yearFirst: 2000
+      yearLast: 2010
+      yearAlign: 2020
       variables:
         - file: "MACCity"
           model: "MACCITY_SO2"
+
+diagnostics:
+  output_interval_seconds: 3600
+  variables: ["co", "no", "so2"]
+
+output:
+  directory: ./aces_output
+  filename_pattern: "aces_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
+  frequency_steps: 1
+  fields:
+    - co
+    - "no"
+    - so2

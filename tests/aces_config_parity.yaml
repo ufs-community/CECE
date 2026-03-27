@@ -1,4 +1,4 @@
-# Config for parity test using CDEPS and Physics
+# Config for parity test using TIDE and Physics
 driver:
   nx: 4
   ny: 4

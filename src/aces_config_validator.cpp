@@ -24,8 +24,8 @@ ValidationResult ConfigValidator::ValidateConfig(const YAML::Node& config) {
     // Validate vertical distribution settings
     ValidateVerticalDistribution(config, result);
 
-    // Validate CDEPS configuration
-    ValidateCDEPS(config, result);
+    // Validate TIDE configuration
+    ValidateTIDE(config, result);
 
     // Validate physics scheme configurations
     ValidatePhysicsSchemes(config, result);
@@ -170,27 +170,27 @@ void ConfigValidator::ValidateVerticalDistribution(const YAML::Node& config,
     }
 }
 
-void ConfigValidator::ValidateCDEPS(const YAML::Node& config, ValidationResult& result) {
-    if (!config["cdeps"]) {
+void ConfigValidator::ValidateTIDE(const YAML::Node& config, ValidationResult& result) {
+    if (!config["aces_data"]) {
         return;
     }
 
-    const auto& cdeps = config["cdeps"];
+    const auto& aces_data = config["aces_data"];
 
-    if (cdeps["streams_file"]) {
-        std::string streams_file = cdeps["streams_file"].as<std::string>();
+    if (aces_data["streams_yaml"]) {
+        std::string streams_file = aces_data["streams_yaml"].as<std::string>();
         if (!FileExists(streams_file)) {
             result.errors.push_back(
-                {"cdeps.streams_file", "Streams file not found: " + streams_file,
+                {"aces_data.streams_yaml", "Streams file not found: " + streams_file,
                  "Verify the streams file path is correct and the file exists"});
         }
     }
 
-    if (cdeps["data_root"]) {
-        std::string data_root = cdeps["data_root"].as<std::string>();
+    if (aces_data["data_root"]) {
+        std::string data_root = aces_data["data_root"].as<std::string>();
         if (!std::filesystem::exists(data_root)) {
             result.errors.push_back(
-                {"cdeps.data_root", "Data root directory not found: " + data_root,
+                {"aces_data.data_root", "Data root directory not found: " + data_root,
                  "Verify the data root path is correct and the directory exists"});
         }
     }

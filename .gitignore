@@ -9,3 +9,7 @@ cdeps_in.nml
 hemco_mimic_config.yaml
 __pycache__/
 *.pyc
+.kiro/
+.pytest_cache/
+
+

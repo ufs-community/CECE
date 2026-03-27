@@ -27,7 +27,7 @@ docker run --platform linux/amd64 --rm \
     echo '=== Running example driver ==='
     cd /work/build
     chmod +x bin/aces_nuopc_single_driver
-    ./bin/aces_nuopc_single_driver --config ../examples/aces_config_ex2.yaml 2>&1 
+    ./bin/aces_nuopc_single_driver --config ../examples/aces_config_ex2.yaml 2>&1
     echo ''
     echo '=== DEBUG Output ==='
     ls -l debug_barry.txt 2>/dev/null || echo "debug_barry.txt not found"

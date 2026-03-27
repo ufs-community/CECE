@@ -1,0 +1,82 @@
+20260326 174135.951 INFO             PET0 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+20260326 174135.952 INFO             PET0 !!! THE ESMF_LOG IS SET TO OUTPUT ALL LOG MESSAGES !!!
+20260326 174135.952 INFO             PET0 !!!     THIS MAY CAUSE SLOWDOWN IN PERFORMANCE     !!!
+20260326 174135.952 INFO             PET0 !!! FOR PRODUCTION RUNS, USE:                      !!!
+20260326 174135.952 INFO             PET0 !!!                   ESMF_LOGKIND_Multi_On_Error  !!!
+20260326 174135.952 INFO             PET0 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+20260326 174135.952 INFO             PET0 Running with ESMF Version   : 8.8.0
+20260326 174135.952 INFO             PET0 ESMF library build date/time: "Feb 16 2025" "10:00:07"
+20260326 174135.952 INFO             PET0 ESMF library build location : /tmp/root/spack-stage/spack-stage-esmf-8.8.0-ms7pardr7fgwhdnp6mqgtw22qgcfewny/spack-src
+20260326 174135.952 INFO             PET0 ESMF_COMM                   : openmpi
+20260326 174135.952 INFO             PET0 ESMF_MOAB                   : enabled
+20260326 174135.952 INFO             PET0 ESMF_LAPACK                 : enabled
+20260326 174135.952 INFO             PET0 ESMF_NETCDF                 : enabled
+20260326 174135.952 INFO             PET0 ESMF_PNETCDF                : disabled
+20260326 174135.952 INFO             PET0 ESMF_PIO                    : enabled
+20260326 174135.952 INFO             PET0 ESMF_YAMLCPP                : enabled
+20260326 181309.022 INFO             PET0 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+20260326 181309.023 INFO             PET0 !!! THE ESMF_LOG IS SET TO OUTPUT ALL LOG MESSAGES !!!
+20260326 181309.023 INFO             PET0 !!!     THIS MAY CAUSE SLOWDOWN IN PERFORMANCE     !!!
+20260326 181309.023 INFO             PET0 !!! FOR PRODUCTION RUNS, USE:                      !!!
+20260326 181309.023 INFO             PET0 !!!                   ESMF_LOGKIND_Multi_On_Error  !!!
+20260326 181309.023 INFO             PET0 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+20260326 181309.023 INFO             PET0 Running with ESMF Version   : 8.8.0
+20260326 181309.023 INFO             PET0 ESMF library build date/time: "Feb 16 2025" "10:00:07"
+20260326 181309.023 INFO             PET0 ESMF library build location : /tmp/root/spack-stage/spack-stage-esmf-8.8.0-ms7pardr7fgwhdnp6mqgtw22qgcfewny/spack-src
+20260326 181309.023 INFO             PET0 ESMF_COMM                   : openmpi
+20260326 181309.024 INFO             PET0 ESMF_MOAB                   : enabled
+20260326 181309.024 INFO             PET0 ESMF_LAPACK                 : enabled
+20260326 181309.024 INFO             PET0 ESMF_NETCDF                 : enabled
+20260326 181309.024 INFO             PET0 ESMF_PNETCDF                : disabled
+20260326 181309.024 INFO             PET0 ESMF_PIO                    : enabled
+20260326 181309.024 INFO             PET0 ESMF_YAMLCPP                : enabled
+20260326 181309.117 INFO             PET0  Finalizing ESMF
+20260326 181322.407 INFO             PET0 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+20260326 181322.408 INFO             PET0 !!! THE ESMF_LOG IS SET TO OUTPUT ALL LOG MESSAGES !!!
+20260326 181322.408 INFO             PET0 !!!     THIS MAY CAUSE SLOWDOWN IN PERFORMANCE     !!!
+20260326 181322.408 INFO             PET0 !!! FOR PRODUCTION RUNS, USE:                      !!!
+20260326 181322.408 INFO             PET0 !!!                   ESMF_LOGKIND_Multi_On_Error  !!!
+20260326 181322.408 INFO             PET0 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+20260326 181322.408 INFO             PET0 Running with ESMF Version   : 8.8.0
+20260326 181322.408 INFO             PET0 ESMF library build date/time: "Feb 16 2025" "10:00:07"
+20260326 181322.408 INFO             PET0 ESMF library build location : /tmp/root/spack-stage/spack-stage-esmf-8.8.0-ms7pardr7fgwhdnp6mqgtw22qgcfewny/spack-src
+20260326 181322.408 INFO             PET0 ESMF_COMM                   : openmpi
+20260326 181322.409 INFO             PET0 ESMF_MOAB                   : enabled
+20260326 181322.409 INFO             PET0 ESMF_LAPACK                 : enabled
+20260326 181322.409 INFO             PET0 ESMF_NETCDF                 : enabled
+20260326 181322.409 INFO             PET0 ESMF_PNETCDF                : disabled
+20260326 181322.409 INFO             PET0 ESMF_PIO                    : enabled
+20260326 181322.409 INFO             PET0 ESMF_YAMLCPP                : enabled
+20260326 181322.493 INFO             PET0  Finalizing ESMF
+20260326 181413.606 INFO             PET0 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+20260326 181413.606 INFO             PET0 !!! THE ESMF_LOG IS SET TO OUTPUT ALL LOG MESSAGES !!!
+20260326 181413.606 INFO             PET0 !!!     THIS MAY CAUSE SLOWDOWN IN PERFORMANCE     !!!
+20260326 181413.606 INFO             PET0 !!! FOR PRODUCTION RUNS, USE:                      !!!
+20260326 181413.606 INFO             PET0 !!!                   ESMF_LOGKIND_Multi_On_Error  !!!
+20260326 181413.606 INFO             PET0 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+20260326 181413.606 INFO             PET0 Running with ESMF Version   : 8.8.0
+20260326 181413.606 INFO             PET0 ESMF library build date/time: "Feb 16 2025" "10:00:07"
+20260326 181413.606 INFO             PET0 ESMF library build location : /tmp/root/spack-stage/spack-stage-esmf-8.8.0-ms7pardr7fgwhdnp6mqgtw22qgcfewny/spack-src
+20260326 181413.606 INFO             PET0 ESMF_COMM                   : openmpi
+20260326 181413.607 INFO             PET0 ESMF_MOAB                   : enabled
+20260326 181413.607 INFO             PET0 ESMF_LAPACK                 : enabled
+20260326 181413.607 INFO             PET0 ESMF_NETCDF                 : enabled
+20260326 181413.607 INFO             PET0 ESMF_PNETCDF                : disabled
+20260326 181413.607 INFO             PET0 ESMF_PIO                    : enabled
+20260326 181413.607 INFO             PET0 ESMF_YAMLCPP                : enabled
+20260326 181509.189 INFO             PET0 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+20260326 181509.189 INFO             PET0 !!! THE ESMF_LOG IS SET TO OUTPUT ALL LOG MESSAGES !!!
+20260326 181509.189 INFO             PET0 !!!     THIS MAY CAUSE SLOWDOWN IN PERFORMANCE     !!!
+20260326 181509.189 INFO             PET0 !!! FOR PRODUCTION RUNS, USE:                      !!!
+20260326 181509.189 INFO             PET0 !!!                   ESMF_LOGKIND_Multi_On_Error  !!!
+20260326 181509.189 INFO             PET0 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+20260326 181509.189 INFO             PET0 Running with ESMF Version   : 8.8.0
+20260326 181509.189 INFO             PET0 ESMF library build date/time: "Feb 16 2025" "10:00:07"
+20260326 181509.189 INFO             PET0 ESMF library build location : /tmp/root/spack-stage/spack-stage-esmf-8.8.0-ms7pardr7fgwhdnp6mqgtw22qgcfewny/spack-src
+20260326 181509.189 INFO             PET0 ESMF_COMM                   : openmpi
+20260326 181509.190 INFO             PET0 ESMF_MOAB                   : enabled
+20260326 181509.190 INFO             PET0 ESMF_LAPACK                 : enabled
+20260326 181509.190 INFO             PET0 ESMF_NETCDF                 : enabled
+20260326 181509.190 INFO             PET0 ESMF_PNETCDF                : disabled
+20260326 181509.190 INFO             PET0 ESMF_PIO                    : enabled
+20260326 181509.190 INFO             PET0 ESMF_YAMLCPP                : enabled

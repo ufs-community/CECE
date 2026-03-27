@@ -16,4 +16,4 @@ aces_data:
 
 diagnostics:
   output_interval_seconds: 3600
-  variables: []
+  variables: ["co"]

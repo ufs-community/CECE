@@ -120,6 +120,34 @@ int AcesStandaloneWriter::Initialize(const std::string& start_time_iso8601, int 
     return 0;
 }
 
+int AcesStandaloneWriter::InitializeWithCoords(const std::string& start_time_iso8601, int nx, int ny, int nz,
+                                             const std::vector<double>& lon_coords, const std::vector<double>& lat_coords) {
+    if (!config_.enabled) return 0;
+
+    start_time_iso8601_ = start_time_iso8601;
+    nx_ = nx;
+    ny_ = ny;
+    nz_ = nz;
+    lon_coords_ = lon_coords;
+    lat_coords_ = lat_coords;
+    use_custom_coords_ = true;
+
+    ACES_LOG_INFO("[ACES] Initializing standalone writer with coordinates: " + start_time_iso8601);
+
+    // Create output directory if it doesn't exist
+    if (!fs::exists(config_.directory)) {
+        try {
+            fs::create_directories(config_.directory);
+        } catch (const std::exception& e) {
+            ACES_LOG_ERROR("[ACES] Failed to create output directory: " + std::string(e.what()));
+            return -1;
+        }
+    }
+
+    initialized_ = true;
+    return 0;
+}
+
 std::string AcesStandaloneWriter::ResolveFilename(double time_seconds_since_start) const {
     std::tm tm = ParseISO8601(start_time_iso8601_);
     std::time_t time = std::mktime(&tm);
@@ -150,19 +178,34 @@ int AcesStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
         // Create file (clobber existing)
         check_nc(nc_create(filename.c_str(), NC_CLOBBER | NC_NETCDF4, &ncid), "create");
 
-        // Define dimensions
-        int dim_x, dim_y, dim_z, dim_time;
+        // Define dimensions using CF-compliant names
+        int dim_lon, dim_lat, dim_lev, dim_time;
         check_nc(nc_def_dim(ncid, "time", NC_UNLIMITED, &dim_time), "def_dim time");
-        check_nc(nc_def_dim(ncid, "x", nx_, &dim_x), "def_dim x");
-        check_nc(nc_def_dim(ncid, "y", ny_, &dim_y), "def_dim y");
-        check_nc(nc_def_dim(ncid, "z", nz_, &dim_z), "def_dim z");
-        // Using z as level
+        check_nc(nc_def_dim(ncid, "lon", nx_, &dim_lon), "def_dim lon");
+        check_nc(nc_def_dim(ncid, "lat", ny_, &dim_lat), "def_dim lat");
+        check_nc(nc_def_dim(ncid, "lev", nz_, &dim_lev), "def_dim lev");
 
         // Define time variable
         int var_time;
         check_nc(nc_def_var(ncid, "time", NC_DOUBLE, 1, &dim_time, &var_time), "def_var time");
         check_nc(nc_put_att_text(ncid, var_time, "units",
                  14 + start_time_iso8601_.length(), ("seconds since " + start_time_iso8601_).c_str()));
+
+        // Define coordinate variables
+        int var_lon, var_lat, var_lev;
+        check_nc(nc_def_var(ncid, "lon", NC_DOUBLE, 1, &dim_lon, &var_lon), "def_var lon");
+        check_nc(nc_put_att_text(ncid, var_lon, "units", 12, "degrees_east"), "lon units");
+        check_nc(nc_put_att_text(ncid, var_lon, "long_name", 9, "longitude"), "lon long_name");
+        check_nc(nc_put_att_text(ncid, var_lon, "standard_name", 9, "longitude"), "lon standard_name");
+
+        check_nc(nc_def_var(ncid, "lat", NC_DOUBLE, 1, &dim_lat, &var_lat), "def_var lat");
+        check_nc(nc_put_att_text(ncid, var_lat, "units", 13, "degrees_north"), "lat units");
+        check_nc(nc_put_att_text(ncid, var_lat, "long_name", 8, "latitude"), "lat long_name");
+        check_nc(nc_put_att_text(ncid, var_lat, "standard_name", 8, "latitude"), "lat standard_name");
+
+        check_nc(nc_def_var(ncid, "lev", NC_DOUBLE, 1, &dim_lev, &var_lev), "def_var lev");
+        check_nc(nc_put_att_text(ncid, var_lev, "units", 1, "1"), "lev units");
+        check_nc(nc_put_att_text(ncid, var_lev, "long_name", 20, "model_level_number"), "lev long_name");
 
         // Define field variables
         // If config_.fields is empty, write all fields. Else filter.
@@ -185,15 +228,52 @@ int AcesStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
 
             if (should_write) {
                 int var_id;
-                int dims[4] = {dim_time, dim_z, dim_y, dim_x}; // time, z, y, x (ESMF usually z,y,x or x,y,z? usually [time, lev, lat, lon])
+                int dims[4] = {dim_time, dim_lev, dim_lat, dim_lon}; // time, lev, lat, lon (CF convention order)
 
                 check_nc(nc_def_var(ncid, name.c_str(), NC_DOUBLE, 4, dims, &var_id), "def_var " + name);
+
+                // Add coordinates attribute for proper CF compliance and ncview recognition
+                check_nc(nc_put_att_text(ncid, var_id, "coordinates", 16, "lon lat lev time"), "coordinates " + name);
+
                 field_var_ids.push_back(var_id);
                 field_names.push_back(name);
             }
         }
 
+        // Add global CF convention attributes for better tool support
+        check_nc(nc_put_att_text(ncid, NC_GLOBAL, "Conventions", 6, "CF-1.8"), "global Conventions");
+        check_nc(nc_put_att_text(ncid, NC_GLOBAL, "title", 28, "ACES Atmospheric Emissions"), "global title");
+        check_nc(nc_put_att_text(ncid, NC_GLOBAL, "institution", 4, "ACES"), "global institution");
+        check_nc(nc_put_att_text(ncid, NC_GLOBAL, "source", 42, "ACES - Atmospheric Chemistry Emission System"), "global source");
+
         check_nc(nc_enddef(ncid), "enddef");
+
+        // Write coordinate arrays
+        if (use_custom_coords_) {
+            // Use coordinates provided from ESMF grid
+            check_nc(nc_put_var_double(ncid, var_lon, lon_coords_.data()), "put_var lon");
+            check_nc(nc_put_var_double(ncid, var_lat, lat_coords_.data()), "put_var lat");
+        } else {
+            // Calculate coordinates (legacy approach)
+            std::vector<double> lon_values(nx_);
+            for (int i = 0; i < nx_; i++) {
+                lon_values[i] = -180.0 + (360.0 * (i + 0.5)) / nx_;
+            }
+            check_nc(nc_put_var_double(ncid, var_lon, lon_values.data()), "put_var lon");
+
+            std::vector<double> lat_values(ny_);
+            for (int j = 0; j < ny_; j++) {
+                lat_values[j] = -90.0 + (180.0 * (j + 0.5)) / ny_;
+            }
+            check_nc(nc_put_var_double(ncid, var_lat, lat_values.data()), "put_var lat");
+        }
+
+        // Level: 1 to nz
+        std::vector<double> lev_values(nz_);
+        for (int k = 0; k < nz_; k++) {
+            lev_values[k] = k + 1.0;
+        }
+        check_nc(nc_put_var_double(ncid, var_lev, lev_values.data()), "put_var lev");
 
         // Write time
         size_t start[1] = {0};
@@ -212,16 +292,48 @@ int AcesStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
 
             // Prepare buffer.
             // ACES View is (nx, ny, nz) with LayoutLeft (Fortran).
-            // Memory layout: x varies fastest (stride 1).
-            // NetCDF Variable defined as (time, z, y, x).
-            // NetCDF expects buffer to be C-contiguous for (time, z, y, x), meaning x varies fastest.
-            // So LayoutLeft (nx, ny, nz) is compatible with NetCDF (time, z, y, x).
-            // We can write directly from h_view.data().
+            // NetCDF Variable defined as (time, lev, lat, lon).
+            // Need to reorder data from (nx, ny, nz) to (nz, ny, nx) for NetCDF (lev, lat, lon).
+
+            // Create properly ordered buffer for NetCDF
+            size_t total_elements = static_cast<size_t>(nx_) * ny_ * nz_;
+            std::vector<double> netcdf_buffer(total_elements);
+
+            // Verify host view size matches expected size
+            if (h_view.size() != total_elements) {
+                ACES_LOG_ERROR("Size mismatch in field '" + name + "': h_view.size()=" + std::to_string(h_view.size()) +
+                              " expected=" + std::to_string(total_elements) + " (nx=" + std::to_string(nx_) +
+                              " ny=" + std::to_string(ny_) + " nz=" + std::to_string(nz_) + ")");
+                return -1;
+            }
+
+            // Reorder from Kokkos (nx, ny, nz) to NetCDF (lev, lat, lon)
+            // CRITICAL FIX: ACES stores data as (latitude, longitude, level) internally
+            // This matches Fortran/ESMF conventions where latitude is first dimension
+            for (int k = 0; k < nz_; k++) {          // level
+                for (int j = 0; j < ny_; j++) {      // latitude index
+                    for (int i = 0; i < nx_; i++) {  // longitude index
+                        // Corrected indexing: swap i,j to match ACES internal storage
+                        size_t kokkos_idx = j + i * ny_ + k * static_cast<size_t>(nx_) * ny_;  // (lat, lon, lev) order
+                        size_t netcdf_idx = k * static_cast<size_t>(ny_) * nx_ + j * nx_ + i;  // (lev, lat, lon) order
+
+                        // Bounds check for safety
+                        if (kokkos_idx >= total_elements || netcdf_idx >= total_elements) {
+                            ACES_LOG_ERROR("Index out of bounds in field '" + name + "': kokkos_idx=" +
+                                          std::to_string(kokkos_idx) + " netcdf_idx=" + std::to_string(netcdf_idx) +
+                                          " total=" + std::to_string(total_elements));
+                            return -1;
+                        }
+
+                        netcdf_buffer[netcdf_idx] = h_view.data()[kokkos_idx];
+                    }
+                }
+            }
 
             size_t start_field[4] = {0, 0, 0, 0};
-            size_t count_field[4] = {1, (size_t)nz_, (size_t)ny_, (size_t)nx_};
+            size_t count_field[4] = {1, (size_t)nz_, (size_t)ny_, (size_t)nx_}; // time, lev, lat, lon
 
-            check_nc(nc_put_vara_double(ncid, var_id, start_field, count_field, h_view.data()), "put_vara " + name);
+            check_nc(nc_put_vara_double(ncid, var_id, start_field, count_field, netcdf_buffer.data()), "put_vara " + name);
         }
 
         check_nc(nc_close(ncid), "close");
@@ -237,7 +349,17 @@ int AcesStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
 }
 
 void AcesStandaloneWriter::Finalize() {
-    // Cleanup if needed
+    if (!initialized_) return; // Already finalized or never initialized
+
+    // Add logging to track finalization
+    ACES_LOG_INFO("[ACES] AcesStandaloneWriter finalizing...");
+
+    // Clear coordinate arrays to release memory
+    lon_coords_.clear();
+    lat_coords_.clear();
+
+    initialized_ = false;
+    ACES_LOG_INFO("[ACES] AcesStandaloneWriter finalized successfully");
 }
 
 } // namespace aces

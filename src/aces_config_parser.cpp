@@ -24,6 +24,16 @@ namespace aces {
  * @return AcesConfig object containing all parsed information.
  */
 AcesConfig ParseConfig(const std::string& filename) {
+    std::cout << "DEBUG: ParseConfig called with filename: '" << filename << "'" << std::endl;
+    
+    // Check if file exists
+    struct stat buffer;
+    if (stat(filename.c_str(), &buffer) != 0) {
+        std::cout << "ERROR: File does not exist: " << filename << std::endl;
+        throw std::runtime_error("File not found: " + filename);
+    }
+    std::cout << "DEBUG: File exists, proceeding to load" << std::endl;
+    
     AcesConfig config;
     YAML::Node root = YAML::LoadFile(filename);
 
@@ -315,6 +325,15 @@ AcesConfig ParseConfig(const std::string& filename) {
             }
             if (stream_node["lev_dimname"]) {
                 stream.lev_dimname = stream_node["lev_dimname"].as<std::string>();
+            }
+            if (stream_node["time_var"]) {
+                stream.time_var = stream_node["time_var"].as<std::string>();
+            }
+            if (stream_node["lon_var"]) {
+                stream.lon_var = stream_node["lon_var"].as<std::string>();
+            }
+            if (stream_node["lat_var"]) {
+                stream.lat_var = stream_node["lat_var"].as<std::string>();
             }
 
             config.aces_data.streams.push_back(stream);

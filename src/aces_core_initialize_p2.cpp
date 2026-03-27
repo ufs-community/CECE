@@ -2,10 +2,10 @@
  * @file aces_core_initialize_p2.cpp
  * @brief Implementation of NUOPC Initialize Phase 2 (IPDv00p2) for ACES.
  *
- * Phase 2 of initialization handles field binding and CDEPS setup:
+ * Phase 2 of initialization handles field binding and TIDE setup:
  * - Receive field data pointers from Fortran cap
  * - Extract grid dimensions from field metadata
- * - Initialize CDEPS_Inline if configured
+ * - Initialize TIDE if configured
  * - Allocate default mask (all 1.0)
  * - Cache field metadata for efficient runtime access
  *
@@ -35,13 +35,13 @@ extern "C" {
 /**
  * @brief Initialize Phase 2 (IPDv00p2) implementation for ACES.
  *
- * This function performs field binding and CDEPS initialization.
+ * This function performs field binding and TIDE initialization.
  * All field creation and ESMF state management is handled by the Fortran cap.
  *
  * Operations Performed:
  * 1. Validate that Phase 1 completed (internal_data exists)
  * 2. Store grid dimensions passed from Fortran
- * 3. Initialize CDEPS_Inline if streams are configured
+ * 3. Initialize TIDE if streams are configured
  * 4. Allocate default mask (all 1.0) for use in StackingEngine
  * 5. Cache field metadata for efficient runtime queries
  *
@@ -63,7 +63,7 @@ void aces_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc)
         *rc = 0;  // 0 = success in C
     }
 
-    std::cout << "INFO: ACES Initialize Phase 2 (IPDv00p2) - Field binding and CDEPS setup"
+    std::cout << "INFO: ACES Initialize Phase 2 (IPDv00p2) - Field binding and TIDE setup"
               << std::endl;
 
     // 1. Validate that Phase 1 completed successfully
@@ -122,7 +122,7 @@ void aces_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc)
             // The Fortran cap will call aces_cdeps_init with the streams configuration
             std::cout << "INFO: CDEPS initialization will be completed by Fortran cap" << std::endl;
         } catch (const std::exception& e) {
-            std::cerr << "ERROR: Failed to initialize CDEPS: " << e.what() << std::endl;
+            std::cerr << "ERROR: Failed to initialize TIDE: " << e.what() << std::endl;
             if (rc != nullptr) {
                 *rc = -1;
             }

@@ -51,7 +51,7 @@ void ExampleEmissionGeneration::Initialize(const YAML::Node& config,
 
 void ExampleEmissionGeneration::Run(AcesImportState& import_state, AcesExportState& export_state) {
     // Resolve input meteorological fields
-    // These are provided by the atmospheric model or CDEPS
+    // These are provided by the atmospheric model or TIDE
     auto temperature = ResolveImport("temperature", import_state);
     auto solar_radiation = ResolveImport("solar_radiation", import_state);
 

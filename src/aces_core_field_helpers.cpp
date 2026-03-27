@@ -244,9 +244,9 @@ void aces_core_bind_fields(void* data_ptr, void** field_ptrs, int* num_fields, i
 }
 
 /**
- * @brief Get the CDEPS streams file path from configuration.
+ * @brief Get the TIDE streams file path from configuration.
  *
- * Returns the path to the CDEPS streams configuration file.
+ * Returns the path to the TIDE streams configuration file.
  * If no streams are configured, returns an empty string.
  *
  * @param data_ptr Pointer to AcesInternalData
@@ -324,8 +324,7 @@ void aces_core_get_ingestor_streams_path(void* data_ptr, char* streams_path, int
  * @brief Initialize the CF data ingestor from the Fortran cap.
  *
  * Called by the NUOPC cap (aces_cap.F90) after mesh creation when ingestor
- * streams are configured.  Delegates to AcesDataIngestor::InitializeCDEPS
- * which in turn delegates to CfDataIngestor.
+ * streams are configured.  Delegates to AcesDataIngestor::IngestEmissionsInline
  *
  * @param data_ptr  Pointer to AcesInternalData.
  * @param c_clock   Opaque pointer to ESMF Clock handle.
@@ -531,6 +530,201 @@ void aces_core_get_input_field_name(void* data_ptr, int* index, char* name, int*
     // but here we assume standard Fortran string passing.
     std::strncpy(name, field_name.c_str(), 256);
     *name_len = field_name.length();
+
+    if (rc != nullptr) {
+        *rc = 0;
+    }
+}
+
+/**
+ * @brief Get the number of stream fields configured for data ingestion.
+ *
+ * @param data_ptr Pointer to AcesInternalData
+ * @param count Output: number of stream fields
+ * @param rc Return code (0 = success, non-zero = error)
+ */
+void aces_core_get_stream_field_count(void* data_ptr, int* count, int* rc) {
+    if (rc != nullptr) {
+        *rc = 0;
+    }
+
+    if (data_ptr == nullptr) {
+        std::cerr << "ERROR: aces_core_get_stream_field_count - data_ptr is null" << std::endl;
+        if (rc != nullptr) {
+            *rc = -1;
+        }
+        return;
+    }
+
+    if (count == nullptr) {
+        std::cerr << "ERROR: aces_core_get_stream_field_count - count pointer is null" << std::endl;
+        if (rc != nullptr) {
+            *rc = -1;
+        }
+        return;
+    }
+
+    auto* internal_data = static_cast<aces::AcesInternalData*>(data_ptr);
+
+    // Count all fields from all streams
+    int total_fields = 0;
+    for (const auto& stream : internal_data->config.aces_data.streams) {
+        total_fields += stream.variables.size();
+    }
+
+    *count = total_fields;
+
+    if (rc != nullptr) {
+        *rc = 0;
+    }
+}
+
+/**
+ * @brief Get the name of a stream field by index.
+ *
+ * @param data_ptr Pointer to AcesInternalData
+ * @param index Zero-based index of the field
+ * @param name Output: field name (C string)
+ * @param name_len Output: length of the field name
+ * @param rc Return code (0 = success, non-zero = error)
+ */
+void aces_core_get_stream_field_name(void* data_ptr, int* index, char* name, int* name_len, int* rc) {
+    if (rc != nullptr) {
+        *rc = 0;
+    }
+
+    if (data_ptr == nullptr) {
+        std::cerr << "ERROR: aces_core_get_stream_field_name - data_ptr is null" << std::endl;
+        if (rc != nullptr) {
+            *rc = -1;
+        }
+        return;
+    }
+
+    if (index == nullptr || name == nullptr || name_len == nullptr) {
+        std::cerr << "ERROR: aces_core_get_stream_field_name - null pointer argument" << std::endl;
+        if (rc != nullptr) {
+            *rc = -1;
+        }
+        return;
+    }
+
+    auto* internal_data = static_cast<aces::AcesInternalData*>(data_ptr);
+    int idx = *index;
+
+    // Flatten the stream variables into a single index
+    int current_idx = 0;
+    for (const auto& stream : internal_data->config.aces_data.streams) {
+        for (const auto& var : stream.variables) {
+            if (current_idx == idx) {
+                // Found the field at this index
+                const std::string& field_name = var.name_in_model;
+
+                // Safe copy with bounds check
+                std::strncpy(name, field_name.c_str(), 256);
+                name[255] = '\0';  // Ensure null termination
+                *name_len = std::min(static_cast<int>(field_name.length()), 255);
+
+                if (rc != nullptr) {
+                    *rc = 0;
+                }
+                return;
+            }
+            current_idx++;
+        }
+    }
+
+    // Index out of bounds
+    std::cerr << "ERROR: aces_core_get_stream_field_name - index out of bounds: " << idx << std::endl;
+    if (rc != nullptr) {
+        *rc = -1;
+    }
+}
+
+/**
+ * @brief Get the number of external ESMF fields required by ACES.
+ *
+ * @param data_ptr Pointer to AcesInternalData
+ * @param count Output: number of external ESMF fields
+ * @param rc Return code (0 = success, non-zero = error)
+ */
+void aces_core_get_external_field_count(void* data_ptr, int* count, int* rc) {
+    if (rc != nullptr) {
+        *rc = 0;
+    }
+
+    if (data_ptr == nullptr) {
+        std::cerr << "ERROR: aces_core_get_external_field_count - data_ptr is null" << std::endl;
+        if (rc != nullptr) {
+            *rc = -1;
+        }
+        return;
+    }
+
+    if (count == nullptr) {
+        std::cerr << "ERROR: aces_core_get_external_field_count - count pointer is null" << std::endl;
+        if (rc != nullptr) {
+            *rc = -1;
+        }
+        return;
+    }
+
+    auto* internal_data = static_cast<aces::AcesInternalData*>(data_ptr);
+    *count = static_cast<int>(internal_data->external_esmf_fields.size());
+
+    if (rc != nullptr) {
+        *rc = 0;
+    }
+}
+
+/**
+ * @brief Get the name of an external ESMF field by index.
+ *
+ * @param data_ptr Pointer to AcesInternalData
+ * @param index Zero-based index of the field
+ * @param name Output: field name (C string)
+ * @param name_len Output: length of the field name
+ * @param rc Return code (0 = success, non-zero = error)
+ */
+void aces_core_get_external_field_name(void* data_ptr, int* index, char* name, int* name_len, int* rc) {
+    if (rc != nullptr) {
+        *rc = 0;
+    }
+
+    if (data_ptr == nullptr) {
+        std::cerr << "ERROR: aces_core_get_external_field_name - data_ptr is null" << std::endl;
+        if (rc != nullptr) {
+            *rc = -1;
+        }
+        return;
+    }
+
+    if (index == nullptr || name == nullptr || name_len == nullptr) {
+        std::cerr << "ERROR: aces_core_get_external_field_name - null pointer argument" << std::endl;
+        if (rc != nullptr) {
+            *rc = -1;
+        }
+        return;
+    }
+
+    auto* internal_data = static_cast<aces::AcesInternalData*>(data_ptr);
+    int idx = *index;
+
+    if (idx < 0 || idx >= static_cast<int>(internal_data->external_esmf_fields.size())) {
+        std::cerr << "ERROR: aces_core_get_external_field_name - index out of bounds: " << idx
+                  << " (size: " << internal_data->external_esmf_fields.size() << ")" << std::endl;
+        if (rc != nullptr) {
+            *rc = -1;
+        }
+        return;
+    }
+
+    const std::string& field_name = internal_data->external_esmf_fields[idx];
+
+    // Safe copy with bounds check
+    std::strncpy(name, field_name.c_str(), 256);
+    name[255] = '\0';  // Ensure null termination
+    *name_len = std::min(static_cast<int>(field_name.length()), 255);
 
     if (rc != nullptr) {
         *rc = 0;

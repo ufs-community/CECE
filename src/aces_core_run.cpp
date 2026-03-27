@@ -8,6 +8,8 @@
 
 #include <iostream>
 #include <stdexcept>
+#include <chrono>
+#include <thread>
 
 #include "aces/aces_internal.hpp"
 #include "aces/aces_stacking_engine.hpp"
@@ -65,6 +67,24 @@ void aces_core_run(void* data_ptr, int hour, int day_of_week, int* rc) {
 
         for (auto& [name, field] : d->export_state.fields) {
             field.sync_host();
+        }
+
+        // Critical: Comprehensive Kokkos synchronization for large grids
+        int total_points = d->nx * d->ny;
+        if (total_points > 50000) {  // Large grid threshold (e.g., >223x223)
+            std::cout << "INFO: [ACES] Large grid (" << total_points
+                      << " points) - forcing comprehensive device synchronization..." << std::endl;
+
+            // Multiple Kokkos fence barriers for bulletproof synchronization
+            Kokkos::fence("ACES::Run::LargeGrid::Barrier1");
+            Kokkos::fence("ACES::Run::LargeGrid::Barrier2");
+            Kokkos::fence("ACES::Run::LargeGrid::Barrier3");
+
+            std::cout.flush();  // Ensure I/O completion
+            std::cout << "INFO: [ACES] Large grid synchronization complete" << std::endl;
+        } else {
+            // Single barrier for smaller grids
+            Kokkos::fence("ACES::Run::StandardGrid");
         }
 
     } catch (const std::exception& e) {

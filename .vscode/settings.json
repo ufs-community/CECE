@@ -1,0 +1,9 @@
+{
+    "kiroAgent.configureMCP": "Disabled",
+    "python.autoComplete.extraPaths": [
+        "/Users/barry/.kiro/extensions/continue.continue-0.0.412-darwin-arm64"
+    ],
+    "chat.tools.terminal.autoApprove": {
+        "./setup.sh": true
+    }
+}

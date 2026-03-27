@@ -18,7 +18,7 @@ if(CMAKE_Fortran_COMPILER)
 
     # file(MAKE_DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY})
 
-    # CDEPS and PIO sometimes expect a share directory in the build root
+    # TIDE and PIO sometimes expect a share directory in the build root
 
     file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/share)
 else()
@@ -103,7 +103,7 @@ message(STATUS "Found ESMF: ${ESMF_VERSION}")
 message(STATUS "ESMF include dirs: ${ESMF_INCLUDE_DIRS}")
 
 # Discovery PIO and NetCDF from ESMF if possible
-# CDEPS needs these as dependencies for its Fortran modules
+# TIDE needs these as dependencies for its Fortran modules
 
 # Helper function to find a library root based on a file existence
 function(find_root_by_file root_var filename)
@@ -224,7 +224,7 @@ if(ACES_HAS_FORTRAN)
     target_link_libraries(aces PUBLIC tide)
 endif()
 
-# Link NetCDF for CDEPS parser
+# Link NetCDF for TIDE
 if(NetCDF_ROOT)
     if(EXISTS "${NetCDF_ROOT}/lib/libnetcdf.so")
         target_link_libraries(aces PUBLIC "${NetCDF_ROOT}/lib/libnetcdf.so")

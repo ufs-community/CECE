@@ -8,7 +8,7 @@ ACES is designed as a modular, performance-portable emissions framework. Key com
 *   **StackingEngine:** Manages the aggregation of emission layers (base emissions, regional overrides, scale factors, and masks) for each species. It handles vertical distribution and ensured mass conservation.
 *   **PhysicsFactory:** A self-registration registry for physics schemes. New schemes should inherit from `BasePhysicsScheme` and use the `PhysicsRegistration<T>` pattern.
 *   **Internal State:** Persisted via `AcesInternalData` to maintain field handles and metadata across ESMF phases, avoiding redundant lookups.
-*   **CDEPS-inline Integration:** High-performance data ingestion for external emission inventories.
+*   **TIDE Integration:** High-performance data ingestion for external emission inventories via the TIDE (Temporal Interpolation & Data Extraction) Fortran library.
 
 ## Global Coding Standards
 *   **Language:** C++20 and Fortran 2008+.
@@ -88,5 +88,5 @@ python3 -m pip install jinja2 pyyaml pytest
 *   **ESMF User Guide:** [https://earthsystemmodeling.org/docs/release/latest/ESMF_usrdoc](https://earthsystemmodeling.org/docs/release/latest/ESMF_usrdoc)
 *   **ESMF Reference Manual:** [https://earthsystemmodeling.org/docs/release/latest/ESMF_refdoc/](https://earthsystemmodeling.org/docs/release/latest/ESMF_refdoc/)
 *   **NUOPC Reference Manual:** [https://earthsystemmodeling.org/docs/release/latest/NUOPC_refdoc](https://earthsystemmodeling.org/docs/release/latest/NUOPC_refdoc)
-*   **CDEPS Documentation:** [https://escomp.github.io/CDEPS/](https://escomp.github.io/CDEPS/)
+*   **TIDE Documentation:** Located at `src/io/tide` in the ACES repository
 *   **Fortran Standards:** [Fortran 2008 Standard (ISO/IEC 1539-1:2010)](https://www.iso.org/standard/44473.html)

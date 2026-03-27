@@ -123,6 +123,9 @@ struct AcesDataStreamConfig {
     int offset = 0;                                  ///< Time offset in seconds.
     std::string meshfile;                            ///< Path to source mesh file.
     std::string lev_dimname = "lev";                 ///< Name of vertical dimension.
+    std::string time_var = "time";                   ///< Name of time coordinate variable.
+    std::string lon_var = "lon";                     ///< Name of longitude coordinate variable.
+    std::string lat_var = "lat";                     ///< Name of latitude coordinate variable.
 };
 
 /**
