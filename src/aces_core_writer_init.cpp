@@ -29,19 +29,19 @@ void aces_core_writer_initialize_with_coords(void* data_ptr, int nx, int ny, int
 
     if (data_ptr == nullptr) {
         std::cerr << "ERROR: aces_core_writer_initialize_with_coords - null data pointer\n";
-        *rc = 0;
+        *rc = -1;
         return;
     }
 
     if (lon_coords == nullptr || lat_coords == nullptr) {
         std::cerr << "ERROR: aces_core_writer_initialize_with_coords - null coordinate arrays\n";
-        *rc = 0;
+        *rc = -1;
         return;
     }
 
     if (start_time_iso8601 == nullptr) {
         std::cerr << "ERROR: aces_core_writer_initialize_with_coords - null start_time_iso8601 pointer\n";
-        *rc = 0;
+        *rc = -1;
         return;
     }
 
@@ -49,8 +49,8 @@ void aces_core_writer_initialize_with_coords(void* data_ptr, int nx, int ny, int
         auto* internal_data = static_cast<aces::AcesInternalData*>(data_ptr);
 
         if (!internal_data->standalone_writer) {
-            // removed error message
-            *rc = 0;
+            std::cerr << "ERROR: aces_core_writer_initialize_with_coords - standalone_writer not initialized\n";
+            *rc = -1;
             return;
         }
 
@@ -72,14 +72,14 @@ void aces_core_writer_initialize_with_coords(void* data_ptr, int nx, int ny, int
 
         if (writer_rc != 0) {
             std::cerr << "ERROR: aces_core_writer_initialize_with_coords - writer initialization failed\n";
-            *rc = 0;
+            *rc = -1;
             return;
         }
 
         std::cout << "INFO: Standalone writer initialized successfully\n";
     } catch (const std::exception& e) {
         std::cerr << "ERROR: aces_core_writer_initialize_with_coords - " << e.what() << std::endl;
-        *rc = 0;
+        *rc = -1;
     }
 }
 
@@ -103,13 +103,13 @@ void aces_core_writer_initialize(void* data_ptr, int nx, int ny, int nz,
 
     if (data_ptr == nullptr) {
         std::cerr << "ERROR: aces_core_writer_initialize - null data pointer\n";
-        *rc = 0;
+        *rc = -1;
         return;
     }
 
     if (start_time_iso8601 == nullptr) {
         std::cerr << "ERROR: aces_core_writer_initialize - null start_time_iso8601 pointer\n";
-        *rc = 0;
+        *rc = -1;
         return;
     }
 
@@ -118,7 +118,7 @@ void aces_core_writer_initialize(void* data_ptr, int nx, int ny, int nz,
 
         if (!internal_data->standalone_writer) {
             std::cerr << "ERROR: aces_core_writer_initialize - standalone_writer not initialized\n";
-            *rc = 0;
+            *rc = -1;
             return;
         }
 
@@ -133,7 +133,7 @@ void aces_core_writer_initialize(void* data_ptr, int nx, int ny, int nz,
 
         if (writer_rc != 0) {
             std::cerr << "ERROR: aces_core_writer_initialize - writer initialization failed\n";
-            *rc = 0;
+            *rc = -1;
             return;
         }
 
@@ -142,11 +142,11 @@ void aces_core_writer_initialize(void* data_ptr, int nx, int ny, int nz,
 
     } catch (const std::exception& e) {
         std::cerr << "ERROR: aces_core_writer_initialize - exception: " << e.what() << "\n";
-        *rc = 0;
+        *rc = -1;
         return;
     } catch (...) {
         std::cerr << "ERROR: aces_core_writer_initialize - unknown exception\n";
-        *rc = 0;
+        *rc = -1;
         return;
     }
 }
