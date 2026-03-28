@@ -28,6 +28,7 @@ aces_data:
       yearFirst: 2000
       yearLast: 2010
       yearAlign: 2020
+      time_var: "time"
       variables:
         - file: "CO_IND"
           model: "HTAP_CO"
