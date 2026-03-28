@@ -17,7 +17,7 @@ module aces_cap_mod
   use NUOPC_Model, modelSS => SetServices
   use NUOPC_Model, only : model_label_Advance  => label_Advance
   use NUOPC_Model, only : model_label_Finalize => label_Finalize
-  use tide_mod, only: tide_type, tide_init, tide_init_from_esmfconfig, tide_advance, tide_get_ptr, tide_finalize
+  use tide_mod, only: tide_type, tide_init, tide_advance, tide_get_ptr, tide_finalize
   implicit none
 
   !> @brief Module-level C++ data pointer (save ensures persistence across phases).
@@ -611,8 +611,8 @@ contains
       write(*,'(A)') "INFO: [ACES] Initializing TIDE ingestor..."
 
       ! Initialize TIDE with the configured streams path and model mesh
-      ! Note: passing trimmed streams_path to ESMF RC initialization
-      call tide_init_from_esmfconfig(g_tide, trim(streams_path(1:int(streams_path_len))), &
+      ! Note: passing trimmed streams_path to YAML initialization
+      call tide_init(g_tide, trim(streams_path(1:int(streams_path_len))), &
                                      mesh, clock, rc)
 
       if (rc /= ESMF_SUCCESS) then

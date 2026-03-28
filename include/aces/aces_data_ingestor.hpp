@@ -79,6 +79,7 @@ class AcesDataIngestor {
      * @return An ESMF formatted configuration string.
      */
     std::string SerializeTideESMFConfig(const AcesDataConfig& config);
+    std::string SerializeTideYamlConfig(const AcesDataConfig& config);
 
     /** @brief Returns true if the named field exists in the cache. */
     bool HasCachedField(const std::string& name) const;

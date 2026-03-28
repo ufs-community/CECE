@@ -8,7 +8,7 @@ species:
 aces_data:
   streams:
     - name: "MACCITY_CO"
-      file: "/work/data/MACCity_4x5.nc"
+      file: "data/MACCity_4x5.nc"
       variables:
         - file: "MACCity"
           model: "MACCITY_CO"

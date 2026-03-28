@@ -292,10 +292,10 @@ void aces_core_get_ingestor_streams_path(void* data_ptr, char* streams_path, int
     }
 
     // Generate TIDE ESMF configuration
-    std::string config_content = internal_data->ingestor.SerializeTideESMFConfig(internal_data->config.aces_data);
+    std::string config_content = internal_data->ingestor.SerializeTideYamlConfig(internal_data->config.aces_data);
 
     // Write to file (using .rc extension common for ESMF resources)
-    std::string filename = "aces_data_streams.rc";
+    std::string filename = "aces_data_streams.yaml";
     std::ofstream outfile(filename);
     if (!outfile.is_open()) {
         std::cerr << "ERROR: Failed to open output file for TIDE streams: " << filename << std::endl;

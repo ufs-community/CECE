@@ -154,6 +154,48 @@ bool AcesDataIngestor::HasCachedField(const std::string& name) const {
     return field_cache_.find(name) != field_cache_.end();
 }
 
+
+std::string AcesDataIngestor::SerializeTideYamlConfig(const AcesDataConfig& config) {
+    std::ostringstream oss;
+    oss << "streams:\n";
+    for (const auto& stream : config.streams) {
+        oss << "  - name: " << stream.name << "\n";
+
+        oss << "    input_files:\n";
+        for (const auto& file : stream.file_paths) {
+            oss << "      - " << file << "\n";
+        }
+
+        oss << "    field_maps:\n";
+        for (const auto& var : stream.variables) {
+            oss << "      - file_var: " << var.name_in_file << "\n";
+            oss << "        model_var: " << var.name_in_model << "\n";
+        }
+
+        oss << "    tax_mode: " << stream.taxmode << "\n";
+        oss << "    time_interp: " << stream.tintalgo << "\n";
+        oss << "    map_algo: " << stream.mapalgo << "\n";
+        oss << "    read_mode: single\n";
+        oss << "    dt_limit: " << std::to_string(stream.dtlimit) << "\n";
+        oss << "    year_first: " << std::to_string(stream.yearFirst) << "\n";
+        oss << "    year_last: " << std::to_string(stream.yearLast) << "\n";
+        oss << "    year_align: " << std::to_string(stream.yearAlign) << "\n";
+        oss << "    offset: " << std::to_string(stream.offset) << "\n";
+        oss << "    lev_dimname: " << stream.lev_dimname << "\n";
+
+        oss << "    time_var: " << (stream.time_var.empty() ? "time" : stream.time_var) << "\n";
+
+        if (!stream.lon_var.empty() && stream.lon_var != "lon") {
+            oss << "    lon_var: " << stream.lon_var << "\n";
+        }
+        if (!stream.lat_var.empty() && stream.lat_var != "lat") {
+            oss << "    lat_var: " << stream.lat_var << "\n";
+        }
+        oss << "    mesh_file: \"" << stream.meshfile << "\"\n";
+    }
+    return oss.str();
+}
+
 std::string AcesDataIngestor::SerializeTideESMFConfig(const AcesDataConfig& config) {
     std::ostringstream oss;
 

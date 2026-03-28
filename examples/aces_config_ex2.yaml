@@ -7,7 +7,7 @@ species:
       category: "anthropogenic"
       hierarchy: 1
       operation: "add"
-    - field: "EMEP_CO"
+    - field: "HTAP_CO"
       category: "anthropogenic"
       hierarchy: 2
       operation: "replace"
@@ -16,23 +16,23 @@ species:
 aces_data:
   streams:
     - name: "MACCITY_CO"
-      file: "/work/data/MACCity_4x5.nc"
+      file: "../../data/MACCity_4x5.nc"
       yearFirst: 2000
       yearLast: 2010
       yearAlign: 2020
       variables:
         - file: "MACCity"
           model: "MACCITY_CO"
-    - name: "EMEP_CO"
-      file: "/work/data/EMEP.2000.co.nc"
+    - name: "HTAP_CO"
+      file: "../../data/HTAPv3_CO_0.1x0.1_2010.nc"
       yearFirst: 2000
       yearLast: 2010
       yearAlign: 2020
       variables:
-        - file: "MACCity"
-          model: "EMEP_CO"
+        - file: "CO_IND"
+          model: "HTAP_CO"
     - name: "MASK_EUROPE"
-      file: "/work/data/Canada_mask.gen.1x1.nc"
+      file: "../../data/Canada_mask.gen.1x1.nc"
       variables:
         - file: "MASK"
           model: "MASK_EUROPE"
