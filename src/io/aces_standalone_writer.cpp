@@ -163,7 +163,8 @@ std::string AcesStandaloneWriter::ResolveFilename(double time_seconds_since_star
 
 int AcesStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, DualView3D>& fields,
                                         double time_seconds, int step) {
-    if (!initialized_ || !config_.enabled) return 0;
+    if (!initialized_) return -1;
+    if (!config_.enabled) return 0;
 
     // Check frequency
     if (step % config_.frequency_steps != 0) return 0;
@@ -175,109 +176,147 @@ int AcesStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
 
     int ncid;
     try {
-        // Create file (clobber existing)
-        check_nc(nc_create(filename.c_str(), NC_CLOBBER | NC_NETCDF4, &ncid), "create");
-
-        // Define dimensions using CF-compliant names
+        bool file_exists = fs::exists(filename);
         int dim_lon, dim_lat, dim_lev, dim_time;
-        check_nc(nc_def_dim(ncid, "time", NC_UNLIMITED, &dim_time), "def_dim time");
-        check_nc(nc_def_dim(ncid, "lon", nx_, &dim_lon), "def_dim lon");
-        check_nc(nc_def_dim(ncid, "lat", ny_, &dim_lat), "def_dim lat");
-        check_nc(nc_def_dim(ncid, "lev", nz_, &dim_lev), "def_dim lev");
-
-        // Define time variable
         int var_time;
-        check_nc(nc_def_var(ncid, "time", NC_DOUBLE, 1, &dim_time, &var_time), "def_var time");
-        check_nc(nc_put_att_text(ncid, var_time, "units",
-                 14 + start_time_iso8601_.length(), ("seconds since " + start_time_iso8601_).c_str()));
-
-        // Define coordinate variables
-        int var_lon, var_lat, var_lev;
-        check_nc(nc_def_var(ncid, "lon", NC_DOUBLE, 1, &dim_lon, &var_lon), "def_var lon");
-        check_nc(nc_put_att_text(ncid, var_lon, "units", 12, "degrees_east"), "lon units");
-        check_nc(nc_put_att_text(ncid, var_lon, "long_name", 9, "longitude"), "lon long_name");
-        check_nc(nc_put_att_text(ncid, var_lon, "standard_name", 9, "longitude"), "lon standard_name");
-
-        check_nc(nc_def_var(ncid, "lat", NC_DOUBLE, 1, &dim_lat, &var_lat), "def_var lat");
-        check_nc(nc_put_att_text(ncid, var_lat, "units", 13, "degrees_north"), "lat units");
-        check_nc(nc_put_att_text(ncid, var_lat, "long_name", 8, "latitude"), "lat long_name");
-        check_nc(nc_put_att_text(ncid, var_lat, "standard_name", 8, "latitude"), "lat standard_name");
-
-        check_nc(nc_def_var(ncid, "lev", NC_DOUBLE, 1, &dim_lev, &var_lev), "def_var lev");
-        check_nc(nc_put_att_text(ncid, var_lev, "units", 1, "1"), "lev units");
-        check_nc(nc_put_att_text(ncid, var_lev, "long_name", 20, "model_level_number"), "lev long_name");
-
-        // Define field variables
-        // If config_.fields is empty, write all fields. Else filter.
         std::vector<int> field_var_ids;
         std::vector<std::string> field_names;
+        size_t start_time_idx = 0;
 
-        // Collect fields to write
-        for (const auto& [name, view] : fields) {
-            bool should_write = false;
-            if (config_.fields.empty()) {
-                should_write = true;
-            } else {
-                for (const auto& f : config_.fields) {
-                    if (f == name) {
-                        should_write = true;
-                        break;
+        if (file_exists) {
+            check_nc(nc_open(filename.c_str(), NC_WRITE, &ncid), "open existing");
+
+            // Get existing time dimension length to know where to append
+            check_nc(nc_inq_dimid(ncid, "time", &dim_time), "inq time dim");
+            check_nc(nc_inq_dimlen(ncid, dim_time, &start_time_idx), "inq time len");
+
+            check_nc(nc_inq_varid(ncid, "time", &var_time), "inq var time");
+
+            for (const auto& [name, view] : fields) {
+                bool should_write = false;
+                if (config_.fields.empty()) {
+                    should_write = true;
+                } else {
+                    for (const auto& f : config_.fields) {
+                        if (f == name) {
+                            should_write = true;
+                            break;
+                        }
                     }
+                }
+
+                if (should_write) {
+                    int var_id;
+                    check_nc(nc_inq_varid(ncid, name.c_str(), &var_id), "inq var " + name);
+                    field_var_ids.push_back(var_id);
+                    field_names.push_back(name);
+                }
+            }
+        } else {
+            // Create file (clobber existing)
+            check_nc(nc_create(filename.c_str(), NC_CLOBBER | NC_NETCDF4, &ncid), "create");
+
+            // Define dimensions using CF-compliant names
+            check_nc(nc_def_dim(ncid, "time", NC_UNLIMITED, &dim_time), "def_dim time");
+            check_nc(nc_def_dim(ncid, "lon", nx_, &dim_lon), "def_dim lon");
+            check_nc(nc_def_dim(ncid, "lat", ny_, &dim_lat), "def_dim lat");
+            check_nc(nc_def_dim(ncid, "lev", nz_, &dim_lev), "def_dim lev");
+
+            // Define time variable
+            check_nc(nc_def_var(ncid, "time", NC_DOUBLE, 1, &dim_time, &var_time), "def_var time");
+            std::string time_units = "seconds since " + start_time_iso8601_;
+            check_nc(nc_put_att_text(ncid, var_time, "units", time_units.size(), time_units.c_str()), "time units");
+            check_nc(nc_put_att_text(ncid, var_time, "long_name", 4, "time"), "time long_name");
+            check_nc(nc_put_att_text(ncid, var_time, "calendar", 8, "standard"), "time calendar");
+
+            // Define coordinate variables
+            int var_lon, var_lat, var_lev;
+            check_nc(nc_def_var(ncid, "lon", NC_DOUBLE, 1, &dim_lon, &var_lon), "def_var lon");
+            check_nc(nc_put_att_text(ncid, var_lon, "units", 12, "degrees_east"), "lon units");
+            check_nc(nc_put_att_text(ncid, var_lon, "long_name", 9, "longitude"), "lon long_name");
+            check_nc(nc_put_att_text(ncid, var_lon, "standard_name", 9, "longitude"), "lon standard_name");
+
+            check_nc(nc_def_var(ncid, "lat", NC_DOUBLE, 1, &dim_lat, &var_lat), "def_var lat");
+            check_nc(nc_put_att_text(ncid, var_lat, "units", 13, "degrees_north"), "lat units");
+            check_nc(nc_put_att_text(ncid, var_lat, "long_name", 8, "latitude"), "lat long_name");
+            check_nc(nc_put_att_text(ncid, var_lat, "standard_name", 8, "latitude"), "lat standard_name");
+
+            check_nc(nc_def_var(ncid, "lev", NC_DOUBLE, 1, &dim_lev, &var_lev), "def_var lev");
+            check_nc(nc_put_att_text(ncid, var_lev, "units", 1, "1"), "lev units");
+            check_nc(nc_put_att_text(ncid, var_lev, "long_name", 20, "model_level_number"), "lev long_name");
+
+            // Collect fields to write
+            for (const auto& [name, view] : fields) {
+                bool should_write = false;
+                if (config_.fields.empty()) {
+                    should_write = true;
+                } else {
+                    for (const auto& f : config_.fields) {
+                        if (f == name) {
+                            should_write = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (should_write) {
+                    int var_id;
+                    int dims[4] = {dim_time, dim_lev, dim_lat, dim_lon}; // time, lev, lat, lon (CF convention order)
+
+                    check_nc(nc_def_var(ncid, name.c_str(), NC_DOUBLE, 4, dims, &var_id), "def_var " + name);
+
+                    // Add coordinates attribute for proper CF compliance and ncview recognition
+                    check_nc(nc_put_att_text(ncid, var_id, "coordinates", 16, "lon lat lev time"), "coordinates " + name);
+
+                    // Add units and missing_value
+                    check_nc(nc_put_att_text(ncid, var_id, "units", 7, "kg/m2/s"), "units " + name);
+                    double fill_value = 9.96921e+36;
+                    check_nc(nc_put_att_double(ncid, var_id, "_FillValue", NC_DOUBLE, 1, &fill_value), "fill " + name);
+
+                    field_var_ids.push_back(var_id);
+                    field_names.push_back(name);
                 }
             }
 
-            if (should_write) {
-                int var_id;
-                int dims[4] = {dim_time, dim_lev, dim_lat, dim_lon}; // time, lev, lat, lon (CF convention order)
+            // Add global CF convention attributes for better tool support
+            check_nc(nc_put_att_text(ncid, NC_GLOBAL, "Conventions", 6, "CF-1.8"), "global Conventions");
+            check_nc(nc_put_att_text(ncid, NC_GLOBAL, "title", 28, "ACES Atmospheric Emissions"), "global title");
+            check_nc(nc_put_att_text(ncid, NC_GLOBAL, "institution", 4, "ACES"), "global institution");
+            check_nc(nc_put_att_text(ncid, NC_GLOBAL, "source", 44, "ACES - Atmospheric Chemistry Emission System"), "global source");
 
-                check_nc(nc_def_var(ncid, name.c_str(), NC_DOUBLE, 4, dims, &var_id), "def_var " + name);
+            check_nc(nc_enddef(ncid), "enddef");
 
-                // Add coordinates attribute for proper CF compliance and ncview recognition
-                check_nc(nc_put_att_text(ncid, var_id, "coordinates", 16, "lon lat lev time"), "coordinates " + name);
+            // Write coordinate arrays
+            if (use_custom_coords_ && !lon_coords_.empty() && !lat_coords_.empty()) {
+                // Use coordinates provided from ESMF grid
+                check_nc(nc_put_var_double(ncid, var_lon, lon_coords_.data()), "put_var lon");
+                check_nc(nc_put_var_double(ncid, var_lat, lat_coords_.data()), "put_var lat");
+            } else {
+                // Calculate coordinates (legacy approach)
+                std::vector<double> lon_values(nx_);
+                for (int i = 0; i < nx_; i++) {
+                    lon_values[i] = -180.0 + (360.0 * (i + 0.5)) / nx_;
+                }
+                check_nc(nc_put_var_double(ncid, var_lon, lon_values.data()), "put_var lon");
 
-                field_var_ids.push_back(var_id);
-                field_names.push_back(name);
+                std::vector<double> lat_values(ny_);
+                for (int j = 0; j < ny_; j++) {
+                    lat_values[j] = -90.0 + (180.0 * (j + 0.5)) / ny_;
+                }
+                check_nc(nc_put_var_double(ncid, var_lat, lat_values.data()), "put_var lat");
             }
-        }
 
-        // Add global CF convention attributes for better tool support
-        check_nc(nc_put_att_text(ncid, NC_GLOBAL, "Conventions", 6, "CF-1.8"), "global Conventions");
-        check_nc(nc_put_att_text(ncid, NC_GLOBAL, "title", 28, "ACES Atmospheric Emissions"), "global title");
-        check_nc(nc_put_att_text(ncid, NC_GLOBAL, "institution", 4, "ACES"), "global institution");
-        check_nc(nc_put_att_text(ncid, NC_GLOBAL, "source", 42, "ACES - Atmospheric Chemistry Emission System"), "global source");
-
-        check_nc(nc_enddef(ncid), "enddef");
-
-        // Write coordinate arrays
-        if (use_custom_coords_) {
-            // Use coordinates provided from ESMF grid
-            check_nc(nc_put_var_double(ncid, var_lon, lon_coords_.data()), "put_var lon");
-            check_nc(nc_put_var_double(ncid, var_lat, lat_coords_.data()), "put_var lat");
-        } else {
-            // Calculate coordinates (legacy approach)
-            std::vector<double> lon_values(nx_);
-            for (int i = 0; i < nx_; i++) {
-                lon_values[i] = -180.0 + (360.0 * (i + 0.5)) / nx_;
+            // Level: 1 to nz
+            std::vector<double> lev_values(nz_);
+            for (int k = 0; k < nz_; k++) {
+                lev_values[k] = k + 1.0;
             }
-            check_nc(nc_put_var_double(ncid, var_lon, lon_values.data()), "put_var lon");
-
-            std::vector<double> lat_values(ny_);
-            for (int j = 0; j < ny_; j++) {
-                lat_values[j] = -90.0 + (180.0 * (j + 0.5)) / ny_;
-            }
-            check_nc(nc_put_var_double(ncid, var_lat, lat_values.data()), "put_var lat");
-        }
-
-        // Level: 1 to nz
-        std::vector<double> lev_values(nz_);
-        for (int k = 0; k < nz_; k++) {
-            lev_values[k] = k + 1.0;
-        }
-        check_nc(nc_put_var_double(ncid, var_lev, lev_values.data()), "put_var lev");
+            check_nc(nc_put_var_double(ncid, var_lev, lev_values.data()), "put_var lev");
+        } // end file_exists = false
 
         // Write time
-        size_t start[1] = {0};
-        check_nc(nc_put_var1_double(ncid, var_time, start, &time_seconds), "put_var time");
+        size_t start_time[1] = {start_time_idx};
+        check_nc(nc_put_var1_double(ncid, var_time, start_time, &time_seconds), "put_var time");
 
         // Write fields
         for (size_t i = 0; i < field_names.size(); ++i) {
@@ -330,7 +369,7 @@ int AcesStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
                 }
             }
 
-            size_t start_field[4] = {0, 0, 0, 0};
+            size_t start_field[4] = {start_time_idx, 0, 0, 0};
             size_t count_field[4] = {1, (size_t)nz_, (size_t)ny_, (size_t)nx_}; // time, lev, lat, lon
 
             check_nc(nc_put_vara_double(ncid, var_id, start_field, count_field, netcdf_buffer.data()), "put_vara " + name);

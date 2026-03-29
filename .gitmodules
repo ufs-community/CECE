@@ -1,0 +1,4 @@
+[submodule "src/io/tide"]
+	url = https://github.com/bbakernoaa/cdeps.git
+	path = src/io/tide
+	branch = devmode

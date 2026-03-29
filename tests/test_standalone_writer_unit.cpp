@@ -183,6 +183,7 @@ TEST_F(StandaloneWriterUnitTest, CFAttributeConventions) {
     export_fields["CO"].sync<Kokkos::DefaultExecutionSpace::memory_space>();
 
     aces::AcesOutputConfig config;
+    config.enabled = true;
     config.directory = test_dir_;
     config.filename_pattern = "test_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc";
     config.frequency_steps = 1;
@@ -224,6 +225,7 @@ TEST_F(StandaloneWriterUnitTest, CFAttributeUnits) {
     export_fields["CO"] = ViewToDualView(field, "CO");
 
     aces::AcesOutputConfig config;
+    config.enabled = true;
     config.directory = test_dir_;
     config.filename_pattern = "test_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc";
     config.frequency_steps = 1;
@@ -269,6 +271,7 @@ TEST_F(StandaloneWriterUnitTest, CFAttributeFillValue) {
     export_fields["CO"] = ViewToDualView(field, "CO");
 
     aces::AcesOutputConfig config;
+    config.enabled = true;
     config.directory = test_dir_;
     config.filename_pattern = "test_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc";
     config.frequency_steps = 1;
@@ -314,6 +317,7 @@ TEST_F(StandaloneWriterUnitTest, CFAttributeSource) {
     export_fields["CO"] = ViewToDualView(field, "CO");
 
     aces::AcesOutputConfig config;
+    config.enabled = true;
     config.directory = test_dir_;
     config.filename_pattern = "test_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc";
     config.frequency_steps = 1;
@@ -339,7 +343,7 @@ TEST_F(StandaloneWriterUnitTest, CFAttributeSource) {
     memset(source, 0, sizeof(source));  // Initialize buffer to zeros
     rc = nc_get_att_text(ncid, NC_GLOBAL, "source", source);
     ASSERT_EQ(rc, NC_NOERR) << "source attribute missing";
-    EXPECT_STREQ(source, "ACES");
+    EXPECT_STREQ(source, "ACES - Atmospheric Chemistry Emission System");
 
     nc_close(ncid);
 }
@@ -363,6 +367,7 @@ TEST_F(StandaloneWriterUnitTest, FrequencyGatingSkipsIntermediateSteps) {
     export_fields["CO"] = ViewToDualView(field, "CO");
 
     aces::AcesOutputConfig config;
+    config.enabled = true;
     config.directory = test_dir_;
     config.filename_pattern = "test_output.nc";  // Fixed name so all records go to one file
     config.frequency_steps = frequency;
@@ -417,6 +422,7 @@ TEST_F(StandaloneWriterUnitTest, FrequencyGatingFrequencyOne) {
     export_fields["CO"] = ViewToDualView(field, "CO");
 
     aces::AcesOutputConfig config;
+    config.enabled = true;
     config.directory = test_dir_;
     config.filename_pattern = "test_output.nc";  // Fixed name so all records go to one file
     config.frequency_steps = 1;
@@ -468,6 +474,7 @@ TEST_F(StandaloneWriterUnitTest, FrequencyGatingLargeFrequency) {
     export_fields["CO"] = ViewToDualView(field, "CO");
 
     aces::AcesOutputConfig config;
+    config.enabled = true;
     config.directory = test_dir_;
     config.filename_pattern = "test_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc";
     config.frequency_steps = frequency;
@@ -523,6 +530,7 @@ TEST_F(StandaloneWriterUnitTest, AppendBehaviorExistingFile) {
     export_fields2["CO"] = ViewToDualView(field2, "CO");
 
     aces::AcesOutputConfig config;
+    config.enabled = true;
     config.directory = test_dir_;
     config.filename_pattern = "test_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc";
     config.frequency_steps = 1;
@@ -614,6 +622,7 @@ TEST_F(StandaloneWriterUnitTest, ErrorHandlingUnwritableDirectory) {
     system(("chmod 444 " + readonly_dir).c_str());
 
     aces::AcesOutputConfig config;
+    config.enabled = true;
     config.directory = readonly_dir;
     config.filename_pattern = "test_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc";
     config.frequency_steps = 1;
@@ -657,6 +666,7 @@ TEST_F(StandaloneWriterUnitTest, ErrorHandlingNotInitialized) {
     export_fields["CO"] = ViewToDualView(field, "CO");
 
     aces::AcesOutputConfig config;
+    config.enabled = true;
     config.directory = test_dir_;
     config.filename_pattern = "test_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc";
     config.frequency_steps = 1;
@@ -677,6 +687,7 @@ TEST_F(StandaloneWriterUnitTest, ErrorHandlingIsInitialized) {
     const int nx = 4, ny = 4, nz = 5;
 
     aces::AcesOutputConfig config;
+    config.enabled = true;
     config.directory = test_dir_;
     config.filename_pattern = "test_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc";
     config.frequency_steps = 1;

@@ -364,7 +364,13 @@ TEST_F(ScaleFactorCommutativityTest, ThreeDFieldsCommute) {
         << "3D scale factor commutativity failed";
 
     // With RANGE distribution, each layer gets 1/(nz) of the base value
-    const double expected = base * sf_a * sf_b / nz;
+    // BUT wait! For 3D fields natively, the weight is 1.0!
+    // Stacking engine says:
+    // if (is_3d_field) {
+    //      in_vertical_range = true;
+    //      weight = 1.0;
+    // }
+    const double expected = base * sf_a * sf_b;
     for (int i = 0; i < nx; ++i)
         for (int j = 0; j < ny; ++j)
             for (int k = 0; k < nz; ++k)

@@ -23,147 +23,27 @@ EOF
 }
 
 # Example 1: Add global anthropogenic emissions (MACCity CO)
-cat <<EOF > examples/aces_config_ex1.yaml
-meteorology:
-  hourly_scalfact: HOURLY_SCALFACT
-
-species:
-  co:
-    - field: "MACCITY"
-      operation: "add"
-      scale: 1.0
-      scale_fields: ["hourly_scalfact"]
-
-cdeps_inline_config:
-  streams:
-    - name: "MACCITY"
-      file: "data/MACCity_4x5.nc"
-    - name: "HOURLY_SCALFACT"
-      file: "data/hourly.nc"
-EOF
+# DO NOT GENERATE YAMLS
 generate_download_script 1 "HEMCO/MACCITY/v2014-07/MACCity_4x5.nc"
 
 # Example 2: Overlay regional emissions
-cat <<EOF > examples/aces_config_ex2.yaml
-meteorology:
-  hourly_scalfact: HOURLY_SCALFACT
-  mask_europe: MASK_EUROPE
-
-species:
-  co:
-    - field: "MACCITY_CO"
-      category: "anthropogenic"
-      hierarchy: 1
-      operation: "add"
-      scale_fields: ["hourly_scalfact"]
-    - field: "EMEP_CO"
-      category: "anthropogenic"
-      hierarchy: 2
-      operation: "replace"
-      mask: "mask_europe"
-      scale_fields: ["hourly_scalfact"]
-
-cdeps_inline_config:
-  streams:
-    - name: "MACCITY_CO"
-      file: "data/MACCity_4x5.nc"
-    - name: "EMEP_CO"
-      file: "data/EMEP_2000.nc"
-    - name: "HOURLY_SCALFACT"
-      file: "data/hourly.nc"
-    - name: "MASK_EUROPE"
-      file: "data/Canada_mask.gen.1x1.nc"
-EOF
-generate_download_script 2 "HEMCO/MACCITY/v2014-07/MACCity_4x5.nc" "HEMCO/MASKS/v2014-07/Canada_mask.gen.1x1.nc"
+# DO NOT GENERATE YAMLS
+generate_download_script 2 "HEMCO/MACCITY/v2014-07/MACCity_4x5.nc" "HEMCO/HTAPv3/v2022-12/2000/HTAPv3_CO_0.1x0.1_2000.nc" "HEMCO/MASKS/v2014-07/Canada_mask.gen.1x1.nc"
 
 # Example 3: Adding the AEIC aircraft emissions
-cat <<EOF > examples/aces_config_ex3.yaml
-species:
-  co:
-    - field: "MACCITY_CO"
-      category: "anthropogenic"
-      hierarchy: 1
-      operation: "add"
-    - field: "AEIC_CO"
-      category: "aircraft"
-      hierarchy: 1
-      operation: "add"
-
-cdeps_inline_config:
-  streams:
-    - name: "MACCITY_CO"
-      file: "data/MACCity_4x5.nc"
-    - name: "AEIC_CO"
-      file: "data/AEIC.nc"
-EOF
+# DO NOT GENERATE YAMLS
 generate_download_script 3 "HEMCO/MACCITY/v2014-07/MACCity_4x5.nc" "HEMCO/AEIC/v2015-01/AEIC.nc"
 
 # Example 4: Add biomass burning emissions
-cat <<EOF > examples/aces_config_ex4.yaml
-physics_schemes:
-  - name: "GFED"
-    language: "cpp"
-    options:
-      version: "GFED4"
-
-species:
-  co:
-    - field: "MACCITY_CO"
-      category: "anthropogenic"
-      hierarchy: 1
-      operation: "add"
-
-cdeps_inline_config:
-  streams:
-    - name: "MACCITY_CO"
-      file: "data/MACCity_4x5.nc"
-    - name: "GFED_WDL"
-      file: "data/GFED4_gen.025x025.199701.nc"
-EOF
+# DO NOT GENERATE YAMLS
 generate_download_script 4 "HEMCO/MACCITY/v2014-07/MACCity_4x5.nc" "HEMCO/GFED4/v2015-10/1997/GFED4_gen.025x025.199701.nc"
 
 # Example 5: Tell HEMCO to use additional species
-cat <<EOF > examples/aces_config_ex5.yaml
-species:
-  co:
-    - field: "MACCITY_CO"
-      operation: "add"
-  no:
-    - field: "MACCITY_NO"
-      operation: "add"
-  so2:
-    - field: "MACCITY_SO2"
-      operation: "add"
-
-cdeps_inline_config:
-  streams:
-    - name: "MACCITY_CO"
-      file: "data/MACCity_4x5.nc"
-    - name: "MACCITY_NO"
-      file: "data/MACCity_anthro_NOx_2000-2010_16080.nc"
-    - name: "MACCITY_SO2"
-      file: "data/MACCity_anthro_SO2_2000-2010_16080.nc"
-EOF
+# DO NOT GENERATE YAMLS
 generate_download_script 5 "HEMCO/MACCITY/v2014-07/MACCity_4x5.nc" "HEMCO/MACCITY/v2014-07/MACCity_anthro_NOx_2000-2010_16080.nc" "HEMCO/MACCITY/v2014-07/MACCity_anthro_SO2_2000-2010_16080.nc"
 
 # Example 6: Non-separated inventories
-cat <<EOF > examples/aces_config_ex6.yaml
-species:
-  no:
-    - field: "EDGAR_NO_POW"
-      category: "anthropogenic"
-      operation: "add"
-    - field: "CEDS_NO_AGR"
-      category: "anthropogenic"
-      operation: "add"
-
-cdeps_inline_config:
-  streams:
-    - name: "EDGAR_NO_POW"
-      file: "data/EDGAR_v43.NOx.POW.nc"
-    - name: "CEDS_NO_AGR"
-      file: "data/ALK4_butanes-em-total-anthro_CEDS_1970.nc"
-EOF
+# DO NOT GENERATE YAMLS
 generate_download_script 6 "HEMCO/EDGARv43/v2014-10/EDGAR_v43.NOx.POW.nc" "HEMCO/CEDS/v2020-08/1970/ALK4_butanes-em-total-anthro_CEDS_1970.nc"
 
-echo "All 6 ACES example configurations created in the 'examples/' directory."
+echo "Download scripts generated."

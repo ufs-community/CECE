@@ -12,7 +12,7 @@ species:
 aces_data:
   streams:
     - name: "MACCITY_CO"
-      file: "/work/data/MACCity_4x5.nc"
+      file: "../data/MACCity_4x5.nc"
       yearFirst: 2000
       yearLast: 2010
       yearAlign: 2020
@@ -20,8 +20,8 @@ aces_data:
         - file: "MACCity"
           model: "MACCITY_CO"
     - name: "MACCITY_NO"
-      file: "/work/data/MACCity_anthro_NOx_2000-2010_16080.nc"
-      time_var: "date"
+      file: "../data/MACCity_anthro_NOx_2000-2010_16080.nc"
+      time_var: "time"
       yearFirst: 2000
       yearLast: 2010
       yearAlign: 2020
@@ -29,8 +29,8 @@ aces_data:
         - file: "MACCity"
           model: "MACCITY_NO"
     - name: "MACCITY_SO2"
-      file: "/work/data/MACCity_anthro_SO2_2000-2010_16080.nc"
-      time_var: "date"
+      file: "../data/MACCity_anthro_SO2_2000-2010_16080.nc"
+      time_var: "time"
       yearFirst: 2000
       yearLast: 2010
       yearAlign: 2020

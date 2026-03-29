@@ -99,17 +99,30 @@ static std::vector<double> ReadNetCDFVariable(int ncid, int varid, int nx, int n
     std::vector<double> data(nx * ny * nz);
     size_t start[4] = {time_index, 0, 0, 0};
     // Writer stores dims as (time, x, y, z) with LayoutLeft data
-    size_t count[4] = {1, static_cast<size_t>(nx), static_cast<size_t>(ny),
-                       static_cast<size_t>(nz)};
+    size_t count[4] = {1, static_cast<size_t>(nz), static_cast<size_t>(ny),
+                       static_cast<size_t>(nx)};
 
     int rc = nc_get_vara_double(ncid, varid, start, count, data.data());
     if (rc != NC_NOERR) {
         throw std::runtime_error(std::string("nc_get_vara_double failed: ") + nc_strerror(rc));
     }
 
-    // Data is already in LayoutLeft order (x varies fastest) matching Kokkos::LayoutLeft.
-    // No reordering needed.
-    return data;
+    // Need to reorder from NetCDF (time, z, y, x) to Kokkos LayoutLeft (x, y, z)
+    // Actually, in the writer we write from (x, y, z) LayoutLeft array to (lev, lat, lon) by explicitly swapping indices.
+    // So NetCDF has elements ordered by lev, then lat, then lon in memory? No, NetCDF C API writes in C order (row-major).
+    // So the data buffer is essentially row-major representation of the (nz, ny, nx) array.
+    std::vector<double> layout_left_data(nx * ny * nz);
+    for (int k = 0; k < nz; ++k) {
+        for (int j = 0; j < ny; ++j) {
+            for (int i = 0; i < nx; ++i) {
+                size_t nc_idx = k * ny * nx + j * nx + i;
+                size_t kk_idx = j + i * ny + k * nx * ny;
+                layout_left_data[kk_idx] = data[nc_idx];
+            }
+        }
+    }
+
+    return layout_left_data;
 }
 
 // ---------------------------------------------------------------------------
@@ -184,6 +197,7 @@ class OutputRoundTripTest : public ::testing::Test {
         const std::unordered_map<std::string, aces::DualView3D>& export_fields, int nx, int ny,
         int nz, int num_timesteps = 3, int frequency_steps = 1) {
         aces::AcesOutputConfig config;
+    config.enabled = true;
         config.directory = output_dir_;
         config.filename_pattern = "test_output_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc";
         config.frequency_steps = frequency_steps;
@@ -209,7 +223,7 @@ class OutputRoundTripTest : public ::testing::Test {
         writer.Finalize();
 
         // Find one output file
-        std::string cmd = "ls " + output_dir_ + "/*.nc 2>/dev/null | head -1";
+        std::string cmd = "ls " + output_dir_ + "/*.nc 2>/dev/null | head -n 1";
         FILE* pipe = popen(cmd.c_str(), "r");
         char buffer[256];
         std::string result;
@@ -356,6 +370,7 @@ TEST_F(OutputRoundTripTest, MultipleTimeRecords) {
     }
 
     aces::AcesOutputConfig config;
+    config.enabled = true;
     config.directory = output_dir_;
     config.filename_pattern = "test_output_{HH}.nc";  // Unique per hour
     config.frequency_steps = 1;
@@ -415,6 +430,7 @@ TEST_F(OutputRoundTripTest, FrequencyGating) {
     export_fields["CO"] = field;
 
     aces::AcesOutputConfig config;
+    config.enabled = true;
     config.directory = output_dir_;
     config.filename_pattern = "test_gating_{HH}.nc";
     config.frequency_steps = frequency_steps;

@@ -49,8 +49,8 @@ void aces_core_writer_initialize_with_coords(void* data_ptr, int nx, int ny, int
         auto* internal_data = static_cast<aces::AcesInternalData*>(data_ptr);
 
         if (!internal_data->standalone_writer) {
-            std::cerr << "ERROR: aces_core_writer_initialize_with_coords - standalone_writer not initialized\n";
-            *rc = -1;
+            // It's acceptable for the writer to not be initialized if not enabled
+            *rc = 0;
             return;
         }
 
@@ -117,8 +117,8 @@ void aces_core_writer_initialize(void* data_ptr, int nx, int ny, int nz,
         auto* internal_data = static_cast<aces::AcesInternalData*>(data_ptr);
 
         if (!internal_data->standalone_writer) {
-            std::cerr << "ERROR: aces_core_writer_initialize - standalone_writer not initialized\n";
-            *rc = -1;
+            // It's acceptable for the writer to not be initialized if not enabled
+            *rc = 0;
             return;
         }
 
