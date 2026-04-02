@@ -110,22 +110,22 @@ struct AcesDataVariableConfig {
  * @brief Configuration for a single aces_data input stream.
  */
 struct AcesDataStreamConfig {
-    std::string name;                                ///< Name of the stream.
-    std::vector<std::string> file_paths;             ///< Paths to the NetCDF files.
-    std::vector<AcesDataVariableConfig> variables;   ///< Variables to read from this stream.
-    std::string taxmode = "cycle";                   ///< Time axis mode (cycle, extend, etc.).
-    std::string tintalgo = "linear";                 ///< Time interpolation algorithm.
-    std::string mapalgo = "bilinear";                ///< Spatial mapping algorithm (default: bilinear for robustness).
-    int dtlimit = 1500000000;                        ///< Delta time limit in seconds.
-    int yearFirst = 1;                               ///< First year in data.
-    int yearLast = 1;                                ///< Last year in data.
-    int yearAlign = 1;                               ///< Year to align with model time.
-    int offset = 0;                                  ///< Time offset in seconds.
-    std::string meshfile;                            ///< Path to source mesh file.
-    std::string lev_dimname = "lev";                 ///< Name of vertical dimension.
-    std::string time_var = "time";                   ///< Name of time coordinate variable.
-    std::string lon_var = "lon";                     ///< Name of longitude coordinate variable.
-    std::string lat_var = "lat";                     ///< Name of latitude coordinate variable.
+    std::string name;  ///< Name of the stream.
+    std::vector<std::string> file_paths;  ///< Paths to the NetCDF files.
+    std::vector<AcesDataVariableConfig> variables;  ///< Variables to read from this stream.
+    std::string taxmode = "cycle";  ///< Time axis mode (cycle, extend, etc.).
+    std::string tintalgo = "linear";  ///< Time interpolation algorithm.
+    std::string mapalgo = "bilinear";  ///< Spatial mapping algorithm (default: bilinear for robustness).
+    int dtlimit = 1500000000;  ///< Delta time limit in seconds.
+    int yearFirst = 1;  ///< First year in data.
+    int yearLast = 1;  ///< Last year in data.
+    int yearAlign = 1;  ///< Year to align with model time.
+    int offset = 0;  ///< Time offset in seconds.
+    std::string meshfile;  ///< Path to source mesh file.
+    std::string lev_dimname = "lev";  ///< Name of vertical dimension.
+    std::string time_var = "time";  ///< Name of time coordinate variable.
+    std::string lon_var = "lon";  ///< Name of longitude coordinate variable.
+    std::string lat_var = "lat";  ///< Name of latitude coordinate variable.
 };
 
 /**
@@ -169,12 +169,12 @@ struct DiagnosticConfig {
  * @brief Grid configuration for the driver (Requirement 14).
  */
 struct DriverGridConfig {
-    int nx = 4;                                ///< Grid points in X direction (default: 4).
-    int ny = 4;                                ///< Grid points in Y direction (default: 4).
-    double lon_min = -135.0;                   ///< Minimum longitude (default: -135.0).
-    double lon_max = 135.0;                    ///< Maximum longitude (default: 135.0).
-    double lat_min = -67.5;                    ///< Minimum latitude (default: -67.5).
-    double lat_max = 67.5;                     ///< Maximum latitude (default: 67.5).
+    int nx = 4;  ///< Grid points in X direction (default: 4).
+    int ny = 4;  ///< Grid points in Y direction (default: 4).
+    double lon_min = -135.0;  ///< Minimum longitude (default: -135.0).
+    double lon_max = 135.0;  ///< Maximum longitude (default: 135.0).
+    double lat_min = -67.5;  ///< Minimum latitude (default: -67.5).
+    double lat_max = 67.5;  ///< Maximum latitude (default: 67.5).
 };
 
 /**
@@ -183,10 +183,10 @@ struct DriverGridConfig {
  */
 struct DriverConfig {
     std::string start_time = "2020-01-01T00:00:00";  ///< ISO8601 start time (default: 2020-01-01T00:00:00).
-    std::string end_time = "2020-01-02T00:00:00";    ///< ISO8601 end time (default: 2020-01-02T00:00:00).
-    int timestep_seconds = 3600;                     ///< Timestep in seconds (default: 3600).
-    std::string mesh_file;                           ///< Path to ESMF mesh file (optional, default: null).
-    DriverGridConfig grid;                           ///< Grid configuration for generated Gaussian grid.
+    std::string end_time = "2020-01-02T00:00:00";  ///< ISO8601 end time (default: 2020-01-02T00:00:00).
+    int timestep_seconds = 3600;  ///< Timestep in seconds (default: 3600).
+    std::string mesh_file;  ///< Path to ESMF mesh file (optional, default: null).
+    DriverGridConfig grid;  ///< Grid configuration for generated Gaussian grid.
 };
 
 /**
