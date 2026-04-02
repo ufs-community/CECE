@@ -145,7 +145,8 @@ contains
     integer :: inst_index ! Not used here
     integer :: n
     character(len=CL) :: name
-    character(len=*), parameter :: subname = "("//__FILE__//": set_component_logging)"   
+    character(len=*), parameter :: subname = &
+         "(" // __FILE__ // ": set_component_logging)"
     !-----------------------------------------------------------------------
 
     rc = ESMF_SUCCESS
