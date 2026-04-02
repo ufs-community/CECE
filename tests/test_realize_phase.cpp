@@ -135,7 +135,6 @@ TEST_F(RealizePhaseTest, CreatesExportFieldsForAllSpecies) {
     }
 
     EXPECT_EQ(found_count, 3) << "Should find all 3 species fields in export state";
-    }
 }
 
 /**
@@ -275,7 +274,6 @@ TEST_F(RealizePhaseTest, AcceptsNullImportState) {
     }
 
     EXPECT_EQ(found_count, 2) << "Should find both species fields in export state";
-    }
 }
 
 /**
@@ -336,7 +334,6 @@ TEST_F(RealizePhaseTest, WorksWithRealisticConfig) {
     }
 
     EXPECT_EQ(found_count, 3) << "Should find all 3 realistic species fields in export state";
-    }
 }
 
 int main(int argc, char** argv) {
