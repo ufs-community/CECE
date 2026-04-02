@@ -1,0 +1,34 @@
+name: TIDE Build and Test
+
+on:
+  push:
+    branches: [ main, tide-library, tide-integration-tutorial ]
+  pull_request:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    container:
+      image: jcsda/docker-gnu-openmpi-dev:1.9
+      options: --user root
+    steps:
+    - uses: actions/checkout@v3
+    - name: Configure CMake
+      shell: bash -l {0}
+      run: |
+        export PATH=/opt/views/view/bin:$PATH
+        mkdir -p build
+        cd build
+        cmake ..
+    - name: Build
+      shell: bash -l {0}
+      run: |
+        export PATH=/opt/views/view/bin:$PATH
+        cd build
+        make -j$(nproc)
+    - name: Run Tests
+      shell: bash -l {0}
+      run: |
+        export PATH=/opt/views/view/bin:$PATH
+        cd build
+        ctest --output-on-failure

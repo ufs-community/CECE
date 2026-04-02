@@ -1,0 +1,13 @@
+streams:
+  - name: test_stream
+    mesh_file: "test_mesh.nc"
+    tax_mode: "cycle"
+    time_interp: "linear"
+    map_algo: "bilinear"
+    year_first: 2000
+    year_last: 2000
+    year_align: 2000
+    input_files:
+      - "input_data.nc"
+    field_maps:
+      - { file_var: "data_var", model_var: "model_data" }

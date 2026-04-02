@@ -1,0 +1,28 @@
+netcdf input_data {
+dimensions:
+	lon = 4 ;
+	lat = 2 ;
+	time = UNLIMITED ; // (3 currently)
+variables:
+	double lon(lon) ;
+		lon:units = "degrees_east" ;
+	double lat(lat) ;
+		lat:units = "degrees_north" ;
+	double time(time) ;
+		time:units = "days since 2000-01-01 00:00:00" ;
+		time:calendar = "noleap" ;
+	float data_var(time, lat, lon) ;
+		data_var:_FillValue = -999.f ;
+
+data:
+ lon = 0, 90, 180, 270 ;
+ lat = -45, 45 ;
+ time = 0, 1, 2 ;
+ data_var =
+  1, 2, 3, 4,
+  5, 6, 7, 8,
+  11, 12, 13, 14,
+  15, 16, 17, 18,
+  21, 22, 23, 24,
+  25, 26, 27, 28 ;
+}
