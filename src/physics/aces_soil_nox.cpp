@@ -1,3 +1,29 @@
+/**
+ * @file aces_soil_nox.cpp
+ * @brief Soil nitrogen oxide (NOx) emission scheme implementation.
+ *
+ * Implements soil NOx emission calculations based on temperature and soil moisture
+ * effects on microbial nitrification and denitrification processes. The scheme
+ * models both biotic (microbial) and abiotic (chemical) soil NOx production.
+ *
+ * The parameterization includes:
+ * - Temperature-dependent microbial activity (exponential response)
+ * - Soil moisture effects using water-filled pore space (WFPS)
+ * - Land use and soil type dependencies
+ * - Fertilizer application impact factors
+ *
+ * This implementation is based on algorithms from HEMCO's hcox_soilnox_mod.F90
+ * with optimizations for Kokkos parallel execution in ACES.
+ *
+ * References:
+ * - Yienger, J.J. and H. Levy II (1995), Empirical model of global soil-biogenic
+ *   NOx emissions, JGR, 100(D6), 11447-11464.
+ *
+ * @author Barry Baker
+ * @date 2024
+ * @version 1.0
+ */
+
 #include "aces/physics/aces_soil_nox.hpp"
 
 #include <Kokkos_Core.hpp>
@@ -9,24 +35,44 @@
 
 namespace aces {
 
-/// Self-registration for the SoilNoxScheme scheme.
+/// @brief Self-registration for the soil NOx emission scheme.
 static PhysicsRegistration<SoilNoxScheme> register_scheme("soil_nox");
 
 /**
- * @brief Soil NOx Emissions (Ported from hcox_soilnox_mod.F90)
+ * @brief Calculate temperature-dependent soil NOx emission factor.
+ *
+ * Computes the exponential temperature response of soil microbial activity
+ * for NOx production. The response is based on empirical relationships
+ * from field measurements of soil NOx fluxes.
+ *
+ * @param tc Soil temperature [°C]
+ * @param tc_max Maximum temperature for emission calculation [°C]
+ * @param exp_coeff Exponential temperature coefficient [1/°C]
+ * @return Temperature-dependent emission factor (dimensionless)
  */
-
 KOKKOS_INLINE_FUNCTION
 double soil_temp_term(double tc, double tc_max, double exp_coeff) {
     if (tc <= 0.0) {
-        return 0.0;
+        return 0.0;  // No emission below freezing
     }
     return std::exp(exp_coeff * std::min(tc_max, tc));
 }
 
+/**
+ * @brief Calculate soil moisture-dependent NOx emission factor.
+ *
+ * Computes the water-filled pore space (WFPS) effect on soil NOx emissions.
+ * Uses a Poisson-like response function with maximum emission typically
+ * around 30% WFPS for non-arid soils.
+ *
+ * @param gw Water-filled pore space fraction [0-1]
+ * @param wet_c1 Moisture response coefficient 1
+ * @param wet_c2 Moisture response coefficient 2 [1/WFPS²]
+ * @return Moisture-dependent emission factor (dimensionless)
+ */
 KOKKOS_INLINE_FUNCTION
 double soil_wet_term(double gw, double wet_c1, double wet_c2) {
-    // Non-arid default Poisson response (max at WFPS=0.3)
+    // Non-arid Poisson response with maximum at WFPS ≈ 0.3
     return wet_c1 * gw * std::exp(wet_c2 * gw * gw);
 }
 

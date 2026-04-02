@@ -1,3 +1,23 @@
+/**
+ * @file aces_megan_fortran_bridge.cpp
+ * @brief Fortran bridge for MEGAN biogenic emission calculations.
+ *
+ * This module provides the C++/Fortran interface for the MEGAN (Model of Emissions
+ * of Gases and Aerosols from Nature) biogenic emission scheme. It handles data
+ * marshalling between Kokkos device views and Fortran arrays, enabling the use
+ * of legacy Fortran MEGAN implementations within the ACES framework.
+ *
+ * The bridge manages:
+ * - Memory synchronization between host and device
+ * - Data type conversions between C++ and Fortran
+ * - Field validation and error handling
+ * - Integration with the ACES physics factory system
+ *
+ * @author Barry Baker
+ * @date 2024
+ * @version 1.0
+ */
+
 #include <Kokkos_Core.hpp>
 #include <iostream>
 
@@ -5,6 +25,19 @@
 #include "aces/physics/aces_megan_fortran.hpp"
 
 extern "C" {
+/**
+ * @brief External Fortran subroutine for MEGAN emission calculations.
+ *
+ * @param temp Temperature field [K]
+ * @param lai Leaf area index field [m²/m²]
+ * @param pardr Direct photosynthetically active radiation [W/m²]
+ * @param pardf Diffuse photosynthetically active radiation [W/m²]
+ * @param suncos Cosine of solar zenith angle
+ * @param isop Output isoprene emissions [kg/m²/s]
+ * @param nx Grid dimension in x-direction
+ * @param ny Grid dimension in y-direction
+ * @param nz Grid dimension in z-direction
+ */
 void run_megan_fortran(double* temp, double* lai, double* pardr, double* pardf, double* suncos,
                        double* isop, int nx, int ny, int nz);
 }
@@ -12,15 +45,44 @@ void run_megan_fortran(double* temp, double* lai, double* pardr, double* pardf, 
 namespace aces {
 
 #ifdef ACES_HAS_FORTRAN
-/// Self-registration for the MeganFortranScheme scheme.
+/// @brief Self-registration for the MEGAN Fortran bridge scheme.
 static PhysicsRegistration<MeganFortranScheme> register_scheme("megan_fortran");
 #endif
 
+/**
+ * @brief Initialize the MEGAN Fortran bridge scheme.
+ *
+ * Performs any necessary setup for the Fortran MEGAN implementation.
+ * Currently minimal initialization is required.
+ *
+ * @param config YAML configuration node (unused for Fortran version)
+ * @param diag_manager Diagnostic manager for output handling (unused)
+ */
 void MeganFortranScheme::Initialize(const YAML::Node& /*config*/,
                                     AcesDiagnosticManager* /*diag_manager*/) {
     std::cout << "MeganFortranScheme: Initialized." << "\n";
 }
 
+/**
+ * @brief Execute MEGAN biogenic emission calculations using Fortran implementation.
+ *
+ * This method bridges C++ Kokkos data structures with Fortran arrays to compute
+ * biogenic emissions. It handles memory synchronization, field validation, and
+ * calls the legacy Fortran MEGAN subroutine.
+ *
+ * Required input fields:
+ * - temperature: Air temperature [K]
+ * - lai: Leaf area index [m²/m²]
+ * - pardr: Direct PAR [W/m²]
+ * - pardf: Diffuse PAR [W/m²]
+ * - suncos: Solar zenith angle cosine
+ *
+ * Output fields:
+ * - isoprene: Biogenic isoprene emissions [kg/m²/s]
+ *
+ * @param import_state Input field state containing meteorological data
+ * @param export_state Output field state for emission results
+ */
 void MeganFortranScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
     auto it_temp = import_state.fields.find("temperature");
     auto it_isop = export_state.fields.find("isoprene");

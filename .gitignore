@@ -1,4 +1,33 @@
+# Build directories
 build*/
+
+# Generated output files
+aces_output/
+output/
+*.nc
+
+# Log files
+PET*.log
+PET*.ESMF_LogFile
+*.log
+
+# Generated configuration files
+aces_data_streams.yaml
+
+# OS and IDE files
+.DS_Store
+.vscode/settings.json
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Temporary files
+*.tmp
+*.temp
+*~
 site/
 bin/
 *.ESMF_LogFile

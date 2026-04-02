@@ -1,0 +1,20 @@
+# Test driver configuration with mesh file input
+driver:
+  start_time: "2020-01-01T00:00:00"
+  end_time: "2020-01-01T01:00:00"
+  timestep_seconds: 3600
+  mesh_file: "/nonexistent/mesh.nc"  # This file doesn't exist - should trigger error
+  grid:
+    nx: 4
+    ny: 4
+
+species:
+  CO:
+    - operation: add
+      field: CO_anthro
+      hierarchy: 0
+      scale: 1.0
+
+physics_schemes:
+  - name: NativeExample
+    language: cpp

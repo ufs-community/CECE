@@ -1,12 +1,23 @@
+# Driver configuration for multi-timestep execution
+driver:
+  start_time: "2020-01-01T00:00:00"
+  end_time: "2020-01-01T06:00:00"
+  timestep_seconds: 3600
+
+grid:
+  nx: 4
+  ny: 4
+  lon_min: -135.0
+  lon_max: 135.0
+  lat_min: -67.5
+  lat_max: 67.5
+
 species:
   co:
     - field: "MACCITY_CO"
       operation: "add"
   no:
-    - field: "MACCITY_NO"
-      operation: "add"
-  so2:
-    - field: "MACCITY_SO2"
+    - field: "HTAP_NO"
       operation: "add"
 
 aces_data:
@@ -16,37 +27,33 @@ aces_data:
       yearFirst: 2000
       yearLast: 2010
       yearAlign: 2020
+      taxmode: "cycle"
+      tintalgo: "linear"
+      mapalgo: "consd"
       variables:
         - file: "MACCity"
           model: "MACCITY_CO"
-    - name: "MACCITY_NO"
-      file: "/work/data/MACCity_anthro_NOx_2000-2010_16080.nc"
-      time_var: "date"
-      yearFirst: 2000
-      yearLast: 2010
+    - name: "HTAP_NO"
+      file: "/work/data/HTAPv3_NO_0.1x0.1_2018.nc"
+      yearFirst: 2018
+      yearLast: 2018
       yearAlign: 2020
+      taxmode: "extend"
+      tintalgo: "linear"
+      mapalgo: "consd"
       variables:
-        - file: "MACCity"
-          model: "MACCITY_NO"
-    - name: "MACCITY_SO2"
-      file: "/work/data/MACCity_anthro_SO2_2000-2010_16080.nc"
-      time_var: "date"
-      yearFirst: 2000
-      yearLast: 2010
-      yearAlign: 2020
-      variables:
-        - file: "MACCity"
-          model: "MACCITY_SO2"
+        - file: "NO_SHP"
+          model: "HTAP_NO"
 
 diagnostics:
-  output_interval_seconds: 3600
-  variables: ["co", "no", "so2"]
+  output_interval_seconds: 2592000
+  variables: ["co", "no"]
 
 output:
+  enabled: true
   directory: ./aces_output
   filename_pattern: "aces_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
   frequency_steps: 1
   fields:
     - co
     - "no"
-    - so2

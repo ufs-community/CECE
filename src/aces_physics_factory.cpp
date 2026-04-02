@@ -1,11 +1,29 @@
+/**
+ * @file aces_physics_factory.cpp
+ * @brief Implementation of the PhysicsFactory for dynamic scheme registration and instantiation.
+ *
+ * The PhysicsFactory provides a flexible plugin system for ACES physics schemes,
+ * enabling runtime registration and creation of emission calculation modules.
+ * This design supports:
+ *
+ * - Dynamic scheme loading and registration
+ * - Automatic discovery of available physics schemes
+ * - Type-safe scheme instantiation with polymorphic interfaces
+ * - Fallback mechanisms for unknown or missing schemes
+ * - Integration with both C++ and Fortran implementations
+ *
+ * The factory uses a static registry pattern to maintain scheme creators
+ * across the application lifetime, with self-registration occurring during
+ * static initialization through PhysicsRegistration template instances.
+ *
+ * @author Barry Baker
+ * @date 2024
+ * @version 1.0
+ */
+
 #include "aces/aces_physics_factory.hpp"
 
 #include <iostream>
-
-/**
- * @file aces_physics_factory.cpp
- * @brief Implementation of the PhysicsFactory for scheme instantiation.
- */
 
 namespace aces {
 

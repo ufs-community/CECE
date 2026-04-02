@@ -131,6 +131,175 @@ void aces_core_get_species_name(void* data_ptr, int* index, char* name, int* nam
 }
 
 /**
+ * @brief Get grid configuration parameters from ACES configuration.
+ *
+ * @param data_ptr Pointer to AcesInternalData
+ * @param nx Output: number of grid points in X direction
+ * @param ny Output: number of grid points in Y direction
+ * @param lon_min Output: minimum longitude
+ * @param lon_max Output: maximum longitude
+ * @param lat_min Output: minimum latitude
+ * @param lat_max Output: maximum latitude
+ * @param rc Return code (0 = success, non-zero = error)
+ */
+void aces_core_get_grid_config(void* data_ptr, int* nx, int* ny,
+                              double* lon_min, double* lon_max,
+                              double* lat_min, double* lat_max, int* rc) {
+    if (rc != nullptr) {
+        *rc = 0;
+    }
+
+    if (data_ptr == nullptr) {
+        std::cerr << "ERROR: aces_core_get_grid_config - data_ptr is null" << std::endl;
+        if (rc != nullptr) {
+            *rc = -1;
+        }
+        return;
+    }
+
+    auto* internal_data = static_cast<aces::AcesInternalData*>(data_ptr);
+
+    // Check output pointers
+    if (nx == nullptr || ny == nullptr || lon_min == nullptr ||
+        lon_max == nullptr || lat_min == nullptr || lat_max == nullptr) {
+        std::cerr << "ERROR: aces_core_get_grid_config - null output pointer" << std::endl;
+        if (rc != nullptr) {
+            *rc = -1;
+        }
+        return;
+    }
+
+    // Get grid configuration from parsed YAML config
+    *nx = internal_data->config.driver_config.grid.nx;
+    *ny = internal_data->config.driver_config.grid.ny;
+    *lon_min = internal_data->config.driver_config.grid.lon_min;
+    *lon_max = internal_data->config.driver_config.grid.lon_max;
+    *lat_min = internal_data->config.driver_config.grid.lat_min;
+    *lat_max = internal_data->config.driver_config.grid.lat_max;
+
+    std::cout << "INFO: Grid config retrieved: nx=" << *nx << " ny=" << *ny
+              << " lon_min=" << *lon_min << " lon_max=" << *lon_max
+              << " lat_min=" << *lat_min << " lat_max=" << *lat_max << std::endl;
+}
+
+/**
+ * @brief Get timing configuration from YAML config.
+ * @param data_ptr Pointer to AcesInternalData
+ * @param start_time Output: start time as string (ISO8601 format)
+ * @param end_time Output: end time as string (ISO8601 format)
+ * @param timestep_seconds Output: timestep in seconds
+ * @param max_len Maximum length for time strings (including null terminator)
+ * @param rc Return code (0 = success, non-zero = error)
+ */
+void aces_core_get_timing_config(void* data_ptr, char* start_time, char* end_time,
+                                int* timestep_seconds, int max_len, int* rc) {
+    if (rc != nullptr) {
+        *rc = 0;
+    }
+
+    if (data_ptr == nullptr) {
+        std::cerr << "ERROR: aces_core_get_timing_config - data_ptr is null" << std::endl;
+        if (rc != nullptr) {
+            *rc = -1;
+        }
+        return;
+    }
+
+    auto* internal_data = static_cast<aces::AcesInternalData*>(data_ptr);
+
+    // Check output pointers
+    if (start_time == nullptr || end_time == nullptr || timestep_seconds == nullptr) {
+        std::cerr << "ERROR: aces_core_get_timing_config - null output pointer" << std::endl;
+        if (rc != nullptr) {
+            *rc = -1;
+        }
+        return;
+    }
+
+    // Get timing configuration from parsed YAML config
+    const auto& driver_config = internal_data->config.driver_config;
+
+    // Copy strings safely
+    strncpy(start_time, driver_config.start_time.c_str(), max_len - 1);
+    start_time[max_len - 1] = '\0';
+
+    strncpy(end_time, driver_config.end_time.c_str(), max_len - 1);
+    end_time[max_len - 1] = '\0';
+
+    *timestep_seconds = driver_config.timestep_seconds;
+
+    std::cout << "INFO: Timing config retrieved: start=" << start_time
+              << " end=" << end_time << " timestep=" << *timestep_seconds
+              << " seconds" << std::endl;
+}
+
+/**
+ * @brief Read timing configuration from YAML file (for driver use).
+ * @param config_path YAML config file path
+ * @param path_len Length of config_path string
+ * @param start_time Output: start time as string (ISO8601 format)
+ * @param end_time Output: end time as string (ISO8601 format)
+ * @param timestep_seconds Output: timestep in seconds
+ * @param max_len Maximum length for time strings (including null terminator)
+ * @param rc Return code (0 = success, non-zero = error)
+ */
+void aces_read_timing_config(const char* config_path, int path_len,
+                            char* start_time, char* end_time,
+                            int* timestep_seconds, int max_len, int* rc) {
+    if (rc != nullptr) {
+        *rc = 0;
+    }
+
+    try {
+        // Convert C string to std::string
+        std::string yaml_path(config_path, path_len);
+
+        // Parse YAML file
+        YAML::Node root = YAML::LoadFile(yaml_path);
+
+        // Default values
+        std::string start_default = "2020-01-01T00:00:00";
+        std::string end_default = "2020-01-01T06:00:00";
+        int timestep_default = 3600;
+
+        // Read timing configuration
+        if (root["driver"]) {
+            const auto& driver_node = root["driver"];
+
+            if (driver_node["start_time"]) {
+                start_default = driver_node["start_time"].as<std::string>();
+            }
+            if (driver_node["end_time"]) {
+                end_default = driver_node["end_time"].as<std::string>();
+            }
+            if (driver_node["timestep_seconds"]) {
+                timestep_default = driver_node["timestep_seconds"].as<int>();
+            }
+        }
+
+        // Copy strings safely
+        strncpy(start_time, start_default.c_str(), max_len - 1);
+        start_time[max_len - 1] = '\0';
+
+        strncpy(end_time, end_default.c_str(), max_len - 1);
+        end_time[max_len - 1] = '\0';
+
+        *timestep_seconds = timestep_default;
+
+        std::cout << "INFO: Driver timing config loaded: start=" << start_time
+                  << " end=" << end_time << " timestep=" << *timestep_seconds
+                  << " seconds" << std::endl;
+
+    } catch (const std::exception& e) {
+        std::cerr << "ERROR: Failed to read timing config from " << config_path
+                  << ": " << e.what() << std::endl;
+        if (rc != nullptr) {
+            *rc = -1;
+        }
+    }
+}
+
+/**
  * @brief Bind field data pointers to internal data.
  *
  * Stores the field data pointers passed from Fortran in the AcesInternalData
@@ -291,11 +460,11 @@ void aces_core_get_ingestor_streams_path(void* data_ptr, char* streams_path, int
         return;
     }
 
-    // Generate TIDE ESMF configuration
-    std::string config_content = internal_data->ingestor.SerializeTideESMFConfig(internal_data->config.aces_data);
+    // Generate TIDE YAML configuration
+    std::string config_content = internal_data->ingestor.SerializeTideYaml(internal_data->config.aces_data);
 
-    // Write to file (using .rc extension common for ESMF resources)
-    std::string filename = "aces_data_streams.rc";
+    // Write to file (using .yaml extension for modern TIDE interface)
+    std::string filename = "aces_data_streams.yaml";
     std::ofstream outfile(filename);
     if (!outfile.is_open()) {
         std::cerr << "ERROR: Failed to open output file for TIDE streams: " << filename << std::endl;
@@ -435,7 +604,14 @@ void aces_core_write_step(void* data_ptr, double time_seconds, int step_index, i
     const int freq = d->config.output_config.frequency_steps;
     if (step_index % freq != 0) return;
 
+    // Critical: ensure all computations complete before writing
+    Kokkos::fence();
+
     int w = d->standalone_writer->WriteTimeStep(d->export_state.fields, time_seconds, step_index);
+
+    // Critical: sync to ensure all I/O completes before returning
+    Kokkos::fence();
+
     if (w != 0) {
         std::cerr << "WARNING: aces_core_write_step - WriteTimeStep returned " << w << std::endl;
         if (rc != nullptr) *rc = w;

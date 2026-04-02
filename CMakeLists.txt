@@ -165,10 +165,13 @@ set(ACES_SRCS
     src/io/aces_diagnostic_manager.cpp
     src/io/aces_standalone_writer.cpp
     src/aces_core_writer_init.cpp
+    src/aces_core_driver_config.cpp
     src/aces_core_advertise.cpp
     src/aces_core_realize.cpp
+    src/aces_core_realize_wrapper.cpp
     src/aces_core_initialize_p1.cpp
     src/aces_core_initialize_p2.cpp
+    src/aces_core_initialize_p2_wrapper.cpp
     src/aces_core_field_helpers.cpp
     src/aces_core_run.cpp
     src/aces_core_finalize.cpp
@@ -239,8 +242,69 @@ endif()
 
 enable_testing()
 
+add_executable(test_driver_configuration tests/test_driver_configuration.cpp)
+target_link_libraries(test_driver_configuration PRIVATE aces GTest::gtest_main)
+
+add_executable(test_driver_config_parsing tests/test_driver_config_parsing.cpp)
+target_link_libraries(test_driver_config_parsing PRIVATE aces GTest::gtest_main)
+
+add_executable(test_driver_config_validation tests/test_driver_config_validation.cpp)
+target_link_libraries(test_driver_config_validation PRIVATE aces iso8601_utils GTest::gtest_main)
+
+add_executable(test_driver_clock_management tests/test_driver_clock_management.cpp)
+target_link_libraries(test_driver_clock_management PRIVATE GTest::gtest_main)
+
+# Property 5: Clock Advancement Monotonicity (Requirements 5.1, 5.2)
+add_executable(test_clock_advancement_monotonicity_property tests/test_clock_advancement_monotonicity_property.cpp)
+target_link_libraries(test_clock_advancement_monotonicity_property PRIVATE ESMF::ESMF MPI::MPI_CXX GTest::gtest_main)
+
+# Property 6: Idempotent Clock Advancement (Requirements 5.4, 20.1, 20.4)
+add_executable(test_idempotent_clock_advancement_property tests/test_idempotent_clock_advancement_property.cpp)
+target_link_libraries(test_idempotent_clock_advancement_property PRIVATE ESMF::ESMF MPI::MPI_CXX GTest::gtest_main)
+
+# Property 8: Stop Time Detection (Requirements 7.1, 7.2)
+add_executable(test_stop_time_detection_property tests/test_stop_time_detection_property.cpp)
+target_link_libraries(test_stop_time_detection_property PRIVATE ESMF::ESMF MPI::MPI_CXX GTest::gtest_main)
+
+# Unit tests for clock operations (Requirements 4.1, 5.1, 7.1)
+add_executable(test_clock_operations_unit tests/test_clock_operations_unit.cpp)
+target_link_libraries(test_clock_operations_unit PRIVATE GTest::gtest_main)
+
+add_executable(test_driver_grid_mesh_creation tests/test_driver_grid_mesh_creation.cpp)
+target_link_libraries(test_driver_grid_mesh_creation PRIVATE GTest::gtest_main rapidcheck)
+
+add_executable(test_driver_component_setup tests/test_driver_component_setup.cpp)
+target_link_libraries(test_driver_component_setup PRIVATE GTest::gtest_main rapidcheck)
+
+add_executable(test_driver_run_loop tests/test_driver_run_loop.cpp)
+target_link_libraries(test_driver_run_loop PRIVATE GTest::gtest_main rapidcheck)
+
+add_executable(test_driver_finalization tests/test_driver_finalization.cpp)
+target_link_libraries(test_driver_finalization PRIVATE GTest::gtest_main rapidcheck)
+
+add_executable(test_driver_error_handling tests/test_driver_error_handling.cpp)
+target_link_libraries(test_driver_error_handling PRIVATE GTest::gtest_main rapidcheck)
+
+add_executable(test_driver_mesh_validation tests/test_driver_mesh_validation.cpp)
+target_link_libraries(test_driver_mesh_validation PRIVATE GTest::gtest_main rapidcheck)
+
+add_executable(test_mesh_file_input tests/test_mesh_file_input.cpp)
+target_link_libraries(test_mesh_file_input PRIVATE aces GTest::gtest_main)
+
+add_executable(test_driver_execution_modes tests/test_driver_execution_modes.cpp)
+target_link_libraries(test_driver_execution_modes PRIVATE GTest::gtest_main)
+
+add_executable(test_driver_integration_end_to_end tests/test_driver_integration_end_to_end.cpp)
+target_link_libraries(test_driver_integration_end_to_end PRIVATE GTest::gtest_main)
+
 add_executable(test_aces_cap tests/test_aces_cap.cpp)
 target_link_libraries(test_aces_cap PRIVATE aces GTest::gtest_main)
+
+add_executable(test_phase1_initialization tests/test_phase1_initialization.cpp)
+target_link_libraries(test_phase1_initialization PRIVATE aces GTest::gtest_main)
+
+add_executable(test_phase2_initialization tests/test_phase2_initialization.cpp)
+target_link_libraries(test_phase2_initialization PRIVATE aces GTest::gtest_main)
 
 add_executable(test_diagnostics tests/test_diagnostics.cpp)
 target_link_libraries(test_diagnostics PRIVATE aces GTest::gtest)
@@ -386,6 +450,10 @@ target_link_libraries(test_properties PRIVATE aces GTest::gtest_main)
 add_executable(test_command_line_configuration_property tests/test_command_line_configuration_property.cpp)
 target_link_libraries(test_command_line_configuration_property PRIVATE aces GTest::gtest_main)
 
+# Property 1: ISO8601 Parsing Round Trip (Requirements 1.1, 2.1)
+add_executable(test_iso8601_parsing_roundtrip_property tests/test_iso8601_parsing_roundtrip_property.cpp)
+target_link_libraries(test_iso8601_parsing_roundtrip_property PRIVATE aces iso8601_utils GTest::gtest_main)
+
 # Property 17: Test Idempotence (Requirement 8.16)
 add_executable(test_idempotence_property tests/test_idempotence_property.cpp)
 target_link_libraries(test_idempotence_property PRIVATE aces GTest::gtest_main)
@@ -494,7 +562,26 @@ if(Python3_Interpreter_FOUND)
 endif()
 
 include(GoogleTest)
+gtest_discover_tests(test_driver_configuration)
+gtest_discover_tests(test_driver_config_parsing)
+gtest_discover_tests(test_driver_config_validation)
+gtest_discover_tests(test_driver_clock_management)
+gtest_discover_tests(test_clock_advancement_monotonicity_property)
+gtest_discover_tests(test_idempotent_clock_advancement_property)
+gtest_discover_tests(test_stop_time_detection_property)
+gtest_discover_tests(test_clock_operations_unit)
+gtest_discover_tests(test_driver_grid_mesh_creation)
+gtest_discover_tests(test_driver_component_setup)
+gtest_discover_tests(test_driver_run_loop)
+gtest_discover_tests(test_driver_finalization)
+gtest_discover_tests(test_driver_error_handling)
+gtest_discover_tests(test_driver_mesh_validation)
+gtest_discover_tests(test_mesh_file_input)
+gtest_discover_tests(test_driver_execution_modes)
+gtest_discover_tests(test_driver_integration_end_to_end)
 gtest_discover_tests(test_aces_cap)
+gtest_discover_tests(test_phase1_initialization)
+gtest_discover_tests(test_phase2_initialization)
 gtest_discover_tests(test_stacking_engine)
 gtest_discover_tests(test_vertical_distribution_single)
 gtest_discover_tests(test_vertical_distribution_range)
@@ -525,6 +612,7 @@ gtest_discover_tests(test_kokkos_device_consistency)
 gtest_discover_tests(test_kokkos_parallel_efficiency)
 gtest_discover_tests(test_properties)
 gtest_discover_tests(test_command_line_configuration_property)
+gtest_discover_tests(test_iso8601_parsing_roundtrip_property)
 gtest_discover_tests(test_idempotence_property)
 gtest_discover_tests(test_suite_idempotence)
 gtest_discover_tests(test_vertical_distribution_roundtrip_property)

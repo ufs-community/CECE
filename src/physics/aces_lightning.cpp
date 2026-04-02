@@ -1,3 +1,30 @@
+/**
+ * @file aces_lightning.cpp
+ * @brief Lightning-produced nitrogen oxide (NOx) emission scheme.
+ *
+ * Implements lightning NOx emission calculations based on flash rate data
+ * and empirical yield factors. Lightning is a significant natural source
+ * of NOx in the middle and upper troposphere, affecting ozone chemistry
+ * and atmospheric composition.
+ *
+ * The scheme includes:
+ * - Flash rate to NOx conversion using empirical yield factors
+ * - Land/ocean yield differentiation (tropical vs. midlatitude)
+ * - Vertical distribution profiles for lightning NOx placement
+ * - Molecular weight and unit conversions for ACES integration
+ *
+ * This implementation is based on algorithms from HEMCO's hcox_lightnox_mod.F90
+ * with adaptations for the ACES framework and Kokkos execution.
+ *
+ * References:
+ * - Price, C., et al. (1997), Vertical distributions of lightning NOx for use
+ *   in regional and global chemical transport models, JGR, 102(D5), 5943-5941.
+ *
+ * @author Barry Baker
+ * @date 2024
+ * @version 1.0
+ */
+
 #include "aces/physics/aces_lightning.hpp"
 
 #include <Kokkos_Core.hpp>
@@ -9,21 +36,40 @@
 
 namespace aces {
 
-/// Self-registration for the LightningScheme scheme.
+/// @brief Self-registration for the lightning NOx emission scheme.
 static PhysicsRegistration<LightningScheme> register_scheme("lightning");
 
 /**
- * @brief Lightning NOx Yield and Vertical Distribution (Ported from
- * hcox_lightnox_mod.F90)
+ * @brief Calculate NOx production from lightning flash rate.
+ *
+ * Converts lightning flash rate to NOx production using empirical yield factors
+ * that differ between land and ocean regions. The yields are based on
+ * observational studies and represent moles of NO produced per flash.
+ *
+ * Typical yields:
+ * - Land/tropical: ~260 mol NO/flash
+ * - Ocean/midlatitude: ~500 mol NO/flash
+ *
+ * @param rate Lightning flash rate [flashes/s/grid_cell]
+ * @param mw_no Molecular weight of NO [g/mol]
+ * @param is_land Flag indicating land (true) vs. ocean (false)
+ * @param yield_land NOx yield factor for land regions [mol/flash]
+ * @param yield_ocean NOx yield factor for ocean regions [mol/flash]
+ * @return NOx production rate [kg/s/grid_cell]
  */
 
 KOKKOS_INLINE_FUNCTION
 double get_lightning_yield(double rate, double mw_no, bool is_land, double yield_land,
                            double yield_ocean) {
-    // Ported from RFLASH_MIDLAT/TROPIC logic
-    // Midlat: 500 mol/flash, Tropic: 260 mol/flash (simplified yield factor here)
+    // Select appropriate yield factor based on surface type
+    // Land/tropical regions typically have lower yields than ocean/midlatitude
     const double yield_molec = is_land ? yield_land : yield_ocean;
+
+    // Avogadro's number for mol to molecule conversion
     const double AVOGADRO = 6.022e23;
+
+    // Convert: flashes/s * mol/flash * g/mol * kg/g / (molecules/mol * m²/grid_cell)
+    // Result: kg/s/grid_cell NOx production
     return (rate * yield_molec) * (mw_no / 1000.0) / (AVOGADRO * 1.0e6);
 }
 

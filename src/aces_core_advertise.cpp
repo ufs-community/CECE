@@ -27,13 +27,14 @@ extern "C" {
  * list of fields that ACES will export. The Fortran cap handles the actual
  * NUOPC field advertisement.
  *
- * @param importState_ptr Pointer to ESMF ImportState (void* for C compatibility)
- * @param exportState_ptr Pointer to ESMF ExportState (void* for C compatibility)
+ * This is an ESMF-free function that only logs what fields will be available.
+ * The Fortran cap retrieves the species count and names separately.
+ *
  * @param rc Return code (0 = success, non-zero = error)
  *
- * Requirements: 4.3, 4.4
+ * Requirements: 10.1, 10.3
  */
-void aces_core_advertise(void* importState_ptr, void* exportState_ptr, int* rc) {
+void aces_core_advertise(int* rc) {
     // Initialize return code to success
     if (rc != nullptr) {
         *rc = 0;

@@ -1,3 +1,23 @@
+/**
+ * @file aces_dust.cpp
+ * @brief Dust emission scheme based on Ginoux parameterization.
+ *
+ * Implements dust emission calculations using the Ginoux et al. (2001) algorithm
+ * for mineral dust emissions from arid and semi-arid regions. The scheme calculates
+ * dust flux based on wind speed, surface roughness, and soil properties.
+ *
+ * This implementation is ported from HEMCO's hcox_dustginoux_mod.F90 with
+ * optimizations for Kokkos parallel execution.
+ *
+ * References:
+ * - Ginoux, P., et al. (2001), Sources and distributions of dust aerosols simulated
+ *   with the GOCART model, JGR, 106, 20255-20273.
+ *
+ * @author Barry Baker
+ * @date 2024
+ * @version 1.0
+ */
+
 #include "aces/physics/aces_dust.hpp"
 
 #include <Kokkos_Core.hpp>
@@ -9,18 +29,39 @@
 
 namespace aces {
 
-/// Self-registration for the DustScheme scheme.
+/// @brief Self-registration for the Ginoux dust emission scheme.
 static PhysicsRegistration<DustScheme> register_scheme("dust");
 
 /**
- * @brief Threshold velocity logic (Ported from hcox_dustginoux_mod.F90)
+ * @brief Calculate threshold wind velocity for dust mobilization.
+ *
+ * Computes the minimum wind velocity required to lift dust particles from the surface
+ * using the Ginoux parameterization. This accounts for particle size, density, and
+ * atmospheric conditions.
+ *
+ * Algorithm ported from hcox_dustginoux_mod.F90.
+ *
+ * @param den Particle density [g/cm³]
+ * @param diam Particle diameter [cm]
+ * @param g Gravitational acceleration [cm/s²]
+ * @param rhoa Air density [g/cm³]
+ * @return Threshold velocity [m/s]
  */
 KOKKOS_INLINE_FUNCTION
 double calculate_u_ts0(double den, double diam, double g, double rhoa) {
+    // Calculate Reynolds number based on particle diameter
     double reynol = 1331.0 * std::pow(diam, 1.56) + 0.38;
+
+    // Calculate gravitational parameter (particle weight factor)
     double alpha = den * g * diam / rhoa;
+
+    // Calculate correction factor for particle-air interaction
     double beta = 1.0 + (6.0e-3 / (den * g * std::pow(diam, 2.5)));
+
+    // Calculate Reynolds-based correction factor
     double gamma = (1.928 * std::pow(reynol, 0.092)) - 1.0;
+
+    // Compute threshold velocity using Ginoux formulation
     return 129.0e-5 * std::sqrt(alpha) * std::sqrt(beta) / std::sqrt(gamma);
 }
 

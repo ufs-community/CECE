@@ -57,7 +57,7 @@ extern "C" {
  *
  * Requirements: 4.7-4.10, 4.18, 4.19
  */
-void aces_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc) {
+void aces_core_initialize_p2_impl(void* data_ptr, int* nx, int* ny, int* nz, int* rc) {
     // Initialize return code to success
     if (rc != nullptr) {
         *rc = 0;  // 0 = success in C
@@ -113,14 +113,14 @@ void aces_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc)
                   << internal_data->config.aces_data.streams.size() << std::endl;
 
         try {
-            // Initialize CDEPS through the data ingestor
-            // Note: The actual CDEPS initialization happens in the Fortran bridge
+            // Initialize TIDE through the data ingestor
+            // Note: The actual TIDE initialization happens in the Fortran bridge
             // This C++ code prepares the configuration and validates it
-            std::cout << "INFO: CDEPS configuration validated" << std::endl;
+            std::cout << "INFO: TIDE configuration validated" << std::endl;
 
-            // Mark CDEPS as initialized (actual initialization happens in Fortran cap)
-            // The Fortran cap will call aces_cdeps_init with the streams configuration
-            std::cout << "INFO: CDEPS initialization will be completed by Fortran cap" << std::endl;
+            // Mark TIDE as initialized (actual initialization happens in Fortran cap)
+            // The Fortran cap will call aces_tide_init with the streams configuration
+            std::cout << "INFO: TIDE initialization will be completed by Fortran cap" << std::endl;
         } catch (const std::exception& e) {
             std::cerr << "ERROR: Failed to initialize TIDE: " << e.what() << std::endl;
             if (rc != nullptr) {
@@ -129,7 +129,7 @@ void aces_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc)
             return;
         }
     } else {
-        std::cout << "INFO: No CDEPS streams configured - skipping CDEPS initialization"
+        std::cout << "INFO: No TIDE streams configured - skipping TIDE initialization"
                   << std::endl;
     }
 

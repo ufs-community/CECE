@@ -12,17 +12,19 @@
 
 ## Architecture Overview
 
-ACES operates as an ESMF Grid Component. It follows the standard NUOPC/ESMF lifecycle:
+ACES operates as an ESMF Grid Component with a sophisticated **Stacking Engine** at its core. The Stacking Engine combines multiple emission data layers using hierarchical processing, kernel fusion optimization, and advanced temporal/spatial scaling. It follows the standard NUOPC/ESMF lifecycle:
 
 1.  **Initialize**: Parses YAML configuration, instantiates physics schemes, and initializes TIDE.
 2.  **Run**:
     - Discovers grid dimensions from ESMF fields.
-    - Ingests data from ESMF and TIDE.
-    - Executes the Stacking Engine to process base emissions.
-    - Runs active Physics Extensions.
+    - Ingests data from ESMF and TIDE data streams.
+    - Executes the Stacking Engine with fused kernel optimization.
+    - Runs active Physics Extensions (MEGAN, sea salt, dust, etc.).
     - Writes diagnostics to disk.
     - Synchronizes computed emissions back to the ESMF host state.
 3.  **Finalize**: Cleans up resources and finalizes Kokkos/TIDE.
+
+For comprehensive technical details about the Stacking Engine algorithms and performance optimizations, see the [Stacking Engine Documentation](stacking_engine.md).
 
 ## Get Started
 

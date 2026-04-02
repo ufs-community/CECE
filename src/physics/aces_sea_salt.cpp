@@ -1,3 +1,27 @@
+/**
+ * @file aces_sea_salt.cpp
+ * @brief Sea salt aerosol emission scheme based on Gong et al. (2003).
+ *
+ * Implements sea salt aerosol emission calculations using the Gong et al. (2003)
+ * source function for oceanic regions. The scheme computes size-resolved emissions
+ * for accumulaton mode (SALA) and coarse mode (SALC) sea salt particles based on
+ * surface wind speed and sea surface conditions.
+ *
+ * The implementation includes:
+ * - Gong (2003) source function with size-dependent parameterization
+ * - Integration over specified size ranges for different modes
+ * - Wind speed dependency with power-law scaling
+ * - Temperature and humidity corrections for hygroscopic growth
+ *
+ * References:
+ * - Gong, S.L., et al. (2003), A parameterization of sea-salt aerosol source
+ *   function for sub- and super-micron particles, Global Biogeochem. Cycles, 17(4).
+ *
+ * @author Barry Baker
+ * @date 2024
+ * @version 1.0
+ */
+
 #include "aces/physics/aces_sea_salt.hpp"
 
 #include <Kokkos_Core.hpp>
@@ -10,20 +34,38 @@
 
 namespace aces {
 
-/// Self-registration for the SeaSaltScheme scheme.
+/// @brief Self-registration for the Gong sea salt emission scheme.
 static PhysicsRegistration<SeaSaltScheme> register_scheme("sea_salt");
 
 /**
- * @brief Gong (2003) Sea Salt source function dF/dr_80 [particles/m2/s/um]
- * Normalized to u10 = 1.0
+ * @brief Normalized Gong (2003) sea salt source function.
+ *
+ * Computes the size-resolved sea salt particle source function dF/dr_80
+ * normalized to unit wind speed (u10 = 1.0 m/s). The actual emission rate
+ * is obtained by scaling with wind speed cubed.
+ *
+ * The function represents the number of particles produced per unit area,
+ * time, and size interval at radius r80 (radius at 80% relative humidity).
+ *
+ * @param r80 Particle radius at 80% relative humidity [μm]
+ * @return Normalized source function [particles/m²/s/μm] at u10=1.0 m/s
  */
 KOKKOS_INLINE_FUNCTION
 double gong_source_normalized(double r80) {
     if (r80 <= 0.0) {
         return 0.0;
     }
+
+    // Calculate size-dependent exponent coefficient
     double a = 4.7 * std::pow(1.0 + 30.0 * r80, -0.017 * std::pow(r80, -1.44));
+
+    // Calculate logarithmic term for size distribution shape
     double b = (0.433 - std::log10(r80)) / 0.433;
+
+    // Gong (2003) source function with size-dependent terms:
+    // - Power law component: r80^(-a) with variable exponent
+    // - Large particle enhancement: (1 + 0.057 * r80^3.45)
+    // - Log-normal contribution: 10^(1.607 * exp(-b²))
     return 1.373 * std::pow(r80, -a) * (1.0 + 0.057 * std::pow(r80, 3.45)) *
            std::pow(10.0, 1.607 * std::exp(-b * b));
 }

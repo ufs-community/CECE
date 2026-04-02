@@ -165,6 +165,31 @@ struct DiagnosticConfig {
 };
 
 /**
+ * @struct DriverGridConfig
+ * @brief Grid configuration for the driver (Requirement 14).
+ */
+struct DriverGridConfig {
+    int nx = 4;                                ///< Grid points in X direction (default: 4).
+    int ny = 4;                                ///< Grid points in Y direction (default: 4).
+    double lon_min = -135.0;                   ///< Minimum longitude (default: -135.0).
+    double lon_max = 135.0;                    ///< Maximum longitude (default: 135.0).
+    double lat_min = -67.5;                    ///< Minimum latitude (default: -67.5).
+    double lat_max = 67.5;                     ///< Maximum latitude (default: 67.5).
+};
+
+/**
+ * @struct DriverConfig
+ * @brief Configuration for the standalone NUOPC driver (Requirements 1-3, 14-15).
+ */
+struct DriverConfig {
+    std::string start_time = "2020-01-01T00:00:00";  ///< ISO8601 start time (default: 2020-01-01T00:00:00).
+    std::string end_time = "2020-01-02T00:00:00";    ///< ISO8601 end time (default: 2020-01-02T00:00:00).
+    int timestep_seconds = 3600;                     ///< Timestep in seconds (default: 3600).
+    std::string mesh_file;                           ///< Path to ESMF mesh file (optional, default: null).
+    DriverGridConfig grid;                           ///< Grid configuration for generated Gaussian grid.
+};
+
+/**
  * @struct AcesConfig
  * @brief Top-level configuration for ACES.
  */
@@ -192,6 +217,8 @@ struct AcesConfig {
     VerticalConfig vertical_config;
     /// Configuration for standalone NetCDF output.
     AcesOutputConfig output_config;
+    /// Configuration for the standalone NUOPC driver (optional).
+    DriverConfig driver_config;
 };
 
 /**

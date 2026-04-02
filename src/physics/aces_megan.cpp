@@ -1,3 +1,19 @@
+/**
+ * @file aces_megan.cpp
+ * @brief MEGAN (Model of Emissions of Gases and Aerosols from Nature) biogenic emission scheme.
+ *
+ * Implements the MEGAN biogenic emission model for calculating natural emissions
+ * from vegetation. This module handles temperature-dependent emission factors,
+ * leaf area index corrections, and photosynthetically active radiation effects.
+ *
+ * The implementation is ported from HEMCO's hcox_megan_mod.F90 with optimizations
+ * for Kokkos parallel execution.
+ *
+ * @author Barry Baker
+ * @date 2024
+ * @version 1.0
+ */
+
 #include "aces/physics/aces_megan.hpp"
 
 #include <Kokkos_Core.hpp>
@@ -10,11 +26,19 @@
 
 namespace aces {
 
-/// Self-registration for the MeganScheme scheme.
+/// @brief Self-registration for the MEGAN biogenic emission scheme.
 static PhysicsRegistration<MeganScheme> register_scheme("megan");
 
 /**
- * @brief MEGAN Gamma Factors (Ported from hcox_megan_mod.F90)
+ * @brief Calculate MEGAN Gamma LAI factor.
+ *
+ * Computes the Leaf Area Index (LAI) correction factor for biogenic emissions.
+ * This factor accounts for the vegetation density effect on emission rates.
+ *
+ * @param lai Current leaf area index [m²/m²]
+ * @param c1 MEGAN coefficient 1 (typically species-specific)
+ * @param c2 MEGAN coefficient 2 (typically species-specific)
+ * @return LAI correction factor (dimensionless)
  */
 
 KOKKOS_INLINE_FUNCTION
@@ -22,41 +46,102 @@ double get_gamma_lai(double lai, double c1, double c2) {
     return c1 * lai / std::sqrt(1.0 + c2 * lai * lai);
 }
 
+/**
+ * @brief Calculate temperature-dependent gamma factor (light-independent).
+ *
+ * Computes the emission factor correction for temperature effects on
+ * light-independent biogenic emissions.
+ *
+ * @param temp Current temperature [K]
+ * @param beta Temperature response coefficient
+ * @param t_standard Standard reference temperature [K]
+ * @return Temperature correction factor (dimensionless)
+ */
 KOKKOS_INLINE_FUNCTION
 double get_gamma_t_li(double temp, double beta, double t_standard) {
     return std::exp(beta * (temp - t_standard));
 }
 
+/**
+ * @brief Calculate temperature-dependent gamma factor (light-dependent).
+ *
+ * Computes the emission factor correction for temperature effects on
+ * light-dependent biogenic emissions using the MEGAN algorithm.
+ *
+ * @param T Current temperature [K]
+ * @param PT_15 15-day averaged temperature [K]
+ * @param CT1 MEGAN temperature coefficient 1
+ * @param CEO MEGAN emission coefficient
+ * @param R Gas constant [J mol⁻¹ K⁻¹]
+ * @param CT2 MEGAN temperature coefficient 2
+ * @param t_opt_c1 Optimal temperature coefficient 1
+ * @param t_opt_c2 Optimal temperature coefficient 2
+ * @param e_opt_coeff Optimal emission coefficient
+ * @return Temperature correction factor (dimensionless)
+ */
 KOKKOS_INLINE_FUNCTION
 double get_gamma_t_ld(double T, double PT_15, double CT1, double CEO, double R, double CT2,
                       double t_opt_c1, double t_opt_c2, double e_opt_coeff) {
+    // Calculate optimal emission potential
     double e_opt = CEO * std::exp(e_opt_coeff * (PT_15 - 297.0));
+
+    // Calculate optimal temperature
     double t_opt = t_opt_c1 + t_opt_c2 * (PT_15 - 297.0);
+
+    // Calculate temperature-dependent term
     double x = (1.0 / t_opt - 1.0 / T) / R;
 
+    // Calculate emission correction factor
     double c_t = e_opt * CT2 * std::exp(CT1 * x) / (CT2 - CT1 * (1.0 - std::exp(CT2 * x)));
     return std::max(c_t, 0.0);
 }
 
+/**
+ * @brief Calculate photosynthetically active radiation (PAR) gamma factor.
+ *
+ * Computes the PAR correction factor for light-dependent biogenic emissions
+ * using the PCEEA (Parameterized Canopy Environment Emission Activity) algorithm.
+ *
+ * @param q_dir Direct PAR flux [W/m²]
+ * @param q_diff Diffuse PAR flux [W/m²]
+ * @param par_avg Daily averaged PAR [W/m²]
+ * @param suncos Cosine of solar zenith angle (dimensionless)
+ * @param doy Day of year [1-365]
+ * @param wm2_to_umol Conversion factor from W/m² to μmol/m²/s
+ * @param ptoa_c1 Top-of-atmosphere PAR coefficient 1
+ * @param ptoa_c2 Top-of-atmosphere PAR coefficient 2
+ * @param gamma_p_c1 PAR gamma coefficient 1
+ * @param gamma_p_c2 PAR gamma coefficient 2
+ * @param gamma_p_c3 PAR gamma coefficient 3
+ * @param gamma_p_c4 PAR gamma coefficient 4
+ * @return PAR correction factor (dimensionless)
+ */
 KOKKOS_INLINE_FUNCTION
 double get_gamma_par_pceea(double q_dir, double q_diff, double par_avg, double suncos, int doy,
                            double wm2_to_umol, double ptoa_c1, double ptoa_c2, double gamma_p_c1,
                            double gamma_p_c2, double gamma_p_c3, double gamma_p_c4) {
     const double PI = std::numbers::pi;
 
+    // Early exit for nighttime conditions
     if (suncos <= 0.0) {
         return 0.0;
     }
 
+    // Calculate instantaneous and daily PAR in photon units
     double pac_instant = (q_dir + q_diff) * wm2_to_umol;
     double pac_daily = par_avg * wm2_to_umol;
 
+    // Calculate top-of-atmosphere PAR with seasonal variation
     double ptoa = ptoa_c1 + ptoa_c2 * std::cos(2.0 * PI * (doy - 10.0) / 365.0);
+
+    // Calculate PAR penetration fraction
     double phi = pac_instant / (suncos * ptoa);
 
+    // Calculate PAR-dependent coefficients
     double bbb = gamma_p_c1 + gamma_p_c2 * (pac_daily - 400.0);
     double aaa = (gamma_p_c3 * bbb * phi) - (gamma_p_c4 * phi * phi);
 
+    // Calculate final PAR gamma factor
     double gamma_p = suncos * aaa;
     return std::max(gamma_p, 0.0);
 }

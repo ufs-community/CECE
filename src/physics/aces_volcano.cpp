@@ -1,3 +1,26 @@
+/**
+ * @file aces_volcano.cpp
+ * @brief Volcanic sulfur dioxide (SO₂) emission scheme implementation.
+ *
+ * Implements volcanic SO₂ emission calculations for explosive and effusive
+ * volcanic eruptions. The scheme handles both point source emissions from
+ * specific volcanic locations and distributed emissions from volcanic regions.
+ *
+ * Key features:
+ * - Configurable volcanic source locations (grid indices)
+ * - Elevation-dependent emission injection heights
+ * - Cloud penetration and plume rise calculations
+ * - Temporal emission profiles for eruptive events
+ *
+ * The volcanic emissions are critical for atmospheric sulfur budgets and
+ * can have significant impacts on regional and global air quality and
+ * climate through aerosol formation processes.
+ *
+ * @author Barry Baker
+ * @date 2024
+ * @version 1.0
+ */
+
 #include "aces/physics/aces_volcano.hpp"
 
 #include <Kokkos_Core.hpp>
@@ -9,9 +32,24 @@
 
 namespace aces {
 
-/// Self-registration for the VolcanoScheme scheme.
+/// @brief Self-registration for the volcanic SO₂ emission scheme.
 static PhysicsRegistration<VolcanoScheme> register_scheme("volcano");
 
+/**
+ * @brief Initialize the volcanic emission scheme.
+ *
+ * Sets up volcanic emission parameters including source location,
+ * emission strength, and vertical distribution characteristics.
+ *
+ * Configuration parameters:
+ * - target_i, target_j: Grid indices for volcanic source location
+ * - sulfur_emission: SO₂ emission rate [kg/s]
+ * - elevation: Volcanic vent elevation [m]
+ * - cloud_top: Typical cloud top height for plume calculations [m]
+ *
+ * @param config YAML configuration node with volcanic parameters
+ * @param diag_manager Diagnostic manager for tracking outputs
+ */
 void VolcanoScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
 

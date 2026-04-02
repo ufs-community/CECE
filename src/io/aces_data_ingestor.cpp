@@ -1,3 +1,22 @@
+/**
+ * @file aces_data_ingestor.cpp
+ * @brief Implementation of the ACES data ingestor for external field management.
+ *
+ * The AcesDataIngestor provides an interface for managing external data fields
+ * from TIDE (NUOPC data streams) and other sources. It handles field registration,
+ * data copying, and dimension management for both 2D and 3D fields.
+ *
+ * Key capabilities:
+ * - Field registration and storage using Kokkos views
+ * - Automatic dimensional analysis and reshaping
+ * - Integration with TIDE data streams
+ * - Memory management for large datasets
+ *
+ * @author Barry Baker
+ * @date 2024
+ * @version 1.0
+ */
+
 #include "aces/aces_data_ingestor.hpp"
 #include <Kokkos_Core.hpp>
 #include "aces/aces_logger.hpp"
@@ -9,9 +28,46 @@
 
 namespace aces {
 
+/**
+ * @brief Default constructor for AcesDataIngestor.
+ *
+ * Initializes an empty data ingestor with no fields registered.
+ */
 AcesDataIngestor::AcesDataIngestor() {}
+
+/**
+ * @brief Destructor for AcesDataIngestor.
+ *
+ * Cleans up all registered fields and releases memory.
+ */
 AcesDataIngestor::~AcesDataIngestor() {}
 
+/**
+ * @brief Register and store a field from external data sources.
+ *
+ * This method handles both 2D emission data from TIDE and 3D meteorological fields.
+ * It automatically detects the field type based on dimensions and reshapes the data
+ * appropriately for use by the ACES physics schemes.
+ *
+ * For 2D emission fields (TIDE):
+ * - Input: n_lev * n_elem == nx * ny (horizontal grid)
+ * - Output: nx × ny × 1 (single vertical level)
+ *
+ * For 3D meteorological fields:
+ * - Input: n_lev * n_elem == nx * ny * nz (full grid)
+ * - Output: nx × ny × nz (full 3D grid)
+ *
+ * @param name Field identifier for later retrieval
+ * @param data Pointer to input data array
+ * @param n_lev Number of vertical levels in input
+ * @param n_elem Number of elements per level in input
+ * @param nx Grid dimension in x-direction
+ * @param ny Grid dimension in y-direction
+ * @param nz Grid dimension in z-direction
+ * @param rc Return code pointer (0=success, <0=error)
+ *
+ * @note Data is assumed to be in Fortran (column-major) order from TIDE.
+ */
 void AcesDataIngestor::SetField(const std::string& name, const double* data, int n_lev, int n_elem,
                                 int nx, int ny, int nz, int* rc) {
     if (!data) {
@@ -45,9 +101,10 @@ void AcesDataIngestor::SetField(const std::string& name, const double* data, int
 
     if (is_2d_emission) {
         // For 2D emission data, reshape from 1D array to 2D grid with 1 vertical level
+        // TIDE provides data in column-major (Fortran) order: j * nx + i
         for (int i = 0; i < nx; ++i) {
             for (int j = 0; j < ny; ++j) {
-                int linear_idx = i * ny + j;  // Assuming column-major (Fortran) ordering
+                int linear_idx = j * nx + i;  // Column-major (Fortran) ordering
                 if (linear_idx < n_lev * n_elem) {
                     host_view(i, j, 0) = data[linear_idx];
                 } else {
@@ -212,6 +269,54 @@ std::string AcesDataIngestor::SerializeTideESMFConfig(const AcesDataConfig& conf
     }
 
     return oss.str();
+}
+
+std::string AcesDataIngestor::SerializeTideYaml(const AcesDataConfig& config) {
+    std::ostringstream oss;
+
+    // Generate proper TIDE YAML format
+    oss << "streams:\n";
+
+    for (const auto& stream : config.streams) {
+        oss << "  - name: " << stream.name << "\n";
+
+        // Always specify mesh_file (TIDE requirement)
+        if (!stream.meshfile.empty() && stream.meshfile != "none") {
+            oss << "    mesh_file: \"" << stream.meshfile << "\"\n";
+        } else {
+            oss << "    mesh_file: \"none\"\n";
+        }
+
+        // Match TIDE test config field order
+        oss << "    tax_mode: \"" << stream.taxmode << "\"\n";
+        oss << "    time_interp: \"" << stream.tintalgo << "\"\n";
+        oss << "    map_algo: \"" << stream.mapalgo << "\"\n";
+        oss << "    year_first: " << stream.yearFirst << "\n";
+        oss << "    year_last: " << stream.yearLast << "\n";
+        oss << "    year_align: " << stream.yearAlign << "\n";
+
+        // Input files (YAML array format)
+        oss << "    input_files:\n";
+        for (const auto& file_path : stream.file_paths) {
+            oss << "      - \"" << file_path << "\"\n";
+        }
+
+        // Field mappings (use inline YAML object format like TIDE test examples)
+        oss << "    field_maps:\n";
+        for (const auto& variable : stream.variables) {
+            oss << "      - { file_var: \"" << variable.name_in_file << "\", model_var: \"" << variable.name_in_model << "\" }\n";
+        }
+
+        oss << "\n";
+    }
+
+    return oss.str();
+}
+
+void AcesDataIngestor::ClearCache() {
+    std::cout << "INFO: Clearing AcesDataIngestor field cache (" << field_cache_.size() << " fields)\n";
+    field_cache_.clear();
+    std::cout << "INFO: Field cache cleared\n";
 }
 
 }  // namespace aces

@@ -1,3 +1,17 @@
+# Basic single species example with small grid
+driver:
+  start_time: "2020-01-01T00:00:00"
+  end_time: "2020-01-01T03:00:00"
+  timestep_seconds: 3600
+
+grid:
+  nx: 4
+  ny: 4
+  lon_min: -180.0
+  lon_max: 180.0
+  lat_min: -90.0
+  lat_max: 90.0
+
 meteorology: {}
 
 species:
@@ -10,6 +24,12 @@ aces_data:
   streams:
     - name: "MACCITY"
       file: "/work/data/MACCity_4x5.nc"
+      yearFirst: 2000
+      yearLast: 2010
+      yearAlign: 2020
+      taxmode: "cycle"
+      tintalgo: "linear"
+      mapalgo: "consd"
       variables:
         - file: "MACCity"
           model: "co"

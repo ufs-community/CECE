@@ -86,6 +86,9 @@ class AcesDataIngestor {
     /** @brief Compatibility alias for HasCachedField. */
     bool HasDataIngesterField(const std::string& name) const { return HasCachedField(name); }
 
+    /** @brief Clears all cached fields to release device memory. */
+    void ClearCache();
+
    private:
     std::unordered_map<std::string, Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>>
         field_cache_;

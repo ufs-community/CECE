@@ -15,9 +15,11 @@ module aces_cap_mod
   use ESMF
   use NUOPC
   use NUOPC_Model, modelSS => SetServices
+  use NUOPC_Model, only: model_label_Advance => label_Advance
+  use NUOPC_Model, only: model_label_Finalize => label_Finalize
   use NUOPC_Model, only : model_label_Advance  => label_Advance
   use NUOPC_Model, only : model_label_Finalize => label_Finalize
-  use tide_mod, only: tide_type, tide_init, tide_init_from_esmfconfig, tide_advance, tide_get_ptr, tide_finalize
+  use tide_mod, only: tide_type, tide_init, tide_advance, tide_get_ptr, tide_finalize
   implicit none
 
   !> @brief Module-level C++ data pointer (save ensures persistence across phases).
@@ -41,6 +43,10 @@ module aces_cap_mod
 
   !> @brief Module-level grid dimensions
   integer, save :: g_nx = 0, g_ny = 0, g_nz = 0
+
+  !> @brief Module-level mesh for conservative regridding (created from grid coords)
+  type(ESMF_Mesh), save :: g_mesh
+  logical, save :: g_mesh_created = .false.
 
   !> @brief Dummy data buffer for standalone core testing without TIDE
   real(c_double), allocatable, save, target :: g_dummy_data_buffer(:,:)
@@ -87,6 +93,21 @@ module aces_cap_mod
       integer(c_int), intent(in) :: index
       character(kind=c_char), intent(out) :: name(*)
       integer(c_int), intent(out) :: name_len
+      integer(c_int), intent(out) :: rc
+    end subroutine
+    subroutine aces_core_get_grid_config(data_ptr, nx, ny, lon_min, lon_max, lat_min, lat_max, rc) bind(C)
+      import :: c_ptr, c_int, c_double
+      type(c_ptr), value :: data_ptr
+      integer(c_int), intent(out) :: nx, ny
+      real(c_double), intent(out) :: lon_min, lon_max, lat_min, lat_max
+      integer(c_int), intent(out) :: rc
+    end subroutine
+    subroutine aces_core_get_timing_config(data_ptr, start_time, end_time, timestep_seconds, max_len, rc) bind(C)
+      import :: c_ptr, c_int, c_char
+      type(c_ptr), value :: data_ptr
+      character(kind=c_char), intent(out) :: start_time(*), end_time(*)
+      integer(c_int), intent(out) :: timestep_seconds
+      integer(c_int), value :: max_len
       integer(c_int), intent(out) :: rc
     end subroutine
     subroutine aces_core_get_external_field_count(data_ptr, count, rc) bind(C)
@@ -214,36 +235,47 @@ contains
     type(ESMF_State) :: dummy_import, dummy_export
     type(ESMF_Clock) :: dummy_clock
 
+    write(*,'(A)') "INFO: [ACES] ACES_SetServices entered"
+
     ! 1. Inherit NUOPC_Model base phases
+    write(*,'(A)') "INFO: [ACES] Calling NUOPC_CompDerive..."
     call NUOPC_CompDerive(comp, modelSS, rc=rc)
     if (rc /= ESMF_SUCCESS) then
       write(*,'(A,I0)') "ERROR: NUOPC_CompDerive failed rc=", rc
       return
     end if
+    write(*,'(A)') "INFO: [ACES] NUOPC_CompDerive succeeded"
 
     ! 2. Call the phase map routine directly to filter and replace init routines
+    write(*,'(A)') "INFO: [ACES] Calling ACES_InitPhaseMap..."
     call ACES_InitPhaseMap(comp, dummy_import, dummy_export, dummy_clock, rc)
     if (rc /= ESMF_SUCCESS) then
       write(*,'(A,I0)') "ERROR: ACES_InitPhaseMap failed rc=", rc
       return
     end if
+    write(*,'(A)') "INFO: [ACES] ACES_InitPhaseMap succeeded"
 
     ! 3. Specialize Run (Advance)
+    write(*,'(A)') "INFO: [ACES] Specializing Run phase..."
     call NUOPC_CompSpecialize(comp, specLabel=model_label_Advance, &
       specRoutine=ACES_Run, rc=rc)
     if (rc /= ESMF_SUCCESS) then
       write(*,'(A,I0)') "ERROR: NUOPC_CompSpecialize(Advance) failed rc=", rc
       return
     end if
+    write(*,'(A)') "INFO: [ACES] Run phase specialized"
 
     ! 4. Specialize Finalize
+    write(*,'(A)') "INFO: [ACES] Specializing Finalize phase..."
     call NUOPC_CompSpecialize(comp, specLabel=model_label_Finalize, &
       specRoutine=ACES_Finalize, rc=rc)
     if (rc /= ESMF_SUCCESS) then
       write(*,'(A,I0)') "ERROR: NUOPC_CompSpecialize(Finalize) failed rc=", rc
       return
     end if
+    write(*,'(A)') "INFO: [ACES] Finalize phase specialized"
 
+    write(*,'(A)') "INFO: [ACES] ACES_SetServices complete"
     rc = ESMF_SUCCESS
   end subroutine ACES_SetServices
 
@@ -257,18 +289,22 @@ contains
     type(ESMF_Clock)     :: clock
     integer, intent(out) :: rc
 
+    write(*,'(A)') "INFO: [ACES] ACES_InitPhaseMap entered"
     rc = ESMF_SUCCESS
 
     ! Filter to IPDv01 — removes all other IPD version entries
+    write(*,'(A)') "INFO: [ACES] Calling NUOPC_CompFilterPhaseMap..."
     call NUOPC_CompFilterPhaseMap(comp, ESMF_METHOD_INITIALIZE, &
       acceptStringList=(/"IPDv01p"/), rc=rc)
     if (rc /= ESMF_SUCCESS) then
       write(*,'(A,I0)') "ERROR: NUOPC_CompFilterPhaseMap failed rc=", rc
       return
     end if
+    write(*,'(A)') "INFO: [ACES] NUOPC_CompFilterPhaseMap succeeded"
 
     ! Now register our implementations for phases 1 and 2
     ! These replace whatever was there before (if anything)
+    write(*,'(A)') "INFO: [ACES] Setting entry point for phase 1..."
     call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, &
       userRoutine=ACES_InitializeAdvertise, phase=1, rc=rc)
     if (rc /= ESMF_SUCCESS) then
@@ -276,6 +312,7 @@ contains
       return
     end if
 
+    write(*,'(A)') "INFO: [ACES] Setting entry point for phase 2..."
     call ESMF_GridCompSetEntryPoint(comp, ESMF_METHOD_INITIALIZE, &
       userRoutine=ACES_InitializeRealize, phase=2, rc=rc)
     if (rc /= ESMF_SUCCESS) then
@@ -283,6 +320,7 @@ contains
       return
     end if
 
+    write(*,'(A)') "INFO: [ACES] ACES_InitPhaseMap complete"
     rc = ESMF_SUCCESS
   end subroutine ACES_InitPhaseMap
 
@@ -299,6 +337,8 @@ contains
     type(c_ptr)    :: new_data_ptr
     character(len=512) :: config_path
     integer :: config_len
+
+    write(*,'(A)') "INFO: [ACES] ACES_InitializeAdvertise entered - PHASE 1 STARTING"
 
     write(*,'(A)') "INFO: [ACES] InitializeAdvertise (IPDv01p1) entered"
 
@@ -335,9 +375,9 @@ contains
     rc = ESMF_SUCCESS
   end subroutine ACES_InitializeAdvertise
 
-  !> @brief IPDv01p3: Realize fields and bind CDEPS data streams.
+  !> @brief IPDv01p3: Realize fields and bind TIDE data streams.
   !> Creates and allocates ESMF fields, then runs aces_core_initialize_p2
-  !> for CDEPS initialization and field binding.
+  !> for TIDE initialization and field binding.
   !> Equivalent to DATM's InitializeRealize.
   subroutine ACES_InitializeRealize(comp, importState, exportState, clock, rc)
     type(ESMF_GridComp)  :: comp
@@ -346,9 +386,10 @@ contains
     integer, intent(out) :: rc
 
     integer(c_int) :: c_rc
-    type(ESMF_Grid) :: grid
-    type(ESMF_Mesh) :: mesh
+    type(ESMF_Grid) :: grid  ! Keep grid for ESMF field creation (3D compatibility)
+    type(ESMF_Mesh) :: mesh  ! Use mesh for TIDE conservative regridding
     integer :: nx, ny, nz
+    real(ESMF_KIND_R8) :: lon_min, lon_max, lat_min, lat_max  ! Grid domain bounds
     integer, allocatable :: minIndex(:), maxIndex(:)
     integer :: num_species, num_fields, i
     character(len=256) :: species_name, field_name
@@ -366,28 +407,80 @@ contains
     ! Reset step counter for this run
     g_step_count = 0
 
-    call ESMF_GridCompGet(comp, grid=grid, mesh=mesh, rc=rc)
-    if (rc /= ESMF_SUCCESS) then
-      write(*,'(A,I0)') "ERROR: [ACES] ESMF_GridCompGet failed in Realize: rc=", rc
-      return
+    ! Try to get mesh from component first (coupled mode)
+    call ESMF_GridCompGet(comp, mesh=mesh, rc=rc)
+    if (rc == ESMF_SUCCESS) then
+      write(*,'(A)') "INFO: [ACES] Mesh retrieved from component (coupled mode)"
+      ! Extract nx/ny from inherited mesh for TIDE compatibility
+      ! TODO: Implement mesh analysis to get equivalent grid dimensions
+
+      ! For now, read grid configuration from YAML to get dimensions and bounds
+      call aces_core_get_grid_config(g_aces_data_ptr, nx, ny, lon_min, lon_max, lat_min, lat_max, c_rc)
+      if (c_rc /= 0) then
+        write(*,'(A,I0)') "WARNING: [ACES] Failed to get grid config in coupled mode, using defaults: rc=", c_rc
+        nx = 4; ny = 4
+        lon_min = -135._ESMF_KIND_R8; lon_max = 135._ESMF_KIND_R8
+        lat_min = -67.5_ESMF_KIND_R8; lat_max = 67.5_ESMF_KIND_R8
+      end if
+
+      ! Create matching grid for ESMF field creation (3D compatibility)
+      grid = ESMF_GridCreateNoPeriDimUfrm(maxIndex=(/nx, ny/), &
+        minCornerCoord=(/lon_min, lat_min/), &
+        maxCornerCoord=(/lon_max, lat_max/), &
+        coordSys=ESMF_COORDSYS_SPH_DEG, rc=rc)
+      if (rc /= ESMF_SUCCESS) then
+        write(*,'(A,I0)') "ERROR: [ACES] Failed to create matching grid: rc=", rc
+        return
+      end if
+      write(*,'(A)') "INFO: [ACES] Created matching grid for field creation"
+    else
+      write(*,'(A,I0)') "INFO: [ACES] No mesh provided by driver (rc=", rc, ") - creating component mesh and grid (standalone mode)"
+
+      ! Read grid configuration from ACES config file
+      call aces_core_get_grid_config(g_aces_data_ptr, nx, ny, lon_min, lon_max, lat_min, lat_max, c_rc)
+      if (c_rc /= 0) then
+        write(*,'(A,I0)') "WARNING: [ACES] Failed to get grid config, using defaults: rc=", c_rc
+        nx = 4; ny = 4
+        lon_min = -135._ESMF_KIND_R8; lon_max = 135._ESMF_KIND_R8
+        lat_min = -67.5_ESMF_KIND_R8; lat_max = 67.5_ESMF_KIND_R8
+      end if
+
+      write(*,'(A,I0,A,I0)') "INFO: [ACES] Using grid configuration: nx=", nx, " ny=", ny
+      write(*,'(A,F8.1,A,F8.1)') "INFO: [ACES] Domain: lon=", lon_min, " to ", lon_max
+      write(*,'(A,F8.1,A,F8.1)') "INFO: [ACES] Domain: lat=", lat_min, " to ", lat_max
+
+      ! Create mesh for TIDE conservative regridding
+      call CreateMeshFromConfig(nx, ny, lon_min, lon_max, lat_min, lat_max, mesh, rc)
+      if (rc /= ESMF_SUCCESS) then
+        write(*,'(A,I0)') "ERROR: [ACES] Failed to create component mesh: rc=", rc
+        return
+      end if
+
+      ! Create matching grid for ESMF field creation (3D compatibility)
+      grid = ESMF_GridCreateNoPeriDimUfrm(maxIndex=(/nx, ny/), &
+        minCornerCoord=(/lon_min, lat_min/), &
+        maxCornerCoord=(/lon_max, lat_max/), &
+        coordSys=ESMF_COORDSYS_SPH_DEG, rc=rc)
+      if (rc /= ESMF_SUCCESS) then
+        write(*,'(A,I0)') "ERROR: [ACES] Failed to create component grid: rc=", rc
+        return
+      end if
+
+      ! Set both mesh and grid on the component
+      call ESMF_GridCompSet(comp, mesh=mesh, grid=grid, rc=rc)
+      if (rc /= ESMF_SUCCESS) then
+        write(*,'(A,I0)') "ERROR: [ACES] Failed to set created mesh and grid on component: rc=", rc
+        return
+      end if
+
+      ! Store the created mesh globally so we can destroy it during finalization
+      g_mesh = mesh
+      g_mesh_created = .true.
+      write(*,'(A)') "INFO: [ACES] Component mesh and grid created successfully from YAML configuration"
     end if
 
-    ! Get nx/ny from the grid using computationalLBound/UBound on localDE=0
-    block
-      integer, allocatable :: lbnd(:), ubnd(:)
-      allocate(lbnd(2), ubnd(2))
-      call ESMF_GridGet(grid, localDE=0, staggerloc=ESMF_STAGGERLOC_CENTER, &
-                        computationalLBound=lbnd, computationalUBound=ubnd, rc=rc)
-      if (rc /= ESMF_SUCCESS) then
-        write(*,'(A,I0)') "WARNING: [ACES] ESMF_GridGet(bounds) failed, defaulting nx=ny=4: rc=", rc
-        nx = 4; ny = 4
-        rc = ESMF_SUCCESS
-      else
-        nx = ubnd(1) - lbnd(1) + 1
-        ny = ubnd(2) - lbnd(2) + 1
-      end if
-      deallocate(lbnd, ubnd)
-    end block
+    ! Get nx/ny dimensions (already set above based on mesh creation or inheritance)
+    ! nx and ny are already properly set from mesh creation or analysis
 
     ! nz: get from config via C++ (number of vertical levels)
     nz = 10  ! default
@@ -508,8 +601,10 @@ contains
         call ESMF_TimeIntervalGet(timeStep, s=dt_secs, rc=rc)
         if (rc == ESMF_SUCCESS) then
           g_time_step_secs = dt_secs
+          write(*,'(A,I0)') "DEBUG: [ACES_CAP] Clock timestep extracted: ", dt_secs, " seconds"
         else
           g_time_step_secs = 3600
+          write(*,'(A)') "DEBUG: [ACES_CAP] Failed to get timestep, using default 3600s"
           rc = ESMF_SUCCESS
         end if
       end if
@@ -610,10 +705,9 @@ contains
     if (use_ingestor .and. .not. g_tide_initialized) then
       write(*,'(A)') "INFO: [ACES] Initializing TIDE ingestor..."
 
-      ! Initialize TIDE with the configured streams path and model mesh
-      ! Note: passing trimmed streams_path to ESMF RC initialization
-      call tide_init_from_esmfconfig(g_tide, trim(streams_path(1:int(streams_path_len))), &
-                                     mesh, clock, rc)
+      ! Initialize TIDE with YAML configuration file path (not content)
+      ! TIDE expects a filename and will read the file itself
+      call tide_init(g_tide, trim(streams_path(1:int(streams_path_len))), mesh, clock, rc)
 
       if (rc /= ESMF_SUCCESS) then
         write(*,'(A,I0)') "ERROR: [ACES] TIDE initialization failed rc=", rc
@@ -655,14 +749,92 @@ contains
     real(c_double), pointer :: ptr(:,:)
     character(len=256) :: field_name
     integer(c_int) :: field_name_len
+    type(ESMF_State) :: importState, exportState
+    type(ESMF_Clock) :: clock
 
     rc = ESMF_SUCCESS
 
+    write(*,'(A)') "INFO: [ACES] ACES_Run entered"
+
+    ! DEBUG: Check clock state at start of ACES_Run to track stop time corruption
+    call ESMF_GridCompGet(comp, clock=clock, rc=rc)
+    if (rc == ESMF_SUCCESS) then
+      block
+        type(ESMF_Time) :: DEBUG_currTime, DEBUG_stopTime
+        character(len=32) :: DEBUG_curr_str, DEBUG_stop_str
+        call ESMF_ClockGet(clock, currTime=DEBUG_currTime, stopTime=DEBUG_stopTime, rc=rc)
+        if (rc == ESMF_SUCCESS) then
+          call ESMF_TimeGet(DEBUG_currTime, timeStringISOFrac=DEBUG_curr_str, rc=rc)
+          call ESMF_TimeGet(DEBUG_stopTime, timeStringISOFrac=DEBUG_stop_str, rc=rc)
+          if (rc == ESMF_SUCCESS) then
+            write(*,'(A,A)') "DEBUG: [ACES_CAP] Run entry - current=", trim(DEBUG_curr_str)
+            write(*,'(A,A)') "DEBUG: [ACES_CAP] Run entry - stop=", trim(DEBUG_stop_str)
+          end if
+        end if
+      end block
+    end if
+
+    ! Debug: Check what's available in the component
+    block
+      type(ESMF_Grid) :: comp_grid
+      type(ESMF_Mesh) :: comp_mesh
+      type(ESMF_Clock) :: comp_clock
+      logical :: has_grid, has_mesh, has_clock
+
+      call ESMF_GridCompGet(comp, grid=comp_grid, rc=rc)
+      has_grid = (rc == ESMF_SUCCESS)
+      write(*,'(A,L1,A,I0)') "DEBUG: [ACES] Component has grid: ", has_grid, " (rc=", rc, ")"
+
+      rc = ESMF_SUCCESS  ! Reset for next check
+      call ESMF_GridCompGet(comp, mesh=comp_mesh, rc=rc)
+      has_mesh = (rc == ESMF_SUCCESS)
+      write(*,'(A,L1,A,I0)') "DEBUG: [ACES] Component has mesh: ", has_mesh, " (rc=", rc, ")"
+
+      rc = ESMF_SUCCESS  ! Reset for next check
+      call ESMF_GridCompGet(comp, clock=comp_clock, rc=rc)
+      has_clock = (rc == ESMF_SUCCESS)
+      write(*,'(A,L1,A,I0)') "DEBUG: [ACES] Component has clock: ", has_clock, " (rc=", rc, ")"
+    end block
+
+    rc = ESMF_SUCCESS  ! Reset for main logic
+
+    ! Check if ACES has been properly initialized
     if (.not. c_associated(g_aces_data_ptr)) then
-      write(*,'(A)') "ERROR: [ACES] Run called but data pointer is null"
+      write(*,'(A)') "WARNING: [ACES] Run called but not initialized - performing emergency initialization"
+
+      ! Get states and clock from the component for initialization
+      call ESMF_GridCompGet(comp, importState=importState, exportState=exportState, clock=clock, rc=rc)
+      if (rc /= ESMF_SUCCESS) then
+        write(*,'(A,I0)') "ERROR: [ACES] Failed to get component states/clock for initialization: rc=", rc
+        return
+      end if
+
+      ! Call initialization phases that should have been called by the framework
+      write(*,'(A)') "INFO: [ACES] Calling ACES_InitializeAdvertise..."
+      call ACES_InitializeAdvertise(comp, importState, exportState, clock, rc)
+      if (rc /= ESMF_SUCCESS) then
+        write(*,'(A,I0)') "ERROR: [ACES] Emergency InitializeAdvertise failed: rc=", rc
+        return
+      end if
+
+      write(*,'(A)') "INFO: [ACES] Calling ACES_InitializeRealize..."
+      call ACES_InitializeRealize(comp, importState, exportState, clock, rc)
+      if (rc /= ESMF_SUCCESS) then
+        write(*,'(A,I0)') "ERROR: [ACES] Emergency InitializeRealize failed: rc=", rc
+        return
+      end if
+
+      write(*,'(A)') "INFO: [ACES] Emergency initialization complete"
+    end if
+
+    ! Now proceed with normal run logic
+    if (.not. c_associated(g_aces_data_ptr)) then
+      write(*,'(A)') "ERROR: [ACES] Run called but data pointer is still null after initialization"
       rc = ESMF_FAILURE
       return
     end if
+
+    write(*,'(A)') "INFO: [ACES] ACES_Run proceeding with valid data pointer"
 
     ! Extract hour-of-day from the component clock (Fortran ESMF API is safe here)
     hour = 0
@@ -685,51 +857,111 @@ contains
     if (g_tide_initialized) then
       call ESMF_GridCompGet(comp, clock=run_clock, rc=rc)
       if (rc == ESMF_SUCCESS) then
-        call tide_advance(g_tide, run_clock, tide_rc)
-        if (tide_rc /= ESMF_SUCCESS) then
-           write(*,'(A,I0)') "ERROR: [ACES] TIDE advance failed rc=", tide_rc
-        else
-           ! Critical: Force I/O synchronization after TIDE advance for large grids
-           if (g_nx * g_ny > 50000) then
-             write(*,'(A,I0)') "INFO: [ACES] Large grid detected, adding TIDE sync delay..."
-             call flush(6)  ! Force output buffer flush
-           end if
 
-           ! Transfer fields - iterate through stream fields for emission data
-           call aces_core_get_stream_field_count(g_aces_data_ptr, num_fields, c_rc)
-           if (c_rc == 0) then
-             do i = 0, num_fields-1
-               call aces_core_get_stream_field_name(g_aces_data_ptr, int(i, c_int), field_name, &
-                                                    field_name_len, c_rc)
-               if (c_rc == 0 .and. field_name_len > 0) then
-                 call tide_get_ptr(g_tide, field_name(1:int(field_name_len)), ptr, tide_rc)
-                 if (tide_rc == 0 .and. associated(ptr)) then
-                   write(*,'(A,A,A,I0,A,I0,A,I0)') "DEBUG: Field ", &
-                        trim(field_name(1:int(field_name_len))), &
-                        " ptr dimensions: ", size(ptr,1), " x ", size(ptr,2), &
-                        " (total=", size(ptr), ")"
-                   call aces_ingestor_set_field(g_aces_data_ptr, &
-                        field_name(1:int(field_name_len))//c_null_char, &
-                        field_name_len, c_loc(ptr(1,1)), &
-                        int(size(ptr,1), c_int), int(size(ptr,2), c_int), c_rc)
-                   if (c_rc /= 0) then
-                     write(*,'(A,A)') "WARNING: [ACES] aces_ingestor_set_field failed for: ", &
-                                       trim(field_name(1:int(field_name_len)))
-                   end if
-                 else
-                   write(*,'(A,A,A,I0)') "WARNING: [ACES] tide_get_ptr failed for field ", &
-                        trim(field_name(1:int(field_name_len))), " rc=", tide_rc
+        ! Create a copy of the clock for TIDE to prevent it from corrupting our driver clock
+        block
+          type(ESMF_Clock) :: tide_clock
+          type(ESMF_Time) :: currTime, stopTime
+          type(ESMF_TimeInterval) :: timeStep
+
+          ! Get parameters from original clock
+          call ESMF_ClockGet(run_clock, currTime=currTime, stopTime=stopTime, &
+                            timeStep=timeStep, rc=rc)
+          if (rc == ESMF_SUCCESS) then
+            ! Create independent clock for TIDE
+            tide_clock = ESMF_ClockCreate(name="TIDE_Clock", &
+              timeStep=timeStep, startTime=currTime, stopTime=stopTime, rc=rc)
+            if (rc == ESMF_SUCCESS) then
+              write(*,'(A)') "INFO: [ACES] Created independent TIDE clock to prevent corruption"
+
+              ! Pass the copy to TIDE, not our precious driver clock
+              call tide_advance(g_tide, tide_clock, tide_rc)
+              if (tide_rc /= ESMF_SUCCESS) then
+                 write(*,'(A,I0)') "ERROR: [ACES] TIDE advance failed rc=", tide_rc
+              else
+                 write(*,'(A)') "INFO: [ACES] TIDE advance succeeded with protected clock"
+                 ! Critical: Force I/O synchronization after TIDE advance for large grids
+                 if (g_nx * g_ny > 50000) then
+                   write(*,'(A,I0)') "INFO: [ACES] Large grid detected, adding TIDE sync delay..."
+                   call flush(6)  ! Force output buffer flush
                  end if
-               end if
-             end do
-           end if
-        end if
-      endif
+
+                 ! Transfer fields - iterate through stream fields for emission data
+                 call aces_core_get_stream_field_count(g_aces_data_ptr, num_fields, c_rc)
+                 if (c_rc == 0) then
+                   do i = 0, num_fields-1
+                     call aces_core_get_stream_field_name(g_aces_data_ptr, int(i, c_int), field_name, &
+                                                          field_name_len, c_rc)
+                     if (c_rc == 0 .and. field_name_len > 0) then
+                       call tide_get_ptr(g_tide, field_name(1:int(field_name_len)), ptr, tide_rc)
+                       if (tide_rc == 0 .and. associated(ptr)) then
+                         write(*,'(A,A,A,I0,A,I0,A,I0)') "DEBUG: Field ", &
+                              trim(field_name(1:int(field_name_len))), &
+                              " ptr dimensions: ", size(ptr,1), " x ", size(ptr,2), &
+                              " (total=", size(ptr), ")"
+                         call aces_ingestor_set_field(g_aces_data_ptr, &
+                              field_name(1:int(field_name_len))//c_null_char, &
+                              field_name_len, c_loc(ptr(1,1)), &
+                              int(size(ptr,1), c_int), int(size(ptr,2), c_int), c_rc)
+                         if (c_rc /= 0) then
+                           write(*,'(A,A)') "WARNING: [ACES] aces_ingestor_set_field failed for: ", &
+                                             trim(field_name(1:int(field_name_len)))
+                         end if
+                       else
+                         write(*,'(A,A,A,I0)') "WARNING: [ACES] tide_get_ptr failed for field ", &
+                              trim(field_name(1:int(field_name_len))), " rc=", tide_rc
+                       end if
+                     end if
+                   end do
+                 end if
+              end if
+
+              ! Clean up TIDE clock copy - do this regardless of success/failure
+              call ESMF_ClockDestroy(tide_clock, rc=rc)
+              if (rc /= ESMF_SUCCESS) then
+                write(*,'(A,I0)') "WARNING: [ACES] Failed to destroy TIDE clock copy rc=", rc
+              end if
+            else
+              write(*,'(A,I0)') "ERROR: [ACES] Failed to create TIDE clock copy rc=", rc
+              ! Fall back to original method if copy fails (risky but necessary)
+              call tide_advance(g_tide, run_clock, tide_rc)
+              if (tide_rc /= ESMF_SUCCESS) then
+                 write(*,'(A,I0)') "ERROR: [ACES] TIDE advance (fallback) failed rc=", tide_rc
+              end if
+            end if
+          else
+            write(*,'(A,I0)') "ERROR: [ACES] Failed to get clock parameters for TIDE copy rc=", rc
+            ! Fall back to original method
+            call tide_advance(g_tide, run_clock, tide_rc)
+            if (tide_rc /= ESMF_SUCCESS) then
+               write(*,'(A,I0)') "ERROR: [ACES] TIDE advance (fallback) failed rc=", tide_rc
+            end if
+          end if
+        end block
+      end if
     endif
 
     call aces_core_run(g_aces_data_ptr, int(hour, c_int), int(day_of_week, c_int), c_rc)
     rc = int(c_rc)
     if (rc /= ESMF_SUCCESS) return
+
+    ! DEBUG: Check clock after aces_core_run
+    block
+      type(ESMF_Time) :: DEBUG_currTime, DEBUG_stopTime
+      character(len=32) :: DEBUG_curr_str, DEBUG_stop_str
+      call ESMF_GridCompGet(comp, clock=run_clock, rc=rc)
+      if (rc == ESMF_SUCCESS) then
+        call ESMF_ClockGet(run_clock, currTime=DEBUG_currTime, stopTime=DEBUG_stopTime, rc=rc)
+        if (rc == ESMF_SUCCESS) then
+          call ESMF_TimeGet(DEBUG_currTime, timeStringISOFrac=DEBUG_curr_str, rc=rc)
+          call ESMF_TimeGet(DEBUG_stopTime, timeStringISOFrac=DEBUG_stop_str, rc=rc)
+          if (rc == ESMF_SUCCESS) then
+            write(*,'(A,A)') "DEBUG: [ACES_CAP] After aces_core_run - current=", trim(DEBUG_curr_str)
+            write(*,'(A,A)') "DEBUG: [ACES_CAP] After aces_core_run - stop=", trim(DEBUG_stop_str)
+          end if
+        end if
+      end if
+    end block
 
     ! Write output step
     time_seconds = real(g_step_count * g_time_step_secs, c_double)
@@ -737,6 +969,24 @@ contains
     if (c_step_rc /= 0) then
       write(*,'(A)') "WARNING: [ACES] aces_core_write_step failed"
     end if
+
+    ! DEBUG: Check clock after aces_core_write_step
+    block
+      type(ESMF_Time) :: DEBUG_currTime, DEBUG_stopTime
+      character(len=32) :: DEBUG_curr_str, DEBUG_stop_str
+      call ESMF_GridCompGet(comp, clock=run_clock, rc=rc)
+      if (rc == ESMF_SUCCESS) then
+        call ESMF_ClockGet(run_clock, currTime=DEBUG_currTime, stopTime=DEBUG_stopTime, rc=rc)
+        if (rc == ESMF_SUCCESS) then
+          call ESMF_TimeGet(DEBUG_currTime, timeStringISOFrac=DEBUG_curr_str, rc=rc)
+          call ESMF_TimeGet(DEBUG_stopTime, timeStringISOFrac=DEBUG_stop_str, rc=rc)
+          if (rc == ESMF_SUCCESS) then
+            write(*,'(A,A)') "DEBUG: [ACES_CAP] After aces_core_write_step - current=", trim(DEBUG_curr_str)
+            write(*,'(A,A)') "DEBUG: [ACES_CAP] After aces_core_write_step - stop=", trim(DEBUG_stop_str)
+          end if
+        end if
+      end if
+    end block
     g_step_count = g_step_count + 1
 
     ! Critical: Final synchronization for large grids before returning
@@ -744,6 +994,24 @@ contains
       write(*,'(A,I0)') "INFO: [ACES] Large grid final sync (", g_nx * g_ny, " points)..."
       call flush(6)  ! Force all I/O completion
     end if
+
+    ! DEBUG: Check clock state at end of ACES_Run to see if we corrupted it
+    block
+      type(ESMF_Time) :: DEBUG_currTime, DEBUG_stopTime
+      character(len=32) :: DEBUG_curr_str, DEBUG_stop_str
+      call ESMF_GridCompGet(comp, clock=clock, rc=rc)
+      if (rc == ESMF_SUCCESS) then
+        call ESMF_ClockGet(clock, currTime=DEBUG_currTime, stopTime=DEBUG_stopTime, rc=rc)
+        if (rc == ESMF_SUCCESS) then
+          call ESMF_TimeGet(DEBUG_currTime, timeStringISOFrac=DEBUG_curr_str, rc=rc)
+          call ESMF_TimeGet(DEBUG_stopTime, timeStringISOFrac=DEBUG_stop_str, rc=rc)
+          if (rc == ESMF_SUCCESS) then
+            write(*,'(A,A)') "DEBUG: [ACES_CAP] Run exit - current=", trim(DEBUG_curr_str)
+            write(*,'(A,A)') "DEBUG: [ACES_CAP] Run exit - stop=", trim(DEBUG_stop_str)
+          end if
+        end if
+      end if
+    end block
 
     write(*,'(A)') "INFO: [ACES] ACES_Run returning..."
     flush(6)
@@ -777,6 +1045,13 @@ contains
       g_tide_initialized = .false.
     end if
 
+    ! NOTE: Don't destroy the mesh here - let ESMF framework handle cleanup
+    ! Destroying it manually can interfere with NUOPC/ESMF finalization order
+    if (g_mesh_created) then
+      write(*,'(A)') "INFO: [ACES] Mesh will be cleaned up by ESMF framework"
+      g_mesh_created = .false.
+    end if
+
     write(*,'(A)') "INFO: Calling ACES core finalize..."
     call aces_core_finalize(g_aces_data_ptr, c_rc)
     g_aces_data_ptr = c_null_ptr
@@ -789,5 +1064,218 @@ contains
     write(*,'(A)') "INFO: [ACES] Finalize complete"
     rc = ESMF_SUCCESS
   end subroutine ACES_Finalize
+
+  !> @brief Create a mesh directly from configuration parameters for conservative regridding
+  subroutine CreateMeshFromConfig(nx, ny, lon_min, lon_max, lat_min, lat_max, mesh, rc)
+    integer, intent(in) :: nx, ny
+    real(ESMF_KIND_R8), intent(in) :: lon_min, lon_max, lat_min, lat_max
+    type(ESMF_Mesh), intent(out) :: mesh
+    integer, intent(out) :: rc
+
+    integer :: i, j, nodeIdx, elemIdx
+    integer :: totalNodes, totalElems
+    real(ESMF_KIND_R8), allocatable :: nodeCoords(:)
+    integer, allocatable :: nodeIds(:), nodeOwners(:), elemIds(:), elemTypes(:), elemConn(:)
+    integer :: nodesPerElem
+    type(ESMF_VM) :: vm
+    integer :: localPet, petCount
+
+    rc = ESMF_SUCCESS
+
+    ! Get MPI info
+    call ESMF_VMGetCurrent(vm, rc=rc)
+    if (rc /= ESMF_SUCCESS) return
+    call ESMF_VMGet(vm, localPet=localPet, petCount=petCount, rc=rc)
+    if (rc /= ESMF_SUCCESS) return
+
+    ! Create mesh
+    mesh = ESMF_MeshCreate(parametricDim=2, spatialDim=2, rc=rc)
+    if (rc /= ESMF_SUCCESS) return
+
+    ! Only PET0 creates the global mesh structure for simplicity
+    if (localPet == 0) then
+      ! For conservative regridding, we need nodes at grid corners and elements at grid centers
+      ! Grid cells become mesh elements (quads)
+      totalNodes = (nx + 1) * (ny + 1)
+      totalElems = nx * ny
+      nodesPerElem = 4
+
+      ! Allocate arrays
+      allocate(nodeCoords(totalNodes * 2))  ! x,y for each node
+      allocate(nodeIds(totalNodes))
+      allocate(nodeOwners(totalNodes))
+      allocate(elemIds(totalElems))
+      allocate(elemTypes(totalElems))
+      allocate(elemConn(totalElems * nodesPerElem))
+
+      ! Create regular lat-lon mesh coordinates
+      nodeIdx = 0
+      do j = 0, ny
+        do i = 0, nx
+          nodeIdx = nodeIdx + 1
+          nodeIds(nodeIdx) = nodeIdx
+          nodeOwners(nodeIdx) = 0
+
+          ! Create coordinates from config parameters
+          nodeCoords(2*nodeIdx-1) = lon_min + ((lon_max - lon_min) * i) / nx
+          nodeCoords(2*nodeIdx) = lat_min + ((lat_max - lat_min) * j) / ny
+        end do
+      end do
+
+      ! Create elements (grid cells as quads)
+      elemIdx = 0
+      do j = 1, ny
+        do i = 1, nx
+          elemIdx = elemIdx + 1
+          elemIds(elemIdx) = elemIdx
+          elemTypes(elemIdx) = ESMF_MESHELEMTYPE_QUAD
+
+          ! Connect nodes to form quadrilateral
+          ! Node numbering: bottom-left, bottom-right, top-right, top-left
+          elemConn(4*(elemIdx-1)+1) = (j-1)*(nx+1) + i      ! bottom-left
+          elemConn(4*(elemIdx-1)+2) = (j-1)*(nx+1) + (i+1)  ! bottom-right
+          elemConn(4*(elemIdx-1)+3) = j*(nx+1) + (i+1)      ! top-right
+          elemConn(4*(elemIdx-1)+4) = j*(nx+1) + i          ! top-left
+        end do
+      end do
+
+      ! Add nodes to mesh
+      call ESMF_MeshAddNodes(mesh, nodeIds, nodeCoords, nodeOwners, rc=rc)
+      if (rc /= ESMF_SUCCESS) then
+        deallocate(nodeCoords, nodeIds, nodeOwners, elemIds, elemTypes, elemConn)
+        return
+      end if
+
+      ! Add elements to mesh
+      call ESMF_MeshAddElements(mesh, elemIds, elemTypes, elemConn, rc=rc)
+
+      ! Clean up
+      deallocate(nodeCoords, nodeIds, nodeOwners, elemIds, elemTypes, elemConn)
+    else
+      ! Other PETs contribute empty arrays
+      allocate(nodeCoords(0), nodeIds(0), nodeOwners(0))
+      allocate(elemIds(0), elemTypes(0), elemConn(0))
+
+      call ESMF_MeshAddNodes(mesh, nodeIds, nodeCoords, nodeOwners, rc=rc)
+      if (rc == ESMF_SUCCESS) then
+        call ESMF_MeshAddElements(mesh, elemIds, elemTypes, elemConn, rc=rc)
+      end if
+
+      deallocate(nodeCoords, nodeIds, nodeOwners, elemIds, elemTypes, elemConn)
+    end if
+
+  end subroutine CreateMeshFromConfig
+
+  !> @brief Create a properly structured mesh from grid coordinates for conservative regridding
+  subroutine CreateMeshFromGridCoords(grid, mesh, rc)
+    type(ESMF_Grid), intent(in) :: grid
+    type(ESMF_Mesh), intent(out) :: mesh
+    integer, intent(out) :: rc
+
+    integer :: nx, ny, i, j, nodeIdx, elemIdx
+    real(ESMF_KIND_R8), pointer :: lonPtr(:,:), latPtr(:,:)
+    integer :: localDE, elemlb(2), elemub(2), nodelb(2), nodeub(2)
+    integer :: totalNodes, totalElems
+    real(ESMF_KIND_R8), allocatable :: nodeCoords(:)
+    integer, allocatable :: nodeIds(:), nodeOwners(:), elemIds(:), elemTypes(:), elemConn(:)
+    integer :: nodesPerElem
+    type(ESMF_VM) :: vm
+    integer :: localPet, petCount
+
+    rc = ESMF_SUCCESS
+
+    ! Get MPI info
+    call ESMF_VMGetCurrent(vm, rc=rc)
+    if (rc /= ESMF_SUCCESS) return
+    call ESMF_VMGet(vm, localPet=localPet, petCount=petCount, rc=rc)
+    if (rc /= ESMF_SUCCESS) return
+
+    ! Get grid dimensions
+    localDE = 0
+    call ESMF_GridGet(grid, localDE=localDE, staggerloc=ESMF_STAGGERLOC_CENTER, &
+                      computationalLBound=elemlb, computationalUBound=elemub, rc=rc)
+    if (rc /= ESMF_SUCCESS) return
+
+    nx = elemub(1) - elemlb(1) + 1
+    ny = elemub(2) - elemlb(2) + 1
+
+    ! Create mesh
+    mesh = ESMF_MeshCreate(parametricDim=2, spatialDim=2, rc=rc)
+    if (rc /= ESMF_SUCCESS) return
+
+    ! Only PET0 creates the global mesh structure for simplicity
+    if (localPet == 0) then
+      ! For conservative regridding, we need nodes at grid corners and elements at grid centers
+      ! Grid cells become mesh elements (quads)
+      totalNodes = (nx + 1) * (ny + 1)
+      totalElems = nx * ny
+      nodesPerElem = 4
+
+      ! Allocate arrays
+      allocate(nodeCoords(totalNodes * 2))  ! x,y for each node
+      allocate(nodeIds(totalNodes))
+      allocate(nodeOwners(totalNodes))
+      allocate(elemIds(totalElems))
+      allocate(elemTypes(totalElems))
+      allocate(elemConn(totalElems * nodesPerElem))
+
+      ! Create regular lat-lon grid coordinates
+      ! This is a simplified approach - in production you'd extract actual grid coordinates
+      nodeIdx = 0
+      do j = 0, ny
+        do i = 0, nx
+          nodeIdx = nodeIdx + 1
+          nodeIds(nodeIdx) = nodeIdx
+          nodeOwners(nodeIdx) = 0
+
+          ! Create regular grid: longitude from -180 to 180, latitude from -90 to 90
+          nodeCoords(2*nodeIdx-1) = -180.0_ESMF_KIND_R8 + (360.0_ESMF_KIND_R8 * i) / nx
+          nodeCoords(2*nodeIdx) = -90.0_ESMF_KIND_R8 + (180.0_ESMF_KIND_R8 * j) / ny
+        end do
+      end do
+
+      ! Create elements (grid cells as quads)
+      elemIdx = 0
+      do j = 1, ny
+        do i = 1, nx
+          elemIdx = elemIdx + 1
+          elemIds(elemIdx) = elemIdx
+          elemTypes(elemIdx) = ESMF_MESHELEMTYPE_QUAD
+
+          ! Connect nodes to form quadrilateral
+          ! Node numbering: bottom-left, bottom-right, top-right, top-left
+          elemConn(4*(elemIdx-1)+1) = (j-1)*(nx+1) + i      ! bottom-left
+          elemConn(4*(elemIdx-1)+2) = (j-1)*(nx+1) + (i+1)  ! bottom-right
+          elemConn(4*(elemIdx-1)+3) = j*(nx+1) + (i+1)      ! top-right
+          elemConn(4*(elemIdx-1)+4) = j*(nx+1) + i          ! top-left
+        end do
+      end do
+
+      ! Add nodes to mesh
+      call ESMF_MeshAddNodes(mesh, nodeIds, nodeCoords, nodeOwners, rc=rc)
+      if (rc /= ESMF_SUCCESS) then
+        deallocate(nodeCoords, nodeIds, nodeOwners, elemIds, elemTypes, elemConn)
+        return
+      end if
+
+      ! Add elements to mesh
+      call ESMF_MeshAddElements(mesh, elemIds, elemTypes, elemConn, rc=rc)
+
+      ! Clean up
+      deallocate(nodeCoords, nodeIds, nodeOwners, elemIds, elemTypes, elemConn)
+    else
+      ! Other PETs contribute empty arrays
+      allocate(nodeCoords(0), nodeIds(0), nodeOwners(0))
+      allocate(elemIds(0), elemTypes(0), elemConn(0))
+
+      call ESMF_MeshAddNodes(mesh, nodeIds, nodeCoords, nodeOwners, rc=rc)
+      if (rc == ESMF_SUCCESS) then
+        call ESMF_MeshAddElements(mesh, elemIds, elemTypes, elemConn, rc=rc)
+      end if
+
+      deallocate(nodeCoords, nodeIds, nodeOwners, elemIds, elemTypes, elemConn)
+    end if
+
+  end subroutine CreateMeshFromGridCoords
 
 end module aces_cap_mod

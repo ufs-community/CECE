@@ -68,36 +68,98 @@ Example for CPU-only with OpenMP:
 cmake .. -DKokkos_ENABLE_SERIAL=ON -DKokkos_ENABLE_OPENMP=ON
 ```
 
-## YAML Configuration Format
+## YAML Configuration
 
-ACES is configured using a YAML file (default: `aces_config.yaml`). Here's a comprehensive example:
+ACES is configured using a YAML file that defines emission species, data sources, scaling factors, and processing parameters. The configuration system is built around the powerful **Stacking Engine** that combines multiple emission layers with sophisticated hierarchy and scaling rules.
+
+For complete configuration reference with all available options, see the [Configuration Documentation](configuration.md).
+
+For technical details about how the Stacking Engine processes these configurations, see the [Stacking Engine Documentation](stacking_engine.md).
+
+### Basic Configuration Structure
 
 ```yaml
-# ACES Configuration File
+# Driver timing configuration
+driver:
+  start_time: "2020-01-01T00:00:00"
+  end_time: "2020-01-01T06:00:00"
+  timestep_seconds: 3600
 
-# Metadata
-metadata:
-  version: "1.0"
-  description: "Example ACES configuration"
-  author: "ACES Team"
+# Computational grid specification
+grid:
+  nx: 144
+  ny: 91
+  lon_min: -180.0
+  lon_max: 177.5
+  lat_min: -90.0
+  lat_max: 90.0
 
-# Emission species definitions
+# Species with hierarchical emission layers
 species:
-  - name: CO
-    units: kg/m2/s
-    long_name: "Carbon Monoxide"
-  - name: NOx
-    units: kg/m2/s
-    long_name: "Nitrogen Oxides"
-  - name: ISOP
-    units: kg/m2/s
-    long_name: "Isoprene"
+  co:
+    - field: "global_co_inventory"
+      operation: "add"
+      scale: 1.0
+      category: "anthropogenic"
+      hierarchy: 1
 
-# Emission layers (base emissions, scale factors, masks)
-layers:
-  - name: anthropogenic_co
-    species: CO
-    hierarchy: 1
+  nox:
+    - field: "surface_nox"
+      operation: "add"
+      category: "anthropogenic"
+      hierarchy: 1
+      vdist_method: "PBL"        # Distribute in boundary layer
+
+    - field: "aircraft_nox"
+      operation: "add"
+      category: "transportation"
+      hierarchy: 1
+      vdist_method: "HEIGHT"     # Distribute by altitude
+      vdist_h_start: 9000.0      # 9-12 km cruise altitude
+      vdist_h_end: 12000.0
+
+# Physics schemes for process-based emissions
+physics_schemes:
+  - name: "sea_salt"
+    language: "cpp"
+    options:
+      r_sala_min: 0.01
+      r_sala_max: 0.5
+
+# TIDE data streams for external inventories
+aces_data:
+  streams:
+    - name: "GLOBAL_INVENTORY"
+      file: "/data/inventories/global_emissions.nc"
+      yearFirst: 2020
+      yearLast: 2020
+      yearAlign: 2020
+      taxmode: "cycle"
+      variables:
+        - file: "CO_total"
+          model: "global_co_inventory"
+
+# Diagnostic and output configuration
+diagnostics:
+  output_interval_seconds: 3600
+  variables: ["co", "nox"]
+
+output:
+  enabled: true
+  directory: "./output"
+  filename_pattern: "aces_{YYYY}{MM}{DD}_{HH}.nc"
+  frequency_steps: 1
+  fields: ["co", "nox"]
+```
+
+### Key Configuration Concepts
+
+- **Hierarchical Processing**: Layers within categories are processed by hierarchy (higher numbers take precedence)
+- **Operations**: `add` (accumulate), `replace` (override), `multiply` (scale)
+- **Vertical Distribution**: Multiple algorithms for mapping 2D emissions to 3D grids
+- **Temporal Scaling**: Diurnal, weekly, and seasonal variation profiles
+- **Environmental Dependencies**: Dynamic scaling based on meteorological fields
+- **TIDE Integration**: External data ingestion with smart caching and regridding
     operation: add
     file: /data/emissions/CEDS_CO_2020.nc
     variable: CO_emis

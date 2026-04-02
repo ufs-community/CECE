@@ -45,7 +45,7 @@ extern "C" {
  *
  * Requirements: 4.5, 4.6
  */
-void aces_core_realize(void* data_ptr, int* rc) {
+void aces_core_realize_impl(void* data_ptr, int* rc) {
     // Initialize return code to success
     if (rc != nullptr) {
         *rc = 0;

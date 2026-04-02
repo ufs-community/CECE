@@ -1,3 +1,31 @@
+/**
+ * @file aces_dms.cpp
+ * @brief Dimethyl sulfide (DMS) sea-air exchange flux calculations.
+ *
+ * Implements oceanic DMS emission calculations based on seawater DMS
+ * concentrations, wind speed, and sea-air gas transfer parameterizations.
+ * DMS is the dominant natural source of sulfur to the marine atmosphere
+ * and plays a critical role in marine aerosol formation and cloud processes.
+ *
+ * The scheme includes:
+ * - Schmidt number temperature dependence for DMS solubility
+ * - Wind speed-dependent gas transfer velocity (Nightingale et al., 2000)
+ * - Seawater DMS concentration climatology integration
+ * - Temperature and salinity corrections for gas exchange
+ *
+ * This implementation is based on algorithms from HEMCO's hcox_seaflux_mod.F90
+ * with adaptations for ACES framework integration and Kokkos execution.
+ *
+ * References:
+ * - Nightingale, P.D., et al. (2000), In situ evaluation of air-sea gas exchange
+ *   parameterizations using novel conservative and volatile tracers, Global
+ *   Biogeochem. Cycles, 14(1), 373-387.
+ *
+ * @author Barry Baker
+ * @date 2024
+ * @version 1.0
+ */
+
 #include "aces/physics/aces_dms.hpp"
 
 #include <Kokkos_Core.hpp>
@@ -9,13 +37,24 @@
 
 namespace aces {
 
-/// Self-registration for the DMSScheme scheme.
+/// @brief Self-registration for the DMS sea-air flux scheme.
 static PhysicsRegistration<DMSScheme> register_scheme("dms");
 
 /**
- * @brief DMS Sea-Air Flux (Ported from hcox_seaflux_mod.F90)
+ * @brief Initialize the DMS sea-air exchange scheme.
+ *
+ * Sets up parameterization coefficients for Schmidt number calculation
+ * and gas transfer velocity computations. The Schmidt number represents
+ * the ratio of kinematic viscosity to molecular diffusion coefficient,
+ * which varies with temperature and affects gas exchange rates.
+ *
+ * Configuration parameters:
+ * - sc_c0-sc_c3: Schmidt number polynomial coefficients vs. temperature
+ * - kw_c0-kw_c1: Transfer velocity coefficients for wind speed dependence
+ *
+ * @param config YAML configuration node with DMS parameters
+ * @param diag_manager Diagnostic manager for tracking outputs
  */
-
 void DMSScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
 

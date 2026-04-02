@@ -5,6 +5,10 @@
  * Provides a thread-safe mechanism to set and retrieve the configuration file path
  * used by ACES initialization routines. This allows the Fortran NUOPC cap to specify
  * a custom config file path instead of hardcoding "aces_config.yaml".
+ *
+ * @author Barry Baker
+ * @date 2024
+ * @version 1.0
  */
 
 #include <string>

@@ -1,3 +1,21 @@
+/**
+ * @file aces_config_parser.cpp
+ * @brief Implementation of the YAML configuration parser for ACES.
+ *
+ * This module handles parsing of YAML configuration files containing:
+ * - Species definitions and emission layer configurations
+ * - Physics scheme parameters and settings
+ * - Grid and timing configuration options
+ * - Data stream specifications for TIDE integration
+ *
+ * The parser provides robust error handling, validation, and default value
+ * management to ensure configuration consistency across ACES components.
+ *
+ * @author Barry Baker
+ * @date 2024
+ * @version 1.0
+ */
+
 #include <sys/stat.h>
 #include <yaml-cpp/yaml.h>
 
@@ -6,11 +24,6 @@
 #include <vector>
 
 #include "aces/aces_config.hpp"
-
-/**
- * @file aces_config_parser.cpp
- * @brief Implementation of the YAML configuration parser for ACES.
- */
 
 namespace aces {
 
@@ -25,7 +38,7 @@ namespace aces {
  */
 AcesConfig ParseConfig(const std::string& filename) {
     std::cout << "DEBUG: ParseConfig called with filename: '" << filename << "'" << std::endl;
-    
+
     // Check if file exists
     struct stat buffer;
     if (stat(filename.c_str(), &buffer) != 0) {
@@ -33,7 +46,7 @@ AcesConfig ParseConfig(const std::string& filename) {
         throw std::runtime_error("File not found: " + filename);
     }
     std::cout << "DEBUG: File exists, proceeding to load" << std::endl;
-    
+
     AcesConfig config;
     YAML::Node root = YAML::LoadFile(filename);
 
@@ -372,6 +385,46 @@ AcesConfig ParseConfig(const std::string& filename) {
                       << "' does not exist and will be created at runtime.\n";
         } else if (!(st.st_mode & S_IWUSR)) {
             std::cerr << "[ACES ERROR] Output directory '" << dir << "' is not writable.\n";
+        }
+    }
+
+    // Parse driver configuration (optional, for standalone execution)
+    // Requirements: 1.1, 2.1, 3.1, 14.1, 15.1
+    if (root["driver"]) {
+        auto driver_node = root["driver"];
+
+        if (driver_node["start_time"]) {
+            config.driver_config.start_time = driver_node["start_time"].as<std::string>();
+        }
+        if (driver_node["end_time"]) {
+            config.driver_config.end_time = driver_node["end_time"].as<std::string>();
+        }
+        if (driver_node["timestep_seconds"]) {
+            config.driver_config.timestep_seconds = driver_node["timestep_seconds"].as<int>();
+        }
+        if (driver_node["mesh_file"]) {
+            config.driver_config.mesh_file = driver_node["mesh_file"].as<std::string>();
+        }
+        if (driver_node["grid"]) {
+            auto grid_node = driver_node["grid"];
+            if (grid_node["nx"]) {
+                config.driver_config.grid.nx = grid_node["nx"].as<int>();
+            }
+            if (grid_node["ny"]) {
+                config.driver_config.grid.ny = grid_node["ny"].as<int>();
+            }
+            if (grid_node["lon_min"]) {
+                config.driver_config.grid.lon_min = grid_node["lon_min"].as<double>();
+            }
+            if (grid_node["lon_max"]) {
+                config.driver_config.grid.lon_max = grid_node["lon_max"].as<double>();
+            }
+            if (grid_node["lat_min"]) {
+                config.driver_config.grid.lat_min = grid_node["lat_min"].as<double>();
+            }
+            if (grid_node["lat_max"]) {
+                config.driver_config.grid.lat_max = grid_node["lat_max"].as<double>();
+            }
         }
     }
 

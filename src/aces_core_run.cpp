@@ -1,9 +1,28 @@
 /**
  * @file aces_core_run.cpp
- * @brief ACES Run phase -- ESMF-free C++ core.
+ * @brief Implementation of ACES Run phase execution for NUOPC integration.
  *
- * Time info (hour, day_of_week) is extracted in the Fortran cap via ESMF_ClockGet
- * and passed as plain integers. No ESMC.h dependency.
+ * This module provides the core computational loop for ACES emission processing.
+ * It coordinates data ingestion from TIDE streams, physics scheme execution,
+ * and field stacking operations during each model timestep.
+ *
+ * The run phase operates independently of ESMF, receiving only time information
+ * extracted by the Fortran cap. This design maintains separation of concerns
+ * and allows for easier testing and debugging.
+ *
+ * Key responsibilities:
+ * - Time-dependent field ingestion from TIDE data streams
+ * - Coordination of physics scheme execution
+ * - Emission layer stacking and combination
+ * - Error handling and performance monitoring
+ *
+ * @note This is an ESMF-free C++ implementation called from Fortran cap
+ * @note Time info (hour, day_of_week) extracted via ESMF_ClockGet in Fortran
+ * @note No ESMC.h dependency for easier testing and deployment
+ *
+ * @author Barry Baker
+ * @date 2024
+ * @version 1.0
  */
 
 #include <iostream>
@@ -66,6 +85,11 @@ void aces_core_run(void* data_ptr, int hour, int day_of_week, int* rc) {
         }
 
         for (auto& [name, field] : d->export_state.fields) {
+            field.sync_host();
+        }
+
+        // Also sync import state fields to ensure ESMF can access them
+        for (auto& [name, field] : d->import_state.fields) {
             field.sync_host();
         }
 

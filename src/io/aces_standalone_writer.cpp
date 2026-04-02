@@ -308,13 +308,13 @@ int AcesStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
             }
 
             // Reorder from Kokkos (nx, ny, nz) to NetCDF (lev, lat, lon)
-            // CRITICAL FIX: ACES stores data as (latitude, longitude, level) internally
-            // This matches Fortran/ESMF conventions where latitude is first dimension
+            // CRITICAL FIX: ACES stores data as (longitude, latitude, level) internally
+            // This matches ESMF field layout: fptr(nx, ny, nz) = fptr(longitude, latitude, level)
             for (int k = 0; k < nz_; k++) {          // level
                 for (int j = 0; j < ny_; j++) {      // latitude index
                     for (int i = 0; i < nx_; i++) {  // longitude index
-                        // Corrected indexing: swap i,j to match ACES internal storage
-                        size_t kokkos_idx = j + i * ny_ + k * static_cast<size_t>(nx_) * ny_;  // (lat, lon, lev) order
+                        // Correct indexing: ACES uses (lon, lat, lev) order - i=longitude, j=latitude
+                        size_t kokkos_idx = i + j * nx_ + k * static_cast<size_t>(nx_) * ny_;  // (lon, lat, lev) order
                         size_t netcdf_idx = k * static_cast<size_t>(ny_) * nx_ + j * nx_ + i;  // (lev, lat, lon) order
 
                         // Bounds check for safety

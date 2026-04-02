@@ -1,0 +1,235 @@
+# Advanced multi-species configuration demonstrating stacking engine features
+driver:
+  start_time: "2020-07-15T00:00:00"
+  end_time: "2020-07-15T12:00:00"
+  timestep_seconds: 3600
+
+grid:
+  nx: 144          # 2.5° global resolution
+  ny: 91           # 2.0° global resolution
+  lon_min: -180.0
+  lon_max: 177.5
+  lat_min: -90.0
+  lat_max: 90.0
+
+# Field name mappings
+meteorology:
+  temperature: air_temperature
+  wind_speed: surface_wind_speed
+  pressure: surface_pressure
+  par_direct: pardr
+  par_diffuse: pardf
+  lai: leaf_area_index
+
+scale_factors:
+  monthly_factor: MONTHLY_SCALFACT
+  weekday_factor: WEEKDAY_SCALFACT
+
+masks:
+  land_mask: LAND_FRACTION
+  urban_mask: URBAN_FRACTION
+  ocean_mask: OCEAN_FRACTION
+  vegetation_mask: VEGETATION_FRACTION
+  europe_mask: EUROPE_MASK
+
+# Temporal scaling profiles
+temporal_profiles:
+  # Traffic emissions peak during rush hours
+  traffic_diurnal: [0.3, 0.2, 0.2, 0.3, 0.5, 1.0, 1.8, 1.5, 1.2, 1.0, 1.1, 1.2,
+                    1.3, 1.2, 1.3, 1.5, 1.8, 2.2, 1.8, 1.4, 1.0, 0.8, 0.6, 0.4]
+
+  # Industrial emissions more constant but lower on weekends
+  industrial_weekly: [0.7, 1.0, 1.0, 1.0, 1.0, 1.0, 0.8]  # Sun-Sat
+
+  # Biogenic emissions peak in growing season
+  growing_season: [0.3, 0.4, 0.7, 1.2, 1.8, 2.0, 1.9, 1.7, 1.3, 0.9, 0.5, 0.3]
+
+  # Power generation diurnal cycle
+  power_diurnal: [0.7, 0.6, 0.6, 0.6, 0.7, 0.9, 1.2, 1.4, 1.3, 1.2, 1.2, 1.3,
+                  1.4, 1.3, 1.3, 1.4, 1.6, 1.8, 1.9, 1.7, 1.4, 1.2, 1.0, 0.8]
+
+species:
+  # Carbon monoxide with hierarchical sources
+  co:
+    # Global base inventory
+    - field: "global_co_antropogenic"
+      operation: "add"
+      scale: 1.0
+      category: "anthropogenic"
+      hierarchy: 1
+      mask: "land_mask"
+      diurnal_cycle: "traffic_diurnal"
+      weekly_cycle: "industrial_weekly"
+
+    # Regional European override with higher resolution
+    - field: "europe_co_inventory"
+      operation: "replace"        # Replaces global data over Europe
+      scale: 1.15                # 15% adjustment factor
+      category: "anthropogenic"
+      hierarchy: 10              # Higher priority
+      mask: "europe_mask"
+      diurnal_cycle: "traffic_diurnal"
+
+    # Biomass burning
+    - field: "gfed_co"
+      operation: "add"
+      scale: 2.5
+      category: "biomass_burning"
+      hierarchy: 1
+
+  # Nitrogen oxides with vertical distribution
+  nox:
+    # Surface transportation
+    - field: "surface_nox_transport"
+      operation: "add"
+      category: "transportation"
+      hierarchy: 1
+      scale_fields: ["temperature"]   # Temperature-dependent emissions
+      mask: "land_mask"
+      vdist_method: "PBL"            # Distribute in boundary layer
+      diurnal_cycle: "traffic_diurnal"
+
+    # Aircraft emissions at cruise altitude
+    - field: "aircraft_nox"
+      operation: "add"
+      category: "transportation"
+      hierarchy: 2
+      vdist_method: "HEIGHT"
+      vdist_h_start: 9000.0          # 9-12 km altitude
+      vdist_h_end: 12000.0
+
+    # Power plant stacks
+    - field: "power_plant_nox"
+      operation: "add"
+      category: "energy"
+      hierarchy: 1
+      vdist_method: "HEIGHT"
+      vdist_h_start: 100.0           # Elevated stack height
+      vdist_h_end: 500.0
+      diurnal_cycle: "power_diurnal"
+      weekly_cycle: "industrial_weekly"
+
+    # Lightning NOx in free troposphere
+    - field: "lightning_nox"
+      operation: "add"
+      category: "natural"
+      hierarchy: 1
+      vdist_method: "PRESSURE"
+      vdist_p_start: 10000.0         # 100-400 hPa
+      vdist_p_end: 40000.0
+
+  # Isoprene with environmental dependencies
+  isoprene:
+    - field: "base_isoprene_emissions"
+      operation: "add"
+      category: "biogenic"
+      hierarchy: 1
+      scale: 1.0
+      scale_fields: ["temperature", "par_direct", "lai"]  # Environmental scaling
+      mask: "vegetation_mask"
+      seasonal_cycle: "growing_season"
+      vdist_method: "PBL"
+
+# Active physics schemes
+physics_schemes:
+  - name: "megan"
+    language: "cpp"
+    options:
+      temperature_standard: 303.15
+      par_conversion_factor: 4.6
+      c1_lai: 0.49
+      c2_lai: 0.0016
+
+  - name: "sea_salt"
+    language: "cpp"
+    options:
+      r_sala_min: 0.01
+      r_sala_max: 0.5
+      r_salc_min: 0.5
+      r_salc_max: 8.0
+      sea_salt_density: 2200.0
+
+  - name: "dust"
+    language: "cpp"
+    options:
+      particle_density: 2.5
+      tuning_factor: 1.0e-9
+      wind_threshold: 6.5
+
+# TIDE data streams for external inventories
+aces_data:
+  streams:
+    - name: "GLOBAL_ANTHROPOGENIC"
+      file: "/data/inventories/CEDS_global_2020.nc"
+      yearFirst: 2020
+      yearLast: 2020
+      yearAlign: 2020
+      taxmode: "cycle"
+      tintalgo: "linear"
+      mapalgo: "consd"
+      variables:
+        - file: "CO_anthropogenic"
+          model: "global_co_antropogenic"
+        - file: "NOx_surface"
+          model: "surface_nox_transport"
+
+    - name: "EUROPE_INVENTORY"
+      file: "/data/inventories/TNO_Europe_2020.nc"
+      yearFirst: 2020
+      yearLast: 2020
+      yearAlign: 2020
+      taxmode: "extend"
+      tintalgo: "linear"
+      mapalgo: "consd"
+      variables:
+        - file: "CO_TOTAL"
+          model: "europe_co_inventory"
+
+    - name: "BIOMASS_BURNING"
+      file: "/data/inventories/GFED4_daily_*.nc"
+      yearFirst: 2020
+      yearLast: 2020
+      yearAlign: 2020
+      taxmode: "cycle"
+      tintalgo: "linear"
+      mapalgo: "consd"
+      variables:
+        - file: "CO_bb"
+          model: "gfed_co"
+
+    - name: "AIRCRAFT_EMISSIONS"
+      file: "/data/inventories/AEIC_aircraft_2020.nc"
+      yearFirst: 2020
+      yearLast: 2020
+      yearAlign: 2020
+      taxmode: "extend"
+      tintalgo: "nearest"
+      mapalgo: "consd"
+      variables:
+        - file: "NOx_aircraft_cruise"
+          model: "aircraft_nox"
+
+# Diagnostic output configuration
+diagnostics:
+  output_interval_seconds: 3600
+  enabled: true
+  variables:
+    - "co"
+    - "nox"
+    - "isoprene"
+    - "sea_salt_accumulation"
+    - "sea_salt_coarse"
+    - "dust_total"
+
+# NetCDF output configuration
+output:
+  enabled: true
+  directory: "./aces_output"
+  filename_pattern: "aces_advanced_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
+  frequency_steps: 1
+  fields:
+    - "co"
+    - "nox"
+    - "isoprene"
+    - "sea_salt_total"
+    - "dust_total"

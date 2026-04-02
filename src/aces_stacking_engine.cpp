@@ -1,3 +1,24 @@
+/**
+ * @file aces_stacking_engine.cpp
+ * @brief Implementation of the ACES emission stacking and processing engine.
+ *
+ * The StackingEngine is the core computational component responsible for processing
+ * and combining multiple emission layers according to configured operations and hierarchies.
+ * It manages the execution order of physics schemes and handles field operations
+ * like addition, multiplication, and masking.
+ *
+ * Key capabilities:
+ * - Layer hierarchy management and execution ordering
+ * - Multi-operation support (add, multiply, set, mask)
+ * - Temporal scaling (diurnal, weekly, seasonal cycles)
+ * - Vertical distribution algorithms
+ * - Provenance tracking for reproducibility
+ *
+ * @author Barry Baker
+ * @date 2024
+ * @version 1.0
+ */
+
 #include "aces/aces_stacking_engine.hpp"
 
 #include <Kokkos_Core.hpp>
@@ -521,18 +542,24 @@ void StackingEngine::Execute(
                     // Fused scale/mask
                     double combined_scale = layer.scale;
                     for (int s = 0; s < layer.num_scales; ++s) {
-                        double scale_val = (layer.scales[s].extent(2) == 1) ? layer.scales[s](i, j, 0) : layer.scales[s](i, j, k);
-                        combined_scale *= scale_val;
+                        if (layer.scales[s].data() != nullptr) {
+                            double scale_val = (layer.scales[s].extent(2) == 1) ? layer.scales[s](i, j, 0) : layer.scales[s](i, j, k);
+                            combined_scale *= scale_val;
+                        }
                     }
 
                     double combined_mask = 1.0;
                     if (layer.num_masks > 0) {
                         for (int m = 0; m < layer.num_masks; ++m) {
-                            double mask_val = (layer.masks[m].extent(2) == 1) ? layer.masks[m](i, j, 0) : layer.masks[m](i, j, k);
-                            combined_mask *= mask_val;
+                            if (layer.masks[m].data() != nullptr) {
+                                double mask_val = (layer.masks[m].extent(2) == 1) ? layer.masks[m](i, j, 0) : layer.masks[m](i, j, k);
+                                combined_mask *= mask_val;
+                            }
                         }
                     } else {
-                        combined_mask = default_mask(i, j, k);
+                        if (default_mask.data() != nullptr) {
+                            combined_mask = default_mask(i, j, k);
+                        }
                     }
 
                     double contribution = val * combined_scale * combined_mask;

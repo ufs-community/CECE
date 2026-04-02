@@ -4,26 +4,35 @@ This page explains the fundamental concepts and architecture of ACES.
 
 ## The Stacking Engine
 
-The heart of ACES is the **Stacking Engine**, which calculates final emission fields by combining multiple data layers. It is designed to mimic the priority-based logic of the HEMCO (Harmonized Emissions Component).
+The heart of ACES is the **Stacking Engine**, which calculates final emission fields by combining multiple data layers. It is designed to mimic and extend the priority-based logic of the HEMCO (Harmonized Emissions Component) while providing significant performance optimizations for modern HPC architectures.
 
-### Categories and Hierarchies
+For comprehensive technical details about the Stacking Engine implementation, algorithms, and performance characteristics, see the [Stacking Engine Documentation](stacking_engine.md).
 
-Layers are organized into **Categories** (e.g., `anthropogenic`, `biomass_burning`). Within each category, layers are assigned a **Hierarchy** level.
+### Key Features
 
--   **Priority**: When multiple layers provide data for the same species and location, the layer with the **highest hierarchy** takes precedence.
--   **Operations**:
-    -   `add`: The layer's emissions are added to the accumulated sum for that species.
-    -   `replace`: The layer's emissions overwrite the accumulated sum for that species. This is typically used for regional overrides (e.g., a regional inventory replacing a global one).
+- **Hierarchy-Based Processing**: Layers are organized by categories and numerical priorities
+- **Kernel Fusion Optimization**: Single optimized compute kernel per species for maximum performance
+- **Flexible Operations**: Support for add, multiply, replace, and set operations
+- **Advanced Scaling**: Multiple simultaneous scale factors (temporal, spatial, field-based)
+- **Vertical Distribution**: Multiple algorithms for 2D→3D emission mapping
+- **Complete Provenance**: Full scientific traceability of emission calculations
 
-### Masks and Scale Factors
+### Quick Example
 
-Each layer can be modified by:
--   **Geographical Masks**: 2D or 3D fields that restrict where a layer's emissions are applied.
--   **Scale Factors**: Multipliers applied to the base emission field. These can be static values or dynamic fields (like temperature or wind speed) pulled from ESMF or TIDE.
-
-### Optimized Fused Kernels
-
-To ensure high performance on GPUs and CPUs, ACES uses **Kernel Fusion**. Instead of processing each layer and operation in separate steps, the Stacking Engine analyzes the hierarchy and generates a single, fused Kokkos kernel for each species. This significantly reduces memory bandwidth and kernel launch overhead.
+```yaml
+species:
+  co:
+    - field: "global_co_inventory"
+      category: "anthropogenic"
+      hierarchy: 1
+      operation: "add"
+      scale: 1.0
+    - field: "regional_co_override"
+      category: "anthropogenic"
+      hierarchy: 10         # Higher priority replaces base
+      operation: "replace"
+      mask: "regional_mask"
+```
 
 ---
 
