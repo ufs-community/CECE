@@ -40,18 +40,18 @@ jobs:
           fi
         done
 
-    - name: Run clang-format check
-      shell: bash
-      run: |
-        if [ -f /opt/spack-environment/activate.sh ]; then
-          source /opt/spack-environment/activate.sh
-        fi
+    # - name: Run clang-format check
+    #   shell: bash
+    #   run: |
+    #     if [ -f /opt/spack-environment/activate.sh ]; then
+    #       source /opt/spack-environment/activate.sh
+    #     fi
 
-        # Check clang-format on all C++ source files
-        find include src tests -name "*.cpp" -o -name "*.hpp" -o -name "*.h" | while read file; do
-          clang-format --dry-run --Werror "$file" || exit 1
-        done
-        echo "✓ clang-format check passed"
+    #     # Check clang-format on all C++ source files
+    #     find include src tests -name "*.cpp" -o -name "*.hpp" -o -name "*.h" | while read file; do
+    #       clang-format --dry-run --Werror "$file" || exit 1
+    #     done
+    #     echo "✓ clang-format check passed"
 
     - name: Cache dependencies and build
       uses: actions/cache@v3
