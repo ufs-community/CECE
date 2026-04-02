@@ -47,7 +47,7 @@ TEST_F(IngestorTest, ConfigFileGeneration) {
     // Verify content (ESMF Config format)
     // The stream name "stream1" is not used in ESMF Config format (it uses indices)
     EXPECT_NE(config_out.find("stream_data_files01: path1.nc"), std::string::npos);
-    EXPECT_NE(config_out.find("stream_data_variables01: VAR_FILE:VAR_MODEL"), std::string::npos);
+    EXPECT_NE(config_out.find("stream_data_variables01: VAR_FILE VAR_MODEL"), std::string::npos);
 }
 
 }  // namespace aces::test

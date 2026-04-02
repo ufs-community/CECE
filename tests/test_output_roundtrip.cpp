@@ -24,6 +24,7 @@
 #include <Kokkos_Core.hpp>
 #include <cmath>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <random>
@@ -166,14 +167,21 @@ class OutputRoundTripTest : public ::testing::Test {
     std::string output_file_;
 
     void SetUp() override {
-        // Create output directory
-        system(("mkdir -p " + output_dir_).c_str());
-        system(("chmod 777 " + output_dir_).c_str());
+        // Create output directory using filesystem
+        std::filesystem::create_directories(output_dir_);
+
+        // Ensure directory is writable
+        std::filesystem::permissions(output_dir_,
+                                   std::filesystem::perms::owner_all |
+                                   std::filesystem::perms::group_read |
+                                   std::filesystem::perms::others_read);
     }
 
     void TearDown() override {
-        // Clean up output directory
-        system(("rm -rf " + output_dir_).c_str());
+        // Clean up output directory using filesystem
+        if (std::filesystem::exists(output_dir_)) {
+            std::filesystem::remove_all(output_dir_);
+        }
     }
 
     /**

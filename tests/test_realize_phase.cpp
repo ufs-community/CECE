@@ -21,6 +21,7 @@
 extern "C" {
 void aces_core_realize(void* data_ptr, void* importState_ptr, void* exportState_ptr, void* grid_ptr,
                        int* rc);
+void aces_core_initialize_p1(void** data_ptr_ptr, int* rc);
 }
 
 // Global ESMF initialization - done once for all tests
@@ -96,6 +97,7 @@ class RealizePhaseTest : public ::testing::Test {
     ESMC_Grid grid_;
     ESMC_State importState_;
     ESMC_State exportState_;
+    void* data_ptr_;
 };
 
 /**
@@ -106,19 +108,33 @@ TEST_F(RealizePhaseTest, CreatesExportFieldsForAllSpecies) {
     // Create test configuration with 3 species
     CreateTestConfig("aces_config.yaml", 3);
 
+    // Initialize core to create internal data structure
+    data_ptr_ = nullptr;
+    int init_rc = -1;
+    aces_core_initialize_p1(&data_ptr_, &init_rc);
+    ASSERT_EQ(init_rc, ESMF_SUCCESS) << "Phase 1 initialization should succeed";
+    ASSERT_NE(data_ptr_, nullptr) << "Phase 1 should create internal data structure";
+
     int rc = -1;
-    aces_core_realize(nullptr, importState_.ptr, exportState_.ptr, grid_.ptr, &rc);
+    aces_core_realize(data_ptr_, importState_.ptr, exportState_.ptr, grid_.ptr, &rc);
 
     // Verify success
-    EXPECT_EQ(rc, ESMF_SUCCESS) << "Realize phase should succeed";
+    EXPECT_EQ(rc, 0) << "Realize phase should succeed";
 
     // Verify each field exists and can be retrieved
-    for (int i = 0; i < 3; ++i) {
-        std::string species_name = "species_" + std::to_string(i);
+    // Note: ACES may create fields in any order, so check all expected species
+    std::vector<std::string> expected_species = {"species_0", "species_1", "species_2"};
+    int found_count = 0;
+
+    for (const auto& species_name : expected_species) {
         ESMC_Field field;
         int local_rc = ESMC_StateGetField(exportState_, species_name.c_str(), &field);
-        EXPECT_EQ(local_rc, ESMF_SUCCESS) << "Field " << species_name << " should exist";
-        EXPECT_NE(field.ptr, nullptr) << "Field pointer should not be null";
+        if (local_rc == ESMF_SUCCESS && field.ptr != nullptr) {
+            found_count++;
+        }
+    }
+
+    EXPECT_EQ(found_count, 3) << "Should find all 3 species fields in export state";
     }
 }
 
@@ -129,11 +145,17 @@ TEST_F(RealizePhaseTest, CreatesExportFieldsForAllSpecies) {
 TEST_F(RealizePhaseTest, HandlesNullExportState) {
     CreateTestConfig("aces_config.yaml", 1);
 
-    int rc = -1;
-    aces_core_realize(nullptr, importState_.ptr, nullptr, grid_.ptr, &rc);
+    // Initialize core to create internal data structure
+    data_ptr_ = nullptr;
+    int init_rc = -1;
+    aces_core_initialize_p1(&data_ptr_, &init_rc);
+    ASSERT_EQ(init_rc, ESMF_SUCCESS) << "Phase 1 initialization should succeed";
+
+    int rc = 0;
+    aces_core_realize(data_ptr_, importState_.ptr, nullptr, grid_.ptr, &rc);
 
     // Should fail gracefully
-    EXPECT_NE(rc, ESMF_SUCCESS) << "Should fail with null export state";
+    EXPECT_NE(rc, 0) << "Should fail with null export state";
 }
 
 /**
@@ -143,11 +165,17 @@ TEST_F(RealizePhaseTest, HandlesNullExportState) {
 TEST_F(RealizePhaseTest, HandlesNullGrid) {
     CreateTestConfig("aces_config.yaml", 1);
 
-    int rc = -1;
-    aces_core_realize(nullptr, importState_.ptr, exportState_.ptr, nullptr, &rc);
+    // Initialize core to create internal data structure
+    data_ptr_ = nullptr;
+    int init_rc = -1;
+    aces_core_initialize_p1(&data_ptr_, &init_rc);
+    ASSERT_EQ(init_rc, ESMF_SUCCESS) << "Phase 1 initialization should succeed";
+
+    int rc = 0;
+    aces_core_realize(data_ptr_, importState_.ptr, exportState_.ptr, nullptr, &rc);
 
     // Should fail gracefully
-    EXPECT_NE(rc, ESMF_SUCCESS) << "Should fail with null grid";
+    EXPECT_NE(rc, 0) << "Should fail with null grid";
 }
 
 /**
@@ -158,11 +186,17 @@ TEST_F(RealizePhaseTest, HandlesMissingConfigFile) {
     // Remove config file if it exists
     std::remove("aces_config.yaml");
 
-    int rc = -1;
-    aces_core_realize(nullptr, importState_.ptr, exportState_.ptr, grid_.ptr, &rc);
+    // Try to initialize - this may fail if no config exists, which is expected
+    data_ptr_ = nullptr;
+    int init_rc = -1;
+    aces_core_initialize_p1(&data_ptr_, &init_rc);
+    // Note: Phase 1 may fail with missing config, and that's expected
+
+    int rc = 0;
+    aces_core_realize(data_ptr_, importState_.ptr, exportState_.ptr, grid_.ptr, &rc);
 
     // Should fail gracefully
-    EXPECT_NE(rc, ESMF_SUCCESS) << "Should fail with missing config file";
+    EXPECT_NE(rc, 0) << "Should fail with missing config file";
 }
 
 /**
@@ -176,11 +210,17 @@ TEST_F(RealizePhaseTest, HandlesInvalidConfig) {
     config << "  - this is not valid\n";
     config.close();
 
-    int rc = -1;
-    aces_core_realize(nullptr, importState_.ptr, exportState_.ptr, grid_.ptr, &rc);
+    // Try to initialize - this may fail with invalid config, which is expected
+    data_ptr_ = nullptr;
+    int init_rc = -1;
+    aces_core_initialize_p1(&data_ptr_, &init_rc);
+    // Phase 1 may fail with invalid config, which is expected
+
+    int rc = 0;
+    aces_core_realize(data_ptr_, importState_.ptr, exportState_.ptr, grid_.ptr, &rc);
 
     // Should fail gracefully
-    EXPECT_NE(rc, ESMF_SUCCESS) << "Should fail with invalid config";
+    EXPECT_NE(rc, 0) << "Should fail with invalid config";
 }
 
 /**
@@ -190,11 +230,17 @@ TEST_F(RealizePhaseTest, HandlesInvalidConfig) {
 TEST_F(RealizePhaseTest, HandlesEmptySpeciesList) {
     CreateTestConfig("aces_config.yaml", 0);
 
+    // Initialize core to create internal data structure
+    data_ptr_ = nullptr;
+    int init_rc = -1;
+    aces_core_initialize_p1(&data_ptr_, &init_rc);
+    ASSERT_EQ(init_rc, ESMF_SUCCESS) << "Phase 1 initialization should succeed";
+
     int rc = -1;
-    aces_core_realize(nullptr, importState_.ptr, exportState_.ptr, grid_.ptr, &rc);
+    aces_core_realize(data_ptr_, importState_.ptr, exportState_.ptr, grid_.ptr, &rc);
 
     // Should succeed with no fields created
-    EXPECT_EQ(rc, ESMF_SUCCESS) << "Should succeed with empty species list";
+    EXPECT_EQ(rc, 0) << "Should succeed with empty species list";
 }
 
 /**
@@ -204,18 +250,31 @@ TEST_F(RealizePhaseTest, HandlesEmptySpeciesList) {
 TEST_F(RealizePhaseTest, AcceptsNullImportState) {
     CreateTestConfig("aces_config.yaml", 2);
 
+    // Initialize core to create internal data structure
+    data_ptr_ = nullptr;
+    int init_rc = -1;
+    aces_core_initialize_p1(&data_ptr_, &init_rc);
+    ASSERT_EQ(init_rc, ESMF_SUCCESS) << "Phase 1 initialization should succeed";
+
     int rc = -1;
-    aces_core_realize(nullptr, nullptr, exportState_.ptr, grid_.ptr, &rc);
+    aces_core_realize(data_ptr_, nullptr, exportState_.ptr, grid_.ptr, &rc);
 
     // Should succeed - import state is optional for standalone mode
-    EXPECT_EQ(rc, ESMF_SUCCESS) << "Should succeed with null import state";
+    EXPECT_EQ(rc, 0) << "Should succeed with null import state";
 
     // Verify export fields were still created
-    for (int i = 0; i < 2; ++i) {
-        std::string species_name = "species_" + std::to_string(i);
+    std::vector<std::string> expected_species = {"species_0", "species_1"};
+    int found_count = 0;
+
+    for (const auto& species_name : expected_species) {
         ESMC_Field field;
         int local_rc = ESMC_StateGetField(exportState_, species_name.c_str(), &field);
-        EXPECT_EQ(local_rc, ESMF_SUCCESS) << "Field " << species_name << " should exist";
+        if (local_rc == ESMF_SUCCESS && field.ptr != nullptr) {
+            found_count++;
+        }
+    }
+
+    EXPECT_EQ(found_count, 2) << "Should find both species fields in export state";
     }
 }
 
@@ -253,18 +312,30 @@ TEST_F(RealizePhaseTest, WorksWithRealisticConfig) {
     config << "\nphysics_schemes: []\n";
     config.close();
 
-    int rc = -1;
-    aces_core_realize(nullptr, importState_.ptr, exportState_.ptr, grid_.ptr, &rc);
+    // Initialize core to create internal data structure
+    data_ptr_ = nullptr;
+    int init_rc = -1;
+    aces_core_initialize_p1(&data_ptr_, &init_rc);
+    ASSERT_EQ(init_rc, ESMF_SUCCESS) << "Phase 1 initialization should succeed";
 
-    EXPECT_EQ(rc, ESMF_SUCCESS) << "Should succeed with realistic config";
+    int rc = -1;
+    aces_core_realize(data_ptr_, importState_.ptr, exportState_.ptr, grid_.ptr, &rc);
+
+    EXPECT_EQ(rc, 0) << "Should succeed with realistic config";
 
     // Verify each species field exists
-    const char* species[] = {"nox", "co", "so2"};
-    for (const char* sp : species) {
+    std::vector<std::string> expected_species = {"nox", "co", "so2"};
+    int found_count = 0;
+
+    for (const auto& species_name : expected_species) {
         ESMC_Field field;
-        int local_rc = ESMC_StateGetField(exportState_, sp, &field);
-        EXPECT_EQ(local_rc, ESMF_SUCCESS) << "Field " << sp << " should exist";
-        EXPECT_NE(field.ptr, nullptr);
+        int local_rc = ESMC_StateGetField(exportState_, species_name.c_str(), &field);
+        if (local_rc == ESMF_SUCCESS && field.ptr != nullptr) {
+            found_count++;
+        }
+    }
+
+    EXPECT_EQ(found_count, 3) << "Should find all 3 realistic species fields in export state";
     }
 }
 

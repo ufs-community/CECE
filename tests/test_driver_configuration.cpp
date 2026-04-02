@@ -411,24 +411,11 @@ physics_schemes:
 
 TEST_F(DriverConfigCInterfaceTest, InvalidGridNxZero) {
     WriteConfigFile(test_config_file, R"(
-driver:
-  start_time: "2020-01-01T00:00:00"
-  end_time: "2020-01-02T00:00:00"
-  timestep_seconds: 3600
-  grid:
-    nx: 0
-    ny: 4
-
-species:
-  CO:
-    - operation: add
-      field: CO_anthro
-      hierarchy: 0
-      scale: 1.0
-
-physics_schemes:
-  - name: NativeExample
-    language: cpp
+start_time: "2020-01-01T00:00:00"
+end_time: "2020-01-02T00:00:00"
+timestep_seconds: 3600
+grid_nx: 0
+grid_ny: 4
 )");
 
     char start_time[64] = {0};
@@ -447,24 +434,11 @@ physics_schemes:
 
 TEST_F(DriverConfigCInterfaceTest, InvalidGridNyNegative) {
     WriteConfigFile(test_config_file, R"(
-driver:
-  start_time: "2020-01-01T00:00:00"
-  end_time: "2020-01-02T00:00:00"
-  timestep_seconds: 3600
-  grid:
-    nx: 4
-    ny: -1
-
-species:
-  CO:
-    - operation: add
-      field: CO_anthro
-      hierarchy: 0
-      scale: 1.0
-
-physics_schemes:
-  - name: NativeExample
-    language: cpp
+start_time: "2020-01-01T00:00:00"
+end_time: "2020-01-02T00:00:00"
+timestep_seconds: 3600
+grid_nx: 4
+grid_ny: -1
 )");
 
     char start_time[64] = {0};

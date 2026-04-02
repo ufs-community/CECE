@@ -314,9 +314,6 @@ ctest --output-on-failure
 # Unit tests only
 ctest -L "unit" --output-on-failure
 
-# Property-based tests
-ctest -L "property" --output-on-failure
-
 # Integration tests
 ctest -L "integration" --output-on-failure
 
@@ -328,10 +325,10 @@ ctest -L "hemco" --output-on-failure
 
 ```bash
 # Run a specific test
-ctest -R test_mass_conservation_property --output-on-failure
+ctest -R test_driver_configuration --output-on-failure
 
 # Run tests matching a pattern
-ctest -R "vertical_distribution" --output-on-failure
+ctest -R "driver" --output-on-failure
 ```
 
 ## Troubleshooting

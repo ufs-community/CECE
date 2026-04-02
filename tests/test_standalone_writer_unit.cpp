@@ -339,7 +339,7 @@ TEST_F(StandaloneWriterUnitTest, CFAttributeSource) {
     memset(source, 0, sizeof(source));  // Initialize buffer to zeros
     rc = nc_get_att_text(ncid, NC_GLOBAL, "source", source);
     ASSERT_EQ(rc, NC_NOERR) << "source attribute missing";
-    EXPECT_STREQ(source, "ACES");
+    EXPECT_STREQ(source, "ACES - Atmospheric Chemistry Emission System");
 
     nc_close(ncid);
 }

@@ -97,43 +97,7 @@ jobs:
         fi
         python3 -m pip install pyyaml pytest jinja2 2>&1 | tail -5
 
-    - name: Run Unit Tests
-      shell: bash
-      run: |
-        if [ -f /opt/spack-environment/activate.sh ]; then
-          source /opt/spack-environment/activate.sh
-        fi
-        cd build
-        ctest --output-on-failure -L "unit"
-
-    - name: Run Property-Based Tests
-      shell: bash
-      run: |
-        if [ -f /opt/spack-environment/activate.sh ]; then
-          source /opt/spack-environment/activate.sh
-        fi
-        cd build
-        ctest --output-on-failure -L "property"
-
-    - name: Run Integration Tests
-      shell: bash
-      run: |
-        if [ -f /opt/spack-environment/activate.sh ]; then
-          source /opt/spack-environment/activate.sh
-        fi
-        cd build
-        ctest --output-on-failure -L "integration"
-
-    - name: Run HEMCO Parity Tests
-      shell: bash
-      run: |
-        if [ -f /opt/spack-environment/activate.sh ]; then
-          source /opt/spack-environment/activate.sh
-        fi
-        cd build
-        ctest --output-on-failure -L "hemco"
-
-    - name: Run All Tests with Coverage
+    - name: Run All Tests
       shell: bash
       run: |
         if [ -f /opt/spack-environment/activate.sh ]; then

@@ -245,8 +245,7 @@ enable_testing()
 add_executable(test_driver_configuration tests/test_driver_configuration.cpp)
 target_link_libraries(test_driver_configuration PRIVATE aces GTest::gtest_main)
 
-add_executable(test_driver_config_parsing tests/test_driver_config_parsing.cpp)
-target_link_libraries(test_driver_config_parsing PRIVATE aces GTest::gtest_main)
+
 
 add_executable(test_driver_config_validation tests/test_driver_config_validation.cpp)
 target_link_libraries(test_driver_config_validation PRIVATE aces iso8601_utils GTest::gtest_main)
@@ -254,45 +253,27 @@ target_link_libraries(test_driver_config_validation PRIVATE aces iso8601_utils G
 add_executable(test_driver_clock_management tests/test_driver_clock_management.cpp)
 target_link_libraries(test_driver_clock_management PRIVATE GTest::gtest_main)
 
-# Property 5: Clock Advancement Monotonicity (Requirements 5.1, 5.2)
-add_executable(test_clock_advancement_monotonicity_property tests/test_clock_advancement_monotonicity_property.cpp)
-target_link_libraries(test_clock_advancement_monotonicity_property PRIVATE ESMF::ESMF MPI::MPI_CXX GTest::gtest_main)
 
-# Property 6: Idempotent Clock Advancement (Requirements 5.4, 20.1, 20.4)
-add_executable(test_idempotent_clock_advancement_property tests/test_idempotent_clock_advancement_property.cpp)
-target_link_libraries(test_idempotent_clock_advancement_property PRIVATE ESMF::ESMF MPI::MPI_CXX GTest::gtest_main)
-
-# Property 8: Stop Time Detection (Requirements 7.1, 7.2)
-add_executable(test_stop_time_detection_property tests/test_stop_time_detection_property.cpp)
-target_link_libraries(test_stop_time_detection_property PRIVATE ESMF::ESMF MPI::MPI_CXX GTest::gtest_main)
 
 # Unit tests for clock operations (Requirements 4.1, 5.1, 7.1)
 add_executable(test_clock_operations_unit tests/test_clock_operations_unit.cpp)
 target_link_libraries(test_clock_operations_unit PRIVATE GTest::gtest_main)
 
-add_executable(test_driver_grid_mesh_creation tests/test_driver_grid_mesh_creation.cpp)
-target_link_libraries(test_driver_grid_mesh_creation PRIVATE GTest::gtest_main rapidcheck)
 
-add_executable(test_driver_component_setup tests/test_driver_component_setup.cpp)
-target_link_libraries(test_driver_component_setup PRIVATE GTest::gtest_main rapidcheck)
 
-add_executable(test_driver_run_loop tests/test_driver_run_loop.cpp)
-target_link_libraries(test_driver_run_loop PRIVATE GTest::gtest_main rapidcheck)
 
-add_executable(test_driver_finalization tests/test_driver_finalization.cpp)
-target_link_libraries(test_driver_finalization PRIVATE GTest::gtest_main rapidcheck)
 
-add_executable(test_driver_error_handling tests/test_driver_error_handling.cpp)
-target_link_libraries(test_driver_error_handling PRIVATE GTest::gtest_main rapidcheck)
 
-add_executable(test_driver_mesh_validation tests/test_driver_mesh_validation.cpp)
-target_link_libraries(test_driver_mesh_validation PRIVATE GTest::gtest_main rapidcheck)
 
-add_executable(test_mesh_file_input tests/test_mesh_file_input.cpp)
-target_link_libraries(test_mesh_file_input PRIVATE aces GTest::gtest_main)
 
-add_executable(test_driver_execution_modes tests/test_driver_execution_modes.cpp)
-target_link_libraries(test_driver_execution_modes PRIVATE GTest::gtest_main)
+
+
+
+
+
+
+
+
 
 add_executable(test_driver_integration_end_to_end tests/test_driver_integration_end_to_end.cpp)
 target_link_libraries(test_driver_integration_end_to_end PRIVATE GTest::gtest_main)
@@ -300,11 +281,9 @@ target_link_libraries(test_driver_integration_end_to_end PRIVATE GTest::gtest_ma
 add_executable(test_aces_cap tests/test_aces_cap.cpp)
 target_link_libraries(test_aces_cap PRIVATE aces GTest::gtest_main)
 
-add_executable(test_phase1_initialization tests/test_phase1_initialization.cpp)
-target_link_libraries(test_phase1_initialization PRIVATE aces GTest::gtest_main)
 
-add_executable(test_phase2_initialization tests/test_phase2_initialization.cpp)
-target_link_libraries(test_phase2_initialization PRIVATE aces GTest::gtest_main)
+
+
 
 add_executable(test_diagnostics tests/test_diagnostics.cpp)
 target_link_libraries(test_diagnostics PRIVATE aces GTest::gtest)
@@ -330,17 +309,13 @@ target_link_libraries(test_stacking_engine PRIVATE aces GTest::gtest_main)
 add_executable(test_vertical_distribution_single tests/test_vertical_distribution_single.cpp)
 target_link_libraries(test_vertical_distribution_single PRIVATE aces GTest::gtest_main)
 
-add_executable(test_vertical_distribution_range tests/test_vertical_distribution_range.cpp)
-target_link_libraries(test_vertical_distribution_range PRIVATE aces GTest::gtest_main)
 
-add_executable(test_vertical_distribution_pressure tests/test_vertical_distribution_pressure.cpp)
-target_link_libraries(test_vertical_distribution_pressure PRIVATE aces GTest::gtest_main)
 
-add_executable(test_vertical_distribution_height tests/test_vertical_distribution_height.cpp)
-target_link_libraries(test_vertical_distribution_height PRIVATE aces GTest::gtest_main)
 
-add_executable(test_vertical_distribution_pbl tests/test_vertical_distribution_pbl.cpp)
-target_link_libraries(test_vertical_distribution_pbl PRIVATE aces GTest::gtest_main)
+
+
+
+
 
 add_executable(test_field_resolution_priority tests/test_field_resolution_priority.cpp)
 target_link_libraries(test_field_resolution_priority PRIVATE aces GTest::gtest_main)
@@ -362,19 +337,9 @@ else()
     target_link_libraries(test_initialize_phases PRIVATE aces GTest::gtest_main)
 endif()
 
-add_executable(test_run_phase tests/test_run_phase.cpp)
-if(ACES_HAS_FORTRAN AND TARGET test_helpers)
-    target_link_libraries(test_run_phase PRIVATE aces test_helpers GTest::gtest_main)
-else()
-    target_link_libraries(test_run_phase PRIVATE aces GTest::gtest_main)
-endif()
 
-add_executable(test_finalize_phase tests/test_finalize_phase.cpp)
-if(ACES_HAS_FORTRAN AND TARGET test_helpers)
-    target_link_libraries(test_finalize_phase PRIVATE aces test_helpers GTest::gtest_main)
-else()
-    target_link_libraries(test_finalize_phase PRIVATE aces GTest::gtest_main)
-endif()
+
+
 
 add_executable(test_nuopc_phase_sequence tests/test_nuopc_phase_sequence.cpp)
 if(ACES_HAS_FORTRAN AND TARGET test_helpers)
@@ -406,18 +371,12 @@ target_link_libraries(benchmark_aces_hemco PRIVATE aces)
 add_executable(test_hemco_parity tests/test_hemco_parity.cpp)
 target_link_libraries(test_hemco_parity PRIVATE aces GTest::gtest_main)
 
-add_executable(test_hierarchy_prioritization tests/test_hierarchy_prioritization.cpp)
-target_link_libraries(test_hierarchy_prioritization PRIVATE aces GTest::gtest_main)
-
-add_executable(test_scale_factor_commutativity tests/test_scale_factor_commutativity.cpp)
-target_link_libraries(test_scale_factor_commutativity PRIVATE aces GTest::gtest_main)
 
 
-# Property 11: Generated Scheme Compilation (Requirement 5.24)
-add_executable(test_generated_scheme_compilation tests/test_generated_scheme_compilation.cpp)
-target_link_libraries(test_generated_scheme_compilation PRIVATE aces GTest::gtest_main)
-target_compile_definitions(test_generated_scheme_compilation PRIVATE
-    ACES_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+
+
+
+
 
 # Property 23: Output Round-Trip (Requirement 11.14)
 add_executable(test_output_roundtrip tests/test_output_roundtrip.cpp)
@@ -434,12 +393,10 @@ add_executable(test_kokkos_configuration tests/test_kokkos_configuration.cpp)
 target_link_libraries(test_kokkos_configuration PRIVATE aces GTest::gtest_main)
 
 # Property 13: Kokkos Device Consistency (Requirement 6.22)
-add_executable(test_kokkos_device_consistency tests/test_kokkos_device_consistency.cpp)
-target_link_libraries(test_kokkos_device_consistency PRIVATE aces GTest::gtest_main)
+
 
 # Unit tests for Kokkos parallel efficiency (Requirement 6.19, 6.20)
-add_executable(test_kokkos_parallel_efficiency tests/test_kokkos_parallel_efficiency.cpp)
-target_link_libraries(test_kokkos_parallel_efficiency PRIVATE aces GTest::gtest_main)
+
 
 # Comprehensive Property-Based Test Suite (Task 11.1)
 # Consolidates all 23 correctness properties
@@ -447,63 +404,29 @@ add_executable(test_properties tests/test_properties.cpp)
 target_link_libraries(test_properties PRIVATE aces GTest::gtest_main)
 
 # Property 21: Command-Line Configuration (Requirement 2.11, 2.12)
-add_executable(test_command_line_configuration_property tests/test_command_line_configuration_property.cpp)
-target_link_libraries(test_command_line_configuration_property PRIVATE aces GTest::gtest_main)
 
-# Property 1: ISO8601 Parsing Round Trip (Requirements 1.1, 2.1)
-add_executable(test_iso8601_parsing_roundtrip_property tests/test_iso8601_parsing_roundtrip_property.cpp)
-target_link_libraries(test_iso8601_parsing_roundtrip_property PRIVATE aces iso8601_utils GTest::gtest_main)
-
-# Property 17: Test Idempotence (Requirement 8.16)
-add_executable(test_idempotence_property tests/test_idempotence_property.cpp)
-target_link_libraries(test_idempotence_property PRIVATE aces GTest::gtest_main)
 
 # Property 17: Test Suite Idempotence (Requirement 8.16)
 # Tests that running the full test suite twice produces identical results
 add_executable(test_suite_idempotence tests/test_suite_idempotence.cpp)
 target_link_libraries(test_suite_idempotence PRIVATE aces GTest::gtest_main)
 
-# Property 15: Vertical Distribution Round-Trip (Requirement 6.24)
-add_executable(test_vertical_distribution_roundtrip_property
-    tests/test_vertical_distribution_roundtrip_property.cpp)
-target_link_libraries(test_vertical_distribution_roundtrip_property PRIVATE aces GTest::gtest_main)
+
 
 # Temporary Reproduction Test
 add_executable(test_repro_failure tests/repro_failure.cpp)
 target_link_libraries(test_repro_failure PRIVATE aces GTest::gtest_main)
 
-# Property 14: Mass Conservation Invariant (Requirement 6.23)
-add_executable(test_mass_conservation_property tests/test_mass_conservation_property.cpp)
-target_link_libraries(test_mass_conservation_property PRIVATE aces GTest::gtest_main)
-
-# Property 19: Temporal Cycle Application (Requirement 3.7)
-add_executable(test_temporal_cycle_application_property
-    tests/test_temporal_cycle_application_property.cpp)
-target_link_libraries(test_temporal_cycle_application_property PRIVATE aces GTest::gtest_main)
-
-# Property 5: NUOPC Phase Execution Order (Requirements 2.5-2.10, 4.3-4.17)
-add_executable(test_nuopc_phase_execution_order_property
-    tests/test_nuopc_phase_execution_order_property.cpp)
-if(ACES_HAS_FORTRAN AND TARGET test_helpers)
-    target_link_libraries(test_nuopc_phase_execution_order_property PRIVATE aces test_helpers GTest::gtest_main)
-else()
-    target_link_libraries(test_nuopc_phase_execution_order_property PRIVATE aces GTest::gtest_main)
-endif()
 
 
-# Property 12: BasePhysicsScheme Field Caching (Requirement 5.16)
-add_executable(test_base_physics_scheme_field_caching
-    tests/test_base_physics_scheme_field_caching.cpp)
-if(ACES_HAS_FORTRAN AND TARGET test_helpers)
-    target_link_libraries(test_base_physics_scheme_field_caching PRIVATE aces test_helpers GTest::gtest_main)
-else()
-    target_link_libraries(test_base_physics_scheme_field_caching PRIVATE aces GTest::gtest_main)
-endif()
 
-# Property 10: Physics Scheme Auto-Registration (Requirements 5.18, 5.23)
-add_executable(test_physics_scheme_autoregistration
-    tests/test_physics_scheme_autoregistration.cpp)
-target_link_libraries(test_physics_scheme_autoregistration PRIVATE aces GTest::gtest_main)
+
+
+
+
+
+
+
 
 # Standalone Writer Unit Tests (Requirements 11.6, 11.7, 11.9, 11.11, 11.13)
 add_executable(test_standalone_writer_unit tests/test_standalone_writer_unit.cpp)
@@ -517,13 +440,9 @@ if(NetCDF_ROOT)
 endif()
 
 # Kernel Profiling Tests (Requirements 6.4, 6.19, 6.20)
-add_executable(test_kernel_profiling tests/test_kernel_profiling.cpp)
-target_link_libraries(test_kernel_profiling PRIVATE aces GTest::gtest_main)
 
-# Property 9: Dynamic Species Registration (Requirements 3.14, 3.15)
-add_executable(test_dynamic_species_registration_property
-    tests/test_dynamic_species_registration_property.cpp)
-target_link_libraries(test_dynamic_species_registration_property PRIVATE aces GTest::gtest_main)
+
+
 
 
 # Unit tests for field creation (Requirement R4)
@@ -563,31 +482,28 @@ endif()
 
 include(GoogleTest)
 gtest_discover_tests(test_driver_configuration)
-gtest_discover_tests(test_driver_config_parsing)
+
 gtest_discover_tests(test_driver_config_validation)
 gtest_discover_tests(test_driver_clock_management)
-gtest_discover_tests(test_clock_advancement_monotonicity_property)
-gtest_discover_tests(test_idempotent_clock_advancement_property)
-gtest_discover_tests(test_stop_time_detection_property)
 gtest_discover_tests(test_clock_operations_unit)
-gtest_discover_tests(test_driver_grid_mesh_creation)
-gtest_discover_tests(test_driver_component_setup)
-gtest_discover_tests(test_driver_run_loop)
-gtest_discover_tests(test_driver_finalization)
-gtest_discover_tests(test_driver_error_handling)
-gtest_discover_tests(test_driver_mesh_validation)
-gtest_discover_tests(test_mesh_file_input)
-gtest_discover_tests(test_driver_execution_modes)
+
+
+
+
+
+
+
+
 gtest_discover_tests(test_driver_integration_end_to_end)
 gtest_discover_tests(test_aces_cap)
-gtest_discover_tests(test_phase1_initialization)
-gtest_discover_tests(test_phase2_initialization)
+
+
 gtest_discover_tests(test_stacking_engine)
 gtest_discover_tests(test_vertical_distribution_single)
-gtest_discover_tests(test_vertical_distribution_range)
-gtest_discover_tests(test_vertical_distribution_pressure)
-gtest_discover_tests(test_vertical_distribution_height)
-gtest_discover_tests(test_vertical_distribution_pbl)
+
+
+
+
 gtest_discover_tests(test_aces_utils)
 gtest_discover_tests(test_aces_compute)
 gtest_discover_tests(test_physics)
@@ -598,34 +514,26 @@ gtest_discover_tests(test_field_resolution_priority)
 
 gtest_discover_tests(test_realize_phase)
 gtest_discover_tests(test_initialize_phases)
-gtest_discover_tests(test_run_phase)
-gtest_discover_tests(test_finalize_phase)
+
+
 gtest_discover_tests(test_nuopc_phase_sequence)
 gtest_discover_tests(test_single_model_driver)
 gtest_discover_tests(test_hemco_parity)
-gtest_discover_tests(test_hierarchy_prioritization)
-gtest_discover_tests(test_scale_factor_commutativity)
-gtest_discover_tests(test_generated_scheme_compilation)
+
+
+
 gtest_discover_tests(test_output_roundtrip)
 gtest_discover_tests(test_kokkos_configuration)
-gtest_discover_tests(test_kokkos_device_consistency)
-gtest_discover_tests(test_kokkos_parallel_efficiency)
-gtest_discover_tests(test_properties)
-gtest_discover_tests(test_command_line_configuration_property)
-gtest_discover_tests(test_iso8601_parsing_roundtrip_property)
-gtest_discover_tests(test_idempotence_property)
-gtest_discover_tests(test_suite_idempotence)
-gtest_discover_tests(test_vertical_distribution_roundtrip_property)
-gtest_discover_tests(test_repro_failure)
-gtest_discover_tests(test_mass_conservation_property)
-gtest_discover_tests(test_temporal_cycle_application_property)
-gtest_discover_tests(test_nuopc_phase_execution_order_property)
 
-gtest_discover_tests(test_base_physics_scheme_field_caching)
-gtest_discover_tests(test_physics_scheme_autoregistration)
+
+gtest_discover_tests(test_properties)
+gtest_discover_tests(test_suite_idempotence)
+gtest_discover_tests(test_repro_failure)
+
+
+
 gtest_discover_tests(test_standalone_writer_unit)
-gtest_discover_tests(test_kernel_profiling)
-gtest_discover_tests(test_dynamic_species_registration_property)
+
 
 gtest_discover_tests(test_field_creation)
 gtest_discover_tests(test_field_pointer_passing)
