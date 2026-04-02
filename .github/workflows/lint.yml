@@ -11,10 +11,26 @@ jobs:
 
     - name: Install Clang-Format and Clang-Tidy
       run: |
-        apt-get update
-        apt-get install -y clang-format-15 clang-tidy
-        # Create symlink for consistent version
-        ln -sf /usr/bin/clang-format-15 /usr/bin/clang-format || true
+        # Add LLVM repo for newer clang-format versions
+        apt-get update -qq
+        apt-get install -y -qq wget lsb-release software-properties-common gnupg
+        wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
+        add-apt-repository "deb http://apt.llvm.org/$(lsb_release -cs)/ llvm-toolchain-$(lsb_release -cs) main"
+        apt-get update -qq
+        # Try to install clang-format-18 (latest), fall back to available versions
+        apt-get install -y -qq clang-format-18 clang-tidy || \
+        apt-get install -y -qq clang-format-17 clang-tidy || \
+        apt-get install -y -qq clang-format-16 clang-tidy || \
+        apt-get install -y -qq clang-format-15 clang-tidy
+        # Create symlink for the installed version
+        for version in 18 17 16 15; do
+          if [ -f /usr/bin/clang-format-$version ]; then
+            ln -sf /usr/bin/clang-format-$version /usr/bin/clang-format
+            echo "Using clang-format-$version"
+            clang-format --version
+            break
+          fi
+        done
 
     - name: Run Clang-Format Check
       run: |
