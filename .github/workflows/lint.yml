@@ -12,7 +12,9 @@ jobs:
     - name: Install Clang-Format and Clang-Tidy
       run: |
         apt-get update
-        apt-get install -y clang-format clang-tidy
+        apt-get install -y clang-format-15 clang-tidy
+        # Create symlink for consistent version
+        ln -sf /usr/bin/clang-format-15 /usr/bin/clang-format || true
 
     - name: Run Clang-Format Check
       run: |

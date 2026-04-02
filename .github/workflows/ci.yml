@@ -19,7 +19,9 @@ jobs:
         if [ -f /opt/spack-environment/activate.sh ]; then
           source /opt/spack-environment/activate.sh
         fi
-        apt-get update -qq && apt-get install -y -qq clang-format clang-tidy 2>&1 | tail -3
+        apt-get update -qq && apt-get install -y -qq clang-format-15 clang-tidy 2>&1 | tail -3
+        # Create symlink for consistent version
+        ln -sf /usr/bin/clang-format-15 /usr/bin/clang-format || true
 
     - name: Run clang-format check
       shell: bash
