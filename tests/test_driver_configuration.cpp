@@ -10,14 +10,16 @@
  *   - Validation of positive timestep
  *   - Validation of positive grid dimensions
  *
- * Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 2.1, 2.2, 2.3, 2.4, 3.1, 3.2, 3.3, 14.1, 14.2, 14.3, 14.4, 14.5, 14.6, 14.7
+ * Requirements: 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 2.1, 2.2, 2.3, 2.4, 3.1, 3.2, 3.3, 14.1, 14.2, 14.3, 14.4,
+ * 14.5, 14.6, 14.7
  */
 
 #include <gtest/gtest.h>
-#include <fstream>
-#include <sstream>
+
 #include <cstdio>
 #include <ctime>
+#include <fstream>
+#include <sstream>
 
 #include "aces/aces_config.hpp"
 
@@ -42,11 +44,10 @@ static void DeleteFile(const std::string& path) {
 // ---------------------------------------------------------------------------
 
 class ISO8601ParsingTest : public ::testing::Test {
-protected:
+   protected:
     // Helper to parse ISO8601 string (mimics Fortran parse_iso8601)
-    static bool ParseISO8601(const std::string& iso_str,
-                            int& yy, int& mm, int& dd,
-                            int& hh, int& mn, int& ss) {
+    static bool ParseISO8601(const std::string& iso_str, int& yy, int& mm, int& dd, int& hh,
+                             int& mn, int& ss) {
         if (iso_str.length() < 19) return false;  // YYYY-MM-DDTHH:MM:SS
 
         try {
@@ -68,7 +69,8 @@ protected:
 };
 
 // Property 1: ISO8601 Parsing Round Trip
-// For any valid ISO8601 datetime string, parsing and reconstructing should produce equivalent datetime
+// For any valid ISO8601 datetime string, parsing and reconstructing should produce equivalent
+// datetime
 TEST_F(ISO8601ParsingTest, ValidISO8601Format) {
     int yy, mm, dd, hh, mn, ss;
 
@@ -99,9 +101,9 @@ TEST_F(ISO8601ParsingTest, InvalidISO8601Format) {
     int yy, mm, dd, hh, mn, ss;
 
     // Test invalid formats
-    EXPECT_FALSE(ParseISO8601("2020-01-01", yy, mm, dd, hh, mn, ss));  // Missing time
+    EXPECT_FALSE(ParseISO8601("2020-01-01", yy, mm, dd, hh, mn, ss));       // Missing time
     EXPECT_FALSE(ParseISO8601("20200101T000000", yy, mm, dd, hh, mn, ss));  // No separators
-    EXPECT_FALSE(ParseISO8601("invalid", yy, mm, dd, hh, mn, ss));  // Completely invalid
+    EXPECT_FALSE(ParseISO8601("invalid", yy, mm, dd, hh, mn, ss));          // Completely invalid
 }
 
 // ---------------------------------------------------------------------------
@@ -109,7 +111,7 @@ TEST_F(ISO8601ParsingTest, InvalidISO8601Format) {
 // ---------------------------------------------------------------------------
 
 class DriverConfigurationTest : public ::testing::Test {
-protected:
+   protected:
     void SetUp() override {
         test_config_file = "test_driver_config.yaml";
     }
@@ -207,8 +209,8 @@ physics_schemes:
     // Verify partial config with defaults for missing fields
     EXPECT_EQ(config.driver_config.start_time, "2020-03-15T06:00:00");
     EXPECT_EQ(config.driver_config.end_time, "2020-01-02T00:00:00");  // Default
-    EXPECT_EQ(config.driver_config.timestep_seconds, 3600);  // Default
-    EXPECT_TRUE(config.driver_config.mesh_file.empty());  // Default
+    EXPECT_EQ(config.driver_config.timestep_seconds, 3600);           // Default
+    EXPECT_TRUE(config.driver_config.mesh_file.empty());              // Default
     EXPECT_EQ(config.driver_config.grid.nx, 16);
     EXPECT_EQ(config.driver_config.grid.ny, 4);  // Default
 }
@@ -218,7 +220,7 @@ physics_schemes:
 // ---------------------------------------------------------------------------
 
 class DriverConfigurationValidationTest : public ::testing::Test {
-protected:
+   protected:
     // Helper to validate start < end
     static bool ValidateTimeOrdering(const std::string& start_str, const std::string& end_str) {
         // Simple string comparison for ISO8601 format works for validation
@@ -277,17 +279,14 @@ TEST_F(DriverConfigurationValidationTest, InvalidGridDimensions) {
 
 // External C function for getting driver config
 extern "C" {
-    void aces_core_get_driver_config(const char* config_file, int config_file_len,
-                                     char* start_time, int start_time_len,
-                                     char* end_time, int end_time_len,
-                                     int* timestep_seconds,
-                                     char* mesh_file, int mesh_file_len,
-                                     int* nx, int* ny,
-                                     int* rc);
+void aces_core_get_driver_config(const char* config_file, int config_file_len, char* start_time,
+                                 int start_time_len, char* end_time, int end_time_len,
+                                 int* timestep_seconds, char* mesh_file, int mesh_file_len, int* nx,
+                                 int* ny, int* rc);
 }
 
 class DriverConfigCInterfaceTest : public ::testing::Test {
-protected:
+   protected:
     void SetUp() override {
         test_config_file = "test_driver_config_c.yaml";
     }
@@ -328,12 +327,9 @@ physics_schemes:
     int nx = 0, ny = 0;
     int rc = 0;
 
-    aces_core_get_driver_config(test_config_file.c_str(), test_config_file.length(),
-                                start_time, sizeof(start_time),
-                                end_time, sizeof(end_time),
-                                &timestep_seconds,
-                                mesh_file, sizeof(mesh_file),
-                                &nx, &ny, &rc);
+    aces_core_get_driver_config(test_config_file.c_str(), test_config_file.length(), start_time,
+                                sizeof(start_time), end_time, sizeof(end_time), &timestep_seconds,
+                                mesh_file, sizeof(mesh_file), &nx, &ny, &rc);
 
     EXPECT_EQ(rc, 0) << "Expected successful config read";
     EXPECT_EQ(timestep_seconds, 3600);
@@ -370,12 +366,9 @@ physics_schemes:
     int nx = 0, ny = 0;
     int rc = 0;
 
-    aces_core_get_driver_config(test_config_file.c_str(), test_config_file.length(),
-                                start_time, sizeof(start_time),
-                                end_time, sizeof(end_time),
-                                &timestep_seconds,
-                                mesh_file, sizeof(mesh_file),
-                                &nx, &ny, &rc);
+    aces_core_get_driver_config(test_config_file.c_str(), test_config_file.length(), start_time,
+                                sizeof(start_time), end_time, sizeof(end_time), &timestep_seconds,
+                                mesh_file, sizeof(mesh_file), &nx, &ny, &rc);
 
     EXPECT_EQ(rc, -1) << "Expected validation error for timestep_seconds = 0";
 }
@@ -409,12 +402,9 @@ physics_schemes:
     int nx = 0, ny = 0;
     int rc = 0;
 
-    aces_core_get_driver_config(test_config_file.c_str(), test_config_file.length(),
-                                start_time, sizeof(start_time),
-                                end_time, sizeof(end_time),
-                                &timestep_seconds,
-                                mesh_file, sizeof(mesh_file),
-                                &nx, &ny, &rc);
+    aces_core_get_driver_config(test_config_file.c_str(), test_config_file.length(), start_time,
+                                sizeof(start_time), end_time, sizeof(end_time), &timestep_seconds,
+                                mesh_file, sizeof(mesh_file), &nx, &ny, &rc);
 
     EXPECT_EQ(rc, -1) << "Expected validation error for negative timestep_seconds";
 }
@@ -448,12 +438,9 @@ physics_schemes:
     int nx = 0, ny = 0;
     int rc = 0;
 
-    aces_core_get_driver_config(test_config_file.c_str(), test_config_file.length(),
-                                start_time, sizeof(start_time),
-                                end_time, sizeof(end_time),
-                                &timestep_seconds,
-                                mesh_file, sizeof(mesh_file),
-                                &nx, &ny, &rc);
+    aces_core_get_driver_config(test_config_file.c_str(), test_config_file.length(), start_time,
+                                sizeof(start_time), end_time, sizeof(end_time), &timestep_seconds,
+                                mesh_file, sizeof(mesh_file), &nx, &ny, &rc);
 
     EXPECT_EQ(rc, -1) << "Expected validation error for nx = 0";
 }
@@ -487,12 +474,9 @@ physics_schemes:
     int nx = 0, ny = 0;
     int rc = 0;
 
-    aces_core_get_driver_config(test_config_file.c_str(), test_config_file.length(),
-                                start_time, sizeof(start_time),
-                                end_time, sizeof(end_time),
-                                &timestep_seconds,
-                                mesh_file, sizeof(mesh_file),
-                                &nx, &ny, &rc);
+    aces_core_get_driver_config(test_config_file.c_str(), test_config_file.length(), start_time,
+                                sizeof(start_time), end_time, sizeof(end_time), &timestep_seconds,
+                                mesh_file, sizeof(mesh_file), &nx, &ny, &rc);
 
     EXPECT_EQ(rc, -1) << "Expected validation error for negative ny";
 }

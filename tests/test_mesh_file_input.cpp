@@ -12,9 +12,10 @@
  */
 
 #include <gtest/gtest.h>
+
+#include <cstdio>
 #include <fstream>
 #include <string>
-#include <cstdio>
 
 #include "aces/aces_config.hpp"
 
@@ -23,7 +24,7 @@
 // ---------------------------------------------------------------------------
 
 class MeshFileConfigTest : public ::testing::Test {
-protected:
+   protected:
     void SetUp() override {
         // Create test config files
         CreateTestConfigWithMesh();
@@ -128,7 +129,7 @@ TEST_F(MeshFileConfigTest, GridMeshSelectionLogic) {
 // ---------------------------------------------------------------------------
 
 class MeshFileValidationTest : public ::testing::Test {
-protected:
+   protected:
     void SetUp() override {
         // Create a dummy mesh file for testing
         test_mesh_file_ = "test_mesh.nc";
@@ -169,9 +170,7 @@ TEST_F(MeshFileValidationTest, MeshFileDoesNotExist) {
  */
 TEST(MeshValidationTest, ValidateMeshNodeCount) {
     // Mock mesh validation logic
-    auto validate_node_count = [](int node_count) -> bool {
-        return node_count > 0;
-    };
+    auto validate_node_count = [](int node_count) -> bool { return node_count > 0; };
 
     EXPECT_TRUE(validate_node_count(100));
     EXPECT_TRUE(validate_node_count(1));
@@ -184,9 +183,7 @@ TEST(MeshValidationTest, ValidateMeshNodeCount) {
  */
 TEST(MeshValidationTest, ValidateMeshElementCount) {
     // Mock mesh validation logic
-    auto validate_element_count = [](int element_count) -> bool {
-        return element_count > 0;
-    };
+    auto validate_element_count = [](int element_count) -> bool { return element_count > 0; };
 
     EXPECT_TRUE(validate_element_count(50));
     EXPECT_TRUE(validate_element_count(1));
@@ -206,10 +203,10 @@ TEST(MeshValidationTest, ValidateMeshConnectivity) {
         return num_nodes >= 4 && num_elements >= 1;
     };
 
-    EXPECT_TRUE(validate_connectivity(4, 1));    // Minimum valid quad mesh
-    EXPECT_TRUE(validate_connectivity(100, 81)); // 10x10 grid -> 9x9 elements
-    EXPECT_FALSE(validate_connectivity(3, 1));   // Not enough nodes for quad
-    EXPECT_FALSE(validate_connectivity(0, 0));   // Empty mesh
+    EXPECT_TRUE(validate_connectivity(4, 1));     // Minimum valid quad mesh
+    EXPECT_TRUE(validate_connectivity(100, 81));  // 10x10 grid -> 9x9 elements
+    EXPECT_FALSE(validate_connectivity(3, 1));    // Not enough nodes for quad
+    EXPECT_FALSE(validate_connectivity(0, 0));    // Empty mesh
 }
 
 // ---------------------------------------------------------------------------
@@ -225,7 +222,8 @@ TEST(MeshLoggingTest, LogMeshDimensions) {
         std::string log;
         log += "INFO: [log_mesh_info] Mesh nodes: " + std::to_string(node_count) + "\n";
         log += "INFO: [log_mesh_info] Mesh elements: " + std::to_string(element_count) + "\n";
-        log += "INFO: [log_mesh_info] Mesh spatial dimension: " + std::to_string(spatial_dim) + "\n";
+        log +=
+            "INFO: [log_mesh_info] Mesh spatial dimension: " + std::to_string(spatial_dim) + "\n";
         return log;
     };
 

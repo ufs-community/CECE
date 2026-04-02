@@ -16,13 +16,11 @@
  */
 
 #include <Kokkos_Core.hpp>
-#include <iostream>
 #include <chrono>
+#include <iostream>
 #include <thread>
 
 #include "aces/aces_internal.hpp"
-
-
 
 extern "C" {
 

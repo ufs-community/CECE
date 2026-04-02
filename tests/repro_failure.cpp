@@ -1,8 +1,9 @@
 #include <gtest/gtest.h>
+
 #include <Kokkos_Core.hpp>
-#include <vector>
-#include <random>
 #include <iostream>
+#include <random>
+#include <vector>
 
 #include "aces/aces_compute.hpp"
 #include "aces/aces_config.hpp"
@@ -46,9 +47,10 @@ class VerticalDistributionReproResolver : public FieldResolver {
     Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
     ResolveImportDevice(const std::string& name, int, int, int) override {
         if (fields.find(name) == fields.end()) {
-             std::cerr << "CRITICAL ERROR: Field " << name << " not found!" << std::endl;
-             // Return dummy to avoid crash, but issue is flagged
-             return Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>("MISSING", 0,0,0);
+            std::cerr << "CRITICAL ERROR: Field " << name << " not found!" << std::endl;
+            // Return dummy to avoid crash, but issue is flagged
+            return Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>(
+                "MISSING", 0, 0, 0);
         }
         return fields[name].view_device();
     }
@@ -92,8 +94,8 @@ TEST_F(ReproTest, ReplicateFailurePrecise) {
 
         if (iteration != 7) continue;
 
-        std::cout << "Iteration 7 reached. Method: " << static_cast<int>(method)
-                  << " Grid: " << nx << "," << ny << "," << nz << std::endl;
+        std::cout << "Iteration 7 reached. Method: " << static_cast<int>(method) << " Grid: " << nx
+                  << "," << ny << "," << nz << std::endl;
 
         AcesConfig config;
         EmissionLayer layer_config;
@@ -120,15 +122,17 @@ TEST_F(ReproTest, ReplicateFailurePrecise) {
         // Grid (11,8,29). Method 2 (PRESSURE).
 
         // I'll just use those.
-        nx = 11; ny = 8; nz = 29;
+        nx = 11;
+        ny = 8;
+        nz = 29;
         method = VerticalDistributionMethod::PRESSURE;
 
-        layer_config.vdist_method = method; // Correction: Update layer config!
+        layer_config.vdist_method = method;  // Correction: Update layer config!
 
         // Now I need to generate P start/end using the same logic as the specific method block
         // "PRESSURE" block in SmallEmissionsRoundTrip use:
         std::uniform_real_distribution<double> pressure_dist(10000.0, 100000.0);
-        double p_start = pressure_dist(rng); // Calling this advances RNG
+        double p_start = pressure_dist(rng);  // Calling this advances RNG
         double p_end = pressure_dist(rng);
         if (p_start > p_end) std::swap(p_start, p_end);
 
@@ -145,7 +149,7 @@ TEST_F(ReproTest, ReplicateFailurePrecise) {
 
         // SetupMPASCoords
         {
-             // Copy of SetupMPASCoords logic
+            // Copy of SetupMPASCoords logic
             config.vertical_config.type = VerticalCoordType::MPAS;
             config.vertical_config.z_field = "height";
             config.vertical_config.pbl_field = "pbl_height";
@@ -163,9 +167,8 @@ TEST_F(ReproTest, ReplicateFailurePrecise) {
             }
 
             resolver.AddField("ps", nx, ny, 1);
-            for(int i=0; i<nx; ++i)
-                for(int j=0; j<ny; ++j)
-                 resolver.SetValue("ps", i, j, 0, 101325.0);
+            for (int i = 0; i < nx; ++i)
+                for (int j = 0; j < ny; ++j) resolver.SetValue("ps", i, j, 0, 101325.0);
 
             resolver.AddField("pbl_height", nx, ny, 1);
             std::uniform_real_distribution<double> pbl_dist(500.0, 2000.0);
@@ -206,7 +209,8 @@ TEST_F(ReproTest, ReplicateFailurePrecise) {
         double max_rel_error = 0.0;
         for (size_t i = 0; i < emissions_2d.size(); ++i) {
             if (emissions_2d[i] != 0.0) {
-                double rel_error = std::abs(recovered_2d[i] - emissions_2d[i]) / std::abs(emissions_2d[i]);
+                double rel_error =
+                    std::abs(recovered_2d[i] - emissions_2d[i]) / std::abs(emissions_2d[i]);
                 max_rel_error = std::max(max_rel_error, rel_error);
             }
         }
@@ -216,5 +220,4 @@ TEST_F(ReproTest, ReplicateFailurePrecise) {
     }
 }
 
-
-} // namespace aces
+}  // namespace aces

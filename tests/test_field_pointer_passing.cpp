@@ -168,7 +168,7 @@ TEST_F(FieldPointerPassingTest, FieldPointerPassing_PointersStoredCorrectly) {
  *
  * Verifies that:
  * - Field names are stored after binding
-  * - Field names match species names from configuration
+ * - Field names match species names from configuration
  * - Name count matches pointer count
  */
 TEST_F(FieldPointerPassingTest, FieldPointerPassing_FieldNamesStoredCorrectly) {
@@ -500,8 +500,7 @@ TEST_F(FieldPointerPassingTest, FieldPointerPassing_PointersAccessibleAfterBindi
 
             // Verify data is still correct
             for (int j = 0; j < nx_ * ny_ * nz_; ++j) {
-                EXPECT_EQ(stored_ptr[j], 42.0 + i)
-                    << "Data should persist on access " << access;
+                EXPECT_EQ(stored_ptr[j], 42.0 + i) << "Data should persist on access " << access;
             }
         }
     }

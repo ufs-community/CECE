@@ -15,82 +15,83 @@
  */
 
 #include <gtest/gtest.h>
+
+#include <cmath>
 #include <string>
 #include <vector>
-#include <cmath>
 
 // Mock ESMF types and functions for testing without ESMF dependencies
 namespace MockESMF {
-    struct VM {
-        int petCount;
-        int localPet;
-    };
+struct VM {
+    int petCount;
+    int localPet;
+};
 
-    struct Grid {
-        int nx, ny;
-        int local_nx, local_ny;
-        int local_start_x, local_start_y;
-        bool is_distributed;
-    };
+struct Grid {
+    int nx, ny;
+    int local_nx, local_ny;
+    int local_start_x, local_start_y;
+    bool is_distributed;
+};
 
-    struct GridDecomposition {
-        int petCount;
-        int localPet;
-        int global_nx, global_ny;
-        std::vector<int> local_nx_per_pet;
-        std::vector<int> local_ny_per_pet;
-        std::vector<int> start_x_per_pet;
-        std::vector<int> start_y_per_pet;
-    };
+struct GridDecomposition {
+    int petCount;
+    int localPet;
+    int global_nx, global_ny;
+    std::vector<int> local_nx_per_pet;
+    std::vector<int> local_ny_per_pet;
+    std::vector<int> start_x_per_pet;
+    std::vector<int> start_y_per_pet;
+};
 
-    // Simulate ESMF domain decomposition
-    GridDecomposition DecomposeGrid(int global_nx, int global_ny, int petCount) {
-        GridDecomposition decomp;
-        decomp.petCount = petCount;
-        decomp.global_nx = global_nx;
-        decomp.global_ny = global_ny;
-        decomp.local_nx_per_pet.resize(petCount);
-        decomp.local_ny_per_pet.resize(petCount);
-        decomp.start_x_per_pet.resize(petCount);
-        decomp.start_y_per_pet.resize(petCount);
+// Simulate ESMF domain decomposition
+GridDecomposition DecomposeGrid(int global_nx, int global_ny, int petCount) {
+    GridDecomposition decomp;
+    decomp.petCount = petCount;
+    decomp.global_nx = global_nx;
+    decomp.global_ny = global_ny;
+    decomp.local_nx_per_pet.resize(petCount);
+    decomp.local_ny_per_pet.resize(petCount);
+    decomp.start_x_per_pet.resize(petCount);
+    decomp.start_y_per_pet.resize(petCount);
 
-        // Simple 1D decomposition along X axis
-        int base_nx = global_nx / petCount;
-        int remainder_nx = global_nx % petCount;
+    // Simple 1D decomposition along X axis
+    int base_nx = global_nx / petCount;
+    int remainder_nx = global_nx % petCount;
 
-        int start_x = 1;
-        for (int i = 0; i < petCount; ++i) {
-            decomp.local_nx_per_pet[i] = base_nx + (i < remainder_nx ? 1 : 0);
-            decomp.start_x_per_pet[i] = start_x;
-            start_x += decomp.local_nx_per_pet[i];
-            // All processes get full Y dimension
-            decomp.local_ny_per_pet[i] = global_ny;
-            decomp.start_y_per_pet[i] = 1;
-        }
-
-        return decomp;
+    int start_x = 1;
+    for (int i = 0; i < petCount; ++i) {
+        decomp.local_nx_per_pet[i] = base_nx + (i < remainder_nx ? 1 : 0);
+        decomp.start_x_per_pet[i] = start_x;
+        start_x += decomp.local_nx_per_pet[i];
+        // All processes get full Y dimension
+        decomp.local_ny_per_pet[i] = global_ny;
+        decomp.start_y_per_pet[i] = 1;
     }
+
+    return decomp;
 }
+}  // namespace MockESMF
 
 // ---------------------------------------------------------------------------
 // Tests for Single-Process Execution (Task 10)
 // ---------------------------------------------------------------------------
 
 class SingleProcessExecutionTest : public ::testing::Test {
-protected:
+   protected:
     MockESMF::VM CreateSingleProcessVM() {
-        return {petCount: 1, localPet: 0};
+        return {petCount : 1, localPet : 0};
     }
 
     MockESMF::Grid CreateSingleProcessGrid(int nx, int ny) {
         return {
-            nx: nx,
-            ny: ny,
-            local_nx: nx,
-            local_ny: ny,
-            local_start_x: 1,
-            local_start_y: 1,
-            is_distributed: false
+            nx : nx,
+            ny : ny,
+            local_nx : nx,
+            local_ny : ny,
+            local_start_x : 1,
+            local_start_y : 1,
+            is_distributed : false
         };
     }
 };
@@ -152,20 +153,20 @@ TEST_F(SingleProcessExecutionTest, SingleProcessGridDimensions_LargeGrid) {
 // ---------------------------------------------------------------------------
 
 class MPIMultiProcessExecutionTest : public ::testing::Test {
-protected:
+   protected:
     MockESMF::VM CreateMPIVM(int petCount, int localPet) {
-        return {petCount: petCount, localPet: localPet};
+        return {petCount : petCount, localPet : localPet};
     }
 
     MockESMF::Grid CreateMPIGrid(const MockESMF::GridDecomposition& decomp, int localPet) {
         return {
-            nx: decomp.global_nx,
-            ny: decomp.global_ny,
-            local_nx: decomp.local_nx_per_pet[localPet],
-            local_ny: decomp.local_ny_per_pet[localPet],
-            local_start_x: decomp.start_x_per_pet[localPet],
-            local_start_y: decomp.start_y_per_pet[localPet],
-            is_distributed: true
+            nx : decomp.global_nx,
+            ny : decomp.global_ny,
+            local_nx : decomp.local_nx_per_pet[localPet],
+            local_ny : decomp.local_ny_per_pet[localPet],
+            local_start_x : decomp.start_x_per_pet[localPet],
+            local_start_y : decomp.start_y_per_pet[localPet],
+            is_distributed : true
         };
     }
 };
@@ -260,13 +261,14 @@ TEST_F(MPIMultiProcessExecutionTest, LocalBoundsContiguity_4Processes) {
     }
 
     // Verify last process ends at global boundary
-    int last_end_x = decomp.start_x_per_pet[petCount - 1] + decomp.local_nx_per_pet[petCount - 1] - 1;
+    int last_end_x =
+        decomp.start_x_per_pet[petCount - 1] + decomp.local_nx_per_pet[petCount - 1] - 1;
     EXPECT_EQ(last_end_x, global_nx);
 }
 
 // Task 11.3: Test MPI synchronization
 class MPISynchronizationTest : public ::testing::Test {
-protected:
+   protected:
     struct SynchronizationContext {
         int petCount;
         int barrier_count;
@@ -274,11 +276,7 @@ protected:
     };
 
     SynchronizationContext CreateSyncContext(int petCount) {
-        return {
-            petCount: petCount,
-            barrier_count: 0,
-            sync_required: (petCount > 1)
-        };
+        return {petCount : petCount, barrier_count : 0, sync_required : (petCount > 1)};
     }
 
     void CallBarrier(SynchronizationContext& ctx) {
@@ -328,7 +326,7 @@ TEST_F(MPISynchronizationTest, SynchronizationBeforeAndAfterRun) {
 // ---------------------------------------------------------------------------
 
 class CoupledModeSupportTest : public ::testing::Test {
-protected:
+   protected:
     struct ExecutionContext {
         bool is_coupled;
         bool clock_provided;
@@ -338,19 +336,19 @@ protected:
 
     ExecutionContext CreateStandaloneContext() {
         return {
-            is_coupled: false,
-            clock_provided: false,
-            grid_provided: false,
-            mesh_provided: false
+            is_coupled : false,
+            clock_provided : false,
+            grid_provided : false,
+            mesh_provided : false
         };
     }
 
     ExecutionContext CreateCoupledContext() {
         return {
-            is_coupled: true,
-            clock_provided: true,
-            grid_provided: true,
-            mesh_provided: false  // Mesh may not be provided
+            is_coupled : true,
+            clock_provided : true,
+            grid_provided : true,
+            mesh_provided : false  // Mesh may not be provided
         };
     }
 };
@@ -400,7 +398,7 @@ TEST_F(CoupledModeSupportTest, GracefulDegradationToDefaults) {
 // ---------------------------------------------------------------------------
 
 class ConfigurationDocumentationTest : public ::testing::Test {
-protected:
+   protected:
     struct DriverConfiguration {
         std::string start_time;
         std::string end_time;
@@ -413,25 +411,25 @@ protected:
 
     DriverConfiguration CreateDefaultConfig() {
         return {
-            start_time: "2020-01-01T00:00:00",
-            end_time: "2020-01-02T00:00:00",
-            timestep_seconds: 3600,
-            mesh_file: "",
-            grid_nx: 4,
-            grid_ny: 4,
-            description: "Default ACES driver configuration"
+            start_time : "2020-01-01T00:00:00",
+            end_time : "2020-01-02T00:00:00",
+            timestep_seconds : 3600,
+            mesh_file : "",
+            grid_nx : 4,
+            grid_ny : 4,
+            description : "Default ACES driver configuration"
         };
     }
 
     DriverConfiguration CreateDocumentedConfig() {
         return {
-            start_time: "2020-01-01T00:00:00",
-            end_time: "2020-01-02T00:00:00",
-            timestep_seconds: 3600,
-            mesh_file: "",
-            grid_nx: 4,
-            grid_ny: 4,
-            description: "Documented ACES driver configuration with all parameters"
+            start_time : "2020-01-01T00:00:00",
+            end_time : "2020-01-02T00:00:00",
+            timestep_seconds : 3600,
+            mesh_file : "",
+            grid_nx : 4,
+            grid_ny : 4,
+            description : "Documented ACES driver configuration with all parameters"
         };
     }
 };
@@ -487,7 +485,7 @@ TEST_F(ConfigurationDocumentationTest, ConfigurationHasDescription) {
 // ---------------------------------------------------------------------------
 
 class ExecutionModeIntegrationTest : public ::testing::Test {
-protected:
+   protected:
     // Simulate a complete execution flow
     struct ExecutionFlow {
         bool single_process_mode;
@@ -547,7 +545,7 @@ TEST_F(ExecutionModeIntegrationTest, MPIExecution_8procs_360x180_3steps) {
 // ---------------------------------------------------------------------------
 
 class ComponentInitializationTest : public ::testing::Test {
-protected:
+   protected:
     struct ComponentState {
         bool advertise_phase_complete;
         bool realize_phase_complete;
@@ -557,10 +555,10 @@ protected:
 
     ComponentState CreateInitialState() {
         return {
-            advertise_phase_complete: false,
-            realize_phase_complete: false,
-            ready_to_run: false,
-            error_code: 0
+            advertise_phase_complete : false,
+            realize_phase_complete : false,
+            ready_to_run : false,
+            error_code : 0
         };
     }
 
@@ -621,7 +619,7 @@ TEST_F(ComponentInitializationTest, ComponentInitializationWithLargeGrid) {
 // ---------------------------------------------------------------------------
 
 class RunLoopExecutionTest : public ::testing::Test {
-protected:
+   protected:
     struct RunLoopState {
         int step_count;
         int total_steps;
@@ -630,12 +628,7 @@ protected:
     };
 
     RunLoopState CreateRunLoopState(int total_steps) {
-        return {
-            step_count: 0,
-            total_steps: total_steps,
-            clock_done: false,
-            success: true
-        };
+        return {step_count : 0, total_steps : total_steps, clock_done : false, success : true};
     }
 
     void ExecuteRunPhase(RunLoopState& state) {

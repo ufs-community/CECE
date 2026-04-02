@@ -280,7 +280,7 @@ TEST_F(NuopcPhaseExecutionOrderPropertyTest, Property5_PhaseExecutionOrderCorrec
     for (int iter = 0; iter < NUM_ITERATIONS; ++iter) {
         // Run phase
         int rc;
-        int hour = 12;  // Default to noon
+        int hour = 12;        // Default to noon
         int day_of_week = 0;  // Default to Sunday
         aces_core_run(data_ptr, hour, day_of_week, &rc);
         EXPECT_EQ(rc, ESMF_SUCCESS) << "Run phase failed at iteration " << iter;
@@ -342,7 +342,7 @@ TEST_F(NuopcPhaseExecutionOrderPropertyTest, Property5_EachPhaseCompletesBeforeN
 
     // Phase 5: Run multiple times
     for (int iter = 0; iter < NUM_ITERATIONS; ++iter) {
-        int hour = 12;  // Default to noon
+        int hour = 12;        // Default to noon
         int day_of_week = 0;  // Default to Sunday
         aces_core_run(data_ptr, hour, day_of_week, &rc);
         EXPECT_EQ(rc, ESMF_SUCCESS) << "Run failed at iteration " << iter;
@@ -375,7 +375,7 @@ TEST_F(NuopcPhaseExecutionOrderPropertyTest, Property5_MultipleRunCyclesAfterIni
     // Execute multiple Run cycles (NUM_ITERATIONS times)
     for (int iter = 0; iter < NUM_ITERATIONS; ++iter) {
         int rc;
-        int hour = 12;  // Default to noon
+        int hour = 12;        // Default to noon
         int day_of_week = 0;  // Default to Sunday
         aces_core_run(data_ptr, hour, day_of_week, &rc);
         EXPECT_EQ(rc, ESMF_SUCCESS) << "Run cycle failed at iteration " << iter;
@@ -412,7 +412,7 @@ TEST_F(NuopcPhaseExecutionOrderPropertyTest, Property5_OutOfOrderPhasesFail) {
 
         // Test 2: Call Run with null data_ptr (missing initialization)
         void* null_ptr = nullptr;
-        int hour = 12;  // Default to noon
+        int hour = 12;        // Default to noon
         int day_of_week = 0;  // Default to Sunday
         aces_core_run(null_ptr, hour, day_of_week, &rc);
         EXPECT_NE(rc, ESMF_SUCCESS) << "Run with null data_ptr should fail at iteration " << iter;
@@ -474,7 +474,7 @@ TEST_F(NuopcPhaseExecutionOrderPropertyTest, Property5_InternalStateConsistency)
 
     // Run multiple times to verify state consistency
     for (int iter = 0; iter < NUM_ITERATIONS; ++iter) {
-        int hour = 12;  // Default to noon
+        int hour = 12;        // Default to noon
         int day_of_week = 0;  // Default to Sunday
         aces_core_run(data_ptr, hour, day_of_week, &rc);
         EXPECT_EQ(rc, ESMF_SUCCESS) << "Run failed at iteration " << iter;
@@ -509,7 +509,7 @@ TEST_F(NuopcPhaseExecutionOrderPropertyTest, Property5_PhaseTransitionLogging) {
     // Run multiple times to verify logging consistency
     for (int iter = 0; iter < NUM_ITERATIONS; ++iter) {
         int rc;
-        int hour = 12;  // Default to noon
+        int hour = 12;        // Default to noon
         int day_of_week = 0;  // Default to Sunday
         aces_core_run(data_ptr, hour, day_of_week, &rc);
         EXPECT_EQ(rc, ESMF_SUCCESS) << "Run failed at iteration " << iter;

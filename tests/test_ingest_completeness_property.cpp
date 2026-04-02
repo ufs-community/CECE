@@ -37,7 +37,9 @@ class ESMFEnvironment : public ::testing::Environment {
         int rc = ESMC_Initialize(nullptr, ESMC_ArgLast);
         ASSERT_EQ(rc, ESMF_SUCCESS) << "ESMF init failed";
     }
-    void TearDown() override { ESMC_Finalize(); }
+    void TearDown() override {
+        ESMC_Finalize();
+    }
 };
 
 // ---------------------------------------------------------------------------
@@ -49,22 +51,16 @@ ESMC_Mesh MakeGlobalMesh() {
     ESMC_Mesh mesh = ESMC_MeshCreate(2, 2, &cs, &rc);
     if (rc != ESMF_SUCCESS) throw std::runtime_error("MeshCreate failed");
 
-    int node_ids[]    = {1, 2, 3, 4};
+    int node_ids[] = {1, 2, 3, 4};
     int node_owners[] = {0, 0, 0, 0};
-    double node_coords[] = {
-        -180.0, -90.0,
-         180.0, -90.0,
-         180.0,  90.0,
-        -180.0,  90.0
-    };
+    double node_coords[] = {-180.0, -90.0, 180.0, -90.0, 180.0, 90.0, -180.0, 90.0};
     rc = ESMC_MeshAddNodes(mesh, 4, node_ids, node_coords, node_owners, &rc);
     if (rc != ESMF_SUCCESS) throw std::runtime_error("MeshAddNodes failed");
 
-    int elem_ids[]   = {1};
+    int elem_ids[] = {1};
     int elem_types[] = {ESMC_MESHELEMTYPE_QUAD};
-    int elem_conn[]  = {1, 2, 3, 4};
-    rc = ESMC_MeshAddElements(mesh, 1, elem_ids, elem_types, elem_conn,
-                              nullptr, nullptr, nullptr);
+    int elem_conn[] = {1, 2, 3, 4};
+    rc = ESMC_MeshAddElements(mesh, 1, elem_ids, elem_types, elem_conn, nullptr, nullptr, nullptr);
     if (rc != ESMF_SUCCESS) throw std::runtime_error("MeshAddElements failed");
     return mesh;
 }
@@ -79,7 +75,7 @@ ESMC_Clock MakeClock() {
 
     ESMC_Time start, stop;
     ESMC_TimeSet(&start, 2020, 0, cal, ESMC_CALKIND_GREGORIAN, 0);
-    ESMC_TimeSet(&stop,  2020, 48, cal, ESMC_CALKIND_GREGORIAN, 0);
+    ESMC_TimeSet(&stop, 2020, 48, cal, ESMC_CALKIND_GREGORIAN, 0);
 
     ESMC_TimeInterval dt;
     ESMC_TimeIntervalSet(&dt, 86400);
@@ -93,13 +89,12 @@ ESMC_Clock MakeClock() {
 // Property 2a: empty config → IngestEmissionsInline populates zero fields
 // ---------------------------------------------------------------------------
 TEST(IngestCompletenessProperty, EmptyConfigProducesZeroFields) {
-    AcesCdepsConfig config;   // no streams
+    AcesCdepsConfig config;  // no streams
     AcesImportState state;
     AcesDataIngestor ingestor;
 
     EXPECT_NO_THROW(ingestor.IngestEmissionsInline(config, state, 36, 18, 10));
-    EXPECT_EQ(state.fields.size(), 0u)
-        << "Empty config must produce zero fields in import state";
+    EXPECT_EQ(state.fields.size(), 0u) << "Empty config must produce zero fields in import state";
 }
 
 // ---------------------------------------------------------------------------
@@ -112,15 +107,14 @@ TEST(IngestCompletenessProperty, EmptyConfigProducesZeroFields) {
 // ---------------------------------------------------------------------------
 TEST(IngestCompletenessProperty, TwoStreamsTwoFieldsAfterIngest) {
     // Skip if data files are absent (CI without data)
-    if (!std::ifstream("data/MACCity_4x5.nc") ||
-        !std::ifstream("data/hourly.nc")) {
+    if (!std::ifstream("data/MACCity_4x5.nc") || !std::ifstream("data/hourly.nc")) {
         GTEST_SKIP() << "Test data files not present; skipping ESMF ingest test";
     }
 
     ESMC_Mesh mesh;
     ESMC_Clock clock;
     try {
-        mesh  = MakeGlobalMesh();
+        mesh = MakeGlobalMesh();
         clock = MakeClock();
     } catch (const std::exception& e) {
         GTEST_SKIP() << "ESMF setup failed: " << e.what();
@@ -131,38 +125,47 @@ TEST(IngestCompletenessProperty, TwoStreamsTwoFieldsAfterIngest) {
     AcesDataStreamConfig s1;
     s1.name = "MACCITY";
     s1.file_paths = {"data/MACCity_4x5.nc"};
-    s1.taxmode   = "cycle";
-    s1.tintalgo  = "linear";
-    s1.mapalgo   = "bilinear";
-    s1.yearFirst = 2000; s1.yearLast = 2000; s1.yearAlign = 2020;
-    { AcesDataVariableConfig v; v.name_in_file = "MACCity"; v.name_in_model = "MACCITY";
-      s1.variables.push_back(v); }
+    s1.taxmode = "cycle";
+    s1.tintalgo = "linear";
+    s1.mapalgo = "bilinear";
+    s1.yearFirst = 2000;
+    s1.yearLast = 2000;
+    s1.yearAlign = 2020;
+    {
+        AcesDataVariableConfig v;
+        v.name_in_file = "MACCity";
+        v.name_in_model = "MACCITY";
+        s1.variables.push_back(v);
+    }
     config.streams.push_back(s1);
 
     AcesDataStreamConfig s2;
     s2.name = "HOURLY_SCALFACT";
     s2.file_paths = {"data/hourly.nc"};
-    s2.taxmode   = "cycle";
-    s2.tintalgo  = "linear";
-    s2.mapalgo   = "bilinear";
-    s2.yearFirst = 1; s2.yearLast = 1; s2.yearAlign = 2020;
-    { AcesDataVariableConfig v; v.name_in_file = "HOURLY_SCALFACT";
-      v.name_in_model = "HOURLY_SCALFACT"; s2.variables.push_back(v); }
+    s2.taxmode = "cycle";
+    s2.tintalgo = "linear";
+    s2.mapalgo = "bilinear";
+    s2.yearFirst = 1;
+    s2.yearLast = 1;
+    s2.yearAlign = 2020;
+    {
+        AcesDataVariableConfig v;
+        v.name_in_file = "HOURLY_SCALFACT";
+        v.name_in_model = "HOURLY_SCALFACT";
+        s2.variables.push_back(v);
+    }
     config.streams.push_back(s2);
 
     AcesDataIngestor ingestor;
-    ASSERT_NO_THROW(
-        ingestor.InitializeDataIngester(nullptr, clock.ptr, mesh.ptr, config));
+    ASSERT_NO_THROW(ingestor.InitializeDataIngester(nullptr, clock.ptr, mesh.ptr, config));
 
     AcesImportState state;
-    ASSERT_NO_THROW(
-        ingestor.IngestEmissionsInline(config, state, 36, 18, 1));
+    ASSERT_NO_THROW(ingestor.IngestEmissionsInline(config, state, 36, 18, 1));
 
     // Property 2: exactly N=2 entries (one per model-side variable)
     EXPECT_EQ(state.fields.size(), 2u)
         << "import_state.fields must have exactly 2 entries after ingesting 2 streams";
-    EXPECT_TRUE(state.fields.count("MACCITY"))
-        << "MACCITY must be present in import state";
+    EXPECT_TRUE(state.fields.count("MACCITY")) << "MACCITY must be present in import state";
     EXPECT_TRUE(state.fields.count("HOURLY_SCALFACT"))
         << "HOURLY_SCALFACT must be present in import state";
 
@@ -183,7 +186,7 @@ RC_GTEST_PROP(IngestCompletenessProperty, ModelNameCountEqualsStreamCount, ()) {
         AcesDataStreamConfig s;
         s.name = "stream_" + std::to_string(i);
         AcesDataVariableConfig v;
-        v.name_in_file  = "FILE_VAR_" + std::to_string(i);
+        v.name_in_file = "FILE_VAR_" + std::to_string(i);
         v.name_in_model = "MODEL_VAR_" + std::to_string(i);
         s.variables.push_back(v);
         config.streams.push_back(s);
@@ -191,8 +194,7 @@ RC_GTEST_PROP(IngestCompletenessProperty, ModelNameCountEqualsStreamCount, ()) {
 
     std::unordered_map<std::string, int> seen;
     for (const auto& stream : config.streams)
-        for (const auto& var : stream.variables)
-            seen[var.name_in_model]++;
+        for (const auto& var : stream.variables) seen[var.name_in_model]++;
 
     RC_ASSERT(static_cast<int>(seen.size()) == n);
     for (const auto& [name, cnt] : seen) RC_ASSERT(cnt == 1);

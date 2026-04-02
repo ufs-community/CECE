@@ -15,10 +15,11 @@
 
 #include <gtest/gtest.h>
 #include <rapidcheck.h>
-#include <cstdio>
-#include <cmath>
-#include <vector>
+
 #include <algorithm>
+#include <cmath>
+#include <cstdio>
+#include <vector>
 
 // ---------------------------------------------------------------------------
 // Mock Grid and Mesh Classes for Testing Logic
@@ -28,10 +29,13 @@
  * @brief Mock grid for testing grid creation logic.
  */
 class MockGrid {
-public:
+   public:
     MockGrid(int nx, int ny, bool distributed = false, int petCount = 1, int localPet = 0)
-        : global_nx_(nx), global_ny_(ny), distributed_(distributed),
-          petCount_(petCount), localPet_(localPet) {
+        : global_nx_(nx),
+          global_ny_(ny),
+          distributed_(distributed),
+          petCount_(petCount),
+          localPet_(localPet) {
         if (distributed && petCount > 1) {
             // Simple domain decomposition: divide rows across processes
             int rows_per_pet = ny / petCount;
@@ -50,13 +54,27 @@ public:
         }
     }
 
-    int GetGlobalNx() const { return global_nx_; }
-    int GetGlobalNy() const { return global_ny_; }
-    int GetLocalNx() const { return local_nx_; }
-    int GetLocalNy() const { return local_ny_; }
-    int GetLocalStartJ() const { return local_start_j_; }
-    int GetLocalEndJ() const { return local_end_j_; }
-    bool IsDistributed() const { return distributed_; }
+    int GetGlobalNx() const {
+        return global_nx_;
+    }
+    int GetGlobalNy() const {
+        return global_ny_;
+    }
+    int GetLocalNx() const {
+        return local_nx_;
+    }
+    int GetLocalNy() const {
+        return local_ny_;
+    }
+    int GetLocalStartJ() const {
+        return local_start_j_;
+    }
+    int GetLocalEndJ() const {
+        return local_end_j_;
+    }
+    bool IsDistributed() const {
+        return distributed_;
+    }
 
     // Verify domain decomposition correctness
     bool VerifyDecomposition() const {
@@ -71,7 +89,7 @@ public:
         return total_ny == global_ny_;
     }
 
-private:
+   private:
     int global_nx_, global_ny_;
     int local_nx_, local_ny_;
     int local_start_j_, local_end_j_;
@@ -83,26 +101,31 @@ private:
  * @brief Mock mesh for testing mesh creation logic.
  */
 class MockMesh {
-public:
+   public:
     MockMesh(int nx, int ny)
-        : nx_(nx), ny_(ny),
-          num_nodes_((nx + 1) * (ny + 1)),
-          num_elements_(nx * ny) {}
+        : nx_(nx), ny_(ny), num_nodes_((nx + 1) * (ny + 1)), num_elements_(nx * ny) {}
 
-    int GetNumNodes() const { return num_nodes_; }
-    int GetNumElements() const { return num_elements_; }
-    int GetNx() const { return nx_; }
-    int GetNy() const { return ny_; }
+    int GetNumNodes() const {
+        return num_nodes_;
+    }
+    int GetNumElements() const {
+        return num_elements_;
+    }
+    int GetNx() const {
+        return nx_;
+    }
+    int GetNy() const {
+        return ny_;
+    }
 
     // Verify mesh connectivity
     bool VerifyConnectivity() const {
         // For a quad mesh, each element should have 4 nodes
         // and nodes should be properly indexed
-        return num_nodes_ == (nx_ + 1) * (ny_ + 1) &&
-               num_elements_ == nx_ * ny_;
+        return num_nodes_ == (nx_ + 1) * (ny_ + 1) && num_elements_ == nx_ * ny_;
     }
 
-private:
+   private:
     int nx_, ny_;
     int num_nodes_, num_elements_;
 };
@@ -111,8 +134,7 @@ private:
 // Test Suite: Single-Process Grid Creation
 // ---------------------------------------------------------------------------
 
-class SingleProcessGridCreationTest : public ::testing::Test {
-};
+class SingleProcessGridCreationTest : public ::testing::Test {};
 
 // Property 9: Single-Process Grid Dimensions
 // For any single-process execution with specified nx and ny,
@@ -120,8 +142,7 @@ class SingleProcessGridCreationTest : public ::testing::Test {
 TEST_F(SingleProcessGridCreationTest, Property9_SingleProcessGridDimensions) {
     // Test with various grid sizes
     std::vector<std::pair<int, int>> test_cases = {
-        {4, 4}, {10, 10}, {100, 50}, {360, 180}, {1000, 500}
-    };
+        {4, 4}, {10, 10}, {100, 50}, {360, 180}, {1000, 500}};
 
     for (const auto& [nx, ny] : test_cases) {
         MockGrid grid(nx, ny, false, 1, 0);
@@ -156,8 +177,7 @@ TEST_F(SingleProcessGridCreationTest, LargeGridCreation) {
 // Test Suite: MPI Domain Decomposition
 // ---------------------------------------------------------------------------
 
-class MPIDomainDecompositionTest : public ::testing::Test {
-};
+class MPIDomainDecompositionTest : public ::testing::Test {};
 
 // Property 10: MPI Domain Decomposition
 // For any multi-process execution with petCount > 1,
@@ -166,15 +186,15 @@ class MPIDomainDecompositionTest : public ::testing::Test {
 TEST_F(MPIDomainDecompositionTest, Property10_MPIDomainDecomposition) {
     // Test with various configurations
     std::vector<std::tuple<int, int, int>> test_cases = {
-        {360, 180, 2}, {360, 180, 4}, {1000, 500, 8}
-    };
+        {360, 180, 2}, {360, 180, 4}, {1000, 500, 8}};
 
     for (const auto& [nx, ny, petCount] : test_cases) {
         // Verify decomposition for each process
         int total_ny = 0;
         for (int pet = 0; pet < petCount; ++pet) {
             MockGrid grid(nx, ny, true, petCount, pet);
-            EXPECT_EQ(grid.GetLocalNx(), nx) << "Process " << pet << " should have full x dimension";
+            EXPECT_EQ(grid.GetLocalNx(), nx)
+                << "Process " << pet << " should have full x dimension";
             total_ny += grid.GetLocalNy();
         }
         EXPECT_EQ(total_ny, ny);
@@ -214,14 +234,13 @@ TEST_F(MPIDomainDecompositionTest, EightProcessDecomposition) {
 // Test Suite: Mesh Creation
 // ---------------------------------------------------------------------------
 
-class MeshCreationTest : public ::testing::Test {
-};
+class MeshCreationTest : public ::testing::Test {};
 
 TEST_F(MeshCreationTest, MeshNodeCount) {
     // For a quad mesh with nx x ny elements,
     // there should be (nx+1) x (ny+1) nodes
     MockMesh mesh(4, 4);
-    EXPECT_EQ(mesh.GetNumNodes(), 25);  // 5 x 5
+    EXPECT_EQ(mesh.GetNumNodes(), 25);     // 5 x 5
     EXPECT_EQ(mesh.GetNumElements(), 16);  // 4 x 4
 }
 
@@ -232,9 +251,7 @@ TEST_F(MeshCreationTest, MeshConnectivityVerification) {
 
 TEST_F(MeshCreationTest, MeshConnectivityProperty) {
     // Test with various mesh sizes
-    std::vector<std::pair<int, int>> test_cases = {
-        {4, 4}, {10, 10}, {50, 50}, {100, 100}
-    };
+    std::vector<std::pair<int, int>> test_cases = {{4, 4}, {10, 10}, {50, 50}, {100, 100}};
 
     for (const auto& [nx, ny] : test_cases) {
         MockMesh mesh(nx, ny);
@@ -248,8 +265,7 @@ TEST_F(MeshCreationTest, MeshConnectivityProperty) {
 // Test Suite: Grid/Mesh Selection Logic
 // ---------------------------------------------------------------------------
 
-class GridMeshSelectionLogicTest : public ::testing::Test {
-};
+class GridMeshSelectionLogicTest : public ::testing::Test {};
 
 // Property 15: Grid/Mesh Selection Logic
 // If driver.mesh_file is specified and valid, use mesh file and skip grid generation.
@@ -298,8 +314,7 @@ TEST_F(GridMeshSelectionLogicTest, GridGenerationSelection) {
 // Test Suite: Coordinate System Validation
 // ---------------------------------------------------------------------------
 
-class CoordinateSystemValidationTest : public ::testing::Test {
-};
+class CoordinateSystemValidationTest : public ::testing::Test {};
 
 TEST_F(CoordinateSystemValidationTest, LongitudeRange) {
     // Longitude should be -180 to +180
@@ -327,9 +342,7 @@ TEST_F(CoordinateSystemValidationTest, GaussianGridSpacing) {
 
 TEST_F(CoordinateSystemValidationTest, GridSpacingProperty) {
     // Test with various grid sizes
-    std::vector<std::pair<int, int>> test_cases = {
-        {4, 4}, {10, 10}, {100, 50}, {360, 180}
-    };
+    std::vector<std::pair<int, int>> test_cases = {{4, 4}, {10, 10}, {100, 50}, {360, 180}};
 
     for (const auto& [nx, ny] : test_cases) {
         double dlon = 360.0 / nx;
@@ -349,8 +362,7 @@ TEST_F(CoordinateSystemValidationTest, GridSpacingProperty) {
 // Integration Tests
 // ---------------------------------------------------------------------------
 
-class GridMeshIntegrationTest : public ::testing::Test {
-};
+class GridMeshIntegrationTest : public ::testing::Test {};
 
 TEST_F(GridMeshIntegrationTest, SingleProcessGridAndMesh) {
     MockGrid grid(4, 4, false, 1, 0);

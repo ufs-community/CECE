@@ -33,19 +33,33 @@ class ClockModel {
           stop_seconds_(stop_seconds),
           timestep_seconds_(timestep_seconds) {}
 
-    bool IsAtStopTime() const { return current_seconds_ >= stop_seconds_; }
+    bool IsAtStopTime() const {
+        return current_seconds_ >= stop_seconds_;
+    }
 
-    void Advance() { current_seconds_ += timestep_seconds_; }
+    void Advance() {
+        current_seconds_ += timestep_seconds_;
+    }
 
-    int64_t GetCurrentSeconds() const { return current_seconds_; }
+    int64_t GetCurrentSeconds() const {
+        return current_seconds_;
+    }
 
-    int64_t GetStartSeconds() const { return start_seconds_; }
+    int64_t GetStartSeconds() const {
+        return start_seconds_;
+    }
 
-    int64_t GetStopSeconds() const { return stop_seconds_; }
+    int64_t GetStopSeconds() const {
+        return stop_seconds_;
+    }
 
-    int64_t GetTimestepSeconds() const { return timestep_seconds_; }
+    int64_t GetTimestepSeconds() const {
+        return timestep_seconds_;
+    }
 
-    void Reset() { current_seconds_ = start_seconds_; }
+    void Reset() {
+        current_seconds_ = start_seconds_;
+    }
 
    private:
     int64_t start_seconds_;
@@ -58,8 +72,7 @@ class ClockModel {
 // Test Suite: Clock Creation
 // ---------------------------------------------------------------------------
 
-class ClockCreationTest : public ::testing::Test {
-};
+class ClockCreationTest : public ::testing::Test {};
 
 /**
  * @brief Test clock creation with standard time ranges.
@@ -124,16 +137,16 @@ TEST_F(ClockCreationTest, NonZeroStartTimes) {
  */
 TEST_F(ClockCreationTest, VariousTimestepSizes) {
     std::vector<int64_t> timestep_sizes = {
-        60,      // 1 minute
-        300,     // 5 minutes
-        900,     // 15 minutes
-        1800,    // 30 minutes
-        3600,    // 1 hour
-        7200,    // 2 hours
-        10800,   // 3 hours
-        21600,   // 6 hours
-        43200,   // 12 hours
-        86400,   // 1 day
+        60,     // 1 minute
+        300,    // 5 minutes
+        900,    // 15 minutes
+        1800,   // 30 minutes
+        3600,   // 1 hour
+        7200,   // 2 hours
+        10800,  // 3 hours
+        21600,  // 6 hours
+        43200,  // 12 hours
+        86400,  // 1 day
     };
 
     for (int64_t timestep : timestep_sizes) {
@@ -155,7 +168,8 @@ TEST_F(ClockCreationTest, ZeroLengthSimulation) {
     EXPECT_EQ(clock.GetStartSeconds(), 0);
     EXPECT_EQ(clock.GetStopSeconds(), 0);
     EXPECT_EQ(clock.GetCurrentSeconds(), 0);
-    EXPECT_TRUE(clock.IsAtStopTime()) << "Zero-length simulation should be at stop time immediately";
+    EXPECT_TRUE(clock.IsAtStopTime())
+        << "Zero-length simulation should be at stop time immediately";
 }
 
 /**
@@ -179,8 +193,7 @@ TEST_F(ClockCreationTest, SingleTimestepSimulation) {
 // Test Suite: Clock Advancement
 // ---------------------------------------------------------------------------
 
-class ClockAdvancementTest : public ::testing::Test {
-};
+class ClockAdvancementTest : public ::testing::Test {};
 
 /**
  * @brief Test basic clock advancement.
@@ -209,11 +222,11 @@ TEST_F(ClockAdvancementTest, BasicAdvancement) {
  */
 TEST_F(ClockAdvancementTest, AdvancementWithVariousTimesteps) {
     std::vector<std::tuple<int64_t, int64_t, int64_t, int>> test_cases = {
-        {0, 3600, 3600, 1},      // 1 hour, 1-hour steps, 1 step
-        {0, 7200, 3600, 2},      // 2 hours, 1-hour steps, 2 steps
-        {0, 86400, 3600, 24},    // 1 day, 1-hour steps, 24 steps
-        {0, 86400, 7200, 12},    // 1 day, 2-hour steps, 12 steps
-        {0, 86400, 21600, 4},    // 1 day, 6-hour steps, 4 steps
+        {0, 3600, 3600, 1},    // 1 hour, 1-hour steps, 1 step
+        {0, 7200, 3600, 2},    // 2 hours, 1-hour steps, 2 steps
+        {0, 86400, 3600, 24},  // 1 day, 1-hour steps, 24 steps
+        {0, 86400, 7200, 12},  // 1 day, 2-hour steps, 12 steps
+        {0, 86400, 21600, 4},  // 1 day, 6-hour steps, 4 steps
     };
 
     for (const auto& [start, stop, timestep, expected_steps] : test_cases) {
@@ -245,8 +258,7 @@ TEST_F(ClockAdvancementTest, CorrectTimeIncrements) {
         int64_t curr_time = clock.GetCurrentSeconds();
         int64_t increment = curr_time - prev_time;
 
-        EXPECT_EQ(increment, 3600)
-            << "Clock increment should be exactly 3600s at step " << i;
+        EXPECT_EQ(increment, 3600) << "Clock increment should be exactly 3600s at step " << i;
 
         prev_time = curr_time;
     }
@@ -320,8 +332,7 @@ TEST_F(ClockAdvancementTest, ClockReset) {
 // Test Suite: Stop Time Detection
 // ---------------------------------------------------------------------------
 
-class StopTimeDetectionTest : public ::testing::Test {
-};
+class StopTimeDetectionTest : public ::testing::Test {};
 
 /**
  * @brief Test stop time detection when exactly at stop time.
@@ -384,10 +395,8 @@ TEST_F(StopTimeDetectionTest, PreventsInfiniteLoops) {
         step_count++;
     }
 
-    EXPECT_TRUE(clock.IsAtStopTime())
-        << "Stop time should be detected before safety limit";
-    EXPECT_EQ(step_count, 24)
-        << "Should execute exactly 24 steps";
+    EXPECT_TRUE(clock.IsAtStopTime()) << "Stop time should be detected before safety limit";
+    EXPECT_EQ(step_count, 24) << "Should execute exactly 24 steps";
 }
 
 /**
@@ -450,8 +459,7 @@ TEST_F(StopTimeDetectionTest, DetectionConsistency) {
 // Integration Tests: Complete Clock Lifecycle
 // ---------------------------------------------------------------------------
 
-class ClockLifecycleTest : public ::testing::Test {
-};
+class ClockLifecycleTest : public ::testing::Test {};
 
 /**
  * @brief Test complete clock lifecycle: create, advance, detect stop.

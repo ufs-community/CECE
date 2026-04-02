@@ -9,111 +9,113 @@
  *   - Error scenarios and recovery
  *   - Coupled mode execution
  *
- * Requirements: 8.1, 8.2, 8.3, 8.4, 9.1, 9.2, 9.3, 9.4, 15.1, 15.2, 15.3, 15.4, 15.5, 16.1, 16.2, 16.3, 16.4, 16.5
+ * Requirements: 8.1, 8.2, 8.3, 8.4, 9.1, 9.2, 9.3, 9.4, 15.1, 15.2, 15.3, 15.4, 15.5, 16.1, 16.2, 16.3,
+ * 16.4, 16.5
  */
 
 #include <gtest/gtest.h>
-#include <string>
-#include <vector>
+
 #include <cmath>
 #include <fstream>
 #include <sstream>
+#include <string>
+#include <vector>
 
 // Mock execution environment for testing
 namespace MockDriver {
-    struct ExecutionResult {
-        bool success;
-        int total_steps;
-        int total_grid_points;
-        std::string error_message;
-        double elapsed_time_seconds;
-    };
+struct ExecutionResult {
+    bool success;
+    int total_steps;
+    int total_grid_points;
+    std::string error_message;
+    double elapsed_time_seconds;
+};
 
-    struct DriverConfig {
-        std::string start_time;
-        std::string end_time;
-        int timestep_seconds;
-        int nx, ny;
-        std::string mesh_file;
-        bool is_coupled;
-    };
+struct DriverConfig {
+    std::string start_time;
+    std::string end_time;
+    int timestep_seconds;
+    int nx, ny;
+    std::string mesh_file;
+    bool is_coupled;
+};
 
-    class DriverSimulator {
-    public:
-        DriverSimulator(const DriverConfig& config) : config_(config) {}
+class DriverSimulator {
+   public:
+    DriverSimulator(const DriverConfig& config) : config_(config) {}
 
-        ExecutionResult Execute() {
-            ExecutionResult result;
-            result.success = true;
-            result.error_message = "";
-            result.elapsed_time_seconds = 0.0;
+    ExecutionResult Execute() {
+        ExecutionResult result;
+        result.success = true;
+        result.error_message = "";
+        result.elapsed_time_seconds = 0.0;
 
-            // Validate configuration
-            if (!ValidateConfig()) {
-                result.success = false;
-                result.error_message = "Invalid configuration";
-                return result;
-            }
-
-            // Calculate number of timesteps
-            result.total_steps = CalculateTimesteps();
-            result.total_grid_points = config_.nx * config_.ny;
-
-            // Simulate execution
-            result.elapsed_time_seconds = SimulateExecution(result.total_steps);
-
+        // Validate configuration
+        if (!ValidateConfig()) {
+            result.success = false;
+            result.error_message = "Invalid configuration";
             return result;
         }
 
-    private:
-        DriverConfig config_;
+        // Calculate number of timesteps
+        result.total_steps = CalculateTimesteps();
+        result.total_grid_points = config_.nx * config_.ny;
 
-        bool ValidateConfig() {
-            if (config_.nx <= 0 || config_.ny <= 0) return false;
-            if (config_.timestep_seconds <= 0) return false;
-            return true;
-        }
+        // Simulate execution
+        result.elapsed_time_seconds = SimulateExecution(result.total_steps);
 
-        int CalculateTimesteps() {
-            // Simplified: assume 1 day = 86400 seconds
-            return 86400 / config_.timestep_seconds;
-        }
+        return result;
+    }
 
-        double SimulateExecution(int total_steps) {
-            // Simulate execution time: 0.1ms per step per 1000 grid points
-            double time_per_step = (config_.nx * config_.ny) / 10000.0;
-            return time_per_step * total_steps;
-        }
-    };
-}
+   private:
+    DriverConfig config_;
+
+    bool ValidateConfig() {
+        if (config_.nx <= 0 || config_.ny <= 0) return false;
+        if (config_.timestep_seconds <= 0) return false;
+        return true;
+    }
+
+    int CalculateTimesteps() {
+        // Simplified: assume 1 day = 86400 seconds
+        return 86400 / config_.timestep_seconds;
+    }
+
+    double SimulateExecution(int total_steps) {
+        // Simulate execution time: 0.1ms per step per 1000 grid points
+        double time_per_step = (config_.nx * config_.ny) / 10000.0;
+        return time_per_step * total_steps;
+    }
+};
+}  // namespace MockDriver
 
 // ---------------------------------------------------------------------------
 // Tests for Single-Process End-to-End Execution (Task 16.1)
 // ---------------------------------------------------------------------------
 
 class SingleProcessIntegrationTest : public ::testing::Test {
-protected:
+   protected:
     MockDriver::DriverConfig CreateDefaultConfig() {
         return {
-            start_time: "2020-01-01T00:00:00",
-            end_time: "2020-01-02T00:00:00",
-            timestep_seconds: 3600,
-            nx: 4,
-            ny: 4,
-            mesh_file: "",
-            is_coupled: false
+            start_time : "2020-01-01T00:00:00",
+            end_time : "2020-01-02T00:00:00",
+            timestep_seconds : 3600,
+            nx : 4,
+            ny : 4,
+            mesh_file : "",
+            is_coupled : false
         };
     }
 
     MockDriver::DriverConfig CreateLargeGridConfig() {
         return {
-            start_time: "2020-01-01T00:00:00",
-            end_time: "2020-01-02T00:00:00",
-            timestep_seconds: 3600,
-            nx: 360,
-            ny: 180,
-            mesh_file: "",
-            is_coupled: false
+            start_time : "2020-01-01T00:00:00",
+            end_time : "2020-01-02T00:00:00",
+            timestep_seconds : 3600,
+            nx : 360,
+            ny : 180,
+            mesh_file : "",
+            is_coupled : false
         };
     }
 };
@@ -124,7 +126,7 @@ TEST_F(SingleProcessIntegrationTest, SingleProcessExecution_4x4_DefaultConfig) {
     MockDriver::ExecutionResult result = driver.Execute();
 
     EXPECT_TRUE(result.success);
-    EXPECT_EQ(result.total_steps, 24);  // 24 hours / 1 hour timestep
+    EXPECT_EQ(result.total_steps, 24);        // 24 hours / 1 hour timestep
     EXPECT_EQ(result.total_grid_points, 16);  // 4x4 grid
     EXPECT_GT(result.elapsed_time_seconds, 0.0);
 }
@@ -181,7 +183,7 @@ TEST_F(SingleProcessIntegrationTest, SingleProcessExecution_ElapsedTimeTracking)
 // ---------------------------------------------------------------------------
 
 class MPIIntegrationTest : public ::testing::Test {
-protected:
+   protected:
     struct MPIExecutionContext {
         int petCount;
         int localPet;
@@ -190,16 +192,16 @@ protected:
 
     MPIExecutionContext CreateMPIContext(int petCount, int localPet) {
         return {
-            petCount: petCount,
-            localPet: localPet,
-            config: {
-                start_time: "2020-01-01T00:00:00",
-                end_time: "2020-01-02T00:00:00",
-                timestep_seconds: 3600,
-                nx: 100,
-                ny: 100,
-                mesh_file: "",
-                is_coupled: false
+            petCount : petCount,
+            localPet : localPet,
+            config : {
+                start_time : "2020-01-01T00:00:00",
+                end_time : "2020-01-02T00:00:00",
+                timestep_seconds : 3600,
+                nx : 100,
+                ny : 100,
+                mesh_file : "",
+                is_coupled : false
             }
         };
     }
@@ -242,16 +244,16 @@ TEST_F(MPIIntegrationTest, MPIExecution_8Processes_360x180) {
 // ---------------------------------------------------------------------------
 
 class LargeGridIntegrationTest : public ::testing::Test {
-protected:
+   protected:
     MockDriver::DriverConfig CreateLargeGridConfig(int nx, int ny) {
         return {
-            start_time: "2020-01-01T00:00:00",
-            end_time: "2020-01-02T00:00:00",
-            timestep_seconds: 3600,
-            nx: nx,
-            ny: ny,
-            mesh_file: "",
-            is_coupled: false
+            start_time : "2020-01-01T00:00:00",
+            end_time : "2020-01-02T00:00:00",
+            timestep_seconds : 3600,
+            nx : nx,
+            ny : ny,
+            mesh_file : "",
+            is_coupled : false
         };
     }
 
@@ -312,16 +314,16 @@ TEST_F(LargeGridIntegrationTest, LargeGridExecution_1MPoints) {
 // ---------------------------------------------------------------------------
 
 class ErrorScenarioIntegrationTest : public ::testing::Test {
-protected:
+   protected:
     MockDriver::DriverConfig CreateInvalidConfig() {
         return {
-            start_time: "2020-01-01T00:00:00",
-            end_time: "2020-01-02T00:00:00",
-            timestep_seconds: 0,  // Invalid: non-positive
-            nx: 4,
-            ny: 4,
-            mesh_file: "",
-            is_coupled: false
+            start_time : "2020-01-01T00:00:00",
+            end_time : "2020-01-02T00:00:00",
+            timestep_seconds : 0,  // Invalid: non-positive
+            nx : 4,
+            ny : 4,
+            mesh_file : "",
+            is_coupled : false
         };
     }
 };
@@ -361,16 +363,16 @@ TEST_F(ErrorScenarioIntegrationTest, ErrorHandling_InvalidGridDimensions_Y) {
 // ---------------------------------------------------------------------------
 
 class CoupledModeIntegrationTest : public ::testing::Test {
-protected:
+   protected:
     MockDriver::DriverConfig CreateCoupledConfig() {
         return {
-            start_time: "2020-01-01T00:00:00",
-            end_time: "2020-01-02T00:00:00",
-            timestep_seconds: 3600,
-            nx: 4,
-            ny: 4,
-            mesh_file: "",
-            is_coupled: true
+            start_time : "2020-01-01T00:00:00",
+            end_time : "2020-01-02T00:00:00",
+            timestep_seconds : 3600,
+            nx : 4,
+            ny : 4,
+            mesh_file : "",
+            is_coupled : true
         };
     }
 };
@@ -413,7 +415,7 @@ TEST_F(CoupledModeIntegrationTest, CoupledModeExecution_GracefulDegradation) {
 // ---------------------------------------------------------------------------
 
 class FullIntegrationTestSuite : public ::testing::Test {
-protected:
+   protected:
     struct TestScenario {
         std::string name;
         int petCount;
@@ -440,19 +442,18 @@ TEST_F(FullIntegrationTestSuite, ComprehensiveScenarioTesting) {
 
     for (const auto& scenario : scenarios) {
         MockDriver::DriverConfig config{
-            start_time: "2020-01-01T00:00:00",
-            end_time: "2020-01-02T00:00:00",
-            timestep_seconds: scenario.timestep_seconds,
-            nx: scenario.nx,
-            ny: scenario.ny,
-            mesh_file: "",
-            is_coupled: false
+            start_time : "2020-01-01T00:00:00",
+            end_time : "2020-01-02T00:00:00",
+            timestep_seconds : scenario.timestep_seconds,
+            nx : scenario.nx,
+            ny : scenario.ny,
+            mesh_file : "",
+            is_coupled : false
         };
 
         MockDriver::DriverSimulator driver(config);
         MockDriver::ExecutionResult result = driver.Execute();
 
-        EXPECT_EQ(result.success, scenario.should_succeed)
-            << "Scenario: " << scenario.name;
+        EXPECT_EQ(result.success, scenario.should_succeed) << "Scenario: " << scenario.name;
     }
 }

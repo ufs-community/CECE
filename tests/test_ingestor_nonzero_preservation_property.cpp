@@ -36,7 +36,9 @@ class ESMFEnvironment : public ::testing::Environment {
         int rc = ESMC_Initialize(nullptr, ESMC_ArgLast);
         ASSERT_EQ(rc, ESMF_SUCCESS) << "ESMF init failed";
     }
-    void TearDown() override { ESMC_Finalize(); }
+    void TearDown() override {
+        ESMC_Finalize();
+    }
 };
 
 // ---------------------------------------------------------------------------
@@ -48,17 +50,16 @@ ESMC_Mesh MakeGlobalMesh() {
     ESMC_Mesh mesh = ESMC_MeshCreate(2, 2, &cs, &rc);
     if (rc != ESMF_SUCCESS) throw std::runtime_error("MeshCreate failed");
 
-    int node_ids[]    = {1, 2, 3, 4};
+    int node_ids[] = {1, 2, 3, 4};
     int node_owners[] = {0, 0, 0, 0};
-    double node_coords[] = {-180.0,-90.0, 180.0,-90.0, 180.0,90.0, -180.0,90.0};
+    double node_coords[] = {-180.0, -90.0, 180.0, -90.0, 180.0, 90.0, -180.0, 90.0};
     rc = ESMC_MeshAddNodes(mesh, 4, node_ids, node_coords, node_owners, &rc);
     if (rc != ESMF_SUCCESS) throw std::runtime_error("MeshAddNodes failed");
 
-    int elem_ids[]   = {1};
+    int elem_ids[] = {1};
     int elem_types[] = {ESMC_MESHELEMTYPE_QUAD};
-    int elem_conn[]  = {1, 2, 3, 4};
-    rc = ESMC_MeshAddElements(mesh, 1, elem_ids, elem_types, elem_conn,
-                              nullptr, nullptr, nullptr);
+    int elem_conn[] = {1, 2, 3, 4};
+    rc = ESMC_MeshAddElements(mesh, 1, elem_ids, elem_types, elem_conn, nullptr, nullptr, nullptr);
     if (rc != ESMF_SUCCESS) throw std::runtime_error("MeshAddElements failed");
     return mesh;
 }
@@ -71,8 +72,8 @@ ESMC_Clock MakeClock() {
     ESMC_Calendar cal = ESMC_CalendarCreate("Greg", ESMC_CALKIND_GREGORIAN, &rc);
     if (rc != ESMF_SUCCESS) throw std::runtime_error("CalendarCreate failed");
     ESMC_Time start, stop;
-    ESMC_TimeSet(&start, 2020, 0,  cal, ESMC_CALKIND_GREGORIAN, 0);
-    ESMC_TimeSet(&stop,  2020, 48, cal, ESMC_CALKIND_GREGORIAN, 0);
+    ESMC_TimeSet(&start, 2020, 0, cal, ESMC_CALKIND_GREGORIAN, 0);
+    ESMC_TimeSet(&stop, 2020, 48, cal, ESMC_CALKIND_GREGORIAN, 0);
     ESMC_TimeInterval dt;
     ESMC_TimeIntervalSet(&dt, 86400);
     ESMC_Clock clock = ESMC_ClockCreate("clk", dt, start, stop, &rc);
@@ -88,19 +89,31 @@ TEST(IngestorNonzeroPreservationProperty, MACCityStreamHasNonzeroAfterIngest) {
         GTEST_SKIP() << "data/MACCity_4x5.nc not present";
     }
 
-    ESMC_Mesh  mesh;
+    ESMC_Mesh mesh;
     ESMC_Clock clock;
-    try { mesh = MakeGlobalMesh(); clock = MakeClock(); }
-    catch (const std::exception& e) { GTEST_SKIP() << "ESMF setup: " << e.what(); }
+    try {
+        mesh = MakeGlobalMesh();
+        clock = MakeClock();
+    } catch (const std::exception& e) {
+        GTEST_SKIP() << "ESMF setup: " << e.what();
+    }
 
     AcesCdepsConfig config;
     AcesDataStreamConfig s;
     s.name = "MACCITY";
     s.file_paths = {"data/MACCity_4x5.nc"};
-    s.taxmode  = "cycle"; s.tintalgo = "linear"; s.mapalgo = "bilinear";
-    s.yearFirst = 2000; s.yearLast = 2000; s.yearAlign = 2020;
-    { AcesDataVariableConfig v; v.name_in_file = "MACCity"; v.name_in_model = "MACCITY";
-      s.variables.push_back(v); }
+    s.taxmode = "cycle";
+    s.tintalgo = "linear";
+    s.mapalgo = "bilinear";
+    s.yearFirst = 2000;
+    s.yearLast = 2000;
+    s.yearAlign = 2020;
+    {
+        AcesDataVariableConfig v;
+        v.name_in_file = "MACCity";
+        v.name_in_model = "MACCITY";
+        s.variables.push_back(v);
+    }
     config.streams.push_back(s);
 
     AcesDataIngestor ingestor;
@@ -122,9 +135,8 @@ TEST(IngestorNonzeroPreservationProperty, MACCityStreamHasNonzeroAfterIngest) {
             for (size_t k = 0; k < h.extent(2); ++k)
                 max_abs = std::max(max_abs, std::abs(h(i, j, k)));
 
-    EXPECT_GT(max_abs, 0.0)
-        << "Property 7: host mirror must contain at least one nonzero value "
-           "when source NetCDF has nonzero data";
+    EXPECT_GT(max_abs, 0.0) << "Property 7: host mirror must contain at least one nonzero value "
+                               "when source NetCDF has nonzero data";
 
     ingestor.FinalizeDataIngester();
     ESMC_MeshDestroy(&mesh);

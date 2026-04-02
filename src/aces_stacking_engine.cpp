@@ -397,8 +397,8 @@ void StackingEngine::Execute(
                     bool is_3d_field = (layer.field.extent(2) == nz);
 
                     if (is_3d_field) {
-                         in_vertical_range = true;
-                         weight = 1.0;
+                        in_vertical_range = true;
+                        weight = 1.0;
                     } else {
                         // 2D field logic
                         if (layer.vdist_method == 0) {  // SINGLE
@@ -409,7 +409,8 @@ void StackingEngine::Execute(
                         } else if (layer.vdist_method == 1) {  // RANGE
                             if (k >= layer.vdist_layer_start && k <= layer.vdist_layer_end) {
                                 in_vertical_range = true;
-                                weight = 1.0 / (layer.vdist_layer_end - layer.vdist_layer_start + 1);
+                                weight =
+                                    1.0 / (layer.vdist_layer_end - layer.vdist_layer_start + 1);
                             }
                         } else if (layer.vdist_method == 2) {  // PRESSURE
                             // Compute total overlap for this specific layer's pressure range
@@ -448,7 +449,7 @@ void StackingEngine::Execute(
                                 p_bot = ak(0, 0, k + 1) + bk(0, 0, k + 1) * ps(i, j, 0);
                             } else if ((vtype == VerticalCoordType::MPAS ||
                                         vtype == VerticalCoordType::WRF) &&
-                                   z_coord.data() != nullptr) {
+                                       z_coord.data() != nullptr) {
                                 constexpr double P0 = 101325.0;
                                 constexpr double H = 8000.0;
                                 p_top = P0 * Kokkos::exp(-z_coord(i, j, k) / H);
@@ -477,8 +478,9 @@ void StackingEngine::Execute(
                                     double z_bot2 = (z_t < z_b) ? z_t : z_b;
                                     double overlap_top2 =
                                         (z_top2 < layer.vdist_h_end) ? z_top2 : layer.vdist_h_end;
-                                    double overlap_bot2 =
-                                        (z_bot2 > layer.vdist_h_start) ? z_bot2 : layer.vdist_h_start;
+                                    double overlap_bot2 = (z_bot2 > layer.vdist_h_start)
+                                                              ? z_bot2
+                                                              : layer.vdist_h_start;
                                     if (overlap_top2 > overlap_bot2) {
                                         layer_total_overlap += (overlap_top2 - overlap_bot2);
                                     }
@@ -543,7 +545,9 @@ void StackingEngine::Execute(
                     double combined_scale = layer.scale;
                     for (int s = 0; s < layer.num_scales; ++s) {
                         if (layer.scales[s].data() != nullptr) {
-                            double scale_val = (layer.scales[s].extent(2) == 1) ? layer.scales[s](i, j, 0) : layer.scales[s](i, j, k);
+                            double scale_val = (layer.scales[s].extent(2) == 1)
+                                                   ? layer.scales[s](i, j, 0)
+                                                   : layer.scales[s](i, j, k);
                             combined_scale *= scale_val;
                         }
                     }
@@ -552,7 +556,9 @@ void StackingEngine::Execute(
                     if (layer.num_masks > 0) {
                         for (int m = 0; m < layer.num_masks; ++m) {
                             if (layer.masks[m].data() != nullptr) {
-                                double mask_val = (layer.masks[m].extent(2) == 1) ? layer.masks[m](i, j, 0) : layer.masks[m](i, j, k);
+                                double mask_val = (layer.masks[m].extent(2) == 1)
+                                                      ? layer.masks[m](i, j, 0)
+                                                      : layer.masks[m](i, j, k);
                                 combined_mask *= mask_val;
                             }
                         }

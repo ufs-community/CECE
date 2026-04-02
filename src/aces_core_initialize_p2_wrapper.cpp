@@ -5,13 +5,14 @@
  * This wrapper file provides two functions:
  * 1. aces_core_initialize_p2: Simple signature (void*, int*, int*, int*, int*)
  *    Used by the Fortran cap and Phase2InitializationTest tests
- * 2. aces_core_initialize_p2_esmf: Full ESMF signature (void*, void*, void*, void*, void*, void*, int*)
- *    Used by InitializePhasesTest tests
+ * 2. aces_core_initialize_p2_esmf: Full ESMF signature (void*, void*, void*, void*, void*, void*,
+ * int*) Used by InitializePhasesTest tests
  *
  * Requirements: 10.2, 10.3
  */
 
 #include <ESMC.h>
+
 #include <iostream>
 
 extern "C" {
@@ -55,8 +56,7 @@ void aces_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc)
  * Requirements: 10.2, 10.3
  */
 void aces_core_initialize_p2_esmf(void* data_ptr, void* gcomp_ptr, void* importState_ptr,
-                                   void* exportState_ptr, void* clock_ptr, void* grid_ptr,
-                                   int* rc) {
+                                  void* exportState_ptr, void* clock_ptr, void* grid_ptr, int* rc) {
     // Initialize return code to success
     if (rc != nullptr) {
         *rc = 0;  // 0 = success in C

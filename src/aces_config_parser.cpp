@@ -379,7 +379,7 @@ AcesConfig ParseConfig(const std::string& filename) {
         // Validate output directory writability; log INFO if it needs to be created.
         // Actual directory creation is deferred to AcesStandaloneWriter::Initialize.
         const std::string& dir = config.output_config.directory;
-        struct stat st {};
+        struct stat st{};
         if (stat(dir.c_str(), &st) != 0) {
             std::cout << "[ACES INFO] Output directory '" << dir
                       << "' does not exist and will be created at runtime.\n";

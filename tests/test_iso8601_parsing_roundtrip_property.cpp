@@ -15,10 +15,10 @@ extern "C" {
 // Forward declarations for Fortran functions
 extern "C" {
 void init_iso8601_utils_c_wrapper();
-void parse_iso8601_to_esmf_time_c_wrapper(const char* iso_str, int* yy, int* mm, int* dd,
-                                           int* hh, int* mn, int* ss, int* rc);
+void parse_iso8601_to_esmf_time_c_wrapper(const char* iso_str, int* yy, int* mm, int* dd, int* hh,
+                                          int* mn, int* ss, int* rc);
 void format_esmf_time_to_iso8601_c_wrapper(int yy, int mm, int dd, int hh, int mn, int ss,
-                                            char* iso_str, int* rc);
+                                           char* iso_str, int* rc);
 }
 
 namespace aces {
@@ -87,8 +87,8 @@ class ISO8601RoundTripPropertyTest : public ::testing::Test {
         // Format as ISO8601
         std::ostringstream oss;
         oss << std::setfill('0') << std::setw(4) << year << "-" << std::setw(2) << month << "-"
-            << std::setw(2) << day << "T" << std::setw(2) << hour << ":" << std::setw(2)
-            << minute << ":" << std::setw(2) << second;
+            << std::setw(2) << day << "T" << std::setw(2) << hour << ":" << std::setw(2) << minute
+            << ":" << std::setw(2) << second;
 
         return oss.str();
     }
@@ -164,10 +164,9 @@ TEST_F(ISO8601RoundTripPropertyTest, RandomDatesRoundTrip) {
         EXPECT_TRUE(success) << "Failed to parse/format: " << original;
 
         if (success) {
-            EXPECT_EQ(original, reconstructed)
-                << "Round-trip mismatch:\n"
-                << "  Original:      " << original << "\n"
-                << "  Reconstructed: " << reconstructed;
+            EXPECT_EQ(original, reconstructed) << "Round-trip mismatch:\n"
+                                               << "  Original:      " << original << "\n"
+                                               << "  Reconstructed: " << reconstructed;
         }
     }
 }
@@ -196,10 +195,9 @@ TEST_F(ISO8601RoundTripPropertyTest, BoundaryDatesRoundTrip) {
         EXPECT_TRUE(success) << "Failed to parse/format: " << original;
 
         if (success) {
-            EXPECT_EQ(original, reconstructed)
-                << "Round-trip mismatch for boundary date:\n"
-                << "  Original:      " << original << "\n"
-                << "  Reconstructed: " << reconstructed;
+            EXPECT_EQ(original, reconstructed) << "Round-trip mismatch for boundary date:\n"
+                                               << "  Original:      " << original << "\n"
+                                               << "  Reconstructed: " << reconstructed;
         }
     }
 }
@@ -233,10 +231,9 @@ TEST_F(ISO8601RoundTripPropertyTest, MidnightTimesRoundTrip) {
         EXPECT_TRUE(success) << "Failed to parse/format: " << original;
 
         if (success) {
-            EXPECT_EQ(original, reconstructed)
-                << "Round-trip mismatch for midnight time:\n"
-                << "  Original:      " << original << "\n"
-                << "  Reconstructed: " << reconstructed;
+            EXPECT_EQ(original, reconstructed) << "Round-trip mismatch for midnight time:\n"
+                                               << "  Original:      " << original << "\n"
+                                               << "  Reconstructed: " << reconstructed;
         }
     }
 }
@@ -270,10 +267,9 @@ TEST_F(ISO8601RoundTripPropertyTest, EndOfDayTimesRoundTrip) {
         EXPECT_TRUE(success) << "Failed to parse/format: " << original;
 
         if (success) {
-            EXPECT_EQ(original, reconstructed)
-                << "Round-trip mismatch for end-of-day time:\n"
-                << "  Original:      " << original << "\n"
-                << "  Reconstructed: " << reconstructed;
+            EXPECT_EQ(original, reconstructed) << "Round-trip mismatch for end-of-day time:\n"
+                                               << "  Original:      " << original << "\n"
+                                               << "  Reconstructed: " << reconstructed;
         }
     }
 }
@@ -296,8 +292,8 @@ TEST_F(ISO8601RoundTripPropertyTest, LeapYearDatesRoundTrip) {
         int second = second_dist(rng);
 
         std::ostringstream oss;
-        oss << std::setfill('0') << std::setw(4) << year << "-02-29T" << std::setw(2) << hour
-            << ":" << std::setw(2) << minute << ":" << std::setw(2) << second;
+        oss << std::setfill('0') << std::setw(4) << year << "-02-29T" << std::setw(2) << hour << ":"
+            << std::setw(2) << minute << ":" << std::setw(2) << second;
 
         std::string original = oss.str();
         std::string reconstructed;
@@ -306,10 +302,9 @@ TEST_F(ISO8601RoundTripPropertyTest, LeapYearDatesRoundTrip) {
         EXPECT_TRUE(success) << "Failed to parse/format leap year date: " << original;
 
         if (success) {
-            EXPECT_EQ(original, reconstructed)
-                << "Round-trip mismatch for leap year date:\n"
-                << "  Original:      " << original << "\n"
-                << "  Reconstructed: " << reconstructed;
+            EXPECT_EQ(original, reconstructed) << "Round-trip mismatch for leap year date:\n"
+                                               << "  Original:      " << original << "\n"
+                                               << "  Reconstructed: " << reconstructed;
         }
     }
 }
@@ -344,8 +339,8 @@ TEST_F(ISO8601RoundTripPropertyTest, MonthBoundaryDatesRoundTrip) {
         // Test last day of month
         {
             std::ostringstream oss;
-            oss << std::setfill('0') << std::setw(4) << year << "-" << std::setw(2) << month
-                << "-" << std::setw(2) << max_day << "T12:00:00";
+            oss << std::setfill('0') << std::setw(4) << year << "-" << std::setw(2) << month << "-"
+                << std::setw(2) << max_day << "T12:00:00";
 
             std::string original = oss.str();
             std::string reconstructed;
@@ -388,10 +383,9 @@ TEST_F(ISO8601RoundTripPropertyTest, NoonTimesRoundTrip) {
         EXPECT_TRUE(success) << "Failed to parse/format: " << original;
 
         if (success) {
-            EXPECT_EQ(original, reconstructed)
-                << "Round-trip mismatch for noon time:\n"
-                << "  Original:      " << original << "\n"
-                << "  Reconstructed: " << reconstructed;
+            EXPECT_EQ(original, reconstructed) << "Round-trip mismatch for noon time:\n"
+                                               << "  Original:      " << original << "\n"
+                                               << "  Reconstructed: " << reconstructed;
         }
     }
 }

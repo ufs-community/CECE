@@ -1,6 +1,7 @@
+#include <cstring>
 #include <iostream>
 #include <string>
-#include <cstring>
+
 #include "aces/aces_internal.hpp"
 #include "aces/aces_logger.hpp"
 
@@ -45,8 +46,8 @@ void aces_ingestor_set_field(void* data_ptr, const char* field_name, int name_le
 
     // Call the ingestor's SetField method
     // We pass the cached grid dimensions (nx, ny, nz) for validation
-    internal_data->ingestor.SetField(name, field_data, n_lev, n_elem,
-                                     internal_data->nx, internal_data->ny, internal_data->nz, rc);
+    internal_data->ingestor.SetField(name, field_data, n_lev, n_elem, internal_data->nx,
+                                     internal_data->ny, internal_data->nz, rc);
 }
 
-} // extern "C"
+}  // extern "C"

@@ -36,20 +36,21 @@ class ESMFEnvironment : public ::testing::Environment {
         int rc = ESMC_Initialize(nullptr, ESMC_ArgLast);
         ASSERT_EQ(rc, ESMF_SUCCESS) << "ESMF init failed";
     }
-    void TearDown() override { ESMC_Finalize(); }
+    void TearDown() override {
+        ESMC_Finalize();
+    }
 };
 
 // ---------------------------------------------------------------------------
 // Helper: build a minimal AcesConfig with one species / one "add" layer
 // ---------------------------------------------------------------------------
-AcesConfig MakeSingleSpeciesConfig(const std::string& species,
-                                   const std::string& field_name) {
+AcesConfig MakeSingleSpeciesConfig(const std::string& species, const std::string& field_name) {
     AcesConfig cfg;
     EmissionLayer layer;
-    layer.operation  = "add";
+    layer.operation = "add";
     layer.field_name = field_name;
-    layer.scale      = 1.0;
-    layer.hierarchy  = 0;
+    layer.scale = 1.0;
+    layer.hierarchy = 0;
     cfg.species_layers[species] = {layer};
     return cfg;
 }
@@ -62,8 +63,7 @@ DualView3D MakeField(int nx, int ny, int nz, double fill) {
     auto h = dv.view_host();
     for (int i = 0; i < nx; ++i)
         for (int j = 0; j < ny; ++j)
-            for (int k = 0; k < nz; ++k)
-                h(i, j, k) = fill;
+            for (int k = 0; k < nz; ++k) h(i, j, k) = fill;
     dv.sync_device();
     return dv;
 }
@@ -73,7 +73,7 @@ DualView3D MakeField(int nx, int ny, int nz, double fill) {
 // ---------------------------------------------------------------------------
 TEST(NonzeroExportProperty, SingleNonzeroImportProducesNonzeroExport) {
     const int nx = 4, ny = 4, nz = 2;
-    const std::string species   = "CO";
+    const std::string species = "CO";
     const std::string field_name = "CO_base";
 
     auto cfg = MakeSingleSpeciesConfig(species, field_name);
@@ -93,14 +93,12 @@ TEST(NonzeroExportProperty, SingleNonzeroImportProducesNonzeroExport) {
     export_state.fields[species] = MakeField(nx, ny, nz, 0.0);
 
     // Default mask (all 1.0)
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
-        mask("mask", nx, ny, nz);
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> mask("mask", nx, ny,
+                                                                                    nz);
     Kokkos::deep_copy(mask, 1.0);
 
-    AcesStateResolver resolver(import_state, export_state,
-                               cfg.met_mapping,
-                               cfg.scale_factor_mapping,
-                               cfg.mask_mapping);
+    AcesStateResolver resolver(import_state, export_state, cfg.met_mapping,
+                               cfg.scale_factor_mapping, cfg.mask_mapping);
 
     engine.Execute(resolver, nx, ny, nz, mask, /*hour=*/0, /*dow=*/0);
 
@@ -111,8 +109,7 @@ TEST(NonzeroExportProperty, SingleNonzeroImportProducesNonzeroExport) {
     double max_val = 0.0;
     for (int i = 0; i < nx; ++i)
         for (int j = 0; j < ny; ++j)
-            for (int k = 0; k < nz; ++k)
-                max_val = std::max(max_val, std::abs(h(i, j, k)));
+            for (int k = 0; k < nz; ++k) max_val = std::max(max_val, std::abs(h(i, j, k)));
 
     EXPECT_GT(max_val, 0.0)
         << "Export field must contain at least one nonzero value when import is nonzero";
@@ -126,10 +123,10 @@ RC_GTEST_PROP(NonzeroExportProperty, UniformNonzeroImportProducesNonzeroExport, 
     const int ny = *rc::gen::inRange(1, 5);
     const int nz = *rc::gen::inRange(1, 4);
     // fill ∈ (0, 1000], never zero
-    const double fill = *rc::gen::map(rc::gen::inRange(1, 1001),
-                                      [](int v) { return static_cast<double>(v); });
+    const double fill =
+        *rc::gen::map(rc::gen::inRange(1, 1001), [](int v) { return static_cast<double>(v); });
 
-    const std::string species    = "CO";
+    const std::string species = "CO";
     const std::string field_name = "CO_base";
 
     auto cfg = MakeSingleSpeciesConfig(species, field_name);
@@ -141,14 +138,12 @@ RC_GTEST_PROP(NonzeroExportProperty, UniformNonzeroImportProducesNonzeroExport, 
     AcesExportState export_state;
     export_state.fields[species] = MakeField(nx, ny, nz, 0.0);
 
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
-        mask("mask", nx, ny, nz);
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> mask("mask", nx, ny,
+                                                                                    nz);
     Kokkos::deep_copy(mask, 1.0);
 
-    AcesStateResolver resolver(import_state, export_state,
-                               cfg.met_mapping,
-                               cfg.scale_factor_mapping,
-                               cfg.mask_mapping);
+    AcesStateResolver resolver(import_state, export_state, cfg.met_mapping,
+                               cfg.scale_factor_mapping, cfg.mask_mapping);
 
     engine.Execute(resolver, nx, ny, nz, mask, 0, 0);
 
@@ -158,8 +153,7 @@ RC_GTEST_PROP(NonzeroExportProperty, UniformNonzeroImportProducesNonzeroExport, 
     double max_val = 0.0;
     for (int i = 0; i < nx; ++i)
         for (int j = 0; j < ny; ++j)
-            for (int k = 0; k < nz; ++k)
-                max_val = std::max(max_val, std::abs(h(i, j, k)));
+            for (int k = 0; k < nz; ++k) max_val = std::max(max_val, std::abs(h(i, j, k)));
 
     RC_ASSERT(max_val > 0.0);
 }
@@ -169,7 +163,7 @@ RC_GTEST_PROP(NonzeroExportProperty, UniformNonzeroImportProducesNonzeroExport, 
 // ---------------------------------------------------------------------------
 TEST(NonzeroExportProperty, AllZeroImportProducesZeroExport) {
     const int nx = 4, ny = 4, nz = 2;
-    const std::string species    = "CO";
+    const std::string species = "CO";
     const std::string field_name = "CO_base";
 
     auto cfg = MakeSingleSpeciesConfig(species, field_name);
@@ -181,14 +175,12 @@ TEST(NonzeroExportProperty, AllZeroImportProducesZeroExport) {
     AcesExportState export_state;
     export_state.fields[species] = MakeField(nx, ny, nz, 0.0);
 
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
-        mask("mask", nx, ny, nz);
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> mask("mask", nx, ny,
+                                                                                    nz);
     Kokkos::deep_copy(mask, 1.0);
 
-    AcesStateResolver resolver(import_state, export_state,
-                               cfg.met_mapping,
-                               cfg.scale_factor_mapping,
-                               cfg.mask_mapping);
+    AcesStateResolver resolver(import_state, export_state, cfg.met_mapping,
+                               cfg.scale_factor_mapping, cfg.mask_mapping);
 
     engine.Execute(resolver, nx, ny, nz, mask, 0, 0);
 
@@ -198,11 +190,9 @@ TEST(NonzeroExportProperty, AllZeroImportProducesZeroExport) {
     double max_val = 0.0;
     for (int i = 0; i < nx; ++i)
         for (int j = 0; j < ny; ++j)
-            for (int k = 0; k < nz; ++k)
-                max_val = std::max(max_val, std::abs(h(i, j, k)));
+            for (int k = 0; k < nz; ++k) max_val = std::max(max_val, std::abs(h(i, j, k)));
 
-    EXPECT_DOUBLE_EQ(max_val, 0.0)
-        << "All-zero import must produce all-zero export";
+    EXPECT_DOUBLE_EQ(max_val, 0.0) << "All-zero import must produce all-zero export";
 }
 
 }  // namespace

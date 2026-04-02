@@ -11,8 +11,10 @@
  */
 
 #include <gtest/gtest.h>
+
 #include <fstream>
 #include <string>
+
 #include "aces/aces_config.hpp"
 
 // ESMF C API for ISO8601 validation
@@ -23,8 +25,8 @@ extern "C" {
 // Forward declarations for Fortran ISO8601 functions
 extern "C" {
 void init_iso8601_utils_c_wrapper();
-void parse_iso8601_to_esmf_time_c_wrapper(const char* iso_str, int* yy, int* mm, int* dd,
-                                           int* hh, int* mn, int* ss, int* rc);
+void parse_iso8601_to_esmf_time_c_wrapper(const char* iso_str, int* yy, int* mm, int* dd, int* hh,
+                                          int* mn, int* ss, int* rc);
 }
 
 namespace {
@@ -72,7 +74,7 @@ int CompareISO8601Times(const std::string& t1, const std::string& t2) {
 }
 
 class DriverConfigValidationTest : public ::testing::Test {
-protected:
+   protected:
     void SetUp() override {
         test_config_file = "test_driver_config_validation.yaml";
 
@@ -111,8 +113,7 @@ TEST_F(DriverConfigValidationTest, ValidISO8601FormatsAccepted) {
     };
 
     for (const auto& iso_str : valid_formats) {
-        EXPECT_TRUE(IsValidISO8601(iso_str))
-            << "Valid ISO8601 format rejected: " << iso_str;
+        EXPECT_TRUE(IsValidISO8601(iso_str)) << "Valid ISO8601 format rejected: " << iso_str;
     }
 }
 
@@ -128,8 +129,7 @@ TEST_F(DriverConfigValidationTest, InvalidISO8601FormatWrongSeparators) {
     };
 
     for (const auto& iso_str : invalid_formats) {
-        EXPECT_FALSE(IsValidISO8601(iso_str))
-            << "Invalid ISO8601 format accepted: " << iso_str;
+        EXPECT_FALSE(IsValidISO8601(iso_str)) << "Invalid ISO8601 format accepted: " << iso_str;
     }
 }
 
@@ -137,17 +137,16 @@ TEST_F(DriverConfigValidationTest, InvalidISO8601FormatWrongSeparators) {
 // Requirements: 1.3, 2.3
 TEST_F(DriverConfigValidationTest, InvalidISO8601FormatWrongLength) {
     std::vector<std::string> invalid_formats = {
-        "2020-01-01",           // Too short (date only)
-        "00:00:00",             // Too short (time only)
-        "2020-1-1T00:00:00",    // Missing leading zeros
-        "20-01-01T00:00:00",    // Year too short
-        "",                     // Empty string
-        "2020-01-01T00:00",     // Missing seconds
+        "2020-01-01",         // Too short (date only)
+        "00:00:00",           // Too short (time only)
+        "2020-1-1T00:00:00",  // Missing leading zeros
+        "20-01-01T00:00:00",  // Year too short
+        "",                   // Empty string
+        "2020-01-01T00:00",   // Missing seconds
     };
 
     for (const auto& iso_str : invalid_formats) {
-        EXPECT_FALSE(IsValidISO8601(iso_str))
-            << "Invalid ISO8601 format accepted: " << iso_str;
+        EXPECT_FALSE(IsValidISO8601(iso_str)) << "Invalid ISO8601 format accepted: " << iso_str;
     }
 }
 
@@ -167,8 +166,7 @@ TEST_F(DriverConfigValidationTest, InvalidISO8601FormatOutOfRange) {
     };
 
     for (const auto& iso_str : invalid_formats) {
-        EXPECT_FALSE(IsValidISO8601(iso_str))
-            << "Invalid ISO8601 format accepted: " << iso_str;
+        EXPECT_FALSE(IsValidISO8601(iso_str)) << "Invalid ISO8601 format accepted: " << iso_str;
     }
 }
 
@@ -197,8 +195,7 @@ species:
     EXPECT_EQ(config.driver_config.end_time, "2020-01-02T00:00:00");
 
     // Verify start < end
-    int cmp = CompareISO8601Times(config.driver_config.start_time,
-                                   config.driver_config.end_time);
+    int cmp = CompareISO8601Times(config.driver_config.start_time, config.driver_config.end_time);
     EXPECT_EQ(cmp, -1) << "Start time should be before end time";
 }
 
@@ -219,8 +216,7 @@ species:
     aces::AcesConfig config = aces::ParseConfig(test_config_file);
 
     // Verify times are equal
-    int cmp = CompareISO8601Times(config.driver_config.start_time,
-                                   config.driver_config.end_time);
+    int cmp = CompareISO8601Times(config.driver_config.start_time, config.driver_config.end_time);
     EXPECT_EQ(cmp, 0) << "Start time equals end time (zero-length simulation)";
 }
 
@@ -241,8 +237,7 @@ species:
     aces::AcesConfig config = aces::ParseConfig(test_config_file);
 
     // Verify start > end (invalid)
-    int cmp = CompareISO8601Times(config.driver_config.start_time,
-                                   config.driver_config.end_time);
+    int cmp = CompareISO8601Times(config.driver_config.start_time, config.driver_config.end_time);
     EXPECT_EQ(cmp, 1) << "Start time is after end time (invalid configuration)";
 }
 
@@ -257,18 +252,19 @@ TEST_F(DriverConfigValidationTest, PositiveTimestepValid) {
 
     for (int timestep : valid_timesteps) {
         WriteTestConfig(test_config_file,
-            "driver:\n"
-            "  timestep_seconds: " + std::to_string(timestep) + "\n"
-            "species:\n"
-            "  co:\n"
-            "    - field: \"TEST_CO\"\n"
-            "      operation: \"add\"\n");
+                        "driver:\n"
+                        "  timestep_seconds: " +
+                            std::to_string(timestep) +
+                            "\n"
+                            "species:\n"
+                            "  co:\n"
+                            "    - field: \"TEST_CO\"\n"
+                            "      operation: \"add\"\n");
 
         aces::AcesConfig config = aces::ParseConfig(test_config_file);
 
         EXPECT_EQ(config.driver_config.timestep_seconds, timestep);
-        EXPECT_GT(config.driver_config.timestep_seconds, 0)
-            << "Timestep must be positive";
+        EXPECT_GT(config.driver_config.timestep_seconds, 0) << "Timestep must be positive";
     }
 }
 
@@ -288,8 +284,7 @@ species:
 
     // Zero timestep is invalid
     EXPECT_EQ(config.driver_config.timestep_seconds, 0);
-    EXPECT_LE(config.driver_config.timestep_seconds, 0)
-        << "Zero timestep is invalid";
+    EXPECT_LE(config.driver_config.timestep_seconds, 0) << "Zero timestep is invalid";
 }
 
 // Test 10: Negative timestep should be detected as invalid
@@ -308,8 +303,7 @@ species:
 
     // Negative timestep is invalid
     EXPECT_EQ(config.driver_config.timestep_seconds, -3600);
-    EXPECT_LT(config.driver_config.timestep_seconds, 0)
-        << "Negative timestep is invalid";
+    EXPECT_LT(config.driver_config.timestep_seconds, 0) << "Negative timestep is invalid";
 }
 
 // ============================================================================
@@ -320,20 +314,22 @@ species:
 // Requirements: 14.7
 TEST_F(DriverConfigValidationTest, PositiveGridDimensionsValid) {
     std::vector<std::pair<int, int>> valid_dimensions = {
-        {1, 1}, {4, 4}, {8, 8}, {16, 16}, {32, 32},
-        {64, 64}, {128, 128}, {360, 180}, {720, 360}
-    };
+        {1, 1}, {4, 4}, {8, 8}, {16, 16}, {32, 32}, {64, 64}, {128, 128}, {360, 180}, {720, 360}};
 
     for (const auto& [nx, ny] : valid_dimensions) {
         WriteTestConfig(test_config_file,
-            "driver:\n"
-            "  grid:\n"
-            "    nx: " + std::to_string(nx) + "\n"
-            "    ny: " + std::to_string(ny) + "\n"
-            "species:\n"
-            "  co:\n"
-            "    - field: \"TEST_CO\"\n"
-            "      operation: \"add\"\n");
+                        "driver:\n"
+                        "  grid:\n"
+                        "    nx: " +
+                            std::to_string(nx) +
+                            "\n"
+                            "    ny: " +
+                            std::to_string(ny) +
+                            "\n"
+                            "species:\n"
+                            "  co:\n"
+                            "    - field: \"TEST_CO\"\n"
+                            "      operation: \"add\"\n");
 
         aces::AcesConfig config = aces::ParseConfig(test_config_file);
 
@@ -448,8 +444,7 @@ species:
     EXPECT_GT(config.driver_config.grid.ny, 0);
 
     // Verify default start < end
-    int cmp = CompareISO8601Times(config.driver_config.start_time,
-                                   config.driver_config.end_time);
+    int cmp = CompareISO8601Times(config.driver_config.start_time, config.driver_config.end_time);
     EXPECT_EQ(cmp, -1) << "Default start time should be before end time";
 }
 

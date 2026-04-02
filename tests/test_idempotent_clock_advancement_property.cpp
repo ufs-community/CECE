@@ -38,7 +38,9 @@ class IdempotentTestClock {
           timestep_seconds_(timestep_seconds),
           advancement_count_(0) {}
 
-    bool IsAtStopTime() const { return current_seconds_ >= stop_seconds_; }
+    bool IsAtStopTime() const {
+        return current_seconds_ >= stop_seconds_;
+    }
 
     /**
      * @brief Advance the clock (can be called by NUOPC_Model or driver).
@@ -59,15 +61,25 @@ class IdempotentTestClock {
         }
     }
 
-    int64_t GetCurrentSeconds() const { return current_seconds_; }
+    int64_t GetCurrentSeconds() const {
+        return current_seconds_;
+    }
 
-    int64_t GetStopSeconds() const { return stop_seconds_; }
+    int64_t GetStopSeconds() const {
+        return stop_seconds_;
+    }
 
-    int64_t GetTimestepSeconds() const { return timestep_seconds_; }
+    int64_t GetTimestepSeconds() const {
+        return timestep_seconds_;
+    }
 
-    int GetAdvancementCount() const { return advancement_count_; }
+    int GetAdvancementCount() const {
+        return advancement_count_;
+    }
 
-    void ResetAdvancementCount() { advancement_count_ = 0; }
+    void ResetAdvancementCount() {
+        advancement_count_ = 0;
+    }
 
    private:
     int64_t current_seconds_;
@@ -93,7 +105,7 @@ class IdempotentClockAdvancementPropertyTest : public ::testing::Test {
  */
 TEST_F(IdempotentClockAdvancementPropertyTest, ClockAdvancesExactlyOncePerPhase) {
     const int64_t start_seconds = 0;
-    const int64_t stop_seconds = 86400;  // 1 day
+    const int64_t stop_seconds = 86400;     // 1 day
     const int64_t timestep_seconds = 3600;  // 1 hour
 
     IdempotentTestClock clock(start_seconds, stop_seconds, timestep_seconds);
@@ -137,7 +149,7 @@ TEST_F(IdempotentClockAdvancementPropertyTest, ClockAdvancesExactlyOncePerPhase)
  */
 TEST_F(IdempotentClockAdvancementPropertyTest, ManualAdvancementWhenNeeded) {
     const int64_t start_seconds = 0;
-    const int64_t stop_seconds = 172800;  // 2 days
+    const int64_t stop_seconds = 172800;    // 2 days
     const int64_t timestep_seconds = 7200;  // 2 hours
 
     IdempotentTestClock clock(start_seconds, stop_seconds, timestep_seconds);
@@ -180,7 +192,7 @@ TEST_F(IdempotentClockAdvancementPropertyTest, ManualAdvancementWhenNeeded) {
  */
 TEST_F(IdempotentClockAdvancementPropertyTest, DoubleAdvancementPrevented) {
     const int64_t start_seconds = 0;
-    const int64_t stop_seconds = 86400;  // 1 day
+    const int64_t stop_seconds = 86400;     // 1 day
     const int64_t timestep_seconds = 3600;  // 1 hour
 
     IdempotentTestClock clock(start_seconds, stop_seconds, timestep_seconds);
@@ -215,16 +227,14 @@ TEST_F(IdempotentClockAdvancementPropertyTest, DoubleAdvancementPrevented) {
  */
 TEST_F(IdempotentClockAdvancementPropertyTest, MixedAdvancementScenarios) {
     const int64_t start_seconds = 0;
-    const int64_t stop_seconds = 345600;  // 4 days
+    const int64_t stop_seconds = 345600;     // 4 days
     const int64_t timestep_seconds = 10800;  // 3 hours
 
     IdempotentTestClock clock(start_seconds, stop_seconds, timestep_seconds);
 
     // Simulate mixed scenarios: some phases with NUOPC auto-advance, some without
-    std::vector<bool> nuopc_advances = {
-        true, false, true, true, false, false, true, false,
-        true, false, true, false, true, true, false, true
-    };
+    std::vector<bool> nuopc_advances = {true, false, true, true,  false, false, true,  false,
+                                        true, false, true, false, true,  true,  false, true};
 
     int phase_count = 0;
     size_t scenario_index = 0;
@@ -327,7 +337,7 @@ TEST_F(IdempotentClockAdvancementPropertyTest, IdempotencyHoldsForRandomConfigur
  */
 TEST_F(IdempotentClockAdvancementPropertyTest, AdvancementCountMatchesPhases) {
     const int64_t start_seconds = 0;
-    const int64_t stop_seconds = 259200;  // 3 days
+    const int64_t stop_seconds = 259200;     // 3 days
     const int64_t timestep_seconds = 21600;  // 6 hours
 
     IdempotentTestClock clock(start_seconds, stop_seconds, timestep_seconds);
@@ -366,13 +376,13 @@ TEST_F(IdempotentClockAdvancementPropertyTest, AdvancementCountMatchesPhases) {
  */
 TEST_F(IdempotentClockAdvancementPropertyTest, IdempotencyAcrossVariousTimestepSizes) {
     std::vector<int64_t> timestep_sizes = {
-        60,      // 1 minute
-        900,     // 15 minutes
-        3600,    // 1 hour
-        10800,   // 3 hours
-        21600,   // 6 hours
-        43200,   // 12 hours
-        86400,   // 1 day
+        60,     // 1 minute
+        900,    // 15 minutes
+        3600,   // 1 hour
+        10800,  // 3 hours
+        21600,  // 6 hours
+        43200,  // 12 hours
+        86400,  // 1 day
     };
 
     std::uniform_int_distribution<int> bool_dist(0, 1);
@@ -419,7 +429,7 @@ TEST_F(IdempotentClockAdvancementPropertyTest, IdempotencyAcrossVariousTimestepS
  */
 TEST_F(IdempotentClockAdvancementPropertyTest, ConsecutiveIdempotentCallsAreSafe) {
     const int64_t start_seconds = 0;
-    const int64_t stop_seconds = 86400;  // 1 day
+    const int64_t stop_seconds = 86400;     // 1 day
     const int64_t timestep_seconds = 3600;  // 1 hour
 
     IdempotentTestClock clock(start_seconds, stop_seconds, timestep_seconds);

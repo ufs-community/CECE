@@ -13,9 +13,10 @@
 
 #include <gtest/gtest.h>
 #include <rapidcheck.h>
-#include <string>
-#include <fstream>
+
 #include <cstdio>
+#include <fstream>
+#include <string>
 #include <vector>
 
 // ---------------------------------------------------------------------------
@@ -26,7 +27,7 @@
  * @brief Mock mesh file validator.
  */
 class MockMeshFileValidator {
-public:
+   public:
     enum ValidationResult {
         SUCCESS = 0,
         FILE_NOT_FOUND = 1,
@@ -60,7 +61,7 @@ public:
  * @brief Mock mesh for testing connectivity validation.
  */
 class MockMeshConnectivity {
-public:
+   public:
     MockMeshConnectivity(int num_nodes, int num_elements)
         : num_nodes_(num_nodes), num_elements_(num_elements) {}
 
@@ -69,10 +70,14 @@ public:
         return num_nodes_ >= 4 && num_elements_ >= 1;
     }
 
-    int GetNumNodes() const { return num_nodes_; }
-    int GetNumElements() const { return num_elements_; }
+    int GetNumNodes() const {
+        return num_nodes_;
+    }
+    int GetNumElements() const {
+        return num_elements_;
+    }
 
-private:
+   private:
     int num_nodes_;
     int num_elements_;
 };
@@ -82,7 +87,7 @@ private:
 // ---------------------------------------------------------------------------
 
 class MeshFileExistenceTest : public ::testing::Test {
-protected:
+   protected:
     void SetUp() override {
         // Create a temporary test mesh file
         test_mesh_file_ = "test_mesh_temp.nc";
@@ -122,7 +127,7 @@ TEST_F(MeshFileExistenceTest, ValidateMeshFileNotFound) {
 // ---------------------------------------------------------------------------
 
 class MeshFileFormatValidationTest : public ::testing::Test {
-protected:
+   protected:
     void SetUp() override {
         valid_mesh_file_ = "valid_mesh_temp.nc";
         empty_mesh_file_ = "empty_mesh_temp.nc";
@@ -160,8 +165,7 @@ TEST_F(MeshFileFormatValidationTest, EmptyMeshFileFormat) {
 // Test Suite: Mesh Connectivity Validation
 // ---------------------------------------------------------------------------
 
-class MeshConnectivityValidationTest : public ::testing::Test {
-};
+class MeshConnectivityValidationTest : public ::testing::Test {};
 
 // Property 14: Mesh File Validation
 // For any mesh file path provided, if the file exists and is valid,
@@ -204,8 +208,7 @@ TEST_F(MeshConnectivityValidationTest, InvalidMeshNoElements) {
 // Test Suite: Mesh File Error Handling
 // ---------------------------------------------------------------------------
 
-class MeshFileErrorHandlingTest : public ::testing::Test {
-};
+class MeshFileErrorHandlingTest : public ::testing::Test {};
 
 TEST_F(MeshFileErrorHandlingTest, MeshFileNotFoundError) {
     auto result = MockMeshFileValidator::ValidateMeshFile("missing_mesh.nc");
@@ -229,7 +232,7 @@ TEST_F(MeshFileErrorHandlingTest, MeshFileInvalidFormatError) {
 // ---------------------------------------------------------------------------
 
 class MeshValidationIntegrationTest : public ::testing::Test {
-protected:
+   protected:
     void SetUp() override {
         valid_mesh_file_ = "valid_mesh_integration.nc";
         std::ofstream file(valid_mesh_file_);
@@ -274,8 +277,7 @@ TEST_F(MeshValidationIntegrationTest, MeshValidationWithErrors) {
 TEST_F(MeshConnectivityValidationTest, MeshConnectivityProperty) {
     // Test with various node and element counts
     std::vector<std::pair<int, int>> test_cases = {
-        {4, 1}, {9, 4}, {25, 16}, {100, 81}, {10201, 10000}
-    };
+        {4, 1}, {9, 4}, {25, 16}, {100, 81}, {10201, 10000}};
 
     for (const auto& [num_nodes, num_elements] : test_cases) {
         MockMeshConnectivity mesh(num_nodes, num_elements);

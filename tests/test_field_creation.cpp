@@ -200,8 +200,10 @@ TEST_F(FieldCreationTest, FieldCreation_RetrievesSpeciesNames) {
         aces_core_get_species_name(data_ptr_, &i, species_name, &species_name_len, &rc);
 
         EXPECT_EQ(rc, ESMF_SUCCESS) << "Should get species name for species " << i;
-        EXPECT_GT(species_name_len, 0) << "Species name length should be positive for species " << i;
-        EXPECT_LE(species_name_len, 256) << "Species name length should be within bounds for species " << i;
+        EXPECT_GT(species_name_len, 0)
+            << "Species name length should be positive for species " << i;
+        EXPECT_LE(species_name_len, 256)
+            << "Species name length should be within bounds for species " << i;
         EXPECT_NE(species_name[0], '\0') << "Species name should not be empty for species " << i;
     }
 }

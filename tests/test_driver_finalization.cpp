@@ -14,8 +14,9 @@
 
 #include <gtest/gtest.h>
 #include <rapidcheck.h>
-#include <vector>
+
 #include <string>
+#include <vector>
 
 // ---------------------------------------------------------------------------
 // Mock Finalization Components
@@ -25,7 +26,7 @@
  * @brief Mock ACES component for testing finalization.
  */
 class MockAcesFinalizationComponent {
-public:
+   public:
     MockAcesFinalizationComponent() : is_finalized_(false), error_code_(0) {}
 
     int Finalize() {
@@ -41,7 +42,7 @@ public:
         error_code_ = rc;
     }
 
-private:
+   private:
     bool is_finalized_;
     int error_code_;
 };
@@ -50,7 +51,7 @@ private:
  * @brief Mock VM for testing grid-size-dependent synchronization.
  */
 class MockFinalizationVM {
-public:
+   public:
     MockFinalizationVM() : barrier_count_(0) {}
 
     int Barrier() {
@@ -66,7 +67,7 @@ public:
         barrier_count_ = 0;
     }
 
-private:
+   private:
     int barrier_count_;
 };
 
@@ -74,15 +75,8 @@ private:
  * @brief Mock resource for testing cleanup sequence.
  */
 class MockResource {
-public:
-    enum ResourceType {
-        STATE,
-        MESH,
-        GRID,
-        CLOCK,
-        CALENDAR,
-        COMPONENT
-    };
+   public:
+    enum ResourceType { STATE, MESH, GRID, CLOCK, CALENDAR, COMPONENT };
 
     MockResource(ResourceType type, const std::string& name)
         : type_(type), name_(name), is_destroyed_(false) {}
@@ -104,7 +98,7 @@ public:
         return name_;
     }
 
-private:
+   private:
     ResourceType type_;
     std::string name_;
     bool is_destroyed_;
@@ -114,18 +108,17 @@ private:
 // Test Suite: Grid-Size-Dependent Synchronization
 // ---------------------------------------------------------------------------
 
-class GridSizeSynchronizationTest : public ::testing::Test {
-};
+class GridSizeSynchronizationTest : public ::testing::Test {};
 
 // Property 16: Grid Size Synchronization Level
 // The number of VM barriers must match the grid-size-dependent level
 TEST_F(GridSizeSynchronizationTest, Property16_GridSizeSynchronizationLevel) {
     // Test with various grid sizes
     std::vector<std::pair<int, int>> test_cases = {
-        {50000, 1},      // Small grid: 1 barrier
-        {75000, 2},      // Medium grid: 2 barriers
-        {250000, 3},     // Large grid: 3 barriers
-        {1000000, 4}     // Very large grid: 4 barriers
+        {50000, 1},   // Small grid: 1 barrier
+        {75000, 2},   // Medium grid: 2 barriers
+        {250000, 3},  // Large grid: 3 barriers
+        {1000000, 4}  // Very large grid: 4 barriers
     };
 
     for (const auto& [grid_size, expected_barriers] : test_cases) {
@@ -225,8 +218,7 @@ TEST_F(GridSizeSynchronizationTest, VeryLargeGridSynchronization) {
 // Test Suite: Component Finalization
 // ---------------------------------------------------------------------------
 
-class ComponentFinalizationTest : public ::testing::Test {
-};
+class ComponentFinalizationTest : public ::testing::Test {};
 
 TEST_F(ComponentFinalizationTest, BasicFinalization) {
     MockAcesFinalizationComponent comp;
@@ -250,8 +242,7 @@ TEST_F(ComponentFinalizationTest, FinalizationWithError) {
 // Test Suite: Resource Cleanup Sequence
 // ---------------------------------------------------------------------------
 
-class ResourceCleanupSequenceTest : public ::testing::Test {
-};
+class ResourceCleanupSequenceTest : public ::testing::Test {};
 
 TEST_F(ResourceCleanupSequenceTest, ProperCleanupOrder) {
     // Cleanup order should be:
@@ -263,15 +254,13 @@ TEST_F(ResourceCleanupSequenceTest, ProperCleanupOrder) {
     // 6. Calendar
     // 7. GridComp
 
-    std::vector<MockResource> resources = {
-        MockResource(MockResource::STATE, "ImportState"),
-        MockResource(MockResource::STATE, "ExportState"),
-        MockResource(MockResource::MESH, "Mesh"),
-        MockResource(MockResource::GRID, "Grid"),
-        MockResource(MockResource::CLOCK, "Clock"),
-        MockResource(MockResource::CALENDAR, "Calendar"),
-        MockResource(MockResource::COMPONENT, "GridComp")
-    };
+    std::vector<MockResource> resources = {MockResource(MockResource::STATE, "ImportState"),
+                                           MockResource(MockResource::STATE, "ExportState"),
+                                           MockResource(MockResource::MESH, "Mesh"),
+                                           MockResource(MockResource::GRID, "Grid"),
+                                           MockResource(MockResource::CLOCK, "Clock"),
+                                           MockResource(MockResource::CALENDAR, "Calendar"),
+                                           MockResource(MockResource::COMPONENT, "GridComp")};
 
     // Destroy in order
     for (auto& resource : resources) {
@@ -285,15 +274,13 @@ TEST_F(ResourceCleanupSequenceTest, ProperCleanupOrder) {
 }
 
 TEST_F(ResourceCleanupSequenceTest, AllResourcesDestroyed) {
-    std::vector<MockResource> resources = {
-        MockResource(MockResource::STATE, "ImportState"),
-        MockResource(MockResource::STATE, "ExportState"),
-        MockResource(MockResource::MESH, "Mesh"),
-        MockResource(MockResource::GRID, "Grid"),
-        MockResource(MockResource::CLOCK, "Clock"),
-        MockResource(MockResource::CALENDAR, "Calendar"),
-        MockResource(MockResource::COMPONENT, "GridComp")
-    };
+    std::vector<MockResource> resources = {MockResource(MockResource::STATE, "ImportState"),
+                                           MockResource(MockResource::STATE, "ExportState"),
+                                           MockResource(MockResource::MESH, "Mesh"),
+                                           MockResource(MockResource::GRID, "Grid"),
+                                           MockResource(MockResource::CLOCK, "Clock"),
+                                           MockResource(MockResource::CALENDAR, "Calendar"),
+                                           MockResource(MockResource::COMPONENT, "GridComp")};
 
     int destroyed_count = 0;
     for (auto& resource : resources) {
@@ -310,22 +297,19 @@ TEST_F(ResourceCleanupSequenceTest, AllResourcesDestroyed) {
 // Test Suite: Finalization Integration
 // ---------------------------------------------------------------------------
 
-class FinalizationIntegrationTest : public ::testing::Test {
-};
+class FinalizationIntegrationTest : public ::testing::Test {};
 
 TEST_F(FinalizationIntegrationTest, FullFinalizationSequence) {
     // Simulate full finalization sequence
     MockFinalizationVM vm;
     MockAcesFinalizationComponent comp;
-    std::vector<MockResource> resources = {
-        MockResource(MockResource::STATE, "ImportState"),
-        MockResource(MockResource::STATE, "ExportState"),
-        MockResource(MockResource::MESH, "Mesh"),
-        MockResource(MockResource::GRID, "Grid"),
-        MockResource(MockResource::CLOCK, "Clock"),
-        MockResource(MockResource::CALENDAR, "Calendar"),
-        MockResource(MockResource::COMPONENT, "GridComp")
-    };
+    std::vector<MockResource> resources = {MockResource(MockResource::STATE, "ImportState"),
+                                           MockResource(MockResource::STATE, "ExportState"),
+                                           MockResource(MockResource::MESH, "Mesh"),
+                                           MockResource(MockResource::GRID, "Grid"),
+                                           MockResource(MockResource::CLOCK, "Clock"),
+                                           MockResource(MockResource::CALENDAR, "Calendar"),
+                                           MockResource(MockResource::COMPONENT, "GridComp")};
 
     // Pre-finalization synchronization
     vm.Barrier();
@@ -353,10 +337,10 @@ TEST_F(FinalizationIntegrationTest, FullFinalizationSequence) {
 TEST_F(FinalizationIntegrationTest, GridSizeDependentFinalization) {
     // Test finalization with different grid sizes
     std::vector<std::pair<int, int>> test_cases = {
-        {50000, 1},      // Small grid: 1 barrier
-        {75000, 2},      // Medium grid: 2 barriers
-        {250000, 3},     // Large grid: 3 barriers
-        {1000000, 4}     // Very large grid: 4 barriers
+        {50000, 1},   // Small grid: 1 barrier
+        {75000, 2},   // Medium grid: 2 barriers
+        {250000, 3},  // Large grid: 3 barriers
+        {1000000, 4}  // Very large grid: 4 barriers
     };
 
     for (const auto& [grid_size, expected_barriers] : test_cases) {

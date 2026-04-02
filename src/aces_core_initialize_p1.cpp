@@ -25,8 +25,8 @@
 #include <Kokkos_Core.hpp>
 #include <iostream>
 #include <memory>
-#include <string>
 #include <set>
+#include <string>
 
 #include "aces/aces_config.hpp"
 #include "aces/aces_config_path.hpp"
@@ -200,15 +200,16 @@ void aces_core_initialize_p1(void** data_ptr_ptr, int* rc) {
                 unique_fields.insert(layer.field_name);
             }
             for (const auto& sf : layer.scale_fields) {
-                 unique_fields.insert(sf);
+                unique_fields.insert(sf);
             }
             for (const auto& m : layer.masks) {
-                 unique_fields.insert(m);
+                unique_fields.insert(m);
             }
         }
     }
     internal_data->unique_input_fields.assign(unique_fields.begin(), unique_fields.end());
-    std::cout << "INFO: Found " << internal_data->unique_input_fields.size() << " unique input fields required" << std::endl;
+    std::cout << "INFO: Found " << internal_data->unique_input_fields.size()
+              << " unique input fields required" << std::endl;
 
     // 4. Initialize PhysicsFactory and instantiate all physics schemes
     std::cout << "INFO: Initializing physics schemes" << std::endl;

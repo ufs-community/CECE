@@ -24,7 +24,8 @@ extern "C" {
  */
 void aces_core_writer_initialize_with_coords(void* data_ptr, int nx, int ny, int nz,
                                              const double* lon_coords, const double* lat_coords,
-                                             const char* start_time_iso8601, int start_time_len, int* rc) {
+                                             const char* start_time_iso8601, int start_time_len,
+                                             int* rc) {
     *rc = 0;
 
     if (data_ptr == nullptr) {
@@ -40,7 +41,8 @@ void aces_core_writer_initialize_with_coords(void* data_ptr, int nx, int ny, int
     }
 
     if (start_time_iso8601 == nullptr) {
-        std::cerr << "ERROR: aces_core_writer_initialize_with_coords - null start_time_iso8601 pointer\n";
+        std::cerr
+            << "ERROR: aces_core_writer_initialize_with_coords - null start_time_iso8601 pointer\n";
         *rc = -1;
         return;
     }
@@ -49,7 +51,8 @@ void aces_core_writer_initialize_with_coords(void* data_ptr, int nx, int ny, int
         auto* internal_data = static_cast<aces::AcesInternalData*>(data_ptr);
 
         if (!internal_data->standalone_writer) {
-            std::cerr << "ERROR: aces_core_writer_initialize_with_coords - standalone_writer not initialized\n";
+            std::cerr << "ERROR: aces_core_writer_initialize_with_coords - standalone_writer not "
+                         "initialized\n";
             *rc = -1;
             return;
         }
@@ -63,15 +66,16 @@ void aces_core_writer_initialize_with_coords(void* data_ptr, int nx, int ny, int
 
         std::cout << "INFO: Initializing standalone writer with coordinates: " << nx << "x" << ny
                   << "x" << nz << " start_time=" << start_time << "\n";
-        std::cout << "INFO: Longitude range: " << lon_vec[0] << " to " << lon_vec[nx-1] << "\n";
-        std::cout << "INFO: Latitude range: " << lat_vec[0] << " to " << lat_vec[ny-1] << "\n";
+        std::cout << "INFO: Longitude range: " << lon_vec[0] << " to " << lon_vec[nx - 1] << "\n";
+        std::cout << "INFO: Latitude range: " << lat_vec[0] << " to " << lat_vec[ny - 1] << "\n";
 
         // Initialize the writer with coordinates
-        int writer_rc = internal_data->standalone_writer->InitializeWithCoords(start_time, nx, ny, nz,
-                                                                              lon_vec, lat_vec);
+        int writer_rc = internal_data->standalone_writer->InitializeWithCoords(
+            start_time, nx, ny, nz, lon_vec, lat_vec);
 
         if (writer_rc != 0) {
-            std::cerr << "ERROR: aces_core_writer_initialize_with_coords - writer initialization failed\n";
+            std::cerr << "ERROR: aces_core_writer_initialize_with_coords - writer initialization "
+                         "failed\n";
             *rc = -1;
             return;
         }

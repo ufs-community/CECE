@@ -15,8 +15,9 @@
 
 #include <gtest/gtest.h>
 #include <rapidcheck.h>
-#include <vector>
+
 #include <cmath>
+#include <vector>
 
 // ---------------------------------------------------------------------------
 // Mock Clock and Run Loop Components
@@ -26,9 +27,11 @@
  * @brief Mock clock for testing run loop logic.
  */
 class MockRunLoopClock {
-public:
+   public:
     MockRunLoopClock(int start_hour, int end_hour, int timestep_hours)
-        : current_hour_(start_hour), end_hour_(end_hour), timestep_hours_(timestep_hours),
+        : current_hour_(start_hour),
+          end_hour_(end_hour),
+          timestep_hours_(timestep_hours),
           start_hour_(start_hour) {}
 
     bool IsAtStopTime() const {
@@ -55,7 +58,7 @@ public:
         return timestep_hours_;
     }
 
-private:
+   private:
     int current_hour_;
     int end_hour_;
     int timestep_hours_;
@@ -66,7 +69,7 @@ private:
  * @brief Mock ACES component for testing run loop execution.
  */
 class MockAcesRunComponent {
-public:
+   public:
     MockAcesRunComponent() : run_count_(0), last_error_code_(0) {}
 
     int Run() {
@@ -86,7 +89,7 @@ public:
         return last_error_code_;
     }
 
-private:
+   private:
     int run_count_;
     int last_error_code_;
 };
@@ -95,7 +98,7 @@ private:
  * @brief Mock VM for testing MPI synchronization.
  */
 class MockVM {
-public:
+   public:
     MockVM(int petCount = 1, int localPet = 0)
         : petCount_(petCount), localPet_(localPet), barrier_count_(0) {}
 
@@ -116,7 +119,7 @@ public:
         return localPet_;
     }
 
-private:
+   private:
     int petCount_;
     int localPet_;
     int barrier_count_;
@@ -126,8 +129,7 @@ private:
 // Test Suite: Run Loop Structure
 // ---------------------------------------------------------------------------
 
-class RunLoopStructureTest : public ::testing::Test {
-};
+class RunLoopStructureTest : public ::testing::Test {};
 
 TEST_F(RunLoopStructureTest, BasicRunLoop) {
     MockRunLoopClock clock(0, 24, 1);  // 24 hours, 1-hour timesteps
@@ -187,8 +189,7 @@ TEST_F(RunLoopStructureTest, SingleTimestepSimulation) {
 // Test Suite: Step Counter and Output Indexing
 // ---------------------------------------------------------------------------
 
-class StepCounterTest : public ::testing::Test {
-};
+class StepCounterTest : public ::testing::Test {};
 
 // Property 12: Step Counter Increment
 // For any successful Run phase, the step counter must increment by exactly 1
@@ -265,8 +266,7 @@ TEST_F(StepCounterTest, OutputIndexingCorrectness) {
 // Test Suite: Elapsed Time Tracking
 // ---------------------------------------------------------------------------
 
-class ElapsedTimeTrackingTest : public ::testing::Test {
-};
+class ElapsedTimeTrackingTest : public ::testing::Test {};
 
 // Property 13: Elapsed Time Monotonicity
 // For any sequence of timesteps, elapsed time must strictly increase by exactly one timestep
@@ -348,8 +348,7 @@ TEST_F(ElapsedTimeTrackingTest, ElapsedTimeWithVariableTimestep) {
 // Test Suite: MPI Synchronization
 // ---------------------------------------------------------------------------
 
-class MPISynchronizationTest : public ::testing::Test {
-};
+class MPISynchronizationTest : public ::testing::Test {};
 
 TEST_F(MPISynchronizationTest, SingleProcessNoBarrier) {
     MockVM vm(1, 0);
@@ -416,8 +415,7 @@ TEST_F(MPISynchronizationTest, BarrierBeforeAndAfterRun) {
 // Integration Tests
 // ---------------------------------------------------------------------------
 
-class RunLoopIntegrationTest : public ::testing::Test {
-};
+class RunLoopIntegrationTest : public ::testing::Test {};
 
 TEST_F(RunLoopIntegrationTest, FullRunLoopWithAllComponents) {
     MockVM vm(1, 0);

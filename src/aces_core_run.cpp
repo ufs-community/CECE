@@ -25,9 +25,9 @@
  * @version 1.0
  */
 
+#include <chrono>
 #include <iostream>
 #include <stdexcept>
-#include <chrono>
 #include <thread>
 
 #include "aces/aces_internal.hpp"
@@ -47,16 +47,20 @@ extern "C" {
 void aces_core_run(void* data_ptr, int hour, int day_of_week, int* rc) {
     *rc = 0;
     try {
-        std::cout << "ACES_Run: executing step (hour=" << hour
-                  << ", day=" << day_of_week << ")\n";
+        std::cout << "ACES_Run: executing step (hour=" << hour << ", day=" << day_of_week << ")\n";
 
         auto* d = static_cast<aces::AcesInternalData*>(data_ptr);
-        if (!d) { std::cerr << "ACES_Run: null data_ptr\n"; *rc = -1; return; }
+        if (!d) {
+            std::cerr << "ACES_Run: null data_ptr\n";
+            *rc = -1;
+            return;
+        }
 
         // Ingest emissions from configured streams before stacking
         if (!d->config.aces_data.streams.empty()) {
             try {
-                d->ingestor.IngestEmissionsInline(d->config.aces_data, d->import_state, d->nx, d->ny, d->nz);
+                d->ingestor.IngestEmissionsInline(d->config.aces_data, d->import_state, d->nx,
+                                                  d->ny, d->nz);
             } catch (const std::exception& e) {
                 std::cerr << "ACES_Run: ingest failed: " << e.what() << "\n";
             } catch (...) {
@@ -65,20 +69,18 @@ void aces_core_run(void* data_ptr, int hour, int day_of_week, int* rc) {
         }
 
         if (d->stacking_engine) {
-            aces::AcesStateResolver resolver(
-                d->import_state, d->export_state,
-                d->config.met_mapping,
-                d->config.scale_factor_mapping,
-                d->config.mask_mapping);
-            d->stacking_engine->Execute(
-                resolver, d->nx, d->ny, d->nz,
-                d->default_mask, hour, day_of_week);
+            aces::AcesStateResolver resolver(d->import_state, d->export_state,
+                                             d->config.met_mapping, d->config.scale_factor_mapping,
+                                             d->config.mask_mapping);
+            d->stacking_engine->Execute(resolver, d->nx, d->ny, d->nz, d->default_mask, hour,
+                                        day_of_week);
         }
 
         for (auto& scheme : d->active_schemes) {
             if (scheme) {
-                try { scheme->Run(d->import_state, d->export_state); }
-                catch (const std::exception& e) {
+                try {
+                    scheme->Run(d->import_state, d->export_state);
+                } catch (const std::exception& e) {
                     std::cerr << "ACES_Run: scheme: " << e.what() << "\n";
                 }
             }
@@ -112,8 +114,12 @@ void aces_core_run(void* data_ptr, int hour, int day_of_week, int* rc) {
         }
 
     } catch (const std::exception& e) {
-        std::cerr << "ACES_Run: " << e.what() << "\n"; *rc = -1;
-    } catch (...) { std::cerr << "ACES_Run: unknown\n"; *rc = -1; }
+        std::cerr << "ACES_Run: " << e.what() << "\n";
+        *rc = -1;
+    } catch (...) {
+        std::cerr << "ACES_Run: unknown\n";
+        *rc = -1;
+    }
 }
 
 }  // extern "C"

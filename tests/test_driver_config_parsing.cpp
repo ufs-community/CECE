@@ -5,14 +5,17 @@
  * Tests the YAML parsing of the optional driver section including:
  * - Default values when driver section is absent
  * - Custom values when driver section is present
- * - All driver configuration fields (start_time, end_time, timestep_seconds, mesh_file, grid.nx, grid.ny)
+ * - All driver configuration fields (start_time, end_time, timestep_seconds, mesh_file, grid.nx,
+ * grid.ny)
  *
  * Requirements: 1.1, 1.2, 2.1, 2.2, 3.1, 3.2, 14.1, 14.5, 15.1, 15.3
  */
 
 #include <gtest/gtest.h>
+
 #include <fstream>
 #include <string>
+
 #include "aces/aces_config.hpp"
 
 namespace {
@@ -30,7 +33,7 @@ void CleanupTestFile(const std::string& filename) {
 }
 
 class DriverConfigParsingTest : public ::testing::Test {
-protected:
+   protected:
     void SetUp() override {
         test_config_file = "test_driver_config_parsing.yaml";
     }

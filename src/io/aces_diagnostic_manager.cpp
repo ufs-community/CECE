@@ -22,8 +22,9 @@
  * @version 1.0
  */
 
-#include "aces/aces_diagnostics.hpp"
 #include <iostream>
+
+#include "aces/aces_diagnostics.hpp"
 
 namespace aces {
 
@@ -42,8 +43,8 @@ namespace aces {
  * @param long_name Descriptive name for documentation and output files
  * @return DualView3D for the registered diagnostic field
  */
-DualView3D AcesDiagnosticManager::RegisterDiagnostic(const std::string& name, int nx, int ny, int nz,
-                                                     const std::string& units,
+DualView3D AcesDiagnosticManager::RegisterDiagnostic(const std::string& name, int nx, int ny,
+                                                     int nz, const std::string& units,
                                                      const std::string& long_name) {
     if (diagnostics_.count(name)) {
         return diagnostics_[name].data;
@@ -59,10 +60,10 @@ DualView3D AcesDiagnosticManager::RegisterDiagnostic(const std::string& name, in
     return view;
 }
 
-void AcesDiagnosticManager::WriteDiagnostics(const DiagnosticConfig& config, int hour, int day_of_week,
-                                            const AcesExportState& export_state,
-                                            const std::string& output_path) {
+void AcesDiagnosticManager::WriteDiagnostics(const DiagnosticConfig& config, int hour,
+                                             int day_of_week, const AcesExportState& export_state,
+                                             const std::string& output_path) {
     // Stub implementation
 }
 
-} // namespace aces
+}  // namespace aces

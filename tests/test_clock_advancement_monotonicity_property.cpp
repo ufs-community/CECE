@@ -36,15 +36,25 @@ class TestClock {
           stop_seconds_(stop_seconds),
           timestep_seconds_(timestep_seconds) {}
 
-    bool IsAtStopTime() const { return current_seconds_ >= stop_seconds_; }
+    bool IsAtStopTime() const {
+        return current_seconds_ >= stop_seconds_;
+    }
 
-    void Advance() { current_seconds_ += timestep_seconds_; }
+    void Advance() {
+        current_seconds_ += timestep_seconds_;
+    }
 
-    int64_t GetCurrentSeconds() const { return current_seconds_; }
+    int64_t GetCurrentSeconds() const {
+        return current_seconds_;
+    }
 
-    int64_t GetStopSeconds() const { return stop_seconds_; }
+    int64_t GetStopSeconds() const {
+        return stop_seconds_;
+    }
 
-    int64_t GetTimestepSeconds() const { return timestep_seconds_; }
+    int64_t GetTimestepSeconds() const {
+        return timestep_seconds_;
+    }
 
    private:
     int64_t current_seconds_;
@@ -69,11 +79,11 @@ class ClockAdvancementMonotonicityPropertyTest : public ::testing::Test {
 TEST_F(ClockAdvancementMonotonicityPropertyTest, ClockTimeStrictlyIncreases) {
     // Test various clock configurations (in seconds)
     std::vector<std::tuple<int64_t, int64_t, int64_t>> test_cases = {
-        {0, 86400, 3600},          // 1 day, 1-hour timesteps
-        {0, 172800, 7200},         // 2 days, 2-hour timesteps
-        {0, 345600, 10800},        // 4 days, 3-hour timesteps
-        {0, 2592000, 86400},       // 30 days, 1-day timesteps
-        {0, 0, 900},               // Same start/stop, 15-minute timesteps (should be at stop immediately)
+        {0, 86400, 3600},     // 1 day, 1-hour timesteps
+        {0, 172800, 7200},    // 2 days, 2-hour timesteps
+        {0, 345600, 10800},   // 4 days, 3-hour timesteps
+        {0, 2592000, 86400},  // 30 days, 1-day timesteps
+        {0, 0, 900},  // Same start/stop, 15-minute timesteps (should be at stop immediately)
         {1592179200, 1592611200, 21600},  // Mid-year, 6-hour timesteps
         {1609372800, 1609804800, 43200},  // Year boundary, 12-hour timesteps
     };
@@ -129,7 +139,7 @@ TEST_F(ClockAdvancementMonotonicityPropertyTest, ClockTimeStrictlyIncreases) {
 TEST_F(ClockAdvancementMonotonicityPropertyTest, ClockAdvancementIsConsistent) {
     const int num_runs = 10;
     const int64_t start_seconds = 0;
-    const int64_t stop_seconds = 172800;  // 2 days
+    const int64_t stop_seconds = 172800;    // 2 days
     const int64_t timestep_seconds = 3600;  // 1 hour
 
     std::vector<std::vector<int64_t>> time_sequences;
@@ -192,19 +202,17 @@ TEST_F(ClockAdvancementMonotonicityPropertyTest, ClockNeverDecreasesOrStaysTheSa
             int64_t curr_time = clock.GetCurrentSeconds();
 
             // Verify time never decreases
-            EXPECT_GE(curr_time, prev_time)
-                << "Clock time decreased at step " << step_count << " (timestep: "
-                << timestep_seconds << "s)";
+            EXPECT_GE(curr_time, prev_time) << "Clock time decreased at step " << step_count
+                                            << " (timestep: " << timestep_seconds << "s)";
 
             // Verify time never stays the same (strict monotonicity)
-            EXPECT_NE(curr_time, prev_time)
-                << "Clock time did not change at step " << step_count << " (timestep: "
-                << timestep_seconds << "s)";
+            EXPECT_NE(curr_time, prev_time) << "Clock time did not change at step " << step_count
+                                            << " (timestep: " << timestep_seconds << "s)";
 
             // Verify exact increment
             EXPECT_EQ(curr_time - prev_time, timestep_seconds)
-                << "Clock time increment incorrect at step " << step_count << " (timestep: "
-                << timestep_seconds << "s)";
+                << "Clock time increment incorrect at step " << step_count
+                << " (timestep: " << timestep_seconds << "s)";
 
             prev_time = curr_time;
             step_count++;
@@ -324,8 +332,8 @@ TEST_F(ClockAdvancementMonotonicityPropertyTest, ZeroLengthSimulationsHandleCorr
 
         // Should be at stop time immediately
         EXPECT_TRUE(clock.IsAtStopTime())
-            << "Clock with start==stop should be at stop time immediately (start="
-            << start_seconds << "s)";
+            << "Clock with start==stop should be at stop time immediately (start=" << start_seconds
+            << "s)";
 
         // Current time should equal start time
         EXPECT_EQ(clock.GetCurrentSeconds(), start_seconds)

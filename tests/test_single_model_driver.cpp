@@ -37,7 +37,8 @@ void aces_core_initialize_p1(void** data_ptr, int* rc);
 void aces_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc);
 void aces_core_run(void* data_ptr, int hour, int day_of_week, int* rc);
 void aces_core_finalize(void* data_ptr, int* rc);
-void aces_core_set_export_field(void* data_ptr, const char* name, int name_len, void* field_data, int nx, int ny, int nz, int* rc);
+void aces_core_set_export_field(void* data_ptr, const char* name, int name_len, void* field_data,
+                                int nx, int ny, int nz, int* rc);
 
 /// Fortran helper: creates ESMF_GridComp with ESMF_CONTEXT_PARENT_VM to avoid
 /// MPI sub-communicator creation in the single-process test environment.
@@ -168,7 +169,7 @@ class SingleModelDriverTest : public ::testing::Test {
     void SetUp() override {
         WriteMinimalConfig("aces_config.yaml");
         BuildESMFObjects();
-        mock_field_data_.resize(nx_ * ny_ * 1, 0.0); // Default nz=1
+        mock_field_data_.resize(nx_ * ny_ * 1, 0.0);  // Default nz=1
     }
 
     void TearDown() override {
@@ -256,7 +257,8 @@ class SingleModelDriverTest : public ::testing::Test {
         rc = ESMC_ArraySpecSet(&as, 3, ESMC_TYPEKIND_R8);
         if (rc != ESMF_SUCCESS) return nullptr;
 
-        ESMC_Field field = ESMC_FieldCreateGridArraySpec(grid_, as, ESMC_STAGGERLOC_CENTER, nullptr, nullptr, nullptr, "CO", &rc);
+        ESMC_Field field = ESMC_FieldCreateGridArraySpec(grid_, as, ESMC_STAGGERLOC_CENTER, nullptr,
+                                                         nullptr, nullptr, "CO", &rc);
         if (rc != ESMF_SUCCESS) return nullptr;
 
         rc = ESMC_StateAddField(export_state_, field);

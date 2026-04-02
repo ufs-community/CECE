@@ -18,13 +18,16 @@
  */
 
 #include "aces/aces_data_ingestor.hpp"
-#include <Kokkos_Core.hpp>
-#include "aces/aces_logger.hpp"
-#include "aces/aces_state.hpp"
+
 #include <yaml-cpp/yaml.h>
+
+#include <Kokkos_Core.hpp>
+#include <cstring>
 #include <iostream>
 #include <sstream>
-#include <cstring>
+
+#include "aces/aces_logger.hpp"
+#include "aces/aces_state.hpp"
 
 namespace aces {
 
@@ -84,15 +87,14 @@ void AcesDataIngestor::SetField(const std::string& name, const double* data, int
     if (is_2d_emission) {
         // For 2D emission data, use single vertical level initially
         actual_nz = 1;
-        std::cout << "[ACES] SetField: Setting 2D emission field " << name << " "
-                  << nx << "x" << ny << "x" << actual_nz
-                  << " (from " << n_lev << "x" << n_elem << " TIDE data)" << std::endl;
+        std::cout << "[ACES] SetField: Setting 2D emission field " << name << " " << nx << "x" << ny
+                  << "x" << actual_nz << " (from " << n_lev << "x" << n_elem << " TIDE data)"
+                  << std::endl;
     } else {
         // For 3D data, use provided dimensions
         actual_nz = (n_lev * n_elem == nx * ny * nz) ? nz : n_lev;
-        std::cout << "[ACES] SetField: Setting 3D field " << name << " "
-                  << nx << "x" << ny << "x" << actual_nz
-                  << " (total=" << (n_lev*n_elem) << ")" << std::endl;
+        std::cout << "[ACES] SetField: Setting 3D field " << name << " " << nx << "x" << ny << "x"
+                  << actual_nz << " (total=" << (n_lev * n_elem) << ")" << std::endl;
     }
 
     // Create a host mirror view with correct dimensions
@@ -119,10 +121,8 @@ void AcesDataIngestor::SetField(const std::string& name, const double* data, int
 
     // Allocate device view if it doesn't exist or has wrong shape
     if (field_cache_.find(name) == field_cache_.end() ||
-        field_cache_[name].extent(0) != (size_t)nx ||
-        field_cache_[name].extent(1) != (size_t)ny ||
+        field_cache_[name].extent(0) != (size_t)nx || field_cache_[name].extent(1) != (size_t)ny ||
         field_cache_[name].extent(2) != (size_t)actual_nz) {
-
         using DeviceView = Kokkos::View<double***, Kokkos::LayoutLeft>;
         field_cache_[name] = DeviceView(name, nx, ny, actual_nz);
     }
@@ -133,8 +133,8 @@ void AcesDataIngestor::SetField(const std::string& name, const double* data, int
     if (rc) *rc = 0;
 }
 
-void AcesDataIngestor::IngestEmissionsInline(const AcesDataConfig& config, AcesImportState& aces_state,
-                                            int nx, int ny, int nz) {
+void AcesDataIngestor::IngestEmissionsInline(const AcesDataConfig& config,
+                                             AcesImportState& aces_state, int nx, int ny, int nz) {
     for (const auto& stream : config.streams) {
         for (const auto& var : stream.variables) {
             const std::string& model_name = var.name_in_model;
@@ -156,8 +156,9 @@ void AcesDataIngestor::IngestEmissionsInline(const AcesDataConfig& config, AcesI
                     aces_state.fields.emplace(model_name, new_field);
                     it = aces_state.fields.find(model_name);
 
-                    ACES_LOG_INFO("[ACES] IngestEmissionsInline: Created import field " + model_name +
-                                  " (" + std::to_string(c_nx) + "x" + std::to_string(c_ny) + "x" + std::to_string(c_nz) + ")");
+                    ACES_LOG_INFO("[ACES] IngestEmissionsInline: Created import field " +
+                                  model_name + " (" + std::to_string(c_nx) + "x" +
+                                  std::to_string(c_ny) + "x" + std::to_string(c_nz) + ")");
                 }
 
                 auto& dual_view = it->second;
@@ -167,11 +168,14 @@ void AcesDataIngestor::IngestEmissionsInline(const AcesDataConfig& config, AcesI
                 if (device_view.extent(0) != cached_view.extent(0) ||
                     device_view.extent(1) != cached_view.extent(1) ||
                     device_view.extent(2) != cached_view.extent(2)) {
-                    ACES_LOG_ERROR("[ACES] IngestEmissionsInline: Dimension mismatch for field " + model_name +
-                                   ". Expected " + std::to_string(device_view.extent(0)) + "x" +
-                                   std::to_string(device_view.extent(1)) + "x" + std::to_string(device_view.extent(2)) +
-                                   " but cached view is " + std::to_string(cached_view.extent(0)) + "x" +
-                                   std::to_string(cached_view.extent(1)) + "x" + std::to_string(cached_view.extent(2)));
+                    ACES_LOG_ERROR("[ACES] IngestEmissionsInline: Dimension mismatch for field " +
+                                   model_name + ". Expected " +
+                                   std::to_string(device_view.extent(0)) + "x" +
+                                   std::to_string(device_view.extent(1)) + "x" +
+                                   std::to_string(device_view.extent(2)) + " but cached view is " +
+                                   std::to_string(cached_view.extent(0)) + "x" +
+                                   std::to_string(cached_view.extent(1)) + "x" +
+                                   std::to_string(cached_view.extent(2)));
                     continue;
                 }
 
@@ -189,7 +193,8 @@ void AcesDataIngestor::IngestEmissionsInline(const AcesDataConfig& config, AcesI
                           << " with device view extents: " << device_view.extent(0) << "x"
                           << device_view.extent(1) << "x" << device_view.extent(2) << std::endl;
             } else {
-                 // ACES_LOG_WARNING("[ACES] IngestEmissionsInline: Field not found in cache: " + model_name);
+                // ACES_LOG_WARNING("[ACES] IngestEmissionsInline: Field not found in cache: " +
+                // model_name);
             }
         }
     }
@@ -242,7 +247,8 @@ std::string AcesDataIngestor::SerializeTideESMFConfig(const AcesDataConfig& conf
         oss << "lat_var" << idx << ": " << stream.lat_var << "\n";
 
         // Required stream_mesh_file parameter (dummy value for grid-based data)
-        oss << "stream_mesh_file" << idx << ": " << (stream.meshfile.empty() ? "none" : stream.meshfile) << "\n";
+        oss << "stream_mesh_file" << idx << ": "
+            << (stream.meshfile.empty() ? "none" : stream.meshfile) << "\n";
 
         // Data files (ESMF format: comma-separated values)
         oss << "stream_data_files" << idx << ": ";
@@ -262,7 +268,8 @@ std::string AcesDataIngestor::SerializeTideESMFConfig(const AcesDataConfig& conf
 
         // Debug: Log coordinate variable configuration
         std::cout << "DEBUG: Stream '" << stream.name << "' time_var='" << stream.time_var
-                  << "' lon_var='" << stream.lon_var << "' lat_var='" << stream.lat_var << "'" << std::endl;
+                  << "' lon_var='" << stream.lon_var << "' lat_var='" << stream.lat_var << "'"
+                  << std::endl;
 
         oss << "\n";
         stream_idx++;
@@ -304,7 +311,8 @@ std::string AcesDataIngestor::SerializeTideYaml(const AcesDataConfig& config) {
         // Field mappings (use inline YAML object format like TIDE test examples)
         oss << "    field_maps:\n";
         for (const auto& variable : stream.variables) {
-            oss << "      - { file_var: \"" << variable.name_in_file << "\", model_var: \"" << variable.name_in_model << "\" }\n";
+            oss << "      - { file_var: \"" << variable.name_in_file << "\", model_var: \""
+                << variable.name_in_model << "\" }\n";
         }
 
         oss << "\n";
@@ -314,7 +322,8 @@ std::string AcesDataIngestor::SerializeTideYaml(const AcesDataConfig& config) {
 }
 
 void AcesDataIngestor::ClearCache() {
-    std::cout << "INFO: Clearing AcesDataIngestor field cache (" << field_cache_.size() << " fields)\n";
+    std::cout << "INFO: Clearing AcesDataIngestor field cache (" << field_cache_.size()
+              << " fields)\n";
     field_cache_.clear();
     std::cout << "INFO: Field cache cleared\n";
 }

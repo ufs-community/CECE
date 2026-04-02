@@ -40,8 +40,7 @@ class AcesDiagnosticManager {
      * @param output_path Optional output directory path.
      */
     void WriteDiagnostics(const DiagnosticConfig& config, int hour, int day_of_week,
-                          const AcesExportState& export_state,
-                          const std::string& output_path = "");
+                          const AcesExportState& export_state, const std::string& output_path = "");
 
    private:
     struct DiagnosticField {

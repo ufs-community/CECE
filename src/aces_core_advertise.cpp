@@ -58,8 +58,8 @@ void aces_core_advertise(int* rc) {
     }
 
     // Log the fields that will be advertised
-    std::cout << "INFO: Will advertise " << config.species_layers.size() << " emission species:"
-              << std::endl;
+    std::cout << "INFO: Will advertise " << config.species_layers.size()
+              << " emission species:" << std::endl;
     for (const auto& [species, layers] : config.species_layers) {
         std::cout << "  - " << species << std::endl;
     }

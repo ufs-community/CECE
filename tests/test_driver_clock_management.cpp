@@ -12,6 +12,7 @@
  */
 
 #include <gtest/gtest.h>
+
 #include <cstdio>
 #include <ctime>
 
@@ -23,7 +24,7 @@
  * @brief Simple mock clock for testing driver logic.
  */
 class MockClock {
-public:
+   public:
     MockClock(int start_hour, int end_hour, int timestep_hours)
         : current_hour_(start_hour), end_hour_(end_hour), timestep_hours_(timestep_hours) {}
 
@@ -43,7 +44,7 @@ public:
         return end_hour_;
     }
 
-private:
+   private:
     int current_hour_;
     int end_hour_;
     int timestep_hours_;
@@ -53,8 +54,7 @@ private:
 // Test Suite: Clock Advancement Logic
 // ---------------------------------------------------------------------------
 
-class ClockAdvancementLogicTest : public ::testing::Test {
-};
+class ClockAdvancementLogicTest : public ::testing::Test {};
 
 // Property 5: Clock Advancement Monotonicity
 // For any sequence of clock advancements, the clock time must strictly increase
@@ -91,8 +91,7 @@ TEST_F(ClockAdvancementLogicTest, ClockAdvancementWithVariousTimesteps) {
 // Test Suite: Stop Time Detection
 // ---------------------------------------------------------------------------
 
-class StopTimeDetectionLogicTest : public ::testing::Test {
-};
+class StopTimeDetectionLogicTest : public ::testing::Test {};
 
 // Property 8: Stop Time Detection
 // For any clock that has reached or exceeded its stop time, IsAtStopTime must return true
@@ -130,8 +129,7 @@ TEST_F(StopTimeDetectionLogicTest, AlreadyPastStopTime) {
 // Test Suite: Idempotent Clock Advancement
 // ---------------------------------------------------------------------------
 
-class IdempotentClockAdvancementLogicTest : public ::testing::Test {
-};
+class IdempotentClockAdvancementLogicTest : public ::testing::Test {};
 
 // Property 6: Idempotent Clock Advancement
 // The driver must detect if NUOPC_Model already advanced and skip manual advance
@@ -161,8 +159,7 @@ TEST_F(IdempotentClockAdvancementLogicTest, Property6_IdempotentClockAdvancement
 // Integration Tests: Run Loop Logic
 // ---------------------------------------------------------------------------
 
-class RunLoopLogicTest : public ::testing::Test {
-};
+class RunLoopLogicTest : public ::testing::Test {};
 
 TEST_F(RunLoopLogicTest, FullRunLoopSimulation) {
     // Simulate a full run loop: 24 hours with 1-hour timesteps = 24 steps
@@ -261,7 +258,8 @@ TEST_F(ClockAdvancementLogicTest, Property5_MonotonicityAcrossVariousRanges) {
         for (int i = 0; i < expected_steps; ++i) {
             clock.Advance();
             int curr_hour = clock.GetCurrentHour();
-            EXPECT_GT(curr_hour, prev_hour) << "Failed for range [" << start << ", " << end << "] step " << step;
+            EXPECT_GT(curr_hour, prev_hour)
+                << "Failed for range [" << start << ", " << end << "] step " << step;
             prev_hour = curr_hour;
         }
     }
@@ -291,7 +289,8 @@ TEST_F(StopTimeDetectionLogicTest, Property8_StopTimeDetectionAcrossVariousRange
         }
 
         // Should now be at stop time
-        EXPECT_TRUE(clock.IsAtStopTime()) << "Clock should be at stop time after " << expected_steps << " steps";
+        EXPECT_TRUE(clock.IsAtStopTime())
+            << "Clock should be at stop time after " << expected_steps << " steps";
     }
 }
 

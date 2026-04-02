@@ -9,11 +9,10 @@
  * field data received from the NUOPC layer via the C bridge.
  */
 
+#include <Kokkos_Core.hpp>
 #include <memory>
 #include <string>
 #include <unordered_map>
-
-#include <Kokkos_Core.hpp>
 
 #include "aces/aces_config.hpp"
 #include "aces/aces_state.hpp"
@@ -40,14 +39,14 @@ class AcesDataIngestor {
      * @brief Stores field data in the cache.
      * Called from the C bridge once per time step per field.
      */
-    void SetField(const std::string& name, const double* data, int n_lev, int n_elem,
-                  int nx, int ny, int nz, int* rc);
+    void SetField(const std::string& name, const double* data, int n_lev, int n_elem, int nx,
+                  int ny, int nz, int* rc);
 
     /**
      * @brief Ingests emissions from the cache into the import state.
      */
-    void IngestEmissionsInline(const AcesDataConfig& config, AcesImportState& aces_state,
-                               int nx, int ny, int nz);
+    void IngestEmissionsInline(const AcesDataConfig& config, AcesImportState& aces_state, int nx,
+                               int ny, int nz);
 
     /**
      * @brief Resolves a field from the cache as an unmanaged device view.
@@ -84,13 +83,16 @@ class AcesDataIngestor {
     bool HasCachedField(const std::string& name) const;
 
     /** @brief Compatibility alias for HasCachedField. */
-    bool HasDataIngesterField(const std::string& name) const { return HasCachedField(name); }
+    bool HasDataIngesterField(const std::string& name) const {
+        return HasCachedField(name);
+    }
 
     /** @brief Clears all cached fields to release device memory. */
     void ClearCache();
 
    private:
-    std::unordered_map<std::string, Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>>
+    std::unordered_map<std::string,
+                       Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>>
         field_cache_;
 };
 

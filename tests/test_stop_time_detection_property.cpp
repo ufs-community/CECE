@@ -36,15 +36,25 @@ class StopTimeTestClock {
           stop_seconds_(stop_seconds),
           timestep_seconds_(timestep_seconds) {}
 
-    bool IsAtStopTime() const { return current_seconds_ >= stop_seconds_; }
+    bool IsAtStopTime() const {
+        return current_seconds_ >= stop_seconds_;
+    }
 
-    void Advance() { current_seconds_ += timestep_seconds_; }
+    void Advance() {
+        current_seconds_ += timestep_seconds_;
+    }
 
-    int64_t GetCurrentSeconds() const { return current_seconds_; }
+    int64_t GetCurrentSeconds() const {
+        return current_seconds_;
+    }
 
-    int64_t GetStopSeconds() const { return stop_seconds_; }
+    int64_t GetStopSeconds() const {
+        return stop_seconds_;
+    }
 
-    int64_t GetTimestepSeconds() const { return timestep_seconds_; }
+    int64_t GetTimestepSeconds() const {
+        return timestep_seconds_;
+    }
 
    private:
     int64_t current_seconds_;
@@ -69,11 +79,11 @@ class StopTimeDetectionPropertyTest : public ::testing::Test {
 TEST_F(StopTimeDetectionPropertyTest, StopTimeDetectedWhenEqual) {
     // Test various configurations where we reach exactly the stop time
     std::vector<std::tuple<int64_t, int64_t, int64_t>> test_cases = {
-        {0, 3600, 3600},           // 1 timestep, reaches exactly
-        {0, 7200, 3600},           // 2 timesteps, reaches exactly
-        {0, 86400, 3600},          // 24 timesteps, reaches exactly
-        {0, 172800, 7200},         // 24 timesteps, reaches exactly
-        {1000, 11000, 1000},       // 10 timesteps, reaches exactly
+        {0, 3600, 3600},                  // 1 timestep, reaches exactly
+        {0, 7200, 3600},                  // 2 timesteps, reaches exactly
+        {0, 86400, 3600},                 // 24 timesteps, reaches exactly
+        {0, 172800, 7200},                // 24 timesteps, reaches exactly
+        {1000, 11000, 1000},              // 10 timesteps, reaches exactly
         {1592179200, 1592265600, 21600},  // 4 timesteps, reaches exactly
     };
 
@@ -105,8 +115,7 @@ TEST_F(StopTimeDetectionPropertyTest, StopTimeDetectedWhenEqual) {
             << "  Stop time: " << clock.GetStopSeconds() << "s";
 
         // Verify current time equals stop time
-        EXPECT_EQ(clock.GetCurrentSeconds(), stop_seconds)
-            << "Current time should equal stop time";
+        EXPECT_EQ(clock.GetCurrentSeconds(), stop_seconds) << "Current time should equal stop time";
     }
 }
 
@@ -119,11 +128,11 @@ TEST_F(StopTimeDetectionPropertyTest, StopTimeDetectedWhenEqual) {
 TEST_F(StopTimeDetectionPropertyTest, StopTimeDetectedWhenExceeded) {
     // Test configurations where timestep doesn't divide evenly into duration
     std::vector<std::tuple<int64_t, int64_t, int64_t>> test_cases = {
-        {0, 5000, 3600},           // Exceeds by 1400s
-        {0, 10000, 3600},          // Exceeds by 2800s
-        {0, 100000, 7200},         // Exceeds by 6400s
-        {0, 86400, 10800},         // Exceeds by 3600s
-        {1000, 10500, 3600},       // Exceeds by 1100s
+        {0, 5000, 3600},      // Exceeds by 1400s
+        {0, 10000, 3600},     // Exceeds by 2800s
+        {0, 100000, 7200},    // Exceeds by 6400s
+        {0, 86400, 10800},    // Exceeds by 3600s
+        {1000, 10500, 3600},  // Exceeds by 1100s
     };
 
     for (const auto& [start_seconds, stop_seconds, timestep_seconds] : test_cases) {
@@ -147,8 +156,7 @@ TEST_F(StopTimeDetectionPropertyTest, StopTimeDetectedWhenExceeded) {
             << "  Stop time: " << clock.GetStopSeconds() << "s";
 
         // Verify current time is >= stop time
-        EXPECT_GE(clock.GetCurrentSeconds(), stop_seconds)
-            << "Current time should be >= stop time";
+        EXPECT_GE(clock.GetCurrentSeconds(), stop_seconds) << "Current time should be >= stop time";
 
         // Verify we didn't run too many steps
         int max_expected_steps = ((stop_seconds - start_seconds) / timestep_seconds) + 1;
@@ -165,11 +173,11 @@ TEST_F(StopTimeDetectionPropertyTest, StopTimeDetectedWhenExceeded) {
  */
 TEST_F(StopTimeDetectionPropertyTest, RunLoopTerminatesCorrectly) {
     std::vector<std::tuple<int64_t, int64_t, int64_t>> test_cases = {
-        {0, 86400, 3600},          // 1 day, 1-hour timesteps (24 steps)
-        {0, 172800, 7200},         // 2 days, 2-hour timesteps (24 steps)
-        {0, 259200, 10800},        // 3 days, 3-hour timesteps (24 steps)
-        {0, 604800, 21600},        // 1 week, 6-hour timesteps (28 steps)
-        {0, 2592000, 86400},       // 30 days, 1-day timesteps (30 steps)
+        {0, 86400, 3600},     // 1 day, 1-hour timesteps (24 steps)
+        {0, 172800, 7200},    // 2 days, 2-hour timesteps (24 steps)
+        {0, 259200, 10800},   // 3 days, 3-hour timesteps (24 steps)
+        {0, 604800, 21600},   // 1 week, 6-hour timesteps (28 steps)
+        {0, 2592000, 86400},  // 30 days, 1-day timesteps (30 steps)
     };
 
     for (const auto& [start_seconds, stop_seconds, timestep_seconds] : test_cases) {
@@ -199,8 +207,7 @@ TEST_F(StopTimeDetectionPropertyTest, RunLoopTerminatesCorrectly) {
             << "Clock should be at stop time after run loop completes";
 
         // Verify current time equals stop time (for evenly divisible cases)
-        EXPECT_EQ(clock.GetCurrentSeconds(), stop_seconds)
-            << "Current time should equal stop time";
+        EXPECT_EQ(clock.GetCurrentSeconds(), stop_seconds) << "Current time should equal stop time";
     }
 }
 
@@ -228,8 +235,7 @@ TEST_F(StopTimeDetectionPropertyTest, ZeroLengthSimulationsDetectedImmediately) 
             clock.Advance();
         }
 
-        EXPECT_EQ(step_count, 0)
-            << "Zero-length simulation should execute 0 timesteps";
+        EXPECT_EQ(step_count, 0) << "Zero-length simulation should execute 0 timesteps";
     }
 }
 
@@ -265,7 +271,7 @@ TEST_F(StopTimeDetectionPropertyTest, StopTimeDetectionWorksForRandomConfigurati
         // Calculate expected steps and set safety limit
         int64_t expected_steps = ((stop_seconds - start_seconds) / timestep_seconds) + 1;
         int max_steps = static_cast<int>(expected_steps * 2);  // 2x safety margin
-        if (max_steps < 100) max_steps = 100;  // Minimum safety limit
+        if (max_steps < 100) max_steps = 100;                  // Minimum safety limit
 
         int step_count = 0;
 
@@ -288,8 +294,7 @@ TEST_F(StopTimeDetectionPropertyTest, StopTimeDetectionWorksForRandomConfigurati
 
         // Verify we didn't run too many steps
         EXPECT_LE(step_count, expected_steps)
-            << "Should not execute more than " << expected_steps << " steps (test " << test
-            << ")";
+            << "Should not execute more than " << expected_steps << " steps (test " << test << ")";
     }
 }
 
@@ -302,7 +307,7 @@ TEST_F(StopTimeDetectionPropertyTest, StopTimeDetectionWorksForRandomConfigurati
 TEST_F(StopTimeDetectionPropertyTest, StopTimeDetectionIsConsistent) {
     const int num_runs = 20;
     const int64_t start_seconds = 0;
-    const int64_t stop_seconds = 172800;  // 2 days
+    const int64_t stop_seconds = 172800;    // 2 days
     const int64_t timestep_seconds = 3600;  // 1 hour
 
     std::vector<int> step_counts;
@@ -339,17 +344,17 @@ TEST_F(StopTimeDetectionPropertyTest, StopTimeDetectionIsConsistent) {
  */
 TEST_F(StopTimeDetectionPropertyTest, StopTimeDetectionAcrossVariousTimestepSizes) {
     std::vector<int64_t> timestep_sizes = {
-        1,       // 1 second
-        60,      // 1 minute
-        300,     // 5 minutes
-        900,     // 15 minutes
-        1800,    // 30 minutes
-        3600,    // 1 hour
-        7200,    // 2 hours
-        10800,   // 3 hours
-        21600,   // 6 hours
-        43200,   // 12 hours
-        86400,   // 1 day
+        1,      // 1 second
+        60,     // 1 minute
+        300,    // 5 minutes
+        900,    // 15 minutes
+        1800,   // 30 minutes
+        3600,   // 1 hour
+        7200,   // 2 hours
+        10800,  // 3 hours
+        21600,  // 6 hours
+        43200,  // 12 hours
+        86400,  // 1 day
     };
 
     for (int64_t timestep_seconds : timestep_sizes) {
@@ -365,8 +370,8 @@ TEST_F(StopTimeDetectionPropertyTest, StopTimeDetectionAcrossVariousTimestepSize
         }
 
         // Should execute exactly 10 steps
-        EXPECT_EQ(step_count, 10)
-            << "Should execute exactly 10 steps for timestep size " << timestep_seconds << "s";
+        EXPECT_EQ(step_count, 10) << "Should execute exactly 10 steps for timestep size "
+                                  << timestep_seconds << "s";
 
         // Should be at stop time
         EXPECT_TRUE(clock.IsAtStopTime())
@@ -454,8 +459,7 @@ TEST_F(StopTimeDetectionPropertyTest, StopTimeDetectionForLongSimulations) {
         << "Long simulation should execute exactly " << expected_steps << " steps";
 
     // Should be at stop time
-    EXPECT_TRUE(clock.IsAtStopTime())
-        << "Long simulation should detect stop time correctly";
+    EXPECT_TRUE(clock.IsAtStopTime()) << "Long simulation should detect stop time correctly";
 
     // Current time should equal stop time
     EXPECT_EQ(clock.GetCurrentSeconds(), stop_seconds)

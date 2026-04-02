@@ -1,5 +1,5 @@
-#include <fstream>
 #include <cstring>
+#include <fstream>
 /**
  * @file aces_core_field_helpers.cpp
  * @brief Helper functions for field management in ACES.
@@ -52,8 +52,7 @@ void aces_core_get_species_count(void* data_ptr, int* count, int* rc) {
     auto* internal_data = static_cast<aces::AcesInternalData*>(data_ptr);
     *count = static_cast<int>(internal_data->config.species_layers.size());
 
-    std::cout << "INFO: aces_core_get_species_count returned " << *count << " species"
-              << std::endl;
+    std::cout << "INFO: aces_core_get_species_count returned " << *count << " species" << std::endl;
 
     if (rc != nullptr) {
         *rc = 0;
@@ -71,8 +70,7 @@ void aces_core_get_species_count(void* data_ptr, int* count, int* rc) {
  *
  * Requirements: R4
  */
-void aces_core_get_species_name(void* data_ptr, int* index, char* name, int* name_len,
-                                int* rc) {
+void aces_core_get_species_name(void* data_ptr, int* index, char* name, int* name_len, int* rc) {
     if (rc != nullptr) {
         *rc = 0;
     }
@@ -142,9 +140,8 @@ void aces_core_get_species_name(void* data_ptr, int* index, char* name, int* nam
  * @param lat_max Output: maximum latitude
  * @param rc Return code (0 = success, non-zero = error)
  */
-void aces_core_get_grid_config(void* data_ptr, int* nx, int* ny,
-                              double* lon_min, double* lon_max,
-                              double* lat_min, double* lat_max, int* rc) {
+void aces_core_get_grid_config(void* data_ptr, int* nx, int* ny, double* lon_min, double* lon_max,
+                               double* lat_min, double* lat_max, int* rc) {
     if (rc != nullptr) {
         *rc = 0;
     }
@@ -160,8 +157,8 @@ void aces_core_get_grid_config(void* data_ptr, int* nx, int* ny,
     auto* internal_data = static_cast<aces::AcesInternalData*>(data_ptr);
 
     // Check output pointers
-    if (nx == nullptr || ny == nullptr || lon_min == nullptr ||
-        lon_max == nullptr || lat_min == nullptr || lat_max == nullptr) {
+    if (nx == nullptr || ny == nullptr || lon_min == nullptr || lon_max == nullptr ||
+        lat_min == nullptr || lat_max == nullptr) {
         std::cerr << "ERROR: aces_core_get_grid_config - null output pointer" << std::endl;
         if (rc != nullptr) {
             *rc = -1;
@@ -178,8 +175,8 @@ void aces_core_get_grid_config(void* data_ptr, int* nx, int* ny,
     *lat_max = internal_data->config.driver_config.grid.lat_max;
 
     std::cout << "INFO: Grid config retrieved: nx=" << *nx << " ny=" << *ny
-              << " lon_min=" << *lon_min << " lon_max=" << *lon_max
-              << " lat_min=" << *lat_min << " lat_max=" << *lat_max << std::endl;
+              << " lon_min=" << *lon_min << " lon_max=" << *lon_max << " lat_min=" << *lat_min
+              << " lat_max=" << *lat_max << std::endl;
 }
 
 /**
@@ -192,7 +189,7 @@ void aces_core_get_grid_config(void* data_ptr, int* nx, int* ny,
  * @param rc Return code (0 = success, non-zero = error)
  */
 void aces_core_get_timing_config(void* data_ptr, char* start_time, char* end_time,
-                                int* timestep_seconds, int max_len, int* rc) {
+                                 int* timestep_seconds, int max_len, int* rc) {
     if (rc != nullptr) {
         *rc = 0;
     }
@@ -228,9 +225,8 @@ void aces_core_get_timing_config(void* data_ptr, char* start_time, char* end_tim
 
     *timestep_seconds = driver_config.timestep_seconds;
 
-    std::cout << "INFO: Timing config retrieved: start=" << start_time
-              << " end=" << end_time << " timestep=" << *timestep_seconds
-              << " seconds" << std::endl;
+    std::cout << "INFO: Timing config retrieved: start=" << start_time << " end=" << end_time
+              << " timestep=" << *timestep_seconds << " seconds" << std::endl;
 }
 
 /**
@@ -243,9 +239,8 @@ void aces_core_get_timing_config(void* data_ptr, char* start_time, char* end_tim
  * @param max_len Maximum length for time strings (including null terminator)
  * @param rc Return code (0 = success, non-zero = error)
  */
-void aces_read_timing_config(const char* config_path, int path_len,
-                            char* start_time, char* end_time,
-                            int* timestep_seconds, int max_len, int* rc) {
+void aces_read_timing_config(const char* config_path, int path_len, char* start_time,
+                             char* end_time, int* timestep_seconds, int max_len, int* rc) {
     if (rc != nullptr) {
         *rc = 0;
     }
@@ -287,12 +282,12 @@ void aces_read_timing_config(const char* config_path, int path_len,
         *timestep_seconds = timestep_default;
 
         std::cout << "INFO: Driver timing config loaded: start=" << start_time
-                  << " end=" << end_time << " timestep=" << *timestep_seconds
-                  << " seconds" << std::endl;
+                  << " end=" << end_time << " timestep=" << *timestep_seconds << " seconds"
+                  << std::endl;
 
     } catch (const std::exception& e) {
-        std::cerr << "ERROR: Failed to read timing config from " << config_path
-                  << ": " << e.what() << std::endl;
+        std::cerr << "ERROR: Failed to read timing config from " << config_path << ": " << e.what()
+                  << std::endl;
         if (rc != nullptr) {
             *rc = -1;
         }
@@ -461,13 +456,15 @@ void aces_core_get_ingestor_streams_path(void* data_ptr, char* streams_path, int
     }
 
     // Generate TIDE YAML configuration
-    std::string config_content = internal_data->ingestor.SerializeTideYaml(internal_data->config.aces_data);
+    std::string config_content =
+        internal_data->ingestor.SerializeTideYaml(internal_data->config.aces_data);
 
     // Write to file (using .yaml extension for modern TIDE interface)
     std::string filename = "aces_data_streams.yaml";
     std::ofstream outfile(filename);
     if (!outfile.is_open()) {
-        std::cerr << "ERROR: Failed to open output file for TIDE streams: " << filename << std::endl;
+        std::cerr << "ERROR: Failed to open output file for TIDE streams: " << filename
+                  << std::endl;
         if (rc != nullptr) *rc = -1;
         return;
     }
@@ -475,7 +472,7 @@ void aces_core_get_ingestor_streams_path(void* data_ptr, char* streams_path, int
     outfile.close();
 
     // Return filename
-    if (filename.length() >= 512) { // Assuming 512 is buffer size from Fortran
+    if (filename.length() >= 512) {  // Assuming 512 is buffer size from Fortran
         std::cerr << "ERROR: streams path too long" << std::endl;
         if (rc != nullptr) *rc = -1;
         return;
@@ -527,8 +524,8 @@ void aces_ingestor_init(void* data_ptr, void* c_clock, void* c_mesh, int* rc) {
  * @param nx, ny, nz Grid dimensions.
  * @param rc         Return code (0 = success, -1 = error).
  */
-void aces_core_set_export_field(void* data_ptr, const char* name, int name_len,
-                                double* field_data, int nx, int ny, int nz, int* rc) {
+void aces_core_set_export_field(void* data_ptr, const char* name, int name_len, double* field_data,
+                                int nx, int ny, int nz, int* rc) {
     if (rc != nullptr) {
         *rc = 0;
     }
@@ -569,8 +566,8 @@ void aces_core_set_export_field(void* data_ptr, const char* name, int name_len,
 
     internal_data->export_state.fields[name_str] = dv;
 
-    std::cout << "INFO: aces_core_set_export_field - registered field '" << name_str
-              << "' (" << nx << "x" << ny << "x" << nz << ")" << std::endl;
+    std::cout << "INFO: aces_core_set_export_field - registered field '" << name_str << "' (" << nx
+              << "x" << ny << "x" << nz << ")" << std::endl;
 
     if (rc != nullptr) {
         *rc = 0;
@@ -617,8 +614,6 @@ void aces_core_write_step(void* data_ptr, double time_seconds, int step_index, i
         if (rc != nullptr) *rc = w;
     }
 }
-
-
 
 /**
  * @brief Get the number of unique input fields required by the configuration.
@@ -764,7 +759,8 @@ void aces_core_get_stream_field_count(void* data_ptr, int* count, int* rc) {
  * @param name_len Output: length of the field name
  * @param rc Return code (0 = success, non-zero = error)
  */
-void aces_core_get_stream_field_name(void* data_ptr, int* index, char* name, int* name_len, int* rc) {
+void aces_core_get_stream_field_name(void* data_ptr, int* index, char* name, int* name_len,
+                                     int* rc) {
     if (rc != nullptr) {
         *rc = 0;
     }
@@ -811,7 +807,8 @@ void aces_core_get_stream_field_name(void* data_ptr, int* index, char* name, int
     }
 
     // Index out of bounds
-    std::cerr << "ERROR: aces_core_get_stream_field_name - index out of bounds: " << idx << std::endl;
+    std::cerr << "ERROR: aces_core_get_stream_field_name - index out of bounds: " << idx
+              << std::endl;
     if (rc != nullptr) {
         *rc = -1;
     }
@@ -838,7 +835,8 @@ void aces_core_get_external_field_count(void* data_ptr, int* count, int* rc) {
     }
 
     if (count == nullptr) {
-        std::cerr << "ERROR: aces_core_get_external_field_count - count pointer is null" << std::endl;
+        std::cerr << "ERROR: aces_core_get_external_field_count - count pointer is null"
+                  << std::endl;
         if (rc != nullptr) {
             *rc = -1;
         }
@@ -862,7 +860,8 @@ void aces_core_get_external_field_count(void* data_ptr, int* count, int* rc) {
  * @param name_len Output: length of the field name
  * @param rc Return code (0 = success, non-zero = error)
  */
-void aces_core_get_external_field_name(void* data_ptr, int* index, char* name, int* name_len, int* rc) {
+void aces_core_get_external_field_name(void* data_ptr, int* index, char* name, int* name_len,
+                                       int* rc) {
     if (rc != nullptr) {
         *rc = 0;
     }
@@ -876,7 +875,8 @@ void aces_core_get_external_field_name(void* data_ptr, int* index, char* name, i
     }
 
     if (index == nullptr || name == nullptr || name_len == nullptr) {
-        std::cerr << "ERROR: aces_core_get_external_field_name - null pointer argument" << std::endl;
+        std::cerr << "ERROR: aces_core_get_external_field_name - null pointer argument"
+                  << std::endl;
         if (rc != nullptr) {
             *rc = -1;
         }

@@ -14,9 +14,10 @@
 
 #include <gtest/gtest.h>
 #include <rapidcheck.h>
+
+#include <map>
 #include <string>
 #include <vector>
-#include <map>
 
 // ---------------------------------------------------------------------------
 // Mock ESMF State and Component Classes
@@ -26,26 +27,31 @@
  * @brief Mock ESMF_State for testing state management logic.
  */
 class MockState {
-public:
-    enum StateIntent {
-        IMPORT,
-        EXPORT
-    };
+   public:
+    enum StateIntent { IMPORT, EXPORT };
 
     MockState(const std::string& name, StateIntent intent)
         : name_(name), intent_(intent), is_created_(true) {}
 
-    const std::string& GetName() const { return name_; }
-    StateIntent GetIntent() const { return intent_; }
-    bool IsCreated() const { return is_created_; }
+    const std::string& GetName() const {
+        return name_;
+    }
+    StateIntent GetIntent() const {
+        return intent_;
+    }
+    bool IsCreated() const {
+        return is_created_;
+    }
 
     void AddField(const std::string& field_name) {
         fields_.push_back(field_name);
     }
 
-    const std::vector<std::string>& GetFields() const { return fields_; }
+    const std::vector<std::string>& GetFields() const {
+        return fields_;
+    }
 
-private:
+   private:
     std::string name_;
     StateIntent intent_;
     bool is_created_;
@@ -56,22 +62,24 @@ private:
  * @brief Mock ACES GridComp for testing component setup logic.
  */
 class MockAcesComponent {
-public:
-    enum Phase {
-        ADVERTISE_INIT = 1,
-        REALIZE_BIND = 2,
-        RUN = 3,
-        FINALIZE = 4
-    };
+   public:
+    enum Phase { ADVERTISE_INIT = 1, REALIZE_BIND = 2, RUN = 3, FINALIZE = 4 };
 
     MockAcesComponent(const std::string& name)
-        : name_(name), is_created_(true), is_initialized_(false),
-          current_phase_(0) {}
+        : name_(name), is_created_(true), is_initialized_(false), current_phase_(0) {}
 
-    const std::string& GetName() const { return name_; }
-    bool IsCreated() const { return is_created_; }
-    bool IsInitialized() const { return is_initialized_; }
-    int GetCurrentPhase() const { return current_phase_; }
+    const std::string& GetName() const {
+        return name_;
+    }
+    bool IsCreated() const {
+        return is_created_;
+    }
+    bool IsInitialized() const {
+        return is_initialized_;
+    }
+    int GetCurrentPhase() const {
+        return current_phase_;
+    }
 
     void SetServices() {
         // Register all phase methods
@@ -82,8 +90,8 @@ public:
     }
 
     bool IsPhaseRegistered(Phase phase) const {
-        return std::find(registered_phases_.begin(), registered_phases_.end(), phase)
-               != registered_phases_.end();
+        return std::find(registered_phases_.begin(), registered_phases_.end(), phase) !=
+               registered_phases_.end();
     }
 
     void ExecutePhase(Phase phase) {
@@ -98,7 +106,7 @@ public:
         return registered_phases_;
     }
 
-private:
+   private:
     std::string name_;
     bool is_created_;
     bool is_initialized_;
@@ -110,8 +118,7 @@ private:
 // Test Suite: State Creation
 // ---------------------------------------------------------------------------
 
-class StateCreationTest : public ::testing::Test {
-};
+class StateCreationTest : public ::testing::Test {};
 
 TEST_F(StateCreationTest, ImportStateCreation) {
     MockState import_state("ACES_ImportState", MockState::IMPORT);
@@ -157,8 +164,7 @@ TEST_F(StateCreationTest, StateFieldCountProperty) {
 // Test Suite: Component Registration
 // ---------------------------------------------------------------------------
 
-class ComponentRegistrationTest : public ::testing::Test {
-};
+class ComponentRegistrationTest : public ::testing::Test {};
 
 TEST_F(ComponentRegistrationTest, ComponentCreation) {
     MockAcesComponent comp("ACES");
@@ -188,8 +194,7 @@ TEST_F(ComponentRegistrationTest, AllPhasesRegistered) {
 // Test Suite: Phase Execution Order
 // ---------------------------------------------------------------------------
 
-class PhaseExecutionOrderTest : public ::testing::Test {
-};
+class PhaseExecutionOrderTest : public ::testing::Test {};
 
 // Property 11: Phase Execution Order
 // Phase 1 (Advertise+Init) must complete successfully before phase 2 (Realize+Bind)
@@ -214,11 +219,8 @@ TEST_F(PhaseExecutionOrderTest, SequentialPhaseExecution) {
     comp.SetServices();
 
     std::vector<MockAcesComponent::Phase> phases = {
-        MockAcesComponent::ADVERTISE_INIT,
-        MockAcesComponent::REALIZE_BIND,
-        MockAcesComponent::RUN,
-        MockAcesComponent::FINALIZE
-    };
+        MockAcesComponent::ADVERTISE_INIT, MockAcesComponent::REALIZE_BIND, MockAcesComponent::RUN,
+        MockAcesComponent::FINALIZE};
 
     for (const auto& phase : phases) {
         comp.ExecutePhase(phase);
@@ -245,8 +247,7 @@ TEST_F(PhaseExecutionOrderTest, CannotSkipPhases) {
 // Test Suite: Component Setup Integration
 // ---------------------------------------------------------------------------
 
-class ComponentSetupIntegrationTest : public ::testing::Test {
-};
+class ComponentSetupIntegrationTest : public ::testing::Test {};
 
 TEST_F(ComponentSetupIntegrationTest, FullComponentSetup) {
     // Create states
@@ -285,8 +286,7 @@ TEST_F(ComponentSetupIntegrationTest, MultipleComponentsWithStates) {
 // Test Suite: NUOPC Standards Compliance
 // ---------------------------------------------------------------------------
 
-class NUOPCStandardsComplianceTest : public ::testing::Test {
-};
+class NUOPCStandardsComplianceTest : public ::testing::Test {};
 
 TEST_F(NUOPCStandardsComplianceTest, IPDv01PhaseNumbering) {
     // IPDv01 defines specific phase numbers:

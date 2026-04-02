@@ -109,8 +109,8 @@ void aces_core_initialize_p2_impl(void* data_ptr, int* nx, int* ny, int* nz, int
     // 3. Initialize data ingestor if streams are configured
     if (!internal_data->config.aces_data.streams.empty()) {
         std::cout << "INFO: aces_data streams configured - initializing data ingestor" << std::endl;
-        std::cout << "INFO: Number of streams: "
-                  << internal_data->config.aces_data.streams.size() << std::endl;
+        std::cout << "INFO: Number of streams: " << internal_data->config.aces_data.streams.size()
+                  << std::endl;
 
         try {
             // Initialize TIDE through the data ingestor
@@ -129,8 +129,7 @@ void aces_core_initialize_p2_impl(void* data_ptr, int* nx, int* ny, int* nz, int
             return;
         }
     } else {
-        std::cout << "INFO: No TIDE streams configured - skipping TIDE initialization"
-                  << std::endl;
+        std::cout << "INFO: No TIDE streams configured - skipping TIDE initialization" << std::endl;
     }
 
     // 4. Allocate default mask (all 1.0)

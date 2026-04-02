@@ -105,8 +105,8 @@ TEST_F(FieldResolutionPriorityTest, FieldNameVariations) {
         EXPECT_FALSE(ingestor.HasDataIngesterField(name))
             << "Field '" << name << "' should not be in cache before any ingestion";
         auto view = ingestor.ResolveField(name, 5, 5, 5);
-        EXPECT_EQ(view.data(), nullptr) << "ResolveField should return empty view for '" << name
-                                        << "' when not in cache";
+        EXPECT_EQ(view.data(), nullptr)
+            << "ResolveField should return empty view for '" << name << "' when not in cache";
     }
 }
 

@@ -15,6 +15,7 @@
 
 #include <gtest/gtest.h>
 #include <rapidcheck.h>
+
 #include <sstream>
 #include <string>
 #include <vector>
@@ -27,12 +28,8 @@
  * @brief Mock logger for testing error logging.
  */
 class MockLogger {
-public:
-    enum LogLevel {
-        INFO,
-        WARNING,
-        ERROR
-    };
+   public:
+    enum LogLevel { INFO, WARNING, ERROR };
 
     struct LogEntry {
         LogLevel level;
@@ -41,8 +38,8 @@ public:
         int error_code;
     };
 
-    void Log(LogLevel level, const std::string& component,
-             const std::string& message, int error_code = 0) {
+    void Log(LogLevel level, const std::string& component, const std::string& message,
+             int error_code = 0) {
         LogEntry entry{level, component, message, error_code};
         logs_.push_back(entry);
     }
@@ -75,7 +72,7 @@ public:
         return count;
     }
 
-private:
+   private:
     std::vector<LogEntry> logs_;
 };
 
@@ -83,7 +80,7 @@ private:
  * @brief Mock ESMF operation for testing error handling.
  */
 class MockESMFOperation {
-public:
+   public:
     MockESMFOperation(int return_code = 0) : return_code_(return_code) {}
 
     int Execute() {
@@ -94,7 +91,7 @@ public:
         return_code_ = rc;
     }
 
-private:
+   private:
     int return_code_;
 };
 
@@ -102,7 +99,7 @@ private:
  * @brief Mock ACES operation for testing error handling.
  */
 class MockAcesOperation {
-public:
+   public:
     MockAcesOperation(int return_code = 0) : return_code_(return_code) {}
 
     int Execute(int timestep = 0) {
@@ -113,7 +110,7 @@ public:
         return_code_ = rc;
     }
 
-private:
+   private:
     int return_code_;
 };
 
@@ -121,8 +118,7 @@ private:
 // Test Suite: Error Logging
 // ---------------------------------------------------------------------------
 
-class ErrorLoggingTest : public ::testing::Test {
-};
+class ErrorLoggingTest : public ::testing::Test {};
 
 // Property 17: Error Logging Completeness
 // For any ESMF or ACES operation failure, the error log must contain
@@ -168,8 +164,7 @@ TEST_F(ErrorLoggingTest, MultipleErrorLogs) {
 // Test Suite: ESMF Error Handling
 // ---------------------------------------------------------------------------
 
-class ESMFErrorHandlingTest : public ::testing::Test {
-};
+class ESMFErrorHandlingTest : public ::testing::Test {};
 
 TEST_F(ESMFErrorHandlingTest, ESMFInitializeSuccess) {
     MockLogger logger;
@@ -225,8 +220,7 @@ TEST_F(ESMFErrorHandlingTest, GridCreationFailure) {
 // Test Suite: ACES Error Handling
 // ---------------------------------------------------------------------------
 
-class ACESErrorHandlingTest : public ::testing::Test {
-};
+class ACESErrorHandlingTest : public ::testing::Test {};
 
 TEST_F(ACESErrorHandlingTest, ACESRunSuccess) {
     MockLogger logger;
@@ -270,8 +264,7 @@ TEST_F(ACESErrorHandlingTest, ACESFinalizeFailure) {
 // Test Suite: Phase Transition Logging
 // ---------------------------------------------------------------------------
 
-class PhaseTransitionLoggingTest : public ::testing::Test {
-};
+class PhaseTransitionLoggingTest : public ::testing::Test {};
 
 TEST_F(PhaseTransitionLoggingTest, AdvertisePhaseLogging) {
     MockLogger logger;
@@ -330,8 +323,7 @@ TEST_F(PhaseTransitionLoggingTest, AllPhaseTransitions) {
 // Test Suite: Fatal Error Exit Codes
 // ---------------------------------------------------------------------------
 
-class FatalErrorExitCodeTest : public ::testing::Test {
-};
+class FatalErrorExitCodeTest : public ::testing::Test {};
 
 // Property 18: Fatal Error Exit Code
 // For any fatal error encountered during driver execution,
@@ -342,7 +334,8 @@ TEST_F(FatalErrorExitCodeTest, Property18_FatalErrorExitCode) {
 
     for (int error_code : fatal_errors) {
         int exit_code = (error_code != 0) ? 1 : 0;
-        EXPECT_NE(exit_code, 0) << "Fatal error " << error_code << " should result in non-zero exit";
+        EXPECT_NE(exit_code, 0) << "Fatal error " << error_code
+                                << " should result in non-zero exit";
     }
 }
 
@@ -362,8 +355,7 @@ TEST_F(FatalErrorExitCodeTest, ErrorExitCode) {
 // Integration Tests
 // ---------------------------------------------------------------------------
 
-class ErrorHandlingIntegrationTest : public ::testing::Test {
-};
+class ErrorHandlingIntegrationTest : public ::testing::Test {};
 
 TEST_F(ErrorHandlingIntegrationTest, FullErrorHandlingSequence) {
     MockLogger logger;

@@ -10,6 +10,7 @@
  */
 
 #include <gtest/gtest.h>
+
 #include "aces/aces_config.hpp"
 #include "aces/aces_data_ingestor.hpp"
 #include "aces/aces_state.hpp"
@@ -32,8 +33,8 @@ TEST(IngestBeforeExecuteProperty, EmptyStreamsDoesNotPopulateFields) {
         << "IngestEmissionsInline with empty streams should not populate fields";
 }
 
-// Property 3: The guard in aces_core_run only calls IngestEmissionsInline when streams is non-empty.
-// This verifies the guard condition is correct.
+// Property 3: The guard in aces_core_run only calls IngestEmissionsInline when streams is
+// non-empty. This verifies the guard condition is correct.
 TEST(IngestBeforeExecuteProperty, NonEmptyStreamsConfigHasStreams) {
     AcesCdepsConfig config;
     AcesDataStreamConfig stream;
@@ -45,8 +46,7 @@ TEST(IngestBeforeExecuteProperty, NonEmptyStreamsConfigHasStreams) {
     stream.variables.push_back(var);
     config.streams.push_back(stream);
 
-    EXPECT_FALSE(config.streams.empty())
-        << "Config with streams should have non-empty streams";
+    EXPECT_FALSE(config.streams.empty()) << "Config with streams should have non-empty streams";
     EXPECT_EQ(config.streams.size(), 1u);
     EXPECT_EQ(config.streams[0].variables[0].name_in_model, "MACCITY");
 }
