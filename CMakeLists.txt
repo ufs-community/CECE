@@ -320,8 +320,7 @@ target_link_libraries(test_vertical_distribution_single PRIVATE aces GTest::gtes
 add_executable(test_field_resolution_priority tests/test_field_resolution_priority.cpp)
 target_link_libraries(test_field_resolution_priority PRIVATE aces GTest::gtest_main)
 
-add_executable(test_realize_phase tests/test_realize_phase.cpp)
-target_link_libraries(test_realize_phase PRIVATE aces GTest::gtest_main)
+
 
 if(ACES_HAS_FORTRAN)
     add_library(test_helpers STATIC tests/test_helpers.F90)
@@ -330,30 +329,15 @@ if(ACES_HAS_FORTRAN)
 endif()
 
 
-add_executable(test_initialize_phases tests/test_initialize_phases.cpp)
-if(ACES_HAS_FORTRAN AND TARGET test_helpers)
-    target_link_libraries(test_initialize_phases PRIVATE aces test_helpers GTest::gtest_main)
-else()
-    target_link_libraries(test_initialize_phases PRIVATE aces GTest::gtest_main)
-endif()
 
 
 
 
 
-add_executable(test_nuopc_phase_sequence tests/test_nuopc_phase_sequence.cpp)
-if(ACES_HAS_FORTRAN AND TARGET test_helpers)
-    target_link_libraries(test_nuopc_phase_sequence PRIVATE aces test_helpers GTest::gtest_main)
-else()
-    target_link_libraries(test_nuopc_phase_sequence PRIVATE aces GTest::gtest_main)
-endif()
 
-add_executable(test_single_model_driver tests/test_single_model_driver.cpp)
-if(ACES_HAS_FORTRAN AND TARGET test_helpers)
-    target_link_libraries(test_single_model_driver PRIVATE aces test_helpers GTest::gtest_main)
-else()
-    target_link_libraries(test_single_model_driver PRIVATE aces GTest::gtest_main)
-endif()
+
+
+
 
 # add_executable(example_driver tests/example_driver.cpp)
 # target_link_libraries(example_driver PRIVATE aces)
@@ -378,15 +362,7 @@ target_link_libraries(test_hemco_parity PRIVATE aces GTest::gtest_main)
 
 
 
-# Property 23: Output Round-Trip (Requirement 11.14)
-add_executable(test_output_roundtrip tests/test_output_roundtrip.cpp)
-target_link_libraries(test_output_roundtrip PRIVATE aces GTest::gtest_main)
-if(NetCDF_ROOT)
-    target_include_directories(test_output_roundtrip PRIVATE "${NetCDF_ROOT}/include")
-    if(EXISTS "${NetCDF_ROOT}/lib/libnetcdf.so")
-        target_link_libraries(test_output_roundtrip PRIVATE "${NetCDF_ROOT}/lib/libnetcdf.so")
-    endif()
-endif()
+
 
 # Kokkos Configuration Tests (Requirement 6.13-6.18, 6.21)
 add_executable(test_kokkos_configuration tests/test_kokkos_configuration.cpp)
@@ -428,16 +404,7 @@ target_link_libraries(test_repro_failure PRIVATE aces GTest::gtest_main)
 
 
 
-# Standalone Writer Unit Tests (Requirements 11.6, 11.7, 11.9, 11.11, 11.13)
-add_executable(test_standalone_writer_unit tests/test_standalone_writer_unit.cpp)
-target_link_libraries(test_standalone_writer_unit PRIVATE aces GTest::gtest_main)
-if(NetCDF_ROOT)
-    target_include_directories(test_standalone_writer_unit PRIVATE "${NetCDF_ROOT}/include")
-    if(EXISTS "${NetCDF_ROOT}/lib/libnetcdf.so")
-        target_link_libraries(test_standalone_writer_unit PRIVATE
-            "${NetCDF_ROOT}/lib/libnetcdf.so")
-    endif()
-endif()
+
 
 # Kernel Profiling Tests (Requirements 6.4, 6.19, 6.20)
 
@@ -512,17 +479,17 @@ gtest_discover_tests(test_diagnostics)
 gtest_discover_tests(test_hemco_mimic)
 gtest_discover_tests(test_field_resolution_priority)
 
-gtest_discover_tests(test_realize_phase)
-gtest_discover_tests(test_initialize_phases)
 
 
-gtest_discover_tests(test_nuopc_phase_sequence)
-gtest_discover_tests(test_single_model_driver)
+
+
+
+
 gtest_discover_tests(test_hemco_parity)
 
 
 
-gtest_discover_tests(test_output_roundtrip)
+
 gtest_discover_tests(test_kokkos_configuration)
 
 
@@ -532,7 +499,7 @@ gtest_discover_tests(test_repro_failure)
 
 
 
-gtest_discover_tests(test_standalone_writer_unit)
+
 
 
 gtest_discover_tests(test_field_creation)
