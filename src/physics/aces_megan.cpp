@@ -75,8 +75,8 @@ double get_gamma_lai(double lai, double c1, double c2, bool is_bidirectional) {
  * @return Age correction factor (dimensionless)
  */
 KOKKOS_INLINE_FUNCTION
-double get_gamma_age(double cmlai, double pmlai, double dbtwn, double tt,
-                     double an, double ag, double am, double ao) {
+double get_gamma_age(double cmlai, double pmlai, double dbtwn, double tt, double an, double ag,
+                     double am, double ao) {
     double fnew = 0.0;
     double fgro = 0.0;
     double fmat = 0.0;
@@ -274,8 +274,10 @@ double get_gamma_co2(double co2a, double c1, double c2, bool use_wilkinson) {
 
         double co2i = 0.7 * co2a;
 
-        double term1 = ismaxi - ismaxi * std::pow(co2i, hexpi) / (std::pow(cstari, hexpi) + std::pow(co2i, hexpi));
-        double term2 = ismaxa - ismaxa * std::pow(0.7 * co2a, hexpa) / (std::pow(cstara, hexpa) + std::pow(0.7 * co2a, hexpa));
+        double term1 = ismaxi - ismaxi * std::pow(co2i, hexpi) /
+                                    (std::pow(cstari, hexpi) + std::pow(co2i, hexpi));
+        double term2 = ismaxa - ismaxa * std::pow(0.7 * co2a, hexpa) /
+                                    (std::pow(cstara, hexpa) + std::pow(0.7 * co2a, hexpa));
 
         return term1 * term2;
     }
@@ -419,7 +421,7 @@ void MeganScheme::Run(AcesImportState& import_state, AcesExportState& export_sta
             double T_AVG_15 = 297.0;
             double PAR_AVG = 400.0;
             int doy = 180;
-            double dbtwn = 30.0; // Assume 1 month if not dynamically passed
+            double dbtwn = 30.0;  // Assume 1 month if not dynamically passed
 
             double L_prev = has_pmlai ? pmlai(i, j, 0) : L;
             double gwet = has_gwetroot ? gwetroot(i, j, 0) : 1.0;
@@ -435,7 +437,8 @@ void MeganScheme::Run(AcesImportState& import_state, AcesExportState& export_sta
             double gamma_age = get_gamma_age(L, L_prev, dbtwn, T, anew, agro, amat, aold);
             double gamma_sm = get_gamma_sm(gwet, is_ald2_or_eoh);
 
-            double megan_emis = NORM_FAC * aef_isop * gamma_age * gamma_sm * gamma_lai * gamma_co2_const *
+            double megan_emis = NORM_FAC * aef_isop * gamma_age * gamma_sm * gamma_lai *
+                                gamma_co2_const *
                                 ((1.0 - ldf) * gamma_t_li + (ldf * gamma_par * gamma_t_ld));
 
             isoprene(i, j, 0) += megan_emis;

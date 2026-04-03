@@ -23,10 +23,10 @@ fi
 if docker image inspect "$IMAGE" &> /dev/null; then
     echo "Docker image $IMAGE already exists locally."
     echo "Checking for updates..."
-    # docker pull "$IMAGE"
+    docker pull "$IMAGE"
 else
     echo "Pulling Docker image: $IMAGE"
-    # docker pull "$IMAGE"
+    docker pull "$IMAGE"
 fi
 
 echo "Launching ACES Development Container..."
@@ -41,7 +41,7 @@ if [ "$1" = "-c" ] && [ -n "$2" ]; then
         /bin/bash -c "source /opt/spack-environment/activate.sh && $2"
 else
     # Interactive mode: drop into bash shell
-    docker run --rm \
+    docker run -it --rm \
         -v "$(pwd):/work" \
         -w /work \
         "$IMAGE" \
