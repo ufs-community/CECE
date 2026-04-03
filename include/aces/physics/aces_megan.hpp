@@ -23,7 +23,12 @@ class MeganScheme : public BasePhysicsScheme {
     double ct1_ = 95.0;
     double ceo_ = 2.0;
     double ldf_ = 1.0;
-    double aef_isop_ = 1.0e-9;
+
+    // Configurable list of species and their emission factors (AEF)
+    std::string species_name_ = "isoprene";
+    std::string export_field_name_ = "isoprene_emissions";
+    double aef_ = 1.0e-9;
+
     double lai_coeff_1_ = 0.49;
     double lai_coeff_2_ = 0.2;
     double standard_temp_ = 303.0;

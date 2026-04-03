@@ -309,7 +309,23 @@ void MeganScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* di
     ct1_ = 95.0;
     ceo_ = 2.0;
     ldf_ = 1.0;
-    aef_isop_ = 1.0e-9;
+
+    aef_ = 1.0e-9;
+    if (config["aef"]) {
+        aef_ = config["aef"].as<double>();
+    } else if (config["aef_isop"]) {  // Fallback for backward compatibility
+        aef_ = config["aef_isop"].as<double>();
+    }
+
+    species_name_ = "isoprene";
+    if (config["species_name"]) {
+        species_name_ = config["species_name"].as<std::string>();
+    }
+
+    export_field_name_ = species_name_ + "_emissions";
+    if (config["export_field_name"]) {
+        export_field_name_ = config["export_field_name"].as<std::string>();
+    }
 
     lai_coeff_1_ = 0.49;
     lai_coeff_2_ = 0.2;
@@ -331,7 +347,6 @@ void MeganScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* di
     if (config["ct1"]) ct1_ = config["ct1"].as<double>();
     if (config["ceo"]) ceo_ = config["ceo"].as<double>();
     if (config["ldf"]) ldf_ = config["ldf"].as<double>();
-    if (config["aef_isop"]) aef_isop_ = config["aef_isop"].as<double>();
     if (config["lai_coeff_1"]) lai_coeff_1_ = config["lai_coeff_1"].as<double>();
     if (config["lai_coeff_2"]) lai_coeff_2_ = config["lai_coeff_2"].as<double>();
     if (config["standard_temp"]) standard_temp_ = config["standard_temp"].as<double>();
@@ -353,7 +368,7 @@ void MeganScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* di
 
 void MeganScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
     auto temp = ResolveImport("temperature", import_state);
-    auto isoprene = ResolveExport("isoprene_emissions", export_state);
+    auto emissions_out = ResolveExport(export_field_name_, export_state);
     auto lai = ResolveImport("leaf_area_index", import_state);
     auto pardr = ResolveImport("par_direct", import_state);
     auto pardf = ResolveImport("par_diffuse", import_state);
@@ -363,19 +378,19 @@ void MeganScheme::Run(AcesImportState& import_state, AcesExportState& export_sta
     auto pmlai = ResolveImport("leaf_area_index_prev", import_state);
     auto gwetroot = ResolveImport("soil_moisture_root", import_state);
 
-    if (temp.data() == nullptr || isoprene.data() == nullptr || lai.data() == nullptr ||
+    if (temp.data() == nullptr || emissions_out.data() == nullptr || lai.data() == nullptr ||
         pardr.data() == nullptr || pardf.data() == nullptr || suncos.data() == nullptr) {
         return;
     }
 
-    int nx = static_cast<int>(isoprene.extent(0));
-    int ny = static_cast<int>(isoprene.extent(1));
+    int nx = static_cast<int>(emissions_out.extent(0));
+    int ny = static_cast<int>(emissions_out.extent(1));
 
     double beta = beta_;
     double ct1 = ct1_;
     double ceo = ceo_;
     double ldf = ldf_;
-    double aef_isop = aef_isop_;
+    double aef = aef_;
     double lai_c1 = lai_coeff_1_;
     double lai_c2 = lai_coeff_2_;
     double std_t = standard_temp_;
@@ -437,15 +452,15 @@ void MeganScheme::Run(AcesImportState& import_state, AcesExportState& export_sta
             double gamma_age = get_gamma_age(L, L_prev, dbtwn, T, anew, agro, amat, aold);
             double gamma_sm = get_gamma_sm(gwet, is_ald2_or_eoh);
 
-            double megan_emis = NORM_FAC * aef_isop * gamma_age * gamma_sm * gamma_lai *
+            double megan_emis = NORM_FAC * aef * gamma_age * gamma_sm * gamma_lai *
                                 gamma_co2_const *
                                 ((1.0 - ldf) * gamma_t_li + (ldf * gamma_par * gamma_t_ld));
 
-            isoprene(i, j, 0) += megan_emis;
+            emissions_out(i, j, 0) += megan_emis;
         });
 
     Kokkos::fence();
-    MarkModified("isoprene_emissions", export_state);
+    MarkModified(export_field_name_, export_state);
 }
 
 }  // namespace aces
