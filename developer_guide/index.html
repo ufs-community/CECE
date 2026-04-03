@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Accelerated Component for Emission System">
+        <meta name="description" content="Atmospheric Chemistry Emission System">
       
       
         <meta name="author" content="ACES Team">
@@ -23,7 +23,7 @@
     
     
       
-        <title>Developer Guide - ACES Documentation</title>
+        <title>ACES Developer Guide - ACES Documentation</title>
       
     
     
@@ -79,7 +79,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#developer-guide" class="md-skip">
+        <a href="#aces-developer-guide" class="md-skip">
           Skip to content
         </a>
       
@@ -115,7 +115,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Developer Guide
+              ACES Developer Guide
             
           </span>
         </div>
@@ -489,144 +489,88 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#aces-architecture-overview" class="md-nav__link">
+  <a href="#project-overview" class="md-nav__link">
     <span class="md-ellipsis">
       
-        ACES Architecture Overview
+        Project Overview
       
     </span>
   </a>
-  
-    <nav class="md-nav" aria-label="ACES Architecture Overview">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#high-level-architecture" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        High-Level Architecture
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#core-components" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Core Components
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Core Components">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#1-nuopc-cap-fortran" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        1. NUOPC Cap (Fortran)
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#2-c-bridge-layer" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        2. C++ Bridge Layer
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#3-configuration-parser" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        3. Configuration Parser
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#4-cdeps-data-ingestor" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        4. CDEPS Data Ingestor
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#5-stackingengine" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        5. StackingEngine
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#6-physics-factory" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        6. Physics Factory
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#7-physics-schemes" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        7. Physics Schemes
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-        
-      </ul>
-    </nav>
   
 </li>
       
         <li class="md-nav__item">
-  <a href="#component-interactions-and-data-flow" class="md-nav__link">
+  <a href="#core-architecture-philosophy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Component Interactions and Data Flow
+        Core Architecture &amp; Philosophy
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Component Interactions and Data Flow">
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#global-coding-standards" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Global Coding Standards
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#physics-scheme-development" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Physics Scheme Development
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#vertical-distribution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vertical Distribution
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration-system" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration System
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#development-environment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Development Environment
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Development Environment">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#initialization-sequence" class="md-nav__link">
+  <a href="#important-no-mocking-policy" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Initialization Sequence
+        ⚠️ IMPORTANT: No Mocking Policy
       
     </span>
   </a>
@@ -634,10 +578,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#run-loop-sequence" class="md-nav__link">
+  <a href="#quick-start" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Run Loop Sequence
+        Quick Start
       
     </span>
   </a>
@@ -645,10 +589,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#data-flow" class="md-nav__link">
+  <a href="#python-dependencies" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Data Flow
+        Python Dependencies
       
     </span>
   </a>
@@ -661,277 +605,10 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#nuopc-phase-handling-patterns" class="md-nav__link">
+  <a href="#documentation-resources" class="md-nav__link">
     <span class="md-ellipsis">
       
-        NUOPC Phase Handling Patterns
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="NUOPC Phase Handling Patterns">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#phase-dependency-declaration" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Phase Dependency Declaration
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#multi-phase-initialization" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Multi-Phase Initialization
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#error-handling-in-phases" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Error Handling in Phases
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#coding-standards-and-best-practices" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Coding Standards and Best Practices
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Coding Standards and Best Practices">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#c-style-guide" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        C++ Style Guide
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#performance-portability-with-kokkos" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Performance Portability with Kokkos
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#adding-new-physics-schemes" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Adding New Physics Schemes
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Adding New Physics Schemes">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#using-the-scheme-generator" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Using the Scheme Generator
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#manual-implementation" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Manual Implementation
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#testing" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Testing
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Testing">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#unit-tests" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Unit Tests
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#property-based-tests" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Property-Based Tests
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#debugging" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Debugging
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Debugging">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#enable-debug-logging" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Enable Debug Logging
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#use-gdb" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Use GDB
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#profile-with-kokkos" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Profile with Kokkos
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#performance-optimization" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Performance Optimization
-      
-    </span>
-  </a>
-  
-    <nav class="md-nav" aria-label="Performance Optimization">
-      <ul class="md-nav__list">
-        
-          <li class="md-nav__item">
-  <a href="#identify-bottlenecks" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Identify Bottlenecks
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#optimize-memory-access" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Optimize Memory Access
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#tune-kernel-parameters" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Tune Kernel Parameters
-      
-    </span>
-  </a>
-  
-</li>
-        
-      </ul>
-    </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#references" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        References
+        Documentation Resources
       
     </span>
   </a>
@@ -961,434 +638,107 @@
                 
                   
 
-<h1 id="developer-guide">Developer Guide<a class="headerlink" href="#developer-guide" title="Permanent link">&para;</a></h1>
-<p>This guide provides an overview of the ACES architecture, component interactions, and best practices for extending the system.</p>
-<h2 id="aces-architecture-overview">ACES Architecture Overview<a class="headerlink" href="#aces-architecture-overview" title="Permanent link">&para;</a></h2>
-<p>ACES (Accelerated Component for Emission System) is a modular, performance-portable emissions compute component designed for Earth System Models. The architecture consists of several key components:</p>
-<h3 id="high-level-architecture">High-Level Architecture<a class="headerlink" href="#high-level-architecture" title="Permanent link">&para;</a></h3>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>┌─────────────────────────────────────────────────────────────┐
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>│                    NUOPC Driver Layer                        │
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>│  (Fortran: aces_cap.F90, standalone_nuopc/single_driver.F90)│
-</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>└────────────────────┬────────────────────────────────────────┘
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>                     │
-</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>                     ▼
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>┌─────────────────────────────────────────────────────────────┐
-</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>│              C++ Bridge Layer (aces_core_*.cpp)              │
-</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>│  - Advertise Phase: Declare fields                           │
-</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>│  - Realize Phase: Create fields                              │
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>│  - Initialize Phase (P1, P2): Setup state                    │
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>│  - Run Phase: Execute computation                            │
-</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>│  - Finalize Phase: Cleanup                                   │
-</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>└────────────────────┬────────────────────────────────────────┘
-</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>                     │
-</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>        ┌────────────┼────────────┐
-</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>        ▼            ▼            ▼
-</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>    ┌────────┐  ┌──────────┐  ┌──────────────┐
-</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>    │ Config │  │  CDEPS   │  │ StackEngine  │
-</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>    │ Parser │  │ Ingestor │  │ + Physics    │
-</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>    └────────┘  └──────────┘  └──────────────┘
-</span></code></pre></div>
-<h3 id="core-components">Core Components<a class="headerlink" href="#core-components" title="Permanent link">&para;</a></h3>
-<h4 id="1-nuopc-cap-fortran">1. NUOPC Cap (Fortran)<a class="headerlink" href="#1-nuopc-cap-fortran" title="Permanent link">&para;</a></h4>
+<h1 id="aces-developer-guide">ACES Developer Guide<a class="headerlink" href="#aces-developer-guide" title="Permanent link">&para;</a></h1>
+<h2 id="project-overview">Project Overview<a class="headerlink" href="#project-overview" title="Permanent link">&para;</a></h2>
+<p>ACES (Atmospheric Chemistry Emission System) is a C++20 emissions compute component designed for high performance using Kokkos and ESMF.</p>
+<h2 id="core-architecture-philosophy">Core Architecture &amp; Philosophy<a class="headerlink" href="#core-architecture-philosophy" title="Permanent link">&para;</a></h2>
+<p>ACES is designed as a modular, performance-portable emissions framework. Key components include:</p>
 <ul>
-<li><strong>File</strong>: <code>src/aces_cap.F90</code></li>
-<li><strong>Purpose</strong>: Fortran interface to ESMF/NUOPC</li>
-<li><strong>Responsibilities</strong>:</li>
-<li>Register ACES as a NUOPC model component</li>
-<li>Manage NUOPC phase transitions</li>
-<li>Bridge between Fortran ESMF and C++ core</li>
-<li>Handle CDEPS initialization</li>
+<li><strong>StackingEngine:</strong> Manages the aggregation of emission layers using sophisticated hierarchy-based processing, kernel fusion optimization, and advanced temporal/spatial scaling. See the <a href="../stacking_engine/">Stacking Engine Documentation</a> for comprehensive technical details.</li>
+<li><strong>Vertical Distribution:</strong> Multiple algorithms for mapping 2D emissions to 3D atmospheric grids with strict mass conservation. See the <a href="../vertical_distribution/">Vertical Distribution Documentation</a> for complete algorithm descriptions and usage examples.</li>
+<li><strong>PhysicsFactory:</strong> A self-registration registry for physics schemes. New schemes should inherit from <code>BasePhysicsScheme</code> and use the <code>PhysicsRegistration&lt;T&gt;</code> pattern.</li>
+<li><strong>Internal State:</strong> Persisted via <code>AcesInternalData</code> to maintain field handles and metadata across ESMF phases, avoiding redundant lookups.</li>
+<li><strong>TIDE Integration:</strong> High-performance data ingestion for external emission inventories via the TIDE (Temporal Interpolation &amp; Data Extraction) library with smart caching and regridding capabilities.</li>
 </ul>
-<h4 id="2-c-bridge-layer">2. C++ Bridge Layer<a class="headerlink" href="#2-c-bridge-layer" title="Permanent link">&para;</a></h4>
+<h2 id="global-coding-standards">Global Coding Standards<a class="headerlink" href="#global-coding-standards" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>Files</strong>: <code>src/aces_core_*.cpp</code></li>
-<li><strong>Purpose</strong>: Implement NUOPC phase logic in C++</li>
-<li><strong>Phases</strong>:</li>
-<li><code>aces_core_advertise.cpp</code>: Declare import/export fields</li>
-<li><code>aces_core_realize.cpp</code>: Create and allocate fields</li>
-<li><code>aces_core_initialize_p1.cpp</code>: Initialize Kokkos, config, physics</li>
-<li><code>aces_core_initialize_p2.cpp</code>: Initialize CDEPS, bind fields</li>
-<li><code>aces_core_run.cpp</code>: Execute emission computation</li>
-<li><code>aces_core_finalize.cpp</code>: Cleanup resources</li>
+<li><strong>Language:</strong> C++20 and Fortran 2008+.</li>
+<li><strong>Style:</strong> Google C++ Style Guide for C++.</li>
+<li><strong>Namespace:</strong> <code>aces::</code> (defined in <code>include/aces/aces.hpp</code>).</li>
+<li><strong>Documentation:</strong> Doxygen format (<code>/** ... */</code>) required for all public APIs.</li>
+<li><strong>Memory:</strong> Use <code>Kokkos::View</code> for data. Avoid raw pointers.</li>
+<li><strong>ESMF:</strong> Use <code>ESMC_</code> C API for C++ bridge. Wrap data in <code>Kokkos::View</code> with <code>Kokkos::MemoryTraits&lt;Kokkos::Unmanaged&gt;</code>.</li>
+<li><strong>Performance Portability:</strong><ul>
+<li>All compute kernels MUST use Kokkos parallel primitives (<code>parallel_for</code>, <code>parallel_reduce</code>).</li>
+<li>Avoid hardware-specific code (e.g., Cuda intrinsics).</li>
+<li>Use <code>Kokkos::DefaultExecutionSpace</code> for dispatch.</li>
+<li>Strictly avoid <code>std::cout</code> or blocking I/O inside kernels.</li>
 </ul>
-<h4 id="3-configuration-parser">3. Configuration Parser<a class="headerlink" href="#3-configuration-parser" title="Permanent link">&para;</a></h4>
-<ul>
-<li><strong>File</strong>: <code>src/aces_config_parser.cpp</code></li>
-<li><strong>Purpose</strong>: Parse YAML configuration files</li>
-<li><strong>Responsibilities</strong>:</li>
-<li>Parse species definitions</li>
-<li>Parse layer configurations</li>
-<li>Parse physics scheme options</li>
-<li>Validate configuration</li>
+</li>
 </ul>
-<h4 id="4-cdeps-data-ingestor">4. CDEPS Data Ingestor<a class="headerlink" href="#4-cdeps-data-ingestor" title="Permanent link">&para;</a></h4>
-<ul>
-<li><strong>File</strong>: <code>src/io/aces_data_ingestor.cpp</code></li>
-<li><strong>Purpose</strong>: Hybrid data ingestion from CDEPS and ESMF</li>
-<li><strong>Responsibilities</strong>:</li>
-<li>Initialize CDEPS with streams configuration</li>
-<li>Resolve fields with priority: CDEPS &gt; ESMF</li>
-<li>Cache field handles for performance</li>
-<li>Wrap data in Kokkos::View</li>
-</ul>
-<h4 id="5-stackingengine">5. StackingEngine<a class="headerlink" href="#5-stackingengine" title="Permanent link">&para;</a></h4>
-<ul>
-<li><strong>File</strong>: <code>src/aces_stacking_engine.cpp</code></li>
-<li><strong>Purpose</strong>: Aggregate emission layers with priorities, scales, and masks</li>
-<li><strong>Responsibilities</strong>:</li>
-<li>Apply layer hierarchy prioritization</li>
-<li>Apply scale factors (temporal, spatial)</li>
-<li>Apply masks (geographical, volumetric)</li>
-<li>Perform vertical distribution (SINGLE, RANGE, PRESSURE, HEIGHT, PBL)</li>
-<li>Ensure mass conservation</li>
-</ul>
-<h4 id="6-physics-factory">6. Physics Factory<a class="headerlink" href="#6-physics-factory" title="Permanent link">&para;</a></h4>
-<ul>
-<li><strong>File</strong>: <code>src/aces_physics_factory.cpp</code></li>
-<li><strong>Purpose</strong>: Self-registration registry for physics schemes</li>
-<li><strong>Responsibilities</strong>:</li>
-<li>Register physics schemes at compile time</li>
-<li>Instantiate schemes from configuration</li>
-<li>Manage scheme lifecycle</li>
-</ul>
-<h4 id="7-physics-schemes">7. Physics Schemes<a class="headerlink" href="#7-physics-schemes" title="Permanent link">&para;</a></h4>
-<ul>
-<li><strong>Files</strong>: <code>src/physics/aces_*.cpp</code></li>
-<li><strong>Purpose</strong>: Compute or modify emissions based on meteorology</li>
-<li><strong>Examples</strong>:</li>
-<li>DMS (Dimethyl Sulfide)</li>
-<li>Dust</li>
-<li>Lightning NOx</li>
-<li>MEGAN (biogenic)</li>
-<li>Sea Salt</li>
-<li>Soil NOx</li>
-<li>Volcano</li>
-</ul>
-<h2 id="component-interactions-and-data-flow">Component Interactions and Data Flow<a class="headerlink" href="#component-interactions-and-data-flow" title="Permanent link">&para;</a></h2>
-<h3 id="initialization-sequence">Initialization Sequence<a class="headerlink" href="#initialization-sequence" title="Permanent link">&para;</a></h3>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>1. NUOPC Driver creates ACES component
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>2. ACES_SetServices registers phase methods
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>3. Advertise Phase:
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>   - Parse YAML config
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a>   - Declare import fields (meteorology)
-</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>   - Declare export fields (emissions)
-</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a>4. Realize Phase:
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>   - Create export fields
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a>   - Verify import fields exist
-</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>5. Initialize Phase P1:
-</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>   - Initialize Kokkos
-</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>   - Create internal state (AcesInternalData)
-</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>   - Instantiate physics schemes
-</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a>6. Initialize Phase P2:
-</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>   - Initialize CDEPS
-</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a>   - Bind frequently accessed fields
-</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>   - Prepare for run loop
-</span></code></pre></div>
-<h3 id="run-loop-sequence">Run Loop Sequence<a class="headerlink" href="#run-loop-sequence" title="Permanent link">&para;</a></h3>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>For each time step:
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>1. NUOPC Driver advances clock
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>2. Run Phase:
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>   a. Advance CDEPS to current time
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>   b. Extract current hour and day-of-week
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>   c. Execute StackingEngine:
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>      - Aggregate layers with priorities
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>      - Apply scale factors (temporal, spatial)
-</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>      - Apply masks
-</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>      - Perform vertical distribution
-</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>   d. Execute physics schemes in registration order:
-</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>      - Each scheme reads import fields
-</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>      - Each scheme modifies export fields
-</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>   e. Synchronize device to host (for GPU)
-</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>   f. Write output (if standalone mode)
-</span><span id="__span-2-16"><a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>3. NUOPC Driver continues to next time step
-</span></code></pre></div>
-<h3 id="data-flow">Data Flow<a class="headerlink" href="#data-flow" title="Permanent link">&para;</a></h3>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>External Data (NetCDF)
-</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>        │
-</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a>        ▼
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a>    CDEPS_Inline
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a>        │
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>        ├─────────────────┐
-</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a>        │                 │
-</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a>        ▼                 ▼
-</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a>   CDEPS Fields    ESMF ImportState
-</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>        │                 │
-</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a>        └────────┬────────┘
-</span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>                 │
-</span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a>                 ▼
-</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a>        Field Resolver (Priority: CDEPS &gt; ESMF)
-</span><span id="__span-3-15"><a id="__codelineno-3-15" name="__codelineno-3-15" href="#__codelineno-3-15"></a>                 │
-</span><span id="__span-3-16"><a id="__codelineno-3-16" name="__codelineno-3-16" href="#__codelineno-3-16"></a>                 ▼
-</span><span id="__span-3-17"><a id="__codelineno-3-17" name="__codelineno-3-17" href="#__codelineno-3-17"></a>        StackingEngine (Layer Aggregation)
-</span><span id="__span-3-18"><a id="__codelineno-3-18" name="__codelineno-3-18" href="#__codelineno-3-18"></a>                 │
-</span><span id="__span-3-19"><a id="__codelineno-3-19" name="__codelineno-3-19" href="#__codelineno-3-19"></a>                 ├─ Base Emissions
-</span><span id="__span-3-20"><a id="__codelineno-3-20" name="__codelineno-3-20" href="#__codelineno-3-20"></a>                 ├─ Scale Factors
-</span><span id="__span-3-21"><a id="__codelineno-3-21" name="__codelineno-3-21" href="#__codelineno-3-21"></a>                 ├─ Masks
-</span><span id="__span-3-22"><a id="__codelineno-3-22" name="__codelineno-3-22" href="#__codelineno-3-22"></a>                 └─ Vertical Distribution
-</span><span id="__span-3-23"><a id="__codelineno-3-23" name="__codelineno-3-23" href="#__codelineno-3-23"></a>                 │
-</span><span id="__span-3-24"><a id="__codelineno-3-24" name="__codelineno-3-24" href="#__codelineno-3-24"></a>                 ▼
-</span><span id="__span-3-25"><a id="__codelineno-3-25" name="__codelineno-3-25" href="#__codelineno-3-25"></a>        Physics Schemes (DMS, Dust, etc.)
-</span><span id="__span-3-26"><a id="__codelineno-3-26" name="__codelineno-3-26" href="#__codelineno-3-26"></a>                 │
-</span><span id="__span-3-27"><a id="__codelineno-3-27" name="__codelineno-3-27" href="#__codelineno-3-27"></a>                 ▼
-</span><span id="__span-3-28"><a id="__codelineno-3-28" name="__codelineno-3-28" href="#__codelineno-3-28"></a>        ESMF ExportState
-</span><span id="__span-3-29"><a id="__codelineno-3-29" name="__codelineno-3-29" href="#__codelineno-3-29"></a>                 │
-</span><span id="__span-3-30"><a id="__codelineno-3-30" name="__codelineno-3-30" href="#__codelineno-3-30"></a>                 ├─ To Coupled Model
-</span><span id="__span-3-31"><a id="__codelineno-3-31" name="__codelineno-3-31" href="#__codelineno-3-31"></a>                 └─ To Output Files (standalone)
-</span></code></pre></div>
-<h2 id="nuopc-phase-handling-patterns">NUOPC Phase Handling Patterns<a class="headerlink" href="#nuopc-phase-handling-patterns" title="Permanent link">&para;</a></h2>
-<h3 id="phase-dependency-declaration">Phase Dependency Declaration<a class="headerlink" href="#phase-dependency-declaration" title="Permanent link">&para;</a></h3>
-<p>ACES declares phase dependencies using NUOPC_CompAttributeSet:</p>
-<div class="language-fortran highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c">! In ACES_SetServices</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="k">call </span><span class="n">NUOPC_CompAttributeSet</span><span class="p">(</span><span class="n">comp</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;InitializePhaseMap&quot;</span><span class="p">,</span><span class="w"> </span><span class="p">&amp;</span>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">    </span><span class="s2">&quot;IPDv00p1=1,IPDv00p2=2&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">rc</span><span class="o">=</span><span class="n">rc</span><span class="p">)</span>
-</span></code></pre></div>
-<p>This ensures:
-- Phase 1 (IPDv00p1): Core initialization
-- Phase 2 (IPDv00p2): CDEPS and field binding</p>
-<h3 id="multi-phase-initialization">Multi-Phase Initialization<a class="headerlink" href="#multi-phase-initialization" title="Permanent link">&para;</a></h3>
-<p>ACES uses two-phase initialization to separate concerns:</p>
-<p><strong>Phase 1 (aces_core_initialize_p1)</strong>:
-- Initialize Kokkos
-- Parse configuration
-- Create internal state
-- Instantiate physics schemes</p>
-<p><strong>Phase 2 (aces_core_initialize_p2)</strong>:
-- Initialize CDEPS
-- Bind frequently accessed fields
-- Prepare for run loop</p>
-<p>This separation allows other components to initialize in between phases if needed.</p>
-<h3 id="error-handling-in-phases">Error Handling in Phases<a class="headerlink" href="#error-handling-in-phases" title="Permanent link">&para;</a></h3>
-<p>Each phase returns an error code (rc):
-- <code>ESMF_SUCCESS</code> (0): Phase completed successfully
-- Non-zero: Phase failed, error message logged</p>
-<p>ACES logs all errors with descriptive messages including:
-- Phase name
-- Error location (file, line)
-- Error description
-- Suggested corrective action</p>
-<h2 id="coding-standards-and-best-practices">Coding Standards and Best Practices<a class="headerlink" href="#coding-standards-and-best-practices" title="Permanent link">&para;</a></h2>
-<h3 id="c-style-guide">C++ Style Guide<a class="headerlink" href="#c-style-guide" title="Permanent link">&para;</a></h3>
-<p>ACES follows the Google C++ Style Guide with these additions:</p>
-<p><strong>Namespace</strong>:
-<div class="language-cpp highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">namespace</span><span class="w"> </span><span class="nn">aces</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">    </span><span class="c1">// All ACES code in aces namespace</span>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="p">}</span>
-</span></code></pre></div></p>
-<p><strong>Documentation</strong>:
-<div class="language-cpp highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="cm">/**</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="cm"> * @brief Brief description of function</span>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="cm"> * @param param1 Description of param1</span>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="cm"> * @return Description of return value</span>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="cm"> */</span>
-</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="kt">void</span><span class="w"> </span><span class="nf">MyFunction</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">param1</span><span class="p">);</span>
-</span></code></pre></div></p>
-<p><strong>Memory Management</strong>:
-<div class="language-cpp highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1">// Use Kokkos::View for data</span>
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="n">Kokkos</span><span class="o">::</span><span class="n">View</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">***&gt;</span><span class="w"> </span><span class="n">data</span><span class="p">(</span><span class="s">&quot;data&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">nx</span><span class="p">,</span><span class="w"> </span><span class="n">ny</span><span class="p">,</span><span class="w"> </span><span class="n">nz</span><span class="p">);</span>
-</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>
-</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="c1">// Avoid raw pointers</span>
-</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="c1">// double* ptr = new double[size];  // BAD</span>
-</span></code></pre></div></p>
-<p><strong>ESMF Integration</strong>:
-<div class="language-cpp highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1">// Use ESMC_ C API</span>
-</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="n">ESMC_Field</span><span class="w"> </span><span class="n">field</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ESMC_FieldCreate</span><span class="p">(...);</span>
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>
-</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="c1">// Wrap in Kokkos::View with Unmanaged trait</span>
-</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="k">auto</span><span class="w"> </span><span class="n">view</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Kokkos</span><span class="o">::</span><span class="n">View</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">***</span><span class="p">,</span><span class="w"> </span><span class="n">Kokkos</span><span class="o">::</span><span class="n">MemoryTraits</span><span class="o">&lt;</span><span class="n">Kokkos</span><span class="o">::</span><span class="n">Unmanaged</span><span class="o">&gt;&gt;</span><span class="p">(</span>
-</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="w">    </span><span class="n">data_ptr</span><span class="p">,</span><span class="w"> </span><span class="n">nx</span><span class="p">,</span><span class="w"> </span><span class="n">ny</span><span class="p">,</span><span class="w"> </span><span class="n">nz</span><span class="p">);</span>
-</span></code></pre></div></p>
-<h3 id="performance-portability-with-kokkos">Performance Portability with Kokkos<a class="headerlink" href="#performance-portability-with-kokkos" title="Permanent link">&para;</a></h3>
-<p>All compute kernels must use Kokkos parallel primitives:</p>
-<div class="language-cpp highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="c1">// Parallel for loop</span>
-</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="n">Kokkos</span><span class="o">::</span><span class="n">parallel_for</span><span class="p">(</span><span class="s">&quot;kernel_name&quot;</span><span class="p">,</span>
-</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="w">    </span><span class="n">Kokkos</span><span class="o">::</span><span class="n">MDRangePolicy</span><span class="o">&lt;</span><span class="n">Kokkos</span><span class="o">::</span><span class="n">Rank</span><span class="o">&lt;</span><span class="mi">3</span><span class="o">&gt;&gt;</span><span class="p">({</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">},</span><span class="w"> </span><span class="p">{</span><span class="n">nx</span><span class="p">,</span><span class="n">ny</span><span class="p">,</span><span class="n">nz</span><span class="p">}),</span>
-</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a><span class="w">    </span><span class="n">KOKKOS_LAMBDA</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">j</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">k</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="w">        </span><span class="c1">// Kernel body - runs on CPU or GPU</span>
-</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">        </span><span class="n">result</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">,</span><span class="n">k</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">input</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">,</span><span class="n">k</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">scale</span><span class="p">;</span>
-</span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="w">    </span><span class="p">});</span>
-</span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>
-</span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="c1">// Parallel reduction</span>
-</span><span id="__span-9-10"><a id="__codelineno-9-10" name="__codelineno-9-10" href="#__codelineno-9-10"></a><span class="kt">double</span><span class="w"> </span><span class="n">sum</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mf">0.0</span><span class="p">;</span>
-</span><span id="__span-9-11"><a id="__codelineno-9-11" name="__codelineno-9-11" href="#__codelineno-9-11"></a><span class="n">Kokkos</span><span class="o">::</span><span class="n">parallel_reduce</span><span class="p">(</span><span class="s">&quot;reduction_name&quot;</span><span class="p">,</span>
-</span><span id="__span-9-12"><a id="__codelineno-9-12" name="__codelineno-9-12" href="#__codelineno-9-12"></a><span class="w">    </span><span class="n">Kokkos</span><span class="o">::</span><span class="n">RangePolicy</span><span class="o">&lt;&gt;</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="w"> </span><span class="n">n</span><span class="p">),</span>
-</span><span id="__span-9-13"><a id="__codelineno-9-13" name="__codelineno-9-13" href="#__codelineno-9-13"></a><span class="w">    </span><span class="n">KOKKOS_LAMBDA</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="kt">double</span><span class="o">&amp;</span><span class="w"> </span><span class="n">local_sum</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-9-14"><a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a><span class="w">        </span><span class="n">local_sum</span><span class="w"> </span><span class="o">+=</span><span class="w"> </span><span class="n">data</span><span class="p">(</span><span class="n">i</span><span class="p">);</span>
-</span><span id="__span-9-15"><a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a><span class="w">    </span><span class="p">},</span><span class="w"> </span><span class="n">sum</span><span class="p">);</span>
-</span></code></pre></div>
-<p><strong>Important Rules</strong>:
-- Use <code>Kokkos::DefaultExecutionSpace</code> for dispatch
-- Avoid <code>std::cout</code> or file I/O inside kernels
-- Use <code>Kokkos::atomic_add</code> for race-condition-free accumulation
-- Use <code>DualView</code> for automatic host/device synchronization</p>
-<h2 id="adding-new-physics-schemes">Adding New Physics Schemes<a class="headerlink" href="#adding-new-physics-schemes" title="Permanent link">&para;</a></h2>
-<h3 id="using-the-scheme-generator">Using the Scheme Generator<a class="headerlink" href="#using-the-scheme-generator" title="Permanent link">&para;</a></h3>
-<p>The easiest way to add a new physics scheme is using the scheme generator:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>python3<span class="w"> </span>scripts/generate_physics_scheme.py<span class="w"> </span>new_scheme_config.yaml
-</span></code></pre></div>
-<p>Configuration file (<code>new_scheme_config.yaml</code>):
-<div class="language-yaml highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nt">scheme</span><span class="p">:</span>
-</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">MyScheme</span>
-</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">  </span><span class="nt">language</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">cpp</span>
-</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">  </span><span class="nt">description</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;My</span><span class="nv"> </span><span class="s">custom</span><span class="nv"> </span><span class="s">emission</span><span class="nv"> </span><span class="s">scheme&quot;</span>
-</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a>
-</span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="nt">imports</span><span class="p">:</span>
-</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">temperature</span>
-</span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a><span class="w">    </span><span class="nt">units</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">K</span>
-</span><span id="__span-11-9"><a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="w">    </span><span class="nt">dimensions</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3D</span>
-</span><span id="__span-11-10"><a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">wind_speed</span>
-</span><span id="__span-11-11"><a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a><span class="w">    </span><span class="nt">units</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">m/s</span>
-</span><span id="__span-11-12"><a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a><span class="w">    </span><span class="nt">dimensions</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3D</span>
-</span><span id="__span-11-13"><a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a>
-</span><span id="__span-11-14"><a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a><span class="nt">exports</span><span class="p">:</span>
-</span><span id="__span-11-15"><a id="__codelineno-11-15" name="__codelineno-11-15" href="#__codelineno-11-15"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my_emissions</span>
-</span><span id="__span-11-16"><a id="__codelineno-11-16" name="__codelineno-11-16" href="#__codelineno-11-16"></a><span class="w">    </span><span class="nt">units</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kg/m2/s</span>
-</span><span id="__span-11-17"><a id="__codelineno-11-17" name="__codelineno-11-17" href="#__codelineno-11-17"></a><span class="w">    </span><span class="nt">dimensions</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2D</span>
-</span><span id="__span-11-18"><a id="__codelineno-11-18" name="__codelineno-11-18" href="#__codelineno-11-18"></a>
-</span><span id="__span-11-19"><a id="__codelineno-11-19" name="__codelineno-11-19" href="#__codelineno-11-19"></a><span class="nt">options</span><span class="p">:</span>
-</span><span id="__span-11-20"><a id="__codelineno-11-20" name="__codelineno-11-20" href="#__codelineno-11-20"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">emission_factor</span>
-</span><span id="__span-11-21"><a id="__codelineno-11-21" name="__codelineno-11-21" href="#__codelineno-11-21"></a><span class="w">    </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">double</span>
-</span><span id="__span-11-22"><a id="__codelineno-11-22" name="__codelineno-11-22" href="#__codelineno-11-22"></a><span class="w">    </span><span class="nt">default</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0e-6</span>
-</span></code></pre></div></p>
-<h3 id="manual-implementation">Manual Implementation<a class="headerlink" href="#manual-implementation" title="Permanent link">&para;</a></h3>
-<p>To manually implement a physics scheme:</p>
+<h2 id="physics-scheme-development">Physics Scheme Development<a class="headerlink" href="#physics-scheme-development" title="Permanent link">&para;</a></h2>
+<p>When implementing or modifying physics schemes:
+1.  <strong>Configurability:</strong> NEVER hardcode physical constants or tuning factors. All parameters must be read from the YAML <code>options</code> block in <code>Initialize</code>.
+2.  <strong>BasePhysicsScheme Helpers:</strong> Use provided scientist-friendly helpers:
+    *   <code>ResolveImport(name, state)</code>: Retrieve input fields.
+    *   <code>ResolveExport(name, state)</code>: Retrieve output fields.
+    *   <code>MarkModified(name, state)</code>: Signal that an export field has been updated.
+    *   <code>ResolveDiagnostic(name, nx, ny, nz)</code>: Register/retrieve diagnostic fields.
+3.  <strong>Optimization:</strong> Use Horner's Method for evaluating polynomials (e.g., Schmidt numbers, SST scaling) to minimize floating-point operations.</p>
+<h2 id="vertical-distribution">Vertical Distribution<a class="headerlink" href="#vertical-distribution" title="Permanent link">&para;</a></h2>
+<p>ACES supports multiple vertical distribution methods for mapping 2D emissions to 3D grids:
+*   <strong>SINGLE:</strong> Place all emissions in a single specific layer.
+*   <strong>RANGE:</strong> Distribute evenly over a range of layer indices.
+*   <strong>PRESSURE:</strong> Distribute based on a pressure range (Pa).
+*   <strong>HEIGHT:</strong> Distribute based on a height range (m).
+*   <strong>PBL:</strong> Distribute within the Planetary Boundary Layer.
+*   <strong>Conservation:</strong> All methods ensure strict column mass conservation.</p>
+<p>For complete algorithm descriptions, performance characteristics, and usage examples, see the <a href="../vertical_distribution/">Vertical Distribution Documentation</a>.</p>
+<h2 id="configuration-system">Configuration System<a class="headerlink" href="#configuration-system" title="Permanent link">&para;</a></h2>
+<p>ACES uses a comprehensive YAML configuration system that supports:
+- Hierarchical emission layer processing with categories and priorities
+- Temporal scaling profiles (diurnal, weekly, seasonal)
+- Environmental dependencies and dynamic scaling factors
+- Multiple vertical distribution algorithms
+- TIDE data stream integration with smart caching
+- Physics scheme configuration and parameter tuning</p>
+<p>For complete configuration reference with all available options and examples, see the <a href="../configuration/">Configuration Documentation</a>.</p>
+<h2 id="development-environment">Development Environment<a class="headerlink" href="#development-environment" title="Permanent link">&para;</a></h2>
+<p>The required development environment is the <code>jcsda/docker-gnu-openmpi-dev:1.9</code> Docker container. This container provides the necessary compilers, MPI, and ESMF dependencies.</p>
+<h3 id="important-no-mocking-policy">⚠️ IMPORTANT: No Mocking Policy<a class="headerlink" href="#important-no-mocking-policy" title="Permanent link">&para;</a></h3>
+<p><strong>Mocking ESMF or NUOPC is strictly forbidden.</strong> All development and verification must be performed using real ESMF dependencies within the JCSDA Docker environment to ensure real-world parity and stability.</p>
+<h3 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h3>
 <ol>
 <li>
-<p><strong>Create header</strong> (<code>include/aces/physics/aces_my_scheme.hpp</code>):
-<div class="language-cpp highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;aces/physics_scheme.hpp&quot;</span>
-</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>
-</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="k">namespace</span><span class="w"> </span><span class="nn">aces</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a>
-</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="k">class</span><span class="w"> </span><span class="nc">MyScheme</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">BasePhysicsScheme</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-12-6"><a id="__codelineno-12-6" name="__codelineno-12-6" href="#__codelineno-12-6"></a><span class="k">public</span><span class="o">:</span>
-</span><span id="__span-12-7"><a id="__codelineno-12-7" name="__codelineno-12-7" href="#__codelineno-12-7"></a><span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">Initialize</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">YAML</span><span class="o">::</span><span class="n">Node</span><span class="o">&amp;</span><span class="w"> </span><span class="n">config</span><span class="p">,</span>
-</span><span id="__span-12-8"><a id="__codelineno-12-8" name="__codelineno-12-8" href="#__codelineno-12-8"></a><span class="w">                   </span><span class="n">AcesDiagnosticManager</span><span class="o">*</span><span class="w"> </span><span class="n">diag_manager</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="p">;</span>
-</span><span id="__span-12-9"><a id="__codelineno-12-9" name="__codelineno-12-9" href="#__codelineno-12-9"></a><span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Run</span><span class="p">(</span><span class="n">AcesImportState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">import_state</span><span class="p">,</span>
-</span><span id="__span-12-10"><a id="__codelineno-12-10" name="__codelineno-12-10" href="#__codelineno-12-10"></a><span class="w">            </span><span class="n">AcesExportState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">export_state</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="p">;</span>
-</span><span id="__span-12-11"><a id="__codelineno-12-11" name="__codelineno-12-11" href="#__codelineno-12-11"></a><span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Finalize</span><span class="p">()</span><span class="w"> </span><span class="k">override</span><span class="p">;</span>
-</span><span id="__span-12-12"><a id="__codelineno-12-12" name="__codelineno-12-12" href="#__codelineno-12-12"></a><span class="p">};</span>
-</span><span id="__span-12-13"><a id="__codelineno-12-13" name="__codelineno-12-13" href="#__codelineno-12-13"></a>
-</span><span id="__span-12-14"><a id="__codelineno-12-14" name="__codelineno-12-14" href="#__codelineno-12-14"></a><span class="k">static</span><span class="w"> </span><span class="n">PhysicsRegistration</span><span class="o">&lt;</span><span class="n">MyScheme</span><span class="o">&gt;</span><span class="w"> </span><span class="n">registration_my_scheme</span><span class="p">(</span><span class="s">&quot;MyScheme&quot;</span><span class="p">);</span>
-</span><span id="__span-12-15"><a id="__codelineno-12-15" name="__codelineno-12-15" href="#__codelineno-12-15"></a>
-</span><span id="__span-12-16"><a id="__codelineno-12-16" name="__codelineno-12-16" href="#__codelineno-12-16"></a><span class="p">}</span><span class="w">  </span><span class="c1">// namespace aces</span>
+<p><strong>Run the Setup Script:</strong>
+    Execute the provided <code>setup.sh</code> script to pull the Docker image and drop into a shell.
+    <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>./setup.sh
+</span></code></pre></div>
+    If you encounter Docker overlayfs issues or need to fix the environment, run:
+    <div class="language-bash highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>./scripts/fix_docker_and_setup.sh
 </span></code></pre></div></p>
 </li>
 <li>
-<p><strong>Create implementation</strong> (<code>src/physics/aces_my_scheme.cpp</code>):
-<div class="language-cpp highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;aces/physics/aces_my_scheme.hpp&quot;</span>
-</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>
-</span><span id="__span-13-3"><a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="k">namespace</span><span class="w"> </span><span class="nn">aces</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-13-4"><a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a>
-</span><span id="__span-13-5"><a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="kt">void</span><span class="w"> </span><span class="nf">MyScheme::Initialize</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">YAML</span><span class="o">::</span><span class="n">Node</span><span class="o">&amp;</span><span class="w"> </span><span class="n">config</span><span class="p">,</span>
-</span><span id="__span-13-6"><a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a><span class="w">                         </span><span class="n">AcesDiagnosticManager</span><span class="o">*</span><span class="w"> </span><span class="n">diag_manager</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-13-7"><a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="w">    </span><span class="n">BasePhysicsScheme</span><span class="o">::</span><span class="n">Initialize</span><span class="p">(</span><span class="n">config</span><span class="p">,</span><span class="w"> </span><span class="n">diag_manager</span><span class="p">);</span>
-</span><span id="__span-13-8"><a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a><span class="w">    </span><span class="c1">// Read configuration parameters</span>
-</span><span id="__span-13-9"><a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a><span class="p">}</span>
-</span><span id="__span-13-10"><a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a>
-</span><span id="__span-13-11"><a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a><span class="kt">void</span><span class="w"> </span><span class="nf">MyScheme::Run</span><span class="p">(</span><span class="n">AcesImportState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">import_state</span><span class="p">,</span>
-</span><span id="__span-13-12"><a id="__codelineno-13-12" name="__codelineno-13-12" href="#__codelineno-13-12"></a><span class="w">                  </span><span class="n">AcesExportState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">export_state</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-13-13"><a id="__codelineno-13-13" name="__codelineno-13-13" href="#__codelineno-13-13"></a><span class="w">    </span><span class="c1">// Resolve input fields</span>
-</span><span id="__span-13-14"><a id="__codelineno-13-14" name="__codelineno-13-14" href="#__codelineno-13-14"></a><span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">temperature</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ResolveImport</span><span class="p">(</span><span class="s">&quot;temperature&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">import_state</span><span class="p">);</span>
-</span><span id="__span-13-15"><a id="__codelineno-13-15" name="__codelineno-13-15" href="#__codelineno-13-15"></a>
-</span><span id="__span-13-16"><a id="__codelineno-13-16" name="__codelineno-13-16" href="#__codelineno-13-16"></a><span class="w">    </span><span class="c1">// Resolve output fields</span>
-</span><span id="__span-13-17"><a id="__codelineno-13-17" name="__codelineno-13-17" href="#__codelineno-13-17"></a><span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">emissions</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ResolveExport</span><span class="p">(</span><span class="s">&quot;my_emissions&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">export_state</span><span class="p">);</span>
-</span><span id="__span-13-18"><a id="__codelineno-13-18" name="__codelineno-13-18" href="#__codelineno-13-18"></a>
-</span><span id="__span-13-19"><a id="__codelineno-13-19" name="__codelineno-13-19" href="#__codelineno-13-19"></a><span class="w">    </span><span class="c1">// Compute emissions using Kokkos kernel</span>
-</span><span id="__span-13-20"><a id="__codelineno-13-20" name="__codelineno-13-20" href="#__codelineno-13-20"></a><span class="w">    </span><span class="n">Kokkos</span><span class="o">::</span><span class="n">parallel_for</span><span class="p">(</span><span class="s">&quot;MyScheme_Kernel&quot;</span><span class="p">,</span>
-</span><span id="__span-13-21"><a id="__codelineno-13-21" name="__codelineno-13-21" href="#__codelineno-13-21"></a><span class="w">        </span><span class="n">Kokkos</span><span class="o">::</span><span class="n">MDRangePolicy</span><span class="o">&lt;</span><span class="n">Kokkos</span><span class="o">::</span><span class="n">Rank</span><span class="o">&lt;</span><span class="mi">2</span><span class="o">&gt;&gt;</span><span class="p">({</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">},</span><span class="w"> </span><span class="p">{</span><span class="n">nx</span><span class="p">,</span><span class="n">ny</span><span class="p">}),</span>
-</span><span id="__span-13-22"><a id="__codelineno-13-22" name="__codelineno-13-22" href="#__codelineno-13-22"></a><span class="w">        </span><span class="n">KOKKOS_LAMBDA</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">j</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-13-23"><a id="__codelineno-13-23" name="__codelineno-13-23" href="#__codelineno-13-23"></a><span class="w">            </span><span class="n">emissions</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">)</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">temperature</span><span class="p">(</span><span class="n">i</span><span class="p">,</span><span class="n">j</span><span class="p">,</span><span class="mi">0</span><span class="p">)</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="mf">0.001</span><span class="p">;</span>
-</span><span id="__span-13-24"><a id="__codelineno-13-24" name="__codelineno-13-24" href="#__codelineno-13-24"></a><span class="w">        </span><span class="p">});</span>
-</span><span id="__span-13-25"><a id="__codelineno-13-25" name="__codelineno-13-25" href="#__codelineno-13-25"></a>
-</span><span id="__span-13-26"><a id="__codelineno-13-26" name="__codelineno-13-26" href="#__codelineno-13-26"></a><span class="w">    </span><span class="n">MarkModified</span><span class="p">(</span><span class="s">&quot;my_emissions&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">export_state</span><span class="p">);</span>
-</span><span id="__span-13-27"><a id="__codelineno-13-27" name="__codelineno-13-27" href="#__codelineno-13-27"></a><span class="p">}</span>
-</span><span id="__span-13-28"><a id="__codelineno-13-28" name="__codelineno-13-28" href="#__codelineno-13-28"></a>
-</span><span id="__span-13-29"><a id="__codelineno-13-29" name="__codelineno-13-29" href="#__codelineno-13-29"></a><span class="kt">void</span><span class="w"> </span><span class="nf">MyScheme::Finalize</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-13-30"><a id="__codelineno-13-30" name="__codelineno-13-30" href="#__codelineno-13-30"></a><span class="w">    </span><span class="c1">// Cleanup if needed</span>
-</span><span id="__span-13-31"><a id="__codelineno-13-31" name="__codelineno-13-31" href="#__codelineno-13-31"></a><span class="p">}</span>
-</span><span id="__span-13-32"><a id="__codelineno-13-32" name="__codelineno-13-32" href="#__codelineno-13-32"></a>
-</span><span id="__span-13-33"><a id="__codelineno-13-33" name="__codelineno-13-33" href="#__codelineno-13-33"></a><span class="p">}</span><span class="w">  </span><span class="c1">// namespace aces</span>
+<p><strong>Build:</strong>
+    Inside the container:
+    <div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>mkdir<span class="w"> </span>build<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>build
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>cmake<span class="w"> </span>..
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>make<span class="w"> </span>-j4
 </span></code></pre></div></p>
 </li>
 <li>
-<p><strong>Update CMakeLists.txt</strong> (automatic with scheme generator):
-<div class="language-cmake highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="nb">add_library</span><span class="p">(</span><span class="s">aces_my_scheme</span><span class="w"> </span><span class="s">src/physics/aces_my_scheme.cpp</span><span class="p">)</span>
-</span><span id="__span-14-2"><a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a><span class="nb">target_link_libraries</span><span class="p">(</span><span class="s">aces_my_scheme</span><span class="w"> </span><span class="s">PUBLIC</span><span class="w"> </span><span class="s">aces</span><span class="p">)</span>
+<p><strong>Run Example Driver:</strong>
+    To see ACES in action with external data (ESMF fields):
+    <div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>./example_driver
+</span></code></pre></div></p>
+</li>
+<li>
+<p><strong>Test:</strong>
+    <div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>ctest<span class="w"> </span>--output-on-failure
 </span></code></pre></div></p>
 </li>
 </ol>
-<h2 id="testing">Testing<a class="headerlink" href="#testing" title="Permanent link">&para;</a></h2>
-<h3 id="unit-tests">Unit Tests<a class="headerlink" href="#unit-tests" title="Permanent link">&para;</a></h3>
-<p>Unit tests verify specific examples and edge cases:</p>
-<div class="language-cpp highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="n">TEST_F</span><span class="p">(</span><span class="n">MySchemeTest</span><span class="p">,</span><span class="w"> </span><span class="n">BasicEmissionComputation</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="w">    </span><span class="c1">// Setup</span>
-</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a><span class="w">    </span><span class="n">MyScheme</span><span class="w"> </span><span class="n">scheme</span><span class="p">;</span>
-</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="w">    </span><span class="n">scheme</span><span class="p">.</span><span class="n">Initialize</span><span class="p">(</span><span class="n">config</span><span class="p">,</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">);</span>
-</span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a>
-</span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="w">    </span><span class="c1">// Execute</span>
-</span><span id="__span-15-7"><a id="__codelineno-15-7" name="__codelineno-15-7" href="#__codelineno-15-7"></a><span class="w">    </span><span class="n">scheme</span><span class="p">.</span><span class="n">Run</span><span class="p">(</span><span class="n">import_state</span><span class="p">,</span><span class="w"> </span><span class="n">export_state</span><span class="p">);</span>
-</span><span id="__span-15-8"><a id="__codelineno-15-8" name="__codelineno-15-8" href="#__codelineno-15-8"></a>
-</span><span id="__span-15-9"><a id="__codelineno-15-9" name="__codelineno-15-9" href="#__codelineno-15-9"></a><span class="w">    </span><span class="c1">// Verify</span>
-</span><span id="__span-15-10"><a id="__codelineno-15-10" name="__codelineno-15-10" href="#__codelineno-15-10"></a><span class="w">    </span><span class="n">EXPECT_NEAR</span><span class="p">(</span><span class="n">export_state</span><span class="p">.</span><span class="n">emissions</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span><span class="mi">0</span><span class="p">),</span><span class="w"> </span><span class="n">expected_value</span><span class="p">,</span><span class="w"> </span><span class="n">tolerance</span><span class="p">);</span>
-</span><span id="__span-15-11"><a id="__codelineno-15-11" name="__codelineno-15-11" href="#__codelineno-15-11"></a><span class="p">}</span>
-</span></code></pre></div>
-<h3 id="property-based-tests">Property-Based Tests<a class="headerlink" href="#property-based-tests" title="Permanent link">&para;</a></h3>
-<p>Property-based tests verify universal properties with 100+ iterations:</p>
-<div class="language-cpp highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a><span class="n">TEST_F</span><span class="p">(</span><span class="n">MySchemeTest</span><span class="p">,</span><span class="w"> </span><span class="n">MassConservation</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">iter</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"> </span><span class="n">iter</span><span class="w"> </span><span class="o">&lt;</span><span class="w"> </span><span class="mi">100</span><span class="p">;</span><span class="w"> </span><span class="o">++</span><span class="n">iter</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-16-3"><a id="__codelineno-16-3" name="__codelineno-16-3" href="#__codelineno-16-3"></a><span class="w">        </span><span class="c1">// Generate random inputs</span>
-</span><span id="__span-16-4"><a id="__codelineno-16-4" name="__codelineno-16-4" href="#__codelineno-16-4"></a><span class="w">        </span><span class="k">auto</span><span class="w"> </span><span class="p">[</span><span class="n">nx</span><span class="p">,</span><span class="w"> </span><span class="n">ny</span><span class="p">,</span><span class="w"> </span><span class="n">nz</span><span class="p">]</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">gen</span><span class="p">.</span><span class="n">GenerateGridDimensions</span><span class="p">();</span>
-</span><span id="__span-16-5"><a id="__codelineno-16-5" name="__codelineno-16-5" href="#__codelineno-16-5"></a><span class="w">        </span><span class="k">auto</span><span class="w"> </span><span class="n">emissions</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">gen</span><span class="p">.</span><span class="n">GenerateEmissions</span><span class="p">(</span><span class="n">nx</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">ny</span><span class="p">);</span>
-</span><span id="__span-16-6"><a id="__codelineno-16-6" name="__codelineno-16-6" href="#__codelineno-16-6"></a>
-</span><span id="__span-16-7"><a id="__codelineno-16-7" name="__codelineno-16-7" href="#__codelineno-16-7"></a><span class="w">        </span><span class="c1">// Execute</span>
-</span><span id="__span-16-8"><a id="__codelineno-16-8" name="__codelineno-16-8" href="#__codelineno-16-8"></a><span class="w">        </span><span class="n">scheme</span><span class="p">.</span><span class="n">Run</span><span class="p">(</span><span class="n">import_state</span><span class="p">,</span><span class="w"> </span><span class="n">export_state</span><span class="p">);</span>
-</span><span id="__span-16-9"><a id="__codelineno-16-9" name="__codelineno-16-9" href="#__codelineno-16-9"></a>
-</span><span id="__span-16-10"><a id="__codelineno-16-10" name="__codelineno-16-10" href="#__codelineno-16-10"></a><span class="w">        </span><span class="c1">// Verify property</span>
-</span><span id="__span-16-11"><a id="__codelineno-16-11" name="__codelineno-16-11" href="#__codelineno-16-11"></a><span class="w">        </span><span class="kt">double</span><span class="w"> </span><span class="n">input_mass</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">accumulate</span><span class="p">(</span><span class="n">emissions</span><span class="p">.</span><span class="n">begin</span><span class="p">(),</span><span class="w"> </span><span class="n">emissions</span><span class="p">.</span><span class="n">end</span><span class="p">(),</span><span class="w"> </span><span class="mf">0.0</span><span class="p">);</span>
-</span><span id="__span-16-12"><a id="__codelineno-16-12" name="__codelineno-16-12" href="#__codelineno-16-12"></a><span class="w">        </span><span class="kt">double</span><span class="w"> </span><span class="n">output_mass</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ComputeTotalMass</span><span class="p">(</span><span class="n">export_state</span><span class="p">);</span>
-</span><span id="__span-16-13"><a id="__codelineno-16-13" name="__codelineno-16-13" href="#__codelineno-16-13"></a><span class="w">        </span><span class="n">EXPECT_NEAR</span><span class="p">(</span><span class="n">input_mass</span><span class="p">,</span><span class="w"> </span><span class="n">output_mass</span><span class="p">,</span><span class="w"> </span><span class="mf">1e-10</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="n">input_mass</span><span class="p">);</span>
-</span><span id="__span-16-14"><a id="__codelineno-16-14" name="__codelineno-16-14" href="#__codelineno-16-14"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-16-15"><a id="__codelineno-16-15" name="__codelineno-16-15" href="#__codelineno-16-15"></a><span class="p">}</span>
-</span></code></pre></div>
-<h2 id="debugging">Debugging<a class="headerlink" href="#debugging" title="Permanent link">&para;</a></h2>
-<h3 id="enable-debug-logging">Enable Debug Logging<a class="headerlink" href="#enable-debug-logging" title="Permanent link">&para;</a></h3>
-<p>Set environment variable:
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">ACES_LOG_LEVEL</span><span class="o">=</span>DEBUG
-</span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>./build/bin/aces_nuopc_driver
+<h3 id="python-dependencies">Python Dependencies<a class="headerlink" href="#python-dependencies" title="Permanent link">&para;</a></h3>
+<p>The physics scheme generator and other scripts require <code>jinja2</code>, <code>pyyaml</code>, and <code>pytest</code>.
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>python3<span class="w"> </span>-m<span class="w"> </span>pip<span class="w"> </span>install<span class="w"> </span>jinja2<span class="w"> </span>pyyaml<span class="w"> </span>pytest
 </span></code></pre></div></p>
-<h3 id="use-gdb">Use GDB<a class="headerlink" href="#use-gdb" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>gdb<span class="w"> </span>./build/bin/aces_nuopc_driver
-</span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="o">(</span>gdb<span class="o">)</span><span class="w"> </span>run
-</span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="o">(</span>gdb<span class="o">)</span><span class="w"> </span>bt<span class="w">  </span><span class="c1"># backtrace on crash</span>
-</span></code></pre></div>
-<h3 id="profile-with-kokkos">Profile with Kokkos<a class="headerlink" href="#profile-with-kokkos" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">KOKKOS_PROFILE</span><span class="o">=</span><span class="m">1</span>
-</span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>./build/bin/aces_nuopc_driver
-</span></code></pre></div>
-<h2 id="performance-optimization">Performance Optimization<a class="headerlink" href="#performance-optimization" title="Permanent link">&para;</a></h2>
-<h3 id="identify-bottlenecks">Identify Bottlenecks<a class="headerlink" href="#identify-bottlenecks" title="Permanent link">&para;</a></h3>
-<ol>
-<li>Profile with Kokkos profiling tools</li>
-<li>Check memory bandwidth utilization</li>
-<li>Verify kernel launch parameters</li>
-</ol>
-<h3 id="optimize-memory-access">Optimize Memory Access<a class="headerlink" href="#optimize-memory-access" title="Permanent link">&para;</a></h3>
+<h2 id="documentation-resources">Documentation Resources<a class="headerlink" href="#documentation-resources" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Use coalesced memory access patterns</li>
-<li>Minimize data copies between host and device</li>
-<li>Use DualView for automatic synchronization</li>
-</ul>
-<h3 id="tune-kernel-parameters">Tune Kernel Parameters<a class="headerlink" href="#tune-kernel-parameters" title="Permanent link">&para;</a></h3>
-<ul>
-<li>Adjust thread block size for GPU</li>
-<li>Tune loop unrolling for CPU</li>
-<li>Use Kokkos tuning parameters</li>
-</ul>
-<h2 id="references">References<a class="headerlink" href="#references" title="Permanent link">&para;</a></h2>
-<ul>
-<li><a href="https://earthsystemmodeling.org/docs/release/latest/ESMF_usrdoc">ESMF User Guide</a></li>
-<li><a href="https://earthsystemmodeling.org/docs/release/latest/NUOPC_refdoc">NUOPC Reference Manual</a></li>
-<li><a href="https://kokkos.github.io/kokkos-core-wiki/">Kokkos Documentation</a></li>
-<li><a href="https://google.github.io/styleguide/cppguide.html">Google C++ Style Guide</a></li>
+<li><strong>ESMF User Guide:</strong> <a href="https://earthsystemmodeling.org/docs/release/latest/ESMF_usrdoc">https://earthsystemmodeling.org/docs/release/latest/ESMF_usrdoc</a></li>
+<li><strong>ESMF Reference Manual:</strong> <a href="https://earthsystemmodeling.org/docs/release/latest/ESMF_refdoc/">https://earthsystemmodeling.org/docs/release/latest/ESMF_refdoc/</a></li>
+<li><strong>NUOPC Reference Manual:</strong> <a href="https://earthsystemmodeling.org/docs/release/latest/NUOPC_refdoc">https://earthsystemmodeling.org/docs/release/latest/NUOPC_refdoc</a></li>
+<li><strong>TIDE Documentation:</strong> Located at <code>src/io/tide</code> in the ACES repository</li>
+<li><strong>Fortran Standards:</strong> <a href="https://www.iso.org/standard/44473.html">Fortran 2008 Standard (ISO/IEC 1539-1:2010)</a></li>
 </ul>
 
 

@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Accelerated Component for Emission System">
+        <meta name="description" content="Atmospheric Chemistry Emission System">
       
       
         <meta name="author" content="ACES Team">
@@ -316,10 +316,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#categories-and-hierarchies" class="md-nav__link">
+  <a href="#key-features" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Categories and Hierarchies
+        Key Features
       
     </span>
   </a>
@@ -327,21 +327,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#masks-and-scale-factors" class="md-nav__link">
+  <a href="#quick-example" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Masks and Scale Factors
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#optimized-fused-kernels" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Optimized Fused Kernels
+        Quick Example
       
     </span>
   </a>
@@ -664,10 +653,10 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#categories-and-hierarchies" class="md-nav__link">
+  <a href="#key-features" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Categories and Hierarchies
+        Key Features
       
     </span>
   </a>
@@ -675,21 +664,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#masks-and-scale-factors" class="md-nav__link">
+  <a href="#quick-example" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Masks and Scale Factors
-      
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#optimized-fused-kernels" class="md-nav__link">
-    <span class="md-ellipsis">
-      
-        Optimized Fused Kernels
+        Quick Example
       
     </span>
   </a>
@@ -788,23 +766,31 @@
 <h1 id="core-concepts">Core Concepts<a class="headerlink" href="#core-concepts" title="Permanent link">&para;</a></h1>
 <p>This page explains the fundamental concepts and architecture of ACES.</p>
 <h2 id="the-stacking-engine">The Stacking Engine<a class="headerlink" href="#the-stacking-engine" title="Permanent link">&para;</a></h2>
-<p>The heart of ACES is the <strong>Stacking Engine</strong>, which calculates final emission fields by combining multiple data layers. It is designed to mimic the priority-based logic of the HEMCO (Harmonized Emissions Component).</p>
-<h3 id="categories-and-hierarchies">Categories and Hierarchies<a class="headerlink" href="#categories-and-hierarchies" title="Permanent link">&para;</a></h3>
-<p>Layers are organized into <strong>Categories</strong> (e.g., <code>anthropogenic</code>, <code>biomass_burning</code>). Within each category, layers are assigned a <strong>Hierarchy</strong> level.</p>
+<p>The heart of ACES is the <strong>Stacking Engine</strong>, which calculates final emission fields by combining multiple data layers. It is designed to mimic and extend the priority-based logic of the HEMCO (Harmonized Emissions Component) while providing significant performance optimizations for modern HPC architectures.</p>
+<p>For comprehensive technical details about the Stacking Engine implementation, algorithms, and performance characteristics, see the <a href="../stacking_engine/">Stacking Engine Documentation</a>.</p>
+<h3 id="key-features">Key Features<a class="headerlink" href="#key-features" title="Permanent link">&para;</a></h3>
 <ul>
-<li><strong>Priority</strong>: When multiple layers provide data for the same species and location, the layer with the <strong>highest hierarchy</strong> takes precedence.</li>
-<li><strong>Operations</strong>:<ul>
-<li><code>add</code>: The layer's emissions are added to the accumulated sum for that species.</li>
-<li><code>replace</code>: The layer's emissions overwrite the accumulated sum for that species. This is typically used for regional overrides (e.g., a regional inventory replacing a global one).</li>
+<li><strong>Hierarchy-Based Processing</strong>: Layers are organized by categories and numerical priorities</li>
+<li><strong>Kernel Fusion Optimization</strong>: Single optimized compute kernel per species for maximum performance</li>
+<li><strong>Flexible Operations</strong>: Support for add, multiply, replace, and set operations</li>
+<li><strong>Advanced Scaling</strong>: Multiple simultaneous scale factors (temporal, spatial, field-based)</li>
+<li><strong>Vertical Distribution</strong>: Multiple algorithms for 2D→3D emission mapping</li>
+<li><strong>Complete Provenance</strong>: Full scientific traceability of emission calculations</li>
 </ul>
-</li>
-</ul>
-<h3 id="masks-and-scale-factors">Masks and Scale Factors<a class="headerlink" href="#masks-and-scale-factors" title="Permanent link">&para;</a></h3>
-<p>Each layer can be modified by:
--   <strong>Geographical Masks</strong>: 2D or 3D fields that restrict where a layer's emissions are applied.
--   <strong>Scale Factors</strong>: Multipliers applied to the base emission field. These can be static values or dynamic fields (like temperature or wind speed) pulled from ESMF or CDEPS.</p>
-<h3 id="optimized-fused-kernels">Optimized Fused Kernels<a class="headerlink" href="#optimized-fused-kernels" title="Permanent link">&para;</a></h3>
-<p>To ensure high performance on GPUs and CPUs, ACES uses <strong>Kernel Fusion</strong>. Instead of processing each layer and operation in separate steps, the Stacking Engine analyzes the hierarchy and generates a single, fused Kokkos kernel for each species. This significantly reduces memory bandwidth and kernel launch overhead.</p>
+<h3 id="quick-example">Quick Example<a class="headerlink" href="#quick-example" title="Permanent link">&para;</a></h3>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">species</span><span class="p">:</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">co</span><span class="p">:</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">field</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;global_co_inventory&quot;</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">      </span><span class="nt">category</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;anthropogenic&quot;</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">      </span><span class="nt">hierarchy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">      </span><span class="nt">operation</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;add&quot;</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">      </span><span class="nt">scale</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.0</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">field</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;regional_co_override&quot;</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">      </span><span class="nt">category</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;anthropogenic&quot;</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">      </span><span class="nt">hierarchy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span><span class="w">         </span><span class="c1"># Higher priority replaces base</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">      </span><span class="nt">operation</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;replace&quot;</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">      </span><span class="nt">mask</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;regional_mask&quot;</span>
+</span></code></pre></div>
 <hr />
 <h2 id="the-acesesmf-lifecycle">The ACES/ESMF Lifecycle<a class="headerlink" href="#the-acesesmf-lifecycle" title="Permanent link">&para;</a></h2>
 <p>ACES is implemented as a NUOPC-compliant ESMF component. It follows a standard lifecycle:</p>
@@ -819,7 +805,7 @@
 <li><strong>Dimension Discovery</strong>: ACES dynamically determines the grid dimensions from the ESMF fields at runtime.</li>
 <li><strong>Data Ingestion</strong>:<ul>
 <li>Live meteorological data is pulled from the ESMF Import State.</li>
-<li>Static emission inventories are read from disk using the CDEPS-inline engine.</li>
+<li>Static emission inventories are read from disk using the TIDE engine.</li>
 </ul>
 </li>
 <li><strong>Stacking Execution</strong>: The fused Kokkos kernels are launched to compute the base emissions.</li>
@@ -829,7 +815,7 @@
 </ul>
 <h3 id="3-finalize-phase">3. Finalize Phase<a class="headerlink" href="#3-finalize-phase" title="Permanent link">&para;</a></h3>
 <ul>
-<li>Resources are released, and Kokkos/CDEPS are finalized.</li>
+<li>Resources are released, and Kokkos/TIDE are finalized.</li>
 </ul>
 <hr />
 <h2 id="performance-portability-with-kokkos">Performance Portability with Kokkos<a class="headerlink" href="#performance-portability-with-kokkos" title="Permanent link">&para;</a></h2>

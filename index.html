@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Accelerated Component for Emission System">
+        <meta name="description" content="Atmospheric Chemistry Emission System">
       
       
         <meta name="author" content="ACES Team">
@@ -628,30 +628,31 @@
                   
 
 <h1 id="welcome-to-aces">Welcome to ACES<a class="headerlink" href="#welcome-to-aces" title="Permanent link">&para;</a></h1>
-<p><strong>ACES</strong> (Accelerated Component for Emission System) is a high-performance C++ component designed for calculating atmospheric emissions. It leverages the <strong>Kokkos</strong> programming model for performance portability across CPUs and GPUs and integrates seamlessly with the <strong>ESMF</strong> (Earth System Modeling Framework).</p>
+<p><strong>ACES</strong> (Atmospheric Chemistry Emission System) is a high-performance C++ component designed for calculating atmospheric emissions. It leverages the <strong>Kokkos</strong> programming model for performance portability across CPUs and GPUs and integrates seamlessly with the <strong>ESMF</strong> (Earth System Modeling Framework).</p>
 <h2 id="key-features">Key Features<a class="headerlink" href="#key-features" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>Performance Portability</strong>: Write once, run anywhere. ACES uses Kokkos to target NVIDIA GPUs, multi-core CPUs (OpenMP), and more without changing the source code.</li>
-<li><strong>Hybrid Data Ingestion</strong>: Pull live meteorological data (temperature, wind speed, etc.) from ESMF while simultaneously reading static emission inventories from disk using CDEPS-inline.</li>
+<li><strong>Hybrid Data Ingestion</strong>: Pull live meteorological data (temperature, wind speed, etc.) from ESMF while simultaneously reading static emission inventories from disk using TIDE.</li>
 <li><strong>Modular Physics Engine</strong>: Easily extend ACES with new physics schemes. Supports both native C++ (Kokkos) and legacy Fortran plugins.</li>
 <li><strong>Flexible Stacking Engine</strong>: Combine multiple emission layers using prioritized categories and hierarchy levels. Apply geographical masks and multiple scale factors per layer.</li>
 <li><strong>Built-in Diagnostics</strong>: Integrated diagnostic manager for registering and writing intermediate variables to NetCDF files.</li>
 </ul>
 <h2 id="architecture-overview">Architecture Overview<a class="headerlink" href="#architecture-overview" title="Permanent link">&para;</a></h2>
-<p>ACES operates as an ESMF Grid Component. It follows the standard NUOPC/ESMF lifecycle:</p>
+<p>ACES operates as an ESMF Grid Component with a sophisticated <strong>Stacking Engine</strong> at its core. The Stacking Engine combines multiple emission data layers using hierarchical processing, kernel fusion optimization, and advanced temporal/spatial scaling. It follows the standard NUOPC/ESMF lifecycle:</p>
 <ol>
-<li><strong>Initialize</strong>: Parses YAML configuration, instantiates physics schemes, and initializes CDEPS-inline.</li>
+<li><strong>Initialize</strong>: Parses YAML configuration, instantiates physics schemes, and initializes TIDE.</li>
 <li><strong>Run</strong>:<ul>
 <li>Discovers grid dimensions from ESMF fields.</li>
-<li>Ingests data from ESMF and CDEPS.</li>
-<li>Executes the Stacking Engine to process base emissions.</li>
-<li>Runs active Physics Extensions.</li>
+<li>Ingests data from ESMF and TIDE data streams.</li>
+<li>Executes the Stacking Engine with fused kernel optimization.</li>
+<li>Runs active Physics Extensions (MEGAN, sea salt, dust, etc.).</li>
 <li>Writes diagnostics to disk.</li>
 <li>Synchronizes computed emissions back to the ESMF host state.</li>
 </ul>
 </li>
-<li><strong>Finalize</strong>: Cleans up resources and finalizes Kokkos/CDEPS.</li>
+<li><strong>Finalize</strong>: Cleans up resources and finalizes Kokkos/TIDE.</li>
 </ol>
+<p>For comprehensive technical details about the Stacking Engine algorithms and performance optimizations, see the <a href="stacking_engine/">Stacking Engine Documentation</a>.</p>
 <h2 id="get-started">Get Started<a class="headerlink" href="#get-started" title="Permanent link">&para;</a></h2>
 <p>Check out the <a href="users-guide/">User's Guide</a> to learn how to build and run ACES, explore the <a href="migration_examples/">Migration Examples</a> to see side-by-side comparisons with HEMCO, or dive into the <a href="tutorial/">Tutorial</a> to start writing your own physics schemes.</p>
 

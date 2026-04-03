@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Accelerated Component for Emission System">
+        <meta name="description" content="Atmospheric Chemistry Emission System">
       
       
         <meta name="author" content="ACES Team">
@@ -23,7 +23,7 @@
     
     
       
-        <title>CDEPS Streams Configuration Parser - ACES Documentation</title>
+        <title>TIDE Streams Configuration Parser - ACES Documentation</title>
       
     
     
@@ -79,7 +79,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#cdeps-streams-configuration-parser" class="md-skip">
+        <a href="#tide-streams-configuration-parser" class="md-skip">
           Skip to content
         </a>
       
@@ -115,7 +115,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              CDEPS Streams Configuration Parser
+              TIDE Streams Configuration Parser
             
           </span>
         </div>
@@ -511,15 +511,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#esmf-config-format" class="md-nav__link">
+  <a href="#yaml-format" class="md-nav__link">
     <span class="md-ellipsis">
       
-        ESMF Config Format
+        YAML Format
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="ESMF Config Format">
+    <nav class="md-nav" aria-label="YAML Format">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -749,9 +749,9 @@
                 
                   
 
-<h1 id="cdeps-streams-configuration-parser">CDEPS Streams Configuration Parser<a class="headerlink" href="#cdeps-streams-configuration-parser" title="Permanent link">&para;</a></h1>
+<h1 id="tide-streams-configuration-parser">TIDE Streams Configuration Parser<a class="headerlink" href="#tide-streams-configuration-parser" title="Permanent link">&para;</a></h1>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
-<p>The CDEPS Streams Configuration Parser provides functionality to parse, validate, and serialize ESMF Config format streams files used by CDEPS-inline for data ingestion in ACES. This enables hybrid data ingestion where static emission inventories from NetCDF files are combined with live meteorological fields from ESMF.</p>
+<p>The TIDE Streams Configuration Parser provides functionality to parse, validate, and serialize YAML format streams files used by TIDE for data ingestion in ACES. This enables hybrid data ingestion where static emission inventories from NetCDF files are combined with live meteorological fields from ESMF.</p>
 <h2 id="features">Features<a class="headerlink" href="#features" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong>ESMF Config Format Parsing</strong>: Reads streams files in ESMF Config format</li>
@@ -760,8 +760,8 @@
 <li><strong>Detailed Error Messages</strong>: Provides actionable error messages for configuration issues</li>
 <li><strong>NetCDF Integration</strong>: Validates that variables exist in specified NetCDF files</li>
 </ul>
-<h2 id="esmf-config-format">ESMF Config Format<a class="headerlink" href="#esmf-config-format" title="Permanent link">&para;</a></h2>
-<p>The ESMF Config format for CDEPS streams uses a simple key-value syntax:</p>
+<h2 id="yaml-format">YAML Format<a class="headerlink" href="#yaml-format" title="Permanent link">&para;</a></h2>
+<p>The YAML format for TIDE streams uses a simple key-value syntax:</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>stream::&lt;stream_name&gt;
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>  file_paths = &lt;path1&gt;, &lt;path2&gt;, ...
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>  variables = &lt;var_in_file:var_in_model&gt;, ...
@@ -804,50 +804,64 @@
 </ul>
 <h2 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h2>
 <h3 id="parsing-a-streams-file">Parsing a Streams File<a class="headerlink" href="#parsing-a-streams-file" title="Permanent link">&para;</a></h3>
-<div class="language-cpp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;aces/aces_cdeps_parser.hpp&quot;</span>
+<div class="language-cpp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;aces/aces_tide_yaml_serializer.hpp&quot;</span>
 </span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>
 </span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="c1">// Parse streams file</span>
-</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">aces</span><span class="o">::</span><span class="n">AcesCdepsConfig</span><span class="w"> </span><span class="n">config</span><span class="w"> </span><span class="o">=</span>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="n">aces</span><span class="o">::</span><span class="n">CdepsStreamsParser</span><span class="o">::</span><span class="n">ParseStreamsFile</span><span class="p">(</span><span class="s">&quot;aces_emissions.streams&quot;</span><span class="p">);</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">aces</span><span class="o">::</span><span class="n">AcesDataConfig</span><span class="w"> </span><span class="n">config</span><span class="w"> </span><span class="o">=</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">    </span><span class="n">aces</span><span class="o">::</span><span class="n">SerializeTideYaml</span><span class="p">(</span><span class="s">&quot;aces_emissions.yaml&quot;</span><span class="p">);</span>
 </span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
 </span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c1">// Access parsed streams</span>
-</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="k">auto</span><span class="o">&amp;</span><span class="w"> </span><span class="n">stream</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">config</span><span class="p">.</span><span class="n">streams</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="k">auto</span><span class="o">&amp;</span><span class="w"> </span><span class="n">stream</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">config</span><span class="p">.</span><span class="n">aces_data</span><span class="p">.</span><span class="n">streams</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
 </span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;Stream: &quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">stream</span><span class="p">.</span><span class="n">name</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
 </span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;  Files: &quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">stream</span><span class="p">.</span><span class="n">file_paths</span><span class="p">.</span><span class="n">size</span><span class="p">()</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
 </span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;  Variables: &quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">stream</span><span class="p">.</span><span class="n">variables</span><span class="p">.</span><span class="n">size</span><span class="p">()</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
 </span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="p">}</span>
 </span></code></pre></div>
 <h3 id="validating-a-configuration">Validating a Configuration<a class="headerlink" href="#validating-a-configuration" title="Permanent link">&para;</a></h3>
-<div class="language-cpp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;aces/aces_cdeps_parser.hpp&quot;</span>
+<div class="language-cpp highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;aces/aces_config_validator.hpp&quot;</span>
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">aces</span><span class="o">::</span><span class="n">AcesCdepsConfig</span><span class="w"> </span><span class="n">config</span><span class="w"> </span><span class="o">=</span>
-</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">    </span><span class="n">aces</span><span class="o">::</span><span class="n">CdepsStreamsParser</span><span class="o">::</span><span class="n">ParseStreamsFile</span><span class="p">(</span><span class="s">&quot;aces_emissions.streams&quot;</span><span class="p">);</span>
-</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>
-</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&gt;</span><span class="w"> </span><span class="n">errors</span><span class="p">;</span>
-</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="kt">bool</span><span class="w"> </span><span class="n">is_valid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">aces</span><span class="o">::</span><span class="n">CdepsStreamsParser</span><span class="o">::</span><span class="n">ValidateStreamsConfig</span><span class="p">(</span><span class="n">config</span><span class="p">,</span><span class="w"> </span><span class="n">errors</span><span class="p">);</span>
-</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>
-</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">is_valid</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">cerr</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;Configuration validation failed:&quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
-</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="k">auto</span><span class="o">&amp;</span><span class="w"> </span><span class="n">error</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">errors</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">cerr</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;  - &quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">error</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
-</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="w">    </span><span class="p">}</span>
-</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="p">}</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="n">aces</span><span class="o">::</span><span class="n">AcesDataConfig</span><span class="w"> </span><span class="n">config</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="cm">/* ... */</span><span class="p">;</span>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&gt;</span><span class="w"> </span><span class="n">errors</span><span class="p">;</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="kt">bool</span><span class="w"> </span><span class="n">is_valid</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">aces</span><span class="o">::</span><span class="n">ConfigValidator</span><span class="o">::</span><span class="n">ValidateTIDE</span><span class="p">(</span><span class="n">config</span><span class="p">,</span><span class="w"> </span><span class="n">errors</span><span class="p">);</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="o">!</span><span class="n">is_valid</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">cerr</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;Configuration validation failed:&quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">    </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="k">auto</span><span class="o">&amp;</span><span class="w"> </span><span class="n">error</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">errors</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">        </span><span class="n">std</span><span class="o">::</span><span class="n">cerr</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="s">&quot;  - &quot;</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">error</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">    </span><span class="p">}</span>
+</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="p">}</span>
 </span></code></pre></div>
 <h3 id="writing-a-streams-file">Writing a Streams File<a class="headerlink" href="#writing-a-streams-file" title="Permanent link">&para;</a></h3>
-<div class="language-cpp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;aces/aces_cdeps_parser.hpp&quot;</span>
+<div class="language-cpp highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;aces/aces_tide_yaml_serializer.hpp&quot;</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
 </span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="c1">// Create configuration programmatically</span>
-</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">aces</span><span class="o">::</span><span class="n">AcesCdepsConfig</span><span class="w"> </span><span class="n">config</span><span class="p">;</span>
-</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="n">aces</span><span class="o">::</span><span class="n">CdepsStreamConfig</span><span class="w"> </span><span class="n">stream</span><span class="p">;</span>
-</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="n">stream</span><span class="p">.</span><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;test_emissions&quot;</span><span class="p">;</span>
-</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="n">stream</span><span class="p">.</span><span class="n">file_paths</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="s">&quot;/data/emissions.nc&quot;</span><span class="p">};</span>
-</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="n">stream</span><span class="p">.</span><span class="n">variables</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{{</span><span class="s">&quot;CO_emis&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;CO&quot;</span><span class="p">},</span><span class="w"> </span><span class="p">{</span><span class="s">&quot;NOx_emis&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;NOx&quot;</span><span class="p">}};</span>
-</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="n">stream</span><span class="p">.</span><span class="n">taxmode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;cycle&quot;</span><span class="p">;</span>
-</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="n">stream</span><span class="p">.</span><span class="n">tintalgo</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;linear&quot;</span><span class="p">;</span>
-</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="n">config</span><span class="p">.</span><span class="n">streams</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">stream</span><span class="p">);</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">aces</span><span class="o">::</span><span class="n">AcesDataConfig</span><span class="w"> </span><span class="n">config</span><span class="p">;</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="n">aces</span><span class="o">::</span><span class="n">AcesDataStreamConfig</span><span class="w"> </span><span class="n">stream</span><span class="p">;</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="n">stream</span><span class="p">.</span><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;test_emissions&quot;</span><span class="p">;</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="n">stream</span><span class="p">.</span><span class="n">file_paths</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="s">&quot;/data/emissions.nc&quot;</span><span class="p">};</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="n">stream</span><span class="p">.</span><span class="n">variables</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{{</span><span class="s">&quot;SO2&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;so2_flux&quot;</span><span class="p">}};</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a>
+</span><span id="__span-3-11"><a id="__codelineno-3-11" name="__codelineno-3-11" href="#__codelineno-3-11"></a><span class="n">config</span><span class="p">.</span><span class="n">aces_data</span><span class="p">.</span><span class="n">streams</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">stream</span><span class="p">);</span>
 </span><span id="__span-3-12"><a id="__codelineno-3-12" name="__codelineno-3-12" href="#__codelineno-3-12"></a>
 </span><span id="__span-3-13"><a id="__codelineno-3-13" name="__codelineno-3-13" href="#__codelineno-3-13"></a><span class="c1">// Write to file</span>
-</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="n">aces</span><span class="o">::</span><span class="n">CdepsStreamsParser</span><span class="o">::</span><span class="n">WriteStreamsFile</span><span class="p">(</span><span class="s">&quot;output.streams&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">config</span><span class="p">);</span>
+</span><span id="__span-3-14"><a id="__codelineno-3-14" name="__codelineno-3-14" href="#__codelineno-3-14"></a><span class="n">aces</span><span class="o">::</span><span class="n">SerializeTideYaml</span><span class="p">(</span><span class="n">config</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;output.yaml&quot;</span><span class="p">);</span>
+</span></code></pre></div>
+<div class="language-cpp highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;aces/aces_tide_yaml_serializer.hpp&quot;</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="c1">// Create configuration programmatically</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="n">aces</span><span class="o">::</span><span class="n">AcesDataConfig</span><span class="w"> </span><span class="n">config</span><span class="p">;</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="n">aces</span><span class="o">::</span><span class="n">AcesDataStreamConfig</span><span class="w"> </span><span class="n">stream</span><span class="p">;</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="n">stream</span><span class="p">.</span><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;test_emissions&quot;</span><span class="p">;</span>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="n">stream</span><span class="p">.</span><span class="n">file_paths</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{</span><span class="s">&quot;/data/emissions.nc&quot;</span><span class="p">};</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="n">stream</span><span class="p">.</span><span class="n">variables</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{{</span><span class="s">&quot;CO_emis&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;CO&quot;</span><span class="p">},</span><span class="w"> </span><span class="p">{</span><span class="s">&quot;NOx_emis&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;NOx&quot;</span><span class="p">}};</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="n">stream</span><span class="p">.</span><span class="n">taxmode</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;cycle&quot;</span><span class="p">;</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="n">stream</span><span class="p">.</span><span class="n">tintalgo</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s">&quot;linear&quot;</span><span class="p">;</span>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="n">config</span><span class="p">.</span><span class="n">aces_data</span><span class="p">.</span><span class="n">streams</span><span class="p">.</span><span class="n">push_back</span><span class="p">(</span><span class="n">stream</span><span class="p">);</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a>
+</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a><span class="c1">// Write to file</span>
+</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="n">aces</span><span class="o">::</span><span class="n">SerializeTideYaml</span><span class="p">(</span><span class="n">config</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;output.yaml&quot;</span><span class="p">);</span>
 </span></code></pre></div>
 <h2 id="validation">Validation<a class="headerlink" href="#validation" title="Permanent link">&para;</a></h2>
 <p>The parser performs comprehensive validation:</p>
@@ -874,22 +888,22 @@
 - Specific problem description
 - Suggested corrective action</p>
 <p>Example error messages:
-<div class="language-text highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a>Stream &#39;anthro_emissions&#39;: File not found: /data/missing.nc
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>Stream &#39;anthro_emissions&#39;: Variable &#39;CO_emis&#39; not found in file: /data/emissions.nc
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a>Stream &#39;anthro_emissions&#39;: Invalid temporal interpolation mode &#39;bad_mode&#39;. Valid options: none, linear, nearest, lower, upper
+<div class="language-text highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>Stream &#39;anthro_emissions&#39;: File not found: /data/missing.nc
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>Stream &#39;anthro_emissions&#39;: Variable &#39;CO_emis&#39; not found in file: /data/emissions.nc
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>Stream &#39;anthro_emissions&#39;: Invalid temporal interpolation mode &#39;bad_mode&#39;. Valid options: none, linear, nearest, lower, upper
 </span></code></pre></div></p>
 <h2 id="round-trip-property">Round-Trip Property<a class="headerlink" href="#round-trip-property" title="Permanent link">&para;</a></h2>
 <p>The parser supports round-trip serialization (Property 16):</p>
-<div class="language-cpp highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1">// Parse original file</span>
-</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="k">auto</span><span class="w"> </span><span class="n">config1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">aces</span><span class="o">::</span><span class="n">CdepsStreamsParser</span><span class="o">::</span><span class="n">ParseStreamsFile</span><span class="p">(</span><span class="s">&quot;original.streams&quot;</span><span class="p">);</span>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
-</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1">// Write to new file</span>
-</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="n">aces</span><span class="o">::</span><span class="n">CdepsStreamsParser</span><span class="o">::</span><span class="n">WriteStreamsFile</span><span class="p">(</span><span class="s">&quot;copy.streams&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">config1</span><span class="p">);</span>
-</span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a>
-</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a><span class="c1">// Parse the copy</span>
-</span><span id="__span-5-8"><a id="__codelineno-5-8" name="__codelineno-5-8" href="#__codelineno-5-8"></a><span class="k">auto</span><span class="w"> </span><span class="n">config2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">aces</span><span class="o">::</span><span class="n">CdepsStreamsParser</span><span class="o">::</span><span class="n">ParseStreamsFile</span><span class="p">(</span><span class="s">&quot;copy.streams&quot;</span><span class="p">);</span>
-</span><span id="__span-5-9"><a id="__codelineno-5-9" name="__codelineno-5-9" href="#__codelineno-5-9"></a>
-</span><span id="__span-5-10"><a id="__codelineno-5-10" name="__codelineno-5-10" href="#__codelineno-5-10"></a><span class="c1">// config1 and config2 should be equivalent</span>
+<div class="language-cpp highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1">// Parse original file</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="k">auto</span><span class="w"> </span><span class="n">config1</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">aces</span><span class="o">::</span><span class="n">ParseTideYaml</span><span class="p">(</span><span class="s">&quot;original.yaml&quot;</span><span class="p">);</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="c1">// Write to new file</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="n">aces</span><span class="o">::</span><span class="n">SerializeTideYaml</span><span class="p">(</span><span class="n">config1</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;copy.yaml&quot;</span><span class="p">);</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c1">// Parse the copy</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="k">auto</span><span class="w"> </span><span class="n">config2</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">aces</span><span class="o">::</span><span class="n">ParseTideYaml</span><span class="p">(</span><span class="s">&quot;copy.yaml&quot;</span><span class="p">);</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="c1">// config1 and config2 should be equivalent</span>
 </span></code></pre></div>
 <p>This property ensures that:
 - No information is lost during serialization
@@ -897,38 +911,37 @@
 - Testing can verify parser correctness</p>
 <h2 id="integration-with-aces">Integration with ACES<a class="headerlink" href="#integration-with-aces" title="Permanent link">&para;</a></h2>
 <p>The parser integrates with ACES configuration:</p>
-<div class="language-cpp highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1">// In aces_config.hpp</span>
-</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="k">struct</span><span class="w"> </span><span class="nc">AcesConfig</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="c1">// ... other fields ...</span>
-</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="w">    </span><span class="n">AcesCdepsConfig</span><span class="w"> </span><span class="n">cdeps_config</span><span class="p">;</span><span class="w">  </span><span class="c1">// Parsed streams configuration</span>
-</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="p">};</span>
-</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a>
-</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="c1">// In aces_data_ingestor.cpp</span>
-</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="kt">void</span><span class="w"> </span><span class="nf">AcesDataIngestor::InitializeCDEPS</span><span class="p">(</span>
-</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="w">    </span><span class="n">ESMC_GridComp</span><span class="w"> </span><span class="n">gcomp</span><span class="p">,</span>
-</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="w">    </span><span class="n">ESMC_Clock</span><span class="w"> </span><span class="n">clock</span><span class="p">,</span>
-</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="w">    </span><span class="n">ESMC_State</span><span class="w"> </span><span class="n">exportState</span><span class="p">,</span>
-</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="n">AcesCdepsConfig</span><span class="o">&amp;</span><span class="w"> </span><span class="n">config</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="w">    </span><span class="c1">// Use parsed configuration to initialize CDEPS</span>
-</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="p">}</span>
+<div class="language-cpp highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1">// In aces_config.hpp</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="k">struct</span><span class="w"> </span><span class="nc">AcesConfig</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span><span class="c1">// ... other fields ...</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">    </span><span class="n">AcesDataConfig</span><span class="w"> </span><span class="n">aces_data</span><span class="p">;</span><span class="w">  </span><span class="c1">// Parsed streams configuration</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="p">};</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="c1">// In aces_data_ingestor.cpp</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="kt">void</span><span class="w"> </span><span class="nf">AcesDataIngestor::IngestEmissionsInline</span><span class="p">(</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="w">    </span><span class="k">const</span><span class="w"> </span><span class="n">AcesDataConfig</span><span class="o">&amp;</span><span class="w"> </span><span class="n">config</span><span class="p">,</span>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="w">    </span><span class="n">AcesImportState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">aces_state</span><span class="p">,</span>
+</span><span id="__span-7-11"><a id="__codelineno-7-11" name="__codelineno-7-11" href="#__codelineno-7-11"></a><span class="w">    </span><span class="kt">int</span><span class="w"> </span><span class="n">nx</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">ny</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">nz</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-7-12"><a id="__codelineno-7-12" name="__codelineno-7-12" href="#__codelineno-7-12"></a><span class="w">    </span><span class="c1">// Use parsed configuration to ingest emissions from TIDE</span>
+</span><span id="__span-7-13"><a id="__codelineno-7-13" name="__codelineno-7-13" href="#__codelineno-7-13"></a><span class="p">}</span>
 </span></code></pre></div>
 <h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
-<p>See <code>examples/cdeps_streams_example.txt</code> for complete examples demonstrating:
+<p>See <code>examples/aces_config_ex*.yaml</code> for complete examples demonstrating:
 - Anthropogenic emissions from CEDS
 - Biogenic emissions from MEGAN
 - Biomass burning emissions from GFED
 - Meteorological fields
 - Scale factors for temporal variation</p>
 <h2 id="testing">Testing<a class="headerlink" href="#testing" title="Permanent link">&para;</a></h2>
-<p>Unit tests are provided in <code>tests/test_cdeps_parser.cpp</code>:</p>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Build and run tests</span>
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>mkdir<span class="w"> </span>build<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>build
-</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>cmake<span class="w"> </span>..
-</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>make<span class="w"> </span>test_cdeps_parser
-</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>./test_cdeps_parser
+<p>Unit tests are provided in <code>tests/cf_ingestor/test_tide_yaml_serializer.cpp</code>:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1"># Build and run tests</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>mkdir<span class="w"> </span>build<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>build
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>cmake<span class="w"> </span>..
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>make<span class="w"> </span>test_tide_yaml_serializer
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>./test_tide_yaml_serializer
 </span></code></pre></div>
 <p>Tests cover:
-- Parsing valid streams files
+- Parsing valid YAML streams files
 - Handling missing files
 - Validating interpolation modes
 - Detecting missing attributes
@@ -940,9 +953,10 @@
 <h2 id="requirements-satisfied">Requirements Satisfied<a class="headerlink" href="#requirements-satisfied" title="Permanent link">&para;</a></h2>
 <p>This implementation satisfies the following requirements:</p>
 <ul>
-<li><strong>Requirement 1.1</strong>: CDEPS-Inline Hybrid Data Ingestion</li>
-<li><strong>Requirement 1.2</strong>: CDEPS configuration validation</li>
-<li><strong>Requirement 7.1-7.10</strong>: CDEPS Streams Configuration Parser</li>
+<li><strong>Requirement 4.1</strong>: TIDE YAML Configuration</li>
+<li><strong>Requirement 4.3</strong>: TIDE YAML Serialization</li>
+<li><strong>Requirement 4.4</strong>: TIDE YAML Round-Trip</li>
+<li><strong>Requirement 4.6</strong>: TIDE YAML Error Handling</li>
 <li>7.1: Parse ESMF Config format</li>
 <li>7.2: Validate required attributes</li>
 <li>7.3: Validate file paths</li>
@@ -960,7 +974,7 @@
 <p>Potential future enhancements:
 - Support for YAML format as alternative to ESMF Config
 - Schema validation using JSON Schema or similar
-- Integration with CDEPS validation tools
+- Integration with TIDE validation tools
 - Support for stream templates and includes
 - Automatic mesh file discovery
 - Variable dimension validation</p>

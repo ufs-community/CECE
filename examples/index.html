@@ -6,7 +6,7 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Accelerated Component for Emission System">
+        <meta name="description" content="Atmospheric Chemistry Emission System">
       
       
         <meta name="author" content="ACES Team">
@@ -447,6 +447,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Example Scenarios">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#advanced-example-highlights" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Advanced Example Highlights
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration-features-by-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration Features by Example
+      
+    </span>
+  </a>
+  
 </li>
       
         <li class="md-nav__item">
@@ -621,6 +649,34 @@
     </span>
   </a>
   
+    <nav class="md-nav" aria-label="Example Scenarios">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#advanced-example-highlights" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Advanced Example Highlights
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration-features-by-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration Features by Example
+      
+    </span>
+  </a>
+  
 </li>
       
         <li class="md-nav__item">
@@ -708,17 +764,86 @@
                   
 
 <h1 id="using-the-provided-examples">Using the Provided Examples<a class="headerlink" href="#using-the-provided-examples" title="Permanent link">&para;</a></h1>
-<p>ACES includes several example configurations that demonstrate common emission stacking scenarios, modeled after the examples in the HEMCO guide.</p>
+<p>ACES includes several example configurations that demonstrate common emission stacking scenarios, modeled after examples in the HEMCO guide and showcasing advanced ACES features.</p>
 <h2 id="example-scenarios">Example Scenarios<a class="headerlink" href="#example-scenarios" title="Permanent link">&para;</a></h2>
 <p>The <code>examples/</code> directory contains several YAML configuration files:</p>
 <ul>
-<li><code>aces_config_ex1.yaml</code>: Single anthropogenic CO emissions layer with hourly scale factors.</li>
-<li><code>aces_config_ex2.yaml</code>: Overlaying a regional European CO inventory on a global background.</li>
-<li><code>aces_config_ex3.yaml</code>: Separating anthropogenic and aircraft CO emissions.</li>
-<li><code>aces_config_ex4.yaml</code>: Using the GFED4 extension for biomass burning.</li>
-<li><code>aces_config_ex5.yaml</code>: Adding multi-species (NO and SO2) emissions.</li>
-<li><code>aces_config_ex6.yaml</code>: Handling non-separated inventories.</li>
+<li><code>aces_config_ex1.yaml</code>: Basic single CO species with TIDE data ingestion</li>
+<li><code>aces_config_ex2.yaml</code>: Overlaying a regional European CO inventory on a global background</li>
+<li><code>aces_config_ex3.yaml</code>: Simple testing configuration with minimal grid</li>
+<li><code>aces_config_ex4.yaml</code>: Using the GFED4 extension for biomass burning</li>
+<li><code>aces_config_ex5.yaml</code>: Multi-species (CO and NO) emissions with multi-timestep execution</li>
+<li><code>aces_config_ex6.yaml</code>: Handling non-separated inventories</li>
+<li><code>aces_config_advanced.yaml</code>: <strong>NEW</strong> - Comprehensive example demonstrating advanced Stacking Engine features</li>
 </ul>
+<h3 id="advanced-example-highlights">Advanced Example Highlights<a class="headerlink" href="#advanced-example-highlights" title="Permanent link">&para;</a></h3>
+<p>The <code>aces_config_advanced.yaml</code> example showcases sophisticated emission processing capabilities:</p>
+<ul>
+<li><strong>Hierarchical Layer Processing</strong>: Multiple priority levels within categories</li>
+<li><strong>Temporal Scaling</strong>: Diurnal, weekly, and seasonal emission cycles</li>
+<li><strong>Vertical Distribution</strong>: Multiple algorithms (PBL, HEIGHT, PRESSURE) for different source types</li>
+<li><strong>Environmental Dependencies</strong>: Temperature, PAR, and LAI-dependent scaling</li>
+<li><strong>Geographical Masking</strong>: Land/ocean/vegetation/regional masks</li>
+<li><strong>Physics Scheme Integration</strong>: Active MEGAN, sea salt, and dust schemes</li>
+<li><strong>Multi-Source Integration</strong>: TIDE streams from multiple emission inventories</li>
+</ul>
+<p>For complete technical details about how these features work, see the <a href="../stacking_engine/">Stacking Engine Documentation</a>.</p>
+<hr />
+<h2 id="configuration-features-by-example">Configuration Features by Example<a class="headerlink" href="#configuration-features-by-example" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Example</th>
+<th>Grid Size</th>
+<th>Species</th>
+<th>Key Features</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>ex1</td>
+<td>4×4</td>
+<td>CO</td>
+<td>Basic TIDE integration, simple stacking</td>
+</tr>
+<tr>
+<td>ex2</td>
+<td>(varies)</td>
+<td>CO</td>
+<td>Regional override with hierarchy</td>
+</tr>
+<tr>
+<td>ex3</td>
+<td>2×2</td>
+<td>CO</td>
+<td>Minimal test configuration</td>
+</tr>
+<tr>
+<td>ex4</td>
+<td>(varies)</td>
+<td>Multiple</td>
+<td>Biomass burning with GFED4</td>
+</tr>
+<tr>
+<td>ex5</td>
+<td>4×4</td>
+<td>CO, NO</td>
+<td>Multi-species, multi-timestep execution</td>
+</tr>
+<tr>
+<td>ex6</td>
+<td>(varies)</td>
+<td>Multiple</td>
+<td>Non-separated inventory handling</td>
+</tr>
+<tr>
+<td><strong>advanced</strong></td>
+<td><strong>144×91</strong></td>
+<td><strong>CO, NOx, Isoprene</strong></td>
+<td><strong>All advanced features demonstrated</strong></td>
+</tr>
+</tbody>
+</table>
 <hr />
 <h2 id="setting-up-examples">Setting Up Examples<a class="headerlink" href="#setting-up-examples" title="Permanent link">&para;</a></h2>
 <p>To run these examples, you need the associated NetCDF data files. ACES provides a script to automate the setup process.</p>

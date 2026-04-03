@@ -1,0 +1,1211 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Atmospheric Chemistry Emission System">
+      
+      
+        <meta name="author" content="ACES Team">
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.31">
+    
+    
+      
+        <title>The ACES Stacking Engine - ACES Documentation</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../assets/stylesheets/modern/main.53a7feaf.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../assets/stylesheets/modern/palette.dfe2e883.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,a=__md_scope)=>JSON.parse(t.getItem(a.pathname+"."+e)),__md_set=(e,t,a=localStorage,_=__md_scope)=>{try{a.setItem(_.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#the-aces-stacking-engine" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="./.." title="ACES Documentation" class="md-header__button md-logo" aria-label="ACES Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            ACES Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              The ACES Stacking Engine
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="./.." title="ACES Documentation" class="md-nav__button md-logo" aria-label="ACES Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    ACES Documentation
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="./.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Concepts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../users-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User's Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../scripts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scripts & Utilities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../migration_examples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Migration Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  
+                    
+                    
+                    
+                      
+                    
+                    
+                      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+                      <div class="md-sidebar-button__wrapper">
+                        <label class="md-sidebar-button" for="__toc"></label>
+                      </div>
+                    
+                  
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture-and-performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture and Performance
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Architecture and Performance">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#kernel-fusion-optimization" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kernel Fusion Optimization
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#hierarchy-based-processing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Hierarchy-Based Processing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#layer-operations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Layer Operations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Layer Operations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#basic-operations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Basic Operations
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#masking-and-scaling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Masking and Scaling
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#vertical-distribution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Vertical Distribution
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Vertical Distribution">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#distribution-methods" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Distribution Methods
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#mass-conservation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Mass Conservation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#configuration-example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration Example
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#temporal-scaling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Temporal Scaling
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Temporal Scaling">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cycle-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Cycle Types
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#implementation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Implementation
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance Considerations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Performance Considerations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#memory-layout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Memory Layout
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#execution-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Execution Patterns
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#scaling-performance" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Scaling Performance
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#provenance-tracking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Provenance Tracking
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Provenance Tracking">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#tracked-information" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Tracked Information
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#provenance-output" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Provenance Output
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#advanced-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Advanced Configuration
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Advanced Configuration">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#multi-scale-processing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Multi-Scale Processing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#category-based-hierarchies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Category-Based Hierarchies
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#integration-with-physics-schemes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Integration with Physics Schemes
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Integration with Physics Schemes">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#execution-order" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Execution Order
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+<h1 id="the-aces-stacking-engine">The ACES Stacking Engine<a class="headerlink" href="#the-aces-stacking-engine" title="Permanent link">&para;</a></h1>
+<p>The <strong>Stacking Engine</strong> is the computational core of ACES, responsible for combining multiple emission data layers into final emission fields for each chemical species. It implements a sophisticated hierarchy-based processing system that mimics and extends the HEMCO (Harmonized Emissions Component) approach while providing significant performance optimizations for modern HPC architectures.</p>
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p>The Stacking Engine processes emission data through several key phases:</p>
+<ol>
+<li><strong>Configuration Analysis</strong> - Parse and validate the emission layer configuration</li>
+<li><strong>Field Binding</strong> - Connect to data sources (TIDE streams, ESMF fields)</li>
+<li><strong>Hierarchy Processing</strong> - Apply priority-based layer combination rules</li>
+<li><strong>Kernel Fusion</strong> - Generate optimized compute kernels for performance</li>
+<li><strong>Temporal Scaling</strong> - Apply time-dependent scaling factors</li>
+<li><strong>Vertical Distribution</strong> - Map 2D emissions to 3D atmospheric grids</li>
+<li><strong>Provenance Tracking</strong> - Record the complete emission calculation history</li>
+</ol>
+<h2 id="architecture-and-performance">Architecture and Performance<a class="headerlink" href="#architecture-and-performance" title="Permanent link">&para;</a></h2>
+<h3 id="kernel-fusion-optimization">Kernel Fusion Optimization<a class="headerlink" href="#kernel-fusion-optimization" title="Permanent link">&para;</a></h3>
+<p>Unlike traditional approach of processing each layer sequentially, ACES uses <strong>kernel fusion</strong> to generate a single, optimized compute kernel per species. This provides several key advantages:</p>
+<ul>
+<li><strong>Reduced Memory Bandwidth</strong>: Minimizes data movement between GPU/CPU memory and compute units</li>
+<li><strong>Lower Kernel Launch Overhead</strong>: Single kernel launch per species instead of multiple</li>
+<li><strong>Better Cache Utilization</strong>: Maximizes data reuse within compute kernels</li>
+<li><strong>Improved Parallelization</strong>: Better load balancing across computational resources</li>
+</ul>
+<h3 id="hierarchy-based-processing">Hierarchy-Based Processing<a class="headerlink" href="#hierarchy-based-processing" title="Permanent link">&para;</a></h3>
+<p>The engine processes layers according to a two-level hierarchy system:</p>
+<ol>
+<li><strong>Categories</strong>: Logical groupings (e.g., <code>anthropogenic</code>, <code>biomass_burning</code>, <code>biogenic</code>)</li>
+<li><strong>Hierarchy Levels</strong>: Numerical priorities within categories (higher numbers take precedence)</li>
+</ol>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">species</span><span class="p">:</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">co</span><span class="p">:</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">field</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;global_co_inventory&quot;</span>
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="w">      </span><span class="nt">category</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;anthropogenic&quot;</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="w">      </span><span class="nt">hierarchy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w">              </span><span class="c1"># Base layer</span>
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="w">      </span><span class="nt">operation</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;add&quot;</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">field</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;regional_co_override&quot;</span>
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a><span class="w">      </span><span class="nt">category</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;anthropogenic&quot;</span>
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="w">      </span><span class="nt">hierarchy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span><span class="w">             </span><span class="c1"># Higher priority - replaces base</span>
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="w">      </span><span class="nt">operation</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;replace&quot;</span>
+</span></code></pre></div>
+<h2 id="layer-operations">Layer Operations<a class="headerlink" href="#layer-operations" title="Permanent link">&para;</a></h2>
+<h3 id="basic-operations">Basic Operations<a class="headerlink" href="#basic-operations" title="Permanent link">&para;</a></h3>
+<p>The Stacking Engine supports four fundamental operations for combining emission layers:</p>
+<table>
+<thead>
+<tr>
+<th>Operation</th>
+<th>Description</th>
+<th>Behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>add</code></td>
+<td>Accumulative</td>
+<td>Adds layer emissions to current accumulated value</td>
+</tr>
+<tr>
+<td><code>multiply</code></td>
+<td>Multiplicative</td>
+<td>Multiplies current accumulated value by layer</td>
+</tr>
+<tr>
+<td><code>replace</code></td>
+<td>Override</td>
+<td>Replaces accumulated value with layer emissions</td>
+</tr>
+<tr>
+<td><code>set</code></td>
+<td>Initialization</td>
+<td>Sets initial value (typically used for first layer)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="masking-and-scaling">Masking and Scaling<a class="headerlink" href="#masking-and-scaling" title="Permanent link">&para;</a></h3>
+<p>Each layer can be modified through multiple mechanisms applied in sequence:</p>
+<ol>
+<li><strong>Base Scale Factor</strong>: Simple numerical multiplier applied to raw emission data</li>
+<li><strong>Scale Fields</strong>: Dynamic field-based scaling (e.g., temperature dependence)</li>
+<li><strong>Geographical Masks</strong>: 2D or 3D fields that spatially restrict emissions</li>
+<li><strong>Temporal Profiles</strong>: Time-varying scale factors (diurnal, weekly, seasonal)</li>
+</ol>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="nt">species</span><span class="p">:</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="w">  </span><span class="nt">isoprene</span><span class="p">:</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">field</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;base_isoprene&quot;</span>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">      </span><span class="nt">scale</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.5</span><span class="w">                           </span><span class="c1"># Base scale factor</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">      </span><span class="nt">mask</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;vegetation_mask&quot;</span><span class="w">              </span><span class="c1"># Apply only over vegetation</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="w">      </span><span class="nt">scale_fields</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;temperature&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;lai&quot;</span><span class="p p-Indicator">]</span><span class="w"> </span><span class="c1"># Scale with temp and leaf area</span>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="w">      </span><span class="nt">diurnal_cycle</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;biogenic_diurnal&quot;</span><span class="w">    </span><span class="c1"># Apply diurnal variation</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">      </span><span class="nt">operation</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;add&quot;</span>
+</span></code></pre></div>
+<h2 id="vertical-distribution">Vertical Distribution<a class="headerlink" href="#vertical-distribution" title="Permanent link">&para;</a></h2>
+<p>ACES supports multiple algorithms for distributing 2D surface emissions into 3D atmospheric volumes:</p>
+<h3 id="distribution-methods">Distribution Methods<a class="headerlink" href="#distribution-methods" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Method</th>
+<th>Description</th>
+<th>Use Cases</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>SINGLE</code></td>
+<td>All emissions in one vertical level</td>
+<td>Aircraft emissions, elevated sources</td>
+</tr>
+<tr>
+<td><code>RANGE</code></td>
+<td>Even distribution over layer range</td>
+<td>Industrial stacks, biomass burning</td>
+</tr>
+<tr>
+<td><code>PRESSURE</code></td>
+<td>Distribution based on pressure bounds</td>
+<td>Free troposphere sources</td>
+</tr>
+<tr>
+<td><code>HEIGHT</code></td>
+<td>Distribution based on altitude bounds</td>
+<td>Topography-dependent sources</td>
+</tr>
+<tr>
+<td><code>PBL</code></td>
+<td>Distribution within planetary boundary layer</td>
+<td>Surface-based anthropogenic sources</td>
+</tr>
+</tbody>
+</table>
+<h3 id="mass-conservation">Mass Conservation<a class="headerlink" href="#mass-conservation" title="Permanent link">&para;</a></h3>
+<p>All vertical distribution methods ensure strict mass conservation:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>∑(emissions_3d[i,j,:]) = emissions_2d[i,j]  ∀ i,j
+</span></code></pre></div>
+<h3 id="configuration-example">Configuration Example<a class="headerlink" href="#configuration-example" title="Permanent link">&para;</a></h3>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">species</span><span class="p">:</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">nox</span><span class="p">:</span>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">field</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;aircraft_nox&quot;</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="w">      </span><span class="nt">vdist_method</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;HEIGHT&quot;</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="w">      </span><span class="nt">vdist_h_start</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">8000.0</span><span class="w">    </span><span class="c1"># 8 km altitude</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="w">      </span><span class="nt">vdist_h_end</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">12000.0</span><span class="w">     </span><span class="c1"># 12 km altitude</span>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="w">      </span><span class="nt">operation</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;add&quot;</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">field</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;surface_nox&quot;</span>
+</span><span id="__span-3-9"><a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="w">      </span><span class="nt">vdist_method</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;PBL&quot;</span><span class="w">      </span><span class="c1"># Distribute in boundary layer</span>
+</span><span id="__span-3-10"><a id="__codelineno-3-10" name="__codelineno-3-10" href="#__codelineno-3-10"></a><span class="w">      </span><span class="nt">operation</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;add&quot;</span>
+</span></code></pre></div>
+<h2 id="temporal-scaling">Temporal Scaling<a class="headerlink" href="#temporal-scaling" title="Permanent link">&para;</a></h2>
+<p>The Stacking Engine applies time-dependent scale factors to account for temporal emission variability:</p>
+<h3 id="cycle-types">Cycle Types<a class="headerlink" href="#cycle-types" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Diurnal</strong>: 24-hour cycle (hourly scale factors)</li>
+<li><strong>Weekly</strong>: 7-day cycle (daily scale factors)</li>
+<li><strong>Seasonal</strong>: 12-month cycle (monthly scale factors)</li>
+</ul>
+<h3 id="implementation">Implementation<a class="headerlink" href="#implementation" title="Permanent link">&para;</a></h3>
+<p>Temporal profiles are defined globally and referenced by layers:</p>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">temporal_profiles</span><span class="p">:</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">traffic_diurnal</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">0.5</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.3</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.2</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.3</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.6</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.2</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.8</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.5</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.2</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.1</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.2</span><span class="p p-Indicator">,</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="w">                    </span><span class="nv">1.3</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.2</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.3</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.5</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.8</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">2.0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.8</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.5</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.2</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.0</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.8</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.6</span><span class="p p-Indicator">]</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="w">  </span><span class="nt">weekday_pattern</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">1.2</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.3</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.3</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.3</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">1.3</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.8</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">0.7</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># Mon-Sun</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="nt">species</span><span class="p">:</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="w">  </span><span class="nt">co</span><span class="p">:</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">field</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;traffic_co&quot;</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="w">      </span><span class="nt">diurnal_cycle</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;traffic_diurnal&quot;</span>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="w">      </span><span class="nt">weekly_cycle</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;weekday_pattern&quot;</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="w">      </span><span class="nt">operation</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;add&quot;</span>
+</span></code></pre></div>
+<h2 id="performance-considerations">Performance Considerations<a class="headerlink" href="#performance-considerations" title="Permanent link">&para;</a></h2>
+<h3 id="memory-layout">Memory Layout<a class="headerlink" href="#memory-layout" title="Permanent link">&para;</a></h3>
+<p>The Stacking Engine uses Kokkos Views with optimized memory layouts:</p>
+<div class="language-cpp highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1">// Device-optimized layout for GPU execution</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="k">using</span><span class="w"> </span><span class="n">DeviceView3D</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Kokkos</span><span class="o">::</span><span class="n">View</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">***</span><span class="p">,</span><span class="w"> </span><span class="n">Kokkos</span><span class="o">::</span><span class="n">LayoutLeft</span><span class="p">,</span><span class="w"> </span><span class="n">Kokkos</span><span class="o">::</span><span class="n">DefaultExecutionSpace</span><span class="o">&gt;</span><span class="p">;</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="c1">// Host mirror for CPU-GPU data transfer</span>
+</span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="k">using</span><span class="w"> </span><span class="n">HostMirror3D</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">Kokkos</span><span class="o">::</span><span class="n">View</span><span class="o">&lt;</span><span class="kt">double</span><span class="o">***</span><span class="p">,</span><span class="w"> </span><span class="n">Kokkos</span><span class="o">::</span><span class="n">LayoutLeft</span><span class="o">&gt;::</span><span class="n">HostMirror</span><span class="p">;</span>
+</span></code></pre></div>
+<h3 id="execution-patterns">Execution Patterns<a class="headerlink" href="#execution-patterns" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Parallel Field Operations</strong>: All grid points processed simultaneously</li>
+<li><strong>Hierarchical Layer Processing</strong>: Layers processed in priority order</li>
+<li><strong>Fused Kernel Execution</strong>: Single kernel per species combines all operations</li>
+<li><strong>Asynchronous Data Transfer</strong>: Overlapped CPU-GPU memory transfers</li>
+</ul>
+<h3 id="scaling-performance">Scaling Performance<a class="headerlink" href="#scaling-performance" title="Permanent link">&para;</a></h3>
+<p>Typical performance characteristics on modern HPC systems:</p>
+<table>
+<thead>
+<tr>
+<th>Grid Size</th>
+<th>CPU Cores</th>
+<th>GPU</th>
+<th>Throughput</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1440×721×72</td>
+<td>40 (Intel Xeon)</td>
+<td>-</td>
+<td>~50 species/sec</td>
+</tr>
+<tr>
+<td>1440×721×72</td>
+<td>-</td>
+<td>V100</td>
+<td>~200 species/sec</td>
+</tr>
+<tr>
+<td>3600×1801×72</td>
+<td>-</td>
+<td>A100</td>
+<td>~150 species/sec</td>
+</tr>
+</tbody>
+</table>
+<h2 id="provenance-tracking">Provenance Tracking<a class="headerlink" href="#provenance-tracking" title="Permanent link">&para;</a></h2>
+<p>The Stacking Engine provides complete scientific traceability through its provenance system:</p>
+<h3 id="tracked-information">Tracked Information<a class="headerlink" href="#tracked-information" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Layer Contributions</strong>: Which fields contribute to each species</li>
+<li><strong>Hierarchy Application</strong>: Order and priority of layer processing</li>
+<li><strong>Scaling Factors</strong>: All applied temporal and spatial scale factors</li>
+<li><strong>Operation History</strong>: Complete record of mathematical operations</li>
+<li><strong>Field Sources</strong>: Data source identification (TIDE/ESMF/computed)</li>
+</ul>
+<h3 id="provenance-output">Provenance Output<a class="headerlink" href="#provenance-output" title="Permanent link">&para;</a></h3>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="c1"># Example provenance report excerpt</span>
+</span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="nt">species</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">CO</span>
+</span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="nt">time_context</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">hour=14 day_of_week=2 month=7</span>
+</span><span id="__span-6-4"><a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="nt">contributing_layers</span><span class="p">:</span>
+</span><span id="__span-6-5"><a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">field</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">global_co_base</span>
+</span><span id="__span-6-6"><a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="w">    </span><span class="nt">operation</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">add</span>
+</span><span id="__span-6-7"><a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="w">    </span><span class="nt">hierarchy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+</span><span id="__span-6-8"><a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="w">    </span><span class="nt">category</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">anthropogenic</span>
+</span><span id="__span-6-9"><a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a><span class="w">    </span><span class="nt">effective_scale</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1.25</span><span class="w">  </span><span class="c1"># Base scale × temporal factors</span>
+</span><span id="__span-6-10"><a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="w">    </span><span class="nt">masks</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">land_mask</span><span class="p p-Indicator">]</span>
+</span><span id="__span-6-11"><a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">field</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">regional_co_override</span>
+</span><span id="__span-6-12"><a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="w">    </span><span class="nt">operation</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">replace</span>
+</span><span id="__span-6-13"><a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a><span class="w">    </span><span class="nt">hierarchy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">10</span>
+</span><span id="__span-6-14"><a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="w">    </span><span class="nt">effective_scale</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.85</span>
+</span><span id="__span-6-15"><a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="w">    </span><span class="nt">geographic_bounds</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="nv">lon_min</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="nv">-125</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">lon_max</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="nv">-65</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">lat_min</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="nv">25</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="nv">lat_max</span><span class="p p-Indicator">:</span><span class="w"> </span><span class="nv">50</span><span class="p p-Indicator">]</span>
+</span></code></pre></div>
+<h2 id="advanced-configuration">Advanced Configuration<a class="headerlink" href="#advanced-configuration" title="Permanent link">&para;</a></h2>
+<h3 id="multi-scale-processing">Multi-Scale Processing<a class="headerlink" href="#multi-scale-processing" title="Permanent link">&para;</a></h3>
+<p>Complex emission scenarios can use multiple scale factors simultaneously:</p>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="nt">species</span><span class="p">:</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">  </span><span class="nt">biogenic_voc</span><span class="p">:</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">field</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;base_biogenic&quot;</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a><span class="w">      </span><span class="nt">scale</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2.0</span><span class="w">                           </span><span class="c1"># Literature adjustment factor</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="w">      </span><span class="nt">scale_fields</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;temperature&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;par&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;lai&quot;</span><span class="p p-Indicator">]</span><span class="w">  </span><span class="c1"># Environmental dependencies</span>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="w">      </span><span class="nt">masks</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;vegetation_mask&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;growing_season&quot;</span><span class="p p-Indicator">]</span><span class="w"> </span><span class="c1"># Geographic/temporal masks</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">      </span><span class="nt">operation</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;add&quot;</span>
+</span></code></pre></div>
+<h3 id="category-based-hierarchies">Category-Based Hierarchies<a class="headerlink" href="#category-based-hierarchies" title="Permanent link">&para;</a></h3>
+<p>Organize related emission sources using categories:</p>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nt">species</span><span class="p">:</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span><span class="nt">nox</span><span class="p">:</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">    </span><span class="c1"># Transportation category</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">field</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;road_transport&quot;</span>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="w">      </span><span class="nt">category</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;transportation&quot;</span>
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="w">      </span><span class="nt">hierarchy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">field</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;aviation&quot;</span>
+</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="w">      </span><span class="nt">category</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;transportation&quot;</span>
+</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="w">      </span><span class="nt">hierarchy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
+</span><span id="__span-8-10"><a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">field</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;shipping&quot;</span>
+</span><span id="__span-8-11"><a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a><span class="w">      </span><span class="nt">category</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;transportation&quot;</span>
+</span><span id="__span-8-12"><a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a><span class="w">      </span><span class="nt">hierarchy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">3</span>
+</span><span id="__span-8-13"><a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a>
+</span><span id="__span-8-14"><a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a><span class="w">    </span><span class="c1"># Industrial category</span>
+</span><span id="__span-8-15"><a id="__codelineno-8-15" name="__codelineno-8-15" href="#__codelineno-8-15"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">field</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;power_plants&quot;</span>
+</span><span id="__span-8-16"><a id="__codelineno-8-16" name="__codelineno-8-16" href="#__codelineno-8-16"></a><span class="w">      </span><span class="nt">category</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;industrial&quot;</span>
+</span><span id="__span-8-17"><a id="__codelineno-8-17" name="__codelineno-8-17" href="#__codelineno-8-17"></a><span class="w">      </span><span class="nt">hierarchy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
+</span><span id="__span-8-18"><a id="__codelineno-8-18" name="__codelineno-8-18" href="#__codelineno-8-18"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">field</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;cement_production&quot;</span>
+</span><span id="__span-8-19"><a id="__codelineno-8-19" name="__codelineno-8-19" href="#__codelineno-8-19"></a><span class="w">      </span><span class="nt">category</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;industrial&quot;</span>
+</span><span id="__span-8-20"><a id="__codelineno-8-20" name="__codelineno-8-20" href="#__codelineno-8-20"></a><span class="w">      </span><span class="nt">hierarchy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
+</span></code></pre></div>
+<h2 id="integration-with-physics-schemes">Integration with Physics Schemes<a class="headerlink" href="#integration-with-physics-schemes" title="Permanent link">&para;</a></h2>
+<p>The Stacking Engine coordinates with ACES physics schemes:</p>
+<ol>
+<li><strong>Base Field Processing</strong>: Stacking Engine processes static/inventory emissions</li>
+<li><strong>Physics Augmentation</strong>: Physics schemes modify or add to stacked emissions</li>
+<li><strong>Final Assembly</strong>: Combined results synchronized to ESMF export state</li>
+</ol>
+<h3 id="execution-order">Execution Order<a class="headerlink" href="#execution-order" title="Permanent link">&para;</a></h3>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>1. Parse Configuration → Validate layers and hierarchy
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>2. Bind Data Fields → Connect to TIDE and ESMF data sources
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>3. Stack Base Emissions → Apply hierarchy and scaling rules
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>4. Execute Physics Schemes → Run active emission parameterizations
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>5. Apply Diagnostics → Capture intermediate and final results
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>6. Synchronize Output → Transfer to ESMF for coupled model use
+</span></code></pre></div>
+<p>This architecture ensures that both inventory-based and process-based emissions are properly integrated while maintaining high computational performance and complete scientific traceability.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-circle-arrow-up" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m16 12-4-4-4 4M12 16V8"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2026 ACES Authors
+    </div>
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate":null,"base":"..","features":["content.code.annotate","content.code.copy","navigation.footer","navigation.path","navigation.sections","navigation.top","search.highlight"],"search":"../assets/javascripts/workers/search.e2d2d235.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.91a19a9e.min.js"></script>
+      
+    
+  </body>
+</html>
