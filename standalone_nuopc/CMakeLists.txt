@@ -49,6 +49,9 @@ target_link_libraries(aces_nuopc_app
   ${ESMF_LIBRARIES}
 )
 
+# We also need to compile driver.F90 into test_example5_driver since it uses driver_SS
+target_sources(test_example5_driver PRIVATE driver.F90 iso8601_utils.F90)
+
 if(TARGET MPI::MPI_Fortran)
   target_link_libraries(aces_nuopc_app PRIVATE MPI::MPI_Fortran)
 endif()
