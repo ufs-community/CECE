@@ -1,39 +1,38 @@
-name: Deploy Documentation
+name: Docs
+
 on:
   push:
-    branches:
-      - main
-  workflow_dispatch:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main", "develop" ]
 
 jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    
-    # --- ADDED THIS BLOCK ---
-    permissions:
-      contents: write
-    # ------------------------
-      
+  build-and-deploy:
+    runs-on: ubuntu-24.04
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.12'
 
       - name: Install dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y doxygen
-          pip install zensical mkdoxy mkdocs-material
+          python -m pip install --upgrade pip
+          pip install sphinx sphinx-rtd-theme breathe exhale sphinx-js doxygen
+          sudo apt-get update && sudo apt-get install -y doxygen graphviz
 
-      - name: Build documentation
-        run: zensical build
+      - name: Build Doxygen
+        run: doxygen Doxyfile
+
+      - name: Build Sphinx
+        run: sphinx-build -b html docs/source docs/build/html
 
       - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v3
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: ./site
+          publish_dir: docs/build/html
