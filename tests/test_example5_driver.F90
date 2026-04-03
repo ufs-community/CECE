@@ -41,6 +41,8 @@ program test_example5_driver
   ! -----------------------------------------------------------------------
   ! 2. Set Configuration Files
   ! -----------------------------------------------------------------------
+  ! Note: We use a dummy non-existent file or rely on driver defaults for driver.cfg
+  ! as the YAML timing takes precedence, and the Grid is built internally in Example 5.
   call set_driver_config_file("aces_driver.cfg")
   call set_aces_config_file("examples/aces_config_ex5.yaml")
 

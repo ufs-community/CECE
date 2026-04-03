@@ -364,8 +364,8 @@ void aces_core_bind_fields(void* data_ptr, void** field_ptrs, int* num_fields, i
     int idx = 0;
     for (const auto& [species_name, layers] : internal_data->config.species_layers) {
         if (idx >= *num_fields) {
-            std::cerr << "ERROR: aces_core_bind_fields - num_fields mismatch: "
-                      << "expected " << idx << " got " << *num_fields << std::endl;
+            std::cerr << "ERROR: aces_core_bind_fields - num_fields mismatch: " << "expected "
+                      << idx << " got " << *num_fields << std::endl;
             if (rc != nullptr) {
                 *rc = -1;
             }

@@ -91,8 +91,8 @@ void aces_core_initialize_p2_impl(void* data_ptr, int* nx, int* ny, int* nz, int
 
     // Validate grid dimensions are positive
     if (*nx <= 0 || *ny <= 0 || *nz <= 0) {
-        std::cerr << "ERROR in aces_core_initialize_p2: Invalid grid dimensions - "
-                  << "nx=" << *nx << ", ny=" << *ny << ", nz=" << *nz << std::endl;
+        std::cerr << "ERROR in aces_core_initialize_p2: Invalid grid dimensions - " << "nx=" << *nx
+                  << ", ny=" << *ny << ", nz=" << *nz << std::endl;
         if (rc != nullptr) {
             *rc = -1;
         }

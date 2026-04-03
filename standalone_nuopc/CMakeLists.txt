@@ -49,9 +49,6 @@ target_link_libraries(aces_nuopc_app
   ${ESMF_LIBRARIES}
 )
 
-# We also need to compile driver.F90 into test_example5_driver since it uses driver_SS
-target_sources(test_example5_driver PRIVATE driver.F90 iso8601_utils.F90)
-
 if(TARGET MPI::MPI_Fortran)
   target_link_libraries(aces_nuopc_app PRIVATE MPI::MPI_Fortran)
 endif()
@@ -69,13 +66,14 @@ endif()
 # Runs aces_config_ex5.yaml through the full NUOPC phase sequence and
 # verifies that co, no, and so2 export fields are nonzero and distinct.
 # -----------------------------------------------------------------------
-add_executable(test_example5_driver ${CMAKE_CURRENT_SOURCE_DIR}/../tests/test_example5_driver.F90)
+add_executable(test_example5_driver ${CMAKE_CURRENT_SOURCE_DIR}/../tests/test_example5_driver.F90 driver.F90)
 
 target_include_directories(test_example5_driver PRIVATE ${ESMF_INCLUDE_DIRS})
 
 target_link_libraries(test_example5_driver
   PRIVATE
   aces
+  iso8601_utils
   ESMF::ESMF
   yaml-cpp
   ${ESMF_LIBRARIES}
