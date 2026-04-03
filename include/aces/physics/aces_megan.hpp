@@ -41,6 +41,17 @@ class MeganScheme : public BasePhysicsScheme {
     double gamma_p_coeff_4_ = 0.9;
     double gamma_co2_coeff_1_ = 8.9406;
     double gamma_co2_coeff_2_ = 0.0024;
+
+    // Additional parameters for gamma_age
+    double anew_ = 1.0;
+
+    // Additional parameter for gamma_sm
+    bool is_ald2_or_eoh_ = false;
+    double agro_ = 1.0;
+    double amat_ = 1.0;
+    double aold_ = 1.0;
+    bool is_bidirectional_ = false;
+    bool use_wilkinson_ = false;
 };
 
 }  // namespace aces

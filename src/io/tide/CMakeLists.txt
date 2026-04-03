@@ -11,7 +11,7 @@ list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 option(WERROR "add the -Werror flag to compiler" OFF)
 
 # Find Dependencies
-find_package(ESMF REQUIRED)
+find_package(ESMF)
 find_package(MPI REQUIRED)
 
 # Use paths from ESMFMKFILE if available
@@ -138,25 +138,27 @@ target_link_libraries(test_tide PRIVATE
 )
 add_test(NAME tide_api_test COMMAND test_tide)
 
-add_executable(test_tide_roundtrip tide/tests/test_tide_roundtrip.F90)
-target_include_directories(test_tide_roundtrip PRIVATE
-  ${ESMF_F90COMPILEPATHS}
-  ${PIO_Fortran_INCLUDE_DIR}
-  ${NETCDF_Fortran_INCLUDE_DIR}
-)
-target_link_libraries(test_tide_roundtrip PRIVATE
-  tide
-  dshr
-  streams
-  cdeps_share
-  ${ESMF_F90ESMFLINKLIBS}
-  ${PIO_Fortran_LIBRARY}
-  ${PIO_C_LIBRARY}
-  ${NETCDF_Fortran_LIBRARY}
-  ${MPI_Fortran_LIBRARIES}
-  m
-)
-add_test(NAME tide_api_roundtrip COMMAND test_tide_roundtrip)
+if (NetCDF_Fortran_FOUND)
+  add_executable(test_tide_roundtrip tide/tests/test_tide_roundtrip.F90)
+  target_include_directories(test_tide_roundtrip PRIVATE
+    ${ESMF_F90COMPILEPATHS}
+    ${PIO_Fortran_INCLUDE_DIR}
+    ${NETCDF_Fortran_INCLUDE_DIR}
+  )
+  target_link_libraries(test_tide_roundtrip PRIVATE
+    tide
+    dshr
+    streams
+    cdeps_share
+    ${ESMF_F90ESMFLINKLIBS}
+    ${PIO_Fortran_LIBRARY}
+    ${PIO_C_LIBRARY}
+    ${NETCDF_Fortran_LIBRARY}
+    ${MPI_Fortran_LIBRARIES}
+    m
+  )
+  add_test(NAME tide_api_roundtrip COMMAND test_tide_roundtrip)
+endif()
 
 # -----------------------------------------------------------------------
 # NetCDF-Fortran (required by CF property tests)

@@ -38,12 +38,111 @@ static PhysicsRegistration<MeganScheme> register_scheme("megan");
  * @param lai Current leaf area index [m²/m²]
  * @param c1 MEGAN coefficient 1 (typically species-specific)
  * @param c2 MEGAN coefficient 2 (typically species-specific)
+ * @param is_bidirectional True if compound undergoes bidirectional exchange
  * @return LAI correction factor (dimensionless)
  */
 
 KOKKOS_INLINE_FUNCTION
-double get_gamma_lai(double lai, double c1, double c2) {
-    return c1 * lai / std::sqrt(1.0 + c2 * lai * lai);
+double get_gamma_lai(double lai, double c1, double c2, bool is_bidirectional) {
+    if (is_bidirectional) {
+        if (lai <= 6.0) {
+            if (lai <= 2.0) {
+                return 0.5 * lai;
+            } else {
+                return 1.0 - 0.0625 * (lai - 2.0);
+            }
+        } else {
+            return 0.75;
+        }
+    } else {
+        return c1 * lai / std::sqrt(1.0 + c2 * lai * lai);
+    }
+}
+
+/**
+ * @brief Calculate leaf age gamma factor.
+ *
+ * Computes the exchange activity factor sensitive to leaf age.
+ *
+ * @param cmlai Current month's LAI [m²/m²]
+ * @param pmlai Previous month's LAI [m²/m²]
+ * @param dbtwn Number of days between
+ * @param tt Daily average temperature [K]
+ * @param an Relative emission factor (new leaves)
+ * @param ag Relative emission factor (growing leaves)
+ * @param am Relative emission factor (mature leaves)
+ * @param ao Relative emission factor (old leaves)
+ * @return Age correction factor (dimensionless)
+ */
+KOKKOS_INLINE_FUNCTION
+double get_gamma_age(double cmlai, double pmlai, double dbtwn, double tt,
+                     double an, double ag, double am, double ao) {
+    double fnew = 0.0;
+    double fgro = 0.0;
+    double fmat = 0.0;
+    double fold = 0.0;
+
+    double ti;
+    if (tt <= 303.0) {
+        ti = 5.0 + 0.7 * (300.0 - tt);
+    } else {
+        ti = 2.9;
+    }
+    double tm = 2.3 * ti;
+
+    if (cmlai == pmlai) {
+        fnew = 0.0;
+        fgro = 0.1;
+        fmat = 0.8;
+        fold = 0.1;
+    } else if (cmlai > pmlai) {
+        if (dbtwn > ti) {
+            fnew = (ti / dbtwn) * (1.0 - pmlai / cmlai);
+        } else {
+            fnew = 1.0 - (pmlai / cmlai);
+        }
+
+        if (dbtwn > tm) {
+            fmat = (pmlai / cmlai) + ((dbtwn - tm) / dbtwn) * (1.0 - pmlai / cmlai);
+        } else {
+            fmat = pmlai / cmlai;
+        }
+
+        fgro = 1.0 - fnew - fmat;
+        fold = 0.0;
+    } else {
+        fnew = 0.0;
+        fgro = 0.0;
+        fold = (pmlai - cmlai) / pmlai;
+        fmat = 1.0 - fold;
+    }
+
+    double gamma_age = fnew * an + fgro * ag + fmat * am + fold * ao;
+    return std::max(gamma_age, 0.0);
+}
+
+/**
+ * @brief Calculate soil moisture gamma factor.
+ *
+ * Computes the activity factor for soil moisture.
+ *
+ * @param gwetroot Volumetric soil moisture divided by porosity
+ * @param is_ald2_or_eoh True if compound is ALD2 or EOH
+ * @return Soil moisture correction factor (dimensionless)
+ */
+KOKKOS_INLINE_FUNCTION
+double get_gamma_sm(double gwetroot, bool is_ald2_or_eoh) {
+    double gamma_sm = 1.0;
+
+    // Ensure gwetroot is between 0.0 and 1.0
+    double gwetroot_clamped = std::min(std::max(gwetroot, 0.0), 1.0);
+
+    if (is_ald2_or_eoh) {
+        // GWETROOT = degree of saturation or wetness in the root-zone
+        gamma_sm = std::max(20.0 * gwetroot_clamped - 17.0, 1.0);
+    }
+
+    return gamma_sm;
 }
 
 /**
@@ -147,9 +246,39 @@ double get_gamma_par_pceea(double q_dir, double q_diff, double par_avg, double s
 }
 
 KOKKOS_INLINE_FUNCTION
-double get_gamma_co2(double co2a, double c1, double c2) {
-    // Ported from GET_GAMMA_CO2 (LPOSSELL relationship)
-    return c1 / (1.0 + c1 * c2 * co2a);
+double get_gamma_co2(double co2a, double c1, double c2, bool use_wilkinson) {
+    if (!use_wilkinson) {
+        // Ported from GET_GAMMA_CO2 (LPOSSELL relationship)
+        return c1 / (1.0 + c1 * c2 * co2a);
+    } else {
+        // Use parameterization of Wilkinson et al. (2009)
+        double ismaxi, hexpi, cstari;
+
+        if (co2a <= 600.0) {
+            ismaxi = 1.036 - (1.036 - 1.072) / (600.0 - 400.0) * (600.0 - co2a);
+            hexpi = 2.0125 - (2.0125 - 1.7000) / (600.0 - 400.0) * (600.0 - co2a);
+            cstari = 1150.0 - (1150.0 - 1218.0) / (600.0 - 400.0) * (600.0 - co2a);
+        } else if (co2a > 600.0 && co2a < 800.0) {
+            ismaxi = 1.046 - (1.046 - 1.036) / (800.0 - 600.0) * (800.0 - co2a);
+            hexpi = 1.5380 - (1.5380 - 2.0125) / (800.0 - 600.0) * (800.0 - co2a);
+            cstari = 2025.0 - (2025.0 - 1150.0) / (800.0 - 600.0) * (800.0 - co2a);
+        } else {
+            ismaxi = 1.014 - (1.014 - 1.046) / (1200.0 - 800.0) * (1200.0 - co2a);
+            hexpi = 2.8610 - (2.8610 - 1.5380) / (1200.0 - 800.0) * (1200.0 - co2a);
+            cstari = 1525.0 - (1525.0 - 2025.0) / (1200.0 - 800.0) * (1200.0 - co2a);
+        }
+
+        double ismaxa = 1.344;
+        double hexpa = 1.4614;
+        double cstara = 585.0;
+
+        double co2i = 0.7 * co2a;
+
+        double term1 = ismaxi - ismaxi * std::pow(co2i, hexpi) / (std::pow(cstari, hexpi) + std::pow(co2i, hexpi));
+        double term2 = ismaxa - ismaxa * std::pow(0.7 * co2a, hexpa) / (std::pow(cstara, hexpa) + std::pow(0.7 * co2a, hexpa));
+
+        return term1 * term2;
+    }
 }
 
 void MeganScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) {
@@ -160,11 +289,19 @@ void MeganScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* di
     if (config["gamma_co2_coeff_1"]) gamma_co2_coeff_1_ = config["gamma_co2_coeff_1"].as<double>();
     if (config["gamma_co2_coeff_2"]) gamma_co2_coeff_2_ = config["gamma_co2_coeff_2"].as<double>();
 
+    if (config["anew"]) anew_ = config["anew"].as<double>();
+    if (config["agro"]) agro_ = config["agro"].as<double>();
+    if (config["amat"]) amat_ = config["amat"].as<double>();
+    if (config["aold"]) aold_ = config["aold"].as<double>();
+    if (config["is_bidirectional"]) is_bidirectional_ = config["is_bidirectional"].as<bool>();
+    if (config["use_wilkinson"]) use_wilkinson_ = config["use_wilkinson"].as<bool>();
+    if (config["is_ald2_or_eoh"]) is_ald2_or_eoh_ = config["is_ald2_or_eoh"].as<bool>();
+
     double co2a = 400.0;
     if (config["co2_concentration"]) {
         co2a = config["co2_concentration"].as<double>();
     }
-    gamma_co2_ = get_gamma_co2(co2a, gamma_co2_coeff_1_, gamma_co2_coeff_2_);
+    gamma_co2_ = get_gamma_co2(co2a, gamma_co2_coeff_1_, gamma_co2_coeff_2_, use_wilkinson_);
 
     beta_ = 0.13;
     ct1_ = 95.0;
@@ -220,6 +357,10 @@ void MeganScheme::Run(AcesImportState& import_state, AcesExportState& export_sta
     auto pardf = ResolveImport("par_diffuse", import_state);
     auto suncos = ResolveImport("solar_cosine", import_state);
 
+    // Attempt to read new required fields for gamma_age and gamma_sm
+    auto pmlai = ResolveImport("leaf_area_index_prev", import_state);
+    auto gwetroot = ResolveImport("soil_moisture_root", import_state);
+
     if (temp.data() == nullptr || isoprene.data() == nullptr || lai.data() == nullptr ||
         pardr.data() == nullptr || pardf.data() == nullptr || suncos.data() == nullptr) {
         return;
@@ -249,8 +390,19 @@ void MeganScheme::Run(AcesImportState& import_state, AcesExportState& export_sta
     double gp_c3 = gamma_p_coeff_3_;
     double gp_c4 = gamma_p_coeff_4_;
 
+    double anew = anew_;
+    double agro = agro_;
+    double amat = amat_;
+    double aold = aold_;
+    bool is_bidirectional = is_bidirectional_;
+    bool is_ald2_or_eoh = is_ald2_or_eoh_;
+
     const double NORM_FAC = 1.0 / 1.0101081;
     double gamma_co2_const = gamma_co2_;
+
+    // Check if new optional fields exist, otherwise use fallbacks
+    bool has_pmlai = (pmlai.data() != nullptr);
+    bool has_gwetroot = (gwetroot.data() != nullptr);
 
     Kokkos::parallel_for(
         "MeganKernel_Optimized",
@@ -267,8 +419,12 @@ void MeganScheme::Run(AcesImportState& import_state, AcesExportState& export_sta
             double T_AVG_15 = 297.0;
             double PAR_AVG = 400.0;
             int doy = 180;
+            double dbtwn = 30.0; // Assume 1 month if not dynamically passed
 
-            double gamma_lai = get_gamma_lai(L, lai_c1, lai_c2);
+            double L_prev = has_pmlai ? pmlai(i, j, 0) : L;
+            double gwet = has_gwetroot ? gwetroot(i, j, 0) : 1.0;
+
+            double gamma_lai = get_gamma_lai(L, lai_c1, lai_c2, is_bidirectional);
             double gamma_t_li = get_gamma_t_li(T, beta, std_t);
             double gamma_t_ld =
                 get_gamma_t_ld(T, T_AVG_15, ct1, ceo, R, ct2, t_opt_c1, t_opt_c2, e_opt_c);
@@ -276,7 +432,10 @@ void MeganScheme::Run(AcesImportState& import_state, AcesExportState& export_sta
                 get_gamma_par_pceea(pardr(i, j, 0), pardf(i, j, 0), PAR_AVG, sc, doy, wm2_umol,
                                     ptoa_c1, ptoa_c2, gp_c1, gp_c2, gp_c3, gp_c4);
 
-            double megan_emis = NORM_FAC * aef_isop * gamma_lai * gamma_co2_const *
+            double gamma_age = get_gamma_age(L, L_prev, dbtwn, T, anew, agro, amat, aold);
+            double gamma_sm = get_gamma_sm(gwet, is_ald2_or_eoh);
+
+            double megan_emis = NORM_FAC * aef_isop * gamma_age * gamma_sm * gamma_lai * gamma_co2_const *
                                 ((1.0 - ldf) * gamma_t_li + (ldf * gamma_par * gamma_t_ld));
 
             isoprene(i, j, 0) += megan_emis;
