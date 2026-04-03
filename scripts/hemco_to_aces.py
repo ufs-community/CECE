@@ -601,9 +601,6 @@ def convert_hemco_diagn(diagn_path):
     Args:
         diagn_path (str): Path to HEMCO_Diagn.rc
     Returns:
-        dict: Diagnostics configuration for ACES YAML.
-    """
-    Returns:
         dict with 'variables' list and optional metadata fields.
     """
     diagn_parser = DiagnParser(diagn_path)
