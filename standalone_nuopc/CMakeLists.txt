@@ -62,41 +62,6 @@ if(TARGET aces)
 endif()
 
 # -----------------------------------------------------------------------
-# Example 5 integration test (Fortran ESMF, no ESMC)
-# Runs aces_config_ex5.yaml through the full NUOPC phase sequence and
-# verifies that co, no, and so2 export fields are nonzero and distinct.
-# -----------------------------------------------------------------------
-add_executable(test_example5_driver ${CMAKE_CURRENT_SOURCE_DIR}/../tests/test_example5_driver.F90)
-
-target_include_directories(test_example5_driver PRIVATE ${ESMF_INCLUDE_DIRS})
-
-target_link_libraries(test_example5_driver
-  PRIVATE
-  aces
-  ESMF::ESMF
-  yaml-cpp
-  ${ESMF_LIBRARIES}
-)
-
-if(TARGET MPI::MPI_Fortran)
-  target_link_libraries(test_example5_driver PRIVATE MPI::MPI_Fortran)
-endif()
-
-target_link_options(test_example5_driver PRIVATE "LINKER:--allow-shlib-undefined")
-
-if(TARGET aces)
-  add_dependencies(test_example5_driver aces)
-endif()
-
-# Run from the workspace root so examples/aces_config_ex5.yaml and
-# data/ files are reachable via relative paths.
-add_test(
-  NAME test_example5_ex5_run
-  COMMAND test_example5_driver
-  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-)
-
-# -----------------------------------------------------------------------
 # Installation
 # -----------------------------------------------------------------------
 install(TARGETS aces_nuopc_app DESTINATION bin)

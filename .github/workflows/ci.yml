@@ -137,4 +137,4 @@ jobs:
 
         cp examples/aces_config_ex1.yaml aces_config.yaml
         export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(pwd)/build
-        build/bin/aces_nuopc_driver
+        build/bin/aces_nuopc_app
