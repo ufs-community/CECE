@@ -28,6 +28,9 @@ program test_cf_property_14_vertical_dim
 
 contains
 
+  !> @brief Check if a dimension name is a vertical dimension.
+  !> @param dname Dimension name string
+  !> @return res True if vertical dimension
   pure function is_vertical_dim_name(dname) result(res)
     character(len=*), intent(in) :: dname
     logical :: res
@@ -44,6 +47,8 @@ contains
            trim(n) == 'nlev'     .or. trim(n) == 'nlevels')
   end function is_vertical_dim_name
 
+  !> @brief Run tests for vertical dimension name detection.
+  !> @param rc Return code (0 if pass, 1 if fail)
   subroutine run_vertical_name_tests(rc)
     integer, intent(out) :: rc
     character(len=16) :: vert_names(4), non_vert(3)

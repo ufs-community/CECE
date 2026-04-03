@@ -29,6 +29,8 @@ program test_cf_property_18_success_log
 
 contains
 
+  !> @brief Run a test for successful CF variable matching and logging.
+  !> @param rc Return code (0 if pass, 1 if fail)
   subroutine run_success_log_test(rc)
     integer, intent(out) :: rc
 

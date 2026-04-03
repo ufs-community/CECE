@@ -37,6 +37,8 @@ program test_cf_property_6_unit_comparison
 
 contains
 
+  !> @brief Run test for identical units compatibility.
+  !> @param rc Return code (0 if pass, 1 if fail)
   subroutine run_identical_units(rc)
     integer, intent(out) :: rc
     logical :: compatible, conversion_needed
@@ -56,6 +58,8 @@ contains
     if (conversion_needed)       then; write(*,*) 'FAIL identical2: conversion_needed=T'; rc = 1; end if
   end subroutine run_identical_units
 
+  !> @brief Run test for convertible units compatibility.
+  !> @param rc Return code (0 if pass, 1 if fail)
   subroutine run_convertible_units(rc)
     integer, intent(out) :: rc
     logical :: compatible, conversion_needed
@@ -75,6 +79,8 @@ contains
     if (.not. conversion_needed) then; write(*,*) 'FAIL K/degC: conversion_needed=F'; rc = 1; end if
   end subroutine run_convertible_units
 
+  !> @brief Run test for incompatible units detection.
+  !> @param rc Return code (0 if pass, 1 if fail)
   subroutine run_incompatible_units(rc)
     integer, intent(out) :: rc
     logical :: compatible, conversion_needed
@@ -91,6 +97,8 @@ contains
     end if
   end subroutine run_incompatible_units
 
+  !> @brief Run test for empty units compatibility.
+  !> @param rc Return code (0 if pass, 1 if fail)
   subroutine run_empty_units(rc)
     integer, intent(out) :: rc
     logical :: compatible, conversion_needed

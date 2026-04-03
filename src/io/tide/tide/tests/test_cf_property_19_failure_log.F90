@@ -28,6 +28,8 @@ program test_cf_property_19_failure_log
 
 contains
 
+  !> @brief Run a test for CF variable matching failure and logging.
+  !> @param rc Return code (0 if pass, 1 if fail)
   subroutine run_failure_log_test(rc)
     integer, intent(out) :: rc
 
