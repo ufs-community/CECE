@@ -31,6 +31,8 @@ program test_cf_property_20_fieldmap_log
 
 contains
 
+  !> @brief Run a test for CF field mapping and logging.
+  !> @param rc Return code (0 if pass, 1 if fail)
   subroutine run_cf_fieldmap_log_test(rc)
     integer, intent(out) :: rc
 
@@ -87,6 +89,8 @@ contains
 
   end subroutine run_cf_fieldmap_log_test
 
+  !> @brief Run a test for explicit field mapping and logging.
+  !> @param rc Return code (0 if pass, 1 if fail)
   subroutine run_explicit_fieldmap_log_test(rc)
     integer, intent(out) :: rc
 

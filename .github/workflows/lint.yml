@@ -7,7 +7,7 @@ jobs:
     container: jcsda/docker-gnu-openmpi-dev:1.9
     steps:
     - name: Checkout
-      uses: actions/checkout@v4
+      uses: actions/checkout@v2
 
     - name: Install Clang-Format and Clang-Tidy
       run: |

@@ -48,7 +48,18 @@ VDIST_KEYWORDS = {
 
 
 class HemcoParser:
-    """Parses a HEMCO_Config.rc file into structured Python dicts."""
+    """
+    Parses a HEMCO_Config.rc file into structured Python dicts.
+
+    Attributes:
+        config_path (str): Path to the HEMCO config file.
+        base_dir (str): Directory containing the config file.
+        settings (dict): Parsed settings.
+        base_emissions (list): List of base emission entries.
+        scale_factors (dict): Scale factor entries.
+        masks (dict): Mask entries.
+        extensions (dict): Extension entries.
+    """
 
     def __init__(self, hemco_config_path):
         self.config_path = os.path.abspath(hemco_config_path)
@@ -61,11 +72,26 @@ class HemcoParser:
         self.parse()
 
     def strip_comments(self, line):
+        """
+        Remove comments from a line.
+        Args:
+            line (str): Input line.
+        Returns:
+            str: Line with comments removed.
+        """
         if "#" in line:
             return line[: line.find("#")].strip()
         return line.strip()
 
     def load_lines(self, filepath, current_base_dir):
+        """
+        Load lines from a file, handling includes.
+        Args:
+            filepath (str): Path to file.
+            current_base_dir (str): Base directory for relative includes.
+        Returns:
+            list: List of lines.
+        """
         if not os.path.isabs(filepath):
             filepath = os.path.join(current_base_dir, filepath)
         if not os.path.exists(filepath):
@@ -203,7 +229,13 @@ class HemcoParser:
 
 
 class DiagnParser:
-    """Parses a HEMCO_Diagn.rc file into structured diagnostic entries."""
+    """
+    Parses a HEMCO_Diagn.rc file into structured diagnostic entries.
+
+    Attributes:
+        config_path (str): Path to the diagnostics config file.
+        variables (list): List of parsed diagnostic variable entries.
+    """
 
     def __init__(self, diagn_config_path):
         self.config_path = diagn_config_path
@@ -211,6 +243,9 @@ class DiagnParser:
         self.parse()
 
     def parse(self):
+        """
+        Parse the diagnostics config file and populate variables.
+        """
         if not os.path.exists(self.config_path):
             return
         with open(self.config_path, "r") as f:
@@ -237,12 +272,22 @@ class DiagnParser:
 
 
 class GridParser:
+    """
+    Parses a grid configuration file into grid parameters.
+
+    Attributes:
+        config_path (str): Path to the grid config file.
+        grid_params (dict): Parsed grid parameters.
+    """
     def __init__(self, grid_config_path):
         self.config_path = grid_config_path
         self.grid_params = {}
         self.parse()
 
     def parse(self):
+        """
+        Parse the grid config file and populate grid_params.
+        """
         if not os.path.exists(self.config_path):
             return
         with open(self.config_path, "r") as f:
@@ -256,7 +301,15 @@ class GridParser:
 
 
 def _resolve_path(raw_path, root_val):
-    """Expand $ROOT and $root placeholders in HEMCO file paths."""
+    """
+    Expand $ROOT and $root placeholders in HEMCO file paths.
+
+    Args:
+        raw_path (str): Raw file path with placeholders.
+        root_val (str): Value to substitute for $ROOT.
+    Returns:
+        str: Resolved file path.
+    """
     path = raw_path.replace("$ROOT/", root_val + "/").replace("$ROOT", root_val)
     path = path.replace("$root/", root_val + "/").replace("$root", root_val)
     return path
@@ -266,8 +319,13 @@ def _parse_temporal_factors(file_field, var_field):
     """
     Detect inline temporal profiles encoded as slash-separated floats in the
     file column (HEMCO convention for constant scale factors).
-    Returns (factors_list, cycle_type) or (None, None).
-    cycle_type is one of: 'diurnal' (24), 'weekly' (7), 'seasonal' (12), or None.
+
+    Args:
+        file_field (str): File field from HEMCO config.
+        var_field (str): Variable field from HEMCO config.
+    Returns:
+        tuple: (factors_list, cycle_type) or (None, None).
+        cycle_type is one of: 'diurnal' (24), 'weekly' (7), 'seasonal' (12), or None.
     """
     if "/" not in file_field or var_field != "-":
         return None, None
@@ -287,7 +345,11 @@ def _parse_temporal_factors(file_field, var_field):
 def _infer_vdist(be_entry):
     """
     Infer vertical distribution from HEMCO base emission entry.
-    Returns a dict suitable for the ACES layer 'vdist' key, or None for surface.
+
+    Args:
+        be_entry (dict): Base emission entry.
+    Returns:
+        dict or None: Dict suitable for the ACES layer 'vdist' key, or None for surface.
     """
     vdist_col = be_entry.get("vdist", "")
     dim = be_entry.get("dim", "2")
@@ -337,9 +399,9 @@ def convert_hemco_to_aces(hemco_config_path, output_path, diagn_path=None):
     Convert a HEMCO_Config.rc (and optionally HEMCO_Diagn.rc) to an ACES YAML config.
 
     Args:
-        hemco_config_path: Path to HEMCO_Config.rc
-        output_path: Path for the output ACES YAML file
-        diagn_path: Optional path to HEMCO_Diagn.rc
+        hemco_config_path (str): Path to HEMCO_Config.rc
+        output_path (str): Path for the output ACES YAML file
+        diagn_path (str, optional): Path to HEMCO_Diagn.rc
     """
     parser = HemcoParser(hemco_config_path)
     base_dir = parser.base_dir
@@ -537,8 +599,7 @@ def convert_hemco_diagn(diagn_path):
     all metadata: units, long names, and output frequency.
 
     Args:
-        diagn_path: Path to HEMCO_Diagn.rc
-
+        diagn_path (str): Path to HEMCO_Diagn.rc
     Returns:
         dict with 'variables' list and optional metadata fields.
     """

@@ -30,6 +30,8 @@ program test_cf_property_16_caching
 
 contains
 
+  !> @brief Run a test for CF metadata cache consistency and repeated lookups.
+  !> @param rc Return code (0 if pass, 1 if fail)
   subroutine run_cache_consistency_test(rc)
     integer, intent(out) :: rc
 

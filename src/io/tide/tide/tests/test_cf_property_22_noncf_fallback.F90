@@ -44,6 +44,10 @@ program test_cf_property_22_noncf_fallback
 
 contains
 
+  !> @brief Run a test for CF compliance fallback with given conventions string.
+  !> @param conv_str Conventions string to test
+  !> @param expect_compliant Expected compliance (True/False)
+  !> @param rc Return code (0 if pass, 1 if fail)
   subroutine run_test(conv_str, expect_compliant, rc)
     character(len=*), intent(in)  :: conv_str
     logical,          intent(in)  :: expect_compliant
@@ -97,6 +101,8 @@ contains
 
   end subroutine run_test
 
+  !> @brief Sanitize a filename by replacing unsafe characters with '_'.
+  !> @param s Filename string (inout)
   subroutine sanitize_filename(s)
     character(len=*), intent(inout) :: s
     integer :: i

@@ -35,6 +35,9 @@ contains
 
   !> Build a synthetic cache with nvars variables, each having a unique
   !> standard_name of the form "std_name_N".
+  !> @brief Build a synthetic CF metadata cache with nvars variables.
+  !> @param nvars Number of variables
+  !> @param cache Output metadata cache
   subroutine build_cache(nvars, cache)
     integer,                   intent(in)  :: nvars
     type(cf_metadata_cache_t), intent(out) :: cache
@@ -54,6 +57,9 @@ contains
     end do
   end subroutine build_cache
 
+  !> @brief Run a single test iteration for standard name matching.
+  !> @param seed Random seed for test variation
+  !> @param rc Return code (0 if pass, 1 if fail)
   subroutine run_one_iteration(seed, rc)
     integer, intent(in)  :: seed
     integer, intent(out) :: rc

@@ -36,6 +36,9 @@ program test_cf_property_13_multidim
 
 contains
 
+  !> @brief Run a test for multidimensional variable detection in CF metadata.
+  !> @param ndims_expected Expected number of dimensions
+  !> @param rc Return code (0 if pass, 1 if fail)
   subroutine run_multidim_test(ndims_expected, rc)
     integer, intent(in)  :: ndims_expected
     integer, intent(out) :: rc

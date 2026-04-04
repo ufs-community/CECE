@@ -32,6 +32,9 @@ program test_cf_property_9_backward_compat
 
 contains
 
+  !> @brief Run a single test iteration for backward compatibility of CF detection.
+  !> @param seed Random seed for test variation
+  !> @param rc Return code (0 if pass, 1 if fail)
   subroutine run_one_iteration(seed, rc)
     integer, intent(in)  :: seed
     integer, intent(out) :: rc

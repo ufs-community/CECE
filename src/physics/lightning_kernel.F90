@@ -4,6 +4,11 @@ module lightning_kernel_mod
 
 contains
 
+    !> @brief Compute lightning NOx yield for a given rate and molecular weight.
+    !> @param rate Lightning flash rate (flashes/s)
+    !> @param mw_no Molecular weight of NO (g/mol)
+    !> @param is_land True if land, False if ocean
+    !> @return yield NOx yield (mol/s)
     pure function get_lightning_yield(rate, mw_no, is_land) result(yield)
         real(c_double), intent(in) :: rate, mw_no
         logical, intent(in) :: is_land
@@ -16,6 +21,11 @@ contains
         yield = (rate * yield_molec) * (mw_no / 1000.0d0) / (6.022d23 * 1.0d6)
     end function
 
+    !> @brief Run the lightning kernel for NOx emissions.
+    !> @param conv_depth_ptr Pointer to convective depth field
+    !> @param light_nox_ptr Pointer to output NOx field
+    !> @param nx, ny, nz Grid dimensions
+    !> @details Called from C/C++ via bind(C).
     subroutine run_lightning_fortran(conv_depth_ptr, light_nox_ptr, nx, ny, nz) bind(c, name="run_lightning_fortran")
         type(c_ptr), value :: conv_depth_ptr, light_nox_ptr
         integer(c_int), value :: nx, ny, nz

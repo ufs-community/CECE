@@ -40,6 +40,9 @@ program test_cf_property_5_string_match
 contains
 
   !> Build a cache with a single variable whose standard_name is canonical_name.
+  !> @brief Build a single-variable CF metadata cache with a canonical name.
+  !> @param canonical_name Canonical variable name
+  !> @param cache Output metadata cache
   subroutine build_single_var_cache(canonical_name, cache)
     character(len=*),          intent(in)  :: canonical_name
     type(cf_metadata_cache_t), intent(out) :: cache
@@ -57,6 +60,12 @@ contains
   end subroutine build_single_var_cache
 
   !> Verify that search_name matches the cache (or not, per expect_match).
+  !> @brief Assert that a search_name matches (or not) the cache as expected.
+  !> @param label Test label
+  !> @param cache Metadata cache
+  !> @param search_name Name to search for
+  !> @param expect_match Expected match result (True/False)
+  !> @param rc Return code (inout)
   subroutine assert_match(label, cache, search_name, expect_match, rc)
     character(len=*),          intent(in)    :: label, search_name
     type(cf_metadata_cache_t), intent(in)    :: cache
@@ -80,6 +89,8 @@ contains
   end subroutine assert_match
 
   ! Test case-insensitive matching
+  !> @brief Run case-insensitivity tests for variable matching.
+  !> @param rc Return code (0 if pass, 1 if fail)
   subroutine run_case_tests(rc)
     integer, intent(out) :: rc
     type(cf_metadata_cache_t) :: cache
@@ -102,6 +113,8 @@ contains
   end subroutine run_case_tests
 
   ! Test whitespace normalisation
+  !> @brief Run whitespace normalization tests for variable matching.
+  !> @param rc Return code (0 if pass, 1 if fail)
   subroutine run_whitespace_tests(rc)
     integer, intent(out) :: rc
     type(cf_metadata_cache_t) :: cache
@@ -122,6 +135,8 @@ contains
   end subroutine run_whitespace_tests
 
   ! Test mixed case + whitespace combinations
+  !> @brief Run mixed case and whitespace tests for variable matching.
+  !> @param rc Return code (0 if pass, 1 if fail)
   subroutine run_mixed_tests(rc)
     integer, intent(out) :: rc
     type(cf_metadata_cache_t) :: cache
@@ -147,6 +162,8 @@ contains
   end subroutine run_mixed_tests
 
   ! Test tabs and multiple spaces
+  !> @brief Run tab and multiple space tests for variable matching.
+  !> @param rc Return code (0 if pass, 1 if fail)
   subroutine run_tab_tests(rc)
     integer, intent(out) :: rc
     type(cf_metadata_cache_t) :: cache

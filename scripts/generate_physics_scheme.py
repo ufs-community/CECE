@@ -47,7 +47,14 @@ from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 
 
 def validate_config(config):
-    """Validate the scheme configuration YAML."""
+    """
+    Validate the scheme configuration YAML.
+
+    Args:
+        config (dict): Parsed YAML configuration.
+    Returns:
+        list: List of error messages (empty if valid).
+    """
     errors = []
 
     # Check required top-level keys
@@ -105,7 +112,12 @@ def validate_config(config):
 
 
 def generate_scheme(config_path):
-    """Generate physics scheme files from configuration."""
+    """
+    Generate physics scheme files from configuration.
+
+    Args:
+        config_path (str): Path to the YAML configuration file.
+    """
     if not os.path.exists(config_path):
         print(f"Error: Config file {config_path} not found.")
         sys.exit(1)

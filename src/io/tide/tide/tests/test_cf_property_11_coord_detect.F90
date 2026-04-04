@@ -37,6 +37,10 @@ program test_cf_property_11_coord_detect
 
 contains
 
+  !> @brief Build a CF metadata cache with given variable names.
+  !> @param var_names Array of variable names
+  !> @param n Number of variables
+  !> @param cache Output metadata cache
   subroutine build_cache_with_vars(var_names, n, cache)
     integer,          intent(in)  :: n
     character(len=*), intent(in)  :: var_names(n)
@@ -55,6 +59,8 @@ contains
     end do
   end subroutine build_cache_with_vars
 
+  !> @brief Run test for standard coordinate variable names.
+  !> @param rc Return code (0 if pass, 1 if fail)
   subroutine run_standard_names_test(rc)
     integer, intent(out) :: rc
     type(cf_metadata_cache_t) :: cache
@@ -85,6 +91,8 @@ contains
     if (allocated(coords)) deallocate(coords)
   end subroutine run_standard_names_test
 
+  !> @brief Run test for standard_name attribute detection.
+  !> @param rc Return code (0 if pass, 1 if fail)
   subroutine run_standard_name_attr_test(rc)
     integer, intent(out) :: rc
     type(cf_metadata_cache_t) :: cache
@@ -119,6 +127,8 @@ contains
     if (allocated(coords)) deallocate(coords)
   end subroutine run_standard_name_attr_test
 
+  !> @brief Run test for missing coordinate variables.
+  !> @param rc Return code (0 if pass, 1 if fail)
   subroutine run_no_coords_test(rc)
     integer, intent(out) :: rc
     type(cf_metadata_cache_t) :: cache
@@ -142,6 +152,8 @@ contains
     if (allocated(coords)) deallocate(coords)
   end subroutine run_no_coords_test
 
+  !> @brief Run test for mixed coordinate variable and attribute.
+  !> @param rc Return code (0 if pass, 1 if fail)
   subroutine run_mixed_coord_test(rc)
     integer, intent(out) :: rc
     type(cf_metadata_cache_t) :: cache

@@ -32,6 +32,10 @@ program test_cf_property_12_monotonicity
 contains
 
   !> Helper: check if a real array is monotonically increasing or decreasing.
+  !> @brief Check if an array is monotonic (increasing or decreasing).
+  !> @param vals Array of values to check
+  !> @param n Number of elements
+  !> @return res True if monotonic
   pure function is_monotonic(vals, n) result(res)
     integer,  intent(in) :: n
     real,     intent(in) :: vals(n)
@@ -47,6 +51,8 @@ contains
     res = increasing .or. decreasing
   end function is_monotonic
 
+  !> @brief Run monotonicity test for increasing and decreasing arrays.
+  !> @param rc Return code (0 if pass, 1 if fail)
   subroutine run_monotonic_test(rc)
     integer, intent(out) :: rc
     real :: lat_vals(5)
@@ -61,6 +67,8 @@ contains
     end if
   end subroutine run_monotonic_test
 
+  !> @brief Run non-monotonicity test for a non-monotonic array.
+  !> @param rc Return code (0 if pass, 1 if fail)
   subroutine run_nonmonotonic_test(rc)
     integer, intent(out) :: rc
     real :: bad_vals(5)

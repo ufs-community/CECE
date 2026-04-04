@@ -32,6 +32,9 @@ program test_cf_property_4_field_map
 
 contains
 
+  !> @brief Run a single test iteration for CF field mapping.
+  !> @param seed Random seed for test variation
+  !> @param rc Return code (0 if pass, 1 if fail)
   subroutine run_one_iteration(seed, rc)
     integer, intent(in)  :: seed
     integer, intent(out) :: rc

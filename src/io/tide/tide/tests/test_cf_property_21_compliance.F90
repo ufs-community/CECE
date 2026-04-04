@@ -51,6 +51,10 @@ program test_cf_property_21_compliance
 
 contains
 
+  !> @brief Run a test for CF compliance with a given conventions string.
+  !> @param conv_str Conventions string to test
+  !> @param expect_compliant Expected compliance (True/False)
+  !> @param rc Return code (0 if pass, 1 if fail)
   subroutine run_version_test(conv_str, expect_compliant, rc)
     character(len=*), intent(in)  :: conv_str
     logical,          intent(in)  :: expect_compliant
@@ -96,6 +100,8 @@ contains
 
   end subroutine run_version_test
 
+  !> @brief Run a test for CF compliance with no conventions attribute.
+  !> @param rc Return code (0 if pass, 1 if fail)
   subroutine run_no_conventions_test(rc)
     integer, intent(out) :: rc
     integer :: ncid, dimid, cf_rc, my_task, n_tasks, comm

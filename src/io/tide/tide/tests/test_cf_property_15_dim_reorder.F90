@@ -30,6 +30,11 @@ contains
 
   !> Simulate dimension reordering detection: given file dimids and expected
   !> model dimids, determine if reordering is needed.
+  !> @brief Check if file and model dimensions need reordering.
+  !> @param file_dims File dimension array
+  !> @param model_dims Model dimension array
+  !> @param n Number of dimensions
+  !> @return res True if reorder needed
   pure function dims_need_reorder(file_dims, model_dims, n) result(res)
     integer, intent(in) :: n, file_dims(n), model_dims(n)
     logical :: res
@@ -40,6 +45,8 @@ contains
     end do
   end function dims_need_reorder
 
+  !> @brief Run tests for dimension reorder detection.
+  !> @param rc Return code (0 if pass, 1 if fail)
   subroutine run_reorder_detection_test(rc)
     integer, intent(out) :: rc
     integer :: file_dims(3), model_dims(3)

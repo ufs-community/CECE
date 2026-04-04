@@ -30,6 +30,8 @@ program test_cf_property_17_cache_invalidation
 
 contains
 
+  !> @brief Run a test for CF metadata cache invalidation and update.
+  !> @param rc Return code (0 if pass, 1 if fail)
   subroutine run_invalidation_test(rc)
     integer, intent(out) :: rc
 

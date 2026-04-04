@@ -35,6 +35,8 @@ program test_cf_property_10_mode_control
 contains
 
   !> In "auto" mode: CF match succeeds when standard_name present.
+  !> @brief Run a test for CF auto mode variable matching.
+  !> @param rc Return code (0 if pass, 1 if fail)
   subroutine run_auto_mode_test(rc)
     integer, intent(out) :: rc
     type(cf_detection_config_t)  :: cfg
@@ -65,6 +67,8 @@ contains
   end subroutine run_auto_mode_test
 
   !> In "disabled" mode: explicit mapping works; CF cache is not consulted.
+  !> @brief Run a test for CF disabled mode explicit mapping.
+  !> @param rc Return code (0 if pass, 1 if fail)
   subroutine run_disabled_mode_test(rc)
     integer, intent(out) :: rc
     type(cf_detection_config_t) :: cfg
@@ -88,6 +92,8 @@ contains
   end subroutine run_disabled_mode_test
 
   !> In "strict" mode: CF match fails when standard_name absent → CF_ERR_NO_MATCH.
+  !> @brief Run a test for CF strict mode (no standard_name).
+  !> @param rc Return code (0 if pass, 1 if fail)
   subroutine run_strict_mode_test(rc)
     integer, intent(out) :: rc
     type(cf_detection_config_t)  :: cfg
