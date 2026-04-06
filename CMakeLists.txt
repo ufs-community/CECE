@@ -179,7 +179,7 @@ set(ACES_SRCS
 
 if(ACES_HAS_FORTRAN)
     add_subdirectory(src/io/tide)
-
+    # TODO: Seperate aces_cap from core physics build. Physics should be included in the core. TIDE and the cap belong in an interface library that includes the core library. 
     list(
         APPEND
         ACES_SRCS
@@ -215,7 +215,6 @@ if(ACES_HAS_FORTRAN)
     # target_include_directories(aces PUBLIC $<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}>)
 endif()
 
-
 target_include_directories(
     aces
     PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include>
@@ -245,45 +244,21 @@ enable_testing()
 add_executable(test_driver_configuration tests/test_driver_configuration.cpp)
 target_link_libraries(test_driver_configuration PRIVATE aces GTest::gtest_main)
 
-
-
 add_executable(test_driver_config_validation tests/test_driver_config_validation.cpp)
 target_link_libraries(test_driver_config_validation PRIVATE aces iso8601_utils GTest::gtest_main)
 
 add_executable(test_driver_clock_management tests/test_driver_clock_management.cpp)
 target_link_libraries(test_driver_clock_management PRIVATE GTest::gtest_main)
 
-
-
 # Unit tests for clock operations (Requirements 4.1, 5.1, 7.1)
 add_executable(test_clock_operations_unit tests/test_clock_operations_unit.cpp)
 target_link_libraries(test_clock_operations_unit PRIVATE GTest::gtest_main)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 add_executable(test_driver_integration_end_to_end tests/test_driver_integration_end_to_end.cpp)
 target_link_libraries(test_driver_integration_end_to_end PRIVATE GTest::gtest_main)
 
 add_executable(test_aces_cap tests/test_aces_cap.cpp)
 target_link_libraries(test_aces_cap PRIVATE aces GTest::gtest_main)
-
-
-
-
 
 add_executable(test_diagnostics tests/test_diagnostics.cpp)
 target_link_libraries(test_diagnostics PRIVATE aces GTest::gtest)
@@ -309,35 +284,14 @@ target_link_libraries(test_stacking_engine PRIVATE aces GTest::gtest_main)
 add_executable(test_vertical_distribution_single tests/test_vertical_distribution_single.cpp)
 target_link_libraries(test_vertical_distribution_single PRIVATE aces GTest::gtest_main)
 
-
-
-
-
-
-
-
-
 add_executable(test_field_resolution_priority tests/test_field_resolution_priority.cpp)
 target_link_libraries(test_field_resolution_priority PRIVATE aces GTest::gtest_main)
-
-
 
 if(ACES_HAS_FORTRAN)
     add_library(test_helpers STATIC tests/test_helpers.F90)
     target_include_directories(test_helpers PUBLIC ${ESMF_INCLUDE_DIRS})
     target_link_libraries(test_helpers PUBLIC ESMF::ESMF)
 endif()
-
-
-
-
-
-
-
-
-
-
-
 
 # add_executable(example_driver tests/example_driver.cpp)
 # target_link_libraries(example_driver PRIVATE aces)
@@ -354,15 +308,6 @@ target_link_libraries(benchmark_aces_hemco PRIVATE aces)
 
 add_executable(test_hemco_parity tests/test_hemco_parity.cpp)
 target_link_libraries(test_hemco_parity PRIVATE aces GTest::gtest_main)
-
-
-
-
-
-
-
-
-
 
 # Kokkos Configuration Tests (Requirement 6.13-6.18, 6.21)
 add_executable(test_kokkos_configuration tests/test_kokkos_configuration.cpp)
@@ -387,30 +332,13 @@ target_link_libraries(test_properties PRIVATE aces GTest::gtest_main)
 add_executable(test_suite_idempotence tests/test_suite_idempotence.cpp)
 target_link_libraries(test_suite_idempotence PRIVATE aces GTest::gtest_main)
 
-
-
 # Temporary Reproduction Test
 add_executable(test_repro_failure tests/repro_failure.cpp)
 target_link_libraries(test_repro_failure PRIVATE aces GTest::gtest_main)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+#---------------------------------------------------------------------
 # Kernel Profiling Tests (Requirements 6.4, 6.19, 6.20)
-
-
-
-
+#---------------------------------------------------------------------
 
 # Unit tests for field creation (Requirement R4)
 add_executable(test_field_creation tests/test_field_creation.cpp)
@@ -449,28 +377,13 @@ endif()
 
 include(GoogleTest)
 gtest_discover_tests(test_driver_configuration)
-
 gtest_discover_tests(test_driver_config_validation)
 gtest_discover_tests(test_driver_clock_management)
 gtest_discover_tests(test_clock_operations_unit)
-
-
-
-
-
-
-
-
 gtest_discover_tests(test_driver_integration_end_to_end)
 gtest_discover_tests(test_aces_cap)
-
-
 gtest_discover_tests(test_stacking_engine)
 gtest_discover_tests(test_vertical_distribution_single)
-
-
-
-
 gtest_discover_tests(test_aces_utils)
 gtest_discover_tests(test_aces_compute)
 gtest_discover_tests(test_physics)
@@ -478,30 +391,11 @@ gtest_discover_tests(test_aces_ingestor)
 gtest_discover_tests(test_diagnostics)
 gtest_discover_tests(test_hemco_mimic)
 gtest_discover_tests(test_field_resolution_priority)
-
-
-
-
-
-
-
 gtest_discover_tests(test_hemco_parity)
-
-
-
-
 gtest_discover_tests(test_kokkos_configuration)
-
-
 gtest_discover_tests(test_properties)
 gtest_discover_tests(test_suite_idempotence)
 gtest_discover_tests(test_repro_failure)
-
-
-
-
-
-
 gtest_discover_tests(test_field_creation)
 gtest_discover_tests(test_field_pointer_passing)
 
