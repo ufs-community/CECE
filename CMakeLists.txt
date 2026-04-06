@@ -51,6 +51,9 @@ endif()
 option(Kokkos_ENABLE_CUDA "Enable Kokkos CUDA execution space for NVIDIA GPUs" OFF)
 option(Kokkos_ENABLE_HIP "Enable Kokkos HIP execution space for AMD GPUs" OFF)
 
+# Python bindings support
+option(BUILD_PYTHON_BINDINGS "Build Python bindings for ACES" OFF)
+
 # Validate that at most one GPU backend is enabled
 if(Kokkos_ENABLE_CUDA AND Kokkos_ENABLE_HIP)
     message(FATAL_ERROR "Cannot enable both CUDA and HIP. Choose one GPU backend or neither.")
@@ -362,17 +365,25 @@ add_subdirectory(standalone_nuopc)
 # Python script tests
 find_package(Python3 COMPONENTS Interpreter)
 if(Python3_Interpreter_FOUND)
+    # Install pytest if not already installed
+    add_test(
+        NAME install_pytest
+        COMMAND ${Python3_EXECUTABLE} -m pip install pytest --quiet)
+    set_tests_properties(install_pytest PROPERTIES FIXTURES_SETUP "pytest_installed")
+
     add_test(
         NAME test_hemco_to_aces_python
         COMMAND ${Python3_EXECUTABLE} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_converters.py)
     set_tests_properties(test_hemco_to_aces_python PROPERTIES ENVIRONMENT
-                                                             "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/scripts")
+                                                             "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/scripts"
+                                                    FIXTURES_REQUIRED "pytest_installed")
 
     add_test(
         NAME test_scripts_python
         COMMAND ${Python3_EXECUTABLE} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_scripts.py)
     set_tests_properties(test_scripts_python PROPERTIES ENVIRONMENT
-                                                        "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/scripts")
+                                                        "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/scripts"
+                                                FIXTURES_REQUIRED "pytest_installed")
 endif()
 
 include(GoogleTest)
@@ -398,6 +409,15 @@ gtest_discover_tests(test_suite_idempotence)
 gtest_discover_tests(test_repro_failure)
 gtest_discover_tests(test_field_creation)
 gtest_discover_tests(test_field_pointer_passing)
+
+# --- Python Bindings ---
+
+if(BUILD_PYTHON_BINDINGS)
+    message(STATUS "Building Python bindings for ACES")
+    add_subdirectory(src/python)
+else()
+    message(STATUS "Python bindings disabled. Enable with -DBUILD_PYTHON_BINDINGS=ON")
+endif()
 
 # --- Doxygen Documentation ---
 
