@@ -141,6 +141,22 @@ AcesConfig ParseConfig(const std::string& filename) {
         }
     }
 
+    // Parse meteorology registry (internal name -> list of external aliases)
+    if (root["met_registry"]) {
+        for (auto const& reg_node : root["met_registry"]) {
+            std::string internal_name = reg_node.first.as<std::string>();
+            std::vector<std::string> aliases;
+            if (reg_node.second.IsSequence()) {
+                for (auto const& alias : reg_node.second) {
+                    aliases.push_back(alias.as<std::string>());
+                }
+            } else if (reg_node.second.IsScalar()) {
+                aliases.push_back(reg_node.second.as<std::string>());
+            }
+            config.met_registry[internal_name] = std::move(aliases);
+        }
+    }
+
     // Parse scale factor mapping
     if (root["scale_factors"]) {
         for (auto const& sf_node : root["scale_factors"]) {

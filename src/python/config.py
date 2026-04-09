@@ -1,8 +1,18 @@
 """
-Configuration classes for ACES.
+Configuration classes for the ACES Python interface.
 
-Provides AcesConfig, EmissionLayer, and related configuration management.
+Provides dataclass-based configuration objects for emission layers, vertical
+distribution, physics schemes, data streams, and the top-level ``AcesConfig``
+container. Supports loading from YAML files or dictionaries, validation, and
+serialization.
+
+See Also
+--------
+aces.utils.load_config : Load configuration from various sources.
+aces.initialize : Initialize ACES with a configuration.
 """
+
+from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any
@@ -10,9 +20,38 @@ from typing import Dict, List, Optional, Any
 
 @dataclass
 class VerticalDistributionConfig:
-    """Vertical distribution parameters for emission layers."""
+    """
+    Vertical distribution parameters for emission layers.
 
-    method: str = "single"  # "single", "range", "pressure", "height", "pbl"
+    Controls how emissions are distributed across vertical model levels using
+    one of several methods: single layer, layer range, pressure range, height
+    range, or planetary boundary layer scaling.
+
+    Parameters
+    ----------
+    method : str, optional
+        Distribution method. One of ``"single"``, ``"range"``,
+        ``"pressure"``, ``"height"``, ``"pbl"``. Default is ``"single"``.
+    layer_start : int, optional
+        Starting model layer index (for ``"range"`` method). Default is 0.
+    layer_end : int, optional
+        Ending model layer index (for ``"range"`` method). Default is 0.
+    p_start : float, optional
+        Starting pressure in Pa (for ``"pressure"`` method). Default is 0.0.
+    p_end : float, optional
+        Ending pressure in Pa (for ``"pressure"`` method). Default is 0.0.
+    h_start : float, optional
+        Starting height in meters (for ``"height"`` method). Default is 0.0.
+    h_end : float, optional
+        Ending height in meters (for ``"height"`` method). Default is 0.0.
+
+    Examples
+    --------
+    >>> vdist = VerticalDistributionConfig(method="range", layer_start=0, layer_end=5)
+    >>> vdist.validate()
+    """
+
+    method: str = "single"
     layer_start: int = 0
     layer_end: int = 0
     p_start: float = 0.0
@@ -20,8 +59,16 @@ class VerticalDistributionConfig:
     h_start: float = 0.0
     h_end: float = 0.0
 
-    def validate(self):
-        """Validate vertical distribution parameters."""
+    def validate(self) -> None:
+        """
+        Validate vertical distribution parameters.
+
+        Raises
+        ------
+        ValueError
+            If ``method`` is not recognized, or if range parameters are
+            negative or inverted (start > end).
+        """
         valid_methods = ["single", "range", "pressure", "height", "pbl"]
         if self.method not in valid_methods:
             raise ValueError(f"Invalid vdist_method: {self.method}. Must be one of {valid_methods}")
@@ -47,7 +94,40 @@ class VerticalDistributionConfig:
 
 @dataclass
 class EmissionLayer:
-    """Single emission layer configuration."""
+    """
+    Configuration for a single emission layer.
+
+    Represents one data layer contributing to a species' total emissions,
+    with operation type, scaling, masking, and temporal cycle settings.
+
+    Parameters
+    ----------
+    field_name : str
+        Name of the data field in the import state.
+    operation : str, optional
+        How this layer combines with others. One of ``"add"``, ``"replace"``,
+        ``"scale"``. Default is ``"add"``.
+    masks : list of str, optional
+        Names of mask fields to apply. Default is an empty list.
+    scale : float, optional
+        Multiplicative scale factor. Default is 1.0.
+    hierarchy : int, optional
+        Priority level for layer stacking. Default is 0.
+    vdist : VerticalDistributionConfig, optional
+        Vertical distribution configuration. Default is a new
+        ``VerticalDistributionConfig`` instance.
+    diurnal_cycle : str or None, optional
+        Name of the diurnal temporal cycle to apply. Default is ``None``.
+    weekly_cycle : str or None, optional
+        Name of the weekly temporal cycle to apply. Default is ``None``.
+    seasonal_cycle : str or None, optional
+        Name of the seasonal temporal cycle to apply. Default is ``None``.
+
+    Examples
+    --------
+    >>> layer = EmissionLayer(field_name="CO_ANTHRO", operation="add", scale=1.5)
+    >>> layer.validate()
+    """
 
     field_name: str
     operation: str = "add"
@@ -59,8 +139,16 @@ class EmissionLayer:
     weekly_cycle: Optional[str] = None
     seasonal_cycle: Optional[str] = None
 
-    def validate(self):
-        """Validate emission layer parameters."""
+    def validate(self) -> None:
+        """
+        Validate emission layer parameters.
+
+        Raises
+        ------
+        ValueError
+            If ``field_name`` is empty, ``operation`` is not recognized,
+            ``scale`` is negative, or vertical distribution is invalid.
+        """
         if not self.field_name:
             raise ValueError("field_name cannot be empty")
         if self.operation not in ["add", "replace", "scale"]:
@@ -72,14 +160,38 @@ class EmissionLayer:
 
 @dataclass
 class PhysicsSchemeConfig:
-    """Physics scheme configuration."""
+    """
+    Configuration for a physics scheme plugin.
+
+    Parameters
+    ----------
+    name : str
+        Name of the physics scheme (e.g., ``"megan"``, ``"sea_salt"``).
+    language : str, optional
+        Implementation language. One of ``"cpp"``, ``"fortran"``,
+        ``"python"``. Default is ``"cpp"``.
+    options : dict, optional
+        Scheme-specific options as key-value pairs. Default is an empty dict.
+
+    Examples
+    --------
+    >>> scheme = PhysicsSchemeConfig(name="megan", language="fortran")
+    >>> scheme.validate()
+    """
 
     name: str
     language: str = "cpp"
     options: Dict[str, Any] = field(default_factory=dict)
 
-    def validate(self):
-        """Validate physics scheme parameters."""
+    def validate(self) -> None:
+        """
+        Validate physics scheme parameters.
+
+        Raises
+        ------
+        ValueError
+            If ``name`` is empty or ``language`` is not recognized.
+        """
         if not self.name:
             raise ValueError("scheme name cannot be empty")
         if self.language not in ["cpp", "fortran", "python"]:
@@ -88,7 +200,31 @@ class PhysicsSchemeConfig:
 
 @dataclass
 class DataStreamConfig:
-    """Data stream configuration."""
+    """
+    Configuration for a TIDE data stream.
+
+    Parameters
+    ----------
+    name : str
+        Stream identifier.
+    file_paths : list of str, optional
+        Paths to data files. Default is an empty list.
+    variables : dict, optional
+        Mapping of file variable names to model variable names.
+        Default is an empty dict.
+    taxmode : str, optional
+        Time axis mode. One of ``"cycle"``, ``"extend"``, ``"interp"``.
+        Default is ``"cycle"``.
+    tintalgo : str, optional
+        Time interpolation algorithm. One of ``"linear"``, ``"constant"``.
+        Default is ``"linear"``.
+    mapalgo : str, optional
+        Spatial mapping algorithm. Default is ``"default"``.
+
+    Examples
+    --------
+    >>> stream = DataStreamConfig(name="anthro_co", file_paths=["co.nc"])
+    """
 
     name: str
     file_paths: List[str] = field(default_factory=list)
@@ -97,8 +233,16 @@ class DataStreamConfig:
     tintalgo: str = "linear"
     mapalgo: str = "default"
 
-    def validate(self):
-        """Validate data stream parameters."""
+    def validate(self) -> None:
+        """
+        Validate data stream parameters.
+
+        Raises
+        ------
+        ValueError
+            If ``name`` is empty, ``file_paths`` is empty, ``taxmode`` is
+            not recognized, or ``tintalgo`` is not recognized.
+        """
         if not self.name:
             raise ValueError("stream name cannot be empty")
         if not self.file_paths:
@@ -110,59 +254,118 @@ class DataStreamConfig:
 
 
 class ValidationResult:
-    """Result of configuration validation."""
+    """
+    Result of configuration validation.
 
-    def __init__(self, is_valid=True, errors=None):
+    Attributes
+    ----------
+    is_valid : bool
+        ``True`` if validation passed with no errors.
+    errors : list of str
+        List of validation error messages. Empty if valid.
+
+    Examples
+    --------
+    >>> result = config.validate()
+    >>> if not result.is_valid:
+    ...     for err in result.errors:
+    ...         print(err)
+    """
+
+    def __init__(self, is_valid: bool = True, errors: Optional[List[str]] = None) -> None:
         """
         Initialize validation result.
 
-        Args:
-            is_valid: Whether validation passed
-            errors: List of error messages
+        Parameters
+        ----------
+        is_valid : bool, optional
+            Whether validation passed. Default is ``True``.
+        errors : list of str or None, optional
+            List of error messages. Default is ``None`` (empty list).
         """
         self.is_valid = is_valid
         self.errors = errors or []
 
-    def __bool__(self):
-        """Return True if validation passed."""
+    def __bool__(self) -> bool:
+        """Return ``True`` if validation passed."""
         return self.is_valid
 
-    def __str__(self):
-        """Return string representation."""
+    def __str__(self) -> str:
+        """Return a human-readable summary of the validation result."""
         if self.is_valid:
             return "Validation passed"
         return "Validation failed:\n" + "\n".join(f"  - {e}" for e in self.errors)
 
 
 class AcesConfig:
-    """Configuration for ACES computations."""
+    """
+    Top-level configuration for ACES computations.
 
-    def __init__(self, config_dict=None):
+    Manages species definitions, physics scheme registrations, data stream
+    configurations, and temporal cycle definitions. Supports construction
+    from dictionaries or YAML strings, validation, and serialization.
+
+    Parameters
+    ----------
+    config_dict : dict or None, optional
+        Initial configuration data. If provided, the configuration is
+        populated from this dictionary. Default is ``None``.
+
+    Attributes
+    ----------
+    species : dict
+        Mapping of species names to lists of ``EmissionLayer`` objects.
+    physics_schemes : list of PhysicsSchemeConfig
+        Registered physics scheme configurations.
+    aces_data : dict
+        Data stream configuration with a ``"streams"`` key.
+    vertical_config : VerticalDistributionConfig
+        Default vertical distribution configuration.
+
+    Examples
+    --------
+    >>> config = AcesConfig()
+    >>> config.add_species("CO", [EmissionLayer(field_name="CO_ANTHRO")])
+    >>> result = config.validate()
+    >>> print(result)
+    Validation passed
+    """
+
+    def __init__(self, config_dict: Optional[dict] = None) -> None:
         """
         Initialize configuration.
 
-        Args:
-            config_dict: Optional dict with configuration data
+        Parameters
+        ----------
+        config_dict : dict or None, optional
+            Dictionary with configuration data to populate from.
+            Default is ``None``.
         """
-        self._species = {}
-        self._physics_schemes = []
-        self._aces_data = {"streams": []}
-        self._vertical_config = VerticalDistributionConfig()
-        self._temporal_cycles = {}
+        self._species: Dict[str, List[EmissionLayer]] = {}
+        self._physics_schemes: List[PhysicsSchemeConfig] = []
+        self._aces_data: Dict[str, Any] = {"streams": []}
+        self._vertical_config: VerticalDistributionConfig = VerticalDistributionConfig()
+        self._temporal_cycles: Dict[str, List] = {}
 
         if config_dict:
             self._from_dict(config_dict)
 
-    def add_species(self, name, layers):
+    def add_species(self, name: str, layers: List[EmissionLayer]) -> None:
         """
-        Add a species with emission layers.
+        Add a species with its emission layers.
 
-        Args:
-            name: Species name
-            layers: List of EmissionLayer objects
+        Parameters
+        ----------
+        name : str
+            Species name (e.g., ``"CO"``, ``"NO2"``).
+        layers : list of EmissionLayer
+            Emission layers contributing to this species.
 
-        Raises:
-            ValueError: If name is empty or layers is invalid
+        Raises
+        ------
+        ValueError
+            If ``name`` is empty, ``layers`` is not a list, or any layer
+            fails validation.
         """
         if not name:
             raise ValueError("Species name cannot be empty")
@@ -174,51 +377,86 @@ class AcesConfig:
             layer.validate()
         self._species[name] = layers
 
-    def add_physics_scheme(self, name, language="cpp", options=None):
+    def add_physics_scheme(
+        self,
+        name: str,
+        language: str = "cpp",
+        options: Optional[Dict[str, Any]] = None,
+    ) -> None:
         """
         Register a physics scheme.
 
-        Args:
-            name: Scheme name
-            language: Programming language ("cpp", "fortran", "python")
-            options: Optional dict of scheme options
+        Parameters
+        ----------
+        name : str
+            Scheme name (e.g., ``"megan"``, ``"dust"``).
+        language : str, optional
+            Implementation language. One of ``"cpp"``, ``"fortran"``,
+            ``"python"``. Default is ``"cpp"``.
+        options : dict or None, optional
+            Scheme-specific options. Default is ``None``.
 
-        Raises:
-            ValueError: If parameters are invalid
+        Raises
+        ------
+        ValueError
+            If ``name`` is empty or ``language`` is not recognized.
         """
         scheme = PhysicsSchemeConfig(name, language, options or {})
         scheme.validate()
         self._physics_schemes.append(scheme)
 
-    def add_data_stream(self, name, file_paths, variables, taxmode="cycle", tintalgo="linear", mapalgo="default"):
+    def add_data_stream(
+        self,
+        name: str,
+        file_paths: List[str],
+        variables: Dict[str, str],
+        taxmode: str = "cycle",
+        tintalgo: str = "linear",
+        mapalgo: str = "default",
+    ) -> None:
         """
-        Configure a data stream.
+        Configure a TIDE data stream.
 
-        Args:
-            name: Stream name
-            file_paths: List of file paths
-            variables: Dict mapping file names to model names
-            taxmode: Time axis mode ("cycle", "extend", "interp")
-            tintalgo: Time interpolation algorithm ("linear", "constant")
-            mapalgo: Mapping algorithm ("default", etc.)
+        Parameters
+        ----------
+        name : str
+            Stream identifier.
+        file_paths : list of str
+            Paths to data files.
+        variables : dict
+            Mapping of file variable names to model variable names.
+        taxmode : str, optional
+            Time axis mode. Default is ``"cycle"``.
+        tintalgo : str, optional
+            Time interpolation algorithm. Default is ``"linear"``.
+        mapalgo : str, optional
+            Spatial mapping algorithm. Default is ``"default"``.
 
-        Raises:
-            ValueError: If parameters are invalid
+        Raises
+        ------
+        ValueError
+            If parameters fail validation.
         """
         stream = DataStreamConfig(name, file_paths, variables, taxmode, tintalgo, mapalgo)
         stream.validate()
         self._aces_data["streams"].append(stream)
 
-    def add_temporal_cycle(self, name, factors):
+    def add_temporal_cycle(self, name: str, factors: List) -> None:
         """
-        Add temporal cycle (diurnal, weekly, seasonal).
+        Add a temporal cycle (diurnal, weekly, or seasonal).
 
-        Args:
-            name: Cycle name
-            factors: List of scaling factors
+        Parameters
+        ----------
+        name : str
+            Cycle name referenced by emission layers.
+        factors : list of int or float
+            Scaling factors for each time step in the cycle.
 
-        Raises:
-            ValueError: If factors are invalid
+        Raises
+        ------
+        ValueError
+            If ``name`` is empty, ``factors`` is not a list, ``factors`` is
+            empty, or any factor is negative.
         """
         if not name:
             raise ValueError("Cycle name cannot be empty")
@@ -231,14 +469,25 @@ class AcesConfig:
                 raise ValueError("All factors must be non-negative numbers")
         self._temporal_cycles[name] = factors
 
-    def validate(self):
+    def validate(self) -> ValidationResult:
         """
-        Validate configuration.
+        Validate the entire configuration.
 
-        Returns:
-            ValidationResult with is_valid flag and error messages
+        Checks all species layers, physics schemes, data streams, and
+        temporal cycles for consistency and correctness.
+
+        Returns
+        -------
+        ValidationResult
+            Result object with ``is_valid`` flag and list of error messages.
+
+        Examples
+        --------
+        >>> result = config.validate()
+        >>> if not result:
+        ...     print(result)
         """
-        errors = []
+        errors: List[str] = []
 
         # Validate species
         for name, layers in self._species.items():
@@ -273,15 +522,19 @@ class AcesConfig:
 
         return ValidationResult(is_valid=len(errors) == 0, errors=errors)
 
-    def to_yaml(self):
+    def to_yaml(self) -> str:
         """
-        Serialize configuration to YAML string.
+        Serialize configuration to a YAML string.
 
-        Returns:
-            YAML string representation
+        Returns
+        -------
+        str
+            YAML representation of the configuration.
 
-        Raises:
-            ImportError: If PyYAML is not installed
+        Raises
+        ------
+        ImportError
+            If PyYAML is not installed.
         """
         try:
             import yaml
@@ -291,12 +544,15 @@ class AcesConfig:
         config_dict = self.to_dict()
         return yaml.dump(config_dict, default_flow_style=False, sort_keys=False)
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         """
-        Serialize configuration to Python dict.
+        Serialize configuration to a Python dictionary.
 
-        Returns:
-            Dict representation of configuration
+        Returns
+        -------
+        dict
+            Dictionary representation of the full configuration, suitable
+            for YAML serialization or ``from_dict`` round-tripping.
         """
         return {
             "species": {
@@ -337,37 +593,50 @@ class AcesConfig:
         }
 
     @classmethod
-    def from_dict(cls, config_dict):
+    def from_dict(cls, config_dict: dict) -> AcesConfig:
         """
-        Create configuration from dict.
+        Create a configuration from a dictionary.
 
-        Args:
-            config_dict: Dict with configuration data
+        Parameters
+        ----------
+        config_dict : dict
+            Dictionary with configuration data.
 
-        Returns:
-            AcesConfig object
+        Returns
+        -------
+        AcesConfig
+            New configuration object populated from the dictionary.
 
-        Raises:
-            ValueError: If configuration is invalid
+        Raises
+        ------
+        ValueError
+            If the dictionary contains invalid configuration data.
         """
         config = cls()
         config._from_dict(config_dict)
         return config
 
     @classmethod
-    def from_yaml(cls, yaml_str):
+    def from_yaml(cls, yaml_str: str) -> AcesConfig:
         """
-        Create configuration from YAML string.
+        Create a configuration from a YAML string.
 
-        Args:
-            yaml_str: YAML string with configuration data
+        Parameters
+        ----------
+        yaml_str : str
+            YAML-formatted configuration string.
 
-        Returns:
-            AcesConfig object
+        Returns
+        -------
+        AcesConfig
+            New configuration object populated from the YAML data.
 
-        Raises:
-            ImportError: If PyYAML is not installed
-            ValueError: If YAML is invalid
+        Raises
+        ------
+        ImportError
+            If PyYAML is not installed.
+        ValueError
+            If the YAML string is malformed or does not represent a dict.
         """
         try:
             import yaml
@@ -382,8 +651,16 @@ class AcesConfig:
         except yaml.YAMLError as e:
             raise ValueError(f"Invalid YAML: {str(e)}")
 
-    def _from_dict(self, config_dict):
-        """Load configuration from dict."""
+    def _from_dict(self, config_dict: dict) -> None:
+        """
+        Populate configuration from a dictionary.
+
+        Parameters
+        ----------
+        config_dict : dict
+            Dictionary with species, physics_schemes, aces_data, and
+            temporal_cycles keys.
+        """
         # Species
         for name, layers_data in config_dict.get("species", {}).items():
             layers = []
@@ -431,21 +708,21 @@ class AcesConfig:
             self.add_temporal_cycle(name, factors)
 
     @property
-    def species(self):
-        """Get species configuration."""
+    def species(self) -> Dict[str, List[EmissionLayer]]:
+        """dict : Mapping of species names to lists of ``EmissionLayer``."""
         return self._species
 
     @property
-    def physics_schemes(self):
-        """Get physics schemes."""
+    def physics_schemes(self) -> List[PhysicsSchemeConfig]:
+        """list of PhysicsSchemeConfig : Registered physics schemes."""
         return self._physics_schemes
 
     @property
-    def aces_data(self):
-        """Get ACES data configuration."""
+    def aces_data(self) -> Dict[str, Any]:
+        """dict : Data stream configuration."""
         return self._aces_data
 
     @property
-    def vertical_config(self):
-        """Get vertical configuration."""
+    def vertical_config(self) -> VerticalDistributionConfig:
+        """VerticalDistributionConfig : Default vertical distribution settings."""
         return self._vertical_config

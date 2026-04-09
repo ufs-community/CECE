@@ -1,28 +1,60 @@
 """
-Utility functions for ACES Python interface.
+Utility functions for the ACES Python interface.
 
-Provides configuration loading, validation, serialization, and logging setup.
+Provides configuration loading from multiple sources (files, YAML strings,
+dicts), array validation helpers, YAML serialization/deserialization, and
+logging setup.
+
+See Also
+--------
+aces.config.AcesConfig : Configuration class used by these utilities.
+aces.initialize : Uses ``load_config`` internally.
 """
+
+from __future__ import annotations
 
 import logging
 from pathlib import Path
+from typing import Union
+
+import numpy as np
 
 from .config import AcesConfig
 from .exceptions import AcesConfigError
 
 
-def load_config(config):
+def load_config(config: Union[str, dict, AcesConfig]) -> AcesConfig:
     """
-    Load configuration from file, YAML string, or dict.
+    Load an ACES configuration from various sources.
 
-    Args:
-        config: File path (str), YAML string, dict, or AcesConfig object
+    Accepts a file path, YAML string, dictionary, or an existing
+    ``AcesConfig`` object and returns a validated ``AcesConfig``.
 
-    Returns:
-        AcesConfig object
+    Parameters
+    ----------
+    config : str, dict, or AcesConfig
+        Configuration source. If a string, it is first checked as a file
+        path; if the file exists it is read as YAML. Otherwise the string
+        is parsed directly as YAML. Dictionaries are converted via
+        ``AcesConfig.from_dict``. An existing ``AcesConfig`` is returned
+        as-is.
 
-    Raises:
-        AcesConfigError: If configuration is invalid
+    Returns
+    -------
+    AcesConfig
+        Loaded and parsed configuration object.
+
+    Raises
+    ------
+    AcesConfigError
+        If the configuration source is invalid, the file cannot be read,
+        or the YAML/dict content is malformed.
+
+    Examples
+    --------
+    >>> config = load_config("config.yaml")
+    >>> config = load_config({"species": {"CO": [...]}})
+    >>> config = load_config(existing_config)
     """
     if isinstance(config, AcesConfig):
         return config
@@ -53,18 +85,24 @@ def load_config(config):
     raise AcesConfigError(f"Invalid config type: {type(config)}")
 
 
-def _load_config_from_yaml(yaml_str):
+def _load_config_from_yaml(yaml_str: str) -> AcesConfig:
     """
-    Load configuration from YAML string.
+    Load configuration from a YAML string.
 
-    Args:
-        yaml_str: YAML string
+    Parameters
+    ----------
+    yaml_str : str
+        YAML-formatted configuration string.
 
-    Returns:
-        AcesConfig object
+    Returns
+    -------
+    AcesConfig
+        Parsed configuration object.
 
-    Raises:
-        AcesConfigError: If YAML is invalid
+    Raises
+    ------
+    AcesConfigError
+        If the YAML string is malformed or cannot be parsed.
     """
     try:
         return AcesConfig.from_yaml(yaml_str)
@@ -72,63 +110,80 @@ def _load_config_from_yaml(yaml_str):
         raise AcesConfigError(f"Failed to parse config YAML: {str(e)}")
 
 
-def validate_array_dimensions(array, expected_shape):
+def validate_array_dimensions(array: np.ndarray, expected_shape: tuple) -> None:
     """
-    Validate array dimensions.
+    Validate that an array has the expected shape.
 
-    Args:
-        array: Numpy array
-        expected_shape: Expected shape tuple
+    Parameters
+    ----------
+    array : numpy.ndarray
+        Array to validate.
+    expected_shape : tuple of int
+        Expected shape (e.g., ``(nx, ny, nz)``).
 
-    Raises:
-        ValueError: If dimensions don't match
+    Raises
+    ------
+    ValueError
+        If the array shape does not match ``expected_shape``.
     """
     if array.shape != expected_shape:
         raise ValueError(f"Array shape {array.shape} doesn't match expected {expected_shape}")
 
 
-def validate_array_dtype(array):
+def validate_array_dtype(array: np.ndarray) -> None:
     """
-    Validate array data type.
+    Validate that an array has float64 dtype.
 
-    Args:
-        array: Numpy array
+    Parameters
+    ----------
+    array : numpy.ndarray
+        Array to validate.
 
-    Raises:
-        TypeError: If dtype is not float64
+    Raises
+    ------
+    TypeError
+        If the array dtype is not ``float64``.
     """
-    import numpy as np
-
     if array.dtype != np.float64:
         raise TypeError(f"Array dtype must be float64, got {array.dtype}")
 
 
-def validate_array_contiguity(array):
+def validate_array_contiguity(array: np.ndarray) -> None:
     """
-    Validate array contiguity.
+    Validate that an array is contiguous in memory.
 
-    Args:
-        array: Numpy array
+    Parameters
+    ----------
+    array : numpy.ndarray
+        Array to validate.
 
-    Raises:
-        ValueError: If array is not contiguous
+    Raises
+    ------
+    ValueError
+        If the array is neither C-contiguous nor Fortran-contiguous.
     """
     if not (array.flags["C_CONTIGUOUS"] or array.flags["F_CONTIGUOUS"]):
         raise ValueError("Array must be C-contiguous or Fortran-contiguous")
 
 
-def dict_to_yaml(config_dict):
+def dict_to_yaml(config_dict: dict) -> str:
     """
-    Convert dict to YAML string.
+    Convert a dictionary to a YAML string.
 
-    Args:
-        config_dict: Configuration dict
+    Parameters
+    ----------
+    config_dict : dict
+        Configuration dictionary to serialize.
 
-    Returns:
-        YAML string
+    Returns
+    -------
+    str
+        YAML-formatted string.
 
-    Raises:
-        ImportError: If PyYAML is not installed
+    Raises
+    ------
+    ImportError
+        If PyYAML is not installed.
     """
     try:
         import yaml
@@ -138,19 +193,26 @@ def dict_to_yaml(config_dict):
     return yaml.dump(config_dict, default_flow_style=False, sort_keys=False)
 
 
-def yaml_to_dict(yaml_str):
+def yaml_to_dict(yaml_str: str) -> dict:
     """
-    Convert YAML string to dict.
+    Parse a YAML string into a dictionary.
 
-    Args:
-        yaml_str: YAML string
+    Parameters
+    ----------
+    yaml_str : str
+        YAML-formatted string.
 
-    Returns:
-        Configuration dict
+    Returns
+    -------
+    dict
+        Parsed configuration dictionary.
 
-    Raises:
-        ImportError: If PyYAML is not installed
-        ValueError: If YAML is invalid
+    Raises
+    ------
+    ImportError
+        If PyYAML is not installed.
+    ValueError
+        If the YAML string is malformed or does not represent a dictionary.
     """
     try:
         import yaml
@@ -166,12 +228,27 @@ def yaml_to_dict(yaml_str):
         raise ValueError(f"Invalid YAML: {str(e)}")
 
 
-def setup_logging(level="INFO"):
+def setup_logging(level: str = "INFO") -> None:
     """
-    Configure Python logging.
+    Configure Python logging for ACES.
 
-    Args:
-        level: Log level ("DEBUG", "INFO", "WARNING", "ERROR")
+    Sets up a basic logging configuration with timestamp, logger name,
+    level, and message format.
+
+    Parameters
+    ----------
+    level : str, optional
+        Log level string. One of ``"DEBUG"``, ``"INFO"``, ``"WARNING"``,
+        ``"ERROR"``. Default is ``"INFO"``.
+
+    Raises
+    ------
+    ValueError
+        If ``level`` is not a recognized log level.
+
+    Examples
+    --------
+    >>> setup_logging("DEBUG")
     """
     numeric_level = getattr(logging, level.upper(), None)
     if not isinstance(numeric_level, int):
@@ -183,14 +260,18 @@ def setup_logging(level="INFO"):
     )
 
 
-def get_logger(name):
+def get_logger(name: str) -> logging.Logger:
     """
-    Get logger instance.
+    Get a named logger instance.
 
-    Args:
-        name: Logger name
+    Parameters
+    ----------
+    name : str
+        Logger name, typically ``__name__`` of the calling module.
 
-    Returns:
-        Logger instance
+    Returns
+    -------
+    logging.Logger
+        Configured logger instance.
     """
     return logging.getLogger(name)

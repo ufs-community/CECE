@@ -20,9 +20,9 @@ void SetConfigFilePath(const char* config_path);
 /**
  * @brief Get the current configuration file path.
  *
- * @return Reference to the current config file path
+ * @return Copy of the current config file path (thread-safe)
  */
-const std::string& GetConfigFilePath();
+std::string GetConfigFilePath();
 
 }  // namespace aces
 

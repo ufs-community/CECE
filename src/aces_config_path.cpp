@@ -39,12 +39,13 @@ void SetConfigFilePath(const char* config_path) {
 /**
  * @brief Get the current configuration file path.
  *
- * Returns the configuration file path that will be used by initialization routines.
+ * Returns a copy of the configuration file path so the caller is not
+ * holding a reference that can be invalidated by a concurrent SetConfigFilePath.
  * Defaults to "aces_config.yaml" if not explicitly set.
  *
- * @return std::string reference to the current config file path
+ * @return std::string copy of the current config file path
  */
-const std::string& GetConfigFilePath() {
+std::string GetConfigFilePath() {
     std::lock_guard<std::mutex> lock(g_config_path_mutex);
     return g_config_file_path;
 }

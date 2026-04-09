@@ -208,6 +208,27 @@ module aces_cap_mod
       integer(c_int), value :: n_elem
       integer(c_int), intent(out) :: rc
     end subroutine
+    ! Meteorology registry C API interfaces
+    function aces_get_met_registry_count() bind(C) result(n)
+      import :: c_size_t
+      integer(c_size_t) :: n
+    end function aces_get_met_registry_count
+    function aces_get_met_registry_internal_name(idx) bind(C) result(name)
+      import :: c_size_t, c_ptr
+      integer(c_size_t), value :: idx
+      type(c_ptr) :: name
+    end function aces_get_met_registry_internal_name
+    function aces_get_met_registry_alias_count(idx) bind(C) result(n)
+      import :: c_size_t
+      integer(c_size_t), value :: idx
+      integer(c_size_t) :: n
+    end function aces_get_met_registry_alias_count
+    function aces_get_met_registry_alias(idx, alias_idx) bind(C) result(alias)
+      import :: c_size_t, c_ptr
+      integer(c_size_t), value :: idx
+      integer(c_size_t), value :: alias_idx
+      type(c_ptr) :: alias
+    end function aces_get_met_registry_alias
   end interface
 
 contains
@@ -368,6 +389,13 @@ contains
     rc = int(c_rc)
     if (rc /= ESMF_SUCCESS) then
       write(*,'(A,I0)') "ERROR: aces_core_advertise failed rc=", rc
+      return
+    end if
+
+    ! --- Dynamically advertise ImportState fields from meteorology registry ---
+    call advertise_met_registry_fields(importState, rc)
+    if (rc /= ESMF_SUCCESS) then
+      write(*,'(A,I0)') "ERROR: Failed to advertise meteorology registry fields rc=", rc
       return
     end if
 
@@ -1277,5 +1305,80 @@ contains
     end if
 
   end subroutine CreateMeshFromGridCoords
+
+  !> @brief Convert C string to Fortran string
+  function cstr_to_fstr(cstr) result(fstr)
+    type(c_ptr), value :: cstr
+    character(len=:), allocatable :: fstr
+    integer :: i, len
+    character(1), pointer :: carray(:)
+    if (.not. c_associated(cstr)) then
+      fstr = ""
+      return
+    end if
+    call c_f_pointer(cstr, carray, [1000])
+    len = 0
+    do i = 1, 1000
+      if (carray(i) == char(0)) exit
+      len = len + 1
+    end do
+    if (len > 0) then
+      allocate(character(len=len) :: fstr)
+      fstr = ""
+      do i = 1, len
+        fstr(i:i) = carray(i)
+      end do
+    else
+      fstr = ""
+    end if
+  end function cstr_to_fstr
+
+  !> @brief Dynamically advertise ImportState fields from meteorology registry
+  subroutine advertise_met_registry_fields(importState, rc)
+    type(ESMF_State), intent(inout) :: importState
+    integer, intent(out) :: rc
+
+    integer(c_size_t) :: nvars, n_alias, i, j
+    character(len=:), allocatable :: internal_name, alias
+    type(ESMF_Field) :: field
+
+    rc = ESMF_SUCCESS
+
+    ! Get number of meteorology variables in registry
+    nvars = aces_get_met_registry_count()
+    write(*,'(A,I0,A)') "INFO: [ACES] Advertising ", nvars, " meteorology variables from registry"
+
+    ! Loop through each internal meteorology variable
+    do i = 0, nvars-1
+      internal_name = cstr_to_fstr(aces_get_met_registry_internal_name(i))
+      n_alias = aces_get_met_registry_alias_count(i)
+
+      write(*,'(A,A,A,I0,A)') "INFO: [ACES] Internal name '", trim(internal_name), "' has ", n_alias, " aliases"
+
+      ! Loop through each alias for this internal variable
+      do j = 0, n_alias-1
+        alias = cstr_to_fstr(aces_get_met_registry_alias(i, j))
+        write(*,'(A,A,A)') "INFO: [ACES]   Advertising ImportState field: ", trim(alias)
+
+        ! Create a field advertisement (this is just metadata, no actual allocation)
+        field = ESMF_FieldEmptyCreate(name=trim(alias), rc=rc)
+        if (rc /= ESMF_SUCCESS) then
+          write(*,'(A,A,A,I0)') "ERROR: [ACES] Failed to create empty field for ", trim(alias), " rc=", rc
+          return
+        end if
+
+        ! Add to ImportState
+        call ESMF_StateAdd(importState, (/field/), rc=rc)
+        if (rc /= ESMF_SUCCESS) then
+          write(*,'(A,A,A,I0)') "ERROR: [ACES] Failed to add field ", trim(alias), " to ImportState rc=", rc
+          call ESMF_FieldDestroy(field, rc=rc)
+          return
+        end if
+      end do
+    end do
+
+    write(*,'(A)') "INFO: [ACES] Successfully advertised all meteorology registry fields"
+
+  end subroutine advertise_met_registry_fields
 
 end module aces_cap_mod

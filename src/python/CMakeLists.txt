@@ -1,72 +1,44 @@
 cmake_minimum_required(VERSION 3.20)
 
-# Python bindings for ACES
-# Supports multiple binding methods: pybind11, cffi, ctypes (fallback)
+# Python bindings for ACES via pybind11
 
 # Find Python
-find_package(Python3 COMPONENTS Interpreter Development)
-
-if(NOT Python3_FOUND)
-    message(WARNING "Python3 development headers not found. Skipping Python bindings.")
-    return()
-endif()
+find_package(Python3 COMPONENTS Interpreter Development.Module REQUIRED)
 
 message(STATUS "Found Python3: ${Python3_EXECUTABLE}")
 message(STATUS "Python3 version: ${Python3_VERSION}")
 message(STATUS "Python3 include dirs: ${Python3_INCLUDE_DIRS}")
 
-# Determine binding method
-set(BINDING_METHOD "ctypes" CACHE STRING "Python binding method (pybind11, cffi, ctypes)")
+# Fetch pybind11 v2.12.0
+include(FetchContent)
 
-# Try pybind11 first
-find_package(pybind11 CONFIG QUIET)
-if(pybind11_FOUND)
-    set(BINDING_METHOD "pybind11")
-    message(STATUS "Found pybind11. Using pybind11 binding method.")
-else()
-    # Try cffi
-    execute_process(
-        COMMAND ${Python3_EXECUTABLE} -c "import cffi; print(cffi.__version__)"
-        OUTPUT_VARIABLE CFFI_VERSION
-        ERROR_QUIET
-    )
-    if(CFFI_VERSION)
-        set(BINDING_METHOD "cffi")
-        message(STATUS "Found cffi. Using cffi binding method.")
-    else()
-        set(BINDING_METHOD "ctypes")
-        message(STATUS "Using ctypes binding method (pure Python, no compilation required).")
-    endif()
-endif()
+# Disable LTO before fetching pybind11 to work around GCC 13 internal compiler error.
+# pybind11 enables LTO by default via pybind11::lto target.
+set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
 
-# Compile C binding library
-add_library(aces_c_bindings SHARED aces_c_bindings.cpp)
-
-target_include_directories(aces_c_bindings
-    PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/../..
-    ${CMAKE_CURRENT_SOURCE_DIR}/../../include
+FetchContent_Declare(
+    pybind11
+    GIT_REPOSITORY https://github.com/pybind/pybind11.git
+    GIT_TAG v2.12.0
 )
+FetchContent_MakeAvailable(pybind11)
 
-target_link_libraries(aces_c_bindings
-    PRIVATE
-    aces
-    Kokkos::kokkos
-)
+# Build the pybind11 extension module
+pybind11_add_module(_aces_core aces_pybind.cpp)
 
-# Set library output directory
-set_target_properties(aces_c_bindings PROPERTIES
+target_link_libraries(_aces_core PRIVATE aces Kokkos::kokkos yaml-cpp)
+
+# Place the compiled .so in the aces package directory
+set_target_properties(_aces_core PROPERTIES
     LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/aces"
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/aces"
 )
 
 # Create Python package directory
 file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/aces")
 
-# Copy Python source files to build directory
+# Copy Python source files to build directory (excluding old binding files)
 file(COPY
     __init__.py
-    _bindings.py
     config.py
     state.py
     exceptions.py
@@ -78,7 +50,6 @@ file(COPY
 # Create setup.py for installation
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/setup.py"
 "from setuptools import setup, find_packages
-import os
 
 setup(
     name='aces',
@@ -104,14 +75,14 @@ install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/aces"
     COMPONENT python
 )
 
-# Create a custom target for Python package
+# Custom target for Python package
 add_custom_target(python_package ALL
-    DEPENDS aces_c_bindings
+    DEPENDS _aces_core
     COMMENT "Python ACES package ready in ${CMAKE_CURRENT_BINARY_DIR}/aces"
 )
 
 message(STATUS "Python bindings configuration:")
-message(STATUS "  Binding method: ${BINDING_METHOD}")
-message(STATUS "  C binding library: aces_c_bindings")
+message(STATUS "  Binding method: pybind11 (v2.12.0 via FetchContent)")
+message(STATUS "  Extension module: _aces_core")
 message(STATUS "  Package directory: ${CMAKE_CURRENT_BINARY_DIR}/aces")
 message(STATUS "  Installation target: ${Python3_SITELIB}/aces")

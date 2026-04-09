@@ -151,7 +151,7 @@ void aces_core_initialize_p1(void** data_ptr_ptr, int* rc) {
     }
 
     // 2. Parse YAML configuration
-    const std::string& config_path = aces::GetConfigFilePath();
+    const std::string config_path = aces::GetConfigFilePath();
     std::cout << "INFO: Parsing " << config_path << std::endl;
     std::cout << "DEBUG: Full config path: '" << config_path << "'" << std::endl;
     aces::AcesConfig config;

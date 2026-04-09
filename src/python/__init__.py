@@ -1,17 +1,27 @@
 """
-ACES Python Interface
+ACES Python Interface.
 
 A Python wrapper for the ACES (Atmospheric Chemistry Emissions System) C++ core.
-Provides configuration management, state handling, and computation execution.
+Provides configuration management, state handling, and computation execution
+through pybind11 bindings to the underlying C++ library.
 
-Example:
-    >>> import aces
-    >>> config = aces.load_config("config.yaml")
-    >>> state = aces.AcesState(nx=144, ny=96, nz=72)
-    >>> aces.initialize(config)
-    >>> aces.compute(state, config)
-    >>> result = state.get_export_field("CO_EMIS")
+The package exposes a high-level API for initializing ACES, loading
+configurations, managing import/export state fields, and executing emission
+computations with automatic GIL release during C++ kernel execution.
+
+Examples
+--------
+>>> import aces
+>>> config = aces.load_config("config.yaml")
+>>> state = aces.AcesState(nx=144, ny=96, nz=72)
+>>> aces.initialize(config)
+>>> aces.compute(state, config)
+>>> result = state.get_export_field("CO_EMIS")
 """
+
+from __future__ import annotations
+
+from typing import Optional, Union
 
 __version__ = "0.1.0"
 __all__ = [
@@ -39,7 +49,6 @@ __all__ = [
     "AcesExecutionSpaceError",
 ]
 
-# Placeholder imports - will be implemented in subsequent tasks
 from .exceptions import (
     AcesException,
     AcesConfigError,
@@ -51,32 +60,56 @@ from .config import AcesConfig, EmissionLayer, VerticalDistributionConfig
 from .state import AcesState, AcesField
 from .utils import load_config
 
+# Import the pybind11 C++ bindings module
+from . import _aces_core
+
 # Module-level state
-_aces_handle = None
-_initialized = False
+_cpp_config: Optional[object] = None
+_initialized: bool = False
+_last_error: Optional[str] = None
 
 
-def initialize(config):
+def initialize(config: Union[str, dict, AcesConfig]) -> None:
     """
     Initialize ACES with a configuration.
 
-    Args:
-        config: Configuration file path (str), YAML string, dict, or AcesConfig object
+    Parses and validates the provided configuration, initializes Kokkos if
+    needed, and prepares the C++ core for computation. ACES must be finalized
+    before it can be re-initialized.
 
-    Raises:
-        AcesConfigError: If configuration is invalid
-        RuntimeError: If ACES is already initialized
+    Parameters
+    ----------
+    config : str, dict, or AcesConfig
+        Configuration source. Can be a file path to a YAML file, a YAML
+        string, a configuration dictionary, or an ``AcesConfig`` object.
+
+    Raises
+    ------
+    AcesConfigError
+        If the configuration is invalid or fails validation.
+    RuntimeError
+        If ACES is already initialized.
+
+    See Also
+    --------
+    finalize : Clean up ACES resources.
+    is_initialized : Check initialization status.
+
+    Examples
+    --------
+    >>> aces.initialize("config.yaml")
+    >>> aces.initialize({"species": {"CO": [...]}})
     """
-    global _aces_handle, _initialized
+    global _cpp_config, _initialized, _last_error
     if _initialized:
         raise RuntimeError("ACES is already initialized. Call finalize() first.")
 
-    from ._bindings import _c_bindings, _check_error
     from .utils import load_config as _load_config
+    from pathlib import Path
 
-    # Load C library if not already loaded
-    if not _c_bindings.is_loaded():
-        _c_bindings.load_library()
+    # Ensure Kokkos is initialized
+    if not _aces_core.is_kokkos_initialized():
+        _aces_core.initialize_kokkos()
 
     # Load and validate configuration
     config_obj = _load_config(config)
@@ -84,272 +117,366 @@ def initialize(config):
     if not validation.is_valid:
         raise AcesConfigError(f"Configuration validation failed:\n{validation}")
 
-    # Serialize to YAML for C layer
-    config_yaml = config_obj.to_yaml()
+    # Create C++ AcesConfig via pybind11
+    # If config is a file path, use ParseConfig directly
+    if isinstance(config, str):
+        path = Path(config)
+        if path.exists() and path.is_file():
+            try:
+                _cpp_config = _aces_core.ParseConfig(str(path))
+            except Exception as e:
+                raise AcesConfigError(f"Failed to parse config file: {e}")
+        else:
+            # YAML string — serialize to temp file or build config from dict
+            _cpp_config = _build_cpp_config(config_obj)
+    else:
+        _cpp_config = _build_cpp_config(config_obj)
 
-    # Call C initialization
-    import ctypes
-    handle = ctypes.c_void_p()
-    error_code = _c_bindings.aces_c_initialize(config_yaml.encode("utf-8"), ctypes.byref(handle))
-    _check_error(error_code)
-
-    _aces_handle = handle
     _initialized = True
+    _last_error = None
 
 
-def finalize():
+def _build_cpp_config(config_obj: AcesConfig) -> object:
     """
-    Clean up ACES resources.
+    Build a C++ AcesConfig from a Python AcesConfig object.
 
-    Raises:
-        RuntimeError: If ACES is not initialized
+    Translates the Python-side configuration into the corresponding C++
+    ``_aces_core.AcesConfig`` struct, including species layers and vertical
+    distribution settings.
+
+    Parameters
+    ----------
+    config_obj : AcesConfig
+        Python configuration object to translate.
+
+    Returns
+    -------
+    _aces_core.AcesConfig
+        C++ configuration object populated from ``config_obj``.
     """
-    global _aces_handle, _initialized
+    cpp_config = _aces_core.AcesConfig()
+
+    # Add species
+    for species_name, layers in config_obj.species.items():
+        cpp_layers = []
+        for layer in layers:
+            cpp_layer = _aces_core.EmissionLayer()
+            cpp_layer.operation = layer.operation
+            cpp_layer.field_name = layer.field_name
+            cpp_layer.scale = layer.scale
+            cpp_layer.vdist_method = _aces_core.VerticalDistributionMethod.SINGLE
+            if hasattr(layer, 'vdist') and layer.vdist:
+                method_map = {
+                    "single": _aces_core.VerticalDistributionMethod.SINGLE,
+                    "range": _aces_core.VerticalDistributionMethod.RANGE,
+                    "pressure": _aces_core.VerticalDistributionMethod.PRESSURE,
+                    "height": _aces_core.VerticalDistributionMethod.HEIGHT,
+                    "pbl": _aces_core.VerticalDistributionMethod.PBL,
+                }
+                cpp_layer.vdist_method = method_map.get(
+                    layer.vdist.method, _aces_core.VerticalDistributionMethod.SINGLE
+                )
+                cpp_layer.vdist_layer_start = layer.vdist.layer_start
+                cpp_layer.vdist_layer_end = layer.vdist.layer_end
+                cpp_layer.vdist_p_start = layer.vdist.p_start
+                cpp_layer.vdist_p_end = layer.vdist.p_end
+                cpp_layer.vdist_h_start = layer.vdist.h_start
+                cpp_layer.vdist_h_end = layer.vdist.h_end
+            cpp_layers.append(cpp_layer)
+        _aces_core.AddSpecies(cpp_config, species_name, cpp_layers)
+
+    return cpp_config
+
+
+def finalize() -> None:
+    """
+    Clean up ACES resources and reset module state.
+
+    Releases the C++ configuration object and resets the initialization flag.
+    Must be called before ``initialize`` can be called again.
+
+    Raises
+    ------
+    RuntimeError
+        If ACES is not currently initialized.
+
+    See Also
+    --------
+    initialize : Initialize ACES with a configuration.
+    is_initialized : Check initialization status.
+    """
+    global _cpp_config, _initialized, _last_error
     if not _initialized:
         raise RuntimeError("ACES is not initialized.")
 
-    from ._bindings import _c_bindings, _check_error
-
-    if _aces_handle and _c_bindings.is_loaded():
-        error_code = _c_bindings.aces_c_finalize(_aces_handle)
-        _check_error(error_code)
-
+    _cpp_config = None
     _initialized = False
-    _aces_handle = None
+    _last_error = None
 
 
-def is_initialized():
-    """Check if ACES is initialized."""
+def is_initialized() -> bool:
+    """
+    Check whether ACES is currently initialized.
+
+    Returns
+    -------
+    bool
+        ``True`` if ACES has been initialized and not yet finalized.
+    """
     return _initialized
 
 
-def compute(state, config=None, hour=0, day_of_week=0, month=0):
+def compute(
+    state: AcesState,
+    config: Optional[Union[str, dict, AcesConfig]] = None,
+    hour: int = 0,
+    day_of_week: int = 0,
+    month: int = 0,
+) -> None:
     """
-    Execute ACES computation.
+    Execute ACES emission computation.
 
-    Args:
-        state: AcesState object with import fields
-        config: Optional AcesConfig object (uses initialized config if None)
-        hour: Hour of day (0-23) for temporal scaling
-        day_of_week: Day of week (0-6) for temporal scaling
-        month: Month (1-12) for temporal scaling
+    Runs the ACES stacking engine and physics schemes on the provided state.
+    The GIL is released automatically during the C++ computation, allowing
+    other Python threads to run concurrently.
 
-    Raises:
-        RuntimeError: If ACES is not initialized or computation fails
-        AcesStateError: If state is invalid
+    Parameters
+    ----------
+    state : AcesState
+        State object containing import fields. Export fields are populated
+        in-place after computation completes.
+    config : str, dict, AcesConfig, or None, optional
+        Configuration override. If ``None``, uses the configuration from
+        ``initialize()``. Default is ``None``.
+    hour : int, optional
+        Hour of day (0--23) for temporal scaling. Default is 0.
+    day_of_week : int, optional
+        Day of week (0--6, Monday=0) for temporal scaling. Default is 0.
+    month : int, optional
+        Month (1--12) for temporal scaling. Default is 0.
+
+    Raises
+    ------
+    RuntimeError
+        If ACES is not initialized or the computation fails.
+    AcesStateError
+        If ``state`` is not a valid ``AcesState`` object.
+
+    See Also
+    --------
+    initialize : Initialize ACES before computing.
+    AcesState : Container for import and export fields.
+
+    Examples
+    --------
+    >>> state = aces.AcesState(nx=144, ny=96, nz=72)
+    >>> state.add_import_field("TEMPERATURE", temp_array)
+    >>> aces.compute(state, hour=12, month=7)
+    >>> co_emis = state.get_export_field("CO_EMIS")
     """
+    global _last_error
     if not _initialized:
         raise RuntimeError("ACES is not initialized. Call initialize() first.")
 
-    from ._bindings import _c_bindings, _check_error, _release_gil
-    import ctypes
     import numpy as np
 
     # Validate state
     if not isinstance(state, AcesState):
         raise AcesStateError("state must be an AcesState object")
 
-    # Create C state
-    state_handle = ctypes.c_void_p()
-    error_code = _c_bindings.aces_c_state_create(
-        state.nx, state.ny, state.nz, ctypes.byref(state_handle)
+    # Determine which config to use
+    if config is not None:
+        from .utils import load_config as _load_config
+        config_obj = _load_config(config)
+        cpp_config = _build_cpp_config(config_obj)
+    else:
+        cpp_config = _cpp_config
+
+    # Create C++ import state and populate fields
+    import_state = _aces_core.AcesImportState()
+    for field_name, field_array in state.import_fields.items():
+        arr = field_array
+        if not isinstance(arr, np.ndarray):
+            arr = np.array(arr, dtype=np.float64)
+        if arr.dtype != np.float64:
+            arr = arr.astype(np.float64)
+        if not arr.flags["F_CONTIGUOUS"]:
+            arr = np.asfortranarray(arr)
+        import_state.set_field(field_name, arr)
+
+    # Create C++ export state
+    export_state = _aces_core.AcesExportState()
+
+    # Pre-populate export fields for each species so the resolver can find them
+    for species_name in cpp_config.species_layers:
+        export_data = np.asfortranarray(
+            np.zeros((state.nx, state.ny, state.nz), dtype=np.float64)
+        )
+        export_state.set_field(species_name, export_data)
+
+    # Create resolver with met_mapping from config
+    met_mapping = dict(cpp_config.met_mapping) if cpp_config.met_mapping else {}
+    sf_mapping = dict(cpp_config.scale_factor_mapping) if cpp_config.scale_factor_mapping else {}
+    mask_mapping = dict(cpp_config.mask_mapping) if cpp_config.mask_mapping else {}
+
+    resolver = _aces_core.AcesStateResolver(
+        import_state, export_state, met_mapping, sf_mapping, mask_mapping
     )
-    _check_error(error_code)
 
+    # Execute computation (GIL is released automatically by pybind11)
     try:
-        # Add import fields to C state
-        for field_name, field_array in state.import_fields.items():
-            # Ensure array is Fortran-contiguous
-            if not field_array.flags["F_CONTIGUOUS"]:
-                field_array = np.asfortranarray(field_array)
+        _aces_core.compute_emissions(
+            cpp_config, resolver,
+            state.nx, state.ny, state.nz,
+            hour, day_of_week, month,
+        )
+    except Exception as e:
+        _last_error = str(e)
+        raise
 
-            # Get pointer to data
-            data_ptr = field_array.ctypes.data_as(ctypes.POINTER(ctypes.c_double))
-
-            error_code = _c_bindings.aces_c_state_add_import_field(
-                state_handle,
-                field_name.encode("utf-8"),
-                data_ptr,
-                state.nx,
-                state.ny,
-                state.nz,
-            )
-            _check_error(error_code)
-
-        # Execute computation with GIL released
-        with _release_gil():
-            error_code = _c_bindings.aces_c_compute(
-                _aces_handle, state_handle, hour, day_of_week, month
-            )
-        _check_error(error_code)
-
-        # Retrieve export fields
-        # Implementation: get export field pointers and wrap as numpy arrays
-        # This will be completed in subsequent tasks
-
-    finally:
-        # Clean up C state
-        if state_handle:
-            _c_bindings.aces_c_state_destroy(state_handle)
+    # Retrieve export fields back into the Python state
+    for field_name in export_state.get_field_names():
+        export_array = export_state.get_field(field_name)
+        state._export_fields[field_name] = AcesField(field_name, export_array)
 
 
-def load_config(config):
+def set_execution_space(space: str) -> None:
     """
-    Load configuration from file, YAML string, or dict.
+    Set the Kokkos execution space.
 
-    Args:
-        config: File path (str), YAML string, dict, or AcesConfig object
+    Validates that the requested execution space is available in the current
+    build. Note that the Kokkos execution space is determined at compile time
+    and cannot be changed at runtime; this function validates availability.
 
-    Returns:
-        AcesConfig object
+    Parameters
+    ----------
+    space : str
+        Execution space name. One of ``"Serial"``, ``"OpenMP"``, ``"CUDA"``,
+        or ``"HIP"``.
 
-    Raises:
-        AcesConfigError: If configuration is invalid
+    Raises
+    ------
+    AcesExecutionSpaceError
+        If the requested execution space is not available in the current build.
+
+    See Also
+    --------
+    get_execution_space : Get the current execution space.
+    get_available_execution_spaces : List all available execution spaces.
     """
-    from .utils import load_config as _load_config
-    return _load_config(config)
+    available = _aces_core.get_available_execution_spaces()
+    if space not in available:
+        raise AcesExecutionSpaceError(
+            f"Execution space '{space}' is not available. "
+            f"Available spaces: {available}"
+        )
+    # Note: Kokkos execution space is set at compile time and cannot be changed
+    # at runtime. This validates the requested space is available.
 
 
-def set_execution_space(space):
+def get_execution_space() -> str:
     """
-    Set Kokkos execution space.
+    Get the current Kokkos execution space name.
 
-    Args:
-        space: Execution space name ("Serial", "OpenMP", "CUDA", "HIP")
+    Returns
+    -------
+    str
+        Name of the default Kokkos execution space (e.g., ``"Serial"``,
+        ``"OpenMP"``).
 
-    Raises:
-        AcesExecutionSpaceError: If space is not available
+    See Also
+    --------
+    set_execution_space : Set the execution space.
+    get_available_execution_spaces : List all available execution spaces.
     """
-    from ._bindings import _c_bindings, _check_error
-    if not _c_bindings.is_loaded():
-        _c_bindings.load_library()
-    error_code = _c_bindings.aces_c_set_execution_space(space.encode("utf-8"))
-    _check_error(error_code)
+    return _aces_core.get_default_execution_space_name()
 
 
-def get_execution_space():
+def get_available_execution_spaces() -> list:
     """
-    Get current Kokkos execution space.
+    Get the list of available Kokkos execution spaces.
 
-    Returns:
-        Execution space name string
+    Returns the execution spaces that were compiled into the current ACES
+    build.
 
-    Raises:
-        RuntimeError: If unable to query execution space
+    Returns
+    -------
+    list of str
+        Names of available execution spaces (e.g., ``["Serial", "OpenMP"]``).
+
+    See Also
+    --------
+    get_execution_space : Get the current execution space.
+    set_execution_space : Set the execution space.
     """
-    from ._bindings import _c_bindings, _check_error
-    if not _c_bindings.is_loaded():
-        _c_bindings.load_library()
-    import ctypes
-    space_ptr = ctypes.c_char_p()
-    error_code = _c_bindings.aces_c_get_execution_space(ctypes.byref(space_ptr))
-    _check_error(error_code)
-    if space_ptr.value:
-        space = space_ptr.value.decode("utf-8")
-        _c_bindings.aces_c_free_string(space_ptr)
-        return space
-    return "Unknown"
+    return list(_aces_core.get_available_execution_spaces())
 
 
-def get_available_execution_spaces():
+def set_log_level(level: str) -> None:
     """
-    Get list of available Kokkos execution spaces.
+    Set the ACES C++ logging level.
 
-    Returns:
-        List of execution space names
+    Parameters
+    ----------
+    level : str
+        Log level string. Must be one of ``"DEBUG"``, ``"INFO"``,
+        ``"WARNING"``, or ``"ERROR"`` (case-insensitive).
 
-    Raises:
-        RuntimeError: If unable to query available spaces
+    Raises
+    ------
+    ValueError
+        If ``level`` is not a recognized log level.
+
+    See Also
+    --------
+    get_diagnostics : Retrieve diagnostic information.
+
+    Examples
+    --------
+    >>> aces.set_log_level("DEBUG")
     """
-    from ._bindings import _c_bindings, _check_error
-    if not _c_bindings.is_loaded():
-        _c_bindings.load_library()
-    import ctypes
-    import json
-    spaces_ptr = ctypes.c_char_p()
-    error_code = _c_bindings.aces_c_get_available_execution_spaces(ctypes.byref(spaces_ptr))
-    _check_error(error_code)
-    if spaces_ptr.value:
-        spaces_json = spaces_ptr.value.decode("utf-8")
-        _c_bindings.aces_c_free_string(spaces_ptr)
-        try:
-            return json.loads(spaces_json)
-        except json.JSONDecodeError:
-            # Fallback: return as list if not JSON
-            return spaces_json.split(",")
-    return ["Serial"]
-
-
-def set_log_level(level):
-    """
-    Set logging level.
-
-    Args:
-        level: Log level ("DEBUG", "INFO", "WARNING", "ERROR")
-
-    Raises:
-        ValueError: If level is invalid
-    """
-    from ._bindings import _c_bindings, _check_error
-    if not _c_bindings.is_loaded():
-        _c_bindings.load_library()
     valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR"]
     if level.upper() not in valid_levels:
         raise ValueError(f"Invalid log level: {level}. Must be one of {valid_levels}")
-    error_code = _c_bindings.aces_c_set_log_level(level.upper().encode("utf-8"))
-    _check_error(error_code)
+    _aces_core.set_log_level(level.upper())
 
 
-def get_diagnostics():
+def get_diagnostics() -> dict:
     """
     Get performance and timing diagnostics.
 
-    Returns:
-        Dict with diagnostic information
-
-    Raises:
-        RuntimeError: If unable to retrieve diagnostics
+    Returns
+    -------
+    dict
+        Dictionary containing diagnostic information such as timing data
+        and performance counters. Currently returns an empty dict as
+        diagnostics are not yet exposed via pybind11.
     """
-    from ._bindings import _c_bindings, _check_error
-    if not _c_bindings.is_loaded():
-        _c_bindings.load_library()
-    import ctypes
-    import json
-    diag_ptr = ctypes.c_char_p()
-    error_code = _c_bindings.aces_c_get_diagnostics(ctypes.byref(diag_ptr))
-    _check_error(error_code)
-    if diag_ptr.value:
-        diag_json = diag_ptr.value.decode("utf-8")
-        _c_bindings.aces_c_free_string(diag_ptr)
-        try:
-            return json.loads(diag_json)
-        except json.JSONDecodeError:
-            return {"raw": diag_json}
+    # pybind11 module does not expose a diagnostics endpoint yet;
+    # return empty dict as a safe default.
     return {}
 
 
-def reset_diagnostics():
+def reset_diagnostics() -> None:
     """
-    Clear diagnostic data.
+    Clear accumulated diagnostic data.
 
-    Raises:
-        RuntimeError: If unable to reset diagnostics
+    Notes
+    -----
+    Currently a no-op as diagnostics are not yet exposed via pybind11.
     """
-    from ._bindings import _c_bindings, _check_error
-    if not _c_bindings.is_loaded():
-        _c_bindings.load_library()
-    error_code = _c_bindings.aces_c_reset_diagnostics()
-    _check_error(error_code)
+    # No-op: diagnostics are not yet exposed via pybind11.
+    pass
 
 
-def get_last_error():
+def get_last_error() -> Optional[str]:
     """
-    Get last error message or None.
+    Get the last error message, if any.
 
-    Returns:
-        Error message string or None if no error
+    Returns
+    -------
+    str or None
+        The error message from the most recent failed operation, or ``None``
+        if no error has occurred since the last ``initialize`` or ``finalize``.
     """
-    from ._bindings import _c_bindings
-    if not _c_bindings.is_loaded():
-        return None
-    return _c_bindings.get_last_error()
+    return _last_error

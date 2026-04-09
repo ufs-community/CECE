@@ -1,8 +1,23 @@
 """
-Exception classes for ACES Python interface.
+Exception classes for the ACES Python interface.
 
-Defines custom exception hierarchy and error code mapping.
+Defines a custom exception hierarchy for ACES errors, error code constants
+from the C binding layer, and recovery suggestion mappings. All ACES-specific
+exceptions inherit from ``AcesException``.
+
+Notes
+-----
+Error codes are retained from the original C-linkage binding layer for
+backward compatibility, even though the pybind11 module uses exception
+translation instead of error codes.
+
+See Also
+--------
+aces.initialize : May raise ``AcesConfigError``.
+aces.compute : May raise ``AcesComputationError`` or ``AcesStateError``.
 """
+
+from __future__ import annotations
 
 from typing import Optional, List
 
@@ -68,7 +83,38 @@ RECOVERY_SUGGESTIONS = {
 
 
 class AcesException(Exception):
-    """Base exception for all ACES errors."""
+    """
+    Base exception for all ACES errors.
+
+    Provides structured error information including an optional error code,
+    recovery suggestions, and C++ call site information for debugging.
+
+    Parameters
+    ----------
+    message : str
+        Human-readable error message from the C++ core or Python layer.
+    error_code : int or None, optional
+        Numeric error code from the C binding layer. Default is ``None``.
+    recovery_suggestions : list of str or None, optional
+        Actionable suggestions for resolving the error. Default is ``None``.
+    c_call_site : str or None, optional
+        C++ source location where the error originated. Default is ``None``.
+
+    Attributes
+    ----------
+    message : str
+        The original error message.
+    error_code : int or None
+        Numeric error code, if available.
+    recovery_suggestions : list of str
+        List of recovery suggestions.
+    c_call_site : str or None
+        C++ call site information.
+
+    Examples
+    --------
+    >>> raise AcesException("Something went wrong", error_code=255)
+    """
 
     def __init__(
         self,
@@ -77,15 +123,6 @@ class AcesException(Exception):
         recovery_suggestions: Optional[List[str]] = None,
         c_call_site: Optional[str] = None,
     ):
-        """
-        Initialize exception with comprehensive error information.
-
-        Args:
-            message: Error message from C++ code
-            error_code: Optional error code from C binding layer
-            recovery_suggestions: Optional list of recovery suggestions
-            c_call_site: Optional C++ call site information for traceback
-        """
         self.message = message
         self.error_code = error_code
         self.recovery_suggestions = recovery_suggestions or []
@@ -99,8 +136,11 @@ class AcesException(Exception):
         """
         Format the complete error message with code, suggestions, and traceback.
 
-        Returns:
-            Formatted error message string
+        Returns
+        -------
+        str
+            Formatted multi-line error message including error code, C++ call
+            site, and numbered recovery suggestions.
         """
         lines = []
 
@@ -123,12 +163,29 @@ class AcesException(Exception):
         return "\n".join(lines)
 
     def __str__(self) -> str:
-        """Return formatted error message."""
+        """Return the formatted error message."""
         return self.args[0] if self.args else self.message
 
 
 class AcesConfigError(AcesException):
-    """Configuration validation or parsing error."""
+    """
+    Configuration validation or parsing error.
+
+    Raised when an ACES configuration file or object is invalid, contains
+    missing required fields, or fails schema validation.
+
+    Parameters
+    ----------
+    message : str
+        Description of the configuration error.
+    error_code : int or None, optional
+        Numeric error code. Default is ``None``.
+    recovery_suggestions : list of str or None, optional
+        Suggestions for fixing the configuration. If ``None``, default
+        suggestions for config errors are used.
+    c_call_site : str or None, optional
+        C++ source location. Default is ``None``.
+    """
 
     def __init__(
         self,
@@ -137,7 +194,6 @@ class AcesConfigError(AcesException):
         recovery_suggestions: Optional[List[str]] = None,
         c_call_site: Optional[str] = None,
     ):
-        """Initialize configuration error with recovery suggestions."""
         if recovery_suggestions is None:
             recovery_suggestions = RECOVERY_SUGGESTIONS.get(
                 error_code, RECOVERY_SUGGESTIONS.get(ACES_ERROR_INVALID_CONFIG)
@@ -146,7 +202,24 @@ class AcesConfigError(AcesException):
 
 
 class AcesComputationError(AcesException):
-    """Error during computation execution."""
+    """
+    Error during emission computation execution.
+
+    Raised when the ACES stacking engine or physics schemes encounter a
+    failure during the compute phase.
+
+    Parameters
+    ----------
+    message : str
+        Description of the computation error.
+    error_code : int or None, optional
+        Numeric error code. Default is ``None``.
+    recovery_suggestions : list of str or None, optional
+        Suggestions for resolving the computation failure. If ``None``,
+        default suggestions for computation errors are used.
+    c_call_site : str or None, optional
+        C++ source location. Default is ``None``.
+    """
 
     def __init__(
         self,
@@ -155,7 +228,6 @@ class AcesComputationError(AcesException):
         recovery_suggestions: Optional[List[str]] = None,
         c_call_site: Optional[str] = None,
     ):
-        """Initialize computation error with recovery suggestions."""
         if recovery_suggestions is None:
             recovery_suggestions = RECOVERY_SUGGESTIONS.get(
                 error_code, RECOVERY_SUGGESTIONS.get(ACES_ERROR_COMPUTATION_FAILED)
@@ -164,7 +236,24 @@ class AcesComputationError(AcesException):
 
 
 class AcesStateError(AcesException):
-    """Error in state management."""
+    """
+    Error in state management.
+
+    Raised when import or export field operations fail due to missing fields,
+    dimension mismatches, or invalid data types.
+
+    Parameters
+    ----------
+    message : str
+        Description of the state error.
+    error_code : int or None, optional
+        Numeric error code. Default is ``None``.
+    recovery_suggestions : list of str or None, optional
+        Suggestions for resolving the state issue. If ``None``, default
+        suggestions for state errors are used.
+    c_call_site : str or None, optional
+        C++ source location. Default is ``None``.
+    """
 
     def __init__(
         self,
@@ -173,7 +262,6 @@ class AcesStateError(AcesException):
         recovery_suggestions: Optional[List[str]] = None,
         c_call_site: Optional[str] = None,
     ):
-        """Initialize state error with recovery suggestions."""
         if recovery_suggestions is None:
             recovery_suggestions = RECOVERY_SUGGESTIONS.get(
                 error_code, RECOVERY_SUGGESTIONS.get(ACES_ERROR_INVALID_STATE)
@@ -182,7 +270,24 @@ class AcesStateError(AcesException):
 
 
 class AcesExecutionSpaceError(AcesException):
-    """Error in execution space configuration."""
+    """
+    Error in Kokkos execution space configuration.
+
+    Raised when a requested execution space (e.g., CUDA, OpenMP) is not
+    available in the current ACES build.
+
+    Parameters
+    ----------
+    message : str
+        Description of the execution space error.
+    error_code : int or None, optional
+        Numeric error code. Default is ``None``.
+    recovery_suggestions : list of str or None, optional
+        Suggestions for resolving the execution space issue. If ``None``,
+        default suggestions for execution space errors are used.
+    c_call_site : str or None, optional
+        C++ source location. Default is ``None``.
+    """
 
     def __init__(
         self,
@@ -191,7 +296,6 @@ class AcesExecutionSpaceError(AcesException):
         recovery_suggestions: Optional[List[str]] = None,
         c_call_site: Optional[str] = None,
     ):
-        """Initialize execution space error with recovery suggestions."""
         if recovery_suggestions is None:
             recovery_suggestions = RECOVERY_SUGGESTIONS.get(
                 error_code, RECOVERY_SUGGESTIONS.get(ACES_ERROR_INVALID_EXECUTION_SPACE)
@@ -205,15 +309,31 @@ def error_code_to_exception(
     c_call_site: Optional[str] = None,
 ) -> Optional[AcesException]:
     """
-    Convert C error code to Python exception with recovery suggestions.
+    Convert a C error code to the appropriate Python exception.
 
-    Args:
-        error_code: Error code from C binding layer
-        message: Error message from C layer
-        c_call_site: Optional C++ call site information for traceback
+    Maps numeric error codes from the C binding layer to the corresponding
+    ACES exception class, attaching default recovery suggestions.
 
-    Returns:
-        Exception instance of appropriate type, or None if success
+    Parameters
+    ----------
+    error_code : int
+        Error code from the C binding layer (e.g., ``ACES_ERROR_INVALID_CONFIG``).
+    message : str
+        Error message from the C layer.
+    c_call_site : str or None, optional
+        C++ call site information for traceback. Default is ``None``.
+
+    Returns
+    -------
+    AcesException or None
+        An exception instance of the appropriate subclass, or ``None`` if
+        ``error_code`` is ``ACES_SUCCESS``.
+
+    Examples
+    --------
+    >>> exc = error_code_to_exception(1, "Bad config")
+    >>> type(exc)
+    <class 'aces.exceptions.AcesConfigError'>
     """
     if error_code == ACES_SUCCESS:
         return None
