@@ -2,10 +2,10 @@
 
 #include <Kokkos_Core.hpp>
 
-#include "aces/aces_physics_factory.hpp"
-#include "aces/aces_state.hpp"
+#include "cece/cece_physics_factory.hpp"
+#include "cece/cece_state.hpp"
 
-namespace aces {
+namespace cece {
 
 class PhysicsTest : public ::testing::Test {
    public:
@@ -18,8 +18,8 @@ class PhysicsTest : public ::testing::Test {
     int nx = 4;
     int ny = 4;
     int nz = 2;
-    AcesImportState import_state;
-    AcesExportState export_state;
+    CeceImportState import_state;
+    CeceExportState export_state;
 
     void SetUp() override {
         // Common fields (Logical names)
@@ -105,7 +105,7 @@ void TestParity(PhysicsTest* test, const std::string& cpp_name, const std::strin
 
     if (scheme_cpp == nullptr || scheme_fort == nullptr ||
         fortran_name.find("fortran") != std::string_view::npos) {
-#ifndef ACES_HAS_FORTRAN
+#ifndef CECE_HAS_FORTRAN
         std::cout << "Skipping parity test for " << cpp_name << " (Fortran disabled).\n";
         return;
 #endif
@@ -372,7 +372,7 @@ TEST_F(PhysicsTest, ConfigurableParameters) {
     EXPECT_NEAR(val, 1.3946e-10, 1e-13);
 }
 
-}  // namespace aces
+}  // namespace cece
 
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);

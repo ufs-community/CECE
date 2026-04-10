@@ -1,0 +1,74 @@
+# Multi-stream NO emissions example
+driver:
+  start_time: "2020-01-01T00:00:00"
+  end_time: "2020-01-01T04:00:00"
+  timestep_seconds: 3600
+
+grid:
+  nx: 4
+  ny: 4
+  lon_min: -135.0
+  lon_max: 135.0
+  lat_min: -67.5
+  lat_max: 67.5
+
+species:
+  no:
+    - field: "EDGAR_NO_POW"
+      category: "anthropogenic"
+      operation: "add"
+    - field: "CEDS_NO_AGR"
+      category: "anthropogenic"
+      operation: "add"
+
+cece_data:
+  streams:
+    - name: "EDGAR_NO_POW"
+      file: "/work/data/EDGAR_v43.NOx.POW.nc"
+      yearFirst: 2000
+      yearLast: 2010
+      yearAlign: 2020
+      taxmode: "cycle"
+      tintalgo: "linear"
+      mapalgo: "consd"
+      variables:
+        - file: "NOx_POW"
+          model: "EDGAR_NO_POW"
+    - name: "CEDS_NO_AGR"
+      file: "/work/data/ALK4_butanes-em-total-anthro_CEDS_1970.nc"
+      yearFirst: 1970
+      yearLast: 1970
+      yearAlign: 2020
+      taxmode: "extend"
+      tintalgo: "linear"
+      mapalgo: "consd"
+      variables:
+        - file: "ALK4_butanes"
+          model: "CEDS_NO_AGR"
+
+diagnostics:
+  output_interval_seconds: 3600
+  variables: ["no"]
+grid:
+  nx: 4
+  ny: 4
+  lon_min: -135.0
+  lon_max: 135.0
+  lat_min: -67.5
+  lat_max: 67.5
+
+species:
+  no:
+    - field: "EDGAR_NO_POW"
+      category: "anthropogenic"
+      operation: "add"
+    - field: "CEDS_NO_AGR"
+      category: "anthropogenic"
+      operation: "add"
+
+cece_data:
+  streams:
+    - name: "EDGAR_NO_POW"
+      file: "/work/data/EDGAR_v43.NOx.POW.nc"
+    - name: "CEDS_NO_AGR"
+      file: "/work/data/ALK4_butanes-em-total-anthro_CEDS_1970.nc"

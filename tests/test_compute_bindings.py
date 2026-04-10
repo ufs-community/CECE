@@ -1,5 +1,5 @@
 """
-Tests for pybind11 compute and StackingEngine bindings (_aces_core module).
+Tests for pybind11 compute and StackingEngine bindings (_cece_core module).
 
 Tests StackingEngine construction, GIL release during ComputeEmissions and
 StackingEngine.Execute, and C++ exception translation during compute.
@@ -12,30 +12,30 @@ import time
 import pytest
 import numpy as np
 
-# Add the build output directory to the path so _aces_core can be imported
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "build", "src", "python", "aces"))
+# Add the build output directory to the path so _cece_core can be imported
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "build", "src", "python", "cece"))
 
-import _aces_core
+import _cece_core
 
 
 @pytest.fixture(scope="session", autouse=True)
 def kokkos_runtime():
     """Initialize Kokkos once for the entire test session."""
-    _aces_core.initialize_kokkos()
+    _cece_core.initialize_kokkos()
     yield
 
 
 def _make_compute_setup(nx=4, ny=4, nz=1):
     """Helper: create a config, import/export states, and resolver for compute tests."""
-    config = _aces_core.AcesConfig()
-    layer = _aces_core.EmissionLayer()
+    config = _cece_core.CeceConfig()
+    layer = _cece_core.EmissionLayer()
     layer.operation = "add"
     layer.field_name = "test_field"
     layer.scale = 1.0
-    _aces_core.AddSpecies(config, "TEST", [layer])
+    _cece_core.AddSpecies(config, "TEST", [layer])
 
-    import_state = _aces_core.AcesImportState()
-    export_state = _aces_core.AcesExportState()
+    import_state = _cece_core.CeceImportState()
+    export_state = _cece_core.CeceExportState()
 
     # Set up import field
     field_data = np.asfortranarray(np.ones((nx, ny, nz), dtype=np.float64))
@@ -45,7 +45,7 @@ def _make_compute_setup(nx=4, ny=4, nz=1):
     export_data = np.asfortranarray(np.zeros((nx, ny, nz), dtype=np.float64))
     export_state.set_field("TEST", export_data)
 
-    resolver = _aces_core.AcesStateResolver(
+    resolver = _cece_core.CeceStateResolver(
         import_state, export_state,
         {"test_field": "test_field"},
     )
@@ -53,40 +53,40 @@ def _make_compute_setup(nx=4, ny=4, nz=1):
 
 
 class TestStackingEngineConstruction:
-    """Tests for StackingEngine construction from AcesConfig."""
+    """Tests for StackingEngine construction from CeceConfig."""
 
     def test_construct_from_empty_config(self):
-        """Test StackingEngine can be constructed from an empty AcesConfig."""
-        config = _aces_core.AcesConfig()
-        engine = _aces_core.StackingEngine(config)
+        """Test StackingEngine can be constructed from an empty CeceConfig."""
+        config = _cece_core.CeceConfig()
+        engine = _cece_core.StackingEngine(config)
         assert engine is not None
 
     def test_construct_from_config_with_species(self):
         """Test StackingEngine construction with a config that has species."""
-        config = _aces_core.AcesConfig()
-        layer = _aces_core.EmissionLayer()
+        config = _cece_core.CeceConfig()
+        layer = _cece_core.EmissionLayer()
         layer.operation = "add"
         layer.field_name = "co_emis"
         layer.scale = 1.0
-        _aces_core.AddSpecies(config, "CO", [layer])
-        engine = _aces_core.StackingEngine(config)
+        _cece_core.AddSpecies(config, "CO", [layer])
+        engine = _cece_core.StackingEngine(config)
         assert engine is not None
 
     def test_reset_bindings(self):
         """Test that ResetBindings can be called without error."""
-        config = _aces_core.AcesConfig()
-        engine = _aces_core.StackingEngine(config)
+        config = _cece_core.CeceConfig()
+        engine = _cece_core.StackingEngine(config)
         engine.ResetBindings()
 
     def test_add_species(self):
         """Test that AddSpecies can be called on the engine."""
-        config = _aces_core.AcesConfig()
-        layer = _aces_core.EmissionLayer()
+        config = _cece_core.CeceConfig()
+        layer = _cece_core.EmissionLayer()
         layer.operation = "add"
         layer.field_name = "no_emis"
         layer.scale = 1.0
-        _aces_core.AddSpecies(config, "NO", [layer])
-        engine = _aces_core.StackingEngine(config)
+        _cece_core.AddSpecies(config, "NO", [layer])
+        engine = _cece_core.StackingEngine(config)
         # AddSpecies on the engine for a species already in config
         engine.AddSpecies("NO")
 
@@ -114,7 +114,7 @@ class TestGILRelease:
         t.start()
 
         # Call compute_emissions — this releases the GIL via call_guard
-        _aces_core.compute_emissions(config, resolver, 4, 4, 1)
+        _cece_core.compute_emissions(config, resolver, 4, 4, 1)
 
         t.join(timeout=5.0)
         assert thread_ran.is_set(), "Background thread should have run (GIL was released)"
@@ -122,7 +122,7 @@ class TestGILRelease:
     def test_stacking_engine_execute_releases_gil(self):
         """Verify StackingEngine.Execute releases the GIL."""
         config, import_state, export_state, resolver = _make_compute_setup()
-        engine = _aces_core.StackingEngine(config)
+        engine = _cece_core.StackingEngine(config)
 
         thread_ran = threading.Event()
 
@@ -143,25 +143,25 @@ class TestComputeExceptionTranslation:
 
     def test_compute_emissions_with_empty_config_no_crash(self):
         """Test that compute_emissions with empty config doesn't crash."""
-        config = _aces_core.AcesConfig()
-        import_state = _aces_core.AcesImportState()
-        export_state = _aces_core.AcesExportState()
-        resolver = _aces_core.AcesStateResolver(import_state, export_state, {})
+        config = _cece_core.CeceConfig()
+        import_state = _cece_core.CeceImportState()
+        export_state = _cece_core.CeceExportState()
+        resolver = _cece_core.CeceStateResolver(import_state, export_state, {})
 
         # Empty config = no species = should be a no-op or raise, not crash
         try:
-            _aces_core.compute_emissions(config, resolver, 4, 4, 1)
+            _cece_core.compute_emissions(config, resolver, 4, 4, 1)
         except Exception as e:
             assert isinstance(e, Exception)
 
     def test_stacking_engine_execute_with_empty_config_no_crash(self):
         """Test StackingEngine.Execute with empty config doesn't crash."""
-        config = _aces_core.AcesConfig()
-        import_state = _aces_core.AcesImportState()
-        export_state = _aces_core.AcesExportState()
-        resolver = _aces_core.AcesStateResolver(import_state, export_state, {})
+        config = _cece_core.CeceConfig()
+        import_state = _cece_core.CeceImportState()
+        export_state = _cece_core.CeceExportState()
+        resolver = _cece_core.CeceStateResolver(import_state, export_state, {})
 
-        engine = _aces_core.StackingEngine(config)
+        engine = _cece_core.StackingEngine(config)
         # Empty config = no species = should be a no-op or raise, not crash
         try:
             engine.Execute(resolver, 4, 4, 1)

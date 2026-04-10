@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.20)
 
-# Python bindings for ACES via pybind11
+# Python bindings for CECE via pybind11
 
 # Find Python
 find_package(Python3 COMPONENTS Interpreter Development.Module REQUIRED)
@@ -24,17 +24,17 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(pybind11)
 
 # Build the pybind11 extension module
-pybind11_add_module(_aces_core aces_pybind.cpp)
+pybind11_add_module(_cece_core cece_pybind.cpp)
 
-target_link_libraries(_aces_core PRIVATE aces Kokkos::kokkos yaml-cpp)
+target_link_libraries(_cece_core PRIVATE cece Kokkos::kokkos yaml-cpp)
 
-# Place the compiled .so in the aces package directory
-set_target_properties(_aces_core PROPERTIES
-    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/aces"
+# Place the compiled .so in the cece package directory
+set_target_properties(_cece_core PROPERTIES
+    LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/cece"
 )
 
 # Create Python package directory
-file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/aces")
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/cece")
 
 # Copy Python source files to build directory (excluding old binding files)
 file(COPY
@@ -44,7 +44,7 @@ file(COPY
     exceptions.py
     utils.py
     py.typed
-    DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/aces"
+    DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/cece"
 )
 
 # Create setup.py for installation
@@ -52,13 +52,13 @@ file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/setup.py"
 "from setuptools import setup, find_packages
 
 setup(
-    name='aces',
+    name='cece',
     version='0.1.0',
-    description='Python interface to ACES (Atmospheric Chemistry Emissions System)',
-    author='ACES Development Team',
+    description='Python interface to CECE (Atmospheric Chemistry Emissions System)',
+    author='CECE Development Team',
     packages=find_packages(),
     package_data={
-        'aces': ['*.so', '*.dylib', '*.dll', 'py.typed'],
+        'cece': ['*.so', '*.dylib', '*.dll', 'py.typed'],
     },
     python_requires='>=3.8',
     install_requires=[
@@ -70,19 +70,19 @@ setup(
 ")
 
 # Installation targets
-install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/aces"
+install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/cece"
     DESTINATION "${Python3_SITELIB}"
     COMPONENT python
 )
 
 # Custom target for Python package
 add_custom_target(python_package ALL
-    DEPENDS _aces_core
-    COMMENT "Python ACES package ready in ${CMAKE_CURRENT_BINARY_DIR}/aces"
+    DEPENDS _cece_core
+    COMMENT "Python CECE package ready in ${CMAKE_CURRENT_BINARY_DIR}/cece"
 )
 
 message(STATUS "Python bindings configuration:")
 message(STATUS "  Binding method: pybind11 (v2.12.0 via FetchContent)")
-message(STATUS "  Extension module: _aces_core")
-message(STATUS "  Package directory: ${CMAKE_CURRENT_BINARY_DIR}/aces")
-message(STATUS "  Installation target: ${Python3_SITELIB}/aces")
+message(STATUS "  Extension module: _cece_core")
+message(STATUS "  Package directory: ${CMAKE_CURRENT_BINARY_DIR}/cece")
+message(STATUS "  Installation target: ${Python3_SITELIB}/cece")

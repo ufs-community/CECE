@@ -32,8 +32,8 @@ def test_download_hemco_data_cli():
     assert result.returncode == 0
     assert "Download HEMCO data" in result.stdout
 
-def test_hemco_to_aces_cli_error():
-    script = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'scripts', 'hemco_to_aces.py'))
+def test_hemco_to_cece_cli_error():
+    script = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'scripts', 'hemco_to_cece.py'))
 
     # Test missing argument
     result = subprocess.run([sys.executable, script], capture_output=True, text=True)

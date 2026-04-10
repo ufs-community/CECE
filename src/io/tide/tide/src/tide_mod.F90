@@ -237,7 +237,7 @@ contains
 
       ! Initialize each stream using DSHR_STRDATA
       call shr_strdata_init_from_config(tide%sdat(1), trim(config_file), &
-                                       model_mesh, clock, "ACES", 6, rc)
+                                       model_mesh, clock, "CECE", 6, rc)
       if (rc /= ESMF_SUCCESS) then
         write(*,*) "ERROR: [TIDE] Failed to initialize stream from ESMF Config file."
         return

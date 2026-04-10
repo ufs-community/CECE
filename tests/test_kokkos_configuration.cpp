@@ -4,7 +4,7 @@
  *
  * Tests verify:
  * - Kokkos initialization with different execution spaces
- * - Environment variable handling (OMP_NUM_THREADS, ACES_DEVICE_ID)
+ * - Environment variable handling (OMP_NUM_THREADS, CECE_DEVICE_ID)
  * - Runtime configuration queries
  * - Execution space availability checks
  *
@@ -18,7 +18,7 @@
 #include <iostream>
 #include <string>
 
-#include "aces/aces_kokkos_config.hpp"
+#include "cece/cece_kokkos_config.hpp"
 
 class KokkosConfigurationTest : public ::testing::Test {
    protected:
@@ -41,7 +41,7 @@ TEST_F(KokkosConfigurationTest, KokkosIsInitialized) {
  * Requirement: 6.13
  */
 TEST_F(KokkosConfigurationTest, GetDefaultExecutionSpaceName) {
-    std::string space_name = aces::GetDefaultExecutionSpaceName();
+    std::string space_name = cece::GetDefaultExecutionSpaceName();
     EXPECT_FALSE(space_name.empty());
 
     // Should be one of the enabled execution spaces
@@ -56,7 +56,7 @@ TEST_F(KokkosConfigurationTest, GetDefaultExecutionSpaceName) {
  */
 TEST_F(KokkosConfigurationTest, PrintKokkosConfiguration) {
     // This should not throw or crash
-    EXPECT_NO_THROW(aces::PrintKokkosConfiguration());
+    EXPECT_NO_THROW(cece::PrintKokkosConfiguration());
 }
 
 /**
@@ -65,12 +65,12 @@ TEST_F(KokkosConfigurationTest, PrintKokkosConfiguration) {
  */
 TEST_F(KokkosConfigurationTest, GetOpenMPThreadCount) {
 #ifdef KOKKOS_ENABLE_OPENMP
-    int thread_count = aces::GetOpenMPThreadCount();
+    int thread_count = cece::GetOpenMPThreadCount();
     EXPECT_GT(thread_count, 0);
     EXPECT_LE(thread_count, 1024);  // Sanity check
 #else
     // If OpenMP is not enabled, should return 1
-    int thread_count = aces::GetOpenMPThreadCount();
+    int thread_count = cece::GetOpenMPThreadCount();
     EXPECT_EQ(thread_count, 1);
 #endif
 }
@@ -81,12 +81,12 @@ TEST_F(KokkosConfigurationTest, GetOpenMPThreadCount) {
  */
 TEST_F(KokkosConfigurationTest, GetGPUDeviceID) {
 #if defined(KOKKOS_ENABLE_CUDA) || defined(KOKKOS_ENABLE_HIP)
-    int device_id = aces::GetGPUDeviceID();
+    int device_id = cece::GetGPUDeviceID();
     EXPECT_GE(device_id, 0);
     EXPECT_LT(device_id, 16);  // Sanity check - unlikely to have 16+ GPUs
 #else
     // If GPU is not enabled, should return 0
-    int device_id = aces::GetGPUDeviceID();
+    int device_id = cece::GetGPUDeviceID();
     EXPECT_EQ(device_id, 0);
 #endif
 }
@@ -99,11 +99,11 @@ TEST_F(KokkosConfigurationTest, GetKokkosEnvVar) {
     // Set a test environment variable
     setenv("TEST_KOKKOS_VAR", "test_value", 1);
 
-    std::string value = aces::GetKokkosEnvVar("TEST_KOKKOS_VAR", "default");
+    std::string value = cece::GetKokkosEnvVar("TEST_KOKKOS_VAR", "default");
     EXPECT_EQ(value, "test_value");
 
     // Test default value when variable not set
-    std::string default_value = aces::GetKokkosEnvVar("NONEXISTENT_VAR", "default");
+    std::string default_value = cece::GetKokkosEnvVar("NONEXISTENT_VAR", "default");
     EXPECT_EQ(default_value, "default");
 
     // Clean up

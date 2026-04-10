@@ -18,7 +18,7 @@
 #include <cstdint>
 #include <vector>
 
-namespace aces {
+namespace cece {
 
 /**
  * @brief Simple clock model for testing clock operations.
@@ -548,7 +548,7 @@ TEST_F(ClockLifecycleTest, VeryLongSimulation) {
     EXPECT_TRUE(clock.IsAtStopTime());
 }
 
-}  // namespace aces
+}  // namespace cece
 
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);

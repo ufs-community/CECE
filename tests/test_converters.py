@@ -4,15 +4,15 @@ import yaml
 import pytest
 import sys
 
-def test_hemco_to_aces_conversion(tmp_path):
+def test_hemco_to_cece_conversion(tmp_path):
     # Use paths relative to this test file
     test_dir = os.path.dirname(__file__)
     hemco_rc = os.path.join(test_dir, "test_hemco.rc")
-    aces_yaml = tmp_path / "aces_config_converted.yaml"
-    script = os.path.join(test_dir, "..", "scripts", "hemco_to_aces.py")
+    cece_yaml = tmp_path / "cece_config_converted.yaml"
+    script = os.path.join(test_dir, "..", "scripts", "hemco_to_cece.py")
 
     # Run conversion using sys.executable
-    result = subprocess.run([sys.executable, script, hemco_rc, "-o", str(aces_yaml)],
+    result = subprocess.run([sys.executable, script, hemco_rc, "-o", str(cece_yaml)],
                             capture_output=True, text=True)
 
     if result.returncode != 0:
@@ -23,7 +23,7 @@ def test_hemco_to_aces_conversion(tmp_path):
     assert "Successfully converted" in result.stdout
 
     # Verify content
-    with open(aces_yaml, 'r') as f:
+    with open(cece_yaml, 'r') as f:
         config = yaml.safe_load(f)
 
     assert "species" in config
@@ -54,5 +54,5 @@ def test_hemco_to_aces_conversion(tmp_path):
         assert "EmisNO_Total" in diag_vars
 
     # Check ROOT replacement (our test rc has ROOT: data)
-    stream = next(s for s in config["aces_data"]["streams"] if s["name"].upper() == "HOURLY_SCALFACT")
+    stream = next(s for s in config["cece_data"]["streams"] if s["name"].upper() == "HOURLY_SCALFACT")
     assert stream["file"] == "data/hourly.nc"

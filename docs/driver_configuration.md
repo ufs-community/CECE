@@ -1,8 +1,8 @@
-# ACES Standalone NUOPC Driver Configuration Guide
+# CECE Standalone NUOPC Driver Configuration Guide
 
 ## Overview
 
-The ACES standalone NUOPC driver (`aces_nuopc_single_driver`) executes the ACES emissions component for a configurable number of timesteps with proper clock management, grid/mesh creation, and synchronization. The driver is designed for both standalone testing and future coupling readiness.
+The CECE standalone NUOPC driver (`cece_nuopc_single_driver`) executes the CECE emissions component for a configurable number of timesteps with proper clock management, grid/mesh creation, and synchronization. The driver is designed for both standalone testing and future coupling readiness.
 
 ## Configuration Methods
 
@@ -10,9 +10,9 @@ The driver supports two configuration approaches:
 
 ### 1. YAML Configuration File (Recommended)
 
-The driver reads an optional `driver` section from the ACES YAML configuration file. This is the recommended approach for reproducible simulations.
+The driver reads an optional `driver` section from the CECE YAML configuration file. This is the recommended approach for reproducible simulations.
 
-**Default config file**: `aces_config.yaml`
+**Default config file**: `cece_config.yaml`
 
 **Command-line override**: `--config /path/to/config.yaml`
 
@@ -205,10 +205,10 @@ The driver uses the following logic to select spatial discretization:
 
 When the driver is executed directly (not invoked by a NUOPC_Driver framework):
 
-- Reads timing and grid/mesh parameters from ACES config file
+- Reads timing and grid/mesh parameters from CECE config file
 - Creates ESMF clock with parsed parameters
 - Creates grid/mesh based on configuration
-- Executes ACES component through all NUOPC phases
+- Executes CECE component through all NUOPC phases
 - Manually manages clock advancement (if needed)
 
 **Requirements**: 15.1, 15.3
@@ -296,7 +296,7 @@ The driver validates configuration parameters and exits with status 1 if validat
 The driver logs all configuration values during initialization:
 
 ```
-INFO: [Driver] Config file:   aces_config.yaml
+INFO: [Driver] Config file:   cece_config.yaml
 INFO: [Driver] Start time:    2020-01-01T00:00:00
 INFO: [Driver] End time:      2020-01-02T00:00:00
 INFO: [Driver] Time step (s): 3600
@@ -414,7 +414,7 @@ The driver implements comprehensive error handling:
 - Missing mesh file
 - Invalid mesh file
 - ESMF operation failures
-- ACES component failures
+- CECE component failures
 
 ### Non-Fatal Errors (Log warning, continue)
 
@@ -427,12 +427,12 @@ The driver implements comprehensive error handling:
 
 This documentation covers the following requirements:
 
-- **Requirement 1**: Configurable start time via ACES config file
-- **Requirement 2**: Configurable end time via ACES config file
-- **Requirement 3**: Configurable timestep via ACES config file
+- **Requirement 1**: Configurable start time via CECE config file
+- **Requirement 2**: Configurable end time via CECE config file
+- **Requirement 3**: Configurable timestep via CECE config file
 - **Requirement 4**: ESMF clock creation with proper configuration
 - **Requirement 12**: Large grid synchronization (>50k points)
-- **Requirement 14**: Grid and mesh configuration via ACES config file
+- **Requirement 14**: Grid and mesh configuration via CECE config file
 - **Requirement 15**: Optional driver configuration in coupled mode
 - **Requirement 18**: Error handling and logging
 - **Requirement 19**: Driver configuration documentation
@@ -440,6 +440,6 @@ This documentation covers the following requirements:
 
 ## See Also
 
-- [ACES Configuration Guide](configuration.md)
-- [ACES Developer Guide](developer_guide.md)
+- [CECE Configuration Guide](configuration.md)
+- [CECE Developer Guide](developer_guide.md)
 - [NUOPC Reference Manual](https://earthsystemmodeling.org/docs/release/latest/NUOPC_refdoc)

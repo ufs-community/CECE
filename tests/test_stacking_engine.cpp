@@ -3,11 +3,11 @@
 #include <Kokkos_Core.hpp>
 #include <map>
 
-#include "aces/aces_compute.hpp"
-#include "aces/aces_config.hpp"
-#include "aces/aces_stacking_engine.hpp"
+#include "cece/cece_compute.hpp"
+#include "cece/cece_config.hpp"
+#include "cece/cece_stacking_engine.hpp"
 
-namespace aces {
+namespace cece {
 
 /**
  * @brief FieldResolver implementation that works with actual Kokkos DualViews.
@@ -64,7 +64,7 @@ class StackingEngineTest : public ::testing::Test {
  */
 TEST_F(StackingEngineTest, HierarchyReplacement) {
     int nx = 1, ny = 1, nz = 1;
-    AcesConfig config;
+    CeceConfig config;
 
     // Layer 1: Add 10.0 (Hierarchy 1)
     EmissionLayer l1;
@@ -101,7 +101,7 @@ TEST_F(StackingEngineTest, HierarchyReplacement) {
  */
 TEST_F(StackingEngineTest, DefaultMaskApplication) {
     int nx = 1, ny = 1, nz = 1;
-    AcesConfig config;
+    CeceConfig config;
 
     EmissionLayer l1;
     l1.operation = "add";
@@ -133,7 +133,7 @@ TEST_F(StackingEngineTest, DefaultMaskApplication) {
  */
 TEST_F(StackingEngineTest, ComplexFusionLogic) {
     int nx = 1, ny = 1, nz = 1;
-    AcesConfig config;
+    CeceConfig config;
 
     // Layer 1: Base (Add 10)
     EmissionLayer l1;
@@ -187,4 +187,4 @@ TEST_F(StackingEngineTest, ComplexFusionLogic) {
     EXPECT_NEAR(resolver.GetValue("complex_species"), 16.0, 1e-9);
 }
 
-}  // namespace aces
+}  // namespace cece

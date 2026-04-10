@@ -1,8 +1,8 @@
 /**
  * @file test_properties.cpp
- * @brief Comprehensive Property-Based Test Suite for ACES
+ * @brief Comprehensive Property-Based Test Suite for CECE
  *
- * This file implements all 23 correctness properties for ACES using property-based testing.
+ * This file implements all 23 correctness properties for CECE using property-based testing.
  * Each property is tested with 100+ iterations using randomly generated inputs.
  *
  * Properties are organized into categories:
@@ -29,7 +29,7 @@
 #include <vector>
 
 // Forward declarations for test utilities
-namespace aces {
+namespace cece {
 namespace test {
 
 /**
@@ -139,7 +139,7 @@ class PropertyTestGenerator {
 };
 
 }  // namespace test
-}  // namespace aces
+}  // namespace cece
 
 // ============================================================================
 // PROPERTY-BASED TEST SUITE
@@ -161,7 +161,7 @@ class PropertiesTest : public ::testing::Test {
         // Kokkos finalization handled by test framework
     }
 
-    aces::test::PropertyTestGenerator gen_{42};
+    cece::test::PropertyTestGenerator gen_{42};
     static constexpr int NUM_ITERATIONS = 100;
 };
 
@@ -279,7 +279,7 @@ TEST_F(PropertiesTest, Property16_StreamsConfigurationRoundTrip) {
  * @test Property 23: Output Round-Trip
  * @brief Validates: Requirements 11.14
  *
- * FOR ALL export fields written by AcesStandaloneWriter, reading back the
+ * FOR ALL export fields written by CeceStandaloneWriter, reading back the
  * NetCDF output SHALL produce values matching in-memory export state.
  */
 TEST_F(PropertiesTest, Property23_OutputRoundTrip) {
@@ -349,7 +349,7 @@ TEST_F(PropertiesTest, Property12_BasePhysicsSchemeFieldCaching) {
  * @test Property 7: HEMCO Configuration Conversion
  * @brief Validates: Requirements 3.11, 3.18
  *
- * FOR ALL HEMCO configurations, converting to YAML_Config → executing ACES
+ * FOR ALL HEMCO configurations, converting to YAML_Config → executing CECE
  * SHALL produce emissions within 0.1% of HEMCO output.
  */
 TEST_F(PropertiesTest, Property7_HEMCOConfigurationConversion) {
@@ -392,20 +392,20 @@ TEST_F(PropertiesTest, Property20_ScaleFactorCommutativity) {
  * FOR ALL test configurations, running tests twice SHALL produce identical
  * results (pass/fail status and numerical outputs).
  *
- * This property validates that the ACES test suite is deterministic:
+ * This property validates that the CECE test suite is deterministic:
  * - All tests produce the same pass/fail results on repeated runs
  * - All numerical outputs are identical (within floating-point precision)
  * - No random state leaks between test runs
  * - No file system state affects test results
  *
  * Implementation Strategy:
- * 1. Run a representative subset of ACES tests with deterministic seeds
+ * 1. Run a representative subset of CECE tests with deterministic seeds
  * 2. Capture pass/fail status and numerical outputs from first run
  * 3. Run the same tests again with identical configuration
  * 4. Compare results from both runs
  * 5. Verify complete match (idempotence property holds)
  *
- * This test validates that ACES is suitable for production use where
+ * This test validates that CECE is suitable for production use where
  * reproducibility is critical for debugging and validation.
  */
 TEST_F(PropertiesTest, Property17_TestIdempotence) {
@@ -418,8 +418,8 @@ TEST_F(PropertiesTest, Property17_TestIdempotence) {
     // Test 2: Deterministic grid dimension generation
     // Generate grid dimensions with fixed seed twice and verify identical results
     {
-        aces::test::PropertyTestGenerator gen1(42);
-        aces::test::PropertyTestGenerator gen2(42);
+        cece::test::PropertyTestGenerator gen1(42);
+        cece::test::PropertyTestGenerator gen2(42);
 
         for (int i = 0; i < 20; ++i) {
             auto [nx1, ny1, nz1] = gen1.GenerateGridDimensions();
@@ -434,8 +434,8 @@ TEST_F(PropertiesTest, Property17_TestIdempotence) {
     // Test 3: Deterministic emission value generation
     // Generate emissions with fixed seed twice and verify identical values
     {
-        aces::test::PropertyTestGenerator gen1(42);
-        aces::test::PropertyTestGenerator gen2(42);
+        cece::test::PropertyTestGenerator gen1(42);
+        cece::test::PropertyTestGenerator gen2(42);
 
         for (int i = 0; i < 10; ++i) {
             auto emissions1 = gen1.GenerateEmissions(100);
@@ -452,8 +452,8 @@ TEST_F(PropertiesTest, Property17_TestIdempotence) {
     // Test 4: Deterministic scale factor generation
     // Generate scale factors with fixed seed twice and verify identical values
     {
-        aces::test::PropertyTestGenerator gen1(42);
-        aces::test::PropertyTestGenerator gen2(42);
+        cece::test::PropertyTestGenerator gen1(42);
+        cece::test::PropertyTestGenerator gen2(42);
 
         for (int i = 0; i < 20; ++i) {
             double scale1 = gen1.GenerateScale();
@@ -466,8 +466,8 @@ TEST_F(PropertiesTest, Property17_TestIdempotence) {
     // Test 5: Deterministic layer range generation
     // Generate layer ranges with fixed seed twice and verify identical results
     {
-        aces::test::PropertyTestGenerator gen1(42);
-        aces::test::PropertyTestGenerator gen2(42);
+        cece::test::PropertyTestGenerator gen1(42);
+        cece::test::PropertyTestGenerator gen2(42);
 
         for (int i = 0; i < 20; ++i) {
             auto [start1, end1] = gen1.GenerateLayerRange(50);
@@ -481,8 +481,8 @@ TEST_F(PropertiesTest, Property17_TestIdempotence) {
     // Test 6: Deterministic pressure range generation
     // Generate pressure ranges with fixed seed twice and verify identical results
     {
-        aces::test::PropertyTestGenerator gen1(42);
-        aces::test::PropertyTestGenerator gen2(42);
+        cece::test::PropertyTestGenerator gen1(42);
+        cece::test::PropertyTestGenerator gen2(42);
 
         for (int i = 0; i < 20; ++i) {
             auto [p_start1, p_end1] = gen1.GeneratePressureRange();
@@ -496,8 +496,8 @@ TEST_F(PropertiesTest, Property17_TestIdempotence) {
     // Test 7: Deterministic height range generation
     // Generate height ranges with fixed seed twice and verify identical results
     {
-        aces::test::PropertyTestGenerator gen1(42);
-        aces::test::PropertyTestGenerator gen2(42);
+        cece::test::PropertyTestGenerator gen1(42);
+        cece::test::PropertyTestGenerator gen2(42);
 
         for (int i = 0; i < 20; ++i) {
             auto [h_start1, h_end1] = gen1.GenerateHeightRange();
@@ -511,8 +511,8 @@ TEST_F(PropertiesTest, Property17_TestIdempotence) {
     // Test 8: Deterministic mask generation
     // Generate masks with fixed seed twice and verify identical values
     {
-        aces::test::PropertyTestGenerator gen1(42);
-        aces::test::PropertyTestGenerator gen2(42);
+        cece::test::PropertyTestGenerator gen1(42);
+        cece::test::PropertyTestGenerator gen2(42);
 
         for (int i = 0; i < 10; ++i) {
             auto mask1 = gen1.GenerateMask(100);
@@ -567,8 +567,8 @@ TEST_F(PropertiesTest, Property17_TestIdempotence) {
     // Perform identical floating-point computations twice and verify identical results
     {
         std::vector<double> values1, values2;
-        aces::test::PropertyTestGenerator gen1(42);
-        aces::test::PropertyTestGenerator gen2(42);
+        cece::test::PropertyTestGenerator gen1(42);
+        cece::test::PropertyTestGenerator gen2(42);
 
         // Generate identical input values
         auto inputs1 = gen1.GenerateEmissions(50);
@@ -626,7 +626,7 @@ TEST_F(PropertiesTest, Property18_ErrorMessageActionability) {
  * @brief Validates: Requirements 1.7
  *
  * FOR ALL CDEPS failures (missing file, invalid variable, read error),
- * ACES SHALL log error and return non-zero code without crashing.
+ * CECE SHALL log error and return non-zero code without crashing.
  */
 TEST_F(PropertiesTest, Property22_CDEPSErrorHandling) {
     /**
@@ -634,7 +634,7 @@ TEST_F(PropertiesTest, Property22_CDEPSErrorHandling) {
      * @brief Validates: Requirements 1.7
      *
      * FOR ALL CDEPS error conditions (missing file, invalid variable, read error),
-     * ACES SHALL log a descriptive error message and return a non-zero error code
+     * CECE SHALL log a descriptive error message and return a non-zero error code
      * without crashing or segfaulting.
      *
      * This property is validated by comprehensive property-based tests in
@@ -647,9 +647,9 @@ TEST_F(PropertiesTest, Property22_CDEPSErrorHandling) {
      * - Multiple sequential errors
      *
      * For each error condition, the tests verify:
-     * 1. ACES returns non-zero error code
+     * 1. CECE returns non-zero error code
      * 2. Descriptive error message is logged
-     * 3. ACES doesn't crash or segfault
+     * 3. CECE doesn't crash or segfault
      * 4. ESMF handles remain valid after error
      *
      * @see test_cdeps_error_handling_property.cpp for full implementation
@@ -698,7 +698,7 @@ TEST_F(PropertiesTest, Property19_TemporalCycleApplication) {
  * @test Property 9: Dynamic Species Registration
  * @brief Validates: Requirements 3.14, 3.15
  *
- * FOR ALL new emission species added to YAML at runtime, ACES SHALL create
+ * FOR ALL new emission species added to YAML at runtime, CECE SHALL create
  * export field without recompilation.
  */
 TEST_F(PropertiesTest, Property9_DynamicSpeciesRegistration) {
@@ -780,7 +780,7 @@ TEST_F(PropertiesTest, Property21_CommandLineConfiguration) {
  * @test Summary: All 23 Properties Validated
  *
  * This test verifies that all 23 correctness properties are implemented
- * and validated across the ACES codebase:
+ * and validated across the CECE codebase:
  *
  * Round-Trip Properties (4):
  *   1. CDEPS Stream File Validation

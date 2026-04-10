@@ -1,6 +1,6 @@
 # Configuration Reference
 
-ACES is configured using a YAML file, typically named `aces_config.yaml`. This file defines the species to be processed, the source of data, and the active physics schemes.
+CECE is configured using a YAML file, typically named `cece_config.yaml`. This file defines the species to be processed, the source of data, and the active physics schemes.
 
 ## Top-Level Structure
 
@@ -32,7 +32,7 @@ physics_schemes:
 diagnostics:
   # ... diagnostic settings and output configuration ...
 
-aces_data:
+cece_data:
   # ... TIDE data stream settings ...
 
 output:
@@ -43,7 +43,7 @@ output:
 
 ## `driver`
 
-The `driver` section configures the execution timing and control parameters for ACES simulations.
+The `driver` section configures the execution timing and control parameters for CECE simulations.
 
 | Key | Type | Description |
 | --- | --- | --- |
@@ -89,7 +89,7 @@ grid:
 
 ## `meteorology`
 
-Maps ACES internal field names to external data source field names for meteorological inputs.
+Maps CECE internal field names to external data source field names for meteorological inputs.
 
 **Example:**
 ```yaml
@@ -104,7 +104,7 @@ meteorology:
 
 ## `scale_factors`
 
-Maps ACES internal scale factor names to external field names for dynamic scaling.
+Maps CECE internal scale factor names to external field names for dynamic scaling.
 
 **Example:**
 ```yaml
@@ -118,7 +118,7 @@ scale_factors:
 
 ## `masks`
 
-Maps ACES internal mask names to external field names for geographical masking.
+Maps CECE internal mask names to external field names for geographical masking.
 
 **Example:**
 ```yaml
@@ -160,7 +160,7 @@ The `species` block defines the emission targets and the layers that contribute 
 
 | Key | Type | Description |
 | --- | --- | --- |
-| `field` | String | Name of the input field. ACES looks in TIDE first, then ESMF ImportState. |
+| `field` | String | Name of the input field. CECE looks in TIDE first, then ESMF ImportState. |
 | `operation` | String | How to combine with existing data: `add`, `multiply`, `replace`, or `set` |
 | `scale` | Float | Base scaling factor (Default: `1.0`) |
 | `category` | String | Logical grouping for layers (e.g., "anthropogenic", "biogenic") |
@@ -311,7 +311,7 @@ diagnostics:
 
 ---
 
-## `aces_data`
+## `cece_data`
 
 Configuration for TIDE (Temporal Interpolation & Data Extraction) data streams for reading external emission inventories and auxiliary fields.
 
@@ -334,11 +334,11 @@ Configuration for TIDE (Temporal Interpolation & Data Extraction) data streams f
 | Key | Type | Description |
 | --- | --- | --- |
 | `file` | String | Variable name in NetCDF file |
-| `model` | String | Internal field name in ACES |
+| `model` | String | Internal field name in CECE |
 
 **Example:**
 ```yaml
-aces_data:
+cece_data:
   streams:
     - name: "MACCITY_CO"
       file: "/data/inventories/MACCity_CO_2010.nc"
@@ -350,7 +350,7 @@ aces_data:
       mapalgo: "consd"          # Conservative regridding
       variables:
         - file: "MACCity_CO"    # Variable name in file
-          model: "global_co_inventory"  # Internal ACES field name
+          model: "global_co_inventory"  # Internal CECE field name
 
     - name: "HTAP_NOX"
       file: "/data/inventories/HTAPv3_NOx_*.nc"  # Wildcard for multiple files
@@ -395,7 +395,7 @@ Configuration for NetCDF output file generation with emission fields and diagnos
 output:
   enabled: true
   directory: "./output"
-  filename_pattern: "aces_emissions_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
+  filename_pattern: "cece_emissions_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
   frequency_steps: 1            # Output every timestep
   fields:
     - "co"

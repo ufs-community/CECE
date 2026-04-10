@@ -4,7 +4,7 @@
 import sys
 sys.path.insert(0, '/work/build/src/python')
 
-import aces
+import cece
 import numpy as np
 
 print("=== Task 10: Checkpoint - Verify Basic Functionality ===\n")
@@ -19,11 +19,11 @@ print("  PASS: C library loaded (module imported)\n")
 
 # Test 3: Basic configuration creation works
 print("Test 3: Basic configuration creation...")
-config = aces.AcesConfig()
+config = cece.CeceConfig()
 assert config is not None, "Config creation failed"
 assert hasattr(config, 'species'), "Config missing species property"
 assert hasattr(config, 'physics_schemes'), "Config missing physics_schemes property"
-assert hasattr(config, 'aces_data'), "Config missing aces_data property"
+assert hasattr(config, 'cece_data'), "Config missing cece_data property"
 assert hasattr(config, 'vertical_config'), "Config missing vertical_config property"
 print("  - Created empty config: OK")
 print("  - Config has all required properties: OK")
@@ -31,7 +31,7 @@ print("  PASS: Basic configuration creation works\n")
 
 # Test 4: State creation works
 print("Test 4: State creation...")
-state = aces.AcesState(nx=10, ny=10, nz=10)
+state = cece.CeceState(nx=10, ny=10, nz=10)
 assert state is not None, "State creation failed"
 assert state.dimensions == (10, 10, 10), f"State dimensions mismatch: {state.dimensions}"
 assert hasattr(state, 'import_fields'), "State missing import_fields property"

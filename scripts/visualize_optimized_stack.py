@@ -53,5 +53,5 @@ def visualize_optimized_stack(config_path):
         print(f"Generated visualization: {output_file}")
 
 if __name__ == "__main__":
-    cfg = sys.argv[1] if len(sys.argv) > 1 else "aces_config.yaml.example"
+    cfg = sys.argv[1] if len(sys.argv) > 1 else "cece_config.yaml.example"
     visualize_optimized_stack(cfg)

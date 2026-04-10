@@ -1,10 +1,10 @@
 /**
  * @file test_field_pointer_passing.cpp
- * @brief Unit tests for field pointer passing functionality (aces_core_bind_fields).
+ * @brief Unit tests for field pointer passing functionality (cece_core_bind_fields).
  *
  * Tests verify that the C++ core correctly:
- * - Stores field data pointers in AcesInternalData.field_pointers
- * - Stores field names in AcesInternalData.field_names
+ * - Stores field data pointers in CeceInternalData.field_pointers
+ * - Stores field names in CeceInternalData.field_names
  * - Validates pointer validity before storage
  * - Handles multiple fields correctly
  * - Detects null pointers and mismatches
@@ -23,15 +23,15 @@
 #include <string>
 #include <vector>
 
-#include "aces/aces_internal.hpp"
+#include "cece/cece_internal.hpp"
 
 extern "C" {
-void aces_core_initialize_p1(void** data_ptr_ptr, int* rc);
-void aces_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc);
-void aces_core_get_species_count(void* data_ptr, int* count, int* rc);
-void aces_core_get_species_name(void* data_ptr, int* index, char* name, int* name_len, int* rc);
-void aces_core_bind_fields(void* data_ptr, void** field_ptrs, int* num_fields, int* rc);
-void aces_core_finalize(void* data_ptr, int* rc);
+void cece_core_initialize_p1(void** data_ptr_ptr, int* rc);
+void cece_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc);
+void cece_core_get_species_count(void* data_ptr, int* count, int* rc);
+void cece_core_get_species_name(void* data_ptr, int* index, char* name, int* name_len, int* rc);
+void cece_core_bind_fields(void* data_ptr, void** field_ptrs, int* num_fields, int* rc);
+void cece_core_finalize(void* data_ptr, int* rc);
 }
 
 // Global ESMF / Kokkos environment
@@ -60,23 +60,23 @@ class FieldPointerPassingTest : public ::testing::Test {
         CreateTestConfig();
 
         int rc;
-        aces_core_initialize_p1(&data_ptr_, &rc);
+        cece_core_initialize_p1(&data_ptr_, &rc);
         if (rc != ESMF_SUCCESS) GTEST_SKIP() << "Phase 1 initialization failed";
 
-        aces_core_initialize_p2(data_ptr_, &nx_, &ny_, &nz_, &rc);
+        cece_core_initialize_p2(data_ptr_, &nx_, &ny_, &nz_, &rc);
         if (rc != ESMF_SUCCESS) GTEST_SKIP() << "Phase 2 initialization failed";
     }
 
     void TearDown() override {
         int rc;
         if (data_ptr_) {
-            aces_core_finalize(data_ptr_, &rc);
+            cece_core_finalize(data_ptr_, &rc);
         }
-        std::remove("aces_config.yaml");
+        std::remove("cece_config.yaml");
     }
 
     void CreateTestConfig() {
-        std::ofstream f("aces_config.yaml");
+        std::ofstream f("cece_config.yaml");
         f << R"(
 species:
   CO:
@@ -104,7 +104,7 @@ diagnostics:
   output_interval_seconds: 3600
   variables: []
 
-aces_data:
+cece_data:
   streams: []
 )";
         f.close();
@@ -128,7 +128,7 @@ aces_data:
 
 /**
  * @test FieldPointerPassing_PointersStoredCorrectly
- * **Validates: R5 - Field pointers are correctly stored in AcesInternalData**
+ * **Validates: R5 - Field pointers are correctly stored in CeceInternalData**
  *
  * Verifies that:
  * - Field pointers are stored after binding
@@ -138,7 +138,7 @@ aces_data:
 TEST_F(FieldPointerPassingTest, FieldPointerPassing_PointersStoredCorrectly) {
     int rc;
     int num_species = 0;
-    aces_core_get_species_count(data_ptr_, &num_species, &rc);
+    cece_core_get_species_count(data_ptr_, &num_species, &rc);
     ASSERT_EQ(rc, ESMF_SUCCESS);
     ASSERT_EQ(num_species, 3) << "Should have 3 species (CO, NOx, SO2)";
 
@@ -146,11 +146,11 @@ TEST_F(FieldPointerPassingTest, FieldPointerPassing_PointersStoredCorrectly) {
     void** field_ptrs = AllocateFieldPointers(num_species);
 
     // Bind fields
-    aces_core_bind_fields(data_ptr_, field_ptrs, &num_species, &rc);
+    cece_core_bind_fields(data_ptr_, field_ptrs, &num_species, &rc);
     ASSERT_EQ(rc, ESMF_SUCCESS) << "Field binding should succeed";
 
     // Verify pointers are stored correctly
-    auto* internal_data = static_cast<aces::AcesInternalData*>(data_ptr_);
+    auto* internal_data = static_cast<cece::CeceInternalData*>(data_ptr_);
     EXPECT_EQ(internal_data->field_pointers.size(), num_species)
         << "Should store " << num_species << " field pointers";
 
@@ -164,7 +164,7 @@ TEST_F(FieldPointerPassingTest, FieldPointerPassing_PointersStoredCorrectly) {
 
 /**
  * @test FieldPointerPassing_FieldNamesStoredCorrectly
- * **Validates: R5 - Field names are correctly stored in AcesInternalData**
+ * **Validates: R5 - Field names are correctly stored in CeceInternalData**
  *
  * Verifies that:
  * - Field names are stored after binding
@@ -174,18 +174,18 @@ TEST_F(FieldPointerPassingTest, FieldPointerPassing_PointersStoredCorrectly) {
 TEST_F(FieldPointerPassingTest, FieldPointerPassing_FieldNamesStoredCorrectly) {
     int rc;
     int num_species = 0;
-    aces_core_get_species_count(data_ptr_, &num_species, &rc);
+    cece_core_get_species_count(data_ptr_, &num_species, &rc);
     ASSERT_EQ(rc, ESMF_SUCCESS);
 
     // Allocate field pointers
     void** field_ptrs = AllocateFieldPointers(num_species);
 
     // Bind fields
-    aces_core_bind_fields(data_ptr_, field_ptrs, &num_species, &rc);
+    cece_core_bind_fields(data_ptr_, field_ptrs, &num_species, &rc);
     ASSERT_EQ(rc, ESMF_SUCCESS);
 
     // Verify field names are stored
-    auto* internal_data = static_cast<aces::AcesInternalData*>(data_ptr_);
+    auto* internal_data = static_cast<cece::CeceInternalData*>(data_ptr_);
     EXPECT_EQ(internal_data->field_names.size(), num_species)
         << "Should store " << num_species << " field names";
 
@@ -211,7 +211,7 @@ TEST_F(FieldPointerPassingTest, FieldPointerPassing_FieldNamesStoredCorrectly) {
 TEST_F(FieldPointerPassingTest, FieldPointerPassing_PointersAreValid) {
     int rc;
     int num_species = 0;
-    aces_core_get_species_count(data_ptr_, &num_species, &rc);
+    cece_core_get_species_count(data_ptr_, &num_species, &rc);
     ASSERT_EQ(rc, ESMF_SUCCESS);
 
     // Allocate field pointers
@@ -226,11 +226,11 @@ TEST_F(FieldPointerPassingTest, FieldPointerPassing_PointersAreValid) {
     }
 
     // Bind fields
-    aces_core_bind_fields(data_ptr_, field_ptrs, &num_species, &rc);
+    cece_core_bind_fields(data_ptr_, field_ptrs, &num_species, &rc);
     ASSERT_EQ(rc, ESMF_SUCCESS);
 
     // Verify stored pointers are valid and contain correct data
-    auto* internal_data = static_cast<aces::AcesInternalData*>(data_ptr_);
+    auto* internal_data = static_cast<cece::CeceInternalData*>(data_ptr_);
     for (int i = 0; i < num_species; ++i) {
         double* stored_ptr = static_cast<double*>(internal_data->field_pointers[i]);
         ASSERT_NE(stored_ptr, nullptr) << "Stored pointer " << i << " should not be null";
@@ -257,7 +257,7 @@ TEST_F(FieldPointerPassingTest, FieldPointerPassing_PointersAreValid) {
 TEST_F(FieldPointerPassingTest, FieldPointerPassing_MultipleFieldsHandled) {
     int rc;
     int num_species = 0;
-    aces_core_get_species_count(data_ptr_, &num_species, &rc);
+    cece_core_get_species_count(data_ptr_, &num_species, &rc);
     ASSERT_EQ(rc, ESMF_SUCCESS);
     ASSERT_EQ(num_species, 3) << "Should have 3 species";
 
@@ -273,11 +273,11 @@ TEST_F(FieldPointerPassingTest, FieldPointerPassing_MultipleFieldsHandled) {
     }
 
     // Bind fields
-    aces_core_bind_fields(data_ptr_, field_ptrs, &num_species, &rc);
+    cece_core_bind_fields(data_ptr_, field_ptrs, &num_species, &rc);
     ASSERT_EQ(rc, ESMF_SUCCESS);
 
     // Verify all pointers are stored
-    auto* internal_data = static_cast<aces::AcesInternalData*>(data_ptr_);
+    auto* internal_data = static_cast<cece::CeceInternalData*>(data_ptr_);
     EXPECT_EQ(internal_data->field_pointers.size(), num_species);
 
     // Verify stored pointers are distinct
@@ -305,7 +305,7 @@ TEST_F(FieldPointerPassingTest, FieldPointerPassing_NullDataPointerFails) {
     void** field_ptrs = AllocateFieldPointers(num_species);
 
     // Try to bind with null data pointer
-    aces_core_bind_fields(nullptr, field_ptrs, &num_species, &rc);
+    cece_core_bind_fields(nullptr, field_ptrs, &num_species, &rc);
     EXPECT_NE(rc, ESMF_SUCCESS) << "Should fail with null data pointer";
 
     FreeFieldPointers(field_ptrs, num_species);
@@ -324,7 +324,7 @@ TEST_F(FieldPointerPassingTest, FieldPointerPassing_NullFieldPointerArrayFails) 
     int num_species = 3;
 
     // Try to bind with null field pointer array
-    aces_core_bind_fields(data_ptr_, nullptr, &num_species, &rc);
+    cece_core_bind_fields(data_ptr_, nullptr, &num_species, &rc);
     EXPECT_NE(rc, ESMF_SUCCESS) << "Should fail with null field pointer array";
 }
 
@@ -342,7 +342,7 @@ TEST_F(FieldPointerPassingTest, FieldPointerPassing_NullNumFieldsPointerFails) {
     void** field_ptrs = AllocateFieldPointers(num_species);
 
     // Try to bind with null num_fields pointer
-    aces_core_bind_fields(data_ptr_, field_ptrs, nullptr, &rc);
+    cece_core_bind_fields(data_ptr_, field_ptrs, nullptr, &rc);
     EXPECT_NE(rc, ESMF_SUCCESS) << "Should fail with null num_fields pointer";
 
     FreeFieldPointers(field_ptrs, num_species);
@@ -367,7 +367,7 @@ TEST_F(FieldPointerPassingTest, FieldPointerPassing_NullFieldPointerDetected) {
     field_ptrs[1] = nullptr;
 
     // Try to bind with null field pointer
-    aces_core_bind_fields(data_ptr_, field_ptrs, &num_species, &rc);
+    cece_core_bind_fields(data_ptr_, field_ptrs, &num_species, &rc);
     EXPECT_NE(rc, ESMF_SUCCESS) << "Should fail with null field pointer in array";
 
     // Cleanup
@@ -387,7 +387,7 @@ TEST_F(FieldPointerPassingTest, FieldPointerPassing_NullFieldPointerDetected) {
 TEST_F(FieldPointerPassingTest, FieldPointerPassing_FieldCountMismatchDetected) {
     int rc;
     int num_species = 0;
-    aces_core_get_species_count(data_ptr_, &num_species, &rc);
+    cece_core_get_species_count(data_ptr_, &num_species, &rc);
     ASSERT_EQ(rc, ESMF_SUCCESS);
 
     // Allocate fewer pointers than species
@@ -395,7 +395,7 @@ TEST_F(FieldPointerPassingTest, FieldPointerPassing_FieldCountMismatchDetected) 
     void** field_ptrs = AllocateFieldPointers(num_fields);
 
     // Try to bind with mismatched count
-    aces_core_bind_fields(data_ptr_, field_ptrs, &num_fields, &rc);
+    cece_core_bind_fields(data_ptr_, field_ptrs, &num_fields, &rc);
     EXPECT_NE(rc, ESMF_SUCCESS) << "Should fail with field count mismatch";
 
     FreeFieldPointers(field_ptrs, num_fields);
@@ -412,7 +412,7 @@ TEST_F(FieldPointerPassingTest, FieldPointerPassing_FieldCountMismatchDetected) 
 TEST_F(FieldPointerPassingTest, FieldPointerPassing_ExcessFieldCountDetected) {
     int rc;
     int num_species = 0;
-    aces_core_get_species_count(data_ptr_, &num_species, &rc);
+    cece_core_get_species_count(data_ptr_, &num_species, &rc);
     ASSERT_EQ(rc, ESMF_SUCCESS);
 
     // Allocate more pointers than species
@@ -420,7 +420,7 @@ TEST_F(FieldPointerPassingTest, FieldPointerPassing_ExcessFieldCountDetected) {
     void** field_ptrs = AllocateFieldPointers(num_fields);
 
     // Try to bind with excess count
-    aces_core_bind_fields(data_ptr_, field_ptrs, &num_fields, &rc);
+    cece_core_bind_fields(data_ptr_, field_ptrs, &num_fields, &rc);
     EXPECT_NE(rc, ESMF_SUCCESS) << "Should fail with excess field count";
 
     FreeFieldPointers(field_ptrs, num_fields);
@@ -438,18 +438,18 @@ TEST_F(FieldPointerPassingTest, FieldPointerPassing_ExcessFieldCountDetected) {
 TEST_F(FieldPointerPassingTest, FieldPointerPassing_PointerCountMatchesSpeciesCount) {
     int rc;
     int num_species = 0;
-    aces_core_get_species_count(data_ptr_, &num_species, &rc);
+    cece_core_get_species_count(data_ptr_, &num_species, &rc);
     ASSERT_EQ(rc, ESMF_SUCCESS);
 
     // Allocate field pointers
     void** field_ptrs = AllocateFieldPointers(num_species);
 
     // Bind fields
-    aces_core_bind_fields(data_ptr_, field_ptrs, &num_species, &rc);
+    cece_core_bind_fields(data_ptr_, field_ptrs, &num_species, &rc);
     ASSERT_EQ(rc, ESMF_SUCCESS);
 
     // Verify counts match
-    auto* internal_data = static_cast<aces::AcesInternalData*>(data_ptr_);
+    auto* internal_data = static_cast<cece::CeceInternalData*>(data_ptr_);
     EXPECT_EQ(internal_data->field_pointers.size(), num_species)
         << "field_pointers.size() should equal species count";
     EXPECT_EQ(internal_data->field_names.size(), num_species)
@@ -472,7 +472,7 @@ TEST_F(FieldPointerPassingTest, FieldPointerPassing_PointerCountMatchesSpeciesCo
 TEST_F(FieldPointerPassingTest, FieldPointerPassing_PointersAccessibleAfterBinding) {
     int rc;
     int num_species = 0;
-    aces_core_get_species_count(data_ptr_, &num_species, &rc);
+    cece_core_get_species_count(data_ptr_, &num_species, &rc);
     ASSERT_EQ(rc, ESMF_SUCCESS);
 
     // Allocate field pointers
@@ -487,10 +487,10 @@ TEST_F(FieldPointerPassingTest, FieldPointerPassing_PointersAccessibleAfterBindi
     }
 
     // Bind fields
-    aces_core_bind_fields(data_ptr_, field_ptrs, &num_species, &rc);
+    cece_core_bind_fields(data_ptr_, field_ptrs, &num_species, &rc);
     ASSERT_EQ(rc, ESMF_SUCCESS);
 
-    auto* internal_data = static_cast<aces::AcesInternalData*>(data_ptr_);
+    auto* internal_data = static_cast<cece::CeceInternalData*>(data_ptr_);
 
     // Access pointers multiple times
     for (int access = 0; access < 3; ++access) {
@@ -520,7 +520,7 @@ TEST_F(FieldPointerPassingTest, FieldPointerPassing_PointersAccessibleAfterBindi
 TEST_F(FieldPointerPassingTest, FieldPointerPassing_PointersNotModifiedByBinding) {
     int rc;
     int num_species = 0;
-    aces_core_get_species_count(data_ptr_, &num_species, &rc);
+    cece_core_get_species_count(data_ptr_, &num_species, &rc);
     ASSERT_EQ(rc, ESMF_SUCCESS);
 
     // Allocate field pointers
@@ -533,11 +533,11 @@ TEST_F(FieldPointerPassingTest, FieldPointerPassing_PointersNotModifiedByBinding
     }
 
     // Bind fields
-    aces_core_bind_fields(data_ptr_, field_ptrs, &num_species, &rc);
+    cece_core_bind_fields(data_ptr_, field_ptrs, &num_species, &rc);
     ASSERT_EQ(rc, ESMF_SUCCESS);
 
     // Verify stored pointers match original addresses exactly
-    auto* internal_data = static_cast<aces::AcesInternalData*>(data_ptr_);
+    auto* internal_data = static_cast<cece::CeceInternalData*>(data_ptr_);
     for (int i = 0; i < num_species; ++i) {
         EXPECT_EQ(internal_data->field_pointers[i], original_ptrs[i])
             << "Stored pointer " << i << " should match original address";
@@ -558,20 +558,20 @@ TEST_F(FieldPointerPassingTest, FieldPointerPassing_PointersNotModifiedByBinding
 TEST_F(FieldPointerPassingTest, FieldPointerPassing_ClearsExistingPointers) {
     int rc;
     int num_species = 0;
-    aces_core_get_species_count(data_ptr_, &num_species, &rc);
+    cece_core_get_species_count(data_ptr_, &num_species, &rc);
     ASSERT_EQ(rc, ESMF_SUCCESS);
 
     // First binding
     void** field_ptrs1 = AllocateFieldPointers(num_species);
-    aces_core_bind_fields(data_ptr_, field_ptrs1, &num_species, &rc);
+    cece_core_bind_fields(data_ptr_, field_ptrs1, &num_species, &rc);
     ASSERT_EQ(rc, ESMF_SUCCESS);
 
-    auto* internal_data = static_cast<aces::AcesInternalData*>(data_ptr_);
+    auto* internal_data = static_cast<cece::CeceInternalData*>(data_ptr_);
     EXPECT_EQ(internal_data->field_pointers.size(), num_species);
 
     // Second binding with different pointers
     void** field_ptrs2 = AllocateFieldPointers(num_species);
-    aces_core_bind_fields(data_ptr_, field_ptrs2, &num_species, &rc);
+    cece_core_bind_fields(data_ptr_, field_ptrs2, &num_species, &rc);
     ASSERT_EQ(rc, ESMF_SUCCESS);
 
     // Verify only new pointers are stored

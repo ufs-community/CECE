@@ -1,21 +1,21 @@
-# ACES Developer Guide
+# CECE Developer Guide
 
 ## Project Overview
-ACES (Atmospheric Chemistry Emission System) is a C++20 emissions compute component designed for high performance using Kokkos and ESMF.
+CECE (Community Emissions Computing Engine) is a C++20 emissions compute component designed for high performance using Kokkos and ESMF.
 
 ## Core Architecture & Philosophy
-ACES is designed as a modular, performance-portable emissions framework. Key components include:
+CECE is designed as a modular, performance-portable emissions framework. Key components include:
 
 *   **StackingEngine:** Manages the aggregation of emission layers using sophisticated hierarchy-based processing, kernel fusion optimization, and advanced temporal/spatial scaling. See the [Stacking Engine Documentation](stacking_engine.md) for comprehensive technical details.
 *   **Vertical Distribution:** Multiple algorithms for mapping 2D emissions to 3D atmospheric grids with strict mass conservation. See the [Vertical Distribution Documentation](vertical_distribution.md) for complete algorithm descriptions and usage examples.
 *   **PhysicsFactory:** A self-registration registry for physics schemes. New schemes should inherit from `BasePhysicsScheme` and use the `PhysicsRegistration<T>` pattern.
-*   **Internal State:** Persisted via `AcesInternalData` to maintain field handles and metadata across ESMF phases, avoiding redundant lookups.
+*   **Internal State:** Persisted via `CeceInternalData` to maintain field handles and metadata across ESMF phases, avoiding redundant lookups.
 *   **TIDE Integration:** High-performance data ingestion for external emission inventories via the TIDE (Temporal Interpolation & Data Extraction) library with smart caching and regridding capabilities.
 
 ## Global Coding Standards
 *   **Language:** C++20 and Fortran 2008+.
 *   **Style:** Google C++ Style Guide for C++.
-*   **Namespace:** `aces::` (defined in `include/aces/aces.hpp`).
+*   **Namespace:** `cece::` (defined in `include/cece/cece.hpp`).
 *   **Documentation:** Doxygen format (`/** ... */`) required for all public APIs.
 *   **Memory:** Use `Kokkos::View` for data. Avoid raw pointers.
 *   **ESMF:** Use `ESMC_` C API for C++ bridge. Wrap data in `Kokkos::View` with `Kokkos::MemoryTraits<Kokkos::Unmanaged>`.
@@ -36,7 +36,7 @@ When implementing or modifying physics schemes:
 3.  **Optimization:** Use Horner's Method for evaluating polynomials (e.g., Schmidt numbers, SST scaling) to minimize floating-point operations.
 
 ## Vertical Distribution
-ACES supports multiple vertical distribution methods for mapping 2D emissions to 3D grids:
+CECE supports multiple vertical distribution methods for mapping 2D emissions to 3D grids:
 *   **SINGLE:** Place all emissions in a single specific layer.
 *   **RANGE:** Distribute evenly over a range of layer indices.
 *   **PRESSURE:** Distribute based on a pressure range (Pa).
@@ -47,7 +47,7 @@ ACES supports multiple vertical distribution methods for mapping 2D emissions to
 For complete algorithm descriptions, performance characteristics, and usage examples, see the [Vertical Distribution Documentation](vertical_distribution.md).
 
 ## Configuration System
-ACES uses a comprehensive YAML configuration system that supports:
+CECE uses a comprehensive YAML configuration system that supports:
 - Hierarchical emission layer processing with categories and priorities
 - Temporal scaling profiles (diurnal, weekly, seasonal)
 - Environmental dependencies and dynamic scaling factors
@@ -83,7 +83,7 @@ The required development environment is the `jcsda/docker-gnu-openmpi-dev:1.9` D
     ```
 
  3.  **Run Example Driver:**
-    To see ACES in action with external data (ESMF fields):
+    To see CECE in action with external data (ESMF fields):
     ```bash
     ./example_driver
     ```
@@ -103,5 +103,5 @@ python3 -m pip install jinja2 pyyaml pytest
 *   **ESMF User Guide:** [https://earthsystemmodeling.org/docs/release/latest/ESMF_usrdoc](https://earthsystemmodeling.org/docs/release/latest/ESMF_usrdoc)
 *   **ESMF Reference Manual:** [https://earthsystemmodeling.org/docs/release/latest/ESMF_refdoc/](https://earthsystemmodeling.org/docs/release/latest/ESMF_refdoc/)
 *   **NUOPC Reference Manual:** [https://earthsystemmodeling.org/docs/release/latest/NUOPC_refdoc](https://earthsystemmodeling.org/docs/release/latest/NUOPC_refdoc)
-*   **TIDE Documentation:** Located at `src/io/tide` in the ACES repository
+*   **TIDE Documentation:** Located at `src/io/tide` in the CECE repository
 *   **Fortran Standards:** [Fortran 2008 Standard (ISO/IEC 1539-1:2010)](https://www.iso.org/standard/44473.html)

@@ -4,14 +4,14 @@
 #include <unordered_map>
 #include <vector>
 
-#include "aces/aces_config.hpp"
-#include "aces/aces_physics_factory.hpp"
-#include "aces/aces_stacking_engine.hpp"
-#include "aces/aces_state.hpp"
+#include "cece/cece_config.hpp"
+#include "cece/cece_physics_factory.hpp"
+#include "cece/cece_stacking_engine.hpp"
+#include "cece/cece_state.hpp"
 
 /**
  * @file hemco_comparison_driver.cpp
- * @brief Standalone driver for verifying HEMCO-parity in ACES using C++ API.
+ * @brief Standalone driver for verifying HEMCO-parity in CECE using C++ API.
  */
 
 int main(int argc, char** argv) {
@@ -21,11 +21,11 @@ int main(int argc, char** argv) {
         int nx = 4, ny = 4, nz = 1;
         std::cout << "[ComparisonDriver] Grid: " << nx << "x" << ny << "x" << nz << std::endl;
 
-        aces::AcesImportState import_state;
-        aces::AcesExportState export_state;
+        cece::CeceImportState import_state;
+        cece::CeceExportState export_state;
 
         auto create_dv = [&](std::string name, double val, int l_nz) {
-            aces::DualView3D dv(name, nx, ny, l_nz);
+            cece::DualView3D dv(name, nx, ny, l_nz);
             Kokkos::deep_copy(dv.view_host(), val);
             dv.modify<Kokkos::HostSpace>();
             dv.sync<Kokkos::DefaultExecutionSpace>();
@@ -38,8 +38,8 @@ int main(int argc, char** argv) {
         import_state.fields["HOURLY_SCALFACT"] = create_dv("HOURLY_SCALFACT", 0.5, 1);
         export_state.fields["co"] = create_dv("co", 0.0, 1);
 
-        aces::AcesConfig config;
-        aces::EmissionLayer co_layer;
+        cece::CeceConfig config;
+        cece::EmissionLayer co_layer;
         co_layer.field_name = "MACCITY_CO";
         co_layer.operation = "add";
         co_layer.hierarchy = 1;
@@ -48,10 +48,10 @@ int main(int argc, char** argv) {
         config.species_layers["co"] = {co_layer};
 
         std::cout << "[ComparisonDriver] Initializing Stacking Engine..." << std::endl;
-        aces::StackingEngine stack_engine(config);
+        cece::StackingEngine stack_engine(config);
 
         std::unordered_map<std::string, std::string> empty_map;
-        aces::AcesStateResolver resolver(import_state, export_state, empty_map, empty_map,
+        cece::CeceStateResolver resolver(import_state, export_state, empty_map, empty_map,
                                          empty_map);
 
         std::cout << "[ComparisonDriver] Executing Stacking Engine..." << std::endl;
@@ -76,13 +76,13 @@ int main(int argc, char** argv) {
         import_state.fields["seawater_conc"] = create_dv("seawater_conc", 1.0e-6, 1);
         export_state.fields["dms_emissions"] = create_dv("dms_emissions", 0.0, 1);
 
-        aces::PhysicsSchemeConfig dms_cfg;
+        cece::PhysicsSchemeConfig dms_cfg;
         dms_cfg.name = "dms";
         dms_cfg.options =
             YAML::Load("schmidt_coeff: [2674.0, -147.12, 3.726, -0.038]\nkw_coeff: [0.222, 0.333]");
 
         std::cout << "[ComparisonDriver] Creating DMS Physics Scheme..." << std::endl;
-        auto scheme = aces::PhysicsFactory::CreateScheme(dms_cfg);
+        auto scheme = cece::PhysicsFactory::CreateScheme(dms_cfg);
         if (scheme) {
             std::cout << "[ComparisonDriver] Initializing DMS Physics Scheme..." << std::endl;
             scheme->Initialize(dms_cfg.options, nullptr);

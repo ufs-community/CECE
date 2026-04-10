@@ -1,10 +1,10 @@
 # Performance Benchmarks
 
-This document presents performance benchmarking results for ACES, comparing CPU and GPU execution, and comparing ACES performance to HEMCO.
+This document presents performance benchmarking results for CECE, comparing CPU and GPU execution, and comparing CECE performance to HEMCO.
 
 ## Executive Summary
 
-ACES achieves significant performance improvements over HEMCO:
+CECE achieves significant performance improvements over HEMCO:
 - **CPU Performance**: 2x faster than HEMCO on 16-core CPU
 - **GPU Performance**: 10x faster than HEMCO on NVIDIA GPU
 - **Parallel Efficiency**: 80%+ on 16-core CPU, 50%+ memory bandwidth on GPU
@@ -39,7 +39,7 @@ ACES achieves significant performance improvements over HEMCO:
 
 ### Execution Time Comparison
 
-| Configuration | HEMCO (s) | ACES (s) | Speedup |
+| Configuration | HEMCO (s) | CECE (s) | Speedup |
 |---|---|---|---|
 | Single-threaded | 45.2 | 22.8 | 1.98x |
 | 4 threads | 15.3 | 7.2 | 2.13x |
@@ -50,21 +50,21 @@ ACES achieves significant performance improvements over HEMCO:
 
 Parallel efficiency is computed as: `(T_1 / (N * T_N)) * 100%`
 
-| Threads | HEMCO | ACES |
+| Threads | HEMCO | CECE |
 |---|---|---|
 | 1 | 100% | 100% |
 | 4 | 74% | 79% |
 | 8 | 69% | 82% |
 | 16 | 61% | 81% |
 
-**Analysis**: ACES maintains 80%+ parallel efficiency on 16 threads due to:
+**Analysis**: CECE maintains 80%+ parallel efficiency on 16 threads due to:
 - Fused kernels reducing memory bandwidth pressure
 - Better cache locality through optimized data layout
 - Reduced synchronization overhead
 
 ### Memory Usage
 
-| Component | HEMCO | ACES | Reduction |
+| Component | HEMCO | CECE | Reduction |
 |---|---|---|---|
 | Base Emissions | 45 MB | 45 MB | - |
 | Scale Factors | 120 MB | 45 MB | 62.5% |
@@ -72,7 +72,7 @@ Parallel efficiency is computed as: `(T_1 / (N * T_N)) * 100%`
 | Temporary Arrays | 200 MB | 50 MB | 75% |
 | **Total** | **445 MB** | **170 MB** | **61.8%** |
 
-**Analysis**: ACES reduces memory usage through:
+**Analysis**: CECE reduces memory usage through:
 - Fused kernel execution (no intermediate arrays)
 - Efficient Kokkos memory management
 - Reduced temporary allocations
@@ -81,7 +81,7 @@ Parallel efficiency is computed as: `(T_1 / (N * T_N)) * 100%`
 
 ### Execution Time Comparison
 
-| Configuration | HEMCO (s) | ACES (s) | Speedup |
+| Configuration | HEMCO (s) | CECE (s) | Speedup |
 |---|---|---|---|
 | CPU (16 threads) | 4.6 | 2.3 | - |
 | GPU (V100) | 0.8 | 0.23 | 10.0x |
@@ -109,13 +109,13 @@ Parallel efficiency is computed as: `(T_1 / (N * T_N)) * 100%`
 | 72 x 46 x 50 | 8.4 | 19.8 B |
 | 144 x 92 x 100 | 33.6 | 39.6 B |
 
-**Analysis**: ACES scales well with problem size, achieving near-linear scaling up to 1.3M grid cells.
+**Analysis**: CECE scales well with problem size, achieving near-linear scaling up to 1.3M grid cells.
 
-## ACES vs HEMCO Detailed Comparison
+## CECE vs HEMCO Detailed Comparison
 
 ### Execution Time Breakdown (CPU, 16 threads)
 
-| Phase | HEMCO (ms) | ACES (ms) | Speedup |
+| Phase | HEMCO (ms) | CECE (ms) | Speedup |
 |---|---|---|---|
 | Configuration | 120 | 45 | 2.67x |
 | Layer Aggregation | 1200 | 450 | 2.67x |
@@ -128,7 +128,7 @@ Parallel efficiency is computed as: `(T_1 / (N * T_N)) * 100%`
 
 ### Execution Time Breakdown (GPU, V100)
 
-| Phase | HEMCO (ms) | ACES (ms) | Speedup |
+| Phase | HEMCO (ms) | CECE (ms) | Speedup |
 |---|---|---|---|
 | Configuration | 120 | 45 | 2.67x |
 | Layer Aggregation | 200 | 20 | 10.0x |
@@ -145,7 +145,7 @@ Parallel efficiency is computed as: `(T_1 / (N * T_N)) * 100%`
 
 ### For CPU Performance
 
-1. **Increase Thread Count**: ACES scales well to 16+ threads
+1. **Increase Thread Count**: CECE scales well to 16+ threads
 2. **Use NUMA-Aware Binding**: Pin threads to NUMA nodes for better memory locality
 3. **Enable Compiler Optimizations**: Use `-O3 -march=native` flags
 4. **Profile with Kokkos Tools**: Identify remaining bottlenecks
@@ -162,7 +162,7 @@ Parallel efficiency is computed as: `(T_1 / (N * T_N)) * 100%`
 1. **Use Kokkos Serial for Debugging**: Easier to debug than OpenMP/CUDA
 2. **Profile Before Optimizing**: Use Kokkos profiling tools to identify bottlenecks
 3. **Test on Target Hardware**: Performance varies significantly across architectures
-4. **Monitor Memory Bandwidth**: Most ACES kernels are memory-bound
+4. **Monitor Memory Bandwidth**: Most CECE kernels are memory-bound
 
 ## Profiling Results
 
@@ -224,15 +224,15 @@ Problem: 72 x 46 x 50 grid, 10 species, 5 layers each
 | 8 | 102 x 65 x 71 | 0.32 | 91% |
 | 16 | 144 x 92 x 100 | 0.34 | 85% |
 
-**Analysis**: Excellent weak scaling efficiency (85%+) indicates ACES is well-suited for large-scale simulations.
+**Analysis**: Excellent weak scaling efficiency (85%+) indicates CECE is well-suited for large-scale simulations.
 
 ## Conclusion
 
-ACES demonstrates significant performance improvements over HEMCO:
+CECE demonstrates significant performance improvements over HEMCO:
 - **2x faster on CPU** through fused kernels and optimized memory access
 - **10x faster on GPU** through Kokkos parallelization
 - **80%+ parallel efficiency** on multi-core CPUs
 - **50%+ GPU memory bandwidth utilization** on NVIDIA GPUs
 - **62% memory reduction** through efficient kernel fusion
 
-These improvements make ACES suitable for high-resolution, long-duration simulations in production Earth System Models.
+These improvements make CECE suitable for high-resolution, long-duration simulations in production Earth System Models.

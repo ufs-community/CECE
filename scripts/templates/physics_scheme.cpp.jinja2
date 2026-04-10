@@ -1,12 +1,12 @@
-#include "aces/physics/{{ header_name }}"
+#include "cece/physics/{{ header_name }}"
 
 #include <Kokkos_Core.hpp>
 #include <algorithm>
 #include <cmath>
 
-#include "aces/aces_physics_factory.hpp"
+#include "cece/cece_physics_factory.hpp"
 
-namespace aces {
+namespace cece {
 
 // ============================================================================
 // Self-Registration
@@ -19,7 +19,7 @@ static PhysicsRegistration<{{ class_name }}> register_{{ scheme_name }}("{{ sche
 // ============================================================================
 // Initialize Phase
 // ============================================================================
-void {{ class_name }}::Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) {
+void {{ class_name }}::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
     // Call base class initialization to set up field name mappings and diagnostics
     BasePhysicsScheme::Initialize(config, diag_manager);
 
@@ -69,7 +69,7 @@ void {{ class_name }}::Initialize(const YAML::Node& config, AcesDiagnosticManage
 // ============================================================================
 // Run Phase
 // ============================================================================
-void {{ class_name }}::Run(AcesImportState& import_state, AcesExportState& export_state) {
+void {{ class_name }}::Run(CeceImportState& import_state, CeceExportState& export_state) {
     // ========================================================================
     // Resolve Input Fields
     // ========================================================================
@@ -178,7 +178,7 @@ void {{ class_name }}::Run(AcesImportState& import_state, AcesExportState& expor
     // ========================================================================
     // Mark Modified Fields
     // ========================================================================
-    // Signal to ACES that these export fields have been updated on the device.
+    // Signal to CECE that these export fields have been updated on the device.
     // This ensures proper device-to-host synchronization before ESMF accesses
     // the data.
 
@@ -199,4 +199,4 @@ void {{ class_name }}::Finalize() {
     //   }
 }
 
-}  // namespace aces
+}  // namespace cece

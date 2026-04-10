@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.20)
-project(ACES LANGUAGES CXX C)
+project(CECE LANGUAGES CXX C)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -11,7 +11,7 @@ include(CheckLanguage)
 check_language(Fortran)
 if(CMAKE_Fortran_COMPILER)
     enable_language(Fortran)
-    set(ACES_HAS_FORTRAN ON)
+    set(CECE_HAS_FORTRAN ON)
     file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/share)
 else()
     message(WARNING "Fortran compiler not found. Fortran features will be disabled.")
@@ -44,7 +44,7 @@ option(Kokkos_ENABLE_CUDA "Enable Kokkos CUDA execution space for NVIDIA GPUs" O
 option(Kokkos_ENABLE_HIP "Enable Kokkos HIP execution space for AMD GPUs" OFF)
 
 # Python bindings support
-option(BUILD_PYTHON_BINDINGS "Build Python bindings for ACES" OFF)
+option(BUILD_PYTHON_BINDINGS "Build Python bindings for CECE" OFF)
 
 # Validate that at most one GPU backend is enabled
 if(Kokkos_ENABLE_CUDA AND Kokkos_ENABLE_HIP)
@@ -130,91 +130,91 @@ endif()
 find_package(MPI REQUIRED)
 message(STATUS "Found MPI: ${MPI_CXX_VERSION}")
 
-# --- ACES Library ---
+# --- CECE Library ---
 
-set(ACES_SRCS
-    src/aces_config_parser.cpp
-    src/aces_compute.cpp
-    src/aces_stacking_engine.cpp
-    src/aces_physics_factory.cpp
-    src/aces_provenance.cpp
-    src/physics/aces_native_example.cpp
-    src/physics/aces_sea_salt.cpp
-    src/physics/aces_megan.cpp
-    src/physics/aces_dms.cpp
-    src/physics/aces_lightning.cpp
-    src/physics/aces_soil_nox.cpp
-    src/physics/aces_dust.cpp
-    src/physics/aces_volcano.cpp
-    src/io/aces_data_ingestor.cpp
-    src/io/aces_diagnostic_manager.cpp
-    src/io/aces_standalone_writer.cpp
-    src/aces_core_writer_init.cpp
-    src/aces_core_driver_config.cpp
-    src/aces_core_advertise.cpp
-    src/aces_core_realize.cpp
-    src/aces_core_realize_wrapper.cpp
-    src/aces_core_initialize_p1.cpp
-    src/aces_core_initialize_p2.cpp
-    src/aces_core_initialize_p2_wrapper.cpp
-    src/aces_core_field_helpers.cpp
-    src/aces_core_run.cpp
-    src/aces_core_finalize.cpp
-    src/aces_config_path.cpp
-    src/aces_c_api.cpp
-    src/aces_config_validator.cpp)
+set(CECE_SRCS
+    src/cece_config_parser.cpp
+    src/cece_compute.cpp
+    src/cece_stacking_engine.cpp
+    src/cece_physics_factory.cpp
+    src/cece_provenance.cpp
+    src/physics/cece_native_example.cpp
+    src/physics/cece_sea_salt.cpp
+    src/physics/cece_megan.cpp
+    src/physics/cece_dms.cpp
+    src/physics/cece_lightning.cpp
+    src/physics/cece_soil_nox.cpp
+    src/physics/cece_dust.cpp
+    src/physics/cece_volcano.cpp
+    src/io/cece_data_ingestor.cpp
+    src/io/cece_diagnostic_manager.cpp
+    src/io/cece_standalone_writer.cpp
+    src/cece_core_writer_init.cpp
+    src/cece_core_driver_config.cpp
+    src/cece_core_advertise.cpp
+    src/cece_core_realize.cpp
+    src/cece_core_realize_wrapper.cpp
+    src/cece_core_initialize_p1.cpp
+    src/cece_core_initialize_p2.cpp
+    src/cece_core_initialize_p2_wrapper.cpp
+    src/cece_core_field_helpers.cpp
+    src/cece_core_run.cpp
+    src/cece_core_finalize.cpp
+    src/cece_config_path.cpp
+    src/cece_c_api.cpp
+    src/cece_config_validator.cpp)
 
-if(ACES_HAS_FORTRAN)
+if(CECE_HAS_FORTRAN)
     add_subdirectory(src/io/tide)
 
-    list(APPEND ACES_SRCS
-        src/aces_cap.F90
-        src/physics/aces_fortran_bridge.cpp
+    list(APPEND CECE_SRCS
+        src/cece_cap.F90
+        src/physics/cece_fortran_bridge.cpp
         src/physics/legacy_fortran.F90
-        src/physics/aces_sea_salt_fortran_bridge.cpp
+        src/physics/cece_sea_salt_fortran_bridge.cpp
         src/physics/sea_salt_kernel.F90
-        src/physics/aces_megan_fortran_bridge.cpp
+        src/physics/cece_megan_fortran_bridge.cpp
         src/physics/megan_kernel.F90
-        src/physics/aces_dms_fortran_bridge.cpp
+        src/physics/cece_dms_fortran_bridge.cpp
         src/physics/dms_kernel.F90
-        src/physics/aces_lightning_fortran_bridge.cpp
+        src/physics/cece_lightning_fortran_bridge.cpp
         src/physics/lightning_kernel.F90
-        src/physics/aces_soil_nox_fortran_bridge.cpp
+        src/physics/cece_soil_nox_fortran_bridge.cpp
         src/physics/soil_nox_kernel.F90
-        src/physics/aces_dust_fortran_bridge.cpp
+        src/physics/cece_dust_fortran_bridge.cpp
         src/physics/dust_kernel.F90
-        src/physics/aces_volcano_fortran_bridge.cpp
+        src/physics/cece_volcano_fortran_bridge.cpp
         src/physics/volcano_kernel.F90
-        src/aces_ingestor_bridge.cpp)
+        src/cece_ingestor_bridge.cpp)
 endif()
 
-add_library(aces SHARED ${ACES_SRCS})
+add_library(cece SHARED ${CECE_SRCS})
 
-if(ACES_HAS_FORTRAN)
-    set_target_properties(aces PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/fortran_modules/aces)
-    target_include_directories(aces PUBLIC $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/fortran_modules/aces>)
-    target_compile_definitions(aces PRIVATE ACES_HAS_FORTRAN)
+if(CECE_HAS_FORTRAN)
+    set_target_properties(cece PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/fortran_modules/cece)
+    target_include_directories(cece PUBLIC $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/fortran_modules/cece>)
+    target_compile_definitions(cece PRIVATE CECE_HAS_FORTRAN)
 endif()
 
 target_include_directories(
-    aces
+    cece
     PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include>
            ${ESMF_INCLUDE_DIRS})
 
-target_link_libraries(aces PUBLIC Kokkos::kokkos ESMF::ESMF yaml-cpp)
+target_link_libraries(cece PUBLIC Kokkos::kokkos ESMF::ESMF yaml-cpp)
 
-if(ACES_HAS_FORTRAN)
-    target_link_libraries(aces PUBLIC tide)
+if(CECE_HAS_FORTRAN)
+    target_link_libraries(cece PUBLIC tide)
 endif()
 
 if(NetCDF_ROOT)
     if(EXISTS "${NetCDF_ROOT}/lib/libnetcdf.so")
-        target_link_libraries(aces PUBLIC "${NetCDF_ROOT}/lib/libnetcdf.so")
+        target_link_libraries(cece PUBLIC "${NetCDF_ROOT}/lib/libnetcdf.so")
     endif()
 endif()
 
 if(MPI_FOUND)
-    target_link_libraries(aces PUBLIC MPI::MPI_CXX)
+    target_link_libraries(cece PUBLIC MPI::MPI_CXX)
 endif()
 
 # --- Tests ---
@@ -222,10 +222,10 @@ endif()
 enable_testing()
 
 add_executable(test_driver_configuration tests/test_driver_configuration.cpp)
-target_link_libraries(test_driver_configuration PRIVATE aces GTest::gtest_main)
+target_link_libraries(test_driver_configuration PRIVATE cece GTest::gtest_main)
 
 add_executable(test_driver_config_validation tests/test_driver_config_validation.cpp)
-target_link_libraries(test_driver_config_validation PRIVATE aces iso8601_utils GTest::gtest_main)
+target_link_libraries(test_driver_config_validation PRIVATE cece iso8601_utils GTest::gtest_main)
 
 add_executable(test_driver_clock_management tests/test_driver_clock_management.cpp)
 target_link_libraries(test_driver_clock_management PRIVATE GTest::gtest_main)
@@ -236,82 +236,82 @@ target_link_libraries(test_clock_operations_unit PRIVATE GTest::gtest_main)
 add_executable(test_driver_integration_end_to_end tests/test_driver_integration_end_to_end.cpp)
 target_link_libraries(test_driver_integration_end_to_end PRIVATE GTest::gtest_main)
 
-add_executable(test_aces_cap tests/test_aces_cap.cpp)
-target_link_libraries(test_aces_cap PRIVATE aces GTest::gtest_main)
+add_executable(test_cece_cap tests/test_cece_cap.cpp)
+target_link_libraries(test_cece_cap PRIVATE cece GTest::gtest_main)
 
 add_executable(test_diagnostics tests/test_diagnostics.cpp)
-target_link_libraries(test_diagnostics PRIVATE aces GTest::gtest)
+target_link_libraries(test_diagnostics PRIVATE cece GTest::gtest)
 
-add_executable(test_aces_ingestor tests/test_aces_ingestor.cpp)
-target_link_libraries(test_aces_ingestor PRIVATE aces GTest::gtest_main)
+add_executable(test_cece_ingestor tests/test_cece_ingestor.cpp)
+target_link_libraries(test_cece_ingestor PRIVATE cece GTest::gtest_main)
 
-add_executable(test_aces_utils tests/test_aces_utils.cpp)
-target_link_libraries(test_aces_utils PRIVATE aces GTest::gtest_main)
+add_executable(test_cece_utils tests/test_cece_utils.cpp)
+target_link_libraries(test_cece_utils PRIVATE cece GTest::gtest_main)
 
-add_executable(test_aces_compute tests/test_aces_compute.cpp)
-target_link_libraries(test_aces_compute PRIVATE aces GTest::gtest_main)
+add_executable(test_cece_compute tests/test_cece_compute.cpp)
+target_link_libraries(test_cece_compute PRIVATE cece GTest::gtest_main)
 
 add_executable(test_physics tests/test_physics.cpp)
-target_link_libraries(test_physics PRIVATE aces GTest::gtest_main)
+target_link_libraries(test_physics PRIVATE cece GTest::gtest_main)
 
 add_executable(test_hemco_mimic tests/test_hemco_mimic.cpp)
-target_link_libraries(test_hemco_mimic PRIVATE aces GTest::gtest_main)
+target_link_libraries(test_hemco_mimic PRIVATE cece GTest::gtest_main)
 
 add_executable(test_stacking_engine tests/test_stacking_engine.cpp)
-target_link_libraries(test_stacking_engine PRIVATE aces GTest::gtest_main)
+target_link_libraries(test_stacking_engine PRIVATE cece GTest::gtest_main)
 
 add_executable(test_vertical_distribution_single tests/test_vertical_distribution_single.cpp)
-target_link_libraries(test_vertical_distribution_single PRIVATE aces GTest::gtest_main)
+target_link_libraries(test_vertical_distribution_single PRIVATE cece GTest::gtest_main)
 
 add_executable(test_field_resolution_priority tests/test_field_resolution_priority.cpp)
-target_link_libraries(test_field_resolution_priority PRIVATE aces GTest::gtest_main)
+target_link_libraries(test_field_resolution_priority PRIVATE cece GTest::gtest_main)
 
-if(ACES_HAS_FORTRAN)
+if(CECE_HAS_FORTRAN)
     add_library(test_helpers STATIC tests/test_helpers.F90)
     target_include_directories(test_helpers PUBLIC ${ESMF_INCLUDE_DIRS})
     target_link_libraries(test_helpers PUBLIC ESMF::ESMF)
 endif()
 
 add_executable(hemco_comparison_driver tests/hemco_comparison_driver.cpp)
-target_link_libraries(hemco_comparison_driver PRIVATE aces)
+target_link_libraries(hemco_comparison_driver PRIVATE cece)
 add_test(NAME test_hemco_comparison COMMAND hemco_comparison_driver)
 
-add_executable(benchmark_aces_hemco tests/benchmark_aces_hemco.cpp)
-target_link_libraries(benchmark_aces_hemco PRIVATE aces)
+add_executable(benchmark_cece_hemco tests/benchmark_cece_hemco.cpp)
+target_link_libraries(benchmark_cece_hemco PRIVATE cece)
 
 add_executable(test_hemco_parity tests/test_hemco_parity.cpp)
-target_link_libraries(test_hemco_parity PRIVATE aces GTest::gtest_main)
+target_link_libraries(test_hemco_parity PRIVATE cece GTest::gtest_main)
 
 # Kokkos Configuration Tests (Requirement 6.13-6.18, 6.21)
 add_executable(test_kokkos_configuration tests/test_kokkos_configuration.cpp)
-target_link_libraries(test_kokkos_configuration PRIVATE aces GTest::gtest_main)
+target_link_libraries(test_kokkos_configuration PRIVATE cece GTest::gtest_main)
 
 # Comprehensive Property-Based Test Suite (Task 11.1)
 add_executable(test_properties tests/test_properties.cpp)
-target_link_libraries(test_properties PRIVATE aces GTest::gtest_main)
+target_link_libraries(test_properties PRIVATE cece GTest::gtest_main)
 
 # Test Suite Idempotence (Requirement 8.16)
 add_executable(test_suite_idempotence tests/test_suite_idempotence.cpp)
-target_link_libraries(test_suite_idempotence PRIVATE aces GTest::gtest_main)
+target_link_libraries(test_suite_idempotence PRIVATE cece GTest::gtest_main)
 
 # Temporary Reproduction Test
 add_executable(test_repro_failure tests/repro_failure.cpp)
-target_link_libraries(test_repro_failure PRIVATE aces GTest::gtest_main)
+target_link_libraries(test_repro_failure PRIVATE cece GTest::gtest_main)
 
 # Unit tests for field creation (Requirement R4)
 add_executable(test_field_creation tests/test_field_creation.cpp)
-if(ACES_HAS_FORTRAN AND TARGET test_helpers)
-    target_link_libraries(test_field_creation PRIVATE aces test_helpers GTest::gtest_main)
+if(CECE_HAS_FORTRAN AND TARGET test_helpers)
+    target_link_libraries(test_field_creation PRIVATE cece test_helpers GTest::gtest_main)
 else()
-    target_link_libraries(test_field_creation PRIVATE aces GTest::gtest_main)
+    target_link_libraries(test_field_creation PRIVATE cece GTest::gtest_main)
 endif()
 
 # Unit tests for field pointer passing (Requirement R5)
 add_executable(test_field_pointer_passing tests/test_field_pointer_passing.cpp)
-if(ACES_HAS_FORTRAN AND TARGET test_helpers)
-    target_link_libraries(test_field_pointer_passing PRIVATE aces test_helpers GTest::gtest_main)
+if(CECE_HAS_FORTRAN AND TARGET test_helpers)
+    target_link_libraries(test_field_pointer_passing PRIVATE cece test_helpers GTest::gtest_main)
 else()
-    target_link_libraries(test_field_pointer_passing PRIVATE aces GTest::gtest_main)
+    target_link_libraries(test_field_pointer_passing PRIVATE cece GTest::gtest_main)
 endif()
 
 # Standalone NUOPC driver
@@ -326,9 +326,9 @@ if(Python3_Interpreter_FOUND)
     set_tests_properties(install_pytest PROPERTIES FIXTURES_SETUP "pytest_installed")
 
     add_test(
-        NAME test_hemco_to_aces_python
+        NAME test_hemco_to_cece_python
         COMMAND ${Python3_EXECUTABLE} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_converters.py)
-    set_tests_properties(test_hemco_to_aces_python PROPERTIES
+    set_tests_properties(test_hemco_to_cece_python PROPERTIES
         ENVIRONMENT "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/scripts"
         FIXTURES_REQUIRED "pytest_installed")
 
@@ -344,28 +344,28 @@ if(Python3_Interpreter_FOUND)
             NAME test_enum_config_bindings
             COMMAND ${Python3_EXECUTABLE} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_enum_config_bindings.py -v)
         set_tests_properties(test_enum_config_bindings PROPERTIES
-            ENVIRONMENT "PYTHONPATH=${CMAKE_BINARY_DIR}/src/python/aces"
+            ENVIRONMENT "PYTHONPATH=${CMAKE_BINARY_DIR}/src/python/cece"
             FIXTURES_REQUIRED "pytest_installed")
 
         add_test(
             NAME test_state_bindings
             COMMAND ${Python3_EXECUTABLE} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_state_bindings.py -v)
         set_tests_properties(test_state_bindings PROPERTIES
-            ENVIRONMENT "PYTHONPATH=${CMAKE_BINARY_DIR}/src/python/aces"
+            ENVIRONMENT "PYTHONPATH=${CMAKE_BINARY_DIR}/src/python/cece"
             FIXTURES_REQUIRED "pytest_installed")
 
         add_test(
             NAME test_compute_bindings
             COMMAND ${Python3_EXECUTABLE} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_compute_bindings.py -v)
         set_tests_properties(test_compute_bindings PROPERTIES
-            ENVIRONMENT "PYTHONPATH=${CMAKE_BINARY_DIR}/src/python/aces"
+            ENVIRONMENT "PYTHONPATH=${CMAKE_BINARY_DIR}/src/python/cece"
             FIXTURES_REQUIRED "pytest_installed")
 
         add_test(
             NAME test_validator_logger_bindings
             COMMAND ${Python3_EXECUTABLE} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_validator_logger_bindings.py -v)
         set_tests_properties(test_validator_logger_bindings PROPERTIES
-            ENVIRONMENT "PYTHONPATH=${CMAKE_BINARY_DIR}/src/python/aces"
+            ENVIRONMENT "PYTHONPATH=${CMAKE_BINARY_DIR}/src/python/cece"
             FIXTURES_REQUIRED "pytest_installed")
 
         add_test(
@@ -383,13 +383,13 @@ gtest_discover_tests(test_driver_config_validation)
 gtest_discover_tests(test_driver_clock_management)
 gtest_discover_tests(test_clock_operations_unit)
 gtest_discover_tests(test_driver_integration_end_to_end)
-gtest_discover_tests(test_aces_cap)
+gtest_discover_tests(test_cece_cap)
 gtest_discover_tests(test_stacking_engine)
 gtest_discover_tests(test_vertical_distribution_single)
-gtest_discover_tests(test_aces_utils)
-gtest_discover_tests(test_aces_compute)
+gtest_discover_tests(test_cece_utils)
+gtest_discover_tests(test_cece_compute)
 gtest_discover_tests(test_physics)
-gtest_discover_tests(test_aces_ingestor)
+gtest_discover_tests(test_cece_ingestor)
 gtest_discover_tests(test_diagnostics)
 gtest_discover_tests(test_hemco_mimic)
 gtest_discover_tests(test_field_resolution_priority)
@@ -404,7 +404,7 @@ gtest_discover_tests(test_field_pointer_passing)
 # --- Python Bindings ---
 
 if(BUILD_PYTHON_BINDINGS)
-    message(STATUS "Building Python bindings for ACES")
+    message(STATUS "Building Python bindings for CECE")
     add_subdirectory(src/python)
 else()
     message(STATUS "Python bindings disabled. Enable with -DBUILD_PYTHON_BINDINGS=ON")
@@ -450,32 +450,32 @@ endif()
 
 find_program(CLANG_FORMAT_EXECUTABLE clang-format)
 if(CLANG_FORMAT_EXECUTABLE)
-    file(GLOB_RECURSE ACES_FORMAT_FILES
-        "${CMAKE_CURRENT_SOURCE_DIR}/include/aces/*.hpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/include/aces/*.h"
+    file(GLOB_RECURSE CECE_FORMAT_FILES
+        "${CMAKE_CURRENT_SOURCE_DIR}/include/cece/*.hpp"
+        "${CMAKE_CURRENT_SOURCE_DIR}/include/cece/*.h"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/**/*.cpp")
 
     add_custom_target(clang-format
-        COMMAND ${CLANG_FORMAT_EXECUTABLE} -i ${ACES_FORMAT_FILES}
-        COMMENT "Running clang-format on ACES source files")
+        COMMAND ${CLANG_FORMAT_EXECUTABLE} -i ${CECE_FORMAT_FILES}
+        COMMENT "Running clang-format on CECE source files")
 
     add_custom_target(clang-format-check
-        COMMAND ${CLANG_FORMAT_EXECUTABLE} --dry-run --Werror ${ACES_FORMAT_FILES}
-        COMMENT "Checking clang-format compliance on ACES source files")
+        COMMAND ${CLANG_FORMAT_EXECUTABLE} --dry-run --Werror ${CECE_FORMAT_FILES}
+        COMMENT "Checking clang-format compliance on CECE source files")
 else()
     message(STATUS "clang-format not found. Code formatting targets disabled.")
 endif()
 
 find_program(CLANG_TIDY_EXECUTABLE clang-tidy)
 if(CLANG_TIDY_EXECUTABLE)
-    file(GLOB_RECURSE ACES_TIDY_FILES
+    file(GLOB_RECURSE CECE_TIDY_FILES
         "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/**/*.cpp")
 
     add_custom_target(clang-tidy
-        COMMAND ${CLANG_TIDY_EXECUTABLE} -p ${CMAKE_BINARY_DIR} ${ACES_TIDY_FILES}
-        COMMENT "Running clang-tidy on ACES source files")
+        COMMAND ${CLANG_TIDY_EXECUTABLE} -p ${CMAKE_BINARY_DIR} ${CECE_TIDY_FILES}
+        COMMENT "Running clang-tidy on CECE source files")
 else()
     message(STATUS "clang-tidy not found. Code analysis targets disabled.")
 endif()

@@ -16,10 +16,10 @@
 #include <random>
 #include <vector>
 
-#include "aces/aces_config.hpp"
-#include "aces/aces_data_ingestor.hpp"
+#include "cece/cece_config.hpp"
+#include "cece/cece_data_ingestor.hpp"
 
-namespace aces::test {
+namespace cece::test {
 
 class FieldResolutionPriorityTest : public ::testing::Test {
    protected:
@@ -40,7 +40,7 @@ class FieldResolutionPriorityTest : public ::testing::Test {
  * **Validates: Requirements 3.3**
  */
 TEST_F(FieldResolutionPriorityTest, FieldNotFound) {
-    AcesDataIngestor ingestor;
+    CeceDataIngestor ingestor;
     EXPECT_FALSE(ingestor.HasDataIngesterField("nonexistent_field"));
     EXPECT_FALSE(ingestor.HasCachedField("nonexistent_field"));
 }
@@ -51,7 +51,7 @@ TEST_F(FieldResolutionPriorityTest, FieldNotFound) {
  * **Validates: Requirements 3.3**
  */
 TEST_F(FieldResolutionPriorityTest, HasCachedFieldMatchesHasDataIngesterField) {
-    AcesDataIngestor ingestor;
+    CeceDataIngestor ingestor;
     const std::string name = "some_field";
     EXPECT_EQ(ingestor.HasDataIngesterField(name), ingestor.HasCachedField(name));
 }
@@ -62,7 +62,7 @@ TEST_F(FieldResolutionPriorityTest, HasCachedFieldMatchesHasDataIngesterField) {
  * **Validates: Requirements 3.3**
  */
 TEST_F(FieldResolutionPriorityTest, ResolveFieldReturnsEmptyWhenAbsent) {
-    AcesDataIngestor ingestor;
+    CeceDataIngestor ingestor;
     auto view = ingestor.ResolveField("missing", 4, 4, 4);
     EXPECT_EQ(view.data(), nullptr);
 }
@@ -78,7 +78,7 @@ TEST_F(FieldResolutionPriorityTest, ResolveFieldReturnTypeIsUnmanaged) {
                      Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
 
     static_assert(
-        std::is_same_v<decltype(std::declval<AcesDataIngestor>().ResolveField("", 0, 0, 0)),
+        std::is_same_v<decltype(std::declval<CeceDataIngestor>().ResolveField("", 0, 0, 0)),
                        ExpectedViewType>,
         "ResolveField must return a view with Kokkos::MemoryTraits<Kokkos::Unmanaged>");
 
@@ -91,7 +91,7 @@ TEST_F(FieldResolutionPriorityTest, ResolveFieldReturnTypeIsUnmanaged) {
  * **Validates: Requirements 3.3**
  */
 TEST_F(FieldResolutionPriorityTest, FieldNameVariations) {
-    AcesDataIngestor ingestor;
+    CeceDataIngestor ingestor;
     const std::vector<std::string> names = {
         "CO",
         "carbon_monoxide",
@@ -110,7 +110,7 @@ TEST_F(FieldResolutionPriorityTest, FieldNameVariations) {
     }
 }
 
-}  // namespace aces::test
+}  // namespace cece::test
 
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);

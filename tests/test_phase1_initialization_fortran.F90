@@ -1,10 +1,10 @@
 !> @file test_phase1_initialization_fortran.F90
-!> @brief Unit tests for ACES Phase 1 (Advertise + Init) initialization via Fortran cap.
+!> @brief Unit tests for CECE Phase 1 (Advertise + Init) initialization via Fortran cap.
 !>
 !> Tests the IPDv01p1 phase through the Fortran NUOPC cap layer, including:
 !> - ESMF infrastructure setup
-!> - ACES_SetServices registration
-!> - ACES_InitializeAdvertise execution
+!> - CECE_SetServices registration
+!> - CECE_InitializeAdvertise execution
 !> - Driver configuration parsing
 !> - Field advertisement
 !>
@@ -153,7 +153,7 @@ contains
     end if
 
     ! Create GridComp
-    comp = ESMF_GridCompCreate(name="ACES", rc=local_rc)
+    comp = ESMF_GridCompCreate(name="CECE", rc=local_rc)
     if (local_rc /= ESMF_SUCCESS) then
       write(*,'(A,I0)') "ERROR: ESMF_GridCompCreate failed rc=", local_rc
       rc = ESMF_FAILURE
@@ -171,7 +171,7 @@ contains
     call ESMF_CalendarDestroy(calendar, rc=local_rc)
   end subroutine test_phase1_basic_initialization
 
-  !> @brief Test component registration via ACES_SetServices
+  !> @brief Test component registration via CECE_SetServices
   !> Validates: Requirements 13.1, 13.2, 13.3, 13.4
   subroutine test_phase1_component_registration(rc)
     integer, intent(out) :: rc
@@ -181,14 +181,14 @@ contains
     write(*,'(A)') "TEST: test_phase1_component_registration"
 
     ! Create GridComp
-    comp = ESMF_GridCompCreate(name="ACES", rc=local_rc)
+    comp = ESMF_GridCompCreate(name="CECE", rc=local_rc)
     if (local_rc /= ESMF_SUCCESS) then
       write(*,'(A,I0)') "ERROR: ESMF_GridCompCreate failed rc=", local_rc
       rc = ESMF_FAILURE
       return
     end if
 
-    ! Note: In a real test, we would call ACES_SetServices here
+    ! Note: In a real test, we would call CECE_SetServices here
     ! For now, just verify the component was created
     write(*,'(A)') "INFO: Component registration test passed"
     rc = ESMF_SUCCESS

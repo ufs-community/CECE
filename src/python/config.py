@@ -1,15 +1,15 @@
 """
-Configuration classes for the ACES Python interface.
+Configuration classes for the CECE Python interface.
 
 Provides dataclass-based configuration objects for emission layers, vertical
-distribution, physics schemes, data streams, and the top-level ``AcesConfig``
+distribution, physics schemes, data streams, and the top-level ``CeceConfig``
 container. Supports loading from YAML files or dictionaries, validation, and
 serialization.
 
 See Also
 --------
-aces.utils.load_config : Load configuration from various sources.
-aces.initialize : Initialize ACES with a configuration.
+cece.utils.load_config : Load configuration from various sources.
+cece.initialize : Initialize CECE with a configuration.
 """
 
 from __future__ import annotations
@@ -297,9 +297,9 @@ class ValidationResult:
         return "Validation failed:\n" + "\n".join(f"  - {e}" for e in self.errors)
 
 
-class AcesConfig:
+class CeceConfig:
     """
-    Top-level configuration for ACES computations.
+    Top-level configuration for CECE computations.
 
     Manages species definitions, physics scheme registrations, data stream
     configurations, and temporal cycle definitions. Supports construction
@@ -317,14 +317,14 @@ class AcesConfig:
         Mapping of species names to lists of ``EmissionLayer`` objects.
     physics_schemes : list of PhysicsSchemeConfig
         Registered physics scheme configurations.
-    aces_data : dict
+    cece_data : dict
         Data stream configuration with a ``"streams"`` key.
     vertical_config : VerticalDistributionConfig
         Default vertical distribution configuration.
 
     Examples
     --------
-    >>> config = AcesConfig()
+    >>> config = CeceConfig()
     >>> config.add_species("CO", [EmissionLayer(field_name="CO_ANTHRO")])
     >>> result = config.validate()
     >>> print(result)
@@ -343,7 +343,7 @@ class AcesConfig:
         """
         self._species: Dict[str, List[EmissionLayer]] = {}
         self._physics_schemes: List[PhysicsSchemeConfig] = []
-        self._aces_data: Dict[str, Any] = {"streams": []}
+        self._cece_data: Dict[str, Any] = {"streams": []}
         self._vertical_config: VerticalDistributionConfig = VerticalDistributionConfig()
         self._temporal_cycles: Dict[str, List] = {}
 
@@ -439,7 +439,7 @@ class AcesConfig:
         """
         stream = DataStreamConfig(name, file_paths, variables, taxmode, tintalgo, mapalgo)
         stream.validate()
-        self._aces_data["streams"].append(stream)
+        self._cece_data["streams"].append(stream)
 
     def add_temporal_cycle(self, name: str, factors: List) -> None:
         """
@@ -507,7 +507,7 @@ class AcesConfig:
                 errors.append(f"Physics scheme: {str(e)}")
 
         # Validate data streams
-        for stream in self._aces_data.get("streams", []):
+        for stream in self._cece_data.get("streams", []):
             try:
                 stream.validate()
             except ValueError as e:
@@ -576,7 +576,7 @@ class AcesConfig:
             "physics_schemes": [
                 {"name": s.name, "language": s.language, "options": s.options} for s in self._physics_schemes
             ],
-            "aces_data": {
+            "cece_data": {
                 "streams": [
                     {
                         "name": s.name,
@@ -586,14 +586,14 @@ class AcesConfig:
                         "tintalgo": s.tintalgo,
                         "mapalgo": s.mapalgo,
                     }
-                    for s in self._aces_data.get("streams", [])
+                    for s in self._cece_data.get("streams", [])
                 ]
             },
             "temporal_cycles": self._temporal_cycles,
         }
 
     @classmethod
-    def from_dict(cls, config_dict: dict) -> AcesConfig:
+    def from_dict(cls, config_dict: dict) -> CeceConfig:
         """
         Create a configuration from a dictionary.
 
@@ -604,7 +604,7 @@ class AcesConfig:
 
         Returns
         -------
-        AcesConfig
+        CeceConfig
             New configuration object populated from the dictionary.
 
         Raises
@@ -617,7 +617,7 @@ class AcesConfig:
         return config
 
     @classmethod
-    def from_yaml(cls, yaml_str: str) -> AcesConfig:
+    def from_yaml(cls, yaml_str: str) -> CeceConfig:
         """
         Create a configuration from a YAML string.
 
@@ -628,7 +628,7 @@ class AcesConfig:
 
         Returns
         -------
-        AcesConfig
+        CeceConfig
             New configuration object populated from the YAML data.
 
         Raises
@@ -658,7 +658,7 @@ class AcesConfig:
         Parameters
         ----------
         config_dict : dict
-            Dictionary with species, physics_schemes, aces_data, and
+            Dictionary with species, physics_schemes, cece_data, and
             temporal_cycles keys.
         """
         # Species
@@ -693,7 +693,7 @@ class AcesConfig:
             )
 
         # Data streams
-        for stream_data in config_dict.get("aces_data", {}).get("streams", []):
+        for stream_data in config_dict.get("cece_data", {}).get("streams", []):
             self.add_data_stream(
                 name=stream_data.get("name", ""),
                 file_paths=stream_data.get("file_paths", []),
@@ -718,9 +718,9 @@ class AcesConfig:
         return self._physics_schemes
 
     @property
-    def aces_data(self) -> Dict[str, Any]:
+    def cece_data(self) -> Dict[str, Any]:
         """dict : Data stream configuration."""
-        return self._aces_data
+        return self._cece_data
 
     @property
     def vertical_config(self) -> VerticalDistributionConfig:

@@ -1,7 +1,7 @@
-# Doxygen Configuration for ACES
+# Doxygen Configuration for CECE
 # Generated for API documentation generation
 
-PROJECT_NAME           = "ACES (Atmospheric Chemistry Emission System)"
+PROJECT_NAME           = "CECE (Community Emissions Computing Engine)"
 PROJECT_NUMBER         = "1.0"
 PROJECT_BRIEF          = "High-performance emissions compute component for Earth System Models"
 PROJECT_LOGO           =
@@ -11,7 +11,7 @@ CREATE_SUBDIRS         = NO
 ALLOW_UNICODE_NAMES    = YES
 
 # Input files
-INPUT                  = include/aces src/
+INPUT                  = include/cece src/
 INPUT_ENCODING         = UTF-8
 FILE_PATTERNS          = *.hpp *.cpp *.h *.c
 RECURSIVE              = YES
@@ -27,7 +27,7 @@ EXTRACT_PACKAGE        = NO
 EXTRACT_STATIC         = YES
 EXTRACT_LOCAL_CLASSES  = YES
 EXTRACT_LOCAL_METHODS  = NO
-EXTRACT_ANON_NSPACES   = NO
+EXTRACT_ANON_NSPCECE   = NO
 
 # Build related options
 CASE_SENSE_FILENAMES   = YES
@@ -105,7 +105,7 @@ ENABLE_PREPROCESSING   = YES
 MACRO_EXPANSION        = NO
 EXPAND_ONLY_PREDEF     = NO
 SEARCH_INCLUDES        = YES
-INCLUDE_PATH           = include/aces
+INCLUDE_PATH           = include/cece
 INCLUDE_FILE_PATTERNS  = *.h *.hpp
 PREDEFINED             = KOKKOS_LAMBDA=[] KOKKOS_FUNCTION= KOKKOS_INLINE_FUNCTION=inline
 EXPAND_AS_DEFINED      =
@@ -214,7 +214,7 @@ GENERATE_BUGLIST       = YES
 MAX_INITIALIZERS       = 30
 SHOW_USED_FILES        = YES
 SHOW_FILES             = YES
-SHOW_NAMESPACES        = YES
+SHOW_NAMESPCECE        = YES
 FILE_VERSION_FILTER    =
 
 # Configuration options related to the alphabetical index

@@ -3,7 +3,7 @@
 ##############################################################################
 # Script: run_idempotence_test.sh
 #
-# Purpose: Run the ACES test suite twice in JCSDA Docker and verify that
+# Purpose: Run the CECE test suite twice in JCSDA Docker and verify that
 #          results are identical (test idempotence property).
 #
 # Usage: ./scripts/run_idempotence_test.sh [build_dir]
@@ -13,7 +13,7 @@
 #
 # Requirements:
 #   - Must be run inside JCSDA Docker container (jcsda/docker-gnu-openmpi-dev:1.9)
-#   - ACES must be built with: mkdir build && cd build && cmake .. && make -j4
+#   - CECE must be built with: mkdir build && cd build && cmake .. && make -j4
 #
 # Output:
 #   - Logs test results to stdout
@@ -41,14 +41,14 @@ NC='\033[0m' # No Color
 mkdir -p "${LOG_DIR}"
 
 echo -e "${YELLOW}========================================${NC}"
-echo -e "${YELLOW}ACES Test Suite Idempotence Verification${NC}"
+echo -e "${YELLOW}CECE Test Suite Idempotence Verification${NC}"
 echo -e "${YELLOW}========================================${NC}"
 echo ""
 
 # Verify build directory exists
 if [ ! -d "${BUILD_DIR}" ]; then
     echo -e "${RED}ERROR: Build directory '${BUILD_DIR}' not found${NC}"
-    echo "Please build ACES first:"
+    echo "Please build CECE first:"
     echo "  mkdir build && cd build && cmake .. && make -j4"
     exit 1
 fi
@@ -56,7 +56,7 @@ fi
 # Verify test executables exist
 if [ ! -f "${BUILD_DIR}/test_suite_idempotence" ]; then
     echo -e "${RED}ERROR: test_suite_idempotence executable not found${NC}"
-    echo "Please rebuild ACES:"
+    echo "Please rebuild CECE:"
     echo "  cd ${BUILD_DIR} && make -j4"
     exit 1
 fi
@@ -95,7 +95,7 @@ echo ""
 # Compare results
 {
     echo "=========================================="
-    echo "ACES Test Suite Idempotence Comparison"
+    echo "CECE Test Suite Idempotence Comparison"
     echo "=========================================="
     echo ""
     echo "First Run Log:"

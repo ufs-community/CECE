@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 
 def visualize_stacking_plan(config_path):
     """
-    Simulates and visualizes the emission stacking plan defined in the ACES config.
+    Simulates and visualizes the emission stacking plan defined in the CECE config.
     This serves as a Python-side orchestration and visualization tool for the
     high-performance C++ stacking engine.
     """
@@ -44,5 +44,5 @@ def visualize_stacking_plan(config_path):
 
 if __name__ == "__main__":
     import sys
-    config_file = sys.argv[1] if len(sys.argv) > 1 else "aces_config.yaml.example"
+    config_file = sys.argv[1] if len(sys.argv) > 1 else "cece_config.yaml.example"
     visualize_stacking_plan(config_file)

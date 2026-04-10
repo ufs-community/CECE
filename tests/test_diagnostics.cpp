@@ -6,18 +6,18 @@
 #include <cstring>
 #include <fstream>
 
-#include "aces/aces_diagnostics.hpp"
-#include "aces/physics_scheme.hpp"
+#include "cece/cece_diagnostics.hpp"
+#include "cece/physics_scheme.hpp"
 
-namespace aces {
+namespace cece {
 
 class MockPhysicsScheme : public PhysicsScheme {
    public:
-    void Initialize(const YAML::Node& /*config*/, AcesDiagnosticManager* diag_manager) override {
+    void Initialize(const YAML::Node& /*config*/, CeceDiagnosticManager* diag_manager) override {
         diag_ = diag_manager->RegisterDiagnostic("test_diag", 10, 10, 5);
     }
 
-    void Run(AcesImportState& /*import_state*/, AcesExportState& /*export_state*/) override {
+    void Run(CeceImportState& /*import_state*/, CeceExportState& /*export_state*/) override {
         auto device_view = diag_.view_device();
         Kokkos::deep_copy(device_view, 42.0);
         diag_.modify_device();
@@ -32,14 +32,14 @@ TEST(DiagnosticsTest, RegistrationAndWriteback) {
         Kokkos::initialize();
     }
 
-    AcesDiagnosticManager diag_manager;
+    CeceDiagnosticManager diag_manager;
     MockPhysicsScheme scheme;
 
     YAML::Node config;
     scheme.Initialize(config, &diag_manager);
 
-    AcesImportState import_state;
-    AcesExportState export_state;
+    CeceImportState import_state;
+    CeceExportState export_state;
     scheme.Run(import_state, export_state);
 
     DiagnosticConfig diag_config;
@@ -68,7 +68,7 @@ TEST(DiagnosticsTest, RegistrationAndWriteback) {
     EXPECT_DOUBLE_EQ(host_view(0, 0, 0), 42.0);
 }
 
-}  // namespace aces
+}  // namespace cece
 
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);

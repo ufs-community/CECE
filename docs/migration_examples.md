@@ -1,8 +1,8 @@
 # HEMCO Migration Examples
 
-This page provides a visual comparison between classic HEMCO configuration (`HEMCO_Config.rc`) and the corresponding ACES configuration (`aces_config.yaml`).
+This page provides a visual comparison between classic HEMCO configuration (`HEMCO_Config.rc`) and the corresponding CECE configuration (`cece_config.yaml`).
 
-ACES maintains algorithmic parity with HEMCO's stacking engine while utilizing a modern, performance-portable YAML format.
+CECE maintains algorithmic parity with HEMCO's stacking engine while utilizing a modern, performance-portable YAML format.
 
 ---
 
@@ -18,7 +18,7 @@ ACES maintains algorithmic parity with HEMCO's stacking engine while utilizing a
 500      HOURLY_SCALFACT $ROOT/hourly.nc factor  2000/1/1/0-23    C   xy  1    1
 ```
 
-### [After] ACES
+### [After] CECE
 ```yaml
 scale_factors:
   hourly_scalfact: HOURLY_SCALFACT
@@ -30,7 +30,7 @@ species:
       scale: 1.0
       scale_fields: ["hourly_scalfact"]
 
-aces_data:
+cece_data:
   streams:
     - name: "MACCITY_CO"
       file: "data/MACCity_4x5.nc"
@@ -53,7 +53,7 @@ aces_data:
 1001    MASK_EUROPE  $ROOT/mask_europe.nc MASK  2000/1/1/0   C   xy  1    1    -30/30/45/70
 ```
 
-### [After] ACES
+### [After] CECE
 ```yaml
 scale_factors:
   hourly_scalfact: HOURLY_SCALFACT
@@ -88,7 +88,7 @@ species:
 0      AEIC_CO    $ROOT/AEIC.nc     CO    2005/1-12/1/0       C   xyz kg/m2/s  CO      -        2   1
 ```
 
-### [After] ACES
+### [After] CECE
 ```yaml
 species:
   co:
@@ -113,7 +113,7 @@ species:
 111    GFED_WDL  $ROOT/GFED4.nc   WDL_DM 2000-2013/1-12/01/0 C   xy  kg/m2/s  *       -        1   1
 ```
 
-### [After] ACES
+### [After] CECE
 ```yaml
 physics_schemes:
   - name: "GFED"
@@ -139,7 +139,7 @@ species:
 0 MACCITY_SO2 $ROOT/MACCity.nc SO2 1980-2014/1-12/1/0 C xy  kg/m2/s SO2 -   1 1
 ```
 
-### [After] ACES
+### [After] CECE
 ```yaml
 species:
   co:
@@ -161,7 +161,7 @@ species:
 0 EDGAR_NO_POW EDGAR.nc emi_nox 1970-2010/1/1/0 C xy kg/m2/s NO 1201/25/115 1/2 2
 ```
 
-### [After] ACES
+### [After] CECE
 ```yaml
 species:
   no:

@@ -2,7 +2,7 @@
 build*/
 
 # Generated output files
-aces_output/
+cece_output/
 output/
 *.nc
 
@@ -12,7 +12,7 @@ PET*.ESMF_LogFile
 *.log
 
 # Generated configuration files
-aces_data_streams.yaml
+cece_data_streams.yaml
 
 # OS and IDE files
 .DS_Store
@@ -32,8 +32,8 @@ site/
 bin/
 *.ESMF_LogFile
 data/*.nc
-aces_config.yaml
-aces_emissions.streams
+cece_config.yaml
+cece_emissions.streams
 cdeps_in.nml
 hemco_mimic_config.yaml
 __pycache__/
