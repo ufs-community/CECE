@@ -6,10 +6,10 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Atmospheric Chemistry Emission System">
+        <meta name="description" content="Community Emissions Computing Engine">
       
       
-        <meta name="author" content="ACES Team">
+        <meta name="author" content="CECE Team">
       
       
       
@@ -23,11 +23,11 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="zensical-0.0.31">
+      <meta name="generator" content="zensical-0.0.32">
     
     
       
-        <title>User's Guide - ACES Documentation</title>
+        <title>User's Guide - CECE Documentation</title>
       
     
     
@@ -99,7 +99,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="./.." title="ACES Documentation" class="md-header__button md-logo" aria-label="ACES Documentation" data-md-component="logo">
+    <a href="./.." title="CECE Documentation" class="md-header__button md-logo" aria-label="CECE Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
@@ -113,7 +113,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            ACES Documentation
+            CECE Documentation
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -198,13 +198,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="./.." title="ACES Documentation" class="md-nav__button md-logo" aria-label="ACES Documentation" data-md-component="logo">
+    <a href="./.." title="CECE Documentation" class="md-nav__button md-logo" aria-label="CECE Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
 
     </a>
-    ACES Documentation
+    CECE Documentation
   </label>
   
   <ul class="md-nav__list" data-md-scrollfix>
@@ -376,15 +376,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#building-aces" class="md-nav__link">
+  <a href="#building-cece" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Building ACES
+        Building CECE
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Building ACES">
+    <nav class="md-nav" aria-label="Building CECE">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -709,15 +709,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#building-aces" class="md-nav__link">
+  <a href="#building-cece" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Building ACES
+        Building CECE
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Building ACES">
+    <nav class="md-nav" aria-label="Building CECE">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -810,9 +810,9 @@
                   
 
 <h1 id="users-guide">User's Guide<a class="headerlink" href="#users-guide" title="Permanent link">&para;</a></h1>
-<p>This guide covers the prerequisites, build process, configuration, and execution of the ACES component.</p>
+<p>This guide covers the prerequisites, build process, configuration, and execution of the CECE component.</p>
 <h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
-<p>To build ACES, you need the following dependencies:</p>
+<p>To build CECE, you need the following dependencies:</p>
 <ul>
 <li><strong>C++20 Compiler</strong> (GCC 10+, Clang 12+)</li>
 <li><strong>CMake</strong> (3.20+)</li>
@@ -839,7 +839,7 @@
 <p>If you encounter <code>overlayfs</code> errors or other Docker-related environment issues when running the setup script, you can use the provided fix utility:
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>./scripts/fix_docker_and_setup.sh
 </span></code></pre></div></p>
-<h2 id="building-aces">Building ACES<a class="headerlink" href="#building-aces" title="Permanent link">&para;</a></h2>
+<h2 id="building-cece">Building CECE<a class="headerlink" href="#building-cece" title="Permanent link">&para;</a></h2>
 <h3 id="standard-build-in-jcsda-docker">Standard Build in JCSDA Docker<a class="headerlink" href="#standard-build-in-jcsda-docker" title="Permanent link">&para;</a></h3>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="c1"># Inside the JCSDA Docker container</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="nb">source</span><span class="w"> </span>/opt/spack-environment/activate.sh
@@ -891,7 +891,7 @@
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>cmake<span class="w"> </span>..<span class="w"> </span>-DKokkos_ENABLE_SERIAL<span class="o">=</span>ON<span class="w"> </span>-DKokkos_ENABLE_OPENMP<span class="o">=</span>ON
 </span></code></pre></div></p>
 <h2 id="yaml-configuration">YAML Configuration<a class="headerlink" href="#yaml-configuration" title="Permanent link">&para;</a></h2>
-<p>ACES is configured using a YAML file that defines emission species, data sources, scaling factors, and processing parameters. The configuration system is built around the powerful <strong>Stacking Engine</strong> that combines multiple emission layers with sophisticated hierarchy and scaling rules.</p>
+<p>CECE is configured using a YAML file that defines emission species, data sources, scaling factors, and processing parameters. The configuration system is built around the powerful <strong>Stacking Engine</strong> that combines multiple emission layers with sophisticated hierarchy and scaling rules.</p>
 <p>For complete configuration reference with all available options, see the <a href="../configuration/">Configuration Documentation</a>.</p>
 <p>For technical details about how the Stacking Engine processes these configurations, see the <a href="../stacking_engine/">Stacking Engine Documentation</a>.</p>
 <h3 id="basic-configuration-structure">Basic Configuration Structure<a class="headerlink" href="#basic-configuration-structure" title="Permanent link">&para;</a></h3>
@@ -943,7 +943,7 @@
 </span><span id="__span-6-46"><a id="__codelineno-6-46" name="__codelineno-6-46" href="#__codelineno-6-46"></a><span class="w">      </span><span class="nt">r_sala_max</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">0.5</span>
 </span><span id="__span-6-47"><a id="__codelineno-6-47" name="__codelineno-6-47" href="#__codelineno-6-47"></a>
 </span><span id="__span-6-48"><a id="__codelineno-6-48" name="__codelineno-6-48" href="#__codelineno-6-48"></a><span class="c1"># TIDE data streams for external inventories</span>
-</span><span id="__span-6-49"><a id="__codelineno-6-49" name="__codelineno-6-49" href="#__codelineno-6-49"></a><span class="nt">aces_data</span><span class="p">:</span>
+</span><span id="__span-6-49"><a id="__codelineno-6-49" name="__codelineno-6-49" href="#__codelineno-6-49"></a><span class="nt">cece_data</span><span class="p">:</span>
 </span><span id="__span-6-50"><a id="__codelineno-6-50" name="__codelineno-6-50" href="#__codelineno-6-50"></a><span class="w">  </span><span class="nt">streams</span><span class="p">:</span>
 </span><span id="__span-6-51"><a id="__codelineno-6-51" name="__codelineno-6-51" href="#__codelineno-6-51"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;GLOBAL_INVENTORY&quot;</span>
 </span><span id="__span-6-52"><a id="__codelineno-6-52" name="__codelineno-6-52" href="#__codelineno-6-52"></a><span class="w">      </span><span class="nt">file</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;/data/inventories/global_emissions.nc&quot;</span>
@@ -963,7 +963,7 @@
 </span><span id="__span-6-66"><a id="__codelineno-6-66" name="__codelineno-6-66" href="#__codelineno-6-66"></a><span class="nt">output</span><span class="p">:</span>
 </span><span id="__span-6-67"><a id="__codelineno-6-67" name="__codelineno-6-67" href="#__codelineno-6-67"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 </span><span id="__span-6-68"><a id="__codelineno-6-68" name="__codelineno-6-68" href="#__codelineno-6-68"></a><span class="w">  </span><span class="nt">directory</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;./output&quot;</span>
-</span><span id="__span-6-69"><a id="__codelineno-6-69" name="__codelineno-6-69" href="#__codelineno-6-69"></a><span class="w">  </span><span class="nt">filename_pattern</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;aces_{YYYY}{MM}{DD}_{HH}.nc&quot;</span>
+</span><span id="__span-6-69"><a id="__codelineno-6-69" name="__codelineno-6-69" href="#__codelineno-6-69"></a><span class="w">  </span><span class="nt">filename_pattern</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;cece_{YYYY}{MM}{DD}_{HH}.nc&quot;</span>
 </span><span id="__span-6-70"><a id="__codelineno-6-70" name="__codelineno-6-70" href="#__codelineno-6-70"></a><span class="w">  </span><span class="nt">frequency_steps</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
 </span><span id="__span-6-71"><a id="__codelineno-6-71" name="__codelineno-6-71" href="#__codelineno-6-71"></a><span class="w">  </span><span class="nt">fields</span><span class="p">:</span><span class="w"> </span><span class="p p-Indicator">[</span><span class="s">&quot;co&quot;</span><span class="p p-Indicator">,</span><span class="w"> </span><span class="s">&quot;nox&quot;</span><span class="p p-Indicator">]</span>
 </span></code></pre></div>
@@ -1024,13 +1024,13 @@ masks:</li>
       dust_source_strength: 1.0</li>
 </ul>
 <h1 id="tide-configuration-optional">TIDE configuration (optional)<a class="headerlink" href="#tide-configuration-optional" title="Permanent link">&para;</a></h1>
-<p>aces_data:
+<p>cece_data:
   streams_yaml: /path/to/streams.yaml
   data_root: /data/emissions</p>
 <h1 id="output-configuration-for-standalone-mode">Output configuration (for standalone mode)<a class="headerlink" href="#output-configuration-for-standalone-mode" title="Permanent link">&para;</a></h1>
 <p>output:
-  directory: ./aces_output
-  filename_pattern: "aces_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
+  directory: ./cece_output
+  filename_pattern: "cece_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
   frequency_steps: 1
   fields:
     - CO
@@ -1073,13 +1073,13 @@ masks:</li>
 </span><span id="__span-7-27"><a id="__codelineno-7-27" name="__codelineno-7-27" href="#__codelineno-7-27"></a>    yearLast: 2020
 </span><span id="__span-7-28"><a id="__codelineno-7-28" name="__codelineno-7-28" href="#__codelineno-7-28"></a>    yearAlign: 2020
 </span></code></pre></div></p>
-<h2 id="running-aces">Running ACES<a class="headerlink" href="#running-aces" title="Permanent link">&para;</a></h2>
+<h2 id="running-cece">Running CECE<a class="headerlink" href="#running-cece" title="Permanent link">&para;</a></h2>
 <h3 id="standalone-nuopc-driver">Standalone NUOPC Driver<a class="headerlink" href="#standalone-nuopc-driver" title="Permanent link">&para;</a></h3>
-<p>The standalone NUOPC driver (<code>aces_nuopc_driver</code>) demonstrates the standard NUOPC lifecycle and how to manage ACES as a child model.</p>
+<p>The standalone NUOPC driver (<code>cece_nuopc_driver</code>) demonstrates the standard NUOPC lifecycle and how to manage CECE as a child model.</p>
 <ol>
 <li>
-<p><strong>Configure</strong>: Edit <code>aces_config.yaml</code> to specify your species, layers, and simulation parameters.
-    The driver can be controlled via a <code>driver</code> block in <code>aces_config.yaml</code>:
+<p><strong>Configure</strong>: Edit <code>cece_config.yaml</code> to specify your species, layers, and simulation parameters.
+    The driver can be controlled via a <code>driver</code> block in <code>cece_config.yaml</code>:
     <div class="language-yaml highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="nt">driver</span><span class="p">:</span>
 </span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="w">  </span><span class="nt">nx</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">72</span>
 </span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="w">  </span><span class="nt">ny</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">46</span>
@@ -1101,14 +1101,14 @@ masks:</li>
 <li>
 <p><strong>Run</strong>:
     <div class="language-bash highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nb">cd</span><span class="w"> </span>build
-</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>./bin/aces_nuopc_driver
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>./bin/cece_nuopc_driver
 </span></code></pre></div></p>
 </li>
 </ol>
 <h3 id="basic-example-driver">Basic Example Driver<a class="headerlink" href="#basic-example-driver" title="Permanent link">&para;</a></h3>
-<p>ACES also provides a simpler <code>example_driver</code> for basic C++ integration tests.</p>
+<p>CECE also provides a simpler <code>example_driver</code> for basic C++ integration tests.</p>
 <ol>
-<li><strong>Configure</strong>: Edit <code>aces_config.yaml</code> to specify your species and layers.</li>
+<li><strong>Configure</strong>: Edit <code>cece_config.yaml</code> to specify your species and layers.</li>
 <li><strong>Run</strong>:
     <div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="nb">cd</span><span class="w"> </span>build
 </span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>./example_driver
@@ -1174,23 +1174,23 @@ masks:</li>
 <h3 id="cpu-performance">CPU Performance<a class="headerlink" href="#cpu-performance" title="Permanent link">&para;</a></h3>
 <p>For multi-core CPU execution, set the number of OpenMP threads:
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-22-1"><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">OMP_NUM_THREADS</span><span class="o">=</span><span class="m">16</span>
-</span><span id="__span-22-2"><a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>./build/bin/aces_nuopc_driver
+</span><span id="__span-22-2"><a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>./build/bin/cece_nuopc_driver
 </span></code></pre></div></p>
 <h3 id="gpu-performance">GPU Performance<a class="headerlink" href="#gpu-performance" title="Permanent link">&para;</a></h3>
 <p>For GPU execution, set the device ID:
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">ACES_DEVICE_ID</span><span class="o">=</span><span class="m">0</span>
-</span><span id="__span-23-2"><a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>./build/bin/aces_nuopc_driver
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-23-1"><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">CECE_DEVICE_ID</span><span class="o">=</span><span class="m">0</span>
+</span><span id="__span-23-2"><a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>./build/bin/cece_nuopc_driver
 </span></code></pre></div></p>
 <h2 id="output-files">Output Files<a class="headerlink" href="#output-files" title="Permanent link">&para;</a></h2>
-<p>When running in standalone mode with output enabled, ACES writes NetCDF files to the configured output directory. Files follow the naming pattern:
-<div class="language-text highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>aces_YYYYMMDD_HHmmss.nc
+<p>When running in standalone mode with output enabled, CECE writes NetCDF files to the configured output directory. Files follow the naming pattern:
+<div class="language-text highlight"><pre><span></span><code><span id="__span-24-1"><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>cece_YYYYMMDD_HHmmss.nc
 </span></code></pre></div></p>
 <p>Each file contains:
 - Time coordinate variable (seconds since start time)
 - All configured emission species fields
 - Optional diagnostic fields (if enabled)</p>
 <p>Files are CF-1.8 compliant and can be inspected with standard tools:
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>ncdump<span class="w"> </span>-h<span class="w"> </span>aces_20240101_000000.nc
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>ncdump<span class="w"> </span>-h<span class="w"> </span>cece_20240101_000000.nc
 </span></code></pre></div></p>
 <h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
 <ul>
@@ -1276,7 +1276,7 @@ masks:</li>
       <div class="md-copyright">
   
     <div class="md-copyright__highlight">
-      Copyright &copy; 2026 ACES Authors
+      Copyright &copy; 2026 CECE Authors
     </div>
   
   

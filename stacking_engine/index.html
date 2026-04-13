@@ -6,10 +6,10 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Atmospheric Chemistry Emission System">
+        <meta name="description" content="Community Emissions Computing Engine">
       
       
-        <meta name="author" content="ACES Team">
+        <meta name="author" content="CECE Team">
       
       
       
@@ -19,11 +19,11 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="zensical-0.0.31">
+      <meta name="generator" content="zensical-0.0.32">
     
     
       
-        <title>The ACES Stacking Engine - ACES Documentation</title>
+        <title>The CECE Stacking Engine - CECE Documentation</title>
       
     
     
@@ -79,7 +79,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#the-aces-stacking-engine" class="md-skip">
+        <a href="#the-cece-stacking-engine" class="md-skip">
           Skip to content
         </a>
       
@@ -95,7 +95,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="./.." title="ACES Documentation" class="md-header__button md-logo" aria-label="ACES Documentation" data-md-component="logo">
+    <a href="./.." title="CECE Documentation" class="md-header__button md-logo" aria-label="CECE Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
@@ -109,13 +109,13 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            ACES Documentation
+            CECE Documentation
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              The ACES Stacking Engine
+              The CECE Stacking Engine
             
           </span>
         </div>
@@ -194,13 +194,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="./.." title="ACES Documentation" class="md-nav__button md-logo" aria-label="ACES Documentation" data-md-component="logo">
+    <a href="./.." title="CECE Documentation" class="md-nav__button md-logo" aria-label="CECE Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
 
     </a>
-    ACES Documentation
+    CECE Documentation
   </label>
   
   <ul class="md-nav__list" data-md-scrollfix>
@@ -845,8 +845,8 @@
                 
                   
 
-<h1 id="the-aces-stacking-engine">The ACES Stacking Engine<a class="headerlink" href="#the-aces-stacking-engine" title="Permanent link">&para;</a></h1>
-<p>The <strong>Stacking Engine</strong> is the computational core of ACES, responsible for combining multiple emission data layers into final emission fields for each chemical species. It implements a sophisticated hierarchy-based processing system that mimics and extends the HEMCO (Harmonized Emissions Component) approach while providing significant performance optimizations for modern HPC architectures.</p>
+<h1 id="the-cece-stacking-engine">The CECE Stacking Engine<a class="headerlink" href="#the-cece-stacking-engine" title="Permanent link">&para;</a></h1>
+<p>The <strong>Stacking Engine</strong> is the computational core of CECE, responsible for combining multiple emission data layers into final emission fields for each chemical species. It implements a sophisticated hierarchy-based processing system that mimics and extends the HEMCO (Harmonized Emissions Component) approach while providing significant performance optimizations for modern HPC architectures.</p>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
 <p>The Stacking Engine processes emission data through several key phases:</p>
 <ol>
@@ -860,7 +860,7 @@
 </ol>
 <h2 id="architecture-and-performance">Architecture and Performance<a class="headerlink" href="#architecture-and-performance" title="Permanent link">&para;</a></h2>
 <h3 id="kernel-fusion-optimization">Kernel Fusion Optimization<a class="headerlink" href="#kernel-fusion-optimization" title="Permanent link">&para;</a></h3>
-<p>Unlike traditional approach of processing each layer sequentially, ACES uses <strong>kernel fusion</strong> to generate a single, optimized compute kernel per species. This provides several key advantages:</p>
+<p>Unlike traditional approach of processing each layer sequentially, CECE uses <strong>kernel fusion</strong> to generate a single, optimized compute kernel per species. This provides several key advantages:</p>
 <ul>
 <li><strong>Reduced Memory Bandwidth</strong>: Minimizes data movement between GPU/CPU memory and compute units</li>
 <li><strong>Lower Kernel Launch Overhead</strong>: Single kernel launch per species instead of multiple</li>
@@ -936,7 +936,7 @@
 </span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="w">      </span><span class="nt">operation</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;add&quot;</span>
 </span></code></pre></div>
 <h2 id="vertical-distribution">Vertical Distribution<a class="headerlink" href="#vertical-distribution" title="Permanent link">&para;</a></h2>
-<p>ACES supports multiple algorithms for distributing 2D surface emissions into 3D atmospheric volumes:</p>
+<p>CECE supports multiple algorithms for distributing 2D surface emissions into 3D atmospheric volumes:</p>
 <h3 id="distribution-methods">Distribution Methods<a class="headerlink" href="#distribution-methods" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
@@ -1123,7 +1123,7 @@
 </span><span id="__span-8-20"><a id="__codelineno-8-20" name="__codelineno-8-20" href="#__codelineno-8-20"></a><span class="w">      </span><span class="nt">hierarchy</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">2</span>
 </span></code></pre></div>
 <h2 id="integration-with-physics-schemes">Integration with Physics Schemes<a class="headerlink" href="#integration-with-physics-schemes" title="Permanent link">&para;</a></h2>
-<p>The Stacking Engine coordinates with ACES physics schemes:</p>
+<p>The Stacking Engine coordinates with CECE physics schemes:</p>
 <ol>
 <li><strong>Base Field Processing</strong>: Stacking Engine processes static/inventory emissions</li>
 <li><strong>Physics Augmentation</strong>: Physics schemes modify or add to stacked emissions</li>
@@ -1177,7 +1177,7 @@
       <div class="md-copyright">
   
     <div class="md-copyright__highlight">
-      Copyright &copy; 2026 ACES Authors
+      Copyright &copy; 2026 CECE Authors
     </div>
   
   

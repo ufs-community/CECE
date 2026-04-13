@@ -6,10 +6,10 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Atmospheric Chemistry Emission System">
+        <meta name="description" content="Community Emissions Computing Engine">
       
       
-        <meta name="author" content="ACES Team">
+        <meta name="author" content="CECE Team">
       
       
       
@@ -19,11 +19,11 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="zensical-0.0.31">
+      <meta name="generator" content="zensical-0.0.32">
     
     
       
-        <title>Performance Benchmarks - ACES Documentation</title>
+        <title>Performance Benchmarks - CECE Documentation</title>
       
     
     
@@ -95,7 +95,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="./.." title="ACES Documentation" class="md-header__button md-logo" aria-label="ACES Documentation" data-md-component="logo">
+    <a href="./.." title="CECE Documentation" class="md-header__button md-logo" aria-label="CECE Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
@@ -109,7 +109,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            ACES Documentation
+            CECE Documentation
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -194,13 +194,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="./.." title="ACES Documentation" class="md-nav__button md-logo" aria-label="ACES Documentation" data-md-component="logo">
+    <a href="./.." title="CECE Documentation" class="md-nav__button md-logo" aria-label="CECE Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
 
     </a>
-    ACES Documentation
+    CECE Documentation
   </label>
   
   <ul class="md-nav__list" data-md-scrollfix>
@@ -639,15 +639,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#aces-vs-hemco-detailed-comparison" class="md-nav__link">
+  <a href="#cece-vs-hemco-detailed-comparison" class="md-nav__link">
     <span class="md-ellipsis">
       
-        ACES vs HEMCO Detailed Comparison
+        CECE vs HEMCO Detailed Comparison
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="ACES vs HEMCO Detailed Comparison">
+    <nav class="md-nav" aria-label="CECE vs HEMCO Detailed Comparison">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -840,9 +840,9 @@
                   
 
 <h1 id="performance-benchmarks">Performance Benchmarks<a class="headerlink" href="#performance-benchmarks" title="Permanent link">&para;</a></h1>
-<p>This document presents performance benchmarking results for ACES, comparing CPU and GPU execution, and comparing ACES performance to HEMCO.</p>
+<p>This document presents performance benchmarking results for CECE, comparing CPU and GPU execution, and comparing CECE performance to HEMCO.</p>
 <h2 id="executive-summary">Executive Summary<a class="headerlink" href="#executive-summary" title="Permanent link">&para;</a></h2>
-<p>ACES achieves significant performance improvements over HEMCO:
+<p>CECE achieves significant performance improvements over HEMCO:
 - <strong>CPU Performance</strong>: 2x faster than HEMCO on 16-core CPU
 - <strong>GPU Performance</strong>: 10x faster than HEMCO on NVIDIA GPU
 - <strong>Parallel Efficiency</strong>: 80%+ on 16-core CPU, 50%+ memory bandwidth on GPU
@@ -875,7 +875,7 @@
 <tr>
 <th>Configuration</th>
 <th>HEMCO (s)</th>
-<th>ACES (s)</th>
+<th>CECE (s)</th>
 <th>Speedup</th>
 </tr>
 </thead>
@@ -913,7 +913,7 @@
 <tr>
 <th>Threads</th>
 <th>HEMCO</th>
-<th>ACES</th>
+<th>CECE</th>
 </tr>
 </thead>
 <tbody>
@@ -939,7 +939,7 @@
 </tr>
 </tbody>
 </table>
-<p><strong>Analysis</strong>: ACES maintains 80%+ parallel efficiency on 16 threads due to:
+<p><strong>Analysis</strong>: CECE maintains 80%+ parallel efficiency on 16 threads due to:
 - Fused kernels reducing memory bandwidth pressure
 - Better cache locality through optimized data layout
 - Reduced synchronization overhead</p>
@@ -949,7 +949,7 @@
 <tr>
 <th>Component</th>
 <th>HEMCO</th>
-<th>ACES</th>
+<th>CECE</th>
 <th>Reduction</th>
 </tr>
 </thead>
@@ -986,7 +986,7 @@
 </tr>
 </tbody>
 </table>
-<p><strong>Analysis</strong>: ACES reduces memory usage through:
+<p><strong>Analysis</strong>: CECE reduces memory usage through:
 - Fused kernel execution (no intermediate arrays)
 - Efficient Kokkos memory management
 - Reduced temporary allocations</p>
@@ -997,7 +997,7 @@
 <tr>
 <th>Configuration</th>
 <th>HEMCO (s)</th>
-<th>ACES (s)</th>
+<th>CECE (s)</th>
 <th>Speedup</th>
 </tr>
 </thead>
@@ -1090,15 +1090,15 @@
 </tr>
 </tbody>
 </table>
-<p><strong>Analysis</strong>: ACES scales well with problem size, achieving near-linear scaling up to 1.3M grid cells.</p>
-<h2 id="aces-vs-hemco-detailed-comparison">ACES vs HEMCO Detailed Comparison<a class="headerlink" href="#aces-vs-hemco-detailed-comparison" title="Permanent link">&para;</a></h2>
+<p><strong>Analysis</strong>: CECE scales well with problem size, achieving near-linear scaling up to 1.3M grid cells.</p>
+<h2 id="cece-vs-hemco-detailed-comparison">CECE vs HEMCO Detailed Comparison<a class="headerlink" href="#cece-vs-hemco-detailed-comparison" title="Permanent link">&para;</a></h2>
 <h3 id="execution-time-breakdown-cpu-16-threads">Execution Time Breakdown (CPU, 16 threads)<a class="headerlink" href="#execution-time-breakdown-cpu-16-threads" title="Permanent link">&para;</a></h3>
 <table>
 <thead>
 <tr>
 <th>Phase</th>
 <th>HEMCO (ms)</th>
-<th>ACES (ms)</th>
+<th>CECE (ms)</th>
 <th>Speedup</th>
 </tr>
 </thead>
@@ -1159,7 +1159,7 @@
 <tr>
 <th>Phase</th>
 <th>HEMCO (ms)</th>
-<th>ACES (ms)</th>
+<th>CECE (ms)</th>
 <th>Speedup</th>
 </tr>
 </thead>
@@ -1218,7 +1218,7 @@
 <h2 id="optimization-recommendations">Optimization Recommendations<a class="headerlink" href="#optimization-recommendations" title="Permanent link">&para;</a></h2>
 <h3 id="for-cpu-performance">For CPU Performance<a class="headerlink" href="#for-cpu-performance" title="Permanent link">&para;</a></h3>
 <ol>
-<li><strong>Increase Thread Count</strong>: ACES scales well to 16+ threads</li>
+<li><strong>Increase Thread Count</strong>: CECE scales well to 16+ threads</li>
 <li><strong>Use NUMA-Aware Binding</strong>: Pin threads to NUMA nodes for better memory locality</li>
 <li><strong>Enable Compiler Optimizations</strong>: Use <code>-O3 -march=native</code> flags</li>
 <li><strong>Profile with Kokkos Tools</strong>: Identify remaining bottlenecks</li>
@@ -1235,7 +1235,7 @@
 <li><strong>Use Kokkos Serial for Debugging</strong>: Easier to debug than OpenMP/CUDA</li>
 <li><strong>Profile Before Optimizing</strong>: Use Kokkos profiling tools to identify bottlenecks</li>
 <li><strong>Test on Target Hardware</strong>: Performance varies significantly across architectures</li>
-<li><strong>Monitor Memory Bandwidth</strong>: Most ACES kernels are memory-bound</li>
+<li><strong>Monitor Memory Bandwidth</strong>: Most CECE kernels are memory-bound</li>
 </ol>
 <h2 id="profiling-results">Profiling Results<a class="headerlink" href="#profiling-results" title="Permanent link">&para;</a></h2>
 <h3 id="cpu-profiling-16-threads-1-time-step">CPU Profiling (16 threads, 1 time step)<a class="headerlink" href="#cpu-profiling-16-threads-1-time-step" title="Permanent link">&para;</a></h3>
@@ -1354,15 +1354,15 @@
 </tr>
 </tbody>
 </table>
-<p><strong>Analysis</strong>: Excellent weak scaling efficiency (85%+) indicates ACES is well-suited for large-scale simulations.</p>
+<p><strong>Analysis</strong>: Excellent weak scaling efficiency (85%+) indicates CECE is well-suited for large-scale simulations.</p>
 <h2 id="conclusion">Conclusion<a class="headerlink" href="#conclusion" title="Permanent link">&para;</a></h2>
-<p>ACES demonstrates significant performance improvements over HEMCO:
+<p>CECE demonstrates significant performance improvements over HEMCO:
 - <strong>2x faster on CPU</strong> through fused kernels and optimized memory access
 - <strong>10x faster on GPU</strong> through Kokkos parallelization
 - <strong>80%+ parallel efficiency</strong> on multi-core CPUs
 - <strong>50%+ GPU memory bandwidth utilization</strong> on NVIDIA GPUs
 - <strong>62% memory reduction</strong> through efficient kernel fusion</p>
-<p>These improvements make ACES suitable for high-resolution, long-duration simulations in production Earth System Models.</p>
+<p>These improvements make CECE suitable for high-resolution, long-duration simulations in production Earth System Models.</p>
 
 
 
@@ -1402,7 +1402,7 @@
       <div class="md-copyright">
   
     <div class="md-copyright__highlight">
-      Copyright &copy; 2026 ACES Authors
+      Copyright &copy; 2026 CECE Authors
     </div>
   
   

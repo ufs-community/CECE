@@ -6,10 +6,10 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Atmospheric Chemistry Emission System">
+        <meta name="description" content="Community Emissions Computing Engine">
       
       
-        <meta name="author" content="ACES Team">
+        <meta name="author" content="CECE Team">
       
       
       
@@ -19,11 +19,11 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="zensical-0.0.31">
+      <meta name="generator" content="zensical-0.0.32">
     
     
       
-        <title>Kokkos Execution Space Configuration Guide - ACES Documentation</title>
+        <title>Kokkos Execution Space Configuration Guide - CECE Documentation</title>
       
     
     
@@ -95,7 +95,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="./.." title="ACES Documentation" class="md-header__button md-logo" aria-label="ACES Documentation" data-md-component="logo">
+    <a href="./.." title="CECE Documentation" class="md-header__button md-logo" aria-label="CECE Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
@@ -109,7 +109,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            ACES Documentation
+            CECE Documentation
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -194,13 +194,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="./.." title="ACES Documentation" class="md-nav__button md-logo" aria-label="ACES Documentation" data-md-component="logo">
+    <a href="./.." title="CECE Documentation" class="md-nav__button md-logo" aria-label="CECE Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
 
     </a>
-    ACES Documentation
+    CECE Documentation
   </label>
   
   <ul class="md-nav__list" data-md-scrollfix>
@@ -618,10 +618,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#aces_device_id-gpu" class="md-nav__link">
+  <a href="#cece_device_id-gpu" class="md-nav__link">
     <span class="md-ellipsis">
       
-        ACES_DEVICE_ID (GPU)
+        CECE_DEVICE_ID (GPU)
       
     </span>
   </a>
@@ -857,9 +857,9 @@
 
 <h1 id="kokkos-execution-space-configuration-guide">Kokkos Execution Space Configuration Guide<a class="headerlink" href="#kokkos-execution-space-configuration-guide" title="Permanent link">&para;</a></h1>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
-<p>ACES uses Kokkos for performance portability across CPUs and GPUs. This guide explains how to configure and use different Kokkos execution spaces for your deployment.</p>
+<p>CECE uses Kokkos for performance portability across CPUs and GPUs. This guide explains how to configure and use different Kokkos execution spaces for your deployment.</p>
 <h2 id="supported-execution-spaces">Supported Execution Spaces<a class="headerlink" href="#supported-execution-spaces" title="Permanent link">&para;</a></h2>
-<p>ACES supports the following Kokkos execution spaces:</p>
+<p>CECE supports the following Kokkos execution spaces:</p>
 <table>
 <thead>
 <tr>
@@ -898,7 +898,7 @@
 </table>
 <h2 id="build-time-configuration">Build-Time Configuration<a class="headerlink" href="#build-time-configuration" title="Permanent link">&para;</a></h2>
 <h3 id="default-cpu-only-build">Default CPU-Only Build<a class="headerlink" href="#default-cpu-only-build" title="Permanent link">&para;</a></h3>
-<p>By default, ACES builds with Serial and OpenMP execution spaces enabled:</p>
+<p>By default, CECE builds with Serial and OpenMP execution spaces enabled:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>mkdir<span class="w"> </span>build<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>build
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>cmake<span class="w"> </span>..
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>make<span class="w"> </span>-j4
@@ -940,16 +940,16 @@
 </span></code></pre></div>
 <h2 id="runtime-configuration">Runtime Configuration<a class="headerlink" href="#runtime-configuration" title="Permanent link">&para;</a></h2>
 <h3 id="environment-variables">Environment Variables<a class="headerlink" href="#environment-variables" title="Permanent link">&para;</a></h3>
-<p>ACES respects the following environment variables for runtime configuration:</p>
+<p>CECE respects the following environment variables for runtime configuration:</p>
 <h4 id="omp_num_threads-openmp">OMP_NUM_THREADS (OpenMP)<a class="headerlink" href="#omp_num_threads-openmp" title="Permanent link">&para;</a></h4>
-<p>Controls the number of OpenMP threads used by ACES:</p>
+<p>Controls the number of OpenMP threads used by CECE:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="c1"># Use 16 threads</span>
 </span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">OMP_NUM_THREADS</span><span class="o">=</span><span class="m">16</span>
-</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>./aces_nuopc_single_driver<span class="w"> </span>--config<span class="w"> </span>aces_config.yaml
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>./cece_nuopc_single_driver<span class="w"> </span>--config<span class="w"> </span>cece_config.yaml
 </span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a>
 </span><span id="__span-5-5"><a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="c1"># Use all available threads (default if not set)</span>
 </span><span id="__span-5-6"><a id="__codelineno-5-6" name="__codelineno-5-6" href="#__codelineno-5-6"></a><span class="nb">unset</span><span class="w"> </span>OMP_NUM_THREADS
-</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>./aces_nuopc_single_driver<span class="w"> </span>--config<span class="w"> </span>aces_config.yaml
+</span><span id="__span-5-7"><a id="__codelineno-5-7" name="__codelineno-5-7" href="#__codelineno-5-7"></a>./cece_nuopc_single_driver<span class="w"> </span>--config<span class="w"> </span>cece_config.yaml
 </span></code></pre></div>
 <p><strong>Default:</strong> All available CPU threads</p>
 <p><strong>Example Output:</strong>
@@ -957,15 +957,15 @@
 </span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>INFO: Kokkos initialized successfully
 </span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>INFO: Default execution space: OpenMP
 </span></code></pre></div></p>
-<h4 id="aces_device_id-gpu">ACES_DEVICE_ID (GPU)<a class="headerlink" href="#aces_device_id-gpu" title="Permanent link">&para;</a></h4>
+<h4 id="cece_device_id-gpu">CECE_DEVICE_ID (GPU)<a class="headerlink" href="#cece_device_id-gpu" title="Permanent link">&para;</a></h4>
 <p>Selects which GPU device to use (for CUDA or HIP builds):</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="c1"># Use GPU device 0 (default)</span>
-</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">ACES_DEVICE_ID</span><span class="o">=</span><span class="m">0</span>
-</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>./aces_nuopc_single_driver<span class="w"> </span>--config<span class="w"> </span>aces_config.yaml
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">CECE_DEVICE_ID</span><span class="o">=</span><span class="m">0</span>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>./cece_nuopc_single_driver<span class="w"> </span>--config<span class="w"> </span>cece_config.yaml
 </span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>
 </span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a><span class="c1"># Use GPU device 1</span>
-</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="nb">export</span><span class="w"> </span><span class="nv">ACES_DEVICE_ID</span><span class="o">=</span><span class="m">1</span>
-</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>./aces_nuopc_single_driver<span class="w"> </span>--config<span class="w"> </span>aces_config.yaml
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="nb">export</span><span class="w"> </span><span class="nv">CECE_DEVICE_ID</span><span class="o">=</span><span class="m">1</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>./cece_nuopc_single_driver<span class="w"> </span>--config<span class="w"> </span>cece_config.yaml
 </span></code></pre></div>
 <p><strong>Default:</strong> Device 0</p>
 <p><strong>Example Output:</strong>
@@ -974,7 +974,7 @@
 </span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>INFO: Default execution space: CUDA
 </span></code></pre></div></p>
 <h3 id="querying-runtime-configuration">Querying Runtime Configuration<a class="headerlink" href="#querying-runtime-configuration" title="Permanent link">&para;</a></h3>
-<p>ACES logs its Kokkos configuration during initialization:</p>
+<p>CECE logs its Kokkos configuration during initialization:</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>INFO: Initializing Kokkos execution space
 </span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>INFO: Active Kokkos execution spaces:
 </span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>INFO:   - Serial
@@ -1000,7 +1000,7 @@
 <li>
 <p><strong>Monitor thread efficiency:</strong></p>
 </li>
-<li>ACES logs "OpenMP threads: N" during initialization</li>
+<li>CECE logs "OpenMP threads: N" during initialization</li>
 <li>Verify with <code>nproc</code> or <code>lscpu</code></li>
 </ol>
 <h3 id="gpu-execution-cudahip">GPU Execution (CUDA/HIP)<a class="headerlink" href="#gpu-execution-cudahip" title="Permanent link">&para;</a></h3>
@@ -1017,8 +1017,8 @@
 </li>
 <li>
 <p><strong>Select correct device if multiple GPUs present:</strong>
-   <div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">ACES_DEVICE_ID</span><span class="o">=</span><span class="m">0</span><span class="w">  </span><span class="c1"># First GPU</span>
-</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">ACES_DEVICE_ID</span><span class="o">=</span><span class="m">1</span><span class="w">  </span><span class="c1"># Second GPU</span>
+   <div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">CECE_DEVICE_ID</span><span class="o">=</span><span class="m">0</span><span class="w">  </span><span class="c1"># First GPU</span>
+</span><span id="__span-13-2"><a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">CECE_DEVICE_ID</span><span class="o">=</span><span class="m">1</span><span class="w">  </span><span class="c1"># Second GPU</span>
 </span></code></pre></div></p>
 </li>
 <li>
@@ -1033,19 +1033,19 @@
 </ol>
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
 <h3 id="issue-kokkos-already-initialized-using-existing-instance">Issue: "Kokkos already initialized - using existing instance"<a class="headerlink" href="#issue-kokkos-already-initialized-using-existing-instance" title="Permanent link">&para;</a></h3>
-<p><strong>Cause:</strong> Kokkos was initialized by another component before ACES.</p>
-<p><strong>Solution:</strong> This is normal in coupled systems. ACES will use the existing Kokkos configuration.</p>
+<p><strong>Cause:</strong> Kokkos was initialized by another component before CECE.</p>
+<p><strong>Solution:</strong> This is normal in coupled systems. CECE will use the existing Kokkos configuration.</p>
 <h3 id="issue-openmp-threads-not-matching-omp_num_threads">Issue: OpenMP threads not matching OMP_NUM_THREADS<a class="headerlink" href="#issue-openmp-threads-not-matching-omp_num_threads" title="Permanent link">&para;</a></h3>
-<p><strong>Cause:</strong> Environment variable not set before ACES initialization.</p>
-<p><strong>Solution:</strong> Set OMP_NUM_THREADS before running ACES:
+<p><strong>Cause:</strong> Environment variable not set before CECE initialization.</p>
+<p><strong>Solution:</strong> Set OMP_NUM_THREADS before running CECE:
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">OMP_NUM_THREADS</span><span class="o">=</span><span class="m">16</span>
-</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>./aces_nuopc_single_driver<span class="w"> </span>--config<span class="w"> </span>aces_config.yaml
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a>./cece_nuopc_single_driver<span class="w"> </span>--config<span class="w"> </span>cece_config.yaml
 </span></code></pre></div></p>
 <h3 id="issue-cuda-device-not-found">Issue: CUDA device not found<a class="headerlink" href="#issue-cuda-device-not-found" title="Permanent link">&para;</a></h3>
-<p><strong>Cause:</strong> ACES_DEVICE_ID points to non-existent GPU.</p>
+<p><strong>Cause:</strong> CECE_DEVICE_ID points to non-existent GPU.</p>
 <p><strong>Solution:</strong> Check available devices and set valid ID:
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-16-1"><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>nvidia-smi<span class="w">  </span><span class="c1"># Lists available GPUs</span>
-</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">ACES_DEVICE_ID</span><span class="o">=</span><span class="m">0</span><span class="w">  </span><span class="c1"># Use first GPU</span>
+</span><span id="__span-16-2"><a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">CECE_DEVICE_ID</span><span class="o">=</span><span class="m">0</span><span class="w">  </span><span class="c1"># Use first GPU</span>
 </span></code></pre></div></p>
 <h3 id="issue-cannot-enable-both-cuda-and-hip">Issue: "Cannot enable both CUDA and HIP"<a class="headerlink" href="#issue-cannot-enable-both-cuda-and-hip" title="Permanent link">&para;</a></h3>
 <p><strong>Cause:</strong> CMake configuration attempted to enable both GPU backends.</p>
@@ -1057,7 +1057,7 @@
 </span><span id="__span-17-5"><a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>cmake<span class="w"> </span>..<span class="w"> </span>-DKOKKOS_ENABLE_CUDA<span class="o">=</span>OFF<span class="w"> </span>-DKOKKOS_ENABLE_HIP<span class="o">=</span>ON
 </span></code></pre></div></p>
 <h2 id="performance-portability">Performance Portability<a class="headerlink" href="#performance-portability" title="Permanent link">&para;</a></h2>
-<p>All ACES physics kernels use Kokkos parallel primitives for automatic dispatch:</p>
+<p>All CECE physics kernels use Kokkos parallel primitives for automatic dispatch:</p>
 <div class="language-cpp highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="c1">// Automatically dispatches to configured execution space</span>
 </span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="n">Kokkos</span><span class="o">::</span><span class="n">parallel_for</span><span class="p">(</span><span class="s">&quot;kernel_name&quot;</span><span class="p">,</span>
 </span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="w">    </span><span class="n">Kokkos</span><span class="o">::</span><span class="n">MDRangePolicy</span><span class="o">&lt;</span><span class="n">Kokkos</span><span class="o">::</span><span class="n">Rank</span><span class="o">&lt;</span><span class="mi">3</span><span class="o">&gt;&gt;</span><span class="p">(</span>
@@ -1075,7 +1075,7 @@
 <p>This configuration satisfies the following requirements:</p>
 <ul>
 <li><strong>Req 6.13:</strong> Initialize Kokkos with appropriate execution space based on CMake configuration</li>
-<li><strong>Req 6.14:</strong> Finalize Kokkos during Finalize Phase if ACES initialized it</li>
+<li><strong>Req 6.14:</strong> Finalize Kokkos during Finalize Phase if CECE initialized it</li>
 <li><strong>Req 6.15:</strong> Support Kokkos::Serial execution space for debugging</li>
 <li><strong>Req 6.16:</strong> Support Kokkos::OpenMP execution space for CPU parallelism</li>
 <li><strong>Req 6.17:</strong> Support Kokkos::Cuda execution space for NVIDIA GPU acceleration</li>
@@ -1091,9 +1091,9 @@
 </span><span id="__span-19-5"><a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a>
 </span><span id="__span-19-6"><a id="__codelineno-19-6" name="__codelineno-19-6" href="#__codelineno-19-6"></a><span class="c1"># Run with 32 threads</span>
 </span><span id="__span-19-7"><a id="__codelineno-19-7" name="__codelineno-19-7" href="#__codelineno-19-7"></a><span class="nb">export</span><span class="w"> </span><span class="nv">OMP_NUM_THREADS</span><span class="o">=</span><span class="m">32</span>
-</span><span id="__span-19-8"><a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a>./aces_nuopc_single_driver<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-19-9"><a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a><span class="w">  </span>--config<span class="w"> </span>aces_config.yaml<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-19-10"><a id="__codelineno-19-10" name="__codelineno-19-10" href="#__codelineno-19-10"></a><span class="w">  </span>--streams<span class="w"> </span>aces_emissions.streams<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-19-8"><a id="__codelineno-19-8" name="__codelineno-19-8" href="#__codelineno-19-8"></a>./cece_nuopc_single_driver<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-19-9"><a id="__codelineno-19-9" name="__codelineno-19-9" href="#__codelineno-19-9"></a><span class="w">  </span>--config<span class="w"> </span>cece_config.yaml<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-19-10"><a id="__codelineno-19-10" name="__codelineno-19-10" href="#__codelineno-19-10"></a><span class="w">  </span>--streams<span class="w"> </span>cece_emissions.streams<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-19-11"><a id="__codelineno-19-11" name="__codelineno-19-11" href="#__codelineno-19-11"></a><span class="w">  </span>--start-time<span class="w"> </span><span class="s2">&quot;2020-01-01T00:00:00&quot;</span><span class="w"> </span><span class="se">\</span>
 </span><span id="__span-19-12"><a id="__codelineno-19-12" name="__codelineno-19-12" href="#__codelineno-19-12"></a><span class="w">  </span>--end-time<span class="w"> </span><span class="s2">&quot;2020-01-02T00:00:00&quot;</span><span class="w"> </span><span class="se">\</span>
 </span><span id="__span-19-13"><a id="__codelineno-19-13" name="__codelineno-19-13" href="#__codelineno-19-13"></a><span class="w">  </span>--time-step<span class="w"> </span><span class="m">3600</span>
@@ -1105,10 +1105,10 @@
 </span><span id="__span-20-4"><a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a>make<span class="w"> </span>-j4
 </span><span id="__span-20-5"><a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a>
 </span><span id="__span-20-6"><a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a><span class="c1"># Run on GPU device 1</span>
-</span><span id="__span-20-7"><a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a><span class="nb">export</span><span class="w"> </span><span class="nv">ACES_DEVICE_ID</span><span class="o">=</span><span class="m">1</span>
-</span><span id="__span-20-8"><a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a>./aces_nuopc_single_driver<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-20-9"><a id="__codelineno-20-9" name="__codelineno-20-9" href="#__codelineno-20-9"></a><span class="w">  </span>--config<span class="w"> </span>aces_config.yaml<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-20-10"><a id="__codelineno-20-10" name="__codelineno-20-10" href="#__codelineno-20-10"></a><span class="w">  </span>--streams<span class="w"> </span>aces_emissions.streams<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-20-7"><a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a><span class="nb">export</span><span class="w"> </span><span class="nv">CECE_DEVICE_ID</span><span class="o">=</span><span class="m">1</span>
+</span><span id="__span-20-8"><a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a>./cece_nuopc_single_driver<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-20-9"><a id="__codelineno-20-9" name="__codelineno-20-9" href="#__codelineno-20-9"></a><span class="w">  </span>--config<span class="w"> </span>cece_config.yaml<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-20-10"><a id="__codelineno-20-10" name="__codelineno-20-10" href="#__codelineno-20-10"></a><span class="w">  </span>--streams<span class="w"> </span>cece_emissions.streams<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-20-11"><a id="__codelineno-20-11" name="__codelineno-20-11" href="#__codelineno-20-11"></a><span class="w">  </span>--start-time<span class="w"> </span><span class="s2">&quot;2020-01-01T00:00:00&quot;</span><span class="w"> </span><span class="se">\</span>
 </span><span id="__span-20-12"><a id="__codelineno-20-12" name="__codelineno-20-12" href="#__codelineno-20-12"></a><span class="w">  </span>--end-time<span class="w"> </span><span class="s2">&quot;2020-01-02T00:00:00&quot;</span><span class="w"> </span><span class="se">\</span>
 </span><span id="__span-20-13"><a id="__codelineno-20-13" name="__codelineno-20-13" href="#__codelineno-20-13"></a><span class="w">  </span>--time-step<span class="w"> </span><span class="m">3600</span>
@@ -1120,16 +1120,16 @@
 </span><span id="__span-21-4"><a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a>make<span class="w"> </span>-j4
 </span><span id="__span-21-5"><a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a>
 </span><span id="__span-21-6"><a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a><span class="c1"># Run with Serial execution (single-threaded)</span>
-</span><span id="__span-21-7"><a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a>./aces_nuopc_single_driver<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-21-8"><a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a><span class="w">  </span>--config<span class="w"> </span>aces_config.yaml<span class="w"> </span><span class="se">\</span>
-</span><span id="__span-21-9"><a id="__codelineno-21-9" name="__codelineno-21-9" href="#__codelineno-21-9"></a><span class="w">  </span>--streams<span class="w"> </span>aces_emissions.streams<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-21-7"><a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a>./cece_nuopc_single_driver<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-21-8"><a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a><span class="w">  </span>--config<span class="w"> </span>cece_config.yaml<span class="w"> </span><span class="se">\</span>
+</span><span id="__span-21-9"><a id="__codelineno-21-9" name="__codelineno-21-9" href="#__codelineno-21-9"></a><span class="w">  </span>--streams<span class="w"> </span>cece_emissions.streams<span class="w"> </span><span class="se">\</span>
 </span><span id="__span-21-10"><a id="__codelineno-21-10" name="__codelineno-21-10" href="#__codelineno-21-10"></a><span class="w">  </span>--start-time<span class="w"> </span><span class="s2">&quot;2020-01-01T00:00:00&quot;</span><span class="w"> </span><span class="se">\</span>
 </span><span id="__span-21-11"><a id="__codelineno-21-11" name="__codelineno-21-11" href="#__codelineno-21-11"></a><span class="w">  </span>--end-time<span class="w"> </span><span class="s2">&quot;2020-01-01T01:00:00&quot;</span><span class="w"> </span><span class="se">\</span>
 </span><span id="__span-21-12"><a id="__codelineno-21-12" name="__codelineno-21-12" href="#__codelineno-21-12"></a><span class="w">  </span>--time-step<span class="w"> </span><span class="m">3600</span>
 </span></code></pre></div>
 <h2 id="see-also">See Also<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h2>
 <ul>
-<li><a href=".././AGENTS/">ACES Developer Guide</a></li>
+<li><a href=".././AGENTS/">CECE Developer Guide</a></li>
 <li><a href=".././physics_scheme_development/">Physics Scheme Development</a></li>
 <li><a href="https://kokkos.github.io/">Kokkos Documentation</a></li>
 <li><a href=".././users-guide/">JCSDA Docker Setup</a></li>
@@ -1173,7 +1173,7 @@
       <div class="md-copyright">
   
     <div class="md-copyright__highlight">
-      Copyright &copy; 2026 ACES Authors
+      Copyright &copy; 2026 CECE Authors
     </div>
   
   

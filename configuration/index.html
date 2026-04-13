@@ -6,10 +6,10 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Atmospheric Chemistry Emission System">
+        <meta name="description" content="Community Emissions Computing Engine">
       
       
-        <meta name="author" content="ACES Team">
+        <meta name="author" content="CECE Team">
       
       
       
@@ -23,11 +23,11 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="zensical-0.0.31">
+      <meta name="generator" content="zensical-0.0.32">
     
     
       
-        <title>Configuration Reference - ACES Documentation</title>
+        <title>Configuration Reference - CECE Documentation</title>
       
     
     
@@ -99,7 +99,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="./.." title="ACES Documentation" class="md-header__button md-logo" aria-label="ACES Documentation" data-md-component="logo">
+    <a href="./.." title="CECE Documentation" class="md-header__button md-logo" aria-label="CECE Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
@@ -113,7 +113,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            ACES Documentation
+            CECE Documentation
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -198,13 +198,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="./.." title="ACES Documentation" class="md-nav__button md-logo" aria-label="ACES Documentation" data-md-component="logo">
+    <a href="./.." title="CECE Documentation" class="md-nav__button md-logo" aria-label="CECE Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
 
     </a>
-    ACES Documentation
+    CECE Documentation
   </label>
   
   <ul class="md-nav__list" data-md-scrollfix>
@@ -541,15 +541,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#aces_data" class="md-nav__link">
+  <a href="#cece_data" class="md-nav__link">
     <span class="md-ellipsis">
       
-        aces_data
+        cece_data
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="aces_data">
+    <nav class="md-nav" aria-label="cece_data">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -974,15 +974,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#aces_data" class="md-nav__link">
+  <a href="#cece_data" class="md-nav__link">
     <span class="md-ellipsis">
       
-        aces_data
+        cece_data
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="aces_data">
+    <nav class="md-nav" aria-label="cece_data">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1064,7 +1064,7 @@
                   
 
 <h1 id="configuration-reference">Configuration Reference<a class="headerlink" href="#configuration-reference" title="Permanent link">&para;</a></h1>
-<p>ACES is configured using a YAML file, typically named <code>aces_config.yaml</code>. This file defines the species to be processed, the source of data, and the active physics schemes.</p>
+<p>CECE is configured using a YAML file, typically named <code>cece_config.yaml</code>. This file defines the species to be processed, the source of data, and the active physics schemes.</p>
 <h2 id="top-level-structure">Top-Level Structure<a class="headerlink" href="#top-level-structure" title="Permanent link">&para;</a></h2>
 <div class="language-yaml highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">driver</span><span class="p">:</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="c1"># ... driver timing and execution configuration ...</span>
@@ -1093,7 +1093,7 @@
 </span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a><span class="nt">diagnostics</span><span class="p">:</span>
 </span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a><span class="w">  </span><span class="c1"># ... diagnostic settings and output configuration ...</span>
 </span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>
-</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a><span class="nt">aces_data</span><span class="p">:</span>
+</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a><span class="nt">cece_data</span><span class="p">:</span>
 </span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a><span class="w">  </span><span class="c1"># ... TIDE data stream settings ...</span>
 </span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>
 </span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a><span class="nt">output</span><span class="p">:</span>
@@ -1101,7 +1101,7 @@
 </span></code></pre></div>
 <hr />
 <h2 id="driver"><code>driver</code><a class="headerlink" href="#driver" title="Permanent link">&para;</a></h2>
-<p>The <code>driver</code> section configures the execution timing and control parameters for ACES simulations.</p>
+<p>The <code>driver</code> section configures the execution timing and control parameters for CECE simulations.</p>
 <table>
 <thead>
 <tr>
@@ -1189,7 +1189,7 @@
 </span></code></pre></div></p>
 <hr />
 <h2 id="meteorology"><code>meteorology</code><a class="headerlink" href="#meteorology" title="Permanent link">&para;</a></h2>
-<p>Maps ACES internal field names to external data source field names for meteorological inputs.</p>
+<p>Maps CECE internal field names to external data source field names for meteorological inputs.</p>
 <p><strong>Example:</strong>
 <div class="language-yaml highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="nt">meteorology</span><span class="p">:</span>
 </span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a><span class="w">  </span><span class="nt">temperature</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">air_temperature</span><span class="w">      </span><span class="c1"># Map internal &quot;temperature&quot; to ESMF field &quot;air_temperature&quot;</span>
@@ -1199,7 +1199,7 @@
 </span></code></pre></div></p>
 <hr />
 <h2 id="scale_factors"><code>scale_factors</code><a class="headerlink" href="#scale_factors" title="Permanent link">&para;</a></h2>
-<p>Maps ACES internal scale factor names to external field names for dynamic scaling.</p>
+<p>Maps CECE internal scale factor names to external field names for dynamic scaling.</p>
 <p><strong>Example:</strong>
 <div class="language-yaml highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nt">scale_factors</span><span class="p">:</span>
 </span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="w">  </span><span class="nt">hourly_factor</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">HOURLY_SCALFACT</span>
@@ -1208,7 +1208,7 @@
 </span></code></pre></div></p>
 <hr />
 <h2 id="masks"><code>masks</code><a class="headerlink" href="#masks" title="Permanent link">&para;</a></h2>
-<p>Maps ACES internal mask names to external field names for geographical masking.</p>
+<p>Maps CECE internal mask names to external field names for geographical masking.</p>
 <p><strong>Example:</strong>
 <div class="language-yaml highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nt">masks</span><span class="p">:</span>
 </span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="nt">land_mask</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">LAND_FRACTION</span>
@@ -1248,7 +1248,7 @@
 <tr>
 <td><code>field</code></td>
 <td>String</td>
-<td>Name of the input field. ACES looks in TIDE first, then ESMF ImportState.</td>
+<td>Name of the input field. CECE looks in TIDE first, then ESMF ImportState.</td>
 </tr>
 <tr>
 <td><code>operation</code></td>
@@ -1533,7 +1533,7 @@
 </span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;sea_salt_coarse&quot;</span>
 </span></code></pre></div></p>
 <hr />
-<h2 id="aces_data"><code>aces_data</code><a class="headerlink" href="#aces_data" title="Permanent link">&para;</a></h2>
+<h2 id="cece_data"><code>cece_data</code><a class="headerlink" href="#cece_data" title="Permanent link">&para;</a></h2>
 <p>Configuration for TIDE (Temporal Interpolation &amp; Data Extraction) data streams for reading external emission inventories and auxiliary fields.</p>
 <h3 id="stream-properties">Stream Properties<a class="headerlink" href="#stream-properties" title="Permanent link">&para;</a></h3>
 <table>
@@ -1610,12 +1610,12 @@
 <tr>
 <td><code>model</code></td>
 <td>String</td>
-<td>Internal field name in ACES</td>
+<td>Internal field name in CECE</td>
 </tr>
 </tbody>
 </table>
 <p><strong>Example:</strong>
-<div class="language-yaml highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="nt">aces_data</span><span class="p">:</span>
+<div class="language-yaml highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="nt">cece_data</span><span class="p">:</span>
 </span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="w">  </span><span class="nt">streams</span><span class="p">:</span>
 </span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;MACCITY_CO&quot;</span>
 </span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="w">      </span><span class="nt">file</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;/data/inventories/MACCity_CO_2010.nc&quot;</span>
@@ -1627,7 +1627,7 @@
 </span><span id="__span-10-10"><a id="__codelineno-10-10" name="__codelineno-10-10" href="#__codelineno-10-10"></a><span class="w">      </span><span class="nt">mapalgo</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;consd&quot;</span><span class="w">          </span><span class="c1"># Conservative regridding</span>
 </span><span id="__span-10-11"><a id="__codelineno-10-11" name="__codelineno-10-11" href="#__codelineno-10-11"></a><span class="w">      </span><span class="nt">variables</span><span class="p">:</span>
 </span><span id="__span-10-12"><a id="__codelineno-10-12" name="__codelineno-10-12" href="#__codelineno-10-12"></a><span class="w">        </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">file</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;MACCity_CO&quot;</span><span class="w">    </span><span class="c1"># Variable name in file</span>
-</span><span id="__span-10-13"><a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a><span class="w">          </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;global_co_inventory&quot;</span><span class="w">  </span><span class="c1"># Internal ACES field name</span>
+</span><span id="__span-10-13"><a id="__codelineno-10-13" name="__codelineno-10-13" href="#__codelineno-10-13"></a><span class="w">          </span><span class="nt">model</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;global_co_inventory&quot;</span><span class="w">  </span><span class="c1"># Internal CECE field name</span>
 </span><span id="__span-10-14"><a id="__codelineno-10-14" name="__codelineno-10-14" href="#__codelineno-10-14"></a>
 </span><span id="__span-10-15"><a id="__codelineno-10-15" name="__codelineno-10-15" href="#__codelineno-10-15"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;HTAP_NOX&quot;</span>
 </span><span id="__span-10-16"><a id="__codelineno-10-16" name="__codelineno-10-16" href="#__codelineno-10-16"></a><span class="w">      </span><span class="nt">file</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;/data/inventories/HTAPv3_NOx_*.nc&quot;</span><span class="w">  </span><span class="c1"># Wildcard for multiple files</span>
@@ -1719,7 +1719,7 @@
 <div class="language-yaml highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nt">output</span><span class="p">:</span>
 </span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
 </span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="w">  </span><span class="nt">directory</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;./output&quot;</span>
-</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">  </span><span class="nt">filename_pattern</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;aces_emissions_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc&quot;</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">  </span><span class="nt">filename_pattern</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;cece_emissions_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc&quot;</span>
 </span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="w">  </span><span class="nt">frequency_steps</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span><span class="w">            </span><span class="c1"># Output every timestep</span>
 </span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a><span class="w">  </span><span class="nt">fields</span><span class="p">:</span>
 </span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="s">&quot;co&quot;</span>
@@ -1804,7 +1804,7 @@
       <div class="md-copyright">
   
     <div class="md-copyright__highlight">
-      Copyright &copy; 2026 ACES Authors
+      Copyright &copy; 2026 CECE Authors
     </div>
   
   

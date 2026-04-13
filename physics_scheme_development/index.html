@@ -6,10 +6,10 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Atmospheric Chemistry Emission System">
+        <meta name="description" content="Community Emissions Computing Engine">
       
       
-        <meta name="author" content="ACES Team">
+        <meta name="author" content="CECE Team">
       
       
       
@@ -19,11 +19,11 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="zensical-0.0.31">
+      <meta name="generator" content="zensical-0.0.32">
     
     
       
-        <title>Physics Scheme Development Guide - ACES Documentation</title>
+        <title>Physics Scheme Development Guide - CECE Documentation</title>
       
     
     
@@ -95,7 +95,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="./.." title="ACES Documentation" class="md-header__button md-logo" aria-label="ACES Documentation" data-md-component="logo">
+    <a href="./.." title="CECE Documentation" class="md-header__button md-logo" aria-label="CECE Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
@@ -109,7 +109,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            ACES Documentation
+            CECE Documentation
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -194,13 +194,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="./.." title="ACES Documentation" class="md-nav__button md-logo" aria-label="ACES Documentation" data-md-component="logo">
+    <a href="./.." title="CECE Documentation" class="md-nav__button md-logo" aria-label="CECE Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
 
     </a>
-    ACES Documentation
+    CECE Documentation
   </label>
   
   <ul class="md-nav__list" data-md-scrollfix>
@@ -1390,7 +1390,7 @@
 
 <h1 id="physics-scheme-development-guide">Physics Scheme Development Guide<a class="headerlink" href="#physics-scheme-development-guide" title="Permanent link">&para;</a></h1>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
-<p>This guide provides a comprehensive workflow for developing new physics schemes in ACES. Physics schemes are pluggable modules that compute or modify emissions based on meteorological inputs. ACES provides a scientist-friendly framework that abstracts away ESMF complexity and enables focus on physics implementation.</p>
+<p>This guide provides a comprehensive workflow for developing new physics schemes in CECE. Physics schemes are pluggable modules that compute or modify emissions based on meteorological inputs. CECE provides a scientist-friendly framework that abstracts away ESMF complexity and enables focus on physics implementation.</p>
 <h2 id="table-of-contents">Table of Contents<a class="headerlink" href="#table-of-contents" title="Permanent link">&para;</a></h2>
 <ol>
 <li><a href="#physics-scheme-lifecycle">Physics Scheme Lifecycle</a></li>
@@ -1408,7 +1408,7 @@
 </ol>
 <hr />
 <h2 id="physics-scheme-lifecycle">Physics Scheme Lifecycle<a class="headerlink" href="#physics-scheme-lifecycle" title="Permanent link">&para;</a></h2>
-<p>Every physics scheme in ACES follows a three-phase lifecycle:</p>
+<p>Every physics scheme in CECE follows a three-phase lifecycle:</p>
 <h3 id="1-initialize-phase">1. Initialize Phase<a class="headerlink" href="#1-initialize-phase" title="Permanent link">&para;</a></h3>
 <p>Called once during model initialization. Use this phase to:
 - Read configuration parameters from YAML
@@ -1445,43 +1445,43 @@
 <h2 id="getting-started">Getting Started<a class="headerlink" href="#getting-started" title="Permanent link">&para;</a></h2>
 <h3 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h3>
 <p>Before developing a physics scheme, ensure you have:
-- ACES source code checked out
+- CECE source code checked out
 - JCSDA Docker environment set up (see AGENTS.md)
 - Python 3.6+ with jinja2 and pyyaml installed
 - Basic understanding of Kokkos and ESMF concepts</p>
 <h3 id="quick-start-example">Quick Start Example<a class="headerlink" href="#quick-start-example" title="Permanent link">&para;</a></h3>
 <p>Here's a minimal physics scheme that computes emissions from temperature:</p>
-<div class="language-cpp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1">// include/aces/physics/aces_my_scheme.hpp</span>
-</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="cp">#ifndef ACES_MY_SCHEME_HPP</span>
-</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="cp">#define ACES_MY_SCHEME_HPP</span>
+<div class="language-cpp highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="c1">// include/cece/physics/cece_my_scheme.hpp</span>
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="cp">#ifndef CECE_MY_SCHEME_HPP</span>
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="cp">#define CECE_MY_SCHEME_HPP</span>
 </span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>
-</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;aces/physics_scheme.hpp&quot;</span>
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;cece/physics_scheme.hpp&quot;</span>
 </span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>
-</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="k">namespace</span><span class="w"> </span><span class="nn">aces</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a><span class="k">namespace</span><span class="w"> </span><span class="nn">cece</span><span class="w"> </span><span class="p">{</span>
 </span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>
 </span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a><span class="k">class</span><span class="w"> </span><span class="nc">MyScheme</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">BasePhysicsScheme</span><span class="w"> </span><span class="p">{</span>
 </span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a><span class="k">public</span><span class="o">:</span>
-</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">Initialize</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">YAML</span><span class="o">::</span><span class="n">Node</span><span class="o">&amp;</span><span class="w"> </span><span class="n">config</span><span class="p">,</span><span class="w"> </span><span class="n">AcesDiagnosticManager</span><span class="o">*</span><span class="w"> </span><span class="n">diag_manager</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="p">;</span>
-</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Run</span><span class="p">(</span><span class="n">AcesImportState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">import_state</span><span class="p">,</span><span class="w"> </span><span class="n">AcesExportState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">export_state</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="p">;</span>
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">Initialize</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">YAML</span><span class="o">::</span><span class="n">Node</span><span class="o">&amp;</span><span class="w"> </span><span class="n">config</span><span class="p">,</span><span class="w"> </span><span class="n">CeceDiagnosticManager</span><span class="o">*</span><span class="w"> </span><span class="n">diag_manager</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="p">;</span>
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a><span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Run</span><span class="p">(</span><span class="n">CeceImportState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">import_state</span><span class="p">,</span><span class="w"> </span><span class="n">CeceExportState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">export_state</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="p">;</span>
 </span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a><span class="p">};</span>
 </span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>
-</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="p">}</span><span class="w">  </span><span class="c1">// namespace aces</span>
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a><span class="p">}</span><span class="w">  </span><span class="c1">// namespace cece</span>
 </span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a><span class="cp">#endif</span>
 </span></code></pre></div>
-<div class="language-cpp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1">// src/physics/aces_my_scheme.cpp</span>
-</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;aces/physics/aces_my_scheme.hpp&quot;</span>
-</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;aces/aces_physics_factory.hpp&quot;</span>
+<div class="language-cpp highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1">// src/physics/cece_my_scheme.cpp</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;cece/physics/cece_my_scheme.hpp&quot;</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;cece/cece_physics_factory.hpp&quot;</span>
 </span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a>
-</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="k">namespace</span><span class="w"> </span><span class="nn">aces</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="k">namespace</span><span class="w"> </span><span class="nn">cece</span><span class="w"> </span><span class="p">{</span>
 </span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
 </span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="k">static</span><span class="w"> </span><span class="n">PhysicsRegistration</span><span class="o">&lt;</span><span class="n">MyScheme</span><span class="o">&gt;</span><span class="w"> </span><span class="n">register_my_scheme</span><span class="p">(</span><span class="s">&quot;my_scheme&quot;</span><span class="p">);</span>
 </span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a>
-</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="kt">void</span><span class="w"> </span><span class="nf">MyScheme::Initialize</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">YAML</span><span class="o">::</span><span class="n">Node</span><span class="o">&amp;</span><span class="w"> </span><span class="n">config</span><span class="p">,</span><span class="w"> </span><span class="n">AcesDiagnosticManager</span><span class="o">*</span><span class="w"> </span><span class="n">diag_manager</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="kt">void</span><span class="w"> </span><span class="nf">MyScheme::Initialize</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">YAML</span><span class="o">::</span><span class="n">Node</span><span class="o">&amp;</span><span class="w"> </span><span class="n">config</span><span class="p">,</span><span class="w"> </span><span class="n">CeceDiagnosticManager</span><span class="o">*</span><span class="w"> </span><span class="n">diag_manager</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
 </span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a><span class="w">    </span><span class="n">BasePhysicsScheme</span><span class="o">::</span><span class="n">Initialize</span><span class="p">(</span><span class="n">config</span><span class="p">,</span><span class="w"> </span><span class="n">diag_manager</span><span class="p">);</span>
 </span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a><span class="w">    </span><span class="c1">// Read parameters from config</span>
 </span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a><span class="p">}</span>
 </span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a>
-</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="kt">void</span><span class="w"> </span><span class="nf">MyScheme::Run</span><span class="p">(</span><span class="n">AcesImportState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">import_state</span><span class="p">,</span><span class="w"> </span><span class="n">AcesExportState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">export_state</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="kt">void</span><span class="w"> </span><span class="nf">MyScheme::Run</span><span class="p">(</span><span class="n">CeceImportState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">import_state</span><span class="p">,</span><span class="w"> </span><span class="n">CeceExportState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">export_state</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
 </span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a><span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">temperature</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ResolveImport</span><span class="p">(</span><span class="s">&quot;temperature&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">import_state</span><span class="p">);</span>
 </span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">emissions</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ResolveExport</span><span class="p">(</span><span class="s">&quot;emissions&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">export_state</span><span class="p">);</span>
 </span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a>
@@ -1503,11 +1503,11 @@
 </span><span id="__span-1-33"><a id="__codelineno-1-33" name="__codelineno-1-33" href="#__codelineno-1-33"></a><span class="w">    </span><span class="n">MarkModified</span><span class="p">(</span><span class="s">&quot;emissions&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">export_state</span><span class="p">);</span>
 </span><span id="__span-1-34"><a id="__codelineno-1-34" name="__codelineno-1-34" href="#__codelineno-1-34"></a><span class="p">}</span>
 </span><span id="__span-1-35"><a id="__codelineno-1-35" name="__codelineno-1-35" href="#__codelineno-1-35"></a>
-</span><span id="__span-1-36"><a id="__codelineno-1-36" name="__codelineno-1-36" href="#__codelineno-1-36"></a><span class="p">}</span><span class="w">  </span><span class="c1">// namespace aces</span>
+</span><span id="__span-1-36"><a id="__codelineno-1-36" name="__codelineno-1-36" href="#__codelineno-1-36"></a><span class="p">}</span><span class="w">  </span><span class="c1">// namespace cece</span>
 </span></code></pre></div>
 <hr />
 <h2 id="scheme-generator-workflow">Scheme Generator Workflow<a class="headerlink" href="#scheme-generator-workflow" title="Permanent link">&para;</a></h2>
-<p>The ACES scheme generator automates the creation of physics scheme scaffolding from YAML configuration files.</p>
+<p>The CECE scheme generator automates the creation of physics scheme scaffolding from YAML configuration files.</p>
 <h3 id="step-1-create-configuration-file">Step 1: Create Configuration File<a class="headerlink" href="#step-1-create-configuration-file" title="Permanent link">&para;</a></h3>
 <p>Create a YAML file describing your scheme (e.g., <code>my_scheme_config.yaml</code>):</p>
 <div class="language-yaml highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">scheme</span><span class="p">:</span>
@@ -1558,19 +1558,19 @@
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>./scripts/generate_physics_scheme.py<span class="w"> </span>my_scheme_config.yaml
 </span></code></pre></div>
 <p>This generates:
-- <code>include/aces/physics/aces_my_emission_scheme.hpp</code>
-- <code>src/physics/aces_my_emission_scheme.cpp</code>
+- <code>include/cece/physics/cece_my_emission_scheme.hpp</code>
+- <code>src/physics/cece_my_emission_scheme.cpp</code>
 - <code>src/physics/my_emission_scheme_kernel.F90</code> (if language=fortran)</p>
 <h3 id="step-3-implement-physics-logic">Step 3: Implement Physics Logic<a class="headerlink" href="#step-3-implement-physics-logic" title="Permanent link">&para;</a></h3>
 <p>Edit the generated files and implement the physics computation in the Run method.</p>
 <h3 id="step-4-update-cmakeliststxt">Step 4: Update CMakeLists.txt<a class="headerlink" href="#step-4-update-cmakeliststxt" title="Permanent link">&para;</a></h3>
 <p>Add the new scheme to <code>CMakeLists.txt</code>:</p>
-<div class="language-cmake highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nb">add_library</span><span class="p">(</span><span class="s">aces_physics_my_emission_scheme</span><span class="w"> </span><span class="s">src/physics/aces_my_emission_scheme.cpp</span><span class="p">)</span>
-</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nb">target_link_libraries</span><span class="p">(</span><span class="s">aces_physics_my_emission_scheme</span><span class="w"> </span><span class="s">PUBLIC</span><span class="w"> </span><span class="s">aces_core</span><span class="p">)</span>
-</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="nb">target_link_libraries</span><span class="p">(</span><span class="s">aces_core</span><span class="w"> </span><span class="s">PUBLIC</span><span class="w"> </span><span class="s">aces_physics_my_emission_scheme</span><span class="p">)</span>
+<div class="language-cmake highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="nb">add_library</span><span class="p">(</span><span class="s">cece_physics_my_emission_scheme</span><span class="w"> </span><span class="s">src/physics/cece_my_emission_scheme.cpp</span><span class="p">)</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="nb">target_link_libraries</span><span class="p">(</span><span class="s">cece_physics_my_emission_scheme</span><span class="w"> </span><span class="s">PUBLIC</span><span class="w"> </span><span class="s">cece_core</span><span class="p">)</span>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="nb">target_link_libraries</span><span class="p">(</span><span class="s">cece_core</span><span class="w"> </span><span class="s">PUBLIC</span><span class="w"> </span><span class="s">cece_physics_my_emission_scheme</span><span class="p">)</span>
 </span></code></pre></div>
 <h3 id="step-5-configure-in-yaml">Step 5: Configure in YAML<a class="headerlink" href="#step-5-configure-in-yaml" title="Permanent link">&para;</a></h3>
-<p>Add the scheme to your ACES configuration file:</p>
+<p>Add the scheme to your CECE configuration file:</p>
 <div class="language-yaml highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="nt">physics_schemes</span><span class="p">:</span>
 </span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">my_emission_scheme</span>
 </span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="nt">options</span><span class="p">:</span>
@@ -1586,7 +1586,7 @@
 </span></code></pre></div>
 <hr />
 <h2 id="writing-kokkos-kernels">Writing Kokkos Kernels<a class="headerlink" href="#writing-kokkos-kernels" title="Permanent link">&para;</a></h2>
-<p>Kokkos kernels are the core of physics computation in ACES. They enable single-source code that runs efficiently on CPUs and GPUs.</p>
+<p>Kokkos kernels are the core of physics computation in CECE. They enable single-source code that runs efficiently on CPUs and GPUs.</p>
 <h3 id="basic-kernel-structure">Basic Kernel Structure<a class="headerlink" href="#basic-kernel-structure" title="Permanent link">&para;</a></h3>
 <div class="language-cpp highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="n">Kokkos</span><span class="o">::</span><span class="n">parallel_for</span><span class="p">(</span>
 </span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a><span class="w">    </span><span class="s">&quot;KernelName&quot;</span><span class="p">,</span>
@@ -1703,7 +1703,7 @@
 </span></code></pre></div>
 <hr />
 <h2 id="calling-fortran-kernels-from-c">Calling Fortran Kernels from C++<a class="headerlink" href="#calling-fortran-kernels-from-c" title="Permanent link">&para;</a></h2>
-<p>ACES supports calling Fortran kernels from C++ schemes using Fortran-C interoperability.</p>
+<p>CECE supports calling Fortran kernels from C++ schemes using Fortran-C interoperability.</p>
 <h3 id="fortran-kernel-example">Fortran Kernel Example<a class="headerlink" href="#fortran-kernel-example" title="Permanent link">&para;</a></h3>
 <div class="language-fortran highlight"><pre><span></span><code><span id="__span-17-1"><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="c">! src/physics/my_kernel.F90</span>
 </span><span id="__span-17-2"><a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="k">module </span><span class="n">my_kernel_mod</span>
@@ -1743,7 +1743,7 @@
 </span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="w">                                      </span><span class="kt">double</span><span class="o">*</span><span class="w"> </span><span class="n">emissions_ptr</span><span class="p">);</span>
 </span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>
 </span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a><span class="c1">// Call from C++ scheme</span>
-</span><span id="__span-18-7"><a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a><span class="kt">void</span><span class="w"> </span><span class="nf">MyScheme::Run</span><span class="p">(</span><span class="n">AcesImportState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">import_state</span><span class="p">,</span><span class="w"> </span><span class="n">AcesExportState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">export_state</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-18-7"><a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a><span class="kt">void</span><span class="w"> </span><span class="nf">MyScheme::Run</span><span class="p">(</span><span class="n">CeceImportState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">import_state</span><span class="p">,</span><span class="w"> </span><span class="n">CeceExportState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">export_state</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
 </span><span id="__span-18-8"><a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a><span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">temperature</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ResolveImport</span><span class="p">(</span><span class="s">&quot;temperature&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">import_state</span><span class="p">);</span>
 </span><span id="__span-18-9"><a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a><span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">emissions</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ResolveExport</span><span class="p">(</span><span class="s">&quot;emissions&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">export_state</span><span class="p">);</span>
 </span><span id="__span-18-10"><a id="__codelineno-18-10" name="__codelineno-18-10" href="#__codelineno-18-10"></a>
@@ -1777,7 +1777,7 @@
 <h2 id="configuration-and-parameters">Configuration and Parameters<a class="headerlink" href="#configuration-and-parameters" title="Permanent link">&para;</a></h2>
 <p>All physics parameters must be configurable via YAML. Never hardcode physical constants.</p>
 <h3 id="reading-parameters">Reading Parameters<a class="headerlink" href="#reading-parameters" title="Permanent link">&para;</a></h3>
-<div class="language-cpp highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="kt">void</span><span class="w"> </span><span class="nf">MyScheme::Initialize</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">YAML</span><span class="o">::</span><span class="n">Node</span><span class="o">&amp;</span><span class="w"> </span><span class="n">config</span><span class="p">,</span><span class="w"> </span><span class="n">AcesDiagnosticManager</span><span class="o">*</span><span class="w"> </span><span class="n">diag_manager</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<div class="language-cpp highlight"><pre><span></span><code><span id="__span-19-1"><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="kt">void</span><span class="w"> </span><span class="nf">MyScheme::Initialize</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">YAML</span><span class="o">::</span><span class="n">Node</span><span class="o">&amp;</span><span class="w"> </span><span class="n">config</span><span class="p">,</span><span class="w"> </span><span class="n">CeceDiagnosticManager</span><span class="o">*</span><span class="w"> </span><span class="n">diag_manager</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
 </span><span id="__span-19-2"><a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="w">    </span><span class="n">BasePhysicsScheme</span><span class="o">::</span><span class="n">Initialize</span><span class="p">(</span><span class="n">config</span><span class="p">,</span><span class="w"> </span><span class="n">diag_manager</span><span class="p">);</span>
 </span><span id="__span-19-3"><a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a>
 </span><span id="__span-19-4"><a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="w">    </span><span class="c1">// Read scalar parameters</span>
@@ -1813,7 +1813,7 @@
 </span><span id="__span-20-12"><a id="__codelineno-20-12" name="__codelineno-20-12" href="#__codelineno-20-12"></a><span class="w">        </span><span class="c1"># ... 24 values total</span>
 </span></code></pre></div>
 <h3 id="parameter-validation">Parameter Validation<a class="headerlink" href="#parameter-validation" title="Permanent link">&para;</a></h3>
-<div class="language-cpp highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="kt">void</span><span class="w"> </span><span class="nf">MyScheme::Initialize</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">YAML</span><span class="o">::</span><span class="n">Node</span><span class="o">&amp;</span><span class="w"> </span><span class="n">config</span><span class="p">,</span><span class="w"> </span><span class="n">AcesDiagnosticManager</span><span class="o">*</span><span class="w"> </span><span class="n">diag_manager</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<div class="language-cpp highlight"><pre><span></span><code><span id="__span-21-1"><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="kt">void</span><span class="w"> </span><span class="nf">MyScheme::Initialize</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">YAML</span><span class="o">::</span><span class="n">Node</span><span class="o">&amp;</span><span class="w"> </span><span class="n">config</span><span class="p">,</span><span class="w"> </span><span class="n">CeceDiagnosticManager</span><span class="o">*</span><span class="w"> </span><span class="n">diag_manager</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
 </span><span id="__span-21-2"><a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="w">    </span><span class="n">BasePhysicsScheme</span><span class="o">::</span><span class="n">Initialize</span><span class="p">(</span><span class="n">config</span><span class="p">,</span><span class="w"> </span><span class="n">diag_manager</span><span class="p">);</span>
 </span><span id="__span-21-3"><a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a>
 </span><span id="__span-21-4"><a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s">&quot;emission_factor&quot;</span><span class="p">])</span><span class="w"> </span><span class="p">{</span>
@@ -1877,7 +1877,7 @@
 <h2 id="diagnostic-fields">Diagnostic Fields<a class="headerlink" href="#diagnostic-fields" title="Permanent link">&para;</a></h2>
 <p>Diagnostic fields are optional intermediate variables useful for validation and debugging.</p>
 <h3 id="registering-diagnostic-fields">Registering Diagnostic Fields<a class="headerlink" href="#registering-diagnostic-fields" title="Permanent link">&para;</a></h3>
-<div class="language-cpp highlight"><pre><span></span><code><span id="__span-27-1"><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="kt">void</span><span class="w"> </span><span class="nf">MyScheme::Initialize</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">YAML</span><span class="o">::</span><span class="n">Node</span><span class="o">&amp;</span><span class="w"> </span><span class="n">config</span><span class="p">,</span><span class="w"> </span><span class="n">AcesDiagnosticManager</span><span class="o">*</span><span class="w"> </span><span class="n">diag_manager</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<div class="language-cpp highlight"><pre><span></span><code><span id="__span-27-1"><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a><span class="kt">void</span><span class="w"> </span><span class="nf">MyScheme::Initialize</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">YAML</span><span class="o">::</span><span class="n">Node</span><span class="o">&amp;</span><span class="w"> </span><span class="n">config</span><span class="p">,</span><span class="w"> </span><span class="n">CeceDiagnosticManager</span><span class="o">*</span><span class="w"> </span><span class="n">diag_manager</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
 </span><span id="__span-27-2"><a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a><span class="w">    </span><span class="n">BasePhysicsScheme</span><span class="o">::</span><span class="n">Initialize</span><span class="p">(</span><span class="n">config</span><span class="p">,</span><span class="w"> </span><span class="n">diag_manager</span><span class="p">);</span>
 </span><span id="__span-27-3"><a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a>
 </span><span id="__span-27-4"><a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">diag_manager</span><span class="w"> </span><span class="o">!=</span><span class="w"> </span><span class="nb">nullptr</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
@@ -1888,7 +1888,7 @@
 </span><span id="__span-27-9"><a id="__codelineno-27-9" name="__codelineno-27-9" href="#__codelineno-27-9"></a><span class="p">}</span>
 </span></code></pre></div>
 <h3 id="writing-to-diagnostic-fields">Writing to Diagnostic Fields<a class="headerlink" href="#writing-to-diagnostic-fields" title="Permanent link">&para;</a></h3>
-<div class="language-cpp highlight"><pre><span></span><code><span id="__span-28-1"><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="kt">void</span><span class="w"> </span><span class="nf">MyScheme::Run</span><span class="p">(</span><span class="n">AcesImportState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">import_state</span><span class="p">,</span><span class="w"> </span><span class="n">AcesExportState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">export_state</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<div class="language-cpp highlight"><pre><span></span><code><span id="__span-28-1"><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a><span class="kt">void</span><span class="w"> </span><span class="nf">MyScheme::Run</span><span class="p">(</span><span class="n">CeceImportState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">import_state</span><span class="p">,</span><span class="w"> </span><span class="n">CeceExportState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">export_state</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
 </span><span id="__span-28-2"><a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a><span class="w">    </span><span class="c1">// ... resolve fields ...</span>
 </span><span id="__span-28-3"><a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a>
 </span><span id="__span-28-4"><a id="__codelineno-28-4" name="__codelineno-28-4" href="#__codelineno-28-4"></a><span class="w">    </span><span class="n">Kokkos</span><span class="o">::</span><span class="n">parallel_for</span><span class="p">(...,</span><span class="w"> </span><span class="n">KOKKOS_LAMBDA</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">i</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">j</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">k</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
@@ -1914,7 +1914,7 @@
 <p>Use Kokkos profiling tools to identify bottlenecks:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-30-1"><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a><span class="c1"># Enable Kokkos profiling</span>
 </span><span id="__span-30-2"><a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">KOKKOS_PROFILE_LIBRARY</span><span class="o">=</span>/path/to/libkokkos_profiling.so
-</span><span id="__span-30-3"><a id="__codelineno-30-3" name="__codelineno-30-3" href="#__codelineno-30-3"></a>./aces_driver
+</span><span id="__span-30-3"><a id="__codelineno-30-3" name="__codelineno-30-3" href="#__codelineno-30-3"></a>./cece_driver
 </span></code></pre></div>
 <h3 id="common-optimization-techniques">Common Optimization Techniques<a class="headerlink" href="#common-optimization-techniques" title="Permanent link">&para;</a></h3>
 <h4 id="1-kernel-fusion">1. Kernel Fusion<a class="headerlink" href="#1-kernel-fusion" title="Permanent link">&para;</a></h4>
@@ -1967,7 +1967,7 @@
 <p>Create unit tests for your scheme:</p>
 <div class="language-cpp highlight"><pre><span></span><code><span id="__span-34-1"><a id="__codelineno-34-1" name="__codelineno-34-1" href="#__codelineno-34-1"></a><span class="c1">// tests/test_my_scheme.cpp</span>
 </span><span id="__span-34-2"><a id="__codelineno-34-2" name="__codelineno-34-2" href="#__codelineno-34-2"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;gtest/gtest.h&gt;</span>
-</span><span id="__span-34-3"><a id="__codelineno-34-3" name="__codelineno-34-3" href="#__codelineno-34-3"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;aces/physics/aces_my_scheme.hpp&quot;</span>
+</span><span id="__span-34-3"><a id="__codelineno-34-3" name="__codelineno-34-3" href="#__codelineno-34-3"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;cece/physics/cece_my_scheme.hpp&quot;</span>
 </span><span id="__span-34-4"><a id="__codelineno-34-4" name="__codelineno-34-4" href="#__codelineno-34-4"></a>
 </span><span id="__span-34-5"><a id="__codelineno-34-5" name="__codelineno-34-5" href="#__codelineno-34-5"></a><span class="k">class</span><span class="w"> </span><span class="nc">MySchemeTest</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="o">::</span><span class="n">testing</span><span class="o">::</span><span class="n">Test</span><span class="w"> </span><span class="p">{</span>
 </span><span id="__span-34-6"><a id="__codelineno-34-6" name="__codelineno-34-6" href="#__codelineno-34-6"></a><span class="k">protected</span><span class="o">:</span>
@@ -1993,15 +1993,15 @@
 </span><span id="__span-35-3"><a id="__codelineno-35-3" name="__codelineno-35-3" href="#__codelineno-35-3"></a><span class="c1">// Verify properties (e.g., mass conservation, physical bounds)</span>
 </span></code></pre></div>
 <h3 id="integration-testing">Integration Testing<a class="headerlink" href="#integration-testing" title="Permanent link">&para;</a></h3>
-<p>Test scheme in full ACES context:</p>
+<p>Test scheme in full CECE context:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-36-1"><a id="__codelineno-36-1" name="__codelineno-36-1" href="#__codelineno-36-1"></a><span class="c1"># Build with scheme</span>
 </span><span id="__span-36-2"><a id="__codelineno-36-2" name="__codelineno-36-2" href="#__codelineno-36-2"></a><span class="nb">cd</span><span class="w"> </span>build<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>cmake<span class="w"> </span>..<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span>make<span class="w"> </span>-j4
 </span><span id="__span-36-3"><a id="__codelineno-36-3" name="__codelineno-36-3" href="#__codelineno-36-3"></a>
 </span><span id="__span-36-4"><a id="__codelineno-36-4" name="__codelineno-36-4" href="#__codelineno-36-4"></a><span class="c1"># Run single-model driver</span>
-</span><span id="__span-36-5"><a id="__codelineno-36-5" name="__codelineno-36-5" href="#__codelineno-36-5"></a>./aces_nuopc_single_driver<span class="w"> </span>--config<span class="w"> </span>aces_config.yaml
+</span><span id="__span-36-5"><a id="__codelineno-36-5" name="__codelineno-36-5" href="#__codelineno-36-5"></a>./cece_nuopc_single_driver<span class="w"> </span>--config<span class="w"> </span>cece_config.yaml
 </span><span id="__span-36-6"><a id="__codelineno-36-6" name="__codelineno-36-6" href="#__codelineno-36-6"></a>
 </span><span id="__span-36-7"><a id="__codelineno-36-7" name="__codelineno-36-7" href="#__codelineno-36-7"></a><span class="c1"># Verify output</span>
-</span><span id="__span-36-8"><a id="__codelineno-36-8" name="__codelineno-36-8" href="#__codelineno-36-8"></a>ncdump<span class="w"> </span>-h<span class="w"> </span>aces_output.nc
+</span><span id="__span-36-8"><a id="__codelineno-36-8" name="__codelineno-36-8" href="#__codelineno-36-8"></a>ncdump<span class="w"> </span>-h<span class="w"> </span>cece_output.nc
 </span></code></pre></div>
 <hr />
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
@@ -2115,16 +2115,16 @@
 </span></code></pre></div>
 <hr />
 <h2 id="example-complete-physics-scheme">Example: Complete Physics Scheme<a class="headerlink" href="#example-complete-physics-scheme" title="Permanent link">&para;</a></h2>
-<p>See the following example schemes in the ACES repository:</p>
+<p>See the following example schemes in the CECE repository:</p>
 <ol>
-<li><strong>ExampleEmissionGeneration</strong> (<code>include/aces/physics/aces_example_emission_generation.hpp</code>)</li>
+<li><strong>ExampleEmissionGeneration</strong> (<code>include/cece/physics/cece_example_emission_generation.hpp</code>)</li>
 <li>Demonstrates emission generation pattern</li>
 <li>Shows Q10 temperature parameterization</li>
 <li>
 <p>Includes diagnostic field output</p>
 </li>
 <li>
-<p><strong>ExampleEmissionModification</strong> (<code>include/aces/physics/aces_example_emission_modification.hpp</code>)</p>
+<p><strong>ExampleEmissionModification</strong> (<code>include/cece/physics/cece_example_emission_modification.hpp</code>)</p>
 </li>
 <li>Demonstrates emission modification pattern</li>
 <li>Shows diurnal cycle application</li>
@@ -2132,7 +2132,7 @@
 <p>Shows in-place field modification</p>
 </li>
 <li>
-<p><strong>ExampleDiagnosticComputation</strong> (<code>include/aces/physics/aces_example_diagnostic_computation.hpp</code>)</p>
+<p><strong>ExampleDiagnosticComputation</strong> (<code>include/cece/physics/cece_example_diagnostic_computation.hpp</code>)</p>
 </li>
 <li>Demonstrates diagnostic field computation</li>
 <li>Shows validation and quality flagging</li>
@@ -2143,8 +2143,8 @@
 <ul>
 <li><strong>ESMF User Guide:</strong> <a href="https://earthsystemmodeling.org/docs/release/latest/ESMF_usrdoc">https://earthsystemmodeling.org/docs/release/latest/ESMF_usrdoc</a></li>
 <li><strong>Kokkos Documentation:</strong> <a href="https://kokkos.github.io/kokkos-core-wiki/">https://kokkos.github.io/kokkos-core-wiki/</a></li>
-<li><strong>ACES Architecture:</strong> See <code>docs/api.md</code></li>
-<li><strong>Physics Scheme Examples:</strong> See <code>include/aces/physics/aces_example_*.hpp</code></li>
+<li><strong>CECE Architecture:</strong> See <code>docs/api.md</code></li>
+<li><strong>Physics Scheme Examples:</strong> See <code>include/cece/physics/cece_example_*.hpp</code></li>
 </ul>
 <hr />
 <h2 id="getting-help">Getting Help<a class="headerlink" href="#getting-help" title="Permanent link">&para;</a></h2>
@@ -2152,7 +2152,7 @@
 <ol>
 <li>Check the troubleshooting section above</li>
 <li>Review example schemes in the repository</li>
-<li>Check ACES documentation in <code>docs/</code></li>
+<li>Check CECE documentation in <code>docs/</code></li>
 <li>Run tests to verify your implementation</li>
 <li>Use diagnostic fields to inspect intermediate values</li>
 <li>Profile with Kokkos profiling tools</li>
@@ -2197,7 +2197,7 @@
       <div class="md-copyright">
   
     <div class="md-copyright__highlight">
-      Copyright &copy; 2026 ACES Authors
+      Copyright &copy; 2026 CECE Authors
     </div>
   
   

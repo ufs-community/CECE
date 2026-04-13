@@ -6,10 +6,10 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Atmospheric Chemistry Emission System">
+        <meta name="description" content="Community Emissions Computing Engine">
       
       
-        <meta name="author" content="ACES Team">
+        <meta name="author" content="CECE Team">
       
       
       
@@ -19,11 +19,11 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="zensical-0.0.31">
+      <meta name="generator" content="zensical-0.0.32">
     
     
       
-        <title>ACES Driver Configuration Guide - ACES Documentation</title>
+        <title>CECE Driver Configuration Guide - CECE Documentation</title>
       
     
     
@@ -79,7 +79,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#aces-driver-configuration-guide" class="md-skip">
+        <a href="#cece-driver-configuration-guide" class="md-skip">
           Skip to content
         </a>
       
@@ -95,7 +95,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="./.." title="ACES Documentation" class="md-header__button md-logo" aria-label="ACES Documentation" data-md-component="logo">
+    <a href="./.." title="CECE Documentation" class="md-header__button md-logo" aria-label="CECE Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
@@ -109,13 +109,13 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            ACES Documentation
+            CECE Documentation
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              ACES Driver Configuration Guide
+              CECE Driver Configuration Guide
             
           </span>
         </div>
@@ -194,13 +194,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="./.." title="ACES Documentation" class="md-nav__button md-logo" aria-label="ACES Documentation" data-md-component="logo">
+    <a href="./.." title="CECE Documentation" class="md-nav__button md-logo" aria-label="CECE Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
 
     </a>
-    ACES Documentation
+    CECE Documentation
   </label>
   
   <ul class="md-nav__list" data-md-scrollfix>
@@ -887,11 +887,11 @@
                 
                   
 
-<h1 id="aces-driver-configuration-guide">ACES Driver Configuration Guide<a class="headerlink" href="#aces-driver-configuration-guide" title="Permanent link">&para;</a></h1>
+<h1 id="cece-driver-configuration-guide">CECE Driver Configuration Guide<a class="headerlink" href="#cece-driver-configuration-guide" title="Permanent link">&para;</a></h1>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
-<p>The ACES standalone NUOPC driver (<code>aces_nuopc_single_driver</code>) supports configurable execution modes for both single-process and MPI multi-process simulations. This guide documents all configuration options and usage patterns.</p>
+<p>The CECE standalone NUOPC driver (<code>cece_nuopc_single_driver</code>) supports configurable execution modes for both single-process and MPI multi-process simulations. This guide documents all configuration options and usage patterns.</p>
 <h2 id="configuration-file-format">Configuration File Format<a class="headerlink" href="#configuration-file-format" title="Permanent link">&para;</a></h2>
-<p>Driver configuration is specified in the ACES YAML configuration file under the optional <code>driver</code> section:</p>
+<p>Driver configuration is specified in the CECE YAML configuration file under the optional <code>driver</code> section:</p>
 <div class="language-yaml highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">driver</span><span class="p">:</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="nt">start_time</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;2020-01-01T00:00:00&quot;</span><span class="w">      </span><span class="c1"># ISO8601 format (optional, default: 2020-01-01T00:00:00)</span>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">  </span><span class="nt">end_time</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;2020-01-02T00:00:00&quot;</span><span class="w">        </span><span class="c1"># ISO8601 format (optional, default: 2020-01-02T00:00:00)</span>
@@ -976,7 +976,7 @@
 </span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="w">    </span><span class="nt">ny</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">180</span>
 </span></code></pre></div></p>
 <p><strong>Usage:</strong>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>./aces_nuopc_single_driver
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>./cece_nuopc_single_driver
 </span></code></pre></div></p>
 <h3 id="mpi-multi-process-execution">MPI Multi-Process Execution<a class="headerlink" href="#mpi-multi-process-execution" title="Permanent link">&para;</a></h3>
 <p>For MPI multi-process execution (petCount &gt; 1):</p>
@@ -996,7 +996,7 @@
 </span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="w">    </span><span class="nt">ny</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">180</span>
 </span></code></pre></div></p>
 <p><strong>Usage:</strong>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>mpirun<span class="w"> </span>-np<span class="w"> </span><span class="m">4</span><span class="w"> </span>./aces_nuopc_single_driver
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>mpirun<span class="w"> </span>-np<span class="w"> </span><span class="m">4</span><span class="w"> </span>./cece_nuopc_single_driver
 </span></code></pre></div></p>
 <h3 id="coupled-mode-execution">Coupled Mode Execution<a class="headerlink" href="#coupled-mode-execution" title="Permanent link">&para;</a></h3>
 <p>When the driver is used in coupled mode (invoked by NUOPC_Driver framework):</p>
@@ -1171,7 +1171,7 @@
 <ul>
 <li>ESMF User Guide: <a href="https://earthsystemmodeling.org/docs/release/latest/ESMF_usrdoc">https://earthsystemmodeling.org/docs/release/latest/ESMF_usrdoc</a></li>
 <li>NUOPC Reference Manual: <a href="https://earthsystemmodeling.org/docs/release/latest/NUOPC_refdoc">https://earthsystemmodeling.org/docs/release/latest/NUOPC_refdoc</a></li>
-<li>ACES Documentation: See docs/index.md</li>
+<li>CECE Documentation: See docs/index.md</li>
 </ul>
 
 
@@ -1212,7 +1212,7 @@
       <div class="md-copyright">
   
     <div class="md-copyright__highlight">
-      Copyright &copy; 2026 ACES Authors
+      Copyright &copy; 2026 CECE Authors
     </div>
   
   

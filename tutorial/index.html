@@ -6,10 +6,10 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Atmospheric Chemistry Emission System">
+        <meta name="description" content="Community Emissions Computing Engine">
       
       
-        <meta name="author" content="ACES Team">
+        <meta name="author" content="CECE Team">
       
       
       
@@ -23,11 +23,11 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="zensical-0.0.31">
+      <meta name="generator" content="zensical-0.0.32">
     
     
       
-        <title>Tutorials - ACES Documentation</title>
+        <title>Tutorials - CECE Documentation</title>
       
     
     
@@ -99,7 +99,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="./.." title="ACES Documentation" class="md-header__button md-logo" aria-label="ACES Documentation" data-md-component="logo">
+    <a href="./.." title="CECE Documentation" class="md-header__button md-logo" aria-label="CECE Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
@@ -113,7 +113,7 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            ACES Documentation
+            CECE Documentation
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
@@ -198,13 +198,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="./.." title="ACES Documentation" class="md-nav__button md-logo" aria-label="ACES Documentation" data-md-component="logo">
+    <a href="./.." title="CECE Documentation" class="md-nav__button md-logo" aria-label="CECE Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
 
     </a>
-    ACES Documentation
+    CECE Documentation
   </label>
   
   <ul class="md-nav__list" data-md-scrollfix>
@@ -430,10 +430,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#step-4-run-aces" class="md-nav__link">
+  <a href="#step-4-run-cece" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 4: Run ACES
+        Step 4: Run CECE
       
     </span>
   </a>
@@ -780,10 +780,10 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#step-4-run-aces" class="md-nav__link">
+  <a href="#step-4-run-cece" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Step 4: Run ACES
+        Step 4: Run CECE
       
     </span>
   </a>
@@ -952,11 +952,11 @@
                   
 
 <h1 id="tutorials">Tutorials<a class="headerlink" href="#tutorials" title="Permanent link">&para;</a></h1>
-<p>This section provides step-by-step guides for common ACES extension tasks.</p>
+<p>This section provides step-by-step guides for common CECE extension tasks.</p>
 <h2 id="tutorial-1-adding-a-new-emission-species">Tutorial 1: Adding a New Emission Species<a class="headerlink" href="#tutorial-1-adding-a-new-emission-species" title="Permanent link">&para;</a></h2>
-<p>This tutorial shows how to add a new emission species to ACES without recompilation.</p>
+<p>This tutorial shows how to add a new emission species to CECE without recompilation.</p>
 <h3 id="step-1-define-the-species-in-yaml">Step 1: Define the Species in YAML<a class="headerlink" href="#step-1-define-the-species-in-yaml" title="Permanent link">&para;</a></h3>
-<p>Edit your <code>aces_config.yaml</code> and add the new species to the <code>species</code> section:</p>
+<p>Edit your <code>cece_config.yaml</code> and add the new species to the <code>species</code> section:</p>
 <div class="language-yaml highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="nt">species</span><span class="p">:</span>
 </span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">CO</span>
 </span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="w">    </span><span class="nt">units</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">kg/m2/s</span>
@@ -999,21 +999,21 @@
 <h3 id="step-3-configure-output">Step 3: Configure Output<a class="headerlink" href="#step-3-configure-output" title="Permanent link">&para;</a></h3>
 <p>Add the new species to the output configuration:</p>
 <div class="language-yaml highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="nt">output</span><span class="p">:</span>
-</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="nt">directory</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./aces_output</span>
-</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="nt">filename_pattern</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;aces_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc&quot;</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="w">  </span><span class="nt">directory</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">./cece_output</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a><span class="w">  </span><span class="nt">filename_pattern</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;cece_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc&quot;</span>
 </span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="w">  </span><span class="nt">frequency_steps</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">1</span>
 </span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="w">  </span><span class="nt">fields</span><span class="p">:</span>
 </span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">CO</span>
 </span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="w">    </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">PM25</span>
 </span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a><span class="w">  </span><span class="nt">diagnostics</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">false</span>
 </span></code></pre></div>
-<h3 id="step-4-run-aces">Step 4: Run ACES<a class="headerlink" href="#step-4-run-aces" title="Permanent link">&para;</a></h3>
-<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>./build/bin/aces_nuopc_driver<span class="w"> </span>--config<span class="w"> </span>aces_config.yaml
+<h3 id="step-4-run-cece">Step 4: Run CECE<a class="headerlink" href="#step-4-run-cece" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>./build/bin/cece_nuopc_driver<span class="w"> </span>--config<span class="w"> </span>cece_config.yaml
 </span></code></pre></div>
 <p>The new species will be automatically created and computed without recompilation!</p>
 <hr />
 <h2 id="tutorial-2-adding-a-new-physics-parameterization">Tutorial 2: Adding a New Physics Parameterization<a class="headerlink" href="#tutorial-2-adding-a-new-physics-parameterization" title="Permanent link">&para;</a></h2>
-<p>This tutorial shows how to add a new physics scheme to ACES.</p>
+<p>This tutorial shows how to add a new physics scheme to CECE.</p>
 <h3 id="step-1-using-the-scheme-generator-recommended">Step 1: Using the Scheme Generator (Recommended)<a class="headerlink" href="#step-1-using-the-scheme-generator-recommended" title="Permanent link">&para;</a></h3>
 <p>The easiest way is to use the automatic scheme generator:</p>
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># Create a configuration file for your scheme</span>
@@ -1059,12 +1059,12 @@
 </span><span id="__span-4-41"><a id="__codelineno-4-41" name="__codelineno-4-41" href="#__codelineno-4-41"></a>python3<span class="w"> </span>scripts/generate_physics_scheme.py<span class="w"> </span>my_scheme_config.yaml
 </span></code></pre></div>
 <p>This creates:
-- <code>include/aces/physics/aces_my_emission_scheme.hpp</code>
-- <code>src/physics/aces_my_emission_scheme.cpp</code>
+- <code>include/cece/physics/cece_my_emission_scheme.hpp</code>
+- <code>src/physics/cece_my_emission_scheme.cpp</code>
 - Updated <code>CMakeLists.txt</code> entries</p>
 <h3 id="step-2-implement-the-physics-kernel">Step 2: Implement the Physics Kernel<a class="headerlink" href="#step-2-implement-the-physics-kernel" title="Permanent link">&para;</a></h3>
-<p>Edit <code>src/physics/aces_my_emission_scheme.cpp</code> and implement the <code>Run</code> method:</p>
-<div class="language-cpp highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kt">void</span><span class="w"> </span><span class="nf">MyEmissionScheme::Run</span><span class="p">(</span><span class="n">AcesImportState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">import_state</span><span class="p">,</span><span class="w"> </span><span class="n">AcesExportState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">export_state</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+<p>Edit <code>src/physics/cece_my_emission_scheme.cpp</code> and implement the <code>Run</code> method:</p>
+<div class="language-cpp highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="kt">void</span><span class="w"> </span><span class="nf">MyEmissionScheme::Run</span><span class="p">(</span><span class="n">CeceImportState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">import_state</span><span class="p">,</span><span class="w"> </span><span class="n">CeceExportState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">export_state</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
 </span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="w">    </span><span class="c1">// Resolve input fields</span>
 </span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">temperature</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ResolveImport</span><span class="p">(</span><span class="s">&quot;temperature&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">import_state</span><span class="p">);</span>
 </span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">wind_speed</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ResolveImport</span><span class="p">(</span><span class="s">&quot;wind_speed&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">import_state</span><span class="p">);</span>
@@ -1110,7 +1110,7 @@
 </span><span id="__span-5-44"><a id="__codelineno-5-44" name="__codelineno-5-44" href="#__codelineno-5-44"></a><span class="p">}</span>
 </span></code></pre></div>
 <h3 id="step-3-configure-the-scheme">Step 3: Configure the Scheme<a class="headerlink" href="#step-3-configure-the-scheme" title="Permanent link">&para;</a></h3>
-<p>Add the scheme to your <code>aces_config.yaml</code>:</p>
+<p>Add the scheme to your <code>cece_config.yaml</code>:</p>
 <div class="language-yaml highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="nt">physics_schemes</span><span class="p">:</span>
 </span><span id="__span-6-2"><a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="w">  </span><span class="p p-Indicator">-</span><span class="w"> </span><span class="nt">name</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">MyEmissionScheme</span>
 </span><span id="__span-6-3"><a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="w">    </span><span class="nt">enabled</span><span class="p">:</span><span class="w"> </span><span class="l l-Scalar l-Scalar-Plain">true</span>
@@ -1123,21 +1123,21 @@
 </span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>cmake<span class="w"> </span>..
 </span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>make<span class="w"> </span>-j4
 </span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>ctest<span class="w"> </span>--output-on-failure
-</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>./bin/aces_nuopc_driver<span class="w"> </span>--config<span class="w"> </span>../aces_config.yaml
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>./bin/cece_nuopc_driver<span class="w"> </span>--config<span class="w"> </span>../cece_config.yaml
 </span></code></pre></div>
 <h3 id="step-5-manual-implementation-advanced">Step 5: Manual Implementation (Advanced)<a class="headerlink" href="#step-5-manual-implementation-advanced" title="Permanent link">&para;</a></h3>
 <p>If you prefer manual implementation without the generator:</p>
-<p><strong>Header</strong> (<code>include/aces/physics/aces_my_scheme.hpp</code>):
-<div class="language-cpp highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;aces/physics_scheme.hpp&quot;</span>
+<p><strong>Header</strong> (<code>include/cece/physics/cece_my_scheme.hpp</code>):
+<div class="language-cpp highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;cece/physics_scheme.hpp&quot;</span>
 </span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>
-</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="k">namespace</span><span class="w"> </span><span class="nn">aces</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="k">namespace</span><span class="w"> </span><span class="nn">cece</span><span class="w"> </span><span class="p">{</span>
 </span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>
 </span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="k">class</span><span class="w"> </span><span class="nc">MyScheme</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">BasePhysicsScheme</span><span class="w"> </span><span class="p">{</span>
 </span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="k">public</span><span class="o">:</span>
 </span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a><span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">Initialize</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">YAML</span><span class="o">::</span><span class="n">Node</span><span class="o">&amp;</span><span class="w"> </span><span class="n">config</span><span class="p">,</span>
-</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="w">                   </span><span class="n">AcesDiagnosticManager</span><span class="o">*</span><span class="w"> </span><span class="n">diag_manager</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="p">;</span>
-</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Run</span><span class="p">(</span><span class="n">AcesImportState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">import_state</span><span class="p">,</span>
-</span><span id="__span-8-10"><a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="w">            </span><span class="n">AcesExportState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">export_state</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="p">;</span>
+</span><span id="__span-8-8"><a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="w">                   </span><span class="n">CeceDiagnosticManager</span><span class="o">*</span><span class="w"> </span><span class="n">diag_manager</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="p">;</span>
+</span><span id="__span-8-9"><a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Run</span><span class="p">(</span><span class="n">CeceImportState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">import_state</span><span class="p">,</span>
+</span><span id="__span-8-10"><a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="w">            </span><span class="n">CeceExportState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">export_state</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="p">;</span>
 </span><span id="__span-8-11"><a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a><span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">Finalize</span><span class="p">()</span><span class="w"> </span><span class="k">override</span><span class="p">;</span>
 </span><span id="__span-8-12"><a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a>
 </span><span id="__span-8-13"><a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a><span class="k">private</span><span class="o">:</span>
@@ -1148,15 +1148,15 @@
 </span><span id="__span-8-18"><a id="__codelineno-8-18" name="__codelineno-8-18" href="#__codelineno-8-18"></a><span class="c1">// Self-registration</span>
 </span><span id="__span-8-19"><a id="__codelineno-8-19" name="__codelineno-8-19" href="#__codelineno-8-19"></a><span class="k">static</span><span class="w"> </span><span class="n">PhysicsRegistration</span><span class="o">&lt;</span><span class="n">MyScheme</span><span class="o">&gt;</span><span class="w"> </span><span class="n">registration_my_scheme</span><span class="p">(</span><span class="s">&quot;MyScheme&quot;</span><span class="p">);</span>
 </span><span id="__span-8-20"><a id="__codelineno-8-20" name="__codelineno-8-20" href="#__codelineno-8-20"></a>
-</span><span id="__span-8-21"><a id="__codelineno-8-21" name="__codelineno-8-21" href="#__codelineno-8-21"></a><span class="p">}</span><span class="w">  </span><span class="c1">// namespace aces</span>
+</span><span id="__span-8-21"><a id="__codelineno-8-21" name="__codelineno-8-21" href="#__codelineno-8-21"></a><span class="p">}</span><span class="w">  </span><span class="c1">// namespace cece</span>
 </span></code></pre></div></p>
-<p><strong>Implementation</strong> (<code>src/physics/aces_my_scheme.cpp</code>):
-<div class="language-cpp highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;aces/physics/aces_my_scheme.hpp&quot;</span>
+<p><strong>Implementation</strong> (<code>src/physics/cece_my_scheme.cpp</code>):
+<div class="language-cpp highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;cece/physics/cece_my_scheme.hpp&quot;</span>
 </span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>
-</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="k">namespace</span><span class="w"> </span><span class="nn">aces</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a><span class="k">namespace</span><span class="w"> </span><span class="nn">cece</span><span class="w"> </span><span class="p">{</span>
 </span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>
 </span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a><span class="kt">void</span><span class="w"> </span><span class="nf">MyScheme::Initialize</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">YAML</span><span class="o">::</span><span class="n">Node</span><span class="o">&amp;</span><span class="w"> </span><span class="n">config</span><span class="p">,</span>
-</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">                         </span><span class="n">AcesDiagnosticManager</span><span class="o">*</span><span class="w"> </span><span class="n">diag_manager</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a><span class="w">                         </span><span class="n">CeceDiagnosticManager</span><span class="o">*</span><span class="w"> </span><span class="n">diag_manager</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
 </span><span id="__span-9-7"><a id="__codelineno-9-7" name="__codelineno-9-7" href="#__codelineno-9-7"></a><span class="w">    </span><span class="n">BasePhysicsScheme</span><span class="o">::</span><span class="n">Initialize</span><span class="p">(</span><span class="n">config</span><span class="p">,</span><span class="w"> </span><span class="n">diag_manager</span><span class="p">);</span>
 </span><span id="__span-9-8"><a id="__codelineno-9-8" name="__codelineno-9-8" href="#__codelineno-9-8"></a>
 </span><span id="__span-9-9"><a id="__codelineno-9-9" name="__codelineno-9-9" href="#__codelineno-9-9"></a><span class="w">    </span><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">config</span><span class="p">[</span><span class="s">&quot;emission_factor&quot;</span><span class="p">])</span><span class="w"> </span><span class="p">{</span>
@@ -1167,8 +1167,8 @@
 </span><span id="__span-9-14"><a id="__codelineno-9-14" name="__codelineno-9-14" href="#__codelineno-9-14"></a><span class="w">    </span><span class="p">}</span>
 </span><span id="__span-9-15"><a id="__codelineno-9-15" name="__codelineno-9-15" href="#__codelineno-9-15"></a><span class="p">}</span>
 </span><span id="__span-9-16"><a id="__codelineno-9-16" name="__codelineno-9-16" href="#__codelineno-9-16"></a>
-</span><span id="__span-9-17"><a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a><span class="kt">void</span><span class="w"> </span><span class="nf">MyScheme::Run</span><span class="p">(</span><span class="n">AcesImportState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">import_state</span><span class="p">,</span>
-</span><span id="__span-9-18"><a id="__codelineno-9-18" name="__codelineno-9-18" href="#__codelineno-9-18"></a><span class="w">                  </span><span class="n">AcesExportState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">export_state</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-9-17"><a id="__codelineno-9-17" name="__codelineno-9-17" href="#__codelineno-9-17"></a><span class="kt">void</span><span class="w"> </span><span class="nf">MyScheme::Run</span><span class="p">(</span><span class="n">CeceImportState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">import_state</span><span class="p">,</span>
+</span><span id="__span-9-18"><a id="__codelineno-9-18" name="__codelineno-9-18" href="#__codelineno-9-18"></a><span class="w">                  </span><span class="n">CeceExportState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">export_state</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
 </span><span id="__span-9-19"><a id="__codelineno-9-19" name="__codelineno-9-19" href="#__codelineno-9-19"></a><span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">temperature</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ResolveImport</span><span class="p">(</span><span class="s">&quot;temperature&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">import_state</span><span class="p">);</span>
 </span><span id="__span-9-20"><a id="__codelineno-9-20" name="__codelineno-9-20" href="#__codelineno-9-20"></a><span class="w">    </span><span class="k">auto</span><span class="w"> </span><span class="n">emissions</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">ResolveExport</span><span class="p">(</span><span class="s">&quot;my_emissions&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">export_state</span><span class="p">);</span>
 </span><span id="__span-9-21"><a id="__codelineno-9-21" name="__codelineno-9-21" href="#__codelineno-9-21"></a>
@@ -1191,7 +1191,7 @@
 </span><span id="__span-9-38"><a id="__codelineno-9-38" name="__codelineno-9-38" href="#__codelineno-9-38"></a><span class="w">    </span><span class="c1">// Cleanup if needed</span>
 </span><span id="__span-9-39"><a id="__codelineno-9-39" name="__codelineno-9-39" href="#__codelineno-9-39"></a><span class="p">}</span>
 </span><span id="__span-9-40"><a id="__codelineno-9-40" name="__codelineno-9-40" href="#__codelineno-9-40"></a>
-</span><span id="__span-9-41"><a id="__codelineno-9-41" name="__codelineno-9-41" href="#__codelineno-9-41"></a><span class="p">}</span><span class="w">  </span><span class="c1">// namespace aces</span>
+</span><span id="__span-9-41"><a id="__codelineno-9-41" name="__codelineno-9-41" href="#__codelineno-9-41"></a><span class="p">}</span><span class="w">  </span><span class="c1">// namespace cece</span>
 </span></code></pre></div></p>
 <hr />
 <h2 id="tutorial-3-adding-a-new-physics-scheme-legacy-fortran">Tutorial 3: Adding a New Physics Scheme (Legacy Fortran)<a class="headerlink" href="#tutorial-3-adding-a-new-physics-scheme-legacy-fortran" title="Permanent link">&para;</a></h2>
@@ -1226,24 +1226,24 @@
 </span><span id="__span-10-26"><a id="__codelineno-10-26" name="__codelineno-10-26" href="#__codelineno-10-26"></a><span class="k">end module </span><span class="n">my_fortran_kernel_mod</span>
 </span></code></pre></div>
 <h3 id="step-2-create-c-bridge">Step 2: Create C++ Bridge<a class="headerlink" href="#step-2-create-c-bridge" title="Permanent link">&para;</a></h3>
-<p>Create <code>src/physics/aces_my_fortran_scheme.cpp</code>:</p>
-<div class="language-cpp highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;aces/physics_scheme.hpp&quot;</span>
+<p>Create <code>src/physics/cece_my_fortran_scheme.cpp</code>:</p>
+<div class="language-cpp highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;cece/physics_scheme.hpp&quot;</span>
 </span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>
 </span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="k">extern</span><span class="w"> </span><span class="s">&quot;C&quot;</span><span class="w"> </span><span class="p">{</span>
 </span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="nf">compute_emissions</span><span class="p">(</span><span class="kt">double</span><span class="o">*</span><span class="w"> </span><span class="n">temperature</span><span class="p">,</span><span class="w"> </span><span class="kt">double</span><span class="o">*</span><span class="w"> </span><span class="n">emissions</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">nx</span><span class="p">,</span><span class="w"> </span><span class="kt">int</span><span class="w"> </span><span class="n">ny</span><span class="p">);</span>
 </span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="p">}</span>
 </span><span id="__span-11-6"><a id="__codelineno-11-6" name="__codelineno-11-6" href="#__codelineno-11-6"></a>
-</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="k">namespace</span><span class="w"> </span><span class="nn">aces</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-11-7"><a id="__codelineno-11-7" name="__codelineno-11-7" href="#__codelineno-11-7"></a><span class="k">namespace</span><span class="w"> </span><span class="nn">cece</span><span class="w"> </span><span class="p">{</span>
 </span><span id="__span-11-8"><a id="__codelineno-11-8" name="__codelineno-11-8" href="#__codelineno-11-8"></a>
 </span><span id="__span-11-9"><a id="__codelineno-11-9" name="__codelineno-11-9" href="#__codelineno-11-9"></a><span class="k">class</span><span class="w"> </span><span class="nc">MyFortranScheme</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="k">public</span><span class="w"> </span><span class="n">BasePhysicsScheme</span><span class="w"> </span><span class="p">{</span>
 </span><span id="__span-11-10"><a id="__codelineno-11-10" name="__codelineno-11-10" href="#__codelineno-11-10"></a><span class="k">public</span><span class="o">:</span>
 </span><span id="__span-11-11"><a id="__codelineno-11-11" name="__codelineno-11-11" href="#__codelineno-11-11"></a><span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">Initialize</span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="n">YAML</span><span class="o">::</span><span class="n">Node</span><span class="o">&amp;</span><span class="w"> </span><span class="n">config</span><span class="p">,</span>
-</span><span id="__span-11-12"><a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a><span class="w">                   </span><span class="n">AcesDiagnosticManager</span><span class="o">*</span><span class="w"> </span><span class="n">diag_manager</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-11-12"><a id="__codelineno-11-12" name="__codelineno-11-12" href="#__codelineno-11-12"></a><span class="w">                   </span><span class="n">CeceDiagnosticManager</span><span class="o">*</span><span class="w"> </span><span class="n">diag_manager</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span>
 </span><span id="__span-11-13"><a id="__codelineno-11-13" name="__codelineno-11-13" href="#__codelineno-11-13"></a><span class="w">        </span><span class="n">BasePhysicsScheme</span><span class="o">::</span><span class="n">Initialize</span><span class="p">(</span><span class="n">config</span><span class="p">,</span><span class="w"> </span><span class="n">diag_manager</span><span class="p">);</span>
 </span><span id="__span-11-14"><a id="__codelineno-11-14" name="__codelineno-11-14" href="#__codelineno-11-14"></a><span class="w">    </span><span class="p">}</span>
 </span><span id="__span-11-15"><a id="__codelineno-11-15" name="__codelineno-11-15" href="#__codelineno-11-15"></a>
-</span><span id="__span-11-16"><a id="__codelineno-11-16" name="__codelineno-11-16" href="#__codelineno-11-16"></a><span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">Run</span><span class="p">(</span><span class="n">AcesImportState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">import_state</span><span class="p">,</span>
-</span><span id="__span-11-17"><a id="__codelineno-11-17" name="__codelineno-11-17" href="#__codelineno-11-17"></a><span class="w">            </span><span class="n">AcesExportState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">export_state</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span>
+</span><span id="__span-11-16"><a id="__codelineno-11-16" name="__codelineno-11-16" href="#__codelineno-11-16"></a><span class="w">    </span><span class="kt">void</span><span class="w"> </span><span class="n">Run</span><span class="p">(</span><span class="n">CeceImportState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">import_state</span><span class="p">,</span>
+</span><span id="__span-11-17"><a id="__codelineno-11-17" name="__codelineno-11-17" href="#__codelineno-11-17"></a><span class="w">            </span><span class="n">CeceExportState</span><span class="o">&amp;</span><span class="w"> </span><span class="n">export_state</span><span class="p">)</span><span class="w"> </span><span class="k">override</span><span class="w"> </span><span class="p">{</span>
 </span><span id="__span-11-18"><a id="__codelineno-11-18" name="__codelineno-11-18" href="#__codelineno-11-18"></a><span class="w">        </span><span class="k">auto</span><span class="o">&amp;</span><span class="w"> </span><span class="n">temp_dv</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">import_state</span><span class="p">.</span><span class="n">fields</span><span class="p">[</span><span class="s">&quot;temperature&quot;</span><span class="p">];</span>
 </span><span id="__span-11-19"><a id="__codelineno-11-19" name="__codelineno-11-19" href="#__codelineno-11-19"></a><span class="w">        </span><span class="k">auto</span><span class="o">&amp;</span><span class="w"> </span><span class="n">emis_dv</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">export_state</span><span class="p">.</span><span class="n">fields</span><span class="p">[</span><span class="s">&quot;my_emissions&quot;</span><span class="p">];</span>
 </span><span id="__span-11-20"><a id="__codelineno-11-20" name="__codelineno-11-20" href="#__codelineno-11-20"></a>
@@ -1269,15 +1269,15 @@
 </span><span id="__span-11-40"><a id="__codelineno-11-40" name="__codelineno-11-40" href="#__codelineno-11-40"></a>
 </span><span id="__span-11-41"><a id="__codelineno-11-41" name="__codelineno-11-41" href="#__codelineno-11-41"></a><span class="k">static</span><span class="w"> </span><span class="n">PhysicsRegistration</span><span class="o">&lt;</span><span class="n">MyFortranScheme</span><span class="o">&gt;</span><span class="w"> </span><span class="n">registration_my_fortran</span><span class="p">(</span><span class="s">&quot;MyFortranScheme&quot;</span><span class="p">);</span>
 </span><span id="__span-11-42"><a id="__codelineno-11-42" name="__codelineno-11-42" href="#__codelineno-11-42"></a>
-</span><span id="__span-11-43"><a id="__codelineno-11-43" name="__codelineno-11-43" href="#__codelineno-11-43"></a><span class="p">}</span><span class="w">  </span><span class="c1">// namespace aces</span>
+</span><span id="__span-11-43"><a id="__codelineno-11-43" name="__codelineno-11-43" href="#__codelineno-11-43"></a><span class="p">}</span><span class="w">  </span><span class="c1">// namespace cece</span>
 </span></code></pre></div>
 <h3 id="step-3-update-cmakeliststxt">Step 3: Update CMakeLists.txt<a class="headerlink" href="#step-3-update-cmakeliststxt" title="Permanent link">&para;</a></h3>
 <p>Add the Fortran source to the build:</p>
-<div class="language-cmake highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="nb">add_library</span><span class="p">(</span><span class="s">aces_my_fortran_kernel</span><span class="w"> </span><span class="s">src/physics/my_fortran_kernel.F90</span><span class="p">)</span>
-</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="nb">target_link_libraries</span><span class="p">(</span><span class="s">aces_my_fortran_kernel</span><span class="w"> </span><span class="s">PUBLIC</span><span class="w"> </span><span class="s">aces</span><span class="p">)</span>
+<div class="language-cmake highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="nb">add_library</span><span class="p">(</span><span class="s">cece_my_fortran_kernel</span><span class="w"> </span><span class="s">src/physics/my_fortran_kernel.F90</span><span class="p">)</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="nb">target_link_libraries</span><span class="p">(</span><span class="s">cece_my_fortran_kernel</span><span class="w"> </span><span class="s">PUBLIC</span><span class="w"> </span><span class="s">cece</span><span class="p">)</span>
 </span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a>
-</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="nb">add_library</span><span class="p">(</span><span class="s">aces_my_fortran_scheme</span><span class="w"> </span><span class="s">src/physics/aces_my_fortran_scheme.cpp</span><span class="p">)</span>
-</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="nb">target_link_libraries</span><span class="p">(</span><span class="s">aces_my_fortran_scheme</span><span class="w"> </span><span class="s">PUBLIC</span><span class="w"> </span><span class="s">aces</span><span class="w"> </span><span class="s">aces_my_fortran_kernel</span><span class="p">)</span>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="nb">add_library</span><span class="p">(</span><span class="s">cece_my_fortran_scheme</span><span class="w"> </span><span class="s">src/physics/cece_my_fortran_scheme.cpp</span><span class="p">)</span>
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="nb">target_link_libraries</span><span class="p">(</span><span class="s">cece_my_fortran_scheme</span><span class="w"> </span><span class="s">PUBLIC</span><span class="w"> </span><span class="s">cece</span><span class="w"> </span><span class="s">cece_my_fortran_kernel</span><span class="p">)</span>
 </span></code></pre></div>
 <hr />
 <h2 id="tutorial-4-adding-new-physics-schemes">Tutorial 4: Adding New Physics Schemes<a class="headerlink" href="#tutorial-4-adding-new-physics-schemes" title="Permanent link">&para;</a></h2>
@@ -1358,7 +1358,7 @@
       <div class="md-copyright">
   
     <div class="md-copyright__highlight">
-      Copyright &copy; 2026 ACES Authors
+      Copyright &copy; 2026 CECE Authors
     </div>
   
   

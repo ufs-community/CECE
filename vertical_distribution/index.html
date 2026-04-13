@@ -6,10 +6,10 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Atmospheric Chemistry Emission System">
+        <meta name="description" content="Community Emissions Computing Engine">
       
       
-        <meta name="author" content="ACES Team">
+        <meta name="author" content="CECE Team">
       
       
       
@@ -19,11 +19,11 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="zensical-0.0.31">
+      <meta name="generator" content="zensical-0.0.32">
     
     
       
-        <title>Vertical Distribution in ACES - ACES Documentation</title>
+        <title>Vertical Distribution in CECE - CECE Documentation</title>
       
     
     
@@ -79,7 +79,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#vertical-distribution-in-aces" class="md-skip">
+        <a href="#vertical-distribution-in-cece" class="md-skip">
           Skip to content
         </a>
       
@@ -95,7 +95,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="./.." title="ACES Documentation" class="md-header__button md-logo" aria-label="ACES Documentation" data-md-component="logo">
+    <a href="./.." title="CECE Documentation" class="md-header__button md-logo" aria-label="CECE Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
@@ -109,13 +109,13 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            ACES Documentation
+            CECE Documentation
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Vertical Distribution in ACES
+              Vertical Distribution in CECE
             
           </span>
         </div>
@@ -194,13 +194,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="./.." title="ACES Documentation" class="md-nav__button md-logo" aria-label="ACES Documentation" data-md-component="logo">
+    <a href="./.." title="CECE Documentation" class="md-nav__button md-logo" aria-label="CECE Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
 
     </a>
-    ACES Documentation
+    CECE Documentation
   </label>
   
   <ul class="md-nav__list" data-md-scrollfix>
@@ -794,10 +794,10 @@
                 
                   
 
-<h1 id="vertical-distribution-in-aces">Vertical Distribution in ACES<a class="headerlink" href="#vertical-distribution-in-aces" title="Permanent link">&para;</a></h1>
-<p>Vertical distribution is a critical capability in ACES that maps 2D emission fields to 3D atmospheric grids. This process is essential for accurately representing emission sources at appropriate atmospheric levels, from surface-based anthropogenic emissions to elevated aircraft and lightning sources.</p>
+<h1 id="vertical-distribution-in-cece">Vertical Distribution in CECE<a class="headerlink" href="#vertical-distribution-in-cece" title="Permanent link">&para;</a></h1>
+<p>Vertical distribution is a critical capability in CECE that maps 2D emission fields to 3D atmospheric grids. This process is essential for accurately representing emission sources at appropriate atmospheric levels, from surface-based anthropogenic emissions to elevated aircraft and lightning sources.</p>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
-<p>Most emission inventories provide data as 2D surface fluxes, but atmospheric chemistry models require 3D emission fields that specify emissions at each vertical level. ACES provides multiple algorithms to distribute these 2D emissions vertically based on physical principles and source characteristics.</p>
+<p>Most emission inventories provide data as 2D surface fluxes, but atmospheric chemistry models require 3D emission fields that specify emissions at each vertical level. CECE provides multiple algorithms to distribute these 2D emissions vertically based on physical principles and source characteristics.</p>
 <h2 id="distribution-methods">Distribution Methods<a class="headerlink" href="#distribution-methods" title="Permanent link">&para;</a></h2>
 <h3 id="single-single-layer-placement"><code>SINGLE</code> - Single Layer Placement<a class="headerlink" href="#single-single-layer-placement" title="Permanent link">&para;</a></h3>
 <p>Places all emissions in a specific vertical layer index.</p>
@@ -945,7 +945,7 @@
 </span><span id="__span-9-22"><a id="__codelineno-9-22" name="__codelineno-9-22" href="#__codelineno-9-22"></a>            emissions_3d[i,j,k] *= (1.0 / total_fraction)
 </span></code></pre></div></p>
 <h2 id="mass-conservation">Mass Conservation<a class="headerlink" href="#mass-conservation" title="Permanent link">&para;</a></h2>
-<p>All vertical distribution methods in ACES ensure strict mass conservation:</p>
+<p>All vertical distribution methods in CECE ensure strict mass conservation:</p>
 <div class="language-text highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a>∑(k=1 to nz) emissions_3d[i,j,k] = emissions_2d[i,j]  ∀ i,j
 </span></code></pre></div>
 <p>This is achieved through normalization factors that account for:
@@ -953,7 +953,7 @@
 - Varying layer thicknesses
 - Numerical precision effects</p>
 <h2 id="coordinate-system-support">Coordinate System Support<a class="headerlink" href="#coordinate-system-support" title="Permanent link">&para;</a></h2>
-<p>ACES supports multiple vertical coordinate systems for distribution calculations:</p>
+<p>CECE supports multiple vertical coordinate systems for distribution calculations:</p>
 <h3 id="terrain-following-coordinates">Terrain-Following Coordinates<a class="headerlink" href="#terrain-following-coordinates" title="Permanent link">&para;</a></h3>
 <div class="language-yaml highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="nt">vertical_config</span><span class="p">:</span>
 </span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="w">  </span><span class="nt">type</span><span class="p">:</span><span class="w"> </span><span class="s">&quot;FV3&quot;</span><span class="w">                    </span><span class="c1"># FV3/GFDL coordinate system</span>
@@ -1098,14 +1098,14 @@
 </span></code></pre></div>
 <h2 id="validation-and-quality-assurance">Validation and Quality Assurance<a class="headerlink" href="#validation-and-quality-assurance" title="Permanent link">&para;</a></h2>
 <h3 id="mass-conservation-checking">Mass Conservation Checking<a class="headerlink" href="#mass-conservation-checking" title="Permanent link">&para;</a></h3>
-<p>ACES automatically validates mass conservation for all vertical distribution operations:</p>
+<p>CECE automatically validates mass conservation for all vertical distribution operations:</p>
 <div class="language-cpp highlight"><pre><span></span><code><span id="__span-18-1"><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="c1">// Automatic mass conservation validation</span>
 </span><span id="__span-18-2"><a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="kt">double</span><span class="w"> </span><span class="n">total_2d</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sum</span><span class="p">(</span><span class="n">emissions_2d</span><span class="p">);</span>
 </span><span id="__span-18-3"><a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="kt">double</span><span class="w"> </span><span class="n">total_3d</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">sum</span><span class="p">(</span><span class="n">emissions_3d</span><span class="p">);</span>
 </span><span id="__span-18-4"><a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a><span class="kt">double</span><span class="w"> </span><span class="n">conservation_error</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">abs</span><span class="p">(</span><span class="n">total_3d</span><span class="w"> </span><span class="o">-</span><span class="w"> </span><span class="n">total_2d</span><span class="p">)</span><span class="w"> </span><span class="o">/</span><span class="w"> </span><span class="n">total_2d</span><span class="p">;</span>
 </span><span id="__span-18-5"><a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a>
 </span><span id="__span-18-6"><a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a><span class="k">if</span><span class="w"> </span><span class="p">(</span><span class="n">conservation_error</span><span class="w"> </span><span class="o">&gt;</span><span class="w"> </span><span class="mf">1.0e-12</span><span class="p">)</span><span class="w"> </span><span class="p">{</span>
-</span><span id="__span-18-7"><a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a><span class="w">    </span><span class="n">ACES_LOG_WARNING</span><span class="p">(</span><span class="s">&quot;Mass conservation error: &quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">to_string</span><span class="p">(</span><span class="n">conservation_error</span><span class="p">));</span>
+</span><span id="__span-18-7"><a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a><span class="w">    </span><span class="n">CECE_LOG_WARNING</span><span class="p">(</span><span class="s">&quot;Mass conservation error: &quot;</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">to_string</span><span class="p">(</span><span class="n">conservation_error</span><span class="p">));</span>
 </span><span id="__span-18-8"><a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a><span class="p">}</span>
 </span></code></pre></div>
 <h3 id="diagnostic-output">Diagnostic Output<a class="headerlink" href="#diagnostic-output" title="Permanent link">&para;</a></h3>
@@ -1166,7 +1166,7 @@
       <div class="md-copyright">
   
     <div class="md-copyright__highlight">
-      Copyright &copy; 2026 ACES Authors
+      Copyright &copy; 2026 CECE Authors
     </div>
   
   

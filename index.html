@@ -6,10 +6,10 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Atmospheric Chemistry Emission System">
+        <meta name="description" content="Community Emissions Computing Engine">
       
       
-        <meta name="author" content="ACES Team">
+        <meta name="author" content="CECE Team">
       
       
       
@@ -21,11 +21,11 @@
       
       
       <link rel="icon" href="./assets/images/favicon.png">
-      <meta name="generator" content="zensical-0.0.31">
+      <meta name="generator" content="zensical-0.0.32">
     
     
       
-        <title>Welcome to ACES - ACES Documentation</title>
+        <title>Welcome to CECE - CECE Documentation</title>
       
     
     
@@ -81,7 +81,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#welcome-to-aces" class="md-skip">
+        <a href="#welcome-to-cece" class="md-skip">
           Skip to content
         </a>
       
@@ -97,7 +97,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="" title="ACES Documentation" class="md-header__button md-logo" aria-label="ACES Documentation" data-md-component="logo">
+    <a href="" title="CECE Documentation" class="md-header__button md-logo" aria-label="CECE Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
@@ -111,13 +111,13 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            ACES Documentation
+            CECE Documentation
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Welcome to ACES
+              Welcome to CECE
             
           </span>
         </div>
@@ -196,13 +196,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="" title="ACES Documentation" class="md-nav__button md-logo" aria-label="ACES Documentation" data-md-component="logo">
+    <a href="" title="CECE Documentation" class="md-nav__button md-logo" aria-label="CECE Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
 
     </a>
-    ACES Documentation
+    CECE Documentation
   </label>
   
   <ul class="md-nav__list" data-md-scrollfix>
@@ -627,18 +627,19 @@
                 
                   
 
-<h1 id="welcome-to-aces">Welcome to ACES<a class="headerlink" href="#welcome-to-aces" title="Permanent link">&para;</a></h1>
-<p><strong>ACES</strong> (Atmospheric Chemistry Emission System) is a high-performance C++ component designed for calculating atmospheric emissions. It leverages the <strong>Kokkos</strong> programming model for performance portability across CPUs and GPUs and integrates seamlessly with the <strong>ESMF</strong> (Earth System Modeling Framework).</p>
+<h1 id="welcome-to-cece">Welcome to CECE<a class="headerlink" href="#welcome-to-cece" title="Permanent link">&para;</a></h1>
+<p><strong>CECE</strong> (Community Emissions Computing Engine) is a high-performance C++ component designed for calculating atmospheric emissions. It leverages the <strong>Kokkos</strong> programming model for performance portability across CPUs and GPUs and integrates seamlessly with the <strong>ESMF</strong> (Earth System Modeling Framework).</p>
 <h2 id="key-features">Key Features<a class="headerlink" href="#key-features" title="Permanent link">&para;</a></h2>
 <ul>
-<li><strong>Performance Portability</strong>: Write once, run anywhere. ACES uses Kokkos to target NVIDIA GPUs, multi-core CPUs (OpenMP), and more without changing the source code.</li>
+<li><strong>Performance Portability</strong>: Write once, run anywhere. CECE uses Kokkos to target NVIDIA GPUs, multi-core CPUs (OpenMP), and more without changing the source code.</li>
 <li><strong>Hybrid Data Ingestion</strong>: Pull live meteorological data (temperature, wind speed, etc.) from ESMF while simultaneously reading static emission inventories from disk using TIDE.</li>
-<li><strong>Modular Physics Engine</strong>: Easily extend ACES with new physics schemes. Supports both native C++ (Kokkos) and legacy Fortran plugins.</li>
+<li><strong>Modular Physics Engine</strong>: Easily extend CECE with new physics schemes. Supports both native C++ (Kokkos) and legacy Fortran plugins.</li>
 <li><strong>Flexible Stacking Engine</strong>: Combine multiple emission layers using prioritized categories and hierarchy levels. Apply geographical masks and multiple scale factors per layer.</li>
 <li><strong>Built-in Diagnostics</strong>: Integrated diagnostic manager for registering and writing intermediate variables to NetCDF files.</li>
+<li><strong>Python Bindings</strong>: High-level Python API via pybind11 with zero-copy NumPy data transfer, automatic GIL release during computation, and a clean exception hierarchy.</li>
 </ul>
 <h2 id="architecture-overview">Architecture Overview<a class="headerlink" href="#architecture-overview" title="Permanent link">&para;</a></h2>
-<p>ACES operates as an ESMF Grid Component with a sophisticated <strong>Stacking Engine</strong> at its core. The Stacking Engine combines multiple emission data layers using hierarchical processing, kernel fusion optimization, and advanced temporal/spatial scaling. It follows the standard NUOPC/ESMF lifecycle:</p>
+<p>CECE operates as an ESMF Grid Component with a sophisticated <strong>Stacking Engine</strong> at its core. The Stacking Engine combines multiple emission data layers using hierarchical processing, kernel fusion optimization, and advanced temporal/spatial scaling. It follows the standard NUOPC/ESMF lifecycle:</p>
 <ol>
 <li><strong>Initialize</strong>: Parses YAML configuration, instantiates physics schemes, and initializes TIDE.</li>
 <li><strong>Run</strong>:<ul>
@@ -654,7 +655,7 @@
 </ol>
 <p>For comprehensive technical details about the Stacking Engine algorithms and performance optimizations, see the <a href="stacking_engine/">Stacking Engine Documentation</a>.</p>
 <h2 id="get-started">Get Started<a class="headerlink" href="#get-started" title="Permanent link">&para;</a></h2>
-<p>Check out the <a href="users-guide/">User's Guide</a> to learn how to build and run ACES, explore the <a href="migration_examples/">Migration Examples</a> to see side-by-side comparisons with HEMCO, or dive into the <a href="tutorial/">Tutorial</a> to start writing your own physics schemes.</p>
+<p>Check out the <a href="users-guide/">User's Guide</a> to learn how to build and run CECE, explore the <a href="migration_examples/">Migration Examples</a> to see side-by-side comparisons with HEMCO, dive into the <a href="tutorial/">Tutorial</a> to start writing your own physics schemes, or see the <a href="python_bindings/">Python Bindings</a> guide for using CECE from Python.</p>
 
 
 
@@ -716,7 +717,7 @@
       <div class="md-copyright">
   
     <div class="md-copyright__highlight">
-      Copyright &copy; 2026 ACES Authors
+      Copyright &copy; 2026 CECE Authors
     </div>
   
   

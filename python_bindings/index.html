@@ -1,0 +1,1634 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Community Emissions Computing Engine">
+      
+      
+        <meta name="author" content="CECE Team">
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.32">
+    
+    
+      
+        <title>Python Bindings - CECE Documentation</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../assets/stylesheets/modern/main.53a7feaf.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../assets/stylesheets/modern/palette.dfe2e883.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,a=__md_scope)=>JSON.parse(t.getItem(a.pathname+"."+e)),__md_set=(e,t,a=localStorage,_=__md_scope)=>{try{a.setItem(_.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#python-bindings" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="./.." title="CECE Documentation" class="md-header__button md-logo" aria-label="CECE Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            CECE Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Python Bindings
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="./.." title="CECE Documentation" class="md-nav__button md-logo" aria-label="CECE Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    CECE Documentation
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="./.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Concepts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../users-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User's Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../scripts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scripts & Utilities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../migration_examples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Migration Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  
+                    
+                    
+                    
+                      
+                    
+                    
+                      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+                      <div class="md-sidebar-button__wrapper">
+                        <label class="md-sidebar-button" for="__toc"></label>
+                      </div>
+                    
+                  
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#architecture" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Architecture
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#quick-start" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Quick Start
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#public-python-api" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Public Python API
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Public Python API">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#module-level-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Module-Level Functions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Module-Level Functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#ceceinitializeconfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cece.initialize(config)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cecefinalize" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cece.finalize()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ceceis_initialized" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cece.is_initialized()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cececomputestate-confignone-hour0-day_of_week0-month0" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cece.compute(state, config=None, hour=0, day_of_week=0, month=0)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ceceload_configconfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cece.load_config(config)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ceceset_execution_spacespace" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cece.set_execution_space(space)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ceceget_execution_space" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cece.get_execution_space()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ceceget_available_execution_spaces" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cece.get_available_execution_spaces()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ceceset_log_levellevel" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cece.set_log_level(level)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ceceget_diagnostics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cece.get_diagnostics()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cecereset_diagnostics" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cece.reset_diagnostics()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#ceceget_last_error" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        cece.get_last_error()
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#configuration-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Configuration Management
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Configuration Management">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cececonfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CeceConfig
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#emissionlayer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        EmissionLayer
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#verticaldistributionconfig" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        VerticalDistributionConfig
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#state-management" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        State Management
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="State Management">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#cecestate" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CeceState
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cecefield" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CeceField
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#the-_cece_core-low-level-module" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        The _cece_core Low-Level Module
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="The _cece_core Low-Level Module">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#enums" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Enums
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#config-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Config Types
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#state-types" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        State Types
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#compute" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Compute
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#validator" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validator
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#logger-and-execution-space" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logger and Execution Space
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#numpy-zero-copy-data-transfer" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        NumPy Zero-Copy Data Transfer
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="NumPy Zero-Copy Data Transfer">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#import-path-python-to-c" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Import Path (Python to C++)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#export-path-c-to-python" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Export Path (C++ to Python)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Best Practices
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#gil-release-during-compute" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        GIL Release During Compute
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#exception-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Exception Handling
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#kokkos-execution-space-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Kokkos Execution Space Configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#logging-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Logging Configuration
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#build-instructions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Build Instructions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Build Instructions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#building-with-python-bindings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Building with Python Bindings
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#running-tests" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running Tests
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#cmake-configuration" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CMake Configuration
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#migration-guide" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Migration Guide
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Migration Guide">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#what-changed" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What Changed
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#what-stayed-the-same" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        What Stayed the Same
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#for-direct-binding-users" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        For Direct Binding Users
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+<h1 id="python-bindings">Python Bindings<a class="headerlink" href="#python-bindings" title="Permanent link">&para;</a></h1>
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p>CECE provides a Python interface through pybind11 bindings that directly expose the C++ core to Python. This replaces the previous ctypes + C-linkage architecture (<code>cece_c_bindings.cpp</code> + <code>_bindings.py</code>) with a single compiled extension module (<code>_cece_core</code>) that offers type-safe bindings, automatic memory management, and zero-copy NumPy interop.</p>
+<p>The migration consolidates the 600+ line C-linkage wrapper (with <code>void*</code> casting and manual <code>malloc</code>/<code>free</code> string management) and the 250+ line ctypes signature declaration module into a single pybind11 module compiled at build time. The existing pure-Python API layer (<code>config.py</code>, <code>state.py</code>, <code>exceptions.py</code>, <code>utils.py</code>) is preserved as the user-facing interface.</p>
+<h2 id="architecture">Architecture<a class="headerlink" href="#architecture" title="Permanent link">&para;</a></h2>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-0-1"><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>┌─────────────────────────────────────────────────────┐
+</span><span id="__span-0-2"><a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>│                  Python User Code                    │
+</span><span id="__span-0-3"><a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>│         cece.initialize() / cece.compute()           │
+</span><span id="__span-0-4"><a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a>└──────────────────────┬──────────────────────────────┘
+</span><span id="__span-0-5"><a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a>                       │
+</span><span id="__span-0-6"><a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a>┌──────────────────────▼──────────────────────────────┐
+</span><span id="__span-0-7"><a id="__codelineno-0-7" name="__codelineno-0-7" href="#__codelineno-0-7"></a>│              Python API Layer (preserved)             │
+</span><span id="__span-0-8"><a id="__codelineno-0-8" name="__codelineno-0-8" href="#__codelineno-0-8"></a>│                                                      │
+</span><span id="__span-0-9"><a id="__codelineno-0-9" name="__codelineno-0-9" href="#__codelineno-0-9"></a>│  __init__.py   config.py   state.py   exceptions.py  │
+</span><span id="__span-0-10"><a id="__codelineno-0-10" name="__codelineno-0-10" href="#__codelineno-0-10"></a>│                          utils.py                    │
+</span><span id="__span-0-11"><a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a>└──────────────────────┬──────────────────────────────┘
+</span><span id="__span-0-12"><a id="__codelineno-0-12" name="__codelineno-0-12" href="#__codelineno-0-12"></a>                       │
+</span><span id="__span-0-13"><a id="__codelineno-0-13" name="__codelineno-0-13" href="#__codelineno-0-13"></a>┌──────────────────────▼──────────────────────────────┐
+</span><span id="__span-0-14"><a id="__codelineno-0-14" name="__codelineno-0-14" href="#__codelineno-0-14"></a>│          pybind11 Module (_cece_core.so)             │
+</span><span id="__span-0-15"><a id="__codelineno-0-15" name="__codelineno-0-15" href="#__codelineno-0-15"></a>│                                                      │
+</span><span id="__span-0-16"><a id="__codelineno-0-16" name="__codelineno-0-16" href="#__codelineno-0-16"></a>│  ┌──────────┐ ┌──────────┐ ┌───────────────────┐    │
+</span><span id="__span-0-17"><a id="__codelineno-0-17" name="__codelineno-0-17" href="#__codelineno-0-17"></a>│  │  Config   │ │  State   │ │     Compute       │    │
+</span><span id="__span-0-18"><a id="__codelineno-0-18" name="__codelineno-0-18" href="#__codelineno-0-18"></a>│  │ Bindings  │ │ Bindings │ │    Bindings       │    │
+</span><span id="__span-0-19"><a id="__codelineno-0-19" name="__codelineno-0-19" href="#__codelineno-0-19"></a>│  └──────────┘ └──────────┘ └───────────────────┘    │
+</span><span id="__span-0-20"><a id="__codelineno-0-20" name="__codelineno-0-20" href="#__codelineno-0-20"></a>│  ┌──────────┐ ┌──────────┐ ┌───────────────────┐    │
+</span><span id="__span-0-21"><a id="__codelineno-0-21" name="__codelineno-0-21" href="#__codelineno-0-21"></a>│  │  Enum    │ │Exception │ │  Logger/Validator  │    │
+</span><span id="__span-0-22"><a id="__codelineno-0-22" name="__codelineno-0-22" href="#__codelineno-0-22"></a>│  │ Bindings │ │Translators│ │    Bindings       │    │
+</span><span id="__span-0-23"><a id="__codelineno-0-23" name="__codelineno-0-23" href="#__codelineno-0-23"></a>│  └──────────┘ └──────────┘ └───────────────────┘    │
+</span><span id="__span-0-24"><a id="__codelineno-0-24" name="__codelineno-0-24" href="#__codelineno-0-24"></a>└──────────────────────┬──────────────────────────────┘
+</span><span id="__span-0-25"><a id="__codelineno-0-25" name="__codelineno-0-25" href="#__codelineno-0-25"></a>                       │
+</span><span id="__span-0-26"><a id="__codelineno-0-26" name="__codelineno-0-26" href="#__codelineno-0-26"></a>┌──────────────────────▼──────────────────────────────┐
+</span><span id="__span-0-27"><a id="__codelineno-0-27" name="__codelineno-0-27" href="#__codelineno-0-27"></a>│              C++ Core (libcece.so)                    │
+</span><span id="__span-0-28"><a id="__codelineno-0-28" name="__codelineno-0-28" href="#__codelineno-0-28"></a>│                                                      │
+</span><span id="__span-0-29"><a id="__codelineno-0-29" name="__codelineno-0-29" href="#__codelineno-0-29"></a>│  cece_config.hpp    cece_state.hpp                   │
+</span><span id="__span-0-30"><a id="__codelineno-0-30" name="__codelineno-0-30" href="#__codelineno-0-30"></a>│  cece_compute.hpp   cece_stacking_engine.hpp         │
+</span><span id="__span-0-31"><a id="__codelineno-0-31" name="__codelineno-0-31" href="#__codelineno-0-31"></a>│  cece_config_validator.hpp   cece_logger.hpp         │
+</span><span id="__span-0-32"><a id="__codelineno-0-32" name="__codelineno-0-32" href="#__codelineno-0-32"></a>│  cece_kokkos_config.hpp                              │
+</span><span id="__span-0-33"><a id="__codelineno-0-33" name="__codelineno-0-33" href="#__codelineno-0-33"></a>└─────────────────────────────────────────────────────┘
+</span></code></pre></div>
+<h2 id="quick-start">Quick Start<a class="headerlink" href="#quick-start" title="Permanent link">&para;</a></h2>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-1-1"><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">cece</span>
+</span><span id="__span-1-2"><a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+</span><span id="__span-1-3"><a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a>
+</span><span id="__span-1-4"><a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="c1"># Load configuration from YAML file</span>
+</span><span id="__span-1-5"><a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">config</span> <span class="o">=</span> <span class="n">cece</span><span class="o">.</span><span class="n">load_config</span><span class="p">(</span><span class="s2">&quot;cece_config.yaml&quot;</span><span class="p">)</span>
+</span><span id="__span-1-6"><a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a>
+</span><span id="__span-1-7"><a id="__codelineno-1-7" name="__codelineno-1-7" href="#__codelineno-1-7"></a><span class="c1"># Validate configuration</span>
+</span><span id="__span-1-8"><a id="__codelineno-1-8" name="__codelineno-1-8" href="#__codelineno-1-8"></a><span class="n">result</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">validate</span><span class="p">()</span>
+</span><span id="__span-1-9"><a id="__codelineno-1-9" name="__codelineno-1-9" href="#__codelineno-1-9"></a><span class="k">if</span> <span class="ow">not</span> <span class="n">result</span><span class="o">.</span><span class="n">is_valid</span><span class="p">:</span>
+</span><span id="__span-1-10"><a id="__codelineno-1-10" name="__codelineno-1-10" href="#__codelineno-1-10"></a>    <span class="k">for</span> <span class="n">error</span> <span class="ow">in</span> <span class="n">result</span><span class="o">.</span><span class="n">errors</span><span class="p">:</span>
+</span><span id="__span-1-11"><a id="__codelineno-1-11" name="__codelineno-1-11" href="#__codelineno-1-11"></a>        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Config error: </span><span class="si">{</span><span class="n">error</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="__span-1-12"><a id="__codelineno-1-12" name="__codelineno-1-12" href="#__codelineno-1-12"></a>
+</span><span id="__span-1-13"><a id="__codelineno-1-13" name="__codelineno-1-13" href="#__codelineno-1-13"></a><span class="c1"># Initialize CECE</span>
+</span><span id="__span-1-14"><a id="__codelineno-1-14" name="__codelineno-1-14" href="#__codelineno-1-14"></a><span class="n">cece</span><span class="o">.</span><span class="n">initialize</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+</span><span id="__span-1-15"><a id="__codelineno-1-15" name="__codelineno-1-15" href="#__codelineno-1-15"></a>
+</span><span id="__span-1-16"><a id="__codelineno-1-16" name="__codelineno-1-16" href="#__codelineno-1-16"></a><span class="c1"># Create state with grid dimensions</span>
+</span><span id="__span-1-17"><a id="__codelineno-1-17" name="__codelineno-1-17" href="#__codelineno-1-17"></a><span class="n">state</span> <span class="o">=</span> <span class="n">cece</span><span class="o">.</span><span class="n">CeceState</span><span class="p">(</span><span class="n">nx</span><span class="o">=</span><span class="mi">144</span><span class="p">,</span> <span class="n">ny</span><span class="o">=</span><span class="mi">96</span><span class="p">,</span> <span class="n">nz</span><span class="o">=</span><span class="mi">72</span><span class="p">)</span>
+</span><span id="__span-1-18"><a id="__codelineno-1-18" name="__codelineno-1-18" href="#__codelineno-1-18"></a>
+</span><span id="__span-1-19"><a id="__codelineno-1-19" name="__codelineno-1-19" href="#__codelineno-1-19"></a><span class="c1"># Add import fields (meteorological data, scale factors, etc.)</span>
+</span><span id="__span-1-20"><a id="__codelineno-1-20" name="__codelineno-1-20" href="#__codelineno-1-20"></a><span class="n">temperature</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asfortranarray</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">rand</span><span class="p">(</span><span class="mi">144</span><span class="p">,</span> <span class="mi">96</span><span class="p">,</span> <span class="mi">72</span><span class="p">))</span>
+</span><span id="__span-1-21"><a id="__codelineno-1-21" name="__codelineno-1-21" href="#__codelineno-1-21"></a><span class="n">state</span><span class="o">.</span><span class="n">add_import_field</span><span class="p">(</span><span class="s2">&quot;TEMPERATURE&quot;</span><span class="p">,</span> <span class="n">temperature</span><span class="p">)</span>
+</span><span id="__span-1-22"><a id="__codelineno-1-22" name="__codelineno-1-22" href="#__codelineno-1-22"></a>
+</span><span id="__span-1-23"><a id="__codelineno-1-23" name="__codelineno-1-23" href="#__codelineno-1-23"></a><span class="c1"># Run computation (GIL is released automatically)</span>
+</span><span id="__span-1-24"><a id="__codelineno-1-24" name="__codelineno-1-24" href="#__codelineno-1-24"></a><span class="n">cece</span><span class="o">.</span><span class="n">compute</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">hour</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span> <span class="n">day_of_week</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">month</span><span class="o">=</span><span class="mi">7</span><span class="p">)</span>
+</span><span id="__span-1-25"><a id="__codelineno-1-25" name="__codelineno-1-25" href="#__codelineno-1-25"></a>
+</span><span id="__span-1-26"><a id="__codelineno-1-26" name="__codelineno-1-26" href="#__codelineno-1-26"></a><span class="c1"># Retrieve results</span>
+</span><span id="__span-1-27"><a id="__codelineno-1-27" name="__codelineno-1-27" href="#__codelineno-1-27"></a><span class="n">co_emissions</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">get_export_field</span><span class="p">(</span><span class="s2">&quot;CO_EMIS&quot;</span><span class="p">)</span>
+</span><span id="__span-1-28"><a id="__codelineno-1-28" name="__codelineno-1-28" href="#__codelineno-1-28"></a><span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;CO emissions shape: </span><span class="si">{</span><span class="n">co_emissions</span><span class="o">.</span><span class="n">shape</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span><span id="__span-1-29"><a id="__codelineno-1-29" name="__codelineno-1-29" href="#__codelineno-1-29"></a>
+</span><span id="__span-1-30"><a id="__codelineno-1-30" name="__codelineno-1-30" href="#__codelineno-1-30"></a><span class="c1"># Clean up</span>
+</span><span id="__span-1-31"><a id="__codelineno-1-31" name="__codelineno-1-31" href="#__codelineno-1-31"></a><span class="n">cece</span><span class="o">.</span><span class="n">finalize</span><span class="p">()</span>
+</span></code></pre></div>
+<h2 id="public-python-api">Public Python API<a class="headerlink" href="#public-python-api" title="Permanent link">&para;</a></h2>
+<h3 id="module-level-functions">Module-Level Functions<a class="headerlink" href="#module-level-functions" title="Permanent link">&para;</a></h3>
+<h4 id="ceceinitializeconfig"><code>cece.initialize(config)</code><a class="headerlink" href="#ceceinitializeconfig" title="Permanent link">&para;</a></h4>
+<p>Initialize CECE with a configuration. Parses and validates the configuration, initializes Kokkos if needed, and prepares the C++ core.</p>
+<ul>
+<li><code>config</code> — File path (str), YAML string, dict, or <code>CeceConfig</code> object.</li>
+<li>Raises <code>CeceConfigError</code> if configuration is invalid.</li>
+<li>Raises <code>RuntimeError</code> if CECE is already initialized.</li>
+</ul>
+<h4 id="cecefinalize"><code>cece.finalize()</code><a class="headerlink" href="#cecefinalize" title="Permanent link">&para;</a></h4>
+<p>Clean up CECE resources and reset module state. Must be called before re-initializing.</p>
+<ul>
+<li>Raises <code>RuntimeError</code> if CECE is not initialized.</li>
+</ul>
+<h4 id="ceceis_initialized"><code>cece.is_initialized()</code><a class="headerlink" href="#ceceis_initialized" title="Permanent link">&para;</a></h4>
+<p>Returns <code>True</code> if CECE has been initialized and not yet finalized.</p>
+<h4 id="cececomputestate-confignone-hour0-day_of_week0-month0"><code>cece.compute(state, config=None, hour=0, day_of_week=0, month=0)</code><a class="headerlink" href="#cececomputestate-confignone-hour0-day_of_week0-month0" title="Permanent link">&para;</a></h4>
+<p>Execute the CECE emission computation. The GIL is released during the C++ computation.</p>
+<ul>
+<li><code>state</code> — <code>CeceState</code> object with import fields populated.</li>
+<li><code>config</code> — Optional configuration override. Uses initialized config if <code>None</code>.</li>
+<li><code>hour</code> — Hour of day (0-23) for temporal scaling.</li>
+<li><code>day_of_week</code> — Day of week (0-6) for temporal scaling.</li>
+<li><code>month</code> — Month (1-12) for temporal scaling.</li>
+<li>Raises <code>RuntimeError</code> if not initialized or computation fails.</li>
+<li>Raises <code>CeceStateError</code> if state is invalid.</li>
+</ul>
+<h4 id="ceceload_configconfig"><code>cece.load_config(config)</code><a class="headerlink" href="#ceceload_configconfig" title="Permanent link">&para;</a></h4>
+<p>Load configuration from a file path, YAML string, dict, or existing <code>CeceConfig</code>.</p>
+<ul>
+<li>Returns an <code>CeceConfig</code> object.</li>
+<li>Raises <code>CeceConfigError</code> if the source is invalid.</li>
+</ul>
+<h4 id="ceceset_execution_spacespace"><code>cece.set_execution_space(space)</code><a class="headerlink" href="#ceceset_execution_spacespace" title="Permanent link">&para;</a></h4>
+<p>Validate that a Kokkos execution space is available. Accepts <code>"Serial"</code>, <code>"OpenMP"</code>, <code>"CUDA"</code>, or <code>"HIP"</code>.</p>
+<ul>
+<li>Raises <code>CeceExecutionSpaceError</code> if the space is not available.</li>
+</ul>
+<h4 id="ceceget_execution_space"><code>cece.get_execution_space()</code><a class="headerlink" href="#ceceget_execution_space" title="Permanent link">&para;</a></h4>
+<p>Returns the name of the current default Kokkos execution space.</p>
+<h4 id="ceceget_available_execution_spaces"><code>cece.get_available_execution_spaces()</code><a class="headerlink" href="#ceceget_available_execution_spaces" title="Permanent link">&para;</a></h4>
+<p>Returns a list of execution space names compiled into the current build.</p>
+<h4 id="ceceset_log_levellevel"><code>cece.set_log_level(level)</code><a class="headerlink" href="#ceceset_log_levellevel" title="Permanent link">&para;</a></h4>
+<p>Set the C++ logging level. Accepts <code>"DEBUG"</code>, <code>"INFO"</code>, <code>"WARNING"</code>, or <code>"ERROR"</code>.</p>
+<h4 id="ceceget_diagnostics"><code>cece.get_diagnostics()</code><a class="headerlink" href="#ceceget_diagnostics" title="Permanent link">&para;</a></h4>
+<p>Returns a dict with performance and timing diagnostics.</p>
+<h4 id="cecereset_diagnostics"><code>cece.reset_diagnostics()</code><a class="headerlink" href="#cecereset_diagnostics" title="Permanent link">&para;</a></h4>
+<p>Clear accumulated diagnostic data.</p>
+<h4 id="ceceget_last_error"><code>cece.get_last_error()</code><a class="headerlink" href="#ceceget_last_error" title="Permanent link">&para;</a></h4>
+<p>Returns the last error message string, or <code>None</code> if no error has occurred.</p>
+<h2 id="configuration-management">Configuration Management<a class="headerlink" href="#configuration-management" title="Permanent link">&para;</a></h2>
+<h3 id="cececonfig">CeceConfig<a class="headerlink" href="#cececonfig" title="Permanent link">&para;</a></h3>
+<p>The top-level configuration container. Manages species definitions, physics schemes, data streams, and temporal cycles.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="c1"># Create from YAML file</span>
+</span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">config</span> <span class="o">=</span> <span class="n">cece</span><span class="o">.</span><span class="n">load_config</span><span class="p">(</span><span class="s2">&quot;config.yaml&quot;</span><span class="p">)</span>
+</span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>
+</span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="c1"># Create from dictionary</span>
+</span><span id="__span-2-5"><a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">config</span> <span class="o">=</span> <span class="n">cece</span><span class="o">.</span><span class="n">CeceConfig</span><span class="o">.</span><span class="n">from_dict</span><span class="p">({</span>
+</span><span id="__span-2-6"><a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>    <span class="s2">&quot;species&quot;</span><span class="p">:</span> <span class="p">{</span>
+</span><span id="__span-2-7"><a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>        <span class="s2">&quot;CO&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;field&quot;</span><span class="p">:</span> <span class="s2">&quot;CO_ANTHRO&quot;</span><span class="p">,</span> <span class="s2">&quot;operation&quot;</span><span class="p">:</span> <span class="s2">&quot;add&quot;</span><span class="p">,</span> <span class="s2">&quot;scale&quot;</span><span class="p">:</span> <span class="mf">1.0</span><span class="p">}]</span>
+</span><span id="__span-2-8"><a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>    <span class="p">}</span>
+</span><span id="__span-2-9"><a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="p">})</span>
+</span><span id="__span-2-10"><a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>
+</span><span id="__span-2-11"><a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="c1"># Create programmatically</span>
+</span><span id="__span-2-12"><a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="n">config</span> <span class="o">=</span> <span class="n">cece</span><span class="o">.</span><span class="n">CeceConfig</span><span class="p">()</span>
+</span><span id="__span-2-13"><a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="n">layer</span> <span class="o">=</span> <span class="n">cece</span><span class="o">.</span><span class="n">EmissionLayer</span><span class="p">(</span><span class="n">field_name</span><span class="o">=</span><span class="s2">&quot;CO_ANTHRO&quot;</span><span class="p">,</span> <span class="n">operation</span><span class="o">=</span><span class="s2">&quot;add&quot;</span><span class="p">,</span> <span class="n">scale</span><span class="o">=</span><span class="mf">1.5</span><span class="p">)</span>
+</span><span id="__span-2-14"><a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="n">config</span><span class="o">.</span><span class="n">add_species</span><span class="p">(</span><span class="s2">&quot;CO&quot;</span><span class="p">,</span> <span class="p">[</span><span class="n">layer</span><span class="p">])</span>
+</span><span id="__span-2-15"><a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="n">config</span><span class="o">.</span><span class="n">add_physics_scheme</span><span class="p">(</span><span class="s2">&quot;megan&quot;</span><span class="p">,</span> <span class="n">language</span><span class="o">=</span><span class="s2">&quot;fortran&quot;</span><span class="p">)</span>
+</span><span id="__span-2-16"><a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a>
+</span><span id="__span-2-17"><a id="__codelineno-2-17" name="__codelineno-2-17" href="#__codelineno-2-17"></a><span class="c1"># Validate</span>
+</span><span id="__span-2-18"><a id="__codelineno-2-18" name="__codelineno-2-18" href="#__codelineno-2-18"></a><span class="n">result</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">validate</span><span class="p">()</span>
+</span><span id="__span-2-19"><a id="__codelineno-2-19" name="__codelineno-2-19" href="#__codelineno-2-19"></a><span class="k">assert</span> <span class="n">result</span><span class="o">.</span><span class="n">is_valid</span>
+</span><span id="__span-2-20"><a id="__codelineno-2-20" name="__codelineno-2-20" href="#__codelineno-2-20"></a>
+</span><span id="__span-2-21"><a id="__codelineno-2-21" name="__codelineno-2-21" href="#__codelineno-2-21"></a><span class="c1"># Serialize</span>
+</span><span id="__span-2-22"><a id="__codelineno-2-22" name="__codelineno-2-22" href="#__codelineno-2-22"></a><span class="n">yaml_str</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">to_yaml</span><span class="p">()</span>
+</span><span id="__span-2-23"><a id="__codelineno-2-23" name="__codelineno-2-23" href="#__codelineno-2-23"></a><span class="n">config_dict</span> <span class="o">=</span> <span class="n">config</span><span class="o">.</span><span class="n">to_dict</span><span class="p">()</span>
+</span></code></pre></div>
+<h3 id="emissionlayer">EmissionLayer<a class="headerlink" href="#emissionlayer" title="Permanent link">&para;</a></h3>
+<p>Represents a single emission data layer contributing to a species.</p>
+<table>
+<thead>
+<tr>
+<th>Attribute</th>
+<th>Type</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>field_name</code></td>
+<td>str</td>
+<td>(required)</td>
+<td>Import field name</td>
+</tr>
+<tr>
+<td><code>operation</code></td>
+<td>str</td>
+<td><code>"add"</code></td>
+<td><code>"add"</code>, <code>"replace"</code>, or <code>"scale"</code></td>
+</tr>
+<tr>
+<td><code>scale</code></td>
+<td>float</td>
+<td><code>1.0</code></td>
+<td>Multiplicative scale factor</td>
+</tr>
+<tr>
+<td><code>hierarchy</code></td>
+<td>int</td>
+<td><code>0</code></td>
+<td>Priority level for stacking</td>
+</tr>
+<tr>
+<td><code>masks</code></td>
+<td>list</td>
+<td><code>[]</code></td>
+<td>Mask field names</td>
+</tr>
+<tr>
+<td><code>diurnal_cycle</code></td>
+<td>str</td>
+<td><code>None</code></td>
+<td>Diurnal cycle name</td>
+</tr>
+<tr>
+<td><code>weekly_cycle</code></td>
+<td>str</td>
+<td><code>None</code></td>
+<td>Weekly cycle name</td>
+</tr>
+<tr>
+<td><code>seasonal_cycle</code></td>
+<td>str</td>
+<td><code>None</code></td>
+<td>Seasonal cycle name</td>
+</tr>
+<tr>
+<td><code>vdist</code></td>
+<td>VerticalDistributionConfig</td>
+<td>default</td>
+<td>Vertical distribution</td>
+</tr>
+</tbody>
+</table>
+<h3 id="verticaldistributionconfig">VerticalDistributionConfig<a class="headerlink" href="#verticaldistributionconfig" title="Permanent link">&para;</a></h3>
+<p>Controls vertical distribution of emissions across model levels.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-3-1"><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cece</span><span class="w"> </span><span class="kn">import</span> <span class="n">VerticalDistributionConfig</span><span class="p">,</span> <span class="n">EmissionLayer</span>
+</span><span id="__span-3-2"><a id="__codelineno-3-2" name="__codelineno-3-2" href="#__codelineno-3-2"></a>
+</span><span id="__span-3-3"><a id="__codelineno-3-3" name="__codelineno-3-3" href="#__codelineno-3-3"></a><span class="c1"># Distribute across a layer range</span>
+</span><span id="__span-3-4"><a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">vdist</span> <span class="o">=</span> <span class="n">VerticalDistributionConfig</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;range&quot;</span><span class="p">,</span> <span class="n">layer_start</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">layer_end</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
+</span><span id="__span-3-5"><a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="n">layer</span> <span class="o">=</span> <span class="n">EmissionLayer</span><span class="p">(</span><span class="n">field_name</span><span class="o">=</span><span class="s2">&quot;SO2_VOLC&quot;</span><span class="p">,</span> <span class="n">vdist</span><span class="o">=</span><span class="n">vdist</span><span class="p">)</span>
+</span><span id="__span-3-6"><a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a>
+</span><span id="__span-3-7"><a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="c1"># Distribute by pressure range</span>
+</span><span id="__span-3-8"><a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="n">vdist</span> <span class="o">=</span> <span class="n">VerticalDistributionConfig</span><span class="p">(</span><span class="n">method</span><span class="o">=</span><span class="s2">&quot;pressure&quot;</span><span class="p">,</span> <span class="n">p_start</span><span class="o">=</span><span class="mf">500.0</span><span class="p">,</span> <span class="n">p_end</span><span class="o">=</span><span class="mf">900.0</span><span class="p">)</span>
+</span></code></pre></div>
+<p>Supported methods: <code>"single"</code>, <code>"range"</code>, <code>"pressure"</code>, <code>"height"</code>, <code>"pbl"</code>.</p>
+<h2 id="state-management">State Management<a class="headerlink" href="#state-management" title="Permanent link">&para;</a></h2>
+<h3 id="cecestate">CeceState<a class="headerlink" href="#cecestate" title="Permanent link">&para;</a></h3>
+<p>Container for 3D import and export fields on a fixed grid.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-4-1"><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">state</span> <span class="o">=</span> <span class="n">cece</span><span class="o">.</span><span class="n">CeceState</span><span class="p">(</span><span class="n">nx</span><span class="o">=</span><span class="mi">144</span><span class="p">,</span> <span class="n">ny</span><span class="o">=</span><span class="mi">96</span><span class="p">,</span> <span class="n">nz</span><span class="o">=</span><span class="mi">72</span><span class="p">)</span>
+</span><span id="__span-4-2"><a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>
+</span><span id="__span-4-3"><a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="c1"># Add import fields</span>
+</span><span id="__span-4-4"><a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="n">temp</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asfortranarray</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">144</span><span class="p">,</span> <span class="mi">96</span><span class="p">,</span> <span class="mi">72</span><span class="p">)))</span>
+</span><span id="__span-4-5"><a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="n">state</span><span class="o">.</span><span class="n">add_import_field</span><span class="p">(</span><span class="s2">&quot;TEMPERATURE&quot;</span><span class="p">,</span> <span class="n">temp</span><span class="p">)</span>
+</span><span id="__span-4-6"><a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a>
+</span><span id="__span-4-7"><a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="c1"># Access fields via dictionary-like interface</span>
+</span><span id="__span-4-8"><a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="n">state</span><span class="o">.</span><span class="n">import_fields</span><span class="p">[</span><span class="s2">&quot;TEMPERATURE&quot;</span><span class="p">]</span>  <span class="c1"># returns numpy array</span>
+</span><span id="__span-4-9"><a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="s2">&quot;TEMPERATURE&quot;</span> <span class="ow">in</span> <span class="n">state</span><span class="o">.</span><span class="n">import_fields</span>  <span class="c1"># True</span>
+</span><span id="__span-4-10"><a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a>
+</span><span id="__span-4-11"><a id="__codelineno-4-11" name="__codelineno-4-11" href="#__codelineno-4-11"></a><span class="c1"># After compute(), access export fields</span>
+</span><span id="__span-4-12"><a id="__codelineno-4-12" name="__codelineno-4-12" href="#__codelineno-4-12"></a><span class="n">co</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">get_export_field</span><span class="p">(</span><span class="s2">&quot;CO_EMIS&quot;</span><span class="p">)</span>
+</span><span id="__span-4-13"><a id="__codelineno-4-13" name="__codelineno-4-13" href="#__codelineno-4-13"></a>
+</span><span id="__span-4-14"><a id="__codelineno-4-14" name="__codelineno-4-14" href="#__codelineno-4-14"></a><span class="c1"># Check dimensions</span>
+</span><span id="__span-4-15"><a id="__codelineno-4-15" name="__codelineno-4-15" href="#__codelineno-4-15"></a><span class="nb">print</span><span class="p">(</span><span class="n">state</span><span class="o">.</span><span class="n">dimensions</span><span class="p">)</span>  <span class="c1"># (144, 96, 72)</span>
+</span></code></pre></div>
+<h3 id="cecefield">CeceField<a class="headerlink" href="#cecefield" title="Permanent link">&para;</a></h3>
+<p>Wraps a NumPy array with metadata (name, layout). Typically not constructed directly — created internally by <code>CeceState</code>.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-5-1"><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="n">field</span> <span class="o">=</span> <span class="n">cece</span><span class="o">.</span><span class="n">CeceField</span><span class="p">(</span><span class="s2">&quot;TEMPERATURE&quot;</span><span class="p">,</span> <span class="n">temp_array</span><span class="p">,</span> <span class="n">layout</span><span class="o">=</span><span class="s2">&quot;fortran&quot;</span><span class="p">)</span>
+</span><span id="__span-5-2"><a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="nb">print</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">shape</span><span class="p">)</span>   <span class="c1"># (144, 96, 72)</span>
+</span><span id="__span-5-3"><a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="nb">print</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">dtype</span><span class="p">)</span>   <span class="c1"># float64</span>
+</span><span id="__span-5-4"><a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="nb">print</span><span class="p">(</span><span class="n">field</span><span class="o">.</span><span class="n">name</span><span class="p">)</span>    <span class="c1"># &quot;TEMPERATURE&quot;</span>
+</span></code></pre></div>
+<h2 id="the-_cece_core-low-level-module">The <code>_cece_core</code> Low-Level Module<a class="headerlink" href="#the-_cece_core-low-level-module" title="Permanent link">&para;</a></h2>
+<p>The <code>_cece_core</code> module is the compiled pybind11 extension (<code>_cece_core.cpython-*.so</code>) that directly wraps C++ types. Most users should use the high-level Python API above, but the low-level module is available for advanced use cases.</p>
+<h3 id="enums">Enums<a class="headerlink" href="#enums" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>_cece_core.VerticalDistributionMethod</code> — <code>SINGLE</code>, <code>RANGE</code>, <code>PRESSURE</code>, <code>HEIGHT</code>, <code>PBL</code></li>
+<li><code>_cece_core.VerticalCoordType</code> — <code>NONE</code>, <code>FV3</code>, <code>MPAS</code>, <code>WRF</code></li>
+</ul>
+<h3 id="config-types">Config Types<a class="headerlink" href="#config-types" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>_cece_core.CeceConfig</code> — C++ config struct with <code>species_layers</code>, <code>met_mapping</code>, <code>scale_factor_mapping</code>, <code>mask_mapping</code>, <code>temporal_cycles</code>, <code>physics_schemes</code> as read-write properties</li>
+<li><code>_cece_core.EmissionLayer</code> — C++ emission layer struct with all fields as read-write properties</li>
+<li><code>_cece_core.ParseConfig(path)</code> — Parse a YAML config file, returns <code>CeceConfig</code></li>
+<li><code>_cece_core.AddSpecies(config, name, layers)</code> — Add species layers to a config</li>
+<li><code>_cece_core.AddScaleFactor(config, name, field)</code> — Add a scale factor mapping</li>
+<li><code>_cece_core.AddMask(config, name, field)</code> — Add a mask mapping</li>
+</ul>
+<h3 id="state-types">State Types<a class="headerlink" href="#state-types" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>_cece_core.CeceImportState</code> — Import state with <code>set_field(name, array)</code> and <code>get_field_names()</code></li>
+<li><code>_cece_core.CeceExportState</code> — Export state with <code>get_field(name)</code>, <code>set_field(name, array)</code>, and <code>get_field_names()</code></li>
+<li><code>_cece_core.CeceStateResolver</code> — Constructed from <code>(import_state, export_state, met_mapping, sf_mapping, mask_mapping)</code></li>
+</ul>
+<h3 id="compute">Compute<a class="headerlink" href="#compute" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>_cece_core.compute_emissions(config, resolver, nx, ny, nz, hour, day_of_week, month)</code> — Run emission computation with GIL release</li>
+<li><code>_cece_core.StackingEngine(config)</code> — Stacking engine with <code>Execute()</code> (GIL release), <code>ResetBindings()</code>, <code>AddSpecies()</code></li>
+</ul>
+<h3 id="validator">Validator<a class="headerlink" href="#validator" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>_cece_core.ConfigValidator.validate_config(yaml_str)</code> — Validate YAML config string, returns <code>ValidationResult</code></li>
+<li><code>_cece_core.ValidationResult</code> — <code>is_valid</code>, <code>errors</code>, <code>warnings</code>, <code>IsValid()</code>, <code>GetErrorCount()</code>, <code>GetWarningCount()</code></li>
+<li><code>_cece_core.ValidationError</code> — <code>field</code>, <code>message</code>, <code>suggestion</code></li>
+</ul>
+<h3 id="logger-and-execution-space">Logger and Execution Space<a class="headerlink" href="#logger-and-execution-space" title="Permanent link">&para;</a></h3>
+<ul>
+<li><code>_cece_core.set_log_level(level)</code> — Set C++ log level (<code>"DEBUG"</code>, <code>"INFO"</code>, <code>"WARNING"</code>, <code>"ERROR"</code>)</li>
+<li><code>_cece_core.get_log_level()</code> — Get current log level as string</li>
+<li><code>_cece_core.get_default_execution_space_name()</code> — Current Kokkos execution space</li>
+<li><code>_cece_core.get_available_execution_spaces()</code> — List of compiled-in execution spaces</li>
+<li><code>_cece_core.is_kokkos_initialized()</code> — Check if Kokkos is initialized</li>
+<li><code>_cece_core.initialize_kokkos()</code> — Initialize Kokkos runtime</li>
+</ul>
+<h2 id="numpy-zero-copy-data-transfer">NumPy Zero-Copy Data Transfer<a class="headerlink" href="#numpy-zero-copy-data-transfer" title="Permanent link">&para;</a></h2>
+<p>The pybind11 bindings use zero-copy data transfer between NumPy arrays and Kokkos Views where possible. All field arrays use Fortran-contiguous (column-major) layout to match Kokkos <code>LayoutLeft</code>.</p>
+<h3 id="import-path-python-to-c">Import Path (Python to C++)<a class="headerlink" href="#import-path-python-to-c" title="Permanent link">&para;</a></h3>
+<ol>
+<li>A Fortran-contiguous (<code>order='F'</code>) float64 NumPy array is wrapped directly by an <code>UnmanagedHostView3D</code> — no data copy on the host side.</li>
+<li>The data is then deep-copied into a <code>DualView3D</code> and synced to the device (GPU) for computation.</li>
+<li>If a C-contiguous array is provided, it is first converted to Fortran order (with a warning about the copy overhead).</li>
+</ol>
+<h3 id="export-path-c-to-python">Export Path (C++ to Python)<a class="headerlink" href="#export-path-c-to-python" title="Permanent link">&para;</a></h3>
+<ol>
+<li>After computation, the <code>DualView3D</code> is synced back to the host.</li>
+<li>A NumPy array is returned that directly references the host View's data pointer — zero-copy.</li>
+<li>A <code>py::capsule</code> prevents the Kokkos View from being deallocated while the NumPy array is alive.</li>
+</ol>
+<h3 id="best-practices">Best Practices<a class="headerlink" href="#best-practices" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Always provide Fortran-contiguous arrays to avoid unnecessary copies:</li>
+</ul>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-6-1"><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="n">data</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">asfortranarray</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="n">nx</span><span class="p">,</span> <span class="n">ny</span><span class="p">,</span> <span class="n">nz</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">float64</span><span class="p">))</span>
+</span></code></pre></div>
+<ul>
+<li>All arrays must be <code>float64</code> (double precision).</li>
+<li>Arrays must be 3D with shape <code>(nx, ny, nz)</code> matching the <code>CeceState</code> dimensions.</li>
+</ul>
+<h2 id="gil-release-during-compute">GIL Release During Compute<a class="headerlink" href="#gil-release-during-compute" title="Permanent link">&para;</a></h2>
+<p>The <code>compute_emissions</code> and <code>StackingEngine.Execute</code> functions release the Python GIL during execution via pybind11's <code>py::call_guard&lt;py::gil_scoped_release&gt;()</code>. This means:</p>
+<ul>
+<li>Other Python threads can run concurrently during CECE computation.</li>
+<li>You can use Python's <code>threading</code> module to overlap I/O with computation.</li>
+<li>NumPy arrays passed to the C++ layer must not be modified from other threads during computation.</li>
+</ul>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-7-1"><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">threading</span>
+</span><span id="__span-7-2"><a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>
+</span><span id="__span-7-3"><a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a><span class="k">def</span><span class="w"> </span><span class="nf">run_cece</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">config</span><span class="p">):</span>
+</span><span id="__span-7-4"><a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>    <span class="n">cece</span><span class="o">.</span><span class="n">compute</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span>
+</span><span id="__span-7-5"><a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>
+</span><span id="__span-7-6"><a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a><span class="c1"># Computation runs without blocking other threads</span>
+</span><span id="__span-7-7"><a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a><span class="n">thread</span> <span class="o">=</span> <span class="n">threading</span><span class="o">.</span><span class="n">Thread</span><span class="p">(</span><span class="n">target</span><span class="o">=</span><span class="n">run_cece</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">config</span><span class="p">))</span>
+</span><span id="__span-7-8"><a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a><span class="n">thread</span><span class="o">.</span><span class="n">start</span><span class="p">()</span>
+</span><span id="__span-7-9"><a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a><span class="c1"># ... do other work ...</span>
+</span><span id="__span-7-10"><a id="__codelineno-7-10" name="__codelineno-7-10" href="#__codelineno-7-10"></a><span class="n">thread</span><span class="o">.</span><span class="n">join</span><span class="p">()</span>
+</span></code></pre></div>
+<h2 id="exception-handling">Exception Handling<a class="headerlink" href="#exception-handling" title="Permanent link">&para;</a></h2>
+<p>All C++ exceptions are translated to the CECE Python exception hierarchy via <code>py::register_exception_translator</code>:</p>
+<table>
+<thead>
+<tr>
+<th>C++ Exception</th>
+<th>Python Exception</th>
+<th>When</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>std::invalid_argument</code></td>
+<td><code>CeceConfigError</code></td>
+<td>Invalid configuration</td>
+</tr>
+<tr>
+<td><code>std::out_of_range</code></td>
+<td><code>CeceStateError</code></td>
+<td>Missing field, dimension mismatch</td>
+</tr>
+<tr>
+<td><code>std::runtime_error</code></td>
+<td><code>CeceException</code></td>
+<td>General runtime errors</td>
+</tr>
+<tr>
+<td>Unknown</td>
+<td><code>CeceException</code></td>
+<td>Any other C++ exception</td>
+</tr>
+</tbody>
+</table>
+<p>All exceptions include recovery suggestions:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-8-1"><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">try</span><span class="p">:</span>
+</span><span id="__span-8-2"><a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a>    <span class="n">cece</span><span class="o">.</span><span class="n">initialize</span><span class="p">(</span><span class="n">bad_config</span><span class="p">)</span>
+</span><span id="__span-8-3"><a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="k">except</span> <span class="n">cece</span><span class="o">.</span><span class="n">CeceConfigError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+</span><span id="__span-8-4"><a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">message</span><span class="p">)</span>
+</span><span id="__span-8-5"><a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a>    <span class="nb">print</span><span class="p">(</span><span class="n">e</span><span class="o">.</span><span class="n">error_code</span><span class="p">)</span>
+</span><span id="__span-8-6"><a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a>    <span class="k">for</span> <span class="n">suggestion</span> <span class="ow">in</span> <span class="n">e</span><span class="o">.</span><span class="n">recovery_suggestions</span><span class="p">:</span>
+</span><span id="__span-8-7"><a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>        <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;  - </span><span class="si">{</span><span class="n">suggestion</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<p>Exception hierarchy:</p>
+<div class="language-text highlight"><pre><span></span><code><span id="__span-9-1"><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>Exception
+</span><span id="__span-9-2"><a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>└── CeceException
+</span><span id="__span-9-3"><a id="__codelineno-9-3" name="__codelineno-9-3" href="#__codelineno-9-3"></a>    ├── CeceConfigError
+</span><span id="__span-9-4"><a id="__codelineno-9-4" name="__codelineno-9-4" href="#__codelineno-9-4"></a>    ├── CeceComputationError
+</span><span id="__span-9-5"><a id="__codelineno-9-5" name="__codelineno-9-5" href="#__codelineno-9-5"></a>    ├── CeceStateError
+</span><span id="__span-9-6"><a id="__codelineno-9-6" name="__codelineno-9-6" href="#__codelineno-9-6"></a>    └── CeceExecutionSpaceError
+</span></code></pre></div>
+<h2 id="kokkos-execution-space-configuration">Kokkos Execution Space Configuration<a class="headerlink" href="#kokkos-execution-space-configuration" title="Permanent link">&para;</a></h2>
+<p>CECE uses Kokkos for performance portability. The execution space is determined at compile time but can be queried from Python:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-10-1"><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># Check current execution space</span>
+</span><span id="__span-10-2"><a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a><span class="nb">print</span><span class="p">(</span><span class="n">cece</span><span class="o">.</span><span class="n">get_execution_space</span><span class="p">())</span>  <span class="c1"># e.g., &quot;Serial&quot; or &quot;OpenMP&quot;</span>
+</span><span id="__span-10-3"><a id="__codelineno-10-3" name="__codelineno-10-3" href="#__codelineno-10-3"></a>
+</span><span id="__span-10-4"><a id="__codelineno-10-4" name="__codelineno-10-4" href="#__codelineno-10-4"></a><span class="c1"># List all available spaces</span>
+</span><span id="__span-10-5"><a id="__codelineno-10-5" name="__codelineno-10-5" href="#__codelineno-10-5"></a><span class="n">spaces</span> <span class="o">=</span> <span class="n">cece</span><span class="o">.</span><span class="n">get_available_execution_spaces</span><span class="p">()</span>
+</span><span id="__span-10-6"><a id="__codelineno-10-6" name="__codelineno-10-6" href="#__codelineno-10-6"></a><span class="nb">print</span><span class="p">(</span><span class="n">spaces</span><span class="p">)</span>  <span class="c1"># e.g., [&quot;Serial&quot;, &quot;OpenMP&quot;]</span>
+</span><span id="__span-10-7"><a id="__codelineno-10-7" name="__codelineno-10-7" href="#__codelineno-10-7"></a>
+</span><span id="__span-10-8"><a id="__codelineno-10-8" name="__codelineno-10-8" href="#__codelineno-10-8"></a><span class="c1"># Validate a space is available</span>
+</span><span id="__span-10-9"><a id="__codelineno-10-9" name="__codelineno-10-9" href="#__codelineno-10-9"></a><span class="n">cece</span><span class="o">.</span><span class="n">set_execution_space</span><span class="p">(</span><span class="s2">&quot;OpenMP&quot;</span><span class="p">)</span>  <span class="c1"># raises if not available</span>
+</span></code></pre></div>
+<p>Supported execution spaces (compile-time selection):</p>
+<ul>
+<li><code>Serial</code> — Single-threaded CPU execution</li>
+<li><code>OpenMP</code> — Multi-threaded CPU execution</li>
+<li><code>CUDA</code> — NVIDIA GPU execution</li>
+<li><code>HIP</code> — AMD GPU execution</li>
+</ul>
+<h2 id="logging-configuration">Logging Configuration<a class="headerlink" href="#logging-configuration" title="Permanent link">&para;</a></h2>
+<p>Control the C++ logging verbosity from Python:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-11-1"><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># Set log level</span>
+</span><span id="__span-11-2"><a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a><span class="n">cece</span><span class="o">.</span><span class="n">set_log_level</span><span class="p">(</span><span class="s2">&quot;DEBUG&quot;</span><span class="p">)</span>    <span class="c1"># Most verbose</span>
+</span><span id="__span-11-3"><a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a><span class="n">cece</span><span class="o">.</span><span class="n">set_log_level</span><span class="p">(</span><span class="s2">&quot;INFO&quot;</span><span class="p">)</span>     <span class="c1"># Default</span>
+</span><span id="__span-11-4"><a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="n">cece</span><span class="o">.</span><span class="n">set_log_level</span><span class="p">(</span><span class="s2">&quot;WARNING&quot;</span><span class="p">)</span>  <span class="c1"># Warnings and errors only</span>
+</span><span id="__span-11-5"><a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="n">cece</span><span class="o">.</span><span class="n">set_log_level</span><span class="p">(</span><span class="s2">&quot;ERROR&quot;</span><span class="p">)</span>    <span class="c1"># Errors only</span>
+</span></code></pre></div>
+<p>For Python-side logging, use the utility function:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-12-1"><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cece.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">setup_logging</span><span class="p">,</span> <span class="n">get_logger</span>
+</span><span id="__span-12-2"><a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>
+</span><span id="__span-12-3"><a id="__codelineno-12-3" name="__codelineno-12-3" href="#__codelineno-12-3"></a><span class="n">setup_logging</span><span class="p">(</span><span class="s2">&quot;DEBUG&quot;</span><span class="p">)</span>
+</span><span id="__span-12-4"><a id="__codelineno-12-4" name="__codelineno-12-4" href="#__codelineno-12-4"></a><span class="n">logger</span> <span class="o">=</span> <span class="n">get_logger</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+</span><span id="__span-12-5"><a id="__codelineno-12-5" name="__codelineno-12-5" href="#__codelineno-12-5"></a><span class="n">logger</span><span class="o">.</span><span class="n">info</span><span class="p">(</span><span class="s2">&quot;Starting CECE computation&quot;</span><span class="p">)</span>
+</span></code></pre></div>
+<h2 id="build-instructions">Build Instructions<a class="headerlink" href="#build-instructions" title="Permanent link">&para;</a></h2>
+<h3 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h3>
+<ul>
+<li>CMake 3.16+</li>
+<li>C++17 compiler</li>
+<li>Python 3.8+ with development headers</li>
+<li>Kokkos (fetched automatically via CMake FetchContent)</li>
+<li>pybind11 v2.12.0 (fetched automatically via CMake FetchContent)</li>
+</ul>
+<h3 id="building-with-python-bindings">Building with Python Bindings<a class="headerlink" href="#building-with-python-bindings" title="Permanent link">&para;</a></h3>
+<p>Enable Python bindings with the <code>BUILD_PYTHON_BINDINGS</code> option:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-13-1"><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a>./setup.sh<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;mkdir -p build &amp;&amp; cd build &amp;&amp; cmake .. -DBUILD_PYTHON_BINDINGS=ON &amp;&amp; make -j4&quot;</span>
+</span></code></pre></div>
+<p>The compiled <code>_cece_core.cpython-*.so</code> extension is placed in the <code>cece</code> package directory alongside the Python source files.</p>
+<h3 id="running-tests">Running Tests<a class="headerlink" href="#running-tests" title="Permanent link">&para;</a></h3>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-14-1"><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>./setup.sh<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;cd build &amp;&amp; ctest --output-on-failure&quot;</span>
+</span></code></pre></div>
+<h3 id="cmake-configuration">CMake Configuration<a class="headerlink" href="#cmake-configuration" title="Permanent link">&para;</a></h3>
+<p>The <code>src/python/CMakeLists.txt</code> handles:</p>
+<ul>
+<li>Fetching pybind11 v2.12.0 via <code>FetchContent</code></li>
+<li>Building the <code>_cece_core</code> extension module with <code>pybind11_add_module</code></li>
+<li>Linking against <code>cece</code>, <code>Kokkos::kokkos</code>, and <code>yaml-cpp</code></li>
+<li>Copying Python source files into the package output directory</li>
+</ul>
+<h2 id="migration-guide">Migration Guide<a class="headerlink" href="#migration-guide" title="Permanent link">&para;</a></h2>
+<p>If you had code using the old ctypes-based <code>_bindings</code> module directly, here are the key changes:</p>
+<h3 id="what-changed">What Changed<a class="headerlink" href="#what-changed" title="Permanent link">&para;</a></h3>
+<ul>
+<li>The <code>_bindings.py</code> ctypes wrapper and <code>cece_c_bindings.cpp</code> C-linkage layer have been removed.</li>
+<li>All C++ interop now goes through the <code>_cece_core</code> pybind11 module.</li>
+<li><code>void*</code> handle management and manual <code>malloc</code>/<code>free</code> string handling are eliminated.</li>
+<li>GIL release is handled automatically by pybind11 instead of manual <code>_release_gil</code> calls.</li>
+</ul>
+<h3 id="what-stayed-the-same">What Stayed the Same<a class="headerlink" href="#what-stayed-the-same" title="Permanent link">&para;</a></h3>
+<ul>
+<li>The public Python API (<code>cece.initialize</code>, <code>cece.compute</code>, <code>cece.finalize</code>, etc.) is identical.</li>
+<li><code>CeceConfig</code>, <code>CeceState</code>, <code>CeceField</code>, <code>EmissionLayer</code>, and all exception classes are unchanged.</li>
+<li>Configuration loading from YAML files, strings, and dicts works the same way.</li>
+<li>All existing Python scripts using the public API require no changes.</li>
+</ul>
+<h3 id="for-direct-binding-users">For Direct Binding Users<a class="headerlink" href="#for-direct-binding-users" title="Permanent link">&para;</a></h3>
+<p>If you imported from <code>cece._bindings</code> directly (not recommended), update your imports:</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-15-1"><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a><span class="c1"># Old (removed)</span>
+</span><span id="__span-15-2"><a id="__codelineno-15-2" name="__codelineno-15-2" href="#__codelineno-15-2"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cece._bindings</span><span class="w"> </span><span class="kn">import</span> <span class="n">CeceBindings</span>
+</span><span id="__span-15-3"><a id="__codelineno-15-3" name="__codelineno-15-3" href="#__codelineno-15-3"></a>
+</span><span id="__span-15-4"><a id="__codelineno-15-4" name="__codelineno-15-4" href="#__codelineno-15-4"></a><span class="c1"># New</span>
+</span><span id="__span-15-5"><a id="__codelineno-15-5" name="__codelineno-15-5" href="#__codelineno-15-5"></a><span class="kn">from</span><span class="w"> </span><span class="nn">cece</span><span class="w"> </span><span class="kn">import</span> <span class="n">_cece_core</span>
+</span><span id="__span-15-6"><a id="__codelineno-15-6" name="__codelineno-15-6" href="#__codelineno-15-6"></a><span class="c1"># Use _cece_core.CeceConfig, _cece_core.CeceImportState, etc.</span>
+</span></code></pre></div>
+<p>The pybind11 module exposes C++ types directly as Python classes, so there is no need for ctypes function signatures or manual memory management.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-circle-arrow-up" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m16 12-4-4-4 4M12 16V8"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2026 CECE Authors
+    </div>
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate":null,"base":"..","features":["content.code.annotate","content.code.copy","navigation.footer","navigation.path","navigation.sections","navigation.top","search.highlight"],"search":"../assets/javascripts/workers/search.e2d2d235.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.91a19a9e.min.js"></script>
+      
+    
+  </body>
+</html>

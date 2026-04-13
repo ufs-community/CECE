@@ -6,10 +6,10 @@
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width,initial-scale=1">
       
-        <meta name="description" content="Atmospheric Chemistry Emission System">
+        <meta name="description" content="Community Emissions Computing Engine">
       
       
-        <meta name="author" content="ACES Team">
+        <meta name="author" content="CECE Team">
       
       
       
@@ -19,11 +19,11 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="zensical-0.0.31">
+      <meta name="generator" content="zensical-0.0.32">
     
     
       
-        <title>ACES Standalone NUOPC Driver Configuration Guide - ACES Documentation</title>
+        <title>CECE Standalone NUOPC Driver Configuration Guide - CECE Documentation</title>
       
     
     
@@ -79,7 +79,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#aces-standalone-nuopc-driver-configuration-guide" class="md-skip">
+        <a href="#cece-standalone-nuopc-driver-configuration-guide" class="md-skip">
           Skip to content
         </a>
       
@@ -95,7 +95,7 @@
 
 <header class="md-header md-header--shadow" data-md-component="header">
   <nav class="md-header__inner md-grid" aria-label="Header">
-    <a href="./.." title="ACES Documentation" class="md-header__button md-logo" aria-label="ACES Documentation" data-md-component="logo">
+    <a href="./.." title="CECE Documentation" class="md-header__button md-logo" aria-label="CECE Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
@@ -109,13 +109,13 @@
       <div class="md-header__ellipsis">
         <div class="md-header__topic">
           <span class="md-ellipsis">
-            ACES Documentation
+            CECE Documentation
           </span>
         </div>
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              ACES Standalone NUOPC Driver Configuration Guide
+              CECE Standalone NUOPC Driver Configuration Guide
             
           </span>
         </div>
@@ -194,13 +194,13 @@
 
 <nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
   <label class="md-nav__title" for="__drawer">
-    <a href="./.." title="ACES Documentation" class="md-nav__button md-logo" aria-label="ACES Documentation" data-md-component="logo">
+    <a href="./.." title="CECE Documentation" class="md-nav__button md-logo" aria-label="CECE Documentation" data-md-component="logo">
       
   
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
 
     </a>
-    ACES Documentation
+    CECE Documentation
   </label>
   
   <ul class="md-nav__list" data-md-scrollfix>
@@ -949,14 +949,14 @@
                 
                   
 
-<h1 id="aces-standalone-nuopc-driver-configuration-guide">ACES Standalone NUOPC Driver Configuration Guide<a class="headerlink" href="#aces-standalone-nuopc-driver-configuration-guide" title="Permanent link">&para;</a></h1>
+<h1 id="cece-standalone-nuopc-driver-configuration-guide">CECE Standalone NUOPC Driver Configuration Guide<a class="headerlink" href="#cece-standalone-nuopc-driver-configuration-guide" title="Permanent link">&para;</a></h1>
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
-<p>The ACES standalone NUOPC driver (<code>aces_nuopc_single_driver</code>) executes the ACES emissions component for a configurable number of timesteps with proper clock management, grid/mesh creation, and synchronization. The driver is designed for both standalone testing and future coupling readiness.</p>
+<p>The CECE standalone NUOPC driver (<code>cece_nuopc_single_driver</code>) executes the CECE emissions component for a configurable number of timesteps with proper clock management, grid/mesh creation, and synchronization. The driver is designed for both standalone testing and future coupling readiness.</p>
 <h2 id="configuration-methods">Configuration Methods<a class="headerlink" href="#configuration-methods" title="Permanent link">&para;</a></h2>
 <p>The driver supports two configuration approaches:</p>
 <h3 id="1-yaml-configuration-file-recommended">1. YAML Configuration File (Recommended)<a class="headerlink" href="#1-yaml-configuration-file-recommended" title="Permanent link">&para;</a></h3>
-<p>The driver reads an optional <code>driver</code> section from the ACES YAML configuration file. This is the recommended approach for reproducible simulations.</p>
-<p><strong>Default config file</strong>: <code>aces_config.yaml</code></p>
+<p>The driver reads an optional <code>driver</code> section from the CECE YAML configuration file. This is the recommended approach for reproducible simulations.</p>
+<p><strong>Default config file</strong>: <code>cece_config.yaml</code></p>
 <p><strong>Command-line override</strong>: <code>--config /path/to/config.yaml</code></p>
 <h3 id="2-command-line-arguments-legacy">2. Command-Line Arguments (Legacy)<a class="headerlink" href="#2-command-line-arguments-legacy" title="Permanent link">&para;</a></h3>
 <p>For backward compatibility, the driver also supports command-line arguments. These override YAML configuration values.</p>
@@ -1093,10 +1093,10 @@
 <h3 id="standalone-mode">Standalone Mode<a class="headerlink" href="#standalone-mode" title="Permanent link">&para;</a></h3>
 <p>When the driver is executed directly (not invoked by a NUOPC_Driver framework):</p>
 <ul>
-<li>Reads timing and grid/mesh parameters from ACES config file</li>
+<li>Reads timing and grid/mesh parameters from CECE config file</li>
 <li>Creates ESMF clock with parsed parameters</li>
 <li>Creates grid/mesh based on configuration</li>
-<li>Executes ACES component through all NUOPC phases</li>
+<li>Executes CECE component through all NUOPC phases</li>
 <li>Manually manages clock advancement (if needed)</li>
 </ul>
 <p><strong>Requirements</strong>: 15.1, 15.3</p>
@@ -1188,7 +1188,7 @@
 <p><strong>Requirements</strong>: 14.6</p>
 <h2 id="logging-and-diagnostics">Logging and Diagnostics<a class="headerlink" href="#logging-and-diagnostics" title="Permanent link">&para;</a></h2>
 <p>The driver logs all configuration values during initialization:</p>
-<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>INFO: [Driver] Config file:   aces_config.yaml
+<div class="language-text highlight"><pre><span></span><code><span id="__span-2-1"><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>INFO: [Driver] Config file:   cece_config.yaml
 </span><span id="__span-2-2"><a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a>INFO: [Driver] Start time:    2020-01-01T00:00:00
 </span><span id="__span-2-3"><a id="__codelineno-2-3" name="__codelineno-2-3" href="#__codelineno-2-3"></a>INFO: [Driver] End time:      2020-01-02T00:00:00
 </span><span id="__span-2-4"><a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>INFO: [Driver] Time step (s): 3600
@@ -1302,7 +1302,7 @@
 <li>Missing mesh file</li>
 <li>Invalid mesh file</li>
 <li>ESMF operation failures</li>
-<li>ACES component failures</li>
+<li>CECE component failures</li>
 </ul>
 <h3 id="non-fatal-errors-log-warning-continue">Non-Fatal Errors (Log warning, continue)<a class="headerlink" href="#non-fatal-errors-log-warning-continue" title="Permanent link">&para;</a></h3>
 <ul>
@@ -1313,12 +1313,12 @@
 <h2 id="requirements-mapping">Requirements Mapping<a class="headerlink" href="#requirements-mapping" title="Permanent link">&para;</a></h2>
 <p>This documentation covers the following requirements:</p>
 <ul>
-<li><strong>Requirement 1</strong>: Configurable start time via ACES config file</li>
-<li><strong>Requirement 2</strong>: Configurable end time via ACES config file</li>
-<li><strong>Requirement 3</strong>: Configurable timestep via ACES config file</li>
+<li><strong>Requirement 1</strong>: Configurable start time via CECE config file</li>
+<li><strong>Requirement 2</strong>: Configurable end time via CECE config file</li>
+<li><strong>Requirement 3</strong>: Configurable timestep via CECE config file</li>
 <li><strong>Requirement 4</strong>: ESMF clock creation with proper configuration</li>
 <li><strong>Requirement 12</strong>: Large grid synchronization (&gt;50k points)</li>
-<li><strong>Requirement 14</strong>: Grid and mesh configuration via ACES config file</li>
+<li><strong>Requirement 14</strong>: Grid and mesh configuration via CECE config file</li>
 <li><strong>Requirement 15</strong>: Optional driver configuration in coupled mode</li>
 <li><strong>Requirement 18</strong>: Error handling and logging</li>
 <li><strong>Requirement 19</strong>: Driver configuration documentation</li>
@@ -1326,8 +1326,8 @@
 </ul>
 <h2 id="see-also">See Also<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h2>
 <ul>
-<li><a href="../configuration/">ACES Configuration Guide</a></li>
-<li><a href="../developer_guide/">ACES Developer Guide</a></li>
+<li><a href="../configuration/">CECE Configuration Guide</a></li>
+<li><a href="../developer_guide/">CECE Developer Guide</a></li>
 <li><a href="https://earthsystemmodeling.org/docs/release/latest/NUOPC_refdoc">NUOPC Reference Manual</a></li>
 </ul>
 
@@ -1369,7 +1369,7 @@
       <div class="md-copyright">
   
     <div class="md-copyright__highlight">
-      Copyright &copy; 2026 ACES Authors
+      Copyright &copy; 2026 CECE Authors
     </div>
   
   
