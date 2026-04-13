@@ -9,6 +9,7 @@
 - **Modular Physics Engine**: Easily extend ACES with new physics schemes. Supports both native C++ (Kokkos) and legacy Fortran plugins.
 - **Flexible Stacking Engine**: Combine multiple emission layers using prioritized categories and hierarchy levels. Apply geographical masks and multiple scale factors per layer.
 - **Built-in Diagnostics**: Integrated diagnostic manager for registering and writing intermediate variables to NetCDF files.
+- **Python Bindings**: High-level Python API via pybind11 with zero-copy NumPy data transfer, automatic GIL release during computation, and a clean exception hierarchy.
 
 ## Architecture Overview
 
@@ -28,4 +29,4 @@ For comprehensive technical details about the Stacking Engine algorithms and per
 
 ## Get Started
 
-Check out the [User's Guide](users-guide.md) to learn how to build and run ACES, explore the [Migration Examples](migration_examples.md) to see side-by-side comparisons with HEMCO, or dive into the [Tutorial](tutorial.md) to start writing your own physics schemes.
+Check out the [User's Guide](users-guide.md) to learn how to build and run ACES, explore the [Migration Examples](migration_examples.md) to see side-by-side comparisons with HEMCO, dive into the [Tutorial](tutorial.md) to start writing your own physics schemes, or see the [Python Bindings](python_bindings.md) guide for using ACES from Python.

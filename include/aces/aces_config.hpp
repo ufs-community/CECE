@@ -222,6 +222,8 @@ struct AcesConfig {
     AcesOutputConfig output_config;
     /// Configuration for the standalone NUOPC driver (optional).
     DriverConfig driver_config;
+    /// Registry of meteorology variable internal names to their external aliases.
+    std::unordered_map<std::string, std::vector<std::string>> met_registry;
 };
 
 /**

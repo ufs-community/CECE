@@ -12,14 +12,6 @@ check_language(Fortran)
 if(CMAKE_Fortran_COMPILER)
     enable_language(Fortran)
     set(ACES_HAS_FORTRAN ON)
-
-    # Global module directory prevents race conditions and lookup errors during parallel builds
-    # set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/fortran_modules)
-
-    # file(MAKE_DIRECTORY ${CMAKE_Fortran_MODULE_DIRECTORY})
-
-    # TIDE and PIO sometimes expect a share directory in the build root
-
     file(MAKE_DIRECTORY ${CMAKE_BINARY_DIR}/share)
 else()
     message(WARNING "Fortran compiler not found. Fortran features will be disabled.")
@@ -51,6 +43,9 @@ endif()
 option(Kokkos_ENABLE_CUDA "Enable Kokkos CUDA execution space for NVIDIA GPUs" OFF)
 option(Kokkos_ENABLE_HIP "Enable Kokkos HIP execution space for AMD GPUs" OFF)
 
+# Python bindings support
+option(BUILD_PYTHON_BINDINGS "Build Python bindings for ACES" OFF)
+
 # Validate that at most one GPU backend is enabled
 if(Kokkos_ENABLE_CUDA AND Kokkos_ENABLE_HIP)
     message(FATAL_ERROR "Cannot enable both CUDA and HIP. Choose one GPU backend or neither.")
@@ -81,31 +76,23 @@ FetchContent_Declare(
     googletest
     GIT_REPOSITORY https://github.com/google/googletest.git
     GIT_TAG v1.14.0)
-# For Windows: Prevent overriding the parent project's compiler/linker settings
-set(gtest_force_shared_crt
-    ON
-    CACHE BOOL "" FORCE)
+set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
 # RapidCheck (Property-Based Testing)
 FetchContent_Declare(
     rapidcheck
     GIT_REPOSITORY https://github.com/emil-e/rapidcheck.git
-    GIT_TAG        master
-)
+    GIT_TAG        master)
 set(RC_ENABLE_GTEST ON CACHE BOOL "Enable RapidCheck GTest integration" FORCE)
 FetchContent_MakeAvailable(rapidcheck)
 
 # ESMF and NUOPC are required dependencies.
-# NOTE: Mocking ESMF/NUOPC is strictly forbidden to ensure real-world parity.
 find_package(ESMF REQUIRED)
 message(STATUS "Found ESMF: ${ESMF_VERSION}")
 message(STATUS "ESMF include dirs: ${ESMF_INCLUDE_DIRS}")
 
 # Discovery PIO and NetCDF from ESMF if possible
-# TIDE needs these as dependencies for its Fortran modules
-
-# Helper function to find a library root based on a file existence
 function(find_root_by_file root_var filename)
     if(NOT ${root_var})
         foreach(lib ${ESMF_LIBRARIES})
@@ -114,9 +101,7 @@ function(find_root_by_file root_var filename)
                 if(EXISTS "${search_path}/../include/${filename}")
                     set(root "${search_path}/..")
                     get_filename_component(root "${root}" ABSOLUTE)
-                    set(${root_var}
-                        "${root}"
-                        PARENT_SCOPE)
+                    set(${root_var} "${root}" PARENT_SCOPE)
                     message(STATUS "Found ${root_var} from ESMF path: ${root}")
                     return()
                 endif()
@@ -175,14 +160,14 @@ set(ACES_SRCS
     src/aces_core_field_helpers.cpp
     src/aces_core_run.cpp
     src/aces_core_finalize.cpp
-    src/aces_config_path.cpp)
+    src/aces_config_path.cpp
+    src/aces_c_api.cpp
+    src/aces_config_validator.cpp)
 
 if(ACES_HAS_FORTRAN)
     add_subdirectory(src/io/tide)
 
-    list(
-        APPEND
-        ACES_SRCS
+    list(APPEND ACES_SRCS
         src/aces_cap.F90
         src/physics/aces_fortran_bridge.cpp
         src/physics/legacy_fortran.F90
@@ -206,15 +191,10 @@ endif()
 add_library(aces SHARED ${ACES_SRCS})
 
 if(ACES_HAS_FORTRAN)
-    # Set a target-specific module directory for aces to allow consumers to find it
     set_target_properties(aces PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/fortran_modules/aces)
     target_include_directories(aces PUBLIC $<BUILD_INTERFACE:${CMAKE_BINARY_DIR}/fortran_modules/aces>)
-
     target_compile_definitions(aces PRIVATE ACES_HAS_FORTRAN)
-
-    # target_include_directories(aces PUBLIC $<BUILD_INTERFACE:${CMAKE_Fortran_MODULE_DIRECTORY}>)
 endif()
-
 
 target_include_directories(
     aces
@@ -227,7 +207,6 @@ if(ACES_HAS_FORTRAN)
     target_link_libraries(aces PUBLIC tide)
 endif()
 
-# Link NetCDF for TIDE
 if(NetCDF_ROOT)
     if(EXISTS "${NetCDF_ROOT}/lib/libnetcdf.so")
         target_link_libraries(aces PUBLIC "${NetCDF_ROOT}/lib/libnetcdf.so")
@@ -245,45 +224,20 @@ enable_testing()
 add_executable(test_driver_configuration tests/test_driver_configuration.cpp)
 target_link_libraries(test_driver_configuration PRIVATE aces GTest::gtest_main)
 
-
-
 add_executable(test_driver_config_validation tests/test_driver_config_validation.cpp)
 target_link_libraries(test_driver_config_validation PRIVATE aces iso8601_utils GTest::gtest_main)
 
 add_executable(test_driver_clock_management tests/test_driver_clock_management.cpp)
 target_link_libraries(test_driver_clock_management PRIVATE GTest::gtest_main)
 
-
-
-# Unit tests for clock operations (Requirements 4.1, 5.1, 7.1)
 add_executable(test_clock_operations_unit tests/test_clock_operations_unit.cpp)
 target_link_libraries(test_clock_operations_unit PRIVATE GTest::gtest_main)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 add_executable(test_driver_integration_end_to_end tests/test_driver_integration_end_to_end.cpp)
 target_link_libraries(test_driver_integration_end_to_end PRIVATE GTest::gtest_main)
 
 add_executable(test_aces_cap tests/test_aces_cap.cpp)
 target_link_libraries(test_aces_cap PRIVATE aces GTest::gtest_main)
-
-
-
-
 
 add_executable(test_diagnostics tests/test_diagnostics.cpp)
 target_link_libraries(test_diagnostics PRIVATE aces GTest::gtest)
@@ -309,41 +263,14 @@ target_link_libraries(test_stacking_engine PRIVATE aces GTest::gtest_main)
 add_executable(test_vertical_distribution_single tests/test_vertical_distribution_single.cpp)
 target_link_libraries(test_vertical_distribution_single PRIVATE aces GTest::gtest_main)
 
-
-
-
-
-
-
-
-
 add_executable(test_field_resolution_priority tests/test_field_resolution_priority.cpp)
 target_link_libraries(test_field_resolution_priority PRIVATE aces GTest::gtest_main)
-
-
 
 if(ACES_HAS_FORTRAN)
     add_library(test_helpers STATIC tests/test_helpers.F90)
     target_include_directories(test_helpers PUBLIC ${ESMF_INCLUDE_DIRS})
     target_link_libraries(test_helpers PUBLIC ESMF::ESMF)
 endif()
-
-
-
-
-
-
-
-
-
-
-
-
-# add_executable(example_driver tests/example_driver.cpp)
-# target_link_libraries(example_driver PRIVATE aces)
-
-# add_executable(hemco_mimic_driver tests/hemco_mimic_driver.cpp)
-# target_link_libraries(hemco_mimic_driver PRIVATE aces)
 
 add_executable(hemco_comparison_driver tests/hemco_comparison_driver.cpp)
 target_link_libraries(hemco_comparison_driver PRIVATE aces)
@@ -355,62 +282,21 @@ target_link_libraries(benchmark_aces_hemco PRIVATE aces)
 add_executable(test_hemco_parity tests/test_hemco_parity.cpp)
 target_link_libraries(test_hemco_parity PRIVATE aces GTest::gtest_main)
 
-
-
-
-
-
-
-
-
-
 # Kokkos Configuration Tests (Requirement 6.13-6.18, 6.21)
 add_executable(test_kokkos_configuration tests/test_kokkos_configuration.cpp)
 target_link_libraries(test_kokkos_configuration PRIVATE aces GTest::gtest_main)
 
-# Property 13: Kokkos Device Consistency (Requirement 6.22)
-
-
-# Unit tests for Kokkos parallel efficiency (Requirement 6.19, 6.20)
-
-
 # Comprehensive Property-Based Test Suite (Task 11.1)
-# Consolidates all 23 correctness properties
 add_executable(test_properties tests/test_properties.cpp)
 target_link_libraries(test_properties PRIVATE aces GTest::gtest_main)
 
-# Property 21: Command-Line Configuration (Requirement 2.11, 2.12)
-
-
-# Property 17: Test Suite Idempotence (Requirement 8.16)
-# Tests that running the full test suite twice produces identical results
+# Test Suite Idempotence (Requirement 8.16)
 add_executable(test_suite_idempotence tests/test_suite_idempotence.cpp)
 target_link_libraries(test_suite_idempotence PRIVATE aces GTest::gtest_main)
-
-
 
 # Temporary Reproduction Test
 add_executable(test_repro_failure tests/repro_failure.cpp)
 target_link_libraries(test_repro_failure PRIVATE aces GTest::gtest_main)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-# Kernel Profiling Tests (Requirements 6.4, 6.19, 6.20)
-
-
-
-
 
 # Unit tests for field creation (Requirement R4)
 add_executable(test_field_creation tests/test_field_creation.cpp)
@@ -435,42 +321,71 @@ add_subdirectory(standalone_nuopc)
 find_package(Python3 COMPONENTS Interpreter)
 if(Python3_Interpreter_FOUND)
     add_test(
+        NAME install_pytest
+        COMMAND ${Python3_EXECUTABLE} -m pip install pytest --quiet)
+    set_tests_properties(install_pytest PROPERTIES FIXTURES_SETUP "pytest_installed")
+
+    add_test(
         NAME test_hemco_to_aces_python
         COMMAND ${Python3_EXECUTABLE} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_converters.py)
-    set_tests_properties(test_hemco_to_aces_python PROPERTIES ENVIRONMENT
-                                                             "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/scripts")
+    set_tests_properties(test_hemco_to_aces_python PROPERTIES
+        ENVIRONMENT "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/scripts"
+        FIXTURES_REQUIRED "pytest_installed")
 
     add_test(
         NAME test_scripts_python
         COMMAND ${Python3_EXECUTABLE} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_scripts.py)
-    set_tests_properties(test_scripts_python PROPERTIES ENVIRONMENT
-                                                        "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/scripts")
+    set_tests_properties(test_scripts_python PROPERTIES
+        ENVIRONMENT "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/scripts"
+        FIXTURES_REQUIRED "pytest_installed")
+
+    if(BUILD_PYTHON_BINDINGS)
+        add_test(
+            NAME test_enum_config_bindings
+            COMMAND ${Python3_EXECUTABLE} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_enum_config_bindings.py -v)
+        set_tests_properties(test_enum_config_bindings PROPERTIES
+            ENVIRONMENT "PYTHONPATH=${CMAKE_BINARY_DIR}/src/python/aces"
+            FIXTURES_REQUIRED "pytest_installed")
+
+        add_test(
+            NAME test_state_bindings
+            COMMAND ${Python3_EXECUTABLE} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_state_bindings.py -v)
+        set_tests_properties(test_state_bindings PROPERTIES
+            ENVIRONMENT "PYTHONPATH=${CMAKE_BINARY_DIR}/src/python/aces"
+            FIXTURES_REQUIRED "pytest_installed")
+
+        add_test(
+            NAME test_compute_bindings
+            COMMAND ${Python3_EXECUTABLE} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_compute_bindings.py -v)
+        set_tests_properties(test_compute_bindings PROPERTIES
+            ENVIRONMENT "PYTHONPATH=${CMAKE_BINARY_DIR}/src/python/aces"
+            FIXTURES_REQUIRED "pytest_installed")
+
+        add_test(
+            NAME test_validator_logger_bindings
+            COMMAND ${Python3_EXECUTABLE} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_validator_logger_bindings.py -v)
+        set_tests_properties(test_validator_logger_bindings PROPERTIES
+            ENVIRONMENT "PYTHONPATH=${CMAKE_BINARY_DIR}/src/python/aces"
+            FIXTURES_REQUIRED "pytest_installed")
+
+        add_test(
+            NAME test_python_api_rewired
+            COMMAND ${Python3_EXECUTABLE} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_python_api_rewired.py -v)
+        set_tests_properties(test_python_api_rewired PROPERTIES
+            ENVIRONMENT "PYTHONPATH=${CMAKE_BINARY_DIR}/src/python"
+            FIXTURES_REQUIRED "pytest_installed")
+    endif()
 endif()
 
 include(GoogleTest)
 gtest_discover_tests(test_driver_configuration)
-
 gtest_discover_tests(test_driver_config_validation)
 gtest_discover_tests(test_driver_clock_management)
 gtest_discover_tests(test_clock_operations_unit)
-
-
-
-
-
-
-
-
 gtest_discover_tests(test_driver_integration_end_to_end)
 gtest_discover_tests(test_aces_cap)
-
-
 gtest_discover_tests(test_stacking_engine)
 gtest_discover_tests(test_vertical_distribution_single)
-
-
-
-
 gtest_discover_tests(test_aces_utils)
 gtest_discover_tests(test_aces_compute)
 gtest_discover_tests(test_physics)
@@ -478,32 +393,22 @@ gtest_discover_tests(test_aces_ingestor)
 gtest_discover_tests(test_diagnostics)
 gtest_discover_tests(test_hemco_mimic)
 gtest_discover_tests(test_field_resolution_priority)
-
-
-
-
-
-
-
 gtest_discover_tests(test_hemco_parity)
-
-
-
-
 gtest_discover_tests(test_kokkos_configuration)
-
-
 gtest_discover_tests(test_properties)
 gtest_discover_tests(test_suite_idempotence)
 gtest_discover_tests(test_repro_failure)
-
-
-
-
-
-
 gtest_discover_tests(test_field_creation)
 gtest_discover_tests(test_field_pointer_passing)
+
+# --- Python Bindings ---
+
+if(BUILD_PYTHON_BINDINGS)
+    message(STATUS "Building Python bindings for ACES")
+    add_subdirectory(src/python)
+else()
+    message(STATUS "Python bindings disabled. Enable with -DBUILD_PYTHON_BINDINGS=ON")
+endif()
 
 # --- Doxygen Documentation ---
 
@@ -541,44 +446,36 @@ else()
     message(STATUS "Install Doxygen to enable: sudo apt-get install doxygen graphviz")
 endif()
 
-
 # --- Code Quality Checks ---
 
-# clang-format target
 find_program(CLANG_FORMAT_EXECUTABLE clang-format)
 if(CLANG_FORMAT_EXECUTABLE)
-    file(GLOB_RECURSE ACES_SOURCE_FILES
+    file(GLOB_RECURSE ACES_FORMAT_FILES
         "${CMAKE_CURRENT_SOURCE_DIR}/include/aces/*.hpp"
         "${CMAKE_CURRENT_SOURCE_DIR}/include/aces/*.h"
         "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/**/*.cpp"
-    )
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/**/*.cpp")
 
     add_custom_target(clang-format
-        COMMAND ${CLANG_FORMAT_EXECUTABLE} -i ${ACES_SOURCE_FILES}
-        COMMENT "Running clang-format on ACES source files"
-    )
+        COMMAND ${CLANG_FORMAT_EXECUTABLE} -i ${ACES_FORMAT_FILES}
+        COMMENT "Running clang-format on ACES source files")
 
     add_custom_target(clang-format-check
-        COMMAND ${CLANG_FORMAT_EXECUTABLE} --dry-run --Werror ${ACES_SOURCE_FILES}
-        COMMENT "Checking clang-format compliance on ACES source files"
-    )
+        COMMAND ${CLANG_FORMAT_EXECUTABLE} --dry-run --Werror ${ACES_FORMAT_FILES}
+        COMMENT "Checking clang-format compliance on ACES source files")
 else()
     message(STATUS "clang-format not found. Code formatting targets disabled.")
 endif()
 
-# clang-tidy target
 find_program(CLANG_TIDY_EXECUTABLE clang-tidy)
 if(CLANG_TIDY_EXECUTABLE)
-    file(GLOB_RECURSE ACES_SOURCE_FILES
+    file(GLOB_RECURSE ACES_TIDY_FILES
         "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}/src/**/*.cpp"
-    )
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/**/*.cpp")
 
     add_custom_target(clang-tidy
-        COMMAND ${CLANG_TIDY_EXECUTABLE} -p ${CMAKE_BINARY_DIR} ${ACES_SOURCE_FILES}
-        COMMENT "Running clang-tidy on ACES source files"
-    )
+        COMMAND ${CLANG_TIDY_EXECUTABLE} -p ${CMAKE_BINARY_DIR} ${ACES_TIDY_FILES}
+        COMMENT "Running clang-tidy on ACES source files")
 else()
     message(STATUS "clang-tidy not found. Code analysis targets disabled.")
 endif()

@@ -9,7 +9,7 @@
 #include <ctime>
 #include <iomanip>
 #include <iostream>
-#include <memory>
+#include <mutex>
 #include <sstream>
 #include <string>
 
@@ -28,7 +28,7 @@ enum class LogLevel {
 
 /**
  * @class AcesLogger
- * @brief Singleton logger for ACES with configurable log levels
+ * @brief Thread-safe singleton logger for ACES with configurable log levels
  *
  * Usage:
  * ```cpp
@@ -56,6 +56,7 @@ class AcesLogger {
      * @param level The log level to set
      */
     void SetLogLevel(LogLevel level) {
+        std::lock_guard<std::mutex> lock(mutex_);
         log_level_ = level;
     }
 
@@ -69,9 +70,6 @@ class AcesLogger {
 
     /**
      * @brief Log an error message
-     * @param message The error message
-     * @param file Source file name (optional)
-     * @param line Source line number (optional)
      */
     void LogError(const std::string& message, const std::string& file = "", int line = 0) {
         if (log_level_ >= LogLevel::ERROR) {
@@ -81,9 +79,6 @@ class AcesLogger {
 
     /**
      * @brief Log a warning message
-     * @param message The warning message
-     * @param file Source file name (optional)
-     * @param line Source line number (optional)
      */
     void LogWarning(const std::string& message, const std::string& file = "", int line = 0) {
         if (log_level_ >= LogLevel::WARNING) {
@@ -93,9 +88,6 @@ class AcesLogger {
 
     /**
      * @brief Log an info message
-     * @param message The info message
-     * @param file Source file name (optional)
-     * @param line Source line number (optional)
      */
     void LogInfo(const std::string& message, const std::string& file = "", int line = 0) {
         if (log_level_ >= LogLevel::INFO) {
@@ -105,9 +97,6 @@ class AcesLogger {
 
     /**
      * @brief Log a debug message
-     * @param message The debug message
-     * @param file Source file name (optional)
-     * @param line Source line number (optional)
      */
     void LogDebug(const std::string& message, const std::string& file = "", int line = 0) {
         if (log_level_ >= LogLevel::DEBUG) {
@@ -117,6 +106,7 @@ class AcesLogger {
 
    private:
     LogLevel log_level_ = LogLevel::INFO;
+    std::mutex mutex_;
 
     AcesLogger() = default;
     ~AcesLogger() = default;
@@ -128,22 +118,31 @@ class AcesLogger {
     AcesLogger& operator=(AcesLogger&&) = delete;
 
     /**
-     * @brief Internal method to log a message with formatting
+     * @brief Internal method to log a message with formatting.
+     * Uses localtime_r for thread safety and a mutex to prevent interleaved output.
      */
     void LogMessage(const std::string& level, const std::string& message, const std::string& file,
                     int line, std::ostream& stream) {
-        // Get current time
+        // Get current time using thread-safe localtime_r
         auto now = std::time(nullptr);
-        auto tm = *std::localtime(&now);
+        struct tm tm_buf {};
+        localtime_r(&now, &tm_buf);
 
-        // Format: [TIMESTAMP] [LEVEL] [FILE:LINE] MESSAGE
-        stream << "[" << std::put_time(&tm, "%Y-%m-%d %H:%M:%S") << "] " << "[" << level << "] ";
+        // Build the full message in a local buffer to avoid interleaving
+        std::ostringstream oss;
+        oss << "[" << std::put_time(&tm_buf, "%Y-%m-%d %H:%M:%S") << "] "
+            << "[" << level << "] ";
 
         if (!file.empty() && line > 0) {
-            stream << "[" << file << ":" << line << "] ";
+            oss << "[" << file << ":" << line << "] ";
         }
 
-        stream << message << std::endl;
+        oss << message << "\n";
+
+        // Write atomically under lock
+        std::lock_guard<std::mutex> lock(mutex_);
+        stream << oss.str();
+        stream.flush();
     }
 };
 
