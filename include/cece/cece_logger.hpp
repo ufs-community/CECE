@@ -125,7 +125,7 @@ class CeceLogger {
                     int line, std::ostream& stream) {
         // Get current time using thread-safe localtime_r
         auto now = std::time(nullptr);
-        struct tm tm_buf {};
+        struct tm tm_buf{};
         localtime_r(&now, &tm_buf);
 
         // Build the full message in a local buffer to avoid interleaving
