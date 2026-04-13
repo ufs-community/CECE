@@ -1,5 +1,5 @@
 """
-Utility functions for the ACES Python interface.
+Utility functions for the CECE Python interface.
 
 Provides configuration loading from multiple sources (files, YAML strings,
 dicts), array validation helpers, YAML serialization/deserialization, and
@@ -7,8 +7,8 @@ logging setup.
 
 See Also
 --------
-aces.config.AcesConfig : Configuration class used by these utilities.
-aces.initialize : Uses ``load_config`` internally.
+cece.config.CeceConfig : Configuration class used by these utilities.
+cece.initialize : Uses ``load_config`` internally.
 """
 
 from __future__ import annotations
@@ -19,34 +19,34 @@ from typing import Union
 
 import numpy as np
 
-from .config import AcesConfig
-from .exceptions import AcesConfigError
+from .config import CeceConfig
+from .exceptions import CeceConfigError
 
 
-def load_config(config: Union[str, dict, AcesConfig]) -> AcesConfig:
+def load_config(config: Union[str, dict, CeceConfig]) -> CeceConfig:
     """
-    Load an ACES configuration from various sources.
+    Load an CECE configuration from various sources.
 
     Accepts a file path, YAML string, dictionary, or an existing
-    ``AcesConfig`` object and returns a validated ``AcesConfig``.
+    ``CeceConfig`` object and returns a validated ``CeceConfig``.
 
     Parameters
     ----------
-    config : str, dict, or AcesConfig
+    config : str, dict, or CeceConfig
         Configuration source. If a string, it is first checked as a file
         path; if the file exists it is read as YAML. Otherwise the string
         is parsed directly as YAML. Dictionaries are converted via
-        ``AcesConfig.from_dict``. An existing ``AcesConfig`` is returned
+        ``CeceConfig.from_dict``. An existing ``CeceConfig`` is returned
         as-is.
 
     Returns
     -------
-    AcesConfig
+    CeceConfig
         Loaded and parsed configuration object.
 
     Raises
     ------
-    AcesConfigError
+    CeceConfigError
         If the configuration source is invalid, the file cannot be read,
         or the YAML/dict content is malformed.
 
@@ -56,14 +56,14 @@ def load_config(config: Union[str, dict, AcesConfig]) -> AcesConfig:
     >>> config = load_config({"species": {"CO": [...]}})
     >>> config = load_config(existing_config)
     """
-    if isinstance(config, AcesConfig):
+    if isinstance(config, CeceConfig):
         return config
 
     if isinstance(config, dict):
         try:
-            return AcesConfig.from_dict(config)
+            return CeceConfig.from_dict(config)
         except ValueError as e:
-            raise AcesConfigError(f"Invalid configuration dict: {str(e)}")
+            raise CeceConfigError(f"Invalid configuration dict: {str(e)}")
 
     if isinstance(config, str):
         # Check if it's a file path
@@ -74,18 +74,18 @@ def load_config(config: Union[str, dict, AcesConfig]) -> AcesConfig:
                     yaml_str = f.read()
                 return _load_config_from_yaml(yaml_str)
             except Exception as e:
-                raise AcesConfigError(f"Failed to load config from file '{config}': {str(e)}")
+                raise CeceConfigError(f"Failed to load config from file '{config}': {str(e)}")
         else:
             # Treat as YAML string
             try:
                 return _load_config_from_yaml(config)
             except Exception as e:
-                raise AcesConfigError(f"Failed to parse config YAML: {str(e)}")
+                raise CeceConfigError(f"Failed to parse config YAML: {str(e)}")
 
-    raise AcesConfigError(f"Invalid config type: {type(config)}")
+    raise CeceConfigError(f"Invalid config type: {type(config)}")
 
 
-def _load_config_from_yaml(yaml_str: str) -> AcesConfig:
+def _load_config_from_yaml(yaml_str: str) -> CeceConfig:
     """
     Load configuration from a YAML string.
 
@@ -96,18 +96,18 @@ def _load_config_from_yaml(yaml_str: str) -> AcesConfig:
 
     Returns
     -------
-    AcesConfig
+    CeceConfig
         Parsed configuration object.
 
     Raises
     ------
-    AcesConfigError
+    CeceConfigError
         If the YAML string is malformed or cannot be parsed.
     """
     try:
-        return AcesConfig.from_yaml(yaml_str)
+        return CeceConfig.from_yaml(yaml_str)
     except (ImportError, ValueError) as e:
-        raise AcesConfigError(f"Failed to parse config YAML: {str(e)}")
+        raise CeceConfigError(f"Failed to parse config YAML: {str(e)}")
 
 
 def validate_array_dimensions(array: np.ndarray, expected_shape: tuple) -> None:
@@ -230,7 +230,7 @@ def yaml_to_dict(yaml_str: str) -> dict:
 
 def setup_logging(level: str = "INFO") -> None:
     """
-    Configure Python logging for ACES.
+    Configure Python logging for CECE.
 
     Sets up a basic logging configuration with timestamp, logger name,
     level, and message format.

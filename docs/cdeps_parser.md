@@ -2,7 +2,7 @@
 
 ## Overview
 
-The TIDE Streams Configuration Parser provides functionality to parse, validate, and serialize YAML format streams files used by TIDE for data ingestion in ACES. This enables hybrid data ingestion where static emission inventories from NetCDF files are combined with live meteorological fields from ESMF.
+The TIDE Streams Configuration Parser provides functionality to parse, validate, and serialize YAML format streams files used by TIDE for data ingestion in CECE. This enables hybrid data ingestion where static emission inventories from NetCDF files are combined with live meteorological fields from ESMF.
 
 ## Features
 
@@ -63,14 +63,14 @@ stream::<stream_name>
 ### Parsing a Streams File
 
 ```cpp
-#include "aces/aces_tide_yaml_serializer.hpp"
+#include "cece/cece_tide_yaml_serializer.hpp"
 
 // Parse streams file
-aces::AcesDataConfig config =
-    aces::SerializeTideYaml("aces_emissions.yaml");
+cece::CeceDataConfig config =
+    cece::SerializeTideYaml("cece_emissions.yaml");
 
 // Access parsed streams
-for (const auto& stream : config.aces_data.streams) {
+for (const auto& stream : config.cece_data.streams) {
     std::cout << "Stream: " << stream.name << std::endl;
     std::cout << "  Files: " << stream.file_paths.size() << std::endl;
     std::cout << "  Variables: " << stream.variables.size() << std::endl;
@@ -80,12 +80,12 @@ for (const auto& stream : config.aces_data.streams) {
 ### Validating a Configuration
 
 ```cpp
-#include "aces/aces_config_validator.hpp"
+#include "cece/cece_config_validator.hpp"
 
-aces::AcesDataConfig config = /* ... */;
+cece::CeceDataConfig config = /* ... */;
 
 std::vector<std::string> errors;
-bool is_valid = aces::ConfigValidator::ValidateTIDE(config, errors);
+bool is_valid = cece::ConfigValidator::ValidateTIDE(config, errors);
 
 if (!is_valid) {
     std::cerr << "Configuration validation failed:" << std::endl;
@@ -98,37 +98,37 @@ if (!is_valid) {
 ### Writing a Streams File
 
 ```cpp
-#include "aces/aces_tide_yaml_serializer.hpp"
+#include "cece/cece_tide_yaml_serializer.hpp"
 
 // Create configuration programmatically
-aces::AcesDataConfig config;
-aces::AcesDataStreamConfig stream;
+cece::CeceDataConfig config;
+cece::CeceDataStreamConfig stream;
 
 stream.name = "test_emissions";
 stream.file_paths = {"/data/emissions.nc"};
 stream.variables = {{"SO2", "so2_flux"}};
 
-config.aces_data.streams.push_back(stream);
+config.cece_data.streams.push_back(stream);
 
 // Write to file
-aces::SerializeTideYaml(config, "output.yaml");
+cece::SerializeTideYaml(config, "output.yaml");
 ```
 
 ```cpp
-#include "aces/aces_tide_yaml_serializer.hpp"
+#include "cece/cece_tide_yaml_serializer.hpp"
 
 // Create configuration programmatically
-aces::AcesDataConfig config;
-aces::AcesDataStreamConfig stream;
+cece::CeceDataConfig config;
+cece::CeceDataStreamConfig stream;
 stream.name = "test_emissions";
 stream.file_paths = {"/data/emissions.nc"};
 stream.variables = {{"CO_emis", "CO"}, {"NOx_emis", "NOx"}};
 stream.taxmode = "cycle";
 stream.tintalgo = "linear";
-config.aces_data.streams.push_back(stream);
+config.cece_data.streams.push_back(stream);
 
 // Write to file
-aces::SerializeTideYaml(config, "output.yaml");
+cece::SerializeTideYaml(config, "output.yaml");
 ```
 
 ## Validation
@@ -172,13 +172,13 @@ The parser supports round-trip serialization (Property 16):
 
 ```cpp
 // Parse original file
-auto config1 = aces::ParseTideYaml("original.yaml");
+auto config1 = cece::ParseTideYaml("original.yaml");
 
 // Write to new file
-aces::SerializeTideYaml(config1, "copy.yaml");
+cece::SerializeTideYaml(config1, "copy.yaml");
 
 // Parse the copy
-auto config2 = aces::ParseTideYaml("copy.yaml");
+auto config2 = cece::ParseTideYaml("copy.yaml");
 
 // config1 and config2 should be equivalent
 ```
@@ -188,21 +188,21 @@ This property ensures that:
 - Configurations can be programmatically modified and saved
 - Testing can verify parser correctness
 
-## Integration with ACES
+## Integration with CECE
 
-The parser integrates with ACES configuration:
+The parser integrates with CECE configuration:
 
 ```cpp
-// In aces_config.hpp
-struct AcesConfig {
+// In cece_config.hpp
+struct CeceConfig {
     // ... other fields ...
-    AcesDataConfig aces_data;  // Parsed streams configuration
+    CeceDataConfig cece_data;  // Parsed streams configuration
 };
 
-// In aces_data_ingestor.cpp
-void AcesDataIngestor::IngestEmissionsInline(
-    const AcesDataConfig& config,
-    AcesImportState& aces_state,
+// In cece_data_ingestor.cpp
+void CeceDataIngestor::IngestEmissionsInline(
+    const CeceDataConfig& config,
+    CeceImportState& cece_state,
     int nx, int ny, int nz) {
     // Use parsed configuration to ingest emissions from TIDE
 }
@@ -210,7 +210,7 @@ void AcesDataIngestor::IngestEmissionsInline(
 
 ## Examples
 
-See `examples/aces_config_ex*.yaml` for complete examples demonstrating:
+See `examples/cece_config_ex*.yaml` for complete examples demonstrating:
 - Anthropogenic emissions from CEDS
 - Biogenic emissions from MEGAN
 - Biomass burning emissions from GFED

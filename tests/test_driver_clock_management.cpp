@@ -171,7 +171,7 @@ TEST_F(RunLoopLogicTest, FullRunLoopSimulation) {
     while (!clock_done) {
         step_count++;
 
-        // Simulate ACES_Run phase
+        // Simulate CECE_Run phase
         // (In real driver, this would call ESMF_GridCompRun)
 
         // Advance clock

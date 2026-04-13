@@ -1,12 +1,12 @@
-# ACES Driver Configuration Guide
+# CECE Driver Configuration Guide
 
 ## Overview
 
-The ACES standalone NUOPC driver (`aces_nuopc_single_driver`) supports configurable execution modes for both single-process and MPI multi-process simulations. This guide documents all configuration options and usage patterns.
+The CECE standalone NUOPC driver (`cece_nuopc_single_driver`) supports configurable execution modes for both single-process and MPI multi-process simulations. This guide documents all configuration options and usage patterns.
 
 ## Configuration File Format
 
-Driver configuration is specified in the ACES YAML configuration file under the optional `driver` section:
+Driver configuration is specified in the CECE YAML configuration file under the optional `driver` section:
 
 ```yaml
 driver:
@@ -124,7 +124,7 @@ driver:
 
 **Usage:**
 ```bash
-./aces_nuopc_single_driver
+./cece_nuopc_single_driver
 ```
 
 ### MPI Multi-Process Execution
@@ -149,7 +149,7 @@ driver:
 
 **Usage:**
 ```bash
-mpirun -np 4 ./aces_nuopc_single_driver
+mpirun -np 4 ./cece_nuopc_single_driver
 ```
 
 ### Coupled Mode Execution
@@ -348,4 +348,4 @@ ERROR: [Driver] Mesh file not found: /path/to/mesh.nc
 
 - ESMF User Guide: https://earthsystemmodeling.org/docs/release/latest/ESMF_usrdoc
 - NUOPC Reference Manual: https://earthsystemmodeling.org/docs/release/latest/NUOPC_refdoc
-- ACES Documentation: See docs/index.md
+- CECE Documentation: See docs/index.md

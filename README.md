@@ -1,11 +1,11 @@
-# ACES: Atmospheric Chemistry Emission System
+# CECE: Community Emissions Computing Engine
 
-ACES is a high-performance, performance-portable emissions compute component for Earth System Models. It is built using C++20 and the Kokkos programming model, designed to run efficiently on both multi-core CPUs and GPUs.
+CECE is a high-performance, performance-portable emissions compute component for Earth System Models. It is built using C++20 and the Kokkos programming model, designed to run efficiently on both multi-core CPUs and GPUs.
 
 ## Quick Start
 
 ### 1. Development Environment
-The recommended way to develop ACES is using the provided Docker container:
+The recommended way to develop CECE is using the provided Docker container:
 ```bash
 ./setup.sh
 ```
@@ -19,21 +19,21 @@ make -j4
 ```
 
 ### 3. Run Examples
-ACES provides several example configurations to demonstrate different capabilities:
+CECE provides several example configurations to demonstrate different capabilities:
 
 **Run a basic example:**
 ```bash
-./setup.sh -c "cd /work && ./build/bin/aces_nuopc_app examples/aces_config_ex1.yaml"
+./setup.sh -c "cd /work && ./build/bin/cece_nuopc_app examples/cece_config_ex1.yaml"
 ```
 
 **Available examples:**
-- `aces_config_ex1.yaml` - Basic single species (CO) emission processing
-- `aces_config_ex3.yaml` - Minimal configuration for quick testing
-- `aces_config_ex5.yaml` - Multi-species production example (CO + NO)
+- `cece_config_ex1.yaml` - Basic single species (CO) emission processing
+- `cece_config_ex3.yaml` - Minimal configuration for quick testing
+- `cece_config_ex5.yaml` - Multi-species production example (CO + NO)
 
 ### 4. Configuration
 
-ACES uses a single YAML configuration file with fully configurable parameters:
+CECE uses a single YAML configuration file with fully configurable parameters:
 
 ```yaml
 # Timing configuration
@@ -57,7 +57,7 @@ species:
     - field: "MACCITY_CO"
       operation: "add"
 
-aces_data:
+cece_data:
   streams:
     - name: "MACCITY_CO"
       file: "/work/data/MACCity_4x5.nc"
@@ -74,7 +74,7 @@ Comprehensive documentation is available in the `docs/` directory:
 
 ## Architecture
 
-ACES is built on a modular architecture:
+CECE is built on a modular architecture:
 - **NUOPC Integration:** Earth System Model component interface
 - **TIDE Data Ingestion:** High-performance emission data processing with conservative regridding
 - **Kokkos Compute:** Performance-portable parallel execution (CPU/GPU)

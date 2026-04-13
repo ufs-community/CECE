@@ -1,7 +1,7 @@
 #!/bin/bash
 # setup.sh
 #
-# This script sets up the ACES development environment using Docker.
+# This script sets up the CECE development environment using Docker.
 # It pulls the official JCSDA image and drops you into a bash shell.
 #
 # Usage:
@@ -29,7 +29,7 @@ else
     docker pull "$IMAGE"
 fi
 
-echo "Launching ACES Development Container..."
+echo "Launching CECE Development Container..."
 
 # Check if command mode or interactive mode
 if [ "$1" = "-c" ] && [ -n "$2" ]; then

@@ -1,6 +1,6 @@
 #!/bin/bash
 # setup_hemco_examples.sh
-# Sets up ACES configuration files mimicking all 6 basic examples from HEMCO documentation.
+# Sets up CECE configuration files mimicking all 6 basic examples from HEMCO documentation.
 
 set -e
 
@@ -23,7 +23,7 @@ EOF
 }
 
 # Example 1: Add global anthropogenic emissions (MACCity CO)
-cat <<EOF > examples/aces_config_ex1.yaml
+cat <<EOF > examples/cece_config_ex1.yaml
 meteorology:
   hourly_scalfact: HOURLY_SCALFACT
 
@@ -44,7 +44,7 @@ EOF
 generate_download_script 1 "HEMCO/MACCITY/v2014-07/MACCity_4x5.nc"
 
 # Example 2: Overlay regional emissions
-cat <<EOF > examples/aces_config_ex2.yaml
+cat <<EOF > examples/cece_config_ex2.yaml
 meteorology:
   hourly_scalfact: HOURLY_SCALFACT
   mask_europe: MASK_EUROPE
@@ -77,7 +77,7 @@ EOF
 generate_download_script 2 "HEMCO/MACCITY/v2014-07/MACCity_4x5.nc" "HEMCO/MASKS/v2014-07/Canada_mask.gen.1x1.nc"
 
 # Example 3: Adding the AEIC aircraft emissions
-cat <<EOF > examples/aces_config_ex3.yaml
+cat <<EOF > examples/cece_config_ex3.yaml
 species:
   co:
     - field: "MACCITY_CO"
@@ -99,7 +99,7 @@ EOF
 generate_download_script 3 "HEMCO/MACCITY/v2014-07/MACCity_4x5.nc" "HEMCO/AEIC/v2015-01/AEIC.nc"
 
 # Example 4: Add biomass burning emissions
-cat <<EOF > examples/aces_config_ex4.yaml
+cat <<EOF > examples/cece_config_ex4.yaml
 physics_schemes:
   - name: "GFED"
     language: "cpp"
@@ -123,7 +123,7 @@ EOF
 generate_download_script 4 "HEMCO/MACCITY/v2014-07/MACCity_4x5.nc" "HEMCO/GFED4/v2015-10/1997/GFED4_gen.025x025.199701.nc"
 
 # Example 5: Tell HEMCO to use additional species
-cat <<EOF > examples/aces_config_ex5.yaml
+cat <<EOF > examples/cece_config_ex5.yaml
 species:
   co:
     - field: "MACCITY_CO"
@@ -147,7 +147,7 @@ EOF
 generate_download_script 5 "HEMCO/MACCITY/v2014-07/MACCity_4x5.nc" "HEMCO/MACCITY/v2014-07/MACCity_anthro_NOx_2000-2010_16080.nc" "HEMCO/MACCITY/v2014-07/MACCity_anthro_SO2_2000-2010_16080.nc"
 
 # Example 6: Non-separated inventories
-cat <<EOF > examples/aces_config_ex6.yaml
+cat <<EOF > examples/cece_config_ex6.yaml
 species:
   no:
     - field: "EDGAR_NO_POW"
@@ -166,4 +166,4 @@ cdeps_inline_config:
 EOF
 generate_download_script 6 "HEMCO/EDGARv43/v2014-10/EDGAR_v43.NOx.POW.nc" "HEMCO/CEDS/v2020-08/1970/ALK4_butanes-em-total-anthro_CEDS_1970.nc"
 
-echo "All 6 ACES example configurations created in the 'examples/' directory."
+echo "All 6 CECE example configurations created in the 'examples/' directory."

@@ -16,7 +16,7 @@ def simulate_overhead():
     legacy_total = num_species * num_layers_per_species * num_timesteps * overhead_legacy
     optimized_total = num_species * num_layers_per_species * num_timesteps * overhead_optimized
 
-    print(f"--- ACES StackingEngine Benchmark Simulation ---")
+    print(f"--- CECE StackingEngine Benchmark Simulation ---")
     print(f"Species: {num_species}, Layers/Species: {num_layers_per_species}")
     print(f"Timesteps: {num_timesteps}")
     print(f"Estimated Binding Overhead (Legacy):    {legacy_total:.4f} s")

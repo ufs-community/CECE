@@ -1,7 +1,7 @@
 """
-State management classes for the ACES Python interface.
+State management classes for the CECE Python interface.
 
-Provides ``AcesState`` for managing 3D import and export fields, ``AcesField``
+Provides ``CeceState`` for managing 3D import and export fields, ``CeceField``
 for wrapping individual NumPy arrays with metadata, and ``FieldDict`` for
 dictionary-like access to field collections.
 
@@ -13,7 +13,7 @@ C++ core. C-contiguous arrays are automatically converted on import.
 
 See Also
 --------
-aces.compute : Execute computation using state fields.
+cece.compute : Execute computation using state fields.
 """
 
 from __future__ import annotations
@@ -23,9 +23,9 @@ from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
 import numpy as np
 
 
-class AcesField:
+class CeceField:
     """
-    A single named field in the ACES state.
+    A single named field in the CECE state.
 
     Wraps a NumPy array with metadata including field name and memory layout.
 
@@ -82,20 +82,20 @@ class AcesField:
 
 class FieldDict:
     """
-    Dictionary-like access to a collection of ``AcesField`` objects.
+    Dictionary-like access to a collection of ``CeceField`` objects.
 
     Provides ``__getitem__``, ``__setitem__``, ``__contains__``, and
     iteration over field names, returning raw NumPy arrays rather than
-    ``AcesField`` wrappers.
+    ``CeceField`` wrappers.
 
     Parameters
     ----------
     fields_dict : dict
-        Mapping of field names to ``AcesField`` objects. This dict is
-        shared with the owning ``AcesState`` and mutated in place.
+        Mapping of field names to ``CeceField`` objects. This dict is
+        shared with the owning ``CeceState`` and mutated in place.
     """
 
-    def __init__(self, fields_dict: Dict[str, AcesField]) -> None:
+    def __init__(self, fields_dict: Dict[str, CeceField]) -> None:
         self._fields = fields_dict
 
     def __getitem__(self, name: str) -> np.ndarray:
@@ -139,7 +139,7 @@ class FieldDict:
         """
         if not isinstance(value, np.ndarray):
             raise TypeError("Field value must be a numpy array")
-        self._fields[name] = AcesField(name, value)
+        self._fields[name] = CeceField(name, value)
 
     def __contains__(self, name: object) -> bool:
         """
@@ -222,13 +222,13 @@ class FieldDict:
         return default
 
 
-class AcesState:
+class CeceState:
     """
-    Container for ACES import and export fields.
+    Container for CECE import and export fields.
 
     Manages 3D field arrays for a fixed grid with dimensions ``(nx, ny, nz)``.
     Import fields are provided by the user before computation; export fields
-    are populated by the ACES compute engine.
+    are populated by the CECE compute engine.
 
     Parameters
     ----------
@@ -255,7 +255,7 @@ class AcesState:
 
     Examples
     --------
-    >>> state = AcesState(nx=144, ny=96, nz=72)
+    >>> state = CeceState(nx=144, ny=96, nz=72)
     >>> state.add_import_field("TEMPERATURE", temp_array)
     >>> state.dimensions
     (144, 96, 72)
@@ -268,8 +268,8 @@ class AcesState:
         self.nx: int = nx
         self.ny: int = ny
         self.nz: int = nz
-        self._import_fields: Dict[str, AcesField] = {}
-        self._export_fields: Dict[str, AcesField] = {}
+        self._import_fields: Dict[str, CeceField] = {}
+        self._export_fields: Dict[str, CeceField] = {}
         self._import_fields_dict: FieldDict = FieldDict(self._import_fields)
         self._export_fields_dict: FieldDict = FieldDict(self._export_fields)
 
@@ -323,7 +323,7 @@ class AcesState:
         else:
             raise ValueError("Array must be C-contiguous or Fortran-contiguous")
 
-        self._import_fields[name] = AcesField(name, array, layout)
+        self._import_fields[name] = CeceField(name, array, layout)
 
     def get_import_field(self, name: str) -> np.ndarray:
         """

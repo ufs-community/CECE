@@ -1,7 +1,7 @@
-# HEMCO to ACES Migration Guide
+# HEMCO to CECE Migration Guide
 
-This guide walks HEMCO users through migrating their emission configurations to ACES.
-ACES supports all HEMCO capabilities and adds new features including Kokkos GPU acceleration,
+This guide walks HEMCO users through migrating their emission configurations to CECE.
+CECE supports all HEMCO capabilities and adds new features including Kokkos GPU acceleration,
 provenance tracking, and dynamic species registration.
 
 ## Table of Contents
@@ -14,16 +14,16 @@ provenance tracking, and dynamic species registration.
 6. [Vertical Distribution](#vertical-distribution)
 7. [Regional Inventories and Hierarchy](#regional-inventories-and-hierarchy)
 8. [Scale Factors and Masks](#scale-factors-and-masks)
-9. [New ACES Capabilities](#new-aces-capabilities)
+9. [New CECE Capabilities](#new-cece-capabilities)
 10. [Troubleshooting](#troubleshooting)
 
 ---
 
 ## Overview of Differences
 
-| Feature | HEMCO | ACES |
+| Feature | HEMCO | CECE |
 |---|---|---|
-| Config format | `HEMCO_Config.rc` (custom text) | `aces_config.yaml` (YAML) |
+| Config format | `HEMCO_Config.rc` (custom text) | `cece_config.yaml` (YAML) |
 | Diagnostics | `HEMCO_Diagn.rc` | `diagnostics:` block in YAML |
 | Temporal profiles | Inline slash-separated values | `temporal_profiles:` block |
 | Vertical distribution | Column 13 keyword | `vdist:` block per layer |
@@ -40,7 +40,7 @@ provenance tracking, and dynamic species registration.
 The fastest way to migrate is the provided conversion script:
 
 ```bash
-python3 scripts/hemco_to_aces.py HEMCO_Config.rc -o aces_config.yaml --diagn HEMCO_Diagn.rc
+python3 scripts/hemco_to_cece.py HEMCO_Config.rc -o cece_config.yaml --diagn HEMCO_Diagn.rc
 ```
 
 This converts:
@@ -50,7 +50,7 @@ This converts:
 - HEMCO_Diagn.rc variables to the `diagnostics:` block
 - `$ROOT` path substitution
 
-Review the output YAML and adjust file paths as needed before running ACES.
+Review the output YAML and adjust file paths as needed before running CECE.
 
 ---
 
@@ -64,7 +64,7 @@ Review the output YAML and adjust file paths as needed before running ACES.
   0     MACCITY_CO data/MACCity.nc       CO    2000  1   2   kg/m2 CO      1/2     1   1
 ```
 
-### Equivalent ACES YAML
+### Equivalent CECE YAML
 
 ```yaml
 species:
@@ -76,7 +76,7 @@ species:
       scale: 1.0
       scale_fields: [hourly_scalfact]
 
-aces_data:
+cece_data:
   streams:
     - name: MACCITY_CO
       file: data/MACCity.nc
@@ -84,14 +84,14 @@ aces_data:
 
 ### Operation Mapping
 
-| HEMCO | ACES |
+| HEMCO | CECE |
 |---|---|
 | Hierarchy 1 (base) | `operation: add` |
 | Hierarchy > 1 with override | `operation: replace` |
 
 ### Category Mapping
 
-| HEMCO Cat | ACES Category |
+| HEMCO Cat | CECE Category |
 |---|---|
 | 1 | `anthropogenic` |
 | 2 | `biogenic` |
@@ -115,7 +115,7 @@ EmisNO_Total     NO   -1    -1  -1   2   kg/m2/s  NO_emission_flux_from_all_sect
 EmisCO_Anthro    CO   0     1   1    2   kg/m2/s  CO_anthropogenic_emissions
 ```
 
-### Equivalent ACES YAML
+### Equivalent CECE YAML
 
 ```yaml
 diagnostics:
@@ -144,7 +144,7 @@ diagnostics:
 1        HOURLY_SCALFACT 0.5/0.6/0.7/.../1.2/1.1  -    -    1   1   1    1
 ```
 
-### Equivalent ACES YAML
+### Equivalent CECE YAML
 
 ```yaml
 temporal_profiles:
@@ -190,7 +190,7 @@ species:
       seasonal_cycle: seasonal_biogenic
 ```
 
-All three cycle types can be combined — ACES applies them as a product:
+All three cycle types can be combined — CECE applies them as a product:
 `effective_scale = base_scale × diurnal_factor × weekly_factor × seasonal_factor`
 
 ---
@@ -199,7 +199,7 @@ All three cycle types can be combined — ACES applies them as a product:
 
 ### HEMCO Vertical Distribution Keywords
 
-| HEMCO Keyword | ACES `vdist.method` |
+| HEMCO Keyword | CECE `vdist.method` |
 |---|---|
 | (none, 2D field) | `single` (layer 0) |
 | `L(k)` | `single`, `layer_start: k-1` |
@@ -243,7 +243,7 @@ All vertical distribution methods conserve column mass within 1e-10 relative err
 ## Regional Inventories and Hierarchy
 
 HEMCO uses hierarchy levels to allow regional inventories to override global ones.
-ACES replicates this with `hierarchy` and `operation: replace`.
+CECE replicates this with `hierarchy` and `operation: replace`.
 
 ### HEMCO Example
 
@@ -256,7 +256,7 @@ ACES replicates this with `hierarchy` and `operation: replace`.
 
 Where ScalID 500 is a Europe mask.
 
-### Equivalent ACES YAML
+### Equivalent CECE YAML
 
 ```yaml
 species:
@@ -273,7 +273,7 @@ species:
       scale: 1.0
       mask: mask_europe
 
-aces_data:
+cece_data:
   streams:
     - name: CEDS_CO
       file: data/CEDS_CO.nc
@@ -298,7 +298,7 @@ before adding the regional inventory value.
 500      MASK_EUROPE  data/europe.nc    MASK   -    1   2   1    1
 ```
 
-### Equivalent ACES YAML
+### Equivalent CECE YAML
 
 ```yaml
 # Time-varying scale factor -> reference in scale_fields
@@ -317,7 +317,7 @@ species:
       scale: 1.0
       mask: mask_europe
 
-aces_data:
+cece_data:
   streams:
     - name: hourly_sf
       file: data/hourly.nc
@@ -334,24 +334,24 @@ mask: [mask_land, mask_europe]
 
 ---
 
-## New ACES Capabilities
+## New CECE Capabilities
 
 ### GPU Acceleration
 
-ACES runs all emission stacking on GPU via Kokkos with no code changes:
+CECE runs all emission stacking on GPU via Kokkos with no code changes:
 
 ```bash
 # Build with CUDA support
-cmake -DACES_ENABLE_CUDA=ON ..
+cmake -DCECE_ENABLE_CUDA=ON ..
 make -j4
 
 # Run with GPU
-ACES_DEVICE_ID=0 ./aces_nuopc_single_driver --config aces_config.yaml
+CECE_DEVICE_ID=0 ./cece_nuopc_single_driver --config cece_config.yaml
 ```
 
 ### Emission Provenance Tracking
 
-ACES records which layers contributed to each species at each timestep:
+CECE records which layers contributed to each species at each timestep:
 
 ```cpp
 // After StackingEngine::Execute()
@@ -365,13 +365,13 @@ std::cout << prov.FormatReport();
 Add new species at runtime without recompilation:
 
 ```cpp
-aces::EmissionLayer new_layer;
+cece::EmissionLayer new_layer;
 new_layer.field_name = "new_inventory";
 new_layer.operation = "add";
 new_layer.hierarchy = 1;
 new_layer.scale = 1.0;
 
-aces::AddSpecies(config, "new_species", {new_layer});
+cece::AddSpecies(config, "new_species", {new_layer});
 engine.AddSpecies("new_species");  // picks up from updated config
 ```
 
@@ -381,7 +381,7 @@ engine.AddSpecies("new_species");  // picks up from updated config
 
 ### "Field not found" errors
 
-Ensure the field name in `species[].field` matches the `name` in `aces_data.streams`
+Ensure the field name in `species[].field` matches the `name` in `cece_data.streams`
 or the external name in `meteorology:`.
 
 ### Temporal profiles not applied
@@ -406,4 +406,4 @@ verify that the source field is 2D (nz=1) when using `SINGLE`, `RANGE`, `PRESSUR
 - Ensure Kokkos is built with OpenMP: `-DKokkos_ENABLE_OPENMP=ON`
 - Set thread count: `export OMP_NUM_THREADS=16`
 - For GPU: ensure CUDA toolkit matches Kokkos build configuration
-- Run the benchmark: `python3 scripts/benchmark_hemco_vs_aces.py --build-dir build`
+- Run the benchmark: `python3 scripts/benchmark_hemco_vs_cece.py --build-dir build`

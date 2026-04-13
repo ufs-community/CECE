@@ -1,22 +1,22 @@
 # Using the Provided Examples
 
-ACES includes several example configurations that demonstrate common emission stacking scenarios, modeled after examples in the HEMCO guide and showcasing advanced ACES features.
+CECE includes several example configurations that demonstrate common emission stacking scenarios, modeled after examples in the HEMCO guide and showcasing advanced CECE features.
 
 ## Example Scenarios
 
 The `examples/` directory contains several YAML configuration files:
 
--   `aces_config_ex1.yaml`: Basic single CO species with TIDE data ingestion
--   `aces_config_ex2.yaml`: Overlaying a regional European CO inventory on a global background
--   `aces_config_ex3.yaml`: Simple testing configuration with minimal grid
--   `aces_config_ex4.yaml`: Using the GFED4 extension for biomass burning
--   `aces_config_ex5.yaml`: Multi-species (CO and NO) emissions with multi-timestep execution
--   `aces_config_ex6.yaml`: Handling non-separated inventories
--   `aces_config_advanced.yaml`: **NEW** - Comprehensive example demonstrating advanced Stacking Engine features
+-   `cece_config_ex1.yaml`: Basic single CO species with TIDE data ingestion
+-   `cece_config_ex2.yaml`: Overlaying a regional European CO inventory on a global background
+-   `cece_config_ex3.yaml`: Simple testing configuration with minimal grid
+-   `cece_config_ex4.yaml`: Using the GFED4 extension for biomass burning
+-   `cece_config_ex5.yaml`: Multi-species (CO and NO) emissions with multi-timestep execution
+-   `cece_config_ex6.yaml`: Handling non-separated inventories
+-   `cece_config_advanced.yaml`: **NEW** - Comprehensive example demonstrating advanced Stacking Engine features
 
 ### Advanced Example Highlights
 
-The `aces_config_advanced.yaml` example showcases sophisticated emission processing capabilities:
+The `cece_config_advanced.yaml` example showcases sophisticated emission processing capabilities:
 
 - **Hierarchical Layer Processing**: Multiple priority levels within categories
 - **Temporal Scaling**: Diurnal, weekly, and seasonal emission cycles
@@ -46,7 +46,7 @@ For complete technical details about how these features work, see the [Stacking 
 
 ## Setting Up Examples
 
-To run these examples, you need the associated NetCDF data files. ACES provides a script to automate the setup process.
+To run these examples, you need the associated NetCDF data files. CECE provides a script to automate the setup process.
 
 ### 1. Run the Setup Script
 ```bash
@@ -69,7 +69,7 @@ This will download the necessary NetCDF files into the `data/` directory.
 You can use the standalone NUOPC driver to run any of the example configurations:
 ```bash
 # Example: Run Example 1
-./build/bin/aces_nuopc_driver --config examples/aces_config_ex1.yaml
+./build/bin/cece_nuopc_driver --config examples/cece_config_ex1.yaml
 ```
 The driver will perform the simulation steps and produce diagnostic output as configured in the YAML file.
 
@@ -79,6 +79,6 @@ The driver will perform the simulation steps and produce diagnostic output as co
 
 To better understand the stacking hierarchy of an example, use the visualization utility:
 ```bash
-python scripts/visualize_stack.py --config examples/aces_config_ex2.yaml --output ex2_stack.png
+python scripts/visualize_stack.py --config examples/cece_config_ex2.yaml --output ex2_stack.png
 ```
 This will generate a graph showing how the different layers (global background and regional override) are prioritized and combined.

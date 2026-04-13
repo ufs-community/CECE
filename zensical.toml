@@ -1,8 +1,8 @@
 [project]
-site_name = "ACES Documentation"
-site_description = "Atmospheric Chemistry Emission System"
-site_author = "ACES Team"
-copyright = "Copyright &copy; 2026 ACES Authors"
+site_name = "CECE Documentation"
+site_description = "Community Emissions Computing Engine"
+site_author = "CECE Team"
+copyright = "Copyright &copy; 2026 CECE Authors"
 
 nav = [
     { "Introduction" = "index.md" },
@@ -43,4 +43,4 @@ toggle.icon = "material/brightness-4"
 toggle.name = "Switch to light mode"
 
 [project.plugins.mkdoxy]
-projects = { aces = { src-dirs = "include/aces", full-doc = true, doxy-cfg = { RECURSIVE = "YES", GENERATE_XML = "YES" } } }
+projects = { cece = { src-dirs = "include/cece", full-doc = true, doxy-cfg = { RECURSIVE = "YES", GENERATE_XML = "YES" } } }

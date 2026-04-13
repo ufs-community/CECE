@@ -3,9 +3,9 @@ requires = ["setuptools>=61.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "aces-tools"
+name = "cece-tools"
 version = "0.1.0"
-description = "Tools and scripts for the ACES (Atmospheric Chemistry Emissions Stacker) component."
+description = "Tools and scripts for the CECE (Atmospheric Chemistry Emissions Stacker) component."
 requires-python = ">=3.8"
 dependencies = [
     "pyyaml",

@@ -2,7 +2,7 @@
 !> @brief Legacy Fortran physics implementation for testing the bridge.
 !>
 !> This module contains a simple physics kernel to demonstrate
-!> interoperability with C++ ACES components.
+!> interoperability with C++ CECE components.
 
 module legacy_fortran_mod
   use iso_c_binding

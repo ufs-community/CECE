@@ -1,5 +1,5 @@
 """
-Property-based tests for ACES Python interface.
+Property-based tests for CECE Python interface.
 
 These tests validate correctness properties that should hold across all valid inputs.
 Uses hypothesis for property-based testing.
@@ -12,7 +12,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "build" / "src" / "python"
 import pytest
 import numpy as np
 from hypothesis import given, strategies as st, settings, HealthCheck
-import aces
+import cece
 
 
 # Strategies for generating test data
@@ -70,19 +70,19 @@ class TestProperty1ExecutionSpaceConfiguration:
     def test_execution_space_roundtrip(self, space):
         """Test that setting and getting execution space returns the same value."""
         try:
-            aces.set_execution_space(space)
-            current = aces.get_execution_space()
+            cece.set_execution_space(space)
+            current = cece.get_execution_space()
             # Note: The current execution space might be different if the space
             # is not available or if there's a default. Just verify it's a valid space.
-            assert current in aces.get_available_execution_spaces(), \
+            assert current in cece.get_available_execution_spaces(), \
                 f"Current space {current} not in available spaces"
         except RuntimeError:
             # Space might not be available on this system
             pass
 
-    def test_available_spaces_non_empty(self):
+    def test_available_spcece_non_empty(self):
         """Test that available execution spaces list is non-empty."""
-        spaces = aces.get_available_execution_spaces()
+        spaces = cece.get_available_execution_spaces()
         assert isinstance(spaces, list), "Should return a list"
         assert len(spaces) > 0, "Should have at least one available space"
         assert 'Serial' in spaces, "Serial space should always be available"
@@ -91,15 +91,15 @@ class TestProperty1ExecutionSpaceConfiguration:
 class TestProperty2ConfigurationObjectProperties:
     """Property 2: Configuration Object Properties
 
-    For any AcesConfig object, accessing the properties species, physics_schemes,
-    aces_data, and vertical_config should return objects of the correct type.
+    For any CeceConfig object, accessing the properties species, physics_schemes,
+    cece_data, and vertical_config should return objects of the correct type.
 
     Validates: Requirements 2.1
     """
 
     def test_config_properties_types(self):
         """Test that config properties have correct types."""
-        config = aces.AcesConfig()
+        config = cece.CeceConfig()
 
         # Check species is dict
         assert isinstance(config.species, dict), "species should be dict"
@@ -107,8 +107,8 @@ class TestProperty2ConfigurationObjectProperties:
         # Check physics_schemes is list
         assert isinstance(config.physics_schemes, list), "physics_schemes should be list"
 
-        # Check aces_data is dict
-        assert isinstance(config.aces_data, dict), "aces_data should be dict"
+        # Check cece_data is dict
+        assert isinstance(config.cece_data, dict), "cece_data should be dict"
 
         # Check vertical_config exists
         assert hasattr(config, 'vertical_config'), "Should have vertical_config property"
@@ -117,7 +117,7 @@ class TestProperty2ConfigurationObjectProperties:
 class TestProperty3ConfigurationItemAddition:
     """Property 3: Configuration Item Addition
 
-    For any AcesConfig object, after calling add_species(name, layers),
+    For any CeceConfig object, after calling add_species(name, layers),
     the species should appear in config.species[name] with the same layers.
 
     Validates: Requirements 2.2, 2.3, 2.4
@@ -127,9 +127,9 @@ class TestProperty3ConfigurationItemAddition:
     @settings(max_examples=20, suppress_health_check=[HealthCheck.too_slow])
     def test_add_species_appears_in_config(self, species_name):
         """Test that added species appears in config."""
-        config = aces.AcesConfig()
-        vdist = aces.VerticalDistributionConfig(method="single")
-        layer = aces.EmissionLayer(field_name=species_name, vdist=vdist)
+        config = cece.CeceConfig()
+        vdist = cece.VerticalDistributionConfig(method="single")
+        layer = cece.EmissionLayer(field_name=species_name, vdist=vdist)
 
         config.add_species(species_name, [layer])
 
@@ -138,7 +138,7 @@ class TestProperty3ConfigurationItemAddition:
 
     def test_add_physics_scheme_appears_in_config(self):
         """Test that added physics scheme appears in config."""
-        config = aces.AcesConfig()
+        config = cece.CeceConfig()
         config.add_physics_scheme("test_scheme", "cpp", {})
 
         assert len(config.physics_schemes) > 0, "Should have at least one scheme"
@@ -149,7 +149,7 @@ class TestProperty3ConfigurationItemAddition:
 class TestProperty4ConfigurationSerializationRoundTrip:
     """Property 4: Configuration Serialization Round-Trip
 
-    For any valid AcesConfig object, calling to_yaml() followed by
+    For any valid CeceConfig object, calling to_yaml() followed by
     load_config(yaml_string) should produce an equivalent configuration.
 
     Validates: Requirements 2.5, 20.1, 20.2, 20.3, 20.4, 20.5, 20.6
@@ -157,9 +157,9 @@ class TestProperty4ConfigurationSerializationRoundTrip:
 
     def test_config_yaml_roundtrip(self):
         """Test that config survives YAML serialization round-trip."""
-        config1 = aces.AcesConfig()
-        vdist = aces.VerticalDistributionConfig(method="single")
-        layer = aces.EmissionLayer(field_name="CO", vdist=vdist)
+        config1 = cece.CeceConfig()
+        vdist = cece.VerticalDistributionConfig(method="single")
+        layer = cece.EmissionLayer(field_name="CO", vdist=vdist)
         config1.add_species("CO", [layer])
 
         # Serialize to YAML
@@ -168,7 +168,7 @@ class TestProperty4ConfigurationSerializationRoundTrip:
         assert len(yaml_str) > 0, "YAML string should not be empty"
 
         # Deserialize from YAML
-        config2 = aces.load_config(yaml_str)
+        config2 = cece.load_config(yaml_str)
 
         # Check equivalence
         assert "CO" in config2.species, "Species not preserved in round-trip"
@@ -176,14 +176,14 @@ class TestProperty4ConfigurationSerializationRoundTrip:
 
     def test_config_dict_roundtrip(self):
         """Test that config survives dict serialization round-trip."""
-        config1 = aces.AcesConfig()
+        config1 = cece.CeceConfig()
 
         # Serialize to dict
         dict1 = config1.to_dict()
         assert isinstance(dict1, dict), "to_dict should return dict"
 
         # Deserialize from dict
-        config2 = aces.AcesConfig.from_dict(dict1)
+        config2 = cece.CeceConfig.from_dict(dict1)
 
         # Serialize again
         dict2 = config2.to_dict()
@@ -195,7 +195,7 @@ class TestProperty4ConfigurationSerializationRoundTrip:
 class TestProperty5StateCreationAndDimensions:
     """Property 5: State Creation and Dimensions
 
-    For any dimensions (nx, ny, nz), creating an AcesState with those dimensions
+    For any dimensions (nx, ny, nz), creating an CeceState with those dimensions
     should result in state.dimensions == (nx, ny, nz).
 
     Validates: Requirements 3.1
@@ -206,7 +206,7 @@ class TestProperty5StateCreationAndDimensions:
     def test_state_dimensions_match(self, dims):
         """Test that state dimensions match input dimensions."""
         nx, ny, nz = dims
-        state = aces.AcesState(nx=nx, ny=ny, nz=nz)
+        state = cece.CeceState(nx=nx, ny=ny, nz=nz)
 
         assert state.dimensions == (nx, ny, nz), \
             f"Expected {(nx, ny, nz)}, got {state.dimensions}"
@@ -227,7 +227,7 @@ class TestProperty6ZeroCopyFieldWrapping:
     def test_field_wrapping_preserves_data(self, dims):
         """Test that field wrapping preserves data."""
         nx, ny, nz = dims
-        state = aces.AcesState(nx=nx, ny=ny, nz=nz)
+        state = cece.CeceState(nx=nx, ny=ny, nz=nz)
 
         # Create array with known values
         original = np.arange(nx*ny*nz, dtype=np.float64).reshape((nx, ny, nz))
@@ -246,7 +246,7 @@ class TestProperty6ZeroCopyFieldWrapping:
     def test_field_wrapping_c_order(self, dims):
         """Test that C-order arrays are handled correctly."""
         nx, ny, nz = dims
-        state = aces.AcesState(nx=nx, ny=ny, nz=nz)
+        state = cece.CeceState(nx=nx, ny=ny, nz=nz)
 
         # Create C-order array
         original = np.arange(nx*ny*nz, dtype=np.float64).reshape((nx, ny, nz), order='C')
@@ -266,7 +266,7 @@ class TestProperty6ZeroCopyFieldWrapping:
     def test_field_wrapping_fortran_order(self, dims):
         """Test that Fortran-order arrays are handled correctly."""
         nx, ny, nz = dims
-        state = aces.AcesState(nx=nx, ny=ny, nz=nz)
+        state = cece.CeceState(nx=nx, ny=ny, nz=nz)
 
         # Create Fortran-order array
         original = np.arange(nx*ny*nz, dtype=np.float64).reshape((nx, ny, nz), order='F')
@@ -296,7 +296,7 @@ class TestProperty7FieldDictionaryAccess:
     def test_field_dict_access_equivalence(self, dims):
         """Test that dict access returns same field as get method."""
         nx, ny, nz = dims
-        state = aces.AcesState(nx=nx, ny=ny, nz=nz)
+        state = cece.CeceState(nx=nx, ny=ny, nz=nz)
 
         # Add field
         field = np.ones((nx, ny, nz), dtype=np.float64)
@@ -315,7 +315,7 @@ class TestProperty7FieldDictionaryAccess:
 class TestProperty8ComputationExecution:
     """Property 8: Computation Execution
 
-    For any valid state and configuration, calling aces.compute(state, config)
+    For any valid state and configuration, calling cece.compute(state, config)
     should complete without raising exceptions.
 
     Validates: Requirements 4.1, 4.2, 4.3
@@ -323,8 +323,8 @@ class TestProperty8ComputationExecution:
 
     def test_compute_completes_without_error(self):
         """Test that compute completes without raising exceptions."""
-        config = aces.AcesConfig()
-        state = aces.AcesState(nx=5, ny=5, nz=5)
+        config = cece.CeceConfig()
+        state = cece.CeceState(nx=5, ny=5, nz=5)
 
         # Add minimal required fields
         state.add_import_field("T", np.ones((5, 5, 5), dtype=np.float64))
@@ -332,9 +332,9 @@ class TestProperty8ComputationExecution:
 
         # This should not raise an exception
         try:
-            aces.compute(state, config)
+            cece.compute(state, config)
         except RuntimeError as e:
-            # Some errors are expected if ACES isn't fully initialized
+            # Some errors are expected if CECE isn't fully initialized
             # but the function should at least be callable
             pass
 
@@ -343,15 +343,15 @@ class TestProperty9TemporalScalingApplication:
     """Property 9: Temporal Scaling Application
 
     For any configuration with temporal cycles and any temporal parameters,
-    calling aces.compute() with different temporal parameters should work.
+    calling cece.compute() with different temporal parameters should work.
 
     Validates: Requirements 4.6, 13.1, 13.2, 13.3, 13.4, 13.5
     """
 
     def test_temporal_parameters_accepted(self):
         """Test that temporal parameters are accepted."""
-        config = aces.AcesConfig()
-        state = aces.AcesState(nx=5, ny=5, nz=5)
+        config = cece.CeceConfig()
+        state = cece.CeceState(nx=5, ny=5, nz=5)
 
         # Add minimal fields
         state.add_import_field("T", np.ones((5, 5, 5), dtype=np.float64))
@@ -362,16 +362,16 @@ class TestProperty9TemporalScalingApplication:
             for day_of_week in [0, 3, 6]:
                 for month in [1, 6, 12]:
                     try:
-                        aces.compute(state, config, hour=hour, day_of_week=day_of_week, month=month)
+                        cece.compute(state, config, hour=hour, day_of_week=day_of_week, month=month)
                     except RuntimeError:
-                        # Expected if ACES isn't fully initialized
+                        # Expected if CECE isn't fully initialized
                         pass
 
 
 class TestProperty10ArrayMemoryLayoutHandling:
     """Property 10: Array Memory Layout Handling
 
-    For any numpy array with C-order layout, passing it to ACES should result
+    For any numpy array with C-order layout, passing it to CECE should result
     in correct computation (data should be accessible without data loss).
 
     Validates: Requirements 6.2, 21.1, 21.4
@@ -382,7 +382,7 @@ class TestProperty10ArrayMemoryLayoutHandling:
     def test_c_order_array_handling(self, dims):
         """Test that C-order arrays are handled correctly."""
         nx, ny, nz = dims
-        state = aces.AcesState(nx=nx, ny=ny, nz=nz)
+        state = cece.CeceState(nx=nx, ny=ny, nz=nz)
 
         # Create C-order array with specific values
         original = np.arange(nx*ny*nz, dtype=np.float64).reshape((nx, ny, nz), order='C')
@@ -408,7 +408,7 @@ class TestProperty11TypeConversion:
     def test_list_to_array_conversion(self, dims):
         """Test that Python lists are converted to arrays."""
         nx, ny, nz = dims
-        state = aces.AcesState(nx=nx, ny=ny, nz=nz)
+        state = cece.CeceState(nx=nx, ny=ny, nz=nz)
 
         # Create list of floats
         data_list = [float(i) for i in range(nx*ny*nz)]
@@ -435,7 +435,7 @@ class TestProperty12ReferenceCountingMemoryManagement:
     def test_field_remains_valid_with_state(self, dims):
         """Test that fields remain valid as long as state exists."""
         nx, ny, nz = dims
-        state = aces.AcesState(nx=nx, ny=ny, nz=nz)
+        state = cece.CeceState(nx=nx, ny=ny, nz=nz)
 
         # Add field
         original = np.ones((nx, ny, nz), dtype=np.float64)
@@ -458,21 +458,21 @@ class TestProperty13ErrorHandlingForInvalidInputs:
     def test_invalid_state_dimensions_raise_error(self):
         """Test that invalid dimensions raise ValueError."""
         with pytest.raises(ValueError):
-            aces.AcesState(nx=0, ny=10, nz=10)
+            cece.CeceState(nx=0, ny=10, nz=10)
 
         with pytest.raises(ValueError):
-            aces.AcesState(nx=10, ny=-1, nz=10)
+            cece.CeceState(nx=10, ny=-1, nz=10)
 
     def test_missing_field_raises_keyerror(self):
         """Test that accessing missing field raises KeyError."""
-        state = aces.AcesState(nx=10, ny=10, nz=10)
+        state = cece.CeceState(nx=10, ny=10, nz=10)
 
         with pytest.raises(KeyError):
             state.get_import_field("nonexistent")
 
     def test_dimension_mismatch_raises_error(self):
         """Test that dimension mismatch raises ValueError."""
-        state = aces.AcesState(nx=10, ny=10, nz=10)
+        state = cece.CeceState(nx=10, ny=10, nz=10)
         field = np.ones((5, 5, 5), dtype=np.float64)
 
         with pytest.raises(ValueError):
@@ -490,7 +490,7 @@ class TestProperty14ExecutionSpaceAvailability:
 
     def test_serial_space_always_available(self):
         """Test that Serial execution space is always available."""
-        spaces = aces.get_available_execution_spaces()
+        spaces = cece.get_available_execution_spaces()
         assert isinstance(spaces, list), "Should return list"
         assert len(spaces) > 0, "Should have at least one space"
         assert 'Serial' in spaces, "Serial should always be available"
@@ -509,15 +509,15 @@ class TestProperty15ArrayLayoutQuery:
     def test_array_layout_query_returns_valid_value(self, dims):
         """Test that array layout query returns valid value."""
         nx, ny, nz = dims
-        state = aces.AcesState(nx=nx, ny=ny, nz=nz)
+        state = cece.CeceState(nx=nx, ny=ny, nz=nz)
 
         # Add field
         field = np.ones((nx, ny, nz), dtype=np.float64)
         state.add_import_field("test_field", field)
 
         # Query layout (if method exists)
-        if hasattr(aces, 'get_array_layout'):
-            layout = aces.get_array_layout("test_field")
+        if hasattr(cece, 'get_array_layout'):
+            layout = cece.get_array_layout("test_field")
             assert layout in ["fortran", "c"], f"Invalid layout: {layout}"
 
 

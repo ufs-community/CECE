@@ -1,10 +1,10 @@
-# Vertical Distribution in ACES
+# Vertical Distribution in CECE
 
-Vertical distribution is a critical capability in ACES that maps 2D emission fields to 3D atmospheric grids. This process is essential for accurately representing emission sources at appropriate atmospheric levels, from surface-based anthropogenic emissions to elevated aircraft and lightning sources.
+Vertical distribution is a critical capability in CECE that maps 2D emission fields to 3D atmospheric grids. This process is essential for accurately representing emission sources at appropriate atmospheric levels, from surface-based anthropogenic emissions to elevated aircraft and lightning sources.
 
 ## Overview
 
-Most emission inventories provide data as 2D surface fluxes, but atmospheric chemistry models require 3D emission fields that specify emissions at each vertical level. ACES provides multiple algorithms to distribute these 2D emissions vertically based on physical principles and source characteristics.
+Most emission inventories provide data as 2D surface fluxes, but atmospheric chemistry models require 3D emission fields that specify emissions at each vertical level. CECE provides multiple algorithms to distribute these 2D emissions vertically based on physical principles and source characteristics.
 
 ## Distribution Methods
 
@@ -190,7 +190,7 @@ for each grid cell (i,j):
 
 ## Mass Conservation
 
-All vertical distribution methods in ACES ensure strict mass conservation:
+All vertical distribution methods in CECE ensure strict mass conservation:
 
 ```
 ∑(k=1 to nz) emissions_3d[i,j,k] = emissions_2d[i,j]  ∀ i,j
@@ -203,7 +203,7 @@ This is achieved through normalization factors that account for:
 
 ## Coordinate System Support
 
-ACES supports multiple vertical coordinate systems for distribution calculations:
+CECE supports multiple vertical coordinate systems for distribution calculations:
 
 ### Terrain-Following Coordinates
 ```yaml
@@ -342,7 +342,7 @@ species:
 ## Validation and Quality Assurance
 
 ### Mass Conservation Checking
-ACES automatically validates mass conservation for all vertical distribution operations:
+CECE automatically validates mass conservation for all vertical distribution operations:
 
 ```cpp
 // Automatic mass conservation validation
@@ -351,7 +351,7 @@ double total_3d = sum(emissions_3d);
 double conservation_error = abs(total_3d - total_2d) / total_2d;
 
 if (conservation_error > 1.0e-12) {
-    ACES_LOG_WARNING("Mass conservation error: " + std::to_string(conservation_error));
+    CECE_LOG_WARNING("Mass conservation error: " + std::to_string(conservation_error));
 }
 ```
 

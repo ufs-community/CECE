@@ -17,7 +17,7 @@ contains
   !> @brief Create an ESMF_GridComp reusing the parent VM context.
   !>
   !> Returns the GridComp as a C pointer via transfer() so C++ tests
-  !> can pass it to aces_core_initialize_p2 and other C bridges.
+  !> can pass it to cece_core_initialize_p2 and other C bridges.
   !>
   !> @param name  Component name (null-terminated C string)
   !> @param clock Clock C pointer (already created by C++ test)
