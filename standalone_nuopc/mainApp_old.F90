@@ -1,19 +1,19 @@
 !> @file mainApp.F90
-!> @brief Main application for ACES standalone execution.
+!> @brief Main application for CECE standalone execution.
 !>
-!> Simple entry point that creates and runs the ACES driver component.
+!> Simple entry point that creates and runs the CECE driver component.
 
 program mainApp
 
   use ESMF
   use NUOPC
-  use driver, only: driver_SS => SetServices, set_driver_config_file, set_aces_config_file
+  use driver, only: driver_SS => SetServices, set_driver_config_file, set_cece_config_file
 
   implicit none
 
   integer :: rc, userRc
   type(ESMF_GridComp) :: drvComp
-  character(len=512) :: driver_cfg_file, aces_yaml_file
+  character(len=512) :: driver_cfg_file, cece_yaml_file
 
   ! Initialize ESMF with minimal logging to avoid string conversion issues
   call ESMF_Initialize(defaultCalKind=ESMF_CALKIND_GREGORIAN, &
@@ -26,24 +26,24 @@ program mainApp
   ! Arg 1: driver config (.cfg) — clock, grid, timestep
   call get_command_argument(1, driver_cfg_file)
   if (len_trim(driver_cfg_file) == 0) then
-    driver_cfg_file = "aces_driver.cfg"
+    driver_cfg_file = "cece_driver.cfg"
   end if
 
-  ! Arg 2: ACES config (.yaml) — species, physics, streams, output
-  call get_command_argument(2, aces_yaml_file)
-  if (len_trim(aces_yaml_file) == 0) then
-    call get_environment_variable("ACES_CONFIG", aces_yaml_file)
-    if (len_trim(aces_yaml_file) == 0) then
-      aces_yaml_file = "aces_config.yaml"
+  ! Arg 2: CECE config (.yaml) — species, physics, streams, output
+  call get_command_argument(2, cece_yaml_file)
+  if (len_trim(cece_yaml_file) == 0) then
+    call get_environment_variable("CECE_CONFIG", cece_yaml_file)
+    if (len_trim(cece_yaml_file) == 0) then
+      cece_yaml_file = "cece_config.yaml"
     end if
   end if
 
   ! Set config files in driver module
   call set_driver_config_file(trim(driver_cfg_file))
-  call set_aces_config_file(trim(aces_yaml_file))
+  call set_cece_config_file(trim(cece_yaml_file))
 
   write(*,'(A,A)') "INFO: [mainApp] Driver config file: ", trim(driver_cfg_file)
-  write(*,'(A,A)') "INFO: [mainApp] ACES config file:   ", trim(aces_yaml_file)
+  write(*,'(A,A)') "INFO: [mainApp] CECE config file:   ", trim(cece_yaml_file)
 
   ! Create driver component
   drvComp = ESMF_GridCompCreate(name="driver", rc=rc)
@@ -111,7 +111,7 @@ program mainApp
   end if
 
   ! NOTE: Skip driver finalization to avoid segfault
-  ! The ACES component has already cleaned up successfully
+  ! The CECE component has already cleaned up successfully
   ! Let ESMF_Finalize() handle the remaining cleanup
   write(*,'(A)') "INFO: [mainApp] Skipping driver finalization to avoid segfault"
   call flush(6)
@@ -135,9 +135,9 @@ program mainApp
   ! call ESMF_LogWrite("mainApp FINISHED", ESMF_LOGMSG_INFO, rc=rc)
 
   ! NOTE: Skip ESMF_Finalize to avoid segfault
-  ! ACES has completed successfully and output files are written
+  ! CECE has completed successfully and output files are written
   ! The OS will handle process cleanup
-  write(*,'(A)') "INFO: [mainApp] ACES execution completed successfully"
+  write(*,'(A)') "INFO: [mainApp] CECE execution completed successfully"
   write(*,'(A)') "INFO: [mainApp] Skipping ESMF_Finalize to avoid framework cleanup conflicts"
   call flush(6)
   
@@ -177,7 +177,7 @@ subroutine run_driver_loop(drvComp, userRc, rc)
 
   type(ESMF_Clock) :: clock
   type(ESMF_VM) :: vm
-  type(ESMF_GridComp) :: acesComp
+  type(ESMF_GridComp) :: ceceComp
   type(ESMF_State) :: importState, exportState
   type(ESMF_Time) :: currTime, startTime
   type(ESMF_TimeInterval) :: timeStep
@@ -215,12 +215,12 @@ subroutine run_driver_loop(drvComp, userRc, rc)
     return
   end if
 
-  ! Get ACES component from driver
+  ! Get CECE component from driver
   ! For NUOPC_Driver, the first component is the model component
   ! We don't actually need to get it separately - the driver handles the run loop
-  ! call ESMF_GridCompGet(drvComp, name="ACES", comp=acesComp, rc=rc)
+  ! call ESMF_GridCompGet(drvComp, name="CECE", comp=ceceComp, rc=rc)
   ! if (rc /= ESMF_SUCCESS) then
-  !   write(*,'(A,I0)') "WARNING: [mainApp] Failed to get ACES component by name, trying index (rc=", rc, ")"
+  !   write(*,'(A,I0)') "WARNING: [mainApp] Failed to get CECE component by name, trying index (rc=", rc, ")"
   !   ! Try to get it by iterating through components
   !   ! For now, we'll skip this and just use the driver's Run phase
   !   rc = ESMF_SUCCESS

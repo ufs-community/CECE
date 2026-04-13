@@ -1,5 +1,5 @@
 !> @file mainApp.F90
-!> @brief Main application for ACES standalone execution.
+!> @brief Main application for CECE standalone execution.
 !>
 !> Updated to use proper NUOPC_Driver pattern (SingleModelOpenMPProto style).
 !> Fixed multi-timestep execution by removing external time loop conflicts.
@@ -8,13 +8,13 @@ program mainApp
 
   use ESMF
   use NUOPC
-  use driver, only: driver_SS => SetServices, set_driver_config_file, set_aces_config_file
+  use driver, only: driver_SS => SetServices, set_driver_config_file, set_cece_config_file
 
   implicit none
 
   integer :: rc, userRc
   type(ESMF_GridComp) :: drvComp
-  character(len=512) :: driver_cfg_file, aces_yaml_file
+  character(len=512) :: driver_cfg_file, cece_yaml_file
 
   ! Initialize ESMF with minimal logging to avoid string conversion issues
   call ESMF_Initialize(defaultCalKind=ESMF_CALKIND_GREGORIAN, &
@@ -24,40 +24,40 @@ program mainApp
     call ESMF_Finalize(endflag=ESMF_END_ABORT)
   end if
 
-  call ESMF_LogWrite("ACES STANDALONE STARTING", ESMF_LOGMSG_INFO, rc=rc)
+  call ESMF_LogWrite("CECE STANDALONE STARTING", ESMF_LOGMSG_INFO, rc=rc)
   if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
     line=__LINE__, &
     file=__FILE__)) &
     call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   ! Check if we have 1 or 2 arguments
-  call get_command_argument(1, aces_yaml_file)
+  call get_command_argument(1, cece_yaml_file)
   call get_command_argument(2, driver_cfg_file)
 
   ! If 2 args: old format (driver.cfg, config.yaml)
   if (len_trim(driver_cfg_file) > 0) then
-    ! Swap so aces_yaml_file gets the second argument
-    driver_cfg_file = aces_yaml_file
-    call get_command_argument(2, aces_yaml_file)
+    ! Swap so cece_yaml_file gets the second argument
+    driver_cfg_file = cece_yaml_file
+    call get_command_argument(2, cece_yaml_file)
   else
     ! If 1 arg: new simplified format (config.yaml only)
-    driver_cfg_file = "aces_driver.cfg"  ! unused placeholder
+    driver_cfg_file = "cece_driver.cfg"  ! unused placeholder
   end if
 
   ! Fallback if no arguments
-  if (len_trim(aces_yaml_file) == 0) then
-    call get_environment_variable("ACES_CONFIG", aces_yaml_file)
-    if (len_trim(aces_yaml_file) == 0) then
-      aces_yaml_file = "aces_config.yaml"
+  if (len_trim(cece_yaml_file) == 0) then
+    call get_environment_variable("CECE_CONFIG", cece_yaml_file)
+    if (len_trim(cece_yaml_file) == 0) then
+      cece_yaml_file = "cece_config.yaml"
     end if
   end if
 
   ! Set config files in driver module
   call set_driver_config_file(trim(driver_cfg_file))
-  call set_aces_config_file(trim(aces_yaml_file))
+  call set_cece_config_file(trim(cece_yaml_file))
 
   write(*,'(A,A)') "INFO: [mainApp] Driver config file: ", trim(driver_cfg_file)
-  write(*,'(A,A)') "INFO: [mainApp] ACES config file:   ", trim(aces_yaml_file)
+  write(*,'(A,A)') "INFO: [mainApp] CECE config file:   ", trim(cece_yaml_file)
 
   ! Create driver component
   drvComp = ESMF_GridCompCreate(name="driver", rc=rc)
@@ -258,7 +258,7 @@ program mainApp
   !   file=__FILE__)) &
   !   call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
-  write(*,'(A)') "INFO: [mainApp] ACES execution completed successfully"
+  write(*,'(A)') "INFO: [mainApp] CECE execution completed successfully"
   write(*,'(A)') "INFO: [mainApp] Skipping ESMF_Finalize to avoid framework cleanup conflicts"
   ! Skip framework finalization to avoid segfault
   ! call ESMF_Finalize()

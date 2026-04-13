@@ -1,7 +1,7 @@
 !> @file driver.F90
-!> @brief NUOPC Driver component for ACES standalone execution.
+!> @brief NUOPC Driver component for CECE standalone execution.
 !>
-!> Specializes NUOPC_Driver to manage a single ACES model component.
+!> Specializes NUOPC_Driver to manage a single CECE model component.
 !> Handles clock management, run loop, and component lifecycle.
 
 module driver
@@ -11,20 +11,20 @@ module driver
   use NUOPC
   use NUOPC_Driver, driverSS => SetServices
   use NUOPC_Driver, only: driver_label_SetModelServices => label_SetModelServices
-  use aces_cap_mod, acesSS => ACES_SetServices
+  use cece_cap_mod, ceceSS => CECE_SetServices
   use, intrinsic :: iso_c_binding
 
   implicit none
 
   private
 
-  public SetServices, set_driver_config_file, set_aces_config_file
+  public SetServices, set_driver_config_file, set_cece_config_file
 
   !> @brief Driver config file path (.cfg format, for clock/grid setup)
-  character(len=512), save :: g_driver_cfg_file = "aces_driver.cfg"
+  character(len=512), save :: g_driver_cfg_file = "cece_driver.cfg"
 
-  !> @brief ACES config file path (.yaml format, for cap/physics/streams)
-  character(len=512), save :: g_aces_yaml_file = "aces_config.yaml"
+  !> @brief CECE config file path (.yaml format, for cap/physics/streams)
+  character(len=512), save :: g_cece_yaml_file = "cece_config.yaml"
 
   ! NUOPC prototype pattern parameters (like SingleModelOpenMPProto)
   integer, parameter :: stepCount = 6  ! Default fallback
@@ -32,8 +32,8 @@ module driver
 
   ! C interface to read YAML timing config
   interface
-    subroutine aces_read_timing_config_c(config_path, path_len, start_time, end_time, &
-                                        timestep_seconds, max_len, rc) bind(C, name="aces_read_timing_config")
+    subroutine cece_read_timing_config_c(config_path, path_len, start_time, end_time, &
+                                        timestep_seconds, max_len, rc) bind(C, name="cece_read_timing_config")
       use, intrinsic :: iso_c_binding
       character(kind=c_char), intent(in) :: config_path(*)
       integer(c_int), value, intent(in) :: path_len
@@ -41,7 +41,7 @@ module driver
       integer(c_int), intent(out) :: timestep_seconds
       integer(c_int), value, intent(in) :: max_len
       integer(c_int), intent(out) :: rc
-    end subroutine aces_read_timing_config_c
+    end subroutine cece_read_timing_config_c
   end interface
 
 contains
@@ -52,11 +52,11 @@ contains
     g_driver_cfg_file = config_file
   end subroutine set_driver_config_file
 
-  !> @brief Set the ACES YAML config file path (called by mainApp)
-  subroutine set_aces_config_file(config_file)
+  !> @brief Set the CECE YAML config file path (called by mainApp)
+  subroutine set_cece_config_file(config_file)
     character(len=*), intent(in) :: config_file
-    g_aces_yaml_file = config_file
-  end subroutine set_aces_config_file
+    g_cece_yaml_file = config_file
+  end subroutine set_cece_config_file
 
   !> @brief SetServices for the driver component
   subroutine SetServices(driver, rc)
@@ -93,7 +93,7 @@ contains
     write(*,'(A)') "INFO: [Driver] SetServices complete"
   end subroutine SetServices
 
-  !> @brief SetModelServices - Configure the ACES model component
+  !> @brief SetModelServices - Configure the CECE model component
   subroutine SetModelServices(driver, rc)
     type(ESMF_GridComp) :: driver
     integer, intent(out) :: rc
@@ -114,30 +114,30 @@ contains
 
     write(*,'(A)') "INFO: [Driver] SetModelServices entered - following NUOPC prototype pattern"
 
-    ! Set ACES config path for the cap (this is still needed)
-    write(*,'(A,A)') "INFO: [Driver] Setting ACES config path: ", trim(g_aces_yaml_file)
-    call ACES_SetConfigPath(trim(g_aces_yaml_file), rc)
+    ! Set CECE config path for the cap (this is still needed)
+    write(*,'(A,A)') "INFO: [Driver] Setting CECE config path: ", trim(g_cece_yaml_file)
+    call CECE_SetConfigPath(trim(g_cece_yaml_file), rc)
     if (rc /= ESMF_SUCCESS) then
-      write(*,'(A,I0)') "ERROR: Failed to set ACES config path rc=", rc
+      write(*,'(A,I0)') "ERROR: Failed to set CECE config path rc=", rc
       return
     end if
 
-    ! SetServices for ACES component (following SingleModelOpenMPProto pattern)
-    ! Note: Grid creation now handled by ACES component itself in InitializeRealize
-    call NUOPC_DriverAddComp(driver, "ACES", acesSS, comp=child, rc=rc)
+    ! SetServices for CECE component (following SingleModelOpenMPProto pattern)
+    ! Note: Grid creation now handled by CECE component itself in InitializeRealize
+    call NUOPC_DriverAddComp(driver, "CECE", ceceSS, comp=child, rc=rc)
     if (rc /= ESMF_SUCCESS) then
       write(*,'(A,I0)') "ERROR: NUOPC_DriverAddComp failed rc=", rc
       return
     end if
-    write(*,'(A)') "INFO: [Driver] ACES component added successfully (grid will be created by component)"
+    write(*,'(A)') "INFO: [Driver] CECE component added successfully (grid will be created by component)"
 
     ! Get timing configuration from YAML config file
     ! Convert Fortran string to C string
-    c_yaml_path = trim(g_aces_yaml_file) // c_null_char
-    c_path_len = len_trim(g_aces_yaml_file)
+    c_yaml_path = trim(g_cece_yaml_file) // c_null_char
+    c_path_len = len_trim(g_cece_yaml_file)
 
     ! Read timing from YAML
-    call aces_read_timing_config_c(c_yaml_path, c_path_len, start_time_str, end_time_str, &
+    call cece_read_timing_config_c(c_yaml_path, c_path_len, start_time_str, end_time_str, &
                                    timestep_sec, 64, c_rc)
 
     if (c_rc == 0) then
@@ -768,15 +768,15 @@ contains
   !> Requirements: 11.1, 11.2, 11.3
   !>
   !> @param driver Driver GridComp
-  !> @param acesComp ACES GridComp
+  !> @param ceceComp CECE GridComp
   !> @param importState Import state
   !> @param exportState Export state
   !> @param grid ESMF Grid
   !> @param mesh ESMF Mesh
   !> @param clock ESMF Clock
   !> @param rc Return code (ESMF_SUCCESS on success)
-  subroutine cleanup_resources(driver, acesComp, importState, exportState, grid, mesh, clock, rc)
-    type(ESMF_GridComp), intent(inout) :: driver, acesComp
+  subroutine cleanup_resources(driver, ceceComp, importState, exportState, grid, mesh, clock, rc)
+    type(ESMF_GridComp), intent(inout) :: driver, ceceComp
     type(ESMF_State), intent(inout) :: importState, exportState
     type(ESMF_Grid), intent(inout) :: grid
     type(ESMF_Mesh), intent(inout) :: mesh
@@ -828,10 +828,10 @@ contains
     call driver_log("INFO", "Calendar destroyed with clock")
 
     ! 7. Destroy GridComp
-    call driver_log("INFO", "Destroying ACES GridComp...")
-    call ESMF_GridCompDestroy(acesComp, rc=cleanup_rc)
+    call driver_log("INFO", "Destroying CECE GridComp...")
+    call ESMF_GridCompDestroy(ceceComp, rc=cleanup_rc)
     if (cleanup_rc /= ESMF_SUCCESS) then
-      call driver_log("WARNING", "Failed to destroy ACES GridComp", cleanup_rc)
+      call driver_log("WARNING", "Failed to destroy CECE GridComp", cleanup_rc)
     end if
 
     call driver_log("INFO", "Resource cleanup complete")

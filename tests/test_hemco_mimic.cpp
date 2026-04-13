@@ -3,11 +3,11 @@
 #include <Kokkos_Core.hpp>
 #include <map>
 
-#include "aces/aces_compute.hpp"
-#include "aces/aces_config.hpp"
-#include "aces/aces_state.hpp"
+#include "cece/cece_compute.hpp"
+#include "cece/cece_config.hpp"
+#include "cece/cece_state.hpp"
 
-namespace aces {
+namespace cece {
 
 /**
  * @brief Mock implementation of FieldResolver for unit testing.
@@ -109,7 +109,7 @@ TEST_F(HemcoMimicTest, RegionalOverrideMimic) {
     resolver.SetFieldData("regional_mask", mask_hv);
 
     // 2. Setup Configuration
-    AcesConfig config;
+    CeceConfig config;
 
     EmissionLayer global_layer;
     global_layer.field_name = "test_1_global";
@@ -161,7 +161,7 @@ TEST_F(HemcoMimicTest, VerticalDistributionMimic) {
     resolver.AddField("emit_l2", nx, ny, nz, 3.0);
     resolver.AddField("nox", nx, ny, nz, 0.0);
 
-    // In ACES, vertical distribution for base emissions is usually handled
+    // In CECE, vertical distribution for base emissions is usually handled
     // by specific fields having data only in certain levels, or by masks.
     // For this test, we'll assume the input fields already have the values
     // but we apply them selectively.
@@ -185,7 +185,7 @@ TEST_F(HemcoMimicTest, VerticalDistributionMimic) {
     resolver.SetFieldData("emit_l1", l1_hv);
     resolver.SetFieldData("emit_l2", l2_hv);
 
-    AcesConfig config;
+    CeceConfig config;
     EmissionLayer lay1;
     lay1.field_name = "emit_l1";
     lay1.operation = "add";
@@ -214,7 +214,7 @@ TEST_F(HemcoMimicTest, VerticalDistributionMimic) {
     }
 }
 
-}  // namespace aces
+}  // namespace cece
 
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);

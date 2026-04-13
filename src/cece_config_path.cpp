@@ -1,0 +1,75 @@
+/**
+ * @file cece_config_path.cpp
+ * @brief Global configuration file path management for CECE.
+ *
+ * Provides a thread-safe mechanism to set and retrieve the configuration file path
+ * used by CECE initialization routines. This allows the Fortran NUOPC cap to specify
+ * a custom config file path instead of hardcoding "cece_config.yaml".
+ *
+ * @author Barry Baker
+ * @date 2024
+ * @version 1.0
+ */
+
+#include <mutex>
+#include <string>
+
+namespace cece {
+
+// Global config file path (default: cece_config.yaml)
+static std::string g_config_file_path = "cece_config.yaml";
+static std::mutex g_config_path_mutex;
+
+/**
+ * @brief Set the configuration file path for CECE initialization.
+ *
+ * This function allows the Fortran NUOPC cap to specify a custom configuration
+ * file path. Thread-safe via mutex.
+ *
+ * @param config_path C-string path to the configuration file
+ */
+void SetConfigFilePath(const char* config_path) {
+    if (config_path == nullptr) {
+        return;
+    }
+    std::lock_guard<std::mutex> lock(g_config_path_mutex);
+    g_config_file_path = config_path;
+}
+
+/**
+ * @brief Get the current configuration file path.
+ *
+ * Returns a copy of the configuration file path so the caller is not
+ * holding a reference that can be invalidated by a concurrent SetConfigFilePath.
+ * Defaults to "cece_config.yaml" if not explicitly set.
+ *
+ * @return std::string copy of the current config file path
+ */
+std::string GetConfigFilePath() {
+    std::lock_guard<std::mutex> lock(g_config_path_mutex);
+    return g_config_file_path;
+}
+
+}  // namespace cece
+
+// C interface for Fortran
+extern "C" {
+
+/**
+ * @brief C interface to set the configuration file path.
+ *
+ * @param config_path C-string path to the configuration file (null-terminated)
+ * @param path_len Length of the config_path string (for Fortran compatibility)
+ */
+void cece_set_config_file_path(const char* config_path, int path_len) {
+    if (config_path == nullptr || path_len <= 0) {
+        return;
+    }
+    // Create a null-terminated string from the Fortran string
+    std::string path(config_path, path_len);
+    // Trim trailing spaces (Fortran strings are often padded)
+    path.erase(path.find_last_not_of(" \t\n\r\f\v") + 1);
+    cece::SetConfigFilePath(path.c_str());
+}
+
+}  // extern "C"

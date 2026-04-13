@@ -1,6 +1,6 @@
-# The ACES Stacking Engine
+# The CECE Stacking Engine
 
-The **Stacking Engine** is the computational core of ACES, responsible for combining multiple emission data layers into final emission fields for each chemical species. It implements a sophisticated hierarchy-based processing system that mimics and extends the HEMCO (Harmonized Emissions Component) approach while providing significant performance optimizations for modern HPC architectures.
+The **Stacking Engine** is the computational core of CECE, responsible for combining multiple emission data layers into final emission fields for each chemical species. It implements a sophisticated hierarchy-based processing system that mimics and extends the HEMCO (Harmonized Emissions Component) approach while providing significant performance optimizations for modern HPC architectures.
 
 ## Overview
 
@@ -18,7 +18,7 @@ The Stacking Engine processes emission data through several key phases:
 
 ### Kernel Fusion Optimization
 
-Unlike traditional approach of processing each layer sequentially, ACES uses **kernel fusion** to generate a single, optimized compute kernel per species. This provides several key advantages:
+Unlike traditional approach of processing each layer sequentially, CECE uses **kernel fusion** to generate a single, optimized compute kernel per species. This provides several key advantages:
 
 - **Reduced Memory Bandwidth**: Minimizes data movement between GPU/CPU memory and compute units
 - **Lower Kernel Launch Overhead**: Single kernel launch per species instead of multiple
@@ -80,7 +80,7 @@ species:
 
 ## Vertical Distribution
 
-ACES supports multiple algorithms for distributing 2D surface emissions into 3D atmospheric volumes:
+CECE supports multiple algorithms for distributing 2D surface emissions into 3D atmospheric volumes:
 
 ### Distribution Methods
 
@@ -252,7 +252,7 @@ species:
 
 ## Integration with Physics Schemes
 
-The Stacking Engine coordinates with ACES physics schemes:
+The Stacking Engine coordinates with CECE physics schemes:
 
 1. **Base Field Processing**: Stacking Engine processes static/inventory emissions
 2. **Physics Augmentation**: Physics schemes modify or add to stacked emissions

@@ -10,11 +10,11 @@
 #include <sstream>
 #include <vector>
 
-#include "aces/aces_compute.hpp"
-#include "aces/aces_config.hpp"
-#include "aces/aces_stacking_engine.hpp"
+#include "cece/cece_compute.hpp"
+#include "cece/cece_config.hpp"
+#include "cece/cece_stacking_engine.hpp"
 
-namespace aces {
+namespace cece {
 
 /**
  * @brief Captures test suite execution results for idempotence comparison.
@@ -242,7 +242,7 @@ class TestSuiteIdempotenceTest : public ::testing::Test {
             resolver.SetValue("mask", 1.0);
 
             // Create stacking engine configuration
-            AcesConfig config;
+            CeceConfig config;
             config.species_layers["test_species"] = {};
 
             // Create a simple layer
@@ -250,7 +250,7 @@ class TestSuiteIdempotenceTest : public ::testing::Test {
             layer.field_name = "base_emissions";
             layer.hierarchy = 1;
             layer.operation = "add";
-            layer.vdist_method = aces::VerticalDistributionMethod::SINGLE;
+            layer.vdist_method = cece::VerticalDistributionMethod::SINGLE;
             layer.vdist_layer_start = 0;
             layer.vdist_layer_end = 0;
 
@@ -508,4 +508,4 @@ TEST_F(TestSuiteIdempotenceTest, LargeTestSuiteIdempotence) {
     EXPECT_TRUE(result1.EqualsWithinTolerance(result2, 1e-15));
 }
 
-}  // namespace aces
+}  // namespace cece

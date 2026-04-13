@@ -21,9 +21,9 @@
 #include <fstream>
 #include <sstream>
 
-#include "aces/aces_config.hpp"
+#include "cece/cece_config.hpp"
 
-using namespace aces;
+using namespace cece;
 
 // ---------------------------------------------------------------------------
 // Helper: Write test config files
@@ -138,7 +138,7 @@ physics_schemes:
     language: cpp
 )");
 
-    AcesConfig config = ParseConfig(test_config_file);
+    CeceConfig config = ParseConfig(test_config_file);
 
     // Verify defaults are used
     EXPECT_EQ(config.driver_config.start_time, "2020-01-01T00:00:00");
@@ -173,7 +173,7 @@ physics_schemes:
     language: cpp
 )");
 
-    AcesConfig config = ParseConfig(test_config_file);
+    CeceConfig config = ParseConfig(test_config_file);
 
     // Verify custom values are parsed
     EXPECT_EQ(config.driver_config.start_time, "2020-06-01T12:00:00");
@@ -204,7 +204,7 @@ physics_schemes:
     language: cpp
 )");
 
-    AcesConfig config = ParseConfig(test_config_file);
+    CeceConfig config = ParseConfig(test_config_file);
 
     // Verify partial config with defaults for missing fields
     EXPECT_EQ(config.driver_config.start_time, "2020-03-15T06:00:00");
@@ -279,7 +279,7 @@ TEST_F(DriverConfigurationValidationTest, InvalidGridDimensions) {
 
 // External C function for getting driver config
 extern "C" {
-void aces_core_get_driver_config(const char* config_file, int config_file_len, char* start_time,
+void cece_core_get_driver_config(const char* config_file, int config_file_len, char* start_time,
                                  int start_time_len, char* end_time, int end_time_len,
                                  int* timestep_seconds, char* mesh_file, int mesh_file_len, int* nx,
                                  int* ny, int* rc);
@@ -327,7 +327,7 @@ physics_schemes:
     int nx = 0, ny = 0;
     int rc = 0;
 
-    aces_core_get_driver_config(test_config_file.c_str(), test_config_file.length(), start_time,
+    cece_core_get_driver_config(test_config_file.c_str(), test_config_file.length(), start_time,
                                 sizeof(start_time), end_time, sizeof(end_time), &timestep_seconds,
                                 mesh_file, sizeof(mesh_file), &nx, &ny, &rc);
 
@@ -366,7 +366,7 @@ physics_schemes:
     int nx = 0, ny = 0;
     int rc = 0;
 
-    aces_core_get_driver_config(test_config_file.c_str(), test_config_file.length(), start_time,
+    cece_core_get_driver_config(test_config_file.c_str(), test_config_file.length(), start_time,
                                 sizeof(start_time), end_time, sizeof(end_time), &timestep_seconds,
                                 mesh_file, sizeof(mesh_file), &nx, &ny, &rc);
 
@@ -402,7 +402,7 @@ physics_schemes:
     int nx = 0, ny = 0;
     int rc = 0;
 
-    aces_core_get_driver_config(test_config_file.c_str(), test_config_file.length(), start_time,
+    cece_core_get_driver_config(test_config_file.c_str(), test_config_file.length(), start_time,
                                 sizeof(start_time), end_time, sizeof(end_time), &timestep_seconds,
                                 mesh_file, sizeof(mesh_file), &nx, &ny, &rc);
 
@@ -425,7 +425,7 @@ grid_ny: 4
     int nx = 0, ny = 0;
     int rc = 0;
 
-    aces_core_get_driver_config(test_config_file.c_str(), test_config_file.length(), start_time,
+    cece_core_get_driver_config(test_config_file.c_str(), test_config_file.length(), start_time,
                                 sizeof(start_time), end_time, sizeof(end_time), &timestep_seconds,
                                 mesh_file, sizeof(mesh_file), &nx, &ny, &rc);
 
@@ -448,7 +448,7 @@ grid_ny: -1
     int nx = 0, ny = 0;
     int rc = 0;
 
-    aces_core_get_driver_config(test_config_file.c_str(), test_config_file.length(), start_time,
+    cece_core_get_driver_config(test_config_file.c_str(), test_config_file.length(), start_time,
                                 sizeof(start_time), end_time, sizeof(end_time), &timestep_seconds,
                                 mesh_file, sizeof(mesh_file), &nx, &ny, &rc);
 
@@ -491,7 +491,7 @@ physics_schemes:
     language: cpp
 )");
 
-    AcesConfig config = ParseConfig(test_config_file);
+    CeceConfig config = ParseConfig(test_config_file);
 
     // Verify all documented defaults
     EXPECT_EQ(config.driver_config.start_time, "2020-01-01T00:00:00");

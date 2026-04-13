@@ -5,11 +5,11 @@
 #include <random>
 #include <vector>
 
-#include "aces/aces_compute.hpp"
-#include "aces/aces_config.hpp"
-#include "aces/aces_stacking_engine.hpp"
+#include "cece/cece_compute.hpp"
+#include "cece/cece_config.hpp"
+#include "cece/cece_stacking_engine.hpp"
 
-namespace aces {
+namespace cece {
 
 class VerticalDistributionReproResolver : public FieldResolver {
     std::map<std::string, DualView3D> fields;
@@ -97,7 +97,7 @@ TEST_F(ReproTest, ReplicateFailurePrecise) {
         std::cout << "Iteration 7 reached. Method: " << static_cast<int>(method) << " Grid: " << nx
                   << "," << ny << "," << nz << std::endl;
 
-        AcesConfig config;
+        CeceConfig config;
         EmissionLayer layer_config;
         layer_config.operation = "add";
         layer_config.field_name = "emissions_2d";
@@ -220,4 +220,4 @@ TEST_F(ReproTest, ReplicateFailurePrecise) {
     }
 }
 
-}  // namespace aces
+}  // namespace cece

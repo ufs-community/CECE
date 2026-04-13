@@ -1,12 +1,12 @@
-#ifndef ACES_{{ class_name.upper() }}_HPP
-#define ACES_{{ class_name.upper() }}_HPP
+#ifndef CECE_{{ class_name.upper() }}_HPP
+#define CECE_{{ class_name.upper() }}_HPP
 
 /**
  * @file {{ header_name }}
  * @brief {{ description }}
  * @details
  * This physics scheme demonstrates the recommended pattern for implementing
- * emission computations or modifications in ACES. It uses Kokkos for
+ * emission computations or modifications in CECE. It uses Kokkos for
  * performance portability across CPUs and GPUs.
  *
  * ## Usage Pattern
@@ -29,11 +29,11 @@
 #include <string>
 #include <unordered_map>
 
-#include "aces/aces_diagnostics.hpp"
-#include "aces/aces_state.hpp"
-#include "aces/physics_scheme.hpp"
+#include "cece/cece_diagnostics.hpp"
+#include "cece/cece_state.hpp"
+#include "cece/physics_scheme.hpp"
 
-namespace aces {
+namespace cece {
 
 /**
  * @class {{ class_name }}
@@ -72,7 +72,7 @@ class {{ class_name }} : public BasePhysicsScheme {
      * @note Always call BasePhysicsScheme::Initialize(config, diag_manager)
      *       first to set up field name mappings and diagnostics
      */
-    void Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) override;
+    void Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) override;
 
     /**
      * @brief Execute the physics scheme for one time step.
@@ -90,10 +90,10 @@ class {{ class_name }} : public BasePhysicsScheme {
      * @param import_state Input meteorological and base emission fields
      * @param export_state Output emission fields to be computed or modified
      *
-     * @note Device-to-host synchronization is handled automatically by ACES
+     * @note Device-to-host synchronization is handled automatically by CECE
      *       after all schemes complete
      */
-    void Run(AcesImportState& import_state, AcesExportState& export_state) override;
+    void Run(CeceImportState& import_state, CeceExportState& export_state) override;
 
     /**
      * @brief Finalize the physics scheme.
@@ -162,6 +162,6 @@ class {{ class_name }} : public BasePhysicsScheme {
     }
 };
 
-}  // namespace aces
+}  // namespace cece
 
-#endif  // ACES_{{ class_name.upper() }}_HPP
+#endif  // CECE_{{ class_name.upper() }}_HPP

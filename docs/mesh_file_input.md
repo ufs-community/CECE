@@ -2,11 +2,11 @@
 
 ## Overview
 
-The ACES driver supports reading pre-existing ESMF mesh files for spatial discretization. This feature allows users to use complex geometries or pre-computed meshes instead of generating simple structured grids.
+The CECE driver supports reading pre-existing ESMF mesh files for spatial discretization. This feature allows users to use complex geometries or pre-computed meshes instead of generating simple structured grids.
 
 ## Configuration
 
-Mesh file input is configured in the ACES configuration file under the `driver` section:
+Mesh file input is configured in the CECE configuration file under the `driver` section:
 
 ```yaml
 driver:
@@ -125,14 +125,14 @@ driver:
 
 The driver implements mesh file input in the following steps:
 
-1. **Read configuration**: Parse `mesh_file` from the ACES config file
+1. **Read configuration**: Parse `mesh_file` from the CECE config file
 2. **Determine mode**: Check if `mesh_file` is non-empty
 3. **Read mesh**: If mesh file specified, call `ESMF_MeshCreate(filename=...)`
 4. **Validate mesh**: Check node/element counts using `ESMF_MeshGet`
 5. **Log dimensions**: Log mesh information for diagnostics
 6. **Create dummy grid**: Create a minimal 2x2 grid for compatibility
 
-### C++ Configuration (src/aces_core_driver_config.cpp)
+### C++ Configuration (src/cece_core_driver_config.cpp)
 
 The C++ configuration reader extracts the `mesh_file` parameter:
 

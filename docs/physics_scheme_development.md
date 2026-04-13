@@ -2,7 +2,7 @@
 
 ## Overview
 
-This guide provides a comprehensive workflow for developing new physics schemes in ACES. Physics schemes are pluggable modules that compute or modify emissions based on meteorological inputs. ACES provides a scientist-friendly framework that abstracts away ESMF complexity and enables focus on physics implementation.
+This guide provides a comprehensive workflow for developing new physics schemes in CECE. Physics schemes are pluggable modules that compute or modify emissions based on meteorological inputs. CECE provides a scientist-friendly framework that abstracts away ESMF complexity and enables focus on physics implementation.
 
 ## Table of Contents
 
@@ -23,7 +23,7 @@ This guide provides a comprehensive workflow for developing new physics schemes 
 
 ## Physics Scheme Lifecycle
 
-Every physics scheme in ACES follows a three-phase lifecycle:
+Every physics scheme in CECE follows a three-phase lifecycle:
 
 ### 1. Initialize Phase
 
@@ -73,7 +73,7 @@ Called once during model shutdown. Use this phase to:
 ### Prerequisites
 
 Before developing a physics scheme, ensure you have:
-- ACES source code checked out
+- CECE source code checked out
 - JCSDA Docker environment set up (see AGENTS.md)
 - Python 3.6+ with jinja2 and pyyaml installed
 - Basic understanding of Kokkos and ESMF concepts
@@ -83,39 +83,39 @@ Before developing a physics scheme, ensure you have:
 Here's a minimal physics scheme that computes emissions from temperature:
 
 ```cpp
-// include/aces/physics/aces_my_scheme.hpp
-#ifndef ACES_MY_SCHEME_HPP
-#define ACES_MY_SCHEME_HPP
+// include/cece/physics/cece_my_scheme.hpp
+#ifndef CECE_MY_SCHEME_HPP
+#define CECE_MY_SCHEME_HPP
 
-#include "aces/physics_scheme.hpp"
+#include "cece/physics_scheme.hpp"
 
-namespace aces {
+namespace cece {
 
 class MyScheme : public BasePhysicsScheme {
 public:
-    void Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) override;
-    void Run(AcesImportState& import_state, AcesExportState& export_state) override;
+    void Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) override;
+    void Run(CeceImportState& import_state, CeceExportState& export_state) override;
 };
 
-}  // namespace aces
+}  // namespace cece
 #endif
 ```
 
 ```cpp
-// src/physics/aces_my_scheme.cpp
-#include "aces/physics/aces_my_scheme.hpp"
-#include "aces/aces_physics_factory.hpp"
+// src/physics/cece_my_scheme.cpp
+#include "cece/physics/cece_my_scheme.hpp"
+#include "cece/cece_physics_factory.hpp"
 
-namespace aces {
+namespace cece {
 
 static PhysicsRegistration<MyScheme> register_my_scheme("my_scheme");
 
-void MyScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) {
+void MyScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
     // Read parameters from config
 }
 
-void MyScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
+void MyScheme::Run(CeceImportState& import_state, CeceExportState& export_state) {
     auto temperature = ResolveImport("temperature", import_state);
     auto emissions = ResolveExport("emissions", export_state);
 
@@ -137,14 +137,14 @@ void MyScheme::Run(AcesImportState& import_state, AcesExportState& export_state)
     MarkModified("emissions", export_state);
 }
 
-}  // namespace aces
+}  // namespace cece
 ```
 
 ---
 
 ## Scheme Generator Workflow
 
-The ACES scheme generator automates the creation of physics scheme scaffolding from YAML configuration files.
+The CECE scheme generator automates the creation of physics scheme scaffolding from YAML configuration files.
 
 ### Step 1: Create Configuration File
 
@@ -203,8 +203,8 @@ diagnostics:
 ```
 
 This generates:
-- `include/aces/physics/aces_my_emission_scheme.hpp`
-- `src/physics/aces_my_emission_scheme.cpp`
+- `include/cece/physics/cece_my_emission_scheme.hpp`
+- `src/physics/cece_my_emission_scheme.cpp`
 - `src/physics/my_emission_scheme_kernel.F90` (if language=fortran)
 
 ### Step 3: Implement Physics Logic
@@ -216,14 +216,14 @@ Edit the generated files and implement the physics computation in the Run method
 Add the new scheme to `CMakeLists.txt`:
 
 ```cmake
-add_library(aces_physics_my_emission_scheme src/physics/aces_my_emission_scheme.cpp)
-target_link_libraries(aces_physics_my_emission_scheme PUBLIC aces_core)
-target_link_libraries(aces_core PUBLIC aces_physics_my_emission_scheme)
+add_library(cece_physics_my_emission_scheme src/physics/cece_my_emission_scheme.cpp)
+target_link_libraries(cece_physics_my_emission_scheme PUBLIC cece_core)
+target_link_libraries(cece_core PUBLIC cece_physics_my_emission_scheme)
 ```
 
 ### Step 5: Configure in YAML
 
-Add the scheme to your ACES configuration file:
+Add the scheme to your CECE configuration file:
 
 ```yaml
 physics_schemes:
@@ -247,7 +247,7 @@ ctest --output-on-failure
 
 ## Writing Kokkos Kernels
 
-Kokkos kernels are the core of physics computation in ACES. They enable single-source code that runs efficiently on CPUs and GPUs.
+Kokkos kernels are the core of physics computation in CECE. They enable single-source code that runs efficiently on CPUs and GPUs.
 
 ### Basic Kernel Structure
 
@@ -402,7 +402,7 @@ Kokkos::parallel_for(..., KOKKOS_LAMBDA(int i, int j, int k) {
 
 ## Calling Fortran Kernels from C++
 
-ACES supports calling Fortran kernels from C++ schemes using Fortran-C interoperability.
+CECE supports calling Fortran kernels from C++ schemes using Fortran-C interoperability.
 
 ### Fortran Kernel Example
 
@@ -448,7 +448,7 @@ extern "C" void run_my_kernel_fortran(int nx, int ny, int nz,
                                       double* emissions_ptr);
 
 // Call from C++ scheme
-void MyScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
+void MyScheme::Run(CeceImportState& import_state, CeceExportState& export_state) {
     auto temperature = ResolveImport("temperature", import_state);
     auto emissions = ResolveExport("emissions", export_state);
 
@@ -488,7 +488,7 @@ All physics parameters must be configurable via YAML. Never hardcode physical co
 ### Reading Parameters
 
 ```cpp
-void MyScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) {
+void MyScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
 
     // Read scalar parameters
@@ -530,7 +530,7 @@ physics_schemes:
 ### Parameter Validation
 
 ```cpp
-void MyScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) {
+void MyScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
 
     if (config["emission_factor"]) {
@@ -619,7 +619,7 @@ Diagnostic fields are optional intermediate variables useful for validation and 
 ### Registering Diagnostic Fields
 
 ```cpp
-void MyScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_manager) {
+void MyScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
 
     if (diag_manager != nullptr) {
@@ -633,7 +633,7 @@ void MyScheme::Initialize(const YAML::Node& config, AcesDiagnosticManager* diag_
 ### Writing to Diagnostic Fields
 
 ```cpp
-void MyScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
+void MyScheme::Run(CeceImportState& import_state, CeceExportState& export_state) {
     // ... resolve fields ...
 
     Kokkos::parallel_for(..., KOKKOS_LAMBDA(int i, int j, int k) {
@@ -669,7 +669,7 @@ Use Kokkos profiling tools to identify bottlenecks:
 ```bash
 # Enable Kokkos profiling
 export KOKKOS_PROFILE_LIBRARY=/path/to/libkokkos_profiling.so
-./aces_driver
+./cece_driver
 ```
 
 ### Common Optimization Techniques
@@ -741,7 +741,7 @@ Create unit tests for your scheme:
 ```cpp
 // tests/test_my_scheme.cpp
 #include <gtest/gtest.h>
-#include "aces/physics/aces_my_scheme.hpp"
+#include "cece/physics/cece_my_scheme.hpp"
 
 class MySchemeTest : public ::testing::Test {
 protected:
@@ -773,17 +773,17 @@ Test universal properties with random inputs:
 
 ### Integration Testing
 
-Test scheme in full ACES context:
+Test scheme in full CECE context:
 
 ```bash
 # Build with scheme
 cd build && cmake .. && make -j4
 
 # Run single-model driver
-./aces_nuopc_single_driver --config aces_config.yaml
+./cece_nuopc_single_driver --config cece_config.yaml
 
 # Verify output
-ncdump -h aces_output.nc
+ncdump -h cece_output.nc
 ```
 
 ---
@@ -942,19 +942,19 @@ Kokkos::parallel_for(
 
 ## Example: Complete Physics Scheme
 
-See the following example schemes in the ACES repository:
+See the following example schemes in the CECE repository:
 
-1. **ExampleEmissionGeneration** (`include/aces/physics/aces_example_emission_generation.hpp`)
+1. **ExampleEmissionGeneration** (`include/cece/physics/cece_example_emission_generation.hpp`)
    - Demonstrates emission generation pattern
    - Shows Q10 temperature parameterization
    - Includes diagnostic field output
 
-2. **ExampleEmissionModification** (`include/aces/physics/aces_example_emission_modification.hpp`)
+2. **ExampleEmissionModification** (`include/cece/physics/cece_example_emission_modification.hpp`)
    - Demonstrates emission modification pattern
    - Shows diurnal cycle application
    - Shows in-place field modification
 
-3. **ExampleDiagnosticComputation** (`include/aces/physics/aces_example_diagnostic_computation.hpp`)
+3. **ExampleDiagnosticComputation** (`include/cece/physics/cece_example_diagnostic_computation.hpp`)
    - Demonstrates diagnostic field computation
    - Shows validation and quality flagging
    - Shows reading from export state
@@ -965,8 +965,8 @@ See the following example schemes in the ACES repository:
 
 - **ESMF User Guide:** https://earthsystemmodeling.org/docs/release/latest/ESMF_usrdoc
 - **Kokkos Documentation:** https://kokkos.github.io/kokkos-core-wiki/
-- **ACES Architecture:** See `docs/api.md`
-- **Physics Scheme Examples:** See `include/aces/physics/aces_example_*.hpp`
+- **CECE Architecture:** See `docs/api.md`
+- **Physics Scheme Examples:** See `include/cece/physics/cece_example_*.hpp`
 
 ---
 
@@ -976,7 +976,7 @@ If you encounter issues:
 
 1. Check the troubleshooting section above
 2. Review example schemes in the repository
-3. Check ACES documentation in `docs/`
+3. Check CECE documentation in `docs/`
 4. Run tests to verify your implementation
 5. Use diagnostic fields to inspect intermediate values
 6. Profile with Kokkos profiling tools

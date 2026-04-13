@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Physics Scheme Generator for ACES
+Physics Scheme Generator for CECE
 
 This script generates physics scheme scaffolding from YAML configuration files.
 It creates C++ header, implementation, and optional Fortran kernel files with
@@ -141,8 +141,8 @@ def generate_scheme(config_path):
     language = scheme.get("language", "cpp")
     generate_fortran = language == "fortran" or scheme.get("generate_fortran", False)
 
-    header_name = f"aces_{scheme_name}.hpp"
-    cpp_name = f"aces_{scheme_name}.cpp"
+    header_name = f"cece_{scheme_name}.hpp"
+    cpp_name = f"cece_{scheme_name}.cpp"
     f90_name = f"{scheme_name}_kernel.F90"
 
     # Prepare template context
@@ -161,13 +161,13 @@ def generate_scheme(config_path):
     env = Environment(loader=FileSystemLoader("scripts/templates"))
 
     # Create output directories if they don't exist
-    Path("include/aces/physics").mkdir(parents=True, exist_ok=True)
+    Path("include/cece/physics").mkdir(parents=True, exist_ok=True)
     Path("src/physics").mkdir(parents=True, exist_ok=True)
 
     # Generate C++ Header
     try:
         hpp_template = env.get_template("physics_scheme.hpp.jinja2")
-        hpp_path = f"include/aces/physics/{header_name}"
+        hpp_path = f"include/cece/physics/{header_name}"
         with open(hpp_path, "w") as f:
             f.write(hpp_template.render(context))
         print(f"✓ Generated: {hpp_path}")
@@ -203,15 +203,15 @@ def generate_scheme(config_path):
     print("Next Steps:")
     print("=" * 70)
     print(f"\n1. Add the following to CMakeLists.txt in the src/physics section:")
-    print(f"   add_library(aces_physics_{scheme_name} {cpp_name})")
-    print(f"   target_link_libraries(aces_physics_{scheme_name} PUBLIC aces_core)")
-    print(f"   target_link_libraries(aces_core PUBLIC aces_physics_{scheme_name})")
+    print(f"   add_library(cece_physics_{scheme_name} {cpp_name})")
+    print(f"   target_link_libraries(cece_physics_{scheme_name} PUBLIC cece_core)")
+    print(f"   target_link_libraries(cece_core PUBLIC cece_physics_{scheme_name})")
 
     if generate_fortran:
         print(f"\n2. If using Fortran kernel, add to CMakeLists.txt:")
         print(f"   enable_language(Fortran)")
-        print(f"   add_library(aces_physics_{scheme_name}_fortran {f90_name})")
-        print(f"   target_link_libraries(aces_physics_{scheme_name} PUBLIC aces_physics_{scheme_name}_fortran)")
+        print(f"   add_library(cece_physics_{scheme_name}_fortran {f90_name})")
+        print(f"   target_link_libraries(cece_physics_{scheme_name} PUBLIC cece_physics_{scheme_name}_fortran)")
 
     print(f"\n3. Implement the physics logic in:")
     print(f"   - {cpp_path} (Run method)")

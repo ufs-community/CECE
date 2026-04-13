@@ -1,14 +1,14 @@
 # Tutorials
 
-This section provides step-by-step guides for common ACES extension tasks.
+This section provides step-by-step guides for common CECE extension tasks.
 
 ## Tutorial 1: Adding a New Emission Species
 
-This tutorial shows how to add a new emission species to ACES without recompilation.
+This tutorial shows how to add a new emission species to CECE without recompilation.
 
 ### Step 1: Define the Species in YAML
 
-Edit your `aces_config.yaml` and add the new species to the `species` section:
+Edit your `cece_config.yaml` and add the new species to the `species` section:
 
 ```yaml
 species:
@@ -61,8 +61,8 @@ Add the new species to the output configuration:
 
 ```yaml
 output:
-  directory: ./aces_output
-  filename_pattern: "aces_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
+  directory: ./cece_output
+  filename_pattern: "cece_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
   frequency_steps: 1
   fields:
     - CO
@@ -70,10 +70,10 @@ output:
   diagnostics: false
 ```
 
-### Step 4: Run ACES
+### Step 4: Run CECE
 
 ```bash
-./build/bin/aces_nuopc_driver --config aces_config.yaml
+./build/bin/cece_nuopc_driver --config cece_config.yaml
 ```
 
 The new species will be automatically created and computed without recompilation!
@@ -82,7 +82,7 @@ The new species will be automatically created and computed without recompilation
 
 ## Tutorial 2: Adding a New Physics Parameterization
 
-This tutorial shows how to add a new physics scheme to ACES.
+This tutorial shows how to add a new physics scheme to CECE.
 
 ### Step 1: Using the Scheme Generator (Recommended)
 
@@ -133,16 +133,16 @@ python3 scripts/generate_physics_scheme.py my_scheme_config.yaml
 ```
 
 This creates:
-- `include/aces/physics/aces_my_emission_scheme.hpp`
-- `src/physics/aces_my_emission_scheme.cpp`
+- `include/cece/physics/cece_my_emission_scheme.hpp`
+- `src/physics/cece_my_emission_scheme.cpp`
 - Updated `CMakeLists.txt` entries
 
 ### Step 2: Implement the Physics Kernel
 
-Edit `src/physics/aces_my_emission_scheme.cpp` and implement the `Run` method:
+Edit `src/physics/cece_my_emission_scheme.cpp` and implement the `Run` method:
 
 ```cpp
-void MyEmissionScheme::Run(AcesImportState& import_state, AcesExportState& export_state) {
+void MyEmissionScheme::Run(CeceImportState& import_state, CeceExportState& export_state) {
     // Resolve input fields
     auto temperature = ResolveImport("temperature", import_state);
     auto wind_speed = ResolveImport("wind_speed", import_state);
@@ -190,7 +190,7 @@ void MyEmissionScheme::Run(AcesImportState& import_state, AcesExportState& expor
 
 ### Step 3: Configure the Scheme
 
-Add the scheme to your `aces_config.yaml`:
+Add the scheme to your `cece_config.yaml`:
 
 ```yaml
 physics_schemes:
@@ -208,25 +208,25 @@ cd build
 cmake ..
 make -j4
 ctest --output-on-failure
-./bin/aces_nuopc_driver --config ../aces_config.yaml
+./bin/cece_nuopc_driver --config ../cece_config.yaml
 ```
 
 ### Step 5: Manual Implementation (Advanced)
 
 If you prefer manual implementation without the generator:
 
-**Header** (`include/aces/physics/aces_my_scheme.hpp`):
+**Header** (`include/cece/physics/cece_my_scheme.hpp`):
 ```cpp
-#include "aces/physics_scheme.hpp"
+#include "cece/physics_scheme.hpp"
 
-namespace aces {
+namespace cece {
 
 class MyScheme : public BasePhysicsScheme {
 public:
     void Initialize(const YAML::Node& config,
-                   AcesDiagnosticManager* diag_manager) override;
-    void Run(AcesImportState& import_state,
-            AcesExportState& export_state) override;
+                   CeceDiagnosticManager* diag_manager) override;
+    void Run(CeceImportState& import_state,
+            CeceExportState& export_state) override;
     void Finalize() override;
 
 private:
@@ -237,17 +237,17 @@ private:
 // Self-registration
 static PhysicsRegistration<MyScheme> registration_my_scheme("MyScheme");
 
-}  // namespace aces
+}  // namespace cece
 ```
 
-**Implementation** (`src/physics/aces_my_scheme.cpp`):
+**Implementation** (`src/physics/cece_my_scheme.cpp`):
 ```cpp
-#include "aces/physics/aces_my_scheme.hpp"
+#include "cece/physics/cece_my_scheme.hpp"
 
-namespace aces {
+namespace cece {
 
 void MyScheme::Initialize(const YAML::Node& config,
-                         AcesDiagnosticManager* diag_manager) {
+                         CeceDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
 
     if (config["emission_factor"]) {
@@ -258,8 +258,8 @@ void MyScheme::Initialize(const YAML::Node& config,
     }
 }
 
-void MyScheme::Run(AcesImportState& import_state,
-                  AcesExportState& export_state) {
+void MyScheme::Run(CeceImportState& import_state,
+                  CeceExportState& export_state) {
     auto temperature = ResolveImport("temperature", import_state);
     auto emissions = ResolveExport("my_emissions", export_state);
 
@@ -282,7 +282,7 @@ void MyScheme::Finalize() {
     // Cleanup if needed
 }
 
-}  // namespace aces
+}  // namespace cece
 ```
 
 ---
@@ -326,26 +326,26 @@ end module my_fortran_kernel_mod
 
 ### Step 2: Create C++ Bridge
 
-Create `src/physics/aces_my_fortran_scheme.cpp`:
+Create `src/physics/cece_my_fortran_scheme.cpp`:
 
 ```cpp
-#include "aces/physics_scheme.hpp"
+#include "cece/physics_scheme.hpp"
 
 extern "C" {
     void compute_emissions(double* temperature, double* emissions, int nx, int ny);
 }
 
-namespace aces {
+namespace cece {
 
 class MyFortranScheme : public BasePhysicsScheme {
 public:
     void Initialize(const YAML::Node& config,
-                   AcesDiagnosticManager* diag_manager) override {
+                   CeceDiagnosticManager* diag_manager) override {
         BasePhysicsScheme::Initialize(config, diag_manager);
     }
 
-    void Run(AcesImportState& import_state,
-            AcesExportState& export_state) override {
+    void Run(CeceImportState& import_state,
+            CeceExportState& export_state) override {
         auto& temp_dv = import_state.fields["temperature"];
         auto& emis_dv = export_state.fields["my_emissions"];
 
@@ -371,7 +371,7 @@ public:
 
 static PhysicsRegistration<MyFortranScheme> registration_my_fortran("MyFortranScheme");
 
-}  // namespace aces
+}  // namespace cece
 ```
 
 ### Step 3: Update CMakeLists.txt
@@ -379,11 +379,11 @@ static PhysicsRegistration<MyFortranScheme> registration_my_fortran("MyFortranSc
 Add the Fortran source to the build:
 
 ```cmake
-add_library(aces_my_fortran_kernel src/physics/my_fortran_kernel.F90)
-target_link_libraries(aces_my_fortran_kernel PUBLIC aces)
+add_library(cece_my_fortran_kernel src/physics/my_fortran_kernel.F90)
+target_link_libraries(cece_my_fortran_kernel PUBLIC cece)
 
-add_library(aces_my_fortran_scheme src/physics/aces_my_fortran_scheme.cpp)
-target_link_libraries(aces_my_fortran_scheme PUBLIC aces aces_my_fortran_kernel)
+add_library(cece_my_fortran_scheme src/physics/cece_my_fortran_scheme.cpp)
+target_link_libraries(cece_my_fortran_scheme PUBLIC cece cece_my_fortran_kernel)
 ```
 
 ---

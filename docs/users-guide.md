@@ -1,10 +1,10 @@
 # User's Guide
 
-This guide covers the prerequisites, build process, configuration, and execution of the ACES component.
+This guide covers the prerequisites, build process, configuration, and execution of the CECE component.
 
 ## Prerequisites
 
-To build ACES, you need the following dependencies:
+To build CECE, you need the following dependencies:
 
 - **C++20 Compiler** (GCC 10+, Clang 12+)
 - **CMake** (3.20+)
@@ -36,7 +36,7 @@ If you encounter `overlayfs` errors or other Docker-related environment issues w
 ./scripts/fix_docker_and_setup.sh
 ```
 
-## Building ACES
+## Building CECE
 
 ### Standard Build in JCSDA Docker
 
@@ -70,7 +70,7 @@ cmake .. -DKokkos_ENABLE_SERIAL=ON -DKokkos_ENABLE_OPENMP=ON
 
 ## YAML Configuration
 
-ACES is configured using a YAML file that defines emission species, data sources, scaling factors, and processing parameters. The configuration system is built around the powerful **Stacking Engine** that combines multiple emission layers with sophisticated hierarchy and scaling rules.
+CECE is configured using a YAML file that defines emission species, data sources, scaling factors, and processing parameters. The configuration system is built around the powerful **Stacking Engine** that combines multiple emission layers with sophisticated hierarchy and scaling rules.
 
 For complete configuration reference with all available options, see the [Configuration Documentation](configuration.md).
 
@@ -127,7 +127,7 @@ physics_schemes:
       r_sala_max: 0.5
 
 # TIDE data streams for external inventories
-aces_data:
+cece_data:
   streams:
     - name: "GLOBAL_INVENTORY"
       file: "/data/inventories/global_emissions.nc"
@@ -147,7 +147,7 @@ diagnostics:
 output:
   enabled: true
   directory: "./output"
-  filename_pattern: "aces_{YYYY}{MM}{DD}_{HH}.nc"
+  filename_pattern: "cece_{YYYY}{MM}{DD}_{HH}.nc"
   frequency_steps: 1
   fields: ["co", "nox"]
 ```
@@ -202,14 +202,14 @@ physics_schemes:
       dust_source_strength: 1.0
 
 # TIDE configuration (optional)
-aces_data:
+cece_data:
   streams_yaml: /path/to/streams.yaml
   data_root: /data/emissions
 
 # Output configuration (for standalone mode)
 output:
-  directory: ./aces_output
-  filename_pattern: "aces_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
+  directory: ./cece_output
+  filename_pattern: "cece_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
   frequency_steps: 1
   fields:
     - CO
@@ -256,14 +256,14 @@ streams:
     yearAlign: 2020
 ```
 
-## Running ACES
+## Running CECE
 
 ### Standalone NUOPC Driver
 
-The standalone NUOPC driver (`aces_nuopc_driver`) demonstrates the standard NUOPC lifecycle and how to manage ACES as a child model.
+The standalone NUOPC driver (`cece_nuopc_driver`) demonstrates the standard NUOPC lifecycle and how to manage CECE as a child model.
 
-1.  **Configure**: Edit `aces_config.yaml` to specify your species, layers, and simulation parameters.
-    The driver can be controlled via a `driver` block in `aces_config.yaml`:
+1.  **Configure**: Edit `cece_config.yaml` to specify your species, layers, and simulation parameters.
+    The driver can be controlled via a `driver` block in `cece_config.yaml`:
     ```yaml
     driver:
       nx: 72
@@ -285,14 +285,14 @@ The standalone NUOPC driver (`aces_nuopc_driver`) demonstrates the standard NUOP
 3.  **Run**:
     ```bash
     cd build
-    ./bin/aces_nuopc_driver
+    ./bin/cece_nuopc_driver
     ```
 
 ### Basic Example Driver
 
-ACES also provides a simpler `example_driver` for basic C++ integration tests.
+CECE also provides a simpler `example_driver` for basic C++ integration tests.
 
-1.  **Configure**: Edit `aces_config.yaml` to specify your species and layers.
+1.  **Configure**: Edit `cece_config.yaml` to specify your species and layers.
 2.  **Run**:
     ```bash
     cd build
@@ -394,22 +394,22 @@ GPU kernel execution is slower than CPU
 For multi-core CPU execution, set the number of OpenMP threads:
 ```bash
 export OMP_NUM_THREADS=16
-./build/bin/aces_nuopc_driver
+./build/bin/cece_nuopc_driver
 ```
 
 ### GPU Performance
 
 For GPU execution, set the device ID:
 ```bash
-export ACES_DEVICE_ID=0
-./build/bin/aces_nuopc_driver
+export CECE_DEVICE_ID=0
+./build/bin/cece_nuopc_driver
 ```
 
 ## Output Files
 
-When running in standalone mode with output enabled, ACES writes NetCDF files to the configured output directory. Files follow the naming pattern:
+When running in standalone mode with output enabled, CECE writes NetCDF files to the configured output directory. Files follow the naming pattern:
 ```
-aces_YYYYMMDD_HHmmss.nc
+cece_YYYYMMDD_HHmmss.nc
 ```
 
 Each file contains:
@@ -419,7 +419,7 @@ Each file contains:
 
 Files are CF-1.8 compliant and can be inspected with standard tools:
 ```bash
-ncdump -h aces_20240101_000000.nc
+ncdump -h cece_20240101_000000.nc
 ```
 
 ## Next Steps
