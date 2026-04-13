@@ -3,17 +3,56 @@
  * @brief Fortran bridge implementation for the FENGSHA dust emission scheme.
  */
 #include <Kokkos_Core.hpp>
+#include <cmath>
 #include <iostream>
+#include <vector>
 
 #include "cece/cece_physics_factory.hpp"
 #include "cece/physics/cece_fengsha_fortran.hpp"
+
+namespace {
+
+/// @brief Compute Kok (2011) normalized dust aerosol size distribution.
+inline std::vector<double> compute_kok_distribution(
+    const std::vector<double>& radii,
+    const std::vector<double>& lower_edges,
+    const std::vector<double>& upper_edges) {
+
+    constexpr double mmd = 3.4;
+    constexpr double stddev = 3.0;
+    constexpr double lambda = 12.0;
+    const double factor = 1.0 / (std::sqrt(2.0) * std::log(stddev));
+
+    int nbins = static_cast<int>(radii.size());
+    std::vector<double> dist(nbins, 0.0);
+    double total = 0.0;
+
+    for (int n = 0; n < nbins; ++n) {
+        double diameter = 2.0 * radii[n] * 1e6;
+        double rLow = lower_edges[n] * 1e6;
+        double rUp = upper_edges[n] * 1e6;
+        double dlam = diameter / lambda;
+        dist[n] = diameter * (1.0 + std::erf(factor * std::log(diameter / mmd)))
+                  * std::exp(-dlam * dlam * dlam)
+                  * std::log(rUp / rLow);
+        total += dist[n];
+    }
+
+    if (total > 0.0) {
+        for (int n = 0; n < nbins; ++n) dist[n] /= total;
+    }
+    return dist;
+}
+
+}  // anonymous namespace
 
 extern "C" {
 void run_fengsha_fortran(double* ustar, double* uthrs, double* slc, double* clay, double* sand,
                          double* silt, double* ssm, double* rdrag, double* airdens,
                          double* fraclake, double* fracsnow, double* oro, double* emissions,
                          int nx, int ny, int nbins, double alpha, double gamma_param,
-                         double kvhmax, double grav, double drylimit_factor);
+                         double kvhmax, double grav, double drylimit_factor,
+                         double* distribution);
 }
 
 namespace cece {
@@ -33,6 +72,21 @@ void FengshaFortranScheme::Initialize(const YAML::Node& config,
     if (config["grav"]) grav_ = config["grav"].as<double>();
     if (config["drylimit_factor"]) drylimit_factor_ = config["drylimit_factor"].as<double>();
     if (config["num_bins"]) num_bins_ = config["num_bins"].as<int>();
+
+    // Compute Kok distribution from particle size parameters if provided
+    if (config["particle_radii"] && config["bin_lower_edges"] && config["bin_upper_edges"]) {
+        auto radii = config["particle_radii"].as<std::vector<double>>();
+        auto lower = config["bin_lower_edges"].as<std::vector<double>>();
+        auto upper = config["bin_upper_edges"].as<std::vector<double>>();
+        num_bins_ = static_cast<int>(radii.size());
+
+        bin_distribution_ = compute_kok_distribution(radii, lower, upper);
+        has_custom_distribution_ = true;
+    } else {
+        // Fallback: hardcoded 5-bin Kok distribution for backward compatibility
+        bin_distribution_ = {0.1, 0.25, 0.25, 0.25, 0.15};
+        has_custom_distribution_ = false;
+    }
 
     std::cout << "FengshaFortranScheme: Initialized." << "\n";
 }
@@ -98,6 +152,20 @@ void FengshaFortranScheme::Run(CeceImportState& import_state, CeceExportState& e
     int ny = static_cast<int>(dv_emis.extent(1));
     int nbins = static_cast<int>(dv_emis.extent(2));
 
+    // Prepare distribution for the Fortran kernel
+    // If custom distribution, use it directly; otherwise use the default 5-bin
+    // but size it to match nbins (pad with zeros if nbins > 5)
+    std::vector<double> dist_for_fortran;
+    if (has_custom_distribution_) {
+        dist_for_fortran = bin_distribution_;
+    } else {
+        dist_for_fortran.resize(nbins, 0.0);
+        int copy_size = std::min(nbins, static_cast<int>(bin_distribution_.size()));
+        for (int n = 0; n < copy_size; ++n) {
+            dist_for_fortran[n] = bin_distribution_[n];
+        }
+    }
+
     // Call Fortran kernel
     run_fengsha_fortran(dv_ustar.view_host().data(), dv_uthrs.view_host().data(),
                         dv_slc.view_host().data(), dv_clay.view_host().data(),
@@ -106,7 +174,7 @@ void FengshaFortranScheme::Run(CeceImportState& import_state, CeceExportState& e
                         dv_airdens.view_host().data(), dv_fraclake.view_host().data(),
                         dv_fracsnow.view_host().data(), dv_oro.view_host().data(),
                         dv_emis.view_host().data(), nx, ny, nbins, alpha_, gamma_, kvhmax_,
-                        grav_, drylimit_factor_);
+                        grav_, drylimit_factor_, dist_for_fortran.data());
 
     // Mark export modified on host and sync back to device
     dv_emis.modify<Kokkos::HostSpace>();

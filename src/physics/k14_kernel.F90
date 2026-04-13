@@ -86,7 +86,8 @@ contains
         texture_ptr, vegetation_ptr, gvf_ptr, emissions_ptr, &
         nx, ny, nbins, km, &
         f_w, f_c, uts_gamma, UNDEF_val, GRAV, VON_KARMAN, &
-        opt_clay, Ch_DU &
+        opt_clay, Ch_DU, &
+        distribution_ptr &
     ) bind(c, name="run_k14_fortran")
 
         ! Pointer arguments
@@ -104,6 +105,9 @@ contains
         integer(c_int), value :: opt_clay
         real(c_double), value :: Ch_DU
 
+        ! Distribution pointer
+        type(c_ptr), value :: distribution_ptr
+
         ! Local Fortran array pointers (from C pointers)
         real(c_double), pointer :: t_soil(:,:), w_top(:,:), rho_air(:,:)
         real(c_double), pointer :: z0(:,:), z(:,:), u_z(:,:), v_z(:,:)
@@ -111,6 +115,7 @@ contains
         real(c_double), pointer :: f_src(:,:), f_sand(:,:), f_silt(:,:), f_clay(:,:)
         real(c_double), pointer :: texture(:,:), vegetation(:,:), gvf(:,:)
         real(c_double), pointer :: emissions(:,:,:)
+        real(c_double), pointer :: distribution(:)
 
         ! Local working arrays
         real(c_double), allocatable :: u_ts(:,:)      ! threshold friction velocity over smooth surface
@@ -151,6 +156,7 @@ contains
         call c_f_pointer(vegetation_ptr, vegetation, [nx, ny])
         call c_f_pointer(gvf_ptr, gvf, [nx, ny])
         call c_f_pointer(emissions_ptr, emissions, [nx, ny, nbins])
+        call c_f_pointer(distribution_ptr, distribution, [nbins])
 
         ! Allocate working arrays
         allocate(u_ts(nx, ny), w_g(nx, ny), w_gt(nx, ny), source=UNDEF_val)
@@ -326,11 +332,10 @@ contains
         end do
 
         ! ---------------------------------------------------------------
-        ! Step 13: Scale and replicate across bins
+        ! Step 13: Scale and distribute across bins
         ! ---------------------------------------------------------------
-        emissions(:,:,1) = flux * Ch_DU
-        do n = 2, nbins
-            emissions(:,:,n) = emissions(:,:,1)
+        do n = 1, nbins
+            emissions(:,:,n) = flux * Ch_DU * distribution(n)
         end do
 
         ! Deallocate working arrays

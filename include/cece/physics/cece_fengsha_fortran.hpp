@@ -7,6 +7,8 @@
 
 #include "cece/physics_scheme.hpp"
 
+#include <vector>
+
 namespace cece {
 
 /**
@@ -31,6 +33,8 @@ class FengshaFortranScheme : public BasePhysicsScheme {
     double grav_ = 9.81;
     double drylimit_factor_ = 1.0;
     int num_bins_ = 5;
+    std::vector<double> bin_distribution_;
+    bool has_custom_distribution_ = false;
 };
 
 }  // namespace cece

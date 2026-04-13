@@ -96,7 +96,8 @@ contains
         ssm_ptr, rdrag_ptr, airdens_ptr, fraclake_ptr, fracsnow_ptr, &
         oro_ptr, emissions_ptr, &
         nx, ny, nbins, &
-        alpha, gamma_param, kvhmax, grav, drylimit_factor &
+        alpha, gamma_param, kvhmax, grav, drylimit_factor, &
+        distribution_ptr &
     ) bind(c, name="run_fengsha_fortran")
 
         ! Pointer arguments
@@ -109,6 +110,9 @@ contains
         ! Scalar arguments
         integer(c_int), value :: nx, ny, nbins
         real(c_double), value :: alpha, gamma_param, kvhmax, grav, drylimit_factor
+
+        ! Distribution pointer
+        type(c_ptr), value :: distribution_ptr
 
         ! Local Fortran array pointers
         real(c_double), pointer :: ustar(:,:), uthrs(:,:), slc(:,:)
@@ -123,10 +127,9 @@ contains
         real(c_double) :: rustar, smois, h, u_thresh, u_sum, q
         logical :: skip
 
-        ! Hard-coded Kok distribution for 5 bins (default)
-        ! These match the normalized distribution from DustAerosolDistributionKok
-        real(c_double) :: distribution(5)
-        distribution = (/ 0.1d0, 0.25d0, 0.25d0, 0.25d0, 0.15d0 /)
+        ! Distribution array from C pointer
+        real(c_double), pointer :: distribution(:)
+        call c_f_pointer(distribution_ptr, distribution, [nbins])
 
         ! Convert C pointers to Fortran arrays
         call c_f_pointer(ustar_ptr, ustar, [nx, ny])
@@ -186,7 +189,7 @@ contains
                     q = max(0.0d0, rustar - u_thresh) * u_sum * u_sum
 
                     ! Distribute to bins
-                    do n = 1, min(nbins, 5)
+                    do n = 1, nbins
                         emissions(i,j,n) = distribution(n) * total_emissions * q
                     end do
                 end if

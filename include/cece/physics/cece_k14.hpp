@@ -54,6 +54,8 @@ class K14Scheme : public BasePhysicsScheme {
     double von_karman_ = 0.4;
     int opt_clay_ = 0;
     int num_bins_ = 5;
+    Kokkos::View<double*, Kokkos::DefaultExecutionSpace> bin_distribution_;
+    bool has_custom_distribution_ = false;
 };
 
 }  // namespace cece

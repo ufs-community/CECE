@@ -7,6 +7,8 @@
 
 #include "cece/physics_scheme.hpp"
 
+#include <vector>
+
 namespace cece {
 
 /**
@@ -34,6 +36,8 @@ class K14FortranScheme : public BasePhysicsScheme {
     double von_karman_ = 0.4;
     int opt_clay_ = 0;
     int num_bins_ = 5;
+    std::vector<double> bin_distribution_;
+    bool has_custom_distribution_ = false;
 };
 
 }  // namespace cece

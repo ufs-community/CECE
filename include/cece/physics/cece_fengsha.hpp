@@ -10,6 +10,8 @@
 
 #include "cece/physics_scheme.hpp"
 
+#include <Kokkos_Core.hpp>
+
 namespace cece {
 
 /**
@@ -35,6 +37,8 @@ class FengshaScheme : public BasePhysicsScheme {
     double grav_ = 9.81;
     double drylimit_factor_ = 1.0;
     int num_bins_ = 5;
+    Kokkos::View<double*, Kokkos::DefaultExecutionSpace> bin_distribution_;
+    bool has_custom_distribution_ = false;
 };
 
 }  // namespace cece

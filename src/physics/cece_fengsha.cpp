@@ -21,8 +21,49 @@
 #include <Kokkos_Core.hpp>
 #include <cmath>
 #include <iostream>
+#include <vector>
 
 #include "cece/cece_physics_factory.hpp"
+
+namespace {
+
+/// @brief Compute Kok (2011) normalized dust aerosol size distribution.
+/// @param radii Particle bin effective radii [m]
+/// @param lower_edges Bin lower edge radii [m]
+/// @param upper_edges Bin upper edge radii [m]
+/// @return Normalized distribution weights summing to 1.0
+inline std::vector<double> compute_kok_distribution(
+    const std::vector<double>& radii,
+    const std::vector<double>& lower_edges,
+    const std::vector<double>& upper_edges) {
+
+    constexpr double mmd = 3.4;       // median mass diameter [μm]
+    constexpr double stddev = 3.0;    // geometric standard deviation
+    constexpr double lambda = 12.0;   // crack propagation length [μm]
+    const double factor = 1.0 / (std::sqrt(2.0) * std::log(stddev));
+
+    int nbins = static_cast<int>(radii.size());
+    std::vector<double> dist(nbins, 0.0);
+    double total = 0.0;
+
+    for (int n = 0; n < nbins; ++n) {
+        double diameter = 2.0 * radii[n] * 1e6;  // convert m → μm
+        double rLow = lower_edges[n] * 1e6;
+        double rUp = upper_edges[n] * 1e6;
+        double dlam = diameter / lambda;
+        dist[n] = diameter * (1.0 + std::erf(factor * std::log(diameter / mmd)))
+                  * std::exp(-dlam * dlam * dlam)
+                  * std::log(rUp / rLow);
+        total += dist[n];
+    }
+
+    if (total > 0.0) {
+        for (int n = 0; n < nbins; ++n) dist[n] /= total;
+    }
+    return dist;
+}
+
+}  // anonymous namespace
 
 namespace cece {
 
@@ -78,6 +119,37 @@ void FengshaScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* 
     if (config["drylimit_factor"]) drylimit_factor_ = config["drylimit_factor"].as<double>();
     if (config["num_bins"]) num_bins_ = config["num_bins"].as<int>();
 
+    // Compute Kok distribution from particle size parameters if provided
+    if (config["particle_radii"] && config["bin_lower_edges"] && config["bin_upper_edges"]) {
+        auto radii = config["particle_radii"].as<std::vector<double>>();
+        auto lower = config["bin_lower_edges"].as<std::vector<double>>();
+        auto upper = config["bin_upper_edges"].as<std::vector<double>>();
+        num_bins_ = static_cast<int>(radii.size());
+
+        auto dist = compute_kok_distribution(radii, lower, upper);
+
+        bin_distribution_ = Kokkos::View<double*, Kokkos::DefaultExecutionSpace>(
+            "fengsha_bin_dist", num_bins_);
+        auto h_dist = Kokkos::create_mirror_view(bin_distribution_);
+        for (int n = 0; n < num_bins_; ++n) {
+            h_dist(n) = dist[n];
+        }
+        Kokkos::deep_copy(bin_distribution_, h_dist);
+        has_custom_distribution_ = true;
+    } else {
+        // Fallback: hardcoded 5-bin Kok distribution for backward compatibility
+        constexpr double default_dist[5] = {0.1, 0.25, 0.25, 0.25, 0.15};
+        int dist_size = num_bins_ < 5 ? num_bins_ : 5;
+        bin_distribution_ = Kokkos::View<double*, Kokkos::DefaultExecutionSpace>(
+            "fengsha_bin_dist", dist_size);
+        auto h_dist = Kokkos::create_mirror_view(bin_distribution_);
+        for (int n = 0; n < dist_size; ++n) {
+            h_dist(n) = default_dist[n];
+        }
+        Kokkos::deep_copy(bin_distribution_, h_dist);
+        has_custom_distribution_ = false;
+    }
+
     std::cout << "FengshaScheme: Initialized. alpha=" << alpha_ << " gamma=" << gamma_
               << " kvhmax=" << kvhmax_ << "\n";
 }
@@ -120,8 +192,11 @@ void FengshaScheme::Run(CeceImportState& import_state, CeceExportState& export_s
     double grav = grav_;
     double drylimit_factor = drylimit_factor_;
 
-    // Hard-coded Kok distribution for up to 5 bins
-    constexpr double distribution[5] = {0.1, 0.25, 0.25, 0.25, 0.15};
+    // Capture the pre-computed Kok distribution view
+    auto bin_dist = bin_distribution_;
+    int dist_size = static_cast<int>(bin_dist.extent(0));
+    bool has_custom = has_custom_distribution_;
+
     constexpr double LAND = 1.0;
     constexpr double SSM_THRESH = 1.0e-2;
 
@@ -166,10 +241,10 @@ void FengshaScheme::Run(CeceImportState& import_state, CeceExportState& export_s
             // Horizontal saltation flux (Webb et al. 2020, Eq. 9)
             double q = Kokkos::max(0.0, rustar - u_thresh) * u_sum * u_sum;
 
-            // Distribute to bins
-            int actual_bins = nbins < 5 ? nbins : 5;
-            for (int n = 0; n < actual_bins; ++n) {
-                emissions(i, j, n) += distribution[n] * total_emissions * q;
+            // Distribute to bins using pre-computed Kok distribution
+            int bins_to_use = has_custom ? nbins : (nbins < dist_size ? nbins : dist_size);
+            for (int n = 0; n < bins_to_use; ++n) {
+                emissions(i, j, n) += bin_dist(n) * total_emissions * q;
             }
         });
 

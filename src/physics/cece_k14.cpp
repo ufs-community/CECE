@@ -23,8 +23,49 @@
 #include <Kokkos_Core.hpp>
 #include <cmath>
 #include <iostream>
+#include <vector>
 
 #include "cece/cece_physics_factory.hpp"
+
+namespace {
+
+/// @brief Compute Kok (2011) normalized dust aerosol size distribution.
+/// @param radii Particle bin effective radii [m]
+/// @param lower_edges Bin lower edge radii [m]
+/// @param upper_edges Bin upper edge radii [m]
+/// @return Normalized distribution weights summing to 1.0
+inline std::vector<double> compute_kok_distribution(
+    const std::vector<double>& radii,
+    const std::vector<double>& lower_edges,
+    const std::vector<double>& upper_edges) {
+
+    constexpr double mmd = 3.4;       // median mass diameter [μm]
+    constexpr double stddev = 3.0;    // geometric standard deviation
+    constexpr double lambda = 12.0;   // crack propagation length [μm]
+    const double factor = 1.0 / (std::sqrt(2.0) * std::log(stddev));
+
+    int nbins = static_cast<int>(radii.size());
+    std::vector<double> dist(nbins, 0.0);
+    double total = 0.0;
+
+    for (int n = 0; n < nbins; ++n) {
+        double diameter = 2.0 * radii[n] * 1e6;  // convert m → μm
+        double rLow = lower_edges[n] * 1e6;
+        double rUp = upper_edges[n] * 1e6;
+        double dlam = diameter / lambda;
+        dist[n] = diameter * (1.0 + std::erf(factor * std::log(diameter / mmd)))
+                  * std::exp(-dlam * dlam * dlam)
+                  * std::log(rUp / rLow);
+        total += dist[n];
+    }
+
+    if (total > 0.0) {
+        for (int n = 0; n < nbins; ++n) dist[n] /= total;
+    }
+    return dist;
+}
+
+}  // anonymous namespace
 
 namespace cece {
 
@@ -112,6 +153,36 @@ void K14Scheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag
     if (config["opt_clay"]) opt_clay_ = config["opt_clay"].as<int>();
     if (config["num_bins"]) num_bins_ = config["num_bins"].as<int>();
 
+    // Compute Kok distribution from particle size parameters if provided
+    if (config["particle_radii"] && config["bin_lower_edges"] && config["bin_upper_edges"]) {
+        auto radii = config["particle_radii"].as<std::vector<double>>();
+        auto lower = config["bin_lower_edges"].as<std::vector<double>>();
+        auto upper = config["bin_upper_edges"].as<std::vector<double>>();
+        num_bins_ = static_cast<int>(radii.size());
+
+        auto dist = compute_kok_distribution(radii, lower, upper);
+
+        bin_distribution_ = Kokkos::View<double*, Kokkos::DefaultExecutionSpace>(
+            "k14_bin_dist", num_bins_);
+        auto h_dist = Kokkos::create_mirror_view(bin_distribution_);
+        for (int n = 0; n < num_bins_; ++n) {
+            h_dist(n) = dist[n];
+        }
+        Kokkos::deep_copy(bin_distribution_, h_dist);
+        has_custom_distribution_ = true;
+    } else {
+        // Fallback: uniform distribution for backward compatibility
+        bin_distribution_ = Kokkos::View<double*, Kokkos::DefaultExecutionSpace>(
+            "k14_bin_dist", num_bins_);
+        auto h_dist = Kokkos::create_mirror_view(bin_distribution_);
+        double uniform_weight = 1.0 / num_bins_;
+        for (int n = 0; n < num_bins_; ++n) {
+            h_dist(n) = uniform_weight;
+        }
+        Kokkos::deep_copy(bin_distribution_, h_dist);
+        has_custom_distribution_ = false;
+    }
+
     std::cout << "K14Scheme: Initialized. ch_du=" << ch_du_ << " opt_clay=" << opt_clay_
               << " num_bins=" << num_bins_ << "\n";
 }
@@ -161,6 +232,9 @@ void K14Scheme::Run(CeceImportState& import_state, CeceExportState& export_state
     double undef = undef_;
     double grav = grav_;
     int opt_clay = opt_clay_;
+
+    // Capture the pre-computed bin distribution view
+    auto bin_dist = bin_distribution_;
 
     // Physical constants
     constexpr double a_n = 0.0123;
@@ -309,11 +383,10 @@ void K14Scheme::Run(CeceImportState& import_state, CeceExportState& export_state
             }
 
             // ---------------------------------------------------------------
-            // Step 13: Scale and replicate across bins
+            // Step 13: Scale and distribute across bins
             // ---------------------------------------------------------------
-            double emis_val = flux * ch_du;
             for (int n = 0; n < nbins; ++n) {
-                emissions(i, j, n) = emis_val;
+                emissions(i, j, n) = flux * ch_du * bin_dist(n);
             }
         });
 

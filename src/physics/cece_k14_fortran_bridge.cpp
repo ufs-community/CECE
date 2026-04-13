@@ -3,10 +3,48 @@
  * @brief Fortran bridge implementation for the K14 (Kok et al., 2014) dust emission scheme.
  */
 #include <Kokkos_Core.hpp>
+#include <cmath>
 #include <iostream>
+#include <vector>
 
 #include "cece/cece_physics_factory.hpp"
 #include "cece/physics/cece_k14_fortran.hpp"
+
+namespace {
+
+/// @brief Compute Kok (2011) normalized dust aerosol size distribution.
+inline std::vector<double> compute_kok_distribution(
+    const std::vector<double>& radii,
+    const std::vector<double>& lower_edges,
+    const std::vector<double>& upper_edges) {
+
+    constexpr double mmd = 3.4;
+    constexpr double stddev = 3.0;
+    constexpr double lambda = 12.0;
+    const double factor = 1.0 / (std::sqrt(2.0) * std::log(stddev));
+
+    int nbins = static_cast<int>(radii.size());
+    std::vector<double> dist(nbins, 0.0);
+    double total = 0.0;
+
+    for (int n = 0; n < nbins; ++n) {
+        double diameter = 2.0 * radii[n] * 1e6;
+        double rLow = lower_edges[n] * 1e6;
+        double rUp = upper_edges[n] * 1e6;
+        double dlam = diameter / lambda;
+        dist[n] = diameter * (1.0 + std::erf(factor * std::log(diameter / mmd)))
+                  * std::exp(-dlam * dlam * dlam)
+                  * std::log(rUp / rLow);
+        total += dist[n];
+    }
+
+    if (total > 0.0) {
+        for (int n = 0; n < nbins; ++n) dist[n] /= total;
+    }
+    return dist;
+}
+
+}  // anonymous namespace
 
 extern "C" {
 void run_k14_fortran(
@@ -19,7 +57,8 @@ void run_k14_fortran(
     int nx, int ny, int nbins, int km,
     double f_w, double f_c, double uts_gamma,
     double UNDEF, double GRAV, double VON_KARMAN,
-    int opt_clay, double Ch_DU);
+    int opt_clay, double Ch_DU,
+    double* distribution);
 }
 
 namespace cece {
@@ -42,6 +81,21 @@ void K14FortranScheme::Initialize(const YAML::Node& config,
     if (config["von_karman"]) von_karman_ = config["von_karman"].as<double>();
     if (config["opt_clay"]) opt_clay_ = config["opt_clay"].as<int>();
     if (config["num_bins"]) num_bins_ = config["num_bins"].as<int>();
+
+    // Compute Kok distribution from particle size parameters if provided
+    if (config["particle_radii"] && config["bin_lower_edges"] && config["bin_upper_edges"]) {
+        auto radii = config["particle_radii"].as<std::vector<double>>();
+        auto lower = config["bin_lower_edges"].as<std::vector<double>>();
+        auto upper = config["bin_upper_edges"].as<std::vector<double>>();
+        num_bins_ = static_cast<int>(radii.size());
+
+        bin_distribution_ = compute_kok_distribution(radii, lower, upper);
+        has_custom_distribution_ = true;
+    } else {
+        // Fallback: uniform distribution for backward compatibility
+        bin_distribution_.resize(num_bins_, 1.0 / num_bins_);
+        has_custom_distribution_ = false;
+    }
 
     std::cout << "K14FortranScheme: Initialized." << "\n";
 }
@@ -125,6 +179,16 @@ void K14FortranScheme::Run(CeceImportState& import_state, CeceExportState& expor
     int nbins = static_cast<int>(dv_emis.extent(2));
     int km = 1;
 
+    // Prepare distribution for the Fortran kernel
+    std::vector<double> dist_for_fortran;
+    if (has_custom_distribution_) {
+        dist_for_fortran = bin_distribution_;
+    } else {
+        // Uniform distribution sized to match nbins, using the same weight as Initialize
+        double uniform_weight = 1.0 / num_bins_;
+        dist_for_fortran.resize(nbins, uniform_weight);
+    }
+
     // Call Fortran kernel
     run_k14_fortran(dv_t_soil.view_host().data(), dv_w_top.view_host().data(),
                     dv_rho_air.view_host().data(), dv_z0.view_host().data(),
@@ -138,7 +202,8 @@ void K14FortranScheme::Run(CeceImportState& import_state, CeceExportState& expor
                     nx, ny, nbins, km,
                     f_w_, f_c_, uts_gamma_,
                     undef_, grav_, von_karman_,
-                    opt_clay_, ch_du_);
+                    opt_clay_, ch_du_,
+                    dist_for_fortran.data());
 
     // Mark export modified on host and sync back to device
     dv_emis.modify<Kokkos::HostSpace>();
