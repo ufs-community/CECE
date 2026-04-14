@@ -8,11 +8,9 @@
 namespace cece {
 
 // Self-registration: allows PhysicsFactory to discover this scheme
-static PhysicsRegistration<ExampleEmissionGeneration> register_example_emission_generation(
-    "example_emission_generation");
+static PhysicsRegistration<ExampleEmissionGeneration> register_example_emission_generation("example_emission_generation");
 
-void ExampleEmissionGeneration::Initialize(const YAML::Node& config,
-                                           CeceDiagnosticManager* diag_manager) {
+void ExampleEmissionGeneration::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
     // Call base class initialization to set up field name mappings
     BasePhysicsScheme::Initialize(config, diag_manager);
 
@@ -42,10 +40,8 @@ void ExampleEmissionGeneration::Initialize(const YAML::Node& config,
     // Register diagnostic fields for output
     // These will be written to NetCDF if diagnostics are enabled
     if (diag_manager != nullptr) {
-        temperature_factor_ = ResolveDiagnostic("temperature_factor", 1, 1, 1, "dimensionless",
-                                                "Temperature scaling factor");
-        solar_factor_diag_ = ResolveDiagnostic("solar_factor", 1, 1, 1, "dimensionless",
-                                               "Solar radiation scaling factor");
+        temperature_factor_ = ResolveDiagnostic("temperature_factor", 1, 1, 1, "dimensionless", "Temperature scaling factor");
+        solar_factor_diag_ = ResolveDiagnostic("solar_factor", 1, 1, 1, "dimensionless", "Solar radiation scaling factor");
     }
 }
 
@@ -60,8 +56,7 @@ void ExampleEmissionGeneration::Run(CeceImportState& import_state, CeceExportSta
     auto emissions = ResolveExport("emissions", export_state);
 
     // Validate that all required fields were resolved
-    if (temperature.data() == nullptr || solar_radiation.data() == nullptr ||
-        emissions.data() == nullptr) {
+    if (temperature.data() == nullptr || solar_radiation.data() == nullptr || emissions.data() == nullptr) {
         return;
     }
 
@@ -86,9 +81,7 @@ void ExampleEmissionGeneration::Run(CeceImportState& import_state, CeceExportSta
     // - Use Kokkos::parallel_reduce for global reductions
 
     Kokkos::parallel_for(
-        "ExampleEmissionGenerationKernel",
-        Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<3>>({0, 0, 0},
-                                                                              {nx, ny, nz}),
+        "ExampleEmissionGenerationKernel", Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
         KOKKOS_LAMBDA(int i, int j, int k) {
             // Get meteorological inputs for this grid point
             double temp = temperature(i, j, k);

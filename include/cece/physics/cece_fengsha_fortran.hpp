@@ -5,9 +5,9 @@
 #ifndef CECE_FENGSHA_FORTRAN_HPP
 #define CECE_FENGSHA_FORTRAN_HPP
 
-#include "cece/physics_scheme.hpp"
-
 #include <vector>
+
+#include "cece/physics_scheme.hpp"
 
 namespace cece {
 

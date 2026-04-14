@@ -8,8 +8,9 @@
 #ifndef CECE_GOCART2G_HPP
 #define CECE_GOCART2G_HPP
 
-#include "cece/physics_scheme.hpp"
 #include <Kokkos_Core.hpp>
+
+#include "cece/physics_scheme.hpp"
 
 namespace cece {
 

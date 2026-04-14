@@ -27,19 +27,15 @@
 // ============================================================================
 namespace ginoux_ref {
 
-double marticorena_threshold(double diameter, double soil_density,
-                             double grav, double air_dens) {
+double marticorena_threshold(double diameter, double soil_density, double grav, double air_dens) {
     double reynol = 1331.0 * std::pow(100.0 * diameter, 1.56) + 0.38;
-    return 0.13 * std::sqrt(soil_density * grav * diameter / air_dens)
-               * std::sqrt(1.0 + 6.0e-7 / (soil_density * grav
-                              * std::pow(diameter, 2.5)))
-               / std::sqrt(1.928 * std::pow(reynol, 0.092) - 1.0);
+    return 0.13 * std::sqrt(soil_density * grav * diameter / air_dens) * std::sqrt(1.0 + 6.0e-7 / (soil_density * grav * std::pow(diameter, 2.5))) /
+           std::sqrt(1.928 * std::pow(reynol, 0.092) - 1.0);
 }
 
 double moisture_threshold(double u_thresh0, double gwettop) {
     if (gwettop >= 0.5) return 0.0;
-    return std::max(0.0, u_thresh0 * (1.2 + 0.2
-           * std::log10(std::max(1.0e-3, gwettop))));
+    return std::max(0.0, u_thresh0 * (1.2 + 0.2 * std::log10(std::max(1.0e-3, gwettop))));
 }
 
 }  // namespace ginoux_ref
@@ -67,8 +63,7 @@ class GinouxPropertyTest : public ::testing::Test {
         return dist(rng_);
     }
 
-    [[nodiscard]] DualView3D create_dv(const std::string& name, int nx, int ny, int nz,
-                                       double val) const {
+    [[nodiscard]] DualView3D create_dv(const std::string& name, int nx, int ny, int nz, double val) const {
         DualView3D dv(name, nx, ny, nz);
         Kokkos::deep_copy(dv.view_host(), val);
         dv.modify<Kokkos::HostSpace>();
@@ -95,8 +90,7 @@ TEST_F(GinouxPropertyTest, Property1_MarticorenaThreshold) {
         // Reference formula computed step-by-step
         double reynol = 1331.0 * std::pow(100.0 * diameter, 1.56) + 0.38;
         double term1 = 0.13 * std::sqrt(soil_density * grav * diameter / air_dens);
-        double term2 = std::sqrt(1.0 + 6.0e-7 / (soil_density * grav
-                       * std::pow(diameter, 2.5)));
+        double term2 = std::sqrt(1.0 + 6.0e-7 / (soil_density * grav * std::pow(diameter, 2.5)));
         double term3 = std::sqrt(1.928 * std::pow(reynol, 0.092) - 1.0);
         double expected = term1 * term2 / term3;
 
@@ -122,16 +116,12 @@ TEST_F(GinouxPropertyTest, Property2_MoistureThreshold) {
 
         if (gwettop >= 0.5) {
             // When gwettop >= 0.5, moisture threshold returns 0 (no emission)
-            EXPECT_DOUBLE_EQ(result, 0.0)
-                << "Should return 0 when gwettop >= 0.5. gwettop=" << gwettop
-                << " iter=" << iter;
+            EXPECT_DOUBLE_EQ(result, 0.0) << "Should return 0 when gwettop >= 0.5. gwettop=" << gwettop << " iter=" << iter;
         } else {
             // When gwettop < 0.5, compute the adjusted threshold
-            double expected = std::max(0.0, u_thresh0 * (1.2 + 0.2
-                * std::log10(std::max(1.0e-3, gwettop))));
+            double expected = std::max(0.0, u_thresh0 * (1.2 + 0.2 * std::log10(std::max(1.0e-3, gwettop))));
             EXPECT_NEAR(result, expected, std::abs(expected) * 1e-14 + 1e-14)
-                << "Failed at iter=" << iter << " u_thresh0=" << u_thresh0
-                << " gwettop=" << gwettop;
+                << "Failed at iter=" << iter << " u_thresh0=" << u_thresh0 << " gwettop=" << gwettop;
 
             // Result must be non-negative
             EXPECT_GE(result, 0.0) << "Adjusted threshold must be non-negative";
@@ -187,8 +177,7 @@ TEST_F(GinouxPropertyTest, Property3_NumericalEquivalence) {
         auto fill_random_2d = [&](const std::string& name, double lo, double hi) {
             auto h = import_state.fields[name].view_host();
             for (int j = 0; j < ny; ++j)
-                for (int i = 0; i < nx; ++i)
-                    h(i, j, 0) = rand_uniform(lo, hi);
+                for (int i = 0; i < nx; ++i) h(i, j, 0) = rand_uniform(lo, hi);
             import_state.fields[name].modify<Kokkos::HostSpace>();
             import_state.fields[name].sync<Kokkos::DefaultExecutionSpace>();
         };
@@ -202,8 +191,7 @@ TEST_F(GinouxPropertyTest, Property3_NumericalEquivalence) {
         // Fill particle radii
         {
             auto h = import_state.fields["particle_radius"].view_host();
-            for (int n = 0; n < nbins; ++n)
-                h(0, 0, n) = rand_uniform(0.1e-6, 25.0e-6);
+            for (int n = 0; n < nbins; ++n) h(0, 0, n) = rand_uniform(0.1e-6, 25.0e-6);
             import_state.fields["particle_radius"].modify<Kokkos::HostSpace>();
             import_state.fields["particle_radius"].sync<Kokkos::DefaultExecutionSpace>();
         }
@@ -234,9 +222,7 @@ TEST_F(GinouxPropertyTest, Property3_NumericalEquivalence) {
                     double cpp_val = h_cpp(i, j, n);
                     double fort_val = h_fort(i, j, n);
                     double tol = std::max(std::abs(cpp_val), std::abs(fort_val)) * 1e-12 + 1e-20;
-                    EXPECT_NEAR(cpp_val, fort_val, tol)
-                        << "Mismatch at (" << i << "," << j << "," << n
-                        << ") iter=" << iter;
+                    EXPECT_NEAR(cpp_val, fort_val, tol) << "Mismatch at (" << i << "," << j << "," << n << ") iter=" << iter;
                 }
             }
         }
@@ -289,8 +275,7 @@ TEST_F(GinouxPropertyTest, Property4_ZeroEmissionInvariant) {
         // Fill particle radii with physically valid values
         {
             auto h = import_state.fields["particle_radius"].view_host();
-            for (int n = 0; n < nbins; ++n)
-                h(0, 0, n) = rand_uniform(1.0e-6, 10.0e-6);
+            for (int n = 0; n < nbins; ++n) h(0, 0, n) = rand_uniform(1.0e-6, 10.0e-6);
             import_state.fields["particle_radius"].modify<Kokkos::HostSpace>();
             import_state.fields["particle_radius"].sync<Kokkos::DefaultExecutionSpace>();
         }
@@ -314,8 +299,7 @@ TEST_F(GinouxPropertyTest, Property4_ZeroEmissionInvariant) {
         {
             auto h = import_state.fields["surface_soil_wetness"].view_host();
             for (int j = 0; j < ny; ++j)
-                for (int i = 0; i < nx; ++i)
-                    h(i, j, 0) = rand_uniform(0.01, 0.3);
+                for (int i = 0; i < nx; ++i) h(i, j, 0) = rand_uniform(0.01, 0.3);
             import_state.fields["surface_soil_wetness"].modify<Kokkos::HostSpace>();
             import_state.fields["surface_soil_wetness"].sync<Kokkos::DefaultExecutionSpace>();
         }
@@ -328,13 +312,11 @@ TEST_F(GinouxPropertyTest, Property4_ZeroEmissionInvariant) {
 
         // Rows 0-1: ocean cells (land_mask = 0)
         for (int j = 0; j < ny; ++j)
-            for (int i = 0; i < 2; ++i)
-                oro_h(i, j, 0) = 0.0;
+            for (int i = 0; i < 2; ++i) oro_h(i, j, 0) = 0.0;
 
         // Rows 2-3: high wetness (gwettop >= 0.5)
         for (int j = 0; j < ny; ++j)
-            for (int i = 2; i < 4; ++i)
-                gwettop_h(i, j, 0) = rand_uniform(0.5, 1.0);
+            for (int i = 2; i < 4; ++i) gwettop_h(i, j, 0) = rand_uniform(0.5, 1.0);
 
         // Rows 4-5: very low wind speed (below any possible threshold)
         for (int j = 0; j < ny; ++j)
@@ -368,20 +350,17 @@ TEST_F(GinouxPropertyTest, Property4_ZeroEmissionInvariant) {
                 // Ocean cells (rows 0-1)
                 for (int i = 0; i < 2; ++i) {
                     EXPECT_DOUBLE_EQ(emis_cpp_h(i, j, n), 0.0)
-                        << "C++ ocean cell (" << i << "," << j << "," << n
-                        << ") should have zero emissions, iter=" << iter;
+                        << "C++ ocean cell (" << i << "," << j << "," << n << ") should have zero emissions, iter=" << iter;
                 }
                 // High wetness cells (rows 2-3)
                 for (int i = 2; i < 4; ++i) {
                     EXPECT_DOUBLE_EQ(emis_cpp_h(i, j, n), 0.0)
-                        << "C++ high-wetness cell (" << i << "," << j << "," << n
-                        << ") should have zero emissions, iter=" << iter;
+                        << "C++ high-wetness cell (" << i << "," << j << "," << n << ") should have zero emissions, iter=" << iter;
                 }
                 // Below-threshold wind cells (rows 4-5)
                 for (int i = 4; i < 6; ++i) {
                     EXPECT_DOUBLE_EQ(emis_cpp_h(i, j, n), 0.0)
-                        << "C++ below-threshold cell (" << i << "," << j << "," << n
-                        << ") should have zero emissions, iter=" << iter;
+                        << "C++ below-threshold cell (" << i << "," << j << "," << n << ") should have zero emissions, iter=" << iter;
                 }
             }
         }
@@ -402,18 +381,15 @@ TEST_F(GinouxPropertyTest, Property4_ZeroEmissionInvariant) {
                 for (int n = 0; n < nbins; ++n) {
                     for (int i = 0; i < 2; ++i) {
                         EXPECT_DOUBLE_EQ(emis_fort_h(i, j, n), 0.0)
-                            << "Fortran ocean cell (" << i << "," << j << "," << n
-                            << ") should have zero emissions, iter=" << iter;
+                            << "Fortran ocean cell (" << i << "," << j << "," << n << ") should have zero emissions, iter=" << iter;
                     }
                     for (int i = 2; i < 4; ++i) {
                         EXPECT_DOUBLE_EQ(emis_fort_h(i, j, n), 0.0)
-                            << "Fortran high-wetness cell (" << i << "," << j << "," << n
-                            << ") should have zero emissions, iter=" << iter;
+                            << "Fortran high-wetness cell (" << i << "," << j << "," << n << ") should have zero emissions, iter=" << iter;
                     }
                     for (int i = 4; i < 6; ++i) {
                         EXPECT_DOUBLE_EQ(emis_fort_h(i, j, n), 0.0)
-                            << "Fortran below-threshold cell (" << i << "," << j << "," << n
-                            << ") should have zero emissions, iter=" << iter;
+                            << "Fortran below-threshold cell (" << i << "," << j << "," << n << ") should have zero emissions, iter=" << iter;
                     }
                 }
             }

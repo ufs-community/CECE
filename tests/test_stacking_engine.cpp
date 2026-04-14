@@ -38,12 +38,11 @@ class ActualFieldResolver : public FieldResolver {
     UnmanagedHostView3D ResolveExport(const std::string& name, int, int, int) override {
         return fields[name].view_host();
     }
-    Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
-    ResolveImportDevice(const std::string& name, int, int, int) override {
+    Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveImportDevice(const std::string& name, int, int,
+                                                                                                         int) override {
         return fields[name].view_device();
     }
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveExportDevice(
-        const std::string& name, int, int, int) override {
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveExportDevice(const std::string& name, int, int, int) override {
         return fields[name].view_device();
     }
 };
@@ -117,8 +116,7 @@ TEST_F(StackingEngineTest, DefaultMaskApplication) {
     resolver.SetValue("test_species", 0.0);
 
     // Provide a default mask of 0.5
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> dmask("dmask", nx,
-                                                                                     ny, nz);
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> dmask("dmask", nx, ny, nz);
     Kokkos::deep_copy(dmask, 0.5);
 
     StackingEngine engine(config);

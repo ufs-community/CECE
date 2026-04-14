@@ -70,38 +70,32 @@ void cece_core_realize_impl(void* data_ptr, int* rc) {
         const std::string& config_path = cece::GetConfigFilePath();
         config = cece::ParseConfig(config_path);
     } catch (const std::exception& e) {
-        std::cerr << "ERROR in cece_core_realize: Failed to parse config: " << e.what()
-                  << std::endl;
+        std::cerr << "ERROR in cece_core_realize: Failed to parse config: " << e.what() << std::endl;
         if (rc != nullptr) {
             *rc = -1;
         }
         return;
     }
 
-    std::cout << "INFO: CECE Realize Phase - Expecting " << config.species_layers.size()
-              << " export fields:" << std::endl;
+    std::cout << "INFO: CECE Realize Phase - Expecting " << config.species_layers.size() << " export fields:" << std::endl;
     for (const auto& [species, layers] : config.species_layers) {
         std::cout << "  - " << species << std::endl;
     }
 
     // Log expected import fields
     if (!config.met_mapping.empty()) {
-        std::cout << "INFO: Expecting " << config.met_mapping.size()
-                  << " meteorological import fields" << std::endl;
+        std::cout << "INFO: Expecting " << config.met_mapping.size() << " meteorological import fields" << std::endl;
     }
 
     if (!config.scale_factor_mapping.empty()) {
-        std::cout << "INFO: Expecting " << config.scale_factor_mapping.size()
-                  << " scale factor import fields" << std::endl;
+        std::cout << "INFO: Expecting " << config.scale_factor_mapping.size() << " scale factor import fields" << std::endl;
     }
 
     if (!config.mask_mapping.empty()) {
-        std::cout << "INFO: Expecting " << config.mask_mapping.size() << " mask import fields"
-                  << std::endl;
+        std::cout << "INFO: Expecting " << config.mask_mapping.size() << " mask import fields" << std::endl;
     }
 
-    std::cout << "INFO: CECE Realize Phase complete - ESMF fields managed by Fortran cap"
-              << std::endl;
+    std::cout << "INFO: CECE Realize Phase complete - ESMF fields managed by Fortran cap" << std::endl;
 
     if (rc != nullptr) {
         *rc = 0;

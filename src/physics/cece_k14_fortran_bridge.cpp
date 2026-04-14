@@ -13,11 +13,8 @@
 namespace {
 
 /// @brief Compute Kok (2011) normalized dust aerosol size distribution.
-inline std::vector<double> compute_kok_distribution(
-    const std::vector<double>& radii,
-    const std::vector<double>& lower_edges,
-    const std::vector<double>& upper_edges) {
-
+inline std::vector<double> compute_kok_distribution(const std::vector<double>& radii, const std::vector<double>& lower_edges,
+                                                    const std::vector<double>& upper_edges) {
     constexpr double mmd = 3.4;
     constexpr double stddev = 3.0;
     constexpr double lambda = 12.0;
@@ -32,9 +29,7 @@ inline std::vector<double> compute_kok_distribution(
         double rLow = lower_edges[n] * 1e6;
         double rUp = upper_edges[n] * 1e6;
         double dlam = diameter / lambda;
-        dist[n] = diameter * (1.0 + std::erf(factor * std::log(diameter / mmd)))
-                  * std::exp(-dlam * dlam * dlam)
-                  * std::log(rUp / rLow);
+        dist[n] = diameter * (1.0 + std::erf(factor * std::log(diameter / mmd))) * std::exp(-dlam * dlam * dlam) * std::log(rUp / rLow);
         total += dist[n];
     }
 
@@ -47,18 +42,10 @@ inline std::vector<double> compute_kok_distribution(
 }  // anonymous namespace
 
 extern "C" {
-void run_k14_fortran(
-    double* t_soil, double* w_top, double* rho_air, double* z0,
-    double* z, double* u_z, double* v_z, double* ustar,
-    double* f_land, double* f_snow, double* f_src,
-    double* f_sand, double* f_silt, double* f_clay,
-    double* texture, double* vegetation, double* gvf,
-    double* emissions,
-    int nx, int ny, int nbins, int km,
-    double f_w, double f_c, double uts_gamma,
-    double UNDEF, double GRAV, double VON_KARMAN,
-    int opt_clay, double Ch_DU,
-    double* distribution);
+void run_k14_fortran(double* t_soil, double* w_top, double* rho_air, double* z0, double* z, double* u_z, double* v_z, double* ustar, double* f_land,
+                     double* f_snow, double* f_src, double* f_sand, double* f_silt, double* f_clay, double* texture, double* vegetation, double* gvf,
+                     double* emissions, int nx, int ny, int nbins, int km, double f_w, double f_c, double uts_gamma, double UNDEF, double GRAV,
+                     double VON_KARMAN, int opt_clay, double Ch_DU, double* distribution);
 }
 
 namespace cece {
@@ -68,8 +55,7 @@ namespace cece {
 static PhysicsRegistration<K14FortranScheme> register_k14_fortran("k14_fortran");
 #endif
 
-void K14FortranScheme::Initialize(const YAML::Node& config,
-                                  CeceDiagnosticManager* diag_manager) {
+void K14FortranScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
 
     if (config["ch_du"]) ch_du_ = config["ch_du"].as<double>();
@@ -124,15 +110,12 @@ void K14FortranScheme::Run(CeceImportState& import_state, CeceExportState& expor
     auto it_emis = export_state.fields.find("k14_dust_emissions");
 
     // Early return if any field is missing
-    if (it_ustar == import_state.fields.end() || it_t_soil == import_state.fields.end() ||
-        it_w_top == import_state.fields.end() || it_rho_air == import_state.fields.end() ||
-        it_z0 == import_state.fields.end() || it_z == import_state.fields.end() ||
-        it_u_z == import_state.fields.end() || it_v_z == import_state.fields.end() ||
-        it_f_land == import_state.fields.end() || it_f_snow == import_state.fields.end() ||
-        it_f_src == import_state.fields.end() || it_f_sand == import_state.fields.end() ||
-        it_f_silt == import_state.fields.end() || it_f_clay == import_state.fields.end() ||
-        it_texture == import_state.fields.end() || it_vegetation == import_state.fields.end() ||
-        it_gvf == import_state.fields.end() || it_emis == export_state.fields.end())
+    if (it_ustar == import_state.fields.end() || it_t_soil == import_state.fields.end() || it_w_top == import_state.fields.end() ||
+        it_rho_air == import_state.fields.end() || it_z0 == import_state.fields.end() || it_z == import_state.fields.end() ||
+        it_u_z == import_state.fields.end() || it_v_z == import_state.fields.end() || it_f_land == import_state.fields.end() ||
+        it_f_snow == import_state.fields.end() || it_f_src == import_state.fields.end() || it_f_sand == import_state.fields.end() ||
+        it_f_silt == import_state.fields.end() || it_f_clay == import_state.fields.end() || it_texture == import_state.fields.end() ||
+        it_vegetation == import_state.fields.end() || it_gvf == import_state.fields.end() || it_emis == export_state.fields.end())
         return;
 
     auto& dv_ustar = it_ustar->second;
@@ -190,20 +173,12 @@ void K14FortranScheme::Run(CeceImportState& import_state, CeceExportState& expor
     }
 
     // Call Fortran kernel
-    run_k14_fortran(dv_t_soil.view_host().data(), dv_w_top.view_host().data(),
-                    dv_rho_air.view_host().data(), dv_z0.view_host().data(),
-                    dv_z.view_host().data(), dv_u_z.view_host().data(),
-                    dv_v_z.view_host().data(), dv_ustar.view_host().data(),
-                    dv_f_land.view_host().data(), dv_f_snow.view_host().data(),
-                    dv_f_src.view_host().data(), dv_f_sand.view_host().data(),
-                    dv_f_silt.view_host().data(), dv_f_clay.view_host().data(),
-                    dv_texture.view_host().data(), dv_vegetation.view_host().data(),
-                    dv_gvf.view_host().data(), dv_emis.view_host().data(),
-                    nx, ny, nbins, km,
-                    f_w_, f_c_, uts_gamma_,
-                    undef_, grav_, von_karman_,
-                    opt_clay_, ch_du_,
-                    dist_for_fortran.data());
+    run_k14_fortran(dv_t_soil.view_host().data(), dv_w_top.view_host().data(), dv_rho_air.view_host().data(), dv_z0.view_host().data(),
+                    dv_z.view_host().data(), dv_u_z.view_host().data(), dv_v_z.view_host().data(), dv_ustar.view_host().data(),
+                    dv_f_land.view_host().data(), dv_f_snow.view_host().data(), dv_f_src.view_host().data(), dv_f_sand.view_host().data(),
+                    dv_f_silt.view_host().data(), dv_f_clay.view_host().data(), dv_texture.view_host().data(), dv_vegetation.view_host().data(),
+                    dv_gvf.view_host().data(), dv_emis.view_host().data(), nx, ny, nbins, km, f_w_, f_c_, uts_gamma_, undef_, grav_, von_karman_,
+                    opt_clay_, ch_du_, dist_for_fortran.data());
 
     // Mark export modified on host and sync back to device
     dv_emis.modify<Kokkos::HostSpace>();

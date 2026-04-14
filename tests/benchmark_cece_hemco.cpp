@@ -49,8 +49,7 @@ cece::CeceConfig BuildSyntheticConfig(int nspecies, int nlayers) {
 }
 
 /** Populate import/export states with synthetic fields. */
-void PopulateStates(const cece::CeceConfig& cfg, cece::CeceImportState& imp,
-                    cece::CeceExportState& exp, int nx, int ny, int nz) {
+void PopulateStates(const cece::CeceConfig& cfg, cece::CeceImportState& imp, cece::CeceExportState& exp, int nx, int ny, int nz) {
     for (const auto& [sp, layers] : cfg.species_layers) {
         exp.fields[sp] = cece::DualView3D("exp_" + sp, nx, ny, nz);
         Kokkos::deep_copy(exp.fields[sp].view_host(), 0.0);
@@ -132,8 +131,8 @@ int main(int argc, char** argv) {
 
     Kokkos::initialize(argc, argv);
     {
-        std::cout << "[Benchmark] Mode=" << mode << " Grid=" << nx << "x" << ny << "x" << nz
-                  << " Species=" << nspecies << " Layers=" << nlayers << " Iters=" << iters << "\n";
+        std::cout << "[Benchmark] Mode=" << mode << " Grid=" << nx << "x" << ny << "x" << nz << " Species=" << nspecies << " Layers=" << nlayers
+                  << " Iters=" << iters << "\n";
 
         double avg_s = RunCeceBenchmark(nx, ny, nz, nspecies, nlayers, iters);
 

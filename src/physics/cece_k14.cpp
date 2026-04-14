@@ -34,14 +34,11 @@ namespace {
 /// @param lower_edges Bin lower edge radii [m]
 /// @param upper_edges Bin upper edge radii [m]
 /// @return Normalized distribution weights summing to 1.0
-inline std::vector<double> compute_kok_distribution(
-    const std::vector<double>& radii,
-    const std::vector<double>& lower_edges,
-    const std::vector<double>& upper_edges) {
-
-    constexpr double mmd = 3.4;       // median mass diameter [μm]
-    constexpr double stddev = 3.0;    // geometric standard deviation
-    constexpr double lambda = 12.0;   // crack propagation length [μm]
+inline std::vector<double> compute_kok_distribution(const std::vector<double>& radii, const std::vector<double>& lower_edges,
+                                                    const std::vector<double>& upper_edges) {
+    constexpr double mmd = 3.4;      // median mass diameter [μm]
+    constexpr double stddev = 3.0;   // geometric standard deviation
+    constexpr double lambda = 12.0;  // crack propagation length [μm]
     const double factor = 1.0 / (std::sqrt(2.0) * std::log(stddev));
 
     int nbins = static_cast<int>(radii.size());
@@ -53,9 +50,7 @@ inline std::vector<double> compute_kok_distribution(
         double rLow = lower_edges[n] * 1e6;
         double rUp = upper_edges[n] * 1e6;
         double dlam = diameter / lambda;
-        dist[n] = diameter * (1.0 + std::erf(factor * std::log(diameter / mmd)))
-                  * std::exp(-dlam * dlam * dlam)
-                  * std::log(rUp / rLow);
+        dist[n] = diameter * (1.0 + std::erf(factor * std::log(diameter / mmd))) * std::exp(-dlam * dlam * dlam) * std::log(rUp / rLow);
         total += dist[n];
     }
 
@@ -82,8 +77,7 @@ static PhysicsRegistration<K14Scheme> register_k14("k14");
 /// @param k_gamma Clay/silt modulation term [1]
 /// @return Vertical dust mass flux [kg/(m²·s)]
 KOKKOS_INLINE_FUNCTION
-double k14_vertical_dust_flux(double u, double u_t, double rho_air,
-                               double f_erod, double k_gamma) {
+double k14_vertical_dust_flux(double u, double u_t, double rho_air, double f_erod, double k_gamma) {
     constexpr double rho_a0 = 1.225;
     constexpr double u_st0 = 0.16;
     constexpr double C_d0 = 4.4e-5;
@@ -92,9 +86,7 @@ double k14_vertical_dust_flux(double u, double u_t, double rho_air,
     double u_st = Kokkos::max(u_t * Kokkos::sqrt(rho_air / rho_a0), u_st0);
     double f_ust = (u_st - u_st0) / u_st0;
     double C_d = C_d0 * Kokkos::exp(-C_e * f_ust);
-    return C_d * f_erod * k_gamma * rho_air
-           * ((u * u - u_t * u_t) / u_st)
-           * Kokkos::pow(u / u_t, C_a * f_ust);
+    return C_d * f_erod * k_gamma * rho_air * ((u * u - u_t * u_t) / u_st) * Kokkos::pow(u / u_t, C_a * f_ust);
 }
 
 /// @brief Compute MacKinnon (2004) drag partition correction.
@@ -105,8 +97,7 @@ KOKKOS_INLINE_FUNCTION
 double k14_drag_partition(double z0, double z0s) {
     constexpr double z0_max = 5.0e-4;
     if (z0 <= z0s || z0 >= z0_max) return 1.0;
-    return 1.0 - Kokkos::log(z0 / z0s)
-           / Kokkos::log(0.7 * Kokkos::pow(122.55 / z0s, 0.8));
+    return 1.0 - Kokkos::log(z0 / z0s) / Kokkos::log(0.7 * Kokkos::pow(122.55 / z0s, 0.8));
 }
 
 /// @brief Look up smooth roughness length from soil texture.
@@ -114,10 +105,7 @@ double k14_drag_partition(double z0, double z0s) {
 /// @return Smooth roughness length z0s [m]
 KOKKOS_INLINE_FUNCTION
 double k14_smooth_roughness(int texture) {
-    constexpr double Dc_soil[12] = {
-        710e-6, 710e-6, 125e-6, 125e-6, 125e-6, 160e-6,
-        710e-6, 125e-6, 125e-6, 160e-6, 125e-6,   2e-6
-    };
+    constexpr double Dc_soil[12] = {710e-6, 710e-6, 125e-6, 125e-6, 125e-6, 160e-6, 710e-6, 125e-6, 125e-6, 160e-6, 125e-6, 2e-6};
     if (texture >= 1 && texture <= 12) {
         return Dc_soil[texture - 1] / 30.0;
     }
@@ -162,8 +150,7 @@ void K14Scheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag
 
         auto dist = compute_kok_distribution(radii, lower, upper);
 
-        bin_distribution_ = Kokkos::View<double*, Kokkos::DefaultExecutionSpace>(
-            "k14_bin_dist", num_bins_);
+        bin_distribution_ = Kokkos::View<double*, Kokkos::DefaultExecutionSpace>("k14_bin_dist", num_bins_);
         auto h_dist = Kokkos::create_mirror_view(bin_distribution_);
         for (int n = 0; n < num_bins_; ++n) {
             h_dist(n) = dist[n];
@@ -172,8 +159,7 @@ void K14Scheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag
         has_custom_distribution_ = true;
     } else {
         // Fallback: uniform distribution for backward compatibility
-        bin_distribution_ = Kokkos::View<double*, Kokkos::DefaultExecutionSpace>(
-            "k14_bin_dist", num_bins_);
+        bin_distribution_ = Kokkos::View<double*, Kokkos::DefaultExecutionSpace>("k14_bin_dist", num_bins_);
         auto h_dist = Kokkos::create_mirror_view(bin_distribution_);
         double uniform_weight = 1.0 / num_bins_;
         for (int n = 0; n < num_bins_; ++n) {
@@ -183,8 +169,7 @@ void K14Scheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag
         has_custom_distribution_ = false;
     }
 
-    std::cout << "K14Scheme: Initialized. ch_du=" << ch_du_ << " opt_clay=" << opt_clay_
-              << " num_bins=" << num_bins_ << "\n";
+    std::cout << "K14Scheme: Initialized. ch_du=" << ch_du_ << " opt_clay=" << opt_clay_ << " num_bins=" << num_bins_ << "\n";
 }
 
 void K14Scheme::Run(CeceImportState& import_state, CeceExportState& export_state) {
@@ -211,11 +196,9 @@ void K14Scheme::Run(CeceImportState& import_state, CeceExportState& export_state
     auto emissions = ResolveExport("k14_dust_emissions", export_state);
 
     // Early return if any field is missing
-    if (ustar.data() == nullptr || t_soil.data() == nullptr || w_top.data() == nullptr ||
-        rho_air.data() == nullptr || z0.data() == nullptr || z.data() == nullptr ||
-        u_z.data() == nullptr || v_z.data() == nullptr || f_land.data() == nullptr ||
-        f_snow.data() == nullptr || f_src.data() == nullptr || f_sand.data() == nullptr ||
-        f_silt.data() == nullptr || f_clay.data() == nullptr || texture.data() == nullptr ||
+    if (ustar.data() == nullptr || t_soil.data() == nullptr || w_top.data() == nullptr || rho_air.data() == nullptr || z0.data() == nullptr ||
+        z.data() == nullptr || u_z.data() == nullptr || v_z.data() == nullptr || f_land.data() == nullptr || f_snow.data() == nullptr ||
+        f_src.data() == nullptr || f_sand.data() == nullptr || f_silt.data() == nullptr || f_clay.data() == nullptr || texture.data() == nullptr ||
         vegetation.data() == nullptr || gvf.data() == nullptr || emissions.data() == nullptr) {
         return;
     }
@@ -245,9 +228,7 @@ void K14Scheme::Run(CeceImportState& import_state, CeceExportState& export_state
     constexpr double z0_max = 5.0e-4;
 
     Kokkos::parallel_for(
-        "K14Kernel",
-        Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<2>>({0, 0}, {nx, ny}),
-        KOKKOS_LAMBDA(int i, int j) {
+        "K14Kernel", Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<2>>({0, 0}, {nx, ny}), KOKKOS_LAMBDA(int i, int j) {
             double f_land_val = f_land(i, j, 0);
             double z0_val = z0(i, j, 0);
 
@@ -265,8 +246,7 @@ void K14Scheme::Run(CeceImportState& import_state, CeceExportState& export_state
             // ---------------------------------------------------------------
             // Step 1: Threshold friction velocity over smooth surface (Shao)
             // ---------------------------------------------------------------
-            double u_ts = Kokkos::sqrt(a_n * ((rho_p / rho_air_val) * grav * Dp_size
-                          + uts_gamma / (rho_air_val * Dp_size)));
+            double u_ts = Kokkos::sqrt(a_n * ((rho_p / rho_air_val) * grav * Dp_size + uts_gamma / (rho_air_val * Dp_size)));
 
             // ---------------------------------------------------------------
             // Step 2: Gravimetric soil moisture (Zender formulation)
@@ -274,8 +254,7 @@ void K14Scheme::Run(CeceImportState& import_state, CeceExportState& export_state
             double f_sand_val = f_sand(i, j, 0);
             double w_top_val = w_top(i, j, 0);
             double vsat = 0.489 - 0.126 * f_sand_val;
-            double w_g = 100.0 * f_w_param * rho_water / rho_soil
-                         / (1.0 - vsat) * w_top_val;
+            double w_g = 100.0 * f_w_param * rho_water / rho_soil / (1.0 - vsat) * w_top_val;
 
             // ---------------------------------------------------------------
             // Step 3: Fécan soil moisture correction

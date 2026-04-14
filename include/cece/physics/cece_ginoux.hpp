@@ -8,8 +8,9 @@
 #ifndef CECE_GINOUX_HPP
 #define CECE_GINOUX_HPP
 
-#include "cece/physics_scheme.hpp"
 #include <Kokkos_Core.hpp>
+
+#include "cece/physics_scheme.hpp"
 
 namespace cece {
 

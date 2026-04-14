@@ -80,8 +80,7 @@ double get_gamma_t_li(double temp, double beta, double t_standard) {
  * @return Temperature correction factor (dimensionless)
  */
 KOKKOS_INLINE_FUNCTION
-double get_gamma_t_ld(double T, double PT_15, double CT1, double CEO, double R, double CT2,
-                      double t_opt_c1, double t_opt_c2, double e_opt_coeff) {
+double get_gamma_t_ld(double T, double PT_15, double CT1, double CEO, double R, double CT2, double t_opt_c1, double t_opt_c2, double e_opt_coeff) {
     // Calculate optimal emission potential
     double e_opt = CEO * std::exp(e_opt_coeff * (PT_15 - 297.0));
 
@@ -117,9 +116,8 @@ double get_gamma_t_ld(double T, double PT_15, double CT1, double CEO, double R, 
  * @return PAR correction factor (dimensionless)
  */
 KOKKOS_INLINE_FUNCTION
-double get_gamma_par_pceea(double q_dir, double q_diff, double par_avg, double suncos, int doy,
-                           double wm2_to_umol, double ptoa_c1, double ptoa_c2, double gamma_p_c1,
-                           double gamma_p_c2, double gamma_p_c3, double gamma_p_c4) {
+double get_gamma_par_pceea(double q_dir, double q_diff, double par_avg, double suncos, int doy, double wm2_to_umol, double ptoa_c1, double ptoa_c2,
+                           double gamma_p_c1, double gamma_p_c2, double gamma_p_c3, double gamma_p_c4) {
     const double PI = std::numbers::pi;
 
     // Early exit for nighttime conditions
@@ -220,8 +218,8 @@ void MeganScheme::Run(CeceImportState& import_state, CeceExportState& export_sta
     auto pardf = ResolveImport("par_diffuse", import_state);
     auto suncos = ResolveImport("solar_cosine", import_state);
 
-    if (temp.data() == nullptr || isoprene.data() == nullptr || lai.data() == nullptr ||
-        pardr.data() == nullptr || pardf.data() == nullptr || suncos.data() == nullptr) {
+    if (temp.data() == nullptr || isoprene.data() == nullptr || lai.data() == nullptr || pardr.data() == nullptr || pardf.data() == nullptr ||
+        suncos.data() == nullptr) {
         return;
     }
 
@@ -253,8 +251,7 @@ void MeganScheme::Run(CeceImportState& import_state, CeceExportState& export_sta
     double gamma_co2_const = gamma_co2_;
 
     Kokkos::parallel_for(
-        "MeganKernel_Optimized",
-        Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<2>>({0, 0}, {nx, ny}),
+        "MeganKernel_Optimized", Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<2>>({0, 0}, {nx, ny}),
         KOKKOS_LAMBDA(int i, int j) {
             double T = temp(i, j, 0);
             double L = lai(i, j, 0);
@@ -270,14 +267,11 @@ void MeganScheme::Run(CeceImportState& import_state, CeceExportState& export_sta
 
             double gamma_lai = get_gamma_lai(L, lai_c1, lai_c2);
             double gamma_t_li = get_gamma_t_li(T, beta, std_t);
-            double gamma_t_ld =
-                get_gamma_t_ld(T, T_AVG_15, ct1, ceo, R, ct2, t_opt_c1, t_opt_c2, e_opt_c);
+            double gamma_t_ld = get_gamma_t_ld(T, T_AVG_15, ct1, ceo, R, ct2, t_opt_c1, t_opt_c2, e_opt_c);
             double gamma_par =
-                get_gamma_par_pceea(pardr(i, j, 0), pardf(i, j, 0), PAR_AVG, sc, doy, wm2_umol,
-                                    ptoa_c1, ptoa_c2, gp_c1, gp_c2, gp_c3, gp_c4);
+                get_gamma_par_pceea(pardr(i, j, 0), pardf(i, j, 0), PAR_AVG, sc, doy, wm2_umol, ptoa_c1, ptoa_c2, gp_c1, gp_c2, gp_c3, gp_c4);
 
-            double megan_emis = NORM_FAC * aef_isop * gamma_lai * gamma_co2_const *
-                                ((1.0 - ldf) * gamma_t_li + (ldf * gamma_par * gamma_t_ld));
+            double megan_emis = NORM_FAC * aef_isop * gamma_lai * gamma_co2_const * ((1.0 - ldf) * gamma_t_li + (ldf * gamma_par * gamma_t_ld));
 
             isoprene(i, j, 0) += megan_emis;
         });

@@ -28,8 +28,7 @@ class CeceDiagnosticManager {
      * @param long_name Descriptive name.
      * @return DualView3D The allocated DualView for the diagnostic.
      */
-    DualView3D RegisterDiagnostic(const std::string& name, int nx, int ny, int nz,
-                                  const std::string& units = "", const std::string& long_name = "");
+    DualView3D RegisterDiagnostic(const std::string& name, int nx, int ny, int nz, const std::string& units = "", const std::string& long_name = "");
 
     /**
      * @brief Writes requested diagnostics to disk.
@@ -39,8 +38,8 @@ class CeceDiagnosticManager {
      * @param export_state Internal export state.
      * @param output_path Optional output directory path.
      */
-    void WriteDiagnostics(const DiagnosticConfig& config, int hour, int day_of_week,
-                          const CeceExportState& export_state, const std::string& output_path = "");
+    void WriteDiagnostics(const DiagnosticConfig& config, int hour, int day_of_week, const CeceExportState& export_state,
+                          const std::string& output_path = "");
 
    private:
     struct DiagnosticField {

@@ -32,14 +32,11 @@ namespace {
 /// @param lower_edges Bin lower edge radii [m]
 /// @param upper_edges Bin upper edge radii [m]
 /// @return Normalized distribution weights summing to 1.0
-inline std::vector<double> compute_kok_distribution(
-    const std::vector<double>& radii,
-    const std::vector<double>& lower_edges,
-    const std::vector<double>& upper_edges) {
-
-    constexpr double mmd = 3.4;       // median mass diameter [μm]
-    constexpr double stddev = 3.0;    // geometric standard deviation
-    constexpr double lambda = 12.0;   // crack propagation length [μm]
+inline std::vector<double> compute_kok_distribution(const std::vector<double>& radii, const std::vector<double>& lower_edges,
+                                                    const std::vector<double>& upper_edges) {
+    constexpr double mmd = 3.4;      // median mass diameter [μm]
+    constexpr double stddev = 3.0;   // geometric standard deviation
+    constexpr double lambda = 12.0;  // crack propagation length [μm]
     const double factor = 1.0 / (std::sqrt(2.0) * std::log(stddev));
 
     int nbins = static_cast<int>(radii.size());
@@ -51,9 +48,7 @@ inline std::vector<double> compute_kok_distribution(
         double rLow = lower_edges[n] * 1e6;
         double rUp = upper_edges[n] * 1e6;
         double dlam = diameter / lambda;
-        dist[n] = diameter * (1.0 + std::erf(factor * std::log(diameter / mmd)))
-                  * std::exp(-dlam * dlam * dlam)
-                  * std::log(rUp / rLow);
+        dist[n] = diameter * (1.0 + std::erf(factor * std::log(diameter / mmd))) * std::exp(-dlam * dlam * dlam) * std::log(rUp / rLow);
         total += dist[n];
     }
 
@@ -128,8 +123,7 @@ void FengshaScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* 
 
         auto dist = compute_kok_distribution(radii, lower, upper);
 
-        bin_distribution_ = Kokkos::View<double*, Kokkos::DefaultExecutionSpace>(
-            "fengsha_bin_dist", num_bins_);
+        bin_distribution_ = Kokkos::View<double*, Kokkos::DefaultExecutionSpace>("fengsha_bin_dist", num_bins_);
         auto h_dist = Kokkos::create_mirror_view(bin_distribution_);
         for (int n = 0; n < num_bins_; ++n) {
             h_dist(n) = dist[n];
@@ -140,8 +134,7 @@ void FengshaScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* 
         // Fallback: hardcoded 5-bin Kok distribution for backward compatibility
         constexpr double default_dist[5] = {0.1, 0.25, 0.25, 0.25, 0.15};
         int dist_size = num_bins_ < 5 ? num_bins_ : 5;
-        bin_distribution_ = Kokkos::View<double*, Kokkos::DefaultExecutionSpace>(
-            "fengsha_bin_dist", dist_size);
+        bin_distribution_ = Kokkos::View<double*, Kokkos::DefaultExecutionSpace>("fengsha_bin_dist", dist_size);
         auto h_dist = Kokkos::create_mirror_view(bin_distribution_);
         for (int n = 0; n < dist_size; ++n) {
             h_dist(n) = default_dist[n];
@@ -150,8 +143,7 @@ void FengshaScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* 
         has_custom_distribution_ = false;
     }
 
-    std::cout << "FengshaScheme: Initialized. alpha=" << alpha_ << " gamma=" << gamma_
-              << " kvhmax=" << kvhmax_ << "\n";
+    std::cout << "FengshaScheme: Initialized. alpha=" << alpha_ << " gamma=" << gamma_ << " kvhmax=" << kvhmax_ << "\n";
 }
 
 void FengshaScheme::Run(CeceImportState& import_state, CeceExportState& export_state) {
@@ -173,11 +165,9 @@ void FengshaScheme::Run(CeceImportState& import_state, CeceExportState& export_s
     auto emissions = ResolveExport("fengsha_dust_emissions", export_state);
 
     // Early return if any field is missing
-    if (ustar.data() == nullptr || uthrs.data() == nullptr || slc.data() == nullptr ||
-        clay.data() == nullptr || sand.data() == nullptr || silt.data() == nullptr ||
-        ssm.data() == nullptr || rdrag.data() == nullptr || airdens.data() == nullptr ||
-        fraclake.data() == nullptr || fracsnow.data() == nullptr || oro.data() == nullptr ||
-        emissions.data() == nullptr) {
+    if (ustar.data() == nullptr || uthrs.data() == nullptr || slc.data() == nullptr || clay.data() == nullptr || sand.data() == nullptr ||
+        silt.data() == nullptr || ssm.data() == nullptr || rdrag.data() == nullptr || airdens.data() == nullptr || fraclake.data() == nullptr ||
+        fracsnow.data() == nullptr || oro.data() == nullptr || emissions.data() == nullptr) {
         return;
     }
 
@@ -201,9 +191,7 @@ void FengshaScheme::Run(CeceImportState& import_state, CeceExportState& export_s
     constexpr double SSM_THRESH = 1.0e-2;
 
     Kokkos::parallel_for(
-        "FengshaKernel",
-        Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<2>>({0, 0}, {nx, ny}),
-        KOKKOS_LAMBDA(int i, int j) {
+        "FengshaKernel", Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<2>>({0, 0}, {nx, ny}), KOKKOS_LAMBDA(int i, int j) {
             // Skip if not on land
             double oro_val = oro(i, j, 0);
             if (Kokkos::round(oro_val) != LAND) return;
@@ -216,16 +204,15 @@ void FengshaScheme::Run(CeceImportState& import_state, CeceExportState& export_s
             double rdrag_val = rdrag(i, j, 0);
             if (clay_val < 0.0 || sand_val < 0.0 || rdrag_val < 0.0) return;
 
-            double fracland = Kokkos::max(0.0, Kokkos::min(1.0, 1.0 - fraclake(i, j, 0))) *
-                              Kokkos::max(0.0, Kokkos::min(1.0, 1.0 - fracsnow(i, j, 0)));
+            double fracland =
+                Kokkos::max(0.0, Kokkos::min(1.0, 1.0 - fraclake(i, j, 0))) * Kokkos::max(0.0, Kokkos::min(1.0, 1.0 - fracsnow(i, j, 0)));
 
             // Vertical-to-horizontal mass flux ratio
             double kvh = fengsha_flux_v2h_ratio_mb95(clay_val, kvhmax);
 
             // Total emissions scaling
             double alpha_grav = alpha / grav;
-            double total_emissions =
-                alpha_grav * fracland * Kokkos::pow(ssm_val, gamma_param) * airdens(i, j, 0) * kvh;
+            double total_emissions = alpha_grav * fracland * Kokkos::pow(ssm_val, gamma_param) * airdens(i, j, 0) * kvh;
 
             // Drag-partition-adjusted friction velocity
             double rustar = rdrag_val * ustar(i, j, 0);

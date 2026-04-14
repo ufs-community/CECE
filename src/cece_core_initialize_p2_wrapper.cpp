@@ -55,15 +55,14 @@ void cece_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc)
  *
  * Requirements: 10.2, 10.3
  */
-void cece_core_initialize_p2_esmf(void* data_ptr, void* gcomp_ptr, void* importState_ptr,
-                                  void* exportState_ptr, void* clock_ptr, void* grid_ptr, int* rc) {
+void cece_core_initialize_p2_esmf(void* data_ptr, void* gcomp_ptr, void* importState_ptr, void* exportState_ptr, void* clock_ptr, void* grid_ptr,
+                                  int* rc) {
     // Initialize return code to success
     if (rc != nullptr) {
         *rc = 0;  // 0 = success in C
     }
 
-    std::cout << "INFO: CECE Initialize Phase 2 (ESMF wrapper) - Extracting grid dimensions"
-              << std::endl;
+    std::cout << "INFO: CECE Initialize Phase 2 (ESMF wrapper) - Extracting grid dimensions" << std::endl;
 
     // Validate that Phase 1 completed successfully
     if (data_ptr == nullptr) {
@@ -99,8 +98,7 @@ void cece_core_initialize_p2_esmf(void* data_ptr, void* gcomp_ptr, void* importS
     // (This is optional - the core function will use defaults if extraction fails)
     // For now, just use the defaults above
 
-    std::cout << "INFO: Extracted grid dimensions: nx=" << nx << ", ny=" << ny << ", nz=" << nz
-              << std::endl;
+    std::cout << "INFO: Extracted grid dimensions: nx=" << nx << ", ny=" << ny << ", nz=" << nz << std::endl;
 
     // Call the core Phase 2 implementation with extracted dimensions
     cece_core_initialize_p2_impl(data_ptr, &nx, &ny, &nz, rc);

@@ -86,8 +86,7 @@ void VolcanoScheme::Run(CeceImportState& import_state, CeceExportState& export_s
     double volcano_cld = volcano_cld_;
 
     Kokkos::parallel_for(
-        "VolcanoKernel_Optimized", Kokkos::RangePolicy<Kokkos::DefaultExecutionSpace>(0, nz),
-        KOKKOS_LAMBDA(int k) {
+        "VolcanoKernel_Optimized", Kokkos::RangePolicy<Kokkos::DefaultExecutionSpace>(0, nz), KOKKOS_LAMBDA(int k) {
             // Refactored to only iterate over the vertical column for the point source.
             // In a real implementation, target_i/target_j would be mapped from local process
             // bounds.

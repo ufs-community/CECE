@@ -13,11 +13,8 @@
 namespace {
 
 /// @brief Compute Kok (2011) normalized dust aerosol size distribution.
-inline std::vector<double> compute_kok_distribution(
-    const std::vector<double>& radii,
-    const std::vector<double>& lower_edges,
-    const std::vector<double>& upper_edges) {
-
+inline std::vector<double> compute_kok_distribution(const std::vector<double>& radii, const std::vector<double>& lower_edges,
+                                                    const std::vector<double>& upper_edges) {
     constexpr double mmd = 3.4;
     constexpr double stddev = 3.0;
     constexpr double lambda = 12.0;
@@ -32,9 +29,7 @@ inline std::vector<double> compute_kok_distribution(
         double rLow = lower_edges[n] * 1e6;
         double rUp = upper_edges[n] * 1e6;
         double dlam = diameter / lambda;
-        dist[n] = diameter * (1.0 + std::erf(factor * std::log(diameter / mmd)))
-                  * std::exp(-dlam * dlam * dlam)
-                  * std::log(rUp / rLow);
+        dist[n] = diameter * (1.0 + std::erf(factor * std::log(diameter / mmd))) * std::exp(-dlam * dlam * dlam) * std::log(rUp / rLow);
         total += dist[n];
     }
 
@@ -47,12 +42,9 @@ inline std::vector<double> compute_kok_distribution(
 }  // anonymous namespace
 
 extern "C" {
-void run_fengsha_fortran(double* ustar, double* uthrs, double* slc, double* clay, double* sand,
-                         double* silt, double* ssm, double* rdrag, double* airdens,
-                         double* fraclake, double* fracsnow, double* oro, double* emissions,
-                         int nx, int ny, int nbins, double alpha, double gamma_param,
-                         double kvhmax, double grav, double drylimit_factor,
-                         double* distribution);
+void run_fengsha_fortran(double* ustar, double* uthrs, double* slc, double* clay, double* sand, double* silt, double* ssm, double* rdrag,
+                         double* airdens, double* fraclake, double* fracsnow, double* oro, double* emissions, int nx, int ny, int nbins, double alpha,
+                         double gamma_param, double kvhmax, double grav, double drylimit_factor, double* distribution);
 }
 
 namespace cece {
@@ -62,8 +54,7 @@ namespace cece {
 static PhysicsRegistration<FengshaFortranScheme> register_fengsha_fortran("fengsha_fortran");
 #endif
 
-void FengshaFortranScheme::Initialize(const YAML::Node& config,
-                                      CeceDiagnosticManager* diag_manager) {
+void FengshaFortranScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
 
     if (config["alpha"]) alpha_ = config["alpha"].as<double>();
@@ -110,12 +101,10 @@ void FengshaFortranScheme::Run(CeceImportState& import_state, CeceExportState& e
     auto it_emis = export_state.fields.find("fengsha_dust_emissions");
 
     // Early return if any field is missing
-    if (it_ustar == import_state.fields.end() || it_uthrs == import_state.fields.end() ||
-        it_slc == import_state.fields.end() || it_clay == import_state.fields.end() ||
-        it_sand == import_state.fields.end() || it_silt == import_state.fields.end() ||
-        it_ssm == import_state.fields.end() || it_rdrag == import_state.fields.end() ||
-        it_airdens == import_state.fields.end() || it_fraclake == import_state.fields.end() ||
-        it_fracsnow == import_state.fields.end() || it_oro == import_state.fields.end() ||
+    if (it_ustar == import_state.fields.end() || it_uthrs == import_state.fields.end() || it_slc == import_state.fields.end() ||
+        it_clay == import_state.fields.end() || it_sand == import_state.fields.end() || it_silt == import_state.fields.end() ||
+        it_ssm == import_state.fields.end() || it_rdrag == import_state.fields.end() || it_airdens == import_state.fields.end() ||
+        it_fraclake == import_state.fields.end() || it_fracsnow == import_state.fields.end() || it_oro == import_state.fields.end() ||
         it_emis == export_state.fields.end())
         return;
 
@@ -167,14 +156,10 @@ void FengshaFortranScheme::Run(CeceImportState& import_state, CeceExportState& e
     }
 
     // Call Fortran kernel
-    run_fengsha_fortran(dv_ustar.view_host().data(), dv_uthrs.view_host().data(),
-                        dv_slc.view_host().data(), dv_clay.view_host().data(),
-                        dv_sand.view_host().data(), dv_silt.view_host().data(),
-                        dv_ssm.view_host().data(), dv_rdrag.view_host().data(),
-                        dv_airdens.view_host().data(), dv_fraclake.view_host().data(),
-                        dv_fracsnow.view_host().data(), dv_oro.view_host().data(),
-                        dv_emis.view_host().data(), nx, ny, nbins, alpha_, gamma_, kvhmax_,
-                        grav_, drylimit_factor_, dist_for_fortran.data());
+    run_fengsha_fortran(dv_ustar.view_host().data(), dv_uthrs.view_host().data(), dv_slc.view_host().data(), dv_clay.view_host().data(),
+                        dv_sand.view_host().data(), dv_silt.view_host().data(), dv_ssm.view_host().data(), dv_rdrag.view_host().data(),
+                        dv_airdens.view_host().data(), dv_fraclake.view_host().data(), dv_fracsnow.view_host().data(), dv_oro.view_host().data(),
+                        dv_emis.view_host().data(), nx, ny, nbins, alpha_, gamma_, kvhmax_, grav_, drylimit_factor_, dist_for_fortran.data());
 
     // Mark export modified on host and sync back to device
     dv_emis.modify<Kokkos::HostSpace>();

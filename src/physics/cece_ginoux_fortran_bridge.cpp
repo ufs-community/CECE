@@ -9,10 +9,8 @@
 #include "cece/physics/cece_ginoux_fortran.hpp"
 
 extern "C" {
-void run_ginoux_fortran(
-    double* radius, double* fraclake, double* gwettop, double* oro,
-    double* u10m, double* v10m, double* du_src, double* emissions,
-    int nx, int ny, int nbins, double Ch_DU, double grav);
+void run_ginoux_fortran(double* radius, double* fraclake, double* gwettop, double* oro, double* u10m, double* v10m, double* du_src, double* emissions,
+                        int nx, int ny, int nbins, double Ch_DU, double grav);
 }
 
 namespace cece {
@@ -22,8 +20,7 @@ namespace cece {
 static PhysicsRegistration<GinouxFortranScheme> register_ginoux_fortran("ginoux_fortran");
 #endif
 
-void GinouxFortranScheme::Initialize(const YAML::Node& config,
-                                      CeceDiagnosticManager* diag_manager) {
+void GinouxFortranScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
 
     if (config["ch_du"]) ch_du_ = config["ch_du"].as<double>();
@@ -47,9 +44,8 @@ void GinouxFortranScheme::Run(CeceImportState& import_state, CeceExportState& ex
     auto it_emis = export_state.fields.find("ginoux_dust_emissions");
 
     // Early return if any field is missing
-    if (it_u10m == import_state.fields.end() || it_v10m == import_state.fields.end() ||
-        it_gwettop == import_state.fields.end() || it_oro == import_state.fields.end() ||
-        it_fraclake == import_state.fields.end() || it_du_src == import_state.fields.end() ||
+    if (it_u10m == import_state.fields.end() || it_v10m == import_state.fields.end() || it_gwettop == import_state.fields.end() ||
+        it_oro == import_state.fields.end() || it_fraclake == import_state.fields.end() || it_du_src == import_state.fields.end() ||
         it_radius == import_state.fields.end() || it_emis == export_state.fields.end())
         return;
 
@@ -77,11 +73,9 @@ void GinouxFortranScheme::Run(CeceImportState& import_state, CeceExportState& ex
     int nbins = static_cast<int>(dv_emis.extent(2));
 
     // Call Fortran kernel
-    run_ginoux_fortran(dv_radius.view_host().data(), dv_fraclake.view_host().data(),
-                       dv_gwettop.view_host().data(), dv_oro.view_host().data(),
-                       dv_u10m.view_host().data(), dv_v10m.view_host().data(),
-                       dv_du_src.view_host().data(), dv_emis.view_host().data(),
-                       nx, ny, nbins, ch_du_, grav_);
+    run_ginoux_fortran(dv_radius.view_host().data(), dv_fraclake.view_host().data(), dv_gwettop.view_host().data(), dv_oro.view_host().data(),
+                       dv_u10m.view_host().data(), dv_v10m.view_host().data(), dv_du_src.view_host().data(), dv_emis.view_host().data(), nx, ny,
+                       nbins, ch_du_, grav_);
 
     // Mark export modified on host and sync back to device
     dv_emis.modify<Kokkos::HostSpace>();

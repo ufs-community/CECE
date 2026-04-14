@@ -56,9 +56,9 @@ class HemcoParityTest : public ::testing::Test {
     }
 
     /** Runs the StackingEngine and returns the host-side result view. */
-    static Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> RunEngine(
-        CeceConfig& config, CeceImportState& import_state, CeceExportState& export_state,
-        int hour = 0, int dow = 0, int month = 0, int nz = kNz) {
+    static Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> RunEngine(CeceConfig& config, CeceImportState& import_state,
+                                                                                    CeceExportState& export_state, int hour = 0, int dow = 0,
+                                                                                    int month = 0, int nz = kNz) {
         std::unordered_map<std::string, std::string> empty;
         CeceStateResolver resolver(import_state, export_state, empty, empty, empty);
         StackingEngine engine(config);
@@ -68,9 +68,7 @@ class HemcoParityTest : public ::testing::Test {
     }
 
     /** Computes max relative error between result and expected scalar. */
-    static double MaxRelError(
-        const Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace>& view, double expected,
-        int nz = kNz) {
+    static double MaxRelError(const Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace>& view, double expected, int nz = kNz) {
         double max_err = 0.0;
         for (int i = 0; i < kNx; ++i)
             for (int j = 0; j < kNy; ++j)
@@ -207,8 +205,7 @@ TEST_F(HemcoParityTest, DiurnalCycleScaling) {
 
     // At hour 6, scale = 2.0 -> emission = 2.0e-9
     auto result = RunEngine(cfg, imp, exp, /*hour=*/6, /*dow=*/0, /*month=*/0);
-    EXPECT_LT(MaxRelError(result, 2.0e-9), 1e-10)
-        << "Diurnal cycle not applied correctly at hour 6";
+    EXPECT_LT(MaxRelError(result, 2.0e-9), 1e-10) << "Diurnal cycle not applied correctly at hour 6";
 }
 
 TEST_F(HemcoParityTest, WeeklyCycleScaling) {
@@ -257,8 +254,7 @@ TEST_F(HemcoParityTest, SeasonalCycleScaling) {
 
     // month=6 -> factor 3.0 -> emission = 3.0e-10
     auto result = RunEngine(cfg, imp, exp, /*hour=*/0, /*dow=*/0, /*month=*/6);
-    EXPECT_LT(MaxRelError(result, 3.0e-10), 1e-10)
-        << "Seasonal cycle not applied correctly for month 6";
+    EXPECT_LT(MaxRelError(result, 3.0e-10), 1e-10) << "Seasonal cycle not applied correctly for month 6";
 }
 
 TEST_F(HemcoParityTest, CombinedTemporalScaling) {
@@ -291,8 +287,7 @@ TEST_F(HemcoParityTest, CombinedTemporalScaling) {
 
     // Expected: 1e-9 * 2.0 * 1.5 * 0.5 = 1.5e-9
     auto result = RunEngine(cfg, imp, exp, /*hour=*/12, /*dow=*/3, /*month=*/0);
-    EXPECT_LT(MaxRelError(result, 1.5e-9), 1e-10)
-        << "Combined temporal scaling (diurnal*weekly*seasonal) incorrect";
+    EXPECT_LT(MaxRelError(result, 1.5e-9), 1e-10) << "Combined temporal scaling (diurnal*weekly*seasonal) incorrect";
 }
 
 // ---------------------------------------------------------------------------
@@ -408,8 +403,7 @@ TEST_F(HemcoParityTest, HierarchyRegionalOverride) {
     for (int i = 0; i < kNx; ++i)
         for (int j = 0; j < kNy; ++j) {
             if (j >= kNy / 2) {
-                EXPECT_NEAR(result(i, j, 0), 12.0e-9, 1e-20)
-                    << "Inside mask: regional should replace global";
+                EXPECT_NEAR(result(i, j, 0), 12.0e-9, 1e-20) << "Inside mask: regional should replace global";
             } else {
                 EXPECT_NEAR(result(i, j, 0), 5.0e-9, 1e-20) << "Outside mask: global should remain";
             }
@@ -503,8 +497,7 @@ TEST_F(HemcoParityTest, DynamicScaleFactorRegistration) {
     cfg.species_layers["co"] = {lay};
 
     auto result = RunEngine(cfg, imp, exp);
-    EXPECT_LT(MaxRelError(result, 3.0e-9), 1e-10)
-        << "Dynamically registered scale factor not applied";
+    EXPECT_LT(MaxRelError(result, 3.0e-9), 1e-10) << "Dynamically registered scale factor not applied";
 }
 
 // ---------------------------------------------------------------------------
@@ -598,8 +591,7 @@ TEST_F(HemcoParityTest, MassConservationRange) {
         for (int j = 0; j < kNy; ++j) {
             double col_sum = 0.0;
             for (int k = 0; k < nz; ++k) col_sum += result(i, j, k);
-            EXPECT_NEAR(col_sum, base_val, 1e-10)
-                << "Mass conservation violated at (" << i << "," << j << ")";
+            EXPECT_NEAR(col_sum, base_val, 1e-10) << "Mass conservation violated at (" << i << "," << j << ")";
         }
 }
 

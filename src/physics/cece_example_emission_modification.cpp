@@ -8,11 +8,9 @@
 namespace cece {
 
 // Self-registration
-static PhysicsRegistration<ExampleEmissionModification> register_example_emission_modification(
-    "example_emission_modification");
+static PhysicsRegistration<ExampleEmissionModification> register_example_emission_modification("example_emission_modification");
 
-void ExampleEmissionModification::Initialize(const YAML::Node& config,
-                                             CeceDiagnosticManager* diag_manager) {
+void ExampleEmissionModification::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
     // Call base class initialization
     BasePhysicsScheme::Initialize(config, diag_manager);
 
@@ -34,8 +32,7 @@ void ExampleEmissionModification::Initialize(const YAML::Node& config,
     }
 }
 
-void ExampleEmissionModification::Run(CeceImportState& import_state,
-                                      CeceExportState& export_state) {
+void ExampleEmissionModification::Run(CeceImportState& import_state, CeceExportState& export_state) {
     // Resolve the emissions field that was computed by a previous scheme
     // This demonstrates reading from export state (previously computed fields)
     // We use ResolveInput which checks both import and export states
@@ -72,13 +69,10 @@ void ExampleEmissionModification::Run(CeceImportState& import_state,
 
     if (apply_diurnal_cycle_) {
         // Create a device copy of the diurnal cycle factors
-        auto diurnal_cycle_device =
-            Kokkos::create_mirror_view_and_copy(Kokkos::DefaultExecutionSpace(), diurnal_cycle_);
+        auto diurnal_cycle_device = Kokkos::create_mirror_view_and_copy(Kokkos::DefaultExecutionSpace(), diurnal_cycle_);
 
         Kokkos::parallel_for(
-            "ExampleEmissionModificationKernel",
-            Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<3>>({0, 0, 0},
-                                                                                  {nx, ny, nz}),
+            "ExampleEmissionModificationKernel", Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
             KOKKOS_LAMBDA(int i, int j, int k) {
                 // Apply diurnal cycle factor to emissions
                 // This scales emissions based on the time of day

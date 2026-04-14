@@ -5,8 +5,7 @@
 #include "cece/physics/cece_dms_fortran.hpp"
 
 extern "C" {
-void run_dms_fortran(double* u10m, double* tskin, double* seaconc, double* dms_emis, int nx, int ny,
-                     int nz);
+void run_dms_fortran(double* u10m, double* tskin, double* seaconc, double* dms_emis, int nx, int ny, int nz);
 }
 
 namespace cece {
@@ -16,8 +15,7 @@ namespace cece {
 static PhysicsRegistration<DMSFortranScheme> register_scheme("dms_fortran");
 #endif
 
-void DMSFortranScheme::Initialize(const YAML::Node& /*config*/,
-                                  CeceDiagnosticManager* /*diag_manager*/) {
+void DMSFortranScheme::Initialize(const YAML::Node& /*config*/, CeceDiagnosticManager* /*diag_manager*/) {
     std::cout << "DMSFortranScheme: Initialized." << "\n";
 }
 
@@ -27,8 +25,8 @@ void DMSFortranScheme::Run(CeceImportState& import_state, CeceExportState& expor
     auto it_seaconc = import_state.fields.find("DMS_seawater");
     auto it_dms_emis = export_state.fields.find("dms");
 
-    if (it_u10 == import_state.fields.end() || it_tskin == import_state.fields.end() ||
-        it_seaconc == import_state.fields.end() || it_dms_emis == export_state.fields.end())
+    if (it_u10 == import_state.fields.end() || it_tskin == import_state.fields.end() || it_seaconc == import_state.fields.end() ||
+        it_dms_emis == export_state.fields.end())
         return;
 
     auto& dv_u10 = it_u10->second;
@@ -45,8 +43,8 @@ void DMSFortranScheme::Run(CeceImportState& import_state, CeceExportState& expor
     int ny = static_cast<int>(dv_dms_emis.extent(1));
     int nz = static_cast<int>(dv_dms_emis.extent(2));
 
-    run_dms_fortran(dv_u10.view_host().data(), dv_tskin.view_host().data(),
-                    dv_seaconc.view_host().data(), dv_dms_emis.view_host().data(), nx, ny, nz);
+    run_dms_fortran(dv_u10.view_host().data(), dv_tskin.view_host().data(), dv_seaconc.view_host().data(), dv_dms_emis.view_host().data(), nx, ny,
+                    nz);
 
     dv_dms_emis.modify<Kokkos::HostSpace>();
     dv_dms_emis.sync<Kokkos::DefaultExecutionSpace>();

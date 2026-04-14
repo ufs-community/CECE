@@ -58,8 +58,7 @@ struct TestSuiteResult {
      */
     bool EqualsWithinTolerance(const TestSuiteResult& other, double tolerance = 1e-15) const {
         // Check test counts match
-        if (total_tests != other.total_tests || passed_tests != other.passed_tests ||
-            failed_tests != other.failed_tests) {
+        if (total_tests != other.total_tests || passed_tests != other.passed_tests || failed_tests != other.failed_tests) {
             return false;
         }
 
@@ -142,12 +141,11 @@ class IdempotenceFieldResolver : public FieldResolver {
     UnmanagedHostView3D ResolveExport(const std::string& name, int, int, int) override {
         return fields[name].view_host();
     }
-    Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
-    ResolveImportDevice(const std::string& name, int, int, int) override {
+    Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveImportDevice(const std::string& name, int, int,
+                                                                                                         int) override {
         return fields[name].view_device();
     }
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveExportDevice(
-        const std::string& name, int, int, int) override {
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveExportDevice(const std::string& name, int, int, int) override {
         return fields[name].view_device();
     }
 };
@@ -214,8 +212,7 @@ class TestSuiteIdempotenceTest : public ::testing::Test {
      * @param emissions 2D emission field
      * @return TestSuiteResult with captured outputs
      */
-    TestSuiteResult ExecuteTestConfiguration(int config_id, int nx, int ny, int nz,
-                                             const std::vector<double>& emissions) {
+    TestSuiteResult ExecuteTestConfiguration(int config_id, int nx, int ny, int nz, const std::vector<double>& emissions) {
         TestSuiteResult result;
 
         try {
@@ -266,8 +263,7 @@ class TestSuiteIdempotenceTest : public ::testing::Test {
             for (int i = 0; i < nx; ++i) {
                 for (int j = 0; j < ny; ++j) {
                     for (int k = 0; k < nz; ++k) {
-                        result.numerical_outputs.push_back(
-                            resolver.GetValue("output_emissions", i, j, k));
+                        result.numerical_outputs.push_back(resolver.GetValue("output_emissions", i, j, k));
                     }
                 }
             }
@@ -308,9 +304,7 @@ class TestSuiteIdempotenceTest : public ::testing::Test {
             aggregated.failed_tests += result.failed_tests;
 
             // Append numerical outputs
-            aggregated.numerical_outputs.insert(aggregated.numerical_outputs.end(),
-                                                result.numerical_outputs.begin(),
-                                                result.numerical_outputs.end());
+            aggregated.numerical_outputs.insert(aggregated.numerical_outputs.end(), result.numerical_outputs.begin(), result.numerical_outputs.end());
 
             if (!result.overall_success) {
                 aggregated.overall_success = false;
@@ -337,10 +331,7 @@ TEST_F(TestSuiteIdempotenceTest, TestSuiteIdempotence) {
     auto result2 = RunTestSuite(num_configs);
 
     // Verify results are identical
-    EXPECT_TRUE(result1.EqualsWithinTolerance(result2, 1e-15))
-        << "First run:\n"
-        << result1.Serialize() << "\nSecond run:\n"
-        << result2.Serialize();
+    EXPECT_TRUE(result1.EqualsWithinTolerance(result2, 1e-15)) << "First run:\n" << result1.Serialize() << "\nSecond run:\n" << result2.Serialize();
 }
 
 /**
@@ -362,11 +353,10 @@ TEST_F(TestSuiteIdempotenceTest, MultipleTestSuiteRunsIdempotence) {
 
     // All runs should produce identical results
     for (size_t i = 1; i < results.size(); ++i) {
-        EXPECT_TRUE(results[0].EqualsWithinTolerance(results[i], 1e-15))
-            << "Run 0 vs Run " << i << " mismatch\n"
-            << "Run 0:\n"
-            << results[0].Serialize() << "\nRun " << i << ":\n"
-            << results[i].Serialize();
+        EXPECT_TRUE(results[0].EqualsWithinTolerance(results[i], 1e-15)) << "Run 0 vs Run " << i << " mismatch\n"
+                                                                         << "Run 0:\n"
+                                                                         << results[0].Serialize() << "\nRun " << i << ":\n"
+                                                                         << results[i].Serialize();
     }
 }
 
@@ -389,12 +379,9 @@ TEST_F(TestSuiteIdempotenceTest, PassFailCountIdempotence) {
 
     // All runs should have identical pass/fail counts
     for (size_t i = 1; i < results.size(); ++i) {
-        EXPECT_EQ(results[0].total_tests, results[i].total_tests)
-            << "Total test count mismatch between run 0 and run " << i;
-        EXPECT_EQ(results[0].passed_tests, results[i].passed_tests)
-            << "Passed test count mismatch between run 0 and run " << i;
-        EXPECT_EQ(results[0].failed_tests, results[i].failed_tests)
-            << "Failed test count mismatch between run 0 and run " << i;
+        EXPECT_EQ(results[0].total_tests, results[i].total_tests) << "Total test count mismatch between run 0 and run " << i;
+        EXPECT_EQ(results[0].passed_tests, results[i].passed_tests) << "Passed test count mismatch between run 0 and run " << i;
+        EXPECT_EQ(results[0].failed_tests, results[i].failed_tests) << "Failed test count mismatch between run 0 and run " << i;
     }
 }
 
@@ -417,8 +404,7 @@ TEST_F(TestSuiteIdempotenceTest, SuccessFlagIdempotence) {
 
     // All runs should have identical success flag
     for (size_t i = 1; i < results.size(); ++i) {
-        EXPECT_EQ(results[0].overall_success, results[i].overall_success)
-            << "Overall success flag mismatch between run 0 and run " << i;
+        EXPECT_EQ(results[0].overall_success, results[i].overall_success) << "Overall success flag mismatch between run 0 and run " << i;
     }
 }
 
@@ -464,13 +450,11 @@ TEST_F(TestSuiteIdempotenceTest, NumericalOutputIdempotence) {
 
             if (max_abs > 0) {
                 double rel_error = abs_diff / max_abs;
-                EXPECT_LE(rel_error, 1e-15)
-                    << "Numerical output mismatch at index " << j << " between run 0 and run " << i
-                    << ": " << std::scientific << std::setprecision(17) << val1 << " vs " << val2;
+                EXPECT_LE(rel_error, 1e-15) << "Numerical output mismatch at index " << j << " between run 0 and run " << i << ": " << std::scientific
+                                            << std::setprecision(17) << val1 << " vs " << val2;
             } else {
-                EXPECT_LE(abs_diff, 1e-15)
-                    << "Numerical output mismatch at index " << j << " between run 0 and run " << i
-                    << ": " << std::scientific << std::setprecision(17) << val1 << " vs " << val2;
+                EXPECT_LE(abs_diff, 1e-15) << "Numerical output mismatch at index " << j << " between run 0 and run " << i << ": " << std::scientific
+                                           << std::setprecision(17) << val1 << " vs " << val2;
             }
         }
     }

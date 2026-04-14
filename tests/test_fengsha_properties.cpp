@@ -74,8 +74,7 @@ class FengshaPropertyTest : public ::testing::Test {
         return dist(rng_);
     }
 
-    [[nodiscard]] DualView3D create_dv(const std::string& name, int nx, int ny, int nz,
-                                       double val) const {
+    [[nodiscard]] DualView3D create_dv(const std::string& name, int nx, int ny, int nz, double val) const {
         DualView3D dv(name, nx, ny, nz);
         Kokkos::deep_copy(dv.view_host(), val);
         dv.modify<Kokkos::HostSpace>();
@@ -126,8 +125,7 @@ TEST_F(FengshaPropertyTest, Property2_FecanMoistureCorrection) {
         double expected = std::sqrt(1.0 + 1.21 * std::pow(excess, 0.68));
 
         EXPECT_NEAR(result, expected, std::abs(expected) * 1e-12 + 1e-14)
-            << "Failed at iter=" << iter << " slc=" << slc << " sand=" << sand
-            << " clay=" << clay << " b=" << b;
+            << "Failed at iter=" << iter << " slc=" << slc << " sand=" << sand << " clay=" << clay << " b=" << b;
 
         // Correction factor must be >= 1.0
         EXPECT_GE(result, 1.0) << "Correction factor must be >= 1.0";
@@ -147,12 +145,10 @@ TEST_F(FengshaPropertyTest, Property3_MB95FluxRatio) {
         double result = fengsha_helpers::flux_v2h_ratio_mb95(clay, kvhmax);
 
         if (clay > 0.2) {
-            EXPECT_DOUBLE_EQ(result, kvhmax)
-                << "When clay > 0.2, should return kvhmax. clay=" << clay;
+            EXPECT_DOUBLE_EQ(result, kvhmax) << "When clay > 0.2, should return kvhmax. clay=" << clay;
         } else {
             double expected = std::pow(10.0, 13.4 * clay - 6.0);
-            EXPECT_NEAR(result, expected, std::abs(expected) * 1e-12 + 1e-14)
-                << "When clay <= 0.2, should return 10^(13.4*clay-6.0). clay=" << clay;
+            EXPECT_NEAR(result, expected, std::abs(expected) * 1e-12 + 1e-14) << "When clay <= 0.2, should return 10^(13.4*clay-6.0). clay=" << clay;
         }
 
         // Result must be positive
@@ -240,8 +236,7 @@ TEST_F(FengshaPropertyTest, Property5_ZeroEmissionInvariant) {
                 for (int n = 0; n < nbins; ++n) {
                     if (i < 2 || (i >= 2 && i < 4) || i >= 4) {
                         EXPECT_DOUBLE_EQ(emis_h(i, j, n), 0.0)
-                            << "Non-emitting cell (" << i << "," << j << "," << n
-                            << ") should have zero emissions, iter=" << iter;
+                            << "Non-emitting cell (" << i << "," << j << "," << n << ") should have zero emissions, iter=" << iter;
                     }
                 }
             }
@@ -301,8 +296,7 @@ TEST_F(FengshaPropertyTest, Property4_NumericalEquivalence) {
         auto fill_random = [&](const std::string& name, double lo, double hi) {
             auto h = import_state.fields[name].view_host();
             for (int j = 0; j < ny; ++j)
-                for (int i = 0; i < nx; ++i)
-                    h(i, j, 0) = rand_uniform(lo, hi);
+                for (int i = 0; i < nx; ++i) h(i, j, 0) = rand_uniform(lo, hi);
             import_state.fields[name].modify<Kokkos::HostSpace>();
             import_state.fields[name].sync<Kokkos::DefaultExecutionSpace>();
         };
@@ -345,9 +339,7 @@ TEST_F(FengshaPropertyTest, Property4_NumericalEquivalence) {
                     double cpp_val = h_cpp(i, j, n);
                     double fort_val = h_fort(i, j, n);
                     double tol = std::max(std::abs(cpp_val), std::abs(fort_val)) * 1e-12 + 1e-20;
-                    EXPECT_NEAR(cpp_val, fort_val, tol)
-                        << "Mismatch at (" << i << "," << j << "," << n
-                        << ") iter=" << iter;
+                    EXPECT_NEAR(cpp_val, fort_val, tol) << "Mismatch at (" << i << "," << j << "," << n << ") iter=" << iter;
                 }
             }
         }
@@ -368,8 +360,7 @@ TEST_F(FengshaPropertyTest, Property6_ConfigInitializationDefaults) {
     constexpr double DEFAULT_DRYLIMIT = 1.0;
     constexpr int DEFAULT_NBINS = 5;
 
-    std::vector<std::string> all_keys = {"alpha", "gamma", "kvhmax", "grav",
-                                         "drylimit_factor", "num_bins"};
+    std::vector<std::string> all_keys = {"alpha", "gamma", "kvhmax", "grav", "drylimit_factor", "num_bins"};
 
     for (int iter = 0; iter < NUM_ITERATIONS; ++iter) {
         // Generate a random subset of config keys

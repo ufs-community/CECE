@@ -20,9 +20,9 @@
 #ifndef CECE_K14_HPP
 #define CECE_K14_HPP
 
-#include "cece/physics_scheme.hpp"
-
 #include <Kokkos_Core.hpp>
+
+#include "cece/physics_scheme.hpp"
 
 namespace cece {
 

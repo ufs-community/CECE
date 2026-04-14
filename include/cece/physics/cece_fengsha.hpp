@@ -8,9 +8,9 @@
 #ifndef CECE_FENGSHA_HPP
 #define CECE_FENGSHA_HPP
 
-#include "cece/physics_scheme.hpp"
-
 #include <Kokkos_Core.hpp>
+
+#include "cece/physics_scheme.hpp"
 
 namespace cece {
 

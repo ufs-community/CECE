@@ -1,9 +1,11 @@
 #include "cece/cece_c_api.h"
+
+#include <string>
+#include <vector>
+
 #include "cece/cece_config.hpp"
 #include "cece/cece_config_path.hpp"
 #include "cece/cece_internal.hpp"
-#include <vector>
-#include <string>
 
 // Singleton-style access to the current config (assumes only one config in use)
 static cece::CeceConfig* get_config() {
@@ -48,4 +50,4 @@ const char* cece_get_met_registry_alias(size_t idx, size_t alias_idx) {
     return it->second[alias_idx].c_str();
 }
 
-} // extern "C"
+}  // extern "C"
