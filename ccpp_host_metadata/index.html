@@ -1,0 +1,1392 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="Community Emissions Computing Engine">
+      
+      
+        <meta name="author" content="CECE Team">
+      
+      
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="zensical-0.0.33">
+    
+    
+      
+        <title>CCPP Host Model Metadata Reference for CECE - CECE Documentation</title>
+      
+    
+    
+      
+        
+      
+      <link rel="stylesheet" href="../assets/stylesheets/modern/main.53a7feaf.min.css">
+      
+        
+          
+        
+        <link rel="stylesheet" href="../assets/stylesheets/modern/palette.dfe2e883.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Inter:300,300i,400,400i,500,500i,700,700i%7CJetBrains+Mono:400,400i,700,700i&amp;display=fallback">
+        <style>:root{--md-text-font:"Inter";--md-code-font:"JetBrains Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,t)=>(e<<5)-e+t.charCodeAt(0)),0),__md_get=(e,t=localStorage,a=__md_scope)=>JSON.parse(t.getItem(a.pathname+"."+e)),__md_set=(e,t,a=localStorage,_=__md_scope)=>{try{a.setItem(_.pathname+"."+e,JSON.stringify(t))}catch(e){}},document.documentElement.setAttribute("data-platform",navigator.platform)</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer" aria-label="Navigation"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#ccpp-host-model-metadata-reference-for-cece" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href="./.." title="CECE Documentation" class="md-header__button md-logo" aria-label="CECE Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer" aria-label="Navigation">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-menu" viewBox="0 0 24 24"><path d="M4 5h16M4 12h16M4 19h16"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            CECE Documentation
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              CCPP Host Model Metadata Reference for CECE
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="default" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="none" data-md-color-scheme="slate" data-md-color-primary="indigo" data-md-color-accent="indigo"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search" aria-label="Search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-search" viewBox="0 0 24 24"><path d="m21 21-4.34-4.34"/><circle cx="11" cy="11" r="8"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog" aria-label="Search">
+  <button type="button" class="md-search__button">
+    Search
+  </button>
+</div>
+      
+    
+    <div class="md-header__source">
+      
+    </div>
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href="./.." title="CECE Documentation" class="md-nav__button md-logo" aria-label="CECE Documentation" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-book-open" viewBox="0 0 24 24"><path d="M12 7v14M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></svg>
+
+    </a>
+    CECE Documentation
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="./.." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Introduction
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../concepts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Core Concepts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../users-guide/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    User's Guide
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../configuration/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../tutorial/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Tutorial
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../scripts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Scripts & Utilities
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../examples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../migration_examples/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Migration Examples
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  
+                    
+                    
+                    
+                      
+                    
+                    
+                      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+                      <div class="md-sidebar-button__wrapper">
+                        <label class="md-sidebar-button" for="__toc"></label>
+                      </div>
+                    
+                  
+                  <div class="md-sidebar__inner">
+                    
+
+
+<nav class="md-nav md-nav--secondary" aria-label="On this page">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      On this page
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#common-variables-all-schemes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Common Variables (All Schemes)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#import-variables-host-cece" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Import Variables (Host → CECE)
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Import Variables (Host → CECE)">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#stacking-engine-cece_ccpp_stacking" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Stacking Engine (cece_ccpp_stacking)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sea-salt-cece_ccpp_sea_salt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sea Salt (cece_ccpp_sea_salt)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#megan-biogenics-cece_ccpp_megan" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        MEGAN Biogenics (cece_ccpp_megan)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dust-cece_ccpp_dust" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dust (cece_ccpp_dust)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dms-cece_ccpp_dms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        DMS (cece_ccpp_dms)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#lightning-cece_ccpp_lightning" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Lightning (cece_ccpp_lightning)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#soil-nox-cece_ccpp_soil_nox" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Soil NOx (cece_ccpp_soil_nox)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#volcano-cece_ccpp_volcano" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Volcano (cece_ccpp_volcano)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#example-emission-cece_ccpp_example" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Example Emission (cece_ccpp_example)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#export-variables-cece-host" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Export Variables (CECE → Host)
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#ccpp-standard-name-to-cece-internal-name-mapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        CCPP Standard Name to CECE Internal Name Mapping
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="CCPP Standard Name to CECE Internal Name Mapping">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#meteorological-input-mapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Meteorological Input Mapping
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#export-field-mapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Export Field Mapping
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#dimension-mapping" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dimension Mapping
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+                
+
+
+
+  
+
+
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+<h1 id="ccpp-host-model-metadata-reference-for-cece">CCPP Host Model Metadata Reference for CECE<a class="headerlink" href="#ccpp-host-model-metadata-reference-for-cece" title="Permanent link">&para;</a></h1>
+<p>This document lists all variables that CECE CCPP driver schemes require from the host model (imports) and produce as outputs (exports). Host model developers should use this reference to ensure their host-side metadata provides the correct fields for CECE integration.</p>
+<h2 id="common-variables-all-schemes">Common Variables (All Schemes)<a class="headerlink" href="#common-variables-all-schemes" title="Permanent link">&para;</a></h2>
+<p>These variables are required by every CECE CCPP driver scheme during initialization and/or execution.</p>
+<table>
+<thead>
+<tr>
+<th>Local Name</th>
+<th>standard_name</th>
+<th>Units</th>
+<th>Dimensions</th>
+<th>Type</th>
+<th>Kind</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>horizontal_loop_extent</code></td>
+<td><code>horizontal_loop_extent</code></td>
+<td>count</td>
+<td>()</td>
+<td>integer</td>
+<td>—</td>
+<td>in</td>
+</tr>
+<tr>
+<td><code>vertical_layer_dimension</code></td>
+<td><code>vertical_layer_dimension</code></td>
+<td>count</td>
+<td>()</td>
+<td>integer</td>
+<td>—</td>
+<td>in</td>
+</tr>
+<tr>
+<td><code>cece_configuration_file_path</code></td>
+<td><code>cece_configuration_file_path</code></td>
+<td>none</td>
+<td>()</td>
+<td>character</td>
+<td>len=512</td>
+<td>in</td>
+</tr>
+<tr>
+<td><code>errmsg</code></td>
+<td><code>ccpp_error_message</code></td>
+<td>none</td>
+<td>()</td>
+<td>character</td>
+<td>len=512</td>
+<td>out</td>
+</tr>
+<tr>
+<td><code>errflg</code></td>
+<td><code>ccpp_error_code</code></td>
+<td>1</td>
+<td>()</td>
+<td>integer</td>
+<td>—</td>
+<td>out</td>
+</tr>
+</tbody>
+</table>
+<h2 id="import-variables-host-cece">Import Variables (Host → CECE)<a class="headerlink" href="#import-variables-host-cece" title="Permanent link">&para;</a></h2>
+<p>These are the meteorological and environmental input fields that the host model must provide.</p>
+<h3 id="stacking-engine-cece_ccpp_stacking">Stacking Engine (<code>cece_ccpp_stacking</code>)<a class="headerlink" href="#stacking-engine-cece_ccpp_stacking" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Local Name</th>
+<th>standard_name</th>
+<th>Units</th>
+<th>Dimensions</th>
+<th>Type</th>
+<th>Kind</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>current_hour</code></td>
+<td><code>current_hour_of_day</code></td>
+<td>1</td>
+<td>()</td>
+<td>integer</td>
+<td>—</td>
+<td>in</td>
+</tr>
+<tr>
+<td><code>current_day_of_week</code></td>
+<td><code>current_day_of_week</code></td>
+<td>1</td>
+<td>()</td>
+<td>integer</td>
+<td>—</td>
+<td>in</td>
+</tr>
+</tbody>
+</table>
+<h3 id="sea-salt-cece_ccpp_sea_salt">Sea Salt (<code>cece_ccpp_sea_salt</code>)<a class="headerlink" href="#sea-salt-cece_ccpp_sea_salt" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Local Name</th>
+<th>standard_name</th>
+<th>Units</th>
+<th>Dimensions</th>
+<th>Type</th>
+<th>Kind</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>air_temperature</code></td>
+<td><code>air_temperature</code></td>
+<td>K</td>
+<td>(horizontal_loop_extent, vertical_layer_dimension)</td>
+<td>real</td>
+<td>kind_phys</td>
+<td>in</td>
+</tr>
+<tr>
+<td><code>surface_wind_speed</code></td>
+<td><code>wind_speed_at_10m</code></td>
+<td>m s-1</td>
+<td>(horizontal_loop_extent, vertical_layer_dimension)</td>
+<td>real</td>
+<td>kind_phys</td>
+<td>in</td>
+</tr>
+<tr>
+<td><code>sea_surface_temperature</code></td>
+<td><code>sea_surface_skin_temperature</code></td>
+<td>K</td>
+<td>(horizontal_loop_extent, vertical_layer_dimension)</td>
+<td>real</td>
+<td>kind_phys</td>
+<td>in</td>
+</tr>
+</tbody>
+</table>
+<h3 id="megan-biogenics-cece_ccpp_megan">MEGAN Biogenics (<code>cece_ccpp_megan</code>)<a class="headerlink" href="#megan-biogenics-cece_ccpp_megan" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Local Name</th>
+<th>standard_name</th>
+<th>Units</th>
+<th>Dimensions</th>
+<th>Type</th>
+<th>Kind</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>air_temperature</code></td>
+<td><code>air_temperature</code></td>
+<td>K</td>
+<td>(horizontal_loop_extent, vertical_layer_dimension)</td>
+<td>real</td>
+<td>kind_phys</td>
+<td>in</td>
+</tr>
+<tr>
+<td><code>surface_pressure</code></td>
+<td><code>surface_pressure</code></td>
+<td>Pa</td>
+<td>(horizontal_loop_extent, vertical_layer_dimension)</td>
+<td>real</td>
+<td>kind_phys</td>
+<td>in</td>
+</tr>
+<tr>
+<td><code>soil_temperature</code></td>
+<td><code>soil_temperature</code></td>
+<td>K</td>
+<td>(horizontal_loop_extent, vertical_layer_dimension)</td>
+<td>real</td>
+<td>kind_phys</td>
+<td>in</td>
+</tr>
+<tr>
+<td><code>leaf_area_index</code></td>
+<td><code>leaf_area_index</code></td>
+<td>1</td>
+<td>(horizontal_loop_extent, vertical_layer_dimension)</td>
+<td>real</td>
+<td>kind_phys</td>
+<td>in</td>
+</tr>
+<tr>
+<td><code>downward_shortwave_radiation</code></td>
+<td><code>downward_shortwave_radiation</code></td>
+<td>W m-2</td>
+<td>(horizontal_loop_extent, vertical_layer_dimension)</td>
+<td>real</td>
+<td>kind_phys</td>
+<td>in</td>
+</tr>
+</tbody>
+</table>
+<h3 id="dust-cece_ccpp_dust">Dust (<code>cece_ccpp_dust</code>)<a class="headerlink" href="#dust-cece_ccpp_dust" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Local Name</th>
+<th>standard_name</th>
+<th>Units</th>
+<th>Dimensions</th>
+<th>Type</th>
+<th>Kind</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>surface_wind_speed</code></td>
+<td><code>wind_speed_at_10m</code></td>
+<td>m s-1</td>
+<td>(horizontal_loop_extent, vertical_layer_dimension)</td>
+<td>real</td>
+<td>kind_phys</td>
+<td>in</td>
+</tr>
+<tr>
+<td><code>soil_moisture</code></td>
+<td><code>soil_moisture</code></td>
+<td>m3 m-3</td>
+<td>(horizontal_loop_extent, vertical_layer_dimension)</td>
+<td>real</td>
+<td>kind_phys</td>
+<td>in</td>
+</tr>
+</tbody>
+</table>
+<h3 id="dms-cece_ccpp_dms">DMS (<code>cece_ccpp_dms</code>)<a class="headerlink" href="#dms-cece_ccpp_dms" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Local Name</th>
+<th>standard_name</th>
+<th>Units</th>
+<th>Dimensions</th>
+<th>Type</th>
+<th>Kind</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>surface_wind_speed</code></td>
+<td><code>wind_speed_at_10m</code></td>
+<td>m s-1</td>
+<td>(horizontal_loop_extent, vertical_layer_dimension)</td>
+<td>real</td>
+<td>kind_phys</td>
+<td>in</td>
+</tr>
+<tr>
+<td><code>sea_surface_temperature</code></td>
+<td><code>sea_surface_skin_temperature</code></td>
+<td>K</td>
+<td>(horizontal_loop_extent, vertical_layer_dimension)</td>
+<td>real</td>
+<td>kind_phys</td>
+<td>in</td>
+</tr>
+</tbody>
+</table>
+<h3 id="lightning-cece_ccpp_lightning">Lightning (<code>cece_ccpp_lightning</code>)<a class="headerlink" href="#lightning-cece_ccpp_lightning" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Local Name</th>
+<th>standard_name</th>
+<th>Units</th>
+<th>Dimensions</th>
+<th>Type</th>
+<th>Kind</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>convective_cloud_top_pressure</code></td>
+<td><code>convective_cloud_top_pressure</code></td>
+<td>Pa</td>
+<td>(horizontal_loop_extent, vertical_layer_dimension)</td>
+<td>real</td>
+<td>kind_phys</td>
+<td>in</td>
+</tr>
+<tr>
+<td><code>convective_cloud_bottom_pressure</code></td>
+<td><code>convective_cloud_bottom_pressure</code></td>
+<td>Pa</td>
+<td>(horizontal_loop_extent, vertical_layer_dimension)</td>
+<td>real</td>
+<td>kind_phys</td>
+<td>in</td>
+</tr>
+</tbody>
+</table>
+<h3 id="soil-nox-cece_ccpp_soil_nox">Soil NOx (<code>cece_ccpp_soil_nox</code>)<a class="headerlink" href="#soil-nox-cece_ccpp_soil_nox" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Local Name</th>
+<th>standard_name</th>
+<th>Units</th>
+<th>Dimensions</th>
+<th>Type</th>
+<th>Kind</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>soil_temperature</code></td>
+<td><code>soil_temperature</code></td>
+<td>K</td>
+<td>(horizontal_loop_extent, vertical_layer_dimension)</td>
+<td>real</td>
+<td>kind_phys</td>
+<td>in</td>
+</tr>
+<tr>
+<td><code>soil_moisture</code></td>
+<td><code>soil_moisture</code></td>
+<td>m3 m-3</td>
+<td>(horizontal_loop_extent, vertical_layer_dimension)</td>
+<td>real</td>
+<td>kind_phys</td>
+<td>in</td>
+</tr>
+</tbody>
+</table>
+<h3 id="volcano-cece_ccpp_volcano">Volcano (<code>cece_ccpp_volcano</code>)<a class="headerlink" href="#volcano-cece_ccpp_volcano" title="Permanent link">&para;</a></h3>
+<p>No scheme-specific import variables. The volcano scheme uses internally managed emission inventories.</p>
+<h3 id="example-emission-cece_ccpp_example">Example Emission (<code>cece_ccpp_example</code>)<a class="headerlink" href="#example-emission-cece_ccpp_example" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Local Name</th>
+<th>standard_name</th>
+<th>Units</th>
+<th>Dimensions</th>
+<th>Type</th>
+<th>Kind</th>
+<th>Intent</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>air_temperature</code></td>
+<td><code>air_temperature</code></td>
+<td>K</td>
+<td>(horizontal_loop_extent, vertical_layer_dimension)</td>
+<td>real</td>
+<td>kind_phys</td>
+<td>in</td>
+</tr>
+</tbody>
+</table>
+<h2 id="export-variables-cece-host">Export Variables (CECE → Host)<a class="headerlink" href="#export-variables-cece-host" title="Permanent link">&para;</a></h2>
+<p>These are the emission fields produced by CECE and returned to the host model.</p>
+<table>
+<thead>
+<tr>
+<th>Local Name</th>
+<th>standard_name</th>
+<th>Units</th>
+<th>Dimensions</th>
+<th>Type</th>
+<th>Kind</th>
+<th>Intent</th>
+<th>Scheme</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sea_salt_emission_flux_fine</code></td>
+<td><code>sea_salt_emission_flux_fine_mode</code></td>
+<td>kg m-2 s-1</td>
+<td>(horizontal_loop_extent, vertical_layer_dimension)</td>
+<td>real</td>
+<td>kind_phys</td>
+<td>out</td>
+<td>sea_salt</td>
+</tr>
+<tr>
+<td><code>sea_salt_emission_flux_coarse</code></td>
+<td><code>sea_salt_emission_flux_coarse_mode</code></td>
+<td>kg m-2 s-1</td>
+<td>(horizontal_loop_extent, vertical_layer_dimension)</td>
+<td>real</td>
+<td>kind_phys</td>
+<td>out</td>
+<td>sea_salt</td>
+</tr>
+<tr>
+<td><code>biogenic_isoprene_emission_flux</code></td>
+<td><code>biogenic_isoprene_emission_flux</code></td>
+<td>kg m-2 s-1</td>
+<td>(horizontal_loop_extent, vertical_layer_dimension)</td>
+<td>real</td>
+<td>kind_phys</td>
+<td>out</td>
+<td>megan</td>
+</tr>
+<tr>
+<td><code>dust_emission_flux</code></td>
+<td><code>dust_emission_flux</code></td>
+<td>kg m-2 s-1</td>
+<td>(horizontal_loop_extent, vertical_layer_dimension)</td>
+<td>real</td>
+<td>kind_phys</td>
+<td>out</td>
+<td>dust</td>
+</tr>
+<tr>
+<td><code>dms_emission_flux</code></td>
+<td><code>dms_emission_flux</code></td>
+<td>kg m-2 s-1</td>
+<td>(horizontal_loop_extent, vertical_layer_dimension)</td>
+<td>real</td>
+<td>kind_phys</td>
+<td>out</td>
+<td>dms</td>
+</tr>
+<tr>
+<td><code>lightning_nox_emission_flux</code></td>
+<td><code>lightning_nox_emission_flux</code></td>
+<td>kg m-2 s-1</td>
+<td>(horizontal_loop_extent, vertical_layer_dimension)</td>
+<td>real</td>
+<td>kind_phys</td>
+<td>out</td>
+<td>lightning</td>
+</tr>
+<tr>
+<td><code>soil_nox_emission_flux</code></td>
+<td><code>soil_nox_emission_flux</code></td>
+<td>kg m-2 s-1</td>
+<td>(horizontal_loop_extent, vertical_layer_dimension)</td>
+<td>real</td>
+<td>kind_phys</td>
+<td>out</td>
+<td>soil_nox</td>
+</tr>
+<tr>
+<td><code>volcanic_so2_emission_flux</code></td>
+<td><code>volcanic_so2_emission_flux</code></td>
+<td>kg m-2 s-1</td>
+<td>(horizontal_loop_extent, vertical_layer_dimension)</td>
+<td>real</td>
+<td>kind_phys</td>
+<td>out</td>
+<td>volcano</td>
+</tr>
+<tr>
+<td><code>example_emission_flux</code></td>
+<td><code>example_emission_flux</code></td>
+<td>kg m-2 s-1</td>
+<td>(horizontal_loop_extent, vertical_layer_dimension)</td>
+<td>real</td>
+<td>kind_phys</td>
+<td>out</td>
+<td>example</td>
+</tr>
+</tbody>
+</table>
+<h2 id="ccpp-standard-name-to-cece-internal-name-mapping">CCPP Standard Name to CECE Internal Name Mapping<a class="headerlink" href="#ccpp-standard-name-to-cece-internal-name-mapping" title="Permanent link">&para;</a></h2>
+<p>The CCPP driver schemes translate between CCPP <code>standard_name</code> values used by the host model and CECE's internal field names used by the C++ physics engine. This mapping is driven by the <code>met_mapping</code> section in the CECE YAML configuration file.</p>
+<h3 id="meteorological-input-mapping">Meteorological Input Mapping<a class="headerlink" href="#meteorological-input-mapping" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>CCPP standard_name</th>
+<th>CECE Internal Name</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>air_temperature</code></td>
+<td><code>temperature</code></td>
+<td>Air temperature field</td>
+</tr>
+<tr>
+<td><code>wind_speed_at_10m</code></td>
+<td><code>wind_speed</code></td>
+<td>Surface wind speed at 10m</td>
+</tr>
+<tr>
+<td><code>sea_surface_skin_temperature</code></td>
+<td><code>sst</code></td>
+<td>Sea surface temperature</td>
+</tr>
+<tr>
+<td><code>surface_pressure</code></td>
+<td><code>ps</code></td>
+<td>Surface pressure</td>
+</tr>
+<tr>
+<td><code>downward_shortwave_radiation</code></td>
+<td><code>solar_radiation</code></td>
+<td>Downward shortwave radiation flux</td>
+</tr>
+<tr>
+<td><code>soil_temperature</code></td>
+<td><code>soil_temperature</code></td>
+<td>Soil temperature</td>
+</tr>
+<tr>
+<td><code>leaf_area_index</code></td>
+<td><code>lai</code></td>
+<td>Leaf area index</td>
+</tr>
+<tr>
+<td><code>soil_moisture</code></td>
+<td><code>soil_moisture</code></td>
+<td>Volumetric soil moisture</td>
+</tr>
+<tr>
+<td><code>convective_cloud_top_pressure</code></td>
+<td><code>cloud_top_pressure</code></td>
+<td>Convective cloud top pressure</td>
+</tr>
+<tr>
+<td><code>convective_cloud_bottom_pressure</code></td>
+<td><code>cloud_bottom_pressure</code></td>
+<td>Convective cloud bottom pressure</td>
+</tr>
+</tbody>
+</table>
+<h3 id="export-field-mapping">Export Field Mapping<a class="headerlink" href="#export-field-mapping" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>CCPP standard_name</th>
+<th>CECE Internal Name</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>sea_salt_emission_flux_fine_mode</code></td>
+<td><code>EmissSS_SALA</code></td>
+<td>Fine mode sea salt emissions</td>
+</tr>
+<tr>
+<td><code>sea_salt_emission_flux_coarse_mode</code></td>
+<td><code>EmissSS_SALC</code></td>
+<td>Coarse mode sea salt emissions</td>
+</tr>
+<tr>
+<td><code>biogenic_isoprene_emission_flux</code></td>
+<td><code>EmissMEGAN_ISOP</code></td>
+<td>Biogenic isoprene emissions</td>
+</tr>
+<tr>
+<td><code>dust_emission_flux</code></td>
+<td><code>EmissDust</code></td>
+<td>Dust emissions</td>
+</tr>
+<tr>
+<td><code>dms_emission_flux</code></td>
+<td><code>EmissDMS</code></td>
+<td>DMS emissions</td>
+</tr>
+<tr>
+<td><code>lightning_nox_emission_flux</code></td>
+<td><code>EmissLNOx</code></td>
+<td>Lightning NOx emissions</td>
+</tr>
+<tr>
+<td><code>soil_nox_emission_flux</code></td>
+<td><code>EmissSoilNOx</code></td>
+<td>Soil NOx emissions</td>
+</tr>
+<tr>
+<td><code>volcanic_so2_emission_flux</code></td>
+<td><code>EmissVolcSO2</code></td>
+<td>Volcanic SO2 emissions</td>
+</tr>
+<tr>
+<td><code>example_emission_flux</code></td>
+<td><code>EmissExample</code></td>
+<td>Example emission flux</td>
+</tr>
+</tbody>
+</table>
+<h2 id="dimension-mapping">Dimension Mapping<a class="headerlink" href="#dimension-mapping" title="Permanent link">&para;</a></h2>
+<p>CCPP uses a 2D blocked layout <code>(horizontal_loop_extent, vertical_layer_dimension)</code> while CECE internally uses a 3D grid <code>(nx, ny, nz)</code>. The driver schemes handle this conversion:</p>
+<table>
+<thead>
+<tr>
+<th>CCPP Dimension</th>
+<th>CECE Dimension</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>horizontal_loop_extent</code></td>
+<td><code>nx</code> (with <code>ny=1</code>)</td>
+<td>Host model provides blocked columns</td>
+</tr>
+<tr>
+<td><code>vertical_layer_dimension</code></td>
+<td><code>nz</code></td>
+<td>Direct mapping</td>
+</tr>
+</tbody>
+</table>
+<p>For gridded host models, reshape <code>(nx, ny)</code> into <code>horizontal_loop_extent = nx * ny</code> before calling the CCPP scheme. The CCPP blocked layout element <code>(i, k)</code> maps to DualView3D element <code>(i, 1, k)</code> when <code>ny=1</code>.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="lucide lucide-circle-arrow-up" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="m16 12-4-4-4 4M12 16V8"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+    
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+    <div class="md-copyright__highlight">
+      Copyright &copy; 2026 CECE Authors
+    </div>
+  
+  
+    Made with
+    <a href="https://zensical.org/" target="_blank" rel="noopener">
+      Zensical
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate":null,"base":"..","features":["content.code.annotate","content.code.copy","navigation.footer","navigation.path","navigation.sections","navigation.top","search.highlight"],"search":"../assets/javascripts/workers/search.e2d2d235.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.63456bd9.min.js"></script>
+      
+    
+  </body>
+</html>
