@@ -9,17 +9,14 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
 
-    - name: Install Clang-Format and Clang-Tidy
+    - name: Install Clang-Format
       run: |
-        # Add LLVM repo for clang-format
         apt-get update -qq
-        apt-get install -y -qq wget lsb-release software-properties-common gnupg
-        wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add -
-        add-apt-repository "deb http://apt.llvm.org/$(lsb_release -cs)/ llvm-toolchain-$(lsb_release -cs) main"
-        apt-get update -qq
-        # Install clang-format via pip for a consistent pinned version across CI and local dev
-        apt-get install -y -qq python3-pip clang-tidy || true
-        pip3 install clang-format==22.1.2
+        apt-get install -y -qq pipx
+        # Install a pinned clang-format version via pipx to match local dev (v22)
+        pipx install clang-format==22.1.2
+        export PATH="$PATH:$HOME/.local/bin"
+        echo "$HOME/.local/bin" >> $GITHUB_PATH
         clang-format --version
 
     - name: Run Clang-Format Check
