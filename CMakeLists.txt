@@ -46,10 +46,6 @@ option(Kokkos_ENABLE_HIP "Enable Kokkos HIP execution space for AMD GPUs" OFF)
 # Python bindings support
 option(BUILD_PYTHON_BINDINGS "Build Python bindings for CECE" OFF)
 
-# CCPP and NUOPC interface options
-option(CECE_ENABLE_CCPP "Build CCPP interface for CECE" OFF)
-option(CECE_ENABLE_NUOPC "Build NUOPC/ESMF interface for CECE" ON)
-
 # Validate that at most one GPU backend is enabled
 if(Kokkos_ENABLE_CUDA AND Kokkos_ENABLE_HIP)
     message(FATAL_ERROR "Cannot enable both CUDA and HIP. Choose one GPU backend or neither.")
@@ -91,48 +87,44 @@ FetchContent_Declare(
 set(RC_ENABLE_GTEST ON CACHE BOOL "Enable RapidCheck GTest integration" FORCE)
 FetchContent_MakeAvailable(rapidcheck)
 
-# ESMF and NUOPC — only required when NUOPC interface is enabled
-if(CECE_ENABLE_NUOPC)
-    find_package(ESMF REQUIRED)
-    message(STATUS "Found ESMF: ${ESMF_VERSION}")
-    message(STATUS "ESMF include dirs: ${ESMF_INCLUDE_DIRS}")
+# ESMF and NUOPC are required dependencies.
+find_package(ESMF REQUIRED)
+message(STATUS "Found ESMF: ${ESMF_VERSION}")
+message(STATUS "ESMF include dirs: ${ESMF_INCLUDE_DIRS}")
 
-    # Discovery PIO and NetCDF from ESMF if possible
-    function(find_root_by_file root_var filename)
-        if(NOT ${root_var})
-            foreach(lib ${ESMF_LIBRARIES})
-                if(lib MATCHES "^-L(.*)")
-                    set(search_path "${CMAKE_MATCH_1}")
-                    if(EXISTS "${search_path}/../include/${filename}")
-                        set(root "${search_path}/..")
-                        get_filename_component(root "${root}" ABSOLUTE)
-                        set(${root_var} "${root}" PARENT_SCOPE)
-                        message(STATUS "Found ${root_var} from ESMF path: ${root}")
-                        return()
-                    endif()
+# Discovery PIO and NetCDF from ESMF if possible
+function(find_root_by_file root_var filename)
+    if(NOT ${root_var})
+        foreach(lib ${ESMF_LIBRARIES})
+            if(lib MATCHES "^-L(.*)")
+                set(search_path "${CMAKE_MATCH_1}")
+                if(EXISTS "${search_path}/../include/${filename}")
+                    set(root "${search_path}/..")
+                    get_filename_component(root "${root}" ABSOLUTE)
+                    set(${root_var} "${root}" PARENT_SCOPE)
+                    message(STATUS "Found ${root_var} from ESMF path: ${root}")
+                    return()
                 endif()
-            endforeach()
-        endif()
-    endfunction()
+            endif()
+        endforeach()
+    endif()
+endfunction()
 
-    find_root_by_file(NetCDF_ROOT "netcdf.h")
-    find_root_by_file(NetCDFF_ROOT "netcdf.mod")
-    find_root_by_file(PIO_ROOT "pio.h")
+find_root_by_file(NetCDF_ROOT "netcdf.h")
+find_root_by_file(NetCDFF_ROOT "netcdf.mod")
+find_root_by_file(PIO_ROOT "pio.h")
 
-    if(NetCDF_ROOT)
-        set(NetCDF_FOUND TRUE)
-        set(ENV{NetCDF_ROOT} "${NetCDF_ROOT}")
-    endif()
-    if(NetCDFF_ROOT)
-        set(NetCDFF_FOUND TRUE)
-        set(ENV{NetCDFF_ROOT} "${NetCDFF_ROOT}")
-    endif()
-    if(PIO_ROOT)
-        set(PIO_FOUND TRUE)
-        set(ENV{PIO_ROOT} "${PIO_ROOT}")
-    endif()
-else()
-    message(STATUS "NUOPC/ESMF interface disabled (CECE_ENABLE_NUOPC=OFF)")
+if(NetCDF_ROOT)
+    set(NetCDF_FOUND TRUE)
+    set(ENV{NetCDF_ROOT} "${NetCDF_ROOT}")
+endif()
+if(NetCDFF_ROOT)
+    set(NetCDFF_FOUND TRUE)
+    set(ENV{NetCDFF_ROOT} "${NetCDFF_ROOT}")
+endif()
+if(PIO_ROOT)
+    set(PIO_FOUND TRUE)
+    set(ENV{PIO_ROOT} "${PIO_ROOT}")
 endif()
 
 find_package(MPI REQUIRED)
@@ -164,6 +156,7 @@ set(CECE_SRCS
     src/cece_core_realize_wrapper.cpp
     src/cece_core_initialize_p1.cpp
     src/cece_core_initialize_p2.cpp
+    src/cece_core_initialize_p2_wrapper.cpp
     src/cece_core_field_helpers.cpp
     src/cece_core_run.cpp
     src/cece_core_finalize.cpp
@@ -172,12 +165,10 @@ set(CECE_SRCS
     src/cece_config_validator.cpp)
 
 if(CECE_HAS_FORTRAN)
-    # tide library requires ESMF — only build when NUOPC is enabled
-    if(CECE_ENABLE_NUOPC)
-        add_subdirectory(src/io/tide)
-    endif()
+    add_subdirectory(src/io/tide)
 
     list(APPEND CECE_SRCS
+        src/cece_cap.F90
         src/physics/cece_fortran_bridge.cpp
         src/physics/legacy_fortran.F90
         src/physics/cece_sea_salt_fortran_bridge.cpp
@@ -193,38 +184,8 @@ if(CECE_HAS_FORTRAN)
         src/physics/cece_dust_fortran_bridge.cpp
         src/physics/dust_kernel.F90
         src/physics/cece_volcano_fortran_bridge.cpp
-        src/physics/volcano_kernel.F90)
-
-    # ESMF-dependent sources — only when NUOPC interface is enabled
-    if(CECE_ENABLE_NUOPC)
-        list(APPEND CECE_SRCS
-            src/cece_cap.F90
-            src/cece_ingestor_bridge.cpp)
-    endif()
-endif()
-
-# CCPP interface sources — when CCPP is enabled (Req 10.2)
-if(CECE_ENABLE_CCPP)
-    message(STATUS "CCPP interface enabled")
-    # C++ API can be compiled regardless of Fortran availability
-    list(APPEND CECE_SRCS src/ccpp/cece_ccpp_api.cpp)
-
-    # Fortran CCPP driver schemes require Fortran compiler
-    if(CECE_HAS_FORTRAN)
-        list(APPEND CECE_SRCS
-            src/ccpp/cece_ccpp_state.F90
-            src/ccpp/cece_ccpp_sea_salt.F90
-            src/ccpp/cece_ccpp_megan.F90
-            src/ccpp/cece_ccpp_dust.F90
-            src/ccpp/cece_ccpp_dms.F90
-            src/ccpp/cece_ccpp_lightning.F90
-            src/ccpp/cece_ccpp_soil_nox.F90
-            src/ccpp/cece_ccpp_volcano.F90
-            src/ccpp/cece_ccpp_example.F90
-            src/ccpp/cece_ccpp_stacking.F90)
-    else()
-        message(STATUS "CCPP Fortran driver schemes disabled (no Fortran compiler)")
-    endif()
+        src/physics/volcano_kernel.F90
+        src/cece_ingestor_bridge.cpp)
 endif()
 
 add_library(cece SHARED ${CECE_SRCS})
@@ -235,28 +196,18 @@ if(CECE_HAS_FORTRAN)
     target_compile_definitions(cece PRIVATE CECE_HAS_FORTRAN)
 endif()
 
-if(CECE_ENABLE_CCPP)
-    target_compile_definitions(cece PRIVATE CECE_ENABLE_CCPP)
-endif()
+target_include_directories(
+    cece
+    PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include>
+           ${ESMF_INCLUDE_DIRS})
 
-if(CECE_ENABLE_NUOPC)
-    target_include_directories(
-        cece
-        PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include>
-               ${ESMF_INCLUDE_DIRS})
-    target_link_libraries(cece PUBLIC Kokkos::kokkos ESMF::ESMF yaml-cpp)
-else()
-    target_include_directories(
-        cece
-        PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include>)
-    target_link_libraries(cece PUBLIC Kokkos::kokkos yaml-cpp)
-endif()
+target_link_libraries(cece PUBLIC Kokkos::kokkos ESMF::ESMF yaml-cpp)
 
-if(CECE_HAS_FORTRAN AND CECE_ENABLE_NUOPC)
+if(CECE_HAS_FORTRAN)
     target_link_libraries(cece PUBLIC tide)
 endif()
 
-if(CECE_ENABLE_NUOPC AND NetCDF_ROOT)
+if(NetCDF_ROOT)
     if(EXISTS "${NetCDF_ROOT}/lib/libnetcdf.so")
         target_link_libraries(cece PUBLIC "${NetCDF_ROOT}/lib/libnetcdf.so")
     endif()
@@ -315,7 +266,7 @@ target_link_libraries(test_vertical_distribution_single PRIVATE cece GTest::gtes
 add_executable(test_field_resolution_priority tests/test_field_resolution_priority.cpp)
 target_link_libraries(test_field_resolution_priority PRIVATE cece GTest::gtest_main)
 
-if(CECE_HAS_FORTRAN AND CECE_ENABLE_NUOPC)
+if(CECE_HAS_FORTRAN)
     add_library(test_helpers STATIC tests/test_helpers.F90)
     target_include_directories(test_helpers PUBLIC ${ESMF_INCLUDE_DIRS})
     target_link_libraries(test_helpers PUBLIC ESMF::ESMF)
@@ -338,12 +289,6 @@ target_link_libraries(test_kokkos_configuration PRIVATE cece GTest::gtest_main)
 # Comprehensive Property-Based Test Suite (Task 11.1)
 add_executable(test_properties tests/test_properties.cpp)
 target_link_libraries(test_properties PRIVATE cece GTest::gtest_main)
-
-# CCPP Property-Based Tests (RapidCheck + GTest) — only when CCPP is enabled
-if(CECE_ENABLE_CCPP)
-    add_executable(test_ccpp_pbt tests/test_ccpp_pbt.cpp)
-    target_link_libraries(test_ccpp_pbt PRIVATE cece GTest::gtest GTest::gtest_main rapidcheck rapidcheck_gtest)
-endif()
 
 # Test Suite Idempotence (Requirement 8.16)
 add_executable(test_suite_idempotence tests/test_suite_idempotence.cpp)
@@ -369,10 +314,8 @@ else()
     target_link_libraries(test_field_pointer_passing PRIVATE cece GTest::gtest_main)
 endif()
 
-# Standalone NUOPC driver — only when NUOPC interface is enabled
-if(CECE_ENABLE_NUOPC)
-    add_subdirectory(standalone_nuopc)
-endif()
+# Standalone NUOPC driver
+add_subdirectory(standalone_nuopc)
 
 # Python script tests
 find_package(Python3 COMPONENTS Interpreter)
@@ -453,9 +396,6 @@ gtest_discover_tests(test_field_resolution_priority)
 gtest_discover_tests(test_hemco_parity)
 gtest_discover_tests(test_kokkos_configuration)
 gtest_discover_tests(test_properties)
-if(CECE_ENABLE_CCPP)
-    gtest_discover_tests(test_ccpp_pbt)
-endif()
 gtest_discover_tests(test_suite_idempotence)
 gtest_discover_tests(test_repro_failure)
 gtest_discover_tests(test_field_creation)

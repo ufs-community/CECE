@@ -57,7 +57,7 @@ extern "C" {
  *
  * Requirements: 4.7-4.10, 4.18, 4.19
  */
-void cece_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc) {
+void cece_core_initialize_p2_impl(void* data_ptr, int* nx, int* ny, int* nz, int* rc) {
     // Initialize return code to success
     if (rc != nullptr) {
         *rc = 0;  // 0 = success in C
