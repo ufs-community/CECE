@@ -121,8 +121,7 @@ class CeceLogger {
      * @brief Internal method to log a message with formatting.
      * Uses localtime_r for thread safety and a mutex to prevent interleaved output.
      */
-    void LogMessage(const std::string& level, const std::string& message, const std::string& file,
-                    int line, std::ostream& stream) {
+    void LogMessage(const std::string& level, const std::string& message, const std::string& file, int line, std::ostream& stream) {
         // Get current time using thread-safe localtime_r
         auto now = std::time(nullptr);
         struct tm tm_buf = {};

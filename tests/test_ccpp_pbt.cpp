@@ -35,8 +35,7 @@ class KokkosEnvironment : public ::testing::Environment {
     }
 };
 
-static ::testing::Environment* const kokkos_env =
-    ::testing::AddGlobalTestEnvironment(new KokkosEnvironment);
+static ::testing::Environment* const kokkos_env = ::testing::AddGlobalTestEnvironment(new KokkosEnvironment);
 
 // ============================================================================
 // Test fixture for CCPP property-based tests
@@ -63,15 +62,13 @@ class CcppPbtTest : public ::testing::Test {
  */
 RC_GTEST_FIXTURE_PROP(CcppPbtTest, FieldMarshallingRoundTrip, ()) {
     // 1. Generate random small dimensions
-    const auto nx = *rc::gen::inRange(1, 9);   // [1, 8]
-    const auto ny = *rc::gen::inRange(1, 5);   // [1, 4]
-    const auto nz = *rc::gen::inRange(1, 9);   // [1, 8]
-    const size_t total = static_cast<size_t>(nx) * static_cast<size_t>(ny) *
-                         static_cast<size_t>(nz);
+    const auto nx = *rc::gen::inRange(1, 9);  // [1, 8]
+    const auto ny = *rc::gen::inRange(1, 5);  // [1, 4]
+    const auto nz = *rc::gen::inRange(1, 9);  // [1, 8]
+    const size_t total = static_cast<size_t>(nx) * static_cast<size_t>(ny) * static_cast<size_t>(nz);
 
     // 2. Generate a random flat array of doubles with size nx*ny*nz
-    auto input = *rc::gen::container<std::vector<double>>(
-        total, rc::gen::arbitrary<double>());
+    auto input = *rc::gen::container<std::vector<double>>(total, rc::gen::arbitrary<double>());
 
     // Filter out NaN values — NaN != NaN breaks equality check
     for (auto& v : input) {
@@ -91,9 +88,7 @@ RC_GTEST_FIXTURE_PROP(CcppPbtTest, FieldMarshallingRoundTrip, ()) {
     // 4. Call cece_ccpp_set_import_field to set the data into import state
     const std::string field_name = "test_field";
     int rc_code = 0;
-    cece_ccpp_set_import_field(
-        data_ptr, field_name.c_str(), static_cast<int>(field_name.size()),
-        input.data(), nx, ny, nz, &rc_code);
+    cece_ccpp_set_import_field(data_ptr, field_name.c_str(), static_cast<int>(field_name.size()), input.data(), nx, ny, nz, &rc_code);
     RC_ASSERT(rc_code == 0);
 
     // 5. Copy the import field to export state (directly access CeceInternalData)
@@ -101,10 +96,7 @@ RC_GTEST_FIXTURE_PROP(CcppPbtTest, FieldMarshallingRoundTrip, ()) {
     RC_ASSERT(it != internal_data->import_state.fields.end());
 
     // Create export DualView with same dimensions and deep_copy from import
-    cece::DualView3D export_dv("export_" + field_name,
-                               static_cast<size_t>(nx),
-                               static_cast<size_t>(ny),
-                               static_cast<size_t>(nz));
+    cece::DualView3D export_dv("export_" + field_name, static_cast<size_t>(nx), static_cast<size_t>(ny), static_cast<size_t>(nz));
     Kokkos::deep_copy(export_dv.view_host(), it->second.view_host());
     export_dv.modify_host();
     export_dv.sync_device();
@@ -113,9 +105,7 @@ RC_GTEST_FIXTURE_PROP(CcppPbtTest, FieldMarshallingRoundTrip, ()) {
     // 6. Call cece_ccpp_get_export_field to read back the data
     std::vector<double> output(total, 0.0);
     rc_code = 0;
-    cece_ccpp_get_export_field(
-        data_ptr, field_name.c_str(), static_cast<int>(field_name.size()),
-        output.data(), nx, ny, nz, &rc_code);
+    cece_ccpp_get_export_field(data_ptr, field_name.c_str(), static_cast<int>(field_name.size()), output.data(), nx, ny, nz, &rc_code);
     RC_ASSERT(rc_code == 0);
 
     // 7. Verify the output array is identical to the input array
@@ -146,14 +136,10 @@ RC_GTEST_FIXTURE_PROP(CcppPbtTest, ErrorPropagation, ()) {
     // 1. Generate a random scheme name string (mix of valid-looking and garbage)
     const auto scheme_name = *rc::gen::oneOf(
         // Valid-looking scheme names
-        rc::gen::element<std::string>(
-            "sea_salt", "megan", "dust", "dms", "lightning",
-            "soil_nox", "volcano", "example_emission", "nonexistent_scheme"),
+        rc::gen::element<std::string>("sea_salt", "megan", "dust", "dms", "lightning", "soil_nox", "volcano", "example_emission",
+                                      "nonexistent_scheme"),
         // Random garbage strings of length [1, 64]
-        rc::gen::container<std::string>(
-            *rc::gen::inRange(1, 65),
-            rc::gen::arbitrary<char>())
-    );
+        rc::gen::container<std::string>(*rc::gen::inRange(1, 65), rc::gen::arbitrary<char>()));
 
     // 2. Create a minimal CeceInternalData with no config / no active schemes
     auto* internal_data = new cece::CeceInternalData();
@@ -168,8 +154,7 @@ RC_GTEST_FIXTURE_PROP(CcppPbtTest, ErrorPropagation, ()) {
     // 3. cece_ccpp_scheme_init — should fail (no schemes registered)
     {
         int rc_code = 0;
-        cece_ccpp_scheme_init(data_ptr, scheme_name.c_str(), name_len,
-                              1, 1, 1, &rc_code);
+        cece_ccpp_scheme_init(data_ptr, scheme_name.c_str(), name_len, 1, 1, 1, &rc_code);
         RC_ASSERT(rc_code != 0);
     }
 
@@ -190,8 +175,7 @@ RC_GTEST_FIXTURE_PROP(CcppPbtTest, ErrorPropagation, ()) {
     // 6. Null data_ptr cases — all three functions should return non-zero rc
     {
         int rc_code = 0;
-        cece_ccpp_scheme_init(nullptr, scheme_name.c_str(), name_len,
-                              1, 1, 1, &rc_code);
+        cece_ccpp_scheme_init(nullptr, scheme_name.c_str(), name_len, 1, 1, 1, &rc_code);
         RC_ASSERT(rc_code != 0);
     }
     {
@@ -241,15 +225,13 @@ RC_GTEST_FIXTURE_PROP(CcppPbtTest, ErrorPropagation, ()) {
  */
 RC_GTEST_FIXTURE_PROP(CcppPbtTest, DimensionLayoutConversion, ()) {
     // 1. Generate random small dimensions
-    const auto nx = *rc::gen::inRange(1, 9);   // [1, 8]
-    const auto ny = *rc::gen::inRange(1, 5);   // [1, 4]
-    const auto nz = *rc::gen::inRange(1, 9);   // [1, 8]
-    const size_t total = static_cast<size_t>(nx) * static_cast<size_t>(ny) *
-                         static_cast<size_t>(nz);
+    const auto nx = *rc::gen::inRange(1, 9);  // [1, 8]
+    const auto ny = *rc::gen::inRange(1, 5);  // [1, 4]
+    const auto nz = *rc::gen::inRange(1, 9);  // [1, 8]
+    const size_t total = static_cast<size_t>(nx) * static_cast<size_t>(ny) * static_cast<size_t>(nz);
 
     // 2. Generate a random flat array of doubles with size nx*ny*nz
-    auto flat_array = *rc::gen::container<std::vector<double>>(
-        total, rc::gen::arbitrary<double>());
+    auto flat_array = *rc::gen::container<std::vector<double>>(total, rc::gen::arbitrary<double>());
 
     // 3. Filter out NaN/Inf values (NaN != NaN breaks equality check)
     for (auto& v : flat_array) {
@@ -269,9 +251,7 @@ RC_GTEST_FIXTURE_PROP(CcppPbtTest, DimensionLayoutConversion, ()) {
     // 5. Call cece_ccpp_set_import_field to set the data
     const std::string field_name = "layout_test_field";
     int rc_code = 0;
-    cece_ccpp_set_import_field(
-        data_ptr, field_name.c_str(), static_cast<int>(field_name.size()),
-        flat_array.data(), nx, ny, nz, &rc_code);
+    cece_ccpp_set_import_field(data_ptr, field_name.c_str(), static_cast<int>(field_name.size()), flat_array.data(), nx, ny, nz, &rc_code);
     RC_ASSERT(rc_code == 0);
 
     // 6. Access the resulting DualView3D directly from import_state.fields
@@ -289,10 +269,8 @@ RC_GTEST_FIXTURE_PROP(CcppPbtTest, DimensionLayoutConversion, ()) {
     for (int k = 0; k < nz; ++k) {
         for (int j = 0; j < ny; ++j) {
             for (int i = 0; i < nx; ++i) {
-                const size_t flat_idx = static_cast<size_t>(i) +
-                                        static_cast<size_t>(j) * static_cast<size_t>(nx) +
-                                        static_cast<size_t>(k) * static_cast<size_t>(nx) *
-                                            static_cast<size_t>(ny);
+                const size_t flat_idx = static_cast<size_t>(i) + static_cast<size_t>(j) * static_cast<size_t>(nx) +
+                                        static_cast<size_t>(k) * static_cast<size_t>(nx) * static_cast<size_t>(ny);
                 RC_ASSERT(host_view(i, j, k) == flat_array[flat_idx]);
             }
         }
@@ -387,19 +365,16 @@ RC_GTEST_FIXTURE_PROP(CcppPbtTest, SchemeIsolation, ()) {
     const auto nx = *rc::gen::inRange(1, 5);
     const auto ny = *rc::gen::inRange(1, 3);
     const auto nz = *rc::gen::inRange(1, 5);
-    const size_t total = static_cast<size_t>(nx) * static_cast<size_t>(ny) *
-                         static_cast<size_t>(nz);
+    const size_t total = static_cast<size_t>(nx) * static_cast<size_t>(ny) * static_cast<size_t>(nz);
 
     // 2. Generate random input data for an import field
-    auto input_data = *rc::gen::container<std::vector<double>>(
-        total, rc::gen::arbitrary<double>());
+    auto input_data = *rc::gen::container<std::vector<double>>(total, rc::gen::arbitrary<double>());
     for (auto& v : input_data) {
         if (std::isnan(v) || std::isinf(v)) v = 0.0;
     }
 
     // 3. Generate random sentinel data for an "other" export field
-    auto sentinel_data = *rc::gen::container<std::vector<double>>(
-        total, rc::gen::arbitrary<double>());
+    auto sentinel_data = *rc::gen::container<std::vector<double>>(total, rc::gen::arbitrary<double>());
     for (auto& v : sentinel_data) {
         if (std::isnan(v) || std::isinf(v)) v = 1.0;
     }
@@ -415,9 +390,7 @@ RC_GTEST_FIXTURE_PROP(CcppPbtTest, SchemeIsolation, ()) {
     // 5. Set an import field (simulating scheme A's input)
     const std::string import_field = "scheme_a_input";
     int rc_code = 0;
-    cece_ccpp_set_import_field(
-        data_ptr, import_field.c_str(), static_cast<int>(import_field.size()),
-        input_data.data(), nx, ny, nz, &rc_code);
+    cece_ccpp_set_import_field(data_ptr, import_field.c_str(), static_cast<int>(import_field.size()), input_data.data(), nx, ny, nz, &rc_code);
     RC_ASSERT(rc_code == 0);
 
     // 6. Create two export fields: one for "scheme A" and one for "other scheme"
@@ -425,29 +398,21 @@ RC_GTEST_FIXTURE_PROP(CcppPbtTest, SchemeIsolation, ()) {
     const std::string export_field_other = "other_scheme_output";
 
     // Create export DualView for scheme A (initially zeros)
-    cece::DualView3D export_dv_a("export_a",
-                                  static_cast<size_t>(nx),
-                                  static_cast<size_t>(ny),
-                                  static_cast<size_t>(nz));
+    cece::DualView3D export_dv_a("export_a", static_cast<size_t>(nx), static_cast<size_t>(ny), static_cast<size_t>(nz));
     Kokkos::deep_copy(export_dv_a.view_host(), 0.0);
     export_dv_a.modify_host();
     export_dv_a.sync_device();
     internal_data->export_state.fields.emplace(export_field_a, std::move(export_dv_a));
 
     // Create export DualView for "other scheme" with sentinel values
-    cece::DualView3D export_dv_other("export_other",
-                                      static_cast<size_t>(nx),
-                                      static_cast<size_t>(ny),
-                                      static_cast<size_t>(nz));
+    cece::DualView3D export_dv_other("export_other", static_cast<size_t>(nx), static_cast<size_t>(ny), static_cast<size_t>(nz));
     {
         auto host_view = export_dv_other.view_host();
         for (int k = 0; k < nz; ++k) {
             for (int j = 0; j < ny; ++j) {
                 for (int i = 0; i < nx; ++i) {
-                    const size_t idx = static_cast<size_t>(i) +
-                                       static_cast<size_t>(j) * static_cast<size_t>(nx) +
-                                       static_cast<size_t>(k) * static_cast<size_t>(nx) *
-                                           static_cast<size_t>(ny);
+                    const size_t idx = static_cast<size_t>(i) + static_cast<size_t>(j) * static_cast<size_t>(nx) +
+                                       static_cast<size_t>(k) * static_cast<size_t>(nx) * static_cast<size_t>(ny);
                     host_view(i, j, k) = sentinel_data[idx];
                 }
             }
@@ -455,8 +420,7 @@ RC_GTEST_FIXTURE_PROP(CcppPbtTest, SchemeIsolation, ()) {
     }
     export_dv_other.modify_host();
     export_dv_other.sync_device();
-    internal_data->export_state.fields.emplace(export_field_other,
-                                                std::move(export_dv_other));
+    internal_data->export_state.fields.emplace(export_field_other, std::move(export_dv_other));
 
     // 7. Simulate running "scheme A" by modifying only scheme A's export field
     //    (copy import data into scheme A's export, as a real scheme would)
@@ -480,10 +444,8 @@ RC_GTEST_FIXTURE_PROP(CcppPbtTest, SchemeIsolation, ()) {
         for (int k = 0; k < nz; ++k) {
             for (int j = 0; j < ny; ++j) {
                 for (int i = 0; i < nx; ++i) {
-                    const size_t idx = static_cast<size_t>(i) +
-                                       static_cast<size_t>(j) * static_cast<size_t>(nx) +
-                                       static_cast<size_t>(k) * static_cast<size_t>(nx) *
-                                           static_cast<size_t>(ny);
+                    const size_t idx = static_cast<size_t>(i) + static_cast<size_t>(j) * static_cast<size_t>(nx) +
+                                       static_cast<size_t>(k) * static_cast<size_t>(nx) * static_cast<size_t>(ny);
                     RC_ASSERT(host_view(i, j, k) == sentinel_data[idx]);
                 }
             }
@@ -511,12 +473,10 @@ RC_GTEST_FIXTURE_PROP(CcppPbtTest, CrossSchemeFieldVisibility, ()) {
     const auto nx = *rc::gen::inRange(1, 5);
     const auto ny = *rc::gen::inRange(1, 3);
     const auto nz = *rc::gen::inRange(1, 5);
-    const size_t total = static_cast<size_t>(nx) * static_cast<size_t>(ny) *
-                         static_cast<size_t>(nz);
+    const size_t total = static_cast<size_t>(nx) * static_cast<size_t>(ny) * static_cast<size_t>(nz);
 
     // 2. Generate random data that "scheme A" would produce
-    auto scheme_a_output = *rc::gen::container<std::vector<double>>(
-        total, rc::gen::arbitrary<double>());
+    auto scheme_a_output = *rc::gen::container<std::vector<double>>(total, rc::gen::arbitrary<double>());
     for (auto& v : scheme_a_output) {
         if (std::isnan(v) || std::isinf(v)) v = 0.0;
     }
@@ -530,19 +490,14 @@ RC_GTEST_FIXTURE_PROP(CcppPbtTest, CrossSchemeFieldVisibility, ()) {
 
     // 4. Simulate "scheme A" writing its output to export_state
     const std::string field_a = "scheme_a_emission";
-    cece::DualView3D dv_a("dv_a",
-                           static_cast<size_t>(nx),
-                           static_cast<size_t>(ny),
-                           static_cast<size_t>(nz));
+    cece::DualView3D dv_a("dv_a", static_cast<size_t>(nx), static_cast<size_t>(ny), static_cast<size_t>(nz));
     {
         auto host_view = dv_a.view_host();
         for (int k = 0; k < nz; ++k) {
             for (int j = 0; j < ny; ++j) {
                 for (int i = 0; i < nx; ++i) {
-                    const size_t idx = static_cast<size_t>(i) +
-                                       static_cast<size_t>(j) * static_cast<size_t>(nx) +
-                                       static_cast<size_t>(k) * static_cast<size_t>(nx) *
-                                           static_cast<size_t>(ny);
+                    const size_t idx = static_cast<size_t>(i) + static_cast<size_t>(j) * static_cast<size_t>(nx) +
+                                       static_cast<size_t>(k) * static_cast<size_t>(nx) * static_cast<size_t>(ny);
                     host_view(i, j, k) = scheme_a_output[idx];
                 }
             }
@@ -569,10 +524,8 @@ RC_GTEST_FIXTURE_PROP(CcppPbtTest, CrossSchemeFieldVisibility, ()) {
     for (int k = 0; k < nz; ++k) {
         for (int j = 0; j < ny; ++j) {
             for (int i = 0; i < nx; ++i) {
-                const size_t idx = static_cast<size_t>(i) +
-                                   static_cast<size_t>(j) * static_cast<size_t>(nx) +
-                                   static_cast<size_t>(k) * static_cast<size_t>(nx) *
-                                       static_cast<size_t>(ny);
+                const size_t idx = static_cast<size_t>(i) + static_cast<size_t>(j) * static_cast<size_t>(nx) +
+                                   static_cast<size_t>(k) * static_cast<size_t>(nx) * static_cast<size_t>(ny);
                 RC_ASSERT(host_view(i, j, k) == scheme_a_output[idx]);
             }
         }
@@ -582,9 +535,7 @@ RC_GTEST_FIXTURE_PROP(CcppPbtTest, CrossSchemeFieldVisibility, ()) {
     void* data_ptr = static_cast<void*>(internal_data);
     std::vector<double> readback(total, 0.0);
     int rc_code = 0;
-    cece_ccpp_get_export_field(
-        data_ptr, field_a.c_str(), static_cast<int>(field_a.size()),
-        readback.data(), nx, ny, nz, &rc_code);
+    cece_ccpp_get_export_field(data_ptr, field_a.c_str(), static_cast<int>(field_a.size()), readback.data(), nx, ny, nz, &rc_code);
     RC_ASSERT(rc_code == 0);
 
     for (size_t i = 0; i < total; ++i) {
@@ -617,13 +568,11 @@ RC_GTEST_FIXTURE_PROP(CcppPbtTest, SchemeDelegationEquivalence, ()) {
     const auto nx = *rc::gen::inRange(1, 7);
     const auto ny = *rc::gen::inRange(1, 5);
     const auto nz = *rc::gen::inRange(1, 7);
-    const size_t total = static_cast<size_t>(nx) * static_cast<size_t>(ny) *
-                         static_cast<size_t>(nz);
+    const size_t total = static_cast<size_t>(nx) * static_cast<size_t>(ny) * static_cast<size_t>(nz);
 
     // 2. Generate random meteorological arrays (temperature, wind_speed, sst)
     auto gen_field = [&]() {
-        auto arr = *rc::gen::container<std::vector<double>>(
-            total, rc::gen::arbitrary<double>());
+        auto arr = *rc::gen::container<std::vector<double>>(total, rc::gen::arbitrary<double>());
         for (auto& v : arr) {
             if (std::isnan(v) || std::isinf(v)) v = 0.0;
         }
@@ -655,9 +604,7 @@ RC_GTEST_FIXTURE_PROP(CcppPbtTest, SchemeDelegationEquivalence, ()) {
 
     for (auto& f : fields) {
         int rc_code = 0;
-        cece_ccpp_set_import_field(
-            data_ptr, f.name.c_str(), static_cast<int>(f.name.size()),
-            f.data.data(), nx, ny, nz, &rc_code);
+        cece_ccpp_set_import_field(data_ptr, f.name.c_str(), static_cast<int>(f.name.size()), f.data.data(), nx, ny, nz, &rc_code);
         RC_ASSERT(rc_code == 0);
     }
 
@@ -675,11 +622,8 @@ RC_GTEST_FIXTURE_PROP(CcppPbtTest, SchemeDelegationEquivalence, ()) {
         for (int k = 0; k < nz; ++k) {
             for (int j = 0; j < ny; ++j) {
                 for (int i = 0; i < nx; ++i) {
-                    const size_t flat_idx =
-                        static_cast<size_t>(i) +
-                        static_cast<size_t>(j) * static_cast<size_t>(nx) +
-                        static_cast<size_t>(k) * static_cast<size_t>(nx) *
-                            static_cast<size_t>(ny);
+                    const size_t flat_idx = static_cast<size_t>(i) + static_cast<size_t>(j) * static_cast<size_t>(nx) +
+                                            static_cast<size_t>(k) * static_cast<size_t>(nx) * static_cast<size_t>(ny);
                     RC_ASSERT(host_view(i, j, k) == f.data[flat_idx]);
                 }
             }
@@ -707,14 +651,8 @@ RC_GTEST_FIXTURE_PROP(CcppPbtTest, NameMappingResolution, ()) {
     // 1. Generate a random field name (alphanumeric + underscore, length [1, 32])
     const auto name_len = *rc::gen::inRange(1, 33);
     auto field_name = *rc::gen::container<std::string>(
-        name_len,
-        rc::gen::oneOf(
-            rc::gen::inRange<char>('a', static_cast<char>('z' + 1)),
-            rc::gen::inRange<char>('A', static_cast<char>('Z' + 1)),
-            rc::gen::inRange<char>('0', static_cast<char>('9' + 1)),
-            rc::gen::just('_')
-        )
-    );
+        name_len, rc::gen::oneOf(rc::gen::inRange<char>('a', static_cast<char>('z' + 1)), rc::gen::inRange<char>('A', static_cast<char>('Z' + 1)),
+                                 rc::gen::inRange<char>('0', static_cast<char>('9' + 1)), rc::gen::just('_')));
     // Ensure the name starts with a letter (valid identifier)
     if (!field_name.empty() && !std::isalpha(field_name[0])) {
         field_name[0] = 'f';
@@ -724,11 +662,9 @@ RC_GTEST_FIXTURE_PROP(CcppPbtTest, NameMappingResolution, ()) {
     const auto nx = *rc::gen::inRange(1, 5);
     const auto ny = *rc::gen::inRange(1, 3);
     const auto nz = *rc::gen::inRange(1, 5);
-    const size_t total = static_cast<size_t>(nx) * static_cast<size_t>(ny) *
-                         static_cast<size_t>(nz);
+    const size_t total = static_cast<size_t>(nx) * static_cast<size_t>(ny) * static_cast<size_t>(nz);
 
-    auto input_data = *rc::gen::container<std::vector<double>>(
-        total, rc::gen::arbitrary<double>());
+    auto input_data = *rc::gen::container<std::vector<double>>(total, rc::gen::arbitrary<double>());
     for (auto& v : input_data) {
         if (std::isnan(v) || std::isinf(v)) v = 0.0;
     }
@@ -743,9 +679,7 @@ RC_GTEST_FIXTURE_PROP(CcppPbtTest, NameMappingResolution, ()) {
 
     // 4. Set the import field using the random name
     int rc_code = 0;
-    cece_ccpp_set_import_field(
-        data_ptr, field_name.c_str(), static_cast<int>(field_name.size()),
-        input_data.data(), nx, ny, nz, &rc_code);
+    cece_ccpp_set_import_field(data_ptr, field_name.c_str(), static_cast<int>(field_name.size()), input_data.data(), nx, ny, nz, &rc_code);
     RC_ASSERT(rc_code == 0);
 
     // 5. Verify the field is stored under that exact name
@@ -786,17 +720,14 @@ RC_GTEST_FIXTURE_PROP(CcppPbtTest, TimestepSynchronizationRoundTrip, ()) {
     const auto nx = *rc::gen::inRange(1, 7);
     const auto ny = *rc::gen::inRange(1, 5);
     const auto nz = *rc::gen::inRange(1, 7);
-    const size_t total = static_cast<size_t>(nx) * static_cast<size_t>(ny) *
-                         static_cast<size_t>(nz);
+    const size_t total = static_cast<size_t>(nx) * static_cast<size_t>(ny) * static_cast<size_t>(nz);
 
-    auto import_data = *rc::gen::container<std::vector<double>>(
-        total, rc::gen::arbitrary<double>());
+    auto import_data = *rc::gen::container<std::vector<double>>(total, rc::gen::arbitrary<double>());
     for (auto& v : import_data) {
         if (std::isnan(v) || std::isinf(v)) v = 0.0;
     }
 
-    auto export_data = *rc::gen::container<std::vector<double>>(
-        total, rc::gen::arbitrary<double>());
+    auto export_data = *rc::gen::container<std::vector<double>>(total, rc::gen::arbitrary<double>());
     for (auto& v : export_data) {
         if (std::isnan(v) || std::isinf(v)) v = 0.0;
     }
@@ -814,9 +745,7 @@ RC_GTEST_FIXTURE_PROP(CcppPbtTest, TimestepSynchronizationRoundTrip, ()) {
     // 3. Set import field (this does host→device sync internally)
     const std::string import_name = "sync_test_import";
     int rc_code = 0;
-    cece_ccpp_set_import_field(
-        data_ptr, import_name.c_str(), static_cast<int>(import_name.size()),
-        import_data.data(), nx, ny, nz, &rc_code);
+    cece_ccpp_set_import_field(data_ptr, import_name.c_str(), static_cast<int>(import_name.size()), import_data.data(), nx, ny, nz, &rc_code);
     RC_ASSERT(rc_code == 0);
 
     // 4. Call sync_import_to_device (should be a no-op since already synced)
@@ -839,10 +768,7 @@ RC_GTEST_FIXTURE_PROP(CcppPbtTest, TimestepSynchronizationRoundTrip, ()) {
 
     // 6. Create an export field with data written to the host view
     const std::string export_name = "sync_test_export";
-    cece::DualView3D export_dv("export_sync",
-                                static_cast<size_t>(nx),
-                                static_cast<size_t>(ny),
-                                static_cast<size_t>(nz));
+    cece::DualView3D export_dv("export_sync", static_cast<size_t>(nx), static_cast<size_t>(ny), static_cast<size_t>(nz));
     {
         auto host_view = export_dv.view_host();
         std::memcpy(host_view.data(), export_data.data(), total * sizeof(double));
@@ -887,8 +813,8 @@ RC_GTEST_FIXTURE_PROP(CcppPbtTest, TimestepSynchronizationRoundTrip, ()) {
  */
 RC_GTEST_FIXTURE_PROP(CcppPbtTest, TemporalParameterForwarding, ()) {
     // 1. Generate random temporal parameters
-    const auto hour = *rc::gen::inRange(0, 24);          // [0, 23]
-    const auto day_of_week = *rc::gen::inRange(0, 7);    // [0, 6]
+    const auto hour = *rc::gen::inRange(0, 24);        // [0, 23]
+    const auto day_of_week = *rc::gen::inRange(0, 7);  // [0, 6]
 
     // 2. Create CeceInternalData with empty species_layers (so stacking is skipped)
     auto* internal_data = new cece::CeceInternalData();
@@ -899,8 +825,7 @@ RC_GTEST_FIXTURE_PROP(CcppPbtTest, TemporalParameterForwarding, ()) {
     // config.species_layers is empty by default — stacking will be skipped per Req 6.4
 
     // Ensure stacking_engine is initialized (needed for the null check in the API)
-    internal_data->stacking_engine =
-        std::make_unique<cece::StackingEngine>(internal_data->config);
+    internal_data->stacking_engine = std::make_unique<cece::StackingEngine>(internal_data->config);
 
     void* data_ptr = static_cast<void*>(internal_data);
 

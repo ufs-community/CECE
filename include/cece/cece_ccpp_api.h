@@ -26,8 +26,7 @@ extern "C" {
  * @param nz         [in] Grid dimension in z.
  * @param rc         [out] Return code; 0 on success, non-zero on failure.
  */
-void cece_ccpp_core_init(void** data_ptr, const char* config_path,
-                         int config_path_len, int nx, int ny, int nz, int* rc);
+void cece_ccpp_core_init(void** data_ptr, const char* config_path, int config_path_len, int nx, int ny, int nz, int* rc);
 
 /**
  * @brief Initialize a single named physics scheme within the core.
@@ -40,8 +39,7 @@ void cece_ccpp_core_init(void** data_ptr, const char* config_path,
  * @param nz             [in] Grid dimension in z.
  * @param rc             [out] Return code; 0 on success, non-zero on failure.
  */
-void cece_ccpp_scheme_init(void* data_ptr, const char* scheme_name,
-                           int scheme_name_len, int nx, int ny, int nz, int* rc);
+void cece_ccpp_scheme_init(void* data_ptr, const char* scheme_name, int scheme_name_len, int nx, int ny, int nz, int* rc);
 
 /**
  * @brief Execute a single named physics scheme.
@@ -50,8 +48,7 @@ void cece_ccpp_scheme_init(void* data_ptr, const char* scheme_name,
  * @param scheme_name_len [in] Length of @p scheme_name.
  * @param rc             [out] Return code; 0 on success, non-zero on failure.
  */
-void cece_ccpp_scheme_run(void* data_ptr, const char* scheme_name,
-                          int scheme_name_len, int* rc);
+void cece_ccpp_scheme_run(void* data_ptr, const char* scheme_name, int scheme_name_len, int* rc);
 
 /**
  * @brief Finalize a single named physics scheme.
@@ -60,8 +57,7 @@ void cece_ccpp_scheme_run(void* data_ptr, const char* scheme_name,
  * @param scheme_name_len [in] Length of @p scheme_name.
  * @param rc             [out] Return code; 0 on success, non-zero on failure.
  */
-void cece_ccpp_scheme_finalize(void* data_ptr, const char* scheme_name,
-                               int scheme_name_len, int* rc);
+void cece_ccpp_scheme_finalize(void* data_ptr, const char* scheme_name, int scheme_name_len, int* rc);
 
 /**
  * @brief Copy a Fortran array into CeceImportState as a DualView3D.
@@ -75,9 +71,7 @@ void cece_ccpp_scheme_finalize(void* data_ptr, const char* scheme_name,
  * @param nz         [in] Third dimension extent.
  * @param rc         [out] Return code; 0 on success, non-zero on failure.
  */
-void cece_ccpp_set_import_field(void* data_ptr, const char* field_name,
-                                int name_len, const double* field_data,
-                                int nx, int ny, int nz, int* rc);
+void cece_ccpp_set_import_field(void* data_ptr, const char* field_name, int name_len, const double* field_data, int nx, int ny, int nz, int* rc);
 
 /**
  * @brief Copy a CeceExportState DualView3D back into a Fortran array.
@@ -91,9 +85,7 @@ void cece_ccpp_set_import_field(void* data_ptr, const char* field_name,
  * @param nz         [in] Third dimension extent.
  * @param rc         [out] Return code; 0 on success, non-zero on failure.
  */
-void cece_ccpp_get_export_field(void* data_ptr, const char* field_name,
-                                int name_len, double* field_data,
-                                int nx, int ny, int nz, int* rc);
+void cece_ccpp_get_export_field(void* data_ptr, const char* field_name, int name_len, double* field_data, int nx, int ny, int nz, int* rc);
 
 /**
  * @brief Execute the StackingEngine independently.

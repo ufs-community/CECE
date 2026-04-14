@@ -39,21 +39,18 @@ ValidationResult ConfigValidator::ValidateConfig(const YAML::Node& config) {
 
 void ConfigValidator::ValidateSpecies(const YAML::Node& config, ValidationResult& result) {
     if (!config["species"]) {
-        result.errors.push_back({"species", "No species defined in configuration",
-                                 "Add a 'species' section with at least one emission species"});
+        result.errors.push_back({"species", "No species defined in configuration", "Add a 'species' section with at least one emission species"});
         return;
     }
 
     const auto& species_node = config["species"];
     if (!species_node.IsSequence()) {
-        result.errors.push_back({"species", "Species must be a list",
-                                 "Change 'species' to a YAML list (use '-' for each item)"});
+        result.errors.push_back({"species", "Species must be a list", "Change 'species' to a YAML list (use '-' for each item)"});
         return;
     }
 
     if (species_node.size() == 0) {
-        result.errors.push_back(
-            {"species", "Species list is empty", "Add at least one species to the 'species' list"});
+        result.errors.push_back({"species", "Species list is empty", "Add at least one species to the 'species' list"});
         return;
     }
 
@@ -61,14 +58,11 @@ void ConfigValidator::ValidateSpecies(const YAML::Node& config, ValidationResult
         const auto& species = species_node[i];
 
         if (!species["name"]) {
-            result.errors.push_back({"species[" + std::to_string(i) + "].name",
-                                     "Species name is missing",
-                                     "Add a 'name' field to each species"});
+            result.errors.push_back({"species[" + std::to_string(i) + "].name", "Species name is missing", "Add a 'name' field to each species"});
         }
 
         if (!species["units"]) {
-            result.warnings.push_back("species[" + std::to_string(i) +
-                                      "].units: Units not specified");
+            result.warnings.push_back("species[" + std::to_string(i) + "].units: Units not specified");
         }
     }
 }
@@ -81,8 +75,7 @@ void ConfigValidator::ValidateLayers(const YAML::Node& config, ValidationResult&
 
     const auto& layers_node = config["layers"];
     if (!layers_node.IsSequence()) {
-        result.errors.push_back({"layers", "Layers must be a list",
-                                 "Change 'layers' to a YAML list (use '-' for each item)"});
+        result.errors.push_back({"layers", "Layers must be a list", "Change 'layers' to a YAML list (use '-' for each item)"});
         return;
     }
 
@@ -90,51 +83,43 @@ void ConfigValidator::ValidateLayers(const YAML::Node& config, ValidationResult&
         const auto& layer = layers_node[i];
 
         if (!layer["name"]) {
-            result.errors.push_back({"layers[" + std::to_string(i) + "].name",
-                                     "Layer name is missing", "Add a 'name' field to each layer"});
+            result.errors.push_back({"layers[" + std::to_string(i) + "].name", "Layer name is missing", "Add a 'name' field to each layer"});
         }
 
         if (!layer["species"]) {
-            result.errors.push_back(
-                {"layers[" + std::to_string(i) + "].species", "Layer species is missing",
-                 "Add a 'species' field specifying which species this layer contributes to"});
+            result.errors.push_back({"layers[" + std::to_string(i) + "].species", "Layer species is missing",
+                                     "Add a 'species' field specifying which species this layer contributes to"});
         }
 
         if (!layer["file"]) {
-            result.errors.push_back({"layers[" + std::to_string(i) + "].file",
-                                     "Layer file path is missing",
+            result.errors.push_back({"layers[" + std::to_string(i) + "].file", "Layer file path is missing",
                                      "Add a 'file' field with the path to the emission data file"});
         } else {
             std::string file_path = layer["file"].as<std::string>();
             if (!FileExists(file_path)) {
-                result.errors.push_back({"layers[" + std::to_string(i) + "].file",
-                                         "File not found: " + file_path,
+                result.errors.push_back({"layers[" + std::to_string(i) + "].file", "File not found: " + file_path,
                                          "Verify the file path is correct and the file exists"});
             }
         }
 
         if (!layer["variable"]) {
-            result.errors.push_back({"layers[" + std::to_string(i) + "].variable",
-                                     "Variable name is missing",
+            result.errors.push_back({"layers[" + std::to_string(i) + "].variable", "Variable name is missing",
                                      "Add a 'variable' field specifying the NetCDF variable name"});
         }
 
         if (!layer["operation"]) {
-            result.warnings.push_back("layers[" + std::to_string(i) +
-                                      "].operation: Operation not specified, defaulting to 'add'");
+            result.warnings.push_back("layers[" + std::to_string(i) + "].operation: Operation not specified, defaulting to 'add'");
         } else {
             std::string op = layer["operation"].as<std::string>();
             if (op != "add" && op != "replace") {
-                result.errors.push_back({"layers[" + std::to_string(i) + "].operation",
-                                         "Invalid operation: " + op,
-                                         "Operation must be either 'add' or 'replace'"});
+                result.errors.push_back(
+                    {"layers[" + std::to_string(i) + "].operation", "Invalid operation: " + op, "Operation must be either 'add' or 'replace'"});
             }
         }
     }
 }
 
-void ConfigValidator::ValidateVerticalDistribution(const YAML::Node& config,
-                                                   ValidationResult& result) {
+void ConfigValidator::ValidateVerticalDistribution(const YAML::Node& config, ValidationResult& result) {
     if (!config["layers"]) {
         return;
     }
@@ -144,27 +129,21 @@ void ConfigValidator::ValidateVerticalDistribution(const YAML::Node& config,
         const auto& layer = layers_node[i];
 
         if (!layer["vertical_distribution"]) {
-            result.warnings.push_back(
-                "layers[" + std::to_string(i) +
-                "].vertical_distribution: Not specified, defaulting to SINGLE");
+            result.warnings.push_back("layers[" + std::to_string(i) + "].vertical_distribution: Not specified, defaulting to SINGLE");
             continue;
         }
 
         const auto& vdist = layer["vertical_distribution"];
 
         if (!vdist["method"]) {
-            result.errors.push_back(
-                {"layers[" + std::to_string(i) + "].vertical_distribution.method",
-                 "Vertical distribution method is missing",
-                 "Add a 'method' field: SINGLE, RANGE, PRESSURE, HEIGHT, or PBL"});
+            result.errors.push_back({"layers[" + std::to_string(i) + "].vertical_distribution.method", "Vertical distribution method is missing",
+                                     "Add a 'method' field: SINGLE, RANGE, PRESSURE, HEIGHT, or PBL"});
         } else {
             std::string method = vdist["method"].as<std::string>();
-            if (method != "SINGLE" && method != "RANGE" && method != "PRESSURE" &&
-                method != "HEIGHT" && method != "PBL") {
-                result.errors.push_back(
-                    {"layers[" + std::to_string(i) + "].vertical_distribution.method",
-                     "Invalid vertical distribution method: " + method,
-                     "Method must be one of: SINGLE, RANGE, PRESSURE, HEIGHT, PBL"});
+            if (method != "SINGLE" && method != "RANGE" && method != "PRESSURE" && method != "HEIGHT" && method != "PBL") {
+                result.errors.push_back({"layers[" + std::to_string(i) + "].vertical_distribution.method",
+                                         "Invalid vertical distribution method: " + method,
+                                         "Method must be one of: SINGLE, RANGE, PRESSURE, HEIGHT, PBL"});
             }
         }
     }
@@ -181,17 +160,15 @@ void ConfigValidator::ValidateTIDE(const YAML::Node& config, ValidationResult& r
         std::string streams_file = cece_data["streams_yaml"].as<std::string>();
         if (!FileExists(streams_file)) {
             result.errors.push_back(
-                {"cece_data.streams_yaml", "Streams file not found: " + streams_file,
-                 "Verify the streams file path is correct and the file exists"});
+                {"cece_data.streams_yaml", "Streams file not found: " + streams_file, "Verify the streams file path is correct and the file exists"});
         }
     }
 
     if (cece_data["data_root"]) {
         std::string data_root = cece_data["data_root"].as<std::string>();
         if (!std::filesystem::exists(data_root)) {
-            result.errors.push_back(
-                {"cece_data.data_root", "Data root directory not found: " + data_root,
-                 "Verify the data root path is correct and the directory exists"});
+            result.errors.push_back({"cece_data.data_root", "Data root directory not found: " + data_root,
+                                     "Verify the data root path is correct and the directory exists"});
         }
     }
 }
@@ -205,8 +182,7 @@ void ConfigValidator::ValidatePhysicsSchemes(const YAML::Node& config, Validatio
     const auto& schemes_node = config["physics_schemes"];
     if (!schemes_node.IsSequence()) {
         result.errors.push_back(
-            {"physics_schemes", "Physics schemes must be a list",
-             "Change 'physics_schemes' to a YAML list (use '-' for each item)"});
+            {"physics_schemes", "Physics schemes must be a list", "Change 'physics_schemes' to a YAML list (use '-' for each item)"});
         return;
     }
 
@@ -214,14 +190,12 @@ void ConfigValidator::ValidatePhysicsSchemes(const YAML::Node& config, Validatio
         const auto& scheme = schemes_node[i];
 
         if (!scheme["name"]) {
-            result.errors.push_back({"physics_schemes[" + std::to_string(i) + "].name",
-                                     "Scheme name is missing",
-                                     "Add a 'name' field to each physics scheme"});
+            result.errors.push_back(
+                {"physics_schemes[" + std::to_string(i) + "].name", "Scheme name is missing", "Add a 'name' field to each physics scheme"});
         }
 
         if (scheme["enabled"] && !scheme["enabled"].as<bool>()) {
-            result.warnings.push_back("physics_schemes[" + std::to_string(i) +
-                                      "]: Scheme is disabled");
+            result.warnings.push_back("physics_schemes[" + std::to_string(i) + "]: Scheme is disabled");
         }
     }
 }
@@ -236,16 +210,14 @@ void ConfigValidator::ValidateOutput(const YAML::Node& config, ValidationResult&
     if (output["directory"]) {
         std::string dir = output["directory"].as<std::string>();
         if (!DirectoryIsWritable(dir)) {
-            result.warnings.push_back(
-                "output.directory: Directory not writable or does not exist: " + dir);
+            result.warnings.push_back("output.directory: Directory not writable or does not exist: " + dir);
         }
     }
 
     if (output["frequency_steps"]) {
         int freq = output["frequency_steps"].as<int>();
         if (freq <= 0) {
-            result.errors.push_back({"output.frequency_steps", "Output frequency must be positive",
-                                     "Set frequency_steps to a positive integer"});
+            result.errors.push_back({"output.frequency_steps", "Output frequency must be positive", "Set frequency_steps to a positive integer"});
         }
     }
 }

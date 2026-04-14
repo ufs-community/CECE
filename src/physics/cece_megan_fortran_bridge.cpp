@@ -38,8 +38,7 @@ extern "C" {
  * @param ny Grid dimension in y-direction
  * @param nz Grid dimension in z-direction
  */
-void run_megan_fortran(double* temp, double* lai, double* pardr, double* pardf, double* suncos,
-                       double* isop, int nx, int ny, int nz);
+void run_megan_fortran(double* temp, double* lai, double* pardr, double* pardf, double* suncos, double* isop, int nx, int ny, int nz);
 }
 
 namespace cece {
@@ -58,8 +57,7 @@ static PhysicsRegistration<MeganFortranScheme> register_scheme("megan_fortran");
  * @param config YAML configuration node (unused for Fortran version)
  * @param diag_manager Diagnostic manager for output handling (unused)
  */
-void MeganFortranScheme::Initialize(const YAML::Node& /*config*/,
-                                    CeceDiagnosticManager* /*diag_manager*/) {
+void MeganFortranScheme::Initialize(const YAML::Node& /*config*/, CeceDiagnosticManager* /*diag_manager*/) {
     std::cout << "MeganFortranScheme: Initialized." << "\n";
 }
 
@@ -91,9 +89,8 @@ void MeganFortranScheme::Run(CeceImportState& import_state, CeceExportState& exp
     auto it_pardf = import_state.fields.find("pardf");
     auto it_suncos = import_state.fields.find("suncos");
 
-    if (it_temp == import_state.fields.end() || it_isop == export_state.fields.end() ||
-        it_lai == import_state.fields.end() || it_pardr == import_state.fields.end() ||
-        it_pardf == import_state.fields.end() || it_suncos == import_state.fields.end())
+    if (it_temp == import_state.fields.end() || it_isop == export_state.fields.end() || it_lai == import_state.fields.end() ||
+        it_pardr == import_state.fields.end() || it_pardf == import_state.fields.end() || it_suncos == import_state.fields.end())
         return;
 
     auto& dv_temp = it_temp->second;
@@ -114,8 +111,7 @@ void MeganFortranScheme::Run(CeceImportState& import_state, CeceExportState& exp
     int ny = static_cast<int>(dv_isop.extent(1));
     int nz = static_cast<int>(dv_isop.extent(2));
 
-    run_megan_fortran(dv_temp.view_host().data(), dv_lai.view_host().data(),
-                      dv_pardr.view_host().data(), dv_pardf.view_host().data(),
+    run_megan_fortran(dv_temp.view_host().data(), dv_lai.view_host().data(), dv_pardr.view_host().data(), dv_pardf.view_host().data(),
                       dv_suncos.view_host().data(), dv_isop.view_host().data(), nx, ny, nz);
 
     dv_isop.modify<Kokkos::HostSpace>();

@@ -78,14 +78,13 @@ struct EmissionLayer {
     std::string seasonal_cycle;             ///< Name of the seasonal cycle to apply (12 factors).
 
     // Vertical distribution
-    VerticalDistributionMethod vdist_method =
-        VerticalDistributionMethod::SINGLE;  ///< Method for vertical distribution.
-    int vdist_layer_start = 0;               ///< Start layer (0-indexed).
-    int vdist_layer_end = 0;                 ///< End layer (0-indexed).
-    double vdist_p_start = 0.0;              ///< Start pressure (Pa).
-    double vdist_p_end = 0.0;                ///< End pressure (Pa).
-    double vdist_h_start = 0.0;              ///< Start height (m).
-    double vdist_h_end = 0.0;                ///< End height (m).
+    VerticalDistributionMethod vdist_method = VerticalDistributionMethod::SINGLE;  ///< Method for vertical distribution.
+    int vdist_layer_start = 0;                                                     ///< Start layer (0-indexed).
+    int vdist_layer_end = 0;                                                       ///< End layer (0-indexed).
+    double vdist_p_start = 0.0;                                                    ///< Start pressure (Pa).
+    double vdist_p_end = 0.0;                                                      ///< End pressure (Pa).
+    double vdist_h_start = 0.0;                                                    ///< Start height (m).
+    double vdist_h_end = 0.0;                                                      ///< End height (m).
 };
 
 /**
@@ -115,18 +114,17 @@ struct CeceDataStreamConfig {
     std::vector<CeceDataVariableConfig> variables;  ///< Variables to read from this stream.
     std::string taxmode = "cycle";                  ///< Time axis mode (cycle, extend, etc.).
     std::string tintalgo = "linear";                ///< Time interpolation algorithm.
-    std::string mapalgo =
-        "bilinear";            ///< Spatial mapping algorithm (default: bilinear for robustness).
-    int dtlimit = 1500000000;  ///< Delta time limit in seconds.
-    int yearFirst = 1;         ///< First year in data.
-    int yearLast = 1;          ///< Last year in data.
-    int yearAlign = 1;         ///< Year to align with model time.
-    int offset = 0;            ///< Time offset in seconds.
-    std::string meshfile;      ///< Path to source mesh file.
-    std::string lev_dimname = "lev";  ///< Name of vertical dimension.
-    std::string time_var = "time";    ///< Name of time coordinate variable.
-    std::string lon_var = "lon";      ///< Name of longitude coordinate variable.
-    std::string lat_var = "lat";      ///< Name of latitude coordinate variable.
+    std::string mapalgo = "bilinear";               ///< Spatial mapping algorithm (default: bilinear for robustness).
+    int dtlimit = 1500000000;                       ///< Delta time limit in seconds.
+    int yearFirst = 1;                              ///< First year in data.
+    int yearLast = 1;                               ///< Last year in data.
+    int yearAlign = 1;                              ///< Year to align with model time.
+    int offset = 0;                                 ///< Time offset in seconds.
+    std::string meshfile;                           ///< Path to source mesh file.
+    std::string lev_dimname = "lev";                ///< Name of vertical dimension.
+    std::string time_var = "time";                  ///< Name of time coordinate variable.
+    std::string lon_var = "lon";                    ///< Name of longitude coordinate variable.
+    std::string lat_var = "lat";                    ///< Name of latitude coordinate variable.
 };
 
 /**
@@ -142,13 +140,12 @@ struct CeceDataConfig {
  * @brief Configuration for standalone NetCDF output (Requirement 11.12).
  */
 struct CeceOutputConfig {
-    std::string directory = ".";  ///< Output directory (created if absent).
-    std::string filename_pattern =
-        "cece_output_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc";  ///< Filename pattern with time tokens.
-    int frequency_steps = 1;                           ///< Write every N time steps.
-    std::vector<std::string> fields;   ///< Fields to write; empty means all export fields.
-    bool include_diagnostics = false;  ///< Also write diagnostic fields when true.
-    bool enabled = false;              ///< True when an output block is present in the YAML.
+    std::string directory = ".";                                                  ///< Output directory (created if absent).
+    std::string filename_pattern = "cece_output_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc";  ///< Filename pattern with time tokens.
+    int frequency_steps = 1;                                                      ///< Write every N time steps.
+    std::vector<std::string> fields;                                              ///< Fields to write; empty means all export fields.
+    bool include_diagnostics = false;                                             ///< Also write diagnostic fields when true.
+    bool enabled = false;                                                         ///< True when an output block is present in the YAML.
 };
 
 /**
@@ -183,13 +180,11 @@ struct DriverGridConfig {
  * @brief Configuration for the standalone NUOPC driver (Requirements 1-3, 14-15).
  */
 struct DriverConfig {
-    std::string start_time =
-        "2020-01-01T00:00:00";  ///< ISO8601 start time (default: 2020-01-01T00:00:00).
-    std::string end_time =
-        "2020-01-02T00:00:00";    ///< ISO8601 end time (default: 2020-01-02T00:00:00).
-    int timestep_seconds = 3600;  ///< Timestep in seconds (default: 3600).
-    std::string mesh_file;        ///< Path to ESMF mesh file (optional, default: null).
-    DriverGridConfig grid;        ///< Grid configuration for generated Gaussian grid.
+    std::string start_time = "2020-01-01T00:00:00";  ///< ISO8601 start time (default: 2020-01-01T00:00:00).
+    std::string end_time = "2020-01-02T00:00:00";    ///< ISO8601 end time (default: 2020-01-02T00:00:00).
+    int timestep_seconds = 3600;                     ///< Timestep in seconds (default: 3600).
+    std::string mesh_file;                           ///< Path to ESMF mesh file (optional, default: null).
+    DriverGridConfig grid;                           ///< Grid configuration for generated Gaussian grid.
 };
 
 /**
@@ -242,8 +237,7 @@ CeceConfig ParseConfig(const std::string& filename);
  * @param species_name Internal species name.
  * @param layers Ordered list of emission layers for this species.
  */
-void AddSpecies(CeceConfig& config, const std::string& species_name,
-                std::vector<EmissionLayer> layers);
+void AddSpecies(CeceConfig& config, const std::string& species_name, std::vector<EmissionLayer> layers);
 
 /**
  * @brief Adds a new scale factor mapping to an existing config at runtime.
@@ -251,8 +245,7 @@ void AddSpecies(CeceConfig& config, const std::string& species_name,
  * @param internal_name Internal scale factor name used in layer definitions.
  * @param external_name External field name in the ESMF state.
  */
-void AddScaleFactor(CeceConfig& config, const std::string& internal_name,
-                    const std::string& external_name);
+void AddScaleFactor(CeceConfig& config, const std::string& internal_name, const std::string& external_name);
 
 /**
  * @brief Adds a new mask mapping to an existing config at runtime.
@@ -260,8 +253,7 @@ void AddScaleFactor(CeceConfig& config, const std::string& internal_name,
  * @param internal_name Internal mask name used in layer definitions.
  * @param external_name External field name in the ESMF state.
  */
-void AddMask(CeceConfig& config, const std::string& internal_name,
-             const std::string& external_name);
+void AddMask(CeceConfig& config, const std::string& internal_name, const std::string& external_name);
 
 }  // namespace cece
 

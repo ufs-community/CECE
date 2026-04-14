@@ -71,8 +71,7 @@ CeceDataIngestor::~CeceDataIngestor() {}
  *
  * @note Data is assumed to be in Fortran (column-major) order from TIDE.
  */
-void CeceDataIngestor::SetField(const std::string& name, const double* data, int n_lev, int n_elem,
-                                int nx, int ny, int nz, int* rc) {
+void CeceDataIngestor::SetField(const std::string& name, const double* data, int n_lev, int n_elem, int nx, int ny, int nz, int* rc) {
     if (!data) {
         CECE_LOG_ERROR("[CECE] SetField received null data pointer for field: " + name);
         if (rc) *rc = -1;
@@ -87,14 +86,13 @@ void CeceDataIngestor::SetField(const std::string& name, const double* data, int
     if (is_2d_emission) {
         // For 2D emission data, use single vertical level initially
         actual_nz = 1;
-        std::cout << "[CECE] SetField: Setting 2D emission field " << name << " " << nx << "x" << ny
-                  << "x" << actual_nz << " (from " << n_lev << "x" << n_elem << " TIDE data)"
-                  << std::endl;
+        std::cout << "[CECE] SetField: Setting 2D emission field " << name << " " << nx << "x" << ny << "x" << actual_nz << " (from " << n_lev << "x"
+                  << n_elem << " TIDE data)" << std::endl;
     } else {
         // For 3D data, use provided dimensions
         actual_nz = (n_lev * n_elem == nx * ny * nz) ? nz : n_lev;
-        std::cout << "[CECE] SetField: Setting 3D field " << name << " " << nx << "x" << ny << "x"
-                  << actual_nz << " (total=" << (n_lev * n_elem) << ")" << std::endl;
+        std::cout << "[CECE] SetField: Setting 3D field " << name << " " << nx << "x" << ny << "x" << actual_nz << " (total=" << (n_lev * n_elem)
+                  << ")" << std::endl;
     }
 
     // Create a host mirror view with correct dimensions
@@ -120,8 +118,7 @@ void CeceDataIngestor::SetField(const std::string& name, const double* data, int
     }
 
     // Allocate device view if it doesn't exist or has wrong shape
-    if (field_cache_.find(name) == field_cache_.end() ||
-        field_cache_[name].extent(0) != (size_t)nx || field_cache_[name].extent(1) != (size_t)ny ||
+    if (field_cache_.find(name) == field_cache_.end() || field_cache_[name].extent(0) != (size_t)nx || field_cache_[name].extent(1) != (size_t)ny ||
         field_cache_[name].extent(2) != (size_t)actual_nz) {
         using DeviceView = Kokkos::View<double***, Kokkos::LayoutLeft>;
         field_cache_[name] = DeviceView(name, nx, ny, actual_nz);
@@ -133,8 +130,7 @@ void CeceDataIngestor::SetField(const std::string& name, const double* data, int
     if (rc) *rc = 0;
 }
 
-void CeceDataIngestor::IngestEmissionsInline(const CeceDataConfig& config,
-                                             CeceImportState& cece_state, int nx, int ny, int nz) {
+void CeceDataIngestor::IngestEmissionsInline(const CeceDataConfig& config, CeceImportState& cece_state, int nx, int ny, int nz) {
     for (const auto& stream : config.streams) {
         for (const auto& var : stream.variables) {
             const std::string& model_name = var.name_in_model;
@@ -156,8 +152,7 @@ void CeceDataIngestor::IngestEmissionsInline(const CeceDataConfig& config,
                     cece_state.fields.emplace(model_name, new_field);
                     it = cece_state.fields.find(model_name);
 
-                    CECE_LOG_INFO("[CECE] IngestEmissionsInline: Created import field " +
-                                  model_name + " (" + std::to_string(c_nx) + "x" +
+                    CECE_LOG_INFO("[CECE] IngestEmissionsInline: Created import field " + model_name + " (" + std::to_string(c_nx) + "x" +
                                   std::to_string(c_ny) + "x" + std::to_string(c_nz) + ")");
                 }
 
@@ -165,17 +160,12 @@ void CeceDataIngestor::IngestEmissionsInline(const CeceDataConfig& config,
                 auto device_view = dual_view.view_device();
 
                 // Validate dimensions match
-                if (device_view.extent(0) != cached_view.extent(0) ||
-                    device_view.extent(1) != cached_view.extent(1) ||
+                if (device_view.extent(0) != cached_view.extent(0) || device_view.extent(1) != cached_view.extent(1) ||
                     device_view.extent(2) != cached_view.extent(2)) {
-                    CECE_LOG_ERROR("[CECE] IngestEmissionsInline: Dimension mismatch for field " +
-                                   model_name + ". Expected " +
-                                   std::to_string(device_view.extent(0)) + "x" +
-                                   std::to_string(device_view.extent(1)) + "x" +
-                                   std::to_string(device_view.extent(2)) + " but cached view is " +
-                                   std::to_string(cached_view.extent(0)) + "x" +
-                                   std::to_string(cached_view.extent(1)) + "x" +
-                                   std::to_string(cached_view.extent(2)));
+                    CECE_LOG_ERROR("[CECE] IngestEmissionsInline: Dimension mismatch for field " + model_name + ". Expected " +
+                                   std::to_string(device_view.extent(0)) + "x" + std::to_string(device_view.extent(1)) + "x" +
+                                   std::to_string(device_view.extent(2)) + " but cached view is " + std::to_string(cached_view.extent(0)) + "x" +
+                                   std::to_string(cached_view.extent(1)) + "x" + std::to_string(cached_view.extent(2)));
                     continue;
                 }
 
@@ -190,8 +180,8 @@ void CeceDataIngestor::IngestEmissionsInline(const CeceDataConfig& config,
 
                 // Debug log - verify field is properly set
                 std::cout << "[CECE] IngestEmissionsInline: Successfully ingested " << model_name
-                          << " with device view extents: " << device_view.extent(0) << "x"
-                          << device_view.extent(1) << "x" << device_view.extent(2) << std::endl;
+                          << " with device view extents: " << device_view.extent(0) << "x" << device_view.extent(1) << "x" << device_view.extent(2)
+                          << std::endl;
             } else {
                 // CECE_LOG_WARNING("[CECE] IngestEmissionsInline: Field not found in cache: " +
                 // model_name);
@@ -200,13 +190,11 @@ void CeceDataIngestor::IngestEmissionsInline(const CeceDataConfig& config,
     }
 }
 
-Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace,
-             Kokkos::MemoryTraits<Kokkos::Unmanaged>>
+Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>
 CeceDataIngestor::ResolveField(const std::string& name, int nx, int ny, int nz) {
     if (!HasCachedField(name)) {
         CECE_LOG_ERROR("[CECE] ResolveField: field not found in cache: " + name);
-        return Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace,
-                            Kokkos::MemoryTraits<Kokkos::Unmanaged>>();
+        return Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>();
     }
 
     return field_cache_[name];
@@ -247,8 +235,7 @@ std::string CeceDataIngestor::SerializeTideESMFConfig(const CeceDataConfig& conf
         oss << "lat_var" << idx << ": " << stream.lat_var << "\n";
 
         // Required stream_mesh_file parameter (dummy value for grid-based data)
-        oss << "stream_mesh_file" << idx << ": "
-            << (stream.meshfile.empty() ? "none" : stream.meshfile) << "\n";
+        oss << "stream_mesh_file" << idx << ": " << (stream.meshfile.empty() ? "none" : stream.meshfile) << "\n";
 
         // Data files (ESMF format: comma-separated values)
         oss << "stream_data_files" << idx << ": ";
@@ -267,9 +254,8 @@ std::string CeceDataIngestor::SerializeTideESMFConfig(const CeceDataConfig& conf
         oss << "\n";
 
         // Debug: Log coordinate variable configuration
-        std::cout << "DEBUG: Stream '" << stream.name << "' time_var='" << stream.time_var
-                  << "' lon_var='" << stream.lon_var << "' lat_var='" << stream.lat_var << "'"
-                  << std::endl;
+        std::cout << "DEBUG: Stream '" << stream.name << "' time_var='" << stream.time_var << "' lon_var='" << stream.lon_var << "' lat_var='"
+                  << stream.lat_var << "'" << std::endl;
 
         oss << "\n";
         stream_idx++;
@@ -311,8 +297,7 @@ std::string CeceDataIngestor::SerializeTideYaml(const CeceDataConfig& config) {
         // Field mappings (use inline YAML object format like TIDE test examples)
         oss << "    field_maps:\n";
         for (const auto& variable : stream.variables) {
-            oss << "      - { file_var: \"" << variable.name_in_file << "\", model_var: \""
-                << variable.name_in_model << "\" }\n";
+            oss << "      - { file_var: \"" << variable.name_in_file << "\", model_var: \"" << variable.name_in_model << "\" }\n";
         }
 
         oss << "\n";
@@ -322,8 +307,7 @@ std::string CeceDataIngestor::SerializeTideYaml(const CeceDataConfig& config) {
 }
 
 void CeceDataIngestor::ClearCache() {
-    std::cout << "INFO: Clearing CeceDataIngestor field cache (" << field_cache_.size()
-              << " fields)\n";
+    std::cout << "INFO: Clearing CeceDataIngestor field cache (" << field_cache_.size() << " fields)\n";
     field_cache_.clear();
     std::cout << "INFO: Field cache cleared\n";
 }

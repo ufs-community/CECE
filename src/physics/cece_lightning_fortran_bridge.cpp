@@ -15,8 +15,7 @@ namespace cece {
 static PhysicsRegistration<LightningFortranScheme> register_scheme("lightning_fortran");
 #endif
 
-void LightningFortranScheme::Initialize(const YAML::Node& /*config*/,
-                                        CeceDiagnosticManager* /*diag_manager*/) {
+void LightningFortranScheme::Initialize(const YAML::Node& /*config*/, CeceDiagnosticManager* /*diag_manager*/) {
     std::cout << "LightningFortranScheme: Initialized." << "\n";
 }
 
@@ -38,8 +37,7 @@ void LightningFortranScheme::Run(CeceImportState& import_state, CeceExportState&
     int ny = static_cast<int>(dv_light_emis.extent(1));
     int nz = static_cast<int>(dv_light_emis.extent(2));
 
-    run_lightning_fortran(dv_conv_depth.view_host().data(), dv_light_emis.view_host().data(), nx,
-                          ny, nz);
+    run_lightning_fortran(dv_conv_depth.view_host().data(), dv_light_emis.view_host().data(), nx, ny, nz);
 
     dv_light_emis.modify<Kokkos::HostSpace>();
     dv_light_emis.sync<Kokkos::DefaultExecutionSpace>();

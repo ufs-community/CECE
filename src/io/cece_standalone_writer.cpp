@@ -96,8 +96,7 @@ CeceStandaloneWriter::~CeceStandaloneWriter() {
     Finalize();
 }
 
-int CeceStandaloneWriter::Initialize(const std::string& start_time_iso8601, int nx, int ny,
-                                     int nz) {
+int CeceStandaloneWriter::Initialize(const std::string& start_time_iso8601, int nx, int ny, int nz) {
     if (!config_.enabled) return 0;
 
     start_time_iso8601_ = start_time_iso8601;
@@ -122,9 +121,7 @@ int CeceStandaloneWriter::Initialize(const std::string& start_time_iso8601, int 
     return 0;
 }
 
-int CeceStandaloneWriter::InitializeWithCoords(const std::string& start_time_iso8601, int nx,
-                                               int ny, int nz,
-                                               const std::vector<double>& lon_coords,
+int CeceStandaloneWriter::InitializeWithCoords(const std::string& start_time_iso8601, int nx, int ny, int nz, const std::vector<double>& lon_coords,
                                                const std::vector<double>& lat_coords) {
     if (!config_.enabled) return 0;
 
@@ -167,15 +164,13 @@ std::string CeceStandaloneWriter::ResolveFilename(double time_seconds_since_star
     return p.string();
 }
 
-int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, DualView3D>& fields,
-                                        double time_seconds, int step) {
+int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, DualView3D>& fields, double time_seconds, int step) {
     if (!initialized_ || !config_.enabled) return 0;
 
     // Check frequency
     if (step % config_.frequency_steps != 0) return 0;
 
-    CECE_LOG_INFO("[CECE] Writing time step " + std::to_string(step) +
-                  " (t=" + std::to_string(time_seconds) + ")");
+    CECE_LOG_INFO("[CECE] Writing time step " + std::to_string(step) + " (t=" + std::to_string(time_seconds) + ")");
 
     std::string filename = ResolveFilename(time_seconds);
     CECE_LOG_INFO("[CECE] Output file: " + filename);
@@ -195,27 +190,23 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
         // Define time variable
         int var_time;
         check_nc(nc_def_var(ncid, "time", NC_DOUBLE, 1, &dim_time, &var_time), "def_var time");
-        check_nc(nc_put_att_text(ncid, var_time, "units", 14 + start_time_iso8601_.length(),
-                                 ("seconds since " + start_time_iso8601_).c_str()));
+        check_nc(nc_put_att_text(ncid, var_time, "units", 14 + start_time_iso8601_.length(), ("seconds since " + start_time_iso8601_).c_str()));
 
         // Define coordinate variables
         int var_lon, var_lat, var_lev;
         check_nc(nc_def_var(ncid, "lon", NC_DOUBLE, 1, &dim_lon, &var_lon), "def_var lon");
         check_nc(nc_put_att_text(ncid, var_lon, "units", 12, "degrees_east"), "lon units");
         check_nc(nc_put_att_text(ncid, var_lon, "long_name", 9, "longitude"), "lon long_name");
-        check_nc(nc_put_att_text(ncid, var_lon, "standard_name", 9, "longitude"),
-                 "lon standard_name");
+        check_nc(nc_put_att_text(ncid, var_lon, "standard_name", 9, "longitude"), "lon standard_name");
 
         check_nc(nc_def_var(ncid, "lat", NC_DOUBLE, 1, &dim_lat, &var_lat), "def_var lat");
         check_nc(nc_put_att_text(ncid, var_lat, "units", 13, "degrees_north"), "lat units");
         check_nc(nc_put_att_text(ncid, var_lat, "long_name", 8, "latitude"), "lat long_name");
-        check_nc(nc_put_att_text(ncid, var_lat, "standard_name", 8, "latitude"),
-                 "lat standard_name");
+        check_nc(nc_put_att_text(ncid, var_lat, "standard_name", 8, "latitude"), "lat standard_name");
 
         check_nc(nc_def_var(ncid, "lev", NC_DOUBLE, 1, &dim_lev, &var_lev), "def_var lev");
         check_nc(nc_put_att_text(ncid, var_lev, "units", 1, "1"), "lev units");
-        check_nc(nc_put_att_text(ncid, var_lev, "long_name", 20, "model_level_number"),
-                 "lev long_name");
+        check_nc(nc_put_att_text(ncid, var_lev, "long_name", 20, "model_level_number"), "lev long_name");
 
         // Define field variables
         // If config_.fields is empty, write all fields. Else filter.
@@ -238,15 +229,12 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
 
             if (should_write) {
                 int var_id;
-                int dims[4] = {dim_time, dim_lev, dim_lat,
-                               dim_lon};  // time, lev, lat, lon (CF convention order)
+                int dims[4] = {dim_time, dim_lev, dim_lat, dim_lon};  // time, lev, lat, lon (CF convention order)
 
-                check_nc(nc_def_var(ncid, name.c_str(), NC_DOUBLE, 4, dims, &var_id),
-                         "def_var " + name);
+                check_nc(nc_def_var(ncid, name.c_str(), NC_DOUBLE, 4, dims, &var_id), "def_var " + name);
 
                 // Add coordinates attribute for proper CF compliance and ncview recognition
-                check_nc(nc_put_att_text(ncid, var_id, "coordinates", 16, "lon lat lev time"),
-                         "coordinates " + name);
+                check_nc(nc_put_att_text(ncid, var_id, "coordinates", 16, "lon lat lev time"), "coordinates " + name);
 
                 field_var_ids.push_back(var_id);
                 field_names.push_back(name);
@@ -254,14 +242,10 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
         }
 
         // Add global CF convention attributes for better tool support
-        check_nc(nc_put_att_text(ncid, NC_GLOBAL, "Conventions", 6, "CF-1.8"),
-                 "global Conventions");
-        check_nc(nc_put_att_text(ncid, NC_GLOBAL, "title", 28, "CECE Atmospheric Emissions"),
-                 "global title");
+        check_nc(nc_put_att_text(ncid, NC_GLOBAL, "Conventions", 6, "CF-1.8"), "global Conventions");
+        check_nc(nc_put_att_text(ncid, NC_GLOBAL, "title", 28, "CECE Atmospheric Emissions"), "global title");
         check_nc(nc_put_att_text(ncid, NC_GLOBAL, "institution", 4, "CECE"), "global institution");
-        check_nc(nc_put_att_text(ncid, NC_GLOBAL, "source", 42,
-                                 "CECE - Community Emissions Computing Engine"),
-                 "global source");
+        check_nc(nc_put_att_text(ncid, NC_GLOBAL, "source", 42, "CECE - Community Emissions Computing Engine"), "global source");
 
         check_nc(nc_enddef(ncid), "enddef");
 
@@ -318,10 +302,9 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
 
             // Verify host view size matches expected size
             if (h_view.size() != total_elements) {
-                CECE_LOG_ERROR("Size mismatch in field '" + name +
-                               "': h_view.size()=" + std::to_string(h_view.size()) + " expected=" +
-                               std::to_string(total_elements) + " (nx=" + std::to_string(nx_) +
-                               " ny=" + std::to_string(ny_) + " nz=" + std::to_string(nz_) + ")");
+                CECE_LOG_ERROR("Size mismatch in field '" + name + "': h_view.size()=" + std::to_string(h_view.size()) +
+                               " expected=" + std::to_string(total_elements) + " (nx=" + std::to_string(nx_) + " ny=" + std::to_string(ny_) +
+                               " nz=" + std::to_string(nz_) + ")");
                 return -1;
             }
 
@@ -333,18 +316,13 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
                     for (int i = 0; i < nx_; i++) {  // longitude index
                         // Correct indexing: CECE uses (lon, lat, lev) order - i=longitude,
                         // j=latitude
-                        size_t kokkos_idx =
-                            i + j * nx_ +
-                            k * static_cast<size_t>(nx_) * ny_;  // (lon, lat, lev) order
-                        size_t netcdf_idx = k * static_cast<size_t>(ny_) * nx_ + j * nx_ +
-                                            i;  // (lev, lat, lon) order
+                        size_t kokkos_idx = i + j * nx_ + k * static_cast<size_t>(nx_) * ny_;  // (lon, lat, lev) order
+                        size_t netcdf_idx = k * static_cast<size_t>(ny_) * nx_ + j * nx_ + i;  // (lev, lat, lon) order
 
                         // Bounds check for safety
                         if (kokkos_idx >= total_elements || netcdf_idx >= total_elements) {
-                            CECE_LOG_ERROR("Index out of bounds in field '" + name +
-                                           "': kokkos_idx=" + std::to_string(kokkos_idx) +
-                                           " netcdf_idx=" + std::to_string(netcdf_idx) +
-                                           " total=" + std::to_string(total_elements));
+                            CECE_LOG_ERROR("Index out of bounds in field '" + name + "': kokkos_idx=" + std::to_string(kokkos_idx) +
+                                           " netcdf_idx=" + std::to_string(netcdf_idx) + " total=" + std::to_string(total_elements));
                             return -1;
                         }
 
@@ -354,12 +332,9 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
             }
 
             size_t start_field[4] = {0, 0, 0, 0};
-            size_t count_field[4] = {1, (size_t)nz_, (size_t)ny_,
-                                     (size_t)nx_};  // time, lev, lat, lon
+            size_t count_field[4] = {1, (size_t)nz_, (size_t)ny_, (size_t)nx_};  // time, lev, lat, lon
 
-            check_nc(
-                nc_put_vara_double(ncid, var_id, start_field, count_field, netcdf_buffer.data()),
-                "put_vara " + name);
+            check_nc(nc_put_vara_double(ncid, var_id, start_field, count_field, netcdf_buffer.data()), "put_vara " + name);
         }
 
         check_nc(nc_close(ncid), "close");

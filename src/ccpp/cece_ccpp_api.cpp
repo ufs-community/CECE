@@ -13,9 +13,9 @@
 #include "cece/cece_ccpp_api.h"
 
 #include <Kokkos_Core.hpp>
+#include <cstring>
 #include <iostream>
 #include <memory>
-#include <cstring>
 #include <set>
 #include <string>
 
@@ -28,8 +28,7 @@
 
 extern "C" {
 
-void cece_ccpp_core_init(void** data_ptr, const char* config_path,
-                         int config_path_len, int nx, int ny, int nz, int* rc) {
+void cece_ccpp_core_init(void** data_ptr, const char* config_path, int config_path_len, int nx, int ny, int nz, int* rc) {
     if (rc != nullptr) {
         *rc = 0;
     }
@@ -75,8 +74,7 @@ void cece_ccpp_core_init(void** data_ptr, const char* config_path,
 
         Kokkos::initialize(args);
         kokkos_initialized_here = true;
-        std::cout << "INFO: Kokkos initialized — execution space: "
-                  << Kokkos::DefaultExecutionSpace::name() << std::endl;
+        std::cout << "INFO: Kokkos initialized — execution space: " << Kokkos::DefaultExecutionSpace::name() << std::endl;
     } else {
         std::cout << "INFO: Kokkos already initialized — reusing existing instance" << std::endl;
     }
@@ -95,20 +93,17 @@ void cece_ccpp_core_init(void** data_ptr, const char* config_path,
     cece::CeceConfig config;
     try {
         config = cece::ParseConfig(cfg_path);
-        std::cout << "INFO: Configuration parsed — " << config.species_layers.size()
-                  << " species, " << config.physics_schemes.size() << " physics schemes"
-                  << std::endl;
+        std::cout << "INFO: Configuration parsed — " << config.species_layers.size() << " species, " << config.physics_schemes.size()
+                  << " physics schemes" << std::endl;
     } catch (const std::exception& e) {
-        std::cerr << "ERROR in cece_ccpp_core_init: Failed to parse config '" << cfg_path
-                  << "': " << e.what() << std::endl;
+        std::cerr << "ERROR in cece_ccpp_core_init: Failed to parse config '" << cfg_path << "': " << e.what() << std::endl;
         if (rc != nullptr) *rc = -1;
         if (kokkos_initialized_here && Kokkos::is_initialized()) {
             Kokkos::finalize();
         }
         return;
     } catch (...) {
-        std::cerr << "ERROR in cece_ccpp_core_init: Unknown error parsing config '" << cfg_path
-                  << "'" << std::endl;
+        std::cerr << "ERROR in cece_ccpp_core_init: Unknown error parsing config '" << cfg_path << "'" << std::endl;
         if (rc != nullptr) *rc = -1;
         if (kokkos_initialized_here && Kokkos::is_initialized()) {
             Kokkos::finalize();
@@ -147,8 +142,7 @@ void cece_ccpp_core_init(void** data_ptr, const char* config_path,
         try {
             auto scheme = cece::PhysicsFactory::CreateScheme(scheme_config);
             if (scheme == nullptr) {
-                std::cerr << "ERROR: Physics scheme '" << scheme_config.name
-                          << "' not registered in factory" << std::endl;
+                std::cerr << "ERROR: Physics scheme '" << scheme_config.name << "' not registered in factory" << std::endl;
                 if (rc != nullptr) *rc = -1;
                 delete internal_data;
                 if (kokkos_initialized_here && Kokkos::is_initialized()) {
@@ -159,8 +153,7 @@ void cece_ccpp_core_init(void** data_ptr, const char* config_path,
             scheme->Initialize(scheme_config.options, nullptr);
             internal_data->active_schemes.push_back(std::move(scheme));
         } catch (const std::exception& e) {
-            std::cerr << "ERROR: Failed to initialize physics scheme '" << scheme_config.name
-                      << "': " << e.what() << std::endl;
+            std::cerr << "ERROR: Failed to initialize physics scheme '" << scheme_config.name << "': " << e.what() << std::endl;
             if (rc != nullptr) *rc = -1;
             delete internal_data;
             if (kokkos_initialized_here && Kokkos::is_initialized()) {
@@ -169,8 +162,7 @@ void cece_ccpp_core_init(void** data_ptr, const char* config_path,
             return;
         }
     }
-    std::cout << "INFO: Initialized " << internal_data->active_schemes.size()
-              << " physics schemes" << std::endl;
+    std::cout << "INFO: Initialized " << internal_data->active_schemes.size() << " physics schemes" << std::endl;
 
     // 6. Initialize StackingEngine
     try {
@@ -203,13 +195,10 @@ void cece_ccpp_core_init(void** data_ptr, const char* config_path,
         *data_ptr = internal_data;
     }
 
-    std::cout << "INFO: CECE CCPP core_init completed (nx=" << nx << ", ny=" << ny
-              << ", nz=" << nz << ")" << std::endl;
+    std::cout << "INFO: CECE CCPP core_init completed (nx=" << nx << ", ny=" << ny << ", nz=" << nz << ")" << std::endl;
 }
 
-
-void cece_ccpp_scheme_init(void* data_ptr, const char* scheme_name,
-                           int scheme_name_len, int nx, int ny, int nz, int* rc) {
+void cece_ccpp_scheme_init(void* data_ptr, const char* scheme_name, int scheme_name_len, int nx, int ny, int nz, int* rc) {
     if (rc != nullptr) *rc = 0;
 
     if (data_ptr == nullptr || scheme_name == nullptr) {
@@ -227,24 +216,20 @@ void cece_ccpp_scheme_init(void* data_ptr, const char* scheme_name,
         bool found = false;
         for (size_t i = 0; i < scheme_configs.size(); ++i) {
             if (scheme_configs[i].name == name) {
-                if (i >= internal_data->active_schemes.size() ||
-                    internal_data->active_schemes[i] == nullptr) {
-                    std::cerr << "ERROR in cece_ccpp_scheme_init: scheme '" << name
-                              << "' exists in config but not in active_schemes" << std::endl;
+                if (i >= internal_data->active_schemes.size() || internal_data->active_schemes[i] == nullptr) {
+                    std::cerr << "ERROR in cece_ccpp_scheme_init: scheme '" << name << "' exists in config but not in active_schemes" << std::endl;
                     if (rc != nullptr) *rc = -2;
                     return;
                 }
                 found = true;
-                std::cout << "INFO: cece_ccpp_scheme_init — scheme '" << name
-                          << "' verified ready (nx=" << nx << ", ny=" << ny
-                          << ", nz=" << nz << ")" << std::endl;
+                std::cout << "INFO: cece_ccpp_scheme_init — scheme '" << name << "' verified ready (nx=" << nx << ", ny=" << ny << ", nz=" << nz
+                          << ")" << std::endl;
                 break;
             }
         }
 
         if (!found) {
-            std::cerr << "ERROR in cece_ccpp_scheme_init: scheme '" << name
-                      << "' not found in active_schemes" << std::endl;
+            std::cerr << "ERROR in cece_ccpp_scheme_init: scheme '" << name << "' not found in active_schemes" << std::endl;
             if (rc != nullptr) *rc = -3;
             return;
         }
@@ -257,8 +242,7 @@ void cece_ccpp_scheme_init(void* data_ptr, const char* scheme_name,
     }
 }
 
-void cece_ccpp_scheme_run(void* data_ptr, const char* scheme_name,
-                          int scheme_name_len, int* rc) {
+void cece_ccpp_scheme_run(void* data_ptr, const char* scheme_name, int scheme_name_len, int* rc) {
     if (rc != nullptr) *rc = 0;
 
     if (data_ptr == nullptr || scheme_name == nullptr) {
@@ -284,8 +268,7 @@ void cece_ccpp_scheme_run(void* data_ptr, const char* scheme_name,
         }
 
         if (scheme_ptr == nullptr) {
-            std::cerr << "ERROR in cece_ccpp_scheme_run: scheme '" << name
-                      << "' not found in active_schemes" << std::endl;
+            std::cerr << "ERROR in cece_ccpp_scheme_run: scheme '" << name << "' not found in active_schemes" << std::endl;
             if (rc != nullptr) *rc = -3;
             return;
         }
@@ -304,8 +287,7 @@ void cece_ccpp_scheme_run(void* data_ptr, const char* scheme_name,
     }
 }
 
-void cece_ccpp_scheme_finalize(void* data_ptr, const char* scheme_name,
-                               int scheme_name_len, int* rc) {
+void cece_ccpp_scheme_finalize(void* data_ptr, const char* scheme_name, int scheme_name_len, int* rc) {
     if (rc != nullptr) *rc = 0;
 
     if (data_ptr == nullptr || scheme_name == nullptr) {
@@ -331,8 +313,7 @@ void cece_ccpp_scheme_finalize(void* data_ptr, const char* scheme_name,
         }
 
         if (scheme_ptr == nullptr) {
-            std::cerr << "ERROR in cece_ccpp_scheme_finalize: scheme '" << name
-                      << "' not found in active_schemes" << std::endl;
+            std::cerr << "ERROR in cece_ccpp_scheme_finalize: scheme '" << name << "' not found in active_schemes" << std::endl;
             if (rc != nullptr) *rc = -3;
             return;
         }
@@ -348,9 +329,7 @@ void cece_ccpp_scheme_finalize(void* data_ptr, const char* scheme_name,
     }
 }
 
-void cece_ccpp_set_import_field(void* data_ptr, const char* field_name,
-                                int name_len, const double* field_data,
-                                int nx, int ny, int nz, int* rc) {
+void cece_ccpp_set_import_field(void* data_ptr, const char* field_name, int name_len, const double* field_data, int nx, int ny, int nz, int* rc) {
     if (rc != nullptr) *rc = 0;
 
     if (data_ptr == nullptr || field_name == nullptr || field_data == nullptr) {
@@ -372,10 +351,8 @@ void cece_ccpp_set_import_field(void* data_ptr, const char* field_name,
         // Existing field — validate dimensions match
         auto& dv = it->second;
         if (dv.extent(0) != snx || dv.extent(1) != sny || dv.extent(2) != snz) {
-            std::cerr << "ERROR in cece_ccpp_set_import_field: dimension mismatch for '"
-                      << name << "'. Expected " << dv.extent(0) << "x" << dv.extent(1)
-                      << "x" << dv.extent(2) << ", got " << nx << "x" << ny << "x" << nz
-                      << std::endl;
+            std::cerr << "ERROR in cece_ccpp_set_import_field: dimension mismatch for '" << name << "'. Expected " << dv.extent(0) << "x"
+                      << dv.extent(1) << "x" << dv.extent(2) << ", got " << nx << "x" << ny << "x" << nz << std::endl;
             if (rc != nullptr) *rc = -2;
             return;
         }
@@ -396,9 +373,7 @@ void cece_ccpp_set_import_field(void* data_ptr, const char* field_name,
     dv.sync_device();
 }
 
-void cece_ccpp_get_export_field(void* data_ptr, const char* field_name,
-                                int name_len, double* field_data,
-                                int nx, int ny, int nz, int* rc) {
+void cece_ccpp_get_export_field(void* data_ptr, const char* field_name, int name_len, double* field_data, int nx, int ny, int nz, int* rc) {
     if (rc != nullptr) *rc = 0;
 
     if (data_ptr == nullptr || field_name == nullptr || field_data == nullptr) {
@@ -413,8 +388,7 @@ void cece_ccpp_get_export_field(void* data_ptr, const char* field_name,
     // Look up the field in export_state
     auto it = internal_data->export_state.fields.find(name);
     if (it == internal_data->export_state.fields.end()) {
-        std::cerr << "ERROR in cece_ccpp_get_export_field: field '" << name
-                  << "' not found in export state" << std::endl;
+        std::cerr << "ERROR in cece_ccpp_get_export_field: field '" << name << "' not found in export state" << std::endl;
         if (rc != nullptr) *rc = -3;
         return;
     }
@@ -426,10 +400,8 @@ void cece_ccpp_get_export_field(void* data_ptr, const char* field_name,
 
     // Validate dimensions match
     if (dv.extent(0) != snx || dv.extent(1) != sny || dv.extent(2) != snz) {
-        std::cerr << "ERROR in cece_ccpp_get_export_field: dimension mismatch for '"
-                  << name << "'. DualView is " << dv.extent(0) << "x" << dv.extent(1)
-                  << "x" << dv.extent(2) << ", requested " << nx << "x" << ny << "x" << nz
-                  << std::endl;
+        std::cerr << "ERROR in cece_ccpp_get_export_field: dimension mismatch for '" << name << "'. DualView is " << dv.extent(0) << "x"
+                  << dv.extent(1) << "x" << dv.extent(2) << ", requested " << nx << "x" << ny << "x" << nz << std::endl;
         if (rc != nullptr) *rc = -2;
         return;
     }
@@ -457,29 +429,23 @@ void cece_ccpp_run_stacking(void* data_ptr, int hour, int day_of_week, int* rc) 
     try {
         // If config has no species layers, skip stacking (Req 6.4)
         if (internal_data->config.species_layers.empty()) {
-            std::cout << "INFO: cece_ccpp_run_stacking — no species layers, skipping"
-                      << std::endl;
+            std::cout << "INFO: cece_ccpp_run_stacking — no species layers, skipping" << std::endl;
             return;
         }
 
         if (!internal_data->stacking_engine) {
-            std::cerr << "ERROR in cece_ccpp_run_stacking: stacking_engine is null"
-                      << std::endl;
+            std::cerr << "ERROR in cece_ccpp_run_stacking: stacking_engine is null" << std::endl;
             if (rc != nullptr) *rc = -2;
             return;
         }
 
         // Create a CeceStateResolver (mirrors cece_core_run.cpp pattern)
-        cece::CeceStateResolver resolver(
-            internal_data->import_state, internal_data->export_state,
-            internal_data->config.met_mapping,
-            internal_data->config.scale_factor_mapping,
-            internal_data->config.mask_mapping);
+        cece::CeceStateResolver resolver(internal_data->import_state, internal_data->export_state, internal_data->config.met_mapping,
+                                         internal_data->config.scale_factor_mapping, internal_data->config.mask_mapping);
 
         // Execute the stacking engine with temporal parameters (Req 6.1, 6.2)
-        internal_data->stacking_engine->Execute(
-            resolver, internal_data->nx, internal_data->ny, internal_data->nz,
-            internal_data->default_mask, hour, day_of_week);
+        internal_data->stacking_engine->Execute(resolver, internal_data->nx, internal_data->ny, internal_data->nz, internal_data->default_mask, hour,
+                                                day_of_week);
 
         // Fence to ensure all device operations complete
         Kokkos::fence("CECE::CCPP::RunStacking");
@@ -511,15 +477,13 @@ void cece_ccpp_core_finalize(void* data_ptr, int* rc) {
         std::cout << "INFO: CECE CCPP core_finalize — beginning cleanup" << std::endl;
 
         // Finalize all physics schemes (mirrors cece_core_finalize.cpp)
-        std::cout << "INFO: Finalizing " << internal_data->active_schemes.size()
-                  << " physics schemes" << std::endl;
+        std::cout << "INFO: Finalizing " << internal_data->active_schemes.size() << " physics schemes" << std::endl;
         for (auto& scheme : internal_data->active_schemes) {
             if (scheme) {
                 try {
                     scheme->Finalize();
                 } catch (const std::exception& e) {
-                    std::cerr << "WARNING: Physics scheme Finalize threw: " << e.what()
-                              << std::endl;
+                    std::cerr << "WARNING: Physics scheme Finalize threw: " << e.what() << std::endl;
                 }
             }
         }
@@ -539,8 +503,7 @@ void cece_ccpp_core_finalize(void* data_ptr, int* rc) {
             Kokkos::finalize();
             std::cout << "INFO: Kokkos finalized (initialized by CECE CCPP)" << std::endl;
         } else {
-            std::cout << "INFO: Skipping Kokkos finalization (not owned by CECE CCPP)"
-                      << std::endl;
+            std::cout << "INFO: Skipping Kokkos finalization (not owned by CECE CCPP)" << std::endl;
         }
 
         std::cout << "INFO: CECE CCPP core_finalize completed" << std::endl;

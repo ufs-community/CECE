@@ -151,12 +151,10 @@ TEST_F(FieldPointerPassingTest, FieldPointerPassing_PointersStoredCorrectly) {
 
     // Verify pointers are stored correctly
     auto* internal_data = static_cast<cece::CeceInternalData*>(data_ptr_);
-    EXPECT_EQ(internal_data->field_pointers.size(), num_species)
-        << "Should store " << num_species << " field pointers";
+    EXPECT_EQ(internal_data->field_pointers.size(), num_species) << "Should store " << num_species << " field pointers";
 
     for (int i = 0; i < num_species; ++i) {
-        EXPECT_EQ(internal_data->field_pointers[i], field_ptrs[i])
-            << "Stored pointer " << i << " should match input pointer";
+        EXPECT_EQ(internal_data->field_pointers[i], field_ptrs[i]) << "Stored pointer " << i << " should match input pointer";
     }
 
     FreeFieldPointers(field_ptrs, num_species);
@@ -186,15 +184,12 @@ TEST_F(FieldPointerPassingTest, FieldPointerPassing_FieldNamesStoredCorrectly) {
 
     // Verify field names are stored
     auto* internal_data = static_cast<cece::CeceInternalData*>(data_ptr_);
-    EXPECT_EQ(internal_data->field_names.size(), num_species)
-        << "Should store " << num_species << " field names";
+    EXPECT_EQ(internal_data->field_names.size(), num_species) << "Should store " << num_species << " field names";
 
     // Verify field names match species names (order may vary due to unordered_map)
     std::set<std::string> expected_names = {"CO", "NOx", "SO2"};
-    std::set<std::string> actual_names(internal_data->field_names.begin(),
-                                       internal_data->field_names.end());
-    EXPECT_EQ(actual_names, expected_names)
-        << "Field names should match species names (order may vary)";
+    std::set<std::string> actual_names(internal_data->field_names.begin(), internal_data->field_names.end());
+    EXPECT_EQ(actual_names, expected_names) << "Field names should match species names (order may vary)";
 
     FreeFieldPointers(field_ptrs, num_species);
 }
@@ -237,8 +232,7 @@ TEST_F(FieldPointerPassingTest, FieldPointerPassing_PointersAreValid) {
 
         // Verify data is accessible and correct
         for (int j = 0; j < nx_ * ny_ * nz_; ++j) {
-            EXPECT_EQ(stored_ptr[j], static_cast<double>(i * 100 + j))
-                << "Data at stored pointer " << i << "[" << j << "] should be correct";
+            EXPECT_EQ(stored_ptr[j], static_cast<double>(i * 100 + j)) << "Data at stored pointer " << i << "[" << j << "] should be correct";
         }
     }
 
@@ -267,8 +261,7 @@ TEST_F(FieldPointerPassingTest, FieldPointerPassing_MultipleFieldsHandled) {
     // Verify pointers are distinct
     for (int i = 0; i < num_species; ++i) {
         for (int j = i + 1; j < num_species; ++j) {
-            EXPECT_NE(field_ptrs[i], field_ptrs[j])
-                << "Field pointers " << i << " and " << j << " should be distinct";
+            EXPECT_NE(field_ptrs[i], field_ptrs[j]) << "Field pointers " << i << " and " << j << " should be distinct";
         }
     }
 
@@ -450,12 +443,9 @@ TEST_F(FieldPointerPassingTest, FieldPointerPassing_PointerCountMatchesSpeciesCo
 
     // Verify counts match
     auto* internal_data = static_cast<cece::CeceInternalData*>(data_ptr_);
-    EXPECT_EQ(internal_data->field_pointers.size(), num_species)
-        << "field_pointers.size() should equal species count";
-    EXPECT_EQ(internal_data->field_names.size(), num_species)
-        << "field_names.size() should equal species count";
-    EXPECT_EQ(internal_data->field_pointers.size(), internal_data->field_names.size())
-        << "field_pointers and field_names should have same size";
+    EXPECT_EQ(internal_data->field_pointers.size(), num_species) << "field_pointers.size() should equal species count";
+    EXPECT_EQ(internal_data->field_names.size(), num_species) << "field_names.size() should equal species count";
+    EXPECT_EQ(internal_data->field_pointers.size(), internal_data->field_names.size()) << "field_pointers and field_names should have same size";
 
     FreeFieldPointers(field_ptrs, num_species);
 }
@@ -539,8 +529,7 @@ TEST_F(FieldPointerPassingTest, FieldPointerPassing_PointersNotModifiedByBinding
     // Verify stored pointers match original addresses exactly
     auto* internal_data = static_cast<cece::CeceInternalData*>(data_ptr_);
     for (int i = 0; i < num_species; ++i) {
-        EXPECT_EQ(internal_data->field_pointers[i], original_ptrs[i])
-            << "Stored pointer " << i << " should match original address";
+        EXPECT_EQ(internal_data->field_pointers[i], original_ptrs[i]) << "Stored pointer " << i << " should match original address";
     }
 
     FreeFieldPointers(field_ptrs, num_species);
@@ -575,14 +564,11 @@ TEST_F(FieldPointerPassingTest, FieldPointerPassing_ClearsExistingPointers) {
     ASSERT_EQ(rc, ESMF_SUCCESS);
 
     // Verify only new pointers are stored
-    EXPECT_EQ(internal_data->field_pointers.size(), num_species)
-        << "Should have exactly " << num_species << " pointers after second binding";
+    EXPECT_EQ(internal_data->field_pointers.size(), num_species) << "Should have exactly " << num_species << " pointers after second binding";
 
     for (int i = 0; i < num_species; ++i) {
-        EXPECT_EQ(internal_data->field_pointers[i], field_ptrs2[i])
-            << "Should store new pointer " << i << ", not old one";
-        EXPECT_NE(internal_data->field_pointers[i], field_ptrs1[i])
-            << "Should not contain old pointer " << i;
+        EXPECT_EQ(internal_data->field_pointers[i], field_ptrs2[i]) << "Should store new pointer " << i << ", not old one";
+        EXPECT_NE(internal_data->field_pointers[i], field_ptrs1[i]) << "Should not contain old pointer " << i;
     }
 
     FreeFieldPointers(field_ptrs1, num_species);

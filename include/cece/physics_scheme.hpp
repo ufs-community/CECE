@@ -113,8 +113,7 @@ class BasePhysicsScheme : public PhysicsScheme {
      * @param state The import state.
      * @return A device-side Kokkos::View.
      */
-    Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveImport(
-        const std::string& name, CeceImportState& state) {
+    Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveImport(const std::string& name, CeceImportState& state) {
         std::string resolved_name = MapInput(name);
         if (auto it = import_cache_.find(resolved_name); it != import_cache_.end()) {
             return it->second;
@@ -135,8 +134,7 @@ class BasePhysicsScheme : public PhysicsScheme {
      * @param state The export state.
      * @return A device-side Kokkos::View.
      */
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveExport(
-        const std::string& name, CeceExportState& state) {
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveExport(const std::string& name, CeceExportState& state) {
         std::string resolved_name = MapOutput(name);
         if (auto it = export_cache_.find(resolved_name); it != export_cache_.end()) {
             return it->second;
@@ -159,8 +157,9 @@ class BasePhysicsScheme : public PhysicsScheme {
      * @param export_state The export state.
      * @return A device-side Kokkos::View (read-only).
      */
-    Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveInput(
-        const std::string& name, CeceImportState& import_state, CeceExportState& export_state) {
+    Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveInput(const std::string& name,
+                                                                                                  CeceImportState& import_state,
+                                                                                                  CeceExportState& export_state) {
         std::string resolved_name = MapInput(name);
 
         // Try import state first
@@ -200,8 +199,7 @@ class BasePhysicsScheme : public PhysicsScheme {
     /**
      * @brief Helper to resolve a diagnostic field.
      */
-    DualView3D ResolveDiagnostic(const std::string& name, int nx, int ny, int nz,
-                                 const std::string& units = "", const std::string& long_name = "") {
+    DualView3D ResolveDiagnostic(const std::string& name, int nx, int ny, int nz, const std::string& units = "", const std::string& long_name = "") {
         if (diag_manager_ == nullptr) {
             return {};
         }
@@ -223,12 +221,8 @@ class BasePhysicsScheme : public PhysicsScheme {
     }
 
    private:
-    std::unordered_map<std::string, Kokkos::View<const double***, Kokkos::LayoutLeft,
-                                                 Kokkos::DefaultExecutionSpace>>
-        import_cache_;
-    std::unordered_map<std::string,
-                       Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>>
-        export_cache_;
+    std::unordered_map<std::string, Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>> import_cache_;
+    std::unordered_map<std::string, Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>> export_cache_;
 
     std::unordered_map<std::string, std::string> input_mapping_;
     std::unordered_map<std::string, std::string> output_mapping_;

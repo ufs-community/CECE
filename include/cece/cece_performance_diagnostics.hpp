@@ -135,16 +135,13 @@ class PerformanceDiagnostics {
     void PrintTimingSummary() const {
         std::cout << "\n=== CECE Performance Timing Summary ===" << std::endl;
         std::cout << std::string(70, '-') << std::endl;
-        std::cout
-            << "Component                    | Total (ms) | Calls | Avg (ms) | Min (ms) | Max (ms)"
-            << std::endl;
+        std::cout << "Component                    | Total (ms) | Calls | Avg (ms) | Min (ms) | Max (ms)" << std::endl;
         std::cout << std::string(70, '-') << std::endl;
 
         double total_time = 0.0;
         for (const auto& [name, timing] : timing_data_) {
             total_time += timing.total_time_ms;
-            printf("%-28s | %10.2f | %5d | %8.2f | %8.2f | %8.2f\n", name.c_str(),
-                   timing.total_time_ms, timing.call_count, timing.GetAverageTime(),
+            printf("%-28s | %10.2f | %5d | %8.2f | %8.2f | %8.2f\n", name.c_str(), timing.total_time_ms, timing.call_count, timing.GetAverageTime(),
                    timing.min_time_ms, timing.max_time_ms);
         }
 
@@ -167,14 +164,11 @@ class PerformanceDiagnostics {
         for (const auto& [name, mem] : memory_data_) {
             total_current += mem.current_memory_bytes;
             total_peak += mem.peak_memory_bytes;
-            printf("%-28s | %12.2f | %8.2f\n", name.c_str(),
-                   mem.current_memory_bytes / 1024.0 / 1024.0,
-                   mem.peak_memory_bytes / 1024.0 / 1024.0);
+            printf("%-28s | %12.2f | %8.2f\n", name.c_str(), mem.current_memory_bytes / 1024.0 / 1024.0, mem.peak_memory_bytes / 1024.0 / 1024.0);
         }
 
         std::cout << std::string(60, '-') << std::endl;
-        printf("%-28s | %12.2f | %8.2f\n", "TOTAL", total_current / 1024.0 / 1024.0,
-               total_peak / 1024.0 / 1024.0);
+        printf("%-28s | %12.2f | %8.2f\n", "TOTAL", total_current / 1024.0 / 1024.0, total_peak / 1024.0 / 1024.0);
         std::cout << std::string(60, '-') << std::endl;
     }
 
@@ -236,7 +230,6 @@ class ScopedTimer {
 
 #define CECE_SCOPED_TIMER(name) cece::ScopedTimer _timer_##__LINE__(name)
 
-#define CECE_RECORD_MEMORY(name, bytes) \
-    cece::PerformanceDiagnostics::GetInstance().RecordMemory(name, bytes)
+#define CECE_RECORD_MEMORY(name, bytes) cece::PerformanceDiagnostics::GetInstance().RecordMemory(name, bytes)
 
 #endif  // CECE_PERFORMANCE_DIAGNOSTICS_HPP

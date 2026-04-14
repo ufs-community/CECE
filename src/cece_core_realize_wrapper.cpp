@@ -52,8 +52,7 @@ void cece_core_realize(void* data_ptr, int* rc) {
  * C doesn't support function overloading. Tests that need this signature should
  * declare it explicitly.
  */
-void cece_core_realize_with_states(void* data_ptr, void* importState_ptr, void* exportState_ptr,
-                                   void* grid_ptr, int* rc) {
+void cece_core_realize_with_states(void* data_ptr, void* importState_ptr, void* exportState_ptr, void* grid_ptr, int* rc) {
     // Initialize return code
     if (rc != nullptr) {
         *rc = 0;

@@ -15,8 +15,7 @@ namespace cece {
 static PhysicsRegistration<VolcanoFortranScheme> register_scheme("volcano_fortran");
 #endif
 
-void VolcanoFortranScheme::Initialize(const YAML::Node& config,
-                                      CeceDiagnosticManager* diag_manager) {
+void VolcanoFortranScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
     std::cout << "VolcanoFortranScheme: Initialized.\n";
 }
@@ -26,8 +25,7 @@ void VolcanoFortranScheme::Run(CeceImportState& import_state, CeceExportState& e
     auto it_zsfc = import_state.fields.find("zsfc");
     auto it_bxheight = import_state.fields.find("bxheight_m");
 
-    if (it_so2 == export_state.fields.end() || it_zsfc == import_state.fields.end() ||
-        it_bxheight == import_state.fields.end()) {
+    if (it_so2 == export_state.fields.end() || it_zsfc == import_state.fields.end() || it_bxheight == import_state.fields.end()) {
         return;
     }
 
@@ -43,8 +41,7 @@ void VolcanoFortranScheme::Run(CeceImportState& import_state, CeceExportState& e
     int ny = static_cast<int>(dv_so2.extent(1));
     int nz = static_cast<int>(dv_so2.extent(2));
 
-    run_volcano_fortran(dv_zsfc.view_host().data(), dv_bxheight.view_host().data(),
-                        dv_so2.view_host().data(), nx, ny, nz);
+    run_volcano_fortran(dv_zsfc.view_host().data(), dv_bxheight.view_host().data(), dv_so2.view_host().data(), nx, ny, nz);
 
     dv_so2.modify<Kokkos::HostSpace>();
     dv_so2.sync<Kokkos::DefaultExecutionSpace>();

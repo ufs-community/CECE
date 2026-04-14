@@ -99,8 +99,7 @@ void DustScheme::Run(CeceImportState& import_state, CeceExportState& export_stat
     auto srce_sand = ResolveImport("erodibility", import_state);
     auto dust_emis = ResolveExport("dust_emissions", export_state);
 
-    if (u10m.data() == nullptr || gwettop.data() == nullptr || srce_sand.data() == nullptr ||
-        dust_emis.data() == nullptr) {
+    if (u10m.data() == nullptr || gwettop.data() == nullptr || srce_sand.data() == nullptr || dust_emis.data() == nullptr) {
         return;
     }
 
@@ -111,15 +110,12 @@ void DustScheme::Run(CeceImportState& import_state, CeceExportState& export_stat
     double u_ts0_const = u_ts0_;
 
     Kokkos::parallel_for(
-        "DustKernel_Optimized",
-        Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<2>>({0, 0}, {nx, ny}),
-        KOKKOS_LAMBDA(int i, int j) {
+        "DustKernel_Optimized", Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<2>>({0, 0}, {nx, ny}), KOKKOS_LAMBDA(int i, int j) {
             double gw = gwettop(i, j, 0);
             double u10 = u10m(i, j, 0);
             double w2 = u10 * u10;
 
-            double u_ts =
-                (gw < 0.2) ? u_ts0_const * (1.2 + 0.2 * std::log10(std::max(1.0e-3, gw))) : 100.0;
+            double u_ts = (gw < 0.2) ? u_ts0_const * (1.2 + 0.2 * std::log10(std::max(1.0e-3, gw))) : 100.0;
 
             if (u10 > u_ts) {
                 double srce = srce_sand(i, j, 0);

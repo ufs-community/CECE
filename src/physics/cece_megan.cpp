@@ -75,8 +75,7 @@ double get_gamma_lai(double lai, double c1, double c2, bool is_bidirectional) {
  * @return Age correction factor (dimensionless)
  */
 KOKKOS_INLINE_FUNCTION
-double get_gamma_age(double cmlai, double pmlai, double dbtwn, double tt, double an, double ag,
-                     double am, double ao) {
+double get_gamma_age(double cmlai, double pmlai, double dbtwn, double tt, double an, double ag, double am, double ao) {
     double fnew = 0.0;
     double fgro = 0.0;
     double fmat = 0.0;
@@ -179,8 +178,7 @@ double get_gamma_t_li(double temp, double beta, double t_standard) {
  * @return Temperature correction factor (dimensionless)
  */
 KOKKOS_INLINE_FUNCTION
-double get_gamma_t_ld(double T, double PT_15, double CT1, double CEO, double R, double CT2,
-                      double t_opt_c1, double t_opt_c2, double e_opt_coeff) {
+double get_gamma_t_ld(double T, double PT_15, double CT1, double CEO, double R, double CT2, double t_opt_c1, double t_opt_c2, double e_opt_coeff) {
     // Calculate optimal emission potential
     double e_opt = CEO * std::exp(e_opt_coeff * (PT_15 - 297.0));
 
@@ -216,9 +214,8 @@ double get_gamma_t_ld(double T, double PT_15, double CT1, double CEO, double R, 
  * @return PAR correction factor (dimensionless)
  */
 KOKKOS_INLINE_FUNCTION
-double get_gamma_par_pceea(double q_dir, double q_diff, double par_avg, double suncos, int doy,
-                           double wm2_to_umol, double ptoa_c1, double ptoa_c2, double gamma_p_c1,
-                           double gamma_p_c2, double gamma_p_c3, double gamma_p_c4) {
+double get_gamma_par_pceea(double q_dir, double q_diff, double par_avg, double suncos, int doy, double wm2_to_umol, double ptoa_c1, double ptoa_c2,
+                           double gamma_p_c1, double gamma_p_c2, double gamma_p_c3, double gamma_p_c4) {
     const double PI = std::numbers::pi;
 
     // Early exit for nighttime conditions
@@ -274,10 +271,8 @@ double get_gamma_co2(double co2a, double c1, double c2, bool use_wilkinson) {
 
         double co2i = 0.7 * co2a;
 
-        double term1 = ismaxi - ismaxi * std::pow(co2i, hexpi) /
-                                    (std::pow(cstari, hexpi) + std::pow(co2i, hexpi));
-        double term2 = ismaxa - ismaxa * std::pow(0.7 * co2a, hexpa) /
-                                    (std::pow(cstara, hexpa) + std::pow(0.7 * co2a, hexpa));
+        double term1 = ismaxi - ismaxi * std::pow(co2i, hexpi) / (std::pow(cstari, hexpi) + std::pow(co2i, hexpi));
+        double term2 = ismaxa - ismaxa * std::pow(0.7 * co2a, hexpa) / (std::pow(cstara, hexpa) + std::pow(0.7 * co2a, hexpa));
 
         return term1 * term2;
     }
@@ -378,8 +373,8 @@ void MeganScheme::Run(CeceImportState& import_state, CeceExportState& export_sta
     auto pmlai = ResolveImport("leaf_area_index_prev", import_state);
     auto gwetroot = ResolveImport("soil_moisture_root", import_state);
 
-    if (temp.data() == nullptr || emissions_out.data() == nullptr || lai.data() == nullptr ||
-        pardr.data() == nullptr || pardf.data() == nullptr || suncos.data() == nullptr) {
+    if (temp.data() == nullptr || emissions_out.data() == nullptr || lai.data() == nullptr || pardr.data() == nullptr || pardf.data() == nullptr ||
+        suncos.data() == nullptr) {
         return;
     }
 
@@ -422,8 +417,7 @@ void MeganScheme::Run(CeceImportState& import_state, CeceExportState& export_sta
     bool has_gwetroot = (gwetroot.data() != nullptr);
 
     Kokkos::parallel_for(
-        "MeganKernel_Optimized",
-        Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<2>>({0, 0}, {nx, ny}),
+        "MeganKernel_Optimized", Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<2>>({0, 0}, {nx, ny}),
         KOKKOS_LAMBDA(int i, int j) {
             double T = temp(i, j, 0);
             double L = lai(i, j, 0);
@@ -443,18 +437,15 @@ void MeganScheme::Run(CeceImportState& import_state, CeceExportState& export_sta
 
             double gamma_lai = get_gamma_lai(L, lai_c1, lai_c2, is_bidirectional);
             double gamma_t_li = get_gamma_t_li(T, beta, std_t);
-            double gamma_t_ld =
-                get_gamma_t_ld(T, T_AVG_15, ct1, ceo, R, ct2, t_opt_c1, t_opt_c2, e_opt_c);
+            double gamma_t_ld = get_gamma_t_ld(T, T_AVG_15, ct1, ceo, R, ct2, t_opt_c1, t_opt_c2, e_opt_c);
             double gamma_par =
-                get_gamma_par_pceea(pardr(i, j, 0), pardf(i, j, 0), PAR_AVG, sc, doy, wm2_umol,
-                                    ptoa_c1, ptoa_c2, gp_c1, gp_c2, gp_c3, gp_c4);
+                get_gamma_par_pceea(pardr(i, j, 0), pardf(i, j, 0), PAR_AVG, sc, doy, wm2_umol, ptoa_c1, ptoa_c2, gp_c1, gp_c2, gp_c3, gp_c4);
 
             double gamma_age = get_gamma_age(L, L_prev, dbtwn, T, anew, agro, amat, aold);
             double gamma_sm = get_gamma_sm(gwet, is_ald2_or_eoh);
 
-            double megan_emis = NORM_FAC * aef * gamma_age * gamma_sm * gamma_lai *
-                                gamma_co2_const *
-                                ((1.0 - ldf) * gamma_t_li + (ldf * gamma_par * gamma_t_ld));
+            double megan_emis =
+                NORM_FAC * aef * gamma_age * gamma_sm * gamma_lai * gamma_co2_const * ((1.0 - ldf) * gamma_t_li + (ldf * gamma_par * gamma_t_ld));
 
             emissions_out(i, j, 0) += megan_emis;
         });
