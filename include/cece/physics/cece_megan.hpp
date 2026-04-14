@@ -23,7 +23,12 @@ class MeganScheme : public BasePhysicsScheme {
     double ct1_ = 95.0;
     double ceo_ = 2.0;
     double ldf_ = 1.0;
-    double aef_isop_ = 1.0e-9;
+
+    // Configurable list of species and their emission factors (AEF)
+    std::string species_name_ = "isoprene";
+    std::string export_field_name_ = "isoprene_emissions";
+    double aef_ = 1.0e-9;
+
     double lai_coeff_1_ = 0.49;
     double lai_coeff_2_ = 0.2;
     double standard_temp_ = 303.0;
@@ -41,6 +46,17 @@ class MeganScheme : public BasePhysicsScheme {
     double gamma_p_coeff_4_ = 0.9;
     double gamma_co2_coeff_1_ = 8.9406;
     double gamma_co2_coeff_2_ = 0.0024;
+
+    // Additional parameters for gamma_age
+    double anew_ = 1.0;
+
+    // Additional parameter for gamma_sm
+    bool is_ald2_or_eoh_ = false;
+    double agro_ = 1.0;
+    double amat_ = 1.0;
+    double aold_ = 1.0;
+    bool is_bidirectional_ = false;
+    bool use_wilkinson_ = false;
 };
 
 }  // namespace cece

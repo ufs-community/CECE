@@ -8,12 +8,12 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    
+
     # --- ADDED THIS BLOCK ---
     permissions:
       contents: write
     # ------------------------
-      
+
     steps:
       - name: Checkout
         uses: actions/checkout@v3

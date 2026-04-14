@@ -95,7 +95,8 @@ jobs:
         if [ -f /opt/spack-environment/activate.sh ]; then
           source /opt/spack-environment/activate.sh
         fi
-        python3 -m pip install pyyaml pytest jinja2 2>&1 | tail -5
+        python3 -m pip install --upgrade pip
+        python3 -m pip install pyyaml pytest jinja2 numpy
 
     - name: Run All Tests
       shell: bash

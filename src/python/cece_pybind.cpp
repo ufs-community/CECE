@@ -20,27 +20,37 @@ namespace py = pybind11;
  */
 
 // Type aliases to avoid commas inside PYBIND11_OVERRIDE_PURE macro
-using ConstDeviceView3D = Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>;
-using MutableDeviceView3D = Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>;
+using ConstDeviceView3D =
+    Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>;
+using MutableDeviceView3D =
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>;
 
 class PyFieldResolver : public cece::FieldResolver {
    public:
     using cece::FieldResolver::FieldResolver;
 
-    cece::UnmanagedHostView3D ResolveImport(const std::string& name, int nx, int ny, int nz) override {
-        PYBIND11_OVERRIDE_PURE(cece::UnmanagedHostView3D, cece::FieldResolver, ResolveImport, name, nx, ny, nz);
+    cece::UnmanagedHostView3D ResolveImport(const std::string& name, int nx, int ny,
+                                            int nz) override {
+        PYBIND11_OVERRIDE_PURE(cece::UnmanagedHostView3D, cece::FieldResolver, ResolveImport, name,
+                               nx, ny, nz);
     }
 
-    cece::UnmanagedHostView3D ResolveExport(const std::string& name, int nx, int ny, int nz) override {
-        PYBIND11_OVERRIDE_PURE(cece::UnmanagedHostView3D, cece::FieldResolver, ResolveExport, name, nx, ny, nz);
+    cece::UnmanagedHostView3D ResolveExport(const std::string& name, int nx, int ny,
+                                            int nz) override {
+        PYBIND11_OVERRIDE_PURE(cece::UnmanagedHostView3D, cece::FieldResolver, ResolveExport, name,
+                               nx, ny, nz);
     }
 
-    ConstDeviceView3D ResolveImportDevice(const std::string& name, int nx, int ny, int nz) override {
-        PYBIND11_OVERRIDE_PURE(ConstDeviceView3D, cece::FieldResolver, ResolveImportDevice, name, nx, ny, nz);
+    ConstDeviceView3D ResolveImportDevice(const std::string& name, int nx, int ny,
+                                          int nz) override {
+        PYBIND11_OVERRIDE_PURE(ConstDeviceView3D, cece::FieldResolver, ResolveImportDevice, name,
+                               nx, ny, nz);
     }
 
-    MutableDeviceView3D ResolveExportDevice(const std::string& name, int nx, int ny, int nz) override {
-        PYBIND11_OVERRIDE_PURE(MutableDeviceView3D, cece::FieldResolver, ResolveExportDevice, name, nx, ny, nz);
+    MutableDeviceView3D ResolveExportDevice(const std::string& name, int nx, int ny,
+                                            int nz) override {
+        PYBIND11_OVERRIDE_PURE(MutableDeviceView3D, cece::FieldResolver, ResolveExportDevice, name,
+                               nx, ny, nz);
     }
 };
 
@@ -60,9 +70,12 @@ struct PyStateResolverMaps {
 
 class PyCeceStateResolver : private PyStateResolverMaps, public cece::CeceStateResolver {
    public:
-    PyCeceStateResolver(const cece::CeceImportState& imp, const cece::CeceExportState& exp, std::unordered_map<std::string, std::string> met_map,
-                        std::unordered_map<std::string, std::string> sf_map = {}, std::unordered_map<std::string, std::string> mask_map = {})
-        : PyStateResolverMaps{std::move(met_map), std::move(sf_map), std::move(mask_map)}, cece::CeceStateResolver(imp, exp, met, sf, mask) {}
+    PyCeceStateResolver(const cece::CeceImportState& imp, const cece::CeceExportState& exp,
+                        std::unordered_map<std::string, std::string> met_map,
+                        std::unordered_map<std::string, std::string> sf_map = {},
+                        std::unordered_map<std::string, std::string> mask_map = {})
+        : PyStateResolverMaps{std::move(met_map), std::move(sf_map), std::move(mask_map)},
+          cece::CeceStateResolver(imp, exp, met, sf, mask) {}
 };
 
 // Static storage for Python exception classes (initialized in module init)
@@ -154,7 +167,9 @@ PYBIND11_MODULE(_cece_core, m) {
 
     // --- TemporalCycle Binding (needed for CeceConfig.temporal_cycles) ---
 
-    py::class_<cece::TemporalCycle>(m, "TemporalCycle").def(py::init<>()).def_readwrite("factors", &cece::TemporalCycle::factors);
+    py::class_<cece::TemporalCycle>(m, "TemporalCycle")
+        .def(py::init<>())
+        .def_readwrite("factors", &cece::TemporalCycle::factors);
 
     // --- PhysicsSchemeConfig Binding (needed for CeceConfig.physics_schemes) ---
 
@@ -176,16 +191,17 @@ PYBIND11_MODULE(_cece_core, m) {
 
     // --- Module-level functions ---
 
-    m.def("ParseConfig", &cece::ParseConfig, py::arg("filename"), "Parse an CECE YAML configuration file and return an CeceConfig object.");
+    m.def("ParseConfig", &cece::ParseConfig, py::arg("filename"),
+          "Parse an CECE YAML configuration file and return an CeceConfig object.");
 
-    m.def("AddSpecies", &cece::AddSpecies, py::arg("config"), py::arg("species_name"), py::arg("layers"),
-          "Add a new emission species with its layers to an existing config.");
+    m.def("AddSpecies", &cece::AddSpecies, py::arg("config"), py::arg("species_name"),
+          py::arg("layers"), "Add a new emission species with its layers to an existing config.");
 
-    m.def("AddScaleFactor", &cece::AddScaleFactor, py::arg("config"), py::arg("internal_name"), py::arg("external_name"),
-          "Add a new scale factor mapping to an existing config.");
+    m.def("AddScaleFactor", &cece::AddScaleFactor, py::arg("config"), py::arg("internal_name"),
+          py::arg("external_name"), "Add a new scale factor mapping to an existing config.");
 
-    m.def("AddMask", &cece::AddMask, py::arg("config"), py::arg("internal_name"), py::arg("external_name"),
-          "Add a new mask mapping to an existing config.");
+    m.def("AddMask", &cece::AddMask, py::arg("config"), py::arg("internal_name"),
+          py::arg("external_name"), "Add a new mask mapping to an existing config.");
 
     // --- CeceImportState Binding ---
 
@@ -196,13 +212,15 @@ PYBIND11_MODULE(_cece_core, m) {
             [](cece::CeceImportState& self, const std::string& name, py::array arr) {
                 // Validate dtype is float64
                 if (!py::isinstance<py::array_t<double>>(arr)) {
-                    throw py::value_error("Array dtype must be float64, got " + std::string(py::str(arr.dtype())));
+                    throw py::value_error("Array dtype must be float64, got " +
+                                          std::string(py::str(arr.dtype())));
                 }
                 py::array_t<double> typed_arr = arr.cast<py::array_t<double>>();
 
                 // Validate array is 3D
                 if (typed_arr.ndim() != 3) {
-                    throw py::value_error("Array must be 3D, got " + std::to_string(typed_arr.ndim()) + "D");
+                    throw py::value_error("Array must be 3D, got " +
+                                          std::to_string(typed_arr.ndim()) + "D");
                 }
 
                 py::array_t<double> fortran_arr;
@@ -214,11 +232,14 @@ PYBIND11_MODULE(_cece_core, m) {
                 } else if ((typed_arr.flags() & py::array::c_style) != 0) {
                     // C-contiguous: convert to Fortran order, log warning
                     auto& logger = cece::CeceLogger::GetInstance();
-                    logger.LogWarning("Array for field '" + name + "' is C-contiguous; converting to Fortran order (copy overhead)");
+                    logger.LogWarning(
+                        "Array for field '" + name +
+                        "' is C-contiguous; converting to Fortran order (copy overhead)");
                     py::module_ np = py::module_::import("numpy");
                     fortran_arr = np.attr("asfortranarray")(typed_arr);
                 } else {
-                    throw py::value_error("Array must be either C-contiguous or Fortran-contiguous");
+                    throw py::value_error(
+                        "Array must be either C-contiguous or Fortran-contiguous");
                 }
 
                 // Get buffer info from the Fortran-contiguous array
@@ -240,7 +261,9 @@ PYBIND11_MODULE(_cece_core, m) {
                 // Store in fields map
                 self.fields[name] = dual_view;
             },
-            py::arg("name"), py::arg("array"), "Set a 3D field from a NumPy float64 array. Fortran-contiguous preferred for zero-copy.")
+            py::arg("name"), py::arg("array"),
+            "Set a 3D field from a NumPy float64 array. Fortran-contiguous preferred for "
+            "zero-copy.")
         .def(
             "get_field_names",
             [](const cece::CeceImportState& self) {
@@ -261,13 +284,15 @@ PYBIND11_MODULE(_cece_core, m) {
             [](cece::CeceExportState& self, const std::string& name, py::array arr) {
                 // Validate dtype is float64
                 if (!py::isinstance<py::array_t<double>>(arr)) {
-                    throw py::value_error("Array dtype must be float64, got " + std::string(py::str(arr.dtype())));
+                    throw py::value_error("Array dtype must be float64, got " +
+                                          std::string(py::str(arr.dtype())));
                 }
                 py::array_t<double> typed_arr = arr.cast<py::array_t<double>>();
 
                 // Validate array is 3D
                 if (typed_arr.ndim() != 3) {
-                    throw py::value_error("Array must be 3D, got " + std::to_string(typed_arr.ndim()) + "D");
+                    throw py::value_error("Array must be 3D, got " +
+                                          std::to_string(typed_arr.ndim()) + "D");
                 }
 
                 py::array_t<double> fortran_arr;
@@ -279,7 +304,8 @@ PYBIND11_MODULE(_cece_core, m) {
                     py::module_ np = py::module_::import("numpy");
                     fortran_arr = np.attr("asfortranarray")(typed_arr);
                 } else {
-                    throw py::value_error("Array must be either C-contiguous or Fortran-contiguous");
+                    throw py::value_error(
+                        "Array must be either C-contiguous or Fortran-contiguous");
                 }
 
                 // Get buffer info from the Fortran-contiguous array
@@ -333,7 +359,8 @@ PYBIND11_MODULE(_cece_core, m) {
                 // Return py::array_t with shape/strides pointing to host view data
                 // Kokkos LayoutLeft = Fortran column-major order
                 std::vector<ssize_t> shape = {nx, ny, nz};
-                std::vector<ssize_t> strides = {static_cast<ssize_t>(sizeof(double)), static_cast<ssize_t>(sizeof(double) * nx),
+                std::vector<ssize_t> strides = {static_cast<ssize_t>(sizeof(double)),
+                                                static_cast<ssize_t>(sizeof(double) * nx),
                                                 static_cast<ssize_t>(sizeof(double) * nx * ny)};
 
                 return py::array_t<double>(shape, strides, host_view.data(), capsule);
@@ -355,16 +382,22 @@ PYBIND11_MODULE(_cece_core, m) {
 
     py::class_<cece::FieldResolver, PyFieldResolver>(m, "FieldResolver")
         .def(py::init<>())
-        .def("ResolveImport", &cece::FieldResolver::ResolveImport, py::arg("name"), py::arg("nx"), py::arg("ny"), py::arg("nz"))
-        .def("ResolveExport", &cece::FieldResolver::ResolveExport, py::arg("name"), py::arg("nx"), py::arg("ny"), py::arg("nz"))
-        .def("ResolveImportDevice", &cece::FieldResolver::ResolveImportDevice, py::arg("name"), py::arg("nx"), py::arg("ny"), py::arg("nz"))
-        .def("ResolveExportDevice", &cece::FieldResolver::ResolveExportDevice, py::arg("name"), py::arg("nx"), py::arg("ny"), py::arg("nz"));
+        .def("ResolveImport", &cece::FieldResolver::ResolveImport, py::arg("name"), py::arg("nx"),
+             py::arg("ny"), py::arg("nz"))
+        .def("ResolveExport", &cece::FieldResolver::ResolveExport, py::arg("name"), py::arg("nx"),
+             py::arg("ny"), py::arg("nz"))
+        .def("ResolveImportDevice", &cece::FieldResolver::ResolveImportDevice, py::arg("name"),
+             py::arg("nx"), py::arg("ny"), py::arg("nz"))
+        .def("ResolveExportDevice", &cece::FieldResolver::ResolveExportDevice, py::arg("name"),
+             py::arg("nx"), py::arg("ny"), py::arg("nz"));
 
     // --- CeceStateResolver Binding ---
 
     py::class_<PyCeceStateResolver, cece::FieldResolver>(m, "CeceStateResolver")
-        .def(py::init<const cece::CeceImportState&, const cece::CeceExportState&, std::unordered_map<std::string, std::string>,
-                      std::unordered_map<std::string, std::string>, std::unordered_map<std::string, std::string>>(),
+        .def(py::init<const cece::CeceImportState&, const cece::CeceExportState&,
+                      std::unordered_map<std::string, std::string>,
+                      std::unordered_map<std::string, std::string>,
+                      std::unordered_map<std::string, std::string>>(),
              py::arg("import_state"), py::arg("export_state"), py::arg("met_mapping"),
              py::arg("sf_mapping") = std::unordered_map<std::string, std::string>{},
              py::arg("mask_mapping") = std::unordered_map<std::string, std::string>{},
@@ -374,31 +407,40 @@ PYBIND11_MODULE(_cece_core, m) {
 
     m.def(
         "compute_emissions",
-        [](const cece::CeceConfig& config, cece::FieldResolver& resolver, int nx, int ny, int nz, int hour, int day_of_week, int month,
-           cece::StackingEngine* engine) {
+        [](const cece::CeceConfig& config, cece::FieldResolver& resolver, int nx, int ny, int nz,
+           int hour, int day_of_week, int month, cece::StackingEngine* engine) {
             // Create an empty default mask (the C++ function accepts a default-constructed view)
             Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> default_mask;
-            cece::ComputeEmissions(config, resolver, nx, ny, nz, default_mask, hour, day_of_week, month, engine);
+            cece::ComputeEmissions(config, resolver, nx, ny, nz, default_mask, hour, day_of_week,
+                                   month, engine);
         },
-        py::arg("config"), py::arg("resolver"), py::arg("nx"), py::arg("ny"), py::arg("nz"), py::arg("hour") = 0, py::arg("day_of_week") = 0,
-        py::arg("month") = 0, py::arg("engine") = nullptr, py::call_guard<py::gil_scoped_release>(),
+        py::arg("config"), py::arg("resolver"), py::arg("nx"), py::arg("ny"), py::arg("nz"),
+        py::arg("hour") = 0, py::arg("day_of_week") = 0, py::arg("month") = 0,
+        py::arg("engine") = nullptr, py::call_guard<py::gil_scoped_release>(),
         "Perform emission computation for all species defined in the config.");
 
     // --- StackingEngine Binding ---
 
     py::class_<cece::StackingEngine>(m, "StackingEngine")
-        .def(py::init<cece::CeceConfig>(), py::arg("config"), "Construct a StackingEngine from an CeceConfig.")
+        .def(py::init<cece::CeceConfig>(), py::arg("config"),
+             "Construct a StackingEngine from an CeceConfig.")
         .def(
             "Execute",
-            [](cece::StackingEngine& self, cece::FieldResolver& resolver, int nx, int ny, int nz, int hour, int day_of_week, int month) {
+            [](cece::StackingEngine& self, cece::FieldResolver& resolver, int nx, int ny, int nz,
+               int hour, int day_of_week, int month) {
                 // Create an empty default mask
-                Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> default_mask;
+                Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
+                    default_mask;
                 self.Execute(resolver, nx, ny, nz, default_mask, hour, day_of_week, month, nullptr);
             },
-            py::arg("resolver"), py::arg("nx"), py::arg("ny"), py::arg("nz"), py::arg("hour") = 0, py::arg("day_of_week") = 0, py::arg("month") = 0,
-            py::call_guard<py::gil_scoped_release>(), "Execute the emission stacking for all species.")
-        .def("ResetBindings", &cece::StackingEngine::ResetBindings, "Reset the bound field handles.")
-        .def("AddSpecies", &cece::StackingEngine::AddSpecies, py::arg("species_name"), "Dynamically add a new species to the engine.");
+            py::arg("resolver"), py::arg("nx"), py::arg("ny"), py::arg("nz"), py::arg("hour") = 0,
+            py::arg("day_of_week") = 0, py::arg("month") = 0,
+            py::call_guard<py::gil_scoped_release>(),
+            "Execute the emission stacking for all species.")
+        .def("ResetBindings", &cece::StackingEngine::ResetBindings,
+             "Reset the bound field handles.")
+        .def("AddSpecies", &cece::StackingEngine::AddSpecies, py::arg("species_name"),
+             "Dynamically add a new species to the engine.");
 
     // --- ConfigValidator Bindings ---
 
@@ -414,8 +456,10 @@ PYBIND11_MODULE(_cece_core, m) {
         .def_readonly("errors", &cece::ValidationResult::errors)
         .def_readonly("warnings", &cece::ValidationResult::warnings)
         .def("IsValid", &cece::ValidationResult::IsValid, "Check if validation passed (no errors).")
-        .def("GetErrorCount", &cece::ValidationResult::GetErrorCount, "Get the number of validation errors.")
-        .def("GetWarningCount", &cece::ValidationResult::GetWarningCount, "Get the number of validation warnings.");
+        .def("GetErrorCount", &cece::ValidationResult::GetErrorCount,
+             "Get the number of validation errors.")
+        .def("GetWarningCount", &cece::ValidationResult::GetWarningCount,
+             "Get the number of validation warnings.");
 
     py::class_<cece::ConfigValidator>(m, "ConfigValidator")
         .def_static(
@@ -429,7 +473,8 @@ PYBIND11_MODULE(_cece_core, m) {
                 }
                 return cece::ConfigValidator::ValidateConfig(config);
             },
-            py::arg("yaml_string"), "Validate an CECE YAML configuration string. Raises ValueError on parse failure.");
+            py::arg("yaml_string"),
+            "Validate an CECE YAML configuration string. Raises ValueError on parse failure.");
 
     // --- Logger Bindings ---
 
@@ -446,7 +491,8 @@ PYBIND11_MODULE(_cece_core, m) {
             } else if (level == "ERROR") {
                 logger.SetLogLevel(cece::LogLevel::ERROR);
             } else {
-                throw py::value_error("Invalid log level: '" + level + "'. Valid levels are: DEBUG, INFO, WARNING, ERROR");
+                throw py::value_error("Invalid log level: '" + level +
+                                      "'. Valid levels are: DEBUG, INFO, WARNING, ERROR");
             }
         },
         py::arg("level"), "Set the CECE log level. Valid values: DEBUG, INFO, WARNING, ERROR.");
@@ -516,5 +562,7 @@ PYBIND11_MODULE(_cece_core, m) {
         },
         "Finalize Kokkos runtime (no-op if not initialized or already finalized).");
 
-    m.def("is_kokkos_initialized", []() { return Kokkos::is_initialized(); }, "Check if Kokkos is initialized.");
+    m.def(
+        "is_kokkos_initialized", []() { return Kokkos::is_initialized(); },
+        "Check if Kokkos is initialized.");
 }

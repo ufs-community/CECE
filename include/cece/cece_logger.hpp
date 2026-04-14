@@ -124,13 +124,15 @@ class CeceLogger {
     void LogMessage(const std::string& level, const std::string& message, const std::string& file, int line, std::ostream& stream) {
         // Get current time using thread-safe localtime_r
         auto now = std::time(nullptr);
-        struct tm tm_buf{};
+        struct tm tm_buf = {};
         localtime_r(&now, &tm_buf);
 
         // Build the full message in a local buffer to avoid interleaving
         std::ostringstream oss;
+        // clang-format off
         oss << "[" << std::put_time(&tm_buf, "%Y-%m-%d %H:%M:%S") << "] "
             << "[" << level << "] ";
+        // clang-format on
 
         if (!file.empty() && line > 0) {
             oss << "[" << file << ":" << line << "] ";
