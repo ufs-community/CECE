@@ -159,7 +159,6 @@ set(CECE_SRCS
     src/cece_core_realize_wrapper.cpp
     src/cece_core_initialize_p1.cpp
     src/cece_core_initialize_p2.cpp
-    src/cece_core_initialize_p2_wrapper.cpp
     src/cece_core_field_helpers.cpp
     src/cece_core_run.cpp
     src/cece_core_finalize.cpp
