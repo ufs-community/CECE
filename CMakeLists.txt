@@ -149,6 +149,12 @@ set(CECE_SRCS
     src/physics/cece_ginoux.cpp
     src/physics/cece_k14.cpp
     src/physics/cece_volcano.cpp
+    src/physics/cece_speciation_config.cpp
+    src/physics/cece_speciation_engine.cpp
+    src/physics/cece_canopy_model.cpp
+    src/physics/cece_emission_activity.cpp
+    src/physics/cece_megan3.cpp
+    src/physics/cece_bdsnp.cpp
     src/io/cece_data_ingestor.cpp
     src/io/cece_diagnostic_manager.cpp
     src/io/cece_standalone_writer.cpp
@@ -193,6 +199,10 @@ if(CECE_HAS_FORTRAN)
         src/physics/k14_kernel.F90
         src/physics/cece_volcano_fortran_bridge.cpp
         src/physics/volcano_kernel.F90
+        src/physics/cece_megan3_fortran_bridge.cpp
+        src/physics/megan3_kernel.F90
+        src/physics/cece_bdsnp_fortran_bridge.cpp
+        src/physics/bdsnp_kernel.F90
         src/cece_ingestor_bridge.cpp)
 endif()
 
@@ -319,6 +329,18 @@ target_link_libraries(test_ginoux_properties PRIVATE cece GTest::gtest_main)
 add_executable(test_k14_properties tests/test_k14_properties.cpp)
 target_link_libraries(test_k14_properties PRIVATE cece GTest::gtest_main)
 
+# Speciation Config Property Tests (MEGAN3)
+add_executable(test_speciation tests/test_speciation.cpp)
+target_link_libraries(test_speciation PRIVATE cece GTest::gtest_main rapidcheck rapidcheck_gtest)
+
+# MEGAN3 Canopy Model Property Tests
+add_executable(test_megan3 tests/test_megan3.cpp)
+target_link_libraries(test_megan3 PRIVATE cece GTest::gtest_main rapidcheck rapidcheck_gtest)
+
+# BDSNP Soil NO Property Tests
+add_executable(test_bdsnp tests/test_bdsnp.cpp)
+target_link_libraries(test_bdsnp PRIVATE cece GTest::gtest rapidcheck rapidcheck_gtest)
+
 add_executable(test_field_creation tests/test_field_creation.cpp)
 if(CECE_HAS_FORTRAN AND TARGET test_helpers)
     target_link_libraries(test_field_creation PRIVATE cece test_helpers GTest::gtest_main)
@@ -421,6 +443,9 @@ gtest_discover_tests(test_repro_failure)
 gtest_discover_tests(test_fengsha_properties)
 gtest_discover_tests(test_ginoux_properties)
 gtest_discover_tests(test_k14_properties)
+gtest_discover_tests(test_speciation)
+gtest_discover_tests(test_megan3)
+gtest_discover_tests(test_bdsnp)
 gtest_discover_tests(test_field_creation)
 gtest_discover_tests(test_field_pointer_passing)
 

@@ -1,0 +1,171 @@
+# SAPRC07 Speciation Mapping File (CECE dataset-oriented format)
+# Maps 19 MEGAN3 emission classes to SAPRC07 mechanism species
+# with per-class scale factors.
+#
+# Format: mechanism species → { emission class: scale factor }
+# Scale factors represent the fractional contribution of each emission class
+# to each mechanism species.
+#
+# References:
+#   - Carter (2010) SAPRC-07 mechanism
+#   - CMAQ MEGAN3 MAP_CV2SAPRC07.EXT
+mechanism: SAPRC07
+datasets:
+  MEGAN:
+    # --- Isoprene: directly from ISOP class ---
+    ISOPRENE:
+      ISOP: 1.0
+    # --- Terpenes: combined monoterpene classes ---
+    TERP:
+      MT_PINE: 0.40
+      MT_ACYC: 0.25
+      MT_CAMP: 0.15
+      MT_SABI: 0.10
+      MT_AROM: 0.10
+    # --- Terpene product 1 (reactive terpenes) ---
+    TRP1:
+      MT_PINE: 0.50
+      MT_ACYC: 0.30
+      MT_CAMP: 0.20
+    # --- Sesquiterpenes ---
+    SESQ:
+      SQT_HR: 0.70
+      SQT_LR: 0.30
+    # --- Methane/ethane (ALK1) ---
+    ALK1:
+      OTHER: 1.0
+    # --- Propane (ALK2) ---
+    ALK2:
+      OTHER: 1.0
+    # --- C4 alkanes (ALK3) ---
+    ALK3:
+      OTHER: 0.60
+      LVOC: 0.40
+    # --- C5-C7 alkanes (ALK4) ---
+    ALK4:
+      OTHER: 0.50
+      LVOC: 0.50
+    # --- C8+ alkanes (ALK5) ---
+    ALK5:
+      LVOC: 0.60
+      OTHER: 0.40
+    # --- Terminal alkenes ---
+    OLE1:
+      MBO: 0.70
+      OTHER: 0.15
+      STRESS: 0.15
+    # --- Internal and branched alkenes ---
+    OLE2:
+      LVOC: 0.50
+      OTHER: 0.30
+      STRESS: 0.20
+    # --- Ethene ---
+    ETHENE:
+      OTHER: 0.60
+      STRESS: 0.40
+    # --- Toluene and monoalkylbenzenes ---
+    ARO1:
+      MT_AROM: 0.50
+      LVOC: 0.30
+      STRESS: 0.20
+    # --- Xylenes and polyalkylbenzenes ---
+    ARO2:
+      OTHER: 0.40
+      MT_AROM: 0.30
+      STRESS: 0.30
+    # --- Benzene ---
+    BENZ:
+      OTHER: 0.60
+      STRESS: 0.40
+    # --- Naphthalene ---
+    NAPHTHAL:
+      STRESS: 0.50
+      LVOC: 0.30
+      OTHER: 0.20
+    # --- Formaldehyde ---
+    HCHO:
+      OXPROD: 0.60
+      MBO: 0.20
+      STRESS: 0.20
+    # --- Acetaldehyde ---
+    CCHO:
+      OXPROD: 0.70
+      STRESS: 0.20
+      LVOC: 0.10
+    # --- Higher aldehydes (C3+) ---
+    RCHO:
+      OXPROD: 0.50
+      LVOC: 0.30
+      STRESS: 0.20
+    # --- Benzaldehyde ---
+    BALD:
+      STRESS: 0.50
+      MT_AROM: 0.30
+      OXPROD: 0.20
+    # --- Methacrolein ---
+    MACR:
+      OXPROD: 0.60
+      STRESS: 0.40
+    # --- Methyl vinyl ketone ---
+    MVK:
+      OXPROD: 0.60
+      STRESS: 0.40
+    # --- Acetone ---
+    ACET:
+      ACTO: 1.0
+    # --- Methyl ethyl ketone ---
+    MEK:
+      LVOC: 0.60
+      OXPROD: 0.40
+    # --- Higher ketone product ---
+    PROD2:
+      LVOC: 0.50
+      OXPROD: 0.30
+      STRESS: 0.20
+    # --- Methanol ---
+    MEOH:
+      MEOH: 1.0
+    # --- Ethanol ---
+    ETOH:
+      ETOH: 1.0
+    # --- Formic acid ---
+    HCOOH:
+      ACID: 0.40
+    # --- Acetic acid ---
+    CCOOH:
+      ACID: 0.60
+    # --- Higher organic acids ---
+    RCOOH:
+      ACID: 0.50
+      LVOC: 0.30
+      OXPROD: 0.20
+    # --- Phenol ---
+    PHEN:
+      STRESS: 0.50
+      MT_AROM: 0.30
+      OTHER: 0.20
+    # --- Cresol ---
+    CRES:
+      STRESS: 0.50
+      MT_AROM: 0.30
+      OTHER: 0.20
+    # --- Acetylene ---
+    ACYE:
+      OTHER: 1.0
+    # --- 1,3-Butadiene ---
+    BDE13:
+      OTHER: 0.50
+      STRESS: 0.50
+    # --- Methylglyoxal ---
+    MGLY:
+      OXPROD: 0.70
+      STRESS: 0.30
+    # --- Glyoxal ---
+    GLY:
+      OXPROD: 0.70
+      STRESS: 0.30
+    # --- Inorganic species ---
+    "NO":
+      "NO": 1.0
+    CO:
+      CO: 1.0

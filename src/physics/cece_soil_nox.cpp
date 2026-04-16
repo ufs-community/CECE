@@ -36,7 +36,10 @@
 namespace cece {
 
 /// @brief Self-registration for the soil NOx emission scheme.
+/// Guarded so that the BDSNP scheme can replace it when CECE_USE_BDSNP is defined.
+#ifndef CECE_USE_BDSNP
 static PhysicsRegistration<SoilNoxScheme> register_scheme("soil_nox");
+#endif
 
 /**
  * @brief Calculate temperature-dependent soil NOx emission factor.

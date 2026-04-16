@@ -1,0 +1,101 @@
+# SAPRC07 Mechanism Species Definition (MICM/OpenAtmos format)
+# Species from the SAPRC07 chemical mechanism relevant to biogenic emissions
+# Molecular weights in kg/mol (MICM convention)
+#
+# References:
+#   - Carter (2010) SAPRC-07 mechanism
+#   - CMAQ MEGAN3 SPC_SAPRC07.EXT
+name: SAPRC07
+species:
+  # --- Isoprene ---
+  - name: ISOPRENE
+    molecular weight [kg mol-1]: 0.06812
+  # --- Terpenes ---
+  - name: TERP
+    molecular weight [kg mol-1]: 0.13624
+  - name: TRP1
+    molecular weight [kg mol-1]: 0.13624
+  # --- Sesquiterpenes ---
+  - name: SESQ
+    molecular weight [kg mol-1]: 0.20436
+  # --- Alkanes ---
+  - name: ALK1
+    molecular weight [kg mol-1]: 0.03007
+  - name: ALK2
+    molecular weight [kg mol-1]: 0.03609
+  - name: ALK3
+    molecular weight [kg mol-1]: 0.05812
+  - name: ALK4
+    molecular weight [kg mol-1]: 0.07716
+  - name: ALK5
+    molecular weight [kg mol-1]: 0.11423
+  # --- Alkenes ---
+  - name: OLE1
+    molecular weight [kg mol-1]: 0.04208
+  - name: OLE2
+    molecular weight [kg mol-1]: 0.07511
+  - name: ETHENE
+    molecular weight [kg mol-1]: 0.02805
+  # --- Aromatics ---
+  - name: ARO1
+    molecular weight [kg mol-1]: 0.09214
+  - name: ARO2
+    molecular weight [kg mol-1]: 0.10617
+  - name: BENZ
+    molecular weight [kg mol-1]: 0.07811
+  - name: NAPHTHAL
+    molecular weight [kg mol-1]: 0.12817
+  # --- Aldehydes ---
+  - name: HCHO
+    molecular weight [kg mol-1]: 0.03003
+  - name: CCHO
+    molecular weight [kg mol-1]: 0.04405
+  - name: RCHO
+    molecular weight [kg mol-1]: 0.05808
+  - name: BALD
+    molecular weight [kg mol-1]: 0.10612
+  - name: MACR
+    molecular weight [kg mol-1]: 0.07009
+  - name: MVK
+    molecular weight [kg mol-1]: 0.07009
+  # --- Ketones ---
+  - name: ACET
+    molecular weight [kg mol-1]: 0.05808
+  - name: MEK
+    molecular weight [kg mol-1]: 0.07211
+  - name: PROD2
+    molecular weight [kg mol-1]: 0.11616
+  # --- Alcohols ---
+  - name: MEOH
+    molecular weight [kg mol-1]: 0.03204
+  - name: ETOH
+    molecular weight [kg mol-1]: 0.04607
+  # --- Organic acids ---
+  - name: HCOOH
+    molecular weight [kg mol-1]: 0.04603
+  - name: CCOOH
+    molecular weight [kg mol-1]: 0.06005
+  - name: RCOOH
+    molecular weight [kg mol-1]: 0.07408
+  # --- Phenols ---
+  - name: PHEN
+    molecular weight [kg mol-1]: 0.09411
+  - name: CRES
+    molecular weight [kg mol-1]: 0.10814
+  # --- Acetylene ---
+  - name: ACYE
+    molecular weight [kg mol-1]: 0.02604
+  # --- Butadiene ---
+  - name: BDE13
+    molecular weight [kg mol-1]: 0.05409
+  # --- Methylglyoxal ---
+  - name: MGLY
+    molecular weight [kg mol-1]: 0.07206
+  # --- Glyoxal ---
+  - name: GLY
+    molecular weight [kg mol-1]: 0.05804
+  # --- Inorganic ---
+  - name: "NO"
+    molecular weight [kg mol-1]: 0.03001
+  - name: CO
+    molecular weight [kg mol-1]: 0.02801

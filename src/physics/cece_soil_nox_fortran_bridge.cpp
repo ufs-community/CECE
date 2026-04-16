@@ -10,8 +10,9 @@ void run_soil_nox_fortran(double* temp, double* gwet, double* soil_nox, int nx, 
 
 namespace cece {
 
-#ifdef CECE_HAS_FORTRAN
+#if defined(CECE_HAS_FORTRAN) && !defined(CECE_USE_BDSNP)
 /// Self-registration for the SoilNoxFortranScheme scheme.
+/// Guarded so that the BDSNP Fortran scheme can replace it when CECE_USE_BDSNP is defined.
 static PhysicsRegistration<SoilNoxFortranScheme> register_scheme("soil_nox_fortran");
 #endif
 
