@@ -25,10 +25,10 @@
 #include <iostream>
 #include <string>
 
-namespace cece {
-
 // Gamma functions (including get_gamma_co2) are defined in cece_megan.hpp
 #include "cece/physics/cece_megan.hpp"
+
+namespace cece {
 
 /// Default per-class coefficient values for the 19 MEGAN3 emission classes.
 /// Order matches the EmissionClass enum: ISOP, MBO, MT_PINE, MT_ACYC, MT_CAMP,

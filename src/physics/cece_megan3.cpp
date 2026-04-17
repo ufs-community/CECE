@@ -23,6 +23,7 @@
 #include "cece/cece_physics_factory.hpp"
 #include "cece/physics/cece_canopy_model.hpp"
 #include "cece/physics/cece_emission_activity.hpp"
+#include "cece/physics/cece_megan.hpp"
 #include "cece/physics/cece_speciation_config.hpp"
 #include "cece/physics/cece_speciation_engine.hpp"
 
@@ -30,11 +31,6 @@ namespace cece {
 
 /// @brief Self-registration for the MEGAN3 biogenic emission scheme.
 static PhysicsRegistration<Megan3Scheme> reg("megan3");
-
-// Gamma functions are defined in cece_megan.hpp as KOKKOS_INLINE_FUNCTION
-// and are available via the #include "cece/physics/cece_megan3.hpp" which
-// includes cece_megan.hpp indirectly, or we include it directly here.
-#include "cece/physics/cece_megan.hpp"
 
 // ============================================================================
 // Default AEF values for the 19 emission classes
