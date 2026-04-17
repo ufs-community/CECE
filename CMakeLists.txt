@@ -332,6 +332,7 @@ target_link_libraries(test_k14_properties PRIVATE cece GTest::gtest_main)
 # Speciation Config Property Tests (MEGAN3)
 add_executable(test_speciation tests/test_speciation.cpp)
 target_link_libraries(test_speciation PRIVATE cece GTest::gtest_main rapidcheck rapidcheck_gtest)
+target_compile_definitions(test_speciation PRIVATE CECE_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
 # MEGAN3 Canopy Model Property Tests
 add_executable(test_megan3 tests/test_megan3.cpp)

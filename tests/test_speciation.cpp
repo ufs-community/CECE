@@ -792,8 +792,12 @@ class CB6ConfigLoadingTest : public ::testing::Test {
 };
 
 TEST_F(CB6ConfigLoadingTest, LoadCB6SpeciationConfig) {
+    std::string src_dir = CECE_SOURCE_DIR;
+    std::string spc_path = src_dir + "/data/speciation/spc_cb6.yaml";
+    std::string map_path = src_dir + "/data/speciation/map_cb6.yaml";
+
     SpeciationConfigLoader loader;
-    SpeciationConfig config = loader.Load("data/speciation/spc_cb6.yaml", "data/speciation/map_cb6.yaml", "MEGAN");
+    SpeciationConfig config = loader.Load(spc_path, map_path, "MEGAN");
 
     // CB6_AE7 mechanism should have 36 species
     EXPECT_EQ(config.species.size(), 36u) << "CB6_AE7 mechanism should define 36 species";
