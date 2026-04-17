@@ -15,9 +15,9 @@
  * for coalesced access in Kokkos kernels.
  */
 
-#include <Kokkos_Core.hpp>
 #include <yaml-cpp/yaml.h>
 
+#include <Kokkos_Core.hpp>
 #include <string>
 
 #include "cece/physics/cece_speciation_config.hpp"
@@ -120,8 +120,7 @@ double get_gamma_wind_stress(double wind_speed, double wind_threshold = 10.0, do
  * @return Temperature stress correction factor (dimensionless, >= 1.0)
  */
 KOKKOS_INLINE_FUNCTION
-double get_gamma_temp_stress(double temp, double temp_high_threshold = 313.0,
-                             double temp_low_threshold = 263.0, double temp_scale = 0.1) {
+double get_gamma_temp_stress(double temp, double temp_high_threshold = 313.0, double temp_low_threshold = 263.0, double temp_scale = 0.1) {
     if (temp >= temp_high_threshold) {
         return 1.0 + temp_scale * (temp - temp_high_threshold);
     }
@@ -177,7 +176,7 @@ class EmissionActivityCalculator {
 
     std::string co2_method_ = "possell";  ///< CO2 method: "possell" or "wilkinson"
     double co2_concentration_ = 400.0;    ///< Ambient CO2 concentration [ppm]
-    double gamma_co2_ = 1.0;             ///< Pre-computed CO2 gamma factor
+    double gamma_co2_ = 1.0;              ///< Pre-computed CO2 gamma factor
 
     // ---- Bidirectional exchange flags per class ----
 

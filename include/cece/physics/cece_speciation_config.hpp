@@ -61,10 +61,8 @@ enum class EmissionClass : int {
  * @return The string name (e.g., "ISOP", "MBO", etc.).
  */
 inline std::string EmissionClassToString(EmissionClass ec) {
-    static const char* names[] = {"ISOP",   "MBO",    "MT_PINE", "MT_ACYC", "MT_CAMP",
-                                  "MT_SABI", "MT_AROM", "NO",     "SQT_HR",  "SQT_LR",
-                                  "MEOH",   "ACTO",   "ETOH",    "ACID",    "LVOC",
-                                  "OXPROD", "STRESS", "OTHER",   "CO"};
+    static const char* names[] = {"ISOP", "MBO",  "MT_PINE", "MT_ACYC", "MT_CAMP", "MT_SABI", "MT_AROM", "NO",    "SQT_HR", "SQT_LR",
+                                  "MEOH", "ACTO", "ETOH",    "ACID",    "LVOC",    "OXPROD",  "STRESS",  "OTHER", "CO"};
     int idx = static_cast<int>(ec);
     if (idx >= 0 && idx < static_cast<int>(EmissionClass::COUNT)) {
         return names[idx];
@@ -80,15 +78,12 @@ inline std::string EmissionClassToString(EmissionClass ec) {
  */
 inline bool StringToEmissionClass(const std::string& name, EmissionClass& ec) {
     static const std::unordered_map<std::string, EmissionClass> lookup = {
-        {"ISOP", EmissionClass::ISOP},       {"MBO", EmissionClass::MBO},
-        {"MT_PINE", EmissionClass::MT_PINE}, {"MT_ACYC", EmissionClass::MT_ACYC},
-        {"MT_CAMP", EmissionClass::MT_CAMP}, {"MT_SABI", EmissionClass::MT_SABI},
-        {"MT_AROM", EmissionClass::MT_AROM}, {"NO", EmissionClass::NO},
-        {"SQT_HR", EmissionClass::SQT_HR},  {"SQT_LR", EmissionClass::SQT_LR},
-        {"MEOH", EmissionClass::MEOH},       {"ACTO", EmissionClass::ACTO},
-        {"ETOH", EmissionClass::ETOH},       {"ACID", EmissionClass::ACID},
-        {"LVOC", EmissionClass::LVOC},       {"OXPROD", EmissionClass::OXPROD},
-        {"STRESS", EmissionClass::STRESS},   {"OTHER", EmissionClass::OTHER},
+        {"ISOP", EmissionClass::ISOP},       {"MBO", EmissionClass::MBO},         {"MT_PINE", EmissionClass::MT_PINE},
+        {"MT_ACYC", EmissionClass::MT_ACYC}, {"MT_CAMP", EmissionClass::MT_CAMP}, {"MT_SABI", EmissionClass::MT_SABI},
+        {"MT_AROM", EmissionClass::MT_AROM}, {"NO", EmissionClass::NO},           {"SQT_HR", EmissionClass::SQT_HR},
+        {"SQT_LR", EmissionClass::SQT_LR},   {"MEOH", EmissionClass::MEOH},       {"ACTO", EmissionClass::ACTO},
+        {"ETOH", EmissionClass::ETOH},       {"ACID", EmissionClass::ACID},       {"LVOC", EmissionClass::LVOC},
+        {"OXPROD", EmissionClass::OXPROD},   {"STRESS", EmissionClass::STRESS},   {"OTHER", EmissionClass::OTHER},
         {"CO", EmissionClass::CO},
     };
     auto it = lookup.find(name);
@@ -108,8 +103,8 @@ inline bool StringToEmissionClass(const std::string& name, EmissionClass& ec) {
  * is stored as g/mol for consistency with CMAQ speciation factors.
  */
 struct MechanismSpecies {
-    std::string name;           ///< Species name (e.g., "ISOP", "TERP", "PAR")
-    double molecular_weight;    ///< Molecular weight in g/mol
+    std::string name;         ///< Species name (e.g., "ISOP", "TERP", "PAR")
+    double molecular_weight;  ///< Molecular weight in g/mol
 };
 
 /**
@@ -121,9 +116,9 @@ struct MechanismSpecies {
  * to one mechanism species.
  */
 struct SpeciationMapping {
-    std::string mechanism_species;   ///< Target mechanism species name (e.g., "ISOP", "TERP")
-    EmissionClass emission_class;    ///< Source emission class (e.g., EmissionClass::MT_PINE)
-    double scale_factor;             ///< Fractional contribution (positive)
+    std::string mechanism_species;  ///< Target mechanism species name (e.g., "ISOP", "TERP")
+    EmissionClass emission_class;   ///< Source emission class (e.g., EmissionClass::MT_PINE)
+    double scale_factor;            ///< Fractional contribution (positive)
 };
 
 /**
@@ -134,10 +129,10 @@ struct SpeciationMapping {
  * mappings (from CECE dataset-oriented mapping file) into a single validated configuration.
  */
 struct SpeciationConfig {
-    std::string mechanism_name;                  ///< Mechanism identifier (e.g., "CB6_AE7")
-    std::vector<MechanismSpecies> species;       ///< Mechanism species from MICM file
-    std::vector<SpeciationMapping> mappings;      ///< Class→mechanism mappings with scale factors
-    std::string dataset_name;                    ///< Which dataset was loaded (e.g., "MEGAN")
+    std::string mechanism_name;               ///< Mechanism identifier (e.g., "CB6_AE7")
+    std::vector<MechanismSpecies> species;    ///< Mechanism species from MICM file
+    std::vector<SpeciationMapping> mappings;  ///< Class→mechanism mappings with scale factors
+    std::string dataset_name;                 ///< Which dataset was loaded (e.g., "MEGAN")
 };
 
 /**
@@ -173,9 +168,7 @@ class SpeciationConfigLoader {
      * @throws YAML::ParserException if YAML syntax is invalid.
      * @throws std::invalid_argument if validation fails or dataset not found.
      */
-    SpeciationConfig Load(const std::string& mechanism_path,
-                          const std::string& mapping_path,
-                          const std::string& dataset = "MEGAN");
+    SpeciationConfig Load(const std::string& mechanism_path, const std::string& mapping_path, const std::string& dataset = "MEGAN");
 
     /**
      * @brief Serialize a SpeciationConfig back to valid YAML strings.
@@ -213,8 +206,7 @@ class SpeciationConfigLoader {
      *       <mechanism_species>:
      *         <emission_class>: <scale_factor>
      */
-    void ParseMapping(const YAML::Node& node, SpeciationConfig& config,
-                      const std::string& dataset);
+    void ParseMapping(const YAML::Node& node, SpeciationConfig& config, const std::string& dataset);
 
     /**
      * @brief Validate cross-references between mechanism and mapping data.

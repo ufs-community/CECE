@@ -39,52 +39,33 @@ double get_gamma_co2(double co2a, double c1, double c2, bool use_wilkinson);
 static constexpr int NUM_CLASSES = static_cast<int>(EmissionClass::COUNT);
 
 // Default LDF values per class
-static constexpr double kDefaultLdf[NUM_CLASSES] = {
-    0.9996, 0.80, 0.10, 0.10, 0.10, 0.10, 0.10,
-    0.00,   0.50, 0.50, 0.80, 0.20, 0.80, 0.00,
-    0.00,   0.20, 1.00, 0.20, 0.00};
+static constexpr double kDefaultLdf[NUM_CLASSES] = {0.9996, 0.80, 0.10, 0.10, 0.10, 0.10, 0.10, 0.00, 0.50, 0.50,
+                                                    0.80,   0.20, 0.80, 0.00, 0.00, 0.20, 1.00, 0.20, 0.00};
 
 // Default CT1 values per class
-static constexpr double kDefaultCt1[NUM_CLASSES] = {
-    95.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0,
-    80.0, 80.0, 80.0, 60.0, 80.0, 60.0, 80.0,
-    80.0, 80.0, 95.0, 80.0, 80.0};
+static constexpr double kDefaultCt1[NUM_CLASSES] = {95.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0,
+                                                    60.0, 80.0, 60.0, 80.0, 80.0, 80.0, 95.0, 80.0, 80.0};
 
 // Default Cleo values per class
-static constexpr double kDefaultCleo[NUM_CLASSES] = {
-    2.0, 1.83, 1.83, 1.83, 1.83, 1.83, 1.83,
-    1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 1.83,
-    1.83, 1.83, 2.0,  1.83, 1.83};
+static constexpr double kDefaultCleo[NUM_CLASSES] = {2.0,  1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 1.83,
+                                                     1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 2.0,  1.83, 1.83};
 
 // Default beta values per class
-static constexpr double kDefaultBeta[NUM_CLASSES] = {
-    0.13, 0.13, 0.10, 0.10, 0.10, 0.10, 0.10,
-    0.10, 0.17, 0.17, 0.08, 0.10, 0.08, 0.10,
-    0.13, 0.10, 0.13, 0.10, 0.10};
+static constexpr double kDefaultBeta[NUM_CLASSES] = {0.13, 0.13, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.17, 0.17,
+                                                     0.08, 0.10, 0.08, 0.10, 0.13, 0.10, 0.13, 0.10, 0.10};
 
 // Default Anew values per class
-static constexpr double kDefaultAnew[NUM_CLASSES] = {
-    0.05, 0.05, 2.0, 2.0, 2.0, 2.0, 2.0,
-    0.00, 0.05, 0.05, 3.5, 0.05, 3.5, 0.05,
-    0.05, 0.05, 0.05, 0.05, 0.05};
+static constexpr double kDefaultAnew[NUM_CLASSES] = {0.05, 0.05, 2.0, 2.0,  2.0,  2.0,  2.0,  0.00, 0.05, 0.05,
+                                                     3.5,  0.05, 3.5, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05};
 
 // Default Agro values per class
-static constexpr double kDefaultAgro[NUM_CLASSES] = {
-    0.6, 0.6, 1.8, 1.8, 1.8, 1.8, 1.8,
-    0.0, 0.6, 0.6, 3.0, 0.6, 3.0, 0.6,
-    0.6, 0.6, 0.6, 0.6, 0.6};
+static constexpr double kDefaultAgro[NUM_CLASSES] = {0.6, 0.6, 1.8, 1.8, 1.8, 1.8, 1.8, 0.0, 0.6, 0.6, 3.0, 0.6, 3.0, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6};
 
 // Default Amat values per class
-static constexpr double kDefaultAmat[NUM_CLASSES] = {
-    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-    1.0, 1.0, 1.0, 1.0, 1.0};
+static constexpr double kDefaultAmat[NUM_CLASSES] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
 
 // Default Aold values per class
-static constexpr double kDefaultAold[NUM_CLASSES] = {
-    0.9, 0.9, 1.0, 1.0, 1.0, 1.0, 1.0,
-    0.0, 0.9, 0.9, 1.2, 0.9, 1.2, 0.9,
-    0.9, 0.9, 0.9, 0.9, 0.9};
+static constexpr double kDefaultAold[NUM_CLASSES] = {0.9, 0.9, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.9, 0.9, 1.2, 0.9, 1.2, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9};
 
 void EmissionActivityCalculator::Initialize(const YAML::Node& config) {
     // ---- Allocate device views for per-class coefficients ----
@@ -131,8 +112,7 @@ void EmissionActivityCalculator::Initialize(const YAML::Node& config) {
 
             EmissionClass ec;
             if (!StringToEmissionClass(class_name, ec)) {
-                std::cout << "EmissionActivityCalculator: Unknown emission class '"
-                          << class_name << "', skipping\n";
+                std::cout << "EmissionActivityCalculator: Unknown emission class '" << class_name << "', skipping\n";
                 continue;
             }
 
@@ -201,15 +181,10 @@ void EmissionActivityCalculator::Initialize(const YAML::Node& config) {
     bool use_wilkinson = (co2_method_ == "wilkinson");
     gamma_co2_ = get_gamma_co2(co2_concentration_, gamma_co2_coeff_1, gamma_co2_coeff_2, use_wilkinson);
 
-    std::cout << "EmissionActivityCalculator: Initialized with "
-              << NUM_CLASSES << " emission classes, "
-              << "co2_method=" << co2_method_
-              << ", co2=" << co2_concentration_
-              << " ppm, gamma_co2=" << gamma_co2_
-              << ", wind_stress=" << (enable_wind_stress_ ? "on" : "off")
-              << ", temp_stress=" << (enable_temp_stress_ ? "on" : "off")
-              << ", aq_stress=" << (enable_aq_stress_ ? "on" : "off")
-              << "\n";
+    std::cout << "EmissionActivityCalculator: Initialized with " << NUM_CLASSES << " emission classes, "
+              << "co2_method=" << co2_method_ << ", co2=" << co2_concentration_ << " ppm, gamma_co2=" << gamma_co2_
+              << ", wind_stress=" << (enable_wind_stress_ ? "on" : "off") << ", temp_stress=" << (enable_temp_stress_ ? "on" : "off")
+              << ", aq_stress=" << (enable_aq_stress_ ? "on" : "off") << "\n";
 }
 
 }  // namespace cece

@@ -24,13 +24,11 @@ namespace cece {
 void CanopyModel::Initialize(const YAML::Node& config) {
     // 5-point Gaussian-Legendre quadrature points on [0,1]
     // These represent fractional canopy depth from top (0) to bottom (1)
-    constexpr double points[NUM_LAYERS] = {
-        0.04691008, 0.23076534, 0.5, 0.76923466, 0.95308992};
+    constexpr double points[NUM_LAYERS] = {0.04691008, 0.23076534, 0.5, 0.76923466, 0.95308992};
 
     // 5-point Gaussian-Legendre quadrature weights on [0,1]
     // These sum to 1.0 for proper integration over the unit interval
-    constexpr double weights[NUM_LAYERS] = {
-        0.11846345, 0.23931434, 0.28444444, 0.23931434, 0.11846345};
+    constexpr double weights[NUM_LAYERS] = {0.11846345, 0.23931434, 0.28444444, 0.23931434, 0.11846345};
 
     // Allocate device views
     gauss_weights_ = Kokkos::View<double[5], Kokkos::DefaultExecutionSpace>("gauss_weights");
@@ -54,8 +52,7 @@ void CanopyModel::Initialize(const YAML::Node& config) {
         extinction_coeff_ = config["extinction_coefficient"].as<double>();
     }
 
-    std::cout << "CanopyModel: Initialized with " << NUM_LAYERS
-              << " Gaussian layers, extinction_coeff=" << extinction_coeff_ << "\n";
+    std::cout << "CanopyModel: Initialized with " << NUM_LAYERS << " Gaussian layers, extinction_coeff=" << extinction_coeff_ << "\n";
 }
 
 }  // namespace cece

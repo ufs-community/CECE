@@ -37,10 +37,7 @@ extern "C" {
  * @param nz            Grid dimension in z-direction
  * @param soil_no_method Algorithm selector: 0 = BDSNP, 1 = YL95
  */
-void run_bdsnp_fortran(double* soil_temp, double* soil_moisture,
-                       double* soil_nox,
-                       int nx, int ny, int nz,
-                       int soil_no_method);
+void run_bdsnp_fortran(double* soil_temp, double* soil_moisture, double* soil_nox, int nx, int ny, int nz, int soil_no_method);
 }
 
 namespace cece {
@@ -54,8 +51,7 @@ static PhysicsRegistration<BdsnpFortranScheme> register_scheme("bdsnp_fortran");
 // Initialize
 // ============================================================================
 
-void BdsnpFortranScheme::Initialize(const YAML::Node& config,
-                                    CeceDiagnosticManager* diag_manager) {
+void BdsnpFortranScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
     // Call base class to parse input_mapping, output_mapping, diagnostics
     BasePhysicsScheme::Initialize(config, diag_manager);
 
@@ -65,28 +61,23 @@ void BdsnpFortranScheme::Initialize(const YAML::Node& config,
         soil_no_method_ = config["soil_no_method"].as<std::string>();
     }
     if (soil_no_method_ != "bdsnp" && soil_no_method_ != "yl95") {
-        std::cout << "BdsnpFortranScheme: WARNING - Unknown soil_no_method '"
-                  << soil_no_method_ << "', falling back to 'bdsnp'\n";
+        std::cout << "BdsnpFortranScheme: WARNING - Unknown soil_no_method '" << soil_no_method_ << "', falling back to 'bdsnp'\n";
         soil_no_method_ = "bdsnp";
     }
 
-    std::cout << "BdsnpFortranScheme: Initialized with soil_no_method='"
-              << soil_no_method_ << "'\n";
+    std::cout << "BdsnpFortranScheme: Initialized with soil_no_method='" << soil_no_method_ << "'\n";
 }
 
 // ============================================================================
 // Run
 // ============================================================================
 
-void BdsnpFortranScheme::Run(CeceImportState& import_state,
-                             CeceExportState& export_state) {
+void BdsnpFortranScheme::Run(CeceImportState& import_state, CeceExportState& export_state) {
     auto it_temp = import_state.fields.find(MapInput("soil_temperature"));
     auto it_moisture = import_state.fields.find(MapInput("soil_moisture"));
     auto it_soil_nox = export_state.fields.find(MapOutput("soil_nox_emissions"));
 
-    if (it_temp == import_state.fields.end() ||
-        it_moisture == import_state.fields.end() ||
-        it_soil_nox == export_state.fields.end()) {
+    if (it_temp == import_state.fields.end() || it_moisture == import_state.fields.end() || it_soil_nox == export_state.fields.end()) {
         return;
     }
 
@@ -107,11 +98,7 @@ void BdsnpFortranScheme::Run(CeceImportState& import_state,
     int method_flag = (soil_no_method_ == "yl95") ? 1 : 0;
 
     // Call Fortran subroutine
-    run_bdsnp_fortran(dv_temp.view_host().data(),
-                      dv_moisture.view_host().data(),
-                      dv_soil_nox.view_host().data(),
-                      nx, ny, nz,
-                      method_flag);
+    run_bdsnp_fortran(dv_temp.view_host().data(), dv_moisture.view_host().data(), dv_soil_nox.view_host().data(), nx, ny, nz, method_flag);
 
     // Mark soil_nox_emissions as modified on host
     dv_soil_nox.modify<Kokkos::HostSpace>();

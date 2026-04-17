@@ -32,9 +32,7 @@
 
 namespace cece {
 
-SpeciationConfig SpeciationConfigLoader::Load(const std::string& mechanism_path,
-                                              const std::string& mapping_path,
-                                              const std::string& dataset) {
+SpeciationConfig SpeciationConfigLoader::Load(const std::string& mechanism_path, const std::string& mapping_path, const std::string& dataset) {
     // Check mechanism file existence
     struct stat buffer;
     if (stat(mechanism_path.c_str(), &buffer) != 0) {
@@ -76,15 +74,12 @@ SpeciationConfig SpeciationConfigLoader::ParseMechanism(const YAML::Node& node) 
         const auto& entry = node["species"][i];
 
         if (!entry["name"]) {
-            throw std::invalid_argument(
-                "Mechanism species entry " + std::to_string(i) + " missing required 'name' field");
+            throw std::invalid_argument("Mechanism species entry " + std::to_string(i) + " missing required 'name' field");
         }
 
         // MICM format uses 'molecular weight [kg mol-1]'
         if (!entry["molecular weight [kg mol-1]"]) {
-            throw std::invalid_argument(
-                "Mechanism species entry " + std::to_string(i) +
-                " missing required 'molecular weight [kg mol-1]' field");
+            throw std::invalid_argument("Mechanism species entry " + std::to_string(i) + " missing required 'molecular weight [kg mol-1]' field");
         }
 
         MechanismSpecies sp;
@@ -93,9 +88,7 @@ SpeciationConfig SpeciationConfigLoader::ParseMechanism(const YAML::Node& node) 
         // Convert from kg/mol (MICM convention) to g/mol
         double mw_kg_per_mol = entry["molecular weight [kg mol-1]"].as<double>();
         if (mw_kg_per_mol <= 0.0) {
-            throw std::invalid_argument(
-                "Mechanism species '" + sp.name +
-                "' has non-positive molecular weight: " + std::to_string(mw_kg_per_mol));
+            throw std::invalid_argument("Mechanism species '" + sp.name + "' has non-positive molecular weight: " + std::to_string(mw_kg_per_mol));
         }
         sp.molecular_weight = mw_kg_per_mol * 1000.0;  // kg/mol -> g/mol
 
@@ -105,8 +98,7 @@ SpeciationConfig SpeciationConfigLoader::ParseMechanism(const YAML::Node& node) 
     return config;
 }
 
-void SpeciationConfigLoader::ParseMapping(const YAML::Node& node, SpeciationConfig& config,
-                                          const std::string& dataset) {
+void SpeciationConfigLoader::ParseMapping(const YAML::Node& node, SpeciationConfig& config, const std::string& dataset) {
     // Validate 'mechanism' key — use iterator to avoid operator[] side effects
     bool has_mechanism = false;
     bool has_datasets = false;
@@ -114,7 +106,11 @@ void SpeciationConfigLoader::ParseMapping(const YAML::Node& node, SpeciationConf
 
     for (auto it = node.begin(); it != node.end(); ++it) {
         std::string key;
-        try { key = it->first.as<std::string>(); } catch (...) { key = it->first.Scalar(); }
+        try {
+            key = it->first.as<std::string>();
+        } catch (...) {
+            key = it->first.Scalar();
+        }
 
         if (key == "mechanism") {
             has_mechanism = true;
@@ -136,7 +132,11 @@ void SpeciationConfigLoader::ParseMapping(const YAML::Node& node, SpeciationConf
     bool found_dataset = false;
     for (auto ds_it = datasets_node.begin(); ds_it != datasets_node.end(); ++ds_it) {
         std::string ds_name;
-        try { ds_name = ds_it->first.as<std::string>(); } catch (...) { ds_name = ds_it->first.Scalar(); }
+        try {
+            ds_name = ds_it->first.as<std::string>();
+        } catch (...) {
+            ds_name = ds_it->first.Scalar();
+        }
         if (ds_name == dataset) {
             dataset_node = YAML::Clone(ds_it->second);
             found_dataset = true;
@@ -159,15 +159,17 @@ void SpeciationConfigLoader::ParseMapping(const YAML::Node& node, SpeciationConf
         if (mech_it->first.Type() == YAML::NodeType::Null) continue;
 
         std::string mechanism_species;
-        try { mechanism_species = mech_it->first.as<std::string>(); }
-        catch (...) { mechanism_species = mech_it->first.Scalar(); }
+        try {
+            mechanism_species = mech_it->first.as<std::string>();
+        } catch (...) {
+            mechanism_species = mech_it->first.Scalar();
+        }
 
         YAML::Node class_map = YAML::Clone(mech_it->second);
 
         if (!class_map.IsMap()) {
-            throw std::invalid_argument(
-                "Mechanism species '" + mechanism_species + "' in dataset '" + dataset +
-                "' is not a map of emission classes");
+            throw std::invalid_argument("Mechanism species '" + mechanism_species + "' in dataset '" + dataset +
+                                        "' is not a map of emission classes");
         }
 
         // Iterate emission class → scale factor pairs
@@ -181,7 +183,10 @@ void SpeciationConfigLoader::ParseMapping(const YAML::Node& node, SpeciationConf
 
             std::string class_name = key_node.Scalar();
             if (class_name.empty()) {
-                try { class_name = key_node.as<std::string>(); } catch (...) {}
+                try {
+                    class_name = key_node.as<std::string>();
+                } catch (...) {
+                }
             }
 
             // Handle yaml-cpp YAML 1.1 boolean interpretation of "NO"
@@ -194,19 +199,16 @@ void SpeciationConfigLoader::ParseMapping(const YAML::Node& node, SpeciationConf
                 std::string upper_name = class_name;
                 std::transform(upper_name.begin(), upper_name.end(), upper_name.begin(), ::toupper);
                 if (!StringToEmissionClass(upper_name, ec)) {
-                    throw std::invalid_argument(
-                        "Invalid emission class '" + class_name + "' for mechanism species '" +
-                        mechanism_species + "' in dataset '" + dataset + "'");
+                    throw std::invalid_argument("Invalid emission class '" + class_name + "' for mechanism species '" + mechanism_species +
+                                                "' in dataset '" + dataset + "'");
                 }
             }
 
             double scale_factor = class_it->second.as<double>();
 
             if (scale_factor <= 0.0) {
-                throw std::invalid_argument(
-                    "Non-positive scale factor " + std::to_string(scale_factor) +
-                    " for emission class '" + class_name + "' → mechanism species '" +
-                    mechanism_species + "' in dataset '" + dataset + "'");
+                throw std::invalid_argument("Non-positive scale factor " + std::to_string(scale_factor) + " for emission class '" + class_name +
+                                            "' → mechanism species '" + mechanism_species + "' in dataset '" + dataset + "'");
             }
 
             SpeciationMapping mapping;
@@ -235,8 +237,7 @@ void SpeciationConfigLoader::Validate(const SpeciationConfig& config) {
 
     if (!unknown_species.empty()) {
         std::sort(unknown_species.begin(), unknown_species.end());
-        unknown_species.erase(std::unique(unknown_species.begin(), unknown_species.end()),
-                              unknown_species.end());
+        unknown_species.erase(std::unique(unknown_species.begin(), unknown_species.end()), unknown_species.end());
         std::ostringstream oss;
         oss << "Mapping references unknown mechanism species not in mechanism file: ";
         for (std::size_t i = 0; i < unknown_species.size(); ++i) {
@@ -251,9 +252,8 @@ void SpeciationConfigLoader::Validate(const SpeciationConfig& config) {
     for (const auto& mapping : config.mappings) {
         int ec_idx = static_cast<int>(mapping.emission_class);
         if (ec_idx < 0 || ec_idx >= static_cast<int>(EmissionClass::COUNT)) {
-            throw std::invalid_argument(
-                "Invalid emission class index " + std::to_string(ec_idx) +
-                " in mapping for mechanism species '" + mapping.mechanism_species + "'");
+            throw std::invalid_argument("Invalid emission class index " + std::to_string(ec_idx) + " in mapping for mechanism species '" +
+                                        mapping.mechanism_species + "'");
         }
     }
 }
@@ -291,9 +291,7 @@ std::string SpeciationConfigLoader::ToYaml(const SpeciationConfig& config) {
         out << YAML::Key << YAML::DoubleQuoted << mech_sp << YAML::Value << YAML::BeginMap;
         for (const auto* mp : mapping_ptrs) {
             // Quote emission class names too
-            out << YAML::Key << YAML::DoubleQuoted
-                << EmissionClassToString(mp->emission_class)
-                << YAML::Value << mp->scale_factor;
+            out << YAML::Key << YAML::DoubleQuoted << EmissionClassToString(mp->emission_class) << YAML::Value << mp->scale_factor;
         }
         out << YAML::EndMap;
     }

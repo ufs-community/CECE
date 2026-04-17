@@ -42,8 +42,7 @@ KOKKOS_INLINE_FUNCTION
 double get_gamma_lai(double lai, double c1, double c2, bool is_bidirectional);
 
 KOKKOS_INLINE_FUNCTION
-double get_gamma_age(double cmlai, double pmlai, double dbtwn, double tt,
-                     double an, double ag, double am, double ao);
+double get_gamma_age(double cmlai, double pmlai, double dbtwn, double tt, double an, double ag, double am, double ao);
 
 KOKKOS_INLINE_FUNCTION
 double get_gamma_sm(double gwetroot, bool is_ald2_or_eoh);
@@ -52,48 +51,42 @@ KOKKOS_INLINE_FUNCTION
 double get_gamma_t_li(double temp, double beta, double t_standard);
 
 KOKKOS_INLINE_FUNCTION
-double get_gamma_t_ld(double T, double PT_15, double CT1, double CEO,
-                      double R, double CT2, double t_opt_c1, double t_opt_c2,
-                      double e_opt_coeff);
+double get_gamma_t_ld(double T, double PT_15, double CT1, double CEO, double R, double CT2, double t_opt_c1, double t_opt_c2, double e_opt_coeff);
 
 KOKKOS_INLINE_FUNCTION
-double get_gamma_par_pceea(double q_dir, double q_diff, double par_avg,
-                           double suncos, int doy, double wm2_to_umol,
-                           double ptoa_c1, double ptoa_c2,
-                           double gamma_p_c1, double gamma_p_c2,
-                           double gamma_p_c3, double gamma_p_c4);
+double get_gamma_par_pceea(double q_dir, double q_diff, double par_avg, double suncos, int doy, double wm2_to_umol, double ptoa_c1, double ptoa_c2,
+                           double gamma_p_c1, double gamma_p_c2, double gamma_p_c3, double gamma_p_c4);
 
 // ============================================================================
 // Default AEF values for the 19 emission classes
 // ============================================================================
 static constexpr double kDefaultAef[19] = {
-    1.0e-9,  // ISOP
-    2.0e-10, // MBO
-    3.0e-10, // MT_PINE
-    3.0e-10, // MT_ACYC
-    3.0e-10, // MT_CAMP
-    3.0e-10, // MT_SABI
-    3.0e-10, // MT_AROM
-    0.0,     // NO (soil NO comes from export state)
-    1.0e-10, // SQT_HR
-    1.0e-10, // SQT_LR
-    5.0e-10, // MEOH
-    2.0e-10, // ACTO
-    2.0e-10, // ETOH
-    1.0e-10, // ACID
-    1.0e-10, // LVOC
-    1.0e-10, // OXPROD
-    1.0e-10, // STRESS
-    1.0e-10, // OTHER
-    3.0e-10  // CO
+    1.0e-9,   // ISOP
+    2.0e-10,  // MBO
+    3.0e-10,  // MT_PINE
+    3.0e-10,  // MT_ACYC
+    3.0e-10,  // MT_CAMP
+    3.0e-10,  // MT_SABI
+    3.0e-10,  // MT_AROM
+    0.0,      // NO (soil NO comes from export state)
+    1.0e-10,  // SQT_HR
+    1.0e-10,  // SQT_LR
+    5.0e-10,  // MEOH
+    2.0e-10,  // ACTO
+    2.0e-10,  // ETOH
+    1.0e-10,  // ACID
+    1.0e-10,  // LVOC
+    1.0e-10,  // OXPROD
+    1.0e-10,  // STRESS
+    1.0e-10,  // OTHER
+    3.0e-10   // CO
 };
 
 // ============================================================================
 // Initialize
 // ============================================================================
 
-void Megan3Scheme::Initialize(const YAML::Node& config,
-                              CeceDiagnosticManager* diag_manager) {
+void Megan3Scheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
     // Call base class to parse input_mapping, output_mapping, diagnostics
     BasePhysicsScheme::Initialize(config, diag_manager);
 
@@ -155,8 +148,7 @@ void Megan3Scheme::Initialize(const YAML::Node& config,
         export_field_names_.push_back("MEGAN_" + sp_name);
     }
 
-    std::cout << "Megan3Scheme: Initialized with " << NUM_CLASSES
-              << " emission classes, " << export_field_names_.size()
+    std::cout << "Megan3Scheme: Initialized with " << NUM_CLASSES << " emission classes, " << export_field_names_.size()
               << " mechanism species output fields\n";
 }
 
@@ -164,8 +156,7 @@ void Megan3Scheme::Initialize(const YAML::Node& config,
 // Run
 // ============================================================================
 
-void Megan3Scheme::Run(CeceImportState& import_state,
-                       CeceExportState& export_state) {
+void Megan3Scheme::Run(CeceImportState& import_state, CeceExportState& export_state) {
     // ---- Resolve required import fields ----
     auto temp = ResolveImport("temperature", import_state);
     auto lai = ResolveImport("leaf_area_index", import_state);
@@ -177,8 +168,7 @@ void Megan3Scheme::Run(CeceImportState& import_state,
     auto wind_speed = ResolveImport("wind_speed", import_state);
 
     // Early return if required fields are null
-    if (temp.data() == nullptr || lai.data() == nullptr ||
-        par_direct.data() == nullptr || par_diffuse.data() == nullptr ||
+    if (temp.data() == nullptr || lai.data() == nullptr || par_direct.data() == nullptr || par_diffuse.data() == nullptr ||
         suncos.data() == nullptr) {
         return;
     }
@@ -203,8 +193,7 @@ void Megan3Scheme::Run(CeceImportState& import_state,
 
     // ---- Resolve per-class AEF fields from import state ----
     // Try to find AEF_<CLASS_NAME> in import state; use default_aef_ if missing
-    Kokkos::View<double**, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
-        aef_grid("megan3_aef_grid", NUM_CLASSES, num_cells);
+    Kokkos::View<double**, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> aef_grid("megan3_aef_grid", NUM_CLASSES, num_cells);
     Kokkos::deep_copy(aef_grid, 0.0);
 
     // Track which classes have gridded AEF fields
@@ -217,9 +206,7 @@ void Megan3Scheme::Run(CeceImportState& import_state,
             has_aef_field[c] = true;
             int class_idx = c;
             Kokkos::parallel_for(
-                "CopyAEF_" + std::string(CLASS_NAMES[c]),
-                Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<2>>(
-                    {0, 0}, {nx, ny}),
+                "CopyAEF_" + std::string(CLASS_NAMES[c]), Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<2>>({0, 0}, {nx, ny}),
                 KOKKOS_LAMBDA(int i, int j) {
                     int cell = i + j * nx;
                     aef_grid(class_idx, cell) = aef_view(i, j, 0);
@@ -234,11 +221,8 @@ void Megan3Scheme::Run(CeceImportState& import_state,
         if (!has_aef_field[c]) {
             int class_idx = c;
             Kokkos::parallel_for(
-                "FillDefaultAEF",
-                Kokkos::RangePolicy<Kokkos::DefaultExecutionSpace>(0, num_cells),
-                KOKKOS_LAMBDA(int cell) {
-                    aef_grid(class_idx, cell) = d_default_aef(class_idx);
-                });
+                "FillDefaultAEF", Kokkos::RangePolicy<Kokkos::DefaultExecutionSpace>(0, num_cells),
+                KOKKOS_LAMBDA(int cell) { aef_grid(class_idx, cell) = d_default_aef(class_idx); });
         }
     }
     Kokkos::fence();
@@ -252,9 +236,7 @@ void Megan3Scheme::Run(CeceImportState& import_state,
     }
 
     // ---- Allocate class_totals_ (19 x num_cells) ----
-    class_totals_ = Kokkos::View<double**, Kokkos::LayoutLeft,
-                                 Kokkos::DefaultExecutionSpace>(
-        "megan3_class_totals", NUM_CLASSES, num_cells);
+    class_totals_ = Kokkos::View<double**, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>("megan3_class_totals", NUM_CLASSES, num_cells);
     Kokkos::deep_copy(class_totals_, 0.0);
 
     // ---- Capture sub-component data for the kernel ----
@@ -303,10 +285,7 @@ void Megan3Scheme::Run(CeceImportState& import_state,
 
     // ---- Main Kokkos kernel: compute 19 class totals ----
     Kokkos::parallel_for(
-        "Megan3Kernel",
-        Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<2>>(
-            {0, 0}, {nx, ny}),
-        KOKKOS_LAMBDA(int i, int j) {
+        "Megan3Kernel", Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<2>>({0, 0}, {nx, ny}), KOKKOS_LAMBDA(int i, int j) {
             double T = temp(i, j, 0);
             double L = lai(i, j, 0);
             double sc = suncos(i, j, 0);
@@ -333,9 +312,7 @@ void Megan3Scheme::Run(CeceImportState& import_state,
             double g_lai = get_gamma_lai(L, LAI_C1, LAI_C2, false);
             double g_age = get_gamma_age(L, L_prev, dbtwn, T, 1.0, 1.0, 1.0, 1.0);
             double g_sm = get_gamma_sm(gwet, false);
-            double g_par = get_gamma_par_pceea(pdr, pdf, PAR_AVG, sc, doy,
-                                                WM2_TO_UMOL, PTOA_C1, PTOA_C2,
-                                                GP_C1, GP_C2, GP_C3, GP_C4);
+            double g_par = get_gamma_par_pceea(pdr, pdf, PAR_AVG, sc, doy, WM2_TO_UMOL, PTOA_C1, PTOA_C2, GP_C1, GP_C2, GP_C3, GP_C4);
 
             // Compute per-class emissions
             for (int c = 0; c < 19; ++c) {
@@ -351,12 +328,9 @@ void Megan3Scheme::Run(CeceImportState& import_state,
 
                 // Per-class gamma factors
                 double g_lai_c = get_gamma_lai(L, LAI_C1, LAI_C2, bidir);
-                double g_age_c = get_gamma_age(L, L_prev, dbtwn, T,
-                                               anew, agro, amat, aold);
+                double g_age_c = get_gamma_age(L, L_prev, dbtwn, T, anew, agro, amat, aold);
                 double g_t_li = get_gamma_t_li(T, beta, STD_TEMP);
-                double g_t_ld = get_gamma_t_ld(T, T_AVG_15, ct1, cleo,
-                                               GAS_CONSTANT, CT2_CONST,
-                                               T_OPT_C1, T_OPT_C2, E_OPT_COEFF);
+                double g_t_ld = get_gamma_t_ld(T, T_AVG_15, ct1, cleo, GAS_CONSTANT, CT2_CONST, T_OPT_C1, T_OPT_C2, E_OPT_COEFF);
 
                 // LDF partitioning: (1-LDF)*gamma_t_li + LDF*gamma_par*gamma_t_ld
                 double ldf_combined = (1.0 - ldf) * g_t_li + ldf * g_par * g_t_ld;
@@ -374,8 +348,7 @@ void Megan3Scheme::Run(CeceImportState& import_state,
                 double aef = aef_grid(c, cell);
 
                 // Combined emission for this class
-                double emission = NORM_FAC * aef * g_lai_c * g_age_c * g_sm
-                                * gamma_co2_val * ldf_combined * g_stress;
+                double emission = NORM_FAC * aef * g_lai_c * g_age_c * g_sm * gamma_co2_val * ldf_combined * g_stress;
 
                 // Special handling for NO class: use soil NO from export state
                 if (c == NO_CLASS_IDX) {
@@ -393,9 +366,7 @@ void Megan3Scheme::Run(CeceImportState& import_state,
     Kokkos::fence();
 
     // ---- Run speciation engine to convert class totals to mechanism species ----
-    auto const_class_totals = Kokkos::View<const double**, Kokkos::LayoutLeft,
-                                           Kokkos::DefaultExecutionSpace>(
-        class_totals_);
+    auto const_class_totals = Kokkos::View<const double**, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>(class_totals_);
     speciation_engine_.Run(const_class_totals, export_state, nx, ny);
 
     Kokkos::fence();

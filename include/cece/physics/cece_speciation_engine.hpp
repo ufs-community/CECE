@@ -18,7 +18,6 @@
  */
 
 #include <Kokkos_Core.hpp>
-
 #include <string>
 #include <vector>
 
@@ -54,10 +53,8 @@ class SpeciationEngine {
      * @param nx Number of grid cells in the x-dimension.
      * @param ny Number of grid cells in the y-dimension.
      */
-    void Run(
-        const Kokkos::View<const double**, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>& class_totals,
-        CeceExportState& export_state,
-        int nx, int ny);
+    void Run(const Kokkos::View<const double**, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>& class_totals, CeceExportState& export_state,
+             int nx, int ny);
 
     /**
      * @brief Returns the list of mechanism species names for dynamic field registration.

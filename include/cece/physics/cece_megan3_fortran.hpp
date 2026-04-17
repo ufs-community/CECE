@@ -14,10 +14,10 @@
  * The existing "megan_fortran" scheme remains unchanged for backward compatibility.
  */
 
-#include "cece/physics_scheme.hpp"
-#include "cece/physics/cece_speciation_config.hpp"
-
 #include <vector>
+
+#include "cece/physics/cece_speciation_config.hpp"
+#include "cece/physics_scheme.hpp"
 
 namespace cece {
 

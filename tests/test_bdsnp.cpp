@@ -6,11 +6,11 @@
  * 12. BDSNP Freezing Produces Zero Emissions (Requirements 4.8)
  */
 
-#include <Kokkos_Core.hpp>
 #include <gtest/gtest.h>
 #include <rapidcheck.h>
 #include <rapidcheck/gtest.h>
 
+#include <Kokkos_Core.hpp>
 #include <cmath>
 #include <string>
 
@@ -41,8 +41,7 @@ static double test_bdsnp_moisture_factor(double soil_moisture) {
 }
 
 /// BDSNP nitrogen deposition factor.
-static double test_bdsnp_ndep_factor(double ndep, double fert_ef,
-                                     double wet_dep_s, double dry_dep_s) {
+static double test_bdsnp_ndep_factor(double ndep, double fert_ef, double wet_dep_s, double dry_dep_s) {
     double dep_contribution = ndep * (wet_dep_s + dry_dep_s);
     return 1.0 + fert_ef * dep_contribution;
 }
@@ -77,7 +76,7 @@ RC_GTEST_PROP(BdsnpProperty, Property12_YL95_FreezingTempTermZero, ()) {
     double tc = soil_temp_k - 273.15;  // Will be negative or zero
 
     // Random valid YL95 parameters
-    double tc_max = 20.0 + (*rc::gen::inRange(0, 2001)) / 100.0;   // [20, 40]
+    double tc_max = 20.0 + (*rc::gen::inRange(0, 2001)) / 100.0;       // [20, 40]
     double exp_coeff = 0.05 + (*rc::gen::inRange(0, 1501)) / 10000.0;  // [0.05, 0.2]
 
     double t_term = test_bdsnp_soil_temp_term(tc, tc_max, exp_coeff);
@@ -110,8 +109,7 @@ RC_GTEST_PROP(BdsnpProperty, Property12_YL95_SchemeFreezingZeroEmissions, ()) {
         auto& dv_temp = import_state.fields["soil_temperature"];
         auto h_temp = dv_temp.view_host();
         for (int i = 0; i < nx; ++i)
-            for (int j = 0; j < ny; ++j)
-                h_temp(i, j, 0) = soil_temp_k;
+            for (int j = 0; j < ny; ++j) h_temp(i, j, 0) = soil_temp_k;
         dv_temp.modify_host();
         dv_temp.sync_device();
     }
@@ -119,8 +117,7 @@ RC_GTEST_PROP(BdsnpProperty, Property12_YL95_SchemeFreezingZeroEmissions, ()) {
         auto& dv_moist = import_state.fields["soil_moisture"];
         auto h_moist = dv_moist.view_host();
         for (int i = 0; i < nx; ++i)
-            for (int j = 0; j < ny; ++j)
-                h_moist(i, j, 0) = soil_moisture;
+            for (int j = 0; j < ny; ++j) h_moist(i, j, 0) = soil_moisture;
         dv_moist.modify_host();
         dv_moist.sync_device();
     }
@@ -176,8 +173,7 @@ RC_GTEST_PROP(BdsnpProperty, Property12_BDSNP_SchemeFreezingZeroEmissions, ()) {
         auto& dv_temp = import_state.fields["soil_temperature"];
         auto h_temp = dv_temp.view_host();
         for (int i = 0; i < nx; ++i)
-            for (int j = 0; j < ny; ++j)
-                h_temp(i, j, 0) = soil_temp_k;
+            for (int j = 0; j < ny; ++j) h_temp(i, j, 0) = soil_temp_k;
         dv_temp.modify_host();
         dv_temp.sync_device();
     }
@@ -185,8 +181,7 @@ RC_GTEST_PROP(BdsnpProperty, Property12_BDSNP_SchemeFreezingZeroEmissions, ()) {
         auto& dv_moist = import_state.fields["soil_moisture"];
         auto h_moist = dv_moist.view_host();
         for (int i = 0; i < nx; ++i)
-            for (int j = 0; j < ny; ++j)
-                h_moist(i, j, 0) = soil_moisture;
+            for (int j = 0; j < ny; ++j) h_moist(i, j, 0) = soil_moisture;
         dv_moist.modify_host();
         dv_moist.sync_device();
     }
@@ -253,8 +248,7 @@ RC_GTEST_PROP(BdsnpParityProperty, Property14_YL95_CppFortranParity, ()) {
         DualView3D dv(label, nx, ny, nz);
         auto h = dv.view_host();
         for (int i = 0; i < nx; ++i)
-            for (int j = 0; j < ny; ++j)
-                h(i, j, 0) = val;
+            for (int j = 0; j < ny; ++j) h(i, j, 0) = val;
         dv.modify_host();
         dv.sync_device();
         return dv;
@@ -314,8 +308,7 @@ RC_GTEST_PROP(BdsnpParityProperty, Property14_BDSNP_CppFortranParity, ()) {
         DualView3D dv(label, nx, ny, nz);
         auto h = dv.view_host();
         for (int i = 0; i < nx; ++i)
-            for (int j = 0; j < ny; ++j)
-                h(i, j, 0) = val;
+            for (int j = 0; j < ny; ++j) h(i, j, 0) = val;
         dv.modify_host();
         dv.sync_device();
         return dv;
@@ -381,8 +374,7 @@ RC_GTEST_PROP(BdsnpParityProperty, Property14_Freezing_CppFortranParity, ()) {
         DualView3D dv(label, nx, ny, nz);
         auto h = dv.view_host();
         for (int i = 0; i < nx; ++i)
-            for (int j = 0; j < ny; ++j)
-                h(i, j, 0) = val;
+            for (int j = 0; j < ny; ++j) h(i, j, 0) = val;
         dv.modify_host();
         dv.sync_device();
         return dv;
@@ -439,7 +431,7 @@ RC_GTEST_PROP(BdsnpParityProperty, Property14_Freezing_CppFortranParity, ()) {
 // within a relative tolerance of 1e-6.
 // ============================================================================
 
-}  // namespace cece (temporarily close for includes)
+}  // namespace cece
 
 #include "cece/physics/cece_soil_nox.hpp"
 
@@ -458,8 +450,7 @@ RC_GTEST_PROP(BdsnpParityProperty, Property12_YL95_ParityWithSoilNoxScheme, ()) 
         DualView3D dv(label, nx, ny, nz);
         auto h = dv.view_host();
         for (int i = 0; i < nx; ++i)
-            for (int j = 0; j < ny; ++j)
-                h(i, j, 0) = val;
+            for (int j = 0; j < ny; ++j) h(i, j, 0) = val;
         dv.modify_host();
         dv.sync_device();
         return dv;
@@ -657,8 +648,7 @@ TEST_F(BdsnpSchemeTest, SoilNOWrittenToExportState) {
     // All grid cells should have non-zero soil NO emissions
     for (int i = 0; i < nx; ++i) {
         for (int j = 0; j < ny; ++j) {
-            EXPECT_GT(hv(i, j, 0), 0.0)
-                << "soil_nox_emissions should be positive at (" << i << "," << j << ")";
+            EXPECT_GT(hv(i, j, 0), 0.0) << "soil_nox_emissions should be positive at (" << i << "," << j << ")";
         }
     }
 }
@@ -683,8 +673,7 @@ TEST_F(BdsnpSchemeTest, SoilNOWrittenToExportState_BdsnpMode) {
 
     for (int i = 0; i < nx; ++i) {
         for (int j = 0; j < ny; ++j) {
-            EXPECT_GT(hv(i, j, 0), 0.0)
-                << "soil_nox_emissions (bdsnp mode) should be positive at (" << i << "," << j << ")";
+            EXPECT_GT(hv(i, j, 0), 0.0) << "soil_nox_emissions (bdsnp mode) should be positive at (" << i << "," << j << ")";
         }
     }
 }

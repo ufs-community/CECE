@@ -52,20 +52,10 @@ extern "C" {
  * @param num_mappings       Number of speciation mappings
  * @param num_mechanism_species Number of mechanism species
  */
-void run_megan3_fortran(
-    double* temp, double* lai, double* lai_prev,
-    double* pardr, double* pardf, double* suncos,
-    double* soil_moisture, double* wind_speed,
-    double* soil_nox,
-    double* output,
-    int nx, int ny, int nz,
-    int num_output_species,
-    double* conversion_factors,
-    int* class_indices,
-    int* mechanism_indices,
-    double* molecular_weights,
-    int num_mappings,
-    int num_mechanism_species);
+void run_megan3_fortran(double* temp, double* lai, double* lai_prev, double* pardr, double* pardf, double* suncos, double* soil_moisture,
+                        double* wind_speed, double* soil_nox, double* output, int nx, int ny, int nz, int num_output_species,
+                        double* conversion_factors, int* class_indices, int* mechanism_indices, double* molecular_weights, int num_mappings,
+                        int num_mechanism_species);
 }
 
 namespace cece {
@@ -79,8 +69,7 @@ static PhysicsRegistration<Megan3FortranScheme> register_scheme("megan3_fortran"
 // Initialize
 // ============================================================================
 
-void Megan3FortranScheme::Initialize(const YAML::Node& config,
-                                     CeceDiagnosticManager* diag_manager) {
+void Megan3FortranScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
     // Call base class to parse input_mapping, output_mapping, diagnostics
     BasePhysicsScheme::Initialize(config, diag_manager);
 
@@ -151,17 +140,15 @@ void Megan3FortranScheme::Initialize(const YAML::Node& config,
         export_field_names_[idx] = "MEGAN_" + name;
     }
 
-    std::cout << "Megan3FortranScheme: Initialized with "
-              << num_mappings_ << " speciation mappings, "
-              << num_mechanism_species_ << " mechanism species output fields\n";
+    std::cout << "Megan3FortranScheme: Initialized with " << num_mappings_ << " speciation mappings, " << num_mechanism_species_
+              << " mechanism species output fields\n";
 }
 
 // ============================================================================
 // Run
 // ============================================================================
 
-void Megan3FortranScheme::Run(CeceImportState& import_state,
-                              CeceExportState& export_state) {
+void Megan3FortranScheme::Run(CeceImportState& import_state, CeceExportState& export_state) {
     // ---- Find required import fields ----
     auto it_temp = import_state.fields.find(MapInput("temperature"));
     auto it_lai = import_state.fields.find(MapInput("leaf_area_index"));
@@ -173,11 +160,8 @@ void Megan3FortranScheme::Run(CeceImportState& import_state,
     auto it_wind_speed = import_state.fields.find(MapInput("wind_speed"));
 
     // Early return if critical fields are missing
-    if (it_temp == import_state.fields.end() ||
-        it_lai == import_state.fields.end() ||
-        it_pardr == import_state.fields.end() ||
-        it_pardf == import_state.fields.end() ||
-        it_suncos == import_state.fields.end()) {
+    if (it_temp == import_state.fields.end() || it_lai == import_state.fields.end() || it_pardr == import_state.fields.end() ||
+        it_pardf == import_state.fields.end() || it_suncos == import_state.fields.end()) {
         return;
     }
 
@@ -249,25 +233,10 @@ void Megan3FortranScheme::Run(CeceImportState& import_state,
     std::vector<double> output_buffer(total_output_size, 0.0);
 
     // ---- Call Fortran subroutine ----
-    run_megan3_fortran(
-        dv_temp.view_host().data(),
-        dv_lai.view_host().data(),
-        lai_prev_ptr,
-        dv_pardr.view_host().data(),
-        dv_pardf.view_host().data(),
-        dv_suncos.view_host().data(),
-        soil_moisture_ptr,
-        wind_speed_ptr,
-        soil_nox_ptr,
-        output_buffer.data(),
-        nx, ny, nz,
-        num_mechanism_species_,
-        scale_factors_.data(),
-        class_indices_.data(),
-        mechanism_indices_.data(),
-        molecular_weights_.data(),
-        num_mappings_,
-        num_mechanism_species_);
+    run_megan3_fortran(dv_temp.view_host().data(), dv_lai.view_host().data(), lai_prev_ptr, dv_pardr.view_host().data(), dv_pardf.view_host().data(),
+                       dv_suncos.view_host().data(), soil_moisture_ptr, wind_speed_ptr, soil_nox_ptr, output_buffer.data(), nx, ny, nz,
+                       num_mechanism_species_, scale_factors_.data(), class_indices_.data(), mechanism_indices_.data(), molecular_weights_.data(),
+                       num_mappings_, num_mechanism_species_);
 
     // ---- Copy output buffer to export state fields ----
     int cells_per_species = nx * ny * nz;

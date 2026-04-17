@@ -14,9 +14,9 @@
  * replacing the existing "soil_nox_fortran" registration.
  */
 
-#include "cece/physics_scheme.hpp"
-
 #include <string>
+
+#include "cece/physics_scheme.hpp"
 
 namespace cece {
 

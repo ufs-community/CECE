@@ -14,8 +14,9 @@
  * pattern as the existing gamma functions in cece_megan.cpp.
  */
 
-#include <Kokkos_Core.hpp>
 #include <yaml-cpp/yaml.h>
+
+#include <Kokkos_Core.hpp>
 
 namespace cece {
 
@@ -42,10 +43,8 @@ struct CanopyLayerResult {
 // ============================================================================
 
 KOKKOS_INLINE_FUNCTION
-double compute_canopy_par(
-    double par_direct, double par_diffuse, double lai, double suncos,
-    double extinction_coeff, int layer_idx,
-    const double* gauss_weights, const double* gauss_points) {
+double compute_canopy_par(double par_direct, double par_diffuse, double lai, double suncos, double extinction_coeff, int layer_idx,
+                          const double* gauss_weights, const double* gauss_points) {
     // Canopy depth at this Gaussian quadrature point (fraction of total LAI)
     double depth = gauss_points[layer_idx];
 
@@ -64,9 +63,7 @@ double compute_canopy_par(
 }
 
 KOKKOS_INLINE_FUNCTION
-double compute_leaf_temperature(
-    double air_temp, double par_absorbed, double wind_speed, double lai,
-    int layer_idx, const double* gauss_points) {
+double compute_leaf_temperature(double air_temp, double par_absorbed, double wind_speed, double lai, int layer_idx, const double* gauss_points) {
     // Energy balance: T_leaf = T_air + delta_T
     // delta_T depends on absorbed radiation and wind-driven convective cooling
 
@@ -103,12 +100,9 @@ double compute_leaf_temperature(
 }
 
 KOKKOS_INLINE_FUNCTION
-double integrate_canopy_emission(
-    double par_direct, double par_diffuse, double lai, double suncos,
-    double air_temp, double wind_speed, double extinction_coeff,
-    const double* gauss_weights, const double* gauss_points,
-    double ct1, double ceo, double pt_15, double gas_constant, double ct2,
-    double t_opt_c1, double t_opt_c2, double e_opt_coeff) {
+double integrate_canopy_emission(double par_direct, double par_diffuse, double lai, double suncos, double air_temp, double wind_speed,
+                                 double extinction_coeff, const double* gauss_weights, const double* gauss_points, double ct1, double ceo,
+                                 double pt_15, double gas_constant, double ct2, double t_opt_c1, double t_opt_c2, double e_opt_coeff) {
     constexpr int NUM_LAYERS = 5;
 
     // Nighttime: all light-dependent factors are zero
@@ -120,10 +114,7 @@ double integrate_canopy_emission(
 
     for (int layer = 0; layer < NUM_LAYERS; ++layer) {
         // Compute PAR at this canopy layer
-        double par_layer = compute_canopy_par(
-            par_direct, par_diffuse, lai, suncos,
-            extinction_coeff, layer,
-            gauss_weights, gauss_points);
+        double par_layer = compute_canopy_par(par_direct, par_diffuse, lai, suncos, extinction_coeff, layer, gauss_weights, gauss_points);
 
         // Compute sunlit fraction at this layer: f_sun = exp(-k * LAI * depth / suncos)
         double depth = gauss_points[layer];
@@ -139,31 +130,25 @@ double integrate_canopy_emission(
         double par_shaded = par_diffuse * std::exp(-extinction_coeff * cum_lai);
 
         // Compute leaf temperatures via energy balance
-        double t_leaf_sunlit = compute_leaf_temperature(
-            air_temp, par_sunlit, wind_speed, lai, layer, gauss_points);
-        double t_leaf_shaded = compute_leaf_temperature(
-            air_temp, par_shaded, wind_speed, lai, layer, gauss_points);
+        double t_leaf_sunlit = compute_leaf_temperature(air_temp, par_sunlit, wind_speed, lai, layer, gauss_points);
+        double t_leaf_shaded = compute_leaf_temperature(air_temp, par_shaded, wind_speed, lai, layer, gauss_points);
 
         // Compute temperature-dependent gamma at each leaf temperature
         // Using the Guenther et al. (2012) light-dependent temperature response
         double e_opt_sun = ceo * std::exp(e_opt_coeff * (pt_15 - 297.0));
         double t_opt_sun = t_opt_c1 + t_opt_c2 * (pt_15 - 297.0);
         double x_sun = (1.0 / t_opt_sun - 1.0 / t_leaf_sunlit) / gas_constant;
-        double gamma_t_sun = e_opt_sun * ct2 * std::exp(ct1 * x_sun) /
-                             (ct2 - ct1 * (1.0 - std::exp(ct2 * x_sun)));
+        double gamma_t_sun = e_opt_sun * ct2 * std::exp(ct1 * x_sun) / (ct2 - ct1 * (1.0 - std::exp(ct2 * x_sun)));
         gamma_t_sun = std::max(gamma_t_sun, 0.0);
 
         double x_shade = (1.0 / t_opt_sun - 1.0 / t_leaf_shaded) / gas_constant;
-        double gamma_t_shade = e_opt_sun * ct2 * std::exp(ct1 * x_shade) /
-                               (ct2 - ct1 * (1.0 - std::exp(ct2 * x_shade)));
+        double gamma_t_shade = e_opt_sun * ct2 * std::exp(ct1 * x_shade) / (ct2 - ct1 * (1.0 - std::exp(ct2 * x_shade)));
         gamma_t_shade = std::max(gamma_t_shade, 0.0);
 
         // Weighted contribution from this layer
         // Sunlit contribution: fraction_sunlit * PAR_sunlit * gamma_T_sunlit
         // Shaded contribution: fraction_shaded * PAR_shaded * gamma_T_shaded
-        double layer_activity =
-            frac_sunlit * par_sunlit * gamma_t_sun +
-            frac_shaded * par_shaded * gamma_t_shade;
+        double layer_activity = frac_sunlit * par_sunlit * gamma_t_sun + frac_shaded * par_shaded * gamma_t_shade;
 
         canopy_activity += gauss_weights[layer] * layer_activity;
     }
@@ -212,7 +197,9 @@ class CanopyModel {
 
    public:
     /// Get the extinction coefficient for use in Kokkos kernels.
-    double extinction_coeff() const { return extinction_coeff_; }
+    double extinction_coeff() const {
+        return extinction_coeff_;
+    }
 };
 
 }  // namespace cece

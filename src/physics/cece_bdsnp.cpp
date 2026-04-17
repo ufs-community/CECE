@@ -113,8 +113,7 @@ double bdsnp_moisture_factor(double soil_moisture) {
  * @return Fertilization enhancement factor (dimensionless, >= 1.0)
  */
 KOKKOS_INLINE_FUNCTION
-double bdsnp_ndep_factor(double ndep, double fert_emission_factor,
-                         double wet_dep_scaling, double dry_dep_scaling) {
+double bdsnp_ndep_factor(double ndep, double fert_emission_factor, double wet_dep_scaling, double dry_dep_scaling) {
     // Combined wet + dry deposition contribution
     double dep_contribution = ndep * (wet_dep_scaling + dry_dep_scaling);
     return 1.0 + fert_emission_factor * dep_contribution;
@@ -141,8 +140,7 @@ double bdsnp_canopy_reduction(double lai) {
 // Initialize
 // ============================================================================
 
-void BdsnpScheme::Initialize(const YAML::Node& config,
-                             CeceDiagnosticManager* diag_manager) {
+void BdsnpScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
     // Call base class to parse input_mapping, output_mapping, diagnostics
     BasePhysicsScheme::Initialize(config, diag_manager);
 
@@ -152,8 +150,7 @@ void BdsnpScheme::Initialize(const YAML::Node& config,
         soil_no_method_ = config["soil_no_method"].as<std::string>();
     }
     if (soil_no_method_ != "bdsnp" && soil_no_method_ != "yl95") {
-        std::cout << "BdsnpScheme: WARNING - Unknown soil_no_method '"
-                  << soil_no_method_ << "', falling back to 'bdsnp'\n";
+        std::cout << "BdsnpScheme: WARNING - Unknown soil_no_method '" << soil_no_method_ << "', falling back to 'bdsnp'\n";
         soil_no_method_ = "bdsnp";
     }
 
@@ -213,49 +210,42 @@ void BdsnpScheme::Initialize(const YAML::Node& config,
     if (config["fert_emission_factor"]) {
         fert_emission_factor_ = config["fert_emission_factor"].as<double>();
     } else {
-        std::cout << "BdsnpScheme: Using default fert_emission_factor = "
-                  << fert_emission_factor_ << "\n";
+        std::cout << "BdsnpScheme: Using default fert_emission_factor = " << fert_emission_factor_ << "\n";
     }
 
     if (config["wet_dep_scaling"]) {
         wet_dep_scaling_ = config["wet_dep_scaling"].as<double>();
     } else {
-        std::cout << "BdsnpScheme: Using default wet_dep_scaling = "
-                  << wet_dep_scaling_ << "\n";
+        std::cout << "BdsnpScheme: Using default wet_dep_scaling = " << wet_dep_scaling_ << "\n";
     }
 
     if (config["dry_dep_scaling"]) {
         dry_dep_scaling_ = config["dry_dep_scaling"].as<double>();
     } else {
-        std::cout << "BdsnpScheme: Using default dry_dep_scaling = "
-                  << dry_dep_scaling_ << "\n";
+        std::cout << "BdsnpScheme: Using default dry_dep_scaling = " << dry_dep_scaling_ << "\n";
     }
 
     if (config["pulse_decay_constant"]) {
         pulse_decay_constant_ = config["pulse_decay_constant"].as<double>();
     } else {
-        std::cout << "BdsnpScheme: Using default pulse_decay_constant = "
-                  << pulse_decay_constant_ << "\n";
+        std::cout << "BdsnpScheme: Using default pulse_decay_constant = " << pulse_decay_constant_ << "\n";
     }
 
-    std::cout << "BdsnpScheme: Initialized with soil_no_method='"
-              << soil_no_method_ << "'\n";
+    std::cout << "BdsnpScheme: Initialized with soil_no_method='" << soil_no_method_ << "'\n";
 }
 
 // ============================================================================
 // Run
 // ============================================================================
 
-void BdsnpScheme::Run(CeceImportState& import_state,
-                      CeceExportState& export_state) {
+void BdsnpScheme::Run(CeceImportState& import_state, CeceExportState& export_state) {
     // ---- Resolve import fields ----
     auto soil_temp = ResolveImport("soil_temperature", import_state);
     auto soil_moisture = ResolveImport("soil_moisture", import_state);
     auto soil_nox = ResolveExport("soil_nox_emissions", export_state);
 
     // Early return if required fields are null
-    if (soil_temp.data() == nullptr || soil_moisture.data() == nullptr ||
-        soil_nox.data() == nullptr) {
+    if (soil_temp.data() == nullptr || soil_moisture.data() == nullptr || soil_nox.data() == nullptr) {
         return;
     }
 
@@ -275,10 +265,7 @@ void BdsnpScheme::Run(CeceImportState& import_state,
         double wet_c2 = wet_c2_;
 
         Kokkos::parallel_for(
-            "BdsnpKernel_YL95",
-            Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<2>>(
-                {0, 0}, {nx, ny}),
-            KOKKOS_LAMBDA(int i, int j) {
+            "BdsnpKernel_YL95", Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<2>>({0, 0}, {nx, ny}), KOKKOS_LAMBDA(int i, int j) {
                 double tc = soil_temp(i, j, 0) - 273.15;
                 double gw = soil_moisture(i, j, 0);
 
@@ -324,9 +311,7 @@ void BdsnpScheme::Run(CeceImportState& import_state,
         const double UNITCONV = 1.0e-12 / 14.0 * MW_NO;  // ng N -> kg NO
 
         Kokkos::parallel_for(
-            "BdsnpKernel_BDSNP",
-            Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<2>>(
-                {0, 0}, {nx, ny}),
+            "BdsnpKernel_BDSNP", Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<2>>({0, 0}, {nx, ny}),
             KOKKOS_LAMBDA(int i, int j) {
                 double tc = soil_temp(i, j, 0) - 273.15;
 
@@ -349,8 +334,7 @@ void BdsnpScheme::Run(CeceImportState& import_state,
 
                 // Nitrogen deposition fertilization
                 double ndep_val = has_ndep ? ndep(i, j, 0) : 0.0;
-                double fert_factor = bdsnp_ndep_factor(ndep_val, fert_ef,
-                                                       wet_dep_s, dry_dep_s);
+                double fert_factor = bdsnp_ndep_factor(ndep_val, fert_ef, wet_dep_s, dry_dep_s);
 
                 // Canopy reduction
                 double lai_val = has_lai ? lai(i, j, 0) : 0.0;
@@ -360,8 +344,7 @@ void BdsnpScheme::Run(CeceImportState& import_state,
                 double pulse = std::exp(-pulse_decay * 0.0);  // No prior rain info
 
                 // Total BDSNP emission [kg NO/m2/s]
-                double emiss = base_ef * UNITCONV * t_response * sm_factor
-                             * fert_factor * canopy_red * pulse;
+                double emiss = base_ef * UNITCONV * t_response * sm_factor * fert_factor * canopy_red * pulse;
                 soil_nox(i, j, 0) += emiss;
             });
     }

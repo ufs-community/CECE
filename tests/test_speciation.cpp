@@ -10,11 +10,11 @@
  * 17. Speciation Accumulation Determinism (Requirements 10.2)
  */
 
-#include <Kokkos_Core.hpp>
 #include <gtest/gtest.h>
 #include <rapidcheck.h>
 #include <rapidcheck/gtest.h>
 
+#include <Kokkos_Core.hpp>
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
@@ -43,23 +43,17 @@ namespace cece {
 /// Note: "NO" is excluded because yaml-cpp YAML 1.1 interprets unquoted "NO"
 /// as boolean false, causing parsing issues even when quoted in some versions.
 /// The "NO" class is tested separately in the real data file tests.
-static const std::vector<std::string> kValidEmissionClasses = {
-    "ISOP",   "MBO",    "MT_PINE", "MT_ACYC", "MT_CAMP", "MT_SABI", "MT_AROM",
-    "SQT_HR", "SQT_LR",  "MEOH",    "ACTO",    "ETOH",    "ACID",
-    "LVOC",   "OXPROD", "STRESS",  "OTHER",   "CO"};
+static const std::vector<std::string> kValidEmissionClasses = {"ISOP",    "MBO",    "MT_PINE", "MT_ACYC", "MT_CAMP", "MT_SABI",
+                                                               "MT_AROM", "SQT_HR", "SQT_LR",  "MEOH",    "ACTO",    "ETOH",
+                                                               "ACID",    "LVOC",   "OXPROD",  "STRESS",  "OTHER",   "CO"};
 
 /// Generate a random alphanumeric string of given length.
 static std::string GenAlphaString(std::size_t len) {
-    static const std::vector<char> kAlphaNum = {
-        'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J',
-        'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T',
-        'U', 'V', 'W', 'X', 'Y', 'Z',
-        'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j',
-        'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't',
-        'u', 'v', 'w', 'x', 'y', 'z',
-        '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
-    auto chars = *rc::gen::container<std::string>(
-        len, rc::gen::elementOf(kAlphaNum));
+    static const std::vector<char> kAlphaNum = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P',
+                                                'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd', 'e', 'f',
+                                                'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v',
+                                                'w', 'x', 'y', 'z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
+    auto chars = *rc::gen::container<std::string>(len, rc::gen::elementOf(kAlphaNum));
     return chars;
 }
 
@@ -74,7 +68,9 @@ struct TempFile {
         ofs << content;
         ofs.close();
     }
-    ~TempFile() { std::remove(path.c_str()); }
+    ~TempFile() {
+        std::remove(path.c_str());
+    }
 };
 
 /// Write a SpeciationConfig to mechanism + mapping YAML temp files (new dataset-oriented format).
@@ -88,8 +84,7 @@ static std::pair<std::string, std::string> ConfigToYamlPair(const SpeciationConf
     for (const auto& sp : config.species) {
         mech_out << YAML::BeginMap;
         mech_out << YAML::Key << "name" << YAML::Value << sp.name;
-        mech_out << YAML::Key << "molecular weight [kg mol-1]" << YAML::Value
-                 << (sp.molecular_weight / 1000.0);
+        mech_out << YAML::Key << "molecular weight [kg mol-1]" << YAML::Value << (sp.molecular_weight / 1000.0);
         mech_out << YAML::EndMap;
     }
     mech_out << YAML::EndSeq;
@@ -112,8 +107,8 @@ static std::pair<std::string, std::string> ConfigToYamlPair(const SpeciationConf
         // Quote all keys to avoid YAML 1.1 boolean/null interpretation
         map_ss << "    \"" << mech_sp << "\":\n";
         for (const auto* mp : mapping_ptrs) {
-            map_ss << "      \"" << EmissionClassToString(mp->emission_class)
-                   << "\": " << std::fixed << std::setprecision(6) << mp->scale_factor << "\n";
+            map_ss << "      \"" << EmissionClassToString(mp->emission_class) << "\": " << std::fixed << std::setprecision(6) << mp->scale_factor
+                   << "\n";
         }
     }
 
@@ -338,8 +333,7 @@ RC_GTEST_PROP(SpeciationProperty, Property3_MechanismFileMissingName, ()) {
     for (const auto& sp : config.species) {
         mech_out << YAML::BeginMap;
         mech_out << YAML::Key << "name" << YAML::Value << sp.name;
-        mech_out << YAML::Key << "molecular weight [kg mol-1]" << YAML::Value
-                 << (sp.molecular_weight / 1000.0);
+        mech_out << YAML::Key << "molecular weight [kg mol-1]" << YAML::Value << (sp.molecular_weight / 1000.0);
         mech_out << YAML::EndMap;
     }
     mech_out << YAML::EndSeq;
@@ -410,9 +404,7 @@ RC_GTEST_PROP(SpeciationProperty, Property3_NonPositiveMolecularWeight, ()) {
     for (int i = 0; i < static_cast<int>(config.species.size()); ++i) {
         mech_out << YAML::BeginMap;
         mech_out << YAML::Key << "name" << YAML::Value << config.species[static_cast<std::size_t>(i)].name;
-        double mw_kg = (i == bad_idx)
-                           ? bad_mw
-                           : (config.species[static_cast<std::size_t>(i)].molecular_weight / 1000.0);
+        double mw_kg = (i == bad_idx) ? bad_mw : (config.species[static_cast<std::size_t>(i)].molecular_weight / 1000.0);
         mech_out << YAML::Key << "molecular weight [kg mol-1]" << YAML::Value << mw_kg;
         mech_out << YAML::EndMap;
     }
@@ -595,11 +587,8 @@ static rc::Gen<SpeciationConfig> genMultiMappingConfig() {
 /// Helper to run the speciation engine and collect output into a map of
 /// mechanism species name -> accumulated value across all grid cells.
 static std::unordered_map<std::string, double> RunEngineAndCollect(
-    SpeciationEngine& engine,
-    const Kokkos::View<const double**, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>& class_totals,
-    const std::vector<std::string>& mech_names,
-    int nx, int ny) {
-
+    SpeciationEngine& engine, const Kokkos::View<const double**, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>& class_totals,
+    const std::vector<std::string>& mech_names, int nx, int ny) {
     CeceExportState export_state;
     for (const auto& name : mech_names) {
         std::string field_name = "MEGAN_" + name;
@@ -648,8 +637,7 @@ RC_GTEST_PROP(SpeciationProperty, Property10_PipelineCorrectness, ()) {
     int num_cells = 1;
 
     // Generate 19 non-negative class totals
-    Kokkos::View<double**, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
-        class_totals_rw("class_totals", 19, num_cells);
+    Kokkos::View<double**, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> class_totals_rw("class_totals", 19, num_cells);
     auto h_ct = Kokkos::create_mirror_view(class_totals_rw);
 
     for (int c = 0; c < 19; ++c) {
@@ -657,8 +645,7 @@ RC_GTEST_PROP(SpeciationProperty, Property10_PipelineCorrectness, ()) {
     }
     Kokkos::deep_copy(class_totals_rw, h_ct);
 
-    Kokkos::View<const double**, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
-        class_totals = class_totals_rw;
+    Kokkos::View<const double**, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> class_totals = class_totals_rw;
 
     auto results = RunEngineAndCollect(engine, class_totals, mech_names, nx, ny);
 
@@ -706,8 +693,7 @@ RC_GTEST_PROP(SpeciationProperty, Property10_SimpleConfigCorrectness, ()) {
     int nx = 2, ny = 2;
     int num_cells = nx * ny;
 
-    Kokkos::View<double**, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
-        class_totals_rw("class_totals", 19, num_cells);
+    Kokkos::View<double**, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> class_totals_rw("class_totals", 19, num_cells);
     auto h_ct = Kokkos::create_mirror_view(class_totals_rw);
 
     for (int c = 0; c < 19; ++c) {
@@ -717,8 +703,7 @@ RC_GTEST_PROP(SpeciationProperty, Property10_SimpleConfigCorrectness, ()) {
     }
     Kokkos::deep_copy(class_totals_rw, h_ct);
 
-    Kokkos::View<const double**, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
-        class_totals = class_totals_rw;
+    Kokkos::View<const double**, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> class_totals = class_totals_rw;
 
     auto results = RunEngineAndCollect(engine, class_totals, mech_names, nx, ny);
 
@@ -766,8 +751,7 @@ RC_GTEST_PROP(SpeciationProperty, Property17_AccumulationDeterminism, ()) {
     int nx = 3, ny = 3;
     int num_cells = nx * ny;
 
-    Kokkos::View<double**, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
-        class_totals_rw("class_totals", 19, num_cells);
+    Kokkos::View<double**, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> class_totals_rw("class_totals", 19, num_cells);
     auto h_ct = Kokkos::create_mirror_view(class_totals_rw);
 
     for (int c = 0; c < 19; ++c) {
@@ -777,8 +761,7 @@ RC_GTEST_PROP(SpeciationProperty, Property17_AccumulationDeterminism, ()) {
     }
     Kokkos::deep_copy(class_totals_rw, h_ct);
 
-    Kokkos::View<const double**, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
-        class_totals = class_totals_rw;
+    Kokkos::View<const double**, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> class_totals = class_totals_rw;
 
     // Run 1
     auto results1 = RunEngineAndCollect(engine, class_totals, mech_names, nx, ny);
@@ -810,14 +793,10 @@ class CB6ConfigLoadingTest : public ::testing::Test {
 
 TEST_F(CB6ConfigLoadingTest, LoadCB6SpeciationConfig) {
     SpeciationConfigLoader loader;
-    SpeciationConfig config = loader.Load(
-        "data/speciation/spc_cb6.yaml",
-        "data/speciation/map_cb6.yaml",
-        "MEGAN");
+    SpeciationConfig config = loader.Load("data/speciation/spc_cb6.yaml", "data/speciation/map_cb6.yaml", "MEGAN");
 
     // CB6_AE7 mechanism should have 36 species
-    EXPECT_EQ(config.species.size(), 36u)
-        << "CB6_AE7 mechanism should define 36 species";
+    EXPECT_EQ(config.species.size(), 36u) << "CB6_AE7 mechanism should define 36 species";
 
     // Mechanism name should match
     EXPECT_EQ(config.mechanism_name, "CB6_AE7");
@@ -826,8 +805,7 @@ TEST_F(CB6ConfigLoadingTest, LoadCB6SpeciationConfig) {
     EXPECT_EQ(config.dataset_name, "MEGAN");
 
     // Should have 53 class-to-mechanism mappings
-    EXPECT_EQ(config.mappings.size(), 53u)
-        << "CB6 MAP file should define 53 emission class mappings";
+    EXPECT_EQ(config.mappings.size(), 53u) << "CB6 MAP file should define 53 emission class mappings";
 
     // Verify a few known species exist with correct molecular weights
     bool found_isop = false;

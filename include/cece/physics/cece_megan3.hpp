@@ -15,15 +15,14 @@
  */
 
 #include <Kokkos_Core.hpp>
-
 #include <string>
 #include <vector>
 
-#include "cece/physics_scheme.hpp"
 #include "cece/physics/cece_canopy_model.hpp"
 #include "cece/physics/cece_emission_activity.hpp"
 #include "cece/physics/cece_speciation_config.hpp"
 #include "cece/physics/cece_speciation_engine.hpp"
+#include "cece/physics_scheme.hpp"
 
 namespace cece {
 
@@ -74,11 +73,9 @@ class Megan3Scheme : public BasePhysicsScheme {
     static constexpr int NUM_CLASSES = 19;
 
     /// Canonical emission class names in index order.
-    static constexpr const char* CLASS_NAMES[19] = {
-        "ISOP", "MBO", "MT_PINE", "MT_ACYC", "MT_CAMP", "MT_SABI", "MT_AROM",
-        "NO", "SQT_HR", "SQT_LR", "MEOH", "ACTO", "ETOH", "ACID",
-        "LVOC", "OXPROD", "STRESS", "OTHER", "CO"
-    };
+    static constexpr const char* CLASS_NAMES[19] = {"ISOP", "MBO",    "MT_PINE", "MT_ACYC", "MT_CAMP", "MT_SABI", "MT_AROM",
+                                                    "NO",   "SQT_HR", "SQT_LR",  "MEOH",    "ACTO",    "ETOH",    "ACID",
+                                                    "LVOC", "OXPROD", "STRESS",  "OTHER",   "CO"};
 
     /// @}
 

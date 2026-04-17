@@ -13,11 +13,11 @@
  * 17. Missing Configuration Parameters Use Documented Defaults (Requirements 12.5, 14.5)
  */
 
-#include <Kokkos_Core.hpp>
 #include <gtest/gtest.h>
 #include <rapidcheck.h>
 #include <rapidcheck/gtest.h>
 
+#include <Kokkos_Core.hpp>
 #include <cmath>
 #include <cstring>
 #include <numbers>
@@ -38,12 +38,10 @@ namespace cece {
 
 /// 5-point Gaussian-Legendre quadrature points on [0,1] (sorted increasing).
 /// Deeper layers have higher indices.
-static constexpr double kGaussPoints[5] = {
-    0.04691008, 0.23076534, 0.5, 0.76923466, 0.95308992};
+static constexpr double kGaussPoints[5] = {0.04691008, 0.23076534, 0.5, 0.76923466, 0.95308992};
 
 /// 5-point Gaussian-Legendre quadrature weights on [0,1].
-static constexpr double kGaussWeights[5] = {
-    0.11846345, 0.23931434, 0.28444444, 0.23931434, 0.11846345};
+static constexpr double kGaussWeights[5] = {0.11846345, 0.23931434, 0.28444444, 0.23931434, 0.11846345};
 
 // ============================================================================
 // Property 5: Canopy PAR Monotonic Decrease
@@ -72,10 +70,7 @@ RC_GTEST_PROP(CanopyProperty, Property5_PARMonotonicDecrease, ()) {
     // Compute PAR at each of the 5 layers
     double par_values[5];
     for (int layer = 0; layer < 5; ++layer) {
-        par_values[layer] = compute_canopy_par(
-            par_direct, par_diffuse, lai, suncos,
-            extinction_coeff, layer,
-            kGaussWeights, kGaussPoints);
+        par_values[layer] = compute_canopy_par(par_direct, par_diffuse, lai, suncos, extinction_coeff, layer, kGaussWeights, kGaussPoints);
     }
 
     // Assert monotonic decrease: PAR at layer k+1 <= PAR at layer k
@@ -147,12 +142,8 @@ RC_GTEST_PROP(CanopyProperty, Property7_NighttimeZeroOutput, ()) {
     double t_opt_c2 = 0.6;
     double e_opt_coeff = 0.05;
 
-    double result = integrate_canopy_emission(
-        par_direct, par_diffuse, lai, suncos,
-        air_temp, wind_speed, extinction_coeff,
-        kGaussWeights, kGaussPoints,
-        ct1, ceo, pt_15, gas_constant, ct2,
-        t_opt_c1, t_opt_c2, e_opt_coeff);
+    double result = integrate_canopy_emission(par_direct, par_diffuse, lai, suncos, air_temp, wind_speed, extinction_coeff, kGaussWeights,
+                                              kGaussPoints, ct1, ceo, pt_15, gas_constant, ct2, t_opt_c1, t_opt_c2, e_opt_coeff);
 
     RC_ASSERT(result == 0.0);
 }
@@ -169,23 +160,18 @@ static double test_gamma_t_li(double temp, double beta, double t_standard) {
 }
 
 /// Light-dependent temperature gamma (Guenther et al. 2012)
-static double test_gamma_t_ld(double T, double PT_15, double CT1, double CEO,
-                               double R, double CT2, double t_opt_c1,
-                               double t_opt_c2, double e_opt_coeff) {
+static double test_gamma_t_ld(double T, double PT_15, double CT1, double CEO, double R, double CT2, double t_opt_c1, double t_opt_c2,
+                              double e_opt_coeff) {
     double e_opt = CEO * std::exp(e_opt_coeff * (PT_15 - 297.0));
     double t_opt = t_opt_c1 + t_opt_c2 * (PT_15 - 297.0);
     double x = (1.0 / t_opt - 1.0 / T) / R;
-    double c_t = e_opt * CT2 * std::exp(CT1 * x) /
-                 (CT2 - CT1 * (1.0 - std::exp(CT2 * x)));
+    double c_t = e_opt * CT2 * std::exp(CT1 * x) / (CT2 - CT1 * (1.0 - std::exp(CT2 * x)));
     return std::max(c_t, 0.0);
 }
 
 /// PAR gamma (PCEEA algorithm)
-static double test_gamma_par_pceea(double q_dir, double q_diff, double par_avg,
-                                    double suncos, int doy, double wm2_to_umol,
-                                    double ptoa_c1, double ptoa_c2,
-                                    double gamma_p_c1, double gamma_p_c2,
-                                    double gamma_p_c3, double gamma_p_c4) {
+static double test_gamma_par_pceea(double q_dir, double q_diff, double par_avg, double suncos, int doy, double wm2_to_umol, double ptoa_c1,
+                                   double ptoa_c2, double gamma_p_c1, double gamma_p_c2, double gamma_p_c3, double gamma_p_c4) {
     const double PI = std::numbers::pi;
     if (suncos <= 0.0) return 0.0;
     double pac_instant = (q_dir + q_diff) * wm2_to_umol;
@@ -202,8 +188,10 @@ static double test_gamma_par_pceea(double q_dir, double q_diff, double par_avg,
 static double test_gamma_lai(double lai, double c1, double c2, bool is_bidirectional) {
     if (is_bidirectional) {
         if (lai <= 6.0) {
-            if (lai <= 2.0) return 0.5 * lai;
-            else return 1.0 - 0.0625 * (lai - 2.0);
+            if (lai <= 2.0)
+                return 0.5 * lai;
+            else
+                return 1.0 - 0.0625 * (lai - 2.0);
         }
         return 0.75;
     }
@@ -211,24 +199,30 @@ static double test_gamma_lai(double lai, double c1, double c2, bool is_bidirecti
 }
 
 /// Leaf age gamma — returns gamma_age value
-static double test_gamma_age(double cmlai, double pmlai, double dbtwn,
-                              double tt, double an, double ag, double am,
-                              double ao) {
+static double test_gamma_age(double cmlai, double pmlai, double dbtwn, double tt, double an, double ag, double am, double ao) {
     double fnew = 0.0, fgro = 0.0, fmat = 0.0, fold = 0.0;
     double ti = (tt <= 303.0) ? (5.0 + 0.7 * (300.0 - tt)) : 2.9;
     double tm = 2.3 * ti;
 
     if (cmlai == pmlai) {
-        fnew = 0.0; fgro = 0.1; fmat = 0.8; fold = 0.1;
+        fnew = 0.0;
+        fgro = 0.1;
+        fmat = 0.8;
+        fold = 0.1;
     } else if (cmlai > pmlai) {
-        if (dbtwn > ti) fnew = (ti / dbtwn) * (1.0 - pmlai / cmlai);
-        else fnew = 1.0 - (pmlai / cmlai);
-        if (dbtwn > tm) fmat = (pmlai / cmlai) + ((dbtwn - tm) / dbtwn) * (1.0 - pmlai / cmlai);
-        else fmat = pmlai / cmlai;
+        if (dbtwn > ti)
+            fnew = (ti / dbtwn) * (1.0 - pmlai / cmlai);
+        else
+            fnew = 1.0 - (pmlai / cmlai);
+        if (dbtwn > tm)
+            fmat = (pmlai / cmlai) + ((dbtwn - tm) / dbtwn) * (1.0 - pmlai / cmlai);
+        else
+            fmat = pmlai / cmlai;
         fgro = 1.0 - fnew - fmat;
         fold = 0.0;
     } else {
-        fnew = 0.0; fgro = 0.0;
+        fnew = 0.0;
+        fgro = 0.0;
         fold = (pmlai - cmlai) / pmlai;
         fmat = 1.0 - fold;
     }
@@ -236,24 +230,33 @@ static double test_gamma_age(double cmlai, double pmlai, double dbtwn,
 }
 
 /// Leaf age fractions — returns the four fractions for sum-to-unity testing
-static void test_leaf_age_fractions(double cmlai, double pmlai, double dbtwn,
-                                     double tt, double& fnew, double& fgro,
-                                     double& fmat, double& fold) {
-    fnew = 0.0; fgro = 0.0; fmat = 0.0; fold = 0.0;
+static void test_leaf_age_fractions(double cmlai, double pmlai, double dbtwn, double tt, double& fnew, double& fgro, double& fmat, double& fold) {
+    fnew = 0.0;
+    fgro = 0.0;
+    fmat = 0.0;
+    fold = 0.0;
     double ti = (tt <= 303.0) ? (5.0 + 0.7 * (300.0 - tt)) : 2.9;
     double tm = 2.3 * ti;
 
     if (cmlai == pmlai) {
-        fnew = 0.0; fgro = 0.1; fmat = 0.8; fold = 0.1;
+        fnew = 0.0;
+        fgro = 0.1;
+        fmat = 0.8;
+        fold = 0.1;
     } else if (cmlai > pmlai) {
-        if (dbtwn > ti) fnew = (ti / dbtwn) * (1.0 - pmlai / cmlai);
-        else fnew = 1.0 - (pmlai / cmlai);
-        if (dbtwn > tm) fmat = (pmlai / cmlai) + ((dbtwn - tm) / dbtwn) * (1.0 - pmlai / cmlai);
-        else fmat = pmlai / cmlai;
+        if (dbtwn > ti)
+            fnew = (ti / dbtwn) * (1.0 - pmlai / cmlai);
+        else
+            fnew = 1.0 - (pmlai / cmlai);
+        if (dbtwn > tm)
+            fmat = (pmlai / cmlai) + ((dbtwn - tm) / dbtwn) * (1.0 - pmlai / cmlai);
+        else
+            fmat = pmlai / cmlai;
         fgro = 1.0 - fnew - fmat;
         fold = 0.0;
     } else {
-        fnew = 0.0; fgro = 0.0;
+        fnew = 0.0;
+        fgro = 0.0;
         fold = (pmlai - cmlai) / pmlai;
         fmat = 1.0 - fold;
     }
@@ -385,14 +388,11 @@ RC_GTEST_PROP(EmissionActivityProperty, Property8_AllGammaFactorsNonNegative, ()
     RC_ASSERT(g_t_li >= 0.0);
 
     // ---- Test gamma_t_ld (light-dependent temperature) ----
-    double g_t_ld = test_gamma_t_ld(temp, pt_15, ct1, cleo, gas_constant,
-                                     ct2, t_opt_c1, t_opt_c2, e_opt_coeff);
+    double g_t_ld = test_gamma_t_ld(temp, pt_15, ct1, cleo, gas_constant, ct2, t_opt_c1, t_opt_c2, e_opt_coeff);
     RC_ASSERT(g_t_ld >= 0.0);
 
     // ---- Test gamma_par (PAR) ----
-    double g_par = test_gamma_par_pceea(par_direct, par_diffuse, par_avg,
-                                         suncos, doy, wm2_to_umol, ptoa_c1,
-                                         ptoa_c2, gp_c1, gp_c2, gp_c3, gp_c4);
+    double g_par = test_gamma_par_pceea(par_direct, par_diffuse, par_avg, suncos, doy, wm2_to_umol, ptoa_c1, ptoa_c2, gp_c1, gp_c2, gp_c3, gp_c4);
     RC_ASSERT(g_par >= 0.0);
 
     // ---- Test gamma_lai (LAI) ----
@@ -409,8 +409,7 @@ RC_GTEST_PROP(EmissionActivityProperty, Property8_AllGammaFactorsNonNegative, ()
     // cmlai < pmlai cases separately.
     double cmlai_safe = std::max(lai, 0.001);
     double pmlai_safe = std::max(pmlai, 0.001);
-    double g_age = test_gamma_age(cmlai_safe, pmlai_safe, dbtwn, temp,
-                                   anew, agro, amat, aold);
+    double g_age = test_gamma_age(cmlai_safe, pmlai_safe, dbtwn, temp, anew, agro, amat, aold);
     RC_ASSERT(g_age >= 0.0);
 
     // ---- Test gamma_sm (soil moisture) ----
@@ -478,17 +477,14 @@ RC_GTEST_PROP(EmissionActivityProperty, Property9_LeafAgeFractionsSumToUnity, ()
 // ============================================================================
 
 /// Valid emission class names for generating speciation configs.
-static const std::vector<std::string> kValidEmissionClasses = {
-    "ISOP",   "MBO",    "MT_PINE", "MT_ACYC", "MT_CAMP", "MT_SABI", "MT_AROM",
-    "NO",     "SQT_HR", "SQT_LR",  "MEOH",    "ACTO",    "ETOH",    "ACID",
-    "LVOC",   "OXPROD", "STRESS",  "OTHER",   "CO"};
+static const std::vector<std::string> kValidEmissionClasses = {"ISOP", "MBO",    "MT_PINE", "MT_ACYC", "MT_CAMP", "MT_SABI", "MT_AROM",
+                                                               "NO",   "SQT_HR", "SQT_LR",  "MEOH",    "ACTO",    "ETOH",    "ACID",
+                                                               "LVOC", "OXPROD", "STRESS",  "OTHER",   "CO"};
 
 /// Generate a random alphanumeric string of given length.
 static std::string GenAlpha(std::size_t len) {
-    static const std::vector<char> kChars = {
-        'A','B','C','D','E','F','G','H','I','J','K','L','M',
-        'N','O','P','Q','R','S','T','U','V','W','X','Y','Z',
-        '0','1','2','3','4','5','6','7','8','9'};
+    static const std::vector<char> kChars = {'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R',
+                                             'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', '0', '1', '2', '3', '4', '5', '6', '7', '8', '9'};
     auto chars = *rc::gen::container<std::string>(len, rc::gen::elementOf(kChars));
     return chars;
 }
@@ -603,16 +599,12 @@ RC_GTEST_PROP(Megan3SchemeProperty, Property17_MissingConfigDefaultValues, ()) {
     static constexpr bool kDefaultAqStress = false;
 
     // Documented default LDF values per class (from cece_emission_activity.cpp)
-    static constexpr double kDefaultLdf[19] = {
-        0.9996, 0.80, 0.10, 0.10, 0.10, 0.10, 0.10,
-        0.00,   0.50, 0.50, 0.80, 0.20, 0.80, 0.00,
-        0.00,   0.20, 1.00, 0.20, 0.00};
+    static constexpr double kDefaultLdf[19] = {0.9996, 0.80, 0.10, 0.10, 0.10, 0.10, 0.10, 0.00, 0.50, 0.50,
+                                               0.80,   0.20, 0.80, 0.00, 0.00, 0.20, 1.00, 0.20, 0.00};
 
     // Documented default beta values per class
-    static constexpr double kDefaultBeta[19] = {
-        0.13, 0.13, 0.10, 0.10, 0.10, 0.10, 0.10,
-        0.10, 0.17, 0.17, 0.08, 0.10, 0.08, 0.10,
-        0.13, 0.10, 0.13, 0.10, 0.10};
+    static constexpr double kDefaultBeta[19] = {0.13, 0.13, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.17, 0.17,
+                                                0.08, 0.10, 0.08, 0.10, 0.13, 0.10, 0.13, 0.10, 0.10};
 
     // Generate a random subset of optional parameters to include
     // Each parameter has a 50% chance of being included
@@ -694,8 +686,8 @@ RC_GTEST_PROP(Megan3SchemeProperty, Property17_MissingConfigDefaultValues, ()) {
 
 }  // namespace cece (temporarily close for includes)
 
-#include <fstream>
 #include <filesystem>
+#include <fstream>
 
 #include "cece/cece_physics_factory.hpp"
 #include "cece/physics/cece_megan3.hpp"
@@ -756,8 +748,7 @@ RC_GTEST_PROP(Megan3ParityProperty, Property15_CppFortranParity, ()) {
         DualView3D dv(label, nx, ny, nz);
         auto h = dv.view_host();
         for (int i = 0; i < nx; ++i)
-            for (int j = 0; j < ny; ++j)
-                h(i, j, 0) = val;
+            for (int j = 0; j < ny; ++j) h(i, j, 0) = val;
         dv.modify_host();
         dv.sync_device();
         return dv;
@@ -854,8 +845,8 @@ RC_GTEST_PROP(Megan3ParityProperty, Property15_CppFortranParity, ()) {
 // Unit Tests for Megan3Scheme (Task 7.4)
 // ============================================================================
 
-#include <fstream>
 #include <filesystem>
+#include <fstream>
 
 #include "cece/cece_physics_factory.hpp"
 #include "cece/physics/cece_megan3.hpp"
@@ -997,8 +988,7 @@ TEST_F(Megan3SchemeTest, ExportFieldsHaveMeganPrefix) {
     std::set<std::string> actual;
     for (const auto& sp : names) {
         std::string field_name = "MEGAN_" + sp;
-        EXPECT_TRUE(field_name.substr(0, 6) == "MEGAN_")
-            << "Export field '" << field_name << "' should have MEGAN_ prefix";
+        EXPECT_TRUE(field_name.substr(0, 6) == "MEGAN_") << "Export field '" << field_name << "' should have MEGAN_ prefix";
         actual.insert(field_name);
     }
     EXPECT_EQ(actual, expected);
@@ -1113,8 +1103,7 @@ TEST_F(Megan3SchemeTest, OutputMappingRenamesMeganFields) {
     auto& dv_orig = export_state.fields["MEGAN_ISOP"];
     dv_orig.sync<Kokkos::HostSpace>();
     double orig_val = dv_orig.view_host()(0, 0, 0);
-    EXPECT_GT(orig_val, 0.0)
-        << "MEGAN_ISOP should have non-zero value (speciation engine writes directly)";
+    EXPECT_GT(orig_val, 0.0) << "MEGAN_ISOP should have non-zero value (speciation engine writes directly)";
 }
 
 // ============================================================================
@@ -1158,7 +1147,7 @@ TEST_F(Megan3SchemeTest, DiagnosticFieldsRegisteredWhenEnabled) {
 // output reflects BDSNP soil NO contribution.
 // ============================================================================
 
-}  // namespace cece (temporarily close for includes)
+}  // namespace cece
 
 #include "cece/physics/cece_bdsnp.hpp"
 
