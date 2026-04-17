@@ -31,31 +31,10 @@ namespace cece {
 /// @brief Self-registration for the MEGAN3 biogenic emission scheme.
 static PhysicsRegistration<Megan3Scheme> reg("megan3");
 
-// ============================================================================
-// Re-declare existing KOKKOS_INLINE_FUNCTION gamma functions from cece_megan.cpp
-// These are defined in the megan translation unit but since they are
-// KOKKOS_INLINE_FUNCTION they are available via the header or redeclaration.
-// We forward-declare them here for use in the MEGAN3 kernel.
-// ============================================================================
-
-KOKKOS_INLINE_FUNCTION
-double get_gamma_lai(double lai, double c1, double c2, bool is_bidirectional);
-
-KOKKOS_INLINE_FUNCTION
-double get_gamma_age(double cmlai, double pmlai, double dbtwn, double tt, double an, double ag, double am, double ao);
-
-KOKKOS_INLINE_FUNCTION
-double get_gamma_sm(double gwetroot, bool is_ald2_or_eoh);
-
-KOKKOS_INLINE_FUNCTION
-double get_gamma_t_li(double temp, double beta, double t_standard);
-
-KOKKOS_INLINE_FUNCTION
-double get_gamma_t_ld(double T, double PT_15, double CT1, double CEO, double R, double CT2, double t_opt_c1, double t_opt_c2, double e_opt_coeff);
-
-KOKKOS_INLINE_FUNCTION
-double get_gamma_par_pceea(double q_dir, double q_diff, double par_avg, double suncos, int doy, double wm2_to_umol, double ptoa_c1, double ptoa_c2,
-                           double gamma_p_c1, double gamma_p_c2, double gamma_p_c3, double gamma_p_c4);
+// Gamma functions are defined in cece_megan.hpp as KOKKOS_INLINE_FUNCTION
+// and are available via the #include "cece/physics/cece_megan3.hpp" which
+// includes cece_megan.hpp indirectly, or we include it directly here.
+#include "cece/physics/cece_megan.hpp"
 
 // ============================================================================
 // Default AEF values for the 19 emission classes

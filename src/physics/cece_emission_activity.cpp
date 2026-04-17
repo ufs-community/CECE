@@ -27,10 +27,8 @@
 
 namespace cece {
 
-// Forward declaration of get_gamma_co2 from cece_megan.cpp
-// (declared as KOKKOS_INLINE_FUNCTION there, but also usable on host)
-KOKKOS_INLINE_FUNCTION
-double get_gamma_co2(double co2a, double c1, double c2, bool use_wilkinson);
+// Gamma functions (including get_gamma_co2) are defined in cece_megan.hpp
+#include "cece/physics/cece_megan.hpp"
 
 /// Default per-class coefficient values for the 19 MEGAN3 emission classes.
 /// Order matches the EmissionClass enum: ISOP, MBO, MT_PINE, MT_ACYC, MT_CAMP,
