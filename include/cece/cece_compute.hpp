@@ -18,8 +18,7 @@ class StackingEngine;
  * This alias is used for zero-copy wrapping of ESMF field data, which
  * follows the column-major (LayoutLeft) order and resides on the host.
  */
-using UnmanagedHostView3D = Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace,
-                                         Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+using UnmanagedHostView3D = Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
 
 /**
  * @brief Alias for a 3D Kokkos DualView with Fortran layout.
@@ -39,14 +38,14 @@ class FieldResolver {
     /**
      * @brief Resolves an import field and returns its device-side View.
      */
-    virtual Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
-    ResolveImportDevice(const std::string& name, int nx, int ny, int nz) = 0;
+    virtual Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveImportDevice(const std::string& name, int nx,
+                                                                                                                 int ny, int nz) = 0;
 
     /**
      * @brief Resolves an export field and returns its device-side View.
      */
-    virtual Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
-    ResolveExportDevice(const std::string& name, int nx, int ny, int nz) = 0;
+    virtual Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveExportDevice(const std::string& name, int nx, int ny,
+                                                                                                           int nz) = 0;
 };
 
 /**
@@ -63,10 +62,8 @@ class FieldResolver {
  * @param day_of_week Current day of the week (0-6) for weekly cycles.
  */
 void ComputeEmissions(const CeceConfig& config, FieldResolver& resolver, int nx, int ny, int nz,
-                      const Kokkos::View<double***, Kokkos::LayoutLeft,
-                                         Kokkos::DefaultExecutionSpace>& default_mask = {},
-                      int hour = 0, int day_of_week = 0, int month = 0,
-                      StackingEngine* engine = nullptr);
+                      const Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>& default_mask = {}, int hour = 0,
+                      int day_of_week = 0, int month = 0, StackingEngine* engine = nullptr);
 
 }  // namespace cece
 

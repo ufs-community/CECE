@@ -1,0 +1,261 @@
+# MEGAN3 + BDSNP Example Configuration
+#
+# Demonstrates the full MEGAN3 biogenic emission system with:
+#   - BDSNP soil NO module (runs first, writes soil_nox_emissions)
+#   - MEGAN3 multi-species scheme (runs second, reads soil_nox_emissions)
+#   - CB6 chemical mechanism speciation
+#   - Per-class emission coefficients
+#   - Input/output field mappings
+#
+# The stacking engine executes BDSNP before MEGAN3 so that soil NO
+# is available in the export state when MEGAN3 reads it for the NO class.
+
+driver:
+  start_time: "2020-07-01T00:00:00"
+  end_time: "2020-07-01T06:00:00"
+  timestep_seconds: 3600
+
+grid:
+  nx: 10
+  ny: 10
+  lon_min: -100.0
+  lon_max: -80.0
+  lat_min: 30.0
+  lat_max: 45.0
+
+physics_schemes:
+  # --- BDSNP Soil NO Module (runs first) ---
+  - name: bdsnp
+    options:
+      soil_no_method: bdsnp          # "bdsnp" (default) or "yl95"
+      fert_emission_factor: 1.0
+      wet_dep_scaling: 1.0
+      dry_dep_scaling: 1.0
+      pulse_decay_constant: 0.5
+    input_mapping:
+      soil_temperature: TSOIL
+      soil_moisture: GWETTOP
+      nitrogen_deposition: NDEP
+      land_use_type: LANDTYPE
+      leaf_area_index: LAI
+      biome_emission_factors: BIOME_EF
+    output_mapping:
+      soil_nox_emissions: SOIL_NO
+
+  # --- MEGAN3 Multi-Species Biogenic Emissions (runs second) ---
+  - name: megan3
+    options:
+      mechanism_file: data/speciation/spc_cb6.yaml
+      speciation_file: data/speciation/map_cb6.yaml
+      speciation_dataset: MEGAN
+      co2_concentration: 415.0
+      co2_method: possell             # "possell" or "wilkinson"
+      enable_wind_stress: false
+      enable_temp_stress: false
+      enable_aq_stress: false
+      emission_classes:
+        ISOP:
+          ldf: 0.9996
+          ct1: 95.0
+          cleo: 2.0
+          beta: 0.13
+          anew: 0.05
+          agro: 0.6
+          amat: 1.0
+          aold: 0.9
+          default_aef: 1.0e-9
+        MBO:
+          ldf: 0.80
+          ct1: 80.0
+          cleo: 1.83
+          beta: 0.13
+          anew: 0.05
+          agro: 0.6
+          amat: 1.0
+          aold: 0.9
+          default_aef: 2.0e-10
+        MT_PINE:
+          ldf: 0.10
+          ct1: 80.0
+          cleo: 1.83
+          beta: 0.10
+          anew: 2.0
+          agro: 1.8
+          amat: 1.0
+          aold: 1.05
+          default_aef: 3.0e-10
+        MT_ACYC:
+          ldf: 0.10
+          ct1: 80.0
+          cleo: 1.83
+          beta: 0.10
+          anew: 2.0
+          agro: 1.8
+          amat: 1.0
+          aold: 1.05
+          default_aef: 3.0e-10
+        MT_CAMP:
+          ldf: 0.10
+          ct1: 80.0
+          cleo: 1.83
+          beta: 0.10
+          anew: 2.0
+          agro: 1.8
+          amat: 1.0
+          aold: 1.05
+          default_aef: 3.0e-10
+        MT_SABI:
+          ldf: 0.10
+          ct1: 80.0
+          cleo: 1.83
+          beta: 0.10
+          anew: 2.0
+          agro: 1.8
+          amat: 1.0
+          aold: 1.05
+          default_aef: 3.0e-10
+        MT_AROM:
+          ldf: 0.10
+          ct1: 80.0
+          cleo: 1.83
+          beta: 0.10
+          anew: 2.0
+          agro: 1.8
+          amat: 1.0
+          aold: 1.05
+          default_aef: 3.0e-10
+        NO:
+          ldf: 0.00
+          ct1: 80.0
+          cleo: 1.83
+          beta: 0.10
+          anew: 1.0
+          agro: 1.0
+          amat: 1.0
+          aold: 1.0
+          default_aef: 0.0
+        SQT_HR:
+          ldf: 0.50
+          ct1: 130.0
+          cleo: 2.37
+          beta: 0.17
+          anew: 0.05
+          agro: 0.6
+          amat: 1.0
+          aold: 0.9
+          default_aef: 1.0e-10
+        SQT_LR:
+          ldf: 0.50
+          ct1: 130.0
+          cleo: 2.37
+          beta: 0.17
+          anew: 0.05
+          agro: 0.6
+          amat: 1.0
+          aold: 0.9
+          default_aef: 1.0e-10
+        MEOH:
+          ldf: 0.80
+          ct1: 60.0
+          cleo: 1.60
+          beta: 0.08
+          anew: 3.5
+          agro: 3.0
+          amat: 1.0
+          aold: 1.2
+          default_aef: 5.0e-10
+        ACTO:
+          ldf: 0.20
+          ct1: 80.0
+          cleo: 1.83
+          beta: 0.10
+          anew: 1.0
+          agro: 1.0
+          amat: 1.0
+          aold: 1.0
+          default_aef: 2.0e-10
+        ETOH:
+          ldf: 0.80
+          ct1: 60.0
+          cleo: 1.60
+          beta: 0.08
+          anew: 3.5
+          agro: 3.0
+          amat: 1.0
+          aold: 1.2
+          default_aef: 2.0e-10
+        ACID:
+          ldf: 0.00
+          ct1: 80.0
+          cleo: 1.83
+          beta: 0.10
+          anew: 1.0
+          agro: 1.0
+          amat: 1.0
+          aold: 1.0
+          default_aef: 1.0e-10
+        LVOC:
+          ldf: 0.00
+          ct1: 80.0
+          cleo: 1.83
+          beta: 0.13
+          anew: 1.0
+          agro: 1.0
+          amat: 1.0
+          aold: 1.0
+          default_aef: 1.0e-10
+        OXPROD:
+          ldf: 0.20
+          ct1: 80.0
+          cleo: 1.83
+          beta: 0.10
+          anew: 1.0
+          agro: 1.0
+          amat: 1.0
+          aold: 1.0
+          default_aef: 1.0e-10
+        STRESS:
+          ldf: 1.00
+          ct1: 95.0
+          cleo: 2.0
+          beta: 0.13
+          anew: 1.0
+          agro: 1.0
+          amat: 1.0
+          aold: 1.0
+          default_aef: 1.0e-10
+        OTHER:
+          ldf: 0.20
+          ct1: 80.0
+          cleo: 1.83
+          beta: 0.10
+          anew: 1.0
+          agro: 1.0
+          amat: 1.0
+          aold: 1.0
+          default_aef: 1.0e-10
+        CO:
+          ldf: 0.00
+          ct1: 80.0
+          cleo: 1.83
+          beta: 0.10
+          anew: 1.0
+          agro: 1.0
+          amat: 1.0
+          aold: 1.0
+          default_aef: 3.0e-10
+    input_mapping:
+      temperature: T2M
+      leaf_area_index: LAI
+      leaf_area_index_prev: LAI_PREV
+      par_direct: PARDR
+      par_diffuse: PARDF
+      solar_cosine: COSZS
+      soil_moisture_root: GWETROOT
+      wind_speed: U10M
+    output_mapping:
+      MEGAN_ISOP: ISOP_BIOG
+      MEGAN_TERP: TERP_BIOG
+      MEGAN_PAR: PAR_BIOG
+      MEGAN_NO: NO_BIOG
+      MEGAN_CO: CO_BIOG

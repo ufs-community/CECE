@@ -44,18 +44,16 @@ class VerticalDistributionReproResolver : public FieldResolver {
     UnmanagedHostView3D ResolveExport(const std::string& name, int, int, int) override {
         return fields[name].view_host();
     }
-    Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
-    ResolveImportDevice(const std::string& name, int, int, int) override {
+    Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveImportDevice(const std::string& name, int, int,
+                                                                                                         int) override {
         if (fields.find(name) == fields.end()) {
             std::cerr << "CRITICAL ERROR: Field " << name << " not found!" << std::endl;
             // Return dummy to avoid crash, but issue is flagged
-            return Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>(
-                "MISSING", 0, 0, 0);
+            return Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>("MISSING", 0, 0, 0);
         }
         return fields[name].view_device();
     }
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveExportDevice(
-        const std::string& name, int, int, int) override {
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveExportDevice(const std::string& name, int, int, int) override {
         return fields[name].view_device();
     }
 };
@@ -78,10 +76,9 @@ class ReproTest : public ::testing::Test {
 
 TEST_F(ReproTest, ReplicateFailurePrecise) {
     // Run exactly as SmallEmissionsRoundTrip does
-    std::vector<VerticalDistributionMethod> methods = {
-        VerticalDistributionMethod::SINGLE, VerticalDistributionMethod::RANGE,
-        VerticalDistributionMethod::PRESSURE, VerticalDistributionMethod::HEIGHT,
-        VerticalDistributionMethod::PBL};
+    std::vector<VerticalDistributionMethod> methods = {VerticalDistributionMethod::SINGLE, VerticalDistributionMethod::RANGE,
+                                                       VerticalDistributionMethod::PRESSURE, VerticalDistributionMethod::HEIGHT,
+                                                       VerticalDistributionMethod::PBL};
 
     // We want Iteration 7.
     // Loop 0 to 7.
@@ -94,8 +91,7 @@ TEST_F(ReproTest, ReplicateFailurePrecise) {
 
         if (iteration != 7) continue;
 
-        std::cout << "Iteration 7 reached. Method: " << static_cast<int>(method) << " Grid: " << nx
-                  << "," << ny << "," << nz << std::endl;
+        std::cout << "Iteration 7 reached. Method: " << static_cast<int>(method) << " Grid: " << nx << "," << ny << "," << nz << std::endl;
 
         CeceConfig config;
         EmissionLayer layer_config;
@@ -209,8 +205,7 @@ TEST_F(ReproTest, ReplicateFailurePrecise) {
         double max_rel_error = 0.0;
         for (size_t i = 0; i < emissions_2d.size(); ++i) {
             if (emissions_2d[i] != 0.0) {
-                double rel_error =
-                    std::abs(recovered_2d[i] - emissions_2d[i]) / std::abs(emissions_2d[i]);
+                double rel_error = std::abs(recovered_2d[i] - emissions_2d[i]) / std::abs(emissions_2d[i]);
                 max_rel_error = std::max(max_rel_error, rel_error);
             }
         }

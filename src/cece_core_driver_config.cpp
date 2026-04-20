@@ -33,8 +33,7 @@ extern "C" {
  * @param config Map to store parsed key-value pairs
  * @return 0 on success, -1 on error
  */
-static int parse_esmf_config_file(const std::string& config_file,
-                                  std::map<std::string, std::string>& config) {
+static int parse_esmf_config_file(const std::string& config_file, std::map<std::string, std::string>& config) {
     std::ifstream file(config_file);
     if (!file.is_open()) {
         std::cerr << "ERROR: Failed to open config file: " << config_file << "\n";
@@ -54,8 +53,7 @@ static int parse_esmf_config_file(const std::string& config_file,
         // Find the colon separator
         size_t colon_pos = line.find(':');
         if (colon_pos == std::string::npos) {
-            std::cerr << "WARNING: Line " << line_num << " has no colon separator: " << line
-                      << "\n";
+            std::cerr << "WARNING: Line " << line_num << " has no colon separator: " << line << "\n";
             continue;
         }
 
@@ -96,10 +94,8 @@ static int parse_esmf_config_file(const std::string& config_file,
  * @param ny Output for grid ny.
  * @param rc Return code (0 on success, -1 on error).
  */
-void cece_core_get_driver_config(const char* config_file, int config_file_len, char* start_time,
-                                 int start_time_len, char* end_time, int end_time_len,
-                                 int* timestep_seconds, char* mesh_file, int mesh_file_len, int* nx,
-                                 int* ny, int* rc) {
+void cece_core_get_driver_config(const char* config_file, int config_file_len, char* start_time, int start_time_len, char* end_time, int end_time_len,
+                                 int* timestep_seconds, char* mesh_file, int mesh_file_len, int* nx, int* ny, int* rc) {
     *rc = 0;
 
     if (config_file == nullptr) {
@@ -229,24 +225,20 @@ void cece_core_get_driver_config(const char* config_file, int config_file_len, c
 
         // Validate timestep_seconds > 0
         if (*timestep_seconds <= 0) {
-            std::cerr
-                << "ERROR: [cece_core_get_driver_config] timestep_seconds must be positive, got: "
-                << *timestep_seconds << "\n";
+            std::cerr << "ERROR: [cece_core_get_driver_config] timestep_seconds must be positive, got: " << *timestep_seconds << "\n";
             *rc = -1;
             return;
         }
 
         // Validate grid dimensions nx, ny > 0
         if (*nx <= 0) {
-            std::cerr << "ERROR: [cece_core_get_driver_config] grid_nx must be positive, got: "
-                      << *nx << "\n";
+            std::cerr << "ERROR: [cece_core_get_driver_config] grid_nx must be positive, got: " << *nx << "\n";
             *rc = -1;
             return;
         }
 
         if (*ny <= 0) {
-            std::cerr << "ERROR: [cece_core_get_driver_config] grid_ny must be positive, got: "
-                      << *ny << "\n";
+            std::cerr << "ERROR: [cece_core_get_driver_config] grid_ny must be positive, got: " << *ny << "\n";
             *rc = -1;
             return;
         }
@@ -259,8 +251,7 @@ void cece_core_get_driver_config(const char* config_file, int config_file_len, c
         std::cout << "  start_time: " << start_str << "\n";
         std::cout << "  end_time: " << end_str << "\n";
         std::cout << "  timestep_seconds: " << *timestep_seconds << "\n";
-        std::cout << "  mesh_file: "
-                  << (mesh_str.empty() ? "(none - will generate grid)" : mesh_str) << "\n";
+        std::cout << "  mesh_file: " << (mesh_str.empty() ? "(none - will generate grid)" : mesh_str) << "\n";
         std::cout << "  grid: " << *nx << " x " << *ny << "\n";
 
     } catch (const std::exception& e) {

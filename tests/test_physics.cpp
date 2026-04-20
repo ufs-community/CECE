@@ -48,15 +48,16 @@ class PhysicsTest : public ::testing::Test {
         export_state.fields["dust_emissions"] = create_dv("dust", 0.0);
         export_state.fields["volcanic_so2"] = create_dv("so2", 0.0);
         export_state.fields["nox"] = create_dv("nox", 0.0);
+        export_state.fields["MEGAN_ISOP"] = create_dv("megan_isop", 0.0);
         import_state.fields["base_anthropogenic_nox"] = create_dv("base_nox", 1.0);
+        import_state.fields["soil_temperature"] = create_dv("soil_temp", 300.0);
 
         // Compatibility aliases for tests that expect hardcoded framework names
         import_state.fields["wind_speed_10m"] = import_state.fields["wind_speed"];
         import_state.fields["DMS_seawater"] = import_state.fields["seawater_conc"];
         import_state.fields["gwettop"] = import_state.fields["soil_moisture"];
         import_state.fields["lai"] = import_state.fields["leaf_area_index"];
-        import_state.fields["convective_cloud_top_height"] =
-            import_state.fields["cloud_top_height"];
+        import_state.fields["convective_cloud_top_height"] = import_state.fields["cloud_top_height"];
         import_state.fields["GINOUX_SAND"] = import_state.fields["erodibility"];
 
         export_state.fields["SALA"] = export_state.fields["secondary_input"];
@@ -93,8 +94,7 @@ class PhysicsTest : public ::testing::Test {
     }
 };
 
-void TestParity(PhysicsTest* test, const std::string& cpp_name, const std::string& fortran_name,
-                const std::string& field_name) {
+void TestParity(PhysicsTest* test, const std::string& cpp_name, const std::string& fortran_name, const std::string& field_name) {
     PhysicsSchemeConfig cfg_cpp;
     PhysicsSchemeConfig cfg_fort;
     cfg_cpp.name = cpp_name;
@@ -103,8 +103,7 @@ void TestParity(PhysicsTest* test, const std::string& cpp_name, const std::strin
     auto scheme_cpp = PhysicsFactory::CreateScheme(cfg_cpp);
     auto scheme_fort = PhysicsFactory::CreateScheme(cfg_fort);
 
-    if (scheme_cpp == nullptr || scheme_fort == nullptr ||
-        fortran_name.find("fortran") != std::string_view::npos) {
+    if (scheme_cpp == nullptr || scheme_fort == nullptr || fortran_name.find("fortran") != std::string_view::npos) {
 #ifndef CECE_HAS_FORTRAN
         std::cout << "Skipping parity test for " << cpp_name << " (Fortran disabled).\n";
         return;
@@ -161,11 +160,18 @@ TEST_F(PhysicsTest, VolcanoParity) {
     TestParity(this, "volcano", "volcano_fortran", "so2");
 }
 
+TEST_F(PhysicsTest, Megan3CppFortranParity) {
+    TestParity(this, "megan3", "megan3_fortran", "MEGAN_ISOP");
+}
+
+TEST_F(PhysicsTest, BdsnpCppFortranParity) {
+    TestParity(this, "bdsnp", "bdsnp_fortran", "soil_nox_emissions");
+}
+
 // Vertical Distribution Verification
 TEST_F(PhysicsTest, SurfaceEmissionVerticalDistribution) {
     std::vector<std::string> schemes = {"sea_salt", "megan", "dms", "dust", "soil_nox"};
-    std::vector<std::string> fields = {"secondary_input", "isoprene_emissions", "dms_emissions",
-                                       "dust_emissions", "soil_nox_emissions"};
+    std::vector<std::string> fields = {"secondary_input", "isoprene_emissions", "dms_emissions", "dust_emissions", "soil_nox_emissions"};
 
     for (size_t i = 0; i < schemes.size(); ++i) {
         PhysicsSchemeConfig cfg;

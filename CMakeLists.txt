@@ -145,7 +145,16 @@ set(CECE_SRCS
     src/physics/cece_lightning.cpp
     src/physics/cece_soil_nox.cpp
     src/physics/cece_dust.cpp
+    src/physics/cece_fengsha.cpp
+    src/physics/cece_ginoux.cpp
+    src/physics/cece_k14.cpp
     src/physics/cece_volcano.cpp
+    src/physics/cece_speciation_config.cpp
+    src/physics/cece_speciation_engine.cpp
+    src/physics/cece_canopy_model.cpp
+    src/physics/cece_emission_activity.cpp
+    src/physics/cece_megan3.cpp
+    src/physics/cece_bdsnp.cpp
     src/io/cece_data_ingestor.cpp
     src/io/cece_diagnostic_manager.cpp
     src/io/cece_standalone_writer.cpp
@@ -156,7 +165,6 @@ set(CECE_SRCS
     src/cece_core_realize_wrapper.cpp
     src/cece_core_initialize_p1.cpp
     src/cece_core_initialize_p2.cpp
-    src/cece_core_initialize_p2_wrapper.cpp
     src/cece_core_field_helpers.cpp
     src/cece_core_run.cpp
     src/cece_core_finalize.cpp
@@ -183,8 +191,18 @@ if(CECE_HAS_FORTRAN)
         src/physics/soil_nox_kernel.F90
         src/physics/cece_dust_fortran_bridge.cpp
         src/physics/dust_kernel.F90
+        src/physics/cece_fengsha_fortran_bridge.cpp
+        src/physics/fengsha_kernel.F90
+        src/physics/cece_ginoux_fortran_bridge.cpp
+        src/physics/ginoux_kernel.F90
+        src/physics/cece_k14_fortran_bridge.cpp
+        src/physics/k14_kernel.F90
         src/physics/cece_volcano_fortran_bridge.cpp
         src/physics/volcano_kernel.F90
+        src/physics/cece_megan3_fortran_bridge.cpp
+        src/physics/megan3_kernel.F90
+        src/physics/cece_bdsnp_fortran_bridge.cpp
+        src/physics/bdsnp_kernel.F90
         src/cece_ingestor_bridge.cpp)
 endif()
 
@@ -299,6 +317,31 @@ add_executable(test_repro_failure tests/repro_failure.cpp)
 target_link_libraries(test_repro_failure PRIVATE cece GTest::gtest_main)
 
 # Unit tests for field creation (Requirement R4)
+# FENGSHA Dust Scheme Property Tests
+add_executable(test_fengsha_properties tests/test_fengsha_properties.cpp)
+target_link_libraries(test_fengsha_properties PRIVATE cece GTest::gtest_main)
+
+# Ginoux (GOCART2G) Dust Scheme Property Tests
+add_executable(test_ginoux_properties tests/test_ginoux_properties.cpp)
+target_link_libraries(test_ginoux_properties PRIVATE cece GTest::gtest_main)
+
+# K14 Dust Scheme Property Tests
+add_executable(test_k14_properties tests/test_k14_properties.cpp)
+target_link_libraries(test_k14_properties PRIVATE cece GTest::gtest_main)
+
+# Speciation Config Property Tests (MEGAN3)
+add_executable(test_speciation tests/test_speciation.cpp)
+target_link_libraries(test_speciation PRIVATE cece GTest::gtest_main rapidcheck rapidcheck_gtest)
+target_compile_definitions(test_speciation PRIVATE CECE_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+
+# MEGAN3 Canopy Model Property Tests
+add_executable(test_megan3 tests/test_megan3.cpp)
+target_link_libraries(test_megan3 PRIVATE cece GTest::gtest_main rapidcheck rapidcheck_gtest)
+
+# BDSNP Soil NO Property Tests
+add_executable(test_bdsnp tests/test_bdsnp.cpp)
+target_link_libraries(test_bdsnp PRIVATE cece GTest::gtest rapidcheck rapidcheck_gtest)
+
 add_executable(test_field_creation tests/test_field_creation.cpp)
 if(CECE_HAS_FORTRAN AND TARGET test_helpers)
     target_link_libraries(test_field_creation PRIVATE cece test_helpers GTest::gtest_main)
@@ -398,6 +441,12 @@ gtest_discover_tests(test_kokkos_configuration)
 gtest_discover_tests(test_properties)
 gtest_discover_tests(test_suite_idempotence)
 gtest_discover_tests(test_repro_failure)
+gtest_discover_tests(test_fengsha_properties)
+gtest_discover_tests(test_ginoux_properties)
+gtest_discover_tests(test_k14_properties)
+gtest_discover_tests(test_speciation)
+gtest_discover_tests(test_megan3)
+gtest_discover_tests(test_bdsnp)
 gtest_discover_tests(test_field_creation)
 gtest_discover_tests(test_field_pointer_passing)
 

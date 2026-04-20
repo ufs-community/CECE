@@ -1,0 +1,136 @@
+# CRACMM2 Mechanism Species Definition (MICM/OpenAtmos format)
+# Species from the CRACMM2 chemical mechanism relevant to biogenic emissions
+# Based on EPA CMAQ/CRACMM bvoc_megan_tocracmm.csv mapping data
+# Molecular weights in kg/mol (MICM convention)
+#
+# References:
+#   - Pye et al. (2023) CRACMM2 mechanism
+#   - https://github.com/USEPA/CRACMM
+name: CRACMM2
+species:
+  # --- Isoprene and terpenes ---
+  - name: ISO
+    molecular weight [kg mol-1]: 0.06812
+  - name: API
+    molecular weight [kg mol-1]: 0.13624
+  - name: LIM
+    molecular weight [kg mol-1]: 0.13624
+  # --- Simple alkenes and dienes ---
+  - name: OLT
+    molecular weight [kg mol-1]: 0.04208
+  - name: OLI
+    molecular weight [kg mol-1]: 0.05611
+  - name: ETE
+    molecular weight [kg mol-1]: 0.02805
+  - name: BDE13
+    molecular weight [kg mol-1]: 0.05409
+  # --- Alkanes ---
+  - name: ETH
+    molecular weight [kg mol-1]: 0.03007
+  - name: HC3
+    molecular weight [kg mol-1]: 0.04410
+  - name: HC5
+    molecular weight [kg mol-1]: 0.07215
+  - name: HC10
+    molecular weight [kg mol-1]: 0.14229
+  - name: ECH4
+    molecular weight [kg mol-1]: 0.01604
+  # --- Furan ---
+  - name: FURAN
+    molecular weight [kg mol-1]: 0.08210
+  # --- Aldehydes ---
+  - name: HCHO
+    molecular weight [kg mol-1]: 0.03003
+  - name: ACD
+    molecular weight [kg mol-1]: 0.04405
+  - name: ALD
+    molecular weight [kg mol-1]: 0.05808
+  - name: UALD
+    molecular weight [kg mol-1]: 0.09814
+  - name: MACR
+    molecular weight [kg mol-1]: 0.07009
+  - name: MVK
+    molecular weight [kg mol-1]: 0.07009
+  - name: BALD
+    molecular weight [kg mol-1]: 0.10612
+  - name: ACRO
+    molecular weight [kg mol-1]: 0.05606
+  # --- Ketones ---
+  - name: ACT
+    molecular weight [kg mol-1]: 0.05808
+  - name: KET
+    molecular weight [kg mol-1]: 0.08613
+  - name: MEK
+    molecular weight [kg mol-1]: 0.07211
+  - name: MGLY
+    molecular weight [kg mol-1]: 0.07206
+  # --- Alcohols ---
+  - name: MOH
+    molecular weight [kg mol-1]: 0.03204
+  - name: EOH
+    molecular weight [kg mol-1]: 0.04607
+  - name: ROH
+    molecular weight [kg mol-1]: 0.08815
+  # --- Organic acids ---
+  - name: ORA1
+    molecular weight [kg mol-1]: 0.04603
+  - name: ORA2
+    molecular weight [kg mol-1]: 0.06005
+  # --- Aromatics ---
+  - name: BEN
+    molecular weight [kg mol-1]: 0.07811
+  - name: TOL
+    molecular weight [kg mol-1]: 0.09214
+  - name: XYM
+    molecular weight [kg mol-1]: 0.10617
+  - name: XYL
+    molecular weight [kg mol-1]: 0.10617
+  - name: XYE
+    molecular weight [kg mol-1]: 0.13422
+  - name: NAPH
+    molecular weight [kg mol-1]: 0.12817
+  # --- Phenols ---
+  - name: PHEN
+    molecular weight [kg mol-1]: 0.09411
+  - name: CSL
+    molecular weight [kg mol-1]: 0.12414
+  # --- Sesquiterpenes ---
+  - name: SESQ
+    molecular weight [kg mol-1]: 0.20436
+  # --- Slow-reacting organics ---
+  - name: SLOWROC
+    molecular weight [kg mol-1]: 0.25000
+  # --- ROC species (particle/gas-phase pairs) ---
+  - name: ROCP6ARO
+    molecular weight [kg mol-1]: 0.19230
+  - name: VROCP6ARO
+    molecular weight [kg mol-1]: 0.19230
+  - name: ROCP5ARO
+    molecular weight [kg mol-1]: 0.22237
+  - name: VROCP5ARO
+    molecular weight [kg mol-1]: 0.22237
+  - name: ROCP5ALK
+    molecular weight [kg mol-1]: 0.22237
+  - name: VROCP5OXY1
+    molecular weight [kg mol-1]: 0.22237
+  - name: ROCP4ALK
+    molecular weight [kg mol-1]: 0.14229
+  - name: VROCP4ALK
+    molecular weight [kg mol-1]: 0.14229
+  - name: ROCIOXY
+    molecular weight [kg mol-1]: 0.15627
+  - name: VROCIOXY
+    molecular weight [kg mol-1]: 0.15627
+  - name: ROCP2ALK
+    molecular weight [kg mol-1]: 0.25034
+  - name: VROCP2OXY2
+    molecular weight [kg mol-1]: 0.25034
+  - name: ROCP1ALK
+    molecular weight [kg mol-1]: 0.18020
+  - name: VROCP1OXY3
+    molecular weight [kg mol-1]: 0.18020
+  # --- Inorganic ---
+  - name: "NO"
+    molecular weight [kg mol-1]: 0.03001
+  - name: CO
+    molecular weight [kg mol-1]: 0.02801

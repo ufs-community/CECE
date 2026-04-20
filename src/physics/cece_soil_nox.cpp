@@ -36,7 +36,10 @@
 namespace cece {
 
 /// @brief Self-registration for the soil NOx emission scheme.
+/// Guarded so that the BDSNP scheme can replace it when CECE_USE_BDSNP is defined.
+#ifndef CECE_USE_BDSNP
 static PhysicsRegistration<SoilNoxScheme> register_scheme("soil_nox");
+#endif
 
 /**
  * @brief Calculate temperature-dependent soil NOx emission factor.
@@ -117,8 +120,7 @@ void SoilNoxScheme::Run(CeceImportState& import_state, CeceExportState& export_s
     double wet_c2 = wet_c2_;
 
     Kokkos::parallel_for(
-        "SoilNoxKernel_Optimized",
-        Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<2>>({0, 0}, {nx, ny}),
+        "SoilNoxKernel_Optimized", Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<2>>({0, 0}, {nx, ny}),
         KOKKOS_LAMBDA(int i, int j) {
             double tc = temp(i, j, 0) - 273.15;
             double gw = gwet(i, j, 0);

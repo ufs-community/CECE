@@ -59,8 +59,7 @@ static PhysicsRegistration<LightningScheme> register_scheme("lightning");
  */
 
 KOKKOS_INLINE_FUNCTION
-double get_lightning_yield(double rate, double mw_no, bool is_land, double yield_land,
-                           double yield_ocean) {
+double get_lightning_yield(double rate, double mw_no, bool is_land, double yield_land, double yield_ocean) {
     // Select appropriate yield factor based on surface type
     // Land/tropical regions typically have lower yields than ocean/midlatitude
     const double yield_molec = is_land ? yield_land : yield_ocean;
@@ -112,8 +111,7 @@ void LightningScheme::Run(CeceImportState& import_state, CeceExportState& export
     double fr_pow = flash_rate_pow_;
 
     Kokkos::parallel_for(
-        "LightningKernel_Optimized",
-        Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<2>>({0, 0}, {nx, ny}),
+        "LightningKernel_Optimized", Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<2>>({0, 0}, {nx, ny}),
         KOKKOS_LAMBDA(int i, int j) {
             // Use convective depth from surface or first level as representative for the column
             double h = conv_depth(i, j, 0);

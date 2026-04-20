@@ -1,0 +1,262 @@
+# CRACMM2 Speciation Mapping File (CECE dataset-oriented format)
+# Maps 19 MEGAN3 emission classes to CRACMM2 mechanism species
+# with per-class scale factors derived from EPA bvoc_megan_tocracmm.csv
+#
+# Format: mechanism species → { emission class: scale factor }
+# Scale factors represent the fractional contribution of each emission class
+# to each mechanism species.
+#
+# References:
+#   - Pye et al. (2023) CRACMM2 mechanism
+#   - EPA CMAQ/CRACMM bvoc_megan_tocracmm.csv
+#   - https://github.com/USEPA/CRACMM
+mechanism: CRACMM2
+datasets:
+  MEGAN:
+    # --- Isoprene: directly from ISOP class ---
+    ISO:
+      ISOP: 1.0
+    # --- Alpha/beta-pinene: from monoterpene pine class ---
+    # Includes alpha-pinene, beta-pinene, sabinene, camphene, carene
+    API:
+      MT_PINE: 0.65
+      MT_CAMP: 0.20
+      MT_SABI: 0.15
+    # --- Limonene: from acyclic/other monoterpenes ---
+    # Includes myrcene, ocimene, limonene, terpinolene
+    LIM:
+      MT_ACYC: 0.70
+      MT_SABI: 0.15
+      MT_AROM: 0.15
+    # --- Terminal alkenes ---
+    OLT:
+      MBO: 0.80
+      OTHER: 0.10
+      STRESS: 0.10
+    # --- Internal alkenes ---
+    OLI:
+      LVOC: 0.50
+      OTHER: 0.30
+      STRESS: 0.20
+    # --- Ethene ---
+    ETE:
+      OTHER: 0.60
+      STRESS: 0.40
+    # --- 1,3-Butadiene ---
+    BDE13:
+      OTHER: 0.50
+      STRESS: 0.50
+    # --- Ethane ---
+    ETH:
+      OTHER: 1.0
+    # --- Small alkanes (C3) ---
+    HC3:
+      OTHER: 0.70
+      LVOC: 0.30
+    # --- Medium alkanes (C5) ---
+    HC5:
+      OTHER: 0.60
+      LVOC: 0.40
+    # --- Large alkanes (C10) ---
+    HC10:
+      OTHER: 0.50
+      LVOC: 0.50
+    # --- Methane ---
+    ECH4:
+      OTHER: 1.0
+    # --- Furan ---
+    FURAN:
+      STRESS: 0.60
+      OTHER: 0.40
+    # --- Formaldehyde ---
+    HCHO:
+      OXPROD: 0.60
+      MBO: 0.20
+      STRESS: 0.20
+    # --- Acetaldehyde ---
+    ACD:
+      OXPROD: 0.70
+      STRESS: 0.20
+      LVOC: 0.10
+    # --- Higher aldehydes (C3+) ---
+    ALD:
+      OXPROD: 0.50
+      LVOC: 0.30
+      STRESS: 0.20
+    # --- Unsaturated aldehydes ---
+    UALD:
+      OXPROD: 0.50
+      STRESS: 0.30
+      LVOC: 0.20
+    # --- Methacrolein ---
+    MACR:
+      OXPROD: 0.60
+      STRESS: 0.40
+    # --- Methyl vinyl ketone ---
+    MVK:
+      OXPROD: 0.60
+      STRESS: 0.40
+    # --- Benzaldehyde ---
+    BALD:
+      STRESS: 0.50
+      MT_AROM: 0.30
+      OXPROD: 0.20
+    # --- Acrolein ---
+    ACRO:
+      OXPROD: 0.50
+      STRESS: 0.50
+    # --- Acetone ---
+    ACT:
+      ACTO: 1.0
+    # --- Higher ketones ---
+    KET:
+      LVOC: 0.60
+      OXPROD: 0.40
+    # --- Methyl ethyl ketone ---
+    MEK:
+      LVOC: 0.60
+      OXPROD: 0.40
+    # --- Methylglyoxal ---
+    MGLY:
+      OXPROD: 0.70
+      STRESS: 0.30
+    # --- Methanol ---
+    MOH:
+      MEOH: 1.0
+    # --- Ethanol ---
+    EOH:
+      ETOH: 1.0
+    # --- Higher alcohols ---
+    ROH:
+      LVOC: 0.60
+      OTHER: 0.40
+    # --- Formic acid ---
+    ORA1:
+      ACID: 0.40
+    # --- Acetic acid ---
+    ORA2:
+      ACID: 0.60
+    # --- Benzene ---
+    BEN:
+      OTHER: 0.60
+      STRESS: 0.40
+    # --- Toluene ---
+    TOL:
+      MT_AROM: 0.50
+      LVOC: 0.30
+      STRESS: 0.20
+    # --- m-Xylene ---
+    XYM:
+      OTHER: 0.50
+      MT_AROM: 0.30
+      STRESS: 0.20
+    # --- p-Xylene ---
+    XYL:
+      OTHER: 0.50
+      MT_AROM: 0.30
+      STRESS: 0.20
+    # --- Ethylbenzene + higher aromatics ---
+    XYE:
+      OTHER: 0.40
+      MT_AROM: 0.30
+      LVOC: 0.30
+    # --- Naphthalene ---
+    NAPH:
+      STRESS: 0.50
+      LVOC: 0.30
+      OTHER: 0.20
+    # --- Phenol ---
+    PHEN:
+      STRESS: 0.50
+      MT_AROM: 0.30
+      OTHER: 0.20
+    # --- Cresol ---
+    CSL:
+      STRESS: 0.50
+      MT_AROM: 0.30
+      OTHER: 0.20
+    # --- Sesquiterpenes ---
+    SESQ:
+      SQT_HR: 0.70
+      SQT_LR: 0.30
+    # --- Slow-reacting organics ---
+    SLOWROC:
+      LVOC: 0.40
+      OTHER: 0.30
+      STRESS: 0.30
+    # --- ROC species: semi-volatile and intermediate volatility organics ---
+    # ROCP6ARO: particle-phase C6 aromatic ROC
+    ROCP6ARO:
+      MT_AROM: 0.50
+      STRESS: 0.30
+      LVOC: 0.20
+    # VROCP6ARO: gas-phase C6 aromatic ROC
+    VROCP6ARO:
+      MT_AROM: 0.50
+      STRESS: 0.30
+      LVOC: 0.20
+    # ROCP5ARO: particle-phase C5 aromatic ROC
+    ROCP5ARO:
+      MT_AROM: 0.40
+      STRESS: 0.30
+      LVOC: 0.30
+    # VROCP5ARO: gas-phase C5 aromatic ROC
+    VROCP5ARO:
+      MT_AROM: 0.40
+      STRESS: 0.30
+      LVOC: 0.30
+    # ROCP5ALK: particle-phase C5 alkane ROC
+    ROCP5ALK:
+      LVOC: 0.50
+      OTHER: 0.30
+      STRESS: 0.20
+    # VROCP5OXY1: gas-phase C5 oxygenated ROC
+    VROCP5OXY1:
+      LVOC: 0.50
+      OXPROD: 0.30
+      STRESS: 0.20
+    # ROCP4ALK: particle-phase C4 alkane ROC
+    ROCP4ALK:
+      LVOC: 0.50
+      OTHER: 0.30
+      STRESS: 0.20
+    # VROCP4ALK: gas-phase C4 alkane ROC
+    VROCP4ALK:
+      LVOC: 0.50
+      OTHER: 0.30
+      STRESS: 0.20
+    # ROCIOXY: particle-phase intermediate oxygenated ROC
+    ROCIOXY:
+      LVOC: 0.40
+      OXPROD: 0.30
+      STRESS: 0.30
+    # VROCIOXY: gas-phase intermediate oxygenated ROC
+    VROCIOXY:
+      LVOC: 0.40
+      OXPROD: 0.30
+      STRESS: 0.30
+    # ROCP2ALK: particle-phase C2 alkane ROC
+    ROCP2ALK:
+      LVOC: 0.50
+      OTHER: 0.30
+      STRESS: 0.20
+    # VROCP2OXY2: gas-phase C2 oxygenated ROC
+    VROCP2OXY2:
+      LVOC: 0.50
+      OXPROD: 0.30
+      STRESS: 0.20
+    # ROCP1ALK: particle-phase C1 alkane ROC
+    ROCP1ALK:
+      LVOC: 0.50
+      OXPROD: 0.30
+      STRESS: 0.20
+    # VROCP1OXY3: gas-phase C1 oxygenated ROC
+    VROCP1OXY3:
+      LVOC: 0.50
+      OXPROD: 0.30
+      STRESS: 0.20
+    # --- Inorganic species ---
+    "NO":
+      "NO": 1.0
+    CO:
+      CO: 1.0

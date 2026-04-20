@@ -43,8 +43,7 @@ namespace cece {
  * @param long_name Descriptive name for documentation and output files
  * @return DualView3D for the registered diagnostic field
  */
-DualView3D CeceDiagnosticManager::RegisterDiagnostic(const std::string& name, int nx, int ny,
-                                                     int nz, const std::string& units,
+DualView3D CeceDiagnosticManager::RegisterDiagnostic(const std::string& name, int nx, int ny, int nz, const std::string& units,
                                                      const std::string& long_name) {
     if (diagnostics_.count(name)) {
         return diagnostics_[name].data;
@@ -60,8 +59,7 @@ DualView3D CeceDiagnosticManager::RegisterDiagnostic(const std::string& name, in
     return view;
 }
 
-void CeceDiagnosticManager::WriteDiagnostics(const DiagnosticConfig& config, int hour,
-                                             int day_of_week, const CeceExportState& export_state,
+void CeceDiagnosticManager::WriteDiagnostics(const DiagnosticConfig& config, int hour, int day_of_week, const CeceExportState& export_state,
                                              const std::string& output_path) {
     // Stub implementation
 }

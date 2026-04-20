@@ -51,8 +51,7 @@ int main(int argc, char** argv) {
         cece::StackingEngine stack_engine(config);
 
         std::unordered_map<std::string, std::string> empty_map;
-        cece::CeceStateResolver resolver(import_state, export_state, empty_map, empty_map,
-                                         empty_map);
+        cece::CeceStateResolver resolver(import_state, export_state, empty_map, empty_map, empty_map);
 
         std::cout << "[ComparisonDriver] Executing Stacking Engine..." << std::endl;
         stack_engine.Execute(resolver, nx, ny, nz, {}, 0, 0);
@@ -64,8 +63,7 @@ int main(int argc, char** argv) {
         if (std::abs(co_val - co_expected) / (co_expected + 1e-20) < 1e-6) {
             std::cout << "  CO Stacking: SUCCESS" << std::endl;
         } else {
-            std::cerr << "  CO Stacking: FAILED (got " << co_val << ", expected " << co_expected
-                      << ")" << std::endl;
+            std::cerr << "  CO Stacking: FAILED (got " << co_val << ", expected " << co_expected << ")" << std::endl;
             result = 1;
         }
 
@@ -78,8 +76,7 @@ int main(int argc, char** argv) {
 
         cece::PhysicsSchemeConfig dms_cfg;
         dms_cfg.name = "dms";
-        dms_cfg.options =
-            YAML::Load("schmidt_coeff: [2674.0, -147.12, 3.726, -0.038]\nkw_coeff: [0.222, 0.333]");
+        dms_cfg.options = YAML::Load("schmidt_coeff: [2674.0, -147.12, 3.726, -0.038]\nkw_coeff: [0.222, 0.333]");
 
         std::cout << "[ComparisonDriver] Creating DMS Physics Scheme..." << std::endl;
         auto scheme = cece::PhysicsFactory::CreateScheme(dms_cfg);
@@ -101,13 +98,11 @@ int main(int argc, char** argv) {
         if (std::abs(dms_val - dms_expected) / dms_expected < 0.1) {
             std::cout << "  DMS Physics: SUCCESS (got " << dms_val << ")" << std::endl;
         } else {
-            std::cerr << "  DMS Physics: FAILED (got " << dms_val << ", expected ~" << dms_expected
-                      << ")" << std::endl;
+            std::cerr << "  DMS Physics: FAILED (got " << dms_val << ", expected ~" << dms_expected << ")" << std::endl;
             result = 1;
         }
     }
     Kokkos::finalize();
-    std::cout << "[ComparisonDriver] Final Result: " << (result == 0 ? "PASSED" : "FAILED")
-              << std::endl;
+    std::cout << "[ComparisonDriver] Final Result: " << (result == 0 ? "PASSED" : "FAILED") << std::endl;
     return result;
 }

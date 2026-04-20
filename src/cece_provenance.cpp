@@ -40,8 +40,7 @@ namespace cece {
  * @param species_name Name of the chemical species (e.g., "CO", "NOx")
  * @param contributions Vector of layer contributions for this species
  */
-void ProvenanceTracker::RegisterSpecies(const std::string& species_name,
-                                        std::vector<LayerContribution> contributions) {
+void ProvenanceTracker::RegisterSpecies(const std::string& species_name, std::vector<LayerContribution> contributions) {
     SpeciesProvenance prov;
     prov.species_name = species_name;
     prov.contributions = std::move(contributions);
@@ -61,8 +60,7 @@ void ProvenanceTracker::RegisterSpecies(const std::string& species_name,
  * @param month Current month (1-12)
  * @param effective_scales Vector of scaling factors applied to each layer
  */
-void ProvenanceTracker::UpdateTemporalScales(const std::string& species_name, int hour,
-                                             int day_of_week, int month,
+void ProvenanceTracker::UpdateTemporalScales(const std::string& species_name, int hour, int day_of_week, int month,
                                              const std::vector<double>& effective_scales) {
     auto it = records_.find(species_name);
     if (it == records_.end()) {
@@ -111,13 +109,11 @@ std::string ProvenanceTracker::FormatReport() const {
     oss << "=== CECE Emission Provenance Report ===\n";
     for (const auto& [name, prov] : records_) {
         oss << "\nSpecies: " << name << "\n";
-        oss << "  Time context: hour=" << prov.last_hour << " dow=" << prov.last_day_of_week
-            << " month=" << prov.last_month << "\n";
+        oss << "  Time context: hour=" << prov.last_hour << " dow=" << prov.last_day_of_week << " month=" << prov.last_month << "\n";
         oss << "  Contributing layers (" << prov.contributions.size() << "):\n";
         for (size_t i = 0; i < prov.contributions.size(); ++i) {
             const auto& c = prov.contributions[i];
-            oss << "    [" << i << "] field=" << c.field_name << " op=" << c.operation
-                << " hier=" << c.hierarchy << " cat=" << c.category
+            oss << "    [" << i << "] field=" << c.field_name << " op=" << c.operation << " hier=" << c.hierarchy << " cat=" << c.category
                 << " base_scale=" << c.base_scale << " eff_scale=" << c.effective_scale;
             if (!c.masks.empty()) {
                 oss << " masks=[";

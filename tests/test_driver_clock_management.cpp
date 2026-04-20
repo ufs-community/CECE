@@ -25,8 +25,7 @@
  */
 class MockClock {
    public:
-    MockClock(int start_hour, int end_hour, int timestep_hours)
-        : current_hour_(start_hour), end_hour_(end_hour), timestep_hours_(timestep_hours) {}
+    MockClock(int start_hour, int end_hour, int timestep_hours) : current_hour_(start_hour), end_hour_(end_hour), timestep_hours_(timestep_hours) {}
 
     bool IsAtStopTime() const {
         return current_hour_ >= end_hour_;
@@ -258,8 +257,7 @@ TEST_F(ClockAdvancementLogicTest, Property5_MonotonicityAcrossVariousRanges) {
         for (int i = 0; i < expected_steps; ++i) {
             clock.Advance();
             int curr_hour = clock.GetCurrentHour();
-            EXPECT_GT(curr_hour, prev_hour)
-                << "Failed for range [" << start << ", " << end << "] step " << step;
+            EXPECT_GT(curr_hour, prev_hour) << "Failed for range [" << start << ", " << end << "] step " << step;
             prev_hour = curr_hour;
         }
     }
@@ -289,8 +287,7 @@ TEST_F(StopTimeDetectionLogicTest, Property8_StopTimeDetectionAcrossVariousRange
         }
 
         // Should now be at stop time
-        EXPECT_TRUE(clock.IsAtStopTime())
-            << "Clock should be at stop time after " << expected_steps << " steps";
+        EXPECT_TRUE(clock.IsAtStopTime()) << "Clock should be at stop time after " << expected_steps << " steps";
     }
 }
 

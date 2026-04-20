@@ -20,8 +20,7 @@ static PhysicsRegistration<NativePhysicsExample> register_scheme("native_example
  * @param config YAML node containing scheme-specific options.
  * @param diag_manager Pointer to the diagnostic manager.
  */
-void NativePhysicsExample::Initialize(const YAML::Node& config,
-                                      CeceDiagnosticManager* diag_manager) {
+void NativePhysicsExample::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
 
     if (config["multiplier"]) {
@@ -63,9 +62,7 @@ void NativePhysicsExample::Run(CeceImportState& import_state, CeceExportState& e
 
     // Dispatch the computational kernel to the default execution space (e.g. GPU)
     Kokkos::parallel_for(
-        "NativePhysicsExampleKernel",
-        Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<3>>({0, 0, 0},
-                                                                              {nx, ny, nz}),
+        "NativePhysicsExampleKernel", Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
         KOKKOS_LAMBDA(int i, int j, int k) {
             double multiplier = default_multiplier;
             if (multiplier_input.data() != nullptr) {

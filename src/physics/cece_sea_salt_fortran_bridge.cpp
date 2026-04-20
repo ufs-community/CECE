@@ -5,8 +5,7 @@
 #include "cece/physics/cece_sea_salt_fortran.hpp"
 
 extern "C" {
-void run_sea_salt_fortran(double* u10m_ptr, double* tskin_ptr, double* sala_ptr, double* salc_ptr,
-                          int nx, int ny, int nz);
+void run_sea_salt_fortran(double* u10m_ptr, double* tskin_ptr, double* sala_ptr, double* salc_ptr, int nx, int ny, int nz);
 }
 
 namespace cece {
@@ -16,8 +15,7 @@ namespace cece {
 static PhysicsRegistration<SeaSaltFortranScheme> register_scheme("sea_salt_fortran");
 #endif
 
-void SeaSaltFortranScheme::Initialize(const YAML::Node& /*config*/,
-                                      CeceDiagnosticManager* /*diag_manager*/) {
+void SeaSaltFortranScheme::Initialize(const YAML::Node& /*config*/, CeceDiagnosticManager* /*diag_manager*/) {
     std::cout << "SeaSaltFortranScheme: Initialized." << "\n";
 }
 
@@ -53,8 +51,7 @@ void SeaSaltFortranScheme::Run(CeceImportState& import_state, CeceExportState& e
         salc_ptr = it_salc->second.view_host().data();
     }
 
-    run_sea_salt_fortran(dv_u10.view_host().data(), dv_tskin.view_host().data(), sala_ptr, salc_ptr,
-                         nx, ny, nz);
+    run_sea_salt_fortran(dv_u10.view_host().data(), dv_tskin.view_host().data(), sala_ptr, salc_ptr, nx, ny, nz);
 
     if (it_sala != export_state.fields.end()) {
         it_sala->second.modify<Kokkos::HostSpace>();

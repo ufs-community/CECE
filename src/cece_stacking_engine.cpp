@@ -55,11 +55,9 @@ void StackingEngine::PreCompile() {
         std::vector<LayerContribution> contributions;
 
         for (auto const& layer : layers) {
-            spec.layers.push_back(
-                {layer.field_name, layer.operation, layer.scale, layer.hierarchy, layer.masks,
-                 layer.scale_fields, layer.diurnal_cycle, layer.weekly_cycle, layer.seasonal_cycle,
-                 layer.vdist_method, layer.vdist_layer_start, layer.vdist_layer_end,
-                 layer.vdist_p_start, layer.vdist_p_end, layer.vdist_h_start, layer.vdist_h_end});
+            spec.layers.push_back({layer.field_name, layer.operation, layer.scale, layer.hierarchy, layer.masks, layer.scale_fields,
+                                   layer.diurnal_cycle, layer.weekly_cycle, layer.seasonal_cycle, layer.vdist_method, layer.vdist_layer_start,
+                                   layer.vdist_layer_end, layer.vdist_p_start, layer.vdist_p_end, layer.vdist_h_start, layer.vdist_h_end});
 
             LayerContribution contrib;
             contrib.field_name = layer.field_name;
@@ -75,18 +73,12 @@ void StackingEngine::PreCompile() {
             contributions.push_back(std::move(contrib));
         }
 
-        std::sort(spec.layers.begin(), spec.layers.end(),
-                  [](const CompiledLayer& a, const CompiledLayer& b) {
-                      return a.hierarchy < b.hierarchy;
-                  });
+        std::sort(spec.layers.begin(), spec.layers.end(), [](const CompiledLayer& a, const CompiledLayer& b) { return a.hierarchy < b.hierarchy; });
         // Keep contributions in the same sorted order
         std::sort(contributions.begin(), contributions.end(),
-                  [](const LayerContribution& a, const LayerContribution& b) {
-                      return a.hierarchy < b.hierarchy;
-                  });
+                  [](const LayerContribution& a, const LayerContribution& b) { return a.hierarchy < b.hierarchy; });
 
-        spec.device_layers = Kokkos::View<DeviceLayer*, Kokkos::DefaultExecutionSpace>(
-            "device_layers_" + species, spec.layers.size());
+        spec.device_layers = Kokkos::View<DeviceLayer*, Kokkos::DefaultExecutionSpace>("device_layers_" + species, spec.layers.size());
         spec.host_layers = Kokkos::create_mirror_view(spec.device_layers);
 
         m_compiled.push_back(std::move(spec));
@@ -104,8 +96,7 @@ void StackingEngine::PreCompile() {
  * @param ny Y dimension.
  * @param nz Z dimension.
  */
-void StackingEngine::BindFields(CompiledSpecies& spec, FieldResolver& resolver, int nx, int ny,
-                                int nz) const {
+void StackingEngine::BindFields(CompiledSpecies& spec, FieldResolver& resolver, int nx, int ny, int nz) const {
     if (spec.fields_bound) {
         return;
     }
@@ -114,18 +105,14 @@ void StackingEngine::BindFields(CompiledSpecies& spec, FieldResolver& resolver, 
 
     // Bind vertical coordinate fields if configured
     if (m_config.vertical_config.type != VerticalCoordType::NONE) {
-        spec.p_surf =
-            resolver.ResolveImportDevice(m_config.vertical_config.p_surf_field, nx, ny, 1);
+        spec.p_surf = resolver.ResolveImportDevice(m_config.vertical_config.p_surf_field, nx, ny, 1);
         if (m_config.vertical_config.type == VerticalCoordType::FV3) {
             spec.ak = resolver.ResolveImportDevice(m_config.vertical_config.ak_field, 1, 1, nz + 1);
             spec.bk = resolver.ResolveImportDevice(m_config.vertical_config.bk_field, 1, 1, nz + 1);
-        } else if (m_config.vertical_config.type == VerticalCoordType::MPAS ||
-                   m_config.vertical_config.type == VerticalCoordType::WRF) {
-            spec.z_coord =
-                resolver.ResolveImportDevice(m_config.vertical_config.z_field, nx, ny, nz);
+        } else if (m_config.vertical_config.type == VerticalCoordType::MPAS || m_config.vertical_config.type == VerticalCoordType::WRF) {
+            spec.z_coord = resolver.ResolveImportDevice(m_config.vertical_config.z_field, nx, ny, nz);
         }
-        spec.pbl_height =
-            resolver.ResolveImportDevice(m_config.vertical_config.pbl_field, nx, ny, 1);
+        spec.pbl_height = resolver.ResolveImportDevice(m_config.vertical_config.pbl_field, nx, ny, 1);
     }
 
     for (size_t i = 0; i < spec.layers.size(); ++i) {
@@ -175,8 +162,7 @@ void StackingEngine::BindFields(CompiledSpecies& spec, FieldResolver& resolver, 
  * @param hour Current hour.
  * @param day_of_week Current day of week.
  */
-void StackingEngine::UpdateTemporalScales(CompiledSpecies& spec, int hour, int day_of_week,
-                                          int month) {
+void StackingEngine::UpdateTemporalScales(CompiledSpecies& spec, int hour, int day_of_week, int month) {
     for (size_t i = 0; i < spec.layers.size(); ++i) {
         const auto& layer = spec.layers[i];
         DeviceLayer& dev = spec.host_layers(i);
@@ -256,11 +242,9 @@ void StackingEngine::AddSpecies(const std::string& species_name) {
 
     std::vector<LayerContribution> contributions;
     for (const auto& layer : it->second) {
-        spec.layers.push_back({layer.field_name, layer.operation, layer.scale, layer.hierarchy,
-                               layer.masks, layer.scale_fields, layer.diurnal_cycle,
-                               layer.weekly_cycle, layer.seasonal_cycle, layer.vdist_method,
-                               layer.vdist_layer_start, layer.vdist_layer_end, layer.vdist_p_start,
-                               layer.vdist_p_end, layer.vdist_h_start, layer.vdist_h_end});
+        spec.layers.push_back({layer.field_name, layer.operation, layer.scale, layer.hierarchy, layer.masks, layer.scale_fields, layer.diurnal_cycle,
+                               layer.weekly_cycle, layer.seasonal_cycle, layer.vdist_method, layer.vdist_layer_start, layer.vdist_layer_end,
+                               layer.vdist_p_start, layer.vdist_p_end, layer.vdist_h_start, layer.vdist_h_end});
 
         LayerContribution contrib;
         contrib.field_name = layer.field_name;
@@ -276,16 +260,11 @@ void StackingEngine::AddSpecies(const std::string& species_name) {
         contributions.push_back(std::move(contrib));
     }
 
-    std::sort(
-        spec.layers.begin(), spec.layers.end(),
-        [](const CompiledLayer& a, const CompiledLayer& b) { return a.hierarchy < b.hierarchy; });
+    std::sort(spec.layers.begin(), spec.layers.end(), [](const CompiledLayer& a, const CompiledLayer& b) { return a.hierarchy < b.hierarchy; });
     std::sort(contributions.begin(), contributions.end(),
-              [](const LayerContribution& a, const LayerContribution& b) {
-                  return a.hierarchy < b.hierarchy;
-              });
+              [](const LayerContribution& a, const LayerContribution& b) { return a.hierarchy < b.hierarchy; });
 
-    spec.device_layers = Kokkos::View<DeviceLayer*, Kokkos::DefaultExecutionSpace>(
-        "device_layers_" + species_name, spec.layers.size());
+    spec.device_layers = Kokkos::View<DeviceLayer*, Kokkos::DefaultExecutionSpace>("device_layers_" + species_name, spec.layers.size());
     spec.host_layers = Kokkos::create_mirror_view(spec.device_layers);
 
     m_compiled.push_back(std::move(spec));
@@ -328,13 +307,11 @@ void StackingEngine::AddSpecies(const std::string& species_name) {
  * @param month Current month (0-11) for seasonal cycles.
  * @param provenance Optional provenance tracker for external logging.
  */
-void StackingEngine::Execute(
-    FieldResolver& resolver, int nx, int ny, int nz,
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> default_mask,
-    int hour, int day_of_week, int month, ProvenanceTracker* provenance) {
+void StackingEngine::Execute(FieldResolver& resolver, int nx, int ny, int nz,
+                             Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> default_mask, int hour, int day_of_week,
+                             int month, ProvenanceTracker* provenance) {
     if (default_mask.data() == nullptr) {
-        default_mask = Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>(
-            "default_mask_internal", nx, ny, nz);
+        default_mask = Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>("default_mask_internal", nx, ny, nz);
         Kokkos::deep_copy(default_mask, 1.0);
     }
 
@@ -356,8 +333,7 @@ void StackingEngine::Execute(
             for (size_t li = 0; li < spec.layers.size(); ++li) {
                 eff_scales[li] = spec.host_layers(li).scale;
             }
-            m_provenance_tracker.UpdateTemporalScales(spec.name, hour, day_of_week, month,
-                                                      eff_scales);
+            m_provenance_tracker.UpdateTemporalScales(spec.name, hour, day_of_week, month, eff_scales);
             if (provenance != nullptr) {
                 provenance->UpdateTemporalScales(spec.name, hour, day_of_week, month, eff_scales);
             }
@@ -377,9 +353,7 @@ void StackingEngine::Execute(
         auto vtype = m_config.vertical_config.type;
 
         Kokkos::parallel_for(
-            "StackingEngine_FusedSpeciesKernel",
-            Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
-            KOKKOS_LAMBDA(int i, int j, int k) {
+            "StackingEngine_FusedSpeciesKernel", Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}), KOKKOS_LAMBDA(int i, int j, int k) {
                 double accumulated = 0.0;
 
                 // Iterate over all layers
@@ -409,21 +383,17 @@ void StackingEngine::Execute(
                         } else if (layer.vdist_method == 1) {  // RANGE
                             if (k >= layer.vdist_layer_start && k <= layer.vdist_layer_end) {
                                 in_vertical_range = true;
-                                weight =
-                                    1.0 / (layer.vdist_layer_end - layer.vdist_layer_start + 1);
+                                weight = 1.0 / (layer.vdist_layer_end - layer.vdist_layer_start + 1);
                             }
                         } else if (layer.vdist_method == 2) {  // PRESSURE
                             // Compute total overlap for this specific layer's pressure range
                             double layer_total_overlap = 0.0;
                             for (int l2 = 0; l2 < nz; ++l2) {
                                 double p_top2 = 0.0, p_bot2 = 0.0;
-                                if (vtype == VerticalCoordType::FV3 && ak.data() != nullptr &&
-                                    bk.data() != nullptr && ps.data() != nullptr) {
+                                if (vtype == VerticalCoordType::FV3 && ak.data() != nullptr && bk.data() != nullptr && ps.data() != nullptr) {
                                     p_top2 = ak(0, 0, l2) + bk(0, 0, l2) * ps(i, j, 0);
                                     p_bot2 = ak(0, 0, l2 + 1) + bk(0, 0, l2 + 1) * ps(i, j, 0);
-                                } else if ((vtype == VerticalCoordType::MPAS ||
-                                            vtype == VerticalCoordType::WRF) &&
-                                           z_coord.data() != nullptr) {
+                                } else if ((vtype == VerticalCoordType::MPAS || vtype == VerticalCoordType::WRF) && z_coord.data() != nullptr) {
                                     constexpr double P0 = 101325.0;
                                     constexpr double H = 8000.0;
                                     p_top2 = P0 * Kokkos::exp(-z_coord(i, j, l2) / H);
@@ -433,23 +403,18 @@ void StackingEngine::Execute(
                                         p_bot2 = ps.data() != nullptr ? ps(i, j, 0) : P0;
                                     }
                                 }
-                                double overlap_top2 =
-                                    (p_top2 > layer.vdist_p_start) ? p_top2 : layer.vdist_p_start;
-                                double overlap_bot2 =
-                                    (p_bot2 < layer.vdist_p_end) ? p_bot2 : layer.vdist_p_end;
+                                double overlap_top2 = (p_top2 > layer.vdist_p_start) ? p_top2 : layer.vdist_p_start;
+                                double overlap_bot2 = (p_bot2 < layer.vdist_p_end) ? p_bot2 : layer.vdist_p_end;
                                 if (overlap_bot2 > overlap_top2) {
                                     layer_total_overlap += (overlap_bot2 - overlap_top2);
                                 }
                             }
 
                             double p_top = 0.0, p_bot = 0.0;
-                            if (vtype == VerticalCoordType::FV3 && ak.data() != nullptr &&
-                                bk.data() != nullptr && ps.data() != nullptr) {
+                            if (vtype == VerticalCoordType::FV3 && ak.data() != nullptr && bk.data() != nullptr && ps.data() != nullptr) {
                                 p_top = ak(0, 0, k) + bk(0, 0, k) * ps(i, j, 0);
                                 p_bot = ak(0, 0, k + 1) + bk(0, 0, k + 1) * ps(i, j, 0);
-                            } else if ((vtype == VerticalCoordType::MPAS ||
-                                        vtype == VerticalCoordType::WRF) &&
-                                       z_coord.data() != nullptr) {
+                            } else if ((vtype == VerticalCoordType::MPAS || vtype == VerticalCoordType::WRF) && z_coord.data() != nullptr) {
                                 constexpr double P0 = 101325.0;
                                 constexpr double H = 8000.0;
                                 p_top = P0 * Kokkos::exp(-z_coord(i, j, k) / H);
@@ -459,10 +424,8 @@ void StackingEngine::Execute(
                                     p_bot = ps.data() != nullptr ? ps(i, j, 0) : P0;
                                 }
                             }
-                            double overlap_top =
-                                (p_top > layer.vdist_p_start) ? p_top : layer.vdist_p_start;
-                            double overlap_bot =
-                                (p_bot < layer.vdist_p_end) ? p_bot : layer.vdist_p_end;
+                            double overlap_top = (p_top > layer.vdist_p_start) ? p_top : layer.vdist_p_start;
+                            double overlap_bot = (p_bot < layer.vdist_p_end) ? p_bot : layer.vdist_p_end;
 
                             if (overlap_bot > overlap_top && layer_total_overlap > 0.0) {
                                 in_vertical_range = true;
@@ -476,11 +439,8 @@ void StackingEngine::Execute(
                                     double z_b = z_coord(i, j, l2 + 1);
                                     double z_top2 = (z_t > z_b) ? z_t : z_b;
                                     double z_bot2 = (z_t < z_b) ? z_t : z_b;
-                                    double overlap_top2 =
-                                        (z_top2 < layer.vdist_h_end) ? z_top2 : layer.vdist_h_end;
-                                    double overlap_bot2 = (z_bot2 > layer.vdist_h_start)
-                                                              ? z_bot2
-                                                              : layer.vdist_h_start;
+                                    double overlap_top2 = (z_top2 < layer.vdist_h_end) ? z_top2 : layer.vdist_h_end;
+                                    double overlap_bot2 = (z_bot2 > layer.vdist_h_start) ? z_bot2 : layer.vdist_h_start;
                                     if (overlap_top2 > overlap_bot2) {
                                         layer_total_overlap += (overlap_top2 - overlap_bot2);
                                     }
@@ -490,10 +450,8 @@ void StackingEngine::Execute(
                                 double z_b = z_coord(i, j, k + 1);
                                 double z_top = (z_t > z_b) ? z_t : z_b;
                                 double z_bot = (z_t < z_b) ? z_t : z_b;
-                                double overlap_top =
-                                    (z_top < layer.vdist_h_end) ? z_top : layer.vdist_h_end;
-                                double overlap_bot =
-                                    (z_bot > layer.vdist_h_start) ? z_bot : layer.vdist_h_start;
+                                double overlap_top = (z_top < layer.vdist_h_end) ? z_top : layer.vdist_h_end;
+                                double overlap_bot = (z_bot > layer.vdist_h_start) ? z_bot : layer.vdist_h_start;
 
                                 if (overlap_top > overlap_bot && layer_total_overlap > 0.0) {
                                     in_vertical_range = true;
@@ -545,9 +503,7 @@ void StackingEngine::Execute(
                     double combined_scale = layer.scale;
                     for (int s = 0; s < layer.num_scales; ++s) {
                         if (layer.scales[s].data() != nullptr) {
-                            double scale_val = (layer.scales[s].extent(2) == 1)
-                                                   ? layer.scales[s](i, j, 0)
-                                                   : layer.scales[s](i, j, k);
+                            double scale_val = (layer.scales[s].extent(2) == 1) ? layer.scales[s](i, j, 0) : layer.scales[s](i, j, k);
                             combined_scale *= scale_val;
                         }
                     }
@@ -556,9 +512,7 @@ void StackingEngine::Execute(
                     if (layer.num_masks > 0) {
                         for (int m = 0; m < layer.num_masks; ++m) {
                             if (layer.masks[m].data() != nullptr) {
-                                double mask_val = (layer.masks[m].extent(2) == 1)
-                                                      ? layer.masks[m](i, j, 0)
-                                                      : layer.masks[m](i, j, k);
+                                double mask_val = (layer.masks[m].extent(2) == 1) ? layer.masks[m](i, j, 0) : layer.masks[m](i, j, k);
                                 combined_mask *= mask_val;
                             }
                         }

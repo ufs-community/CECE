@@ -18,15 +18,13 @@ namespace cece {
  * that are deep-copied between host and device.
  */
 using UnmanagedDeviceView3D =
-    Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace,
-                 Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+    Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
 
 /**
  * @brief Alias for a mutable unmanaged 3D device View.
  */
 using MutableUnmanagedDeviceView3D =
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace,
-                 Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
 
 /**
  * @struct DeviceLayer
@@ -77,10 +75,9 @@ class StackingEngine {
     /**
      * @brief Executes the emission stacking for all species.
      */
-    void Execute(
-        FieldResolver& resolver, int nx, int ny, int nz,
-        Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> default_mask,
-        int hour, int day_of_week, int month = 0, ProvenanceTracker* provenance = nullptr);
+    void Execute(FieldResolver& resolver, int nx, int ny, int nz,
+                 Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> default_mask, int hour, int day_of_week, int month = 0,
+                 ProvenanceTracker* provenance = nullptr);
 
     /**
      * @brief Resets the bound field handles.
