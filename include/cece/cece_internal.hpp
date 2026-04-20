@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "cece/cece_clock.hpp"
 #include "cece/cece_config.hpp"
 #include "cece/cece_data_ingestor.hpp"
 #include "cece/cece_diagnostics.hpp"
@@ -36,6 +37,7 @@ struct CeceInternalData {
     std::unique_ptr<CeceStandaloneWriter> standalone_writer;                                  ///< Output writer for standalone mode.
     int step_count = 0;              ///< Current time step counter for output frequency gating.
     std::string start_time_iso8601;  ///< Start time in ISO 8601 format for output.
+    std::unique_ptr<CeceClock> clock;  ///< Clock for per-component refresh interval scheduling.
 
     // Cached metadata
     int nx = 0, ny = 0, nz = 0;                     ///< Cached grid dimensions.

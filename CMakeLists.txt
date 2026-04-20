@@ -133,6 +133,7 @@ message(STATUS "Found MPI: ${MPI_CXX_VERSION}")
 # --- CECE Library ---
 
 set(CECE_SRCS
+    src/cece_clock.cpp
     src/cece_config_parser.cpp
     src/cece_compute.cpp
     src/cece_stacking_engine.cpp
@@ -334,6 +335,14 @@ add_executable(test_speciation tests/test_speciation.cpp)
 target_link_libraries(test_speciation PRIVATE cece GTest::gtest_main rapidcheck rapidcheck_gtest)
 target_compile_definitions(test_speciation PRIVATE CECE_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
+# CeceClock Property Tests
+add_executable(test_cece_clock_properties tests/test_cece_clock_properties.cpp)
+target_link_libraries(test_cece_clock_properties PRIVATE cece GTest::gtest_main rapidcheck rapidcheck_gtest)
+
+# CeceClock Run Loop Unit Tests
+add_executable(test_cece_clock_run_loop tests/test_cece_clock_run_loop.cpp)
+target_link_libraries(test_cece_clock_run_loop PRIVATE cece GTest::gtest_main)
+
 # MEGAN3 Canopy Model Property Tests
 add_executable(test_megan3 tests/test_megan3.cpp)
 target_link_libraries(test_megan3 PRIVATE cece GTest::gtest_main rapidcheck rapidcheck_gtest)
@@ -446,6 +455,8 @@ gtest_discover_tests(test_ginoux_properties)
 gtest_discover_tests(test_k14_properties)
 gtest_discover_tests(test_speciation)
 gtest_discover_tests(test_megan3)
+gtest_discover_tests(test_cece_clock_properties)
+gtest_discover_tests(test_cece_clock_run_loop)
 gtest_discover_tests(test_bdsnp)
 gtest_discover_tests(test_field_creation)
 gtest_discover_tests(test_field_pointer_passing)

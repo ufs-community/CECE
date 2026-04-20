@@ -22,6 +22,7 @@ struct PhysicsSchemeConfig {
     std::string name;      ///< Name of the physics scheme.
     std::string language;  ///< Implementation language (e.g., "cpp", "fortran").
     YAML::Node options;    ///< Scheme-specific options.
+    int refresh_interval_seconds = 0;  ///< Refresh interval in seconds (0 means use base timestep).
 };
 
 /**
@@ -125,6 +126,7 @@ struct CeceDataStreamConfig {
     std::string time_var = "time";                  ///< Name of time coordinate variable.
     std::string lon_var = "lon";                    ///< Name of longitude coordinate variable.
     std::string lat_var = "lat";                    ///< Name of latitude coordinate variable.
+    int refresh_interval_seconds = 0;               ///< Refresh interval in seconds (0 means use base timestep).
 };
 
 /**
@@ -185,6 +187,7 @@ struct DriverConfig {
     int timestep_seconds = 3600;                     ///< Timestep in seconds (default: 3600).
     std::string mesh_file;                           ///< Path to ESMF mesh file (optional, default: null).
     DriverGridConfig grid;                           ///< Grid configuration for generated Gaussian grid.
+    int stacking_refresh_interval_seconds = 0;       ///< Stacking engine refresh interval in seconds (0 means use base timestep).
 };
 
 /**

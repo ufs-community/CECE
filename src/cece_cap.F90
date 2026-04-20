@@ -864,7 +864,11 @@ contains
 
     write(*,'(A)') "INFO: [CECE] CECE_Run proceeding with valid data pointer"
 
-    ! Extract hour-of-day from the component clock (Fortran ESMF API is safe here)
+    ! Extract hour-of-day and day_of_week from the ESMF clock as fallback values.
+    ! When the C++ CeceClock is active, it provides hour_of_day and day_of_week
+    ! via StepResult (computed internally from the simulation epoch). These
+    ! ESMF-extracted values are only used in the backward-compatibility path
+    ! (i.e., when the CeceClock pointer is null inside cece_core_run).
     hour = 0
     day_of_week = 0
     block
@@ -969,6 +973,9 @@ contains
       end if
     endif
 
+    ! The C++ CeceClock (if active) handles time decomposition internally via
+    ! Advance()/StepResult. The hour and day_of_week passed here are fallback
+    ! values used only when the clock pointer is null (backward-compat path).
     call cece_core_run(g_cece_data_ptr, int(hour, c_int), int(day_of_week, c_int), c_rc)
     rc = int(c_rc)
     if (rc /= ESMF_SUCCESS) return

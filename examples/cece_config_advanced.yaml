@@ -2,7 +2,8 @@
 driver:
   start_time: "2020-07-15T00:00:00"
   end_time: "2020-07-15T12:00:00"
-  timestep_seconds: 3600
+  timestep_seconds: 300                      # 5-minute base timestep
+  stacking_refresh_interval_seconds: 3600    # Stacking engine runs hourly
 
 grid:
   nx: 144          # 2.5° global resolution
@@ -134,6 +135,7 @@ species:
 physics_schemes:
   - name: "megan"
     language: "cpp"
+    refresh_interval_seconds: 300    # Biogenics need high-frequency updates (every 5 min)
     options:
       temperature_standard: 303.15
       par_conversion_factor: 4.6
@@ -142,6 +144,7 @@ physics_schemes:
 
   - name: "sea_salt"
     language: "cpp"
+    refresh_interval_seconds: 1800   # Sea salt updates every 30 min
     options:
       r_sala_min: 0.01
       r_sala_max: 0.5
@@ -151,6 +154,7 @@ physics_schemes:
 
   - name: "dust"
     language: "cpp"
+    refresh_interval_seconds: 1800   # Dust updates every 30 min
     options:
       particle_density: 2.5
       tuning_factor: 1.0e-9
@@ -161,6 +165,7 @@ cece_data:
   streams:
     - name: "GLOBAL_ANTHROPOGENIC"
       file: "/data/inventories/CEDS_global_2020.nc"
+      refresh_interval_seconds: 3600   # Anthropogenic data changes slowly — ingest hourly
       yearFirst: 2020
       yearLast: 2020
       yearAlign: 2020

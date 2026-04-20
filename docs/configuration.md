@@ -49,15 +49,71 @@ The `driver` section configures the execution timing and control parameters for 
 | --- | --- | --- |
 | `start_time` | String | Simulation start time in ISO 8601 format (e.g., "2020-01-01T00:00:00") |
 | `end_time` | String | Simulation end time in ISO 8601 format |
-| `timestep_seconds` | Integer | Time step duration in seconds |
+| `timestep_seconds` | Integer | Base time step duration in seconds. All component refresh intervals must be integer multiples of this value. |
+| `stacking_refresh_interval_seconds` | Integer | (Optional) Stacking engine execution interval in seconds. Must be a positive multiple of `timestep_seconds`. Default: `0` (use `timestep_seconds`). |
 
 **Example:**
 ```yaml
 driver:
   start_time: "2020-01-01T00:00:00"
   end_time: "2020-01-01T06:00:00"
-  timestep_seconds: 3600  # 1-hour timesteps
+  timestep_seconds: 300                      # 5-minute base timestep
+  stacking_refresh_interval_seconds: 3600    # Stacking runs hourly
 ```
+
+---
+
+## Clock Refresh Intervals
+
+CECE supports independent refresh intervals for each component (physics schemes, data streams, and the stacking engine). This allows fast-responding schemes like biogenics to run every few minutes while slower-changing data streams ingest hourly, reducing unnecessary computation.
+
+### How It Works
+
+- The `timestep_seconds` in the `driver` section defines the base clock cadence.
+- Each component can declare a `refresh_interval_seconds` that must be a positive integer multiple of `timestep_seconds`.
+- Components without a `refresh_interval_seconds` (or with value `0`) default to the base timestep — they run every step, preserving backward compatibility.
+- On the first timestep, all components execute regardless of their interval (first-step guarantee).
+- The stacking engine always executes after all other due components in a given step.
+
+### Configuration
+
+Add `refresh_interval_seconds` to individual physics schemes or data streams, and `stacking_refresh_interval_seconds` to the driver section:
+
+```yaml
+driver:
+  timestep_seconds: 300                      # 5-minute base
+  stacking_refresh_interval_seconds: 3600    # Stacking runs hourly
+
+physics_schemes:
+  - name: "megan"
+    language: "cpp"
+    refresh_interval_seconds: 300            # Every base step (5 min)
+    options: { ... }
+
+  - name: "sea_salt"
+    language: "cpp"
+    refresh_interval_seconds: 1800           # Every 30 min
+    options: { ... }
+
+cece_data:
+  streams:
+    - name: "ANTHROPOGENIC"
+      file: "/data/CEDS_2020.nc"
+      refresh_interval_seconds: 3600         # Ingest hourly
+```
+
+### Validation
+
+At startup, the clock validates all intervals. Errors are raised if:
+
+- An interval is not a positive integer
+- An interval is not an integer multiple of `timestep_seconds`
+
+Error messages name the offending component for easy debugging.
+
+### Backward Compatibility
+
+Existing configurations without any `refresh_interval_seconds` fields continue to work unchanged — all components run every timestep, identical to previous behavior.
 
 ---
 
@@ -243,6 +299,7 @@ List of physics schemes to instantiate and execute during the Run phase. Physics
 | --- | --- | --- |
 | `name` | String | Registered scheme name (e.g., "sea_salt", "megan", "dust") |
 | `language` | String | Implementation language: `cpp` or `fortran` |
+| `refresh_interval_seconds` | Integer | (Optional) Execution interval in seconds. Must be a positive multiple of `timestep_seconds`. Default: `0` (use `timestep_seconds`, i.e., run every step). |
 | `options` | Map | Scheme-specific configuration parameters |
 
 ### Available Physics Schemes
@@ -473,6 +530,7 @@ Configuration for TIDE (Temporal Interpolation & Data Extraction) data streams f
 | --- | --- | --- |
 | `name` | String | Unique identifier for the data stream |
 | `file` | String | Path to NetCDF data file(s) |
+| `refresh_interval_seconds` | Integer | (Optional) Data ingestion interval in seconds. Must be a positive multiple of `timestep_seconds`. Default: `0` (use `timestep_seconds`, i.e., ingest every step). |
 | `yearFirst` | Integer | First year of data coverage |
 | `yearLast` | Integer | Last year of data coverage |
 | `yearAlign` | Integer | Simulation year to align with data |

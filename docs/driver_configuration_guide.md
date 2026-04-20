@@ -13,6 +13,7 @@ driver:
   start_time: "2020-01-01T00:00:00"      # ISO8601 format (optional, default: 2020-01-01T00:00:00)
   end_time: "2020-01-02T00:00:00"        # ISO8601 format (optional, default: 2020-01-02T00:00:00)
   timestep_seconds: 3600                 # Positive integer (optional, default: 3600)
+  stacking_refresh_interval_seconds: 0   # Positive multiple of timestep_seconds (optional, default: 0 = use timestep_seconds)
   mesh_file: null                        # Path to ESMF mesh file (optional, default: null - generate grid)
   grid:
     nx: 4                                # Positive integer (optional, default: 4)
@@ -52,12 +53,26 @@ driver:
 **Type:** Integer
 **Range:** > 0
 **Default:** `3600` (1 hour)
-**Description:** Simulation timestep duration in seconds
+**Description:** Base simulation timestep duration in seconds. All component `refresh_interval_seconds` values must be integer multiples of this value.
 
 **Example:**
 ```yaml
 driver:
   timestep_seconds: 1800  # 30 minutes
+```
+
+### stacking_refresh_interval_seconds
+
+**Type:** Integer
+**Range:** > 0, must be a multiple of `timestep_seconds`
+**Default:** `0` (use `timestep_seconds`, i.e., stacking runs every step)
+**Description:** Execution interval for the stacking engine in seconds. When set, the stacking engine only combines emission layers at this cadence rather than every timestep. Useful when stacking is expensive and input data changes slowly.
+
+**Example:**
+```yaml
+driver:
+  timestep_seconds: 300
+  stacking_refresh_interval_seconds: 3600  # Stack hourly instead of every 5 min
 ```
 
 ### mesh_file
@@ -192,6 +207,7 @@ The driver validates configuration parameters and exits with error if:
 3. **Non-positive timestep:** Timestep must be > 0 seconds
 4. **Invalid grid dimensions:** nx and ny must be > 0
 5. **Missing mesh file:** If mesh_file is specified, the file must exist and be valid
+6. **Invalid refresh interval:** Any `refresh_interval_seconds` or `stacking_refresh_interval_seconds` must be a positive integer multiple of `timestep_seconds`. Error messages name the offending component.
 
 ## Grid/Mesh Selection Logic
 

@@ -304,6 +304,58 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
         internal_data->standalone_mode = false;
     }
 
+    // 8. Construct CeceClock from parsed configuration
+    std::cout << "INFO: Constructing CeceClock for per-component scheduling" << std::endl;
+    try {
+        // Build the vector of ClockComponent from config
+        std::vector<cece::ClockComponent> clock_components;
+
+        // Add physics schemes
+        for (const auto& scheme : config.physics_schemes) {
+            int interval = scheme.refresh_interval_seconds;
+            if (interval == 0) {
+                interval = config.driver_config.timestep_seconds;
+            }
+            clock_components.push_back({cece::ComponentType::kPhysicsScheme, scheme.name, interval});
+        }
+
+        // Add data streams
+        for (const auto& stream : config.cece_data.streams) {
+            int interval = stream.refresh_interval_seconds;
+            if (interval == 0) {
+                interval = config.driver_config.timestep_seconds;
+            }
+            clock_components.push_back({cece::ComponentType::kDataStream, stream.name, interval});
+        }
+
+        // Add stacking engine
+        {
+            int interval = config.driver_config.stacking_refresh_interval_seconds;
+            if (interval == 0) {
+                interval = config.driver_config.timestep_seconds;
+            }
+            clock_components.push_back({cece::ComponentType::kStackingEngine, "stacking", interval});
+        }
+
+        internal_data->clock = std::make_unique<cece::CeceClock>(
+            config.driver_config.start_time,
+            config.driver_config.end_time,
+            config.driver_config.timestep_seconds,
+            clock_components);
+
+        std::cout << "INFO: CeceClock constructed with " << clock_components.size() << " components" << std::endl;
+    } catch (const std::invalid_argument& e) {
+        std::cerr << "ERROR: Failed to construct CeceClock: " << e.what() << std::endl;
+        if (rc != nullptr) {
+            *rc = -1;
+        }
+        delete internal_data;
+        if (kokkos_initialized_here && Kokkos::is_initialized()) {
+            Kokkos::finalize();
+        }
+        return;
+    }
+
     // Return the internal data pointer to the caller
     if (data_ptr_ptr != nullptr) {
         *data_ptr_ptr = internal_data;

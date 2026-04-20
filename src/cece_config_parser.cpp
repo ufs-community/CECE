@@ -209,6 +209,9 @@ CeceConfig ParseConfig(const std::string& filename) {
             if (scheme_node["options"]) {
                 scheme.options = scheme_node["options"];
             }
+            if (scheme_node["refresh_interval_seconds"]) {
+                scheme.refresh_interval_seconds = scheme_node["refresh_interval_seconds"].as<int>();
+            }
             config.physics_schemes.push_back(scheme);
         }
     }
@@ -361,6 +364,9 @@ CeceConfig ParseConfig(const std::string& filename) {
             if (stream_node["lat_var"]) {
                 stream.lat_var = stream_node["lat_var"].as<std::string>();
             }
+            if (stream_node["refresh_interval_seconds"]) {
+                stream.refresh_interval_seconds = stream_node["refresh_interval_seconds"].as<int>();
+            }
 
             config.cece_data.streams.push_back(stream);
         }
@@ -437,6 +443,9 @@ CeceConfig ParseConfig(const std::string& filename) {
             if (grid_node["lat_max"]) {
                 config.driver_config.grid.lat_max = grid_node["lat_max"].as<double>();
             }
+        }
+        if (driver_node["stacking_refresh_interval_seconds"]) {
+            config.driver_config.stacking_refresh_interval_seconds = driver_node["stacking_refresh_interval_seconds"].as<int>();
         }
     }
 
