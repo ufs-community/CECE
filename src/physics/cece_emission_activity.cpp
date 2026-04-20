@@ -129,8 +129,8 @@ void EmissionActivityCalculator::Initialize(const YAML::Node& config) {
             }
         }
     } else {
-        std::cout << "EmissionActivityCalculator: No emission_classes section "
-                  << "found, using defaults for all 19 classes\n";
+        std::cout << "EmissionActivityCalculator: No emission_classes section found, "
+                     "using defaults for all 19 classes\n";
     }
 
     // ---- Copy to device ----

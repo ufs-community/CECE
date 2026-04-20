@@ -222,8 +222,8 @@ void Megan3FortranScheme::Run(CeceImportState& import_state, CeceExportState& ex
         it_soil_nox->second.sync<Kokkos::HostSpace>();
         soil_nox_ptr = it_soil_nox->second.view_host().data();
     } else {
-        std::cerr << "Megan3FortranScheme: WARNING - soil_nox_emissions "
-                  << "not found in export state, setting soil NO to zero\n";
+        std::cerr << "Megan3FortranScheme: WARNING - soil_nox_emissions not found in export state, "
+                     "setting soil NO to zero\n";
         dummy_soil_nox.assign(static_cast<size_t>(nx) * ny * nz, 0.0);
         soil_nox_ptr = dummy_soil_nox.data();
     }
