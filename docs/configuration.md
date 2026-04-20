@@ -250,9 +250,10 @@ List of physics schemes to instantiate and execute during the Run phase. Physics
 | Scheme Name | Description | Key Parameters |
 | ----------- | ----------- | -------------- |
 | `sea_salt` | Marine aerosol emissions | `r_sala_min`, `r_salc_max`, `sea_salt_density` |
-| `megan` | Biogenic VOC emissions | `temperature_response`, `par_response` |
+| `megan` | Biogenic isoprene emissions (single-species) | `beta`, `ldf`, `aef`, `co2_concentration` |
+| `megan3` | Full MEGAN3 multi-species biogenic emissions | `mechanism_file`, `speciation_file`, `emission_classes` |
+| `bdsnp` | Soil NO emissions (BDSNP/YL95) | `soil_no_method`, `fert_emission_factor` |
 | `dust` | Mineral dust emissions | `particle_density`, `tuning_factor` |
-| `soil_nox` | Soil nitrogen emissions | `temp_coefficient`, `moisture_response` |
 | `lightning` | Lightning NOx production | `yield_land`, `yield_ocean` |
 | `volcano` | Volcanic SO₂ emissions | `target_location`, `emission_rate` |
 | `dms` | Ocean DMS emissions | `schmidt_coeffs`, `transfer_velocity` |
@@ -283,6 +284,157 @@ physics_schemes:
       particle_density: 2.5           # Dust density [g/cm³]
       tuning_factor: 9.375e-10        # Emission tuning coefficient
 ```
+
+---
+
+## Speciation Files (SPC and MAP)
+
+The MEGAN3 scheme uses two external YAML files to define chemical mechanism speciation. This allows switching between mechanisms (CB6, RACM2, SAPRC07, CRACMM2) at runtime without recompilation.
+
+### SPC File — Mechanism Species Definition
+
+Defines the target mechanism species and their molecular weights. Uses the MICM/OpenAtmos format.
+
+**Format:**
+
+```yaml
+name: <mechanism_name>
+species:
+  - name: <species_name>
+    molecular weight [kg mol-1]: <value>
+  - name: <species_name>
+    molecular weight [kg mol-1]: <value>
+```
+
+**Example** (`data/speciation/spc_cb6.yaml`):
+
+```yaml
+name: CB6_AE7
+species:
+  - name: ISOP
+    molecular weight [kg mol-1]: 0.06812
+  - name: TERP
+    molecular weight [kg mol-1]: 0.13623
+  - name: PAR
+    molecular weight [kg mol-1]: 0.01443
+  - name: MEOH
+    molecular weight [kg mol-1]: 0.03204
+  - name: "NO"
+    molecular weight [kg mol-1]: 0.03001
+  - name: CO
+    molecular weight [kg mol-1]: 0.02801
+  # ... up to 36 species for CB6
+```
+
+**Rules:**
+- `name` key is required (mechanism identifier)
+- Each species must have `name` (string) and `molecular weight [kg mol-1]` (positive number)
+- Quote `"NO"` to prevent YAML 1.1 boolean interpretation
+
+### MAP File — Speciation Mappings
+
+Defines how emission classes map to mechanism species with per-class scale factors. Uses a dataset-oriented format supporting multiple emission sources.
+
+**Format:**
+
+```yaml
+mechanism: <mechanism_name>
+datasets:
+  <dataset_name>:
+    <mechanism_species>:
+      <emission_class>: <scale_factor>
+      <emission_class>: <scale_factor>
+    <mechanism_species>:
+      <emission_class>: <scale_factor>
+```
+
+**Example** (`data/speciation/map_cb6.yaml`):
+
+```yaml
+mechanism: CB6_AE7
+datasets:
+  MEGAN:
+    ISOP:
+      ISOP: 1.0
+    TERP:
+      MT_PINE: 0.5
+      MT_ACYC: 0.3
+      MT_CAMP: 0.1
+      MT_SABI: 0.05
+      MT_AROM: 0.05
+    MEOH:
+      MEOH: 1.0
+    SESQ:
+      SQT_HR: 0.7
+      SQT_LR: 0.3
+    "NO":
+      "NO": 1.0
+    CO:
+      CO: 1.0
+```
+
+**Rules:**
+- `mechanism` key is required and must match the SPC file's `name`
+- `datasets` section is required; each key is a dataset name (e.g., `MEGAN`)
+- Each mechanism species entry maps emission class names to positive scale factors
+- Valid emission classes: `ISOP`, `MBO`, `MT_PINE`, `MT_ACYC`, `MT_CAMP`, `MT_SABI`, `MT_AROM`, `NO`, `SQT_HR`, `SQT_LR`, `MEOH`, `ACTO`, `ETOH`, `ACID`, `LVOC`, `OXPROD`, `STRESS`, `OTHER`, `CO`
+- All mechanism species referenced in the MAP must exist in the SPC file
+
+### Using SPC/MAP with MEGAN3
+
+Reference the speciation files in the MEGAN3 scheme configuration:
+
+```yaml
+physics_schemes:
+  - name: bdsnp
+    options:
+      soil_no_method: bdsnp
+
+  - name: megan3
+    options:
+      mechanism_file: data/speciation/spc_cb6.yaml
+      speciation_file: data/speciation/map_cb6.yaml
+      speciation_dataset: MEGAN
+      co2_concentration: 415.0
+      emission_classes:
+        ISOP:
+          ldf: 0.9996
+          ct1: 95.0
+          cleo: 2.0
+          beta: 0.13
+          default_aef: 1.0e-9
+        MT_PINE:
+          ldf: 0.10
+          ct1: 80.0
+          cleo: 1.83
+          beta: 0.10
+          default_aef: 3.0e-10
+        # ... remaining 17 classes
+    output_mapping:
+      MEGAN_ISOP: ISOP_BIOG
+      MEGAN_TERP: TERP_BIOG
+```
+
+The speciation engine computes each output species as:
+
+```
+output[TERP] = (class_total[MT_PINE] × 0.5 + class_total[MT_ACYC] × 0.3 + ...) × MW[TERP]
+```
+
+### Shipped Mechanism Files
+
+| Mechanism | SPC File | MAP File | Species Count |
+| --- | --- | --- | --- |
+| CB6_AE7 | `data/speciation/spc_cb6.yaml` | `data/speciation/map_cb6.yaml` | 36 |
+| RACM2 | `data/speciation/spc_racm2.yaml` | `data/speciation/map_racm2.yaml` | 43 |
+| SAPRC07 | `data/speciation/spc_saprc07.yaml` | `data/speciation/map_saprc07.yaml` | 38 |
+| CRACMM2 | `data/speciation/spc_cracmm.yaml` | `data/speciation/map_cracmm.yaml` | 56 |
+
+### Adding a Custom Mechanism
+
+1. Create an SPC file with your mechanism species and molecular weights (kg/mol)
+2. Create a MAP file with a `MEGAN` dataset mapping the 19 emission classes to your species
+3. Set `mechanism_file` and `speciation_file` in the MEGAN3 config to your file paths
 
 ---
 

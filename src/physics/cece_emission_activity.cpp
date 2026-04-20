@@ -129,8 +129,8 @@ void EmissionActivityCalculator::Initialize(const YAML::Node& config) {
             }
         }
     } else {
-        std::cout << "EmissionActivityCalculator: No emission_classes section found, "
-                  << "using defaults for all 19 classes\n";
+        std::cout << "EmissionActivityCalculator: No emission_classes section "
+                  << "found, using defaults for all 19 classes\n";
     }
 
     // ---- Copy to device ----
@@ -179,10 +179,9 @@ void EmissionActivityCalculator::Initialize(const YAML::Node& config) {
     bool use_wilkinson = (co2_method_ == "wilkinson");
     gamma_co2_ = get_gamma_co2(co2_concentration_, gamma_co2_coeff_1, gamma_co2_coeff_2, use_wilkinson);
 
-    std::cout << "EmissionActivityCalculator: Initialized with " << NUM_CLASSES << " emission classes, "
-              << "co2_method=" << co2_method_ << ", co2=" << co2_concentration_ << " ppm, gamma_co2=" << gamma_co2_
-              << ", wind_stress=" << (enable_wind_stress_ ? "on" : "off") << ", temp_stress=" << (enable_temp_stress_ ? "on" : "off")
-              << ", aq_stress=" << (enable_aq_stress_ ? "on" : "off") << "\n";
+    std::cout << "EmissionActivityCalculator: Initialized with " << NUM_CLASSES << " emission classes, co2_method=" << co2_method_
+              << ", co2=" << co2_concentration_ << " ppm, gamma_co2=" << gamma_co2_ << ", wind_stress=" << (enable_wind_stress_ ? "on" : "off")
+              << ", temp_stress=" << (enable_temp_stress_ ? "on" : "off") << ", aq_stress=" << (enable_aq_stress_ ? "on" : "off") << "\n";
 }
 
 }  // namespace cece

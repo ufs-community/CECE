@@ -206,8 +206,8 @@ void Megan3Scheme::Run(CeceImportState& import_state, CeceExportState& export_st
     auto soil_nox_view = ResolveExport("soil_nox_emissions", export_state);
     bool has_soil_nox = (soil_nox_view.data() != nullptr);
     if (!has_soil_nox) {
-        std::cerr << "Megan3Scheme: WARNING - soil_nox_emissions not found in "
-                  << "export state, setting soil NO contribution to zero\n";
+        std::cerr << "Megan3Scheme: WARNING - soil_nox_emissions not found "
+                  << "in export state, setting soil NO contribution to zero\n";
     }
 
     // ---- Allocate class_totals_ (19 x num_cells) ----
