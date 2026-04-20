@@ -2,7 +2,6 @@
 #define CECE_MEGAN_HPP
 
 #include <Kokkos_Core.hpp>
-
 #include <algorithm>
 #include <cmath>
 #include <numbers>
@@ -81,8 +80,7 @@ double get_gamma_t_li(double temp, double beta, double t_standard) {
 }
 
 KOKKOS_INLINE_FUNCTION
-double get_gamma_t_ld(double T, double PT_15, double CT1, double CEO, double R, double CT2, double t_opt_c1, double t_opt_c2,
-                      double e_opt_coeff) {
+double get_gamma_t_ld(double T, double PT_15, double CT1, double CEO, double R, double CT2, double t_opt_c1, double t_opt_c2, double e_opt_coeff) {
     double e_opt = CEO * std::exp(e_opt_coeff * (PT_15 - 297.0));
     double t_opt = t_opt_c1 + t_opt_c2 * (PT_15 - 297.0);
     double x = (1.0 / t_opt - 1.0 / T) / R;
@@ -91,8 +89,8 @@ double get_gamma_t_ld(double T, double PT_15, double CT1, double CEO, double R, 
 }
 
 KOKKOS_INLINE_FUNCTION
-double get_gamma_par_pceea(double q_dir, double q_diff, double par_avg, double suncos, int doy, double wm2_to_umol, double ptoa_c1,
-                           double ptoa_c2, double gamma_p_c1, double gamma_p_c2, double gamma_p_c3, double gamma_p_c4) {
+double get_gamma_par_pceea(double q_dir, double q_diff, double par_avg, double suncos, int doy, double wm2_to_umol, double ptoa_c1, double ptoa_c2,
+                           double gamma_p_c1, double gamma_p_c2, double gamma_p_c3, double gamma_p_c4) {
     const double PI = std::numbers::pi;
     if (suncos <= 0.0) return 0.0;
     double pac_instant = (q_dir + q_diff) * wm2_to_umol;

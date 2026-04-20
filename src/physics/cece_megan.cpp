@@ -165,7 +165,8 @@ void MeganScheme::Run(CeceImportState& import_state, CeceExportState& export_sta
             double g_lai = get_gamma_lai(L, lai_c1, lai_c2, is_bidirectional);
             double g_t_li = get_gamma_t_li(T, beta, std_t);
             double g_t_ld = get_gamma_t_ld(T, T_AVG_15, ct1, ceo, R, ct2, t_opt_c1, t_opt_c2, e_opt_c);
-            double g_par = get_gamma_par_pceea(pardr(i, j, 0), pardf(i, j, 0), PAR_AVG, sc, doy, wm2_umol, ptoa_c1, ptoa_c2, gp_c1, gp_c2, gp_c3, gp_c4);
+            double g_par =
+                get_gamma_par_pceea(pardr(i, j, 0), pardf(i, j, 0), PAR_AVG, sc, doy, wm2_umol, ptoa_c1, ptoa_c2, gp_c1, gp_c2, gp_c3, gp_c4);
             double g_age = get_gamma_age(L, L_prev, dbtwn, T, anew, agro, amat, aold);
             double g_sm = get_gamma_sm(gwet, is_ald2_or_eoh);
 
