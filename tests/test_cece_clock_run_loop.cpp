@@ -77,8 +77,7 @@ class ClockGatedRunLoopTest : public ::testing::Test {
             {ComponentType::kDataStream, "stream_x", 600},
             {ComponentType::kStackingEngine, "stacking", 600},
         };
-        clock_ = std::make_unique<CeceClock>(
-            "2020-07-15T00:00:00", "2020-07-15T12:00:00", 300, components);
+        clock_ = std::make_unique<CeceClock>("2020-07-15T00:00:00", "2020-07-15T12:00:00", 300, components);
     }
 
     std::unique_ptr<CeceClock> clock_;
@@ -170,7 +169,7 @@ TEST_F(ClockGatedRunLoopTest, DataStreamsIngestAtConfiguredIntervals) {
 // ---------------------------------------------------------------------------
 
 TEST_F(ClockGatedRunLoopTest, Step2OnlyComponentsDividing600AreDue) {
-    clock_->Advance();  // step 1
+    clock_->Advance();                  // step 1
     StepResult s2 = clock_->Advance();  // step 2, elapsed=600
 
     EXPECT_EQ(s2.elapsed_seconds, 600);
@@ -196,14 +195,12 @@ TEST_F(ClockGatedRunLoopTest, StackingAlwaysAppearsLastWhenDue) {
         int stacking_idx = DueIndex(step, "stacking");
         if (stacking_idx >= 0) {
             // Stacking must be the last element
-            EXPECT_EQ(stacking_idx, static_cast<int>(step.due_components.size()) - 1)
-                << "Stacking not last at elapsed=" << step.elapsed_seconds;
+            EXPECT_EQ(stacking_idx, static_cast<int>(step.due_components.size()) - 1) << "Stacking not last at elapsed=" << step.elapsed_seconds;
 
             // All non-stacking components must appear before stacking
             for (size_t j = 0; j < step.due_components.size() - 1; ++j) {
                 EXPECT_NE(step.due_components[j]->type, ComponentType::kStackingEngine)
-                    << "Non-last stacking at index " << j
-                    << " at elapsed=" << step.elapsed_seconds;
+                    << "Non-last stacking at index " << j << " at elapsed=" << step.elapsed_seconds;
             }
         }
     }
@@ -243,8 +240,7 @@ class ClockGatedRunLoopBackwardCompatTest : public ::testing::Test {
             {ComponentType::kDataStream, "anthropogenic", 300},
             {ComponentType::kStackingEngine, "stacking", 300},
         };
-        clock_ = std::make_unique<CeceClock>(
-            "2020-07-15T00:00:00", "2020-07-15T01:00:00", 300, components);
+        clock_ = std::make_unique<CeceClock>("2020-07-15T00:00:00", "2020-07-15T01:00:00", 300, components);
     }
 
     std::unique_ptr<CeceClock> clock_;
@@ -260,9 +256,8 @@ TEST_F(ClockGatedRunLoopBackwardCompatTest, AllComponentsDueEveryStep) {
         StepResult step = clock_->Advance();
         if (step.simulation_complete && step.due_components.empty()) break;
 
-        EXPECT_EQ(step.due_components.size(), 4u)
-            << "All 4 components should be due at step " << (i + 1)
-            << " (elapsed=" << step.elapsed_seconds << ")";
+        EXPECT_EQ(step.due_components.size(), 4u) << "All 4 components should be due at step " << (i + 1) << " (elapsed=" << step.elapsed_seconds
+                                                  << ")";
 
         EXPECT_TRUE(IsDue(step, "megan"));
         EXPECT_TRUE(IsDue(step, "sea_salt"));
@@ -277,8 +272,7 @@ TEST_F(ClockGatedRunLoopBackwardCompatTest, StackingAlwaysLastEvenWhenAllDue) {
         if (step.simulation_complete && step.due_components.empty()) break;
 
         ASSERT_FALSE(step.due_components.empty());
-        EXPECT_EQ(step.due_components.back()->name, "stacking")
-            << "Stacking should be last at step " << (i + 1);
+        EXPECT_EQ(step.due_components.back()->name, "stacking") << "Stacking should be last at step " << (i + 1);
     }
 }
 
@@ -304,26 +298,17 @@ TEST_F(ClockGatedRunLoopTest, FullSchedulingSequenceOverSixSteps) {
     };
 
     std::vector<Expected> expected = {
-        {300,  true, true,  true,  true},
-        {600,  true, false, true,  true},
-        {900,  true, true,  false, false},
-        {1200, true, false, true,  true},
-        {1500, true, false, false, false},
-        {1800, true, true,  true,  true},
+        {300, true, true, true, true},   {600, true, false, true, true},    {900, true, true, false, false},
+        {1200, true, false, true, true}, {1500, true, false, false, false}, {1800, true, true, true, true},
     };
 
     for (const auto& e : expected) {
         StepResult step = clock_->Advance();
-        EXPECT_EQ(step.elapsed_seconds, e.elapsed)
-            << "Elapsed mismatch";
-        EXPECT_EQ(IsDue(step, "scheme_a"), e.scheme_a)
-            << "scheme_a mismatch at elapsed=" << e.elapsed;
-        EXPECT_EQ(IsDue(step, "scheme_b"), e.scheme_b)
-            << "scheme_b mismatch at elapsed=" << e.elapsed;
-        EXPECT_EQ(IsDue(step, "stream_x"), e.stream_x)
-            << "stream_x mismatch at elapsed=" << e.elapsed;
-        EXPECT_EQ(IsDue(step, "stacking"), e.stacking)
-            << "stacking mismatch at elapsed=" << e.elapsed;
+        EXPECT_EQ(step.elapsed_seconds, e.elapsed) << "Elapsed mismatch";
+        EXPECT_EQ(IsDue(step, "scheme_a"), e.scheme_a) << "scheme_a mismatch at elapsed=" << e.elapsed;
+        EXPECT_EQ(IsDue(step, "scheme_b"), e.scheme_b) << "scheme_b mismatch at elapsed=" << e.elapsed;
+        EXPECT_EQ(IsDue(step, "stream_x"), e.stream_x) << "stream_x mismatch at elapsed=" << e.elapsed;
+        EXPECT_EQ(IsDue(step, "stacking"), e.stacking) << "stacking mismatch at elapsed=" << e.elapsed;
     }
 }
 
@@ -337,17 +322,14 @@ TEST_F(ClockGatedRunLoopTest, NonDueComponentsSkipped) {
     // Step 2: elapsed=600
     StepResult s2 = clock_->Advance();
     // scheme_b (900s interval) should NOT be in the due list
-    EXPECT_FALSE(IsDue(s2, "scheme_b"))
-        << "scheme_b should be skipped at elapsed=600 (interval=900)";
+    EXPECT_FALSE(IsDue(s2, "scheme_b")) << "scheme_b should be skipped at elapsed=600 (interval=900)";
 
     // Step 3: elapsed=900
     StepResult s3 = clock_->Advance();
     // stream_x (600s interval) should NOT be due at 900
-    EXPECT_FALSE(IsDue(s3, "stream_x"))
-        << "stream_x should be skipped at elapsed=900 (interval=600)";
+    EXPECT_FALSE(IsDue(s3, "stream_x")) << "stream_x should be skipped at elapsed=900 (interval=600)";
     // stacking (600s interval) should NOT be due at 900
-    EXPECT_FALSE(IsDue(s3, "stacking"))
-        << "stacking should be skipped at elapsed=900 (interval=600)";
+    EXPECT_FALSE(IsDue(s3, "stacking")) << "stacking should be skipped at elapsed=900 (interval=600)";
 }
 
 // ---------------------------------------------------------------------------
@@ -377,8 +359,7 @@ TEST(ClockGatedRunLoopNullClockTest, NullClockBackwardCompatibility) {
     // unconditionally. We verify this by checking that a null unique_ptr
     // evaluates to false, which is the guard used in cece_core_run.
     std::unique_ptr<CeceClock> clock = nullptr;
-    EXPECT_FALSE(static_cast<bool>(clock))
-        << "Null clock should evaluate to false, triggering unconditional execution path";
+    EXPECT_FALSE(static_cast<bool>(clock)) << "Null clock should evaluate to false, triggering unconditional execution path";
 }
 
 // ---------------------------------------------------------------------------

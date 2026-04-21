@@ -337,11 +337,8 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
             clock_components.push_back({cece::ComponentType::kStackingEngine, "stacking", interval});
         }
 
-        internal_data->clock = std::make_unique<cece::CeceClock>(
-            config.driver_config.start_time,
-            config.driver_config.end_time,
-            config.driver_config.timestep_seconds,
-            clock_components);
+        internal_data->clock = std::make_unique<cece::CeceClock>(config.driver_config.start_time, config.driver_config.end_time,
+                                                                 config.driver_config.timestep_seconds, clock_components);
 
         std::cout << "INFO: CeceClock constructed with " << clock_components.size() << " components" << std::endl;
     } catch (const std::invalid_argument& e) {

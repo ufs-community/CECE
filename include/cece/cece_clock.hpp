@@ -10,11 +10,7 @@ namespace cece {
 /**
  * @brief Identifies a schedulable component type.
  */
-enum class ComponentType : uint8_t {
-    kPhysicsScheme,
-    kDataStream,
-    kStackingEngine
-};
+enum class ComponentType : uint8_t { kPhysicsScheme, kDataStream, kStackingEngine };
 
 /**
  * @brief A component registered with the clock for scheduling.
@@ -30,10 +26,10 @@ struct ClockComponent {
  */
 struct StepResult {
     std::vector<const ClockComponent*> due_components;  ///< ordered: schemes/streams first, stacking last
-    int elapsed_seconds;    ///< total seconds since start_time
-    int hour_of_day;        ///< 0-23
-    int day_of_week;        ///< 0-6, Sunday=0
-    int month;              ///< 0-11
+    int elapsed_seconds;                                ///< total seconds since start_time
+    int hour_of_day;                                    ///< 0-23
+    int day_of_week;                                    ///< 0-6, Sunday=0
+    int month;                                          ///< 0-11
     bool simulation_complete;
 };
 
@@ -56,9 +52,7 @@ class CeceClock {
      * @param components Components to schedule (intervals must be positive multiples of base).
      * @throws std::invalid_argument on validation failure.
      */
-    CeceClock(const std::string& start_time_iso8601,
-              const std::string& end_time_iso8601,
-              int base_timestep_secs,
+    CeceClock(const std::string& start_time_iso8601, const std::string& end_time_iso8601, int base_timestep_secs,
               const std::vector<ClockComponent>& components);
 
     /**
@@ -83,10 +77,10 @@ class CeceClock {
     int BaseTimestep() const;
 
    private:
-    int64_t start_epoch_secs_;      ///< start_time as seconds since Unix epoch
-    int64_t end_epoch_secs_;        ///< end_time as seconds since Unix epoch
+    int64_t start_epoch_secs_;  ///< start_time as seconds since Unix epoch
+    int64_t end_epoch_secs_;    ///< end_time as seconds since Unix epoch
     int base_timestep_secs_;
-    int64_t elapsed_seconds_ = 0;   ///< seconds since start_time
+    int64_t elapsed_seconds_ = 0;  ///< seconds since start_time
 
     struct ComponentState {
         ClockComponent component;

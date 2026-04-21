@@ -47,8 +47,7 @@ RC_GTEST_PROP(CeceClockProperty, Property1_AdvancePreservesElapsedTime, ()) {
     // Compute end_time far enough to accommodate N steps plus margin.
     // We need at least N * base_timestep seconds after start.
     // Use (step_count + 1) * base_timestep to ensure end > start even when N=0.
-    const int64_t required_seconds =
-        static_cast<int64_t>(step_count + 1) * static_cast<int64_t>(base_timestep);
+    const int64_t required_seconds = static_cast<int64_t>(step_count + 1) * static_cast<int64_t>(base_timestep);
 
     // Build end_time ISO8601 string by adding required_seconds to a known epoch.
     // 2020-01-01T00:00:00 UTC = 1577836800 epoch seconds.
@@ -61,14 +60,12 @@ RC_GTEST_PROP(CeceClockProperty, Property1_AdvancePreservesElapsedTime, ()) {
     RC_ASSERT(gm != nullptr);
 
     char end_buf[20];
-    std::snprintf(end_buf, sizeof(end_buf), "%04d-%02d-%02dT%02d:%02d:%02d",
-                  gm->tm_year + 1900, gm->tm_mon + 1, gm->tm_mday,
-                  gm->tm_hour, gm->tm_min, gm->tm_sec);
+    std::snprintf(end_buf, sizeof(end_buf), "%04d-%02d-%02dT%02d:%02d:%02d", gm->tm_year + 1900, gm->tm_mon + 1, gm->tm_mday, gm->tm_hour, gm->tm_min,
+                  gm->tm_sec);
     const std::string end_time(end_buf);
 
     // Create one component with refresh_interval = base_timestep (simplest valid config)
-    std::vector<ClockComponent> components = {
-        {ComponentType::kPhysicsScheme, "test_scheme", base_timestep}};
+    std::vector<ClockComponent> components = {{ComponentType::kPhysicsScheme, "test_scheme", base_timestep}};
 
     // Construct the clock
     CeceClock clock(start_time, end_time, base_timestep, components);
@@ -100,8 +97,7 @@ RC_GTEST_PROP(CeceClockProperty, Property2_CalendarDecompositionCorrectness, ())
     // Random epoch between 2000-01-01 (946684800) and 2030-01-01 (1893456000)
     constexpr int64_t epoch_2000 = 946684800;
     constexpr int64_t epoch_2030 = 1893456000;
-    const int64_t start_epoch =
-        epoch_2000 + *rc::gen::inRange<int64_t>(0, epoch_2030 - epoch_2000);
+    const int64_t start_epoch = epoch_2000 + *rc::gen::inRange<int64_t>(0, epoch_2030 - epoch_2000);
 
     // Random base timestep B in [1, 3600]
     const int base_timestep = 1 + *rc::gen::inRange(0, 3600);
@@ -115,14 +111,12 @@ RC_GTEST_PROP(CeceClockProperty, Property2_CalendarDecompositionCorrectness, ())
     RC_ASSERT(start_gm != nullptr);
 
     char start_buf[20];
-    std::snprintf(start_buf, sizeof(start_buf), "%04d-%02d-%02dT%02d:%02d:%02d",
-                  start_gm->tm_year + 1900, start_gm->tm_mon + 1, start_gm->tm_mday,
+    std::snprintf(start_buf, sizeof(start_buf), "%04d-%02d-%02dT%02d:%02d:%02d", start_gm->tm_year + 1900, start_gm->tm_mon + 1, start_gm->tm_mday,
                   start_gm->tm_hour, start_gm->tm_min, start_gm->tm_sec);
     const std::string start_time(start_buf);
 
     // Compute end_time far enough to accommodate N steps plus margin
-    const int64_t required_seconds =
-        static_cast<int64_t>(step_count + 1) * static_cast<int64_t>(base_timestep);
+    const int64_t required_seconds = static_cast<int64_t>(step_count + 1) * static_cast<int64_t>(base_timestep);
     const int64_t end_epoch = start_epoch + required_seconds;
 
     std::time_t end_t = static_cast<std::time_t>(end_epoch);
@@ -130,14 +124,12 @@ RC_GTEST_PROP(CeceClockProperty, Property2_CalendarDecompositionCorrectness, ())
     RC_ASSERT(end_gm != nullptr);
 
     char end_buf[20];
-    std::snprintf(end_buf, sizeof(end_buf), "%04d-%02d-%02dT%02d:%02d:%02d",
-                  end_gm->tm_year + 1900, end_gm->tm_mon + 1, end_gm->tm_mday,
+    std::snprintf(end_buf, sizeof(end_buf), "%04d-%02d-%02dT%02d:%02d:%02d", end_gm->tm_year + 1900, end_gm->tm_mon + 1, end_gm->tm_mday,
                   end_gm->tm_hour, end_gm->tm_min, end_gm->tm_sec);
     const std::string end_time(end_buf);
 
     // One component with refresh_interval = base_timestep
-    std::vector<ClockComponent> components = {
-        {ComponentType::kPhysicsScheme, "test_scheme", base_timestep}};
+    std::vector<ClockComponent> components = {{ComponentType::kPhysicsScheme, "test_scheme", base_timestep}};
 
     // Construct the clock
     CeceClock clock(start_time, end_time, base_timestep, components);
@@ -149,15 +141,14 @@ RC_GTEST_PROP(CeceClockProperty, Property2_CalendarDecompositionCorrectness, ())
     }
 
     // Compute expected calendar values using std::gmtime on (start_epoch + N*B)
-    const int64_t absolute_epoch =
-        start_epoch + static_cast<int64_t>(step_count) * static_cast<int64_t>(base_timestep);
+    const int64_t absolute_epoch = start_epoch + static_cast<int64_t>(step_count) * static_cast<int64_t>(base_timestep);
     std::time_t abs_t = static_cast<std::time_t>(absolute_epoch);
     std::tm* expected_gm = std::gmtime(&abs_t);
     RC_ASSERT(expected_gm != nullptr);
 
-    const int expected_hour = expected_gm->tm_hour;   // 0-23
-    const int expected_dow  = expected_gm->tm_wday;   // 0-6, Sunday=0
-    const int expected_month = expected_gm->tm_mon;   // 0-11
+    const int expected_hour = expected_gm->tm_hour;  // 0-23
+    const int expected_dow = expected_gm->tm_wday;   // 0-6, Sunday=0
+    const int expected_month = expected_gm->tm_mon;  // 0-11
 
     // Assert calendar fields match
     RC_ASSERT(last_result.hour_of_day == expected_hour);
@@ -178,8 +169,7 @@ RC_GTEST_PROP(CeceClockProperty, Property3_InvalidTimeRangeProducesError, ()) {
     // Random epoch for end_time between 2000-01-01 and 2030-01-01
     constexpr int64_t epoch_2000 = 946684800;
     constexpr int64_t epoch_2030 = 1893456000;
-    const int64_t end_epoch =
-        epoch_2000 + *rc::gen::inRange<int64_t>(0, epoch_2030 - epoch_2000);
+    const int64_t end_epoch = epoch_2000 + *rc::gen::inRange<int64_t>(0, epoch_2030 - epoch_2000);
 
     // Random offset >= 0 so that start_epoch >= end_epoch (start >= end)
     const int64_t offset = *rc::gen::inRange<int64_t>(0, 365 * 24 * 3600);
@@ -191,8 +181,7 @@ RC_GTEST_PROP(CeceClockProperty, Property3_InvalidTimeRangeProducesError, ()) {
     RC_ASSERT(start_gm != nullptr);
 
     char start_buf[20];
-    std::snprintf(start_buf, sizeof(start_buf), "%04d-%02d-%02dT%02d:%02d:%02d",
-                  start_gm->tm_year + 1900, start_gm->tm_mon + 1, start_gm->tm_mday,
+    std::snprintf(start_buf, sizeof(start_buf), "%04d-%02d-%02dT%02d:%02d:%02d", start_gm->tm_year + 1900, start_gm->tm_mon + 1, start_gm->tm_mday,
                   start_gm->tm_hour, start_gm->tm_min, start_gm->tm_sec);
     const std::string start_time(start_buf);
 
@@ -202,20 +191,16 @@ RC_GTEST_PROP(CeceClockProperty, Property3_InvalidTimeRangeProducesError, ()) {
     RC_ASSERT(end_gm != nullptr);
 
     char end_buf[20];
-    std::snprintf(end_buf, sizeof(end_buf), "%04d-%02d-%02dT%02d:%02d:%02d",
-                  end_gm->tm_year + 1900, end_gm->tm_mon + 1, end_gm->tm_mday,
+    std::snprintf(end_buf, sizeof(end_buf), "%04d-%02d-%02dT%02d:%02d:%02d", end_gm->tm_year + 1900, end_gm->tm_mon + 1, end_gm->tm_mday,
                   end_gm->tm_hour, end_gm->tm_min, end_gm->tm_sec);
     const std::string end_time(end_buf);
 
     // Valid base timestep and one valid component
     const int base_timestep = 300;
-    std::vector<ClockComponent> components = {
-        {ComponentType::kPhysicsScheme, "test_scheme", base_timestep}};
+    std::vector<ClockComponent> components = {{ComponentType::kPhysicsScheme, "test_scheme", base_timestep}};
 
     // Constructing CeceClock with start >= end must throw std::invalid_argument
-    RC_ASSERT_THROWS_AS(
-        CeceClock(start_time, end_time, base_timestep, components),
-        std::invalid_argument);
+    RC_ASSERT_THROWS_AS(CeceClock(start_time, end_time, base_timestep, components), std::invalid_argument);
 }
 
 // ============================================================================
@@ -342,8 +327,7 @@ RC_GTEST_PROP(CeceClockProperty, Property5_MissingRefreshIntervalDefaultsToBaseT
 
     // Compute end_time far enough to accommodate N steps plus margin
     const int64_t start_epoch = 1577836800;  // 2020-01-01T00:00:00 UTC
-    const int64_t required_seconds =
-        static_cast<int64_t>(step_count + 1) * static_cast<int64_t>(base_timestep);
+    const int64_t required_seconds = static_cast<int64_t>(step_count + 1) * static_cast<int64_t>(base_timestep);
     const int64_t end_epoch = start_epoch + required_seconds;
 
     std::time_t end_t = static_cast<std::time_t>(end_epoch);
@@ -351,9 +335,8 @@ RC_GTEST_PROP(CeceClockProperty, Property5_MissingRefreshIntervalDefaultsToBaseT
     RC_ASSERT(gm != nullptr);
 
     char end_buf[20];
-    std::snprintf(end_buf, sizeof(end_buf), "%04d-%02d-%02dT%02d:%02d:%02d",
-                  gm->tm_year + 1900, gm->tm_mon + 1, gm->tm_mday,
-                  gm->tm_hour, gm->tm_min, gm->tm_sec);
+    std::snprintf(end_buf, sizeof(end_buf), "%04d-%02d-%02dT%02d:%02d:%02d", gm->tm_year + 1900, gm->tm_mon + 1, gm->tm_mday, gm->tm_hour, gm->tm_min,
+                  gm->tm_sec);
     const std::string end_time(end_buf);
 
     // Generate random counts of each component type [1, 5]
@@ -365,19 +348,12 @@ RC_GTEST_PROP(CeceClockProperty, Property5_MissingRefreshIntervalDefaultsToBaseT
     //  since 0 is resolved to base_timestep before clock construction)
     std::vector<ClockComponent> components;
     for (int i = 0; i < num_schemes; ++i) {
-        components.push_back(
-            {ComponentType::kPhysicsScheme,
-             "scheme_" + std::to_string(i),
-             base_timestep});
+        components.push_back({ComponentType::kPhysicsScheme, "scheme_" + std::to_string(i), base_timestep});
     }
     for (int i = 0; i < num_streams; ++i) {
-        components.push_back(
-            {ComponentType::kDataStream,
-             "stream_" + std::to_string(i),
-             base_timestep});
+        components.push_back({ComponentType::kDataStream, "stream_" + std::to_string(i), base_timestep});
     }
-    components.push_back(
-        {ComponentType::kStackingEngine, "stacking", base_timestep});
+    components.push_back({ComponentType::kStackingEngine, "stacking", base_timestep});
 
     const int total_components = num_schemes + num_streams + 1;
 
@@ -416,10 +392,7 @@ RC_GTEST_PROP(CeceClockProperty, Property6_SchedulingCorrectness, ()) {
         const int multiplier = 1 + *rc::gen::inRange(0, 10);
         const int interval = multiplier * base_timestep;
         intervals.push_back(interval);
-        components.push_back(
-            {ComponentType::kPhysicsScheme,
-             "component_" + std::to_string(i),
-             interval});
+        components.push_back({ComponentType::kPhysicsScheme, "component_" + std::to_string(i), interval});
     }
 
     // 3. Generate a random step count N in [2, 30] (skip step 1 for modulo check)
@@ -430,8 +403,7 @@ RC_GTEST_PROP(CeceClockProperty, Property6_SchedulingCorrectness, ()) {
 
     // Compute end_time far enough to accommodate all steps
     const int64_t start_epoch = 1577836800;  // 2020-01-01T00:00:00 UTC
-    const int64_t required_seconds =
-        static_cast<int64_t>(step_count + 1) * static_cast<int64_t>(base_timestep);
+    const int64_t required_seconds = static_cast<int64_t>(step_count + 1) * static_cast<int64_t>(base_timestep);
     const int64_t end_epoch = start_epoch + required_seconds;
 
     std::time_t end_t = static_cast<std::time_t>(end_epoch);
@@ -439,9 +411,8 @@ RC_GTEST_PROP(CeceClockProperty, Property6_SchedulingCorrectness, ()) {
     RC_ASSERT(gm != nullptr);
 
     char end_buf[20];
-    std::snprintf(end_buf, sizeof(end_buf), "%04d-%02d-%02dT%02d:%02d:%02d",
-                  gm->tm_year + 1900, gm->tm_mon + 1, gm->tm_mday,
-                  gm->tm_hour, gm->tm_min, gm->tm_sec);
+    std::snprintf(end_buf, sizeof(end_buf), "%04d-%02d-%02dT%02d:%02d:%02d", gm->tm_year + 1900, gm->tm_mon + 1, gm->tm_mday, gm->tm_hour, gm->tm_min,
+                  gm->tm_sec);
     const std::string end_time(end_buf);
 
     // 4. Create a CeceClock and advance N times
@@ -490,31 +461,22 @@ RC_GTEST_PROP(CeceClockProperty, Property7_FirstStepAllDueGuarantee, ()) {
     const int base_timestep = 60 + *rc::gen::inRange(0, 3541);
 
     // 2. Generate random component counts
-    const int num_schemes = 1 + *rc::gen::inRange(0, 5);   // 1-5 physics schemes
-    const int num_streams = 1 + *rc::gen::inRange(0, 5);   // 1-5 data streams
+    const int num_schemes = 1 + *rc::gen::inRange(0, 5);  // 1-5 physics schemes
+    const int num_streams = 1 + *rc::gen::inRange(0, 5);  // 1-5 data streams
 
     // 3. Build components with random intervals (multiples of B, 1x to 20x)
     std::vector<ClockComponent> components;
     for (int i = 0; i < num_schemes; ++i) {
         const int multiplier = 1 + *rc::gen::inRange(0, 20);  // 1..20
-        components.push_back(
-            {ComponentType::kPhysicsScheme,
-             "scheme_" + std::to_string(i),
-             multiplier * base_timestep});
+        components.push_back({ComponentType::kPhysicsScheme, "scheme_" + std::to_string(i), multiplier * base_timestep});
     }
     for (int i = 0; i < num_streams; ++i) {
         const int multiplier = 1 + *rc::gen::inRange(0, 20);
-        components.push_back(
-            {ComponentType::kDataStream,
-             "stream_" + std::to_string(i),
-             multiplier * base_timestep});
+        components.push_back({ComponentType::kDataStream, "stream_" + std::to_string(i), multiplier * base_timestep});
     }
     // Always include one stacking engine with a random interval
     const int stacking_multiplier = 1 + *rc::gen::inRange(0, 20);
-    components.push_back(
-        {ComponentType::kStackingEngine,
-         "stacking",
-         stacking_multiplier * base_timestep});
+    components.push_back({ComponentType::kStackingEngine, "stacking", stacking_multiplier * base_timestep});
 
     const int total_components = num_schemes + num_streams + 1;
 
@@ -529,8 +491,7 @@ RC_GTEST_PROP(CeceClockProperty, Property7_FirstStepAllDueGuarantee, ()) {
             max_interval = comp.refresh_interval_secs;
         }
     }
-    const int64_t required_seconds =
-        static_cast<int64_t>(max_interval) + static_cast<int64_t>(base_timestep);
+    const int64_t required_seconds = static_cast<int64_t>(max_interval) + static_cast<int64_t>(base_timestep);
     const int64_t end_epoch = start_epoch + required_seconds;
 
     std::time_t end_t = static_cast<std::time_t>(end_epoch);
@@ -538,9 +499,8 @@ RC_GTEST_PROP(CeceClockProperty, Property7_FirstStepAllDueGuarantee, ()) {
     RC_ASSERT(gm != nullptr);
 
     char end_buf[20];
-    std::snprintf(end_buf, sizeof(end_buf), "%04d-%02d-%02dT%02d:%02d:%02d",
-                  gm->tm_year + 1900, gm->tm_mon + 1, gm->tm_mday,
-                  gm->tm_hour, gm->tm_min, gm->tm_sec);
+    std::snprintf(end_buf, sizeof(end_buf), "%04d-%02d-%02dT%02d:%02d:%02d", gm->tm_year + 1900, gm->tm_mon + 1, gm->tm_mday, gm->tm_hour, gm->tm_min,
+                  gm->tm_sec);
     const std::string end_time(end_buf);
 
     // 5. Create the clock
@@ -585,10 +545,7 @@ RC_GTEST_PROP(CeceClockProperty, Property8_ComponentsExecuteBeforeStacking, ()) 
     std::vector<ClockComponent> components;
     for (int i = 0; i < num_non_stacking; ++i) {
         const int multiplier = 1 + *rc::gen::inRange(0, 5);  // 1..5
-        components.push_back(
-            {ComponentType::kPhysicsScheme,
-             "scheme_" + std::to_string(i),
-             multiplier * base_timestep});
+        components.push_back({ComponentType::kPhysicsScheme, "scheme_" + std::to_string(i), multiplier * base_timestep});
     }
 
     // 3. Add a stacking engine whose interval matches at least one non-stacking
@@ -596,8 +553,7 @@ RC_GTEST_PROP(CeceClockProperty, Property8_ComponentsExecuteBeforeStacking, ()) 
     //    Pick the interval of a random existing component.
     const int stacking_idx = *rc::gen::inRange(0, num_non_stacking);
     const int stacking_interval = components[stacking_idx].refresh_interval_secs;
-    components.push_back(
-        {ComponentType::kStackingEngine, "stacking", stacking_interval});
+    components.push_back({ComponentType::kStackingEngine, "stacking", stacking_interval});
 
     // 4. Advance multiple steps [5, 30]
     const int step_count = 5 + *rc::gen::inRange(0, 26);
@@ -607,8 +563,7 @@ RC_GTEST_PROP(CeceClockProperty, Property8_ComponentsExecuteBeforeStacking, ()) 
     const int64_t start_epoch = 1577836800;  // 2020-01-01T00:00:00 UTC
 
     // Compute end_time far enough to accommodate all steps
-    const int64_t required_seconds =
-        static_cast<int64_t>(step_count + 1) * static_cast<int64_t>(base_timestep);
+    const int64_t required_seconds = static_cast<int64_t>(step_count + 1) * static_cast<int64_t>(base_timestep);
     const int64_t end_epoch = start_epoch + required_seconds;
 
     std::time_t end_t = static_cast<std::time_t>(end_epoch);
@@ -616,9 +571,8 @@ RC_GTEST_PROP(CeceClockProperty, Property8_ComponentsExecuteBeforeStacking, ()) 
     RC_ASSERT(gm != nullptr);
 
     char end_buf[20];
-    std::snprintf(end_buf, sizeof(end_buf), "%04d-%02d-%02dT%02d:%02d:%02d",
-                  gm->tm_year + 1900, gm->tm_mon + 1, gm->tm_mday,
-                  gm->tm_hour, gm->tm_min, gm->tm_sec);
+    std::snprintf(end_buf, sizeof(end_buf), "%04d-%02d-%02dT%02d:%02d:%02d", gm->tm_year + 1900, gm->tm_mon + 1, gm->tm_mday, gm->tm_hour, gm->tm_min,
+                  gm->tm_sec);
     const std::string end_time(end_buf);
 
     // 5. Create the clock and advance
@@ -684,8 +638,7 @@ RC_GTEST_PROP(CeceClockProperty, Property9_TerminationSignal, ()) {
     RC_ASSERT(start_gm != nullptr);
 
     char start_buf[20];
-    std::snprintf(start_buf, sizeof(start_buf), "%04d-%02d-%02dT%02d:%02d:%02d",
-                  start_gm->tm_year + 1900, start_gm->tm_mon + 1, start_gm->tm_mday,
+    std::snprintf(start_buf, sizeof(start_buf), "%04d-%02d-%02dT%02d:%02d:%02d", start_gm->tm_year + 1900, start_gm->tm_mon + 1, start_gm->tm_mday,
                   start_gm->tm_hour, start_gm->tm_min, start_gm->tm_sec);
     const std::string start_time(start_buf);
 
@@ -695,14 +648,12 @@ RC_GTEST_PROP(CeceClockProperty, Property9_TerminationSignal, ()) {
     RC_ASSERT(end_gm != nullptr);
 
     char end_buf[20];
-    std::snprintf(end_buf, sizeof(end_buf), "%04d-%02d-%02dT%02d:%02d:%02d",
-                  end_gm->tm_year + 1900, end_gm->tm_mon + 1, end_gm->tm_mday,
+    std::snprintf(end_buf, sizeof(end_buf), "%04d-%02d-%02dT%02d:%02d:%02d", end_gm->tm_year + 1900, end_gm->tm_mon + 1, end_gm->tm_mday,
                   end_gm->tm_hour, end_gm->tm_min, end_gm->tm_sec);
     const std::string end_time(end_buf);
 
     // One component with refresh_interval = base_timestep
-    std::vector<ClockComponent> components = {
-        {ComponentType::kPhysicsScheme, "test_scheme", base_timestep}};
+    std::vector<ClockComponent> components = {{ComponentType::kPhysicsScheme, "test_scheme", base_timestep}};
 
     // Construct the clock
     CeceClock clock(start_time, end_time, base_timestep, components);
@@ -761,10 +712,9 @@ RC_GTEST_PROP(CeceClockProperty, Property10_NonPositiveIntervalProducesErrorNami
     // Valid base timestep and time range
     const int base_timestep = 300;
     const std::string start_time = "2020-01-01T00:00:00";
-    const std::string end_time   = "2020-01-02T00:00:00";
+    const std::string end_time = "2020-01-02T00:00:00";
 
-    std::vector<ClockComponent> components = {
-        {ComponentType::kPhysicsScheme, comp_name, bad_interval}};
+    std::vector<ClockComponent> components = {{ComponentType::kPhysicsScheme, comp_name, bad_interval}};
 
     // Construction must throw std::invalid_argument
     bool threw = false;
@@ -794,15 +744,14 @@ RC_GTEST_PROP(CeceClockProperty, Property10_NonMultipleIntervalProducesErrorNami
 
     // Generate an interval that is positive but NOT a multiple of B.
     // Strategy: pick a random multiple of B, then add an offset in [1, B-1].
-    const int multiplier = 1 + *rc::gen::inRange(0, 20);  // 1..20
+    const int multiplier = 1 + *rc::gen::inRange(0, 20);             // 1..20
     const int offset = 1 + *rc::gen::inRange(0, base_timestep - 1);  // [1, B-1]
     const int bad_interval = multiplier * base_timestep + offset;
 
     const std::string start_time = "2020-01-01T00:00:00";
-    const std::string end_time   = "2020-01-02T00:00:00";
+    const std::string end_time = "2020-01-02T00:00:00";
 
-    std::vector<ClockComponent> components = {
-        {ComponentType::kDataStream, comp_name, bad_interval}};
+    std::vector<ClockComponent> components = {{ComponentType::kDataStream, comp_name, bad_interval}};
 
     // Construction must throw std::invalid_argument
     bool threw = false;
@@ -855,10 +804,9 @@ RC_GTEST_PROP(CeceClockProperty, Property11_ConflictDetectionWarning, ()) {
     //    In a real conflict scenario, these would share an export field
     //    (e.g., both writing to "ISOP" emission field). Since ClockComponent
     //    does not carry export field info, we just verify construction succeeds.
-    std::vector<ClockComponent> components = {
-        {ComponentType::kPhysicsScheme, "scheme_alpha", interval_a},
-        {ComponentType::kPhysicsScheme, "scheme_beta", interval_b},
-        {ComponentType::kStackingEngine, "stacking", base_timestep}};
+    std::vector<ClockComponent> components = {{ComponentType::kPhysicsScheme, "scheme_alpha", interval_a},
+                                              {ComponentType::kPhysicsScheme, "scheme_beta", interval_b},
+                                              {ComponentType::kStackingEngine, "stacking", base_timestep}};
 
     // 4. Fixed time range
     const std::string start_time = "2020-01-01T00:00:00";
@@ -898,25 +846,18 @@ RC_GTEST_PROP(CeceClockProperty, Property12_BackwardCompatibilityUniformInterval
 
     // 2. Generate a random number of components (2-10) of mixed types,
     //    ALL with interval = B
-    const int num_schemes = 1 + *rc::gen::inRange(0, 5);   // 1-5 physics schemes
-    const int num_streams = 1 + *rc::gen::inRange(0, 4);   // 1-4 data streams
+    const int num_schemes = 1 + *rc::gen::inRange(0, 5);  // 1-5 physics schemes
+    const int num_streams = 1 + *rc::gen::inRange(0, 4);  // 1-4 data streams
     // Always include one stacking engine
 
     std::vector<ClockComponent> components;
     for (int i = 0; i < num_schemes; ++i) {
-        components.push_back(
-            {ComponentType::kPhysicsScheme,
-             "scheme_" + std::to_string(i),
-             base_timestep});
+        components.push_back({ComponentType::kPhysicsScheme, "scheme_" + std::to_string(i), base_timestep});
     }
     for (int i = 0; i < num_streams; ++i) {
-        components.push_back(
-            {ComponentType::kDataStream,
-             "stream_" + std::to_string(i),
-             base_timestep});
+        components.push_back({ComponentType::kDataStream, "stream_" + std::to_string(i), base_timestep});
     }
-    components.push_back(
-        {ComponentType::kStackingEngine, "stacking", base_timestep});
+    components.push_back({ComponentType::kStackingEngine, "stacking", base_timestep});
 
     const int total_components = num_schemes + num_streams + 1;
 
@@ -928,8 +869,7 @@ RC_GTEST_PROP(CeceClockProperty, Property12_BackwardCompatibilityUniformInterval
     const int64_t start_epoch = 1577836800;  // 2020-01-01T00:00:00 UTC
 
     // Compute end_time far enough to accommodate N steps plus margin
-    const int64_t required_seconds =
-        static_cast<int64_t>(step_count + 1) * static_cast<int64_t>(base_timestep);
+    const int64_t required_seconds = static_cast<int64_t>(step_count + 1) * static_cast<int64_t>(base_timestep);
     const int64_t end_epoch = start_epoch + required_seconds;
 
     std::time_t end_t = static_cast<std::time_t>(end_epoch);
@@ -937,9 +877,8 @@ RC_GTEST_PROP(CeceClockProperty, Property12_BackwardCompatibilityUniformInterval
     RC_ASSERT(gm != nullptr);
 
     char end_buf[20];
-    std::snprintf(end_buf, sizeof(end_buf), "%04d-%02d-%02dT%02d:%02d:%02d",
-                  gm->tm_year + 1900, gm->tm_mon + 1, gm->tm_mday,
-                  gm->tm_hour, gm->tm_min, gm->tm_sec);
+    std::snprintf(end_buf, sizeof(end_buf), "%04d-%02d-%02dT%02d:%02d:%02d", gm->tm_year + 1900, gm->tm_mon + 1, gm->tm_mday, gm->tm_hour, gm->tm_min,
+                  gm->tm_sec);
     const std::string end_time(end_buf);
 
     // 4. Create a CeceClock and advance N times

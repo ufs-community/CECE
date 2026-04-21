@@ -27,19 +27,17 @@ namespace cece {
 
 int64_t CeceClock::ParseISO8601(const std::string& iso) {
     // Expected format: "YYYY-MM-DDTHH:MM:SS"
-    if (iso.size() != 19 || iso[4] != '-' || iso[7] != '-' || iso[10] != 'T' ||
-        iso[13] != ':' || iso[16] != ':') {
-        throw std::invalid_argument("Invalid ISO8601 format: \"" + iso +
-                                    "\". Expected \"YYYY-MM-DDTHH:MM:SS\".");
+    if (iso.size() != 19 || iso[4] != '-' || iso[7] != '-' || iso[10] != 'T' || iso[13] != ':' || iso[16] != ':') {
+        throw std::invalid_argument("Invalid ISO8601 format: \"" + iso + "\". Expected \"YYYY-MM-DDTHH:MM:SS\".");
     }
 
     std::tm tm_val{};
     tm_val.tm_year = std::stoi(iso.substr(0, 4)) - 1900;
-    tm_val.tm_mon  = std::stoi(iso.substr(5, 2)) - 1;
+    tm_val.tm_mon = std::stoi(iso.substr(5, 2)) - 1;
     tm_val.tm_mday = std::stoi(iso.substr(8, 2));
     tm_val.tm_hour = std::stoi(iso.substr(11, 2));
-    tm_val.tm_min  = std::stoi(iso.substr(14, 2));
-    tm_val.tm_sec  = std::stoi(iso.substr(17, 2));
+    tm_val.tm_min = std::stoi(iso.substr(14, 2));
+    tm_val.tm_sec = std::stoi(iso.substr(17, 2));
     tm_val.tm_isdst = 0;
 
     // Use timegm where available (POSIX), fall back to portable UTC conversion.
@@ -71,55 +69,42 @@ void CeceClock::DecomposeTime(int64_t epoch_secs, int& hour, int& dow, int& mont
         month = 0;
         return;
     }
-    hour  = gm->tm_hour;   // 0-23
-    dow   = gm->tm_wday;   // 0-6, Sunday=0
-    month = gm->tm_mon;    // 0-11
+    hour = gm->tm_hour;  // 0-23
+    dow = gm->tm_wday;   // 0-6, Sunday=0
+    month = gm->tm_mon;  // 0-11
 }
 
 // ---------------------------------------------------------------------------
 // Constructor
 // ---------------------------------------------------------------------------
 
-CeceClock::CeceClock(const std::string& start_time_iso8601,
-                     const std::string& end_time_iso8601,
-                     int base_timestep_secs,
+CeceClock::CeceClock(const std::string& start_time_iso8601, const std::string& end_time_iso8601, int base_timestep_secs,
                      const std::vector<ClockComponent>& components)
     : base_timestep_secs_(base_timestep_secs), elapsed_seconds_(0) {
-
     // Parse time boundaries
     start_epoch_secs_ = ParseISO8601(start_time_iso8601);
-    end_epoch_secs_   = ParseISO8601(end_time_iso8601);
+    end_epoch_secs_ = ParseISO8601(end_time_iso8601);
 
     // Validate: start_time < end_time
     if (start_epoch_secs_ >= end_epoch_secs_) {
-        throw std::invalid_argument(
-            "start_time must be earlier than end_time. Got start=\"" +
-            start_time_iso8601 + "\", end=\"" + end_time_iso8601 + "\".");
+        throw std::invalid_argument("start_time must be earlier than end_time. Got start=\"" + start_time_iso8601 + "\", end=\"" + end_time_iso8601 +
+                                    "\".");
     }
 
     // Validate: base_timestep > 0
     if (base_timestep_secs_ <= 0) {
-        throw std::invalid_argument(
-            "base_timestep_secs must be a positive integer. Got " +
-            std::to_string(base_timestep_secs_) + ".");
+        throw std::invalid_argument("base_timestep_secs must be a positive integer. Got " + std::to_string(base_timestep_secs_) + ".");
     }
 
     // Validate each component's refresh interval
     for (const auto& comp : components) {
         if (comp.refresh_interval_secs <= 0) {
-            throw std::invalid_argument(
-                "Component \"" + comp.name +
-                "\" has refresh_interval_secs=" +
-                std::to_string(comp.refresh_interval_secs) +
-                ", which is not a positive integer.");
+            throw std::invalid_argument("Component \"" + comp.name + "\" has refresh_interval_secs=" + std::to_string(comp.refresh_interval_secs) +
+                                        ", which is not a positive integer.");
         }
         if (comp.refresh_interval_secs % base_timestep_secs_ != 0) {
-            throw std::invalid_argument(
-                "Component \"" + comp.name +
-                "\" has refresh_interval_secs=" +
-                std::to_string(comp.refresh_interval_secs) +
-                ", which is not an integer multiple of base_timestep_secs=" +
-                std::to_string(base_timestep_secs_) + ".");
+            throw std::invalid_argument("Component \"" + comp.name + "\" has refresh_interval_secs=" + std::to_string(comp.refresh_interval_secs) +
+                                        ", which is not an integer multiple of base_timestep_secs=" + std::to_string(base_timestep_secs_) + ".");
         }
         components_.push_back(ComponentState{comp, -1});
     }
@@ -143,8 +128,7 @@ StepResult CeceClock::Advance() {
     if (IsComplete()) {
         result.elapsed_seconds = static_cast<int>(elapsed_seconds_);
         result.simulation_complete = true;
-        DecomposeTime(start_epoch_secs_ + elapsed_seconds_,
-                      result.hour_of_day, result.day_of_week, result.month);
+        DecomposeTime(start_epoch_secs_ + elapsed_seconds_, result.hour_of_day, result.day_of_week, result.month);
         return result;
     }
 
@@ -155,8 +139,7 @@ StepResult CeceClock::Advance() {
     result.simulation_complete = IsComplete();
 
     // Calendar decomposition from absolute time
-    DecomposeTime(start_epoch_secs_ + elapsed_seconds_,
-                  result.hour_of_day, result.day_of_week, result.month);
+    DecomposeTime(start_epoch_secs_ + elapsed_seconds_, result.hour_of_day, result.day_of_week, result.month);
 
     bool is_first_step = (elapsed_seconds_ == base_timestep_secs_);
 
@@ -187,8 +170,7 @@ StepResult CeceClock::Advance() {
 
     // Stacking engine always appears last
     result.due_components = std::move(non_stacking);
-    result.due_components.insert(result.due_components.end(),
-                                 stacking.begin(), stacking.end());
+    result.due_components.insert(result.due_components.end(), stacking.begin(), stacking.end());
 
     return result;
 }
