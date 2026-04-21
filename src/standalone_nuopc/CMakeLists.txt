@@ -23,7 +23,8 @@ endif()
 # NUOPC Application (MPI+OpenMP support) Full NUOPC_Driver architecture for
 # production MPI+OpenMP hybrid execution Architecture: mainApp.F90 - Entry point
 # (creates NUOPC_Driver) driver.F90 - NUOPC_Driver component (orchestrates CECE)
-# cece_cap.F90 - CECE component cap (in src/, implements CECE physics)
+# cece_cap.F90 - CECE component cap (in src/interfaces/esmf/, implements CECE
+# physics)
 # -----------------------------------------------------------------------
 add_executable(cece_nuopc_app mainApp.F90 driver.F90)
 

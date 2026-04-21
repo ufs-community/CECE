@@ -112,7 +112,10 @@ TEST_F(ISO8601ParsingTest, InvalidISO8601Format) {
 class DriverConfigurationTest : public ::testing::Test {
    protected:
     void SetUp() override {
-        test_config_file = "test_driver_config.yaml";
+        // Use a unique filename per test to avoid race conditions when
+        // ctest runs multiple test binaries in parallel (-j).
+        const auto* info = ::testing::UnitTest::GetInstance()->current_test_info();
+        test_config_file = std::string("test_driver_config_") + info->test_suite_name() + "_" + info->name() + ".yaml";
     }
 
     void TearDown() override {
@@ -285,7 +288,10 @@ void cece_core_get_driver_config(const char* config_file, int config_file_len, c
 class DriverConfigCInterfaceTest : public ::testing::Test {
    protected:
     void SetUp() override {
-        test_config_file = "test_driver_config_c.yaml";
+        // Use a unique filename per test to avoid race conditions when
+        // ctest runs multiple test binaries in parallel (-j).
+        const auto* info = ::testing::UnitTest::GetInstance()->current_test_info();
+        test_config_file = std::string("test_driver_config_c_") + info->name() + ".yaml";
     }
 
     void TearDown() override {

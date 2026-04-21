@@ -193,7 +193,7 @@ if(CECE_HAS_FORTRAN)
   list(
     APPEND
     CECE_SRCS
-    src/cece_cap.F90
+    src/interfaces/esmf/cece_cap.F90
     src/physics/cece_fortran_bridge.cpp
     src/physics/legacy_fortran.F90
     src/physics/cece_sea_salt_fortran_bridge.cpp
@@ -403,7 +403,7 @@ else()
 endif()
 
 # Standalone NUOPC driver
-add_subdirectory(standalone_nuopc)
+add_subdirectory(src/standalone_nuopc)
 
 # Python script tests
 find_package(Python3 COMPONENTS Interpreter)
