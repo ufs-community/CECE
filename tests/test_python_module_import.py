@@ -18,26 +18,31 @@ class TestModuleImport:
     def test_import_cece_module(self):
         """Test that cece module can be imported."""
         import cece
+
         assert cece is not None
 
     def test_import_config_class(self):
         """Test that CeceConfig can be imported."""
         from cece import CeceConfig
+
         assert CeceConfig is not None
 
     def test_import_state_class(self):
         """Test that CeceState can be imported."""
         from cece import CeceState
+
         assert CeceState is not None
 
     def test_import_field_class(self):
         """Test that CeceField can be imported."""
         from cece import CeceField
+
         assert CeceField is not None
 
     def test_import_emission_layer_class(self):
         """Test that EmissionLayer can be imported."""
         from cece import EmissionLayer
+
         assert EmissionLayer is not None
 
     def test_import_exceptions(self):
@@ -49,6 +54,7 @@ class TestModuleImport:
             CeceStateError,
             CeceExecutionSpaceError,
         )
+
         assert CeceException is not None
         assert CeceConfigError is not None
         assert CeceComputationError is not None
@@ -71,6 +77,7 @@ class TestModuleImport:
             reset_diagnostics,
             get_last_error,
         )
+
         assert initialize is not None
         assert finalize is not None
         assert is_initialized is not None
@@ -91,6 +98,7 @@ class TestConfigClass:
     def test_create_empty_config(self):
         """Test creating an empty CeceConfig."""
         from cece import CeceConfig
+
         config = CeceConfig()
         assert config is not None
         assert config.species == {}
@@ -99,6 +107,7 @@ class TestConfigClass:
     def test_config_add_species(self):
         """Test adding a species to config."""
         from cece import CeceConfig, EmissionLayer, VerticalDistributionConfig
+
         config = CeceConfig()
         vdist = VerticalDistributionConfig(method="single")
         layer = EmissionLayer(field_name="CO", vdist=vdist)
@@ -109,6 +118,7 @@ class TestConfigClass:
     def test_config_validate(self):
         """Test config validation."""
         from cece import CeceConfig
+
         config = CeceConfig()
         result = config.validate()
         assert result.is_valid
@@ -116,6 +126,7 @@ class TestConfigClass:
     def test_config_to_dict(self):
         """Test config serialization to dict."""
         from cece import CeceConfig
+
         config = CeceConfig()
         config_dict = config.to_dict()
         assert isinstance(config_dict, dict)
@@ -125,6 +136,7 @@ class TestConfigClass:
     def test_config_from_dict(self):
         """Test config deserialization from dict."""
         from cece import CeceConfig
+
         config_dict = {
             "species": {},
             "physics_schemes": [],
@@ -142,6 +154,7 @@ class TestStateClass:
     def test_create_state(self):
         """Test creating an CeceState."""
         from cece import CeceState
+
         state = CeceState(nx=10, ny=10, nz=10)
         assert state is not None
         assert state.dimensions == (10, 10, 10)
@@ -149,6 +162,7 @@ class TestStateClass:
     def test_state_invalid_dimensions(self):
         """Test that invalid dimensions raise ValueError."""
         from cece import CeceState
+
         with pytest.raises(ValueError):
             CeceState(nx=0, ny=10, nz=10)
 
@@ -156,6 +170,7 @@ class TestStateClass:
         """Test adding an import field to state."""
         import numpy as np
         from cece import CeceState
+
         state = CeceState(nx=10, ny=10, nz=10)
         field = np.ones((10, 10, 10), dtype=np.float64)
         state.add_import_field("temperature", field)
@@ -165,6 +180,7 @@ class TestStateClass:
         """Test retrieving an import field from state."""
         import numpy as np
         from cece import CeceState
+
         state = CeceState(nx=10, ny=10, nz=10)
         field = np.ones((10, 10, 10), dtype=np.float64)
         state.add_import_field("temperature", field)
@@ -174,6 +190,7 @@ class TestStateClass:
     def test_state_field_not_found(self):
         """Test that accessing non-existent field raises KeyError."""
         from cece import CeceState
+
         state = CeceState(nx=10, ny=10, nz=10)
         with pytest.raises(KeyError):
             state.get_import_field("nonexistent")
@@ -182,6 +199,7 @@ class TestStateClass:
         """Test that mismatched dimensions raise ValueError."""
         import numpy as np
         from cece import CeceState
+
         state = CeceState(nx=10, ny=10, nz=10)
         field = np.ones((5, 5, 5), dtype=np.float64)
         with pytest.raises(ValueError):
@@ -194,6 +212,7 @@ class TestEmissionLayer:
     def test_create_emission_layer(self):
         """Test creating an EmissionLayer."""
         from cece import EmissionLayer
+
         layer = EmissionLayer(field_name="CO")
         assert layer is not None
         assert layer.field_name == "CO"
@@ -201,12 +220,14 @@ class TestEmissionLayer:
     def test_emission_layer_validate(self):
         """Test emission layer validation."""
         from cece import EmissionLayer
+
         layer = EmissionLayer(field_name="CO")
         layer.validate()  # Should not raise
 
     def test_emission_layer_invalid_field_name(self):
         """Test that empty field name raises ValueError."""
         from cece import EmissionLayer
+
         layer = EmissionLayer(field_name="")
         with pytest.raises(ValueError):
             layer.validate()
@@ -218,11 +239,13 @@ class TestModuleState:
     def test_is_initialized_false_initially(self):
         """Test that CECE is not initialized initially."""
         from cece import is_initialized
+
         assert not is_initialized()
 
     def test_finalize_when_not_initialized(self):
         """Test that finalize raises error when not initialized."""
         from cece import finalize
+
         with pytest.raises(RuntimeError):
             finalize()
 

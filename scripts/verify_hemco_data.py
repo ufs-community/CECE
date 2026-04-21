@@ -3,6 +3,7 @@ import argparse
 import os
 import sys
 
+
 def verify_netcdf(filepath):
     """Basic NetCDF validity check (existence and non-zero size)."""
     if not os.path.exists(filepath):
@@ -13,6 +14,7 @@ def verify_netcdf(filepath):
         return False
     return True
 
+
 def main():
     parser = argparse.ArgumentParser(description="Verify NetCDF data validity.")
     parser.add_argument("filepath", help="Path to the file to verify.")
@@ -22,6 +24,7 @@ def main():
         sys.exit(0)
     else:
         sys.exit(1)
+
 
 if __name__ == "__main__":
     main()

@@ -202,31 +202,33 @@ def generate_scheme(config_path):
     print("\n" + "=" * 70)
     print("Next Steps:")
     print("=" * 70)
-    print(f"\n1. Add the following to CMakeLists.txt in the src/physics section:")
+    print("\n1. Add the following to CMakeLists.txt in the src/physics section:")
     print(f"   add_library(cece_physics_{scheme_name} {cpp_name})")
     print(f"   target_link_libraries(cece_physics_{scheme_name} PUBLIC cece_core)")
     print(f"   target_link_libraries(cece_core PUBLIC cece_physics_{scheme_name})")
 
     if generate_fortran:
-        print(f"\n2. If using Fortran kernel, add to CMakeLists.txt:")
-        print(f"   enable_language(Fortran)")
+        print("\n2. If using Fortran kernel, add to CMakeLists.txt:")
+        print("   enable_language(Fortran)")
         print(f"   add_library(cece_physics_{scheme_name}_fortran {f90_name})")
-        print(f"   target_link_libraries(cece_physics_{scheme_name} PUBLIC cece_physics_{scheme_name}_fortran)")
+        print(
+            f"   target_link_libraries(cece_physics_{scheme_name} PUBLIC cece_physics_{scheme_name}_fortran)"
+        )
 
-    print(f"\n3. Implement the physics logic in:")
+    print("\n3. Implement the physics logic in:")
     print(f"   - {cpp_path} (Run method)")
     if generate_fortran:
         print(f"   - {f90_path} (Fortran kernel)")
 
-    print(f"\n4. Configure the scheme in your YAML config:")
-    print(f"   physics_schemes:")
+    print("\n4. Configure the scheme in your YAML config:")
+    print("   physics_schemes:")
     print(f"     - name: {scheme_name}")
-    print(f"       options:")
+    print("       options:")
     for opt in config.get("options", []):
         print(f"         {opt['name']}: {opt['default']}")
 
-    print(f"\n5. Run tests to verify the scheme compiles and runs:")
-    print(f"   cd build && ctest --output-on-failure")
+    print("\n5. Run tests to verify the scheme compiles and runs:")
+    print("   cd build && ctest --output-on-failure")
 
     print("\n" + "=" * 70)
     print(f"Successfully generated scheme: {class_name} ({scheme_name})")

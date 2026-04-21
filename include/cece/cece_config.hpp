@@ -19,9 +19,9 @@ namespace cece {
  * @brief Configuration for a physics scheme.
  */
 struct PhysicsSchemeConfig {
-    std::string name;      ///< Name of the physics scheme.
-    std::string language;  ///< Implementation language (e.g., "cpp", "fortran").
-    YAML::Node options;    ///< Scheme-specific options.
+    std::string name;                  ///< Name of the physics scheme.
+    std::string language;              ///< Implementation language (e.g., "cpp", "fortran").
+    YAML::Node options;                ///< Scheme-specific options.
     int refresh_interval_seconds = 0;  ///< Refresh interval in seconds (0 means use base timestep).
 };
 

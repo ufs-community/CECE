@@ -1,5 +1,5 @@
 help([[
-  This module loads libraries required for building and running Community Emissions Computing Engine 
+  This module loads libraries required for building and running Community Emissions Computing Engine
   on the NOAA RDHPC machine Gaea C6 using Intel-2023.2.0.
 ]])
 
