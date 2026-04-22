@@ -109,8 +109,7 @@ void cece_core_get_species_name(void* data_ptr, int* index, char* name, int* nam
 
             *name_len = len;
 
-            std::cout << "INFO: cece_core_get_species_name[" << *index << "] = " << name_str
-                      << std::endl;
+            std::cout << "INFO: cece_core_get_species_name[" << *index << "] = " << name_str << std::endl;
 
             if (rc != nullptr) {
                 *rc = 0;
@@ -121,8 +120,7 @@ void cece_core_get_species_name(void* data_ptr, int* index, char* name, int* nam
     }
 
     // Index out of range
-    std::cerr << "ERROR: cece_core_get_species_name - index " << *index << " out of range"
-              << std::endl;
+    std::cerr << "ERROR: cece_core_get_species_name - index " << *index << " out of range" << std::endl;
     if (rc != nullptr) {
         *rc = -1;
     }
@@ -140,8 +138,7 @@ void cece_core_get_species_name(void* data_ptr, int* index, char* name, int* nam
  * @param lat_max Output: maximum latitude
  * @param rc Return code (0 = success, non-zero = error)
  */
-void cece_core_get_grid_config(void* data_ptr, int* nx, int* ny, double* lon_min, double* lon_max,
-                               double* lat_min, double* lat_max, int* rc) {
+void cece_core_get_grid_config(void* data_ptr, int* nx, int* ny, double* lon_min, double* lon_max, double* lat_min, double* lat_max, int* rc) {
     if (rc != nullptr) {
         *rc = 0;
     }
@@ -157,8 +154,7 @@ void cece_core_get_grid_config(void* data_ptr, int* nx, int* ny, double* lon_min
     auto* internal_data = static_cast<cece::CeceInternalData*>(data_ptr);
 
     // Check output pointers
-    if (nx == nullptr || ny == nullptr || lon_min == nullptr || lon_max == nullptr ||
-        lat_min == nullptr || lat_max == nullptr) {
+    if (nx == nullptr || ny == nullptr || lon_min == nullptr || lon_max == nullptr || lat_min == nullptr || lat_max == nullptr) {
         std::cerr << "ERROR: cece_core_get_grid_config - null output pointer" << std::endl;
         if (rc != nullptr) {
             *rc = -1;
@@ -174,9 +170,8 @@ void cece_core_get_grid_config(void* data_ptr, int* nx, int* ny, double* lon_min
     *lat_min = internal_data->config.driver_config.grid.lat_min;
     *lat_max = internal_data->config.driver_config.grid.lat_max;
 
-    std::cout << "INFO: Grid config retrieved: nx=" << *nx << " ny=" << *ny
-              << " lon_min=" << *lon_min << " lon_max=" << *lon_max << " lat_min=" << *lat_min
-              << " lat_max=" << *lat_max << std::endl;
+    std::cout << "INFO: Grid config retrieved: nx=" << *nx << " ny=" << *ny << " lon_min=" << *lon_min << " lon_max=" << *lon_max
+              << " lat_min=" << *lat_min << " lat_max=" << *lat_max << std::endl;
 }
 
 /**
@@ -188,8 +183,7 @@ void cece_core_get_grid_config(void* data_ptr, int* nx, int* ny, double* lon_min
  * @param max_len Maximum length for time strings (including null terminator)
  * @param rc Return code (0 = success, non-zero = error)
  */
-void cece_core_get_timing_config(void* data_ptr, char* start_time, char* end_time,
-                                 int* timestep_seconds, int max_len, int* rc) {
+void cece_core_get_timing_config(void* data_ptr, char* start_time, char* end_time, int* timestep_seconds, int max_len, int* rc) {
     if (rc != nullptr) {
         *rc = 0;
     }
@@ -225,8 +219,8 @@ void cece_core_get_timing_config(void* data_ptr, char* start_time, char* end_tim
 
     *timestep_seconds = driver_config.timestep_seconds;
 
-    std::cout << "INFO: Timing config retrieved: start=" << start_time << " end=" << end_time
-              << " timestep=" << *timestep_seconds << " seconds" << std::endl;
+    std::cout << "INFO: Timing config retrieved: start=" << start_time << " end=" << end_time << " timestep=" << *timestep_seconds << " seconds"
+              << std::endl;
 }
 
 /**
@@ -239,8 +233,7 @@ void cece_core_get_timing_config(void* data_ptr, char* start_time, char* end_tim
  * @param max_len Maximum length for time strings (including null terminator)
  * @param rc Return code (0 = success, non-zero = error)
  */
-void cece_read_timing_config(const char* config_path, int path_len, char* start_time,
-                             char* end_time, int* timestep_seconds, int max_len, int* rc) {
+void cece_read_timing_config(const char* config_path, int path_len, char* start_time, char* end_time, int* timestep_seconds, int max_len, int* rc) {
     if (rc != nullptr) {
         *rc = 0;
     }
@@ -281,13 +274,11 @@ void cece_read_timing_config(const char* config_path, int path_len, char* start_
 
         *timestep_seconds = timestep_default;
 
-        std::cout << "INFO: Driver timing config loaded: start=" << start_time
-                  << " end=" << end_time << " timestep=" << *timestep_seconds << " seconds"
-                  << std::endl;
+        std::cout << "INFO: Driver timing config loaded: start=" << start_time << " end=" << end_time << " timestep=" << *timestep_seconds
+                  << " seconds" << std::endl;
 
     } catch (const std::exception& e) {
-        std::cerr << "ERROR: Failed to read timing config from " << config_path << ": " << e.what()
-                  << std::endl;
+        std::cerr << "ERROR: Failed to read timing config from " << config_path << ": " << e.what() << std::endl;
         if (rc != nullptr) {
             *rc = -1;
         }
@@ -346,8 +337,7 @@ void cece_core_bind_fields(void* data_ptr, void** field_ptrs, int* num_fields, i
     }
 
     if (*num_fields < 0) {
-        std::cerr << "ERROR: cece_core_bind_fields - num_fields must be non-negative: "
-                  << *num_fields << std::endl;
+        std::cerr << "ERROR: cece_core_bind_fields - num_fields must be non-negative: " << *num_fields << std::endl;
         if (rc != nullptr) {
             *rc = -1;
         }
@@ -364,8 +354,7 @@ void cece_core_bind_fields(void* data_ptr, void** field_ptrs, int* num_fields, i
     int idx = 0;
     for (const auto& [species_name, layers] : internal_data->config.species_layers) {
         if (idx >= *num_fields) {
-            std::cerr << "ERROR: cece_core_bind_fields - num_fields mismatch: " << "expected "
-                      << idx << " got " << *num_fields << std::endl;
+            std::cerr << "ERROR: cece_core_bind_fields - num_fields mismatch: " << "expected " << idx << " got " << *num_fields << std::endl;
             if (rc != nullptr) {
                 *rc = -1;
             }
@@ -373,8 +362,7 @@ void cece_core_bind_fields(void* data_ptr, void** field_ptrs, int* num_fields, i
         }
 
         if (field_ptrs[idx] == nullptr) {
-            std::cerr << "ERROR: cece_core_bind_fields - field_ptrs[" << idx
-                      << "] is null for species " << species_name << std::endl;
+            std::cerr << "ERROR: cece_core_bind_fields - field_ptrs[" << idx << "] is null for species " << species_name << std::endl;
             if (rc != nullptr) {
                 *rc = -1;
             }
@@ -384,23 +372,21 @@ void cece_core_bind_fields(void* data_ptr, void** field_ptrs, int* num_fields, i
         internal_data->field_pointers.push_back(field_ptrs[idx]);
         internal_data->field_names.push_back(species_name);
 
-        std::cout << "INFO: cece_core_bind_fields - bound field " << idx << " for species "
-                  << species_name << " at address " << field_ptrs[idx] << std::endl;
+        std::cout << "INFO: cece_core_bind_fields - bound field " << idx << " for species " << species_name << " at address " << field_ptrs[idx]
+                  << std::endl;
 
         ++idx;
     }
 
     if (idx != *num_fields) {
-        std::cerr << "ERROR: cece_core_bind_fields - num_fields mismatch: expected " << idx
-                  << " got " << *num_fields << std::endl;
+        std::cerr << "ERROR: cece_core_bind_fields - num_fields mismatch: expected " << idx << " got " << *num_fields << std::endl;
         if (rc != nullptr) {
             *rc = -1;
         }
         return;
     }
 
-    std::cout << "INFO: cece_core_bind_fields - bound " << *num_fields << " field pointers"
-              << std::endl;
+    std::cout << "INFO: cece_core_bind_fields - bound " << *num_fields << " field pointers" << std::endl;
 
     if (rc != nullptr) {
         *rc = 0;
@@ -420,8 +406,7 @@ void cece_core_bind_fields(void* data_ptr, void** field_ptrs, int* num_fields, i
  *
  * Requirements: R6
  */
-void cece_core_get_ingestor_streams_path(void* data_ptr, char* streams_path, int* path_len,
-                                         int* rc) {
+void cece_core_get_ingestor_streams_path(void* data_ptr, char* streams_path, int* path_len, int* rc) {
     if (rc != nullptr) {
         *rc = 0;
     }
@@ -435,8 +420,7 @@ void cece_core_get_ingestor_streams_path(void* data_ptr, char* streams_path, int
     }
 
     if (streams_path == nullptr || path_len == nullptr) {
-        std::cerr << "ERROR: cece_core_get_ingestor_streams_path - null pointer argument"
-                  << std::endl;
+        std::cerr << "ERROR: cece_core_get_ingestor_streams_path - null pointer argument" << std::endl;
         if (rc != nullptr) {
             *rc = -1;
         }
@@ -456,15 +440,13 @@ void cece_core_get_ingestor_streams_path(void* data_ptr, char* streams_path, int
     }
 
     // Generate TIDE YAML configuration
-    std::string config_content =
-        internal_data->ingestor.SerializeTideYaml(internal_data->config.cece_data);
+    std::string config_content = internal_data->ingestor.SerializeTideYaml(internal_data->config.cece_data);
 
     // Write to file (using .yaml extension for modern TIDE interface)
     std::string filename = "cece_data_streams.yaml";
     std::ofstream outfile(filename);
     if (!outfile.is_open()) {
-        std::cerr << "ERROR: Failed to open output file for TIDE streams: " << filename
-                  << std::endl;
+        std::cerr << "ERROR: Failed to open output file for TIDE streams: " << filename << std::endl;
         if (rc != nullptr) *rc = -1;
         return;
     }
@@ -524,8 +506,7 @@ void cece_ingestor_init(void* data_ptr, void* c_clock, void* c_mesh, int* rc) {
  * @param nx, ny, nz Grid dimensions.
  * @param rc         Return code (0 = success, -1 = error).
  */
-void cece_core_set_export_field(void* data_ptr, const char* name, int name_len, double* field_data,
-                                int nx, int ny, int nz, int* rc) {
+void cece_core_set_export_field(void* data_ptr, const char* name, int name_len, double* field_data, int nx, int ny, int nz, int* rc) {
     if (rc != nullptr) {
         *rc = 0;
     }
@@ -552,8 +533,7 @@ void cece_core_set_export_field(void* data_ptr, const char* name, int name_len, 
     std::string name_str(name, static_cast<size_t>(name_len));
 
     // Wrap the ESMF-owned memory as an unmanaged host view (zero-copy)
-    using UnmanagedHost = Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace,
-                                       Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+    using UnmanagedHost = Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
     UnmanagedHost h_view(field_data, nx, ny, nz);
 
     // Allocate a managed DualView3D and deep-copy the host data into it.
@@ -566,8 +546,7 @@ void cece_core_set_export_field(void* data_ptr, const char* name, int name_len, 
 
     internal_data->export_state.fields[name_str] = dv;
 
-    std::cout << "INFO: cece_core_set_export_field - registered field '" << name_str << "' (" << nx
-              << "x" << ny << "x" << nz << ")" << std::endl;
+    std::cout << "INFO: cece_core_set_export_field - registered field '" << name_str << "' (" << nx << "x" << ny << "x" << nz << ")" << std::endl;
 
     if (rc != nullptr) {
         *rc = 0;
@@ -660,8 +639,7 @@ void cece_core_get_input_field_count(void* data_ptr, int* count, int* rc) {
  * @param name_len Output: length of the name (excluding null terminator)
  * @param rc Return code (0 = success, non-zero = error)
  */
-void cece_core_get_input_field_name(void* data_ptr, int* index, char* name, int* name_len,
-                                    int* rc) {
+void cece_core_get_input_field_name(void* data_ptr, int* index, char* name, int* name_len, int* rc) {
     if (rc != nullptr) {
         *rc = 0;
     }
@@ -686,8 +664,8 @@ void cece_core_get_input_field_name(void* data_ptr, int* index, char* name, int*
     int idx = *index;
 
     if (idx < 0 || idx >= static_cast<int>(internal_data->unique_input_fields.size())) {
-        std::cerr << "ERROR: cece_core_get_input_field_name - index out of bounds: " << idx
-                  << " (size: " << internal_data->unique_input_fields.size() << ")" << std::endl;
+        std::cerr << "ERROR: cece_core_get_input_field_name - index out of bounds: " << idx << " (size: " << internal_data->unique_input_fields.size()
+                  << ")" << std::endl;
         if (rc != nullptr) {
             *rc = -1;
         }
@@ -759,8 +737,7 @@ void cece_core_get_stream_field_count(void* data_ptr, int* count, int* rc) {
  * @param name_len Output: length of the field name
  * @param rc Return code (0 = success, non-zero = error)
  */
-void cece_core_get_stream_field_name(void* data_ptr, int* index, char* name, int* name_len,
-                                     int* rc) {
+void cece_core_get_stream_field_name(void* data_ptr, int* index, char* name, int* name_len, int* rc) {
     if (rc != nullptr) {
         *rc = 0;
     }
@@ -807,8 +784,7 @@ void cece_core_get_stream_field_name(void* data_ptr, int* index, char* name, int
     }
 
     // Index out of bounds
-    std::cerr << "ERROR: cece_core_get_stream_field_name - index out of bounds: " << idx
-              << std::endl;
+    std::cerr << "ERROR: cece_core_get_stream_field_name - index out of bounds: " << idx << std::endl;
     if (rc != nullptr) {
         *rc = -1;
     }
@@ -835,8 +811,7 @@ void cece_core_get_external_field_count(void* data_ptr, int* count, int* rc) {
     }
 
     if (count == nullptr) {
-        std::cerr << "ERROR: cece_core_get_external_field_count - count pointer is null"
-                  << std::endl;
+        std::cerr << "ERROR: cece_core_get_external_field_count - count pointer is null" << std::endl;
         if (rc != nullptr) {
             *rc = -1;
         }
@@ -860,8 +835,7 @@ void cece_core_get_external_field_count(void* data_ptr, int* count, int* rc) {
  * @param name_len Output: length of the field name
  * @param rc Return code (0 = success, non-zero = error)
  */
-void cece_core_get_external_field_name(void* data_ptr, int* index, char* name, int* name_len,
-                                       int* rc) {
+void cece_core_get_external_field_name(void* data_ptr, int* index, char* name, int* name_len, int* rc) {
     if (rc != nullptr) {
         *rc = 0;
     }
@@ -875,8 +849,7 @@ void cece_core_get_external_field_name(void* data_ptr, int* index, char* name, i
     }
 
     if (index == nullptr || name == nullptr || name_len == nullptr) {
-        std::cerr << "ERROR: cece_core_get_external_field_name - null pointer argument"
-                  << std::endl;
+        std::cerr << "ERROR: cece_core_get_external_field_name - null pointer argument" << std::endl;
         if (rc != nullptr) {
             *rc = -1;
         }

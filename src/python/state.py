@@ -118,7 +118,9 @@ class FieldDict:
             If the field name is not found.
         """
         if name not in self._fields:
-            raise KeyError(f"Field '{name}' not found. Available fields: {list(self._fields.keys())}")
+            raise KeyError(
+                f"Field '{name}' not found. Available fields: {list(self._fields.keys())}"
+            )
         return self._fields[name].array
 
     def __setitem__(self, name: str, value: np.ndarray) -> None:
@@ -273,7 +275,9 @@ class CeceState:
         self._import_fields_dict: FieldDict = FieldDict(self._import_fields)
         self._export_fields_dict: FieldDict = FieldDict(self._export_fields)
 
-    def add_import_field(self, name: str, array: Union[np.ndarray, list, tuple]) -> None:
+    def add_import_field(
+        self, name: str, array: Union[np.ndarray, list, tuple]
+    ) -> None:
         """
         Add an import field to the state.
 
@@ -300,7 +304,9 @@ class CeceState:
         if isinstance(array, (list, tuple)):
             array = np.array(array, dtype=np.float64)
         elif not isinstance(array, np.ndarray):
-            raise TypeError(f"Array must be numpy array or list/tuple, got {type(array)}")
+            raise TypeError(
+                f"Array must be numpy array or list/tuple, got {type(array)}"
+            )
 
         # Ensure float64
         if array.dtype != np.float64:
@@ -345,7 +351,9 @@ class CeceState:
             If the field name is not found in import fields.
         """
         if name not in self._import_fields:
-            raise KeyError(f"Import field '{name}' not found. Available: {list(self._import_fields.keys())}")
+            raise KeyError(
+                f"Import field '{name}' not found. Available: {list(self._import_fields.keys())}"
+            )
         return self._import_fields[name].array
 
     def get_export_field(self, name: str) -> np.ndarray:
@@ -368,7 +376,9 @@ class CeceState:
             If the field name is not found in export fields.
         """
         if name not in self._export_fields:
-            raise KeyError(f"Export field '{name}' not found. Available: {list(self._export_fields.keys())}")
+            raise KeyError(
+                f"Export field '{name}' not found. Available: {list(self._export_fields.keys())}"
+            )
         return self._export_fields[name].array
 
     @property

@@ -22,10 +22,8 @@ extern "C" {
  * @param start_time_len Length of the start_time_iso8601 string.
  * @param rc Return code (0 on success).
  */
-void cece_core_writer_initialize_with_coords(void* data_ptr, int nx, int ny, int nz,
-                                             const double* lon_coords, const double* lat_coords,
-                                             const char* start_time_iso8601, int start_time_len,
-                                             int* rc) {
+void cece_core_writer_initialize_with_coords(void* data_ptr, int nx, int ny, int nz, const double* lon_coords, const double* lat_coords,
+                                             const char* start_time_iso8601, int start_time_len, int* rc) {
     *rc = 0;
 
     if (data_ptr == nullptr) {
@@ -41,8 +39,7 @@ void cece_core_writer_initialize_with_coords(void* data_ptr, int nx, int ny, int
     }
 
     if (start_time_iso8601 == nullptr) {
-        std::cerr
-            << "ERROR: cece_core_writer_initialize_with_coords - null start_time_iso8601 pointer\n";
+        std::cerr << "ERROR: cece_core_writer_initialize_with_coords - null start_time_iso8601 pointer\n";
         *rc = -1;
         return;
     }
@@ -64,14 +61,13 @@ void cece_core_writer_initialize_with_coords(void* data_ptr, int nx, int ny, int
         std::vector<double> lon_vec(lon_coords, lon_coords + nx);
         std::vector<double> lat_vec(lat_coords, lat_coords + ny);
 
-        std::cout << "INFO: Initializing standalone writer with coordinates: " << nx << "x" << ny
-                  << "x" << nz << " start_time=" << start_time << "\n";
+        std::cout << "INFO: Initializing standalone writer with coordinates: " << nx << "x" << ny << "x" << nz << " start_time=" << start_time
+                  << "\n";
         std::cout << "INFO: Longitude range: " << lon_vec[0] << " to " << lon_vec[nx - 1] << "\n";
         std::cout << "INFO: Latitude range: " << lat_vec[0] << " to " << lat_vec[ny - 1] << "\n";
 
         // Initialize the writer with coordinates
-        int writer_rc = internal_data->standalone_writer->InitializeWithCoords(
-            start_time, nx, ny, nz, lon_vec, lat_vec);
+        int writer_rc = internal_data->standalone_writer->InitializeWithCoords(start_time, nx, ny, nz, lon_vec, lat_vec);
 
         if (writer_rc != 0) {
             std::cerr << "ERROR: cece_core_writer_initialize_with_coords - writer initialization "
@@ -101,8 +97,7 @@ void cece_core_writer_initialize_with_coords(void* data_ptr, int nx, int ny, int
  * @param start_time_len Length of the start_time_iso8601 string.
  * @param rc Return code (0 on success).
  */
-void cece_core_writer_initialize(void* data_ptr, int nx, int ny, int nz,
-                                 const char* start_time_iso8601, int start_time_len, int* rc) {
+void cece_core_writer_initialize(void* data_ptr, int nx, int ny, int nz, const char* start_time_iso8601, int start_time_len, int* rc) {
     *rc = 0;
 
     if (data_ptr == nullptr) {
@@ -129,8 +124,7 @@ void cece_core_writer_initialize(void* data_ptr, int nx, int ny, int nz,
         // Convert C string to std::string
         std::string start_time(start_time_iso8601, start_time_len);
 
-        std::cout << "INFO: Initializing standalone writer with dimensions: " << nx << "x" << ny
-                  << "x" << nz << " start_time=" << start_time << "\n";
+        std::cout << "INFO: Initializing standalone writer with dimensions: " << nx << "x" << ny << "x" << nz << " start_time=" << start_time << "\n";
 
         // Initialize the writer
         int writer_rc = internal_data->standalone_writer->Initialize(start_time, nx, ny, nz);

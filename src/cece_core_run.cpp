@@ -59,8 +59,7 @@ void cece_core_run(void* data_ptr, int hour, int day_of_week, int* rc) {
         // Ingest emissions from configured streams before stacking
         if (!d->config.cece_data.streams.empty()) {
             try {
-                d->ingestor.IngestEmissionsInline(d->config.cece_data, d->import_state, d->nx,
-                                                  d->ny, d->nz);
+                d->ingestor.IngestEmissionsInline(d->config.cece_data, d->import_state, d->nx, d->ny, d->nz);
             } catch (const std::exception& e) {
                 std::cerr << "CECE_Run: ingest failed: " << e.what() << "\n";
             } catch (...) {
@@ -69,11 +68,9 @@ void cece_core_run(void* data_ptr, int hour, int day_of_week, int* rc) {
         }
 
         if (d->stacking_engine) {
-            cece::CeceStateResolver resolver(d->import_state, d->export_state,
-                                             d->config.met_mapping, d->config.scale_factor_mapping,
+            cece::CeceStateResolver resolver(d->import_state, d->export_state, d->config.met_mapping, d->config.scale_factor_mapping,
                                              d->config.mask_mapping);
-            d->stacking_engine->Execute(resolver, d->nx, d->ny, d->nz, d->default_mask, hour,
-                                        day_of_week);
+            d->stacking_engine->Execute(resolver, d->nx, d->ny, d->nz, d->default_mask, hour, day_of_week);
         }
 
         for (auto& scheme : d->active_schemes) {

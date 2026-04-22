@@ -61,8 +61,7 @@ class ProvenanceTracker {
      * @param species_name Species identifier.
      * @param contributions Ordered list of layer contributions.
      */
-    void RegisterSpecies(const std::string& species_name,
-                         std::vector<LayerContribution> contributions);
+    void RegisterSpecies(const std::string& species_name, std::vector<LayerContribution> contributions);
 
     /**
      * @brief Updates effective temporal scales for a species after execution.
@@ -72,8 +71,7 @@ class ProvenanceTracker {
      * @param month Current month (0-11).
      * @param effective_scales Per-layer effective scales after temporal application.
      */
-    void UpdateTemporalScales(const std::string& species_name, int hour, int day_of_week, int month,
-                              const std::vector<double>& effective_scales);
+    void UpdateTemporalScales(const std::string& species_name, int hour, int day_of_week, int month, const std::vector<double>& effective_scales);
 
     /**
      * @brief Returns the provenance record for a species.
@@ -85,8 +83,7 @@ class ProvenanceTracker {
     /**
      * @brief Returns all provenance records.
      */
-    [[nodiscard]] const std::unordered_map<std::string, SpeciesProvenance>& GetAllProvenance()
-        const {
+    [[nodiscard]] const std::unordered_map<std::string, SpeciesProvenance>& GetAllProvenance() const {
         return records_;
     }
 

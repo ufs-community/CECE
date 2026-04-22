@@ -40,8 +40,7 @@ void cece_core_advertise(int* rc) {
         *rc = 0;
     }
 
-    std::cout << "INFO: CECE Advertise Phase - Preparing field list from configuration"
-              << std::endl;
+    std::cout << "INFO: CECE Advertise Phase - Preparing field list from configuration" << std::endl;
 
     // Parse configuration to get field list
     cece::CeceConfig config;
@@ -49,8 +48,7 @@ void cece_core_advertise(int* rc) {
         const std::string& config_path = cece::GetConfigFilePath();
         config = cece::ParseConfig(config_path);
     } catch (const std::exception& e) {
-        std::cerr << "ERROR in cece_core_advertise: Failed to parse config: " << e.what()
-                  << std::endl;
+        std::cerr << "ERROR in cece_core_advertise: Failed to parse config: " << e.what() << std::endl;
         if (rc != nullptr) {
             *rc = -1;
         }
@@ -58,14 +56,12 @@ void cece_core_advertise(int* rc) {
     }
 
     // Log the fields that will be advertised
-    std::cout << "INFO: Will advertise " << config.species_layers.size()
-              << " emission species:" << std::endl;
+    std::cout << "INFO: Will advertise " << config.species_layers.size() << " emission species:" << std::endl;
     for (const auto& [species, layers] : config.species_layers) {
         std::cout << "  - " << species << std::endl;
     }
 
-    std::cout << "INFO: CECE Advertise Phase complete - Fortran cap will advertise fields"
-              << std::endl;
+    std::cout << "INFO: CECE Advertise Phase complete - Fortran cap will advertise fields" << std::endl;
 }
 
 }  // extern "C"

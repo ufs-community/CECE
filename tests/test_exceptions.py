@@ -22,7 +22,6 @@ from exceptions import (
     CECE_ERROR_ALREADY_INITIALIZED,
     CECE_ERROR_FIELD_NOT_FOUND,
     CECE_ERROR_DIMENSION_MISMATCH,
-    CECE_ERROR_UNKNOWN,
     CeceException,
     CeceConfigError,
     CeceComputationError,
@@ -197,9 +196,7 @@ class TestErrorCodeMapping:
 
     def test_invalid_execution_space_error(self):
         """Test that CECE_ERROR_INVALID_EXECUTION_SPACE creates CeceExecutionSpaceError."""
-        exc = error_code_to_exception(
-            CECE_ERROR_INVALID_EXECUTION_SPACE, "Bad space"
-        )
+        exc = error_code_to_exception(CECE_ERROR_INVALID_EXECUTION_SPACE, "Bad space")
         assert isinstance(exc, CeceExecutionSpaceError)
         assert exc.error_code == CECE_ERROR_INVALID_EXECUTION_SPACE
 

@@ -7,13 +7,14 @@ with _cece_core pybind11 module.
 
 import os
 import sys
-from pathlib import Path
 
 import pytest
 import numpy as np
 
 # Add the build output directory so the cece package (with _cece_core.so) is importable
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "build", "src", "python"))
+sys.path.insert(
+    0, os.path.join(os.path.dirname(__file__), "..", "build", "src", "python")
+)
 
 import cece
 from cece import _cece_core
@@ -195,7 +196,9 @@ class TestPublicAPISurface:
     def test_all_exports_exist(self):
         """Test that every name in __all__ is actually defined in the module."""
         for name in cece.__all__:
-            assert hasattr(cece, name), f"'{name}' is in __all__ but not defined in cece module"
+            assert hasattr(cece, name), (
+                f"'{name}' is in __all__ but not defined in cece module"
+            )
 
     def test_all_functions_callable(self):
         """Test that all function exports are callable."""
@@ -237,12 +240,12 @@ class TestPublicAPISurface:
 
     def test_no_bindings_import(self):
         """Test that _bindings is not imported anywhere in the module."""
-        assert not hasattr(cece, '_bindings'), "_bindings should not be imported"
-        assert not hasattr(cece, '_c_bindings'), "_c_bindings should not be imported"
+        assert not hasattr(cece, "_bindings"), "_bindings should not be imported"
+        assert not hasattr(cece, "_c_bindings"), "_c_bindings should not be imported"
 
     def test_cece_core_available(self):
         """Test that _cece_core pybind11 module is available."""
-        assert hasattr(cece, '_cece_core')
+        assert hasattr(cece, "_cece_core")
 
 
 class TestDiagnosticsAndErrors:

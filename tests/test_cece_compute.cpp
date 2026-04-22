@@ -32,32 +32,30 @@ class MockFieldResolver : public FieldResolver {
         return fields[name].view_host();
     }
 
-    UnmanagedHostView3D ResolveImport(const std::string& name, int /*nx*/, int /*ny*/,
-                                      int /*nz*/) override {
+    UnmanagedHostView3D ResolveImport(const std::string& name, int /*nx*/, int /*ny*/, int /*nz*/) override {
         if (fields.find(name) != fields.end()) {
             return fields[name].view_host();
         }
         return {};
     }
 
-    UnmanagedHostView3D ResolveExport(const std::string& name, int /*nx*/, int /*ny*/,
-                                      int /*nz*/) override {
+    UnmanagedHostView3D ResolveExport(const std::string& name, int /*nx*/, int /*ny*/, int /*nz*/) override {
         if (fields.find(name) != fields.end()) {
             return fields[name].view_host();
         }
         return {};
     }
 
-    Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
-    ResolveImportDevice(const std::string& name, int /*nx*/, int /*ny*/, int /*nz*/) override {
+    Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveImportDevice(const std::string& name, int /*nx*/,
+                                                                                                         int /*ny*/, int /*nz*/) override {
         if (fields.find(name) != fields.end()) {
             return fields[name].view_device();
         }
         return {};
     }
 
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveExportDevice(
-        const std::string& name, int /*nx*/, int /*ny*/, int /*nz*/) override {
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveExportDevice(const std::string& name, int /*nx*/, int /*ny*/,
+                                                                                                   int /*nz*/) override {
         if (fields.find(name) != fields.end()) {
             return fields[name].view_device();
         }
@@ -79,13 +77,10 @@ TEST_F(CeceComputeTest, BranchlessReplaceLogic) {
     int ny = 10;
     int nz = 1;
 
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> background_data("background", nx,
-                                                                                   ny, nz);
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> regional_data("regional", nx, ny,
-                                                                                 nz);
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> background_data("background", nx, ny, nz);
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> regional_data("regional", nx, ny, nz);
     Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> mask_data("mask", nx, ny, nz);
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> export_data("export", nx, ny,
-                                                                               nz);
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> export_data("export", nx, ny, nz);
 
     Kokkos::deep_copy(background_data, 5.0);
     Kokkos::deep_copy(regional_data, 10.0);
@@ -218,8 +213,7 @@ TEST_F(CeceComputeTest, HierarchyAndCategory) {
     Kokkos::deep_copy(bg_data, 1.0);
 
     // Overlay (Cat 1, Hier 10, Replace)
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> overlay_data("overlay", nx, ny,
-                                                                                nz);
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> overlay_data("overlay", nx, ny, nz);
     Kokkos::deep_copy(overlay_data, 2.0);
 
     // Another category (Cat 2, Hier 1)
@@ -230,8 +224,7 @@ TEST_F(CeceComputeTest, HierarchyAndCategory) {
     Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> sf_data("sf", nx, ny, nz);
     Kokkos::deep_copy(sf_data, 1.5);
 
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> export_data("export", nx, ny,
-                                                                               nz);
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> export_data("export", nx, ny, nz);
     Kokkos::deep_copy(export_data, 0.0);
 
     MockFieldResolver resolver;
@@ -295,8 +288,7 @@ TEST_F(CeceComputeTest, TemporalCycles) {
     Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> field_data("field", nx, ny, nz);
     Kokkos::deep_copy(field_data, 1.0);
 
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> export_data("export", nx, ny,
-                                                                               nz);
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> export_data("export", nx, ny, nz);
     Kokkos::deep_copy(export_data, 0.0);
 
     MockFieldResolver resolver;
@@ -354,8 +346,7 @@ TEST_F(CeceComputeTest, MultipleMasks) {
     Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> mask2("m2", nx, ny, nz);
     Kokkos::deep_copy(mask2, 0.2);
 
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> export_data("export", nx, ny,
-                                                                               nz);
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> export_data("export", nx, ny, nz);
     Kokkos::deep_copy(export_data, 0.0);
 
     MockFieldResolver resolver;
@@ -388,15 +379,13 @@ TEST_F(CeceComputeTest, MeteorologyMappingAndScaling) {
     int ny = 1;
     int nz = 1;
 
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> emissions_data("emi", nx, ny,
-                                                                                  nz);
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> emissions_data("emi", nx, ny, nz);
     Kokkos::deep_copy(emissions_data, 100.0);
 
     Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> temp_data("temp", nx, ny, nz);
     Kokkos::deep_copy(temp_data, 1.2);  // Scaling factor from meteorology
 
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> export_data("export", nx, ny,
-                                                                               nz);
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> export_data("export", nx, ny, nz);
     Kokkos::deep_copy(export_data, 0.0);
 
     MockFieldResolver resolver;
@@ -436,8 +425,7 @@ TEST_F(CeceComputeTest, MeteorologyMappingAndScaling) {
     exp.fields["nox"].modify<Kokkos::HostSpace>();
     exp.fields["nox"].sync<Kokkos::DefaultExecutionSpace::memory_space>();
 
-    CeceStateResolver state_resolver(imp, exp, config.met_mapping, config.scale_factor_mapping,
-                                     config.mask_mapping);
+    CeceStateResolver state_resolver(imp, exp, config.met_mapping, config.scale_factor_mapping, config.mask_mapping);
 
     ComputeEmissions(config, state_resolver, nx, ny, nz);
 

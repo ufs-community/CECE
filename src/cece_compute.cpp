@@ -25,10 +25,9 @@ namespace cece {
  * @param hour Current hour.
  * @param day_of_week Current day of week.
  */
-void ComputeEmissions(
-    const CeceConfig& config, FieldResolver& resolver, int nx, int ny, int nz,
-    const Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>& default_mask,
-    int hour, int day_of_week, int month, StackingEngine* engine) {
+void ComputeEmissions(const CeceConfig& config, FieldResolver& resolver, int nx, int ny, int nz,
+                      const Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>& default_mask, int hour, int day_of_week,
+                      int month, StackingEngine* engine) {
     if (engine != nullptr) {
         engine->Execute(resolver, nx, ny, nz, default_mask, hour, day_of_week, month);
     } else {

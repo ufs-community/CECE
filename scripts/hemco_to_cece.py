@@ -156,7 +156,9 @@ class HemcoParser:
                     if not name_part:
                         continue
                     ext_name = name_part[-1]
-                    status_raw = parts[1].strip().split()[0] if parts[1].strip() else "off"
+                    status_raw = (
+                        parts[1].strip().split()[0] if parts[1].strip() else "off"
+                    )
                     status = status_raw.lower().rstrip(":")
                     nr = name_part[0] if len(name_part) > 1 else None
                     entry = {"status": status}
@@ -166,7 +168,11 @@ class HemcoParser:
                 else:
                     parts = stripped.split()
                     if len(parts) >= 3:
-                        ext_nr, ext_name, status = parts[0], parts[1], parts[2].rstrip(":")
+                        ext_nr, ext_name, status = (
+                            parts[0],
+                            parts[1],
+                            parts[2].rstrip(":"),
+                        )
                         self.extensions[ext_name] = {
                             "nr": ext_nr,
                             "status": status.lower(),
@@ -264,7 +270,9 @@ class DiagnParser:
                         "hier": parts[4],
                         "dim": parts[5],
                         "unit": parts[6],
-                        "long_name": " ".join(parts[7:]) if len(parts) > 7 else parts[0],
+                        "long_name": " ".join(parts[7:])
+                        if len(parts) > 7
+                        else parts[0],
                     }
                     self.variables.append(entry)
                 elif len(parts) >= 1:
@@ -279,6 +287,7 @@ class GridParser:
         config_path (str): Path to the grid config file.
         grid_params (dict): Parsed grid parameters.
     """
+
     def __init__(self, grid_config_path):
         self.config_path = grid_config_path
         self.grid_params = {}
@@ -375,7 +384,11 @@ def _infer_vdist(be_entry):
         # e.g. H(0,2000) -> height range in m
         m = re.match(r"H\(([0-9.]+),([0-9.]+)\)", vdist_col, re.IGNORECASE)
         if m:
-            return {"method": "height", "h_start": float(m.group(1)), "h_end": float(m.group(2))}
+            return {
+                "method": "height",
+                "h_start": float(m.group(1)),
+                "h_end": float(m.group(2)),
+            }
         return {"method": "height"}
     if upper.startswith("L"):
         # e.g. L(1,5) -> layer range (0-indexed in CECE)
@@ -435,7 +448,8 @@ def convert_hemco_to_cece(hemco_config_path, output_path, diagn_path=None):
         if ext_nr != "0" and ext_nr not in enabled_ext_nrs:
             # Check if any extension with this nr is enabled
             is_enabled = any(
-                info.get("nr") == ext_nr and info.get("status") in ("on", "true", "yes", "1")
+                info.get("nr") == ext_nr
+                and info.get("status") in ("on", "true", "yes", "1")
                 for info in parser.extensions.values()
             )
             if not is_enabled:
@@ -450,7 +464,6 @@ def convert_hemco_to_cece(hemco_config_path, output_path, diagn_path=None):
 
         # Map HEMCO operation: 1=replace, 2=add (HEMCO default is add for hier=1)
         hier = int(be["hier"])
-        oper_code = be.get("cre", "2")  # 'cre' column sometimes holds operation
         # HEMCO convention: hierarchy > 1 with replace operation overrides lower
         operation = "replace" if hier > 1 else "add"
 
@@ -496,7 +509,9 @@ def convert_hemco_to_cece(hemco_config_path, output_path, diagn_path=None):
                 sf_name = sf_entry["name"]
 
                 # Detect inline temporal profiles (slash-separated floats)
-                factors, cycle_type = _parse_temporal_factors(sf_entry["file"], sf_entry["var"])
+                factors, cycle_type = _parse_temporal_factors(
+                    sf_entry["file"], sf_entry["var"]
+                )
                 if factors is not None:
                     cycle_key = sf_name.lower()
                     cece_config["temporal_profiles"][cycle_key] = factors
@@ -529,9 +544,7 @@ def convert_hemco_to_cece(hemco_config_path, output_path, diagn_path=None):
     # Build TIDE streams list
     # ------------------------------------------------------------------
     for name, file_path in streams.items():
-        cece_config["cece_data"]["streams"].append(
-            {"name": name, "file": file_path}
-        )
+        cece_config["cece_data"]["streams"].append({"name": name, "file": file_path})
 
     # ------------------------------------------------------------------
     # Separate met fields from scale factors
@@ -551,7 +564,9 @@ def convert_hemco_to_cece(hemco_config_path, output_path, diagn_path=None):
     grid_file = parser.settings.get("GridFile")
     if grid_file:
         full_grid_path = (
-            os.path.join(base_dir, grid_file) if not os.path.isabs(grid_file) else grid_file
+            os.path.join(base_dir, grid_file)
+            if not os.path.isabs(grid_file)
+            else grid_file
         )
         grid_parser = GridParser(full_grid_path)
         if grid_parser.grid_params:
@@ -580,7 +595,9 @@ def convert_hemco_to_cece(hemco_config_path, output_path, diagn_path=None):
     diagn_file = diagn_path or parser.settings.get("DiagnFile")
     if diagn_file:
         full_diagn_path = (
-            os.path.join(base_dir, diagn_file) if not os.path.isabs(diagn_file) else diagn_file
+            os.path.join(base_dir, diagn_file)
+            if not os.path.isabs(diagn_file)
+            else diagn_file
         )
         diagnostics.update(convert_hemco_diagn(full_diagn_path))
 
@@ -629,7 +646,9 @@ if __name__ == "__main__":
     arg_parser = argparse.ArgumentParser(
         description="Convert HEMCO configuration to CECE configuration."
     )
-    arg_parser.add_argument("hemco_config", help="Path to the HEMCO configuration file (.rc)")
+    arg_parser.add_argument(
+        "hemco_config", help="Path to the HEMCO configuration file (.rc)"
+    )
     arg_parser.add_argument(
         "-o",
         "--output",

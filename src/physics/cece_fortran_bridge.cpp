@@ -28,8 +28,7 @@ static PhysicsRegistration<FortranBridgeExample> register_scheme("fortran_bridge
  * @param config YAML node containing scheme-specific options.
  * @param diag_manager Pointer to the diagnostic manager.
  */
-void FortranBridgeExample::Initialize(const YAML::Node& config,
-                                      CeceDiagnosticManager* diag_manager) {
+void FortranBridgeExample::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
     std::cout << "FortranBridgeExample: Initialized.\n";
 }
@@ -48,8 +47,7 @@ void FortranBridgeExample::Run(CeceImportState& import_state, CeceExportState& e
     auto it_wind = import_state.fields.find("wind_speed_10m");
     auto it_nox = export_state.fields.find("nox");
 
-    if (it_temp == import_state.fields.end() || it_wind == import_state.fields.end() ||
-        it_nox == export_state.fields.end()) {
+    if (it_temp == import_state.fields.end() || it_wind == import_state.fields.end() || it_nox == export_state.fields.end()) {
         return;
     }
 

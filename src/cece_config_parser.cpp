@@ -136,8 +136,7 @@ CeceConfig ParseConfig(const std::string& filename) {
     // Parse meteorology mapping
     if (root["meteorology"]) {
         for (auto const& met_node : root["meteorology"]) {
-            config.met_mapping[met_node.first.as<std::string>()] =
-                met_node.second.as<std::string>();
+            config.met_mapping[met_node.first.as<std::string>()] = met_node.second.as<std::string>();
         }
     }
 
@@ -160,16 +159,14 @@ CeceConfig ParseConfig(const std::string& filename) {
     // Parse scale factor mapping
     if (root["scale_factors"]) {
         for (auto const& sf_node : root["scale_factors"]) {
-            config.scale_factor_mapping[sf_node.first.as<std::string>()] =
-                sf_node.second.as<std::string>();
+            config.scale_factor_mapping[sf_node.first.as<std::string>()] = sf_node.second.as<std::string>();
         }
     }
 
     // Parse mask mapping
     if (root["masks"]) {
         for (auto const& mask_node : root["masks"]) {
-            config.mask_mapping[mask_node.first.as<std::string>()] =
-                mask_node.second.as<std::string>();
+            config.mask_mapping[mask_node.first.as<std::string>()] = mask_node.second.as<std::string>();
         }
     }
 
@@ -395,10 +392,9 @@ CeceConfig ParseConfig(const std::string& filename) {
         // Validate output directory writability; log INFO if it needs to be created.
         // Actual directory creation is deferred to CeceStandaloneWriter::Initialize.
         const std::string& dir = config.output_config.directory;
-        struct stat st {};
+        struct stat st{};
         if (stat(dir.c_str(), &st) != 0) {
-            std::cout << "[CECE INFO] Output directory '" << dir
-                      << "' does not exist and will be created at runtime.\n";
+            std::cout << "[CECE INFO] Output directory '" << dir << "' does not exist and will be created at runtime.\n";
         } else if (!(st.st_mode & S_IWUSR)) {
             std::cerr << "[CECE ERROR] Output directory '" << dir << "' is not writable.\n";
         }
@@ -454,24 +450,21 @@ CeceConfig ParseConfig(const std::string& filename) {
 /**
  * @brief Adds a new emission species with its layers to an existing config at runtime.
  */
-void AddSpecies(CeceConfig& config, const std::string& species_name,
-                std::vector<EmissionLayer> layers) {
+void AddSpecies(CeceConfig& config, const std::string& species_name, std::vector<EmissionLayer> layers) {
     config.species_layers[species_name] = std::move(layers);
 }
 
 /**
  * @brief Adds a new scale factor mapping to an existing config at runtime.
  */
-void AddScaleFactor(CeceConfig& config, const std::string& internal_name,
-                    const std::string& external_name) {
+void AddScaleFactor(CeceConfig& config, const std::string& internal_name, const std::string& external_name) {
     config.scale_factor_mapping[internal_name] = external_name;
 }
 
 /**
  * @brief Adds a new mask mapping to an existing config at runtime.
  */
-void AddMask(CeceConfig& config, const std::string& internal_name,
-             const std::string& external_name) {
+void AddMask(CeceConfig& config, const std::string& internal_name, const std::string& external_name) {
     config.mask_mapping[internal_name] = external_name;
 }
 

@@ -8,11 +8,9 @@
 namespace cece {
 
 // Self-registration
-static PhysicsRegistration<ExampleDiagnosticComputation> register_example_diagnostic_computation(
-    "example_diagnostic_computation");
+static PhysicsRegistration<ExampleDiagnosticComputation> register_example_diagnostic_computation("example_diagnostic_computation");
 
-void ExampleDiagnosticComputation::Initialize(const YAML::Node& config,
-                                              CeceDiagnosticManager* diag_manager) {
+void ExampleDiagnosticComputation::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
     // Call base class initialization
     BasePhysicsScheme::Initialize(config, diag_manager);
 
@@ -30,19 +28,15 @@ void ExampleDiagnosticComputation::Initialize(const YAML::Node& config,
     // Register diagnostic fields
     // These fields will be written to NetCDF output if diagnostics are enabled
     if (diag_manager != nullptr) {
-        temperature_anomaly_ = ResolveDiagnostic("temperature_anomaly", 1, 1, 1, "K",
-                                                 "Temperature deviation from reference");
-        emission_efficiency_ = ResolveDiagnostic("emission_efficiency", 1, 1, 1, "kg/m2/s/K",
-                                                 "Emission per unit temperature anomaly");
+        temperature_anomaly_ = ResolveDiagnostic("temperature_anomaly", 1, 1, 1, "K", "Temperature deviation from reference");
+        emission_efficiency_ = ResolveDiagnostic("emission_efficiency", 1, 1, 1, "kg/m2/s/K", "Emission per unit temperature anomaly");
         if (compute_quality_flags_) {
-            quality_flag_ = ResolveDiagnostic("quality_flag", 1, 1, 1, "dimensionless",
-                                              "Data quality flag (0=good, 1=suspect, 2=bad)");
+            quality_flag_ = ResolveDiagnostic("quality_flag", 1, 1, 1, "dimensionless", "Data quality flag (0=good, 1=suspect, 2=bad)");
         }
     }
 }
 
-void ExampleDiagnosticComputation::Run(CeceImportState& import_state,
-                                       CeceExportState& export_state) {
+void ExampleDiagnosticComputation::Run(CeceImportState& import_state, CeceExportState& export_state) {
     // Resolve input fields
     auto temperature = ResolveImport("temperature", import_state);
 
@@ -75,9 +69,7 @@ void ExampleDiagnosticComputation::Run(CeceImportState& import_state,
     // - Diagnostic computation should be efficient (avoid expensive operations)
 
     Kokkos::parallel_for(
-        "ExampleDiagnosticComputationKernel",
-        Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<3>>({0, 0, 0},
-                                                                              {nx, ny, nz}),
+        "ExampleDiagnosticComputationKernel", Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
         KOKKOS_LAMBDA(int i, int j, int k) {
             // Get input values
             double temp = temperature(i, j, k);

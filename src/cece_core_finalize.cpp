@@ -76,8 +76,7 @@ void cece_core_finalize(void* data_ptr, int* rc) {
     }
 
     // 2. Finalize all physics schemes (Req 4.15 - release Kokkos views held by schemes)
-    std::cout << "INFO: Finalizing " << internal_data->active_schemes.size()
-              << " physics schemes\n";
+    std::cout << "INFO: Finalizing " << internal_data->active_schemes.size() << " physics schemes\n";
     for (auto& scheme : internal_data->active_schemes) {
         if (scheme) {
             try {

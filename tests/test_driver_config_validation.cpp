@@ -25,8 +25,7 @@ extern "C" {
 // Forward declarations for Fortran ISO8601 functions
 extern "C" {
 void init_iso8601_utils_c_wrapper();
-void parse_iso8601_to_esmf_time_c_wrapper(const char* iso_str, int* yy, int* mm, int* dd, int* hh,
-                                          int* mn, int* ss, int* rc);
+void parse_iso8601_to_esmf_time_c_wrapper(const char* iso_str, int* yy, int* mm, int* dd, int* hh, int* mn, int* ss, int* rc);
 }
 
 namespace {
@@ -313,8 +312,7 @@ species:
 // Test 11: Positive grid dimensions are valid
 // Requirements: 14.7
 TEST_F(DriverConfigValidationTest, PositiveGridDimensionsValid) {
-    std::vector<std::pair<int, int>> valid_dimensions = {
-        {1, 1}, {4, 4}, {8, 8}, {16, 16}, {32, 32}, {64, 64}, {128, 128}, {360, 180}, {720, 360}};
+    std::vector<std::pair<int, int>> valid_dimensions = {{1, 1}, {4, 4}, {8, 8}, {16, 16}, {32, 32}, {64, 64}, {128, 128}, {360, 180}, {720, 360}};
 
     for (const auto& [nx, ny] : valid_dimensions) {
         WriteTestConfig(test_config_file,

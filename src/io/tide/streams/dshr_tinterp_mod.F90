@@ -305,7 +305,7 @@ contains
     call shr_cal_date2julian(ymd, tod, calday, calendar)
     call shr_orb_decl( calday, eccen, mvelpp, lambm0, obliqr, declin, eccf )
     if (debug > 0 .and. isroot) then
-       write(logunit,'(a,2(i8,2x),d20.10,2x,a)') trim(subname)//' ymd, tod, calday, calendar = ',ymd,tod,calday,calendar  
+       write(logunit,'(a,2(i8,2x),d20.10,2x,a)') trim(subname)//' ymd, tod, calday, calendar = ',ymd,tod,calday,calendar
        write(logunit,'(a,4(d20.10,2x))') trim(subname)//' eccen, mvelpp, lambm0, obliqr = ',eccen, mvelpp, lambm0, obliqr
        write(logunit,'(a,2(d20.10,2x))') trim(subname)//' declin,eccf= ',declin,eccf
     end if

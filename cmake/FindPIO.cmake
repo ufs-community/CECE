@@ -2,22 +2,18 @@
 #
 # Finds the Parallel IO (PIO) library.
 #
-# Variables defined:
-#   PIO_FOUND
-#   PIO_INCLUDE_DIRS
-#   PIO_LIBRARIES
+# Variables defined: PIO_FOUND PIO_INCLUDE_DIRS PIO_LIBRARIES
 #
-# Targets defined:
-#   PIO::PIO
+# Targets defined: PIO::PIO
 
 if(TARGET PIO::PIO)
-    set(PIO_FOUND TRUE)
-    return()
+  set(PIO_FOUND TRUE)
+  return()
 endif()
 
 # Try Config mode first, respect PIO_ROOT if set
 if(DEFINED PIO_ROOT)
-    set(PIO_DIR "${PIO_ROOT}/lib/cmake/pio")
+  set(PIO_DIR "${PIO_ROOT}/lib/cmake/pio")
 endif()
 find_package(PIO CONFIG QUIET)
 
@@ -35,16 +31,19 @@ if(PIO_FOUND)
 endif()
 
 # Fallback: search common paths
-set(PIO_SEARCH_PATHS
-    ${PIO_ROOT}
-    $ENV{PIO_ROOT}
-    $ENV{PIO_PATH}
-    /usr/local
-    /opt/software/pio
-)
+set(PIO_SEARCH_PATHS ${PIO_ROOT} $ENV{PIO_ROOT} $ENV{PIO_PATH} /usr/local
+                     /opt/software/pio)
 
-find_path(PIO_INCLUDE_DIR NAMES pio.h PATHS ${PIO_SEARCH_PATHS} PATH_SUFFIXES include)
-find_library(PIO_LIBRARY NAMES pio PATHS ${PIO_SEARCH_PATHS} PATH_SUFFIXES lib)
+find_path(
+  PIO_INCLUDE_DIR
+  NAMES pio.h
+  PATHS ${PIO_SEARCH_PATHS}
+  PATH_SUFFIXES include)
+find_library(
+  PIO_LIBRARY
+  NAMES pio
+  PATHS ${PIO_SEARCH_PATHS}
+  PATH_SUFFIXES lib)
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(PIO DEFAULT_MSG PIO_LIBRARY PIO_INCLUDE_DIR)
