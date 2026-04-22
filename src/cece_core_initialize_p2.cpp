@@ -67,8 +67,10 @@ void cece_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc)
 
     // 1. Validate that Phase 1 completed successfully
     if (data_ptr == nullptr) {
+        // clang-format off
         std::cerr << "ERROR in cece_core_initialize_p2: Internal data pointer is null - "
                   << "Phase 1 must complete before Phase 2" << std::endl;
+        // clang-format on
         if (rc != nullptr) {
             *rc = -1;
         }

@@ -1029,12 +1029,12 @@ CONTAINS
 
     ! Initialize
     a=""
-    
+
     ptr=realpath(trim(path)//C_NULL_CHAR,a)
-    
+
     ! Transfer character array to character string
     resolved_path = transfer(a,resolved_path)
-    
+
     ! Determine the first null char
     do n=1,SHR_KIND_CL
        if(iachar(resolved_path(n:n)).eq.0) exit

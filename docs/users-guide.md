@@ -422,9 +422,59 @@ Files are CF-1.8 compliant and can be inspected with standard tools:
 ncdump -h cece_20240101_000000.nc
 ```
 
+## Physics Schemes
+
+CECE includes a suite of process-based physics schemes for computing emissions from natural and anthropogenic sources. Each scheme is available as both a native C++ (Kokkos) implementation and a Fortran bridge variant. Schemes are enabled and configured through the `physics_schemes` block in your YAML configuration.
+
+| Scheme | Description | Documentation |
+| --- | --- | --- |
+| DMS | Dimethyl sulfide sea-air exchange fluxes | [DMS](dms.md) |
+| Sea Salt | Size-resolved sea salt aerosol emissions (Gong 2003) | [Sea Salt](sea_salt.md) |
+| Dust (Ginoux Legacy) | Single-bin mineral dust emissions (Ginoux 2001) | [Dust](dust.md) |
+| Ginoux (GOCART2G) | Multi-bin dust emissions with Marticorena threshold | [Ginoux](ginoux.md) |
+| FENGSHA | Physically-based saltation dust model with Fécan correction | [FENGSHA](fengsha.md) |
+| K14 | Kok et al. (2014) dust scheme with full soil physics | [K14](k14.md) |
+| MEGAN | Biogenic isoprene emissions (Model of Emissions of Gases and Aerosols from Nature) | [MEGAN](megan.md) |
+| Lightning NOx | Lightning-produced NOx from convective cloud top height | [Lightning NOx](lightning_nox.md) |
+| Soil NOx | Soil NOx from microbial nitrification/denitrification | [Soil NOx](soil_nox.md) |
+| Volcano | Volcanic SO₂ point-source emissions with vertical distribution | [Volcano](volcano.md) |
+
+For guidance on developing your own physics schemes, see the [Physics Scheme Development Guide](physics_scheme_development.md).
+
+## Python Interface
+
+CECE provides Python bindings through pybind11 that expose the full C++ core to Python with type-safe access, automatic memory management, and zero-copy NumPy interop.
+
+```python
+import cece
+import numpy as np
+
+config = cece.load_config("cece_config.yaml")
+cece.initialize(config)
+
+state = cece.CeceState(nx=144, ny=96, nz=72)
+state.add_import_field("TEMPERATURE", np.asfortranarray(np.zeros((144, 96, 72))))
+
+cece.compute(state, hour=12, day_of_week=3, month=7)
+co_emissions = state.get_export_field("CO_EMIS")
+
+cece.finalize()
+```
+
+To build with Python support, enable the `BUILD_PYTHON_BINDINGS` CMake option:
+
+```bash
+cmake .. -DBUILD_PYTHON_BINDINGS=ON
+make -j$(nproc)
+```
+
+For the full API reference, configuration management, state handling, NumPy zero-copy details, and migration notes, see the [Python Bindings Documentation](python_bindings.md).
+
 ## Next Steps
 
 - Read the [Developer Guide](developer_guide.md) for architecture details
 - Check [Physics Scheme Development](physics_scheme_development.md) for adding new schemes
 - Review [HEMCO Migration Guide](hemco_migration.md) for migrating from HEMCO
 - See [Examples](examples.md) for common use cases
+- Explore the [Python Bindings](python_bindings.md) for scripting and integration
+- Browse individual [physics scheme docs](#physics-schemes) for algorithm details and configuration

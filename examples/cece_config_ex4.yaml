@@ -1,9 +1,3 @@
-physics_schemes:
-  - name: "GFED"
-    language: "cpp"
-    options:
-      version: "GFED4"
-
 # Physics schemes demonstration example
 driver:
   start_time: "2020-01-01T00:00:00"
@@ -24,6 +18,10 @@ species:
       operation: "add"
 
 physics_schemes:
+  - name: "GFED"
+    language: "cpp"
+    options:
+      version: "GFED4"
   - name: "DayCycleAndSeasonVariation"
     options:
       amplitude_diurnal: 0.5
@@ -45,34 +43,3 @@ cece_data:
 diagnostics:
   output_interval_seconds: 3600
   variables: ["no"]
-grid:
-  nx: 6
-  ny: 4
-  lon_min: -180.0
-  lon_max: 180.0
-  lat_min: -90.0
-  lat_max: 90.0
-
-species:
-  co:
-    - field: "MACCITY_CO"
-      category: "anthropogenic"
-      hierarchy: 1
-      operation: "add"
-
-cece_data:
-  streams:
-    - name: "MACCITY_CO"
-      file: "/work/data/MACCity_4x5.nc"
-      variables:
-        - file: "MACCity"
-          model: "MACCITY_CO"
-    - name: "GFED_WDL"
-      file: "/work/data/GFED4_gen.025x025.199701.nc"
-      variables:
-        - file: "DM_TOTL"
-          model: "GFED_WDL"
-
-diagnostics:
-  output_interval_seconds: 3600
-  variables: ["co"]

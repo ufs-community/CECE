@@ -2,40 +2,13 @@ name: Lint and Format
 on: [pull_request, push]
 
 jobs:
-  format-and-lint:
+  pre-commit:
     runs-on: ubuntu-latest
-    container: jcsda/docker-gnu-openmpi-dev:1.9
     steps:
-    - name: Checkout
-      uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
-    - name: Install Clang-Format
-      run: |
-        apt-get update -qq
-        apt-get install -y -qq pipx
-        # Install a pinned clang-format version via pipx to match local dev (v22)
-        pipx install clang-format==22.1.2
-        export PATH="$PATH:$HOME/.local/bin"
-        echo "$HOME/.local/bin" >> $GITHUB_PATH
-        clang-format --version
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
 
-    - name: Run Clang-Format Check
-      run: |
-        find src include tests -name "*.cpp" -o -name "*.hpp" | xargs clang-format --dry-run --Werror
-
-    # - name: Run Clang-Tidy
-    #   shell: bash
-    #   run: |
-    #     if [ -f /opt/spack-environment/activate.sh ]; then
-    #       source /opt/spack-environment/activate.sh
-    #     fi
-    #     mkdir -p build && cd build
-    #     cmake .. -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
-    #     cd ..
-    #     # Explicitly only check CECE source files to avoid checking dependencies
-    #     # like yaml-cpp or CDEPS that might be in the build directory.
-    #     # Filter the compilation database to only include CECE source and test files.
-    #     # This prevents linting external dependencies like googletest, kokkos, and yaml-cpp.
-    #     python3 -c "import json, os; db=json.load(open('build/compile_commands.json')); db=[e for e in db if any(x in e['file'] for x in ['/src/', '/tests/', '/standalone_nuopc/']) and not '_deps' in e['file'] and e['file'].endswith(('.cpp', '.hpp', '.c', '.h'))]; json.dump(db, open('build/compile_commands.json', 'w'))"
-    #     # Run clang-tidy on the filtered database.
-    #     run-clang-tidy -p build
+      - uses: pre-commit/action@v3.0.1

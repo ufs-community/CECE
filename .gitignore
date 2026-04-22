@@ -40,5 +40,3 @@ __pycache__/
 *.pyc
 .kiro/
 .pytest_cache/
-
-

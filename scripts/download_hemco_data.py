@@ -4,6 +4,7 @@ import os
 import subprocess
 import sys
 
+
 def download_s3(s3_path, local_path):
     """
     Download a file from the public geos-chem S3 bucket using HTTPS.
@@ -16,7 +17,7 @@ def download_s3(s3_path, local_path):
         clean_path = clean_path[5:]
 
     if clean_path.startswith(f"{bucket}/"):
-        clean_path = clean_path[len(bucket)+1:]
+        clean_path = clean_path[len(bucket) + 1 :]
 
     url = f"{base_url}/{clean_path}"
 
@@ -32,13 +33,18 @@ def download_s3(s3_path, local_path):
         print(f"Error downloading data: {e}", file=sys.stderr)
         sys.exit(1)
 
+
 def main():
     parser = argparse.ArgumentParser(description="Download HEMCO data from AWS S3.")
-    parser.add_argument("path", help="The S3 path to download (e.g., HEMCO/MACCITY/v2014-07/MACCity_4x5.nc)")
+    parser.add_argument(
+        "path",
+        help="The S3 path to download (e.g., HEMCO/MACCITY/v2014-07/MACCity_4x5.nc)",
+    )
     parser.add_argument("-o", "--output", help="The local output file path.")
     args = parser.parse_args()
     output_path = args.output if args.output else os.path.basename(args.path)
     download_s3(args.path, output_path)
+
 
 if __name__ == "__main__":
     main()

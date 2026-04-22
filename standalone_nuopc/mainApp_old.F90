@@ -67,13 +67,13 @@ program mainApp
   write(*,'(A)') "INFO: [mainApp] Calling ESMF_GridCompInitialize..."
   call ESMF_GridCompInitialize(drvComp, userRc=userRc, rc=rc)
   write(*,'(A,I0,A,I0)') "INFO: [mainApp] ESMF_GridCompInitialize returned: rc=", rc, " userRc=", userRc
-  
-  ! DEBUG: Check clock state right after initialization 
+
+  ! DEBUG: Check clock state right after initialization
   block
     type(ESMF_Time) :: DEBUG_currTime, DEBUG_stopTime
     type(ESMF_Clock) :: DEBUG_clock
     character(len=32) :: DEBUG_curr_str, DEBUG_stop_str
-    call ESMF_GridCompGet(drvComp, clock=DEBUG_clock, rc=rc) 
+    call ESMF_GridCompGet(drvComp, clock=DEBUG_clock, rc=rc)
     if (rc == ESMF_SUCCESS) then
       call ESMF_ClockGet(DEBUG_clock, currTime=DEBUG_currTime, stopTime=DEBUG_stopTime, rc=rc)
       if (rc == ESMF_SUCCESS) then
@@ -86,7 +86,7 @@ program mainApp
       end if
     end if
   end block
-  
+
   if (rc /= ESMF_SUCCESS) then
     write(*,'(A,I0)') "ERROR: ESMF_GridCompInitialize failed rc=", rc
     call ESMF_Finalize(endflag=ESMF_END_ABORT)
@@ -100,7 +100,7 @@ program mainApp
   write(*,'(A)') "INFO: [mainApp] Calling ESMF_GridCompRun (single call)..."
   call ESMF_GridCompRun(drvComp, userRc=userRc, rc=rc)
   write(*,'(A,I0,A,I0)') "INFO: [mainApp] ESMF_GridCompRun returned: rc=", rc, " userRc=", userRc
-  
+
   if (rc /= ESMF_SUCCESS) then
     write(*,'(A,I0)') "ERROR: ESMF_GridCompRun failed rc=", rc
     call ESMF_Finalize(endflag=ESMF_END_ABORT)
@@ -115,7 +115,7 @@ program mainApp
   ! Let ESMF_Finalize() handle the remaining cleanup
   write(*,'(A)') "INFO: [mainApp] Skipping driver finalization to avoid segfault"
   call flush(6)
-  
+
   ! Uncomment these lines if you want to test driver finalization:
   ! write(*,'(A)') "INFO: [mainApp] Starting driver finalization..."
   ! call flush(6)
@@ -140,9 +140,9 @@ program mainApp
   write(*,'(A)') "INFO: [mainApp] CECE execution completed successfully"
   write(*,'(A)') "INFO: [mainApp] Skipping ESMF_Finalize to avoid framework cleanup conflicts"
   call flush(6)
-  
+
   ! Uncomment this line if you want to test ESMF finalization:
-  ! write(*,'(A)') "INFO: [mainApp] Starting ESMF finalization..."  
+  ! write(*,'(A)') "INFO: [mainApp] Starting ESMF finalization..."
   ! call flush(6)
   ! call ESMF_Finalize()
   ! write(*,'(A)') "INFO: [mainApp] ESMF finalization complete"
@@ -230,15 +230,15 @@ subroutine run_driver_loop(drvComp, userRc, rc)
   step_count = 0
   total_steps = 0
 
-  ! CRITICAL FIX: Reset clock to start time before loop begins  
+  ! CRITICAL FIX: Reset clock to start time before loop begins
   ! The clock may have been advanced during component initialization
   call ESMF_ClockGet(clock, startTime=startTime, rc=rc)
   if (rc == ESMF_SUCCESS) then
     write(*,'(A)') "DEBUG: [mainApp] Resetting clock to start time..."
-    
+
     ! Debug: Show clock state before reset
     block
-      type(ESMF_Time) :: DEBUG_currTime 
+      type(ESMF_Time) :: DEBUG_currTime
       character(len=32) :: DEBUG_curr_str
       call ESMF_ClockGet(clock, currTime=DEBUG_currTime, rc=rc)
       if (rc == ESMF_SUCCESS) then
@@ -248,14 +248,14 @@ subroutine run_driver_loop(drvComp, userRc, rc)
         end if
       end if
     end block
-    
+
     call ESMF_ClockSet(clock, currTime=startTime, rc=rc)
-    if (rc /= ESMF_SUCCESS) then  
+    if (rc /= ESMF_SUCCESS) then
       write(*,'(A,I0)') "WARNING: [mainApp] Failed to reset clock to start time (rc=", rc, ")"
     else
       write(*,'(A)') "DEBUG: [mainApp] Clock successfully reset to start time"
-      
-      ! Debug: Show clock state after reset  
+
+      ! Debug: Show clock state after reset
       block
         type(ESMF_Time) :: DEBUG_currTime, DEBUG_stopTime
         character(len=32) :: DEBUG_curr_str, DEBUG_stop_str
@@ -302,7 +302,7 @@ subroutine run_driver_loop(drvComp, userRc, rc)
   block
     type(ESMF_Time) :: DEBUG_currTime, DEBUG_stopTime, correct_stopTime
     character(len=32) :: DEBUG_curr_str, DEBUG_stop_str, correct_stop_str
-    
+
     ! Get current corrupted state
     call ESMF_ClockGet(clock, currTime=DEBUG_currTime, stopTime=DEBUG_stopTime, rc=rc)
     if (rc == ESMF_SUCCESS) then
@@ -312,14 +312,14 @@ subroutine run_driver_loop(drvComp, userRc, rc)
         write(*,'(A,A)') "DEBUG: [mainApp] Before fix - current=", trim(DEBUG_curr_str)
         write(*,'(A,A)') "DEBUG: [mainApp] Before fix - stop=", trim(DEBUG_stop_str)
       end if
-      
+
       ! Force correct stop time: start + 6 hours
       call ESMF_TimeSet(correct_stopTime, yy=2020, mm=1, dd=1, h=6, m=0, s=0, rc=rc)
       if (rc == ESMF_SUCCESS) then
         call ESMF_ClockSet(clock, stopTime=correct_stopTime, rc=rc)
         if (rc == ESMF_SUCCESS) then
           write(*,'(A)') "DEBUG: [mainApp] FORCED stop time back to 06:00:00"
-          
+
           ! Verify fix
           call ESMF_ClockGet(clock, stopTime=DEBUG_stopTime, rc=rc)
           if (rc == ESMF_SUCCESS) then
@@ -362,7 +362,7 @@ subroutine run_driver_loop(drvComp, userRc, rc)
       end if
     end if
 
-    ! Debug: Show clock state BEFORE GridCompRun 
+    ! Debug: Show clock state BEFORE GridCompRun
     block
       type(ESMF_Time) :: DEBUG_currTime
       character(len=32) :: DEBUG_curr_str
@@ -378,8 +378,8 @@ subroutine run_driver_loop(drvComp, userRc, rc)
 
     ! Task 7.2: Call ESMF_GridCompRun for the driver
     call ESMF_GridCompRun(drvComp, userRc=userRc, rc=run_rc)
-    
-    ! Debug: Show clock state AFTER GridCompRun  
+
+    ! Debug: Show clock state AFTER GridCompRun
     block
       type(ESMF_Time) :: DEBUG_currTime
       character(len=32) :: DEBUG_curr_str
@@ -392,7 +392,7 @@ subroutine run_driver_loop(drvComp, userRc, rc)
         end if
       end if
     end block
-    
+
     if (run_rc /= ESMF_SUCCESS) then
       write(step_str, '(I0)') step_count
       write(*,'(A,A,A,I0)') "ERROR: [mainApp] Driver Run phase failed at step ", trim(step_str), " (rc=", run_rc, ")"
@@ -424,10 +424,10 @@ subroutine run_driver_loop(drvComp, userRc, rc)
 
     ! NOTE: NUOPC automatically advances the clock during GridCompRun
     ! Manual clock advancement is causing double advancement - removed
-    ! 
+    !
     ! OLD CODE (causing double advancement):
     ! call ESMF_ClockAdvance(clock, rc=run_rc)
-    ! 
+    !
     ! DEBUG: Let's see if NUOPC handled the clock properly
     block
       type(ESMF_Time) :: DEBUG_currTime
@@ -473,7 +473,7 @@ subroutine run_driver_loop(drvComp, userRc, rc)
 
     ! Task 7.1: Check termination condition
     write(*,'(A,I0)') "DEBUG: [mainApp] Checking stop condition after timestep ", step_count
-    
+
     ! Debug: Show current time vs stop time for termination check
     block
       type(ESMF_Time) :: DEBUG_currTime, DEBUG_stopTime
@@ -488,7 +488,7 @@ subroutine run_driver_loop(drvComp, userRc, rc)
         end if
       end if
     end block
-    
+
     clock_done = ESMF_ClockIsStopTime(clock, rc=rc)
     if (rc /= ESMF_SUCCESS) then
       write(*,'(A,I0)') "ERROR: [mainApp] Failed to check clock stop time (rc=", rc, ")"
