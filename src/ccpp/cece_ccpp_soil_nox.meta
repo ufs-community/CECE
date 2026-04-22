@@ -4,7 +4,7 @@
   dependencies = cece_ccpp_state.F90
 
 [ccpp-arg-table]
-  name = cece_soil_nox_init
+  name = cece_ccpp_soil_nox_init
   type = scheme
 [horizontal_loop_extent]
   standard_name = horizontal_loop_extent
@@ -45,7 +45,7 @@
   intent = out
 
 [ccpp-arg-table]
-  name = cece_soil_nox_run
+  name = cece_ccpp_soil_nox_run
   type = scheme
 [horizontal_loop_extent]
   standard_name = horizontal_loop_extent
@@ -102,7 +102,7 @@
   intent = out
 
 [ccpp-arg-table]
-  name = cece_soil_nox_finalize
+  name = cece_ccpp_soil_nox_finalize
   type = scheme
 [errmsg]
   standard_name = ccpp_error_message
@@ -121,7 +121,7 @@
   intent = out
 
 [ccpp-arg-table]
-  name = cece_soil_nox_timestep_init
+  name = cece_ccpp_soil_nox_timestep_init
   type = scheme
 [errmsg]
   standard_name = ccpp_error_message
@@ -140,7 +140,7 @@
   intent = out
 
 [ccpp-arg-table]
-  name = cece_soil_nox_timestep_finalize
+  name = cece_ccpp_soil_nox_timestep_finalize
   type = scheme
 [errmsg]
   standard_name = ccpp_error_message

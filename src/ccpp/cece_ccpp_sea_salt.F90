@@ -1,89 +1,16 @@
 module cece_ccpp_sea_salt
   use iso_c_binding
-  use cece_ccpp_state, only: g_cece_data_ptr, g_init_count, g_initialized
+  use cece_ccpp_state, only: g_cece_data_ptr, g_init_count, g_initialized, &
+    cece_ccpp_core_finalize, cece_ccpp_core_init, cece_ccpp_get_export_field, cece_ccpp_scheme_finalize, cece_ccpp_scheme_init, cece_ccpp_scheme_run, cece_ccpp_set_import_field, cece_ccpp_sync_export_to_host, cece_ccpp_sync_import_to_device
   implicit none
   private
-  public :: cece_sea_salt_init, cece_sea_salt_run, cece_sea_salt_finalize, &
-            cece_sea_salt_timestep_init, cece_sea_salt_timestep_finalize
+  public :: cece_ccpp_sea_salt_init, cece_ccpp_sea_salt_run, cece_ccpp_sea_salt_finalize, &
+            cece_ccpp_sea_salt_timestep_init, cece_ccpp_sea_salt_timestep_finalize
 
-  ! C API interfaces
-  interface
-    subroutine cece_ccpp_core_init(data_ptr, config_path, path_len, &
-                                   nx, ny, nz, rc) bind(C)
-      import :: c_ptr, c_char, c_int
-      type(c_ptr), intent(out) :: data_ptr
-      character(kind=c_char), intent(in) :: config_path(*)
-      integer(c_int), value :: path_len, nx, ny, nz
-      integer(c_int), intent(out) :: rc
-    end subroutine
-
-    subroutine cece_ccpp_scheme_init(data_ptr, name, name_len, &
-                                     nx, ny, nz, rc) bind(C)
-      import :: c_ptr, c_char, c_int
-      type(c_ptr), value :: data_ptr
-      character(kind=c_char), intent(in) :: name(*)
-      integer(c_int), value :: name_len, nx, ny, nz
-      integer(c_int), intent(out) :: rc
-    end subroutine
-
-    subroutine cece_ccpp_set_import_field(data_ptr, name, name_len, &
-                                          field_data, nx, ny, nz, rc) bind(C)
-      import :: c_ptr, c_char, c_int, c_double
-      type(c_ptr), value :: data_ptr
-      character(kind=c_char), intent(in) :: name(*)
-      integer(c_int), value :: name_len, nx, ny, nz
-      real(c_double), intent(in) :: field_data(nx, ny, nz)
-      integer(c_int), intent(out) :: rc
-    end subroutine
-
-    subroutine cece_ccpp_scheme_run(data_ptr, name, name_len, rc) bind(C)
-      import :: c_ptr, c_char, c_int
-      type(c_ptr), value :: data_ptr
-      character(kind=c_char), intent(in) :: name(*)
-      integer(c_int), value :: name_len
-      integer(c_int), intent(out) :: rc
-    end subroutine
-
-    subroutine cece_ccpp_get_export_field(data_ptr, name, name_len, &
-                                          field_data, nx, ny, nz, rc) bind(C)
-      import :: c_ptr, c_char, c_int, c_double
-      type(c_ptr), value :: data_ptr
-      character(kind=c_char), intent(in) :: name(*)
-      integer(c_int), value :: name_len, nx, ny, nz
-      real(c_double), intent(out) :: field_data(nx, ny, nz)
-      integer(c_int), intent(out) :: rc
-    end subroutine
-
-    subroutine cece_ccpp_scheme_finalize(data_ptr, name, name_len, rc) bind(C)
-      import :: c_ptr, c_char, c_int
-      type(c_ptr), value :: data_ptr
-      character(kind=c_char), intent(in) :: name(*)
-      integer(c_int), value :: name_len
-      integer(c_int), intent(out) :: rc
-    end subroutine
-
-    subroutine cece_ccpp_core_finalize(data_ptr, rc) bind(C)
-      import :: c_ptr, c_int
-      type(c_ptr), value :: data_ptr
-      integer(c_int), intent(out) :: rc
-    end subroutine
-
-    subroutine cece_ccpp_sync_import_to_device(data_ptr, rc) bind(C)
-      import :: c_ptr, c_int
-      type(c_ptr), value :: data_ptr
-      integer(c_int), intent(out) :: rc
-    end subroutine
-
-    subroutine cece_ccpp_sync_export_to_host(data_ptr, rc) bind(C)
-      import :: c_ptr, c_int
-      type(c_ptr), value :: data_ptr
-      integer(c_int), intent(out) :: rc
-    end subroutine
-  end interface
 
 contains
 
-  subroutine cece_sea_salt_init(horizontal_loop_extent, vertical_layer_dimension, &
+  subroutine cece_ccpp_sea_salt_init(horizontal_loop_extent, vertical_layer_dimension, &
                                 cece_configuration_file_path, errmsg, errflg)
     integer, intent(in) :: horizontal_loop_extent
     integer, intent(in) :: vertical_layer_dimension
@@ -104,7 +31,7 @@ contains
         horizontal_loop_extent, 1, vertical_layer_dimension, rc)
       if (rc /= 0) then
         errflg = 1
-        errmsg = 'cece_sea_salt_init: core init failed'
+        errmsg = 'cece_ccpp_sea_salt_init: core init failed'
         return
       end if
       g_cece_data_ptr = new_ptr
@@ -115,13 +42,13 @@ contains
       horizontal_loop_extent, 1, vertical_layer_dimension, rc)
     if (rc /= 0) then
       errflg = 1
-      errmsg = 'cece_sea_salt_init: scheme init failed'
+      errmsg = 'cece_ccpp_sea_salt_init: scheme init failed'
       return
     end if
     g_init_count = g_init_count + 1
   end subroutine
 
-  subroutine cece_sea_salt_run(horizontal_loop_extent, vertical_layer_dimension, &
+  subroutine cece_ccpp_sea_salt_run(horizontal_loop_extent, vertical_layer_dimension, &
                                air_temperature, surface_wind_speed, &
                                sea_surface_temperature, &
                                sea_salt_emission_flux_fine, &
@@ -167,7 +94,7 @@ contains
     if (rc /= 0) then; errflg = 1; errmsg = 'sea_salt_run: get SALC failed'; return; end if
   end subroutine
 
-  subroutine cece_sea_salt_timestep_init(errmsg, errflg)
+  subroutine cece_ccpp_sea_salt_timestep_init(errmsg, errflg)
     character(len=512), intent(out) :: errmsg
     integer, intent(out) :: errflg
     integer(c_int) :: rc
@@ -177,7 +104,7 @@ contains
     if (rc /= 0) then; errflg = 1; errmsg = 'sea_salt_timestep_init: sync failed'; return; end if
   end subroutine
 
-  subroutine cece_sea_salt_timestep_finalize(errmsg, errflg)
+  subroutine cece_ccpp_sea_salt_timestep_finalize(errmsg, errflg)
     character(len=512), intent(out) :: errmsg
     integer, intent(out) :: errflg
     integer(c_int) :: rc
@@ -187,7 +114,7 @@ contains
     if (rc /= 0) then; errflg = 1; errmsg = 'sea_salt_timestep_finalize: sync failed'; return; end if
   end subroutine
 
-  subroutine cece_sea_salt_finalize(errmsg, errflg)
+  subroutine cece_ccpp_sea_salt_finalize(errmsg, errflg)
     character(len=512), intent(out) :: errmsg
     integer, intent(out) :: errflg
     integer(c_int) :: rc
@@ -196,7 +123,7 @@ contains
 
     if (.not. g_initialized) then
       errflg = 1
-      errmsg = 'cece_sea_salt_finalize: not initialized'
+      errmsg = 'cece_ccpp_sea_salt_finalize: not initialized'
       return
     end if
 

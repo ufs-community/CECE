@@ -1,0 +1,102 @@
+name: CI CCPP metadata and scheme validation
+
+on: [push, pull_request]
+
+jobs:
+  ccpp-validate:
+    if: github.repository == 'ufs-community/CECE'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout CECE
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Clone CCPP framework
+        run: |
+          git clone --depth 1 --branch develop \
+            https://github.com/NCAR/ccpp-framework.git ccpp-framework
+
+      - name: Validate CCPP schemes with framework parser
+        run: |
+          export PYTHONPATH="${GITHUB_WORKSPACE}/ccpp-framework/scripts:${PYTHONPATH}"
+
+          python3 - <<'EOF'
+          import sys
+          import os
+          import logging
+
+          logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+
+          from metadata_parser import parse_scheme_tables
+
+          scheme_dir = os.path.join(os.environ["GITHUB_WORKSPACE"], "src", "ccpp")
+          os.chdir(scheme_dir)
+
+          errors = 0
+          total = 0
+
+          for f in sorted(os.listdir(".")):
+              if not (f.endswith(".F90") and f.startswith("cece_ccpp_")):
+                  continue
+              # Skip the shared state module (not a scheme)
+              if f == "cece_ccpp_state.F90":
+                  continue
+              meta = f.replace(".F90", ".meta")
+              if not os.path.exists(meta):
+                  continue
+
+              total += 1
+              try:
+                  metadata, arguments, dependencies = parse_scheme_tables(".", f)
+                  n_vars = sum(len(v) for v in metadata.values())
+                  n_subs = len(arguments)
+                  print(f"  OK: {f} ({n_subs} subroutine(s), {n_vars} variable(s))")
+              except Exception as e:
+                  print(f"  FAIL: {f}: {e}")
+                  errors += 1
+
+          print()
+          if errors:
+              print(f"{errors}/{total} CCPP scheme(s) failed validation")
+              sys.exit(1)
+          else:
+              print(f"All {total} CCPP scheme(s) validated successfully")
+          EOF
+
+      - name: Validate suite definition XML
+        run: |
+          export PYTHONPATH="${GITHUB_WORKSPACE}/ccpp-framework/scripts:${PYTHONPATH}"
+
+          python3 - <<'EOF'
+          import sys
+          import os
+          import logging
+
+          logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+
+          from mkstatic import Suite
+
+          suites_dir = os.path.join(
+              os.environ["GITHUB_WORKSPACE"], "src", "ccpp", "suites"
+          )
+          sdf = "cece_emissions_suite.xml"
+
+          suite = Suite(sdf_name=os.path.join(suites_dir, sdf))
+          success = suite.parse()
+
+          if not success:
+              print(f"FAIL: Suite definition {sdf} failed to parse")
+              sys.exit(1)
+
+          print(f"OK: Suite '{suite.name}' parsed successfully")
+          for group in suite.groups:
+              schemes = [s.name for s in group.schemes()]
+              print(f"  Group '{group.name}': {len(schemes)} scheme(s)")
+              for s in schemes:
+                  print(f"    - {s}")
+          EOF
