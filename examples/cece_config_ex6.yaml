@@ -49,26 +49,3 @@ cece_data:
 diagnostics:
   output_interval_seconds: 3600
   variables: ["no"]
-grid:
-  nx: 4
-  ny: 4
-  lon_min: -135.0
-  lon_max: 135.0
-  lat_min: -67.5
-  lat_max: 67.5
-
-species:
-  no:
-    - field: "EDGAR_NO_POW"
-      category: "anthropogenic"
-      operation: "add"
-    - field: "CEDS_NO_AGR"
-      category: "anthropogenic"
-      operation: "add"
-
-cece_data:
-  streams:
-    - name: "EDGAR_NO_POW"
-      file: "/work/data/EDGAR_v43.NOx.POW.nc"
-    - name: "CEDS_NO_AGR"
-      file: "/work/data/ALK4_butanes-em-total-anthro_CEDS_1970.nc"
