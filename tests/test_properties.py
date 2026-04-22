@@ -7,6 +7,7 @@ Uses hypothesis for property-based testing.
 
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent.parent / "build" / "src" / "python"))
 
 import pytest
@@ -29,11 +30,15 @@ def valid_dimensions(draw):
 def valid_arrays(draw, nx, ny, nz):
     """Generate valid numpy arrays with given dimensions."""
     # Generate random float64 arrays
-    data = draw(st.lists(
-        st.floats(min_value=-1e6, max_value=1e6, allow_nan=False, allow_infinity=False),
-        min_size=nx*ny*nz,
-        max_size=nx*ny*nz
-    ))
+    data = draw(
+        st.lists(
+            st.floats(
+                min_value=-1e6, max_value=1e6, allow_nan=False, allow_infinity=False
+            ),
+            min_size=nx * ny * nz,
+            max_size=nx * ny * nz,
+        )
+    )
     array = np.array(data, dtype=np.float64).reshape((nx, ny, nz))
     return array
 
@@ -41,20 +46,21 @@ def valid_arrays(draw, nx, ny, nz):
 @st.composite
 def valid_species_names(draw):
     """Generate valid species names."""
-    return draw(st.text(
-        alphabet='ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_',
-        min_size=1,
-        max_size=20
-    ))
+    return draw(
+        st.text(
+            alphabet="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_", min_size=1, max_size=20
+        )
+    )
 
 
 @st.composite
 def valid_execution_spaces(draw):
     """Generate valid execution space names."""
-    return draw(st.sampled_from(['Serial', 'OpenMP']))
+    return draw(st.sampled_from(["Serial", "OpenMP"]))
 
 
 # Property Tests
+
 
 class TestProperty1ExecutionSpaceConfiguration:
     """Property 1: Execution Space Configuration
@@ -74,8 +80,9 @@ class TestProperty1ExecutionSpaceConfiguration:
             current = cece.get_execution_space()
             # Note: The current execution space might be different if the space
             # is not available or if there's a default. Just verify it's a valid space.
-            assert current in cece.get_available_execution_spaces(), \
+            assert current in cece.get_available_execution_spaces(), (
                 f"Current space {current} not in available spaces"
+            )
         except RuntimeError:
             # Space might not be available on this system
             pass
@@ -85,7 +92,7 @@ class TestProperty1ExecutionSpaceConfiguration:
         spaces = cece.get_available_execution_spaces()
         assert isinstance(spaces, list), "Should return a list"
         assert len(spaces) > 0, "Should have at least one available space"
-        assert 'Serial' in spaces, "Serial space should always be available"
+        assert "Serial" in spaces, "Serial space should always be available"
 
 
 class TestProperty2ConfigurationObjectProperties:
@@ -105,13 +112,17 @@ class TestProperty2ConfigurationObjectProperties:
         assert isinstance(config.species, dict), "species should be dict"
 
         # Check physics_schemes is list
-        assert isinstance(config.physics_schemes, list), "physics_schemes should be list"
+        assert isinstance(config.physics_schemes, list), (
+            "physics_schemes should be list"
+        )
 
         # Check cece_data is dict
         assert isinstance(config.cece_data, dict), "cece_data should be dict"
 
         # Check vertical_config exists
-        assert hasattr(config, 'vertical_config'), "Should have vertical_config property"
+        assert hasattr(config, "vertical_config"), (
+            "Should have vertical_config property"
+        )
 
 
 class TestProperty3ConfigurationItemAddition:
@@ -208,8 +219,9 @@ class TestProperty5StateCreationAndDimensions:
         nx, ny, nz = dims
         state = cece.CeceState(nx=nx, ny=ny, nz=nz)
 
-        assert state.dimensions == (nx, ny, nz), \
+        assert state.dimensions == (nx, ny, nz), (
             f"Expected {(nx, ny, nz)}, got {state.dimensions}"
+        )
 
 
 class TestProperty6ZeroCopyFieldWrapping:
@@ -230,7 +242,7 @@ class TestProperty6ZeroCopyFieldWrapping:
         state = cece.CeceState(nx=nx, ny=ny, nz=nz)
 
         # Create array with known values
-        original = np.arange(nx*ny*nz, dtype=np.float64).reshape((nx, ny, nz))
+        original = np.arange(nx * ny * nz, dtype=np.float64).reshape((nx, ny, nz))
 
         # Add to state
         state.add_import_field("test_field", original)
@@ -249,8 +261,10 @@ class TestProperty6ZeroCopyFieldWrapping:
         state = cece.CeceState(nx=nx, ny=ny, nz=nz)
 
         # Create C-order array
-        original = np.arange(nx*ny*nz, dtype=np.float64).reshape((nx, ny, nz), order='C')
-        assert original.flags['C_CONTIGUOUS'], "Should be C-contiguous"
+        original = np.arange(nx * ny * nz, dtype=np.float64).reshape(
+            (nx, ny, nz), order="C"
+        )
+        assert original.flags["C_CONTIGUOUS"], "Should be C-contiguous"
 
         # Add to state
         state.add_import_field("test_field", original)
@@ -269,8 +283,10 @@ class TestProperty6ZeroCopyFieldWrapping:
         state = cece.CeceState(nx=nx, ny=ny, nz=nz)
 
         # Create Fortran-order array
-        original = np.arange(nx*ny*nz, dtype=np.float64).reshape((nx, ny, nz), order='F')
-        assert original.flags['F_CONTIGUOUS'], "Should be Fortran-contiguous"
+        original = np.arange(nx * ny * nz, dtype=np.float64).reshape(
+            (nx, ny, nz), order="F"
+        )
+        assert original.flags["F_CONTIGUOUS"], "Should be Fortran-contiguous"
 
         # Add to state
         state.add_import_field("test_field", original)
@@ -279,7 +295,9 @@ class TestProperty6ZeroCopyFieldWrapping:
         retrieved = state.get_import_field("test_field")
 
         # Check data is preserved
-        assert np.allclose(retrieved, original), "Fortran-order field data not preserved"
+        assert np.allclose(retrieved, original), (
+            "Fortran-order field data not preserved"
+        )
 
 
 class TestProperty7FieldDictionaryAccess:
@@ -309,7 +327,9 @@ class TestProperty7FieldDictionaryAccess:
         via_method = state.get_import_field("test_field")
 
         # Check equivalence
-        assert np.allclose(via_dict, via_method), "Dict and method access should return same data"
+        assert np.allclose(via_dict, via_method), (
+            "Dict and method access should return same data"
+        )
 
 
 class TestProperty8ComputationExecution:
@@ -333,7 +353,7 @@ class TestProperty8ComputationExecution:
         # This should not raise an exception
         try:
             cece.compute(state, config)
-        except RuntimeError as e:
+        except RuntimeError:
             # Some errors are expected if CECE isn't fully initialized
             # but the function should at least be callable
             pass
@@ -362,7 +382,13 @@ class TestProperty9TemporalScalingApplication:
             for day_of_week in [0, 3, 6]:
                 for month in [1, 6, 12]:
                     try:
-                        cece.compute(state, config, hour=hour, day_of_week=day_of_week, month=month)
+                        cece.compute(
+                            state,
+                            config,
+                            hour=hour,
+                            day_of_week=day_of_week,
+                            month=month,
+                        )
                     except RuntimeError:
                         # Expected if CECE isn't fully initialized
                         pass
@@ -385,7 +411,9 @@ class TestProperty10ArrayMemoryLayoutHandling:
         state = cece.CeceState(nx=nx, ny=ny, nz=nz)
 
         # Create C-order array with specific values
-        original = np.arange(nx*ny*nz, dtype=np.float64).reshape((nx, ny, nz), order='C')
+        original = np.arange(nx * ny * nz, dtype=np.float64).reshape(
+            (nx, ny, nz), order="C"
+        )
 
         # Add to state
         state.add_import_field("test_field", original)
@@ -411,7 +439,7 @@ class TestProperty11TypeConversion:
         state = cece.CeceState(nx=nx, ny=ny, nz=nz)
 
         # Create list of floats
-        data_list = [float(i) for i in range(nx*ny*nz)]
+        data_list = [float(i) for i in range(nx * ny * nz)]
         array = np.array(data_list, dtype=np.float64).reshape((nx, ny, nz))
 
         # Add to state
@@ -493,7 +521,7 @@ class TestProperty14ExecutionSpaceAvailability:
         spaces = cece.get_available_execution_spaces()
         assert isinstance(spaces, list), "Should return list"
         assert len(spaces) > 0, "Should have at least one space"
-        assert 'Serial' in spaces, "Serial should always be available"
+        assert "Serial" in spaces, "Serial should always be available"
 
 
 class TestProperty15ArrayLayoutQuery:
@@ -516,7 +544,7 @@ class TestProperty15ArrayLayoutQuery:
         state.add_import_field("test_field", field)
 
         # Query layout (if method exists)
-        if hasattr(cece, 'get_array_layout'):
+        if hasattr(cece, "get_array_layout"):
             layout = cece.get_array_layout("test_field")
             assert layout in ["fortran", "c"], f"Invalid layout: {layout}"
 

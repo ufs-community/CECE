@@ -2,7 +2,7 @@
 
 ## Overview
 
-Implements the Ginoux dust emission algorithm from the GOCART2G framework using Kokkos for GPU-portable parallel execution. This multi-bin scheme computes size-resolved dust emissions using the Marticorena (1997) dry-soil threshold friction velocity with Ginoux moisture modification. Unlike the legacy `dust` scheme, this version resolves multiple particle size bins and uses component wind vectors.
+Implements the Ginoux dust emission algorithm from the GOCART2G framework. This multi-bin scheme computes size-resolved dust emissions using the Marticorena (1997) dry-soil threshold friction velocity with Ginoux moisture modification. Unlike the legacy [`dust`](dust.md) scheme, this version resolves multiple particle size bins and uses component wind vectors.
 
 References:
 - Marticorena, B., et al. (1997), Modeling wind erosion, *Annales Geophysicae*, 15, 1381–1388.

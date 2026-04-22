@@ -74,7 +74,9 @@ def load_config(config: Union[str, dict, CeceConfig]) -> CeceConfig:
                     yaml_str = f.read()
                 return _load_config_from_yaml(yaml_str)
             except Exception as e:
-                raise CeceConfigError(f"Failed to load config from file '{config}': {str(e)}")
+                raise CeceConfigError(
+                    f"Failed to load config from file '{config}': {str(e)}"
+                )
         else:
             # Treat as YAML string
             try:
@@ -127,7 +129,9 @@ def validate_array_dimensions(array: np.ndarray, expected_shape: tuple) -> None:
         If the array shape does not match ``expected_shape``.
     """
     if array.shape != expected_shape:
-        raise ValueError(f"Array shape {array.shape} doesn't match expected {expected_shape}")
+        raise ValueError(
+            f"Array shape {array.shape} doesn't match expected {expected_shape}"
+        )
 
 
 def validate_array_dtype(array: np.ndarray) -> None:

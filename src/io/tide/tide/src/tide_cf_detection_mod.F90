@@ -225,7 +225,7 @@ contains
                            trim(str_val(1:att_len))//' for file: '//trim(filename))
           else if (index(str_val(1:att_len), 'COARDS') > 0) then
             cache%cf_version = 'COARDS'
-            cache%is_cf_compliant = .false.  ! COARDS-compliant, not CF-compliant  
+            cache%is_cf_compliant = .false.  ! COARDS-compliant, not CF-compliant
             call cf_log(2, 'cf_read_file_metadata: Detected COARDS Conventions for file: '//trim(filename))
           else
             call cf_log(1, 'cf_read_file_metadata: Non-CF/COARDS Conventions detected: '// &

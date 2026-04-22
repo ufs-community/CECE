@@ -2424,4 +2424,3 @@ contains
   end subroutine fill_grid_coords
 
 end module dshr_strdata_mod
-

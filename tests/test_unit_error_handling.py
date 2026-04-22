@@ -7,6 +7,7 @@ execution space, error handling, and temporal cycles.
 
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent.parent / "build" / "src" / "python"))
 
 import pytest
@@ -46,7 +47,9 @@ class TestConfigurationValidation:
         config = cece.CeceConfig()
         result = config.validate()
 
-        assert hasattr(result, 'errors'), "ValidationResult should have errors attribute"
+        assert hasattr(result, "errors"), (
+            "ValidationResult should have errors attribute"
+        )
         assert isinstance(result.errors, list), "errors should be a list"
 
 
@@ -143,7 +146,7 @@ class TestStateManagement:
         state = cece.CeceState(nx=10, ny=10, nz=10)
 
         # export_fields should be accessible even if empty
-        assert hasattr(state, 'export_fields')
+        assert hasattr(state, "export_fields")
         assert isinstance(state.export_fields, dict)
 
 
@@ -153,7 +156,7 @@ class TestArrayLayoutConversion:
     def test_c_order_array_conversion(self):
         """Test C-order array is converted correctly."""
         state = cece.CeceState(nx=5, ny=5, nz=5)
-        original = np.arange(125, dtype=np.float64).reshape((5, 5, 5), order='C')
+        original = np.arange(125, dtype=np.float64).reshape((5, 5, 5), order="C")
 
         state.add_import_field("test", original)
         retrieved = state.get_import_field("test")
@@ -163,7 +166,7 @@ class TestArrayLayoutConversion:
     def test_fortran_order_array_conversion(self):
         """Test Fortran-order array is converted correctly."""
         state = cece.CeceState(nx=5, ny=5, nz=5)
-        original = np.arange(125, dtype=np.float64).reshape((5, 5, 5), order='F')
+        original = np.arange(125, dtype=np.float64).reshape((5, 5, 5), order="F")
 
         state.add_import_field("test", original)
         retrieved = state.get_import_field("test")
@@ -231,12 +234,12 @@ class TestExecutionSpaceConfiguration:
     def test_serial_space_always_available(self):
         """Test that Serial space is always available."""
         spaces = cece.get_available_execution_spaces()
-        assert 'Serial' in spaces
+        assert "Serial" in spaces
 
     def test_set_serial_execution_space(self):
         """Test setting Serial execution space."""
         try:
-            cece.set_execution_space('Serial')
+            cece.set_execution_space("Serial")
             current = cece.get_execution_space()
             # Just verify it's a valid space
             assert current in cece.get_available_execution_spaces()
@@ -246,7 +249,7 @@ class TestExecutionSpaceConfiguration:
     def test_set_invalid_execution_space_raises_error(self):
         """Test that setting invalid execution space raises error."""
         with pytest.raises(RuntimeError):
-            cece.set_execution_space('InvalidSpace')
+            cece.set_execution_space("InvalidSpace")
 
     def test_get_execution_space_returns_string(self):
         """Test that get_execution_space returns a string."""
@@ -267,9 +270,9 @@ class TestErrorHandling:
         """Test that invalid config raises appropriate exception."""
         # This would require an invalid config that the C layer rejects
         # For now, just verify exception classes exist
-        assert hasattr(cece, 'CeceConfigError')
-        assert hasattr(cece, 'CeceComputationError')
-        assert hasattr(cece, 'CeceStateError')
+        assert hasattr(cece, "CeceConfigError")
+        assert hasattr(cece, "CeceComputationError")
+        assert hasattr(cece, "CeceStateError")
 
     def test_exception_classes_inherit_from_base(self):
         """Test that exception classes inherit from CeceException."""
@@ -316,7 +319,7 @@ class TestTemporalCycles:
         config.add_temporal_cycle("seasonal", factors)
 
         # Verify it was added
-        assert hasattr(config, 'temporal_cycles')
+        assert hasattr(config, "temporal_cycles")
 
     def test_temporal_cycle_factors_length(self):
         """Test that temporal cycle factors have correct length."""
@@ -362,7 +365,13 @@ class TestTemporalCycles:
             for day_of_week in [0, 6]:
                 for month in [1, 12]:
                     try:
-                        cece.compute(state, config, hour=hour, day_of_week=day_of_week, month=month)
+                        cece.compute(
+                            state,
+                            config,
+                            hour=hour,
+                            day_of_week=day_of_week,
+                            month=month,
+                        )
                     except RuntimeError:
                         pass  # Expected if not initialized
 

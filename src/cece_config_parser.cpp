@@ -392,7 +392,7 @@ CeceConfig ParseConfig(const std::string& filename) {
         // Validate output directory writability; log INFO if it needs to be created.
         // Actual directory creation is deferred to CeceStandaloneWriter::Initialize.
         const std::string& dir = config.output_config.directory;
-        struct stat st {};
+        struct stat st{};
         if (stat(dir.c_str(), &st) != 0) {
             std::cout << "[CECE INFO] Output directory '" << dir << "' does not exist and will be created at runtime.\n";
         } else if (!(st.st_mode & S_IWUSR)) {

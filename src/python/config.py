@@ -71,7 +71,9 @@ class VerticalDistributionConfig:
         """
         valid_methods = ["single", "range", "pressure", "height", "pbl"]
         if self.method not in valid_methods:
-            raise ValueError(f"Invalid vdist_method: {self.method}. Must be one of {valid_methods}")
+            raise ValueError(
+                f"Invalid vdist_method: {self.method}. Must be one of {valid_methods}"
+            )
 
         if self.method == "range":
             if self.layer_start < 0 or self.layer_end < 0:
@@ -134,7 +136,9 @@ class EmissionLayer:
     masks: List[str] = field(default_factory=list)
     scale: float = 1.0
     hierarchy: int = 0
-    vdist: VerticalDistributionConfig = field(default_factory=VerticalDistributionConfig)
+    vdist: VerticalDistributionConfig = field(
+        default_factory=VerticalDistributionConfig
+    )
     diurnal_cycle: Optional[str] = None
     weekly_cycle: Optional[str] = None
     seasonal_cycle: Optional[str] = None
@@ -272,7 +276,9 @@ class ValidationResult:
     ...         print(err)
     """
 
-    def __init__(self, is_valid: bool = True, errors: Optional[List[str]] = None) -> None:
+    def __init__(
+        self, is_valid: bool = True, errors: Optional[List[str]] = None
+    ) -> None:
         """
         Initialize validation result.
 
@@ -437,7 +443,9 @@ class CeceConfig:
         ValueError
             If parameters fail validation.
         """
-        stream = DataStreamConfig(name, file_paths, variables, taxmode, tintalgo, mapalgo)
+        stream = DataStreamConfig(
+            name, file_paths, variables, taxmode, tintalgo, mapalgo
+        )
         stream.validate()
         self._cece_data["streams"].append(stream)
 
@@ -539,7 +547,9 @@ class CeceConfig:
         try:
             import yaml
         except ImportError:
-            raise ImportError("PyYAML is required for YAML serialization. Install with: pip install pyyaml")
+            raise ImportError(
+                "PyYAML is required for YAML serialization. Install with: pip install pyyaml"
+            )
 
         config_dict = self.to_dict()
         return yaml.dump(config_dict, default_flow_style=False, sort_keys=False)
@@ -574,7 +584,8 @@ class CeceConfig:
                 for name, layers in self._species.items()
             },
             "physics_schemes": [
-                {"name": s.name, "language": s.language, "options": s.options} for s in self._physics_schemes
+                {"name": s.name, "language": s.language, "options": s.options}
+                for s in self._physics_schemes
             ],
             "cece_data": {
                 "streams": [
@@ -641,7 +652,9 @@ class CeceConfig:
         try:
             import yaml
         except ImportError:
-            raise ImportError("PyYAML is required for YAML parsing. Install with: pip install pyyaml")
+            raise ImportError(
+                "PyYAML is required for YAML parsing. Install with: pip install pyyaml"
+            )
 
         try:
             config_dict = yaml.safe_load(yaml_str)

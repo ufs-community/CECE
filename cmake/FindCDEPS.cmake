@@ -2,17 +2,13 @@
 #
 # Finds the CDEPS library.
 #
-# Variables defined:
-#   CDEPS_FOUND
-#   CDEPS_INCLUDE_DIRS
-#   CDEPS_LIBRARIES
+# Variables defined: CDEPS_FOUND CDEPS_INCLUDE_DIRS CDEPS_LIBRARIES
 #
-# Targets defined:
-#   CDEPS::CDEPS
+# Targets defined: CDEPS::CDEPS
 
 if(TARGET CDEPS::CDEPS)
-    set(CDEPS_FOUND TRUE)
-    return()
+  set(CDEPS_FOUND TRUE)
+  return()
 endif()
 
 find_package(CDEPS CONFIG QUIET)
@@ -29,11 +25,18 @@ if(CDEPS_FOUND)
   endif()
 else()
   # Basic fallback for common locations
-  find_path(CDEPS_INCLUDE_DIR NAMES cdeps_inline.h PATHS /opt/software/cdeps/include /usr/local/include)
-  find_library(CDEPS_LIBRARY NAMES cdeps PATHS /opt/software/cdeps/lib /usr/local/lib)
+  find_path(
+    CDEPS_INCLUDE_DIR
+    NAMES cdeps_inline.h
+    PATHS /opt/software/cdeps/include /usr/local/include)
+  find_library(
+    CDEPS_LIBRARY
+    NAMES cdeps
+    PATHS /opt/software/cdeps/lib /usr/local/lib)
 
   include(FindPackageHandleStandardArgs)
-  find_package_handle_standard_args(CDEPS DEFAULT_MSG CDEPS_LIBRARY CDEPS_INCLUDE_DIR)
+  find_package_handle_standard_args(CDEPS DEFAULT_MSG CDEPS_LIBRARY
+                                    CDEPS_INCLUDE_DIR)
 
   if(CDEPS_FOUND)
     set(CDEPS_INCLUDE_DIRS ${CDEPS_INCLUDE_DIR})

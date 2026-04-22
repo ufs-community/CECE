@@ -6,6 +6,7 @@ Tests complete workflows from configuration to computation to result retrieval.
 
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent.parent / "build" / "src" / "python"))
 
 import pytest
@@ -84,14 +85,16 @@ class TestMultipleComputations:
 
         # Run multiple computations with different temporal parameters
         temporal_params = [
-            (0, 0, 1),    # Hour 0, Monday, January
-            (12, 3, 6),   # Hour 12, Thursday, June
+            (0, 0, 1),  # Hour 0, Monday, January
+            (12, 3, 6),  # Hour 12, Thursday, June
             (23, 6, 12),  # Hour 23, Sunday, December
         ]
 
         for hour, day_of_week, month in temporal_params:
             try:
-                cece.compute(state, config, hour=hour, day_of_week=day_of_week, month=month)
+                cece.compute(
+                    state, config, hour=hour, day_of_week=day_of_week, month=month
+                )
             except RuntimeError:
                 # Expected if CECE isn't fully initialized
                 pass
@@ -150,8 +153,12 @@ class TestExecutionSpaceSwitching:
                 # Run computation on this space
                 config = cece.CeceConfig()
                 state = cece.CeceState(nx=5, ny=5, nz=5)
-                state.add_import_field("T", np.ones((5, 5, 5), dtype=np.float64) * 298.15)
-                state.add_import_field("PS", np.ones((5, 5, 5), dtype=np.float64) * 101325)
+                state.add_import_field(
+                    "T", np.ones((5, 5, 5), dtype=np.float64) * 298.15
+                )
+                state.add_import_field(
+                    "PS", np.ones((5, 5, 5), dtype=np.float64) * 101325
+                )
 
                 try:
                     cece.compute(state, config)
@@ -264,13 +271,13 @@ class TestArrayConversionWorkflow:
         state = cece.CeceState(nx=10, ny=10, nz=10)
 
         # Test C-order array
-        c_order = np.arange(1000, dtype=np.float64).reshape((10, 10, 10), order='C')
+        c_order = np.arange(1000, dtype=np.float64).reshape((10, 10, 10), order="C")
         state.add_import_field("c_order", c_order)
         retrieved_c = state.get_import_field("c_order")
         assert np.allclose(retrieved_c, c_order)
 
         # Test Fortran-order array
-        f_order = np.arange(1000, dtype=np.float64).reshape((10, 10, 10), order='F')
+        f_order = np.arange(1000, dtype=np.float64).reshape((10, 10, 10), order="F")
         state.add_import_field("f_order", f_order)
         retrieved_f = state.get_import_field("f_order")
         assert np.allclose(retrieved_f, f_order)
