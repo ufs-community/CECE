@@ -63,6 +63,7 @@ void FengshaFortranScheme::Initialize(const YAML::Node& config, CeceDiagnosticMa
     if (config["kvhmax"]) kvhmax_ = config["kvhmax"].as<double>();
     if (config["grav"]) grav_ = config["grav"].as<double>();
     if (config["drylimit_factor"]) drylimit_factor_ = config["drylimit_factor"].as<double>();
+    if (config["frozen_soil_threshold"]) frozen_soil_threshold_ = config["frozen_soil_threshold"].as<double>();
     if (config["num_bins"]) num_bins_ = config["num_bins"].as<int>();
 
     // Compute Kok distribution from particle size parameters if provided

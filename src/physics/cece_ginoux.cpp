@@ -60,6 +60,7 @@ void GinouxScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* d
 
     if (config["ch_du"]) ch_du_ = config["ch_du"].as<double>();
     if (config["grav"]) grav_ = config["grav"].as<double>();
+    if (config["frozen_soil_threshold"]) frozen_soil_threshold_ = config["frozen_soil_threshold"].as<double>();
     if (config["num_bins"]) num_bins_ = config["num_bins"].as<int>();
 
     // Read particle radii from config or use defaults
@@ -86,6 +87,7 @@ void GinouxScheme::Run(CeceImportState& import_state, CeceExportState& export_st
     auto fraclake = ResolveImport("lake_fraction", import_state);
     auto du_src = ResolveImport("dust_source", import_state);
     auto radius = ResolveImport("particle_radius", import_state);
+    auto t_soil = ResolveImport("soil_temperature", import_state);
 
     // Resolve export field
     auto emissions = ResolveExport("ginoux_dust_emissions", export_state);
@@ -103,6 +105,8 @@ void GinouxScheme::Run(CeceImportState& import_state, CeceExportState& export_st
     // Capture config parameters for the lambda
     double ch_du = ch_du_;
     double grav = grav_;
+    double frozen_soil_threshold = frozen_soil_threshold_;
+    bool has_soil_temp = (t_soil.data() != nullptr);
 
     constexpr double LAND = 1.0;
     constexpr double air_dens = 1.25;
@@ -113,6 +117,9 @@ void GinouxScheme::Run(CeceImportState& import_state, CeceExportState& export_st
             // Skip if not on land
             double oro_val = oro(i, j, 0);
             if (Kokkos::round(oro_val) != LAND) return;
+
+            // Skip frozen ground
+            if (has_soil_temp && t_soil(i, j, 0) < frozen_soil_threshold) return;
 
             double w10m = Kokkos::sqrt(u10m(i, j, 0) * u10m(i, j, 0) + v10m(i, j, 0) * v10m(i, j, 0));
 

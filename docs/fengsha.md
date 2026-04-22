@@ -23,6 +23,7 @@ References:
 | `kvhmax` | double | 2.45e-4 | Maximum vertical-to-horizontal flux ratio |
 | `grav` | double | 9.81 | Gravitational acceleration [m/s²] |
 | `drylimit_factor` | double | 1.0 | Fécan dry-limit scaling factor |
+| `frozen_soil_threshold` | double | 273.15 | Soil temperature [K] below which emissions are suppressed |
 | `num_bins` | int | 5 | Number of dust size bins |
 
 ## Import Fields
@@ -41,6 +42,7 @@ References:
 | `lake_fraction` | fraction | Lake fraction [0–1] |
 | `snow_fraction` | fraction | Snow cover fraction [0–1] |
 | `land_mask` | dimensionless | Land mask (1 = land) |
+| `soil_temperature` | K | Soil temperature (optional; used for frozen ground check) |
 
 ## Export Fields
 
@@ -51,7 +53,8 @@ References:
 ## Algorithm
 
 1. Skip non-land cells and cells with erodibility (SSM) below threshold (0.01).
-2. Compute land fraction accounting for lake and snow cover.
+2. Skip cells where soil temperature is below `frozen_soil_threshold` (default 273.15 K), if soil temperature is provided.
+3. Compute land fraction accounting for lake and snow cover.
 3. Compute vertical-to-horizontal flux ratio (MB95): `kvh = 10^(13.4*clay − 6)` for clay < 0.2, capped at `kvhmax`.
 4. Compute total emission scaling: `(alpha/grav) * fracland * SSM^gamma * air_density * kvh`.
 5. Adjust friction velocity by drag partition: `rustar = rdrag * u*`.

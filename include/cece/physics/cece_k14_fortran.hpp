@@ -34,6 +34,7 @@ class K14FortranScheme : public BasePhysicsScheme {
     double undef_ = 1.0e15;
     double grav_ = 9.81;
     double von_karman_ = 0.4;
+    double frozen_soil_threshold_ = 273.15;
     int opt_clay_ = 0;
     int num_bins_ = 5;
     std::vector<double> bin_distribution_;

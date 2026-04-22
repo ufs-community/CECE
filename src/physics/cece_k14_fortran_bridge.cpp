@@ -65,6 +65,7 @@ void K14FortranScheme::Initialize(const YAML::Node& config, CeceDiagnosticManage
     if (config["undef"]) undef_ = config["undef"].as<double>();
     if (config["grav"]) grav_ = config["grav"].as<double>();
     if (config["von_karman"]) von_karman_ = config["von_karman"].as<double>();
+    if (config["frozen_soil_threshold"]) frozen_soil_threshold_ = config["frozen_soil_threshold"].as<double>();
     if (config["opt_clay"]) opt_clay_ = config["opt_clay"].as<int>();
     if (config["num_bins"]) num_bins_ = config["num_bins"].as<int>();
 

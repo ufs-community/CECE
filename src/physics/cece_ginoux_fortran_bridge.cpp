@@ -25,6 +25,7 @@ void GinouxFortranScheme::Initialize(const YAML::Node& config, CeceDiagnosticMan
 
     if (config["ch_du"]) ch_du_ = config["ch_du"].as<double>();
     if (config["grav"]) grav_ = config["grav"].as<double>();
+    if (config["frozen_soil_threshold"]) frozen_soil_threshold_ = config["frozen_soil_threshold"].as<double>();
     if (config["num_bins"]) num_bins_ = config["num_bins"].as<int>();
 
     std::cout << "GinouxFortranScheme: Initialized." << "\n";

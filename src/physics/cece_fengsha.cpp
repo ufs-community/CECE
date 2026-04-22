@@ -113,6 +113,7 @@ void FengshaScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* 
     if (config["kvhmax"]) kvhmax_ = config["kvhmax"].as<double>();
     if (config["grav"]) grav_ = config["grav"].as<double>();
     if (config["drylimit_factor"]) drylimit_factor_ = config["drylimit_factor"].as<double>();
+    if (config["frozen_soil_threshold"]) frozen_soil_threshold_ = config["frozen_soil_threshold"].as<double>();
     if (config["num_bins"]) num_bins_ = config["num_bins"].as<int>();
 
     // Compute Kok distribution from particle size parameters if provided
@@ -161,6 +162,7 @@ void FengshaScheme::Run(CeceImportState& import_state, CeceExportState& export_s
     auto fraclake = ResolveImport("lake_fraction", import_state);
     auto fracsnow = ResolveImport("snow_fraction", import_state);
     auto oro = ResolveImport("land_mask", import_state);
+    auto t_soil = ResolveImport("soil_temperature", import_state);
 
     // Resolve export field
     auto emissions = ResolveExport("fengsha_dust_emissions", export_state);
@@ -183,6 +185,8 @@ void FengshaScheme::Run(CeceImportState& import_state, CeceExportState& export_s
     double kvhmax = kvhmax_;
     double grav = grav_;
     double drylimit_factor = drylimit_factor_;
+    double frozen_soil_threshold = frozen_soil_threshold_;
+    bool has_soil_temp = (t_soil.data() != nullptr);
 
     // Capture the pre-computed Kok distribution view
     auto bin_dist = bin_distribution_;
@@ -200,6 +204,9 @@ void FengshaScheme::Run(CeceImportState& import_state, CeceExportState& export_s
 
             double ssm_val = ssm(i, j, 0);
             if (ssm_val < SSM_THRESH) return;
+
+            // Skip frozen ground
+            if (has_soil_temp && t_soil(i, j, 0) < frozen_soil_threshold) return;
 
             double clay_val = clay(i, j, 0);
             double sand_val = sand(i, j, 0);
