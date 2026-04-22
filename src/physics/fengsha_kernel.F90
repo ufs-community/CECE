@@ -94,9 +94,9 @@ contains
     subroutine run_fengsha_fortran( &
         ustar_ptr, uthrs_ptr, slc_ptr, clay_ptr, sand_ptr, silt_ptr, &
         ssm_ptr, rdrag_ptr, airdens_ptr, fraclake_ptr, fracsnow_ptr, &
-        oro_ptr, emissions_ptr, &
+        oro_ptr, t_soil_ptr, emissions_ptr, &
         nx, ny, nbins, &
-        alpha, gamma_param, kvhmax, grav, drylimit_factor, &
+        alpha, gamma_param, kvhmax, grav, drylimit_factor, frozen_soil_threshold, &
         distribution_ptr &
     ) bind(c, name="run_fengsha_fortran")
 
@@ -105,11 +105,13 @@ contains
         type(c_ptr), value :: clay_ptr, sand_ptr, silt_ptr
         type(c_ptr), value :: ssm_ptr, rdrag_ptr, airdens_ptr
         type(c_ptr), value :: fraclake_ptr, fracsnow_ptr, oro_ptr
+        type(c_ptr), value :: t_soil_ptr
         type(c_ptr), value :: emissions_ptr
 
         ! Scalar arguments
         integer(c_int), value :: nx, ny, nbins
         real(c_double), value :: alpha, gamma_param, kvhmax, grav, drylimit_factor
+        real(c_double), value :: frozen_soil_threshold
 
         ! Distribution pointer
         type(c_ptr), value :: distribution_ptr
@@ -119,6 +121,7 @@ contains
         real(c_double), pointer :: clay(:,:), sand(:,:), silt(:,:)
         real(c_double), pointer :: ssm(:,:), rdrag(:,:), airdens(:,:)
         real(c_double), pointer :: fraclake(:,:), fracsnow(:,:), oro(:,:)
+        real(c_double), pointer :: t_soil(:,:)
         real(c_double), pointer :: emissions(:,:,:)
 
         ! Local variables
@@ -144,6 +147,11 @@ contains
         call c_f_pointer(fraclake_ptr, fraclake, [nx, ny])
         call c_f_pointer(fracsnow_ptr, fracsnow, [nx, ny])
         call c_f_pointer(oro_ptr, oro, [nx, ny])
+        if (c_associated(t_soil_ptr)) then
+            call c_f_pointer(t_soil_ptr, t_soil, [nx, ny])
+        else
+            nullify(t_soil)
+        end if
         call c_f_pointer(emissions_ptr, emissions, [nx, ny, nbins])
 
         ! Initialize emissions to zero
@@ -164,6 +172,9 @@ contains
                     .or. (rdrag(i,j) < 0.0d0)
 
                 if (.not. skip) then
+                    if (associated(t_soil)) then
+                        if (t_soil(i,j) < frozen_soil_threshold) cycle
+                    end if
                     fracland = max(0.0d0, min(1.0d0, 1.0d0 - fraclake(i,j))) &
                              * max(0.0d0, min(1.0d0, 1.0d0 - fracsnow(i,j)))
 

@@ -42,13 +42,14 @@ contains
     !> @param[in]  grav            Gravity [m/s^2]
     subroutine run_ginoux_fortran( &
         radius_ptr, fraclake_ptr, gwettop_ptr, oro_ptr, &
-        u10m_ptr, v10m_ptr, du_src_ptr, emissions_ptr, &
-        nx, ny, nbins, Ch_DU, grav &
+        t_soil_ptr, u10m_ptr, v10m_ptr, du_src_ptr, emissions_ptr, &
+        nx, ny, nbins, Ch_DU, grav, frozen_soil_threshold &
     ) bind(c, name="run_ginoux_fortran")
 
         ! Pointer arguments
         type(c_ptr), value :: radius_ptr
         type(c_ptr), value :: fraclake_ptr, gwettop_ptr, oro_ptr
+        type(c_ptr), value :: t_soil_ptr
         type(c_ptr), value :: u10m_ptr, v10m_ptr
         type(c_ptr), value :: du_src_ptr
         type(c_ptr), value :: emissions_ptr
@@ -56,10 +57,12 @@ contains
         ! Scalar arguments
         integer(c_int), value :: nx, ny, nbins
         real(c_double), value :: Ch_DU, grav
+        real(c_double), value :: frozen_soil_threshold
 
         ! Local Fortran array pointers
         real(c_double), pointer :: radius(:)
         real(c_double), pointer :: fraclake(:,:), gwettop(:,:), oro(:,:)
+        real(c_double), pointer :: t_soil(:,:)
         real(c_double), pointer :: u10m(:,:), v10m(:,:)
         real(c_double), pointer :: du_src(:,:)
         real(c_double), pointer :: emissions(:,:,:)
@@ -76,6 +79,11 @@ contains
         call c_f_pointer(fraclake_ptr, fraclake, [nx, ny])
         call c_f_pointer(gwettop_ptr, gwettop, [nx, ny])
         call c_f_pointer(oro_ptr, oro, [nx, ny])
+        if (c_associated(t_soil_ptr)) then
+            call c_f_pointer(t_soil_ptr, t_soil, [nx, ny])
+        else
+            nullify(t_soil)
+        end if
         call c_f_pointer(u10m_ptr, u10m, [nx, ny])
         call c_f_pointer(v10m_ptr, v10m, [nx, ny])
         call c_f_pointer(du_src_ptr, du_src, [nx, ny])
@@ -100,6 +108,11 @@ contains
                 do i = 1, nx
                     ! Only over LAND gridpoints
                     if (nint(oro(i,j)) /= LAND) cycle
+
+                    ! Skip frozen soil
+                    if (associated(t_soil)) then
+                        if (t_soil(i,j) < frozen_soil_threshold) cycle
+                    end if
 
                     w10m = sqrt(u10m(i,j)**2.0d0 + v10m(i,j)**2.0d0)
 

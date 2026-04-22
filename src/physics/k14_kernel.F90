@@ -87,6 +87,7 @@ contains
         nx, ny, nbins, km, &
         f_w, f_c, uts_gamma, UNDEF_val, GRAV, VON_KARMAN, &
         opt_clay, Ch_DU, &
+        frozen_soil_threshold, &
         distribution_ptr &
     ) bind(c, name="run_k14_fortran")
 
@@ -104,6 +105,9 @@ contains
         real(c_double), value :: UNDEF_val, GRAV, VON_KARMAN
         integer(c_int), value :: opt_clay
         real(c_double), value :: Ch_DU
+
+        ! Frozen soil threshold
+        real(c_double), value :: frozen_soil_threshold
 
         ! Distribution pointer
         type(c_ptr), value :: distribution_ptr
@@ -318,6 +322,7 @@ contains
         do j = 1, ny
             do i = 1, nx
                 if ((f_erod(i,j) > 0.0d0) .and. (u(i,j) > u_t(i,j))) then
+                    if (t_soil(i,j) < frozen_soil_threshold) cycle
                     u_st_local = u_t(i,j) * sqrt(rho_air(i,j) / rho_a0)
                     u_st_local = max(u_st_local, u_st0)
 

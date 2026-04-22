@@ -44,8 +44,9 @@ inline std::vector<double> compute_kok_distribution(const std::vector<double>& r
 
 extern "C" {
 void run_fengsha_fortran(double* ustar, double* uthrs, double* slc, double* clay, double* sand, double* silt, double* ssm, double* rdrag,
-                         double* airdens, double* fraclake, double* fracsnow, double* oro, double* emissions, int nx, int ny, int nbins, double alpha,
-                         double gamma_param, double kvhmax, double grav, double drylimit_factor, double* distribution);
+                         double* airdens, double* fraclake, double* fracsnow, double* oro, double* t_soil, double* emissions, int nx, int ny,
+                         int nbins, double alpha, double gamma_param, double kvhmax, double grav, double drylimit_factor,
+                         double frozen_soil_threshold, double* distribution);
 }
 
 namespace cece {
@@ -98,6 +99,7 @@ void FengshaFortranScheme::Run(CeceImportState& import_state, CeceExportState& e
     auto it_fraclake = import_state.fields.find("lake_fraction");
     auto it_fracsnow = import_state.fields.find("snow_fraction");
     auto it_oro = import_state.fields.find("land_mask");
+    auto it_t_soil = import_state.fields.find("soil_temperature");
 
     // Resolve export field
     auto it_emis = export_state.fields.find("fengsha_dust_emissions");
@@ -159,11 +161,20 @@ void FengshaFortranScheme::Run(CeceImportState& import_state, CeceExportState& e
         }
     }
 
+    // Resolve optional soil temperature field
+    double* t_soil_data = nullptr;
+    if (it_t_soil != import_state.fields.end()) {
+        auto& dv_t_soil = it_t_soil->second;
+        dv_t_soil.sync<Kokkos::HostSpace>();
+        t_soil_data = dv_t_soil.view_host().data();
+    }
+
     // Call Fortran kernel
     run_fengsha_fortran(dv_ustar.view_host().data(), dv_uthrs.view_host().data(), dv_slc.view_host().data(), dv_clay.view_host().data(),
                         dv_sand.view_host().data(), dv_silt.view_host().data(), dv_ssm.view_host().data(), dv_rdrag.view_host().data(),
                         dv_airdens.view_host().data(), dv_fraclake.view_host().data(), dv_fracsnow.view_host().data(), dv_oro.view_host().data(),
-                        dv_emis.view_host().data(), nx, ny, nbins, alpha_, gamma_, kvhmax_, grav_, drylimit_factor_, dist_for_fortran.data());
+                        t_soil_data, dv_emis.view_host().data(), nx, ny, nbins, alpha_, gamma_, kvhmax_, grav_, drylimit_factor_,
+                        frozen_soil_threshold_, dist_for_fortran.data());
 
     // Mark export modified on host and sync back to device
     dv_emis.modify<Kokkos::HostSpace>();
