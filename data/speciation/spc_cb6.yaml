@@ -1,0 +1,81 @@
+# CB6_AE7 Mechanism Species Definition (MICM/OpenAtmos format)
+# 36 species from the CB6 chemical mechanism with AE7 aerosol module
+# Molecular weights in kg/mol (MICM convention)
+#
+# References:
+#   - Yarwood et al. (2010) CB6 mechanism
+#   - CMAQ MEGAN3 SPC_CB6AE7.EXT
+name: CB6_AE7
+species:
+  - name: ISOP
+    molecular weight [kg mol-1]: 0.06812
+  - name: TERP
+    molecular weight [kg mol-1]: 0.13623
+  - name: APIN
+    molecular weight [kg mol-1]: 0.13623
+  - name: PAR
+    molecular weight [kg mol-1]: 0.01443
+  - name: OLE
+    molecular weight [kg mol-1]: 0.02805
+  - name: ETH
+    molecular weight [kg mol-1]: 0.02805
+  - name: FORM
+    molecular weight [kg mol-1]: 0.03003
+  - name: ALD2
+    molecular weight [kg mol-1]: 0.04405
+  - name: ALDX
+    molecular weight [kg mol-1]: 0.04405
+  - name: TOL
+    molecular weight [kg mol-1]: 0.09214
+  - name: XYL
+    molecular weight [kg mol-1]: 0.10616
+  - name: IOLE
+    molecular weight [kg mol-1]: 0.05608
+  - name: NR
+    molecular weight [kg mol-1]: 0.01443
+  - name: MEOH
+    molecular weight [kg mol-1]: 0.03204
+  - name: ETOH
+    molecular weight [kg mol-1]: 0.04607
+  - name: ETHA
+    molecular weight [kg mol-1]: 0.03007
+  - name: ACET
+    molecular weight [kg mol-1]: 0.05808
+  - name: KET
+    molecular weight [kg mol-1]: 0.07211
+  - name: PRPA
+    molecular weight [kg mol-1]: 0.04410
+  - name: ETHY
+    molecular weight [kg mol-1]: 0.02604
+  - name: BENZ
+    molecular weight [kg mol-1]: 0.07811
+  - name: SESQ
+    molecular weight [kg mol-1]: 0.20435
+  - name: NO
+    molecular weight [kg mol-1]: 0.03001
+  - name: CO
+    molecular weight [kg mol-1]: 0.02801
+  - name: FACD
+    molecular weight [kg mol-1]: 0.04603
+  - name: AACD
+    molecular weight [kg mol-1]: 0.06005
+  - name: SOAALK
+    molecular weight [kg mol-1]: 0.11200
+  - name: IVOC
+    molecular weight [kg mol-1]: 0.17000
+  - name: ACROLEIN
+    molecular weight [kg mol-1]: 0.05606
+  - name: BUTADIENE13
+    molecular weight [kg mol-1]: 0.05408
+  - name: HCN
+    molecular weight [kg mol-1]: 0.02703
+  - name: CH4
+    molecular weight [kg mol-1]: 0.01604
+  - name: HCOOH
+    molecular weight [kg mol-1]: 0.04603
+  - name: CH3COOH
+    molecular weight [kg mol-1]: 0.06005
+  - name: ISPD
+    molecular weight [kg mol-1]: 0.07009
+  - name: UNREAC
+    molecular weight [kg mol-1]: 0.01200

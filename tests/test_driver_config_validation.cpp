@@ -25,8 +25,7 @@ extern "C" {
 // Forward declarations for Fortran ISO8601 functions
 extern "C" {
 void init_iso8601_utils_c_wrapper();
-void parse_iso8601_to_esmf_time_c_wrapper(const char* iso_str, int* yy, int* mm, int* dd, int* hh,
-                                          int* mn, int* ss, int* rc);
+void parse_iso8601_to_esmf_time_c_wrapper(const char* iso_str, int* yy, int* mm, int* dd, int* hh, int* mn, int* ss, int* rc);
 }
 
 namespace {
@@ -76,7 +75,10 @@ int CompareISO8601Times(const std::string& t1, const std::string& t2) {
 class DriverConfigValidationTest : public ::testing::Test {
    protected:
     void SetUp() override {
-        test_config_file = "test_driver_config_validation.yaml";
+        // Use a unique filename per test to avoid race conditions when
+        // ctest runs multiple test binaries in parallel (-j).
+        const auto* info = ::testing::UnitTest::GetInstance()->current_test_info();
+        test_config_file = std::string("test_dcv_") + info->name() + ".yaml";
 
         // Initialize ESMF for ISO8601 utilities
         int rc = ESMC_Initialize(nullptr, ESMC_ArgLast);
@@ -313,8 +315,7 @@ species:
 // Test 11: Positive grid dimensions are valid
 // Requirements: 14.7
 TEST_F(DriverConfigValidationTest, PositiveGridDimensionsValid) {
-    std::vector<std::pair<int, int>> valid_dimensions = {
-        {1, 1}, {4, 4}, {8, 8}, {16, 16}, {32, 32}, {64, 64}, {128, 128}, {360, 180}, {720, 360}};
+    std::vector<std::pair<int, int>> valid_dimensions = {{1, 1}, {4, 4}, {8, 8}, {16, 16}, {32, 32}, {64, 64}, {128, 128}, {360, 180}, {720, 360}};
 
     for (const auto& [nx, ny] : valid_dimensions) {
         WriteTestConfig(test_config_file,

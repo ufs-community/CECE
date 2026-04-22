@@ -46,8 +46,7 @@ static void DeleteFile(const std::string& path) {
 class ISO8601ParsingTest : public ::testing::Test {
    protected:
     // Helper to parse ISO8601 string (mimics Fortran parse_iso8601)
-    static bool ParseISO8601(const std::string& iso_str, int& yy, int& mm, int& dd, int& hh,
-                             int& mn, int& ss) {
+    static bool ParseISO8601(const std::string& iso_str, int& yy, int& mm, int& dd, int& hh, int& mn, int& ss) {
         if (iso_str.length() < 19) return false;  // YYYY-MM-DDTHH:MM:SS
 
         try {
@@ -113,7 +112,10 @@ TEST_F(ISO8601ParsingTest, InvalidISO8601Format) {
 class DriverConfigurationTest : public ::testing::Test {
    protected:
     void SetUp() override {
-        test_config_file = "test_driver_config.yaml";
+        // Use a unique filename per test to avoid race conditions when
+        // ctest runs multiple test binaries in parallel (-j).
+        const auto* info = ::testing::UnitTest::GetInstance()->current_test_info();
+        test_config_file = std::string("test_driver_config_") + info->test_suite_name() + "_" + info->name() + ".yaml";
     }
 
     void TearDown() override {
@@ -279,16 +281,17 @@ TEST_F(DriverConfigurationValidationTest, InvalidGridDimensions) {
 
 // External C function for getting driver config
 extern "C" {
-void cece_core_get_driver_config(const char* config_file, int config_file_len, char* start_time,
-                                 int start_time_len, char* end_time, int end_time_len,
-                                 int* timestep_seconds, char* mesh_file, int mesh_file_len, int* nx,
-                                 int* ny, int* rc);
+void cece_core_get_driver_config(const char* config_file, int config_file_len, char* start_time, int start_time_len, char* end_time, int end_time_len,
+                                 int* timestep_seconds, char* mesh_file, int mesh_file_len, int* nx, int* ny, int* rc);
 }
 
 class DriverConfigCInterfaceTest : public ::testing::Test {
    protected:
     void SetUp() override {
-        test_config_file = "test_driver_config_c.yaml";
+        // Use a unique filename per test to avoid race conditions when
+        // ctest runs multiple test binaries in parallel (-j).
+        const auto* info = ::testing::UnitTest::GetInstance()->current_test_info();
+        test_config_file = std::string("test_driver_config_c_") + info->name() + ".yaml";
     }
 
     void TearDown() override {
@@ -327,9 +330,8 @@ physics_schemes:
     int nx = 0, ny = 0;
     int rc = 0;
 
-    cece_core_get_driver_config(test_config_file.c_str(), test_config_file.length(), start_time,
-                                sizeof(start_time), end_time, sizeof(end_time), &timestep_seconds,
-                                mesh_file, sizeof(mesh_file), &nx, &ny, &rc);
+    cece_core_get_driver_config(test_config_file.c_str(), test_config_file.length(), start_time, sizeof(start_time), end_time, sizeof(end_time),
+                                &timestep_seconds, mesh_file, sizeof(mesh_file), &nx, &ny, &rc);
 
     EXPECT_EQ(rc, 0) << "Expected successful config read";
     EXPECT_EQ(timestep_seconds, 3600);
@@ -366,9 +368,8 @@ physics_schemes:
     int nx = 0, ny = 0;
     int rc = 0;
 
-    cece_core_get_driver_config(test_config_file.c_str(), test_config_file.length(), start_time,
-                                sizeof(start_time), end_time, sizeof(end_time), &timestep_seconds,
-                                mesh_file, sizeof(mesh_file), &nx, &ny, &rc);
+    cece_core_get_driver_config(test_config_file.c_str(), test_config_file.length(), start_time, sizeof(start_time), end_time, sizeof(end_time),
+                                &timestep_seconds, mesh_file, sizeof(mesh_file), &nx, &ny, &rc);
 
     EXPECT_EQ(rc, -1) << "Expected validation error for timestep_seconds = 0";
 }
@@ -402,9 +403,8 @@ physics_schemes:
     int nx = 0, ny = 0;
     int rc = 0;
 
-    cece_core_get_driver_config(test_config_file.c_str(), test_config_file.length(), start_time,
-                                sizeof(start_time), end_time, sizeof(end_time), &timestep_seconds,
-                                mesh_file, sizeof(mesh_file), &nx, &ny, &rc);
+    cece_core_get_driver_config(test_config_file.c_str(), test_config_file.length(), start_time, sizeof(start_time), end_time, sizeof(end_time),
+                                &timestep_seconds, mesh_file, sizeof(mesh_file), &nx, &ny, &rc);
 
     EXPECT_EQ(rc, -1) << "Expected validation error for negative timestep_seconds";
 }
@@ -425,9 +425,8 @@ grid_ny: 4
     int nx = 0, ny = 0;
     int rc = 0;
 
-    cece_core_get_driver_config(test_config_file.c_str(), test_config_file.length(), start_time,
-                                sizeof(start_time), end_time, sizeof(end_time), &timestep_seconds,
-                                mesh_file, sizeof(mesh_file), &nx, &ny, &rc);
+    cece_core_get_driver_config(test_config_file.c_str(), test_config_file.length(), start_time, sizeof(start_time), end_time, sizeof(end_time),
+                                &timestep_seconds, mesh_file, sizeof(mesh_file), &nx, &ny, &rc);
 
     EXPECT_EQ(rc, -1) << "Expected validation error for nx = 0";
 }
@@ -448,9 +447,8 @@ grid_ny: -1
     int nx = 0, ny = 0;
     int rc = 0;
 
-    cece_core_get_driver_config(test_config_file.c_str(), test_config_file.length(), start_time,
-                                sizeof(start_time), end_time, sizeof(end_time), &timestep_seconds,
-                                mesh_file, sizeof(mesh_file), &nx, &ny, &rc);
+    cece_core_get_driver_config(test_config_file.c_str(), test_config_file.length(), start_time, sizeof(start_time), end_time, sizeof(end_time),
+                                &timestep_seconds, mesh_file, sizeof(mesh_file), &nx, &ny, &rc);
 
     EXPECT_EQ(rc, -1) << "Expected validation error for negative ny";
 }
@@ -470,8 +468,7 @@ TEST_F(ISO8601ParsingTest, Property1_ISO8601RoundTrip) {
 
     int yy, mm, dd, hh, mn, ss;
     for (const auto& date_str : valid_dates) {
-        EXPECT_TRUE(ParseISO8601(date_str, yy, mm, dd, hh, mn, ss))
-            << "Failed to parse: " << date_str;
+        EXPECT_TRUE(ParseISO8601(date_str, yy, mm, dd, hh, mn, ss)) << "Failed to parse: " << date_str;
     }
 }
 

@@ -74,13 +74,10 @@ TEST_F(FieldResolutionPriorityTest, ResolveFieldReturnsEmptyWhenAbsent) {
  */
 TEST_F(FieldResolutionPriorityTest, ResolveFieldReturnTypeIsUnmanaged) {
     using ExpectedViewType =
-        Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace,
-                     Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+        Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
 
-    static_assert(
-        std::is_same_v<decltype(std::declval<CeceDataIngestor>().ResolveField("", 0, 0, 0)),
-                       ExpectedViewType>,
-        "ResolveField must return a view with Kokkos::MemoryTraits<Kokkos::Unmanaged>");
+    static_assert(std::is_same_v<decltype(std::declval<CeceDataIngestor>().ResolveField("", 0, 0, 0)), ExpectedViewType>,
+                  "ResolveField must return a view with Kokkos::MemoryTraits<Kokkos::Unmanaged>");
 
     SUCCEED();
 }
@@ -92,21 +89,18 @@ TEST_F(FieldResolutionPriorityTest, ResolveFieldReturnTypeIsUnmanaged) {
  */
 TEST_F(FieldResolutionPriorityTest, FieldNameVariations) {
     CeceDataIngestor ingestor;
-    const std::vector<std::string> names = {
-        "CO",
-        "carbon_monoxide",
-        "NOx_emissions_total",
-        "CEDS_CO_anthro_2020",
-        "field123",
-        "a",
-        "very_long_field_name_with_many_components_for_testing"};
+    const std::vector<std::string> names = {"CO",
+                                            "carbon_monoxide",
+                                            "NOx_emissions_total",
+                                            "CEDS_CO_anthro_2020",
+                                            "field123",
+                                            "a",
+                                            "very_long_field_name_with_many_components_for_testing"};
 
     for (const auto& name : names) {
-        EXPECT_FALSE(ingestor.HasDataIngesterField(name))
-            << "Field '" << name << "' should not be in cache before any ingestion";
+        EXPECT_FALSE(ingestor.HasDataIngesterField(name)) << "Field '" << name << "' should not be in cache before any ingestion";
         auto view = ingestor.ResolveField(name, 5, 5, 5);
-        EXPECT_EQ(view.data(), nullptr)
-            << "ResolveField should return empty view for '" << name << "' when not in cache";
+        EXPECT_EQ(view.data(), nullptr) << "ResolveField should return empty view for '" << name << "' when not in cache";
     }
 }
 

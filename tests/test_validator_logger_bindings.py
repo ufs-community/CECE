@@ -10,7 +10,9 @@ import sys
 import pytest
 
 # Add the build output directory to the path so _cece_core can be imported
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "build", "src", "python", "cece"))
+sys.path.insert(
+    0, os.path.join(os.path.dirname(__file__), "..", "build", "src", "python", "cece")
+)
 
 import _cece_core
 

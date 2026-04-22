@@ -51,12 +51,11 @@ class VerticalDistributionFieldResolver : public FieldResolver {
     UnmanagedHostView3D ResolveExport(const std::string& name, int, int, int) override {
         return fields[name].view_host();
     }
-    Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>
-    ResolveImportDevice(const std::string& name, int, int, int) override {
+    Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveImportDevice(const std::string& name, int, int,
+                                                                                                         int) override {
         return fields[name].view_device();
     }
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveExportDevice(
-        const std::string& name, int, int, int) override {
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> ResolveExportDevice(const std::string& name, int, int, int) override {
         return fields[name].view_device();
     }
 };
@@ -115,8 +114,7 @@ TEST_F(VerticalDistributionSingleTest, SingleLayerPlacement) {
         for (int j = 0; j < ny; ++j) {
             for (int k = 0; k < nz; ++k) {
                 double expected = (k == 2) ? (10.0 + i + j) : 0.0;
-                EXPECT_NEAR(resolver.GetValue("CO", i, j, k), expected, 1e-9)
-                    << "Mismatch at (" << i << "," << j << "," << k << ")";
+                EXPECT_NEAR(resolver.GetValue("CO", i, j, k), expected, 1e-9) << "Mismatch at (" << i << "," << j << "," << k << ")";
             }
         }
     }

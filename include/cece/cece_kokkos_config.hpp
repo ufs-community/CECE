@@ -153,8 +153,7 @@ inline bool IsExecutionSpaceAvailable() {
  * @param default_value Default value if variable is not set
  * @return The environment variable value or default_value if not set
  */
-inline std::string GetKokkosEnvVar(const std::string& var_name,
-                                   const std::string& default_value = "") {
+inline std::string GetKokkosEnvVar(const std::string& var_name, const std::string& default_value = "") {
     const char* value = std::getenv(var_name.c_str());
     return (value != nullptr) ? std::string(value) : default_value;
 }

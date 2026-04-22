@@ -426,12 +426,9 @@ class FullIntegrationTestSuite : public ::testing::Test {
 
     std::vector<TestScenario> GetTestScenarios() {
         return {
-            {"Single-process 4x4", 1, 4, 4, 3600, true},
-            {"Single-process 360x180", 1, 360, 180, 3600, true},
-            {"MPI 2-proc 100x100", 2, 100, 100, 3600, true},
-            {"MPI 4-proc 360x180", 4, 360, 180, 3600, true},
-            {"Large grid 500x500", 1, 500, 500, 3600, true},
-            {"Invalid timestep", 1, 4, 4, 0, false},
+            {"Single-process 4x4", 1, 4, 4, 3600, true},     {"Single-process 360x180", 1, 360, 180, 3600, true},
+            {"MPI 2-proc 100x100", 2, 100, 100, 3600, true}, {"MPI 4-proc 360x180", 4, 360, 180, 3600, true},
+            {"Large grid 500x500", 1, 500, 500, 3600, true}, {"Invalid timestep", 1, 4, 4, 0, false},
             {"Invalid grid", 1, 0, 4, 3600, false},
         };
     }

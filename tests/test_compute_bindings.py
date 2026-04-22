@@ -8,12 +8,13 @@ StackingEngine.Execute, and C++ exception translation during compute.
 import os
 import sys
 import threading
-import time
 import pytest
 import numpy as np
 
 # Add the build output directory to the path so _cece_core can be imported
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "build", "src", "python", "cece"))
+sys.path.insert(
+    0, os.path.join(os.path.dirname(__file__), "..", "build", "src", "python", "cece")
+)
 
 import _cece_core
 
@@ -46,7 +47,8 @@ def _make_compute_setup(nx=4, ny=4, nz=1):
     export_state.set_field("TEST", export_data)
 
     resolver = _cece_core.CeceStateResolver(
-        import_state, export_state,
+        import_state,
+        export_state,
         {"test_field": "test_field"},
     )
     return config, import_state, export_state, resolver
@@ -117,7 +119,9 @@ class TestGILRelease:
         _cece_core.compute_emissions(config, resolver, 4, 4, 1)
 
         t.join(timeout=5.0)
-        assert thread_ran.is_set(), "Background thread should have run (GIL was released)"
+        assert thread_ran.is_set(), (
+            "Background thread should have run (GIL was released)"
+        )
 
     def test_stacking_engine_execute_releases_gil(self):
         """Verify StackingEngine.Execute releases the GIL."""
@@ -135,7 +139,9 @@ class TestGILRelease:
         engine.Execute(resolver, 4, 4, 1)
 
         t.join(timeout=5.0)
-        assert thread_ran.is_set(), "Background thread should have run (GIL was released)"
+        assert thread_ran.is_set(), (
+            "Background thread should have run (GIL was released)"
+        )
 
 
 class TestComputeExceptionTranslation:

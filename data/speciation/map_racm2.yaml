@@ -1,0 +1,194 @@
+# RACM2 Speciation Mapping File (CECE dataset-oriented format)
+# Maps 19 MEGAN3 emission classes to RACM2 mechanism species
+# with per-class scale factors.
+#
+# Format: mechanism species → { emission class: scale factor }
+# Scale factors represent the fractional contribution of each emission class
+# to each mechanism species.
+#
+# References:
+#   - Goliff et al. (2013) RACM2 mechanism
+#   - CMAQ MEGAN3 MAP_CV2RACM2.EXT
+mechanism: RACM2
+datasets:
+  MEGAN:
+    # --- Isoprene: directly from ISOP class ---
+    ISO:
+      ISOP: 1.0
+    # --- Alpha-pinene type monoterpenes ---
+    # Includes alpha-pinene, beta-pinene, sabinene, camphene, carene
+    API:
+      MT_PINE: 0.65
+      MT_CAMP: 0.20
+      MT_SABI: 0.15
+    # --- Limonene type monoterpenes ---
+    # Includes myrcene, ocimene, limonene, terpinolene
+    LIM:
+      MT_ACYC: 0.70
+      MT_SABI: 0.15
+      MT_AROM: 0.15
+    # --- Sesquiterpenes ---
+    SESQ:
+      SQT_HR: 0.70
+      SQT_LR: 0.30
+    # --- Terminal alkenes ---
+    OLT:
+      MBO: 0.80
+      OTHER: 0.10
+      STRESS: 0.10
+    # --- Internal alkenes ---
+    OLI:
+      LVOC: 0.50
+      OTHER: 0.30
+      STRESS: 0.20
+    # --- Ethene ---
+    ETE:
+      OTHER: 0.60
+      STRESS: 0.40
+    # --- 1,3-Butadiene ---
+    DIEN:
+      OTHER: 0.50
+      STRESS: 0.50
+    # --- Ethane ---
+    ETH:
+      OTHER: 1.0
+    # --- Small alkanes (C3) ---
+    HC3:
+      OTHER: 0.70
+      LVOC: 0.30
+    # --- Medium alkanes (C5) ---
+    HC5:
+      OTHER: 0.60
+      LVOC: 0.40
+    # --- Large alkanes (C8) ---
+    HC8:
+      OTHER: 0.40
+      LVOC: 0.60
+    # --- Formaldehyde ---
+    HCHO:
+      OXPROD: 0.60
+      MBO: 0.20
+      STRESS: 0.20
+    # --- Acetaldehyde ---
+    ACD:
+      OXPROD: 0.70
+      STRESS: 0.20
+      LVOC: 0.10
+    # --- Higher aldehydes ---
+    ALD:
+      OXPROD: 0.50
+      LVOC: 0.30
+      STRESS: 0.20
+    # --- Unsaturated aldehydes ---
+    UALD:
+      OXPROD: 0.50
+      STRESS: 0.30
+      LVOC: 0.20
+    # --- Methacrolein ---
+    MACR:
+      OXPROD: 0.60
+      STRESS: 0.40
+    # --- Methyl vinyl ketone ---
+    MVK:
+      OXPROD: 0.60
+      STRESS: 0.40
+    # --- Benzaldehyde ---
+    BALD:
+      STRESS: 0.50
+      MT_AROM: 0.30
+      OXPROD: 0.20
+    # --- Acetone ---
+    ACT:
+      ACTO: 1.0
+    # --- Higher ketones ---
+    KET:
+      LVOC: 0.60
+      OXPROD: 0.40
+    # --- Methyl ethyl ketone ---
+    MEK:
+      LVOC: 0.60
+      OXPROD: 0.40
+    # --- Methylglyoxal ---
+    MGLY:
+      OXPROD: 0.70
+      STRESS: 0.30
+    # --- Methanol ---
+    MOH:
+      MEOH: 1.0
+    # --- Ethanol ---
+    EOH:
+      ETOH: 1.0
+    # --- Higher alcohols ---
+    ROH:
+      LVOC: 0.60
+      OTHER: 0.40
+    # --- Formic acid ---
+    ORA1:
+      ACID: 0.40
+    # --- Acetic acid ---
+    ORA2:
+      ACID: 0.60
+    # --- Toluene ---
+    TOL:
+      MT_AROM: 0.50
+      LVOC: 0.30
+      STRESS: 0.20
+    # --- Xylene ---
+    XYL:
+      OTHER: 0.50
+      MT_AROM: 0.30
+      STRESS: 0.20
+    # --- Benzene ---
+    BEN:
+      OTHER: 0.60
+      STRESS: 0.40
+    # --- Cresol ---
+    CSL:
+      STRESS: 0.50
+      MT_AROM: 0.30
+      OTHER: 0.20
+    # --- Phenol ---
+    PHEN:
+      STRESS: 0.50
+      MT_AROM: 0.30
+      OTHER: 0.20
+    # --- Acetylene ---
+    ACE:
+      OTHER: 1.0
+    # --- Glyoxal ---
+    GLY:
+      OXPROD: 0.70
+      STRESS: 0.30
+    # --- Dicarbonyl ---
+    DCB1:
+      OXPROD: 0.50
+      STRESS: 0.30
+      LVOC: 0.20
+    # --- Methyl hydroperoxide ---
+    OP1:
+      OXPROD: 0.60
+      STRESS: 0.40
+    # --- Higher organic peroxide ---
+    OP2:
+      OXPROD: 0.50
+      LVOC: 0.30
+      STRESS: 0.20
+    # --- Peroxyacetic acid ---
+    PAA:
+      OXPROD: 0.60
+      STRESS: 0.40
+    # --- Organic nitrate ---
+    ONIT:
+      LVOC: 0.50
+      STRESS: 0.30
+      OTHER: 0.20
+    # --- PAN ---
+    PAN:
+      OXPROD: 0.50
+      STRESS: 0.30
+      LVOC: 0.20
+    # --- Inorganic species ---
+    "NO":
+      "NO": 1.0
+    CO:
+      CO: 1.0

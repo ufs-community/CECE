@@ -165,7 +165,7 @@ def _build_cpp_config(config_obj: CeceConfig) -> object:
             cpp_layer.field_name = layer.field_name
             cpp_layer.scale = layer.scale
             cpp_layer.vdist_method = _cece_core.VerticalDistributionMethod.SINGLE
-            if hasattr(layer, 'vdist') and layer.vdist:
+            if hasattr(layer, "vdist") and layer.vdist:
                 method_map = {
                     "single": _cece_core.VerticalDistributionMethod.SINGLE,
                     "range": _cece_core.VerticalDistributionMethod.RANGE,
@@ -287,6 +287,7 @@ def compute(
     # Determine which config to use
     if config is not None:
         from .utils import load_config as _load_config
+
         config_obj = _load_config(config)
         cpp_config = _build_cpp_config(config_obj)
     else:
@@ -316,7 +317,9 @@ def compute(
 
     # Create resolver with met_mapping from config
     met_mapping = dict(cpp_config.met_mapping) if cpp_config.met_mapping else {}
-    sf_mapping = dict(cpp_config.scale_factor_mapping) if cpp_config.scale_factor_mapping else {}
+    sf_mapping = (
+        dict(cpp_config.scale_factor_mapping) if cpp_config.scale_factor_mapping else {}
+    )
     mask_mapping = dict(cpp_config.mask_mapping) if cpp_config.mask_mapping else {}
 
     resolver = _cece_core.CeceStateResolver(
@@ -326,9 +329,14 @@ def compute(
     # Execute computation (GIL is released automatically by pybind11)
     try:
         _cece_core.compute_emissions(
-            cpp_config, resolver,
-            state.nx, state.ny, state.nz,
-            hour, day_of_week, month,
+            cpp_config,
+            resolver,
+            state.nx,
+            state.ny,
+            state.nz,
+            hour,
+            day_of_week,
+            month,
         )
     except Exception as e:
         _last_error = str(e)
@@ -367,8 +375,7 @@ def set_execution_space(space: str) -> None:
     available = _cece_core.get_available_execution_spaces()
     if space not in available:
         raise CeceExecutionSpaceError(
-            f"Execution space '{space}' is not available. "
-            f"Available spaces: {available}"
+            f"Execution space '{space}' is not available. Available spaces: {available}"
         )
     # Note: Kokkos execution space is set at compile time and cannot be changed
     # at runtime. This validates the requested space is available.

@@ -6,11 +6,12 @@ Tests enum value access, ParseConfig, and AddSpecies/AddScaleFactor/AddMask.
 
 import os
 import sys
-import tempfile
 import pytest
 
 # Add the build output directory to the path so _cece_core can be imported
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "build", "src", "python", "cece"))
+sys.path.insert(
+    0, os.path.join(os.path.dirname(__file__), "..", "build", "src", "python", "cece")
+)
 
 import _cece_core
 
@@ -145,6 +146,7 @@ class TestParseConfig:
 
     def test_parse_invalid_path_raises(self):
         from exceptions import CeceException
+
         with pytest.raises(CeceException):
             _cece_core.ParseConfig("/nonexistent/path/config.yaml")
 

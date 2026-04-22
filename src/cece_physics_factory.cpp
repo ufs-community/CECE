@@ -54,8 +54,7 @@ std::unique_ptr<PhysicsScheme> PhysicsFactory::CreateScheme(const PhysicsSchemeC
         return it->second();
     }
 
-    std::cerr << "CECE_PhysicsFactory: Error - Unknown physics scheme '" << config.name
-              << "'. Registered schemes:";
+    std::cerr << "CECE_PhysicsFactory: Error - Unknown physics scheme '" << config.name << "'. Registered schemes:";
     for (const auto& [name, _] : registry) {
         std::cerr << " " << name;
     }

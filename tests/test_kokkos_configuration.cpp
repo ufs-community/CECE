@@ -45,8 +45,7 @@ TEST_F(KokkosConfigurationTest, GetDefaultExecutionSpaceName) {
     EXPECT_FALSE(space_name.empty());
 
     // Should be one of the enabled execution spaces
-    bool valid_space = (space_name == "Serial" || space_name == "OpenMP" || space_name == "CUDA" ||
-                        space_name == "HIP");
+    bool valid_space = (space_name == "Serial" || space_name == "OpenMP" || space_name == "CUDA" || space_name == "HIP");
     EXPECT_TRUE(valid_space) << "Unexpected execution space: " << space_name;
 }
 
@@ -175,8 +174,7 @@ TEST_F(KokkosConfigurationTest, SimpleKokkosKernel) {
     Kokkos::View<int*> data("data", n);
 
     // Initialize data
-    Kokkos::parallel_for(
-        "init_kernel", Kokkos::RangePolicy<>(0, n), KOKKOS_LAMBDA(int i) { data(i) = i; });
+    Kokkos::parallel_for("init_kernel", Kokkos::RangePolicy<>(0, n), KOKKOS_LAMBDA(int i) { data(i) = i; });
 
     // Verify data
     auto data_host = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), data);
@@ -194,14 +192,11 @@ TEST_F(KokkosConfigurationTest, KokkosReduction) {
     Kokkos::View<int*> data("data", n);
 
     // Initialize data
-    Kokkos::parallel_for(
-        "init_kernel", Kokkos::RangePolicy<>(0, n), KOKKOS_LAMBDA(int i) { data(i) = 1; });
+    Kokkos::parallel_for("init_kernel", Kokkos::RangePolicy<>(0, n), KOKKOS_LAMBDA(int i) { data(i) = 1; });
 
     // Perform reduction
     int sum = 0;
-    Kokkos::parallel_reduce(
-        "sum_kernel", Kokkos::RangePolicy<>(0, n),
-        KOKKOS_LAMBDA(int i, int& local_sum) { local_sum += data(i); }, sum);
+    Kokkos::parallel_reduce("sum_kernel", Kokkos::RangePolicy<>(0, n), KOKKOS_LAMBDA(int i, int& local_sum) { local_sum += data(i); }, sum);
 
     EXPECT_EQ(sum, n);
 }
@@ -216,8 +211,7 @@ TEST_F(KokkosConfigurationTest, KokkosViewsOnDefaultSpace) {
 
     // Initialize on device
     Kokkos::parallel_for(
-        "init_matrix", Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {10, 10}),
-        KOKKOS_LAMBDA(int i, int j) { matrix(i, j) = i * 10 + j; });
+        "init_matrix", Kokkos::MDRangePolicy<Kokkos::Rank<2>>({0, 0}, {10, 10}), KOKKOS_LAMBDA(int i, int j) { matrix(i, j) = i * 10 + j; });
 
     // Copy to host and verify
     auto matrix_host = Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), matrix);
@@ -237,8 +231,7 @@ TEST_F(KokkosConfigurationTest, ExecutionSpaceProperties) {
     EXPECT_FALSE(space_name.empty());
 
     // Verify it's one of the expected spaces
-    bool is_valid = (space_name == "Serial" || space_name == "OpenMP" || space_name == "CUDA" ||
-                     space_name == "HIP");
+    bool is_valid = (space_name == "Serial" || space_name == "OpenMP" || space_name == "CUDA" || space_name == "HIP");
     EXPECT_TRUE(is_valid);
 }
 
@@ -252,8 +245,7 @@ TEST_F(KokkosConfigurationTest, JCSDADockerConfiguration) {
 
     // Should be Serial or OpenMP in JCSDA Docker
     bool is_cpu_space = (space_name == "Serial" || space_name == "OpenMP");
-    EXPECT_TRUE(is_cpu_space) << "Expected CPU execution space in JCSDA Docker, got: "
-                              << space_name;
+    EXPECT_TRUE(is_cpu_space) << "Expected CPU execution space in JCSDA Docker, got: " << space_name;
 }
 
 int main(int argc, char** argv) {

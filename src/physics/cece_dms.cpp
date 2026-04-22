@@ -95,8 +95,7 @@ void DMSScheme::Run(CeceImportState& import_state, CeceExportState& export_state
     auto seaconc = ResolveImport("seawater_conc", import_state);
     auto dms_emis = ResolveExport("dms_emissions", export_state);
 
-    if (u10m.data() == nullptr || tskin.data() == nullptr || seaconc.data() == nullptr ||
-        dms_emis.data() == nullptr) {
+    if (u10m.data() == nullptr || tskin.data() == nullptr || seaconc.data() == nullptr || dms_emis.data() == nullptr) {
         return;
     }
 
@@ -107,9 +106,7 @@ void DMSScheme::Run(CeceImportState& import_state, CeceExportState& export_state
     double kw0 = kw_c0_, kw1 = kw_c1_;
 
     Kokkos::parallel_for(
-        "DMSKernel_Optimized",
-        Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<2>>({0, 0}, {nx, ny}),
-        KOKKOS_LAMBDA(int i, int j) {
+        "DMSKernel_Optimized", Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<2>>({0, 0}, {nx, ny}), KOKKOS_LAMBDA(int i, int j) {
             double tk = tskin(i, j, 0);
             double tc = tk - 273.15;
             double w = u10m(i, j, 0);

@@ -106,8 +106,7 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
                 std::cout << "INFO: Setting CUDA device ID to " << dev_id << std::endl;
             }
         } else {
-            std::cout << "INFO: CECE_DEVICE_ID not set - using default CUDA device (0)"
-                      << std::endl;
+            std::cout << "INFO: CECE_DEVICE_ID not set - using default CUDA device (0)" << std::endl;
         }
 #endif
 
@@ -142,12 +141,10 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
         Kokkos::initialize(args);
         kokkos_initialized_here = true;
         std::cout << "INFO: Kokkos initialized successfully" << std::endl;
-        std::cout << "INFO: Default execution space: " << Kokkos::DefaultExecutionSpace::name()
-                  << std::endl;
+        std::cout << "INFO: Default execution space: " << Kokkos::DefaultExecutionSpace::name() << std::endl;
     } else {
         std::cout << "INFO: Kokkos already initialized - using existing instance" << std::endl;
-        std::cout << "INFO: Default execution space: " << Kokkos::DefaultExecutionSpace::name()
-                  << std::endl;
+        std::cout << "INFO: Default execution space: " << Kokkos::DefaultExecutionSpace::name() << std::endl;
     }
 
     // 2. Parse YAML configuration
@@ -158,13 +155,10 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
     try {
         config = cece::ParseConfig(config_path);
         std::cout << "INFO: Configuration parsed successfully" << std::endl;
-        std::cout << "INFO: Found " << config.species_layers.size() << " emission species"
-                  << std::endl;
-        std::cout << "INFO: Found " << config.physics_schemes.size() << " physics schemes"
-                  << std::endl;
+        std::cout << "INFO: Found " << config.species_layers.size() << " emission species" << std::endl;
+        std::cout << "INFO: Found " << config.physics_schemes.size() << " physics schemes" << std::endl;
     } catch (const std::exception& e) {
-        std::cerr << "ERROR in cece_core_initialize_p1: Failed to parse cece_config.yaml: "
-                  << e.what() << std::endl;
+        std::cerr << "ERROR in cece_core_initialize_p1: Failed to parse cece_config.yaml: " << e.what() << std::endl;
         if (rc != nullptr) {
             *rc = -1;
         }
@@ -174,8 +168,7 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
         }
         return;
     } catch (...) {
-        std::cerr << "ERROR in cece_core_initialize_p1: Unknown error parsing cece_config.yaml"
-                  << std::endl;
+        std::cerr << "ERROR in cece_core_initialize_p1: Unknown error parsing cece_config.yaml" << std::endl;
         if (rc != nullptr) {
             *rc = -1;
         }
@@ -208,8 +201,7 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
         }
     }
     internal_data->unique_input_fields.assign(unique_fields.begin(), unique_fields.end());
-    std::cout << "INFO: Found " << internal_data->unique_input_fields.size()
-              << " unique input fields required" << std::endl;
+    std::cout << "INFO: Found " << internal_data->unique_input_fields.size() << " unique input fields required" << std::endl;
 
     // 4. Initialize PhysicsFactory and instantiate all physics schemes
     std::cout << "INFO: Initializing physics schemes" << std::endl;
@@ -219,8 +211,7 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
             auto scheme = cece::PhysicsFactory::CreateScheme(scheme_config);
 
             if (scheme == nullptr) {
-                std::cerr << "ERROR: Failed to create physics scheme '" << scheme_config.name
-                          << "' - scheme not registered" << std::endl;
+                std::cerr << "ERROR: Failed to create physics scheme '" << scheme_config.name << "' - scheme not registered" << std::endl;
                 if (rc != nullptr) {
                     *rc = -1;
                 }
@@ -238,11 +229,9 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
             scheme->Initialize(scheme_config.options, nullptr);
 
             internal_data->active_schemes.push_back(std::move(scheme));
-            std::cout << "INFO: Successfully initialized physics scheme: " << scheme_config.name
-                      << std::endl;
+            std::cout << "INFO: Successfully initialized physics scheme: " << scheme_config.name << std::endl;
         } catch (const std::exception& e) {
-            std::cerr << "ERROR: Failed to initialize physics scheme '" << scheme_config.name
-                      << "': " << e.what() << std::endl;
+            std::cerr << "ERROR: Failed to initialize physics scheme '" << scheme_config.name << "': " << e.what() << std::endl;
             if (rc != nullptr) {
                 *rc = -1;
             }
@@ -254,8 +243,7 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
         }
     }
 
-    std::cout << "INFO: Successfully initialized " << internal_data->active_schemes.size()
-              << " physics schemes" << std::endl;
+    std::cout << "INFO: Successfully initialized " << internal_data->active_schemes.size() << " physics schemes" << std::endl;
 
     // 5. Initialize StackingEngine
     std::cout << "INFO: Initializing StackingEngine" << std::endl;
@@ -295,16 +283,13 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
     if (config.output_config.enabled) {
         std::cout << "INFO: Initializing CeceStandaloneWriter for standalone output" << std::endl;
         try {
-            internal_data->standalone_writer =
-                std::make_unique<cece::CeceStandaloneWriter>(config.output_config);
+            internal_data->standalone_writer = std::make_unique<cece::CeceStandaloneWriter>(config.output_config);
             internal_data->standalone_mode = true;
             std::cout << "INFO: CeceStandaloneWriter initialized successfully" << std::endl;
             std::cout << "INFO: Output directory: " << config.output_config.directory << std::endl;
-            std::cout << "INFO: Output frequency: every " << config.output_config.frequency_steps
-                      << " time steps" << std::endl;
+            std::cout << "INFO: Output frequency: every " << config.output_config.frequency_steps << " time steps" << std::endl;
         } catch (const std::exception& e) {
-            std::cerr << "ERROR: Failed to initialize CeceStandaloneWriter: " << e.what()
-                      << std::endl;
+            std::cerr << "ERROR: Failed to initialize CeceStandaloneWriter: " << e.what() << std::endl;
             if (rc != nullptr) {
                 *rc = -1;
             }
@@ -315,9 +300,57 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
             return;
         }
     } else {
-        std::cout << "INFO: No output configuration found - standalone writer disabled"
-                  << std::endl;
+        std::cout << "INFO: No output configuration found - standalone writer disabled" << std::endl;
         internal_data->standalone_mode = false;
+    }
+
+    // 8. Construct CeceClock from parsed configuration
+    std::cout << "INFO: Constructing CeceClock for per-component scheduling" << std::endl;
+    try {
+        // Build the vector of ClockComponent from config
+        std::vector<cece::ClockComponent> clock_components;
+
+        // Add physics schemes
+        for (const auto& scheme : config.physics_schemes) {
+            int interval = scheme.refresh_interval_seconds;
+            if (interval == 0) {
+                interval = config.driver_config.timestep_seconds;
+            }
+            clock_components.push_back({cece::ComponentType::kPhysicsScheme, scheme.name, interval});
+        }
+
+        // Add data streams
+        for (const auto& stream : config.cece_data.streams) {
+            int interval = stream.refresh_interval_seconds;
+            if (interval == 0) {
+                interval = config.driver_config.timestep_seconds;
+            }
+            clock_components.push_back({cece::ComponentType::kDataStream, stream.name, interval});
+        }
+
+        // Add stacking engine
+        {
+            int interval = config.driver_config.stacking_refresh_interval_seconds;
+            if (interval == 0) {
+                interval = config.driver_config.timestep_seconds;
+            }
+            clock_components.push_back({cece::ComponentType::kStackingEngine, "stacking", interval});
+        }
+
+        internal_data->clock = std::make_unique<cece::CeceClock>(config.driver_config.start_time, config.driver_config.end_time,
+                                                                 config.driver_config.timestep_seconds, clock_components);
+
+        std::cout << "INFO: CeceClock constructed with " << clock_components.size() << " components" << std::endl;
+    } catch (const std::invalid_argument& e) {
+        std::cerr << "ERROR: Failed to construct CeceClock: " << e.what() << std::endl;
+        if (rc != nullptr) {
+            *rc = -1;
+        }
+        delete internal_data;
+        if (kokkos_initialized_here && Kokkos::is_initialized()) {
+            Kokkos::finalize();
+        }
+        return;
     }
 
     // Return the internal data pointer to the caller

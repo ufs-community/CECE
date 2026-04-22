@@ -66,8 +66,7 @@ double gong_source_normalized(double r80) {
     // - Power law component: r80^(-a) with variable exponent
     // - Large particle enhancement: (1 + 0.057 * r80^3.45)
     // - Log-normal contribution: 10^(1.607 * exp(-b²))
-    return 1.373 * std::pow(r80, -a) * (1.0 + 0.057 * std::pow(r80, 3.45)) *
-           std::pow(10.0, 1.607 * std::exp(-b * b));
+    return 1.373 * std::pow(r80, -a) * (1.0 + 0.057 * std::pow(r80, 3.45)) * std::pow(10.0, 1.607 * std::exp(-b * b));
 }
 
 void SeaSaltScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
@@ -137,8 +136,7 @@ void SeaSaltScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* 
         srrc_SALC_ += n_particles * (4.0 / 3.0 * pi * std::pow(r_mid * 1.0e-6, 3) * ss_dens);
     }
 
-    std::cout << "SeaSaltScheme: Initialized. SALA_REF=" << srrc_SALA_ << " SALC_REF=" << srrc_SALC_
-              << "\n";
+    std::cout << "SeaSaltScheme: Initialized. SALA_REF=" << srrc_SALA_ << " SALC_REF=" << srrc_SALC_ << "\n";
 }
 
 void SeaSaltScheme::Run(CeceImportState& import_state, CeceExportState& export_state) {
@@ -161,8 +159,7 @@ void SeaSaltScheme::Run(CeceImportState& import_state, CeceExportState& export_s
 
     if (sala.data() != nullptr) {
         Kokkos::parallel_for(
-            "SeaSalt_SALA_Gong_Optimized",
-            Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<2>>({0, 0}, {nx, ny}),
+            "SeaSalt_SALA_Gong_Optimized", Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<2>>({0, 0}, {nx, ny}),
             KOKKOS_LAMBDA(int i, int j) {
                 double u = u10m(i, j, 0);
                 double sst = tskin(i, j, 0) - 273.15;
@@ -180,8 +177,7 @@ void SeaSaltScheme::Run(CeceImportState& import_state, CeceExportState& export_s
 
     if (salc.data() != nullptr) {
         Kokkos::parallel_for(
-            "SeaSalt_SALC_Gong_Optimized",
-            Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<2>>({0, 0}, {nx, ny}),
+            "SeaSalt_SALC_Gong_Optimized", Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<2>>({0, 0}, {nx, ny}),
             KOKKOS_LAMBDA(int i, int j) {
                 double u = u10m(i, j, 0);
                 double sst = tskin(i, j, 0) - 273.15;

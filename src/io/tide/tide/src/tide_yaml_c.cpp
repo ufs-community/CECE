@@ -59,8 +59,7 @@ tide_config_t* tide_parse_yaml(const char* filename) {
 
         // Ensure streams key exists
         if (!config["streams"]) {
-            std::cerr << "ERROR: [TIDE] 'streams' key missing from YAML configuration file: "
-                      << filename << std::endl;
+            std::cerr << "ERROR: [TIDE] 'streams' key missing from YAML configuration file: " << filename << std::endl;
             return nullptr;
         }
 
@@ -81,8 +80,7 @@ tide_config_t* tide_parse_yaml(const char* filename) {
 
             // Optional attributes with defaults
             if (s["lev_dimname"]) {
-                std::cout << "DEBUG: lev_dimname: " << s["lev_dimname"].as<std::string>()
-                          << std::endl;
+                std::cout << "DEBUG: lev_dimname: " << s["lev_dimname"].as<std::string>() << std::endl;
             }
 
             if (s["mesh_file"]) {
@@ -91,16 +89,11 @@ tide_config_t* tide_parse_yaml(const char* filename) {
                 sc.mesh_file = strdup("none");
             }
 
-            sc.lev_dimname = s["lev_dimname"] ? strdup(s["lev_dimname"].as<std::string>().c_str())
-                                              : strdup("null");
-            sc.tax_mode =
-                s["tax_mode"] ? strdup(s["tax_mode"].as<std::string>().c_str()) : strdup("cycle");
-            sc.time_interp = s["time_interp"] ? strdup(s["time_interp"].as<std::string>().c_str())
-                                              : strdup("linear");
-            sc.map_algo = s["map_algo"] ? strdup(s["map_algo"].as<std::string>().c_str())
-                                        : strdup("bilinear");
-            sc.read_mode = s["read_mode"] ? strdup(s["read_mode"].as<std::string>().c_str())
-                                          : strdup("single");
+            sc.lev_dimname = s["lev_dimname"] ? strdup(s["lev_dimname"].as<std::string>().c_str()) : strdup("null");
+            sc.tax_mode = s["tax_mode"] ? strdup(s["tax_mode"].as<std::string>().c_str()) : strdup("cycle");
+            sc.time_interp = s["time_interp"] ? strdup(s["time_interp"].as<std::string>().c_str()) : strdup("linear");
+            sc.map_algo = s["map_algo"] ? strdup(s["map_algo"].as<std::string>().c_str()) : strdup("bilinear");
+            sc.read_mode = s["read_mode"] ? strdup(s["read_mode"].as<std::string>().c_str()) : strdup("single");
             sc.dt_limit = s["dt_limit"] ? s["dt_limit"].as<double>() : 1.5;
             sc.year_first = s["year_first"].as<int>();
             sc.year_last = s["year_last"].as<int>();
@@ -126,29 +119,22 @@ tide_config_t* tide_parse_yaml(const char* filename) {
             }
 
             // CF detection configuration (Task 11)
-            sc.cf_detection_mode = s["cf_detection_mode"]
-                                       ? strdup(s["cf_detection_mode"].as<std::string>().c_str())
-                                       : strdup("auto");
-            sc.cf_cache_enabled =
-                s["cf_cache_enabled"] ? s["cf_cache_enabled"].as<bool>() ? 1 : 0 : 1;
+            sc.cf_detection_mode = s["cf_detection_mode"] ? strdup(s["cf_detection_mode"].as<std::string>().c_str()) : strdup("auto");
+            sc.cf_cache_enabled = s["cf_cache_enabled"] ? s["cf_cache_enabled"].as<bool>() ? 1 : 0 : 1;
             sc.cf_log_level = s["cf_log_level"] ? s["cf_log_level"].as<int>() : 2;
         }
         return cfg;
     } catch (const YAML::BadFile& e) {
-        std::cerr << "ERROR: [TIDE] Failed to load YAML configuration file: " << filename << ". "
-                  << e.what() << std::endl;
+        std::cerr << "ERROR: [TIDE] Failed to load YAML configuration file: " << filename << ". " << e.what() << std::endl;
         return nullptr;
     } catch (const YAML::ParserException& e) {
-        std::cerr << "ERROR: [TIDE] YAML Parsing Error in file " << filename << ": " << e.what()
-                  << std::endl;
+        std::cerr << "ERROR: [TIDE] YAML Parsing Error in file " << filename << ": " << e.what() << std::endl;
         return nullptr;
     } catch (const YAML::Exception& e) {
-        std::cerr << "ERROR: [TIDE] YAML Exception while reading " << filename << ": " << e.what()
-                  << std::endl;
+        std::cerr << "ERROR: [TIDE] YAML Exception while reading " << filename << ": " << e.what() << std::endl;
         return nullptr;
     } catch (const std::exception& e) {
-        std::cerr << "ERROR: [TIDE] Unexpected error parsing YAML file " << filename << ": "
-                  << e.what() << std::endl;
+        std::cerr << "ERROR: [TIDE] Unexpected error parsing YAML file " << filename << ": " << e.what() << std::endl;
         return nullptr;
     }
 }

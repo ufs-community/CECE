@@ -28,10 +28,7 @@ namespace cece {
 class ClockModel {
    public:
     ClockModel(int64_t start_seconds, int64_t stop_seconds, int64_t timestep_seconds)
-        : start_seconds_(start_seconds),
-          current_seconds_(start_seconds),
-          stop_seconds_(stop_seconds),
-          timestep_seconds_(timestep_seconds) {}
+        : start_seconds_(start_seconds), current_seconds_(start_seconds), stop_seconds_(stop_seconds), timestep_seconds_(timestep_seconds) {}
 
     bool IsAtStopTime() const {
         return current_seconds_ >= stop_seconds_;
@@ -151,10 +148,8 @@ TEST_F(ClockCreationTest, VariousTimestepSizes) {
 
     for (int64_t timestep : timestep_sizes) {
         ClockModel clock(0, timestep * 10, timestep);
-        EXPECT_EQ(clock.GetTimestepSeconds(), timestep)
-            << "Timestep size " << timestep << " not set correctly";
-        EXPECT_EQ(clock.GetStopSeconds(), timestep * 10)
-            << "Stop time not set correctly for timestep " << timestep;
+        EXPECT_EQ(clock.GetTimestepSeconds(), timestep) << "Timestep size " << timestep << " not set correctly";
+        EXPECT_EQ(clock.GetStopSeconds(), timestep * 10) << "Stop time not set correctly for timestep " << timestep;
     }
 }
 
@@ -168,8 +163,7 @@ TEST_F(ClockCreationTest, ZeroLengthSimulation) {
     EXPECT_EQ(clock.GetStartSeconds(), 0);
     EXPECT_EQ(clock.GetStopSeconds(), 0);
     EXPECT_EQ(clock.GetCurrentSeconds(), 0);
-    EXPECT_TRUE(clock.IsAtStopTime())
-        << "Zero-length simulation should be at stop time immediately";
+    EXPECT_TRUE(clock.IsAtStopTime()) << "Zero-length simulation should be at stop time immediately";
 }
 
 /**
@@ -238,8 +232,7 @@ TEST_F(ClockAdvancementTest, AdvancementWithVariousTimesteps) {
             step_count++;
         }
 
-        EXPECT_EQ(step_count, expected_steps)
-            << "Expected " << expected_steps << " steps for timestep " << timestep << "s";
+        EXPECT_EQ(step_count, expected_steps) << "Expected " << expected_steps << " steps for timestep " << timestep << "s";
     }
 }
 
@@ -302,8 +295,7 @@ TEST_F(ClockAdvancementTest, NoBackwardsMovement) {
         clock.Advance();
         int64_t curr_time = clock.GetCurrentSeconds();
 
-        EXPECT_GT(curr_time, prev_time)
-            << "Clock time should always increase, not decrease or stay the same";
+        EXPECT_GT(curr_time, prev_time) << "Clock time should always increase, not decrease or stay the same";
 
         prev_time = curr_time;
     }
@@ -375,8 +367,7 @@ TEST_F(StopTimeDetectionTest, DetectionWhenPastStopTime) {
  */
 TEST_F(StopTimeDetectionTest, ZeroLengthSimulation) {
     ClockModel clock(0, 0, 3600);
-    EXPECT_TRUE(clock.IsAtStopTime())
-        << "Zero-length simulation should be at stop time immediately";
+    EXPECT_TRUE(clock.IsAtStopTime()) << "Zero-length simulation should be at stop time immediately";
 }
 
 /**
@@ -422,8 +413,7 @@ TEST_F(StopTimeDetectionTest, VariousDurations) {
             step_count++;
         }
 
-        EXPECT_EQ(step_count, expected_steps)
-            << "Expected " << expected_steps << " steps for duration " << stop << "s";
+        EXPECT_EQ(step_count, expected_steps) << "Expected " << expected_steps << " steps for duration " << stop << "s";
         EXPECT_TRUE(clock.IsAtStopTime());
     }
 }

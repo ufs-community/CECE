@@ -1,0 +1,103 @@
+# CB6_AE7 Speciation Mapping File (CECE dataset-oriented format)
+# Maps 19 MEGAN3 emission classes directly to CB6_AE7 mechanism species
+# with per-class scale factors.
+#
+# Format: mechanism species → { emission class: scale factor }
+# Scale factors represent the fractional contribution of each emission class
+# to each mechanism species.
+#
+# References:
+#   - CMAQ MEGAN3 MAP_CV2CB6AE7.EXT
+#   - Guenther et al. (2012) MEGAN3 speciation profiles
+mechanism: CB6_AE7
+datasets:
+  MEGAN:
+    ISOP:
+      ISOP: 1.0
+    TERP:
+      MT_PINE: 0.5
+      MT_ACYC: 0.3
+      MT_CAMP: 0.1
+      MT_SABI: 0.05
+      MT_AROM: 0.05
+    APIN:
+      MT_PINE: 1.0
+    PAR:
+      MBO: 1.0
+      OTHER: 0.5
+      STRESS: 0.3
+    OLE:
+      MBO: 0.5
+      LVOC: 0.3
+      STRESS: 0.2
+    ETH:
+      OTHER: 1.0
+    FORM:
+      MBO: 0.5
+      OXPROD: 0.5
+    ALD2:
+      OXPROD: 1.0
+    ALDX:
+      OXPROD: 0.5
+      STRESS: 0.3
+      LVOC: 0.2
+    TOL:
+      MT_AROM: 0.5
+      LVOC: 0.3
+      STRESS: 0.2
+    XYL:
+      OTHER: 1.0
+    IOLE:
+      LVOC: 0.5
+      STRESS: 0.5
+    NR:
+      OTHER: 1.0
+    MEOH:
+      MEOH: 1.0
+    ETOH:
+      ETOH: 1.0
+    ETHA:
+      OTHER: 1.0
+    ACET:
+      ACTO: 1.0
+    KET:
+      LVOC: 1.0
+    PRPA:
+      OTHER: 1.0
+    ETHY:
+      OTHER: 1.0
+    BENZ:
+      OTHER: 1.0
+    SESQ:
+      SQT_HR: 0.7
+      SQT_LR: 0.3
+    "NO":
+      "NO": 1.0
+    CO:
+      CO: 1.0
+    FACD:
+      ACID: 0.4
+    AACD:
+      ACID: 0.6
+    SOAALK:
+      LVOC: 1.0
+    IVOC:
+      STRESS: 1.0
+    ACROLEIN:
+      OXPROD: 0.5
+      STRESS: 0.5
+    BUTADIENE13:
+      OTHER: 1.0
+    HCN:
+      OTHER: 1.0
+    CH4:
+      OTHER: 1.0
+    HCOOH:
+      ACID: 0.4
+    CH3COOH:
+      ACID: 0.6
+    ISPD:
+      OXPROD: 0.5
+      LVOC: 0.5
+    UNREAC:
+      OTHER: 1.0

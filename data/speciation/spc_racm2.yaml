@@ -1,0 +1,113 @@
+# RACM2 Mechanism Species Definition (MICM/OpenAtmos format)
+# Species from the RACM2 chemical mechanism relevant to biogenic emissions
+# Molecular weights in kg/mol (MICM convention)
+#
+# References:
+#   - Goliff et al. (2013) RACM2 mechanism
+#   - Stockwell et al. (1997) RACM mechanism
+#   - CMAQ MEGAN3 SPC_RACM2.EXT
+name: RACM2
+species:
+  # --- Isoprene ---
+  - name: ISO
+    molecular weight [kg mol-1]: 0.06812
+  # --- Monoterpenes ---
+  - name: API
+    molecular weight [kg mol-1]: 0.13624
+  - name: LIM
+    molecular weight [kg mol-1]: 0.13624
+  # --- Sesquiterpenes ---
+  - name: SESQ
+    molecular weight [kg mol-1]: 0.20436
+  # --- Alkenes ---
+  - name: OLT
+    molecular weight [kg mol-1]: 0.04208
+  - name: OLI
+    molecular weight [kg mol-1]: 0.05611
+  - name: ETE
+    molecular weight [kg mol-1]: 0.02805
+  - name: DIEN
+    molecular weight [kg mol-1]: 0.05409
+  # --- Alkanes ---
+  - name: ETH
+    molecular weight [kg mol-1]: 0.03007
+  - name: HC3
+    molecular weight [kg mol-1]: 0.04410
+  - name: HC5
+    molecular weight [kg mol-1]: 0.07215
+  - name: HC8
+    molecular weight [kg mol-1]: 0.11423
+  # --- Aldehydes ---
+  - name: HCHO
+    molecular weight [kg mol-1]: 0.03003
+  - name: ACD
+    molecular weight [kg mol-1]: 0.04405
+  - name: ALD
+    molecular weight [kg mol-1]: 0.05808
+  - name: UALD
+    molecular weight [kg mol-1]: 0.08411
+  - name: MACR
+    molecular weight [kg mol-1]: 0.07009
+  - name: MVK
+    molecular weight [kg mol-1]: 0.07009
+  - name: BALD
+    molecular weight [kg mol-1]: 0.10612
+  # --- Ketones ---
+  - name: ACT
+    molecular weight [kg mol-1]: 0.05808
+  - name: KET
+    molecular weight [kg mol-1]: 0.08613
+  - name: MEK
+    molecular weight [kg mol-1]: 0.07211
+  - name: MGLY
+    molecular weight [kg mol-1]: 0.07206
+  # --- Alcohols ---
+  - name: MOH
+    molecular weight [kg mol-1]: 0.03204
+  - name: EOH
+    molecular weight [kg mol-1]: 0.04607
+  - name: ROH
+    molecular weight [kg mol-1]: 0.06009
+  # --- Organic acids ---
+  - name: ORA1
+    molecular weight [kg mol-1]: 0.04603
+  - name: ORA2
+    molecular weight [kg mol-1]: 0.06005
+  # --- Aromatics ---
+  - name: TOL
+    molecular weight [kg mol-1]: 0.09214
+  - name: XYL
+    molecular weight [kg mol-1]: 0.10617
+  - name: BEN
+    molecular weight [kg mol-1]: 0.07811
+  - name: CSL
+    molecular weight [kg mol-1]: 0.10814
+  - name: PHEN
+    molecular weight [kg mol-1]: 0.09411
+  # --- Acetylene ---
+  - name: ACE
+    molecular weight [kg mol-1]: 0.02604
+  # --- Dicarbonyls ---
+  - name: GLY
+    molecular weight [kg mol-1]: 0.05804
+  - name: DCB1
+    molecular weight [kg mol-1]: 0.08711
+  # --- Organic peroxides ---
+  - name: OP1
+    molecular weight [kg mol-1]: 0.04804
+  - name: OP2
+    molecular weight [kg mol-1]: 0.07610
+  # --- Peroxyacetic acid ---
+  - name: PAA
+    molecular weight [kg mol-1]: 0.07604
+  # --- Organic nitrate ---
+  - name: ONIT
+    molecular weight [kg mol-1]: 0.11911
+  # --- PAN ---
+  - name: PAN
+    molecular weight [kg mol-1]: 0.12105
+  # --- Inorganic ---
+  - name: "NO"
+    molecular weight [kg mol-1]: 0.03001
+  - name: CO
+    molecular weight [kg mol-1]: 0.02801

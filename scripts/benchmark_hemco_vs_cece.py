@@ -18,7 +18,6 @@ import argparse
 import subprocess
 import time
 import os
-import sys
 
 
 def run_benchmark_binary(binary_path, args_list, timeout=300):
@@ -79,7 +78,9 @@ def main():
     parser.add_argument("--nx", type=int, default=360, help="Grid X dimension")
     parser.add_argument("--ny", type=int, default=180, help="Grid Y dimension")
     parser.add_argument("--nz", type=int, default=72, help="Grid Z dimension")
-    parser.add_argument("--num-species", type=int, default=10, help="Number of emission species")
+    parser.add_argument(
+        "--num-species", type=int, default=10, help="Number of emission species"
+    )
     parser.add_argument("--num-layers", type=int, default=5, help="Layers per species")
     parser.add_argument("--iterations", type=int, default=10, help="Timing iterations")
     args = parser.parse_args()
@@ -87,8 +88,12 @@ def main():
     build_dir = os.path.abspath(args.build_dir)
     bench_binary = os.path.join(build_dir, "benchmark_cece_hemco")
     grid_args = [
-        str(args.nx), str(args.ny), str(args.nz),
-        str(args.num_species), str(args.num_layers), str(args.iterations),
+        str(args.nx),
+        str(args.ny),
+        str(args.nz),
+        str(args.num_species),
+        str(args.num_layers),
+        str(args.iterations),
     ]
 
     print("=" * 60)

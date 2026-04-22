@@ -11,7 +11,9 @@ import pytest
 import numpy as np
 
 # Add the build output directory to the path so _cece_core can be imported
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "build", "src", "python", "cece"))
+sys.path.insert(
+    0, os.path.join(os.path.dirname(__file__), "..", "build", "src", "python", "cece")
+)
 
 import _cece_core
 
@@ -39,8 +41,8 @@ class TestCeceImportStateSetField:
     def test_set_field_c_contiguous(self):
         """Test set_field with C-contiguous array (verify conversion happens)."""
         state = _cece_core.CeceImportState()
-        arr = np.ones((4, 5, 3), dtype=np.float64, order='C')
-        assert arr.flags['C_CONTIGUOUS']
+        arr = np.ones((4, 5, 3), dtype=np.float64, order="C")
+        assert arr.flags["C_CONTIGUOUS"]
         # Should succeed (converts internally with warning logged)
         state.set_field("pressure", arr)
         names = state.get_field_names()
@@ -49,14 +51,14 @@ class TestCeceImportStateSetField:
     def test_set_field_wrong_dtype_raises(self):
         """Test set_field with wrong dtype raises ValueError."""
         state = _cece_core.CeceImportState()
-        arr = np.ones((4, 5, 3), dtype=np.int32, order='F')
+        arr = np.ones((4, 5, 3), dtype=np.int32, order="F")
         with pytest.raises(ValueError, match="float64"):
             state.set_field("bad_dtype", arr)
 
     def test_set_field_wrong_ndim_raises(self):
         """Test set_field with non-3D array raises ValueError."""
         state = _cece_core.CeceImportState()
-        arr = np.ones((4, 5), dtype=np.float64, order='F')
+        arr = np.ones((4, 5), dtype=np.float64, order="F")
         with pytest.raises(ValueError, match="3D"):
             state.set_field("bad_ndim", arr)
 
@@ -98,7 +100,7 @@ class TestExportFieldRoundTrip:
         """Test that data set via import state is preserved in the DualView."""
         import_state = _cece_core.CeceImportState()
         original = np.asfortranarray(
-            np.arange(60, dtype=np.float64).reshape(3, 4, 5, order='F')
+            np.arange(60, dtype=np.float64).reshape(3, 4, 5, order="F")
         )
         import_state.set_field("data", original)
         assert "data" in import_state.get_field_names()
@@ -106,8 +108,8 @@ class TestExportFieldRoundTrip:
     def test_import_c_contiguous_data_preserved(self):
         """Test that C-contiguous data is correctly converted and stored."""
         import_state = _cece_core.CeceImportState()
-        original = np.arange(24, dtype=np.float64).reshape(2, 3, 4, order='C')
-        assert original.flags['C_CONTIGUOUS']
+        original = np.arange(24, dtype=np.float64).reshape(2, 3, 4, order="C")
+        assert original.flags["C_CONTIGUOUS"]
         import_state.set_field("c_data", original)
         assert "c_data" in import_state.get_field_names()
 
@@ -143,9 +145,7 @@ class TestCeceStateResolver:
         import_state = _cece_core.CeceImportState()
         export_state = _cece_core.CeceExportState()
 
-        resolver = _cece_core.CeceStateResolver(
-            import_state, export_state, {}
-        )
+        resolver = _cece_core.CeceStateResolver(import_state, export_state, {})
         assert resolver is not None
 
     def test_create_resolver_default_optional_mappings(self):

@@ -443,8 +443,7 @@ TEST_F(PropertiesTest, Property17_TestIdempotence) {
 
             EXPECT_EQ(emissions1.size(), emissions2.size());
             for (size_t j = 0; j < emissions1.size(); ++j) {
-                EXPECT_DOUBLE_EQ(emissions1[j], emissions2[j])
-                    << "Emission values should be identical with same seed";
+                EXPECT_DOUBLE_EQ(emissions1[j], emissions2[j]) << "Emission values should be identical with same seed";
             }
         }
     }
@@ -520,8 +519,7 @@ TEST_F(PropertiesTest, Property17_TestIdempotence) {
 
             EXPECT_EQ(mask1.size(), mask2.size());
             for (size_t j = 0; j < mask1.size(); ++j) {
-                EXPECT_DOUBLE_EQ(mask1[j], mask2[j])
-                    << "Mask values should be identical with same seed";
+                EXPECT_DOUBLE_EQ(mask1[j], mask2[j]) << "Mask values should be identical with same seed";
             }
         }
     }
@@ -536,17 +534,13 @@ TEST_F(PropertiesTest, Property17_TestIdempotence) {
         // First execution
         Kokkos::parallel_for(
             "IdempotenceTest1", Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
-            KOKKOS_LAMBDA(int i, int j, int k) {
-                result1(i, j, k) = (i + j + k) * 1.5 + std::sin(i * 0.1) * std::cos(j * 0.2);
-            });
+            KOKKOS_LAMBDA(int i, int j, int k) { result1(i, j, k) = (i + j + k) * 1.5 + std::sin(i * 0.1) * std::cos(j * 0.2); });
         Kokkos::fence();
 
         // Second execution with identical kernel
         Kokkos::parallel_for(
             "IdempotenceTest2", Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
-            KOKKOS_LAMBDA(int i, int j, int k) {
-                result2(i, j, k) = (i + j + k) * 1.5 + std::sin(i * 0.1) * std::cos(j * 0.2);
-            });
+            KOKKOS_LAMBDA(int i, int j, int k) { result2(i, j, k) = (i + j + k) * 1.5 + std::sin(i * 0.1) * std::cos(j * 0.2); });
         Kokkos::fence();
 
         // Copy to host and compare
@@ -585,8 +579,7 @@ TEST_F(PropertiesTest, Property17_TestIdempotence) {
         // Verify identical results
         EXPECT_EQ(values1.size(), values2.size());
         for (size_t i = 0; i < values1.size(); ++i) {
-            EXPECT_DOUBLE_EQ(values1[i], values2[i])
-                << "Floating-point computations should be identical";
+            EXPECT_DOUBLE_EQ(values1[i], values2[i]) << "Floating-point computations should be identical";
         }
     }
 

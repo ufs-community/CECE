@@ -39,21 +39,18 @@ class CeceDataIngestor {
      * @brief Stores field data in the cache.
      * Called from the C bridge once per time step per field.
      */
-    void SetField(const std::string& name, const double* data, int n_lev, int n_elem, int nx,
-                  int ny, int nz, int* rc);
+    void SetField(const std::string& name, const double* data, int n_lev, int n_elem, int nx, int ny, int nz, int* rc);
 
     /**
      * @brief Ingests emissions from the cache into the import state.
      */
-    void IngestEmissionsInline(const CeceDataConfig& config, CeceImportState& cece_state, int nx,
-                               int ny, int nz);
+    void IngestEmissionsInline(const CeceDataConfig& config, CeceImportState& cece_state, int nx, int ny, int nz);
 
     /**
      * @brief Resolves a field from the cache as an unmanaged device view.
      */
-    Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace,
-                 Kokkos::MemoryTraits<Kokkos::Unmanaged>>
-    ResolveField(const std::string& name, int nx, int ny, int nz);
+    Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> ResolveField(
+        const std::string& name, int nx, int ny, int nz);
 
     /**
      * @brief Generates a TIDE-compatible YAML configuration string from the
@@ -91,9 +88,7 @@ class CeceDataIngestor {
     void ClearCache();
 
    private:
-    std::unordered_map<std::string,
-                       Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>>
-        field_cache_;
+    std::unordered_map<std::string, Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>> field_cache_;
 };
 
 }  // namespace cece

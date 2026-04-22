@@ -121,7 +121,7 @@ driver:
 
 ## Implementation Details
 
-### Fortran Driver (standalone_nuopc/simple_driver.F90)
+### Fortran Driver (src/standalone_nuopc/simple_driver.F90)
 
 The driver implements mesh file input in the following steps:
 
