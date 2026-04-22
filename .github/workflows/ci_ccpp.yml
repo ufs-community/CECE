@@ -94,9 +94,4 @@ jobs:
               sys.exit(1)
 
           print(f"OK: Suite '{suite.name}' parsed successfully")
-          for group in suite.groups:
-              schemes = [s.name for s in group.schemes()]
-              print(f"  Group '{group.name}': {len(schemes)} scheme(s)")
-              for s in schemes:
-                  print(f"    - {s}")
           EOF
