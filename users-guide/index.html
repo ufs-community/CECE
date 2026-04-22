@@ -23,7 +23,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="zensical-0.0.33">
+      <meta name="generator" content="zensical-0.0.34">
     
     
       
@@ -1192,12 +1192,99 @@ masks:</li>
 <p>Files are CF-1.8 compliant and can be inspected with standard tools:
 <div class="language-bash highlight"><pre><span></span><code><span id="__span-25-1"><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>ncdump<span class="w"> </span>-h<span class="w"> </span>cece_20240101_000000.nc
 </span></code></pre></div></p>
+<h2 id="physics-schemes_1">Physics Schemes<a class="headerlink" href="#physics-schemes_1" title="Permanent link">&para;</a></h2>
+<p>CECE includes a suite of process-based physics schemes for computing emissions from natural and anthropogenic sources. Each scheme is available as both a native C++ (Kokkos) implementation and a Fortran bridge variant. Schemes are enabled and configured through the <code>physics_schemes</code> block in your YAML configuration.</p>
+<table>
+<thead>
+<tr>
+<th>Scheme</th>
+<th>Description</th>
+<th>Documentation</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>DMS</td>
+<td>Dimethyl sulfide sea-air exchange fluxes</td>
+<td><a href="../dms/">DMS</a></td>
+</tr>
+<tr>
+<td>Sea Salt</td>
+<td>Size-resolved sea salt aerosol emissions (Gong 2003)</td>
+<td><a href="../sea_salt/">Sea Salt</a></td>
+</tr>
+<tr>
+<td>Dust (Ginoux Legacy)</td>
+<td>Single-bin mineral dust emissions (Ginoux 2001)</td>
+<td><a href="../dust/">Dust</a></td>
+</tr>
+<tr>
+<td>Ginoux (GOCART2G)</td>
+<td>Multi-bin dust emissions with Marticorena threshold</td>
+<td><a href="../ginoux/">Ginoux</a></td>
+</tr>
+<tr>
+<td>FENGSHA</td>
+<td>Physically-based saltation dust model with Fécan correction</td>
+<td><a href="../fengsha/">FENGSHA</a></td>
+</tr>
+<tr>
+<td>K14</td>
+<td>Kok et al. (2014) dust scheme with full soil physics</td>
+<td><a href="../k14/">K14</a></td>
+</tr>
+<tr>
+<td>MEGAN</td>
+<td>Biogenic isoprene emissions (Model of Emissions of Gases and Aerosols from Nature)</td>
+<td><a href="../megan/">MEGAN</a></td>
+</tr>
+<tr>
+<td>Lightning NOx</td>
+<td>Lightning-produced NOx from convective cloud top height</td>
+<td><a href="../lightning_nox/">Lightning NOx</a></td>
+</tr>
+<tr>
+<td>Soil NOx</td>
+<td>Soil NOx from microbial nitrification/denitrification</td>
+<td><a href="../soil_nox/">Soil NOx</a></td>
+</tr>
+<tr>
+<td>Volcano</td>
+<td>Volcanic SO₂ point-source emissions with vertical distribution</td>
+<td><a href="../volcano/">Volcano</a></td>
+</tr>
+</tbody>
+</table>
+<p>For guidance on developing your own physics schemes, see the <a href="../physics_scheme_development/">Physics Scheme Development Guide</a>.</p>
+<h2 id="python-interface">Python Interface<a class="headerlink" href="#python-interface" title="Permanent link">&para;</a></h2>
+<p>CECE provides Python bindings through pybind11 that expose the full C++ core to Python with type-safe access, automatic memory management, and zero-copy NumPy interop.</p>
+<div class="language-python highlight"><pre><span></span><code><span id="__span-26-1"><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a><span class="kn">import</span><span class="w"> </span><span class="nn">cece</span>
+</span><span id="__span-26-2"><a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+</span><span id="__span-26-3"><a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a>
+</span><span id="__span-26-4"><a id="__codelineno-26-4" name="__codelineno-26-4" href="#__codelineno-26-4"></a><span class="n">config</span> <span class="o">=</span> <span class="n">cece</span><span class="o">.</span><span class="n">load_config</span><span class="p">(</span><span class="s2">&quot;cece_config.yaml&quot;</span><span class="p">)</span>
+</span><span id="__span-26-5"><a id="__codelineno-26-5" name="__codelineno-26-5" href="#__codelineno-26-5"></a><span class="n">cece</span><span class="o">.</span><span class="n">initialize</span><span class="p">(</span><span class="n">config</span><span class="p">)</span>
+</span><span id="__span-26-6"><a id="__codelineno-26-6" name="__codelineno-26-6" href="#__codelineno-26-6"></a>
+</span><span id="__span-26-7"><a id="__codelineno-26-7" name="__codelineno-26-7" href="#__codelineno-26-7"></a><span class="n">state</span> <span class="o">=</span> <span class="n">cece</span><span class="o">.</span><span class="n">CeceState</span><span class="p">(</span><span class="n">nx</span><span class="o">=</span><span class="mi">144</span><span class="p">,</span> <span class="n">ny</span><span class="o">=</span><span class="mi">96</span><span class="p">,</span> <span class="n">nz</span><span class="o">=</span><span class="mi">72</span><span class="p">)</span>
+</span><span id="__span-26-8"><a id="__codelineno-26-8" name="__codelineno-26-8" href="#__codelineno-26-8"></a><span class="n">state</span><span class="o">.</span><span class="n">add_import_field</span><span class="p">(</span><span class="s2">&quot;TEMPERATURE&quot;</span><span class="p">,</span> <span class="n">np</span><span class="o">.</span><span class="n">asfortranarray</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">144</span><span class="p">,</span> <span class="mi">96</span><span class="p">,</span> <span class="mi">72</span><span class="p">))))</span>
+</span><span id="__span-26-9"><a id="__codelineno-26-9" name="__codelineno-26-9" href="#__codelineno-26-9"></a>
+</span><span id="__span-26-10"><a id="__codelineno-26-10" name="__codelineno-26-10" href="#__codelineno-26-10"></a><span class="n">cece</span><span class="o">.</span><span class="n">compute</span><span class="p">(</span><span class="n">state</span><span class="p">,</span> <span class="n">hour</span><span class="o">=</span><span class="mi">12</span><span class="p">,</span> <span class="n">day_of_week</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span> <span class="n">month</span><span class="o">=</span><span class="mi">7</span><span class="p">)</span>
+</span><span id="__span-26-11"><a id="__codelineno-26-11" name="__codelineno-26-11" href="#__codelineno-26-11"></a><span class="n">co_emissions</span> <span class="o">=</span> <span class="n">state</span><span class="o">.</span><span class="n">get_export_field</span><span class="p">(</span><span class="s2">&quot;CO_EMIS&quot;</span><span class="p">)</span>
+</span><span id="__span-26-12"><a id="__codelineno-26-12" name="__codelineno-26-12" href="#__codelineno-26-12"></a>
+</span><span id="__span-26-13"><a id="__codelineno-26-13" name="__codelineno-26-13" href="#__codelineno-26-13"></a><span class="n">cece</span><span class="o">.</span><span class="n">finalize</span><span class="p">()</span>
+</span></code></pre></div>
+<p>To build with Python support, enable the <code>BUILD_PYTHON_BINDINGS</code> CMake option:</p>
+<div class="language-bash highlight"><pre><span></span><code><span id="__span-27-1"><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a>cmake<span class="w"> </span>..<span class="w"> </span>-DBUILD_PYTHON_BINDINGS<span class="o">=</span>ON
+</span><span id="__span-27-2"><a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a>make<span class="w"> </span>-j<span class="k">$(</span>nproc<span class="k">)</span>
+</span></code></pre></div>
+<p>For the full API reference, configuration management, state handling, NumPy zero-copy details, and migration notes, see the <a href="../python_bindings/">Python Bindings Documentation</a>.</p>
 <h2 id="next-steps">Next Steps<a class="headerlink" href="#next-steps" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Read the <a href="../developer_guide/">Developer Guide</a> for architecture details</li>
 <li>Check <a href="../physics_scheme_development/">Physics Scheme Development</a> for adding new schemes</li>
 <li>Review <a href="../hemco_migration/">HEMCO Migration Guide</a> for migrating from HEMCO</li>
 <li>See <a href="../examples/">Examples</a> for common use cases</li>
+<li>Explore the <a href="../python_bindings/">Python Bindings</a> for scripting and integration</li>
+<li>Browse individual <a href="#physics-schemes">physics scheme docs</a> for algorithm details and configuration</li>
 </ul>
 
 
@@ -1303,7 +1390,7 @@ masks:</li>
       <script id="__config" type="application/json">{"annotate":null,"base":"..","features":["content.code.annotate","content.code.copy","navigation.footer","navigation.path","navigation.sections","navigation.top","search.highlight"],"search":"../assets/javascripts/workers/search.e2d2d235.min.js","tags":null,"translations":{"clipboard.copied":"Copied to clipboard","clipboard.copy":"Copy to clipboard","search.result.more.one":"1 more on this page","search.result.more.other":"# more on this page","search.result.none":"No matching documents","search.result.one":"1 matching document","search.result.other":"# matching documents","search.result.placeholder":"Type to start searching","search.result.term.missing":"Missing","select.version":"Select version"},"version":null}</script>
     
     
-      <script src="../assets/javascripts/bundle.63456bd9.min.js"></script>
+      <script src="../assets/javascripts/bundle.9f55f5b1.min.js"></script>
       
     
   </body>
