@@ -44,15 +44,18 @@ jobs:
           rename 's/ufs_/cece_/' modulefiles/ufs_*
           find modulefiles/ -type f -exec sed -i 's/ufs_common/cece_common/g' {} +
 
-      - name: Set up Python and install pre-commit
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+          cache: pip
+
+      - name: Install Python dependencies
         run: |
-          python3 -m venv venv
-          source venv/bin/activate
-          pip install pre-commit
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pre-commit
 
       - name: Run pre-commit hooks on modulefiles
         run: |
-          source venv/bin/activate
           pre-commit run --files $(find modulefiles/ -type f) || true
 
       - name: Commit pre-commit fixes (if any)

@@ -23,6 +23,16 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cece-deps-
 
+      - name: Install Python Dependencies
+        shell: bash
+        run: |
+          if [ -f /opt/spack-environment/activate.sh ]; then
+            source /opt/spack-environment/activate.sh
+          fi
+          python3 -m pip install --upgrade pip
+          python3 -m pip install pyyaml pytest jinja2 numpy
+          python3 -m pip install clang-tidy  # custom CMake target created if detected
+
       - name: Build and Test CECE
         shell: bash
         run: |
@@ -44,15 +54,6 @@ jobs:
 
           # Build. Make will only build what has changed.
           make -j$(nproc)
-
-      - name: Install Python Dependencies
-        shell: bash
-        run: |
-          if [ -f /opt/spack-environment/activate.sh ]; then
-            source /opt/spack-environment/activate.sh
-          fi
-          python3 -m pip install --upgrade pip
-          python3 -m pip install pyyaml pytest jinja2 numpy
 
       - name: Run All Tests
         shell: bash
