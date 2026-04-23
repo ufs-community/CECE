@@ -39,13 +39,9 @@ endmacro()
 function(is_shared_library RETURN_VAR LIB)
   get_filename_component(libext ${LIB} EXT)
   if(libext MATCHES ${CMAKE_SHARED_LIBRARY_SUFFIX})
-    set(${RETURN_VAR}
-        TRUE
-        PARENT_SCOPE)
+    set(${RETURN_VAR} TRUE PARENT_SCOPE)
   else()
-    set(${RETURN_VAR}
-        FALSE
-        PARENT_SCOPE)
+    set(${RETURN_VAR} FALSE PARENT_SCOPE)
   endif()
 endfunction()
 
@@ -60,13 +56,11 @@ endfunction()
 # ${PKG}_${COMPONENT}_LIBRARY_NAMES  (LIST)
 #
 function(define_package_component PKG)
-
   # Parse the input arguments
   set(options DEFAULT)
   set(oneValueArgs COMPONENT)
   set(multiValueArgs INCLUDE_NAMES LIBRARY_NAMES)
-  cmake_parse_arguments(${PKG} "${options}" "${oneValueArgs}"
-                        "${multiValueArgs}" ${ARGN})
+  cmake_parse_arguments(${PKG} "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
   if(${PKG}_COMPONENT)
     set(PKGCOMP ${PKG}_${${PKG}_COMPONENT})
   else()
@@ -76,23 +70,14 @@ function(define_package_component PKG)
   # Set return values
   if(${PKG}_COMPONENT)
     if(${PKG}_DEFAULT)
-      set(${PKG}_DEFAULT_COMPONENT
-          ${${PKG}_COMPONENT}
-          PARENT_SCOPE)
+      set(${PKG}_DEFAULT_COMPONENT ${${PKG}_COMPONENT} PARENT_SCOPE)
     endif()
     set(VALID_COMPONENTS ${${PKG}_VALID_COMPONENTS})
     list(APPEND VALID_COMPONENTS ${${PKG}_COMPONENT})
-    set(${PKG}_VALID_COMPONENTS
-        ${VALID_COMPONENTS}
-        PARENT_SCOPE)
+    set(${PKG}_VALID_COMPONENTS ${VALID_COMPONENTS} PARENT_SCOPE)
   endif()
-  set(${PKGCOMP}_INCLUDE_NAMES
-      ${${PKG}_INCLUDE_NAMES}
-      PARENT_SCOPE)
-  set(${PKGCOMP}_LIBRARY_NAMES
-      ${${PKG}_LIBRARY_NAMES}
-      PARENT_SCOPE)
-
+  set(${PKGCOMP}_INCLUDE_NAMES ${${PKG}_INCLUDE_NAMES} PARENT_SCOPE)
+  set(${PKGCOMP}_LIBRARY_NAMES ${${PKG}_LIBRARY_NAMES} PARENT_SCOPE)
 endfunction()
 
 # ______________________________________________________________________________
@@ -104,7 +89,6 @@ endfunction()
 # Returns: ${PKG}_FIND_VALID_COMPONENTS  (LIST)
 #
 function(find_valid_components PKG)
-
   if(NOT ${PKG}_FIND_COMPONENTS)
     set(${PKG}_FIND_COMPONENTS ${${PKG}_DEFAULT_COMPONENT})
   endif()
@@ -116,10 +100,7 @@ function(find_valid_components PKG)
     endif()
   endforeach()
 
-  set(${PKG}_FIND_VALID_COMPONENTS
-      ${FIND_VALID_COMPONENTS}
-      PARENT_SCOPE)
-
+  set(${PKG}_FIND_VALID_COMPONENTS ${FIND_VALID_COMPONENTS} PARENT_SCOPE)
 endfunction()
 
 # ______________________________________________________________________________
@@ -130,7 +111,6 @@ endfunction()
 # Ouput: ${PATHLIST}
 #
 function(initialize_paths PATHLIST)
-
   # Parse the input arguments
   set(multiValueArgs INCLUDE_DIRECTORIES LIBRARIES)
   cmake_parse_arguments(INIT "" "" "${multiValueArgs}" ${ARGN})
@@ -154,10 +134,7 @@ function(initialize_paths PATHLIST)
     endif()
   endforeach()
 
-  set(${PATHLIST}
-      ${paths}
-      PARENT_SCOPE)
-
+  set(${PATHLIST} ${paths} PARENT_SCOPE)
 endfunction()
 
 # ______________________________________________________________________________
@@ -169,13 +146,11 @@ endfunction()
 # Input: ${PKG}_COMPONENT ${PKG}_HINTS ${PKG}_PATHS
 #
 function(find_package_component PKG)
-
   # Parse the input arguments
   set(options)
   set(oneValueArgs COMPONENT)
   set(multiValueArgs HINTS PATHS)
-  cmake_parse_arguments(${PKG} "${options}" "${oneValueArgs}"
-                        "${multiValueArgs}" ${ARGN})
+  cmake_parse_arguments(${PKG} "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
   set(COMP ${${PKG}_COMPONENT})
   if(COMP)
     set(PKGCOMP ${PKG}_${COMP})
@@ -187,7 +162,6 @@ function(find_package_component PKG)
 
   # Only continue if package not found already
   if(NOT ${PKGCOMP}_FOUND)
-
     # Handle QUIET and REQUIRED arguments
     if(${${PKG}_FIND_QUIETLY})
       set(${PKGCOMP}_FIND_QUIETLY TRUE)
@@ -229,7 +203,6 @@ function(find_package_component PKG)
     endforeach()
 
     foreach(dir IN LISTS SEARCH_DIRS)
-
       # Search for include file names in current dirrectory
       foreach(iname IN LISTS ${PKGCOMP}_INCLUDE_NAMES)
         if(EXISTS ${dir}/${iname})
@@ -251,7 +224,8 @@ function(find_package_component PKG)
           NAMES ${${PKGCOMP}_LIBRARY_NAMES}
           PATHS ${${PKGCOMP}_PREFIX}
           PATH_SUFFIXES lib
-          NO_DEFAULT_PATH)
+          NO_DEFAULT_PATH
+        )
 
         # If found, check if library is static or dynamic
         if(${PKGCOMP}_LIBRARY)
@@ -267,7 +241,8 @@ function(find_package_component PKG)
               ${${PKGCOMP}_PREFIX}
               PATH_SUFFIXES
               lib
-              NO_DEFAULT_PATH)
+              NO_DEFAULT_PATH
+            )
             if(${PKGCOMP}_SHARED_LIBRARY)
               set(${PKGCOMP}_LIBRARY ${${PKGCOMP}_SHARED_LIBRARY})
               set(${PKGCOMP}_IS_SHARED TRUE)
@@ -283,7 +258,8 @@ function(find_package_component PKG)
               ${${PKGCOMP}_PREFIX}
               PATH_SUFFIXES
               lib
-              NO_DEFAULT_PATH)
+              NO_DEFAULT_PATH
+            )
             if(${PKGCOMP}_STATIC_LIBRARY)
               set(${PKGCOMP}_LIBRARY ${${PKGCOMP}_STATIC_LIBRARY})
               set(${PKGCOMP}_IS_SHARED FALSE)
@@ -302,13 +278,16 @@ function(find_package_component PKG)
           set(${PKGCOMP}_LIBRARY ${PKGCOMP}_LIBRARY-NOTFOUND)
         endif()
       endif()
-
     endforeach()
 
     # handle the QUIETLY and REQUIRED arguments and set NetCDF_C_FOUND to TRUE
     # if all listed variables are TRUE
-    find_package_handle_standard_args(${PKGCOMP} DEFAULT_MSG ${PKGCOMP}_LIBRARY
-                                      ${PKGCOMP}_INCLUDE_DIR)
+    find_package_handle_standard_args(
+      ${PKGCOMP}
+      DEFAULT_MSG
+      ${PKGCOMP}_LIBRARY
+      ${PKGCOMP}_INCLUDE_DIR
+    )
     mark_as_advanced(${PKGCOMP}_INCLUDE_DIR ${PKGCOMP}_LIBRARY)
 
     # HACK For bug in CMake v3.0:
@@ -321,25 +300,11 @@ function(find_package_component PKG)
     endif()
 
     # Set variables in parent scope
-    set(${PKGCOMP}_FOUND
-        ${${PKGCOMP}_FOUND}
-        PARENT_SCOPE)
-    set(${PKGCOMP}_INCLUDE_DIR
-        ${${PKGCOMP}_INCLUDE_DIR}
-        PARENT_SCOPE)
-    set(${PKGCOMP}_INCLUDE_DIRS
-        ${${PKGCOMP}_INCLUDE_DIRS}
-        PARENT_SCOPE)
-    set(${PKGCOMP}_LIBRARY
-        ${${PKGCOMP}_LIBRARY}
-        PARENT_SCOPE)
-    set(${PKGCOMP}_LIBRARIES
-        ${${PKGCOMP}_LIBRARIES}
-        PARENT_SCOPE)
-    set(${PKGCOMP}_IS_SHARED
-        ${${PKGCOMP}_IS_SHARED}
-        PARENT_SCOPE)
-
+    set(${PKGCOMP}_FOUND ${${PKGCOMP}_FOUND} PARENT_SCOPE)
+    set(${PKGCOMP}_INCLUDE_DIR ${${PKGCOMP}_INCLUDE_DIR} PARENT_SCOPE)
+    set(${PKGCOMP}_INCLUDE_DIRS ${${PKGCOMP}_INCLUDE_DIRS} PARENT_SCOPE)
+    set(${PKGCOMP}_LIBRARY ${${PKGCOMP}_LIBRARY} PARENT_SCOPE)
+    set(${PKGCOMP}_LIBRARIES ${${PKGCOMP}_LIBRARIES} PARENT_SCOPE)
+    set(${PKGCOMP}_IS_SHARED ${${PKGCOMP}_IS_SHARED} PARENT_SCOPE)
   endif()
-
 endfunction()

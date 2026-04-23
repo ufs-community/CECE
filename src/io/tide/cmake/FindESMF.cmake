@@ -5,8 +5,7 @@ elseif(DEFINED ESMFMKFILE)
   message("ESMFMKFILE from CACHE: ${ESMFMKFILE}")
 else()
   # Try to find it in common locations
-  find_file(ESMFMKFILE esmf.mk PATHS /opt/views/view/lib /usr/lib
-                                     /usr/local/lib)
+  find_file(ESMFMKFILE esmf.mk PATHS /opt/views/view/lib /usr/lib /usr/local/lib)
   if(NOT ESMFMKFILE)
     message(FATAL_ERROR "ESMFMKFILE not defined and esmf.mk not found")
   endif()
@@ -28,10 +27,7 @@ string(REPLACE "-I" "" ESMF_F90COMPILEPATHS ${ESMF_F90COMPILEPATHS})
 string(REPLACE " " ";" ESMF_F90COMPILEPATHS ${ESMF_F90COMPILEPATHS})
 
 # We use only these 4 variables in our build system. Make sure they are all set
-if(ESMF_VERSION_MAJOR
-   AND ESMF_F90COMPILEPATHS
-   AND ESMF_F90ESMFLINKRPATHS
-   AND ESMF_F90ESMFLINKLIBS)
+if(ESMF_VERSION_MAJOR AND ESMF_F90COMPILEPATHS AND ESMF_F90ESMFLINKRPATHS AND ESMF_F90ESMFLINKLIBS)
   message(" Found ESMF:")
   message("ESMF_VERSION_MAJOR:     ${ESMF_VERSION_MAJOR}")
   message("ESMF_F90COMPILEPATHS:   ${ESMF_F90COMPILEPATHS}")
@@ -46,4 +42,5 @@ find_package_handle_standard_args(
   ESMF
   FOUND_VAR ESMF_FOUND
   REQUIRED_VARS ESMF_F90COMPILEPATHS ESMF_F90ESMFLINKRPATHS ESMF_F90ESMFLINKLIBS
-  VERSION_VAR ESMF_VERSION_STRING)
+  VERSION_VAR ESMF_VERSION_STRING
+)
