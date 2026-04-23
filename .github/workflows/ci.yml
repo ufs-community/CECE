@@ -41,10 +41,8 @@ jobs:
         run: |
           source /opt/spack-environment/activate.sh
 
-          if command -v spack &> /dev/null; then
-            spack install cdeps || true
-            spack load cdeps || true
-          fi
+          spack install cdeps
+          spack load cdeps
 
           # Ensure build directory exists
           mkdir -p build
