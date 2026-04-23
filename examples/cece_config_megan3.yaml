@@ -27,7 +27,7 @@ physics_schemes:
   # --- BDSNP Soil NO Module (runs first) ---
   - name: bdsnp
     options:
-      soil_no_method: bdsnp          # "bdsnp" (default) or "yl95"
+      soil_no_method: bdsnp # "bdsnp" (default) or "yl95"
       fert_emission_factor: 1.0
       wet_dep_scaling: 1.0
       dry_dep_scaling: 1.0
@@ -49,7 +49,7 @@ physics_schemes:
       speciation_file: data/speciation/map_cb6.yaml
       speciation_dataset: MEGAN
       co2_concentration: 415.0
-      co2_method: possell             # "possell" or "wilkinson"
+      co2_method: possell # "possell" or "wilkinson"
       enable_wind_stress: false
       enable_temp_stress: false
       enable_aq_stress: false

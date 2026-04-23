@@ -2,12 +2,12 @@
 driver:
   start_time: "2020-07-15T00:00:00"
   end_time: "2020-07-15T12:00:00"
-  timestep_seconds: 300                      # 5-minute base timestep
-  stacking_refresh_interval_seconds: 3600    # Stacking engine runs hourly
+  timestep_seconds: 300 # 5-minute base timestep
+  stacking_refresh_interval_seconds: 3600 # Stacking engine runs hourly
 
 grid:
-  nx: 144          # 2.5° global resolution
-  ny: 91           # 2.0° global resolution
+  nx: 144 # 2.5° global resolution
+  ny: 91 # 2.0° global resolution
   lon_min: -180.0
   lon_max: 177.5
   lat_min: -90.0
@@ -36,18 +36,68 @@ masks:
 # Temporal scaling profiles
 temporal_profiles:
   # Traffic emissions peak during rush hours
-  traffic_diurnal: [0.3, 0.2, 0.2, 0.3, 0.5, 1.0, 1.8, 1.5, 1.2, 1.0, 1.1, 1.2,
-                    1.3, 1.2, 1.3, 1.5, 1.8, 2.2, 1.8, 1.4, 1.0, 0.8, 0.6, 0.4]
+  traffic_diurnal:
+    [
+      0.3,
+      0.2,
+      0.2,
+      0.3,
+      0.5,
+      1.0,
+      1.8,
+      1.5,
+      1.2,
+      1.0,
+      1.1,
+      1.2,
+      1.3,
+      1.2,
+      1.3,
+      1.5,
+      1.8,
+      2.2,
+      1.8,
+      1.4,
+      1.0,
+      0.8,
+      0.6,
+      0.4,
+    ]
 
   # Industrial emissions more constant but lower on weekends
-  industrial_weekly: [0.7, 1.0, 1.0, 1.0, 1.0, 1.0, 0.8]  # Sun-Sat
+  industrial_weekly: [0.7, 1.0, 1.0, 1.0, 1.0, 1.0, 0.8] # Sun-Sat
 
   # Biogenic emissions peak in growing season
   growing_season: [0.3, 0.4, 0.7, 1.2, 1.8, 2.0, 1.9, 1.7, 1.3, 0.9, 0.5, 0.3]
 
   # Power generation diurnal cycle
-  power_diurnal: [0.7, 0.6, 0.6, 0.6, 0.7, 0.9, 1.2, 1.4, 1.3, 1.2, 1.2, 1.3,
-                  1.4, 1.3, 1.3, 1.4, 1.6, 1.8, 1.9, 1.7, 1.4, 1.2, 1.0, 0.8]
+  power_diurnal:
+    [
+      0.7,
+      0.6,
+      0.6,
+      0.6,
+      0.7,
+      0.9,
+      1.2,
+      1.4,
+      1.3,
+      1.2,
+      1.2,
+      1.3,
+      1.4,
+      1.3,
+      1.3,
+      1.4,
+      1.6,
+      1.8,
+      1.9,
+      1.7,
+      1.4,
+      1.2,
+      1.0,
+      0.8,
+    ]
 
 species:
   # Carbon monoxide with hierarchical sources
@@ -64,10 +114,10 @@ species:
 
     # Regional European override with higher resolution
     - field: "europe_co_inventory"
-      operation: "replace"        # Replaces global data over Europe
-      scale: 1.15                # 15% adjustment factor
+      operation: "replace" # Replaces global data over Europe
+      scale: 1.15 # 15% adjustment factor
       category: "anthropogenic"
-      hierarchy: 10              # Higher priority
+      hierarchy: 10 # Higher priority
       mask: "europe_mask"
       diurnal_cycle: "traffic_diurnal"
 
@@ -85,9 +135,9 @@ species:
       operation: "add"
       category: "transportation"
       hierarchy: 1
-      scale_fields: ["temperature"]   # Temperature-dependent emissions
+      scale_fields: ["temperature"] # Temperature-dependent emissions
       mask: "land_mask"
-      vdist_method: "PBL"            # Distribute in boundary layer
+      vdist_method: "PBL" # Distribute in boundary layer
       diurnal_cycle: "traffic_diurnal"
 
     # Aircraft emissions at cruise altitude
@@ -96,7 +146,7 @@ species:
       category: "transportation"
       hierarchy: 2
       vdist_method: "HEIGHT"
-      vdist_h_start: 9000.0          # 9-12 km altitude
+      vdist_h_start: 9000.0 # 9-12 km altitude
       vdist_h_end: 12000.0
 
     # Power plant stacks
@@ -105,7 +155,7 @@ species:
       category: "energy"
       hierarchy: 1
       vdist_method: "HEIGHT"
-      vdist_h_start: 100.0           # Elevated stack height
+      vdist_h_start: 100.0 # Elevated stack height
       vdist_h_end: 500.0
       diurnal_cycle: "power_diurnal"
       weekly_cycle: "industrial_weekly"
@@ -116,7 +166,7 @@ species:
       category: "natural"
       hierarchy: 1
       vdist_method: "PRESSURE"
-      vdist_p_start: 10000.0         # 100-400 hPa
+      vdist_p_start: 10000.0 # 100-400 hPa
       vdist_p_end: 40000.0
 
   # Isoprene with environmental dependencies
@@ -126,7 +176,7 @@ species:
       category: "biogenic"
       hierarchy: 1
       scale: 1.0
-      scale_fields: ["temperature", "par_direct", "lai"]  # Environmental scaling
+      scale_fields: ["temperature", "par_direct", "lai"] # Environmental scaling
       mask: "vegetation_mask"
       seasonal_cycle: "growing_season"
       vdist_method: "PBL"
@@ -135,7 +185,7 @@ species:
 physics_schemes:
   - name: "megan"
     language: "cpp"
-    refresh_interval_seconds: 300    # Biogenics need high-frequency updates (every 5 min)
+    refresh_interval_seconds: 300 # Biogenics need high-frequency updates (every 5 min)
     options:
       temperature_standard: 303.15
       par_conversion_factor: 4.6
@@ -144,7 +194,7 @@ physics_schemes:
 
   - name: "sea_salt"
     language: "cpp"
-    refresh_interval_seconds: 1800   # Sea salt updates every 30 min
+    refresh_interval_seconds: 1800 # Sea salt updates every 30 min
     options:
       r_sala_min: 0.01
       r_sala_max: 0.5
@@ -154,7 +204,7 @@ physics_schemes:
 
   - name: "dust"
     language: "cpp"
-    refresh_interval_seconds: 1800   # Dust updates every 30 min
+    refresh_interval_seconds: 1800 # Dust updates every 30 min
     options:
       particle_density: 2.5
       tuning_factor: 1.0e-9
@@ -165,7 +215,7 @@ cece_data:
   streams:
     - name: "GLOBAL_ANTHROPOGENIC"
       file: "/data/inventories/CEDS_global_2020.nc"
-      refresh_interval_seconds: 3600   # Anthropogenic data changes slowly — ingest hourly
+      refresh_interval_seconds: 3600 # Anthropogenic data changes slowly — ingest hourly
       yearFirst: 2020
       yearLast: 2020
       yearAlign: 2020
