@@ -41,8 +41,7 @@ jobs:
         run: |
           source /opt/spack-environment/activate.sh
 
-          spack install cdeps
-          spack load cdeps
+          # spack install cdeps && spack load cdeps
 
           # Ensure build directory exists
           mkdir -p build
