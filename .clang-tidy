@@ -26,4 +26,4 @@ CheckOptions:
     value: true
 
 FormatStyle: file
-HeaderFilterRegex: '(include/cece|src)/.*\.(hpp|cpp|h)$'
+HeaderFilterRegex: '^(?!.*/_deps/).*(include/cece|src)/.*\.(hpp|cpp|h)$'
