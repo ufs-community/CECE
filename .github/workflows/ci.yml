@@ -55,6 +55,15 @@ jobs:
           # Build. Make will only build what has changed.
           make -j$(nproc)
 
+      - name: Run static analysis (clang-tidy)
+        shell: bash
+        run: |
+          if [ -f /opt/spack-environment/activate.sh ]; then
+            source /opt/spack-environment/activate.sh
+          fi
+          cd build
+          make clang-tidy
+
       - name: Run All Tests
         shell: bash
         run: |
