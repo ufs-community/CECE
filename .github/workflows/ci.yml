@@ -6,6 +6,9 @@ jobs:
     runs-on: ubuntu-latest
     name: Full CI (CECE)
     container: jcsda/docker-gnu-openmpi-dev:1.9
+    defaults:
+      run:
+        shell: bash
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -24,21 +27,15 @@ jobs:
             ${{ runner.os }}-cece-deps-
 
       - name: Install Python Dependencies
-        shell: bash
         run: |
-          if [ -f /opt/spack-environment/activate.sh ]; then
-            source /opt/spack-environment/activate.sh
-          fi
+          source /opt/spack-environment/activate.sh
           python3 -m pip install --upgrade pip
           python3 -m pip install pyyaml pytest jinja2 numpy
           python3 -m pip install clang-tidy  # custom CMake target created if detected
 
       - name: Build and Test CECE
-        shell: bash
         run: |
-          if [ -f /opt/spack-environment/activate.sh ]; then
-            source /opt/spack-environment/activate.sh
-          fi
+          source /opt/spack-environment/activate.sh
 
           if command -v spack &> /dev/null; then
             spack install cdeps || true
@@ -56,29 +53,20 @@ jobs:
           make -j$(nproc)
 
       - name: Run static analysis (clang-tidy)
-        shell: bash
         run: |
-          if [ -f /opt/spack-environment/activate.sh ]; then
-            source /opt/spack-environment/activate.sh
-          fi
+          source /opt/spack-environment/activate.sh
           cd build
           make clang-tidy
 
       - name: Run All Tests
-        shell: bash
         run: |
-          if [ -f /opt/spack-environment/activate.sh ]; then
-            source /opt/spack-environment/activate.sh
-          fi
+          source /opt/spack-environment/activate.sh
           cd build
           ctest --output-on-failure
 
       - name: Generate Test Coverage Report
-        shell: bash
         run: |
-          if [ -f /opt/spack-environment/activate.sh ]; then
-            source /opt/spack-environment/activate.sh
-          fi
+          source /opt/spack-environment/activate.sh
           cd build
           # Generate coverage report if gcov is available
           if command -v gcov &> /dev/null; then
@@ -88,12 +76,8 @@ jobs:
           fi
 
       - name: Run HEMCO Parity Examples
-        shell: bash
         run: |
-          if [ -f /opt/spack-environment/activate.sh ]; then
-            source /opt/spack-environment/activate.sh
-          fi
-
+          source /opt/spack-environment/activate.sh
           ./scripts/setup_hemco_examples.sh
           ./scripts/data_download/download_ex1.sh
 
