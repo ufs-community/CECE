@@ -12,6 +12,7 @@ jobs:
       uses: actions/checkout@v6
       with:
         submodules: recursive
+
     - name: Cache dependencies and build
       uses: actions/cache@v5
       with:
@@ -44,9 +45,6 @@ jobs:
 
         # Build. Make will only build what has changed.
         make -j$(nproc)
-
-
-
 
     - name: Install Python Dependencies
       shell: bash
