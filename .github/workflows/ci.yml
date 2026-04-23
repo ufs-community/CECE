@@ -30,17 +30,18 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-cece-deps-
 
-      - name: Install Python Dependencies
+      - name: Install Python dependencies
         run: |
           source /opt/spack-environment/activate.sh
           python3 -m pip install --upgrade pip
           python3 -m pip install pyyaml pytest jinja2 numpy
           python3 -m pip install clang-tidy  # custom CMake target created if detected
 
-      - name: Build and Test CECE
+      - name: Configure and build CECE
         run: |
           source /opt/spack-environment/activate.sh
 
+          # The image doesn't have spack itself
           # spack install cdeps && spack load cdeps
 
           # Ensure build directory exists
@@ -53,6 +54,8 @@ jobs:
           # Build. Make will only build what has changed.
           make -j$(nproc)
 
+      # This needs to run after build, because it uses build/compile_commands.json
+      # and any generated headers
       - name: Run static analysis (clang-tidy)
         run: |
           source /opt/spack-environment/activate.sh
@@ -65,7 +68,7 @@ jobs:
           cd build
           ctest --output-on-failure
 
-      - name: Generate Test Coverage Report
+      - name: Generate test coverage report
         run: |
           source /opt/spack-environment/activate.sh
           cd build
@@ -76,7 +79,7 @@ jobs:
             echo "Coverage report generated"
           fi
 
-      - name: Run HEMCO Parity Examples
+      - name: Run HEMCO parity examples
         run: |
           source /opt/spack-environment/activate.sh
           ./scripts/setup_hemco_examples.sh
