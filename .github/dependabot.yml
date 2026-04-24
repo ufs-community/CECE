@@ -4,4 +4,3 @@ updates:
     directory: "/" # .github/workflows
     schedule:
       interval: "monthly"
-    target-branch: "develop"
