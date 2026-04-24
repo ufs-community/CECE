@@ -5,6 +5,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # Optional Fortran support
 include(CheckLanguage)
@@ -543,10 +544,47 @@ if(CLANG_TIDY_EXECUTABLE)
   file(GLOB_RECURSE CECE_TIDY_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
        "${CMAKE_CURRENT_SOURCE_DIR}/src/**/*.cpp")
 
+  set(_tidy_extra_args "")
+
+  # Python sources require Python.h; exclude them unless bindings are built,
+  # and if they are built pass the Python include dir so clang-tidy can find Python.h.
+  if(NOT BUILD_PYTHON_BINDINGS)
+    list(FILTER CECE_TIDY_FILES EXCLUDE REGEX ".*/src/python/.*")
+  else()
+    find_package(Python3 COMPONENTS Development QUIET)
+    foreach(_py_inc ${Python3_INCLUDE_DIRS})
+      list(APPEND _tidy_extra_args "--extra-arg=-I${_py_inc}")
+    endforeach()
+  endif()
+
+  # clang-tidy uses clang's frontend, which can't find the host compiler's omp.h
+  # automatically. Try GCC's -print-file-name first, fall back to a path search.
+  execute_process(
+    COMMAND ${CMAKE_CXX_COMPILER} -print-file-name=include
+    OUTPUT_VARIABLE _gcc_include_dir
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    ERROR_QUIET # suppress noise from non-GCC compilers that don't support this flag
+    RESULT_VARIABLE _gcc_print_result
+  )
+  if(_gcc_print_result EQUAL 0 AND EXISTS "${_gcc_include_dir}/omp.h")
+    list(APPEND _tidy_extra_args "--extra-arg=-I${_gcc_include_dir}")
+  else()
+    # Fallback for Intel, Clang, or other compilers: search standard locations
+    find_path(_omp_h_dir NAMES omp.h)
+    if(_omp_h_dir)
+      list(APPEND _tidy_extra_args "--extra-arg=-I${_omp_h_dir}")
+    endif()
+  endif()
+
   add_custom_target(
-    clang-tidy
-    COMMAND ${CLANG_TIDY_EXECUTABLE} -p ${CMAKE_BINARY_DIR} ${CECE_TIDY_FILES}
-    COMMENT "Running clang-tidy on CECE source files")
+    COMMAND
+      ${CLANG_TIDY_EXECUTABLE} -p ${CMAKE_BINARY_DIR}
+      "--header-filter=^${CMAKE_CURRENT_SOURCE_DIR}/(include|src)/.*\\.(hpp|cpp|h)$$"
+      ${_tidy_extra_args} ${CECE_TIDY_FILES}
+    COMMENT "Running clang-tidy on CECE source files"
+    VERBATIM
+  )
+
 else()
   message(STATUS "clang-tidy not found. Code analysis targets disabled.")
 endif()
