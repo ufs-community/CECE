@@ -28,12 +28,15 @@ else()
   find_path(
     CDEPS_INCLUDE_DIR
     NAMES cdeps_inline.h
-    PATHS /opt/software/cdeps/include /usr/local/include
-  )
-  find_library(CDEPS_LIBRARY NAMES cdeps PATHS /opt/software/cdeps/lib /usr/local/lib)
+    PATHS /opt/software/cdeps/include /usr/local/include)
+  find_library(
+    CDEPS_LIBRARY
+    NAMES cdeps
+    PATHS /opt/software/cdeps/lib /usr/local/lib)
 
   include(FindPackageHandleStandardArgs)
-  find_package_handle_standard_args(CDEPS DEFAULT_MSG CDEPS_LIBRARY CDEPS_INCLUDE_DIR)
+  find_package_handle_standard_args(CDEPS DEFAULT_MSG CDEPS_LIBRARY
+                                    CDEPS_INCLUDE_DIR)
 
   if(CDEPS_FOUND)
     set(CDEPS_INCLUDE_DIRS ${CDEPS_INCLUDE_DIR})

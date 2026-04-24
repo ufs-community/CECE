@@ -11,9 +11,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 add_library(iso8601_utils STATIC iso8601_utils.F90)
 
 target_include_directories(
-  iso8601_utils
-  PUBLIC ${ESMF_INCLUDE_DIRS} ${CMAKE_Fortran_MODULE_DIRECTORY}
-)
+  iso8601_utils PUBLIC ${ESMF_INCLUDE_DIRS} ${CMAKE_Fortran_MODULE_DIRECTORY})
 
 target_link_libraries(iso8601_utils PUBLIC ESMF::ESMF ${ESMF_LIBRARIES})
 
@@ -32,7 +30,8 @@ add_executable(cece_nuopc_app mainApp.F90 driver.F90)
 
 target_include_directories(cece_nuopc_app PRIVATE ${ESMF_INCLUDE_DIRS})
 
-target_link_libraries(cece_nuopc_app PRIVATE cece ESMF::ESMF yaml-cpp ${ESMF_LIBRARIES})
+target_link_libraries(cece_nuopc_app PRIVATE cece ESMF::ESMF yaml-cpp
+                                             ${ESMF_LIBRARIES})
 
 if(TARGET MPI::MPI_Fortran)
   target_link_libraries(cece_nuopc_app PRIVATE MPI::MPI_Fortran)

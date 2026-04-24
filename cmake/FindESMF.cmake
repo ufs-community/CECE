@@ -64,8 +64,7 @@ if(NOT ESMF_FOUND)
       COMMAND make --no-print-directory -f "${MK_FILE}" print_inc
       COMMAND grep "__ESMF_INC__"
       OUTPUT_VARIABLE ESMF_INC_RAW
-      OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
+      OUTPUT_STRIP_TRAILING_WHITESPACE)
     if(ESMF_INC_RAW MATCHES "__ESMF_INC__([^\n\r]*)")
       set(ESMF_INC_RAW "${CMAKE_MATCH_1}")
     endif()
@@ -76,8 +75,7 @@ if(NOT ESMF_FOUND)
       COMMAND make --no-print-directory -f "${MK_FILE}" print_lib
       COMMAND grep "__ESMF_LIB__"
       OUTPUT_VARIABLE ESMF_LIB_RAW
-      OUTPUT_STRIP_TRAILING_WHITESPACE
-    )
+      OUTPUT_STRIP_TRAILING_WHITESPACE)
     if(ESMF_LIB_RAW MATCHES "__ESMF_LIB__([^\n\r]*)")
       set(ESMF_LIB_RAW "${CMAKE_MATCH_1}")
     endif()
@@ -150,19 +148,20 @@ if(NOT ESMF_FOUND)
             EXTRA_ESMF_MOD_DIR
             NAMES esmf.mod
             PATHS "${base_dir}/include" "${base_dir}/mod" "${base_dir}/lib"
-            NO_DEFAULT_PATH
-          )
+            NO_DEFAULT_PATH)
           if(EXTRA_ESMF_MOD_DIR)
             list(APPEND ESMF_INCLUDE_DIRS "${EXTRA_ESMF_MOD_DIR}")
           endif()
         endif()
       endforeach()
     endif()
+
   endif()
 endif()
 
 include(FindPackageHandleStandardArgs)
-find_package_handle_standard_args(ESMF DEFAULT_MSG ESMF_LIBRARIES ESMF_INCLUDE_DIRS)
+find_package_handle_standard_args(ESMF DEFAULT_MSG ESMF_LIBRARIES
+                                  ESMF_INCLUDE_DIRS)
 
 if(ESMF_FOUND)
   if(NOT TARGET ESMF::ESMF)

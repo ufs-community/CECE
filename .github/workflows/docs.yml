@@ -1,37 +1,39 @@
 name: Deploy Documentation
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
+
+    # --- ADDED THIS BLOCK ---
     permissions:
       contents: write
+    # ------------------------
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v3
 
       - name: Set up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v4
         with:
-          python-version: "3.13"
-          cache: pip
+          python-version: '3.10'
 
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y doxygen
-          python3 -m pip install --upgrade pip
-          python3 -m pip install zensical mkdoxy mkdocs-material
+          pip install zensical mkdoxy mkdocs-material
 
       - name: Build documentation
         run: zensical build
 
       - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
+        uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./site

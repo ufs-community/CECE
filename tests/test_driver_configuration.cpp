@@ -462,9 +462,7 @@ grid_ny: -1
 TEST_F(ISO8601ParsingTest, Property1_ISO8601RoundTrip) {
     // Test a range of valid dates
     std::vector<std::string> valid_dates = {
-        "2000-01-01T00:00:00",
-        "2020-06-15T14:30:45",
-        "2099-12-31T23:59:59",
+        "2000-01-01T00:00:00", "2020-06-15T14:30:45", "2099-12-31T23:59:59",
         "2020-02-29T12:00:00",  // Leap year
     };
 
