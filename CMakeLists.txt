@@ -528,7 +528,6 @@ if(CLANG_FORMAT_EXECUTABLE)
     "${CMAKE_CURRENT_SOURCE_DIR}/include/cece/*.hpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/include/cece/*.h"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/**/*.cpp"
   )
 
   add_custom_target(
@@ -548,11 +547,7 @@ endif()
 
 find_program(CLANG_TIDY_EXECUTABLE clang-tidy)
 if(CLANG_TIDY_EXECUTABLE)
-  file(
-    GLOB_RECURSE CECE_TIDY_FILES
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/src/**/*.cpp"
-  )
+  file(GLOB_RECURSE CECE_TIDY_FILES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 
   set(_tidy_extra_args "")
 
