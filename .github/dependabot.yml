@@ -4,4 +4,7 @@ updates:
     directory: "/" # .github/workflows
     schedule:
       interval: "monthly"
-    target-branch: "develop"
+    groups:
+      gha-workflow-deps:
+        patterns:
+          - "*"
