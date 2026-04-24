@@ -630,8 +630,12 @@ if(CLANG_TIDY_EXECUTABLE)
 
   add_custom_target(
     clang-tidy
-    COMMAND ${CLANG_TIDY_EXECUTABLE} -p ${CMAKE_BINARY_DIR} ${_tidy_extra_args} ${CECE_TIDY_FILES}
+    COMMAND
+      ${CLANG_TIDY_EXECUTABLE} -p ${CMAKE_BINARY_DIR}
+      "--header-filter=^${CMAKE_CURRENT_SOURCE_DIR}/(include|src)/.*\\.(hpp|cpp|h)$$"
+      ${_tidy_extra_args} ${CECE_TIDY_FILES}
     COMMENT "Running clang-tidy on CECE source files"
+    VERBATIM
   )
 else()
   message(STATUS "clang-tidy not found. Code analysis targets disabled.")
