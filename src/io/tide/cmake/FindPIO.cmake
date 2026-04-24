@@ -24,7 +24,8 @@ define_package_component(
   INCLUDE_NAMES
   pio.h
   LIBRARY_NAMES
-  pioc)
+  pioc
+)
 
 # Define PIO Fortran Component
 define_package_component(
@@ -35,7 +36,8 @@ define_package_component(
   pio.mod
   pio.inc
   LIBRARY_NAMES
-  piof)
+  piof
+)
 
 # Search for list of valid components requested
 find_valid_components(PIO)
@@ -43,28 +45,26 @@ find_valid_components(PIO)
 # ==============================================================================
 # SEARCH FOR VALIDATED COMPONENTS
 foreach(pcomp IN LISTS PIO_FIND_VALID_COMPONENTS)
-
   # If not found already, search...
   if(NOT PIO_${pcomp}_FOUND)
-
     # Manually add the MPI include and library dirs to search paths and search
     # for the package component
     if(MPI_${pcomp}_FOUND)
       initialize_paths(
         PIO_${pcomp}_PATHS INCLUDE_DIRECTORIES ${MPI_${pcomp}_INCLUDE_PATH}
-        LIBRARIES ${MPI_${pcomp}_LIBRARIES})
+        LIBRARIES ${MPI_${pcomp}_LIBRARIES}
+      )
       find_package_component(PIO COMPONENT ${pcomp} PATHS ${PIO_${pcomp}_PATHS})
     else()
-      find_package_component(PIO COMPONENT ${pcomp} HINT
-                             PIO_${pcomp}_PATH=${PIO_PATH})
+      find_package_component(PIO COMPONENT ${pcomp} HINTS
+                             PIO_${pcomp}_PATH=${PIO_PATH}
+      )
     endif()
 
     # Continue only if component found
     if(PIO_${pcomp}_FOUND)
-
       # Checks
       if(pcomp STREQUAL C)
-
         # Check version
         check_version(
           PIO
@@ -73,13 +73,12 @@ foreach(pcomp IN LISTS PIO_FIND_VALID_COMPONENTS)
           HINTS
           ${PIO_C_INCLUDE_DIRS}
           MACRO_REGEX
-          "PIO_VERSION_")
-
+          "PIO_VERSION_"
+        )
       endif()
 
       # Dependencies
       if(pcomp STREQUAL C AND NOT PIO_C_IS_SHARED)
-
         # DEPENDENCY: PnetCDF (if PnetCDF enabled)
         check_macro(
           PIO_HAS_PNETCDF
@@ -90,7 +89,8 @@ foreach(pcomp IN LISTS PIO_FIND_VALID_COMPONENTS)
           DEFINITIONS
           -I${PIO_C_INCLUDE_DIR}
           COMMENT
-          "whether PIO has PnetCDF support")
+          "whether PIO has PnetCDF support"
+        )
         if(PIO_HAS_PNETCDF)
           find_package(PnetCDF COMPONENTS C)
         endif()
@@ -107,13 +107,9 @@ foreach(pcomp IN LISTS PIO_FIND_VALID_COMPONENTS)
           list(APPEND PIO_Fortran_INCLUDE_DIRS ${PIO_C_INCLUDE_DIRS})
           list(APPEND PIO_Fortran_LIBRARIES ${PIO_C_LIBRARIES})
         endif()
-
       endif()
-
     endif()
-
   endif()
-
 endforeach()
 message("PIO_C_FOUND ${PIO_C_FOUND}")
 message("PIO_Fortran_FOUND ${PIO_Fortran_FOUND}")
