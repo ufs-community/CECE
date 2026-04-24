@@ -56,7 +56,7 @@ foreach(pcomp IN LISTS PIO_FIND_VALID_COMPONENTS)
       )
       find_package_component(PIO COMPONENT ${pcomp} PATHS ${PIO_${pcomp}_PATHS})
     else()
-      find_package_component(PIO COMPONENT ${pcomp} HINT
+      find_package_component(PIO COMPONENT ${pcomp} HINTS
                              PIO_${pcomp}_PATH=${PIO_PATH}
       )
     endif()
