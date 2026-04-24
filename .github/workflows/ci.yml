@@ -54,7 +54,7 @@ jobs:
     #     echo "✓ clang-format check passed"
 
     - name: Cache dependencies and build
-      uses: actions/cache@v3
+      uses: actions/cache@v5
       with:
         path: |
           build/_deps
