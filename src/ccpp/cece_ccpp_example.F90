@@ -1,7 +1,9 @@
 module cece_ccpp_example
   use iso_c_binding
   use cece_ccpp_state, only: g_cece_data_ptr, g_init_count, g_initialized, &
-    cece_ccpp_core_finalize, cece_ccpp_core_init, cece_ccpp_get_export_field, cece_ccpp_scheme_finalize, cece_ccpp_scheme_init, cece_ccpp_scheme_run, cece_ccpp_set_import_field, cece_ccpp_sync_export_to_host, cece_ccpp_sync_import_to_device
+    cece_ccpp_core_finalize, cece_ccpp_core_init, cece_ccpp_get_export_field, &
+    cece_ccpp_scheme_finalize, cece_ccpp_scheme_init, cece_ccpp_scheme_run, &
+    cece_ccpp_set_import_field, cece_ccpp_sync_export_to_host, cece_ccpp_sync_import
   implicit none
   private
   public :: cece_ccpp_example_init, cece_ccpp_example_run, cece_ccpp_example_finalize, &
@@ -82,7 +84,7 @@ contains
     integer(c_int) :: rc
     errmsg = ''
     errflg = 0
-    call cece_ccpp_sync_import_to_device(g_cece_data_ptr, rc)
+    call cece_ccpp_sync_import(g_cece_data_ptr, rc)
     if (rc /= 0) then; errflg = 1; errmsg = 'example_timestep_init: sync failed'; return; end if
   end subroutine
 

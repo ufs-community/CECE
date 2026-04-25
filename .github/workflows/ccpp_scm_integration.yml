@@ -1,0 +1,114 @@
+name: CCPP SCM Integration CI
+
+on: [push, pull_request]
+
+jobs:
+  ccpp-scm-integration:
+    runs-on: ubuntu-latest
+    container:
+      image: dustinswales/ccpp-scm-ci:gnu
+
+    steps:
+      - name: Checkout CECE
+        uses: actions/checkout@v4
+        with:
+          path: cece
+
+      - name: Checkout CCPP SCM
+        uses: actions/checkout@v4
+        with:
+          repository: NCAR/ccpp-scm
+          path: ccpp-scm
+          submodules: recursive
+
+      - name: Setup Environment
+        run: |
+          echo "SCM_ROOT=${GITHUB_WORKSPACE}/ccpp-scm" >> $GITHUB_ENV
+          echo "CECE_ROOT=${GITHUB_WORKSPACE}/cece" >> $GITHUB_ENV
+          echo "CC=mpicc" >> $GITHUB_ENV
+          echo "CXX=mpicxx" >> $GITHUB_ENV
+          echo "FC=mpif90" >> $GITHUB_ENV
+
+      - name: Build CECE
+        run: |
+          cd cece
+          mkdir build && cd build
+          cmake .. -DCECE_ENABLE_CCPP=ON -DCECE_ENABLE_NUOPC=OFF
+          make -j$(nproc)
+
+      - name: Integrate CECE into CCPP SCM
+        run: |
+          # Move CECE into SCM tree
+          mv cece ccpp-scm/cece
+
+          # Create SCM config for CECE in scm/bin where model runs
+          mkdir -p ccpp-scm/scm/bin
+          cat > ccpp-scm/scm/bin/cece_config_scm.yaml <<CONFIG
+          # Minimal CECE configuration for CCPP SCM integration
+          driver:
+            start_time: "2020-01-01T00:00:00"
+            end_time: "2020-01-01T23:00:00"
+            timestep_seconds: 600
+
+          grid:
+            nx: 1
+            ny: 1
+            nz: 64
+
+          meteorology: {}
+
+          species: {}
+
+          cece_data:
+            streams: []
+
+          diagnostics:
+            output_interval_seconds: 3600
+            variables: []
+          CONFIG
+
+          # Run integration script to patch SCM with CECE metadata and schemes
+          python3 ccpp-scm/cece/scripts/integrate_cece_scm.py ccpp-scm cece
+
+          # Copy the integrated suites into SCM's suites directory
+          cp ccpp-scm/cece/src/ccpp/suites/suite_SCM_GFS_v16_CECE.xml ccpp-scm/ccpp/suites/
+          cp ccpp-scm/cece/src/ccpp/suites/suite_SCM_GFS_v16_CECE_ps.xml ccpp-scm/ccpp/suites/
+
+      - name: Download SCM Data
+        run: |
+          cd ${SCM_ROOT}
+          ./contrib/get_all_static_data.sh
+          ./contrib/get_thompson_tables.sh
+
+      - name: Configure and Run CCPP Prebuild
+        run: |
+          cd ${SCM_ROOT}/scm
+          mkdir -p bin && cd bin
+          # Create directory for snippets to avoid prebuild failure
+          mkdir -p ccpp/physics/physics
+          # Run cmake which triggers ccpp_prebuild.py using the patched config
+          cmake -DCCPP_SUITES=SCM_GFS_v16_CECE,SCM_GFS_v16_CECE_ps \
+                -DCMAKE_BUILD_TYPE=Release \
+                ../src
+
+      - name: Verify Cap Generation
+        run: |
+          # Verify that the caps for the CECE-integrated suite were generated correctly
+          if [ -f "${SCM_ROOT}/scm/bin/ccpp/physics/physics/ccpp_scm_gfs_v16_cece_cece_emissions_cap.F90" ]; then
+            echo "SUCCESS: CCPP Cap generated."
+          else
+            echo "FAILURE: CCPP Cap NOT generated."
+            ls -R ${SCM_ROOT}/scm/bin/ccpp/physics/physics
+            exit 1
+          fi
+
+      - name: Build Integrated SCM
+        run: |
+          cd ${SCM_ROOT}/scm/bin
+          make -j$(nproc)
+
+      - name: Run SCM Case (BOMEX)
+        run: |
+          cd ${SCM_ROOT}/scm/bin
+          # Run the case with the CECE-integrated suite
+          ./run_scm.py -c bomex -s SCM_GFS_v16_CECE --runtime_mult 0.1 --mpi_command "mpirun -np 1 --allow-run-as-root"
