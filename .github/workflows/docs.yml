@@ -32,6 +32,7 @@ jobs:
         run: |
           doxygen Doxyfile
           moxygen -o docs/api.md docs/api/xml
+          rm -rf docs/api
 
       - name: Build documentation
         run: zensical build
