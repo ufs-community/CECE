@@ -27,7 +27,13 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y doxygen
-          pip install zensical mkdoxy mkdocs-material
+          npm install -g moxygen
+          pip install zensical mkdocs-material
+
+      - name: Generate API Documentation
+        run: |
+          doxygen Doxyfile
+          moxygen -o docs/api.md docs/api/xml
 
       - name: Build documentation
         run: zensical build

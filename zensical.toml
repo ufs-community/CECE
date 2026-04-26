@@ -41,6 +41,3 @@ primary = "indigo"
 accent = "indigo"
 toggle.icon = "material/brightness-4"
 toggle.name = "Switch to light mode"
-
-[project.plugins.mkdoxy]
-projects = { cece = { src-dirs = "include/cece", full-doc = true, doxy-cfg = { RECURSIVE = "YES", GENERATE_XML = "YES" } } }
