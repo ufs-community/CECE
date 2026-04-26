@@ -67,6 +67,7 @@ GENERATE_MAN           = NO
 GENERATE_XML           = YES
 GENERATE_DOCBOOK       = NO
 GENERATE_AUTOGEN_DEF   = NO
+GENERATE_HTML          = NO
 
 # Diagram generation
 HAVE_DOT               = YES
