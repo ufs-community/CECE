@@ -3,7 +3,7 @@ driver:
   start_time: "2020-01-01T00:00:00"
   end_time: "2020-01-01T01:00:00"
   timestep_seconds: 3600
-  mesh_file: ""  # Empty means generate grid
+  mesh_file: "" # Empty means generate grid
   grid:
     nx: 4
     ny: 4

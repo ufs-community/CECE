@@ -31,19 +31,17 @@ if(PIO_FOUND)
 endif()
 
 # Fallback: search common paths
-set(PIO_SEARCH_PATHS ${PIO_ROOT} $ENV{PIO_ROOT} $ENV{PIO_PATH} /usr/local
-                     /opt/software/pio)
+set(
+  PIO_SEARCH_PATHS
+  ${PIO_ROOT}
+  $ENV{PIO_ROOT}
+  $ENV{PIO_PATH}
+  /usr/local
+  /opt/software/pio
+)
 
-find_path(
-  PIO_INCLUDE_DIR
-  NAMES pio.h
-  PATHS ${PIO_SEARCH_PATHS}
-  PATH_SUFFIXES include)
-find_library(
-  PIO_LIBRARY
-  NAMES pio
-  PATHS ${PIO_SEARCH_PATHS}
-  PATH_SUFFIXES lib)
+find_path(PIO_INCLUDE_DIR NAMES pio.h PATHS ${PIO_SEARCH_PATHS} PATH_SUFFIXES include)
+find_library(PIO_LIBRARY NAMES pio PATHS ${PIO_SEARCH_PATHS} PATH_SUFFIXES lib)
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(PIO DEFAULT_MSG PIO_LIBRARY PIO_INCLUDE_DIR)

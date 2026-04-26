@@ -13,36 +13,30 @@ include(CheckFunctionExists)
 # ... DEFINITIONS <definition1> <definition> ... COMMENT <string_comment>)
 #
 function(check_macro VARIABLE)
-
   # Parse the input arguments
   set(oneValueArgs COMMENT NAME)
   set(multiValueArgs HINTS DEFINITIONS)
-  cmake_parse_arguments(${VARIABLE} "" "${oneValueArgs}" "${multiValueArgs}"
-                        ${ARGN})
+  cmake_parse_arguments(${VARIABLE} "" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
 
   # If the return variable is defined, already, don't continue
   if(NOT DEFINED ${VARIABLE})
-
     message(STATUS "Checking ${${VARIABLE}_COMMENT}")
-    find_file(
-      ${VARIABLE}_TRY_FILE
-      NAMES ${${VARIABLE}_NAME}
-      HINTS ${${VARIABLE}_HINTS})
+    find_file(${VARIABLE}_TRY_FILE NAMES ${${VARIABLE}_NAME} HINTS ${${VARIABLE}_HINTS})
     if(${VARIABLE}_TRY_FILE)
       try_compile(
-        COMPILE_RESULT ${CMAKE_CURRENT_BINARY_DIR}/try${VARIABLE}
+        COMPILE_RESULT
+        ${CMAKE_CURRENT_BINARY_DIR}/try${VARIABLE}
         SOURCES ${${VARIABLE}_TRY_FILE}
         COMPILE_DEFINITIONS ${${VARIABLE}_DEFINITIONS}
-        OUTPUT_VARIABLE TryOUT)
+        OUTPUT_VARIABLE TryOUT
+      )
       if(COMPILE_RESULT)
         message(STATUS "Checking ${${VARIABLE}_COMMENT} - yes")
       else()
         message(STATUS "Checking ${${VARIABLE}_COMMENT} - no")
       endif()
 
-      set(${VARIABLE}
-          ${COMPILE_RESULT}
-          CACHE BOOL "${${VARIABLE}_COMMENT}")
+      set(${VARIABLE} ${COMPILE_RESULT} CACHE BOOL "${${VARIABLE}_COMMENT}")
 
     else()
       message(STATUS "Checking ${${VARIABLE}_COMMENT} - failed")
@@ -50,7 +44,6 @@ function(check_macro VARIABLE)
 
     unset(${VARIABLE}_TRY_FILE CACHE)
   endif()
-
 endfunction()
 
 # ______________________________________________________________________________
@@ -60,7 +53,6 @@ endfunction()
 # DEFINITIONS <definition1> <definition> ...)
 #
 function(check_version PKG)
-
   # Parse the input arguments
   set(oneValueArgs NAME MACRO_REGEX)
   set(multiValueArgs HINTS)
@@ -68,16 +60,11 @@ function(check_version PKG)
 
   # If the return variable is defined, already, don't continue
   if(NOT DEFINED ${PKG}_VERSION)
-
     message(STATUS "Checking ${PKG} version")
-    find_file(
-      ${PKG}_VERSION_HEADER
-      NAMES ${${PKG}_NAME}
-      HINTS ${${PKG}_HINTS})
+    find_file(${PKG}_VERSION_HEADER NAMES ${${PKG}_NAME} HINTS ${${PKG}_HINTS})
     if(${PKG}_VERSION_HEADER)
       set(def)
-      file(STRINGS ${${PKG}_VERSION_HEADER} deflines
-           REGEX "^#define[ \\t]+${${PKG}_MACRO_REGEX}")
+      file(STRINGS ${${PKG}_VERSION_HEADER} deflines REGEX "^#define[ \\t]+${${PKG}_MACRO_REGEX}")
       foreach(defline IN LISTS deflines)
         string(REPLACE "\"" "" defline "${defline}")
         string(REPLACE "." "" defline "${defline}")
@@ -87,9 +74,7 @@ function(check_version PKG)
       endforeach()
       string(REPLACE ";" "." vers "${def}")
       message(STATUS "Checking ${PKG} version - ${vers}")
-      set(${PKG}_VERSION
-          ${vers}
-          CACHE STRING "${PKG} version string")
+      set(${PKG}_VERSION ${vers} CACHE STRING "${PKG} version string")
       if(${PKG}_VERSION VERSION_LESS ${PKG}_FIND_VERSION})
         message(FATAL_ERROR "${PKG} version insufficient")
       endif()
@@ -98,7 +83,5 @@ function(check_version PKG)
     endif()
 
     unset(${PKG}_VERSION_HEADER CACHE)
-
   endif()
-
 endfunction()
