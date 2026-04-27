@@ -5,8 +5,8 @@ driver:
   timestep_seconds: 3600
 
 grid:
-  nx: 144          # 2.5° global resolution
-  ny: 91           # 2.0° global resolution
+  nx: 144 # 2.5° global resolution
+  ny: 91 # 2.0° global resolution
   lon_min: -180.0
   lon_max: 177.5
   lat_min: -90.0
@@ -35,18 +35,68 @@ masks:
 # Temporal scaling profiles
 temporal_profiles:
   # Traffic emissions peak during rush hours
-  traffic_diurnal: [0.3, 0.2, 0.2, 0.3, 0.5, 1.0, 1.8, 1.5, 1.2, 1.0, 1.1, 1.2,
-                    1.3, 1.2, 1.3, 1.5, 1.8, 2.2, 1.8, 1.4, 1.0, 0.8, 0.6, 0.4]
+  traffic_diurnal:
+    [
+      0.3,
+      0.2,
+      0.2,
+      0.3,
+      0.5,
+      1.0,
+      1.8,
+      1.5,
+      1.2,
+      1.0,
+      1.1,
+      1.2,
+      1.3,
+      1.2,
+      1.3,
+      1.5,
+      1.8,
+      2.2,
+      1.8,
+      1.4,
+      1.0,
+      0.8,
+      0.6,
+      0.4,
+    ]
 
   # Industrial emissions more constant but lower on weekends
-  industrial_weekly: [0.7, 1.0, 1.0, 1.0, 1.0, 1.0, 0.8]  # Sun-Sat
+  industrial_weekly: [0.7, 1.0, 1.0, 1.0, 1.0, 1.0, 0.8] # Sun-Sat
 
   # Biogenic emissions peak in growing season
   growing_season: [0.3, 0.4, 0.7, 1.2, 1.8, 2.0, 1.9, 1.7, 1.3, 0.9, 0.5, 0.3]
 
   # Power generation diurnal cycle
-  power_diurnal: [0.7, 0.6, 0.6, 0.6, 0.7, 0.9, 1.2, 1.4, 1.3, 1.2, 1.2, 1.3,
-                  1.4, 1.3, 1.3, 1.4, 1.6, 1.8, 1.9, 1.7, 1.4, 1.2, 1.0, 0.8]
+  power_diurnal:
+    [
+      0.7,
+      0.6,
+      0.6,
+      0.6,
+      0.7,
+      0.9,
+      1.2,
+      1.4,
+      1.3,
+      1.2,
+      1.2,
+      1.3,
+      1.4,
+      1.3,
+      1.3,
+      1.4,
+      1.6,
+      1.8,
+      1.9,
+      1.7,
+      1.4,
+      1.2,
+      1.0,
+      0.8,
+    ]
 
 species:
   # Carbon monoxide with hierarchical sources
@@ -63,10 +113,10 @@ species:
 
     # Regional European override with higher resolution
     - field: "europe_co_inventory"
-      operation: "replace"        # Replaces global data over Europe
-      scale: 1.15                # 15% adjustment factor
+      operation: "replace" # Replaces global data over Europe
+      scale: 1.15 # 15% adjustment factor
       category: "anthropogenic"
-      hierarchy: 10              # Higher priority
+      hierarchy: 10 # Higher priority
       mask: "europe_mask"
       diurnal_cycle: "traffic_diurnal"
 
@@ -84,9 +134,9 @@ species:
       operation: "add"
       category: "transportation"
       hierarchy: 1
-      scale_fields: ["temperature"]   # Temperature-dependent emissions
+      scale_fields: ["temperature"] # Temperature-dependent emissions
       mask: "land_mask"
-      vdist_method: "PBL"            # Distribute in boundary layer
+      vdist_method: "PBL" # Distribute in boundary layer
       diurnal_cycle: "traffic_diurnal"
 
     # Aircraft emissions at cruise altitude
@@ -95,7 +145,7 @@ species:
       category: "transportation"
       hierarchy: 2
       vdist_method: "HEIGHT"
-      vdist_h_start: 9000.0          # 9-12 km altitude
+      vdist_h_start: 9000.0 # 9-12 km altitude
       vdist_h_end: 12000.0
 
     # Power plant stacks
@@ -104,7 +154,7 @@ species:
       category: "energy"
       hierarchy: 1
       vdist_method: "HEIGHT"
-      vdist_h_start: 100.0           # Elevated stack height
+      vdist_h_start: 100.0 # Elevated stack height
       vdist_h_end: 500.0
       diurnal_cycle: "power_diurnal"
       weekly_cycle: "industrial_weekly"
@@ -115,7 +165,7 @@ species:
       category: "natural"
       hierarchy: 1
       vdist_method: "PRESSURE"
-      vdist_p_start: 10000.0         # 100-400 hPa
+      vdist_p_start: 10000.0 # 100-400 hPa
       vdist_p_end: 40000.0
 
   # Isoprene with environmental dependencies
@@ -125,7 +175,7 @@ species:
       category: "biogenic"
       hierarchy: 1
       scale: 1.0
-      scale_fields: ["temperature", "par_direct", "lai"]  # Environmental scaling
+      scale_fields: ["temperature", "par_direct", "lai"] # Environmental scaling
       mask: "vegetation_mask"
       seasonal_cycle: "growing_season"
       vdist_method: "PBL"
