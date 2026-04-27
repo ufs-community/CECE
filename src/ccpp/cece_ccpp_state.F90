@@ -7,7 +7,7 @@ module cece_ccpp_state
   public :: cece_ccpp_set_import_field, cece_ccpp_scheme_run
   public :: cece_ccpp_get_export_field, cece_ccpp_scheme_finalize
   public :: cece_ccpp_core_finalize
-  public :: cece_ccpp_sync_import_to_device, cece_ccpp_sync_export_to_host
+  public :: cece_ccpp_sync_import, cece_ccpp_sync_export_to_host
   public :: cece_ccpp_run_stacking
 
   type(c_ptr), save :: g_cece_data_ptr = c_null_ptr
@@ -76,7 +76,7 @@ module cece_ccpp_state
       integer(c_int), intent(out) :: rc
     end subroutine
 
-    subroutine cece_ccpp_sync_import_to_device(data_ptr, rc) bind(C)
+    subroutine cece_ccpp_sync_import(data_ptr, rc) bind(C)
       import :: c_ptr, c_int
       type(c_ptr), value :: data_ptr
       integer(c_int), intent(out) :: rc

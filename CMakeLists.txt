@@ -27,6 +27,26 @@ endif()
 
 # --- Dependencies ---
 
+# NetCDF Discovery
+find_package(PkgConfig QUIET)
+if(PKG_CONFIG_FOUND)
+  pkg_check_modules(NETCDF QUIET netcdf)
+endif()
+
+if(NOT NETCDF_FOUND)
+  find_path(NetCDF_INCLUDE_DIR netcdf.h)
+  find_library(NetCDF_LIBRARY netcdf)
+  if(NetCDF_INCLUDE_DIR AND NetCDF_LIBRARY)
+    set(NETCDF_FOUND TRUE)
+    set(NETCDF_LIBRARIES ${NetCDF_LIBRARY})
+    set(NETCDF_INCLUDE_DIRS ${NetCDF_INCLUDE_DIR})
+  endif()
+endif()
+
+if(NETCDF_FOUND)
+  message(STATUS "Found NetCDF: ${NETCDF_LIBRARIES}")
+endif()
+
 include(FetchContent)
 
 # Kokkos - Configure execution spaces Default to Serial and OpenMP for CPU
@@ -134,15 +154,12 @@ if(CECE_ENABLE_NUOPC)
   find_root_by_file(PIO_ROOT "pio.h")
 
   if(NetCDF_ROOT)
-    set(NetCDF_FOUND TRUE)
     set(ENV{NetCDF_ROOT} "${NetCDF_ROOT}")
   endif()
   if(NetCDFF_ROOT)
-    set(NetCDFF_FOUND TRUE)
     set(ENV{NetCDFF_ROOT} "${NetCDFF_ROOT}")
   endif()
   if(PIO_ROOT)
-    set(PIO_FOUND TRUE)
     set(ENV{PIO_ROOT} "${PIO_ROOT}")
   endif()
 else()
@@ -283,10 +300,10 @@ if(CECE_HAS_FORTRAN AND CECE_ENABLE_NUOPC)
   target_link_libraries(cece PUBLIC tide)
 endif()
 
-if(CECE_ENABLE_NUOPC AND NetCDF_ROOT)
-  if(EXISTS "${NetCDF_ROOT}/lib/libnetcdf.so")
-    target_link_libraries(cece PUBLIC "${NetCDF_ROOT}/lib/libnetcdf.so")
-  endif()
+if(NETCDF_FOUND)
+  target_link_libraries(cece PUBLIC ${NETCDF_LIBRARIES})
+  target_include_directories(cece PUBLIC ${NETCDF_INCLUDE_DIRS})
+  target_compile_definitions(cece PRIVATE CECE_HAS_NETCDF)
 endif()
 
 if(MPI_FOUND)
@@ -297,13 +314,16 @@ endif()
 
 enable_testing()
 
-add_executable(test_driver_configuration tests/test_driver_configuration.cpp)
-target_link_libraries(test_driver_configuration PRIVATE cece GTest::gtest_main)
+if(CECE_ENABLE_NUOPC)
+  add_executable(test_driver_configuration tests/test_driver_configuration.cpp)
+  target_link_libraries(test_driver_configuration PRIVATE cece
+                                                          GTest::gtest_main)
 
-add_executable(test_driver_config_validation
-               tests/test_driver_config_validation.cpp)
-target_link_libraries(test_driver_config_validation PRIVATE cece iso8601_utils
-                                                            GTest::gtest_main)
+  add_executable(test_driver_config_validation
+                 tests/test_driver_config_validation.cpp)
+  target_link_libraries(test_driver_config_validation
+                        PRIVATE cece iso8601_utils GTest::gtest_main)
+endif()
 
 add_executable(test_driver_clock_management
                tests/test_driver_clock_management.cpp)
@@ -317,11 +337,13 @@ add_executable(test_driver_integration_end_to_end
 target_link_libraries(test_driver_integration_end_to_end
                       PRIVATE GTest::gtest_main)
 
-add_executable(test_cece_cap tests/test_cece_cap.cpp)
-target_link_libraries(test_cece_cap PRIVATE cece GTest::gtest_main)
+if(CECE_ENABLE_NUOPC)
+  add_executable(test_cece_cap tests/test_cece_cap.cpp)
+  target_link_libraries(test_cece_cap PRIVATE cece GTest::gtest_main)
 
-add_executable(test_diagnostics tests/test_diagnostics.cpp)
-target_link_libraries(test_diagnostics PRIVATE cece GTest::gtest)
+  add_executable(test_diagnostics tests/test_diagnostics.cpp)
+  target_link_libraries(test_diagnostics PRIVATE cece GTest::gtest)
+endif()
 
 add_executable(test_cece_ingestor tests/test_cece_ingestor.cpp)
 target_link_libraries(test_cece_ingestor PRIVATE cece GTest::gtest_main)
@@ -404,22 +426,25 @@ target_link_libraries(test_ginoux_properties PRIVATE cece GTest::gtest_main)
 add_executable(test_k14_properties tests/test_k14_properties.cpp)
 target_link_libraries(test_k14_properties PRIVATE cece GTest::gtest_main)
 
-add_executable(test_field_creation tests/test_field_creation.cpp)
-if(CECE_HAS_FORTRAN AND TARGET test_helpers)
-  target_link_libraries(test_field_creation PRIVATE cece test_helpers
-                                                    GTest::gtest_main)
-else()
-  target_link_libraries(test_field_creation PRIVATE cece GTest::gtest_main)
-endif()
+if(CECE_ENABLE_NUOPC)
+  add_executable(test_field_creation tests/test_field_creation.cpp)
+  if(CECE_HAS_FORTRAN AND TARGET test_helpers)
+    target_link_libraries(test_field_creation PRIVATE cece test_helpers
+                                                      GTest::gtest_main)
+  else()
+    target_link_libraries(test_field_creation PRIVATE cece GTest::gtest_main)
+  endif()
 
-# Unit tests for field pointer passing (Requirement R5)
-add_executable(test_field_pointer_passing tests/test_field_pointer_passing.cpp)
-if(CECE_HAS_FORTRAN AND TARGET test_helpers)
-  target_link_libraries(test_field_pointer_passing PRIVATE cece test_helpers
-                                                           GTest::gtest_main)
-else()
-  target_link_libraries(test_field_pointer_passing PRIVATE cece
-                                                           GTest::gtest_main)
+  # Unit tests for field pointer passing (Requirement R5)
+  add_executable(test_field_pointer_passing
+                 tests/test_field_pointer_passing.cpp)
+  if(CECE_HAS_FORTRAN AND TARGET test_helpers)
+    target_link_libraries(test_field_pointer_passing PRIVATE cece test_helpers
+                                                             GTest::gtest_main)
+  else()
+    target_link_libraries(test_field_pointer_passing PRIVATE cece
+                                                             GTest::gtest_main)
+  endif()
 endif()
 
 # Standalone NUOPC driver — only when NUOPC interface is enabled
@@ -501,19 +526,25 @@ if(Python3_Interpreter_FOUND)
 endif()
 
 include(GoogleTest)
-gtest_discover_tests(test_driver_configuration)
-gtest_discover_tests(test_driver_config_validation)
+if(CECE_ENABLE_NUOPC)
+  gtest_discover_tests(test_driver_configuration)
+  gtest_discover_tests(test_driver_config_validation)
+endif()
 gtest_discover_tests(test_driver_clock_management)
 gtest_discover_tests(test_clock_operations_unit)
 gtest_discover_tests(test_driver_integration_end_to_end)
-gtest_discover_tests(test_cece_cap)
+if(CECE_ENABLE_NUOPC)
+  gtest_discover_tests(test_cece_cap)
+endif()
 gtest_discover_tests(test_stacking_engine)
 gtest_discover_tests(test_vertical_distribution_single)
 gtest_discover_tests(test_cece_utils)
 gtest_discover_tests(test_cece_compute)
 gtest_discover_tests(test_physics)
 gtest_discover_tests(test_cece_ingestor)
-gtest_discover_tests(test_diagnostics)
+if(CECE_ENABLE_NUOPC)
+  gtest_discover_tests(test_diagnostics)
+endif()
 gtest_discover_tests(test_hemco_mimic)
 gtest_discover_tests(test_field_resolution_priority)
 gtest_discover_tests(test_hemco_parity)
@@ -527,8 +558,10 @@ gtest_discover_tests(test_repro_failure)
 gtest_discover_tests(test_fengsha_properties)
 gtest_discover_tests(test_ginoux_properties)
 gtest_discover_tests(test_k14_properties)
-gtest_discover_tests(test_field_creation)
-gtest_discover_tests(test_field_pointer_passing)
+if(CECE_ENABLE_NUOPC)
+  gtest_discover_tests(test_field_creation)
+  gtest_discover_tests(test_field_pointer_passing)
+endif()
 
 # --- Python Bindings ---
 

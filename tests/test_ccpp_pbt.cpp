@@ -707,7 +707,7 @@ RC_GTEST_FIXTURE_PROP(CcppPbtTest, NameMappingResolution, ()) {
  * @test Feature: ccpp-interface, Property 9: Timestep Synchronization Round-Trip
  * @brief For any random field data, setting it via cece_ccpp_set_import_field
  *        (which does host→device sync), then calling
- *        cece_ccpp_sync_import_to_device (should be a no-op since already
+ *        cece_ccpp_sync_import (should be a no-op since already
  *        synced), and verifying the device data matches by syncing back to
  *        host. Also tests export field sync: create an export field with
  *        device-side data, call cece_ccpp_sync_export_to_host, verify host
@@ -750,7 +750,7 @@ RC_GTEST_FIXTURE_PROP(CcppPbtTest, TimestepSynchronizationRoundTrip, ()) {
 
     // 4. Call sync_import_to_device (should be a no-op since already synced)
     rc_code = 0;
-    cece_ccpp_sync_import_to_device(data_ptr, &rc_code);
+    cece_ccpp_sync_import(data_ptr, &rc_code);
     RC_ASSERT(rc_code == 0);
 
     // 5. Verify device data matches by syncing back to host and checking

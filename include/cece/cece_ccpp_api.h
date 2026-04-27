@@ -108,7 +108,7 @@ void cece_ccpp_core_finalize(void* data_ptr, int* rc);
  * @param data_ptr [in] Opaque pointer to CeceInternalData.
  * @param rc       [out] Return code; 0 on success, non-zero on failure.
  */
-void cece_ccpp_sync_import_to_device(void* data_ptr, int* rc);
+void cece_ccpp_sync_import(void* data_ptr, int* rc);
 
 /**
  * @brief Sync all export fields from device to host and fence.

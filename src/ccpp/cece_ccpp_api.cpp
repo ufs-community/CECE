@@ -517,11 +517,11 @@ void cece_ccpp_core_finalize(void* data_ptr, int* rc) {
     }
 }
 
-void cece_ccpp_sync_import_to_device(void* data_ptr, int* rc) {
+void cece_ccpp_sync_import(void* data_ptr, int* rc) {
     if (rc != nullptr) *rc = 0;
 
     if (data_ptr == nullptr) {
-        std::cerr << "ERROR in cece_ccpp_sync_import_to_device: null data_ptr" << std::endl;
+        std::cerr << "ERROR in cece_ccpp_sync_import: null data_ptr" << std::endl;
         if (rc != nullptr) *rc = -1;
         return;
     }
@@ -534,10 +534,10 @@ void cece_ccpp_sync_import_to_device(void* data_ptr, int* rc) {
             field.sync_device();
         }
     } catch (const std::exception& e) {
-        std::cerr << "ERROR in cece_ccpp_sync_import_to_device: " << e.what() << std::endl;
+        std::cerr << "ERROR in cece_ccpp_sync_import: " << e.what() << std::endl;
         if (rc != nullptr) *rc = -1;
     } catch (...) {
-        std::cerr << "ERROR in cece_ccpp_sync_import_to_device: unknown exception" << std::endl;
+        std::cerr << "ERROR in cece_ccpp_sync_import: unknown exception" << std::endl;
         if (rc != nullptr) *rc = -1;
     }
 }
