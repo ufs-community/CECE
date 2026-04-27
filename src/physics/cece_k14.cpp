@@ -138,6 +138,7 @@ void K14Scheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag
     if (config["undef"]) undef_ = config["undef"].as<double>();
     if (config["grav"]) grav_ = config["grav"].as<double>();
     if (config["von_karman"]) von_karman_ = config["von_karman"].as<double>();
+    if (config["frozen_soil_threshold"]) frozen_soil_threshold_ = config["frozen_soil_threshold"].as<double>();
     if (config["opt_clay"]) opt_clay_ = config["opt_clay"].as<int>();
     if (config["num_bins"]) num_bins_ = config["num_bins"].as<int>();
 
@@ -214,6 +215,7 @@ void K14Scheme::Run(CeceImportState& import_state, CeceExportState& export_state
     double uts_gamma = uts_gamma_;
     double undef = undef_;
     double grav = grav_;
+    double frozen_soil_threshold = frozen_soil_threshold_;
     int opt_clay = opt_clay_;
 
     // Capture the pre-computed bin distribution view
@@ -240,6 +242,9 @@ void K14Scheme::Run(CeceImportState& import_state, CeceExportState& export_state
             // Skip cells with no land or invalid roughness
             if (f_land_val <= 0.0) return;
             if (z0_val >= z0_max || z0_val <= 0.0) return;
+
+            // Skip frozen ground
+            if (t_soil(i, j, 0) < frozen_soil_threshold) return;
 
             double rho_air_val = rho_air(i, j, 0);
 

@@ -32,6 +32,7 @@ class FengshaFortranScheme : public BasePhysicsScheme {
     double kvhmax_ = 2.45e-4;
     double grav_ = 9.81;
     double drylimit_factor_ = 1.0;
+    double frozen_soil_threshold_ = 273.15;
     int num_bins_ = 5;
     std::vector<double> bin_distribution_;
     bool has_custom_distribution_ = false;

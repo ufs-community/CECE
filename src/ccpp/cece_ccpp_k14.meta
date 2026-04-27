@@ -1,0 +1,279 @@
+[ccpp-table-properties]
+  name = cece_ccpp_k14
+  type = scheme
+  dependencies = cece_ccpp_state.F90
+
+[ccpp-arg-table]
+  name = cece_ccpp_k14_init
+  type = scheme
+[horizontal_loop_extent]
+  standard_name = horizontal_loop_extent
+  long_name = horizontal loop extent
+  units = count
+  dimensions = ()
+  type = integer
+  intent = in
+[vertical_layer_dimension]
+  standard_name = vertical_layer_dimension
+  long_name = number of vertical layers
+  units = count
+  dimensions = ()
+  type = integer
+  intent = in
+[cece_configuration_file_path]
+  standard_name = cece_configuration_file_path
+  long_name = path to CECE YAML configuration file
+  units = none
+  dimensions = ()
+  type = character
+  kind = len=512
+  intent = in
+[errmsg]
+  standard_name = ccpp_error_message
+  long_name = error message for error handling in CCPP
+  units = none
+  dimensions = ()
+  type = character
+  kind = len=512
+  intent = out
+[errflg]
+  standard_name = ccpp_error_code
+  long_name = error code for error handling in CCPP
+  units = 1
+  dimensions = ()
+  type = integer
+  intent = out
+
+[ccpp-arg-table]
+  name = cece_ccpp_k14_run
+  type = scheme
+[horizontal_loop_extent]
+  standard_name = horizontal_loop_extent
+  long_name = horizontal loop extent
+  units = count
+  dimensions = ()
+  type = integer
+  intent = in
+[vertical_layer_dimension]
+  standard_name = vertical_layer_dimension
+  long_name = number of vertical layers
+  units = count
+  dimensions = ()
+  type = integer
+  intent = in
+[friction_velocity]
+  standard_name = surface_friction_velocity
+  long_name = surface friction velocity
+  units = m s-1
+  dimensions = (horizontal_loop_extent, vertical_layer_dimension)
+  type = real
+  kind = kind_phys
+  intent = in
+[soil_temperature]
+  standard_name = soil_temperature
+  long_name = soil temperature
+  units = K
+  dimensions = (horizontal_loop_extent, vertical_layer_dimension)
+  type = real
+  kind = kind_phys
+  intent = in
+[volumetric_soil_moisture]
+  standard_name = volumetric_soil_moisture
+  long_name = volumetric soil moisture
+  units = m3 m-3
+  dimensions = (horizontal_loop_extent, vertical_layer_dimension)
+  type = real
+  kind = kind_phys
+  intent = in
+[air_density]
+  standard_name = air_density
+  long_name = surface air density
+  units = kg m-3
+  dimensions = (horizontal_loop_extent, vertical_layer_dimension)
+  type = real
+  kind = kind_phys
+  intent = in
+[roughness_length]
+  standard_name = surface_roughness_length
+  long_name = aeolian roughness length
+  units = m
+  dimensions = (horizontal_loop_extent, vertical_layer_dimension)
+  type = real
+  kind = kind_phys
+  intent = in
+[height]
+  standard_name = reference_height
+  long_name = reference height for wind
+  units = m
+  dimensions = (horizontal_loop_extent, vertical_layer_dimension)
+  type = real
+  kind = kind_phys
+  intent = in
+[u_wind]
+  standard_name = eastward_wind
+  long_name = zonal wind at reference height
+  units = m s-1
+  dimensions = (horizontal_loop_extent, vertical_layer_dimension)
+  type = real
+  kind = kind_phys
+  intent = in
+[v_wind]
+  standard_name = northward_wind
+  long_name = meridional wind at reference height
+  units = m s-1
+  dimensions = (horizontal_loop_extent, vertical_layer_dimension)
+  type = real
+  kind = kind_phys
+  intent = in
+[land_fraction]
+  standard_name = land_fraction
+  long_name = land fraction
+  units = frac
+  dimensions = (horizontal_loop_extent, vertical_layer_dimension)
+  type = real
+  kind = kind_phys
+  intent = in
+[snow_fraction]
+  standard_name = snow_fraction
+  long_name = snow cover fraction
+  units = frac
+  dimensions = (horizontal_loop_extent, vertical_layer_dimension)
+  type = real
+  kind = kind_phys
+  intent = in
+[dust_source]
+  standard_name = dust_source_erodibility
+  long_name = dust source map
+  units = 1
+  dimensions = (horizontal_loop_extent, vertical_layer_dimension)
+  type = real
+  kind = kind_phys
+  intent = in
+[sand_fraction]
+  standard_name = sand_fraction
+  long_name = fractional sand content
+  units = frac
+  dimensions = (horizontal_loop_extent, vertical_layer_dimension)
+  type = real
+  kind = kind_phys
+  intent = in
+[silt_fraction]
+  standard_name = silt_fraction
+  long_name = fractional silt content
+  units = frac
+  dimensions = (horizontal_loop_extent, vertical_layer_dimension)
+  type = real
+  kind = kind_phys
+  intent = in
+[clay_fraction]
+  standard_name = clay_fraction
+  long_name = fractional clay content
+  units = frac
+  dimensions = (horizontal_loop_extent, vertical_layer_dimension)
+  type = real
+  kind = kind_phys
+  intent = in
+[soil_texture]
+  standard_name = soil_texture_class
+  long_name = soil texture class index
+  units = 1
+  dimensions = (horizontal_loop_extent, vertical_layer_dimension)
+  type = real
+  kind = kind_phys
+  intent = in
+[vegetation_type]
+  standard_name = vegetation_type_index
+  long_name = IGBP vegetation type
+  units = 1
+  dimensions = (horizontal_loop_extent, vertical_layer_dimension)
+  type = real
+  kind = kind_phys
+  intent = in
+[vegetation_fraction]
+  standard_name = vegetation_fraction
+  long_name = green vegetation fraction
+  units = frac
+  dimensions = (horizontal_loop_extent, vertical_layer_dimension)
+  type = real
+  kind = kind_phys
+  intent = in
+[k14_dust_emission_flux]
+  standard_name = k14_dust_emission_flux
+  long_name = K14 size-resolved dust emission flux
+  units = kg m-2 s-1
+  dimensions = (horizontal_loop_extent, vertical_layer_dimension)
+  type = real
+  kind = kind_phys
+  intent = out
+[errmsg]
+  standard_name = ccpp_error_message
+  long_name = error message for error handling in CCPP
+  units = none
+  dimensions = ()
+  type = character
+  kind = len=512
+  intent = out
+[errflg]
+  standard_name = ccpp_error_code
+  long_name = error code for error handling in CCPP
+  units = 1
+  dimensions = ()
+  type = integer
+  intent = out
+
+[ccpp-arg-table]
+  name = cece_ccpp_k14_finalize
+  type = scheme
+[errmsg]
+  standard_name = ccpp_error_message
+  long_name = error message for error handling in CCPP
+  units = none
+  dimensions = ()
+  type = character
+  kind = len=512
+  intent = out
+[errflg]
+  standard_name = ccpp_error_code
+  long_name = error code for error handling in CCPP
+  units = 1
+  dimensions = ()
+  type = integer
+  intent = out
+
+[ccpp-arg-table]
+  name = cece_ccpp_k14_timestep_init
+  type = scheme
+[errmsg]
+  standard_name = ccpp_error_message
+  long_name = error message for error handling in CCPP
+  units = none
+  dimensions = ()
+  type = character
+  kind = len=512
+  intent = out
+[errflg]
+  standard_name = ccpp_error_code
+  long_name = error code for error handling in CCPP
+  units = 1
+  dimensions = ()
+  type = integer
+  intent = out
+
+[ccpp-arg-table]
+  name = cece_ccpp_k14_timestep_finalize
+  type = scheme
+[errmsg]
+  standard_name = ccpp_error_message
+  long_name = error message for error handling in CCPP
+  units = none
+  dimensions = ()
+  type = character
+  kind = len=512
+  intent = out
+[errflg]
+  standard_name = ccpp_error_code
+  long_name = error code for error handling in CCPP
+  units = 1
+  dimensions = ()
+  type = integer
+  intent = out

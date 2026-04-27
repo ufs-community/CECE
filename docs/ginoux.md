@@ -20,6 +20,7 @@ References:
 | `ch_du` | double | 0.8e-9 | Dust emission tuning constant |
 | `grav` | double | 9.81 | Gravitational acceleration [m/s²] |
 | `num_bins` | int | 5 | Number of dust size bins |
+| `frozen_soil_threshold` | double | 273.15 | Soil temperature [K] below which emissions are suppressed |
 | `particle_radii` | sequence[double] | *(none)* | Particle radii per bin [m]; overrides `num_bins` if provided |
 
 ## Import Fields
@@ -33,6 +34,7 @@ References:
 | `lake_fraction` | fraction | Lake fraction [0–1] |
 | `dust_source` | dimensionless | Dust source / erodibility map |
 | `particle_radius` | m | Particle radius per bin (3D: 1 × 1 × nbins) |
+| `soil_temperature` | K | Soil temperature (optional; used for frozen ground check) |
 
 ## Export Fields
 

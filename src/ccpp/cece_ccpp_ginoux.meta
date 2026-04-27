@@ -1,0 +1,207 @@
+[ccpp-table-properties]
+  name = cece_ccpp_ginoux
+  type = scheme
+  dependencies = cece_ccpp_state.F90
+
+[ccpp-arg-table]
+  name = cece_ccpp_ginoux_init
+  type = scheme
+[horizontal_loop_extent]
+  standard_name = horizontal_loop_extent
+  long_name = horizontal loop extent
+  units = count
+  dimensions = ()
+  type = integer
+  intent = in
+[vertical_layer_dimension]
+  standard_name = vertical_layer_dimension
+  long_name = number of vertical layers
+  units = count
+  dimensions = ()
+  type = integer
+  intent = in
+[cece_configuration_file_path]
+  standard_name = cece_configuration_file_path
+  long_name = path to CECE YAML configuration file
+  units = none
+  dimensions = ()
+  type = character
+  kind = len=512
+  intent = in
+[errmsg]
+  standard_name = ccpp_error_message
+  long_name = error message for error handling in CCPP
+  units = none
+  dimensions = ()
+  type = character
+  kind = len=512
+  intent = out
+[errflg]
+  standard_name = ccpp_error_code
+  long_name = error code for error handling in CCPP
+  units = 1
+  dimensions = ()
+  type = integer
+  intent = out
+
+[ccpp-arg-table]
+  name = cece_ccpp_ginoux_run
+  type = scheme
+[horizontal_loop_extent]
+  standard_name = horizontal_loop_extent
+  long_name = horizontal loop extent
+  units = count
+  dimensions = ()
+  type = integer
+  intent = in
+[vertical_layer_dimension]
+  standard_name = vertical_layer_dimension
+  long_name = number of vertical layers
+  units = count
+  dimensions = ()
+  type = integer
+  intent = in
+[u10m]
+  standard_name = eastward_wind_at_10m
+  long_name = 10-meter zonal wind
+  units = m s-1
+  dimensions = (horizontal_loop_extent, vertical_layer_dimension)
+  type = real
+  kind = kind_phys
+  intent = in
+[v10m]
+  standard_name = northward_wind_at_10m
+  long_name = 10-meter meridional wind
+  units = m s-1
+  dimensions = (horizontal_loop_extent, vertical_layer_dimension)
+  type = real
+  kind = kind_phys
+  intent = in
+[surface_soil_wetness]
+  standard_name = surface_soil_wetness
+  long_name = surface soil wetness
+  units = frac
+  dimensions = (horizontal_loop_extent, vertical_layer_dimension)
+  type = real
+  kind = kind_phys
+  intent = in
+[land_mask]
+  standard_name = land_mask
+  long_name = land mask
+  units = 1
+  dimensions = (horizontal_loop_extent, vertical_layer_dimension)
+  type = real
+  kind = kind_phys
+  intent = in
+[lake_fraction]
+  standard_name = lake_fraction
+  long_name = lake fraction
+  units = frac
+  dimensions = (horizontal_loop_extent, vertical_layer_dimension)
+  type = real
+  kind = kind_phys
+  intent = in
+[dust_source]
+  standard_name = dust_source_erodibility
+  long_name = dust source erodibility map
+  units = 1
+  dimensions = (horizontal_loop_extent, vertical_layer_dimension)
+  type = real
+  kind = kind_phys
+  intent = in
+[particle_radius]
+  standard_name = dust_particle_radius
+  long_name = particle radius per bin
+  units = m
+  dimensions = (horizontal_loop_extent, vertical_layer_dimension)
+  type = real
+  kind = kind_phys
+  intent = in
+[soil_temperature]
+  standard_name = soil_temperature
+  long_name = soil temperature for frozen ground check
+  units = K
+  dimensions = (horizontal_loop_extent, vertical_layer_dimension)
+  type = real
+  kind = kind_phys
+  intent = in
+[ginoux_dust_emission_flux]
+  standard_name = ginoux_dust_emission_flux
+  long_name = Ginoux size-resolved dust emission flux
+  units = kg m-2 s-1
+  dimensions = (horizontal_loop_extent, vertical_layer_dimension)
+  type = real
+  kind = kind_phys
+  intent = out
+[errmsg]
+  standard_name = ccpp_error_message
+  long_name = error message for error handling in CCPP
+  units = none
+  dimensions = ()
+  type = character
+  kind = len=512
+  intent = out
+[errflg]
+  standard_name = ccpp_error_code
+  long_name = error code for error handling in CCPP
+  units = 1
+  dimensions = ()
+  type = integer
+  intent = out
+
+[ccpp-arg-table]
+  name = cece_ccpp_ginoux_finalize
+  type = scheme
+[errmsg]
+  standard_name = ccpp_error_message
+  long_name = error message for error handling in CCPP
+  units = none
+  dimensions = ()
+  type = character
+  kind = len=512
+  intent = out
+[errflg]
+  standard_name = ccpp_error_code
+  long_name = error code for error handling in CCPP
+  units = 1
+  dimensions = ()
+  type = integer
+  intent = out
+
+[ccpp-arg-table]
+  name = cece_ccpp_ginoux_timestep_init
+  type = scheme
+[errmsg]
+  standard_name = ccpp_error_message
+  long_name = error message for error handling in CCPP
+  units = none
+  dimensions = ()
+  type = character
+  kind = len=512
+  intent = out
+[errflg]
+  standard_name = ccpp_error_code
+  long_name = error code for error handling in CCPP
+  units = 1
+  dimensions = ()
+  type = integer
+  intent = out
+
+[ccpp-arg-table]
+  name = cece_ccpp_ginoux_timestep_finalize
+  type = scheme
+[errmsg]
+  standard_name = ccpp_error_message
+  long_name = error message for error handling in CCPP
+  units = none
+  dimensions = ()
+  type = character
+  kind = len=512
+  intent = out
+[errflg]
+  standard_name = ccpp_error_code
+  long_name = error code for error handling in CCPP
+  units = 1
+  dimensions = ()
+  type = integer
+  intent = out

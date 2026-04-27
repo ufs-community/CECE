@@ -27,6 +27,7 @@ class GinouxFortranScheme : public BasePhysicsScheme {
    private:
     double ch_du_ = 0.8e-9;
     double grav_ = 9.81;
+    double frozen_soil_threshold_ = 273.15;
     int num_bins_ = 5;
 };
 

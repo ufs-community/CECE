@@ -27,6 +27,26 @@ endif()
 
 # --- Dependencies ---
 
+# NetCDF Discovery
+find_package(PkgConfig QUIET)
+if(PKG_CONFIG_FOUND)
+  pkg_check_modules(NETCDF QUIET netcdf)
+endif()
+
+if(NOT NETCDF_FOUND)
+  find_path(NetCDF_INCLUDE_DIR netcdf.h)
+  find_library(NetCDF_LIBRARY netcdf)
+  if(NetCDF_INCLUDE_DIR AND NetCDF_LIBRARY)
+    set(NETCDF_FOUND TRUE)
+    set(NETCDF_LIBRARIES ${NetCDF_LIBRARY})
+    set(NETCDF_INCLUDE_DIRS ${NetCDF_INCLUDE_DIR})
+  endif()
+endif()
+
+if(NETCDF_FOUND)
+  message(STATUS "Found NetCDF: ${NETCDF_LIBRARIES}")
+endif()
+
 include(FetchContent)
 
 # Kokkos - Configure execution spaces Default to Serial and OpenMP for CPU
@@ -46,6 +66,10 @@ option(Kokkos_ENABLE_HIP "Enable Kokkos HIP execution space for AMD GPUs" OFF)
 
 # Python bindings support
 option(BUILD_PYTHON_BINDINGS "Build Python bindings for CECE" OFF)
+
+# CCPP and NUOPC interface options
+option(CECE_ENABLE_CCPP "Build CCPP interface for CECE" OFF)
+option(CECE_ENABLE_NUOPC "Build NUOPC/ESMF interface for CECE" ON)
 
 # Validate that at most one GPU backend is enabled
 if(Kokkos_ENABLE_CUDA AND Kokkos_ENABLE_HIP)
@@ -102,26 +126,25 @@ function(find_root_by_file root_var filename)
           message(STATUS "Found ${root_var} from ESMF path: ${root}")
           return()
         endif()
-      endif()
-    endforeach()
+      endforeach()
+    endif()
+  endfunction()
+
+  find_root_by_file(NetCDF_ROOT "netcdf.h")
+  find_root_by_file(NetCDFF_ROOT "netcdf.mod")
+  find_root_by_file(PIO_ROOT "pio.h")
+
+  if(NetCDF_ROOT)
+    set(ENV{NetCDF_ROOT} "${NetCDF_ROOT}")
   endif()
-endfunction()
-
-find_root_by_file(NetCDF_ROOT "netcdf.h")
-find_root_by_file(NetCDFF_ROOT "netcdf.mod")
-find_root_by_file(PIO_ROOT "pio.h")
-
-if(NetCDF_ROOT)
-  set(NetCDF_FOUND TRUE)
-  set(ENV{NetCDF_ROOT} "${NetCDF_ROOT}")
-endif()
-if(NetCDFF_ROOT)
-  set(NetCDFF_FOUND TRUE)
-  set(ENV{NetCDFF_ROOT} "${NetCDFF_ROOT}")
-endif()
-if(PIO_ROOT)
-  set(PIO_FOUND TRUE)
-  set(ENV{PIO_ROOT} "${PIO_ROOT}")
+  if(NetCDFF_ROOT)
+    set(ENV{NetCDFF_ROOT} "${NetCDFF_ROOT}")
+  endif()
+  if(PIO_ROOT)
+    set(ENV{PIO_ROOT} "${PIO_ROOT}")
+  endif()
+else()
+  message(STATUS "NUOPC/ESMF interface disabled (CECE_ENABLE_NUOPC=OFF)")
 endif()
 
 find_package(MPI REQUIRED)
@@ -166,7 +189,10 @@ set(
 )
 
 if(CECE_HAS_FORTRAN)
-  add_subdirectory(src/io/tide)
+  # tide library requires ESMF — only build when NUOPC is enabled
+  if(CECE_ENABLE_NUOPC)
+    add_subdirectory(src/io/tide)
+  endif()
 
   list(
     APPEND CECE_SRCS
@@ -192,9 +218,38 @@ if(CECE_HAS_FORTRAN)
     src/physics/cece_k14_fortran_bridge.cpp
     src/physics/k14_kernel.F90
     src/physics/cece_volcano_fortran_bridge.cpp
-    src/physics/volcano_kernel.F90
-    src/cece_ingestor_bridge.cpp
-  )
+    src/physics/volcano_kernel.F90)
+
+  # ESMF-dependent sources — only when NUOPC interface is enabled
+  if(CECE_ENABLE_NUOPC)
+    list(APPEND CECE_SRCS src/cece_cap.F90 src/cece_ingestor_bridge.cpp)
+  endif()
+endif()
+
+# CCPP interface sources — when CCPP is enabled (Req 10.2)
+if(CECE_ENABLE_CCPP)
+  message(STATUS "CCPP interface enabled")
+  # C++ API can be compiled regardless of Fortran availability
+  list(APPEND CECE_SRCS src/ccpp/cece_ccpp_api.cpp)
+
+  # Fortran CCPP driver schemes require Fortran compiler
+  if(CECE_HAS_FORTRAN)
+    list(
+      APPEND
+      CECE_SRCS
+      src/ccpp/cece_ccpp_state.F90
+      src/ccpp/cece_ccpp_sea_salt.F90
+      src/ccpp/cece_ccpp_megan.F90
+      src/ccpp/cece_ccpp_dust.F90
+      src/ccpp/cece_ccpp_dms.F90
+      src/ccpp/cece_ccpp_lightning.F90
+      src/ccpp/cece_ccpp_soil_nox.F90
+      src/ccpp/cece_ccpp_volcano.F90
+      src/ccpp/cece_ccpp_example.F90
+      src/ccpp/cece_ccpp_stacking.F90)
+  else()
+    message(STATUS "CCPP Fortran driver schemes disabled (no Fortran compiler)")
+  endif()
 endif()
 
 add_library(cece SHARED ${CECE_SRCS})
@@ -211,6 +266,9 @@ if(CECE_HAS_FORTRAN)
   target_compile_definitions(cece PRIVATE CECE_HAS_FORTRAN)
 endif()
 
+if(CECE_ENABLE_CCPP)
+  target_compile_definitions(cece PRIVATE CECE_ENABLE_CCPP)
+endif()
 target_include_directories(
   cece
   PUBLIC
@@ -219,16 +277,26 @@ target_include_directories(
     ${ESMF_INCLUDE_DIRS}
 )
 
-target_link_libraries(cece PUBLIC Kokkos::kokkos ESMF::ESMF yaml-cpp)
+if(CECE_ENABLE_NUOPC)
+  target_include_directories(
+    cece PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+                $<INSTALL_INTERFACE:include> ${ESMF_INCLUDE_DIRS})
+  target_link_libraries(cece PUBLIC Kokkos::kokkos ESMF::ESMF yaml-cpp)
+else()
+  target_include_directories(
+    cece PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+                $<INSTALL_INTERFACE:include>)
+  target_link_libraries(cece PUBLIC Kokkos::kokkos yaml-cpp)
+endif()
 
-if(CECE_HAS_FORTRAN)
+if(CECE_HAS_FORTRAN AND CECE_ENABLE_NUOPC)
   target_link_libraries(cece PUBLIC tide)
 endif()
 
-if(NetCDF_ROOT)
-  if(EXISTS "${NetCDF_ROOT}/lib/libnetcdf.so")
-    target_link_libraries(cece PUBLIC "${NetCDF_ROOT}/lib/libnetcdf.so")
-  endif()
+if(NETCDF_FOUND)
+  target_link_libraries(cece PUBLIC ${NETCDF_LIBRARIES})
+  target_include_directories(cece PUBLIC ${NETCDF_INCLUDE_DIRS})
+  target_compile_definitions(cece PRIVATE CECE_HAS_NETCDF)
 endif()
 
 if(MPI_FOUND)
@@ -239,8 +307,10 @@ endif()
 
 enable_testing()
 
-add_executable(test_driver_configuration tests/test_driver_configuration.cpp)
-target_link_libraries(test_driver_configuration PRIVATE cece GTest::gtest_main)
+if(CECE_ENABLE_NUOPC)
+  add_executable(test_driver_configuration tests/test_driver_configuration.cpp)
+  target_link_libraries(test_driver_configuration PRIVATE cece
+                                                          GTest::gtest_main)
 
 add_executable(test_driver_config_validation tests/test_driver_config_validation.cpp)
 target_link_libraries(test_driver_config_validation PRIVATE cece iso8601_utils GTest::gtest_main)
@@ -254,11 +324,13 @@ target_link_libraries(test_clock_operations_unit PRIVATE GTest::gtest_main)
 add_executable(test_driver_integration_end_to_end tests/test_driver_integration_end_to_end.cpp)
 target_link_libraries(test_driver_integration_end_to_end PRIVATE GTest::gtest_main)
 
-add_executable(test_cece_cap tests/test_cece_cap.cpp)
-target_link_libraries(test_cece_cap PRIVATE cece GTest::gtest_main)
+if(CECE_ENABLE_NUOPC)
+  add_executable(test_cece_cap tests/test_cece_cap.cpp)
+  target_link_libraries(test_cece_cap PRIVATE cece GTest::gtest_main)
 
-add_executable(test_diagnostics tests/test_diagnostics.cpp)
-target_link_libraries(test_diagnostics PRIVATE cece GTest::gtest)
+  add_executable(test_diagnostics tests/test_diagnostics.cpp)
+  target_link_libraries(test_diagnostics PRIVATE cece GTest::gtest)
+endif()
 
 add_executable(test_cece_ingestor tests/test_cece_ingestor.cpp)
 target_link_libraries(test_cece_ingestor PRIVATE cece GTest::gtest_main)
@@ -284,7 +356,7 @@ target_link_libraries(test_vertical_distribution_single PRIVATE cece GTest::gtes
 add_executable(test_field_resolution_priority tests/test_field_resolution_priority.cpp)
 target_link_libraries(test_field_resolution_priority PRIVATE cece GTest::gtest_main)
 
-if(CECE_HAS_FORTRAN)
+if(CECE_HAS_FORTRAN AND CECE_ENABLE_NUOPC)
   add_library(test_helpers STATIC tests/test_helpers.F90)
   target_include_directories(test_helpers PUBLIC ${ESMF_INCLUDE_DIRS})
   target_link_libraries(test_helpers PUBLIC ESMF::ESMF)
@@ -308,6 +380,14 @@ target_link_libraries(test_kokkos_configuration PRIVATE cece GTest::gtest_main)
 add_executable(test_properties tests/test_properties.cpp)
 target_link_libraries(test_properties PRIVATE cece GTest::gtest_main)
 
+# CCPP Property-Based Tests (RapidCheck + GTest) — only when CCPP is enabled
+if(CECE_ENABLE_CCPP)
+  add_executable(test_ccpp_pbt tests/test_ccpp_pbt.cpp)
+  target_link_libraries(
+    test_ccpp_pbt PRIVATE cece GTest::gtest GTest::gtest_main rapidcheck
+                          rapidcheck_gtest)
+endif()
+
 # Test Suite Idempotence (Requirement 8.16)
 add_executable(test_suite_idempotence tests/test_suite_idempotence.cpp)
 target_link_libraries(test_suite_idempotence PRIVATE cece GTest::gtest_main)
@@ -329,23 +409,31 @@ target_link_libraries(test_ginoux_properties PRIVATE cece GTest::gtest_main)
 add_executable(test_k14_properties tests/test_k14_properties.cpp)
 target_link_libraries(test_k14_properties PRIVATE cece GTest::gtest_main)
 
-add_executable(test_field_creation tests/test_field_creation.cpp)
-if(CECE_HAS_FORTRAN AND TARGET test_helpers)
-  target_link_libraries(test_field_creation PRIVATE cece test_helpers GTest::gtest_main)
-else()
-  target_link_libraries(test_field_creation PRIVATE cece GTest::gtest_main)
+if(CECE_ENABLE_NUOPC)
+  add_executable(test_field_creation tests/test_field_creation.cpp)
+  if(CECE_HAS_FORTRAN AND TARGET test_helpers)
+    target_link_libraries(test_field_creation PRIVATE cece test_helpers
+                                                      GTest::gtest_main)
+  else()
+    target_link_libraries(test_field_creation PRIVATE cece GTest::gtest_main)
+  endif()
+
+  # Unit tests for field pointer passing (Requirement R5)
+  add_executable(test_field_pointer_passing
+                 tests/test_field_pointer_passing.cpp)
+  if(CECE_HAS_FORTRAN AND TARGET test_helpers)
+    target_link_libraries(test_field_pointer_passing PRIVATE cece test_helpers
+                                                             GTest::gtest_main)
+  else()
+    target_link_libraries(test_field_pointer_passing PRIVATE cece
+                                                             GTest::gtest_main)
+  endif()
 endif()
 
-# Unit tests for field pointer passing (Requirement R5)
-add_executable(test_field_pointer_passing tests/test_field_pointer_passing.cpp)
-if(CECE_HAS_FORTRAN AND TARGET test_helpers)
-  target_link_libraries(test_field_pointer_passing PRIVATE cece test_helpers GTest::gtest_main)
-else()
-  target_link_libraries(test_field_pointer_passing PRIVATE cece GTest::gtest_main)
+# Standalone NUOPC driver — only when NUOPC interface is enabled
+if(CECE_ENABLE_NUOPC)
+  add_subdirectory(standalone_nuopc)
 endif()
-
-# Standalone NUOPC driver
-add_subdirectory(standalone_nuopc)
 
 # Python script tests
 find_package(Python3 COMPONENTS Interpreter)
@@ -446,31 +534,42 @@ if(Python3_Interpreter_FOUND)
 endif()
 
 include(GoogleTest)
-gtest_discover_tests(test_driver_configuration)
-gtest_discover_tests(test_driver_config_validation)
+if(CECE_ENABLE_NUOPC)
+  gtest_discover_tests(test_driver_configuration)
+  gtest_discover_tests(test_driver_config_validation)
+endif()
 gtest_discover_tests(test_driver_clock_management)
 gtest_discover_tests(test_clock_operations_unit)
 gtest_discover_tests(test_driver_integration_end_to_end)
-gtest_discover_tests(test_cece_cap)
+if(CECE_ENABLE_NUOPC)
+  gtest_discover_tests(test_cece_cap)
+endif()
 gtest_discover_tests(test_stacking_engine)
 gtest_discover_tests(test_vertical_distribution_single)
 gtest_discover_tests(test_cece_utils)
 gtest_discover_tests(test_cece_compute)
 gtest_discover_tests(test_physics)
 gtest_discover_tests(test_cece_ingestor)
-gtest_discover_tests(test_diagnostics)
+if(CECE_ENABLE_NUOPC)
+  gtest_discover_tests(test_diagnostics)
+endif()
 gtest_discover_tests(test_hemco_mimic)
 gtest_discover_tests(test_field_resolution_priority)
 gtest_discover_tests(test_hemco_parity)
 gtest_discover_tests(test_kokkos_configuration)
 gtest_discover_tests(test_properties)
+if(CECE_ENABLE_CCPP)
+  gtest_discover_tests(test_ccpp_pbt)
+endif()
 gtest_discover_tests(test_suite_idempotence)
 gtest_discover_tests(test_repro_failure)
 gtest_discover_tests(test_fengsha_properties)
 gtest_discover_tests(test_ginoux_properties)
 gtest_discover_tests(test_k14_properties)
-gtest_discover_tests(test_field_creation)
-gtest_discover_tests(test_field_pointer_passing)
+if(CECE_ENABLE_NUOPC)
+  gtest_discover_tests(test_field_creation)
+  gtest_discover_tests(test_field_pointer_passing)
+endif()
 
 # --- Python Bindings ---
 

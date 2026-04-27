@@ -9,8 +9,8 @@
 #include "cece/physics/cece_ginoux_fortran.hpp"
 
 extern "C" {
-void run_ginoux_fortran(double* radius, double* fraclake, double* gwettop, double* oro, double* u10m, double* v10m, double* du_src, double* emissions,
-                        int nx, int ny, int nbins, double Ch_DU, double grav);
+void run_ginoux_fortran(double* radius, double* fraclake, double* gwettop, double* oro, double* t_soil, double* u10m, double* v10m, double* du_src,
+                        double* emissions, int nx, int ny, int nbins, double Ch_DU, double grav, double frozen_soil_threshold);
 }
 
 namespace cece {
@@ -25,6 +25,7 @@ void GinouxFortranScheme::Initialize(const YAML::Node& config, CeceDiagnosticMan
 
     if (config["ch_du"]) ch_du_ = config["ch_du"].as<double>();
     if (config["grav"]) grav_ = config["grav"].as<double>();
+    if (config["frozen_soil_threshold"]) frozen_soil_threshold_ = config["frozen_soil_threshold"].as<double>();
     if (config["num_bins"]) num_bins_ = config["num_bins"].as<int>();
 
     std::cout << "GinouxFortranScheme: Initialized." << "\n";
@@ -39,6 +40,7 @@ void GinouxFortranScheme::Run(CeceImportState& import_state, CeceExportState& ex
     auto it_fraclake = import_state.fields.find("lake_fraction");
     auto it_du_src = import_state.fields.find("dust_source");
     auto it_radius = import_state.fields.find("particle_radius");
+    auto it_t_soil = import_state.fields.find("soil_temperature");
 
     // Resolve export field
     auto it_emis = export_state.fields.find("ginoux_dust_emissions");
@@ -72,10 +74,18 @@ void GinouxFortranScheme::Run(CeceImportState& import_state, CeceExportState& ex
     int ny = static_cast<int>(dv_emis.extent(1));
     int nbins = static_cast<int>(dv_emis.extent(2));
 
+    // Resolve optional soil temperature field
+    double* t_soil_data = nullptr;
+    if (it_t_soil != import_state.fields.end()) {
+        auto& dv_t_soil = it_t_soil->second;
+        dv_t_soil.sync<Kokkos::HostSpace>();
+        t_soil_data = dv_t_soil.view_host().data();
+    }
+
     // Call Fortran kernel
     run_ginoux_fortran(dv_radius.view_host().data(), dv_fraclake.view_host().data(), dv_gwettop.view_host().data(), dv_oro.view_host().data(),
-                       dv_u10m.view_host().data(), dv_v10m.view_host().data(), dv_du_src.view_host().data(), dv_emis.view_host().data(), nx, ny,
-                       nbins, ch_du_, grav_);
+                       t_soil_data, dv_u10m.view_host().data(), dv_v10m.view_host().data(), dv_du_src.view_host().data(), dv_emis.view_host().data(),
+                       nx, ny, nbins, ch_du_, grav_, frozen_soil_threshold_);
 
     // Mark export modified on host and sync back to device
     dv_emis.modify<Kokkos::HostSpace>();

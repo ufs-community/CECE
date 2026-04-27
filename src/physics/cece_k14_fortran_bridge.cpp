@@ -45,7 +45,7 @@ extern "C" {
 void run_k14_fortran(double* t_soil, double* w_top, double* rho_air, double* z0, double* z, double* u_z, double* v_z, double* ustar, double* f_land,
                      double* f_snow, double* f_src, double* f_sand, double* f_silt, double* f_clay, double* texture, double* vegetation, double* gvf,
                      double* emissions, int nx, int ny, int nbins, int km, double f_w, double f_c, double uts_gamma, double UNDEF, double GRAV,
-                     double VON_KARMAN, int opt_clay, double Ch_DU, double* distribution);
+                     double VON_KARMAN, int opt_clay, double Ch_DU, double frozen_soil_threshold, double* distribution);
 }
 
 namespace cece {
@@ -65,6 +65,7 @@ void K14FortranScheme::Initialize(const YAML::Node& config, CeceDiagnosticManage
     if (config["undef"]) undef_ = config["undef"].as<double>();
     if (config["grav"]) grav_ = config["grav"].as<double>();
     if (config["von_karman"]) von_karman_ = config["von_karman"].as<double>();
+    if (config["frozen_soil_threshold"]) frozen_soil_threshold_ = config["frozen_soil_threshold"].as<double>();
     if (config["opt_clay"]) opt_clay_ = config["opt_clay"].as<int>();
     if (config["num_bins"]) num_bins_ = config["num_bins"].as<int>();
 
@@ -178,7 +179,7 @@ void K14FortranScheme::Run(CeceImportState& import_state, CeceExportState& expor
                     dv_f_land.view_host().data(), dv_f_snow.view_host().data(), dv_f_src.view_host().data(), dv_f_sand.view_host().data(),
                     dv_f_silt.view_host().data(), dv_f_clay.view_host().data(), dv_texture.view_host().data(), dv_vegetation.view_host().data(),
                     dv_gvf.view_host().data(), dv_emis.view_host().data(), nx, ny, nbins, km, f_w_, f_c_, uts_gamma_, undef_, grav_, von_karman_,
-                    opt_clay_, ch_du_, dist_for_fortran.data());
+                    opt_clay_, ch_du_, frozen_soil_threshold_, dist_for_fortran.data());
 
     // Mark export modified on host and sync back to device
     dv_emis.modify<Kokkos::HostSpace>();

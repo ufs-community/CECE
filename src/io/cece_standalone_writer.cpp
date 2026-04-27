@@ -1,6 +1,8 @@
 #include "cece/cece_standalone_writer.hpp"
 
+#ifdef CECE_HAS_NETCDF
 #include <netcdf.h>
+#endif
 
 #include <cstring>
 #include <ctime>
@@ -16,6 +18,7 @@ namespace fs = std::filesystem;
 namespace cece {
 
 namespace {
+#ifdef CECE_HAS_NETCDF
 void check_nc(int status, const std::string& msg = "") {
     if (status != NC_NOERR) {
         std::string err = "NetCDF Error: " + std::string(nc_strerror(status));
@@ -24,6 +27,7 @@ void check_nc(int status, const std::string& msg = "") {
         throw std::runtime_error(err);
     }
 }
+#endif
 
 std::tm ParseISO8601(const std::string& iso_time) {
     std::tm tm = {};
@@ -99,6 +103,11 @@ CeceStandaloneWriter::~CeceStandaloneWriter() {
 int CeceStandaloneWriter::Initialize(const std::string& start_time_iso8601, int nx, int ny, int nz) {
     if (!config_.enabled) return 0;
 
+#ifndef CECE_HAS_NETCDF
+    CECE_LOG_ERROR("[CECE] Standalone writer requested but CECE was built without NetCDF support.");
+    return -1;
+#endif
+
     start_time_iso8601_ = start_time_iso8601;
     nx_ = nx;
     ny_ = ny;
@@ -124,6 +133,11 @@ int CeceStandaloneWriter::Initialize(const std::string& start_time_iso8601, int 
 int CeceStandaloneWriter::InitializeWithCoords(const std::string& start_time_iso8601, int nx, int ny, int nz, const std::vector<double>& lon_coords,
                                                const std::vector<double>& lat_coords) {
     if (!config_.enabled) return 0;
+
+#ifndef CECE_HAS_NETCDF
+    CECE_LOG_ERROR("[CECE] Standalone writer requested but CECE was built without NetCDF support.");
+    return -1;
+#endif
 
     start_time_iso8601_ = start_time_iso8601;
     nx_ = nx;
@@ -167,6 +181,9 @@ std::string CeceStandaloneWriter::ResolveFilename(double time_seconds_since_star
 int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, DualView3D>& fields, double time_seconds, int step) {
     if (!initialized_ || !config_.enabled) return 0;
 
+#ifndef CECE_HAS_NETCDF
+    return -1;
+#else
     // Check frequency
     if (step % config_.frequency_steps != 0) return 0;
 
@@ -175,7 +192,7 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
     std::string filename = ResolveFilename(time_seconds);
     CECE_LOG_INFO("[CECE] Output file: " + filename);
 
-    int ncid;
+    int ncid = -1;
     try {
         // Create file (clobber existing)
         check_nc(nc_create(filename.c_str(), NC_CLOBBER | NC_NETCDF4, &ncid), "create");
@@ -347,6 +364,7 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
     }
 
     return 0;
+#endif
 }
 
 void CeceStandaloneWriter::Finalize() {
