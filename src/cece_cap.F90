@@ -471,7 +471,8 @@ contains
       end if
       write(*,'(A)') "INFO: [CECE] Created matching grid for field creation"
     else
-      write(*,'(A,I0)') "INFO: [CECE] No mesh provided by driver (rc=", rc, ") - creating component mesh and grid (standalone mode)"
+      write(*,'(A,I0,A)') "INFO: [CECE] No mesh provided by driver (rc=", rc, &
+        ") - creating component mesh and grid (standalone mode)"
 
       ! Check if a pre-built GRIDSPEC file is configured
       call cece_core_get_gridspec_file_path(g_cece_data_ptr, gridspec_path, gridspec_path_len, c_rc)
