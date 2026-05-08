@@ -350,15 +350,35 @@ add_subdirectory(standalone_nuopc)
 # Python script tests
 find_package(Python3 COMPONENTS Interpreter)
 if(Python3_Interpreter_FOUND)
+  # Use a venv inside the build directory so pip installs work even in
+  # read-only container environments (e.g. Singularity).
+  set(CECE_PYTHON_VENV_DIR "${CMAKE_BINARY_DIR}/python_venv")
+  if(WIN32)
+    set(VENV_PYTHON "${CECE_PYTHON_VENV_DIR}/Scripts/python.exe")
+  else()
+    set(VENV_PYTHON "${CECE_PYTHON_VENV_DIR}/bin/python")
+  endif()
+
+  add_test(
+    NAME create_python_venv
+    COMMAND ${Python3_EXECUTABLE} -m venv ${CECE_PYTHON_VENV_DIR}
+  )
+  set_tests_properties(create_python_venv PROPERTIES FIXTURES_SETUP "python_venv_ready")
+
   add_test(
     NAME install_pytest
-    COMMAND ${Python3_EXECUTABLE} -m pip install pytest --quiet
+    COMMAND ${VENV_PYTHON} -m pip install pytest pyyaml --quiet
   )
-  set_tests_properties(install_pytest PROPERTIES FIXTURES_SETUP "pytest_installed")
+  set_tests_properties(
+    install_pytest
+    PROPERTIES
+      FIXTURES_SETUP "pytest_installed"
+      FIXTURES_REQUIRED "python_venv_ready"
+  )
 
   add_test(
     NAME test_hemco_to_cece_python
-    COMMAND ${Python3_EXECUTABLE} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_converters.py
+    COMMAND ${VENV_PYTHON} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_converters.py
   )
   set_tests_properties(
     test_hemco_to_cece_python
@@ -369,7 +389,7 @@ if(Python3_Interpreter_FOUND)
 
   add_test(
     NAME test_scripts_python
-    COMMAND ${Python3_EXECUTABLE} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_scripts.py
+    COMMAND ${VENV_PYTHON} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_scripts.py
   )
   set_tests_properties(
     test_scripts_python
@@ -382,7 +402,7 @@ if(Python3_Interpreter_FOUND)
     add_test(
       NAME test_enum_config_bindings
       COMMAND
-        ${Python3_EXECUTABLE} -m pytest
+        ${VENV_PYTHON} -m pytest
         ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_enum_config_bindings.py -v
     )
     set_tests_properties(
@@ -395,7 +415,7 @@ if(Python3_Interpreter_FOUND)
     add_test(
       NAME test_state_bindings
       COMMAND
-        ${Python3_EXECUTABLE} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_state_bindings.py -v
+        ${VENV_PYTHON} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_state_bindings.py -v
     )
     set_tests_properties(
       test_state_bindings
@@ -407,7 +427,7 @@ if(Python3_Interpreter_FOUND)
     add_test(
       NAME test_compute_bindings
       COMMAND
-        ${Python3_EXECUTABLE} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_compute_bindings.py
+        ${VENV_PYTHON} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_compute_bindings.py
         -v
     )
     set_tests_properties(
@@ -420,7 +440,7 @@ if(Python3_Interpreter_FOUND)
     add_test(
       NAME test_validator_logger_bindings
       COMMAND
-        ${Python3_EXECUTABLE} -m pytest
+        ${VENV_PYTHON} -m pytest
         ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_validator_logger_bindings.py -v
     )
     set_tests_properties(
@@ -433,7 +453,7 @@ if(Python3_Interpreter_FOUND)
     add_test(
       NAME test_python_api_rewired
       COMMAND
-        ${Python3_EXECUTABLE} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_python_api_rewired.py
+        ${VENV_PYTHON} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_python_api_rewired.py
         -v
     )
     set_tests_properties(

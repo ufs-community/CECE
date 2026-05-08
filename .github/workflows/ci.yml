@@ -34,8 +34,9 @@ jobs:
         run: |
           source /opt/spack-environment/activate.sh
           python3 -m pip install --upgrade pip
-          python3 -m pip install pyyaml pytest jinja2 numpy
+          python3 -m pip install jinja2 numpy  # for scripts run outside ctest
           python3 -m pip install clang-tidy  # custom CMake target created if detected
+          # pytest and pyyaml are installed into a build-dir venv by ctest fixtures
 
       - name: Configure and build CECE
         run: |
