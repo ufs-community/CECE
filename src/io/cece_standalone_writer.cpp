@@ -206,7 +206,7 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
 
         check_nc(nc_def_var(ncid, "lev", NC_DOUBLE, 1, &dim_lev, &var_lev), "def_var lev");
         check_nc(nc_put_att_text(ncid, var_lev, "units", 1, "1"), "lev units");
-        check_nc(nc_put_att_text(ncid, var_lev, "long_name", 20, "model_level_number"), "lev long_name");
+        check_nc(nc_put_att_text(ncid, var_lev, "long_name", 18, "model level number"), "lev long_name");
 
         // Define field variables
         // If config_.fields is empty, write all fields. Else filter.
@@ -243,9 +243,9 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
 
         // Add global CF convention attributes for better tool support
         check_nc(nc_put_att_text(ncid, NC_GLOBAL, "Conventions", 6, "CF-1.8"), "global Conventions");
-        check_nc(nc_put_att_text(ncid, NC_GLOBAL, "title", 28, "CECE Atmospheric Emissions"), "global title");
+        check_nc(nc_put_att_text(ncid, NC_GLOBAL, "title", 26, "CECE Atmospheric Emissions"), "global title");
         check_nc(nc_put_att_text(ncid, NC_GLOBAL, "institution", 4, "CECE"), "global institution");
-        check_nc(nc_put_att_text(ncid, NC_GLOBAL, "source", 42, "CECE - Community Emissions Computing Engine"), "global source");
+        check_nc(nc_put_att_text(ncid, NC_GLOBAL, "source", 43, "CECE - Community Emissions Computing Engine"), "global source");
 
         check_nc(nc_enddef(ncid), "enddef");
 
