@@ -364,7 +364,7 @@ if(Python3_Interpreter_FOUND)
 
   add_test(
     NAME install_pytest
-    COMMAND ${VENV_PYTHON} -m pip install pytest pyyaml --quiet
+    COMMAND ${VENV_PYTHON} -m pip install pytest pyyaml matplotlib
   )
   set_tests_properties(
     install_pytest
