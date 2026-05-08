@@ -326,7 +326,7 @@ Configuration for TIDE (Temporal Interpolation & Data Extraction) data streams f
 | `yearAlign` | Integer | Simulation year to align with data |
 | `taxmode` | String | Time axis mode: `cycle`, `extend`, or `limit` |
 | `tintalgo` | String | Temporal interpolation: `linear`, `nearest`, or `bpch` |
-| `mapalgo` | String | Spatial regridding: `consd`, `bilinear`, or `patch` |
+| `mapalgo` | String | Spatial regridding: `consd`, `bilinear`, `consf`, `nn`, `redist`, or `passthrough` (skip regridding — data must be on the model grid already, sizes are validated) |
 | `variables` | List | Variable mappings between file and model |
 
 ### Variable Mapping

@@ -223,7 +223,10 @@ class DataStreamConfig:
         Time interpolation algorithm. One of ``"linear"``, ``"constant"``.
         Default is ``"linear"``.
     mapalgo : str, optional
-        Spatial mapping algorithm. Default is ``"default"``.
+        Spatial mapping algorithm. One of ``"bilinear"``, ``"consd"``,
+        ``"consf"``, ``"nn"``, ``"redist"``, or ``"passthrough"``
+        (skip regridding when data is already on the model grid).
+        Default is ``"default"``.
 
     Examples
     --------
@@ -436,7 +439,10 @@ class CeceConfig:
         tintalgo : str, optional
             Time interpolation algorithm. Default is ``"linear"``.
         mapalgo : str, optional
-            Spatial mapping algorithm. Default is ``"default"``.
+            Spatial mapping algorithm. One of ``"bilinear"``, ``"consd"``,
+            ``"consf"``, ``"nn"``, ``"redist"``, or ``"passthrough"``
+            (skip regridding when data is already on the model grid).
+            Default is ``"default"``.
 
         Raises
         ------

@@ -639,6 +639,9 @@ contains
                   unmappedaction=ESMF_UNMAPPEDACTION_IGNORE, rc=rc)
           else if (trim(sdat%stream(ns)%mapalgo) == 'none') then
              ! single point stream data, no action required.
+          else if (trim(sdat%stream(ns)%mapalgo) == 'passthrough') then
+             ! Data is already on the model grid - skip regridding entirely.
+             ! A size check against the destination field is performed at first read.
           else
              call shr_sys_abort('ERROR: map algo '//trim(sdat%stream(ns)%mapalgo)//' is not supported')
           end if
@@ -1929,41 +1932,57 @@ contains
        elseif(associated(dataptr2d_src) .and. trim(per_stream%fldlist_model(nf)) .eq. vname) then
           dataptr2d_src(2,:) = dataptr1d(:)
        else if (per_stream%stream_pio_iodesc_set) then
-          ! Regrid the field_stream read in to the model mesh
+          ! Regrid (or copy) the field_stream read in to the model mesh
           call dshr_fldbun_getfieldN(fldbun_data, nf, field_dst, rc=rc)
           if (chkerr(rc,__LINE__,u_FILE_u)) return
 
-          call ESMF_FieldRegrid(per_stream%field_stream, field_dst, routehandle=per_stream%routehandle, &
-               termorderflag=ESMF_TERMORDER_SRCSEQ, checkflag=.false., zeroregion=ESMF_REGION_TOTAL, rc=rc)
-
-          if (sdat%mainproc) then
+          if (trim(stream%mapalgo) == 'passthrough') then
+             ! No regridding: directly copy data and validate matching sizes.
              block
-               real(r8), pointer :: dptr(:) => null()
-               real(r8) :: dmin, dmax, dsum
-               integer :: k, sz
-
-               call ESMF_FieldGet(field_dst, farrayPtr=dptr, rc=rc)
-               if (rc /= ESMF_SUCCESS) then
-                  print *, "DEBUG: ESMF_FieldGet(field_dst) failed with rc=", rc
-               else
-                  if (associated(dptr)) then
-                    sz = size(dptr)
-                    if (sz > 0) then
-                       dmin = minval(dptr)
-                       dmax = maxval(dptr)
-                       dsum = sum(dptr)
-                       print *, "DEBUG: post-regrid field_dst: size=", sz, " min=", dmin, " max=", dmax, " sum=", dsum
-                    else
-                       print *, "DEBUG: post-regrid field_dst: size=0"
-                    endif
-                  else
-                    print *, "DEBUG: field_dst pointer not associated"
-                  endif
-               endif
+               real(r8), pointer :: dst_ptr(:) => null()
+               call dshr_field_getfldptr(field_dst, fldptr1=dst_ptr, rc=rc)
+               if (chkerr(rc,__LINE__,u_FILE_u)) return
+               if (size(dataptr1d) /= size(dst_ptr)) then
+                  write(errmsg,'(a,i0,a,i0,a)') &
+                       'ERROR: passthrough mapalgo: stream size (', size(dataptr1d), &
+                       ') does not match model grid size (', size(dst_ptr), ')'
+                  call shr_sys_abort(trim(errmsg))
+               end if
+               dst_ptr(:) = dataptr1d(:)
              end block
-          endif
+          else
+             call ESMF_FieldRegrid(per_stream%field_stream, field_dst, routehandle=per_stream%routehandle, &
+                  termorderflag=ESMF_TERMORDER_SRCSEQ, checkflag=.false., zeroregion=ESMF_REGION_TOTAL, rc=rc)
 
-          if (chkerr(rc,__LINE__,u_FILE_u)) return
+             if (sdat%mainproc) then
+                block
+                  real(r8), pointer :: dptr(:) => null()
+                  real(r8) :: dmin, dmax, dsum
+                  integer :: k, sz
+
+                  call ESMF_FieldGet(field_dst, farrayPtr=dptr, rc=rc)
+                  if (rc /= ESMF_SUCCESS) then
+                     print *, "DEBUG: ESMF_FieldGet(field_dst) failed with rc=", rc
+                  else
+                     if (associated(dptr)) then
+                       sz = size(dptr)
+                       if (sz > 0) then
+                          dmin = minval(dptr)
+                          dmax = maxval(dptr)
+                          dsum = sum(dptr)
+                          print *, "DEBUG: post-regrid field_dst: size=", sz, " min=", dmin, " max=", dmax, " sum=", dsum
+                       else
+                          print *, "DEBUG: post-regrid field_dst: size=0"
+                       endif
+                     else
+                       print *, "DEBUG: field_dst pointer not associated"
+                     endif
+                  endif
+                end block
+             endif
+
+             if (chkerr(rc,__LINE__,u_FILE_u)) return
+          end if
        else
           call dshr_fldbun_getfieldN(fldbun_data, nf, field_dst, rc=rc)
           if (chkerr(rc,__LINE__,u_FILE_u)) return

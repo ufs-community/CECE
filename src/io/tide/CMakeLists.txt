@@ -177,6 +177,27 @@ target_link_libraries(
 )
 add_test(NAME tide_api_roundtrip COMMAND test_tide_roundtrip)
 
+add_executable(test_tide_passthrough tide/tests/test_tide_passthrough.F90)
+target_include_directories(
+  test_tide_passthrough
+  PRIVATE ${ESMF_F90COMPILEPATHS} ${PIO_Fortran_INCLUDE_DIR} ${NETCDF_Fortran_INCLUDE_DIR}
+)
+target_link_libraries(
+  test_tide_passthrough
+  PRIVATE
+    tide
+    dshr
+    streams
+    cdeps_share
+    ${ESMF_F90ESMFLINKLIBS}
+    ${PIO_Fortran_LIBRARY}
+    ${PIO_C_LIBRARY}
+    ${NETCDF_Fortran_LIBRARY}
+    ${MPI_Fortran_LIBRARIES}
+    m
+)
+add_test(NAME tide_passthrough COMMAND test_tide_passthrough)
+
 # -----------------------------------------------------------------------
 # NetCDF-Fortran (required by CF property tests)
 # -----------------------------------------------------------------------

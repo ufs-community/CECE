@@ -50,6 +50,26 @@ TEST_F(IngestorTest, ConfigFileGeneration) {
     EXPECT_NE(config_out.find("stream_data_variables01: VAR_FILE VAR_MODEL"), std::string::npos);
 }
 
+TEST_F(IngestorTest, PassthroughMapalgoSerializedCorrectly) {
+    CeceDataIngestor ingestor;
+    CeceDataConfig config;
+    CeceDataStreamConfig s1;
+    s1.name = "on_grid_stream";
+    s1.file_paths.emplace_back("data.nc");
+    s1.mapalgo = "passthrough";
+    CeceDataVariableConfig v1;
+    v1.name_in_file = "CO_FILE";
+    v1.name_in_model = "CO_MODEL";
+    s1.variables.push_back(v1);
+    config.streams.push_back(s1);
+
+    std::string esmf_out = ingestor.SerializeTideESMFConfig(config);
+    EXPECT_NE(esmf_out.find("mapalgo01: passthrough"), std::string::npos);
+
+    std::string yaml_out = ingestor.SerializeTideYaml(config);
+    EXPECT_NE(yaml_out.find("map_algo: \"passthrough\""), std::string::npos);
+}
+
 }  // namespace cece::test
 
 int main(int argc, char** argv) {
