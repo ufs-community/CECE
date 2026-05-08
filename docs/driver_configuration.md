@@ -58,16 +58,15 @@ driver:
   # Requirements: 3.1, 3.3
   timestep_seconds: 1800
 
-  # Path to ESMF mesh file (optional)
-  # If specified, the driver reads the mesh from this file and skips grid generation
-  # If null or absent, the driver generates a Gaussian grid based on grid.nx and grid.ny
+  # Path to ESMF GRIDSPEC NetCDF file (optional)
+  # If specified, the driver loads the grid from this file and skips grid generation.
+  # Generate one with: python scripts/cece_make_gridspec.py <config.yaml>
+  # If null or absent, a structured grid is generated from grid.nx/ny/nz.
   # Default: null (generate grid)
-  # Requirements: 14.1, 14.2
-  mesh_file: null
+  gridspec_file: null
 
-  # Grid configuration for generated Gaussian grid
-  # Only used if mesh_file is null or absent
-  # Requirements: 14.3, 14.4
+  # Grid configuration for generated structured grid
+  # Only used if gridspec_file is null or absent
   grid:
     # Grid points in X direction (must be positive)
     # Default: 4
@@ -131,23 +130,17 @@ driver:
 
 **Requirements**: 3.1, 3.2, 3.3
 
-### mesh_file
+### gridspec_file
 
 **Type**: String (file path) or null
 
 **Default**: `null`
 
-**Description**: Path to an ESMF mesh file for spatial discretization. If specified, the driver reads the mesh from this file and skips grid generation. If null or absent, the driver generates a Gaussian grid based on `grid.nx` and `grid.ny`.
+**Description**: Path to an ESMF GRIDSPEC NetCDF file. If set, the grid is loaded from this file instead of being generated from `grid.nx`/`ny`/`nz`. Create one with `scripts/cece_make_gridspec.py`.
 
 **Examples**:
-- `"/path/to/mesh.nc"` - Use pre-existing mesh
-- `null` - Generate Gaussian grid (default)
-
-**Validation**:
-- If specified, the file must exist and be a valid ESMF mesh
-- If file doesn't exist, the driver logs an error and exits with status 1
-
-**Requirements**: 14.1, 14.2, 14.6
+- `"/data/grids/global_0p1deg.nc"` - Use pre-generated GRIDSPEC file
+- `null` - Generate structured grid (default)
 
 ### grid.nx
 
@@ -155,7 +148,7 @@ driver:
 
 **Default**: `4`
 
-**Description**: Number of grid points in the X direction for generated Gaussian grids. Only used if `mesh_file` is null or absent. Must be positive.
+**Description**: Number of grid points in the X direction for generated structured grids. Only used if `gridspec_file` is null or absent. Must be positive.
 
 **Examples**:
 - `4` - 4x4 grid (16 points)
@@ -171,7 +164,7 @@ driver:
 
 **Default**: `4`
 
-**Description**: Number of grid points in the Y direction for generated Gaussian grids. Only used if `mesh_file` is null or absent. Must be positive.
+**Description**: Number of grid points in the Y direction for generated structured grids. Only used if `gridspec_file` is null or absent. Must be positive.
 
 **Examples**:
 - `4` - 4x4 grid (16 points)
@@ -185,17 +178,13 @@ driver:
 
 The driver uses the following logic to select spatial discretization:
 
-1. **If `mesh_file` is specified and valid**:
-   - Read ESMF mesh from file
-   - Use mesh for spatial discretization
+1. **If `gridspec_file` is specified and valid**:
+   - Load ESMF Grid from GRIDSPEC NetCDF file
    - Skip grid generation
-   - Log mesh file source and dimensions
 
-2. **If `mesh_file` is null or absent**:
-   - Generate Gaussian grid based on `grid.nx` and `grid.ny`
-   - Create mesh from grid with proper node/element connectivity
-   - Use generated mesh for spatial discretization
-   - Log grid configuration
+2. **If `gridspec_file` is null or absent**:
+   - Generate structured grid based on `grid.nx`, `grid.ny`, `grid.nz`
+   - Create mesh from grid params for TIDE regridding
 
 **Requirements**: 14.1, 14.3, 14.4, 15.1, 15.4
 
@@ -233,7 +222,7 @@ When driver configuration is missing from the config file, the following default
 | `start_time` | `2020-01-01T00:00:00` |
 | `end_time` | `2020-01-02T00:00:00` |
 | `timestep_seconds` | `3600` |
-| `mesh_file` | `null` (generate grid) |
+| `gridspec_file` | `null` (generate grid) |
 | `grid.nx` | `4` |
 | `grid.ny` | `4` |
 
@@ -282,12 +271,11 @@ The driver validates configuration parameters and exits with status 1 if validat
 
 **Requirements**: 14.7
 
-### Mesh File Validation
+### GRIDSPEC File Validation
 
-- If `mesh_file` is specified, the file must exist
-- The file must be a valid ESMF mesh
+- If `gridspec_file` is specified, it must be a valid ESMF GRIDSPEC NetCDF file
 
-**Error message**: `ERROR: [Driver] Mesh file not found: {path}`
+**Error message**: `ERROR: [CECE] ESMF_GridCreate from gridspec_file failed: rc={rc}`
 
 **Requirements**: 14.6
 
@@ -362,14 +350,14 @@ physics_schemes:
 - 1800-second (30-minute) timesteps = 48 timesteps
 - 8x8 Gaussian grid (64 points)
 
-### Example 3: Using Mesh File
+### Example 3: Using a GRIDSPEC File
 
 ```yaml
 driver:
   start_time: "2020-01-01T00:00:00"
   end_time: "2020-01-02T00:00:00"
   timestep_seconds: 3600
-  mesh_file: "/data/mesh.nc"
+  gridspec_file: "/data/grid.nc"
 
 species:
   CO:
@@ -386,7 +374,7 @@ physics_schemes:
 **Result**:
 - Simulation from 2020-01-01 to 2020-01-02 (24 hours)
 - 3600-second (1-hour) timesteps = 24 timesteps
-- Mesh read from `/data/mesh.nc`
+- Grid loaded from `/data/grid.nc` (GRIDSPEC file)
 
 ## Large Grid Synchronization
 
@@ -411,8 +399,7 @@ The driver implements comprehensive error handling:
 - Start time >= end time
 - Non-positive timestep
 - Non-positive grid dimensions
-- Missing mesh file
-- Invalid mesh file
+- Missing or invalid GRIDSPEC file
 - ESMF operation failures
 - CECE component failures
 

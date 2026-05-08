@@ -430,7 +430,7 @@ species:
     EXPECT_EQ(config.driver_config.start_time, "2020-01-01T00:00:00");
     EXPECT_EQ(config.driver_config.end_time, "2020-01-02T00:00:00");
     EXPECT_EQ(config.driver_config.timestep_seconds, 3600);
-    EXPECT_TRUE(config.driver_config.mesh_file.empty());
+    EXPECT_TRUE(config.driver_config.gridspec_file.empty());
     EXPECT_EQ(config.driver_config.grid.nx, 4);
     EXPECT_EQ(config.driver_config.grid.ny, 4);
 
@@ -466,7 +466,7 @@ species:
     // Verify defaults for other fields
     EXPECT_EQ(config.driver_config.end_time, "2020-01-02T00:00:00");
     EXPECT_EQ(config.driver_config.timestep_seconds, 3600);
-    EXPECT_TRUE(config.driver_config.mesh_file.empty());
+    EXPECT_TRUE(config.driver_config.gridspec_file.empty());
     EXPECT_EQ(config.driver_config.grid.nx, 4);
     EXPECT_EQ(config.driver_config.grid.ny, 4);
 }

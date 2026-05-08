@@ -226,6 +226,37 @@ void cece_core_get_timing_config(void* data_ptr, char* start_time, char* end_tim
 }
 
 /**
+ * @brief Get the gridspec_file path from the parsed YAML config.
+ * @param data_ptr Pointer to CeceInternalData
+ * @param path Output buffer for the file path
+ * @param path_len Output: number of characters written (0 if not set)
+ * @param rc Return code (0 = success, non-zero = error)
+ */
+void cece_core_get_gridspec_file_path(void* data_ptr, char* path, int* path_len, int* rc) {
+    if (rc != nullptr) *rc = 0;
+    if (path_len != nullptr) *path_len = 0;
+
+    if (data_ptr == nullptr || path == nullptr || path_len == nullptr) {
+        std::cerr << "ERROR: cece_core_get_gridspec_file_path - null pointer argument" << std::endl;
+        if (rc != nullptr) *rc = -1;
+        return;
+    }
+
+    auto* internal_data = static_cast<cece::CeceInternalData*>(data_ptr);
+    const std::string& gf = internal_data->config.driver_config.gridspec_file;
+
+    if (gf.empty()) {
+        *path_len = 0;
+        return;
+    }
+
+    std::strncpy(path, gf.c_str(), 511);
+    path[511] = '\0';
+    *path_len = static_cast<int>(gf.size());
+    std::cout << "INFO: gridspec_file path: " << gf << std::endl;
+}
+
+/**
  * @brief Read timing configuration from YAML file (for driver use).
  * @param config_path YAML config file path
  * @param path_len Length of config_path string

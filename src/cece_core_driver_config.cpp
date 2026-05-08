@@ -88,14 +88,14 @@ static int parse_esmf_config_file(const std::string& config_file, std::map<std::
  * @param end_time Output buffer for end time (ISO 8601 format).
  * @param end_time_len Length of the end_time buffer.
  * @param timestep_seconds Output for timestep in seconds.
- * @param mesh_file Output buffer for mesh file path (empty if not specified).
- * @param mesh_file_len Length of the mesh_file buffer.
+ * @param gridspec_file Output buffer for GRIDSPEC file path (empty if not specified).
+ * @param gridspec_file_len Length of the gridspec_file buffer.
  * @param nx Output for grid nx.
  * @param ny Output for grid ny.
  * @param rc Return code (0 on success, -1 on error).
  */
 void cece_core_get_driver_config(const char* config_file, int config_file_len, char* start_time, int start_time_len, char* end_time, int end_time_len,
-                                 int* timestep_seconds, char* mesh_file, int mesh_file_len, int* nx, int* ny, int* rc) {
+                                 int* timestep_seconds, char* gridspec_file, int gridspec_file_len, int* nx, int* ny, int* rc) {
     *rc = 0;
 
     if (config_file == nullptr) {
@@ -104,7 +104,7 @@ void cece_core_get_driver_config(const char* config_file, int config_file_len, c
         return;
     }
 
-    if (start_time == nullptr || end_time == nullptr || mesh_file == nullptr) {
+    if (start_time == nullptr || end_time == nullptr || gridspec_file == nullptr) {
         std::cerr << "ERROR: cece_core_get_driver_config - null output buffers\n";
         *rc = -1;
         return;
@@ -127,7 +127,7 @@ void cece_core_get_driver_config(const char* config_file, int config_file_len, c
         std::string start_str = "2020-01-01T00:00:00";
         std::string end_str = "2020-01-02T00:00:00";
         int timestep_secs = 3600;
-        std::string mesh_str = "";
+        std::string gridspec_str = "";
         int grid_nx = 4;
         int grid_ny = 4;
 
@@ -171,9 +171,9 @@ void cece_core_get_driver_config(const char* config_file, int config_file_len, c
             }
         }
 
-        // Read mesh_file (optional)
-        if (config.find("mesh_file") != config.end()) {
-            mesh_str = config["mesh_file"];
+        // Read gridspec_file (optional)
+        if (config.find("gridspec_file") != config.end()) {
+            gridspec_str = config["gridspec_file"];
         }
 
         // Copy start_time
@@ -197,23 +197,23 @@ void cece_core_get_driver_config(const char* config_file, int config_file_len, c
         // Copy timestep_seconds
         *timestep_seconds = timestep_secs;
 
-        // Copy mesh_file - use strncpy with proper null termination
-        if (mesh_str.empty()) {
-            // If mesh_file is empty, fill entire buffer with spaces (Fortran convention)
-            for (int i = 0; i < mesh_file_len; ++i) {
-                mesh_file[i] = ' ';
+        // Copy gridspec_file - use strncpy with proper null termination
+        if (gridspec_str.empty()) {
+            // If gridspec_file is empty, fill entire buffer with spaces (Fortran convention)
+            for (int i = 0; i < gridspec_file_len; ++i) {
+                gridspec_file[i] = ' ';
             }
-        } else if (mesh_str.length() >= static_cast<size_t>(mesh_file_len)) {
-            std::cerr << "WARNING: mesh_file buffer too small, truncating\n";
-            std::strncpy(mesh_file, mesh_str.c_str(), mesh_file_len - 1);
-            mesh_file[mesh_file_len - 1] = '\0';
+        } else if (gridspec_str.length() >= static_cast<size_t>(gridspec_file_len)) {
+            std::cerr << "WARNING: gridspec_file buffer too small, truncating\n";
+            std::strncpy(gridspec_file, gridspec_str.c_str(), gridspec_file_len - 1);
+            gridspec_file[gridspec_file_len - 1] = '\0';
         } else {
             // Use strncpy instead of strcpy for safety
-            std::strncpy(mesh_file, mesh_str.c_str(), mesh_file_len - 1);
-            mesh_file[mesh_str.length()] = '\0';
+            std::strncpy(gridspec_file, gridspec_str.c_str(), gridspec_file_len - 1);
+            gridspec_file[gridspec_str.length()] = '\0';
             // Fill the rest with spaces (Fortran convention)
-            for (size_t i = mesh_str.length() + 1; i < static_cast<size_t>(mesh_file_len); ++i) {
-                mesh_file[i] = ' ';
+            for (size_t i = gridspec_str.length() + 1; i < static_cast<size_t>(gridspec_file_len); ++i) {
+                gridspec_file[i] = ' ';
             }
         }
 
@@ -251,7 +251,7 @@ void cece_core_get_driver_config(const char* config_file, int config_file_len, c
         std::cout << "  start_time: " << start_str << "\n";
         std::cout << "  end_time: " << end_str << "\n";
         std::cout << "  timestep_seconds: " << *timestep_seconds << "\n";
-        std::cout << "  mesh_file: " << (mesh_str.empty() ? "(none - will generate grid)" : mesh_str) << "\n";
+        std::cout << "  gridspec_file: " << (gridspec_str.empty() ? "(none - will generate grid)" : gridspec_str) << "\n";
         std::cout << "  grid: " << *nx << " x " << *ny << "\n";
 
     } catch (const std::exception& e) {

@@ -110,6 +110,13 @@ module cece_cap_mod
       integer(c_int), value :: max_len
       integer(c_int), intent(out) :: rc
     end subroutine
+    subroutine cece_core_get_gridspec_file_path(data_ptr, path, path_len, rc) bind(C)
+      import :: c_ptr, c_int, c_char
+      type(c_ptr), value :: data_ptr
+      character(kind=c_char), intent(out) :: path(*)
+      integer(c_int), intent(out) :: path_len
+      integer(c_int), intent(out) :: rc
+    end subroutine
     subroutine cece_core_get_external_field_count(data_ptr, count, rc) bind(C)
       import :: c_ptr, c_int
       type(c_ptr), value :: data_ptr
@@ -424,6 +431,8 @@ contains
     integer(c_int) :: species_name_len, field_name_len
     character(len=512) :: streams_path
     integer(c_int) :: streams_path_len
+    character(len=512) :: gridspec_path
+    integer(c_int) :: gridspec_path_len
     type(ESMF_Field) :: field
     real(ESMF_KIND_R8), pointer :: fptr(:,:,:)
     type(c_ptr), allocatable :: field_ptrs(:)
@@ -463,6 +472,41 @@ contains
       write(*,'(A)') "INFO: [CECE] Created matching grid for field creation"
     else
       write(*,'(A,I0)') "INFO: [CECE] No mesh provided by driver (rc=", rc, ") - creating component mesh and grid (standalone mode)"
+
+      ! Check if a pre-built GRIDSPEC file is configured
+      call cece_core_get_gridspec_file_path(g_cece_data_ptr, gridspec_path, gridspec_path_len, c_rc)
+      if (c_rc == 0 .and. gridspec_path_len > 0) then
+        write(*,'(A,A)') "INFO: [CECE] Loading grid from gridspec_file: ", &
+                          trim(gridspec_path(1:int(gridspec_path_len)))
+        grid = ESMF_GridCreate(filename=trim(gridspec_path(1:int(gridspec_path_len))), &
+                               fileformat=ESMF_FILEFORMAT_GRIDSPEC, rc=rc)
+        if (rc /= ESMF_SUCCESS) then
+          write(*,'(A,I0)') "ERROR: [CECE] ESMF_GridCreate from gridspec_file failed: rc=", rc
+          return
+        end if
+        ! Get nx/ny from loaded grid
+        call cece_core_get_grid_config(g_cece_data_ptr, nx, ny, nz, lon_min, lon_max, lat_min, lat_max, c_rc)
+        if (c_rc /= 0) then
+          nx = 4; ny = 4; nz = 1
+          lon_min = -135._ESMF_KIND_R8; lon_max = 135._ESMF_KIND_R8
+          lat_min = -67.5_ESMF_KIND_R8; lat_max = 67.5_ESMF_KIND_R8
+        end if
+        ! Build a mesh from config params for TIDE (GRIDSPEC doesn't give us a mesh)
+        call CreateMeshFromConfig(nx, ny, lon_min, lon_max, lat_min, lat_max, mesh, rc)
+        if (rc /= ESMF_SUCCESS) then
+          write(*,'(A,I0)') "ERROR: [CECE] Failed to create TIDE mesh from config: rc=", rc
+          return
+        end if
+        call ESMF_GridCompSet(comp, mesh=mesh, grid=grid, rc=rc)
+        if (rc /= ESMF_SUCCESS) then
+          write(*,'(A,I0)') "ERROR: [CECE] Failed to set mesh/grid on component: rc=", rc
+          return
+        end if
+        g_mesh = mesh
+        g_mesh_created = .true.
+        write(*,'(A)') "INFO: [CECE] Grid loaded from GRIDSPEC file successfully"
+      else
+        ! Generate grid from config parameters
 
       ! Read grid configuration from CECE config file
       call cece_core_get_grid_config(g_cece_data_ptr, nx, ny, nz, lon_min, lon_max, lat_min, lat_max, c_rc)
@@ -505,6 +549,7 @@ contains
       g_mesh = mesh
       g_mesh_created = .true.
       write(*,'(A)') "INFO: [CECE] Component mesh and grid created successfully from YAML configuration"
+      end if  ! gridspec_file branch
     end if
 
     ! Get nx/ny/nz dimensions (already set above based on mesh creation or inheritance)

@@ -1,119 +1,88 @@
-# Mesh File Input Support
+# GRIDSPEC File Input Support
 
 ## Overview
 
-The CECE driver supports reading pre-existing ESMF mesh files for spatial discretization. This feature allows users to use complex geometries or pre-computed meshes instead of generating simple structured grids.
+The CECE driver supports loading a pre-generated ESMF GRIDSPEC NetCDF file for spatial discretization.
+This avoids constructing the structured grid at runtime, which can be slow for large grids (e.g., global 0.1° resolution).
 
 ## Configuration
 
-Mesh file input is configured in the CECE configuration file under the `driver` section:
+Set `gridspec_file` under the `driver:` section of the CECE YAML config:
 
 ```yaml
 driver:
-  # Simulation timing
   start_time: "2020-01-01T00:00:00"
   end_time: "2020-01-02T00:00:00"
   timestep_seconds: 3600
 
-  # Use pre-existing ESMF mesh file
-  mesh_file: "/path/to/mesh.nc"
+  # Load pre-generated ESMF GRIDSPEC file (optional)
+  gridspec_file: "/path/to/grid.nc"
 
-  # Grid dimensions (ignored when mesh_file is specified)
+  # Grid dimensions — still used for the TIDE regridding mesh
   grid:
-    nx: 360
-    ny: 180
+    nx: 3600
+    ny: 1800
+    lon_min: -180.0
+    lon_max:  180.0
+    lat_min:  -90.0
+    lat_max:   90.0
 ```
+
+If `gridspec_file` is absent or empty the grid is generated at runtime from `driver.grid` as usual.
+
+## Generating a GRIDSPEC File
+
+Use the provided Python script:
+
+```bash
+python scripts/cece_make_gridspec.py cece_config.yaml [output.nc]
+```
+
+If no output filename is given, one is auto-generated from the grid parameters, e.g.:
+`cece_grid_nx3600_ny1800_nz1_lonN180_180_latN90_90.nc`
+
+Requirements: `pyyaml`, `netCDF4`, `numpy`.
 
 ## Grid/Mesh Selection Logic
 
-The driver uses the following logic to determine whether to use a mesh file or generate a grid:
+1. **If `gridspec_file` is set**: Load grid via `ESMF_GridCreate(filename=..., fileformat=ESMF_FILEFORMAT_GRIDSPEC)`; skip runtime grid generation.
+   A TIDE regridding mesh is still built from `driver.grid` parameters.
+2. **If `gridspec_file` is absent/empty**: Generate structured grid from `driver.grid.nx`/`ny`/bounds as usual.
 
-1. **If `mesh_file` is specified and non-empty**: Read the mesh from the file
-2. **If `mesh_file` is empty or absent**: Generate a Gaussian grid based on `grid.nx` and `grid.ny`
+## GRIDSPEC File Requirements
 
-## Mesh File Requirements
+The NetCDF file must follow CF conventions as written by `cece_make_gridspec.py`:
 
-ESMF mesh files must:
-
-- Be in ESMF mesh format (NetCDF-based)
-- Contain proper node/element connectivity
-- Have at least one node and one element
-- Be readable by `ESMF_MeshCreate(filename=...)`
-
-## Validation
-
-When a mesh file is specified, the driver performs the following validation:
-
-1. **File existence check**: Verifies the file exists at the specified path
-2. **Format validation**: Attempts to read the mesh using ESMF_MeshCreate
-3. **Connectivity validation**: Checks that the mesh has nodes and elements
-4. **Dimension logging**: Logs the mesh dimensions (nodes, elements, spatial dimension)
-
-If any validation step fails, the driver logs an error and exits with a non-zero status.
-
-## Error Handling
-
-### File Not Found
-
-```
-ERROR: [simple_driver] Failed to read mesh from file: /path/to/mesh.nc (rc=67)
-```
-
-**Solution**: Verify the mesh file path is correct and the file exists.
-
-### Invalid Mesh Format
-
-```
-ERROR: [simple_driver] Failed to read mesh from file: /path/to/mesh.nc (rc=...)
-```
-
-**Solution**: Verify the file is in ESMF mesh format. Use ESMF utilities to validate the mesh file.
-
-### Invalid Connectivity
-
-```
-ERROR: [validate_mesh] Mesh has no nodes (nodeCount=0)
-ERROR: [validate_mesh] Mesh has no elements (elementCount=0)
-```
-
-**Solution**: Verify the mesh file contains valid node and element data.
-
-## Logging
-
-When using a mesh file, the driver logs:
-
-```
-INFO: [simple_driver] Mesh file: /path/to/mesh.nc
-INFO: [simple_driver] Reading mesh from file: /path/to/mesh.nc
-INFO: [validate_mesh] Mesh validation passed
-INFO: [log_mesh_info] Mesh nodes: 12345
-INFO: [log_mesh_info] Mesh elements: 10000
-INFO: [log_mesh_info] Mesh spatial dimension: 2
-```
+- Variables `lon` (dim `lon`) and `lat` (dim `lat`) with `units="degrees_east"`/`"degrees_north"`
+- Optional `lon_bnds` / `lat_bnds` for cell bounds
+- Global attribute `Conventions: CF-1.8`
 
 ## Example Configurations
 
-### Using a Mesh File
+### Using a pre-generated GRIDSPEC file
 
 ```yaml
 driver:
   start_time: "2020-01-01T00:00:00"
   end_time: "2020-01-02T00:00:00"
   timestep_seconds: 3600
-  mesh_file: "/data/meshes/global_0.25deg.nc"
+  gridspec_file: "/data/grids/global_0.1deg.nc"
   grid:
-    nx: 1440  # Ignored when mesh_file is specified
-    ny: 720   # Ignored when mesh_file is specified
+    nx: 3600
+    ny: 1800
+    lon_min: -180.0
+    lon_max:  180.0
+    lat_min:  -90.0
+    lat_max:   90.0
 ```
 
-### Generating a Grid (Default)
+### Generating a grid at runtime (default)
 
 ```yaml
 driver:
   start_time: "2020-01-01T00:00:00"
   end_time: "2020-01-02T00:00:00"
   timestep_seconds: 3600
-  mesh_file: ""  # Empty or omit to generate grid
   grid:
     nx: 360
     ny: 180
@@ -121,62 +90,29 @@ driver:
 
 ## Implementation Details
 
-### Fortran Driver (standalone_nuopc/simple_driver.F90)
-
-The driver implements mesh file input in the following steps:
-
-1. **Read configuration**: Parse `mesh_file` from the CECE config file
-2. **Determine mode**: Check if `mesh_file` is non-empty
-3. **Read mesh**: If mesh file specified, call `ESMF_MeshCreate(filename=...)`
-4. **Validate mesh**: Check node/element counts using `ESMF_MeshGet`
-5. **Log dimensions**: Log mesh information for diagnostics
-6. **Create dummy grid**: Create a minimal 2x2 grid for compatibility
-
-### C++ Configuration (src/cece_core_driver_config.cpp)
-
-The C++ configuration reader extracts the `mesh_file` parameter:
+### C++ config struct (`include/cece/cece_config.hpp`)
 
 ```cpp
-std::string mesh_str = driver_cfg.mesh_file;
-if (mesh_str.length() >= static_cast<size_t>(mesh_file_len)) {
-    std::cerr << "WARNING: mesh_file buffer too small, truncating\n";
-    std::strncpy(mesh_file, mesh_str.c_str(), mesh_file_len - 1);
-    mesh_file[mesh_file_len - 1] = '\0';
-} else {
-    std::strcpy(mesh_file, mesh_str.c_str());
-}
+struct DriverConfig {
+    std::string gridspec_file;   // empty = generate from driver.grid
+    DriverGridConfig grid;
+    ...
+};
 ```
 
-## Requirements Satisfied
+### C accessor (`src/cece_core_field_helpers.cpp`)
 
-This implementation satisfies the following requirements:
-
-- **Requirement 14.1**: Read ESMF mesh from file using `ESMF_MeshCreate(filename=...)`
-- **Requirement 14.2**: Validate mesh has proper node/element connectivity
-- **Requirement 14.3**: Generate Gaussian grid when mesh file is not specified
-- **Requirement 14.4**: Use grid dimensions from config when generating grid
-- **Requirement 14.6**: Log error and exit with non-zero status for invalid mesh files
-
-## Testing
-
-Unit tests are provided in `tests/test_mesh_file_input.cpp`:
-
-- Configuration reading with mesh file
-- Configuration reading without mesh file
-- Grid/mesh selection logic
-- Mesh file existence validation
-- Mesh connectivity validation
-- Logging and diagnostics
-
-Run tests with:
-
-```bash
-./setup.sh -c "cd build && ./test_mesh_file_input"
+```cpp
+void cece_core_get_gridspec_file_path(void* data_ptr, char* path, int* path_len, int* rc);
 ```
 
-## Future Enhancements
+### Fortran cap (`src/cece_cap.F90`)
 
-Potential future enhancements include:
+In `CECE_InitializeRealize` standalone branch:
+1. Call `cece_core_get_gridspec_file_path` to retrieve the path.
+2. If non-empty, call `ESMF_GridCreate(filename=..., fileformat=ESMF_FILEFORMAT_GRIDSPEC)`.
+3. Regardless, call `CreateMeshFromConfig` to build the TIDE regridding mesh.
+
 
 1. Support for multiple mesh file formats (SCRIP, UGRID, etc.)
 2. Automatic mesh generation from grid specifications

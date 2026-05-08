@@ -211,9 +211,9 @@ contains
   !> @brief Read driver configuration from ESMF config file
   !> @details Uses ESMF_Config to read simple key: value format
   subroutine read_driver_config(config_file, start_time, end_time, &
-                                timestep_seconds, mesh_file, nx, ny, rc)
+                                timestep_seconds, gridspec_file, nx, ny, rc)
     character(len=*), intent(in) :: config_file
-    character(len=*), intent(out) :: start_time, end_time, mesh_file
+    character(len=*), intent(out) :: start_time, end_time, gridspec_file
     integer, intent(out) :: timestep_seconds, nx, ny, rc
 
     type(ESMF_Config) :: config
@@ -225,7 +225,7 @@ contains
     start_time = "2020-01-01T00:00:00"
     end_time   = "2020-01-02T00:00:00"
     timestep_seconds = 3600
-    mesh_file = ""
+    gridspec_file = ""
     nx = 4
     ny = 4
 
@@ -236,7 +236,7 @@ contains
       start_time = "2020-01-01T00:00:00"
       end_time = "2020-01-02T00:00:00"
       timestep_seconds = 3600
-      mesh_file = ""
+      gridspec_file = ""
       nx = 4
       ny = 4
       rc = ESMF_SUCCESS
@@ -251,7 +251,7 @@ contains
       start_time = "2020-01-01T00:00:00"
       end_time = "2020-01-02T00:00:00"
       timestep_seconds = 3600
-      mesh_file = ""
+      gridspec_file = ""
       nx = 4
       ny = 4
       call ESMF_ConfigDestroy(config, rc=local_rc)
@@ -289,14 +289,14 @@ contains
       ny = 4
     end if
 
-    ! Read mesh_file (optional)
-    call ESMF_ConfigGetAttribute(config, mesh_file, label="mesh_file:", rc=local_rc)
+    ! Read gridspec_file (optional)
+    call ESMF_ConfigGetAttribute(config, gridspec_file, label="gridspec_file:", rc=local_rc)
     if (local_rc /= ESMF_SUCCESS) then
-      mesh_file = ""
+      gridspec_file = ""
     else
-      ! Treat "none" or "NONE" as no mesh file
-      if (trim(mesh_file) == "none" .or. trim(mesh_file) == "NONE") then
-        mesh_file = ""
+      ! Treat "none" or "NONE" as no gridspec file
+      if (trim(gridspec_file) == "none" .or. trim(gridspec_file) == "NONE") then
+        gridspec_file = ""
       end if
     end if
 

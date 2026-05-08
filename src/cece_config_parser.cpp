@@ -414,8 +414,8 @@ CeceConfig ParseConfig(const std::string& filename) {
         if (driver_node["timestep_seconds"]) {
             config.driver_config.timestep_seconds = driver_node["timestep_seconds"].as<int>();
         }
-        if (driver_node["mesh_file"]) {
-            config.driver_config.mesh_file = driver_node["mesh_file"].as<std::string>();
+        if (driver_node["gridspec_file"]) {
+            config.driver_config.gridspec_file = driver_node["gridspec_file"].as<std::string>();
         }
         if (driver_node["grid"]) {
             auto grid_node = driver_node["grid"];

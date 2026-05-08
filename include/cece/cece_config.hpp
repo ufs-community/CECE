@@ -185,8 +185,9 @@ struct DriverConfig {
     std::string start_time = "2020-01-01T00:00:00";  ///< ISO8601 start time (default: 2020-01-01T00:00:00).
     std::string end_time = "2020-01-02T00:00:00";    ///< ISO8601 end time (default: 2020-01-02T00:00:00).
     int timestep_seconds = 3600;                     ///< Timestep in seconds (default: 3600).
-    std::string mesh_file;                           ///< Path to ESMF mesh file (optional, default: null).
-    DriverGridConfig grid;                           ///< Grid configuration for generated Gaussian grid.
+    std::string
+        gridspec_file;      ///< Path to ESMF GRIDSPEC NetCDF file (optional). If set, loaded instead of generating a grid from driver.grid params.
+    DriverGridConfig grid;  ///< Grid configuration for generated Gaussian grid.
 };
 
 /**
