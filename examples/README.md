@@ -61,12 +61,12 @@ All examples include these configurable sections:
 - `end_time`: Simulation end time (ISO8601 format)
 - `timestep_seconds`: Timestep in seconds (typically 3600 for 1-hour steps)
 
-### Grid Configuration (`grid:`)
+### Grid Configuration (`driver.grid:`)
 - `nx`, `ny`: Grid dimensions
 - `lon_min`, `lon_max`: Longitude bounds
 - `lat_min`, `lat_max`: Latitude bounds
 
-This allows full configurability without hardcoded values for both timing and spatial domains.
+Grid configuration must be nested under `driver:` to take effect.
 
 ## Usage
 

@@ -7,9 +7,8 @@ CECE is configured using a YAML file, typically named `cece_config.yaml`. This f
 ```yaml
 driver:
   # ... driver timing and execution configuration ...
-
-grid:
-  # ... computational grid specification ...
+  grid:
+    # ... computational grid specification ...
 
 meteorology:
   # ... meteorological field name mappings ...
@@ -61,9 +60,9 @@ driver:
 
 ---
 
-## `grid`
+## `driver.grid`
 
-The `grid` section defines the computational domain and resolution.
+The `grid` section defines the computational domain and resolution. It must be nested under `driver:`.
 
 | Key | Type | Description |
 | --- | --- | --- |
@@ -76,13 +75,14 @@ The `grid` section defines the computational domain and resolution.
 
 **Example:**
 ```yaml
-grid:
-  nx: 144           # 2.5° longitude resolution
-  ny: 91            # 2° latitude resolution
-  lon_min: -180.0
-  lon_max: 177.5
-  lat_min: -90.0
-  lat_max: 90.0
+driver:
+  grid:
+    nx: 144           # 2.5° longitude resolution
+    ny: 91            # 2° latitude resolution
+    lon_min: -180.0
+    lon_max: 177.5
+    lat_min: -90.0
+    lat_max: 90.0
 ```
 
 ---
