@@ -64,7 +64,7 @@ void MeganScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* di
     aef_ = 1.0e-9;
     if (config["aef"]) {
         aef_ = config["aef"].as<double>();
-    } else if (config["aef_isop"]) {
+    } else if (config["aef_isop"]) {  // Fallback for backward compatibility
         aef_ = config["aef_isop"].as<double>();
     }
 
@@ -124,6 +124,8 @@ void MeganScheme::Run(CeceImportState& import_state, CeceExportState& export_sta
     auto pardr = ResolveImport("par_direct", import_state);
     auto pardf = ResolveImport("par_diffuse", import_state);
     auto suncos = ResolveImport("solar_cosine", import_state);
+
+    // Attempt to read new required fields for gamma_age and gamma_sm
     auto pmlai = ResolveImport("leaf_area_index_prev", import_state);
     auto gwetroot = ResolveImport("soil_moisture_root", import_state);
 
@@ -146,6 +148,8 @@ void MeganScheme::Run(CeceImportState& import_state, CeceExportState& export_sta
     bool is_bidirectional = is_bidirectional_, is_ald2_or_eoh = is_ald2_or_eoh_;
     const double NORM_FAC = 1.0 / 1.0101081;
     double gamma_co2_const = gamma_co2_;
+
+    // Check if new optional fields exist, otherwise use fallbacks
     bool has_pmlai = (pmlai.data() != nullptr);
     bool has_gwetroot = (gwetroot.data() != nullptr);
 

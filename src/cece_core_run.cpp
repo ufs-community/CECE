@@ -153,6 +153,7 @@ void cece_core_run(void* data_ptr, int hour, int day_of_week, int* rc) {
             field.sync_host();
         }
 
+        // Also sync import state fields to ensure ESMF can access them
         for (auto& [name, field] : d->import_state.fields) {
             field.sync_host();
         }

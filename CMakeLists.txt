@@ -85,7 +85,7 @@ set(RC_ENABLE_GTEST ON CACHE BOOL "Enable RapidCheck GTest integration" FORCE)
 FetchContent_MakeAvailable(rapidcheck)
 
 # ESMF and NUOPC are required dependencies.
-find_package(ESMF REQUIRED)
+find_package(ESMF)
 message(STATUS "Found ESMF: ${ESMF_VERSION}")
 message(STATUS "ESMF include dirs: ${ESMF_INCLUDE_DIRS}")
 
@@ -180,7 +180,7 @@ if(CECE_HAS_FORTRAN)
 
   list(
     APPEND CECE_SRCS
-    src/interfaces/esmf/cece_cap.F90
+    src/cece_cap.F90
     src/physics/cece_fortran_bridge.cpp
     src/physics/legacy_fortran.F90
     src/physics/cece_sea_salt_fortran_bridge.cpp
@@ -233,7 +233,11 @@ target_include_directories(
     ${ESMF_INCLUDE_DIRS}
 )
 
-target_link_libraries(cece PUBLIC Kokkos::kokkos ESMF::ESMF yaml-cpp)
+if(ESMF_FOUND)
+  target_link_libraries(cece PUBLIC Kokkos::kokkos ESMF::ESMF yaml-cpp)
+else()
+  target_link_libraries(cece PUBLIC Kokkos::kokkos yaml-cpp)
+endif()
 
 if(CECE_HAS_FORTRAN)
   target_link_libraries(cece PUBLIC tide)
@@ -383,7 +387,7 @@ else()
 endif()
 
 # Standalone NUOPC driver
-add_subdirectory(src/standalone_nuopc)
+add_subdirectory(standalone_nuopc)
 
 # Python script tests
 find_package(Python3 COMPONENTS Interpreter)

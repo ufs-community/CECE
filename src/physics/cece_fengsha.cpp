@@ -23,6 +23,7 @@
 #include <iostream>
 #include <vector>
 
+#include "cece/cece_logger.hpp"
 #include "cece/cece_physics_factory.hpp"
 
 namespace {
@@ -168,6 +169,7 @@ void FengshaScheme::Run(CeceImportState& import_state, CeceExportState& export_s
     if (ustar.data() == nullptr || uthrs.data() == nullptr || slc.data() == nullptr || clay.data() == nullptr || sand.data() == nullptr ||
         silt.data() == nullptr || ssm.data() == nullptr || rdrag.data() == nullptr || airdens.data() == nullptr || fraclake.data() == nullptr ||
         fracsnow.data() == nullptr || oro.data() == nullptr || emissions.data() == nullptr) {
+        CECE_LOG_WARNING("FengshaScheme::Run: One or more required fields could not be resolved. Skipping execution.");
         return;
     }
 

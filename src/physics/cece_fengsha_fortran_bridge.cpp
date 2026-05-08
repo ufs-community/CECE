@@ -7,6 +7,7 @@
 #include <iostream>
 #include <vector>
 
+#include "cece/cece_logger.hpp"
 #include "cece/cece_physics_factory.hpp"
 #include "cece/physics/cece_fengsha_fortran.hpp"
 
@@ -105,8 +106,10 @@ void FengshaFortranScheme::Run(CeceImportState& import_state, CeceExportState& e
         it_clay == import_state.fields.end() || it_sand == import_state.fields.end() || it_silt == import_state.fields.end() ||
         it_ssm == import_state.fields.end() || it_rdrag == import_state.fields.end() || it_airdens == import_state.fields.end() ||
         it_fraclake == import_state.fields.end() || it_fracsnow == import_state.fields.end() || it_oro == import_state.fields.end() ||
-        it_emis == export_state.fields.end())
+        it_emis == export_state.fields.end()) {
+        CECE_LOG_WARNING("FengshaFortranScheme::Run: One or more required fields could not be resolved. Skipping execution.");
         return;
+    }
 
     auto& dv_ustar = it_ustar->second;
     auto& dv_uthrs = it_uthrs->second;
