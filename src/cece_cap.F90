@@ -95,10 +95,10 @@ module cece_cap_mod
       integer(c_int), intent(out) :: name_len
       integer(c_int), intent(out) :: rc
     end subroutine
-    subroutine cece_core_get_grid_config(data_ptr, nx, ny, lon_min, lon_max, lat_min, lat_max, rc) bind(C)
+    subroutine cece_core_get_grid_config(data_ptr, nx, ny, nz, lon_min, lon_max, lat_min, lat_max, rc) bind(C)
       import :: c_ptr, c_int, c_double
       type(c_ptr), value :: data_ptr
-      integer(c_int), intent(out) :: nx, ny
+      integer(c_int), intent(out) :: nx, ny, nz
       real(c_double), intent(out) :: lon_min, lon_max, lat_min, lat_max
       integer(c_int), intent(out) :: rc
     end subroutine
@@ -443,10 +443,10 @@ contains
       ! TODO: Implement mesh analysis to get equivalent grid dimensions
 
       ! For now, read grid configuration from YAML to get dimensions and bounds
-      call cece_core_get_grid_config(g_cece_data_ptr, nx, ny, lon_min, lon_max, lat_min, lat_max, c_rc)
+      call cece_core_get_grid_config(g_cece_data_ptr, nx, ny, nz, lon_min, lon_max, lat_min, lat_max, c_rc)
       if (c_rc /= 0) then
         write(*,'(A,I0)') "WARNING: [CECE] Failed to get grid config in coupled mode, using defaults: rc=", c_rc
-        nx = 4; ny = 4
+        nx = 4; ny = 4; nz = 1
         lon_min = -135._ESMF_KIND_R8; lon_max = 135._ESMF_KIND_R8
         lat_min = -67.5_ESMF_KIND_R8; lat_max = 67.5_ESMF_KIND_R8
       end if
@@ -465,10 +465,10 @@ contains
       write(*,'(A,I0)') "INFO: [CECE] No mesh provided by driver (rc=", rc, ") - creating component mesh and grid (standalone mode)"
 
       ! Read grid configuration from CECE config file
-      call cece_core_get_grid_config(g_cece_data_ptr, nx, ny, lon_min, lon_max, lat_min, lat_max, c_rc)
+      call cece_core_get_grid_config(g_cece_data_ptr, nx, ny, nz, lon_min, lon_max, lat_min, lat_max, c_rc)
       if (c_rc /= 0) then
         write(*,'(A,I0)') "WARNING: [CECE] Failed to get grid config, using defaults: rc=", c_rc
-        nx = 4; ny = 4
+        nx = 4; ny = 4; nz = 1
         lon_min = -135._ESMF_KIND_R8; lon_max = 135._ESMF_KIND_R8
         lat_min = -67.5_ESMF_KIND_R8; lat_max = 67.5_ESMF_KIND_R8
       end if
@@ -507,11 +507,8 @@ contains
       write(*,'(A)') "INFO: [CECE] Component mesh and grid created successfully from YAML configuration"
     end if
 
-    ! Get nx/ny dimensions (already set above based on mesh creation or inheritance)
-    ! nx and ny are already properly set from mesh creation or analysis
-
-    ! nz: get from config via C++ (number of vertical levels)
-    nz = 10  ! default
+    ! Get nx/ny/nz dimensions (already set above based on mesh creation or inheritance)
+    ! nx, ny, and nz are already properly set from cece_core_get_grid_config
 
     ! --- Check if ingestor streams are configured early ---
     write(*,'(A)') "INFO: [CECE] Checking for ingestor streams configuration"

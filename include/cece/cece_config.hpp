@@ -170,6 +170,7 @@ struct DiagnosticConfig {
 struct DriverGridConfig {
     int nx = 4;               ///< Grid points in X direction (default: 4).
     int ny = 4;               ///< Grid points in Y direction (default: 4).
+    int nz = 1;               ///< Grid points in Z (vertical) direction (default: 1).
     double lon_min = -135.0;  ///< Minimum longitude (default: -135.0).
     double lon_max = 135.0;   ///< Maximum longitude (default: 135.0).
     double lat_min = -67.5;   ///< Minimum latitude (default: -67.5).

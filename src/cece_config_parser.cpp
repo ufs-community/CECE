@@ -425,6 +425,9 @@ CeceConfig ParseConfig(const std::string& filename) {
             if (grid_node["ny"]) {
                 config.driver_config.grid.ny = grid_node["ny"].as<int>();
             }
+            if (grid_node["nz"]) {
+                config.driver_config.grid.nz = grid_node["nz"].as<int>();
+            }
             if (grid_node["lon_min"]) {
                 config.driver_config.grid.lon_min = grid_node["lon_min"].as<double>();
             }

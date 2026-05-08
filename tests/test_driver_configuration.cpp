@@ -214,6 +214,47 @@ physics_schemes:
     EXPECT_EQ(config.driver_config.grid.ny, 4);  // Default
 }
 
+TEST_F(DriverConfigurationTest, NzDefaultIsOne) {
+    // nz should default to 1 when not specified in config
+    WriteConfigFile(test_config_file, R"(
+driver:
+  grid:
+    nx: 4
+    ny: 4
+
+species:
+  CO:
+    - operation: add
+      field: CO_anthro
+      hierarchy: 0
+      scale: 1.0
+)");
+
+    CeceConfig config = ParseConfig(test_config_file);
+    EXPECT_EQ(config.driver_config.grid.nz, 1);
+}
+
+TEST_F(DriverConfigurationTest, NzParsedFromYAML) {
+    // nz should be read from driver.grid.nz in the YAML
+    WriteConfigFile(test_config_file, R"(
+driver:
+  grid:
+    nx: 8
+    ny: 8
+    nz: 72
+
+species:
+  CO:
+    - operation: add
+      field: CO_anthro
+      hierarchy: 0
+      scale: 1.0
+)");
+
+    CeceConfig config = ParseConfig(test_config_file);
+    EXPECT_EQ(config.driver_config.grid.nz, 72);
+}
+
 // ---------------------------------------------------------------------------
 // Tests for Configuration Validation (Task 1.5)
 // ---------------------------------------------------------------------------
