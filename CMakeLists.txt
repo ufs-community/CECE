@@ -360,15 +360,24 @@ if(Python3_Interpreter_FOUND)
   endif()
 
   add_test(NAME create_python_venv COMMAND ${Python3_EXECUTABLE} -m venv ${CECE_PYTHON_VENV_DIR})
-  set_tests_properties(create_python_venv PROPERTIES FIXTURES_SETUP "python_venv_ready")
+  add_test(
+    NAME upgrade_pip_in_venv
+    COMMAND ${VENV_PYTHON} -m pip install --upgrade pip
+  )
+  set_tests_properties(
+    create_python_venv
+    upgrade_pip_in_venv
+    PROPERTIES FIXTURES_SETUP "python_venv_ready"
+  )
+  set_tests_properties(upgrade_pip_in_venv PROPERTIES DEPENDS create_python_venv)
 
   add_test(
-    NAME install_pytest
+    NAME install_python_deps
     COMMAND ${VENV_PYTHON} -m pip install pytest PyYAML matplotlib --ignore-installed
   )
   set_tests_properties(
-    install_pytest
-    PROPERTIES FIXTURES_SETUP "pytest_installed" FIXTURES_REQUIRED "python_venv_ready"
+    install_python_deps
+    PROPERTIES FIXTURES_SETUP "python_deps_installed" FIXTURES_REQUIRED "python_venv_ready"
   )
 
   add_test(
@@ -379,7 +388,7 @@ if(Python3_Interpreter_FOUND)
     test_hemco_to_cece_python
     PROPERTIES
       ENVIRONMENT "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/scripts"
-      FIXTURES_REQUIRED "pytest_installed"
+      FIXTURES_REQUIRED "python_deps_installed"
   )
 
   add_test(
@@ -390,7 +399,7 @@ if(Python3_Interpreter_FOUND)
     test_scripts_python
     PROPERTIES
       ENVIRONMENT "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/scripts"
-      FIXTURES_REQUIRED "pytest_installed"
+      FIXTURES_REQUIRED "python_deps_installed"
   )
 
   if(BUILD_PYTHON_BINDINGS)
@@ -403,7 +412,7 @@ if(Python3_Interpreter_FOUND)
       test_enum_config_bindings
       PROPERTIES
         ENVIRONMENT "PYTHONPATH=${CMAKE_BINARY_DIR}/src/python/cece"
-        FIXTURES_REQUIRED "pytest_installed"
+        FIXTURES_REQUIRED "python_deps_installed"
     )
 
     add_test(
@@ -414,7 +423,7 @@ if(Python3_Interpreter_FOUND)
       test_state_bindings
       PROPERTIES
         ENVIRONMENT "PYTHONPATH=${CMAKE_BINARY_DIR}/src/python/cece"
-        FIXTURES_REQUIRED "pytest_installed"
+        FIXTURES_REQUIRED "python_deps_installed"
     )
 
     add_test(
@@ -425,7 +434,7 @@ if(Python3_Interpreter_FOUND)
       test_compute_bindings
       PROPERTIES
         ENVIRONMENT "PYTHONPATH=${CMAKE_BINARY_DIR}/src/python/cece"
-        FIXTURES_REQUIRED "pytest_installed"
+        FIXTURES_REQUIRED "python_deps_installed"
     )
 
     add_test(
@@ -438,7 +447,7 @@ if(Python3_Interpreter_FOUND)
       test_validator_logger_bindings
       PROPERTIES
         ENVIRONMENT "PYTHONPATH=${CMAKE_BINARY_DIR}/src/python/cece"
-        FIXTURES_REQUIRED "pytest_installed"
+        FIXTURES_REQUIRED "python_deps_installed"
     )
 
     add_test(
@@ -450,7 +459,7 @@ if(Python3_Interpreter_FOUND)
       test_python_api_rewired
       PROPERTIES
         ENVIRONMENT "PYTHONPATH=${CMAKE_BINARY_DIR}/src/python"
-        FIXTURES_REQUIRED "pytest_installed"
+        FIXTURES_REQUIRED "python_deps_installed"
     )
   endif()
 endif()
