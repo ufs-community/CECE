@@ -177,6 +177,22 @@ void cece_core_get_grid_config(void* data_ptr, int* nx, int* ny, int* nz, double
 }
 
 /**
+ * @brief Get the TIDE debug level from the cece_data section of the config.
+ * @param data_ptr Pointer to CeceInternalData
+ * @param level Output: debug level (0=off, 1=time-matching info, ...)
+ * @param rc Return code (0 = success, non-zero = error)
+ */
+void cece_core_get_tide_debug_level(void* data_ptr, int* level, int* rc) {
+    if (rc != nullptr) *rc = 0;
+    if (data_ptr == nullptr || level == nullptr) {
+        if (rc != nullptr) *rc = -1;
+        return;
+    }
+    auto* internal_data = static_cast<cece::CeceInternalData*>(data_ptr);
+    *level = internal_data->config.cece_data.debug_level;
+}
+
+/**
  * @brief Get timing configuration from YAML config.
  * @param data_ptr Pointer to CeceInternalData
  * @param start_time Output: start time as string (ISO8601 format)

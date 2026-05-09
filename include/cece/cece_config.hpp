@@ -134,6 +134,7 @@ struct CeceDataStreamConfig {
  */
 struct CeceDataConfig {
     std::vector<CeceDataStreamConfig> streams;  ///< List of input streams.
+    int debug_level = 0;                        ///< TIDE/strdata debug verbosity level (0=off, 1=time-matching info).
 };
 
 /**

@@ -73,6 +73,8 @@ module dshr_strdata_mod
   public  :: shr_strdata_get_stream_fieldbundle
   public  :: shr_strdata_print
 
+  public  :: shr_strdata_set_debug_level
+
   private :: shr_strdata_init_model_domain
   private :: shr_strdata_get_stream_nlev
   private :: shr_strdata_readLBUB
@@ -2561,5 +2563,11 @@ contains
     end do
     deallocate(lb, ub)
   end subroutine fill_grid_corner_coords
+
+  !===============================================================================
+  subroutine shr_strdata_set_debug_level(level)
+    integer, intent(in) :: level
+    debug = level
+  end subroutine shr_strdata_set_debug_level
 
 end module dshr_strdata_mod

@@ -236,6 +236,12 @@ module cece_cap_mod
       integer(c_size_t), value :: alias_idx
       type(c_ptr) :: alias
     end function cece_get_met_registry_alias
+    subroutine cece_core_get_tide_debug_level(data_ptr, level, rc) bind(C)
+      import :: c_ptr, c_int
+      type(c_ptr), value :: data_ptr
+      integer(c_int), intent(out) :: level
+      integer(c_int), intent(out) :: rc
+    end subroutine
   end interface
 
 contains
@@ -784,6 +790,17 @@ contains
     ! --- Phase 4: Initialize ingestor if configured ---
     if (use_ingestor .and. .not. g_tide_initialized) then
       write(*,'(A)') "INFO: [CECE] Initializing TIDE ingestor..."
+
+      ! Set TIDE debug level from config before initializing streams
+      block
+        use tide_mod, only: tide_set_debug_level
+        integer(c_int) :: tide_debug_lvl, c_dbg_rc
+        call cece_core_get_tide_debug_level(g_cece_data_ptr, tide_debug_lvl, c_dbg_rc)
+        if (c_dbg_rc == 0 .and. tide_debug_lvl > 0) then
+          write(*,'(A,I0)') "INFO: [CECE] Setting TIDE debug level: ", tide_debug_lvl
+          call tide_set_debug_level(int(tide_debug_lvl))
+        end if
+      end block
 
       ! Initialize TIDE with YAML configuration file path (not content)
       ! TIDE expects a filename and will read the file itself

@@ -483,4 +483,12 @@ contains
 
   end subroutine tide_resolve_field_mappings
 
+  !> @brief Set the TIDE/strdata debug verbosity level.
+  !> @param level 0=off, 1=time-matching info (LB/UB dates, interp factors, etc.)
+  subroutine tide_set_debug_level(level)
+    use dshr_strdata_mod, only : shr_strdata_set_debug_level
+    integer, intent(in) :: level
+    call shr_strdata_set_debug_level(level)
+  end subroutine tide_set_debug_level
+
 end module tide_mod

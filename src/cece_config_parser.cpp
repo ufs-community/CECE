@@ -280,6 +280,9 @@ CeceConfig ParseConfig(const std::string& filename) {
     if (root["cece_data"]) {
         data_node = root["cece_data"];
     }
+    if (data_node && data_node["debug_level"]) {
+        config.cece_data.debug_level = data_node["debug_level"].as<int>();
+    }
     if (data_node && data_node["streams"]) {
         for (auto const& stream_node : data_node["streams"]) {
             CeceDataStreamConfig stream;
