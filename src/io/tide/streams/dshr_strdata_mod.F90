@@ -16,6 +16,7 @@ module dshr_strdata_mod
   use ESMF             , only : ESMF_TimeIntervalGet, ESMF_TYPEKIND_R8, ESMF_FieldCreate
   use ESMF             , only : ESMF_FILEFORMAT_ESMFMESH, ESMF_FILEFORMAT_GRIDSPEC, ESMF_FieldCreate
   use ESMF             , only : ESMF_FieldBundleCreate, ESMF_MESHLOC_ELEMENT, ESMF_STAGGERLOC_CENTER, ESMF_FieldBundleAdd
+  use ESMF             , only : ESMF_STAGGERLOC_CORNER
   use ESMF             , only : ESMF_POLEMETHOD_ALLAVG, ESMF_EXTRAPMETHOD_NEAREST_STOD
   use ESMF             , only : ESMF_REGRIDMETHOD_BILINEAR, ESMF_REGRIDMETHOD_NEAREST_STOD
   use ESMF             , only : ESMF_REGRIDMETHOD_CONSERVE, ESMF_NORMTYPE_FRACAREA, ESMF_NORMTYPE_DSTAREA
@@ -620,6 +621,22 @@ contains
                   srcTermProcessing=srcTermProcessing_Value, ignoreDegenerate=.true., &
                   unmappedaction=ESMF_UNMAPPEDACTION_IGNORE, rc=rc)
           else if (trim(sdat%stream(ns)%mapalgo) == 'consf') then
+             ! Conservative regridding requires cell corner coordinates on the source grid.
+             ! ESMF silently produces garbage without them, so check up front.
+             if (ESMF_GridIsCreated(stream_grid)) then
+                block
+                  real(r8), pointer :: dummy(:,:)
+                  integer :: corner_rc
+                  dummy => null()
+                  call ESMF_GridGetCoord(stream_grid, coordDim=1, &
+                       staggerloc=ESMF_STAGGERLOC_CORNER, farrayptr=dummy, rc=corner_rc)
+                  if (corner_rc /= ESMF_SUCCESS) then
+                    call shr_sys_abort('ERROR: map_algo=consf requires cell corner coordinates '// &
+                         '(lon_bnds/lat_bnds) in the source grid, but none were found. '// &
+                         'Add bounds variables to the input file or supply an ESMF mesh file.')
+                  end if
+                end block
+             end if
              call ESMF_FieldReGridStore(sdat%pstrm(ns)%field_stream, lfield_dst, &
                   routehandle=sdat%pstrm(ns)%routehandle, &
                   regridmethod=ESMF_REGRIDMETHOD_CONSERVE, &
@@ -629,6 +646,22 @@ contains
                   srcTermProcessing=srcTermProcessing_Value, ignoreDegenerate=.true., &
                   unmappedaction=ESMF_UNMAPPEDACTION_IGNORE, rc=rc)
           else if (trim(sdat%stream(ns)%mapalgo) == 'consd') then
+             ! Conservative regridding requires cell corner coordinates on the source grid.
+             ! ESMF silently produces garbage without them, so check up front.
+             if (ESMF_GridIsCreated(stream_grid)) then
+                block
+                  real(r8), pointer :: dummy(:,:)
+                  integer :: corner_rc
+                  dummy => null()
+                  call ESMF_GridGetCoord(stream_grid, coordDim=1, &
+                       staggerloc=ESMF_STAGGERLOC_CORNER, farrayptr=dummy, rc=corner_rc)
+                  if (corner_rc /= ESMF_SUCCESS) then
+                    call shr_sys_abort('ERROR: map_algo=consd requires cell corner coordinates '// &
+                         '(lon_bnds/lat_bnds) in the source grid, but none were found. '// &
+                         'Add bounds variables to the input file or supply an ESMF mesh file.')
+                  end if
+                end block
+             end if
              call ESMF_FieldReGridStore(sdat%pstrm(ns)%field_stream, lfield_dst, &
                   routehandle=sdat%pstrm(ns)%routehandle, &
                   regridmethod=ESMF_REGRIDMETHOD_CONSERVE, &
@@ -1954,33 +1987,6 @@ contains
              call ESMF_FieldRegrid(per_stream%field_stream, field_dst, routehandle=per_stream%routehandle, &
                   termorderflag=ESMF_TERMORDER_SRCSEQ, checkflag=.false., zeroregion=ESMF_REGION_TOTAL, rc=rc)
 
-             if (sdat%mainproc) then
-                block
-                  real(r8), pointer :: dptr(:) => null()
-                  real(r8) :: dmin, dmax, dsum
-                  integer :: k, sz
-
-                  call ESMF_FieldGet(field_dst, farrayPtr=dptr, rc=rc)
-                  if (rc /= ESMF_SUCCESS) then
-                     print *, "DEBUG: ESMF_FieldGet(field_dst) failed with rc=", rc
-                  else
-                     if (associated(dptr)) then
-                       sz = size(dptr)
-                       if (sz > 0) then
-                          dmin = minval(dptr)
-                          dmax = maxval(dptr)
-                          dsum = sum(dptr)
-                          print *, "DEBUG: post-regrid field_dst: size=", sz, " min=", dmin, " max=", dmax, " sum=", dsum
-                       else
-                          print *, "DEBUG: post-regrid field_dst: size=0"
-                       endif
-                     else
-                       print *, "DEBUG: field_dst pointer not associated"
-                     endif
-                  endif
-                end block
-             endif
-
              if (chkerr(rc,__LINE__,u_FILE_u)) return
           end if
        else
@@ -2320,16 +2326,19 @@ contains
     integer, intent(out) :: rc
 
     type(file_desc_t) :: pioid
-    type(var_desc_t) :: lat_vid, lon_vid
+    type(var_desc_t) :: lat_vid, lon_vid, latbnds_vid, lonbnds_vid
     integer :: rcode, status
     integer :: nlat, nlon, ndims_lat, ndims_lon
     integer :: dimids(2)
-    integer :: nx, ny
-    real(r8), allocatable :: lats1d(:), lons1d(:), lats2d(:,:), lons2d(:,:)
+    integer :: nx, ny, i, j
+    real(r8), allocatable :: lats1d(:), lons1d(:)
+    real(r8), allocatable :: lat_bnds(:,:), lon_bnds(:,:)  ! shape (2, n)
+    real(r8), allocatable :: corner_lons(:), corner_lats(:)
     real(r8), pointer :: grid_lon(:,:), grid_lat(:,:)
     type(ESMF_DistGrid) :: distgrid
     integer :: localPet
     logical :: mainproc
+    logical :: has_lon_bnds, has_lat_bnds
 
     rc = ESMF_SUCCESS
     rcode = pio_openfile(pio_subsystem, pioid, io_type, trim(filename), pio_nowrite)
@@ -2346,6 +2355,13 @@ contains
     rcode = pio_inq_varid(pioid, 'lon', lon_vid)
     if (rcode /= PIO_NOERR) rcode = pio_inq_varid(pioid, 'longitude', lon_vid)
     if (rcode /= PIO_NOERR) rcode = pio_inq_varid(pioid, 'LON', lon_vid)
+
+    ! Check for CF bounds variables
+    has_lat_bnds = (pio_inq_varid(pioid, 'lat_bnds',  latbnds_vid) == PIO_NOERR)
+    if (.not. has_lat_bnds) has_lat_bnds = (pio_inq_varid(pioid, 'lat_bounds', latbnds_vid) == PIO_NOERR)
+
+    has_lon_bnds = (pio_inq_varid(pioid, 'lon_bnds',  lonbnds_vid) == PIO_NOERR)
+    if (.not. has_lon_bnds) has_lon_bnds = (pio_inq_varid(pioid, 'lon_bounds', lonbnds_vid) == PIO_NOERR)
 
     ! Get dimensions
     rcode = pio_inq_varndims(pioid, lat_vid, ndims_lat)
@@ -2364,35 +2380,64 @@ contains
        rcode = pio_inq_dimlen(pioid, dimids(1), nx)
     endif
 
-    ! Create DistGrid
+    ! Create DistGrid — corners need (nx+1, ny+1) nodes when bounds are present
     distgrid = ESMF_DistGridCreate(minIndex=(/1,1/), maxIndex=(/nx,ny/), rc=rc)
 
-    ! Create Grid
-    stream_grid = ESMF_GridCreate(distgrid, coordSys=ESMF_COORDSYS_SPH_DEG, &
-         gridEdgeLWidth=(/0,0/), gridEdgeUWidth=(/0,0/), rc=rc)
+    ! Create Grid.  When bounds are available, allow extra upper edge points for
+    ! the CORNER staggerloc so all (nx+1)×(ny+1) cell corners can be populated.
+    if (has_lon_bnds .and. has_lat_bnds) then
+      stream_grid = ESMF_GridCreate(distgrid, coordSys=ESMF_COORDSYS_SPH_DEG, &
+           gridEdgeLWidth=(/0,0/), gridEdgeUWidth=(/1,1/), rc=rc)
+    else
+      stream_grid = ESMF_GridCreate(distgrid, coordSys=ESMF_COORDSYS_SPH_DEG, &
+           gridEdgeLWidth=(/0,0/), gridEdgeUWidth=(/0,0/), rc=rc)
+    end if
 
-    ! Add Coordinates
+    ! Add center coordinates
     call ESMF_GridAddCoord(stream_grid, staggerloc=ESMF_STAGGERLOC_CENTER, rc=rc)
 
-    ! Allocate and read
+    ! Allocate and read 1-D center coordinates
     allocate(lats1d(ny))
     allocate(lons1d(nx))
 
-    ! Using pio_get_var to read entire variable (replicated)
-    ! Note: This assumes small enough grid to fit in memory on all tasks
-    ! Also assumes 1D coordinates for now as per MACCity file
     status = pio_get_var(pioid, lat_vid, lats1d)
     status = pio_get_var(pioid, lon_vid, lons1d)
 
-    ! Get pointers to Grid - moved inside loop in fill_grid_coords
-    ! call ESMF_GridGetCoord(stream_grid, coordDim=1, staggerloc=ESMF_STAGGERLOC_CENTER, &
-    !      farrayptr=grid_lon, rc=rc)
-    ! call ESMF_GridGetCoord(stream_grid, coordDim=2, staggerloc=ESMF_STAGGERLOC_CENTER, &
-    !      farrayptr=grid_lat, rc=rc)
-
-    ! Initialzie grid coordinates from 1D arrays (broadcast to 2D)
-
     call fill_grid_coords(stream_grid, lons1d, lats1d, nx, ny, rc)
+
+    ! -----------------------------------------------------------------------
+    ! Populate corner staggerloc from CF bounds variables (shape (2, n)).
+    ! ESMF corner grid is (nx+1) × (ny+1): corner (i,j) is the left/bottom
+    ! edge shared by cells (i-1,j-1), (i,j-1), (i-1,j), (i,j).
+    ! From 1-D bounds lon_bnds(1:2, 1:nx):
+    !   corner lon(i) = lon_bnds(1, i)   for i=1..nx  (lower edge of cell i)
+    !   corner lon(nx+1) = lon_bnds(2, nx)             (upper edge of last cell)
+    ! Same pattern for lat.
+    ! -----------------------------------------------------------------------
+    if (has_lon_bnds .and. has_lat_bnds) then
+      call ESMF_GridAddCoord(stream_grid, staggerloc=ESMF_STAGGERLOC_CORNER, rc=rc)
+
+      allocate(lon_bnds(2, nx))
+      allocate(lat_bnds(2, ny))
+      status = pio_get_var(pioid, lonbnds_vid, lon_bnds)
+      status = pio_get_var(pioid, latbnds_vid, lat_bnds)
+
+      ! Build (nx+1) and (ny+1) corner coordinate arrays
+      allocate(corner_lons(nx+1))
+      allocate(corner_lats(ny+1))
+      do i = 1, nx
+        corner_lons(i) = lon_bnds(1, i)
+      end do
+      corner_lons(nx+1) = lon_bnds(2, nx)
+      do j = 1, ny
+        corner_lats(j) = lat_bnds(1, j)
+      end do
+      corner_lats(ny+1) = lat_bnds(2, ny)
+
+      call fill_grid_corner_coords(stream_grid, corner_lons, corner_lats, nx, ny, rc)
+
+      deallocate(lon_bnds, lat_bnds, corner_lons, corner_lats)
+    end if
 
     call pio_closefile(pioid)
     deallocate(lats1d, lons1d)
@@ -2412,10 +2457,6 @@ contains
 
     call ESMF_GridGet(grid, distgrid=distgrid, rc=rc)
     call ESMF_DistGridGet(distgrid, localDeCount=deCount, rc=rc)
-
-    print *, "DEBUG: fill_grid_coords: nx=", nx, " ny=", ny, &
-         " lons range:", minval(lons1d), maxval(lons1d), &
-         " lats range:", minval(lats1d), maxval(lats1d)
 
     allocate(lb(2), ub(2))
 
@@ -2441,5 +2482,44 @@ contains
     enddo
     deallocate(lb, ub)
   end subroutine fill_grid_coords
+
+  ! Fill ESMF_STAGGERLOC_CORNER coordinates from (nx+1) × (ny+1) 1-D arrays.
+  subroutine fill_grid_corner_coords(grid, corner_lons, corner_lats, nx, ny, rc)
+    type(ESMF_Grid), intent(in) :: grid
+    real(r8), intent(in) :: corner_lons(:)   ! size nx+1
+    real(r8), intent(in) :: corner_lats(:)   ! size ny+1
+    integer, intent(in) :: nx, ny
+    integer, intent(out) :: rc
+
+    type(ESMF_DistGrid) :: distgrid
+    integer :: deCount, de, i, j
+    integer, allocatable :: lb(:), ub(:)
+    real(r8), pointer :: grid_lon(:,:), grid_lat(:,:)
+
+    call ESMF_GridGet(grid, distgrid=distgrid, rc=rc)
+    call ESMF_DistGridGet(distgrid, localDeCount=deCount, rc=rc)
+
+    allocate(lb(2), ub(2))
+
+    do de = 0, deCount-1
+      call ESMF_GridGet(grid, localDe=de, staggerloc=ESMF_STAGGERLOC_CORNER, &
+           computationalLBound=lb, computationalUBound=ub, rc=rc)
+
+      call ESMF_GridGetCoord(grid, coordDim=1, localDe=de, staggerloc=ESMF_STAGGERLOC_CORNER, &
+           farrayptr=grid_lon, rc=rc)
+      call ESMF_GridGetCoord(grid, coordDim=2, localDe=de, staggerloc=ESMF_STAGGERLOC_CORNER, &
+           farrayptr=grid_lat, rc=rc)
+
+      do j = lb(2), ub(2)
+        do i = lb(1), ub(1)
+          if (i >= 1 .and. i <= nx+1 .and. j >= 1 .and. j <= ny+1) then
+            grid_lon(i - lb(1) + lbound(grid_lon, 1), j - lb(2) + lbound(grid_lon, 2)) = corner_lons(i)
+            grid_lat(i - lb(1) + lbound(grid_lat, 1), j - lb(2) + lbound(grid_lat, 2)) = corner_lats(j)
+          end if
+        end do
+      end do
+    end do
+    deallocate(lb, ub)
+  end subroutine fill_grid_corner_coords
 
 end module dshr_strdata_mod

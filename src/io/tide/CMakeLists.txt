@@ -219,6 +219,48 @@ target_link_libraries(
 )
 add_test(NAME tide_passthrough_2d COMMAND test_tide_passthrough_2d)
 
+add_executable(test_tide_bilinear tide/tests/test_tide_bilinear.F90)
+target_include_directories(
+  test_tide_bilinear
+  PRIVATE ${ESMF_F90COMPILEPATHS} ${PIO_Fortran_INCLUDE_DIR} ${NETCDF_Fortran_INCLUDE_DIR}
+)
+target_link_libraries(
+  test_tide_bilinear
+  PRIVATE
+    tide
+    dshr
+    streams
+    cdeps_share
+    ${ESMF_F90ESMFLINKLIBS}
+    ${PIO_Fortran_LIBRARY}
+    ${PIO_C_LIBRARY}
+    ${NETCDF_Fortran_LIBRARY}
+    ${MPI_Fortran_LIBRARIES}
+    m
+)
+add_test(NAME tide_bilinear COMMAND test_tide_bilinear)
+
+add_executable(test_tide_consd tide/tests/test_tide_consd.F90)
+target_include_directories(
+  test_tide_consd
+  PRIVATE ${ESMF_F90COMPILEPATHS} ${PIO_Fortran_INCLUDE_DIR} ${NETCDF_Fortran_INCLUDE_DIR}
+)
+target_link_libraries(
+  test_tide_consd
+  PRIVATE
+    tide
+    dshr
+    streams
+    cdeps_share
+    ${ESMF_F90ESMFLINKLIBS}
+    ${PIO_Fortran_LIBRARY}
+    ${PIO_C_LIBRARY}
+    ${NETCDF_Fortran_LIBRARY}
+    ${MPI_Fortran_LIBRARIES}
+    m
+)
+add_test(NAME tide_consd COMMAND test_tide_consd)
+
 # -----------------------------------------------------------------------
 # NetCDF-Fortran (required by CF property tests)
 # -----------------------------------------------------------------------

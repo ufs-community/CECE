@@ -492,8 +492,12 @@ contains
           lon_min = -135._ESMF_KIND_R8; lon_max = 135._ESMF_KIND_R8
           lat_min = -67.5_ESMF_KIND_R8; lat_max = 67.5_ESMF_KIND_R8
         end if
-        ! Build a mesh from config params for TIDE (GRIDSPEC doesn't give us a mesh)
-        call CreateMeshFromConfig(nx, ny, lon_min, lon_max, lat_min, lat_max, mesh, rc)
+        ! Build a mesh from the GRIDSPEC grid's actual coordinates for TIDE regridding.
+        ! CreateMeshFromConfig uses config-supplied lon/lat bounds which may not match
+        ! the GRIDSPEC file, giving ESMF a destination mesh with wrong coordinates
+        ! (→ zero regrid weights).  CreateMeshFromGridCoords extracts the real
+        ! cell-centre coordinates from the loaded ESMF_Grid instead.
+        call CreateMeshFromGridCoords(grid, mesh, rc)
         if (rc /= ESMF_SUCCESS) then
           write(*,'(A,I0)') "ERROR: [CECE] Failed to create TIDE mesh from config: rc=", rc
           return
@@ -1145,11 +1149,12 @@ contains
 
     integer :: i, j, nodeIdx, elemIdx
     integer :: totalNodes, totalElems
-    real(ESMF_KIND_R8), allocatable :: nodeCoords(:)
+    real(ESMF_KIND_R8), allocatable :: nodeCoords(:), elemCoords(:)
     integer, allocatable :: nodeIds(:), nodeOwners(:), elemIds(:), elemTypes(:), elemConn(:)
     integer :: nodesPerElem
     type(ESMF_VM) :: vm
     integer :: localPet, petCount
+    real(ESMF_KIND_R8) :: dlon, dlat
 
     rc = ESMF_SUCCESS
 
@@ -1163,67 +1168,62 @@ contains
     mesh = ESMF_MeshCreate(parametricDim=2, spatialDim=2, rc=rc)
     if (rc /= ESMF_SUCCESS) return
 
-    ! Only PET0 creates the global mesh structure for simplicity
     if (localPet == 0) then
-      ! For conservative regridding, we need nodes at grid corners and elements at grid centers
-      ! Grid cells become mesh elements (quads)
       totalNodes = (nx + 1) * (ny + 1)
       totalElems = nx * ny
       nodesPerElem = 4
+      dlon = (lon_max - lon_min) / nx
+      dlat = (lat_max - lat_min) / ny
 
-      ! Allocate arrays
-      allocate(nodeCoords(totalNodes * 2))  ! x,y for each node
+      allocate(nodeCoords(totalNodes * 2))
       allocate(nodeIds(totalNodes))
       allocate(nodeOwners(totalNodes))
       allocate(elemIds(totalElems))
       allocate(elemTypes(totalElems))
       allocate(elemConn(totalElems * nodesPerElem))
+      allocate(elemCoords(totalElems * 2))  ! element centre coordinates
 
-      ! Create regular lat-lon mesh coordinates
+      ! Node corner coordinates
       nodeIdx = 0
       do j = 0, ny
         do i = 0, nx
           nodeIdx = nodeIdx + 1
           nodeIds(nodeIdx) = nodeIdx
           nodeOwners(nodeIdx) = 0
-
-          ! Create coordinates from config parameters
-          nodeCoords(2*nodeIdx-1) = lon_min + ((lon_max - lon_min) * i) / nx
-          nodeCoords(2*nodeIdx) = lat_min + ((lat_max - lat_min) * j) / ny
+          nodeCoords(2*nodeIdx-1) = lon_min + dlon * i
+          nodeCoords(2*nodeIdx)   = lat_min + dlat * j
         end do
       end do
 
-      ! Create elements (grid cells as quads)
+      ! Elements with connectivity and explicit centre coordinates.
+      ! ESMF 8.x requires elementCoords to be set so that bilinear (and other)
+      ! regridding can call ESMF_MeshGet(ownedElemCoords=...) internally.
       elemIdx = 0
       do j = 1, ny
         do i = 1, nx
           elemIdx = elemIdx + 1
-          elemIds(elemIdx) = elemIdx
+          elemIds(elemIdx)   = elemIdx
           elemTypes(elemIdx) = ESMF_MESHELEMTYPE_QUAD
-
-          ! Connect nodes to form quadrilateral
-          ! Node numbering: bottom-left, bottom-right, top-right, top-left
           elemConn(4*(elemIdx-1)+1) = (j-1)*(nx+1) + i      ! bottom-left
           elemConn(4*(elemIdx-1)+2) = (j-1)*(nx+1) + (i+1)  ! bottom-right
           elemConn(4*(elemIdx-1)+3) = j*(nx+1) + (i+1)      ! top-right
           elemConn(4*(elemIdx-1)+4) = j*(nx+1) + i          ! top-left
+          ! Centre = arithmetic mean of the 4 corner nodes
+          elemCoords(2*(elemIdx-1)+1) = lon_min + dlon * (i - 0.5_ESMF_KIND_R8)
+          elemCoords(2*(elemIdx-1)+2) = lat_min + dlat * (j - 0.5_ESMF_KIND_R8)
         end do
       end do
 
-      ! Add nodes to mesh
       call ESMF_MeshAddNodes(mesh, nodeIds, nodeCoords, nodeOwners, rc=rc)
       if (rc /= ESMF_SUCCESS) then
-        deallocate(nodeCoords, nodeIds, nodeOwners, elemIds, elemTypes, elemConn)
+        deallocate(nodeCoords, nodeIds, nodeOwners, elemIds, elemTypes, elemConn, elemCoords)
         return
       end if
 
-      ! Add elements to mesh
-      call ESMF_MeshAddElements(mesh, elemIds, elemTypes, elemConn, rc=rc)
-
-      ! Clean up
-      deallocate(nodeCoords, nodeIds, nodeOwners, elemIds, elemTypes, elemConn)
+      call ESMF_MeshAddElements(mesh, elemIds, elemTypes, elemConn, &
+                                elementCoords=elemCoords, rc=rc)
+      deallocate(nodeCoords, nodeIds, nodeOwners, elemIds, elemTypes, elemConn, elemCoords)
     else
-      ! Other PETs contribute empty arrays
       allocate(nodeCoords(0), nodeIds(0), nodeOwners(0))
       allocate(elemIds(0), elemTypes(0), elemConn(0))
 
@@ -1237,21 +1237,26 @@ contains
 
   end subroutine CreateMeshFromConfig
 
-  !> @brief Create a properly structured mesh from grid coordinates for conservative regridding
+  !> @brief Create a properly structured mesh from grid coordinates for conservative regridding.
+  !!
+  !! Node (corner) coordinates are computed by half-cell extrapolation from the grid's
+  !! cell-center coordinates.  This ensures the mesh element centres exactly coincide
+  !! with the ESMF_Grid cell centres, so ESMF regridding weights are correct.
   subroutine CreateMeshFromGridCoords(grid, mesh, rc)
     type(ESMF_Grid), intent(in) :: grid
     type(ESMF_Mesh), intent(out) :: mesh
     integer, intent(out) :: rc
 
-    integer :: nx, ny, i, j, nodeIdx, elemIdx
-    real(ESMF_KIND_R8), pointer :: lonPtr(:,:), latPtr(:,:)
-    integer :: localDE, elemlb(2), elemub(2), nodelb(2), nodeub(2)
+    integer :: nx, ny, i, j, nodeIdx, elemIdx, localDE
+    real(ESMF_KIND_R8), pointer :: lonCenter(:,:), latCenter(:,:)
+    integer :: elemlb(2), elemub(2)
     integer :: totalNodes, totalElems
     real(ESMF_KIND_R8), allocatable :: nodeCoords(:)
     integer, allocatable :: nodeIds(:), nodeOwners(:), elemIds(:), elemTypes(:), elemConn(:)
     integer :: nodesPerElem
     type(ESMF_VM) :: vm
     integer :: localPet, petCount
+    real(ESMF_KIND_R8) :: lon_node, lat_node, dlon_lo, dlon_hi, dlat_lo, dlat_hi
 
     rc = ESMF_SUCCESS
 
@@ -1261,7 +1266,7 @@ contains
     call ESMF_VMGet(vm, localPet=localPet, petCount=petCount, rc=rc)
     if (rc /= ESMF_SUCCESS) return
 
-    ! Get grid dimensions
+    ! Derive grid size from cell-center staggerloc
     localDE = 0
     call ESMF_GridGet(grid, localDE=localDE, staggerloc=ESMF_STAGGERLOC_CENTER, &
                       computationalLBound=elemlb, computationalUBound=elemub, rc=rc)
@@ -1270,28 +1275,38 @@ contains
     nx = elemub(1) - elemlb(1) + 1
     ny = elemub(2) - elemlb(2) + 1
 
+    ! Extract cell-center coordinates from the grid (coord dim 1 = lon, 2 = lat)
+    call ESMF_GridGetCoord(grid, coordDim=1, localDE=localDE, staggerloc=ESMF_STAGGERLOC_CENTER, &
+                           farrayPtr=lonCenter, rc=rc)
+    if (rc /= ESMF_SUCCESS) return
+    call ESMF_GridGetCoord(grid, coordDim=2, localDE=localDE, staggerloc=ESMF_STAGGERLOC_CENTER, &
+                           farrayPtr=latCenter, rc=rc)
+    if (rc /= ESMF_SUCCESS) return
+
+    write(*,'(A,I0,A,I0)') "INFO: [CECE] CreateMeshFromGridCoords: nx=", nx, " ny=", ny
+    write(*,'(A,2F10.3,A,2F10.3)') "INFO: [CECE]   lon range: ", &
+         lonCenter(elemlb(1),elemlb(2)), lonCenter(elemub(1),elemlb(2)), &
+         "  lat range: ", latCenter(elemlb(1),elemlb(2)), latCenter(elemlb(1),elemub(2))
+
     ! Create mesh
     mesh = ESMF_MeshCreate(parametricDim=2, spatialDim=2, rc=rc)
     if (rc /= ESMF_SUCCESS) return
 
-    ! Only PET0 creates the global mesh structure for simplicity
     if (localPet == 0) then
-      ! For conservative regridding, we need nodes at grid corners and elements at grid centers
-      ! Grid cells become mesh elements (quads)
       totalNodes = (nx + 1) * (ny + 1)
       totalElems = nx * ny
       nodesPerElem = 4
 
-      ! Allocate arrays
-      allocate(nodeCoords(totalNodes * 2))  ! x,y for each node
+      allocate(nodeCoords(totalNodes * 2))
       allocate(nodeIds(totalNodes))
       allocate(nodeOwners(totalNodes))
       allocate(elemIds(totalElems))
       allocate(elemTypes(totalElems))
       allocate(elemConn(totalElems * nodesPerElem))
 
-      ! Create regular lat-lon grid coordinates
-      ! This is a simplified approach - in production you'd extract actual grid coordinates
+      ! Corner node coordinates derived from cell-centre coordinates.
+      ! Interior corners: average of the two adjacent cell centres.
+      ! Boundary corners: extrapolate by half the edge cell's spacing.
       nodeIdx = 0
       do j = 0, ny
         do i = 0, nx
@@ -1299,51 +1314,95 @@ contains
           nodeIds(nodeIdx) = nodeIdx
           nodeOwners(nodeIdx) = 0
 
-          ! Create regular grid: longitude from -180 to 180, latitude from -90 to 90
-          nodeCoords(2*nodeIdx-1) = -180.0_ESMF_KIND_R8 + (360.0_ESMF_KIND_R8 * i) / nx
-          nodeCoords(2*nodeIdx) = -90.0_ESMF_KIND_R8 + (180.0_ESMF_KIND_R8 * j) / ny
+          ! ---- longitude ----
+          if (i == 0) then
+            ! Left boundary: extrapolate leftward by half the first cell width
+            if (nx >= 2) then
+              dlon_lo = lonCenter(elemlb(1)+1, elemlb(2)) - lonCenter(elemlb(1), elemlb(2))
+            else
+              dlon_lo = 1.0_ESMF_KIND_R8
+            end if
+            lon_node = lonCenter(elemlb(1), elemlb(2)+min(j, ny-1)) - 0.5_ESMF_KIND_R8 * dlon_lo
+          else if (i == nx) then
+            ! Right boundary: extrapolate rightward by half the last cell width
+            if (nx >= 2) then
+              dlon_hi = lonCenter(elemub(1), elemlb(2)) - lonCenter(elemub(1)-1, elemlb(2))
+            else
+              dlon_hi = 1.0_ESMF_KIND_R8
+            end if
+            lon_node = lonCenter(elemub(1), elemlb(2)+min(j, ny-1)) + 0.5_ESMF_KIND_R8 * dlon_hi
+          else
+            ! Interior: midpoint between neighbouring cell centres
+            lon_node = 0.5_ESMF_KIND_R8 * ( &
+                 lonCenter(elemlb(1)+i-1, elemlb(2)+min(j, ny-1)) + &
+                 lonCenter(elemlb(1)+i,   elemlb(2)+min(j, ny-1)))
+          end if
+
+          ! ---- latitude ----
+          if (j == 0) then
+            if (ny >= 2) then
+              dlat_lo = latCenter(elemlb(1), elemlb(2)+1) - latCenter(elemlb(1), elemlb(2))
+            else
+              dlat_lo = 1.0_ESMF_KIND_R8
+            end if
+            lat_node = latCenter(elemlb(1)+min(i, nx-1), elemlb(2)) - 0.5_ESMF_KIND_R8 * dlat_lo
+          else if (j == ny) then
+            if (ny >= 2) then
+              dlat_hi = latCenter(elemlb(1), elemub(2)) - latCenter(elemlb(1), elemub(2)-1)
+            else
+              dlat_hi = 1.0_ESMF_KIND_R8
+            end if
+            lat_node = latCenter(elemlb(1)+min(i, nx-1), elemub(2)) + 0.5_ESMF_KIND_R8 * dlat_hi
+          else
+            lat_node = 0.5_ESMF_KIND_R8 * ( &
+                 latCenter(elemlb(1)+min(i, nx-1), elemlb(2)+j-1) + &
+                 latCenter(elemlb(1)+min(i, nx-1), elemlb(2)+j))
+          end if
+
+          nodeCoords(2*nodeIdx-1) = lon_node
+          nodeCoords(2*nodeIdx)   = lat_node
         end do
       end do
 
-      ! Create elements (grid cells as quads)
-      elemIdx = 0
-      do j = 1, ny
-        do i = 1, nx
-          elemIdx = elemIdx + 1
-          elemIds(elemIdx) = elemIdx
-          elemTypes(elemIdx) = ESMF_MESHELEMTYPE_QUAD
+      ! Elements — same quad connectivity as CreateMeshFromConfig.
+      ! elementCoords supplies the element centre coordinates that ESMF 8.x
+      ! requires for bilinear (and other) regridding destinations.
+      block
+        real(ESMF_KIND_R8), allocatable :: elemCoords(:)
+        allocate(elemCoords(totalElems * 2))
 
-          ! Connect nodes to form quadrilateral
-          ! Node numbering: bottom-left, bottom-right, top-right, top-left
-          elemConn(4*(elemIdx-1)+1) = (j-1)*(nx+1) + i      ! bottom-left
-          elemConn(4*(elemIdx-1)+2) = (j-1)*(nx+1) + (i+1)  ! bottom-right
-          elemConn(4*(elemIdx-1)+3) = j*(nx+1) + (i+1)      ! top-right
-          elemConn(4*(elemIdx-1)+4) = j*(nx+1) + i          ! top-left
+        elemIdx = 0
+        do j = 1, ny
+          do i = 1, nx
+            elemIdx = elemIdx + 1
+            elemIds(elemIdx) = elemIdx
+            elemTypes(elemIdx) = ESMF_MESHELEMTYPE_QUAD
+            elemConn(4*(elemIdx-1)+1) = (j-1)*(nx+1) + i        ! bottom-left
+            elemConn(4*(elemIdx-1)+2) = (j-1)*(nx+1) + (i+1)    ! bottom-right
+            elemConn(4*(elemIdx-1)+3) = j*(nx+1) + (i+1)        ! top-right
+            elemConn(4*(elemIdx-1)+4) = j*(nx+1) + i            ! top-left
+            ! Centre = grid cell-centre coordinate
+            elemCoords(2*(elemIdx-1)+1) = lonCenter(elemlb(1)+i-1, elemlb(2)+j-1)
+            elemCoords(2*(elemIdx-1)+2) = latCenter(elemlb(1)+i-1, elemlb(2)+j-1)
+          end do
         end do
-      end do
 
-      ! Add nodes to mesh
-      call ESMF_MeshAddNodes(mesh, nodeIds, nodeCoords, nodeOwners, rc=rc)
-      if (rc /= ESMF_SUCCESS) then
-        deallocate(nodeCoords, nodeIds, nodeOwners, elemIds, elemTypes, elemConn)
-        return
-      end if
-
-      ! Add elements to mesh
-      call ESMF_MeshAddElements(mesh, elemIds, elemTypes, elemConn, rc=rc)
-
-      ! Clean up
-      deallocate(nodeCoords, nodeIds, nodeOwners, elemIds, elemTypes, elemConn)
+        call ESMF_MeshAddNodes(mesh, nodeIds, nodeCoords, nodeOwners, rc=rc)
+        if (rc /= ESMF_SUCCESS) then
+          deallocate(nodeCoords, nodeIds, nodeOwners, elemIds, elemTypes, elemConn, elemCoords)
+          return
+        end if
+        call ESMF_MeshAddElements(mesh, elemIds, elemTypes, elemConn, &
+                                  elementCoords=elemCoords, rc=rc)
+        deallocate(nodeCoords, nodeIds, nodeOwners, elemIds, elemTypes, elemConn, elemCoords)
+      end block
     else
-      ! Other PETs contribute empty arrays
       allocate(nodeCoords(0), nodeIds(0), nodeOwners(0))
       allocate(elemIds(0), elemTypes(0), elemConn(0))
-
       call ESMF_MeshAddNodes(mesh, nodeIds, nodeCoords, nodeOwners, rc=rc)
       if (rc == ESMF_SUCCESS) then
         call ESMF_MeshAddElements(mesh, elemIds, elemTypes, elemConn, rc=rc)
       end if
-
       deallocate(nodeCoords, nodeIds, nodeOwners, elemIds, elemTypes, elemConn)
     end if
 
