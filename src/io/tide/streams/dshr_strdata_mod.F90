@@ -25,7 +25,7 @@ module dshr_strdata_mod
   use ESMF             , only : ESMF_TERMORDER_SRCSEQ, ESMF_FieldRegrid, ESMF_FieldFill, ESMF_FieldIsCreated
   use ESMF             , only : ESMF_REGION_TOTAL, ESMF_FieldGet, ESMF_TraceRegionExit, ESMF_TraceRegionEnter
   use ESMF             , only : ESMF_LOGMSG_INFO, ESMF_LogWrite
-  use shr_kind_mod     , only : r8=>shr_kind_r8, r4=>shr_kind_r4, i2=>shr_kind_I2
+  use shr_kind_mod     , only : r8=>shr_kind_r8, r4=>shr_kind_r4, i2=>shr_kind_I2, i8=>shr_kind_i8
   use shr_kind_mod     , only : cs=>shr_kind_cs, cl=>shr_kind_cl, cxx=>shr_kind_cxx, cx=>shr_kind_cx
   use shr_sys_mod      , only : shr_sys_abort
   use shr_const_mod    , only : shr_const_pi, shr_const_cDay, shr_const_spval
@@ -411,6 +411,7 @@ contains
     integer                      :: i, stream_nlev, index
     character(CL)                :: stream_vector_names
     character(len=*), parameter  :: subname='(shr_sdat_init)'
+    integer(i8)                   :: t0, t1, tick_rate
     ! ----------------------------------------------
 
     rc = ESMF_SUCCESS
@@ -464,7 +465,12 @@ contains
           endif
 
           rc = ESMF_SUCCESS
+          call system_clock(t0, tick_rate)
           call shr_strdata_create_grid_from_netcdf(sdat%pio_subsystem, sdat%io_type, trim(filename), stream_grid, rc)
+          call system_clock(t1)
+          if (mainproc) write(sdat%stream(1)%logunit,'(a,f8.2,a)') &
+               trim(subname)//' INFO: shr_strdata_create_grid_from_netcdf took ', &
+               real(t1-t0)/real(tick_rate), ' s'
           rc = ESMF_SUCCESS
        endif
 
@@ -598,6 +604,9 @@ contains
           sdat%stream(ns)%mapalgo = 'none'
        else
           if (trim(sdat%stream(ns)%mapalgo) == "bilinear") then
+             if (mainproc) write(sdat%stream(1)%logunit,'(a)') &
+                  trim(subname)//' INFO: building bilinear route handle ...'
+             call system_clock(t0, tick_rate)
              call ESMF_FieldRegridStore(sdat%pstrm(ns)%field_stream, lfield_dst, &
                   routehandle=sdat%pstrm(ns)%routehandle, &
                   regridmethod=ESMF_REGRIDMETHOD_BILINEAR,  &
@@ -607,12 +616,24 @@ contains
                   srcMaskValues=(/sdat%stream(ns)%src_mask_val/), &
                   srcTermProcessing=srcTermProcessing_Value, ignoreDegenerate=.true., rc=rc)
              if (chkerr(rc,__LINE__,u_FILE_u)) return
+             call system_clock(t1)
+             if (mainproc) write(sdat%stream(1)%logunit,'(a,f8.2,a)') &
+                  trim(subname)//' INFO: bilinear RegridStore took ', real(t1-t0)/real(tick_rate), ' s'
           else if (trim(sdat%stream(ns)%mapalgo) == 'redist') then
+             if (mainproc) write(sdat%stream(1)%logunit,'(a)') &
+                  trim(subname)//' INFO: building redist route handle ...'
+             call system_clock(t0, tick_rate)
              call ESMF_FieldRedistStore(sdat%pstrm(ns)%field_stream, lfield_dst, &
                   routehandle=sdat%pstrm(ns)%routehandle, &
                   ignoreUnmatchedIndices = .true., rc=rc)
              if (chkerr(rc,__LINE__,u_FILE_u)) return
+             call system_clock(t1)
+             if (mainproc) write(sdat%stream(1)%logunit,'(a,f8.2,a)') &
+                  trim(subname)//' INFO: redist RedistStore took ', real(t1-t0)/real(tick_rate), ' s'
           else if (trim(sdat%stream(ns)%mapalgo) == 'nn') then
+             if (mainproc) write(sdat%stream(1)%logunit,'(a)') &
+                  trim(subname)//' INFO: building nn route handle ...'
+             call system_clock(t0, tick_rate)
              call ESMF_FieldReGridStore(sdat%pstrm(ns)%field_stream, lfield_dst, &
                   routehandle=sdat%pstrm(ns)%routehandle, &
                   regridmethod=ESMF_REGRIDMETHOD_NEAREST_STOD, &
@@ -620,7 +641,13 @@ contains
                   srcMaskValues=(/sdat%stream(ns)%src_mask_val/), &
                   srcTermProcessing=srcTermProcessing_Value, ignoreDegenerate=.true., &
                   unmappedaction=ESMF_UNMAPPEDACTION_IGNORE, rc=rc)
+             call system_clock(t1)
+             if (mainproc) write(sdat%stream(1)%logunit,'(a,f8.2,a)') &
+                  trim(subname)//' INFO: nn RegridStore took ', real(t1-t0)/real(tick_rate), ' s'
           else if (trim(sdat%stream(ns)%mapalgo) == 'consf') then
+             if (mainproc) write(sdat%stream(1)%logunit,'(a)') &
+                  trim(subname)//' INFO: building consf route handle ...'
+             call system_clock(t0, tick_rate)
              call ESMF_FieldReGridStore(sdat%pstrm(ns)%field_stream, lfield_dst, &
                   routehandle=sdat%pstrm(ns)%routehandle, &
                   regridmethod=ESMF_REGRIDMETHOD_CONSERVE, &
@@ -629,7 +656,13 @@ contains
                   srcMaskValues=(/sdat%stream(ns)%src_mask_val/), &
                   srcTermProcessing=srcTermProcessing_Value, ignoreDegenerate=.true., &
                   unmappedaction=ESMF_UNMAPPEDACTION_IGNORE, rc=rc)
+             call system_clock(t1)
+             if (mainproc) write(sdat%stream(1)%logunit,'(a,f8.2,a)') &
+                  trim(subname)//' INFO: consf RegridStore took ', real(t1-t0)/real(tick_rate), ' s'
           else if (trim(sdat%stream(ns)%mapalgo) == 'consd') then
+             if (mainproc) write(sdat%stream(1)%logunit,'(a)') &
+                  trim(subname)//' INFO: building consd route handle ...'
+             call system_clock(t0, tick_rate)
              call ESMF_FieldReGridStore(sdat%pstrm(ns)%field_stream, lfield_dst, &
                   routehandle=sdat%pstrm(ns)%routehandle, &
                   regridmethod=ESMF_REGRIDMETHOD_CONSERVE, &
@@ -638,6 +671,9 @@ contains
                   srcMaskValues=(/sdat%stream(ns)%src_mask_val/), &
                   srcTermProcessing=srcTermProcessing_Value, ignoreDegenerate=.true., &
                   unmappedaction=ESMF_UNMAPPEDACTION_IGNORE, rc=rc)
+             call system_clock(t1)
+             if (mainproc) write(sdat%stream(1)%logunit,'(a,f8.2,a)') &
+                  trim(subname)//' INFO: consd RegridStore took ', real(t1-t0)/real(tick_rate), ' s'
           else if (trim(sdat%stream(ns)%mapalgo) == 'none') then
              ! single point stream data, no action required.
           else if (trim(sdat%stream(ns)%mapalgo) == 'passthrough') then
@@ -1557,6 +1593,7 @@ contains
     character(*), parameter  :: F00   = "('(shr_strdata_readstrm) ',8a)"
     character(*), parameter  :: F02   = "('(shr_strdata_readstrm) ',2a,i8)"
     character(CL)            :: errmsg
+    integer(i8)               :: t0_read, t1_read, tick_rate_read
     !-------------------------------------------------------------------------------
 
     rc = ESMF_SUCCESS
@@ -1952,8 +1989,12 @@ contains
                dst_ptr(:) = dataptr1d(:)
              end block
           else
+             call system_clock(t0_read, tick_rate_read)
              call ESMF_FieldRegrid(per_stream%field_stream, field_dst, routehandle=per_stream%routehandle, &
                   termorderflag=ESMF_TERMORDER_SRCSEQ, checkflag=.false., zeroregion=ESMF_REGION_TOTAL, rc=rc)
+             call system_clock(t1_read)
+             write(sdat%stream(1)%logunit,'(a,a,f8.3,a)') trim(subname), &
+                  'INFO: ESMF_FieldRegrid (', real(t1_read-t0_read)/real(tick_rate_read), ' s)'
 
              if (chkerr(rc,__LINE__,u_FILE_u)) return
           end if
@@ -2307,6 +2348,7 @@ contains
     integer :: localPet
     logical :: mainproc
     logical :: has_lon_bnds, has_lat_bnds
+    integer(i8) :: t0_gc, t1_gc, tick_rate_gc
 
     rc = ESMF_SUCCESS
     rcode = pio_openfile(pio_subsystem, pioid, io_type, trim(filename), pio_nowrite)
@@ -2371,7 +2413,12 @@ contains
     status = pio_get_var(pioid, lat_vid, lats1d)
     status = pio_get_var(pioid, lon_vid, lons1d)
 
+    call system_clock(t0_gc, tick_rate_gc)
     call fill_grid_coords(stream_grid, lons1d, lats1d, nx, ny, rc)
+    call system_clock(t1_gc)
+    write(*,'(a,i0,a,i0,a,f6.2,a)') &
+         'INFO: [TIDE] fill_grid_coords (', nx, 'x', ny, ') took ', &
+         real(t1_gc-t0_gc)/real(tick_rate_gc), ' s'
 
     ! -----------------------------------------------------------------------
     ! Populate corner staggerloc — required by conservative regridding.
@@ -2423,7 +2470,13 @@ contains
       end if
     end if
 
+    call system_clock(t0_gc, tick_rate_gc)
     call fill_grid_corner_coords(stream_grid, corner_lons, corner_lats, nx, ny, rc)
+    call system_clock(t1_gc)
+    write(*,'(a,f6.2,a,L1,a)') &
+         'INFO: [TIDE] fill_grid_corner_coords took ', &
+         real(t1_gc-t0_gc)/real(tick_rate_gc), ' s (from_bnds=', &
+         has_lon_bnds .and. has_lat_bnds, ')'
     deallocate(corner_lons, corner_lats)
 
     call pio_closefile(pioid)
