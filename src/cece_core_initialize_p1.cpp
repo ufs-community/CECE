@@ -24,6 +24,7 @@
 
 #include <Kokkos_Core.hpp>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <set>
 #include <string>
@@ -88,6 +89,11 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
             char* end;
             long threads = std::strtol(num_threads, &end, 10);
             if (end != num_threads && *end == '\0' && threads > 0) {
+                if (threads > std::numeric_limits<int>::max()) {
+                    std::cout << "INFO: OMP_NUM_THREADS value " << threads << " exceeds INT_MAX; "
+                              << "clamping to " << std::numeric_limits<int>::max() << std::endl;
+                    threads = std::numeric_limits<int>::max();
+                }
                 args.set_num_threads(static_cast<int>(threads));
                 std::cout << "INFO: Setting OpenMP threads to " << threads << std::endl;
             }

@@ -119,27 +119,21 @@ void SeaSaltScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* 
     }
 
     srrc_SALA_ = 0.0;
-    {
-        int n_steps = static_cast<int>((r_sala_max - r_sala_min) / dr);
-        for (int i = 0; i < n_steps; i++) {
-            double r_mid = r_sala_min + (i + 0.5) * dr;
-            double r80_mid = r_mid * betha;
-            double df_dr80 = gong_source_normalized(r80_mid);
-            double n_particles = df_dr80 * betha * dr;
-            srrc_SALA_ += n_particles * (4.0 / 3.0 * pi * std::pow(r_mid * 1.0e-6, 3) * ss_dens);
-        }
+    for (int i = 0; r_sala_min + i * dr < r_sala_max; i++) {
+        double r_mid = r_sala_min + (i + 0.5) * dr;
+        double r80_mid = r_mid * betha;
+        double df_dr80 = gong_source_normalized(r80_mid);
+        double n_particles = df_dr80 * betha * dr;
+        srrc_SALA_ += n_particles * (4.0 / 3.0 * pi * std::pow(r_mid * 1.0e-6, 3) * ss_dens);
     }
 
     srrc_SALC_ = 0.0;
-    {
-        int n_steps = static_cast<int>((r_salc_max - r_salc_min) / dr);
-        for (int i = 0; i < n_steps; i++) {
-            double r_mid = r_salc_min + (i + 0.5) * dr;
-            double r80_mid = r_mid * betha;
-            double df_dr80 = gong_source_normalized(r80_mid);
-            double n_particles = df_dr80 * betha * dr;
-            srrc_SALC_ += n_particles * (4.0 / 3.0 * pi * std::pow(r_mid * 1.0e-6, 3) * ss_dens);
-        }
+    for (int i = 0; r_salc_min + i * dr < r_salc_max; i++) {
+        double r_mid = r_salc_min + (i + 0.5) * dr;
+        double r80_mid = r_mid * betha;
+        double df_dr80 = gong_source_normalized(r80_mid);
+        double n_particles = df_dr80 * betha * dr;
+        srrc_SALC_ += n_particles * (4.0 / 3.0 * pi * std::pow(r_mid * 1.0e-6, 3) * ss_dens);
     }
 
     std::cout << "SeaSaltScheme: Initialized. SALA_REF=" << srrc_SALA_ << " SALC_REF=" << srrc_SALC_ << "\n";
