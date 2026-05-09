@@ -231,6 +231,10 @@ if(NetCDF_ROOT)
   endif()
 endif()
 
+if(CECE_HAS_FORTRAN AND NetCDFF_ROOT)
+  target_include_directories(cece PRIVATE "${NetCDFF_ROOT}/include")
+endif()
+
 if(MPI_FOUND)
   target_link_libraries(cece PUBLIC MPI::MPI_CXX)
 endif()

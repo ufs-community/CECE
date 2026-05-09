@@ -498,20 +498,15 @@ contains
           lon_min = -135._ESMF_KIND_R8; lon_max = 135._ESMF_KIND_R8
           lat_min = -67.5_ESMF_KIND_R8; lat_max = 67.5_ESMF_KIND_R8
         end if
-        ! Build a mesh from the GRIDSPEC grid's actual coordinates for TIDE regridding.
-        ! First try to extract real cell-centre coordinates from the loaded ESMF_Grid.
-        ! If that fails (e.g. GRIDSPEC grid does not expose coords via GridGetCoord),
-        ! fall back to config-supplied bounds which are accurate when the gridspec_file
-        ! name encodes the domain (as the Python generator does).
-        call CreateMeshFromGridCoords(grid, mesh, rc)
+        ! Build a mesh directly from the gridspec file's coordinate data (lon,
+        ! lat, lon_bnds, lat_bnds) for exact corner positions used in TIDE
+        ! conservative regridding.
+        call CreateMeshFromGridspecFile( &
+             trim(gridspec_path(1:int(gridspec_path_len))), mesh, rc)
         if (rc /= ESMF_SUCCESS) then
-          write(*,'(A,I0,A)') "INFO: [CECE] CreateMeshFromGridCoords failed (rc=", rc, &
-               ") — falling back to CreateMeshFromConfig with config bounds"
-          call CreateMeshFromConfig(nx, ny, lon_min, lon_max, lat_min, lat_max, mesh, rc)
-          if (rc /= ESMF_SUCCESS) then
-            write(*,'(A,I0)') "ERROR: [CECE] Failed to create TIDE mesh from config: rc=", rc
-            return
-          end if
+          write(*,'(A,I0)') "ERROR: [CECE] CreateMeshFromGridspecFile failed (rc=", rc
+          write(*,'(A)') "ERROR: [CECE] gridspec_file was specified — cannot continue without a valid mesh"
+          return
         end if
         call ESMF_GridCompSet(comp, mesh=mesh, grid=grid, rc=rc)
         if (rc /= ESMF_SUCCESS) then
@@ -1286,15 +1281,24 @@ contains
 
     ! Get MPI info
     call ESMF_VMGetCurrent(vm, rc=rc)
-    if (rc /= ESMF_SUCCESS) return
+    if (rc /= ESMF_SUCCESS) then
+      write(*,'(A,I0)') "ERROR: [CECE] CreateMeshFromGridCoords: ESMF_VMGetCurrent failed, rc=", rc
+      return
+    end if
     call ESMF_VMGet(vm, localPet=localPet, petCount=petCount, rc=rc)
-    if (rc /= ESMF_SUCCESS) return
+    if (rc /= ESMF_SUCCESS) then
+      write(*,'(A,I0)') "ERROR: [CECE] CreateMeshFromGridCoords: ESMF_VMGet failed, rc=", rc
+      return
+    end if
 
     ! Derive grid size from cell-center staggerloc
     localDE = 0
     call ESMF_GridGet(grid, localDE=localDE, staggerloc=ESMF_STAGGERLOC_CENTER, &
                       computationalLBound=elemlb, computationalUBound=elemub, rc=rc)
-    if (rc /= ESMF_SUCCESS) return
+    if (rc /= ESMF_SUCCESS) then
+      write(*,'(A,I0)') "ERROR: [CECE] CreateMeshFromGridCoords: ESMF_GridGet CENTER bounds failed, rc=", rc
+      return
+    end if
 
     nx = elemub(1) - elemlb(1) + 1
     ny = elemub(2) - elemlb(2) + 1
@@ -1302,10 +1306,16 @@ contains
     ! Extract cell-center coordinates (needed for element centres regardless)
     call ESMF_GridGetCoord(grid, coordDim=1, localDE=localDE, staggerloc=ESMF_STAGGERLOC_CENTER, &
                            farrayPtr=lonCenter, rc=rc)
-    if (rc /= ESMF_SUCCESS) return
+    if (rc /= ESMF_SUCCESS) then
+      write(*,'(A,I0)') "ERROR: [CECE] CreateMeshFromGridCoords: ESMF_GridGetCoord lonCenter failed, rc=", rc
+      return
+    end if
     call ESMF_GridGetCoord(grid, coordDim=2, localDE=localDE, staggerloc=ESMF_STAGGERLOC_CENTER, &
                            farrayPtr=latCenter, rc=rc)
-    if (rc /= ESMF_SUCCESS) return
+    if (rc /= ESMF_SUCCESS) then
+      write(*,'(A,I0)') "ERROR: [CECE] CreateMeshFromGridCoords: ESMF_GridGetCoord latCenter failed, rc=", rc
+      return
+    end if
 
     ! Try to get corner staggerloc — populated by ESMF when the GRIDSPEC file
     ! contains lon_bnds/lat_bnds.  This is more accurate than extrapolating
@@ -1337,7 +1347,10 @@ contains
 
     ! Create mesh
     mesh = ESMF_MeshCreate(parametricDim=2, spatialDim=2, rc=rc)
-    if (rc /= ESMF_SUCCESS) return
+    if (rc /= ESMF_SUCCESS) then
+      write(*,'(A,I0)') "ERROR: [CECE] CreateMeshFromGridCoords: ESMF_MeshCreate failed, rc=", rc
+      return
+    end if
 
     if (localPet == 0) then
       totalNodes = (nx + 1) * (ny + 1)
@@ -1452,6 +1465,165 @@ contains
     end if
 
   end subroutine CreateMeshFromGridCoords
+
+  !> @brief Build an ESMF_Mesh directly from an ESMF GRIDSPEC NetCDF file.
+  !>
+  !> Reads lon, lat (cell centres) and lon_bnds, lat_bnds (cell corners) from
+  !> the file written by cece_make_gridspec.py and constructs a quad-element
+  !> mesh with exact corner coordinates.  Only PE 0 allocates and adds data;
+  !> other PEs contribute empty arrays, matching ESMF's collective MeshCreate
+  !> expectations.
+  subroutine CreateMeshFromGridspecFile(filename, mesh, rc)
+    use netcdf
+    character(len=*), intent(in)  :: filename
+    type(ESMF_Mesh),  intent(out) :: mesh
+    integer,          intent(out) :: rc
+
+    integer :: ncid, varid, nf_rc
+    integer :: nx, ny, lon_dimid, lat_dimid
+    real(ESMF_KIND_R8), allocatable :: lon_centers(:), lat_centers(:)
+    ! NetCDF dim order (lon, nv) → Fortran column-major (nv, lon) = (2, nx)
+    real(ESMF_KIND_R8), allocatable :: lon_bnds(:,:), lat_bnds(:,:)
+    real(ESMF_KIND_R8), allocatable :: lon_corners(:), lat_corners(:)
+    real(ESMF_KIND_R8), allocatable :: nodeCoords(:), elemCoords(:)
+    integer, allocatable :: nodeIds(:), nodeOwners(:)
+    integer, allocatable :: elemIds(:), elemTypes(:), elemConn(:)
+    integer :: totalNodes, totalElems, nodeIdx, elemIdx, i, j
+    type(ESMF_VM) :: vm
+    integer :: localPet, petCount
+
+    rc = ESMF_SUCCESS
+
+    call ESMF_VMGetCurrent(vm, rc=rc)
+    if (rc /= ESMF_SUCCESS) then
+      write(*,'(A,I0)') "ERROR: [CECE] CreateMeshFromGridspecFile: ESMF_VMGetCurrent failed, rc=", rc
+      return
+    end if
+    call ESMF_VMGet(vm, localPet=localPet, petCount=petCount, rc=rc)
+    if (rc /= ESMF_SUCCESS) then
+      write(*,'(A,I0)') "ERROR: [CECE] CreateMeshFromGridspecFile: ESMF_VMGet failed, rc=", rc
+      return
+    end if
+
+    mesh = ESMF_MeshCreate(parametricDim=2, spatialDim=2, rc=rc)
+    if (rc /= ESMF_SUCCESS) then
+      write(*,'(A,I0)') "ERROR: [CECE] CreateMeshFromGridspecFile: ESMF_MeshCreate failed, rc=", rc
+      return
+    end if
+
+    if (localPet == 0) then
+      ! ---- Read NetCDF ----
+      nf_rc = nf90_open(trim(filename), NF90_NOWRITE, ncid)
+      if (nf_rc /= NF90_NOERR) then
+        write(*,'(A,A,A)') "ERROR: [CECE] CreateMeshFromGridspecFile: cannot open '", &
+             trim(filename), "': " // trim(nf90_strerror(nf_rc))
+        rc = ESMF_FAILURE
+        return
+      end if
+
+      nf_rc = nf90_inq_dimid(ncid, 'lon', lon_dimid)
+      if (nf_rc /= NF90_NOERR) then
+        write(*,'(A)') "ERROR: [CECE] CreateMeshFromGridspecFile: 'lon' dimension not found"
+        rc = ESMF_FAILURE; return
+      end if
+      nf_rc = nf90_inquire_dimension(ncid, lon_dimid, len=nx)
+
+      nf_rc = nf90_inq_dimid(ncid, 'lat', lat_dimid)
+      if (nf_rc /= NF90_NOERR) then
+        write(*,'(A)') "ERROR: [CECE] CreateMeshFromGridspecFile: 'lat' dimension not found"
+        rc = ESMF_FAILURE; return
+      end if
+      nf_rc = nf90_inquire_dimension(ncid, lat_dimid, len=ny)
+
+      allocate(lon_centers(nx), lat_centers(ny))
+      allocate(lon_bnds(2, nx), lat_bnds(2, ny))
+
+      nf_rc = nf90_inq_varid(ncid, 'lon', varid)
+      nf_rc = nf90_get_var(ncid, varid, lon_centers)
+      nf_rc = nf90_inq_varid(ncid, 'lat', varid)
+      nf_rc = nf90_get_var(ncid, varid, lat_centers)
+      nf_rc = nf90_inq_varid(ncid, 'lon_bnds', varid)
+      nf_rc = nf90_get_var(ncid, varid, lon_bnds)
+      nf_rc = nf90_inq_varid(ncid, 'lat_bnds', varid)
+      nf_rc = nf90_get_var(ncid, varid, lat_bnds)
+      nf_rc = nf90_close(ncid)
+
+      write(*,'(A,I0,A,I0)') "INFO: [CECE] CreateMeshFromGridspecFile: nx=", nx, " ny=", ny
+      write(*,'(A,2F10.3)') "INFO: [CECE]   lon range: ", lon_bnds(1,1), lon_bnds(2,nx)
+      write(*,'(A,2F10.3)') "INFO: [CECE]   lat range: ", lat_bnds(1,1), lat_bnds(2,ny)
+
+      ! ---- Build 1D corner arrays ----
+      ! lon_bnds(1,i) = lower bound of cell i, lon_bnds(2,i) = upper bound
+      allocate(lon_corners(nx+1), lat_corners(ny+1))
+      do i = 1, nx
+        lon_corners(i) = lon_bnds(1, i)
+      end do
+      lon_corners(nx+1) = lon_bnds(2, nx)
+      do j = 1, ny
+        lat_corners(j) = lat_bnds(1, j)
+      end do
+      lat_corners(ny+1) = lat_bnds(2, ny)
+
+      ! ---- Allocate mesh arrays ----
+      totalNodes = (nx+1) * (ny+1)
+      totalElems = nx * ny
+      allocate(nodeCoords(totalNodes * 2))
+      allocate(nodeIds(totalNodes), nodeOwners(totalNodes))
+      allocate(elemIds(totalElems), elemTypes(totalElems))
+      allocate(elemConn(totalElems * 4), elemCoords(totalElems * 2))
+
+      ! ---- Fill nodes (j=row, i=col; j=0 is southernmost) ----
+      nodeIdx = 0
+      do j = 0, ny
+        do i = 0, nx
+          nodeIdx = nodeIdx + 1
+          nodeIds(nodeIdx)          = nodeIdx
+          nodeOwners(nodeIdx)       = 0
+          nodeCoords(2*nodeIdx-1)   = lon_corners(i+1)
+          nodeCoords(2*nodeIdx)     = lat_corners(j+1)
+        end do
+      end do
+
+      ! ---- Fill elements ----
+      elemIdx = 0
+      do j = 1, ny
+        do i = 1, nx
+          elemIdx = elemIdx + 1
+          elemIds(elemIdx)           = elemIdx
+          elemTypes(elemIdx)         = ESMF_MESHELEMTYPE_QUAD
+          elemConn(4*(elemIdx-1)+1)  = (j-1)*(nx+1) + i       ! SW
+          elemConn(4*(elemIdx-1)+2)  = (j-1)*(nx+1) + (i+1)   ! SE
+          elemConn(4*(elemIdx-1)+3)  = j*(nx+1)     + (i+1)   ! NE
+          elemConn(4*(elemIdx-1)+4)  = j*(nx+1)     + i        ! NW
+          elemCoords(2*(elemIdx-1)+1) = lon_centers(i)
+          elemCoords(2*(elemIdx-1)+2) = lat_centers(j)
+        end do
+      end do
+
+      call ESMF_MeshAddNodes(mesh, nodeIds, nodeCoords, nodeOwners, rc=rc)
+      if (rc == ESMF_SUCCESS) then
+        call ESMF_MeshAddElements(mesh, elemIds, elemTypes, elemConn, &
+                                  elementCoords=elemCoords, rc=rc)
+      end if
+      if (rc /= ESMF_SUCCESS) then
+        write(*,'(A,I0)') "ERROR: [CECE] CreateMeshFromGridspecFile: ESMF_MeshAdd failed, rc=", rc
+      end if
+
+      deallocate(lon_centers, lat_centers, lon_bnds, lat_bnds, lon_corners, lat_corners)
+      deallocate(nodeCoords, nodeIds, nodeOwners, elemIds, elemTypes, elemConn, elemCoords)
+    else
+      block
+        integer, allocatable          :: ie(:)
+        real(ESMF_KIND_R8), allocatable :: re(:)
+        allocate(ie(0), re(0))
+        call ESMF_MeshAddNodes(mesh, ie, re, ie, rc=rc)
+        if (rc == ESMF_SUCCESS) &
+          call ESMF_MeshAddElements(mesh, ie, ie, ie, rc=rc)
+        deallocate(ie, re)
+      end block
+    end if
+
+  end subroutine CreateMeshFromGridspecFile
 
   !> @brief Convert C string to Fortran string
   function cstr_to_fstr(cstr) result(fstr)
