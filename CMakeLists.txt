@@ -373,7 +373,7 @@ if(Python3_Interpreter_FOUND)
 
   add_test(
     NAME install_python_deps
-    COMMAND ${VENV_PYTHON} -m pip install pytest PyYAML matplotlib --ignore-installed
+    COMMAND ${VENV_PYTHON} -m pip install pytest PyYAML matplotlib numpy --ignore-installed
   )
   set_tests_properties(
     install_python_deps
