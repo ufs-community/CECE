@@ -643,6 +643,7 @@ contains
                   srcMaskValues=(/sdat%stream(ns)%src_mask_val/), &
                   srcTermProcessing=srcTermProcessing_Value, ignoreDegenerate=.true., &
                   unmappedaction=ESMF_UNMAPPEDACTION_IGNORE, rc=rc)
+             if (chkerr(rc,__LINE__,u_FILE_u)) return
              call system_clock(t1)
              if (mainproc) write(sdat%stream(1)%logunit,'(a,f8.2,a)') &
                   trim(subname)//' INFO: nn RegridStore took ', real(t1-t0)/real(tick_rate), ' s'
@@ -658,6 +659,7 @@ contains
                   srcMaskValues=(/sdat%stream(ns)%src_mask_val/), &
                   srcTermProcessing=srcTermProcessing_Value, ignoreDegenerate=.true., &
                   unmappedaction=ESMF_UNMAPPEDACTION_IGNORE, rc=rc)
+             if (chkerr(rc,__LINE__,u_FILE_u)) return
              call system_clock(t1)
              if (mainproc) write(sdat%stream(1)%logunit,'(a,f8.2,a)') &
                   trim(subname)//' INFO: consf RegridStore took ', real(t1-t0)/real(tick_rate), ' s'
@@ -673,6 +675,7 @@ contains
                   srcMaskValues=(/sdat%stream(ns)%src_mask_val/), &
                   srcTermProcessing=srcTermProcessing_Value, ignoreDegenerate=.true., &
                   unmappedaction=ESMF_UNMAPPEDACTION_IGNORE, rc=rc)
+             if (chkerr(rc,__LINE__,u_FILE_u)) return
              call system_clock(t1)
              if (mainproc) write(sdat%stream(1)%logunit,'(a,f8.2,a)') &
                   trim(subname)//' INFO: consd RegridStore took ', real(t1-t0)/real(tick_rate), ' s'
