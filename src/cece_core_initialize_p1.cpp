@@ -85,9 +85,10 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
 #ifdef KOKKOS_ENABLE_OPENMP
         const char* num_threads = std::getenv("OMP_NUM_THREADS");
         if (num_threads != nullptr) {
-            int threads = std::atoi(num_threads);
-            if (threads > 0) {
-                args.set_num_threads(threads);
+            char* end;
+            long threads = std::strtol(num_threads, &end, 10);
+            if (end != num_threads && *end == '\0' && threads > 0) {
+                args.set_num_threads(static_cast<int>(threads));
                 std::cout << "INFO: Setting OpenMP threads to " << threads << std::endl;
             }
         } else {
