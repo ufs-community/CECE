@@ -1293,6 +1293,8 @@ contains
     ! Try to get corner staggerloc — populated by ESMF when the GRIDSPEC file
     ! contains lon_bnds/lat_bnds.  This is more accurate than extrapolating
     ! from cell centres and avoids rc=13 failures on large global grids.
+    ! Note: a failed probe will produce an entry in the ESMF log file, but it
+    ! is benign — we check rc and fall back to extrapolation when not present.
     lonCorner => null()
     latCorner => null()
     call ESMF_GridGetCoord(grid, coordDim=1, localDE=localDE, staggerloc=ESMF_STAGGERLOC_CORNER, &
