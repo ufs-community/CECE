@@ -97,7 +97,7 @@ tide_config_t* tide_parse_yaml(const char* filename) {
             sc.dt_limit = s["dt_limit"] ? s["dt_limit"].as<double>() : 1.5;
             sc.year_first = s["year_first"].as<int>();
             sc.year_last = s["year_last"].as<int>();
-            sc.year_align = s["year_align"].as<int>();
+            sc.year_align = s["year_align"] ? s["year_align"].as<int>() : sc.year_first;
             sc.offset = s["offset"] ? s["offset"].as<int>() : 0;
 
             // Parse input files list
