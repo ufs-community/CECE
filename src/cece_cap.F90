@@ -493,14 +493,19 @@ contains
           lat_min = -67.5_ESMF_KIND_R8; lat_max = 67.5_ESMF_KIND_R8
         end if
         ! Build a mesh from the GRIDSPEC grid's actual coordinates for TIDE regridding.
-        ! CreateMeshFromConfig uses config-supplied lon/lat bounds which may not match
-        ! the GRIDSPEC file, giving ESMF a destination mesh with wrong coordinates
-        ! (→ zero regrid weights).  CreateMeshFromGridCoords extracts the real
-        ! cell-centre coordinates from the loaded ESMF_Grid instead.
+        ! First try to extract real cell-centre coordinates from the loaded ESMF_Grid.
+        ! If that fails (e.g. GRIDSPEC grid does not expose coords via GridGetCoord),
+        ! fall back to config-supplied bounds which are accurate when the gridspec_file
+        ! name encodes the domain (as the Python generator does).
         call CreateMeshFromGridCoords(grid, mesh, rc)
         if (rc /= ESMF_SUCCESS) then
-          write(*,'(A,I0)') "ERROR: [CECE] Failed to create TIDE mesh from config: rc=", rc
-          return
+          write(*,'(A,I0,A)') "INFO: [CECE] CreateMeshFromGridCoords failed (rc=", rc, &
+               ") — falling back to CreateMeshFromConfig with config bounds"
+          call CreateMeshFromConfig(nx, ny, lon_min, lon_max, lat_min, lat_max, mesh, rc)
+          if (rc /= ESMF_SUCCESS) then
+            write(*,'(A,I0)') "ERROR: [CECE] Failed to create TIDE mesh from config: rc=", rc
+            return
+          end if
         end if
         call ESMF_GridCompSet(comp, mesh=mesh, grid=grid, rc=rc)
         if (rc /= ESMF_SUCCESS) then
@@ -1249,11 +1254,13 @@ contains
 
     integer :: nx, ny, i, j, nodeIdx, elemIdx, localDE
     real(ESMF_KIND_R8), pointer :: lonCenter(:,:), latCenter(:,:)
-    integer :: elemlb(2), elemub(2)
+    real(ESMF_KIND_R8), pointer :: lonCorner(:,:), latCorner(:,:)
+    integer :: elemlb(2), elemub(2), cornerlb(2), cornerub(2)
     integer :: totalNodes, totalElems
     real(ESMF_KIND_R8), allocatable :: nodeCoords(:)
     integer, allocatable :: nodeIds(:), nodeOwners(:), elemIds(:), elemTypes(:), elemConn(:)
-    integer :: nodesPerElem
+    integer :: nodesPerElem, corner_rc
+    logical :: has_corners
     type(ESMF_VM) :: vm
     integer :: localPet, petCount
     real(ESMF_KIND_R8) :: lon_node, lat_node, dlon_lo, dlon_hi, dlat_lo, dlat_hi
@@ -1275,7 +1282,7 @@ contains
     nx = elemub(1) - elemlb(1) + 1
     ny = elemub(2) - elemlb(2) + 1
 
-    ! Extract cell-center coordinates from the grid (coord dim 1 = lon, 2 = lat)
+    ! Extract cell-center coordinates (needed for element centres regardless)
     call ESMF_GridGetCoord(grid, coordDim=1, localDE=localDE, staggerloc=ESMF_STAGGERLOC_CENTER, &
                            farrayPtr=lonCenter, rc=rc)
     if (rc /= ESMF_SUCCESS) return
@@ -1283,7 +1290,28 @@ contains
                            farrayPtr=latCenter, rc=rc)
     if (rc /= ESMF_SUCCESS) return
 
-    write(*,'(A,I0,A,I0)') "INFO: [CECE] CreateMeshFromGridCoords: nx=", nx, " ny=", ny
+    ! Try to get corner staggerloc — populated by ESMF when the GRIDSPEC file
+    ! contains lon_bnds/lat_bnds.  This is more accurate than extrapolating
+    ! from cell centres and avoids rc=13 failures on large global grids.
+    lonCorner => null()
+    latCorner => null()
+    call ESMF_GridGetCoord(grid, coordDim=1, localDE=localDE, staggerloc=ESMF_STAGGERLOC_CORNER, &
+                           farrayPtr=lonCorner, rc=corner_rc)
+    has_corners = (corner_rc == ESMF_SUCCESS)
+    if (has_corners) then
+      call ESMF_GridGetCoord(grid, coordDim=2, localDE=localDE, staggerloc=ESMF_STAGGERLOC_CORNER, &
+                             farrayPtr=latCorner, rc=corner_rc)
+      has_corners = (corner_rc == ESMF_SUCCESS)
+    end if
+
+    if (has_corners) then
+      call ESMF_GridGet(grid, localDE=localDE, staggerloc=ESMF_STAGGERLOC_CORNER, &
+                        computationalLBound=cornerlb, computationalUBound=cornerub, rc=rc)
+      if (rc /= ESMF_SUCCESS) has_corners = .false.
+    end if
+
+    write(*,'(A,I0,A,I0,A,L1)') "INFO: [CECE] CreateMeshFromGridCoords: nx=", nx, &
+         " ny=", ny, "  has_corner_staggerloc=", has_corners
     write(*,'(A,2F10.3,A,2F10.3)') "INFO: [CECE]   lon range: ", &
          lonCenter(elemlb(1),elemlb(2)), lonCenter(elemub(1),elemlb(2)), &
          "  lat range: ", latCenter(elemlb(1),elemlb(2)), latCenter(elemlb(1),elemub(2))
@@ -1304,9 +1332,6 @@ contains
       allocate(elemTypes(totalElems))
       allocate(elemConn(totalElems * nodesPerElem))
 
-      ! Corner node coordinates derived from cell-centre coordinates.
-      ! Interior corners: average of the two adjacent cell centres.
-      ! Boundary corners: extrapolate by half the edge cell's spacing.
       nodeIdx = 0
       do j = 0, ny
         do i = 0, nx
@@ -1314,49 +1339,53 @@ contains
           nodeIds(nodeIdx) = nodeIdx
           nodeOwners(nodeIdx) = 0
 
-          ! ---- longitude ----
-          if (i == 0) then
-            ! Left boundary: extrapolate leftward by half the first cell width
-            if (nx >= 2) then
-              dlon_lo = lonCenter(elemlb(1)+1, elemlb(2)) - lonCenter(elemlb(1), elemlb(2))
-            else
-              dlon_lo = 1.0_ESMF_KIND_R8
-            end if
-            lon_node = lonCenter(elemlb(1), elemlb(2)+min(j, ny-1)) - 0.5_ESMF_KIND_R8 * dlon_lo
-          else if (i == nx) then
-            ! Right boundary: extrapolate rightward by half the last cell width
-            if (nx >= 2) then
-              dlon_hi = lonCenter(elemub(1), elemlb(2)) - lonCenter(elemub(1)-1, elemlb(2))
-            else
-              dlon_hi = 1.0_ESMF_KIND_R8
-            end if
-            lon_node = lonCenter(elemub(1), elemlb(2)+min(j, ny-1)) + 0.5_ESMF_KIND_R8 * dlon_hi
+          if (has_corners) then
+            ! Read directly from ESMF corner staggerloc (exact, from lon_bnds/lat_bnds)
+            lon_node = lonCorner(cornerlb(1)+i, cornerlb(2)+j)
+            lat_node = latCorner(cornerlb(1)+i, cornerlb(2)+j)
           else
-            ! Interior: midpoint between neighbouring cell centres
-            lon_node = 0.5_ESMF_KIND_R8 * ( &
-                 lonCenter(elemlb(1)+i-1, elemlb(2)+min(j, ny-1)) + &
-                 lonCenter(elemlb(1)+i,   elemlb(2)+min(j, ny-1)))
-          end if
+            ! Fallback: half-cell extrapolation from cell-centre coordinates.
+            ! ---- longitude ----
+            if (i == 0) then
+              if (nx >= 2) then
+                dlon_lo = lonCenter(elemlb(1)+1, elemlb(2)) - lonCenter(elemlb(1), elemlb(2))
+              else
+                dlon_lo = 1.0_ESMF_KIND_R8
+              end if
+              lon_node = lonCenter(elemlb(1), elemlb(2)+min(j, ny-1)) - 0.5_ESMF_KIND_R8 * dlon_lo
+            else if (i == nx) then
+              if (nx >= 2) then
+                dlon_hi = lonCenter(elemub(1), elemlb(2)) - lonCenter(elemub(1)-1, elemlb(2))
+              else
+                dlon_hi = 1.0_ESMF_KIND_R8
+              end if
+              lon_node = lonCenter(elemub(1), elemlb(2)+min(j, ny-1)) + 0.5_ESMF_KIND_R8 * dlon_hi
+            else
+              lon_node = 0.5_ESMF_KIND_R8 * ( &
+                   lonCenter(elemlb(1)+i-1, elemlb(2)+min(j, ny-1)) + &
+                   lonCenter(elemlb(1)+i,   elemlb(2)+min(j, ny-1)))
+            end if
 
-          ! ---- latitude ----
-          if (j == 0) then
-            if (ny >= 2) then
-              dlat_lo = latCenter(elemlb(1), elemlb(2)+1) - latCenter(elemlb(1), elemlb(2))
+            ! ---- latitude ----
+            if (j == 0) then
+              if (ny >= 2) then
+                dlat_lo = latCenter(elemlb(1), elemlb(2)+1) - latCenter(elemlb(1), elemlb(2))
+              else
+                dlat_lo = 1.0_ESMF_KIND_R8
+              end if
+              lat_node = latCenter(elemlb(1)+min(i, nx-1), elemlb(2)) - 0.5_ESMF_KIND_R8 * dlat_lo
+            else if (j == ny) then
+              if (ny >= 2) then
+                dlat_hi = latCenter(elemlb(1), elemub(2)) - latCenter(elemlb(1), elemub(2)-1)
+              else
+                dlat_hi = 1.0_ESMF_KIND_R8
+              end if
+              lat_node = latCenter(elemlb(1)+min(i, nx-1), elemub(2)) + 0.5_ESMF_KIND_R8 * dlat_hi
             else
-              dlat_lo = 1.0_ESMF_KIND_R8
+              lat_node = 0.5_ESMF_KIND_R8 * ( &
+                   latCenter(elemlb(1)+min(i, nx-1), elemlb(2)+j-1) + &
+                   latCenter(elemlb(1)+min(i, nx-1), elemlb(2)+j))
             end if
-            lat_node = latCenter(elemlb(1)+min(i, nx-1), elemlb(2)) - 0.5_ESMF_KIND_R8 * dlat_lo
-          else if (j == ny) then
-            if (ny >= 2) then
-              dlat_hi = latCenter(elemlb(1), elemub(2)) - latCenter(elemlb(1), elemub(2)-1)
-            else
-              dlat_hi = 1.0_ESMF_KIND_R8
-            end if
-            lat_node = latCenter(elemlb(1)+min(i, nx-1), elemub(2)) + 0.5_ESMF_KIND_R8 * dlat_hi
-          else
-            lat_node = 0.5_ESMF_KIND_R8 * ( &
-                 latCenter(elemlb(1)+min(i, nx-1), elemlb(2)+j-1) + &
-                 latCenter(elemlb(1)+min(i, nx-1), elemlb(2)+j))
           end if
 
           nodeCoords(2*nodeIdx-1) = lon_node
@@ -1364,9 +1393,7 @@ contains
         end do
       end do
 
-      ! Elements — same quad connectivity as CreateMeshFromConfig.
-      ! elementCoords supplies the element centre coordinates that ESMF 8.x
-      ! requires for bilinear (and other) regridding destinations.
+      ! Elements — quad connectivity with explicit centre coordinates.
       block
         real(ESMF_KIND_R8), allocatable :: elemCoords(:)
         allocate(elemCoords(totalElems * 2))
@@ -1381,7 +1408,6 @@ contains
             elemConn(4*(elemIdx-1)+2) = (j-1)*(nx+1) + (i+1)    ! bottom-right
             elemConn(4*(elemIdx-1)+3) = j*(nx+1) + (i+1)        ! top-right
             elemConn(4*(elemIdx-1)+4) = j*(nx+1) + i            ! top-left
-            ! Centre = grid cell-centre coordinate
             elemCoords(2*(elemIdx-1)+1) = lonCenter(elemlb(1)+i-1, elemlb(2)+j-1)
             elemCoords(2*(elemIdx-1)+2) = latCenter(elemlb(1)+i-1, elemlb(2)+j-1)
           end do

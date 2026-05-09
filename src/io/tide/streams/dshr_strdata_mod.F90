@@ -621,22 +621,6 @@ contains
                   srcTermProcessing=srcTermProcessing_Value, ignoreDegenerate=.true., &
                   unmappedaction=ESMF_UNMAPPEDACTION_IGNORE, rc=rc)
           else if (trim(sdat%stream(ns)%mapalgo) == 'consf') then
-             ! Conservative regridding requires cell corner coordinates on the source grid.
-             ! ESMF silently produces garbage without them, so check up front.
-             if (ESMF_GridIsCreated(stream_grid)) then
-                block
-                  real(r8), pointer :: dummy(:,:)
-                  integer :: corner_rc
-                  dummy => null()
-                  call ESMF_GridGetCoord(stream_grid, coordDim=1, &
-                       staggerloc=ESMF_STAGGERLOC_CORNER, farrayptr=dummy, rc=corner_rc)
-                  if (corner_rc /= ESMF_SUCCESS) then
-                    call shr_sys_abort('ERROR: map_algo=consf requires cell corner coordinates '// &
-                         '(lon_bnds/lat_bnds) in the source grid, but none were found. '// &
-                         'Add bounds variables to the input file or supply an ESMF mesh file.')
-                  end if
-                end block
-             end if
              call ESMF_FieldReGridStore(sdat%pstrm(ns)%field_stream, lfield_dst, &
                   routehandle=sdat%pstrm(ns)%routehandle, &
                   regridmethod=ESMF_REGRIDMETHOD_CONSERVE, &
@@ -646,22 +630,6 @@ contains
                   srcTermProcessing=srcTermProcessing_Value, ignoreDegenerate=.true., &
                   unmappedaction=ESMF_UNMAPPEDACTION_IGNORE, rc=rc)
           else if (trim(sdat%stream(ns)%mapalgo) == 'consd') then
-             ! Conservative regridding requires cell corner coordinates on the source grid.
-             ! ESMF silently produces garbage without them, so check up front.
-             if (ESMF_GridIsCreated(stream_grid)) then
-                block
-                  real(r8), pointer :: dummy(:,:)
-                  integer :: corner_rc
-                  dummy => null()
-                  call ESMF_GridGetCoord(stream_grid, coordDim=1, &
-                       staggerloc=ESMF_STAGGERLOC_CORNER, farrayptr=dummy, rc=corner_rc)
-                  if (corner_rc /= ESMF_SUCCESS) then
-                    call shr_sys_abort('ERROR: map_algo=consd requires cell corner coordinates '// &
-                         '(lon_bnds/lat_bnds) in the source grid, but none were found. '// &
-                         'Add bounds variables to the input file or supply an ESMF mesh file.')
-                  end if
-                end block
-             end if
              call ESMF_FieldReGridStore(sdat%pstrm(ns)%field_stream, lfield_dst, &
                   routehandle=sdat%pstrm(ns)%routehandle, &
                   regridmethod=ESMF_REGRIDMETHOD_CONSERVE, &
@@ -2406,25 +2374,22 @@ contains
     call fill_grid_coords(stream_grid, lons1d, lats1d, nx, ny, rc)
 
     ! -----------------------------------------------------------------------
-    ! Populate corner staggerloc from CF bounds variables (shape (2, n)).
-    ! ESMF corner grid is (nx+1) × (ny+1): corner (i,j) is the left/bottom
-    ! edge shared by cells (i-1,j-1), (i,j-1), (i-1,j), (i,j).
-    ! From 1-D bounds lon_bnds(1:2, 1:nx):
-    !   corner lon(i) = lon_bnds(1, i)   for i=1..nx  (lower edge of cell i)
-    !   corner lon(nx+1) = lon_bnds(2, nx)             (upper edge of last cell)
-    ! Same pattern for lat.
+    ! Populate corner staggerloc — required by conservative regridding.
+    ! Prefer CF bounds variables (lon_bnds/lat_bnds) when present; otherwise
+    ! synthesize from cell-centre coordinates by half-cell extrapolation.
+    ! The synthesized corners are exact for uniform grids and a good
+    ! approximation for mildly non-uniform ones.
     ! -----------------------------------------------------------------------
-    if (has_lon_bnds .and. has_lat_bnds) then
-      call ESMF_GridAddCoord(stream_grid, staggerloc=ESMF_STAGGERLOC_CORNER, rc=rc)
+    call ESMF_GridAddCoord(stream_grid, staggerloc=ESMF_STAGGERLOC_CORNER, rc=rc)
 
+    allocate(corner_lons(nx+1))
+    allocate(corner_lats(ny+1))
+
+    if (has_lon_bnds .and. has_lat_bnds) then
       allocate(lon_bnds(2, nx))
       allocate(lat_bnds(2, ny))
       status = pio_get_var(pioid, lonbnds_vid, lon_bnds)
       status = pio_get_var(pioid, latbnds_vid, lat_bnds)
-
-      ! Build (nx+1) and (ny+1) corner coordinate arrays
-      allocate(corner_lons(nx+1))
-      allocate(corner_lats(ny+1))
       do i = 1, nx
         corner_lons(i) = lon_bnds(1, i)
       end do
@@ -2433,11 +2398,33 @@ contains
         corner_lats(j) = lat_bnds(1, j)
       end do
       corner_lats(ny+1) = lat_bnds(2, ny)
-
-      call fill_grid_corner_coords(stream_grid, corner_lons, corner_lats, nx, ny, rc)
-
-      deallocate(lon_bnds, lat_bnds, corner_lons, corner_lats)
+      deallocate(lon_bnds, lat_bnds)
+    else
+      ! Synthesize corners by half-cell extrapolation from centre coordinates.
+      if (nx >= 2) then
+        corner_lons(1) = lons1d(1) - 0.5_r8 * (lons1d(2) - lons1d(1))
+        do i = 2, nx
+          corner_lons(i) = 0.5_r8 * (lons1d(i-1) + lons1d(i))
+        end do
+        corner_lons(nx+1) = lons1d(nx) + 0.5_r8 * (lons1d(nx) - lons1d(nx-1))
+      else
+        corner_lons(1) = lons1d(1) - 0.5_r8
+        corner_lons(2) = lons1d(1) + 0.5_r8
+      end if
+      if (ny >= 2) then
+        corner_lats(1) = lats1d(1) - 0.5_r8 * (lats1d(2) - lats1d(1))
+        do j = 2, ny
+          corner_lats(j) = 0.5_r8 * (lats1d(j-1) + lats1d(j))
+        end do
+        corner_lats(ny+1) = lats1d(ny) + 0.5_r8 * (lats1d(ny) - lats1d(ny-1))
+      else
+        corner_lats(1) = lats1d(1) - 0.5_r8
+        corner_lats(2) = lats1d(1) + 0.5_r8
+      end if
     end if
+
+    call fill_grid_corner_coords(stream_grid, corner_lons, corner_lats, nx, ny, rc)
+    deallocate(corner_lons, corner_lats)
 
     call pio_closefile(pioid)
     deallocate(lats1d, lons1d)
