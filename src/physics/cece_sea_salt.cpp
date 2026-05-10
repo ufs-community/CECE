@@ -29,6 +29,7 @@
 #include <cmath>
 #include <iostream>
 #include <numbers>
+#include <stdexcept>
 
 #include "cece/cece_physics_factory.hpp"
 
@@ -116,6 +117,18 @@ void SeaSaltScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* 
     u_pow_ = 3.41;
     if (config["u_power"]) {
         u_pow_ = config["u_power"].as<double>();
+    }
+
+    if (dr <= 0.0) {
+        throw std::invalid_argument("SeaSaltScheme: integration_step must be > 0, got " + std::to_string(dr));
+    }
+    if (r_sala_max <= r_sala_min) {
+        throw std::invalid_argument("SeaSaltScheme: r_sala_max must be > r_sala_min, got r_sala_min=" + std::to_string(r_sala_min) +
+                                    " r_sala_max=" + std::to_string(r_sala_max));
+    }
+    if (r_salc_max <= r_salc_min) {
+        throw std::invalid_argument("SeaSaltScheme: r_salc_max must be > r_salc_min, got r_salc_min=" + std::to_string(r_salc_min) +
+                                    " r_salc_max=" + std::to_string(r_salc_max));
     }
 
     srrc_SALA_ = 0.0;

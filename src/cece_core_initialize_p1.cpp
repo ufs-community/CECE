@@ -23,6 +23,7 @@
  */
 
 #include <Kokkos_Core.hpp>
+#include <cstdlib>
 #include <iostream>
 #include <limits>
 #include <memory>
@@ -107,10 +108,16 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
 #ifdef KOKKOS_ENABLE_CUDA
         const char* device_id = std::getenv("CECE_DEVICE_ID");
         if (device_id != nullptr) {
-            int dev_id = std::atoi(device_id);
-            if (dev_id >= 0) {
-                args.set_device_id(dev_id);
-                std::cout << "INFO: Setting CUDA device ID to " << dev_id << std::endl;
+            char* end;
+            long dev_id = std::strtol(device_id, &end, 10);
+            if (end != device_id && *end == '\0' && dev_id >= 0) {
+                if (dev_id > std::numeric_limits<int>::max()) {
+                    std::cout << "WARNING: CECE_DEVICE_ID value " << dev_id << " exceeds INT_MAX - "
+                              << "using default CUDA device (0)" << std::endl;
+                } else {
+                    args.set_device_id(static_cast<int>(dev_id));
+                    std::cout << "INFO: Setting CUDA device ID to " << dev_id << std::endl;
+                }
             }
         } else {
             std::cout << "INFO: CECE_DEVICE_ID not set - using default CUDA device (0)" << std::endl;
@@ -120,10 +127,16 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
 #ifdef KOKKOS_ENABLE_HIP
         const char* device_id = std::getenv("CECE_DEVICE_ID");
         if (device_id != nullptr) {
-            int dev_id = std::atoi(device_id);
-            if (dev_id >= 0) {
-                args.set_device_id(dev_id);
-                std::cout << "INFO: Setting HIP device ID to " << dev_id << std::endl;
+            char* end;
+            long dev_id = std::strtol(device_id, &end, 10);
+            if (end != device_id && *end == '\0' && dev_id >= 0) {
+                if (dev_id > std::numeric_limits<int>::max()) {
+                    std::cout << "WARNING: CECE_DEVICE_ID value " << dev_id << " exceeds INT_MAX - "
+                              << "using default HIP device (0)" << std::endl;
+                } else {
+                    args.set_device_id(static_cast<int>(dev_id));
+                    std::cout << "INFO: Setting HIP device ID to " << dev_id << std::endl;
+                }
             }
         } else {
             std::cout << "INFO: CECE_DEVICE_ID not set - using default HIP device (0)" << std::endl;
