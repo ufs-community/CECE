@@ -172,18 +172,8 @@ if(NOT NetCDF_FOUND)
       list(INSERT _netcdff_inc_hints 0 "${_nff_root}/include")
     endif()
   endforeach()
-  find_library(
-    NETCDF_Fortran_LIBRARY
-    NAMES netcdff
-    PATHS ${_netcdff_lib_hints}
-    NO_DEFAULT_PATH
-  )
-  find_path(
-    NETCDF_Fortran_INCLUDE_DIR
-    netcdf.mod
-    PATHS ${_netcdff_inc_hints}
-    NO_DEFAULT_PATH
-  )
+  find_library(NETCDF_Fortran_LIBRARY NAMES netcdff PATHS ${_netcdff_lib_hints} NO_DEFAULT_PATH)
+  find_path(NETCDF_Fortran_INCLUDE_DIR netcdf.mod PATHS ${_netcdff_inc_hints} NO_DEFAULT_PATH)
   if(NETCDF_Fortran_LIBRARY AND NETCDF_Fortran_INCLUDE_DIR)
     set(NetCDF_Fortran_FOUND TRUE)
     message(STATUS "NetCDF-Fortran (fallback): ${NETCDF_Fortran_LIBRARY}")
