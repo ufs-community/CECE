@@ -1361,7 +1361,6 @@ contains
     character(*),parameter ::   F90 = "('(shr_strdata_print) ',58('-'))"
     !-------------------------------------------------------------------------------
 
-    write(sdat%stream(1)%logunit,*)
     write(sdat%stream(1)%logunit,F90)
     write(sdat%stream(1)%logunit,F00) "name        = ",trim(name)
     write(sdat%stream(1)%logunit,F00) "calendar    = ",trim(sdat%model_calendar)
@@ -1381,7 +1380,6 @@ contains
        write(sdat%stream(1)%logunit,F03) "  vectors (",ns,") = ",trim(sdat%stream(ns)%stream_vectors)
        write(sdat%stream(1)%logunit,F06) "  src_mask(",ns,") = ",sdat%stream(ns)%src_mask_val
        write(sdat%stream(1)%logunit,F06) "  dst_mask(",ns,") = ",sdat%stream(ns)%dst_mask_val
-       write(sdat%stream(1)%logunit,F01) " "
     end do
     write(sdat%stream(1)%logunit,F90)
 
