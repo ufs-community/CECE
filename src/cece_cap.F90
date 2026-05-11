@@ -703,7 +703,7 @@ contains
         call ESMF_TimeIntervalGet(timeStep, s=dt_secs, rc=rc)
         if (rc == ESMF_SUCCESS) then
           g_time_step_secs = dt_secs
-          write(*,'(A,I0)') "DEBUG: [CECE_CAP] Clock timestep extracted: ", dt_secs, " seconds"
+          write(*,'(A,I0,A)') "DEBUG: [CECE_CAP] Clock timestep extracted: ", dt_secs, " seconds"
         else
           g_time_step_secs = 3600
           write(*,'(A)') "DEBUG: [CECE_CAP] Failed to get timestep, using default 3600s"
@@ -899,17 +899,18 @@ contains
 
       call ESMF_GridCompGet(comp, grid=comp_grid, rc=rc)
       has_grid = (rc == ESMF_SUCCESS)
-      write(*,'(A,L1,A,I0)') "DEBUG: [CECE] Component has grid: ", has_grid, " (rc=", rc, ")"
+      write(*,'(A,L1,A,I0,A)') "DEBUG: [CECE] Component has grid: ", has_grid, " (rc=", rc, ")"
 
       rc = ESMF_SUCCESS  ! Reset for next check
       call ESMF_GridCompGet(comp, mesh=comp_mesh, rc=rc)
       has_mesh = (rc == ESMF_SUCCESS)
-      write(*,'(A,L1,A,I0)') "DEBUG: [CECE] Component has mesh: ", has_mesh, " (rc=", rc, ")"
+      write(*,'(A,L1,A,I0,A)') "DEBUG: [CECE] Component has mesh: ", has_mesh, " (rc=", rc, ")"
 
       rc = ESMF_SUCCESS  ! Reset for next check
       call ESMF_GridCompGet(comp, clock=comp_clock, rc=rc)
       has_clock = (rc == ESMF_SUCCESS)
-      write(*,'(A,L1,A,I0)') "DEBUG: [CECE] Component has clock: ", has_clock, " (rc=", rc, ")"
+      write(*,'(A,L1,A,I0,A)') "DEBUG: [CECE] Component has clock: ", has_clock, " (rc=", rc, ")"
+
     end block
 
     rc = ESMF_SUCCESS  ! Reset for main logic
@@ -1011,7 +1012,7 @@ contains
                      if (c_rc == 0 .and. field_name_len > 0) then
                        call tide_get_ptr(g_tide, field_name(1:int(field_name_len)), ptr, tide_rc)
                        if (tide_rc == 0 .and. associated(ptr)) then
-                         write(*,'(A,A,A,I0,A,I0,A,I0)') "DEBUG: Field ", &
+                         write(*,'(A,A,A,I0,A,I0,A,I0,A)') "DEBUG: Field ", &
                               trim(field_name(1:int(field_name_len))), &
                               " ptr dimensions: ", size(ptr,1), " x ", size(ptr,2), &
                               " (total=", size(ptr), ")"
@@ -1107,7 +1108,7 @@ contains
 
     ! Critical: Final synchronization for large grids before returning
     if (g_nx * g_ny > 50000) then
-      write(*,'(A,I0)') "INFO: [CECE] Large grid final sync (", g_nx * g_ny, " points)..."
+      write(*,'(A,I0,A)') "INFO: [CECE] Large grid final sync (", g_nx * g_ny, " points)..."
       call flush(6)  ! Force all I/O completion
     end if
 
