@@ -510,12 +510,8 @@ contains
         ! Build a mesh directly from the gridspec file's coordinate data (lon,
         ! lat, lon_bnds, lat_bnds) for exact corner positions used in TIDE
         ! conservative regridding.
-        call system_clock(t0, clock_rate)
         call CreateMeshFromGridspecFile( &
              trim(gridspec_path(1:int(gridspec_path_len))), mesh, rc)
-        call system_clock(t1)
-        write(*,'(A,F8.3,A)') "INFO: [CECE] CreateMeshFromGridspecFile took ", &
-             real(t1-t0)/real(clock_rate), " s"
         if (rc /= ESMF_SUCCESS) then
           write(*,'(A,I0)') "ERROR: [CECE] CreateMeshFromGridspecFile failed (rc=", rc
           write(*,'(A)') "ERROR: [CECE] gridspec_file was specified — cannot continue without a valid mesh"
