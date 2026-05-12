@@ -30,6 +30,10 @@ target_include_directories(
 )
 target_include_directories(cdeps_share PRIVATE ${ESMF_F90COMPILEPATHS} ${PIO_Fortran_INCLUDE_DIR})
 
+if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
+  target_compile_definitions(cdeps_share PUBLIC CPRGNU)
+endif()
+
 check_fortran_source_compiles(
   "program test; call execute_command_line(''); end program"
   HAVE_EXECUTE
@@ -37,9 +41,7 @@ check_fortran_source_compiles(
 )
 
 if(HAVE_EXECUTE)
-  target_compile_definitions(cdeps_share PUBLIC CPRGNU HAVE_EXECUTE)
-else()
-  target_compile_definitions(cdeps_share PUBLIC CPRGNU)
+  target_compile_definitions(cdeps_share PUBLIC HAVE_EXECUTE)
 endif()
 
 install(TARGETS cdeps_share ARCHIVE DESTINATION lib LIBRARY DESTINATION lib)
