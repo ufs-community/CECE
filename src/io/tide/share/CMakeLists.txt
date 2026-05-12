@@ -1,5 +1,6 @@
 project(TIDE_share Fortran)
 include(ExternalProject)
+include(CheckFortranSourceCompiles)
 set(GenF90_SRCS shr_infnan_mod.F90 shr_assert_mod.F90)
 
 add_library(
@@ -29,7 +30,17 @@ target_include_directories(
 )
 target_include_directories(cdeps_share PRIVATE ${ESMF_F90COMPILEPATHS} ${PIO_Fortran_INCLUDE_DIR})
 
-target_compile_definitions(cdeps_share PUBLIC CPRGNU HAVE_EXECUTE)
+check_fortran_source_compiles(
+  "program test; call execute_command_line(''); end program"
+  HAVE_EXECUTE
+  SRC_EXT f90
+)
+
+if(HAVE_EXECUTE)
+  target_compile_definitions(cdeps_share PUBLIC CPRGNU HAVE_EXECUTE)
+else()
+  target_compile_definitions(cdeps_share PUBLIC CPRGNU)
+endif()
 
 install(TARGETS cdeps_share ARCHIVE DESTINATION lib LIBRARY DESTINATION lib)
 
