@@ -32,6 +32,8 @@ target_include_directories(cdeps_share PRIVATE ${ESMF_F90COMPILEPATHS} ${PIO_For
 
 if(CMAKE_Fortran_COMPILER_ID STREQUAL "GNU")
   target_compile_definitions(cdeps_share PUBLIC CPRGNU)
+elseif(CMAKE_Fortran_COMPILER_ID MATCHES "^Intel")
+  target_compile_definitions(cdeps_share PUBLIC CPRINTEL)
 endif()
 
 check_fortran_source_compiles(
