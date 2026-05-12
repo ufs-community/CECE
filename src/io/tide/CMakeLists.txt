@@ -161,7 +161,7 @@ add_test(NAME tide_api_test COMMAND test_tide)
 # NetCDF-Fortran (required by test_tide_roundtrip and CF property tests)
 # -----------------------------------------------------------------------
 find_package(NetCDF QUIET COMPONENTS Fortran)
-if(NOT NetCDF_FOUND)
+if(NOT NetCDF_Fortran_FOUND)
   # Collect candidate paths: spack-stack paths derived from ESMF, then docker fallbacks
   set(_netcdff_lib_hints /opt/views/view/lib /usr/lib /usr/local/lib)
   set(_netcdff_inc_hints /opt/views/view/include /usr/include /usr/local/include)
