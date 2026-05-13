@@ -140,6 +140,7 @@ target_link_libraries(
 # Testing
 enable_testing()
 add_executable(test_tide tide/tests/test_tide.F90)
+set_target_properties(test_tide PROPERTIES LINKER_LANGUAGE Fortran)
 target_include_directories(test_tide PRIVATE ${ESMF_F90COMPILEPATHS} ${PIO_Fortran_INCLUDE_DIR})
 target_link_libraries(
   test_tide
@@ -156,150 +157,23 @@ target_link_libraries(
 )
 add_test(NAME tide_api_test COMMAND test_tide)
 
-add_executable(test_tide_roundtrip tide/tests/test_tide_roundtrip.F90)
-target_include_directories(
-  test_tide_roundtrip
-  PRIVATE ${ESMF_F90COMPILEPATHS} ${PIO_Fortran_INCLUDE_DIR} ${NETCDF_Fortran_INCLUDE_DIR}
-)
-target_link_libraries(
-  test_tide_roundtrip
-  PRIVATE
-    tide
-    dshr
-    streams
-    cdeps_share
-    ${ESMF_F90ESMFLINKLIBS}
-    ${PIO_Fortran_LIBRARY}
-    ${PIO_C_LIBRARY}
-    ${NETCDF_Fortran_LIBRARY}
-    ${MPI_Fortran_LIBRARIES}
-    m
-)
-add_test(NAME tide_api_roundtrip COMMAND test_tide_roundtrip)
-
-add_executable(test_tide_passthrough tide/tests/test_tide_passthrough.F90)
-target_include_directories(
-  test_tide_passthrough
-  PRIVATE ${ESMF_F90COMPILEPATHS} ${PIO_Fortran_INCLUDE_DIR} ${NETCDF_Fortran_INCLUDE_DIR}
-)
-target_link_libraries(
-  test_tide_passthrough
-  PRIVATE
-    tide
-    dshr
-    streams
-    cdeps_share
-    ${ESMF_F90ESMFLINKLIBS}
-    ${PIO_Fortran_LIBRARY}
-    ${PIO_C_LIBRARY}
-    ${NETCDF_Fortran_LIBRARY}
-    ${MPI_Fortran_LIBRARIES}
-    m
-)
-add_test(NAME tide_passthrough COMMAND test_tide_passthrough)
-
-add_executable(test_tide_passthrough_2d tide/tests/test_tide_passthrough_2d.F90)
-target_include_directories(
-  test_tide_passthrough_2d
-  PRIVATE ${ESMF_F90COMPILEPATHS} ${PIO_Fortran_INCLUDE_DIR} ${NETCDF_Fortran_INCLUDE_DIR}
-)
-target_link_libraries(
-  test_tide_passthrough_2d
-  PRIVATE
-    tide
-    dshr
-    streams
-    cdeps_share
-    ${ESMF_F90ESMFLINKLIBS}
-    ${PIO_Fortran_LIBRARY}
-    ${PIO_C_LIBRARY}
-    ${NETCDF_Fortran_LIBRARY}
-    ${MPI_Fortran_LIBRARIES}
-    m
-)
-add_test(NAME tide_passthrough_2d COMMAND test_tide_passthrough_2d)
-
-add_executable(test_tide_bilinear tide/tests/test_tide_bilinear.F90)
-target_include_directories(
-  test_tide_bilinear
-  PRIVATE ${ESMF_F90COMPILEPATHS} ${PIO_Fortran_INCLUDE_DIR} ${NETCDF_Fortran_INCLUDE_DIR}
-)
-target_link_libraries(
-  test_tide_bilinear
-  PRIVATE
-    tide
-    dshr
-    streams
-    cdeps_share
-    ${ESMF_F90ESMFLINKLIBS}
-    ${PIO_Fortran_LIBRARY}
-    ${PIO_C_LIBRARY}
-    ${NETCDF_Fortran_LIBRARY}
-    ${MPI_Fortran_LIBRARIES}
-    m
-)
-add_test(NAME tide_bilinear COMMAND test_tide_bilinear)
-
-add_executable(test_tide_consd tide/tests/test_tide_consd.F90)
-target_include_directories(
-  test_tide_consd
-  PRIVATE ${ESMF_F90COMPILEPATHS} ${PIO_Fortran_INCLUDE_DIR} ${NETCDF_Fortran_INCLUDE_DIR}
-)
-target_link_libraries(
-  test_tide_consd
-  PRIVATE
-    tide
-    dshr
-    streams
-    cdeps_share
-    ${ESMF_F90ESMFLINKLIBS}
-    ${PIO_Fortran_LIBRARY}
-    ${PIO_C_LIBRARY}
-    ${NETCDF_Fortran_LIBRARY}
-    ${MPI_Fortran_LIBRARIES}
-    m
-)
-add_test(NAME tide_consd COMMAND test_tide_consd)
-
-add_executable(test_tide_nn tide/tests/test_tide_nn.F90)
-target_include_directories(
-  test_tide_nn
-  PRIVATE ${ESMF_F90COMPILEPATHS} ${PIO_Fortran_INCLUDE_DIR} ${NETCDF_Fortran_INCLUDE_DIR}
-)
-target_link_libraries(
-  test_tide_nn
-  PRIVATE
-    tide
-    dshr
-    streams
-    cdeps_share
-    ${ESMF_F90ESMFLINKLIBS}
-    ${PIO_Fortran_LIBRARY}
-    ${PIO_C_LIBRARY}
-    ${NETCDF_Fortran_LIBRARY}
-    ${MPI_Fortran_LIBRARIES}
-    m
-)
-add_test(NAME tide_nn COMMAND test_tide_nn)
-
 # -----------------------------------------------------------------------
-# NetCDF-Fortran (required by CF property tests)
+# NetCDF-Fortran (required by certain tests)
 # -----------------------------------------------------------------------
 find_package(NetCDF QUIET COMPONENTS Fortran)
-if(NOT NetCDF_FOUND)
-  # Fallback: search common paths in the JCSDA docker image
-  find_library(
-    NETCDF_Fortran_LIBRARY
-    NAMES netcdff
-    PATHS /opt/views/view/lib /usr/lib /usr/local/lib
-    NO_DEFAULT_PATH
-  )
-  find_path(
-    NETCDF_Fortran_INCLUDE_DIR
-    netcdf.mod
-    PATHS /opt/views/view/include /usr/include /usr/local/include
-    NO_DEFAULT_PATH
-  )
+if(NOT NetCDF_Fortran_FOUND)
+  # Collect candidate paths: spack-stack paths derived from ESMF, then docker fallbacks
+  set(_netcdff_lib_hints /opt/views/view/lib /usr/lib /usr/local/lib)
+  set(_netcdff_inc_hints /opt/views/view/include /usr/include /usr/local/include)
+  foreach(path ${ESMF_F90COMPILEPATHS})
+    if(path MATCHES "netcdf-fortran")
+      get_filename_component(_nff_root "${path}/.." ABSOLUTE)
+      list(INSERT _netcdff_lib_hints 0 "${_nff_root}/lib")
+      list(INSERT _netcdff_inc_hints 0 "${_nff_root}/include")
+    endif()
+  endforeach()
+  find_library(NETCDF_Fortran_LIBRARY NAMES netcdff PATHS ${_netcdff_lib_hints} NO_DEFAULT_PATH)
+  find_path(NETCDF_Fortran_INCLUDE_DIR netcdf.mod PATHS ${_netcdff_inc_hints} NO_DEFAULT_PATH)
   if(NETCDF_Fortran_LIBRARY AND NETCDF_Fortran_INCLUDE_DIR)
     set(NetCDF_Fortran_FOUND TRUE)
     message(STATUS "NetCDF-Fortran (fallback): ${NETCDF_Fortran_LIBRARY}")
@@ -313,10 +187,145 @@ else()
   set(NetCDF_Fortran_FOUND TRUE)
 endif()
 
+if(NetCDF_Fortran_FOUND)
+  add_executable(test_tide_roundtrip tide/tests/test_tide_roundtrip.F90)
+  set_target_properties(test_tide_roundtrip PROPERTIES LINKER_LANGUAGE Fortran)
+  target_include_directories(
+    test_tide_roundtrip
+    PRIVATE ${ESMF_F90COMPILEPATHS} ${PIO_Fortran_INCLUDE_DIR} ${NETCDF_Fortran_INCLUDE_DIR}
+  )
+  target_link_libraries(
+    test_tide_roundtrip
+    PRIVATE
+      tide
+      dshr
+      streams
+      cdeps_share
+      ${ESMF_F90ESMFLINKLIBS}
+      ${PIO_Fortran_LIBRARY}
+      ${PIO_C_LIBRARY}
+      ${NETCDF_Fortran_LIBRARY}
+      ${MPI_Fortran_LIBRARIES}
+      m
+  )
+  add_test(NAME tide_api_roundtrip COMMAND test_tide_roundtrip)
+
+  add_executable(test_tide_passthrough tide/tests/test_tide_passthrough.F90)
+  set_target_properties(test_tide_passthrough PROPERTIES LINKER_LANGUAGE Fortran)
+  target_include_directories(
+    test_tide_passthrough
+    PRIVATE ${ESMF_F90COMPILEPATHS} ${PIO_Fortran_INCLUDE_DIR} ${NETCDF_Fortran_INCLUDE_DIR}
+  )
+  target_link_libraries(
+    test_tide_passthrough
+    PRIVATE
+      tide
+      dshr
+      streams
+      cdeps_share
+      ${ESMF_F90ESMFLINKLIBS}
+      ${PIO_Fortran_LIBRARY}
+      ${PIO_C_LIBRARY}
+      ${NETCDF_Fortran_LIBRARY}
+      ${MPI_Fortran_LIBRARIES}
+      m
+  )
+  add_test(NAME tide_passthrough COMMAND test_tide_passthrough)
+
+  add_executable(test_tide_passthrough_2d tide/tests/test_tide_passthrough_2d.F90)
+  set_target_properties(test_tide_passthrough_2d PROPERTIES LINKER_LANGUAGE Fortran)
+  target_include_directories(
+    test_tide_passthrough_2d
+    PRIVATE ${ESMF_F90COMPILEPATHS} ${PIO_Fortran_INCLUDE_DIR} ${NETCDF_Fortran_INCLUDE_DIR}
+  )
+  target_link_libraries(
+    test_tide_passthrough_2d
+    PRIVATE
+      tide
+      dshr
+      streams
+      cdeps_share
+      ${ESMF_F90ESMFLINKLIBS}
+      ${PIO_Fortran_LIBRARY}
+      ${PIO_C_LIBRARY}
+      ${NETCDF_Fortran_LIBRARY}
+      ${MPI_Fortran_LIBRARIES}
+      m
+  )
+  add_test(NAME tide_passthrough_2d COMMAND test_tide_passthrough_2d)
+
+  add_executable(test_tide_bilinear tide/tests/test_tide_bilinear.F90)
+  set_target_properties(test_tide_bilinear PROPERTIES LINKER_LANGUAGE Fortran)
+  target_include_directories(
+    test_tide_bilinear
+    PRIVATE ${ESMF_F90COMPILEPATHS} ${PIO_Fortran_INCLUDE_DIR} ${NETCDF_Fortran_INCLUDE_DIR}
+  )
+  target_link_libraries(
+    test_tide_bilinear
+    PRIVATE
+      tide
+      dshr
+      streams
+      cdeps_share
+      ${ESMF_F90ESMFLINKLIBS}
+      ${PIO_Fortran_LIBRARY}
+      ${PIO_C_LIBRARY}
+      ${NETCDF_Fortran_LIBRARY}
+      ${MPI_Fortran_LIBRARIES}
+      m
+  )
+  add_test(NAME tide_bilinear COMMAND test_tide_bilinear)
+
+  add_executable(test_tide_consd tide/tests/test_tide_consd.F90)
+  set_target_properties(test_tide_consd PROPERTIES LINKER_LANGUAGE Fortran)
+  target_include_directories(
+    test_tide_consd
+    PRIVATE ${ESMF_F90COMPILEPATHS} ${PIO_Fortran_INCLUDE_DIR} ${NETCDF_Fortran_INCLUDE_DIR}
+  )
+  target_link_libraries(
+    test_tide_consd
+    PRIVATE
+      tide
+      dshr
+      streams
+      cdeps_share
+      ${ESMF_F90ESMFLINKLIBS}
+      ${PIO_Fortran_LIBRARY}
+      ${PIO_C_LIBRARY}
+      ${NETCDF_Fortran_LIBRARY}
+      ${MPI_Fortran_LIBRARIES}
+      m
+  )
+  add_test(NAME tide_consd COMMAND test_tide_consd)
+
+  add_executable(test_tide_nn tide/tests/test_tide_nn.F90)
+  set_target_properties(test_tide_nn PROPERTIES LINKER_LANGUAGE Fortran)
+  target_include_directories(
+    test_tide_nn
+    PRIVATE ${ESMF_F90COMPILEPATHS} ${PIO_Fortran_INCLUDE_DIR} ${NETCDF_Fortran_INCLUDE_DIR}
+  )
+  target_link_libraries(
+    test_tide_nn
+    PRIVATE
+      tide
+      dshr
+      streams
+      cdeps_share
+      ${ESMF_F90ESMFLINKLIBS}
+      ${PIO_Fortran_LIBRARY}
+      ${PIO_C_LIBRARY}
+      ${NETCDF_Fortran_LIBRARY}
+      ${MPI_Fortran_LIBRARIES}
+      m
+  )
+  add_test(NAME tide_nn COMMAND test_tide_nn)
+endif()
+
 # Helper macro to add a CF property test executable
 macro(add_cf_test test_name src_file)
   if(NetCDF_Fortran_FOUND)
     add_executable(${test_name} ${src_file})
+    set_target_properties(${test_name} PROPERTIES LINKER_LANGUAGE Fortran)
     target_include_directories(
       ${test_name}
       PRIVATE ${ESMF_F90COMPILEPATHS} ${PIO_Fortran_INCLUDE_DIR} ${NETCDF_Fortran_INCLUDE_DIR}

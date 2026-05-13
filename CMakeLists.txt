@@ -239,6 +239,9 @@ if(MPI_FOUND)
   target_link_libraries(cece PUBLIC MPI::MPI_CXX)
 endif()
 
+# Suppress conflicting C++ MPI bindings pulled in via ESMF's ESMC.h -> mpi.h -> mpicxx.h
+target_compile_definitions(cece PUBLIC MPICH_SKIP_MPICXX OMPI_SKIP_MPICXX)
+
 # --- Tests ---
 
 enable_testing()
@@ -354,97 +357,116 @@ add_subdirectory(standalone_nuopc)
 # Python script tests
 find_package(Python3 COMPONENTS Interpreter)
 if(Python3_Interpreter_FOUND)
+  # Use a venv inside the build directory so pip installs work even in
+  # read-only container environments (e.g. Singularity).
+  set(CECE_PYTHON_VENV_DIR "${CMAKE_BINARY_DIR}/python_venv")
+  if(WIN32)
+    set(VENV_PYTHON "${CECE_PYTHON_VENV_DIR}/Scripts/python.exe")
+  else()
+    set(VENV_PYTHON "${CECE_PYTHON_VENV_DIR}/bin/python")
+  endif()
+
+  add_test(NAME create_python_venv COMMAND ${Python3_EXECUTABLE} -m venv ${CECE_PYTHON_VENV_DIR})
   add_test(
-    NAME install_pytest
-    COMMAND ${Python3_EXECUTABLE} -m pip install pytest --quiet
+    NAME upgrade_pip_in_venv
+    COMMAND ${VENV_PYTHON} -m pip install --upgrade pip
   )
-  set_tests_properties(install_pytest PROPERTIES FIXTURES_SETUP "pytest_installed")
+  set_tests_properties(
+    create_python_venv
+    upgrade_pip_in_venv
+    PROPERTIES FIXTURES_SETUP "python_venv_ready"
+  )
+  set_tests_properties(upgrade_pip_in_venv PROPERTIES DEPENDS create_python_venv)
+
+  add_test(
+    NAME install_python_deps
+    COMMAND ${VENV_PYTHON} -m pip install pytest PyYAML matplotlib numpy --ignore-installed
+  )
+  set_tests_properties(
+    install_python_deps
+    PROPERTIES FIXTURES_SETUP "python_deps_installed" FIXTURES_REQUIRED "python_venv_ready"
+  )
 
   add_test(
     NAME test_hemco_to_cece_python
-    COMMAND ${Python3_EXECUTABLE} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_converters.py
+    COMMAND ${VENV_PYTHON} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_converters.py
   )
   set_tests_properties(
     test_hemco_to_cece_python
     PROPERTIES
       ENVIRONMENT "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/scripts"
-      FIXTURES_REQUIRED "pytest_installed"
+      FIXTURES_REQUIRED "python_deps_installed"
   )
 
   add_test(
     NAME test_scripts_python
-    COMMAND ${Python3_EXECUTABLE} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_scripts.py
+    COMMAND ${VENV_PYTHON} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_scripts.py
   )
   set_tests_properties(
     test_scripts_python
     PROPERTIES
       ENVIRONMENT "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/scripts"
-      FIXTURES_REQUIRED "pytest_installed"
+      FIXTURES_REQUIRED "python_deps_installed"
   )
 
   if(BUILD_PYTHON_BINDINGS)
     add_test(
       NAME test_enum_config_bindings
       COMMAND
-        ${Python3_EXECUTABLE} -m pytest
-        ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_enum_config_bindings.py -v
+        ${VENV_PYTHON} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_enum_config_bindings.py -v
     )
     set_tests_properties(
       test_enum_config_bindings
       PROPERTIES
         ENVIRONMENT "PYTHONPATH=${CMAKE_BINARY_DIR}/src/python/cece"
-        FIXTURES_REQUIRED "pytest_installed"
+        FIXTURES_REQUIRED "python_deps_installed"
     )
 
     add_test(
       NAME test_state_bindings
-      COMMAND
-        ${Python3_EXECUTABLE} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_state_bindings.py -v
+      COMMAND ${VENV_PYTHON} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_state_bindings.py -v
     )
     set_tests_properties(
       test_state_bindings
       PROPERTIES
         ENVIRONMENT "PYTHONPATH=${CMAKE_BINARY_DIR}/src/python/cece"
-        FIXTURES_REQUIRED "pytest_installed"
+        FIXTURES_REQUIRED "python_deps_installed"
     )
 
     add_test(
       NAME test_compute_bindings
-      COMMAND
-        ${Python3_EXECUTABLE} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_compute_bindings.py
-        -v
+      COMMAND ${VENV_PYTHON} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_compute_bindings.py -v
     )
     set_tests_properties(
       test_compute_bindings
       PROPERTIES
         ENVIRONMENT "PYTHONPATH=${CMAKE_BINARY_DIR}/src/python/cece"
-        FIXTURES_REQUIRED "pytest_installed"
+        FIXTURES_REQUIRED "python_deps_installed"
     )
 
     add_test(
       NAME test_validator_logger_bindings
       COMMAND
-        ${Python3_EXECUTABLE} -m pytest
-        ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_validator_logger_bindings.py -v
+        ${VENV_PYTHON} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_validator_logger_bindings.py
+        -v
     )
     set_tests_properties(
       test_validator_logger_bindings
       PROPERTIES
         ENVIRONMENT "PYTHONPATH=${CMAKE_BINARY_DIR}/src/python/cece"
-        FIXTURES_REQUIRED "pytest_installed"
+        FIXTURES_REQUIRED "python_deps_installed"
     )
 
     add_test(
       NAME test_python_api_rewired
       COMMAND
-        ${Python3_EXECUTABLE} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_python_api_rewired.py
-        -v
+        ${VENV_PYTHON} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_python_api_rewired.py -v
     )
     set_tests_properties(
       test_python_api_rewired
       PROPERTIES
         ENVIRONMENT "PYTHONPATH=${CMAKE_BINARY_DIR}/src/python"
-        FIXTURES_REQUIRED "pytest_installed"
+        FIXTURES_REQUIRED "python_deps_installed"
     )
   endif()
 endif()

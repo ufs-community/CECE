@@ -114,7 +114,15 @@ void CeceDataIngestor::SetField(const std::string& name, const double* data, int
         }
     } else {
         // For 3D data, use direct memory copy
-        std::memcpy(host_view.data(), data, n_lev * n_elem * sizeof(double));
+        size_t src_size = static_cast<size_t>(n_lev) * static_cast<size_t>(n_elem);
+        size_t dst_size = host_view.size();
+        if (src_size != dst_size) {
+            CECE_LOG_ERROR("[CECE] SetField: dimension mismatch for field '" + name + "': source has " + std::to_string(src_size) +
+                           " elements but destination has " + std::to_string(dst_size));
+            if (rc) *rc = -1;
+            return;
+        }
+        std::memcpy(host_view.data(), data, src_size * sizeof(double));
     }
 
     // Allocate device view if it doesn't exist or has wrong shape

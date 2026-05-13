@@ -316,8 +316,9 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
                     for (int i = 0; i < nx_; i++) {  // longitude index
                         // Correct indexing: CECE uses (lon, lat, lev) order - i=longitude,
                         // j=latitude
-                        size_t kokkos_idx = i + j * nx_ + k * static_cast<size_t>(nx_) * ny_;  // (lon, lat, lev) order
-                        size_t netcdf_idx = k * static_cast<size_t>(ny_) * nx_ + j * nx_ + i;  // (lev, lat, lon) order
+                        size_t kokkos_idx =
+                            static_cast<size_t>(i) + static_cast<size_t>(j) * nx_ + k * static_cast<size_t>(nx_) * ny_;  // (lon, lat, lev) order
+                        size_t netcdf_idx = k * static_cast<size_t>(ny_) * nx_ + static_cast<size_t>(j) * nx_ + i;       // (lev, lat, lon) order
 
                         // Bounds check for safety
                         if (kokkos_idx >= total_elements || netcdf_idx >= total_elements) {
