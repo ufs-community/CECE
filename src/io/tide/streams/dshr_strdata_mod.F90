@@ -405,7 +405,7 @@ contains
     type(ESMF_Field)             :: lfield          ! temporary
     type(ESMF_Field)             :: lfield_dst      ! temporary
     integer                      :: srcTermProcessing_Value = 0 ! should this be a module variable?
-    integer                      :: localpet
+    integer                      :: localPet
     logical                      :: fileExists
     type(ESMF_VM)                :: vm
     logical                      :: mainproc
@@ -420,7 +420,7 @@ contains
 
     call ESMF_VmGetCurrent(vm, rc=rc)
     call ESMF_VMGet(vm, localpet=localPet, rc=rc)
-    mainproc= (localPet==main_task)
+    mainproc = (localPet == main_task)
 
     ! Loop over streams
     do ns = 1,shr_strdata_get_stream_count(sdat)
@@ -2001,8 +2001,10 @@ contains
              call ESMF_FieldRegrid(per_stream%field_stream, field_dst, routehandle=per_stream%routehandle, &
                   termorderflag=ESMF_TERMORDER_SRCSEQ, checkflag=.false., zeroregion=ESMF_REGION_TOTAL, rc=rc)
              call system_clock(t1_read)
-             write(sdat%stream(1)%logunit,'(a,a,f8.3,a)') trim(subname), &
-                  'INFO: ESMF_FieldRegrid (', real(t1_read-t0_read)/real(tick_rate_read), ' s)'
+             if (sdat%mainproc) then
+               write(sdat%stream(1)%logunit,'(a,a,f8.3,a)') trim(subname), &
+                 'INFO: ESMF_FieldRegrid (', real(t1_read-t0_read)/real(tick_rate_read), ' s)'
+             end if
 
              if (chkerr(rc,__LINE__,u_FILE_u)) return
           end if
@@ -2353,12 +2355,18 @@ contains
     real(r8), allocatable :: corner_lons(:), corner_lats(:)
     real(r8), pointer :: grid_lon(:,:), grid_lat(:,:)
     type(ESMF_DistGrid) :: distgrid
+    type(ESMF_VM) :: vm
     integer :: localPet
     logical :: mainproc
     logical :: has_lon_bnds, has_lat_bnds
     integer(i8) :: t0_gc, t1_gc, tick_rate_gc
 
     rc = ESMF_SUCCESS
+
+    call ESMF_VMGetCurrent(vm, rc=rc)
+    call ESMF_VMGet(vm, localPet=localPet, rc=rc)
+    mainproc = (localPet == main_task)
+
     rcode = pio_openfile(pio_subsystem, pioid, io_type, trim(filename), pio_nowrite)
     if (rcode /= PIO_NOERR) then
        rc = ESMF_FAILURE
@@ -2424,9 +2432,11 @@ contains
     call system_clock(t0_gc, tick_rate_gc)
     call fill_grid_coords(stream_grid, lons1d, lats1d, nx, ny, rc)
     call system_clock(t1_gc)
-    write(*,'(a,i0,a,i0,a,f6.2,a)') &
-         'INFO: [TIDE] fill_grid_coords (', nx, 'x', ny, ') took ', &
-         real(t1_gc-t0_gc)/real(tick_rate_gc), ' s'
+    if (mainproc) then
+      write(*,'(a,i0,a,i0,a,f6.2,a)') &
+        'INFO: [TIDE] fill_grid_coords (', nx, 'x', ny, ') took ', &
+        real(t1_gc-t0_gc)/real(tick_rate_gc), ' s'
+    end if
 
     ! -----------------------------------------------------------------------
     ! Populate corner staggerloc — required by conservative regridding.
@@ -2481,10 +2491,12 @@ contains
     call system_clock(t0_gc, tick_rate_gc)
     call fill_grid_corner_coords(stream_grid, corner_lons, corner_lats, nx, ny, rc)
     call system_clock(t1_gc)
-    write(*,'(a,f6.2,a,L1,a)') &
-         'INFO: [TIDE] fill_grid_corner_coords took ', &
-         real(t1_gc-t0_gc)/real(tick_rate_gc), ' s (from_bnds=', &
-         has_lon_bnds .and. has_lat_bnds, ')'
+    if (mainproc) then
+      write(*,'(a,f6.2,a,L1,a)') &
+        'INFO: [TIDE] fill_grid_corner_coords took ', &
+        real(t1_gc-t0_gc)/real(tick_rate_gc), ' s (from_bnds=', &
+        has_lon_bnds .and. has_lat_bnds, ')'
+    end if
     deallocate(corner_lons, corner_lats)
 
     call pio_closefile(pioid)
