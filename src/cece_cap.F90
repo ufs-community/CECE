@@ -511,7 +511,7 @@ contains
         call CreateMeshFromGridspecFile( &
              trim(gridspec_path(1:int(gridspec_path_len))), mesh, rc)
         if (rc /= ESMF_SUCCESS) then
-          write(*,'(A,I0)') "ERROR: [CECE] CreateMeshFromGridspecFile failed (rc=", rc
+          write(*,'(A,I0)') "ERROR: [CECE] CreateMeshFromGridspecFile failed: rc=", rc
           write(*,'(A)') "ERROR: [CECE] gridspec_file was specified — cannot continue without a valid mesh"
           return
         end if
