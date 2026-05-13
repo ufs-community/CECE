@@ -1991,6 +1991,11 @@ contains
                end if
                dst_ptr(:) = dataptr1d(:)
              end block
+          else if (trim(stream%mapalgo) == 'none') then
+             ! Single-point stream: no routehandle was created;
+             ! broadcast the scalar value to the entire destination field.
+             call ESMF_FieldFill(field_dst, dataFillScheme="const", const1=dataptr1d(1), rc=rc)
+             if (chkerr(rc,__LINE__,u_FILE_u)) return
           else
              call system_clock(t0_read, tick_rate_read)
              call ESMF_FieldRegrid(per_stream%field_stream, field_dst, routehandle=per_stream%routehandle, &
