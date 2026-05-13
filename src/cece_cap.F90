@@ -1543,42 +1543,117 @@ contains
 
     if (localPet == 0) then
       ! ---- Read NetCDF ----
+      ncid = -1
       call system_clock(t0, clock_rate)
-      nf_rc = nf90_open(trim(filename), NF90_NOWRITE, ncid)
-      if (nf_rc /= NF90_NOERR) then
-        write(*,'(A,A,A)') "ERROR: [CECE] CreateMeshFromGridspecFile: cannot open '", &
-             trim(filename), "': " // trim(nf90_strerror(nf_rc))
-        rc = ESMF_FAILURE
+      read_gridspec: block
+        nf_rc = nf90_open(trim(filename), NF90_NOWRITE, ncid)
+        if (nf_rc /= NF90_NOERR) then
+          write(*,'(A,A,A)') "ERROR: [CECE] CreateMeshFromGridspecFile: cannot open '", &
+               trim(filename), "': " // trim(nf90_strerror(nf_rc))
+          rc = ESMF_FAILURE
+          exit read_gridspec
+        end if
+
+        nf_rc = nf90_inq_dimid(ncid, 'lon', lon_dimid)
+        if (nf_rc /= NF90_NOERR) then
+          write(*,'(A)') "ERROR: [CECE] CreateMeshFromGridspecFile: 'lon' dimension not found"
+          rc = ESMF_FAILURE
+          exit read_gridspec
+        end if
+        nf_rc = nf90_inquire_dimension(ncid, lon_dimid, len=nx)
+        if (nf_rc /= NF90_NOERR) then
+          write(*,'(A)') "ERROR: [CECE] CreateMeshFromGridspecFile: failed to read 'lon' dimension length"
+          rc = ESMF_FAILURE
+          exit read_gridspec
+        end if
+
+        nf_rc = nf90_inq_dimid(ncid, 'lat', lat_dimid)
+        if (nf_rc /= NF90_NOERR) then
+          write(*,'(A)') "ERROR: [CECE] CreateMeshFromGridspecFile: 'lat' dimension not found"
+          rc = ESMF_FAILURE
+          exit read_gridspec
+        end if
+        nf_rc = nf90_inquire_dimension(ncid, lat_dimid, len=ny)
+        if (nf_rc /= NF90_NOERR) then
+          write(*,'(A)') "ERROR: [CECE] CreateMeshFromGridspecFile: failed to read 'lat' dimension length"
+          rc = ESMF_FAILURE
+          exit read_gridspec
+        end if
+
+        allocate(lon_centers(nx), lat_centers(ny))
+        allocate(lon_bnds(2, nx), lat_bnds(2, ny))
+
+        nf_rc = nf90_inq_varid(ncid, 'lon', varid)
+        if (nf_rc /= NF90_NOERR) then
+          write(*,'(A)') "ERROR: [CECE] CreateMeshFromGridspecFile: variable 'lon' not found"
+          rc = ESMF_FAILURE
+          exit read_gridspec
+        end if
+        nf_rc = nf90_get_var(ncid, varid, lon_centers)
+        if (nf_rc /= NF90_NOERR) then
+          write(*,'(A)') "ERROR: [CECE] CreateMeshFromGridspecFile: failed to read variable 'lon'"
+          rc = ESMF_FAILURE
+          exit read_gridspec
+        end if
+
+        nf_rc = nf90_inq_varid(ncid, 'lat', varid)
+        if (nf_rc /= NF90_NOERR) then
+          write(*,'(A)') "ERROR: [CECE] CreateMeshFromGridspecFile: variable 'lat' not found"
+          rc = ESMF_FAILURE
+          exit read_gridspec
+        end if
+        nf_rc = nf90_get_var(ncid, varid, lat_centers)
+        if (nf_rc /= NF90_NOERR) then
+          write(*,'(A)') "ERROR: [CECE] CreateMeshFromGridspecFile: failed to read variable 'lat'"
+          rc = ESMF_FAILURE
+          exit read_gridspec
+        end if
+
+        nf_rc = nf90_inq_varid(ncid, 'lon_bnds', varid)
+        if (nf_rc /= NF90_NOERR) then
+          write(*,'(A)') "ERROR: [CECE] CreateMeshFromGridspecFile: variable 'lon_bnds' not found"
+          rc = ESMF_FAILURE
+          exit read_gridspec
+        end if
+        nf_rc = nf90_get_var(ncid, varid, lon_bnds)
+        if (nf_rc /= NF90_NOERR) then
+          write(*,'(A)') "ERROR: [CECE] CreateMeshFromGridspecFile: failed to read variable 'lon_bnds'"
+          rc = ESMF_FAILURE
+          exit read_gridspec
+        end if
+
+        nf_rc = nf90_inq_varid(ncid, 'lat_bnds', varid)
+        if (nf_rc /= NF90_NOERR) then
+          write(*,'(A)') "ERROR: [CECE] CreateMeshFromGridspecFile: variable 'lat_bnds' not found"
+          rc = ESMF_FAILURE
+          exit read_gridspec
+        end if
+        nf_rc = nf90_get_var(ncid, varid, lat_bnds)
+        if (nf_rc /= NF90_NOERR) then
+          write(*,'(A)') "ERROR: [CECE] CreateMeshFromGridspecFile: failed to read variable 'lat_bnds'"
+          rc = ESMF_FAILURE
+          exit read_gridspec
+        end if
+      end block read_gridspec
+
+      ! Always close the file if it was successfully opened
+      if (ncid /= -1) then
+        nf_rc = nf90_close(ncid)
+        if (nf_rc /= NF90_NOERR .and. rc /= ESMF_FAILURE) then
+          write(*,'(A,A)') "ERROR: [CECE] CreateMeshFromGridspecFile: failed to close NetCDF file: ", &
+               trim(nf90_strerror(nf_rc))
+          rc = ESMF_FAILURE
+        end if
+        ncid = -1
+      end if
+      call system_clock(t1)
+      if (rc /= ESMF_SUCCESS) then
+        if (allocated(lon_centers)) deallocate(lon_centers)
+        if (allocated(lat_centers)) deallocate(lat_centers)
+        if (allocated(lon_bnds))    deallocate(lon_bnds)
+        if (allocated(lat_bnds))    deallocate(lat_bnds)
         return
       end if
-
-      nf_rc = nf90_inq_dimid(ncid, 'lon', lon_dimid)
-      if (nf_rc /= NF90_NOERR) then
-        write(*,'(A)') "ERROR: [CECE] CreateMeshFromGridspecFile: 'lon' dimension not found"
-        rc = ESMF_FAILURE; return
-      end if
-      nf_rc = nf90_inquire_dimension(ncid, lon_dimid, len=nx)
-
-      nf_rc = nf90_inq_dimid(ncid, 'lat', lat_dimid)
-      if (nf_rc /= NF90_NOERR) then
-        write(*,'(A)') "ERROR: [CECE] CreateMeshFromGridspecFile: 'lat' dimension not found"
-        rc = ESMF_FAILURE; return
-      end if
-      nf_rc = nf90_inquire_dimension(ncid, lat_dimid, len=ny)
-
-      allocate(lon_centers(nx), lat_centers(ny))
-      allocate(lon_bnds(2, nx), lat_bnds(2, ny))
-
-      nf_rc = nf90_inq_varid(ncid, 'lon', varid)
-      nf_rc = nf90_get_var(ncid, varid, lon_centers)
-      nf_rc = nf90_inq_varid(ncid, 'lat', varid)
-      nf_rc = nf90_get_var(ncid, varid, lat_centers)
-      nf_rc = nf90_inq_varid(ncid, 'lon_bnds', varid)
-      nf_rc = nf90_get_var(ncid, varid, lon_bnds)
-      nf_rc = nf90_inq_varid(ncid, 'lat_bnds', varid)
-      nf_rc = nf90_get_var(ncid, varid, lat_bnds)
-      nf_rc = nf90_close(ncid)
-      call system_clock(t1)
       write(*,'(A,F8.3,A)') "INFO: [CECE] NetCDF read (gridspec) took ", &
            real(t1-t0)/real(clock_rate), " s"
 
