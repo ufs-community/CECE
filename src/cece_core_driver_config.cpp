@@ -199,8 +199,10 @@ void cece_core_get_driver_config(const char* config_file, int config_file_len, c
 
         // Copy gridspec_file - use strncpy with proper null termination
         if (gridspec_str.empty()) {
-            // If gridspec_file is empty, fill entire buffer with spaces (Fortran convention)
-            for (int i = 0; i < gridspec_file_len; ++i) {
+            // Null-terminate so C/C++ consumers see an empty string; fill the
+            // rest with spaces for Fortran callers that rely on blank-padding.
+            gridspec_file[0] = '\0';
+            for (int i = 1; i < gridspec_file_len; ++i) {
                 gridspec_file[i] = ' ';
             }
         } else if (gridspec_str.length() >= static_cast<size_t>(gridspec_file_len)) {

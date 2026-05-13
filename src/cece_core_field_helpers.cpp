@@ -266,9 +266,12 @@ void cece_core_get_gridspec_file_path(void* data_ptr, char* path, int* path_len,
         return;
     }
 
-    std::strncpy(path, gf.c_str(), 511);
-    path[511] = '\0';
-    *path_len = static_cast<int>(gf.size());
+    const std::size_t path_capacity = 512;
+    const std::size_t max_copy_len = path_capacity - 1;
+    const std::size_t copy_len = (gf.size() < max_copy_len) ? gf.size() : max_copy_len;
+    std::memcpy(path, gf.c_str(), copy_len);
+    path[copy_len] = '\0';
+    *path_len = static_cast<int>(copy_len);
     std::cout << "INFO: gridspec_file path: " << gf << std::endl;
 }
 
