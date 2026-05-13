@@ -29,6 +29,8 @@ endif()
 # -----------------------------------------------------------------------
 add_executable(cece_nuopc_app mainApp.F90 driver.F90)
 
+set_target_properties(cece_nuopc_app PROPERTIES LINKER_LANGUAGE Fortran)
+
 target_include_directories(cece_nuopc_app PRIVATE ${ESMF_INCLUDE_DIRS})
 
 target_link_libraries(cece_nuopc_app PRIVATE cece ESMF::ESMF yaml-cpp ${ESMF_LIBRARIES})

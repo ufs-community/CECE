@@ -235,6 +235,9 @@ if(MPI_FOUND)
   target_link_libraries(cece PUBLIC MPI::MPI_CXX)
 endif()
 
+# Suppress conflicting C++ MPI bindings pulled in via ESMF's ESMC.h -> mpi.h -> mpicxx.h
+target_compile_definitions(cece PUBLIC MPICH_SKIP_MPICXX OMPI_SKIP_MPICXX)
+
 # --- Tests ---
 
 enable_testing()

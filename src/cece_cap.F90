@@ -17,8 +17,6 @@ module cece_cap_mod
   use NUOPC_Model, modelSS => SetServices
   use NUOPC_Model, only: model_label_Advance => label_Advance
   use NUOPC_Model, only: model_label_Finalize => label_Finalize
-  use NUOPC_Model, only : model_label_Advance  => label_Advance
-  use NUOPC_Model, only : model_label_Finalize => label_Finalize
   use tide_mod, only: tide_type, tide_init, tide_advance, tide_get_ptr, tide_finalize
   implicit none
 
