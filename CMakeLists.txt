@@ -359,11 +359,36 @@ find_package(Python3 COMPONENTS Interpreter)
 if(Python3_Interpreter_FOUND)
   # Use a venv inside the build directory so pip installs work even in
   # read-only container environments (e.g. Singularity).
-  set(CECE_PYTHON_VENV_DIR "${CMAKE_BINARY_DIR}/python_venv")
+  set(CECE_PYTHON_DIR "${CMAKE_BINARY_DIR}/python")
+  set(CECE_PYTHON_VENV_DIR "${CECE_PYTHON_DIR}/venv")
+  set(CECE_PYTHON_TMP_DIR "${CECE_PYTHON_DIR}/tmp")
+  set(CECE_PYTHON_CACHE_DIR "${CECE_PYTHON_DIR}/cache")
+
+  file(MAKE_DIRECTORY ${CECE_PYTHON_DIR})
+  file(MAKE_DIRECTORY ${CECE_PYTHON_TMP_DIR})
+  file(MAKE_DIRECTORY ${CECE_PYTHON_CACHE_DIR})
+
   if(WIN32)
     set(VENV_PYTHON "${CECE_PYTHON_VENV_DIR}/Scripts/python.exe")
   else()
     set(VENV_PYTHON "${CECE_PYTHON_VENV_DIR}/bin/python")
+  endif()
+
+  # Keep pip and temp files inside the build tree for containerized CI runs.
+  set(
+    CECE_PIP_TEST_ENV
+    "PIP_CACHE_DIR=${CECE_PYTHON_CACHE_DIR}"
+    "PIP_DISABLE_PIP_VERSION_CHECK=1"
+    "HOME=${CECE_PYTHON_DIR}"
+    "TMPDIR=${CECE_PYTHON_TMP_DIR}"
+  )
+  if(WIN32)
+    list(
+      APPEND CECE_PIP_TEST_ENV
+      "TMP=${CECE_PYTHON_TMP_DIR}"
+      "TEMP=${CECE_PYTHON_TMP_DIR}"
+      "USERPROFILE=${CECE_PYTHON_DIR}"
+    )
   endif()
 
   add_test(NAME create_python_venv COMMAND ${Python3_EXECUTABLE} -m venv ${CECE_PYTHON_VENV_DIR})
@@ -374,17 +399,20 @@ if(Python3_Interpreter_FOUND)
   set_tests_properties(
     create_python_venv
     upgrade_pip_in_venv
-    PROPERTIES FIXTURES_SETUP "python_venv_ready"
+    PROPERTIES FIXTURES_SETUP "python_venv_ready" ENVIRONMENT "${CECE_PIP_TEST_ENV}"
   )
   set_tests_properties(upgrade_pip_in_venv PROPERTIES DEPENDS create_python_venv)
 
   add_test(
     NAME install_python_deps
-    COMMAND ${VENV_PYTHON} -m pip install pytest PyYAML matplotlib numpy --ignore-installed
+    COMMAND ${VENV_PYTHON} -m pip install pytest PyYAML matplotlib numpy
   )
   set_tests_properties(
     install_python_deps
-    PROPERTIES FIXTURES_SETUP "python_deps_installed" FIXTURES_REQUIRED "python_venv_ready"
+    PROPERTIES
+      FIXTURES_SETUP "python_deps_installed"
+      FIXTURES_REQUIRED "python_venv_ready"
+      ENVIRONMENT "${CECE_PIP_TEST_ENV}"
   )
 
   add_test(
