@@ -381,6 +381,9 @@ if(Python3_Interpreter_FOUND)
     "PIP_DISABLE_PIP_VERSION_CHECK=1"
     "HOME=${CECE_PYTHON_DIR}"
     "TMPDIR=${CECE_PYTHON_TMP_DIR}"
+    "PYTHONPATH="
+    "PYTHONHOME="
+    "PYTHONNOUSERSITE=1"
   )
   if(WIN32)
     list(
@@ -393,19 +396,25 @@ if(Python3_Interpreter_FOUND)
 
   add_test(NAME create_python_venv COMMAND ${Python3_EXECUTABLE} -m venv ${CECE_PYTHON_VENV_DIR})
   add_test(
+    NAME ensure_pip_in_venv
+    COMMAND ${VENV_PYTHON} -I -m ensurepip --upgrade
+  )
+  add_test(
     NAME upgrade_pip_in_venv
-    COMMAND ${VENV_PYTHON} -m pip install --upgrade pip
+    COMMAND ${VENV_PYTHON} -I -m pip install --upgrade pip
   )
   set_tests_properties(
     create_python_venv
+    ensure_pip_in_venv
     upgrade_pip_in_venv
     PROPERTIES FIXTURES_SETUP "python_venv_ready" ENVIRONMENT "${CECE_PIP_TEST_ENV}"
   )
-  set_tests_properties(upgrade_pip_in_venv PROPERTIES DEPENDS create_python_venv)
+  set_tests_properties(ensure_pip_in_venv PROPERTIES DEPENDS create_python_venv)
+  set_tests_properties(upgrade_pip_in_venv PROPERTIES DEPENDS ensure_pip_in_venv)
 
   add_test(
     NAME install_python_deps
-    COMMAND ${VENV_PYTHON} -m pip install pytest PyYAML matplotlib numpy
+    COMMAND ${VENV_PYTHON} -I -m pip install pytest PyYAML matplotlib numpy
   )
   set_tests_properties(
     install_python_deps
