@@ -92,7 +92,7 @@ jobs:
           title: "Automated PR: Sync modulefiles from ufs-weather-model"
           body: |
             This weekly automated PR:
-            - Syncs modulefiles from ufs-weather-model
+            - Syncs modulefiles from [ufs-weather-model](https://github.com/ufs-community/ufs-weather-model/tree/HEAD/modulefiles)
             - Removes deprecated or unused dependencies from `ufs_common.lua`
             - Renames `ufs_*.lua` to `cece_*.lua` and updates internal references
             - Replaces model references with 'CECE'
