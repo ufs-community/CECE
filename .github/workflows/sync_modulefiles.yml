@@ -97,5 +97,5 @@ jobs:
             - Syncs modulefiles from [ufs-weather-model](https://github.com/ufs-community/ufs-weather-model/tree/${{ steps.clone.outputs.uwm_hash }}/modulefiles)
             - Removes deprecated or unused dependencies from `ufs_common.lua`
             - Renames `ufs_*.lua` to `cece_*.lua` and updates internal references
-            - Replaces model references with 'CECE'
+            - Replaces model references with "CECE"
             - Runs pre-commit formatting
