@@ -22,8 +22,10 @@ jobs:
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Clone ufs-weather-model and copy modulefiles
+        id: clone
         run: |
           git clone --depth 1 https://github.com/ufs-community/ufs-weather-model.git
+          echo "uwm_hash=$(git -C ufs-weather-model rev-parse --short HEAD)" >> $GITHUB_OUTPUT
           mkdir -p modulefiles
           cp -r ufs-weather-model/modulefiles/* modulefiles/
           rm -rf ufs-weather-model
@@ -92,7 +94,7 @@ jobs:
           title: "Automated PR: Sync modulefiles from ufs-weather-model"
           body: |
             This weekly automated PR:
-            - Syncs modulefiles from [ufs-weather-model](https://github.com/ufs-community/ufs-weather-model/tree/HEAD/modulefiles)
+            - Syncs modulefiles from [ufs-weather-model](https://github.com/ufs-community/ufs-weather-model/tree/${{ steps.clone.outputs.uwm_hash }}/modulefiles)
             - Removes deprecated or unused dependencies from `ufs_common.lua`
             - Renames `ufs_*.lua` to `cece_*.lua` and updates internal references
             - Replaces model references with 'CECE'
