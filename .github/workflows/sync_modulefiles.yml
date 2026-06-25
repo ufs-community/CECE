@@ -91,7 +91,7 @@ jobs:
           commit-message: "Automated update: Sync modulefiles and clean up references"
           branch: update-modulefiles
           delete-branch: true
-          title: "Automated PR: Sync modulefiles from ufs-weather-model"
+          title: "chore(modulefiles): 🤖 sync from ufs-weather-model"
           body: |
             This weekly automated PR:
             - Syncs modulefiles from [ufs-weather-model](https://github.com/ufs-community/ufs-weather-model/tree/${{ steps.clone.outputs.uwm_hash }}/modulefiles)
