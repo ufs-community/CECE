@@ -89,7 +89,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "Automated update: Sync modulefiles and clean up references"
-          branch: update-modulefiles
+          branch: "chore/update-modulefiles"
           delete-branch: true
           title: "chore(modulefiles): 🤖 sync from ufs-weather-model"
           body: |
