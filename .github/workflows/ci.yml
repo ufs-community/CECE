@@ -50,7 +50,7 @@ jobs:
           cd build
 
           # Configure CECE. CMake will detect if it's already configured.
-          cmake .. -DCMAKE_BUILD_TYPE=Release -DKokkos_ENABLE_SERIAL=ON
+          cmake .. -DCMAKE_BUILD_TYPE=Release -DKokkos_ENABLE_SERIAL=ON -DENABLE_ESMF=ON
 
           # Build. Make will only build what has changed.
           make -j$(nproc)
@@ -83,6 +83,12 @@ jobs:
       - name: Run HEMCO parity examples
         run: |
           source /opt/spack-environment/activate.sh
+
+          # Force a fresh app link in this workspace even when build artifacts
+          # are restored from cache.
+          rm -f build/bin/cece_nuopc_app
+          cmake --build build --target cece_nuopc_app -j$(nproc)
+
           ./scripts/setup_hemco_examples.sh
           ./scripts/data_download/download_ex1.sh
 
@@ -92,5 +98,5 @@ jobs:
           python3 -c "import netCDF4 as nc; ds_out = nc.Dataset('data/hourly.nc', 'w'); ds_out.createDimension('lon', 72); ds_out.createDimension('lat', 46); ds_out.createDimension('lev', 1); out_v = ds_out.createVariable('HOURLY_SCALFACT', 'f8', ('lon', 'lat', 'lev')); out_v[:] = 1.0; ds_out.close()"
 
           cp examples/cece_config_ex1.yaml cece_config.yaml
-          export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(pwd)/build
+          export LD_LIBRARY_PATH="$(pwd)/build/lib:$(pwd)/build${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
           build/bin/cece_nuopc_app
