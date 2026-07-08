@@ -192,7 +192,7 @@ void cece_core_writer_initialize_with_coords(void* data_ptr, int nx, int ny, int
 
 - [ ] **Step 2: Update Fortran interface declarations and subroutines in `src/driver/nuopc/cece_cap.F90`**
 
-Open `src/driver/nuopc/cece_cap.F90`. 
+Open `src/driver/nuopc/cece_cap.F90`.
 1. In the `interface` declarations section (around lines 140-165), update the binding signatures of `cece_core_writer_initialize_with_coords` and `cece_core_writer_initialize` to accept `integer(c_int), value :: mpi_comm_f`.
 2. In the `InitializeRealize` subroutine (around line 370), update the call to `cece_core_writer_initialize_with_coords` to pass the Fortran handle `g_comm` (the component-level sub-communicator initialized by ESMF).
 

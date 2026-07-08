@@ -1,13 +1,13 @@
 # Specification: Decouple Standalone Writer from MPI_COMM_WORLD
 
-**Date**: 2026-07-07  
-**Author**: Community Emissions Computing Engine Contributors  
-**Status**: Approved  
+**Date**: 2026-07-07
+**Author**: Community Emissions Computing Engine Contributors
+**Status**: Approved
 
 ---
 
 ## 1. Overview
-The diagnostic/standalone netCDF output writer (`CeceStandaloneWriter`) currently checks active process ranks using `MPI_COMM_WORLD`. In coupled Earth System Model simulations (such as FV3/UFS runs under NUOPC), `MPI_COMM_WORLD` is shared among all participating model components (Atmosphere, Ocean, Ice, land, etc.). 
+The diagnostic/standalone netCDF output writer (`CeceStandaloneWriter`) currently checks active process ranks using `MPI_COMM_WORLD`. In coupled Earth System Model simulations (such as FV3/UFS runs under NUOPC), `MPI_COMM_WORLD` is shared among all participating model components (Atmosphere, Ocean, Ice, land, etc.).
 
 If diagnostic outputs are activated within the CECE coupled component, utilizing `MPI_COMM_WORLD` will lead to severe rank desynchronization, file overwrite races, and potential segmentation faults since CECE only runs on a subset of the global ranks.
 
@@ -40,13 +40,13 @@ Extend both C-linkage entry points to accept the Fortran MPI communicator handle
 
 ```cpp
 extern "C" {
-void cece_core_writer_initialize_with_coords(void* data_ptr, int nx, int ny, int nz, 
+void cece_core_writer_initialize_with_coords(void* data_ptr, int nx, int ny, int nz,
                                              const double* lon_coords, const double* lat_coords,
-                                             const char* start_time_iso8601, int start_time_len, 
+                                             const char* start_time_iso8601, int start_time_len,
                                              int mpi_comm_f, int* rc);
 
-void cece_core_writer_initialize(void* data_ptr, int nx, int ny, int nz, 
-                                 const char* start_time_iso8601, int start_time_len, 
+void cece_core_writer_initialize(void* data_ptr, int nx, int ny, int nz,
+                                 const char* start_time_iso8601, int start_time_len,
                                  int mpi_comm_f, int* rc);
 }
 ```

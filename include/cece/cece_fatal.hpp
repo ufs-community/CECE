@@ -35,7 +35,9 @@ inline std::streambuf*& RealStdoutBuf() {
 /**
  * @brief Record the real stdout buffer before std::cout is redirected.
  */
-inline void SetRealStdoutBuf(std::streambuf* buf) { RealStdoutBuf() = buf; }
+inline void SetRealStdoutBuf(std::streambuf* buf) {
+    RealStdoutBuf() = buf;
+}
 
 /**
  * @brief Emit a fatal-error message to the real stdout (log) and to stderr.

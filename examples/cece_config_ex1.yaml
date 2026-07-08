@@ -16,8 +16,33 @@ driver:
 meteorology: {}
 
 temporal_profiles:
-  diurnal_traffic: [0.5, 0.3, 0.2, 0.3, 0.6, 1.2, 1.8, 1.5, 1.2, 1.0, 1.1, 1.2, 1.3, 1.2, 1.3, 1.5, 1.8, 2.0, 1.8, 1.5, 1.2, 1.0, 0.8, 0.6]
-
+  diurnal_traffic:
+    [
+      0.5,
+      0.3,
+      0.2,
+      0.3,
+      0.6,
+      1.2,
+      1.8,
+      1.5,
+      1.2,
+      1.0,
+      1.1,
+      1.2,
+      1.3,
+      1.2,
+      1.3,
+      1.5,
+      1.8,
+      2.0,
+      1.8,
+      1.5,
+      1.2,
+      1.0,
+      0.8,
+      0.6,
+    ]
 
 species:
   nox:
@@ -147,8 +172,6 @@ cece_data:
       variables:
         - file: "FM_ind"
           model: "CAMS_MONTHLY_ind"
-
-
 
 diagnostics:
   output_interval_seconds: 3600

@@ -3,9 +3,10 @@
  * @brief Initialization of the standalone writer for output.
  */
 
+#include <mpi.h>
+
 #include <cstdlib>
 #include <iostream>
-#include <mpi.h>
 
 #include "cece/cece_internal.hpp"
 #include "cece/cece_standalone_writer.hpp"
@@ -118,7 +119,8 @@ void cece_core_writer_initialize_with_coords(void* data_ptr, int nx, int ny, int
  * @param mpi_comm_f Fortran MPI communicator handle.
  * @param rc Return code (0 on success).
  */
-void cece_core_writer_initialize(void* data_ptr, int nx, int ny, int nz, const char* start_time_iso8601, int start_time_len, int mpi_comm_f, int* rc) {
+void cece_core_writer_initialize(void* data_ptr, int nx, int ny, int nz, const char* start_time_iso8601, int start_time_len, int mpi_comm_f,
+                                 int* rc) {
     *rc = 0;
 
     if (data_ptr == nullptr) {

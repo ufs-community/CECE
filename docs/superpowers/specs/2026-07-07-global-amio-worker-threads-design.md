@@ -1,8 +1,8 @@
 # Specification: Global AMIO Worker Threads Configuration in CECE
 
-**Date**: 2026-07-07  
-**Author**: Community Emissions Computing Engine Contributors  
-**Status**: Approved  
+**Date**: 2026-07-07
+**Author**: Community Emissions Computing Engine Contributors
+**Status**: Approved
 
 ---
 

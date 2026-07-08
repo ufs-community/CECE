@@ -2,6 +2,7 @@
 #define CECE_STANDALONE_WRITER_HPP
 
 #include <mpi.h>
+
 #include <Kokkos_Core.hpp>
 #include <memory>
 #include <string>

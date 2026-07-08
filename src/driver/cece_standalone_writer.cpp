@@ -189,7 +189,7 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
     }
 
     if (rank != 0) {
-        return 0; // Standalone writing is strictly serial and executed on Rank 0 only to avoid conflicts
+        return 0;  // Standalone writing is strictly serial and executed on Rank 0 only to avoid conflicts
     }
 
     CECE_LOG_INFO("[CECE] Writing time step " + std::to_string(step) + " (t=" + std::to_string(time_seconds) + ") via AMIO");

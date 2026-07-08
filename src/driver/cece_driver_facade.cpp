@@ -39,10 +39,10 @@ namespace {
  */
 struct SimDateTime {
     int year = 0;
-    int month = 0;         ///< 1-12
-    int day = 0;           ///< 1-31
-    int hour = 0;          ///< 0-23
-    int day_of_week = 0;   ///< 0=Sunday .. 6=Saturday
+    int month = 0;        ///< 1-12
+    int day = 0;          ///< 1-31
+    int hour = 0;         ///< 0-23
+    int day_of_week = 0;  ///< 0=Sunday .. 6=Saturday
     bool valid = false;
 };
 
@@ -188,8 +188,7 @@ CeceDriverOrchestrator::CeceDriverOrchestrator(const std::string& config_file, i
         if (mpi_initialized && comm_c_ != MPI_COMM_NULL) {
             MPI_Comm_rank(comm_c_, &rank);
         }
-        dagr::configure_logging(comm_c_ != MPI_COMM_NULL ? comm_c_ : MPI_COMM_WORLD,
-                                rank == 0 ? dagr::Log_Level::info : dagr::Log_Level::error);
+        dagr::configure_logging(comm_c_ != MPI_COMM_NULL ? comm_c_ : MPI_COMM_WORLD, rank == 0 ? dagr::Log_Level::info : dagr::Log_Level::error);
     }
 }
 
@@ -265,9 +264,8 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                                 stream_data_model = "enhanced";
                                 stream_data_model_explicit = false;
                             } else {
-                                std::cout << "[DRIVER WARNING] Invalid stream data_model='" << requested_model
-                                          << "' for stream variable '" << var_name
-                                          << "'; using default auto behavior (enhanced then classic fallback)." << std::endl;
+                                std::cout << "[DRIVER WARNING] Invalid stream data_model='" << requested_model << "' for stream variable '"
+                                          << var_name << "'; using default auto behavior (enhanced then classic fallback)." << std::endl;
                             }
                         }
                         found_var = true;
@@ -281,8 +279,8 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
         // Verify if the input file path exists and is accessible from this compute/login node
         std::error_code fs_ec;
         if (!fs::exists(input_file_path, fs_ec)) {
-            LogFatal("[DRIVER FATAL] File '" + input_file_path +
-                     "' does not exist or is unreadable on this node! (System error: " + fs_ec.message() + ")");
+            LogFatal("[DRIVER FATAL] File '" + input_file_path + "' does not exist or is unreadable on this node! (System error: " + fs_ec.message() +
+                     ")");
         } else {
             std::cout << "[DRIVER DEBUG] Input file '" << input_file_path << "' successfully verified on local filesystem." << std::endl;
         }
@@ -484,8 +482,8 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                     if (rc != AMIO_OK) {
                         amio_rc = rc;
                         std::cout << "[DRIVER DEBUG] amio_read('" << input_var_name << "', t=" << t_idx << ") failed with rc = " << rc << std::endl;
-                        failure_detail = std::string("amio_read('") + input_var_name + "') failed: rc=" + std::to_string(rc) + " (" +
-                                         amio_strerror(rc) + ")";
+                        failure_detail =
+                            std::string("amio_read('") + input_var_name + "') failed: rc=" + std::to_string(rc) + " (" + amio_strerror(rc) + ")";
                         return false;
                     }
                     const void* view_data = nullptr;
@@ -556,8 +554,8 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                                 counts[r] = (band_start(r + 1) - band_start(r)) * nx_;
                                 displs[r] = band_start(r) * nx_;
                             }
-                            MPI_Allgatherv(local_dst.data(), counts[mpi_rank], MPI_DOUBLE, full_dst.data(), counts.data(), displs.data(),
-                                           MPI_DOUBLE, comm_c_);
+                            MPI_Allgatherv(local_dst.data(), counts[mpi_rank], MPI_DOUBLE, full_dst.data(), counts.data(), displs.data(), MPI_DOUBLE,
+                                           comm_c_);
                         } else {
                             std::copy(local_dst.begin(), local_dst.end(), full_dst.begin() + static_cast<size_t>(j0) * nx_);
                         }
@@ -591,8 +589,8 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
 
         // Throw a fatal error on AMIO read failures
         if (!read_success) {
-            std::string detail = failure_detail.empty() ? ("open/init failed: rc=" + std::to_string(amio_rc) + " (" + amio_strerror(amio_rc) + ")")
-                                                        : failure_detail;
+            std::string detail =
+                failure_detail.empty() ? ("open/init failed: rc=" + std::to_string(amio_rc) + " (" + amio_strerror(amio_rc) + ")") : failure_detail;
             LogFatal("[FATAL ERROR] AMIO read failed for field '" + var_name + "' in file '" + input_file_path + "'. Reason: " + detail +
                      ". Idealized fallback is disabled!");
             return false;

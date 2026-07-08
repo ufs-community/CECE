@@ -65,16 +65,16 @@ bool build_regrid_plan(amio_dataset_handle read_dataset, int nx, int ny, const s
     //      - UGRID mesh:    mesh_node_x, mesh2d_node_x, node_x
     //      - UFS/FV3:       grid_xt, grid_lont, geolon, lon_rho, nav_lon
     //      - MPAS:          lonCell
-    static const std::vector<std::string> kLonNames = {"lon",      "longitude",  "x",        "Longitude", "LON",     "geolon",
-                                                        "grid_xt",  "grid_lont",  "lon_rho",  "nav_lon",   "lonCell", "mesh_node_x",
-                                                        "mesh2d_node_x", "node_x", "XLONG"};
+    static const std::vector<std::string> kLonNames = {"lon",           "longitude", "x",       "Longitude", "LON",     "geolon",
+                                                       "grid_xt",       "grid_lont", "lon_rho", "nav_lon",   "lonCell", "mesh_node_x",
+                                                       "mesh2d_node_x", "node_x",    "XLONG"};
     std::vector<double> src_lons;
     read_coord(kLonNames, src_lons);
 
     // 2. Read source latitude coordinates (same convention families as above).
-    static const std::vector<std::string> kLatNames = {"lat",      "latitude",   "y",        "Latitude", "LAT",     "geolat",
-                                                        "grid_yt",  "grid_latt",  "lat_rho",  "nav_lat",  "latCell", "mesh_node_y",
-                                                        "mesh2d_node_y", "node_y", "XLAT"};
+    static const std::vector<std::string> kLatNames = {"lat",           "latitude",  "y",       "Latitude", "LAT",     "geolat",
+                                                       "grid_yt",       "grid_latt", "lat_rho", "nav_lat",  "latCell", "mesh_node_y",
+                                                       "mesh2d_node_y", "node_y",    "XLAT"};
     std::vector<double> src_lats;
     read_coord(kLatNames, src_lats);
 

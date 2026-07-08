@@ -150,7 +150,7 @@ struct CeceOutputConfig {
     std::vector<std::string> fields;                                              ///< Fields to write; empty means all export fields.
     bool include_diagnostics = false;                                             ///< Also write diagnostic fields when true.
     bool enabled = false;                                                         ///< True when an output block is present in the YAML.
-    int amio_worker_threads = -1;                                                ///< Number of AMIO background I/O worker threads (default: -1, meaning use fallback).
+    int amio_worker_threads = -1;  ///< Number of AMIO background I/O worker threads (default: -1, meaning use fallback).
 };
 
 /**
@@ -193,7 +193,7 @@ struct DriverConfig {
         gridspec_file;      ///< Path to ESMF GRIDSPEC NetCDF file (optional). If set, loaded instead of generating a grid from driver.grid params.
     DriverGridConfig grid;  ///< Grid configuration for generated Gaussian grid.
     int stacking_refresh_interval_seconds = 0;  ///< Stacking engine refresh interval in seconds (0 means use base timestep).
-    int amio_worker_threads = 1;                 ///< Number of AMIO background I/O worker threads (default: 1).
+    int amio_worker_threads = 1;                ///< Number of AMIO background I/O worker threads (default: 1).
 };
 
 /**

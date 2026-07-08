@@ -290,7 +290,8 @@ set(
   src/core/cece_config_path.cpp
   src/core/cece_c_api.cpp
   src/core/cece_config_validator.cpp
-  src/core/cece_run_info.cpp)
+  src/core/cece_run_info.cpp
+)
 
 if(CECE_HAS_FORTRAN)
   list(

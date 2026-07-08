@@ -74,7 +74,7 @@ Insert the following Google Test case into `tests/test_driver_configuration.cpp`
 
 ```cpp
 TEST_F(DriverConfigurationTest, ParseAmioWorkerThreads) {
-    std::string test_yaml = 
+    std::string test_yaml =
         "driver:\n"
         "  start_time: \"2010-01-01T00:00:00\"\n"
         "  end_time: \"2010-01-01T23:00:00\"\n"

@@ -31,9 +31,9 @@ struct RegridPlan {
     axis::solver::InterpolationMatrix<Kokkos::HostSpace> matrix;  ///< CSR weights: global-source -> local-dst-band
     int j0 = 0;                                                   ///< first destination row owned by this rank
     int j1 = 0;                                                   ///< one-past-last destination row owned by this rank
-    int file_nx = 0;                                             ///< source longitude count (from coords)
-    int file_ny = 0;                                             ///< source latitude count (from coords)
-    bool built = false;                                          ///< true once weights are generated
+    int file_nx = 0;                                              ///< source longitude count (from coords)
+    int file_ny = 0;                                              ///< source latitude count (from coords)
+    bool built = false;                                           ///< true once weights are generated
 };
 
 /// Build the interpolation weights for a rank-local destination row band
