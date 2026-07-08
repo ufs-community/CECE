@@ -47,6 +47,17 @@ foreach(
   endif()
 endforeach()
 
+# Disable Intel oneAPI warnings about -g without -O0
+if(CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Rno-debug-disables-optimization")
+endif()
+if(CMAKE_C_COMPILER_ID STREQUAL "IntelLLVM")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Rno-debug-disables-optimization")
+endif()
+if(CECE_HAS_FORTRAN AND CMAKE_Fortran_COMPILER_ID STREQUAL "IntelLLVM")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -diag-disable=10440")
+endif()
+
 # --- Dependencies ---
 
 include(FetchContent)
