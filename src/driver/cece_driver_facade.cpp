@@ -73,8 +73,9 @@ SimDateTime parse_sim_datetime(const std::string& iso8601) {
         dt.day_of_week = static_cast<int>(((days + 4) % 7 + 7) % 7);
         dt.valid = true;
     } catch (const std::exception&) {
-        // Malformed timestamp: leave dt.valid == false so callers fall back to
-        // legacy step-index cycling.
+        // Malformed timestamp: use explicit default values so callers fall back
+        // to legacy step-index cycling.
+        dt = SimDateTime{};
     }
     return dt;
 }
