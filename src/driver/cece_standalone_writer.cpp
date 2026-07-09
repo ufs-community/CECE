@@ -456,6 +456,9 @@ void cece_core_write_step(void* data_ptr, double time_seconds, int step_index, i
 
     if (!d->standalone_mode || !g_standalone_writer) return;
 
+    // Skip the initial step (hour 0 / time = 0) since no integration/advancement has occurred
+    if (step_index == 0 || time_seconds <= 0.0) return;
+
     const int freq = d->config.output_config.frequency_steps;
     if (step_index % freq != 0) return;
 

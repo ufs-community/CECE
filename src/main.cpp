@@ -342,14 +342,14 @@ int main(int argc, char* argv[]) {
             int day_of_week = 1;  // Default Monday/Tuesday
             cece_core_run(cece_data_ptr, hour, day_of_week, &rc);
 
+            // D. Advance simulation clock by one timestep BEFORE writing, so elapsed time reflects the end of the step!
+            sim_time += dt;
+            step_index++;
+
             double elapsed_seconds = static_cast<double>((sim_time - start_time).nanos()) / 1e9;
 
             // C. Write output timestep via standalone writer
             cece_core_write_step(cece_data_ptr, elapsed_seconds, step_index, &rc);
-
-            // D. Advance simulation clock by one timestep
-            sim_time += dt;
-            step_index++;
         }
 
         // 7. Cleanup and release resources
