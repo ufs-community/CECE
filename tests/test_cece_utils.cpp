@@ -10,8 +10,15 @@
 #include <vector>
 
 #include "cece/cece_config.hpp"
+#include "cece/cece_internal.hpp"
 #include "cece/cece_standalone_writer.hpp"
 #include "cece/cece_utils.hpp"
+
+extern "C" {
+void cece_core_write_step(void* data_ptr, double time_seconds, int step_index, int* rc);
+}
+
+extern std::unique_ptr<cece::CeceStandaloneWriter> g_standalone_writer;
 
 namespace cece::test {
 
@@ -150,6 +157,82 @@ TEST_F(CeceUtilsTest, StandaloneWriterDuplicateFieldsFiltering) {
     // Verify file exists
     std::string expected_file = test_dir + "/cece_output_20260629_120000.nc";
     EXPECT_TRUE(std::filesystem::exists(expected_file));
+
+    if (std::filesystem::exists(test_dir)) {
+        std::filesystem::remove_all(test_dir);
+    }
+}
+
+TEST_F(CeceUtilsTest, CoreWriteStepSkipsInitialStep) {
+    std::string test_dir = "test_output_dir_core_write_" + std::to_string(getpid());
+
+    // Create internal data and configure output
+    cece::CeceInternalData d;
+    d.standalone_mode = true;
+    d.config.output_config.enabled = true;
+    d.config.output_config.directory = test_dir;
+    d.config.output_config.fields = {"test_field"};
+    d.config.output_config.frequency_steps = 1;
+    d.config.output_config.filename_pattern = "cece_output_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc";
+
+    // Setup coordinates and field data
+    d.nx = 4;
+    d.ny = 4;
+    d.nz = 1;
+    std::vector<double> lon_ok = {-180.0, -90.0, 0.0, 90.0};
+    std::vector<double> lat_ok = {-90.0, -45.0, 0.0, 45.0};
+
+    // Ensure directory does not exist before initialization
+    if (std::filesystem::exists(test_dir)) {
+        std::filesystem::remove_all(test_dir);
+    }
+
+    // Initialize global standalone writer
+    g_standalone_writer = std::make_unique<cece::CeceStandaloneWriter>(d.config.output_config);
+    int rc_init = g_standalone_writer->InitializeWithCoords("2026-06-29T12:00:00", 4, 4, 1, lon_ok, lat_ok);
+    ASSERT_EQ(rc_init, 0);
+
+    // Create a mock field map in d.export_state
+    DualView3D test_field_view("test_field", 4, 4, 1);
+    test_field_view.sync<Kokkos::HostSpace>();
+    auto h_view = test_field_view.view_host();
+    Kokkos::deep_copy(h_view, 1.0);
+    test_field_view.modify<Kokkos::HostSpace>();
+    d.export_state.fields["test_field"] = test_field_view;
+
+    // 1. Call cece_core_write_step for step 0 / time 0.0 -> Should be SKIPPED!
+    int rc = -1;
+    cece_core_write_step(&d, 0.0, 0, &rc);
+    EXPECT_EQ(rc, 0);
+
+    // Verify that NO NetCDF files were created inside test_dir
+    int file_count_step0 = 0;
+    if (std::filesystem::exists(test_dir)) {
+        for (const auto& entry : std::filesystem::directory_iterator(test_dir)) {
+            if (entry.path().extension() == ".nc") {
+                file_count_step0++;
+            }
+        }
+    }
+    EXPECT_EQ(file_count_step0, 0);
+
+    // 2. Call cece_core_write_step for step 1 / time 3600.0 -> Should NOT be skipped!
+    cece_core_write_step(&d, 3600.0, 1, &rc);
+    EXPECT_EQ(rc, 0);
+
+    // Verify that a file was successfully written in test_dir
+    int file_count_step1 = 0;
+    if (std::filesystem::exists(test_dir)) {
+        for (const auto& entry : std::filesystem::directory_iterator(test_dir)) {
+            if (entry.path().extension() == ".nc") {
+                file_count_step1++;
+            }
+        }
+    }
+    EXPECT_EQ(file_count_step1, 1);
+
+    // Finalize and cleanup
+    g_standalone_writer.reset();
 
     if (std::filesystem::exists(test_dir)) {
         std::filesystem::remove_all(test_dir);
