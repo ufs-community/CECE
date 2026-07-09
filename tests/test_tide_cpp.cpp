@@ -39,6 +39,27 @@ TEST(TideTest, TestDynamicGraphCompilation) {
     EXPECT_TRUE(true);
 }
 
+TEST(TideTest, TestShutdownNoTimeout) {
+    std::unique_ptr<dagr::GraphOrchestrator> dagr;
+    cece::io::CeceIO cece_io;
+
+    std::string mock_config = GetConfigPath();
+    cece_io.Initialize(mock_config, 72, 46, 1);
+    CompileHelmGraph(mock_config, dagr, cece_io);
+
+    // Call advance_step to dispatch the task(s)
+    dagr->advance_step();
+
+    // Measure the time taken to shutdown to verify that it does not hit the 5s timeout
+    auto start = std::chrono::steady_clock::now();
+    dagr->shutdown();
+    auto elapsed = std::chrono::steady_clock::now() - start;
+
+    auto elapsed_ms = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
+    // It should shut down almost instantly (definitely < 1 second), not hitting the 5s timeout.
+    EXPECT_LT(elapsed_ms, 1000);
+}
+
 TEST(TideTest, TestEndToEndDriverLoopStub) {
     // Set config file path dynamically
     std::string mock_config = GetConfigPath();

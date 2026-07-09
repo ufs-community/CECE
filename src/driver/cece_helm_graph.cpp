@@ -42,9 +42,6 @@ void CompileHelmGraph(const std::string& config_file, std::unique_ptr<dagr::Grap
         pc.streams.push_back(std::move(stream));
     }
 
-    // Populate the default scheduling tasks list
-    pc.task_names.push_back("regrid_and_scale");
-
     // Instantiating GraphOrchestrator requires world communicator.
     // Wrap custom MPI communicator in halo::Communicator safely (duplicating to prevent RAII destruction of ESMF's handle)
     MPI_Comm comm_to_wrap = comm_c;
