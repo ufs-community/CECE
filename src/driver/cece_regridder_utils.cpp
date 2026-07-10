@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <sstream>
 
 namespace cece::io {
 
@@ -38,7 +39,7 @@ axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_axis_mesh(int ni, int 
 
 bool build_regrid_plan(amio_dataset_handle read_dataset, int nx, int ny, const std::vector<double>& target_lons,
                        const std::vector<double>& target_lats, const std::string& map_algo, int j0, int j1, RegridPlan& plan) {
-    // Read a 1-D or 2-D coordinate variable, trying several common naming conventions.
+    // Read a 1-D, 2-D or 3-D coordinate variable, trying several common naming conventions.
     auto read_coord = [&](const std::vector<std::string>& candidate_names, std::vector<double>& out, int& nx_val, int& ny_val) {
         for (const auto& name : candidate_names) {
             amio_view_handle view = nullptr;
@@ -54,17 +55,34 @@ bool build_regrid_plan(amio_dataset_handle read_dataset, int nx, int ny, const s
                     for (int r = 0; r < shape.rank; ++r) {
                         len *= static_cast<int>(shape.extents[r]);
                     }
-                    out.resize(len);
-                    bool is_float = (size == static_cast<size_t>(len) * 4);
-                    for (int i = 0; i < len; ++i) {
-                        out[i] = is_float ? static_cast<const float*>(data)[i] : static_cast<const double*>(data)[i];
-                    }
+
+                    int slice_len = 0;
                     if (shape.rank == 1) {
-                        nx_val = len;
+                        nx_val = static_cast<int>(shape.extents[0]);
                         ny_val = 1;
+                        slice_len = nx_val;
                     } else if (shape.rank == 2) {
                         ny_val = static_cast<int>(shape.extents[0]);
                         nx_val = static_cast<int>(shape.extents[1]);
+                        slice_len = ny_val * nx_val;
+                    } else if (shape.rank == 3) {
+                        // For 3-D time-dependent coordinate arrays (e.g. WRF XLONG(Time, Y, X)),
+                        // read only the first time slice.
+                        ny_val = static_cast<int>(shape.extents[1]);
+                        nx_val = static_cast<int>(shape.extents[2]);
+                        slice_len = ny_val * nx_val;
+                    } else {
+                        nx_val = 0;
+                        ny_val = 0;
+                        slice_len = 0;
+                    }
+
+                    if (slice_len > 0) {
+                        out.resize(slice_len);
+                        bool is_float = (size == static_cast<size_t>(len) * 4);
+                        for (int i = 0; i < slice_len; ++i) {
+                            out[i] = is_float ? static_cast<const float*>(data)[i] : static_cast<const double*>(data)[i];
+                        }
                     }
                 }
             }
@@ -103,9 +121,25 @@ bool build_regrid_plan(amio_dataset_handle read_dataset, int nx, int ny, const s
         return false;
     }
 
-    if (lon_ny > 1 || lat_ny > 1) {
+    bool lon_is_curv = (lon_ny > 1);
+    bool lat_is_curv = (lat_ny > 1);
+
+    if (lon_is_curv && lat_is_curv) {
+        if (lon_nx != lat_nx || lon_ny != lat_ny) {
+            std::ostringstream oss;
+            oss << "build_regrid_plan: Mismatched curvilinear coordinate dimensions! "
+                << "Longitude: " << lon_nx << "x" << lon_ny << ", "
+                << "Latitude: " << lat_nx << "x" << lat_ny;
+            throw std::runtime_error(oss.str());
+        }
         plan.file_nx = lon_nx;
         plan.file_ny = lon_ny;
+    } else if (lon_is_curv) {
+        plan.file_nx = lon_nx;
+        plan.file_ny = lon_ny;
+    } else if (lat_is_curv) {
+        plan.file_nx = lat_nx;
+        plan.file_ny = lat_ny;
     } else {
         plan.file_nx = lon_nx;
         plan.file_ny = lat_nx;
