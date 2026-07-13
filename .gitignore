@@ -45,3 +45,4 @@ __pycache__/
 amio_read_manifest_facade_*.yaml
 amio_coord_manifest.yaml
 core.*
+GRA2PESv2.0_config_test1.yaml
