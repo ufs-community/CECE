@@ -325,7 +325,7 @@ make -j4
 
 ## See Also
 
-- [CECE Developer Guide](./AGENTS.md)
+- [CECE Developer Guide](./developer_guide.md)
 - [Physics Scheme Development](./physics_scheme_development.md)
 - [Kokkos Documentation](https://kokkos.github.io/)
 - [JCSDA Docker Setup](./users-guide.md)

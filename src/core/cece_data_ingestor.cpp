@@ -3,13 +3,13 @@
  * @brief Implementation of the CECE data ingestor for external field management.
  *
  * The CeceDataIngestor provides an interface for managing external data fields
- * from TIDE (NUOPC data streams) and other sources. It handles field registration,
+ * from data streams (AMIO) and other sources. It handles field registration,
  * data copying, and dimension management for both 2D and 3D fields.
  *
  * Key capabilities:
  * - Field registration and storage using Kokkos views
  * - Automatic dimensional analysis and reshaping
- * - Integration with TIDE data streams
+ * - Integration with AMIO data streams
  * - Memory management for large datasets
  *
  * @author Barry Baker
@@ -48,11 +48,11 @@ CeceDataIngestor::~CeceDataIngestor() {}
 /**
  * @brief Register and store a field from external data sources.
  *
- * This method handles both 2D emission data from TIDE and 3D meteorological fields.
+ * This method handles both 2D emission data from data streams and 3D meteorological fields.
  * It automatically detects the field type based on dimensions and reshapes the data
  * appropriately for use by the CECE physics schemes.
  *
- * For 2D emission fields (TIDE):
+ * For 2D emission fields (data streams):
  * - Input: n_lev * n_elem == nx * ny (horizontal grid)
  * - Output: nx × ny × 1 (single vertical level)
  *
@@ -69,7 +69,7 @@ CeceDataIngestor::~CeceDataIngestor() {}
  * @param nz Grid dimension in z-direction
  * @param rc Return code pointer (0=success, <0=error)
  *
- * @note Data is assumed to be in Fortran (column-major) order from TIDE.
+ * @note Data is assumed to be in Fortran (column-major) order from the data stream.
  */
 void CeceDataIngestor::SetField(const std::string& name, const double* data, int n_lev, int n_elem, int nx, int ny, int nz, int* rc) {
     if (!data) {
@@ -212,7 +212,7 @@ bool CeceDataIngestor::HasCachedField(const std::string& name) const {
     return field_cache_.find(name) != field_cache_.end();
 }
 
-std::string CeceDataIngestor::SerializeTideESMFConfig(const CeceDataConfig& config) {
+std::string CeceDataIngestor::SerializeStreamESMFConfig(const CeceDataConfig& config) {
     std::ostringstream oss;
 
     // ESMF RC file header
@@ -272,7 +272,7 @@ std::string CeceDataIngestor::SerializeTideESMFConfig(const CeceDataConfig& conf
     return oss.str();
 }
 
-std::string CeceDataIngestor::SerializeTideYaml(const CeceDataConfig& config) {
+std::string CeceDataIngestor::SerializeStreamYaml(const CeceDataConfig& config) {
     std::ostringstream oss;
 
     // Generate proper TIDE YAML format

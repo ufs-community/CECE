@@ -3,7 +3,7 @@
 
 /**
  * @file cece_data_ingestor.hpp
- * @brief Data ingestion for CECE — field cache for TIDE-interp data.
+ * @brief Data ingestion for CECE — field cache for stream-interpolated data.
  *
  * This header is free of ESMF includes. It maintains a cache of interpolated
  * field data received from the NUOPC layer via the C bridge.
@@ -53,19 +53,18 @@ class CeceDataIngestor {
         const std::string& name, int nx, int ny, int nz);
 
     /**
-     * @brief Generates a TIDE-compatible YAML configuration string from the
+     * @brief Generates a data-stream-compatible YAML configuration string from the
      * CeceDataConfig.
      *
-     * This serialized YAML is passed to the TIDE layer to initialize
-     * data streams dynamically.
+     * This serialized YAML is used to initialize data streams dynamically.
      *
      * @param config The data ingestion configuration.
      * @return A YAML formatted string describing the streams.
      */
-    std::string SerializeTideYaml(const CeceDataConfig& config);
+    std::string SerializeStreamYaml(const CeceDataConfig& config);
 
     /**
-     * @brief Generates a TIDE-compatible ESMF configuration string from the
+     * @brief Generates an ESMF-compatible configuration string from the
      * CeceDataConfig.
      *
      * This serialized configuration is passed to the TIDE layer for ESMF
@@ -74,7 +73,7 @@ class CeceDataIngestor {
      * @param config The data ingestion configuration.
      * @return An ESMF formatted configuration string.
      */
-    std::string SerializeTideESMFConfig(const CeceDataConfig& config);
+    std::string SerializeStreamESMFConfig(const CeceDataConfig& config);
 
     /** @brief Returns true if the named field exists in the cache. */
     bool HasCachedField(const std::string& name) const;

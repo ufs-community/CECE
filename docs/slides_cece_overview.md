@@ -55,7 +55,7 @@
             │               │
             ▼               ▼
      ┌──────────────┐ ┌────────────────┐
-     │ TIDE (Data   │ │ MEGAN, SeaSalt │
+     │ AMIO (Data   │ │ MEGAN, SeaSalt │
      │  Ingestion)  │ │ Dust, Lightning│
      └──────────────┘ └────────────────┘
 ```
@@ -82,7 +82,7 @@ The **Stacking Engine** is the computational core of CECE.
 **Processing Phases**:
 
 1. **Configuration Analysis** — Parse and validate emission layer configuration
-2. **Field Binding** — Connect to data sources (TIDE streams, ESMF fields)
+2. **Field Binding** — Connect to data sources (AMIO streams, import fields)
 3. **Hierarchy Processing** — Apply priority-based layer combination rules
 4. **Kernel Fusion** — Generate optimized compute kernels
 5. **Temporal Scaling** — Apply time-dependent scaling factors
@@ -124,9 +124,9 @@ Four fundamental operations for combining emission layers:
 | Operation | Behavior |
 |-----------|----------|
 | `add` | Accumulates layer emissions onto current value |
-| `multiply` | Multiplies current accumulated value by layer |
 | `replace` | Overrides accumulated value with layer emissions (in masked region) |
-| `set` | Sets initial value (typically first layer) |
+
+Multiplicative scaling is achieved through `scale_fields` rather than a standalone operation.
 
 Each layer can also apply:
 - **Base scale factor** — Simple numerical multiplier
@@ -150,7 +150,7 @@ temporal_profiles:
                     1.2, 1.0, 1.1, 1.2, 1.3, 1.2, 1.3, 1.5,
                     1.8, 2.0, 1.8, 1.5, 1.2, 1.0, 0.8, 0.6]
 
-  weekday_pattern: [1.2, 1.3, 1.3, 1.3, 1.3, 0.8, 0.7]  # Mon-Sun
+  weekday_pattern: [1.2, 1.3, 1.3, 1.3, 1.3, 0.8, 0.7]  # Sun-Sat
 
 species:
   co:
@@ -324,7 +324,7 @@ physics_schemes:
 | **Usability** | Clean YAML config, automated HEMCO migration tool |
 | **Extensibility** | Runtime species registration, modular physics plugins |
 | **Traceability** | Built-in provenance tracking for every calculation |
-| **Integration** | ESMF/NUOPC compliant, TIDE data ingestion |
+| **Integration** | ESMF/NUOPC compliant, AMIO data ingestion |
 | **Flexibility** | Independent refresh intervals, multiple vertical distribution methods |
 
 **CECE modernizes atmospheric emission processing for the exascale era.**

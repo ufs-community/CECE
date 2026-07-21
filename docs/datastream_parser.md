@@ -1,8 +1,8 @@
-# TIDE Streams Configuration Parser
+# Data Streams Configuration Parser
 
 ## Overview
 
-The TIDE Streams Configuration Parser provides functionality to parse, validate, and serialize YAML format streams files used by TIDE for data ingestion in CECE. This enables hybrid data ingestion where static emission inventories from NetCDF files are combined with live meteorological fields from ESMF.
+The Data Streams Configuration Parser provides functionality to parse, validate, and serialize YAML format streams files used by CECE for data ingestion. This enables hybrid data ingestion where static emission inventories from NetCDF files are combined with live meteorological fields from the coupled model or standalone driver.
 
 ## Features
 
@@ -14,7 +14,7 @@ The TIDE Streams Configuration Parser provides functionality to parse, validate,
 
 ## YAML Format
 
-The YAML format for TIDE streams uses a simple key-value syntax:
+The YAML format for data streams uses a simple key-value syntax:
 
 ```
 stream::<stream_name>
@@ -63,11 +63,11 @@ stream::<stream_name>
 ### Parsing a Streams File
 
 ```cpp
-#include "cece/cece_tide_yaml_serializer.hpp"
+#include "cece/cece_data_ingestor.hpp"
 
 // Parse streams file
 cece::CeceDataConfig config =
-    cece::SerializeTideYaml("cece_emissions.yaml");
+    cece::SerializeStreamYaml("cece_emissions.yaml");
 
 // Access parsed streams
 for (const auto& stream : config.cece_data.streams) {
@@ -85,7 +85,7 @@ for (const auto& stream : config.cece_data.streams) {
 cece::CeceDataConfig config = /* ... */;
 
 std::vector<std::string> errors;
-bool is_valid = cece::ConfigValidator::ValidateTIDE(config, errors);
+bool is_valid = cece::ConfigValidator::ValidateDataStreams(config, errors);
 
 if (!is_valid) {
     std::cerr << "Configuration validation failed:" << std::endl;
@@ -98,7 +98,7 @@ if (!is_valid) {
 ### Writing a Streams File
 
 ```cpp
-#include "cece/cece_tide_yaml_serializer.hpp"
+#include "cece/cece_data_ingestor.hpp"
 
 // Create configuration programmatically
 cece::CeceDataConfig config;
@@ -111,11 +111,11 @@ stream.variables = {{"SO2", "so2_flux"}};
 config.cece_data.streams.push_back(stream);
 
 // Write to file
-cece::SerializeTideYaml(config, "output.yaml");
+cece::SerializeStreamYaml(config, "output.yaml");
 ```
 
 ```cpp
-#include "cece/cece_tide_yaml_serializer.hpp"
+#include "cece/cece_data_ingestor.hpp"
 
 // Create configuration programmatically
 cece::CeceDataConfig config;
@@ -128,7 +128,7 @@ stream.tintalgo = "linear";
 config.cece_data.streams.push_back(stream);
 
 // Write to file
-cece::SerializeTideYaml(config, "output.yaml");
+cece::SerializeStreamYaml(config, "output.yaml");
 ```
 
 ## Validation
@@ -172,13 +172,13 @@ The parser supports round-trip serialization (Property 16):
 
 ```cpp
 // Parse original file
-auto config1 = cece::ParseTideYaml("original.yaml");
+auto config1 = cece::ParseStreamYaml("original.yaml");
 
 // Write to new file
-cece::SerializeTideYaml(config1, "copy.yaml");
+cece::SerializeStreamYaml(config1, "copy.yaml");
 
 // Parse the copy
-auto config2 = cece::ParseTideYaml("copy.yaml");
+auto config2 = cece::ParseStreamYaml("copy.yaml");
 
 // config1 and config2 should be equivalent
 ```
@@ -204,7 +204,7 @@ void CeceDataIngestor::IngestEmissionsInline(
     const CeceDataConfig& config,
     CeceImportState& cece_state,
     int nx, int ny, int nz) {
-    // Use parsed configuration to ingest emissions from TIDE
+    // Use parsed configuration to ingest emissions from data streams
 }
 ```
 
@@ -219,14 +219,14 @@ See `examples/cece_config_ex*.yaml` for complete examples demonstrating:
 
 ## Testing
 
-Unit tests are provided in `tests/cf_ingestor/test_tide_yaml_serializer.cpp`:
+Unit tests are provided in `tests/test_cece_ingestor.cpp`:
 
 ```bash
 # Build and run tests
 mkdir build && cd build
 cmake ..
-make test_tide_yaml_serializer
-./test_tide_yaml_serializer
+make test_cece_ingestor
+./test_cece_ingestor
 ```
 
 Tests cover:
@@ -244,10 +244,10 @@ Tests cover:
 
 This implementation satisfies the following requirements:
 
-- **Requirement 4.1**: TIDE YAML Configuration
-- **Requirement 4.3**: TIDE YAML Serialization
-- **Requirement 4.4**: TIDE YAML Round-Trip
-- **Requirement 4.6**: TIDE YAML Error Handling
+- **Requirement 4.1**: Data Stream YAML Configuration
+- **Requirement 4.3**: Data Stream YAML Serialization
+- **Requirement 4.4**: Data Stream YAML Round-Trip
+- **Requirement 4.6**: Data Stream YAML Error Handling
   - 7.1: Parse ESMF Config format
   - 7.2: Validate required attributes
   - 7.3: Validate file paths
@@ -266,7 +266,7 @@ This implementation satisfies the following requirements:
 Potential future enhancements:
 - Support for YAML format as alternative to ESMF Config
 - Schema validation using JSON Schema or similar
-- Integration with TIDE validation tools
+- Integration with configuration validation tools
 - Support for stream templates and includes
 - Automatic mesh file discovery
 - Variable dimension validation

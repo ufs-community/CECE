@@ -184,7 +184,7 @@ The driver uses the following logic to select spatial discretization:
 
 2. **If `gridspec_file` is null or absent**:
    - Generate structured grid based on `grid.nx`, `grid.ny`, `grid.nz`
-   - Create mesh from grid params for TIDE regridding
+   - Create mesh from grid params for AXIS regridding
 
 **Requirements**: 14.1, 14.3, 14.4, 15.1, 15.4
 

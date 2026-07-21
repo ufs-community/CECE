@@ -341,19 +341,15 @@ species:
 
 ## Validation and Quality Assurance
 
-### Mass Conservation Checking
-CECE automatically validates mass conservation for all vertical distribution operations:
+### Mass Conservation
 
-```cpp
-// Automatic mass conservation validation
-double total_2d = sum(emissions_2d);
-double total_3d = sum(emissions_3d);
-double conservation_error = abs(total_3d - total_2d) / total_2d;
+All vertical distribution methods ensure strict mass conservation through normalization. The total 3D emissions at each grid column always equal the original 2D input:
 
-if (conservation_error > 1.0e-12) {
-    CECE_LOG_WARNING("Mass conservation error: " + std::to_string(conservation_error));
-}
 ```
+∑(k=1 to nz) emissions_3d[i,j,k] = emissions_2d[i,j]  ∀ i,j
+```
+
+This is guaranteed by the algorithm design — each method computes fractional weights that sum to 1.0 before applying them to the input field.
 
 ### Diagnostic Output
 Enable vertical distribution diagnostics to validate results:

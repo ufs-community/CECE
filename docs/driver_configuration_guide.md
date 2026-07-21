@@ -61,7 +61,6 @@ driver:
   timestep_seconds: 1800  # 30 minutes
 ```
 
-<<<<<<< feature/advanced_clock
 ### stacking_refresh_interval_seconds
 
 **Type:** Integer
@@ -76,10 +75,7 @@ driver:
   stacking_refresh_interval_seconds: 3600  # Stack hourly instead of every 5 min
 ```
 
-### mesh_file
-=======
 ### gridspec_file
->>>>>>> main
 
 **Type:** String (file path) or null
 **Default:** `null`
@@ -210,12 +206,8 @@ The driver validates configuration parameters and exits with error if:
 2. **Start time >= end time:** Start time must be strictly before end time
 3. **Non-positive timestep:** Timestep must be > 0 seconds
 4. **Invalid grid dimensions:** nx and ny must be > 0
-<<<<<<< feature/advanced_clock
-5. **Missing mesh file:** If mesh_file is specified, the file must exist and be valid
-6. **Invalid refresh interval:** Any `refresh_interval_seconds` or `stacking_refresh_interval_seconds` must be a positive integer multiple of `timestep_seconds`. Error messages name the offending component.
-=======
 5. **Missing gridspec file:** If gridspec_file is specified, the file must exist and be a valid ESMF GRIDSPEC NetCDF file
->>>>>>> main
+6. **Invalid refresh interval:** Any `refresh_interval_seconds` or `stacking_refresh_interval_seconds` must be a positive integer multiple of `timestep_seconds`. Error messages name the offending component.
 
 ## Grid/Mesh Selection Logic
 
@@ -228,7 +220,7 @@ The driver uses the following logic to select spatial discretization:
 
 2. **If gridspec_file is null or absent:**
    - Generate structured grid based on grid.nx and grid.ny
-   - Create mesh from grid params for TIDE regridding
+   - Create mesh from grid params for AXIS regridding
    - Log grid configuration to stdout
 
 3. **In coupled mode:**

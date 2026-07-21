@@ -87,9 +87,9 @@ class ConfigValidator {
     static void ValidateVerticalDistribution(const YAML::Node& config, ValidationResult& result);
 
     /**
-     * @brief Validate TIDE/cece_data configuration
+     * @brief Validate data stream (cece_data) configuration
      */
-    static void ValidateTIDE(const YAML::Node& config, ValidationResult& result);
+    static void ValidateDataStreams(const YAML::Node& config, ValidationResult& result);
 
     /**
      * @brief Validate physics scheme configurations

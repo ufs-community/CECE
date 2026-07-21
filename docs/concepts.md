@@ -12,7 +12,7 @@ For comprehensive technical details about the Stacking Engine implementation, al
 
 - **Hierarchy-Based Processing**: Layers are organized by categories and numerical priorities
 - **Kernel Fusion Optimization**: Single optimized compute kernel per species for maximum performance
-- **Flexible Operations**: Support for add, multiply, replace, and set operations
+- **Flexible Operations**: Support for add and replace operations with dynamic field-based scaling
 - **Advanced Scaling**: Multiple simultaneous scale factors (temporal, spatial, field-based)
 - **Vertical Distribution**: Multiple algorithms for 2D→3D emission mapping
 - **Complete Provenance**: Full scientific traceability of emission calculations
@@ -36,27 +36,37 @@ species:
 
 ---
 
-## The CECE/ESMF Lifecycle
+## The CECE Lifecycle
 
-CECE is implemented as a NUOPC-compliant ESMF component. It follows a standard lifecycle:
+CECE supports two execution modes that share the same core compute engine:
+
+### Standalone Mode
+
+The standalone driver (`src/main.cpp`) manages the full simulation using the HELM library suite. It reads the YAML configuration, sets up the clock (TICK), grid (AXIS NamedGridRegistry), MPI environment (HALO), and orchestrates data I/O through a DAGR pipeline with AMIO reads and AXIS regridding.
+
+### Coupled Mode (NUOPC/ESMF)
+
+A Fortran NUOPC cap wraps CECE as an ESMF Grid Component. The host model provides the clock, grid, and meteorological import fields. CECE advertises its import/export fields following the NUOPC Initialize Phase Definitions (IPDv00).
+
+### Shared Lifecycle Phases
+
+Both modes follow the same three-phase lifecycle:
 
 ### 1. Initialize Phase
 -   **Configuration Parsing**: Reads the YAML configuration and validates the stacking plan.
 -   **Physics Instantiation**: Schemes listed in `physics_schemes` are created and their `Initialize` methods are called.
--   **Field Advertising**: CECE "advertises" the fields it expects to import (e.g., meteorology) and the fields it will export (calculated emissions) to the ESMF framework.
+-   **Clock Construction**: Per-component scheduling intervals are compiled into a CeceClock.
+-   **Stacking Engine Compilation**: Emission layers are pre-compiled and sorted by hierarchy.
 
 ### 2. Run Phase
--   **Dimension Discovery**: CECE dynamically determines the grid dimensions from the ESMF fields at runtime.
--   **Data Ingestion**:
-    -   Live meteorological data is pulled from the ESMF Import State.
-    -   Static emission inventories are read from disk using the TIDE engine.
+-   **Data Ingestion**: External emission inventories are read from NetCDF via AMIO, regridded by AXIS, and injected into the import state.
 -   **Stacking Execution**: The fused Kokkos kernels are launched to compute the base emissions.
 -   **Physics Execution**: Active physics schemes (like Sea Salt or MEGAN) are executed to modify or generate new emissions.
 -   **Diagnostics**: Intermediate variables are captured by the `CeceDiagnosticManager` and written to NetCDF files if configured.
--   **State Synchronization**: Final emissions are deep-copied back to the ESMF Export State.
+-   **State Synchronization**: Final emissions are synced to the host for output or coupled exchange.
 
 ### 3. Finalize Phase
--   Resources are released, and Kokkos/TIDE are finalized.
+-   Resources are released, and Kokkos is finalized.
 
 ---
 

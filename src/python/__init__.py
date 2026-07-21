@@ -251,9 +251,9 @@ def compute(
     hour : int, optional
         Hour of day (0--23) for temporal scaling. Default is 0.
     day_of_week : int, optional
-        Day of week (0--6, Monday=0) for temporal scaling. Default is 0.
+        Day of week (0--6, 0=Sunday) for temporal scaling. Default is 0.
     month : int, optional
-        Month (1--12) for temporal scaling. Default is 0.
+        Month (0--11, 0=January) for temporal scaling. Default is 0.
 
     Raises
     ------

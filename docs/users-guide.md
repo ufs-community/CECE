@@ -12,7 +12,7 @@ To build CECE, you need the following dependencies:
 - **ESMF** (8.0+)
 - **MPI** (OpenMPI, MPICH, etc.)
 - **yaml-cpp** (0.7+)
-- **TIDE** (Temporal Interpolation & Data Extraction)
+- **AMIO** (Asynchronous Multidimensional I/O, via HELM)
 - **NetCDF** (C and Fortran interfaces)
 - **Python 3.8+** (for scripts and testing)
 
@@ -126,7 +126,7 @@ physics_schemes:
       r_sala_min: 0.01
       r_sala_max: 0.5
 
-# TIDE data streams for external inventories
+# Data streams for external inventories
 cece_data:
   streams:
     - name: "GLOBAL_INVENTORY"
@@ -155,106 +155,47 @@ output:
 ### Key Configuration Concepts
 
 - **Hierarchical Processing**: Layers within categories are processed by hierarchy (higher numbers take precedence)
-- **Operations**: `add` (accumulate), `replace` (override), `multiply` (scale)
+- **Operations**: `add` (accumulate), `replace` (override with mask)
 - **Vertical Distribution**: Multiple algorithms for mapping 2D emissions to 3D grids
 - **Temporal Scaling**: Diurnal, weekly, and seasonal variation profiles
 - **Environmental Dependencies**: Dynamic scaling based on meteorological fields
-- **TIDE Integration**: External data ingestion with smart caching and regridding
-    operation: add
-    file: /data/emissions/CEDS_CO_2020.nc
-    variable: CO_emis
-    vertical_distribution:
-      method: SINGLE
-      layer: 0
-    scale_factors:
-      - name: temporal_scale
-        file: /data/scales/diurnal_co.nc
-        variable: DIURNAL_SCALE
-    masks:
-      - name: land_mask
-        file: /data/masks/land_mask.nc
-        variable: LAND_MASK
+- **Data Stream Integration**: External data ingestion with AMIO and AXIS regridding
 
-  - name: biogenic_isop
-    species: ISOP
-    hierarchy: 1
-    operation: add
-    file: /data/emissions/MEGAN_ISOP_2020.nc
-    variable: ISOP_emis
-    vertical_distribution:
-      method: PBL
-    scale_factors:
-      - name: temperature_scale
-        type: computed
-        formula: "exp(0.1 * (T - 298.15))"
+For complete configuration reference with all available options, see the [Configuration Documentation](configuration.md).
 
-# Physics schemes
-physics_schemes:
-  - name: DMS
-    enabled: true
-    options:
-      emission_factor: 1.0e-6
-      temperature_threshold: 273.15
+## Data Streams Configuration
 
-  - name: Dust
-    enabled: true
-    options:
-      dust_source_strength: 1.0
+Data streams are configured inline in the `cece_data` section of the main YAML config file:
 
-# TIDE configuration (optional)
+```yaml
 cece_data:
-  streams_yaml: /path/to/streams.yaml
-  data_root: /data/emissions
+  streams:
+    - name: "anthro_emissions"
+      file: "/data/emissions/CEDS_CO_anthro_2020.nc"
+      yearFirst: 2020
+      yearLast: 2020
+      yearAlign: 2020
+      taxmode: "cycle"
+      tintalgo: "linear"
+      mapalgo: "consd"
+      variables:
+        - file: "CO_emis"
+          model: "CEDS_CO"
 
-# Output configuration (for standalone mode)
-output:
-  directory: ./cece_output
-  filename_pattern: "cece_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
-  frequency_steps: 1
-  fields:
-    - CO
-    - NOx
-    - ISOP
-  diagnostics: false
-
-# Diagnostics configuration
-diagnostics:
-  enabled: true
-  output_interval: 3600  # seconds
-  fields:
-    - intermediate_emissions
-    - scale_factors_applied
+    - name: "biogenic_emissions"
+      file: "/data/emissions/MEGAN_ISOP_2020.nc"
+      yearFirst: 2020
+      yearLast: 2020
+      yearAlign: 2020
+      taxmode: "cycle"
+      tintalgo: "linear"
+      mapalgo: "consd"
+      variables:
+        - file: "ISOP_emis"
+          model: "MEGAN_ISOP"
 ```
 
-## TIDE Streams Configuration
-
-TIDE streams are configured in YAML format. Example `streams.yaml`:
-
-streams:
-  - name: anthro_emissions
-    file_paths:
-      - /data/emissions/CEDS_CO_anthro_2020.nc
-    variables:
-      - name_in_file: CO_emis
-        name_in_model: CEDS_CO
-    taxmode: cycle
-    tintalgo: linear
-    yearFirst: 2020
-    yearLast: 2020
-    yearAlign: 2020
-
-  - name: biogenic_emissions
-    file_paths:
-      - /data/emissions/MEGAN_ISOP_2020.nc
-    variables:
-      - name_in_file: ISOP_emis
-        name_in_model: MEGAN_ISOP
-    taxmode: cycle
-    tintalgo: linear
-    yearFirst: 2020
-    yearLast: 2020
-    yearAlign: 2020
-```
+For the full set of stream options (cadence, data_model, refresh_interval_seconds, etc.), see the [Configuration Documentation](configuration.md#cece_data).
 
 ## Running CECE
 
@@ -266,18 +207,13 @@ The standalone NUOPC driver (`cece_nuopc_driver`) demonstrates the standard NUOP
     The driver can be controlled via a `driver` block in `cece_config.yaml`:
     ```yaml
     driver:
-      nx: 72
-      ny: 46
-      nz: 1
-      start_year: 2024
-      start_month: 1
-      start_day: 1
-      start_hour: 0
-      stop_year: 2024
-      stop_month: 1
-      stop_day: 2
-      stop_hour: 0
+      start_time: "2024-01-01T00:00:00"
+      end_time: "2024-01-02T00:00:00"
       timestep_seconds: 3600
+      grid:
+        nx: 72
+        ny: 46
+        nz: 1
     ```
 
 2.  **Build**: The driver is built as part of the main project.
@@ -358,14 +294,14 @@ cmake .. -DCMAKE_CXX_COMPILER=g++-10
 
 ### Runtime Issues
 
-**Problem**: TIDE fails to read streams file
+**Problem**: Data stream fails to read file
 ```
-Error: Cannot open streams file /path/to/streams.yaml
+Error: Cannot open streams file /path/to/data.nc
 ```
 
-**Solution**: Verify the streams file path is correct and the file exists:
+**Solution**: Verify the file path in your `cece_data.streams` configuration exists and is readable:
 ```bash
-ls -la /path/to/streams.txt
+ls -la /path/to/data.nc
 ```
 
 **Problem**: ESMF field not found

@@ -2,10 +2,10 @@
  * @file cece_core_initialize_p2.cpp
  * @brief Implementation of NUOPC Initialize Phase 2 (IPDv00p2) for CECE.
  *
- * Phase 2 of initialization handles field binding and TIDE setup:
+ * Phase 2 of initialization handles field binding and data stream setup:
  * - Receive field data pointers from Fortran cap
  * - Extract grid dimensions from field metadata
- * - Initialize TIDE if configured
+ * - Initialize data streams if configured
  * - Allocate default mask (all 1.0)
  * - Cache field metadata for efficient runtime access
  *
@@ -35,13 +35,13 @@ extern "C" {
 /**
  * @brief Initialize Phase 2 (IPDv00p2) implementation for CECE.
  *
- * This function performs field binding and TIDE initialization.
+ * This function performs field binding and data stream initialization.
  * All field creation and ESMF state management is handled by the Fortran cap.
  *
  * Operations Performed:
  * 1. Validate that Phase 1 completed (internal_data exists)
  * 2. Store grid dimensions passed from Fortran
- * 3. Initialize TIDE if streams are configured
+ * 3. Initialize data streams if configured
  * 4. Allocate default mask (all 1.0) for use in StackingEngine
  * 5. Cache field metadata for efficient runtime queries
  *
@@ -63,7 +63,7 @@ void cece_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc)
         *rc = 0;  // 0 = success in C
     }
 
-    std::cout << "INFO: CECE Initialize Phase 2 (IPDv00p2) - Field binding and TIDE setup" << std::endl;
+    std::cout << "INFO: CECE Initialize Phase 2 (IPDv00p2) - Field binding and data stream setup" << std::endl;
 
     // 1. Validate that Phase 1 completed successfully
     if (data_ptr == nullptr) {
@@ -111,14 +111,14 @@ void cece_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc)
         std::cout << "INFO: Number of streams: " << internal_data->config.cece_data.streams.size() << std::endl;
 
         try {
-            // Initialize TIDE through the data ingestor
-            // Note: The actual TIDE initialization happens in the Fortran bridge
+            // Initialize data streams through the data ingestor
+            // Note: The actual stream initialization happens in the Fortran bridge
             // This C++ code prepares the configuration and validates it
-            std::cout << "INFO: TIDE configuration validated" << std::endl;
+            std::cout << "INFO: Data stream configuration validated" << std::endl;
 
-            // Mark TIDE as initialized (actual initialization happens in Fortran cap)
-            // The Fortran cap will call cece_tide_init with the streams configuration
-            std::cout << "INFO: TIDE initialization will be completed by Fortran cap" << std::endl;
+            // Mark streams as initialized (actual initialization happens in Fortran cap)
+            // The Fortran cap will call the stream init with the streams configuration
+            std::cout << "INFO: Data stream initialization will be completed by Fortran cap" << std::endl;
         } catch (const std::exception& e) {
             std::cerr << "ERROR: Failed to initialize TIDE: " << e.what() << std::endl;
             if (rc != nullptr) {

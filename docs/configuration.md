@@ -32,7 +32,7 @@ diagnostics:
   # ... diagnostic settings and output configuration ...
 
 cece_data:
-  # ... TIDE data stream settings ...
+  # ... data stream settings ...
 
 output:
   # ... NetCDF output configuration ...
@@ -50,6 +50,7 @@ The `driver` section configures the execution timing and control parameters for 
 | `end_time` | String | Simulation end time in ISO 8601 format |
 | `timestep_seconds` | Integer | Base time step duration in seconds. All component refresh intervals must be integer multiples of this value. |
 | `stacking_refresh_interval_seconds` | Integer | (Optional) Stacking engine execution interval in seconds. Must be a positive multiple of `timestep_seconds`. Default: `0` (use `timestep_seconds`). |
+| `amio_worker_threads` | Integer | (Optional) Number of AMIO worker threads for data stream reads. Must be >= 1. Default: `1`. |
 
 **Example:**
 ```yaml
@@ -122,23 +123,34 @@ The `grid` section defines the computational domain and resolution. It must be n
 
 | Key | Type | Description |
 | --- | --- | --- |
-| `nx` | Integer | Number of grid points in longitude (x-direction) |
-| `ny` | Integer | Number of grid points in latitude (y-direction) |
-| `lon_min` | Float | Western boundary longitude [degrees] |
-| `lon_max` | Float | Eastern boundary longitude [degrees] |
-| `lat_min` | Float | Southern boundary latitude [degrees] |
-| `lat_max` | Float | Northern boundary latitude [degrees] |
+| `grid_name` | String | (Optional) Named grid identifier (e.g., `"F360"`, `"R180"`). When set, `nx` and `ny` are auto-computed from the AXIS NamedGridRegistry. Supported families: `F` (regular Gaussian) and `R` (regular lat-lon). The number indicates resolution (e.g., `F360` → 1440×720). |
+| `nx` | Integer | Number of grid points in longitude (x-direction). Auto-computed if `grid_name` is set. |
+| `ny` | Integer | Number of grid points in latitude (y-direction). Auto-computed if `grid_name` is set. |
+| `nz` | Integer | (Optional) Number of vertical levels. Default: `1`. |
+| `lon_min` | Float | (Optional) Western boundary longitude [degrees]. Default: `-180.0`. |
+| `lon_max` | Float | (Optional) Eastern boundary longitude [degrees]. Default: `180.0`. |
+| `lat_min` | Float | (Optional) Southern boundary latitude [degrees]. Default: `-90.0`. |
+| `lat_max` | Float | (Optional) Northern boundary latitude [degrees]. Default: `90.0`. |
 
-**Example:**
+**Example (explicit dimensions):**
 ```yaml
 driver:
   grid:
     nx: 144           # 2.5° longitude resolution
     ny: 91            # 2° latitude resolution
+    nz: 72            # 72 vertical levels
     lon_min: -180.0
     lon_max: 177.5
     lat_min: -90.0
     lat_max: 90.0
+```
+
+**Example (named grid):**
+```yaml
+driver:
+  grid:
+    grid_name: "F360"   # Regular Gaussian 1440×720
+    nz: 72
 ```
 
 ---
@@ -194,7 +206,7 @@ Defines time-varying scale factors for diurnal, weekly, and seasonal cycles.
 ### Profile Types
 
 - **Diurnal**: 24 values (hourly scale factors for 0-23 hours)
-- **Weekly**: 7 values (daily scale factors for Sunday-Saturday)
+- **Weekly**: 7 values (daily scale factors for Sunday-Saturday, index 0=Sunday)
 - **Seasonal**: 12 values (monthly scale factors for January-December)
 
 **Example:**
@@ -216,8 +228,8 @@ The `species` block defines the emission targets and the layers that contribute 
 
 | Key | Type | Description |
 | --- | --- | --- |
-| `field` | String | Name of the input field. CECE looks in TIDE first, then ESMF ImportState. |
-| `operation` | String | How to combine with existing data: `add`, `multiply`, `replace`, or `set` |
+| `field` | String | Name of the input field from a configured data stream or the Import State. |
+| `operation` | String | How to combine with existing data: `add` or `replace` |
 | `scale` | Float | Base scaling factor (Default: `1.0`) |
 | `category` | String | Logical grouping for layers (e.g., "anthropogenic", "biogenic") |
 | `hierarchy` | Integer | Priority within category. Higher values take precedence |
@@ -522,7 +534,7 @@ diagnostics:
 
 ## `cece_data`
 
-Configuration for TIDE (Temporal Interpolation & Data Extraction) data streams for reading external emission inventories and auxiliary fields.
+Configuration for data streams that read external emission inventories and auxiliary fields via AMIO (Asynchronous Multidimensional I/O) with AXIS regridding.
 
 ### Stream Properties
 
@@ -531,11 +543,12 @@ Configuration for TIDE (Temporal Interpolation & Data Extraction) data streams f
 | `name` | String | Unique identifier for the data stream |
 | `file` | String | Path to NetCDF data file(s) |
 | `refresh_interval_seconds` | Integer | (Optional) Data ingestion interval in seconds. Must be a positive multiple of `timestep_seconds`. Default: `0` (use `timestep_seconds`, i.e., ingest every step). |
+| `cadence` | String | (Optional) Temporal cadence for record selection: `hourly`, `weekly`, or `monthly`. When set, the driver maps the simulation datetime onto the appropriate file record (hour-of-day, day-of-week, or month). If omitted, legacy step-index cycling is used. |
 | `yearFirst` | Integer | First year of data coverage |
 | `yearLast` | Integer | Last year of data coverage |
 | `yearAlign` | Integer | Simulation year to align with data |
 | `taxmode` | String | Time axis mode: `cycle`, `extend`, or `limit` |
-| `tintalgo` | String | Temporal interpolation: `linear`, `nearest`, or `bpch` |
+| `tintalgo` | String | Temporal interpolation: `linear` or `nearest`. For `monthly` cadence with `linear`, mid-month interpolation is applied between bracketing records. Default: `nearest`. |
 | `mapalgo` | String | Spatial regridding: `consd`, `bilinear`, `consf`, `nn`, `redist`, or `passthrough` (skip regridding — data must be on the model grid already, sizes are validated) |
 | `data_model` | String | (Optional) AMIO NetCDF data model for reads: `enhanced`, `classic`, or `auto`. Default behavior is auto (`enhanced` first, then `classic` fallback on backend open failure). |
 | `variables` | List | Variable mappings between file and model |
@@ -575,6 +588,23 @@ cece_data:
       variables:
         - file: "NOx_TOTAL"
           model: "regional_nox_override"
+
+    - name: "DIURNAL_PROFILE"
+      file: "/data/profiles/diurnal_nox.nc"
+      cadence: "hourly"         # Select record by hour-of-day (0-23)
+      mapalgo: "consd"
+      variables:
+        - file: "NOx_HOURLY"
+          model: "nox_diurnal_scale"
+
+    - name: "MONTHLY_CLIM"
+      file: "/data/climatology/monthly_co.nc"
+      cadence: "monthly"        # Select record by month (0-11)
+      tintalgo: "linear"        # Mid-month linear interpolation
+      mapalgo: "consd"
+      variables:
+        - file: "CO_MONTHLY"
+          model: "co_monthly_clim"
 ```
 
 ---
@@ -590,6 +620,7 @@ Configuration for NetCDF output file generation with emission fields and diagnos
 | `filename_pattern` | String | Filename template with time substitution |
 | `frequency_steps` | Integer | Output frequency in timesteps |
 | `fields` | List | List of field names to write to output |
+| `amio_worker_threads` | Integer | (Optional) Number of AMIO worker threads for output writes. Must be >= 1. Default: `1`. |
 
 ### Filename Pattern Substitutions
 

@@ -109,8 +109,8 @@ Execute the CECE emission computation. The GIL is released during the C++ comput
 - `state` — `CeceState` object with import fields populated.
 - `config` — Optional configuration override. Uses initialized config if `None`.
 - `hour` — Hour of day (0-23) for temporal scaling.
-- `day_of_week` — Day of week (0-6) for temporal scaling.
-- `month` — Month (1-12) for temporal scaling.
+- `day_of_week` — Day of week (0-6, 0=Sunday) for temporal scaling.
+- `month` — Month (0-11, 0=January) for temporal scaling.
 - Raises `RuntimeError` if not initialized or computation fails.
 - Raises `CeceStateError` if state is invalid.
 
@@ -426,8 +426,8 @@ logger.info("Starting CECE computation")
 
 ### Prerequisites
 
-- CMake 3.16+
-- C++17 compiler
+- CMake 3.20+
+- C++20 compiler
 - Python 3.8+ with development headers
 - Kokkos (fetched automatically via CMake FetchContent)
 - pybind11 v2.12.0 (fetched automatically via CMake FetchContent)

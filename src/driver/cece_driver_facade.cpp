@@ -223,7 +223,7 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
 
     // B. Push CeceIO's newly computed emission views into CECE's data ingestor
     for (const auto& var_name : cece_io_->GetOutputVarNames()) {
-        auto tide_view = cece_io_->GetFieldView(var_name);
+        auto stream_view = cece_io_->GetFieldView(var_name);
 
         // Parse input file path and variable name dynamically from YAML config cece_data block
         std::string input_file_path = "../scripts/data/MACCity_4x5.nc";  // default fallback
@@ -561,13 +561,13 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                         }
 
                         // Populate the CECE field view (i, j, 0) from the full field.
-                        auto h_view = Kokkos::create_mirror_view(tide_view);
+                        auto h_view = Kokkos::create_mirror_view(stream_view);
                         for (int j = 0; j < ny_; ++j) {
                             for (int i = 0; i < nx_; ++i) {
                                 h_view(i, j, 0) = full_dst[static_cast<size_t>(j) * nx_ + i];
                             }
                         }
-                        Kokkos::deep_copy(tide_view, h_view);
+                        Kokkos::deep_copy(stream_view, h_view);
                         read_success = true;
                     } else {
                         std::cout << "[DRIVER DEBUG] apply_regrid_plan returned false!" << std::endl;
@@ -599,9 +599,9 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                       << std::endl;
         }
 
-        // Ingest raw data pointer of Tide view into CECE's ingestor cache
+        // Ingest raw data pointer of stream view into CECE's ingestor cache
         int bridge_rc = 0;
-        cece_ingestor_set_field(cece_core_data_ptr, var_name.c_str(), static_cast<int>(var_name.length()), tide_view.data(),
+        cece_ingestor_set_field(cece_core_data_ptr, var_name.c_str(), static_cast<int>(var_name.length()), stream_view.data(),
                                 nz_,        // n_lev
                                 nx_ * ny_,  // n_elem
                                 &bridge_rc);

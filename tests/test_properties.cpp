@@ -186,8 +186,8 @@ class PropertiesTest : public ::testing::Test {
  */
 TEST_F(PropertiesTest, Property1_CDEPSStreamFileValidation) {
     // Property 1: CDEPS Stream File Validation
-    // Superseded by SerializeTideYaml — CdepsStreamsParser removed in cf-ingestor-tide-refactor.
-    // Validation logic will be re-implemented against the new TIDE YAML serializer.
+    // Superseded by SerializeStreamYaml — CdepsStreamsParser removed in cf-ingestor-tide-refactor.
+    // Validation logic will be re-implemented against the new data stream YAML serializer.
     EXPECT_TRUE(true);  // Placeholder - actual validation in test_tide_yaml_serializer.cpp
 }
 
@@ -271,7 +271,7 @@ TEST_F(PropertiesTest, Property6_PhaseDependencyConfluence) {
  * SHALL produce equivalent configuration.
  */
 TEST_F(PropertiesTest, Property16_StreamsConfigurationRoundTrip) {
-    // This property is validated by test_cdeps_parser.cpp
+    // This property is validated by test_cece_ingestor.cpp
     EXPECT_TRUE(true);  // Placeholder - actual validation in dedicated test
 }
 
@@ -413,7 +413,7 @@ TEST_F(PropertiesTest, Property17_TestIdempotence) {
     // FOR ALL test configurations, running tests twice SHALL produce identical results
 
     // Test 1: Deterministic CDEPS stream parsing (CdepsStreamsParser removed;
-    // validated against SerializeTideYaml in test_tide_yaml_serializer.cpp)
+    // validated against SerializeStreamYaml in test_tide_yaml_serializer.cpp)
 
     // Test 2: Deterministic grid dimension generation
     // Generate grid dimensions with fixed seed twice and verify identical results

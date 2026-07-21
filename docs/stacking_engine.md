@@ -7,7 +7,7 @@ The **Stacking Engine** is the computational core of CECE, responsible for combi
 The Stacking Engine processes emission data through several key phases:
 
 1. **Configuration Analysis** - Parse and validate the emission layer configuration
-2. **Field Binding** - Connect to data sources (TIDE streams, ESMF fields)
+2. **Field Binding** - Connect to data sources (AMIO streams, import fields)
 3. **Hierarchy Processing** - Apply priority-based layer combination rules
 4. **Kernel Fusion** - Generate optimized compute kernels for performance
 5. **Temporal Scaling** - Apply time-dependent scaling factors
@@ -54,9 +54,9 @@ The Stacking Engine supports four fundamental operations for combining emission 
 | Operation | Description | Behavior |
 |-----------|-------------|----------|
 | `add` | Accumulative | Adds layer emissions to current accumulated value |
-| `multiply` | Multiplicative | Multiplies current accumulated value by layer |
-| `replace` | Override | Replaces accumulated value with layer emissions |
-| `set` | Initialization | Sets initial value (typically used for first layer) |
+| `replace` | Override | Replaces accumulated value with layer emissions (only where mask > 0) |
+
+Multiplicative scaling is achieved via `scale_fields` rather than a standalone operation. Each layer can reference one or more dynamic scaling fields that are multiplied into the contribution.
 
 ### Masking and Scaling
 
@@ -134,7 +134,7 @@ temporal_profiles:
   traffic_diurnal: [0.5, 0.3, 0.2, 0.3, 0.6, 1.2, 1.8, 1.5, 1.2, 1.0, 1.1, 1.2,
                     1.3, 1.2, 1.3, 1.5, 1.8, 2.0, 1.8, 1.5, 1.2, 1.0, 0.8, 0.6]
 
-  weekday_pattern: [1.2, 1.3, 1.3, 1.3, 1.3, 0.8, 0.7]  # Mon-Sun
+  weekday_pattern: [1.2, 1.3, 1.3, 1.3, 1.3, 0.8, 0.7]  # Sun-Sat
 
 species:
   co:
@@ -165,16 +165,6 @@ using HostMirror3D = Kokkos::View<double***, Kokkos::LayoutLeft>::HostMirror;
 - **Fused Kernel Execution**: Single kernel per species combines all operations
 - **Asynchronous Data Transfer**: Overlapped CPU-GPU memory transfers
 
-### Scaling Performance
-
-Typical performance characteristics on modern HPC systems:
-
-| Grid Size | CPU Cores | GPU | Throughput |
-|-----------|-----------|-----|------------|
-| 1440×721×72 | 40 (Intel Xeon) | - | ~50 species/sec |
-| 1440×721×72 | - | V100 | ~200 species/sec |
-| 3600×1801×72 | - | A100 | ~150 species/sec |
-
 ## Provenance Tracking
 
 The Stacking Engine provides complete scientific traceability through its provenance system:
@@ -185,7 +175,7 @@ The Stacking Engine provides complete scientific traceability through its proven
 - **Hierarchy Application**: Order and priority of layer processing
 - **Scaling Factors**: All applied temporal and spatial scale factors
 - **Operation History**: Complete record of mathematical operations
-- **Field Sources**: Data source identification (TIDE/ESMF/computed)
+- **Field Sources**: Data source identification (AMIO stream/import state/computed)
 
 ### Provenance Output
 
@@ -262,7 +252,7 @@ The Stacking Engine coordinates with CECE physics schemes:
 
 ```
 1. Parse Configuration → Validate layers and hierarchy
-2. Bind Data Fields → Connect to TIDE and ESMF data sources
+2. Bind Data Fields → Connect to AMIO and import state data sources
 3. Stack Base Emissions → Apply hierarchy and scaling rules
 4. Execute Physics Schemes → Run active emission parameterizations
 5. Apply Diagnostics → Capture intermediate and final results

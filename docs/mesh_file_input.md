@@ -18,7 +18,7 @@ driver:
   # Load pre-generated ESMF GRIDSPEC file (optional)
   gridspec_file: "/path/to/grid.nc"
 
-  # Grid dimensions — still used for the TIDE regridding mesh
+  # Grid dimensions — still used for the AXIS regridding mesh
   grid:
     nx: 3600
     ny: 1800
@@ -46,7 +46,7 @@ Requirements: `pyyaml`, `netCDF4`, `numpy`.
 ## Grid/Mesh Selection Logic
 
 1. **If `gridspec_file` is set**: Load grid via `ESMF_GridCreate(filename=..., fileformat=ESMF_FILEFORMAT_GRIDSPEC)`; skip runtime grid generation.
-   A TIDE regridding mesh is still built from `driver.grid` parameters.
+   An AXIS regridding mesh is still built from `driver.grid` parameters.
 2. **If `gridspec_file` is absent/empty**: Generate structured grid from `driver.grid.nx`/`ny`/bounds as usual.
 
 ## GRIDSPEC File Requirements
@@ -106,16 +106,9 @@ struct DriverConfig {
 void cece_core_get_gridspec_file_path(void* data_ptr, char* path, int* path_len, int* rc);
 ```
 
-### Fortran cap (`src/cece_cap.F90`)
+### Fortran cap (`src/driver/nuopc/cece_cap.F90`)
 
 In `CECE_InitializeRealize` standalone branch:
 1. Call `cece_core_get_gridspec_file_path` to retrieve the path.
 2. If non-empty, call `ESMF_GridCreate(filename=..., fileformat=ESMF_FILEFORMAT_GRIDSPEC)`.
-3. Regardless, call `CreateMeshFromConfig` to build the TIDE regridding mesh.
-
-
-1. Support for multiple mesh file formats (SCRIP, UGRID, etc.)
-2. Automatic mesh generation from grid specifications
-3. Mesh refinement and coarsening
-4. Mesh partitioning for MPI decomposition
-5. Mesh quality metrics and diagnostics
+3. Regardless, call `CreateMeshFromConfig` to build the AXIS regridding mesh.

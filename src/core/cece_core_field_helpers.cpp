@@ -177,12 +177,12 @@ void cece_core_get_grid_config(void* data_ptr, int* nx, int* ny, int* nz, double
 }
 
 /**
- * @brief Get the TIDE debug level from the cece_data section of the config.
+ * @brief Get the data stream debug level from the cece_data section of the config.
  * @param data_ptr Pointer to CeceInternalData
  * @param level Output: debug level (0=off, 1=time-matching info, ...)
  * @param rc Return code (0 = success, non-zero = error)
  */
-void cece_core_get_tide_debug_level(void* data_ptr, int* level, int* rc) {
+void cece_core_get_stream_debug_level(void* data_ptr, int* level, int* rc) {
     if (rc != nullptr) *rc = 0;
     if (data_ptr == nullptr || level == nullptr) {
         if (rc != nullptr) *rc = -1;
@@ -446,9 +446,9 @@ void cece_core_bind_fields(void* data_ptr, void** field_ptrs, int* num_fields, i
 }
 
 /**
- * @brief Get the TIDE streams file path from configuration.
+ * @brief Get the data streams file path from configuration.
  *
- * Returns the path to the TIDE streams configuration file.
+ * Returns the path to the data streams configuration file.
  * If no streams are configured, returns an empty string.
  *
  * @param data_ptr Pointer to CeceInternalData
@@ -491,14 +491,14 @@ void cece_core_get_ingestor_streams_path(void* data_ptr, char* streams_path, int
         return;
     }
 
-    // Generate TIDE YAML configuration
-    std::string config_content = internal_data->ingestor.SerializeTideYaml(internal_data->config.cece_data);
+    // Generate data stream YAML configuration
+    std::string config_content = internal_data->ingestor.SerializeStreamYaml(internal_data->config.cece_data);
 
-    // Write to file (using .yaml extension for modern TIDE interface)
+    // Write to file (using .yaml extension for data stream configuration)
     std::string filename = "cece_data_streams.yaml";
     std::ofstream outfile(filename);
     if (!outfile.is_open()) {
-        std::cerr << "ERROR: Failed to open output file for TIDE streams: " << filename << std::endl;
+        std::cerr << "ERROR: Failed to open output file for data streams: " << filename << std::endl;
         if (rc != nullptr) *rc = -1;
         return;
     }
@@ -541,7 +541,7 @@ void cece_ingestor_init(void* data_ptr, void* c_clock, void* c_mesh, int* rc) {
     }
 
     // In the new architecture, we do not initialize a C++ ingestor.
-    // TIDE operates in Fortran.
+    // Data stream ingestion operates in the driver facade.
     if (rc != nullptr) *rc = 0;
 }
 

@@ -24,8 +24,8 @@ ValidationResult ConfigValidator::ValidateConfig(const YAML::Node& config) {
     // Validate vertical distribution settings
     ValidateVerticalDistribution(config, result);
 
-    // Validate TIDE configuration
-    ValidateTIDE(config, result);
+    // Validate data stream configuration
+    ValidateDataStreams(config, result);
 
     // Validate physics scheme configurations
     ValidatePhysicsSchemes(config, result);
@@ -149,7 +149,7 @@ void ConfigValidator::ValidateVerticalDistribution(const YAML::Node& config, Val
     }
 }
 
-void ConfigValidator::ValidateTIDE(const YAML::Node& config, ValidationResult& result) {
+void ConfigValidator::ValidateDataStreams(const YAML::Node& config, ValidationResult& result) {
     if (!config["cece_data"]) {
         return;
     }

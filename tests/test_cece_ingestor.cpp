@@ -42,7 +42,7 @@ TEST_F(IngestorTest, ConfigFileGeneration) {
     s1.variables.push_back(v1);
     config.streams.push_back(s1);
 
-    std::string config_out = ingestor.SerializeTideESMFConfig(config);
+    std::string config_out = ingestor.SerializeStreamESMFConfig(config);
 
     // Verify content (ESMF Config format)
     // The stream name "stream1" is not used in ESMF Config format (it uses indices)
@@ -63,10 +63,10 @@ TEST_F(IngestorTest, PassthroughMapalgoSerializedCorrectly) {
     s1.variables.push_back(v1);
     config.streams.push_back(s1);
 
-    std::string esmf_out = ingestor.SerializeTideESMFConfig(config);
+    std::string esmf_out = ingestor.SerializeStreamESMFConfig(config);
     EXPECT_NE(esmf_out.find("mapalgo01: passthrough"), std::string::npos);
 
-    std::string yaml_out = ingestor.SerializeTideYaml(config);
+    std::string yaml_out = ingestor.SerializeStreamYaml(config);
     EXPECT_NE(yaml_out.find("map_algo: \"passthrough\""), std::string::npos);
 }
 

@@ -10,7 +10,7 @@ CECE is designed as a modular, performance-portable emissions framework. Key com
 *   **Vertical Distribution:** Multiple algorithms for mapping 2D emissions to 3D atmospheric grids with strict mass conservation. See the [Vertical Distribution Documentation](vertical_distribution.md) for complete algorithm descriptions and usage examples.
 *   **PhysicsFactory:** A self-registration registry for physics schemes. New schemes should inherit from `BasePhysicsScheme` and use the `PhysicsRegistration<T>` pattern.
 *   **Internal State:** Persisted via `CeceInternalData` to maintain field handles and metadata across ESMF phases, avoiding redundant lookups.
-*   **TIDE Integration:** High-performance data ingestion for external emission inventories via the TIDE (Temporal Interpolation & Data Extraction) library with smart caching and regridding capabilities.
+*   **Data Ingestion:** High-performance data ingestion for external emission inventories via AMIO (Asynchronous Multidimensional I/O) with AXIS regridding and DAGR pipeline orchestration.
 
 ## Global Coding Standards
 *   **Language:** C++20 and Fortran 2008+.
@@ -52,7 +52,7 @@ CECE uses a comprehensive YAML configuration system that supports:
 - Temporal scaling profiles (diurnal, weekly, seasonal)
 - Environmental dependencies and dynamic scaling factors
 - Multiple vertical distribution algorithms
-- TIDE data stream integration with smart caching
+- AMIO/AXIS data stream integration with regridding and temporal interpolation
 - Physics scheme configuration and parameter tuning
 
 For complete configuration reference with all available options and examples, see the [Configuration Documentation](configuration.md).
@@ -103,5 +103,6 @@ python3 -m pip install jinja2 pyyaml pytest
 *   **ESMF User Guide:** [https://earthsystemmodeling.org/docs/release/latest/ESMF_usrdoc](https://earthsystemmodeling.org/docs/release/latest/ESMF_usrdoc)
 *   **ESMF Reference Manual:** [https://earthsystemmodeling.org/docs/release/latest/ESMF_refdoc/](https://earthsystemmodeling.org/docs/release/latest/ESMF_refdoc/)
 *   **NUOPC Reference Manual:** [https://earthsystemmodeling.org/docs/release/latest/NUOPC_refdoc](https://earthsystemmodeling.org/docs/release/latest/NUOPC_refdoc)
-*   **TIDE Documentation:** Located at `src/io/tide` in the CECE repository
+*   **AMIO Documentation:** Located in `extern/helm/libs/amio` in the CECE repository
+*   **Data Stream Parser:** [datastream_parser.md](datastream_parser.md) — C++ API for stream config serialization and validation
 *   **Fortran Standards:** [Fortran 2008 Standard (ISO/IEC 1539-1:2010)](https://www.iso.org/standard/44473.html)

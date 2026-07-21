@@ -160,7 +160,7 @@ species:
       diurnal_cycle: hourly_scalfact
 ```
 
-### Weekly Profile (7 values, Mon-Sun)
+### Weekly Profile (7 values, Sun-Sat)
 
 ```yaml
 temporal_profiles:

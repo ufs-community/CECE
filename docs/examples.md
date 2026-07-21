@@ -6,7 +6,7 @@ CECE includes several example configurations that demonstrate common emission st
 
 The `examples/` directory contains several YAML configuration files:
 
--   `cece_config_ex1.yaml`: Basic single CO species with TIDE data ingestion
+-   `cece_config_ex1.yaml`: Basic single CO species with data stream ingestion
 -   `cece_config_ex2.yaml`: Overlaying a regional European CO inventory on a global background
 -   `cece_config_ex3.yaml`: Simple testing configuration with minimal grid
 -   `cece_config_ex4.yaml`: Using the GFED4 extension for biomass burning
@@ -24,7 +24,7 @@ The `cece_config_advanced.yaml` example showcases sophisticated emission process
 - **Environmental Dependencies**: Temperature, PAR, and LAI-dependent scaling
 - **Geographical Masking**: Land/ocean/vegetation/regional masks
 - **Physics Scheme Integration**: Active MEGAN, sea salt, and dust schemes
-- **Multi-Source Integration**: TIDE streams from multiple emission inventories
+- **Multi-Source Integration**: Data streams from multiple emission inventories
 
 For complete technical details about how these features work, see the [Stacking Engine Documentation](stacking_engine.md).
 
@@ -34,7 +34,7 @@ For complete technical details about how these features work, see the [Stacking 
 
 | Example | Grid Size | Species | Key Features |
 |---------|-----------|---------|---------------|
-| ex1 | 4×4 | CO | Basic TIDE integration, simple stacking |
+| ex1 | 4×4 | CO | Basic data stream integration, simple stacking |
 | ex2 | (varies) | CO | Regional override with hierarchy |
 | ex3 | 2×2 | CO | Minimal test configuration |
 | ex4 | (varies) | Multiple | Biomass burning with GFED4 |
