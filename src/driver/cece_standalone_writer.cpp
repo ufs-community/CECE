@@ -211,12 +211,6 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
                 return -1;
             }
 
-            std::string time_units = "seconds since " + start_time_iso8601_;
-            size_t t_pos = time_units.find('T');
-            if (t_pos != std::string::npos) {
-                time_units[t_pos] = ' ';
-            }
-
             int write_threads = config_.amio_worker_threads;
             if (write_threads < 1) {
                 write_threads = 1;
@@ -236,42 +230,11 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
                    << "staging_timeout_ms: 10000\n"
                    << "global_attributes:\n"
                    << "  title: \"CECE-HELM Standalone Simulation Output\"\n"
-                   << "  Conventions: \"CF-1.8\"\n"
-                   << "variable_names: [\"lon\", \"lat\", \"lev\", \"time\"";
-            for (const auto& name : config_.fields) {
-                if (name == "lon" || name == "lat" || name == "lev" || name == "time") {
-                    continue;
-                }
-                m_file << ", \"" << name << "\"";
-            }
-            m_file << "]\n"
-                   << "variables:\n"
-                   << "  lon:\n"
-                   << "    attributes:\n"
-                   << "      units: \"degrees_east\"\n"
-                   << "      long_name: \"longitude\"\n"
-                   << "  lat:\n"
-                   << "    attributes:\n"
-                   << "      units: \"degrees_north\"\n"
-                   << "      long_name: \"latitude\"\n"
-                   << "  lev:\n"
-                   << "    attributes:\n"
-                   << "      units: \"level\"\n"
-                   << "      long_name: \"vertical level\"\n"
-                   << "  time:\n"
-                   << "    attributes:\n"
-                   << "      units: \"" << time_units << "\"\n"
-                   << "      long_name: \"time\"\n";
-            for (const auto& name : config_.fields) {
-                if (name == "lon" || name == "lat" || name == "lev" || name == "time") {
-                    continue;
-                }
-                m_file << "  " << name << ":\n"
-                       << "    attributes:\n"
-                       << "      units: \"mol mol-1\"\n"
-                       << "      long_name: \"mole_fraction_of_" << name << "_in_air\"\n"
-                       << "      coordinates: \"lon lat\"\n";
-            }
+                   << "  Conventions: \"CF-1.8\"\n";
+            // The collection is seeded with the coordinate variables and
+            // carries time's units from config initialization (SetTimeUnits),
+            // so it renders the whole variable side of the manifest.
+            m_file << config_.fields.CreateIOManifest();
             m_file.close();
         }
 
@@ -339,24 +302,16 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
         amio_io_handle time_io = nullptr;
         check_amio_rc(amio_write(dataset, "time", &time_val, AMIO_DTYPE_F64, &time_shape, &time_io), "amio_write(time)");
 
-        // Step 8: Write fields
+        // Step 8: Write fields. No configured data fields means write all
+        // export fields (the collection itself is never empty — it always
+        // holds the coordinate variables).
+        const bool write_all = config_.fields.GetDataFields().empty();
         for (const auto& [name, view] : fields) {
-            if (name == "lon" || name == "lat" || name == "lev" || name == "time") {
+            if (IsCoordinateName(name)) {
                 continue;
             }
 
-            bool should_write = false;
-            if (config_.fields.empty()) {
-                should_write = true;
-            } else {
-                for (const auto& f : config_.fields) {
-                    if (f == name) {
-                        should_write = true;
-                        break;
-                    }
-                }
-            }
-
+            const bool should_write = write_all || config_.fields.Contains(name);
             if (should_write) {
                 auto& view_rw = const_cast<DualView3D&>(view);
                 view_rw.sync<Kokkos::HostSpace>();

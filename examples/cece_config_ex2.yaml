@@ -98,4 +98,7 @@ output:
   filename_pattern: "cece_ex2_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
   frequency_steps: 1
   fields:
-    - co
+    - name: co
+      attributes:
+        units: "kg m-2 s-1"
+        long_name: "carbon_monoxide_emission_flux"

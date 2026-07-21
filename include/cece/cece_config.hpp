@@ -8,8 +8,17 @@
 
 #include <yaml-cpp/yaml.h>
 
+#include <algorithm>
+#include <array>
+#include <cstddef>
+#include <functional>
+#include <initializer_list>
+#include <map>
+#include <stdexcept>
 #include <string>
+#include <string_view>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace cece {
@@ -139,6 +148,201 @@ struct CeceDataConfig {
     int debug_level = 0;                        ///< Data stream debug verbosity level (0=off, 1=time-matching info).
 };
 
+/// The coordinate variables the standalone writer manages itself: they
+/// carry fixed built-in attributes, are never written as data fields, and
+/// never receive a coordinates attribute of their own. Listed in the
+/// written field shape order [time, lev, lat, lon] — the order of the
+/// default coordinates attribute derived below.
+inline constexpr std::array<std::string_view, 4> kCoordinateNames{"time", "lev", "lat", "lon"};
+
+inline bool IsCoordinateName(std::string_view name) {
+    return std::ranges::find(kCoordinateNames, name) != kCoordinateNames.end();
+}
+
+/// Default CF coordinates attribute for data fields: the coordinate names
+/// joined in written-shape order. Structural, so every data field gets it
+/// unless the entry configures its own coordinates value.
+inline const std::string kDefaultCoordinates = [] {
+    std::string joined;
+    for (const std::string_view name : kCoordinateNames) {
+        if (!joined.empty()) {
+            joined += ' ';
+        }
+        joined += name;
+    }
+    return joined;
+}();
+
+/**
+ * @struct CeceOutputField
+ * @brief One output.fields entry: a field to write and its NetCDF attributes.
+ */
+struct CeceOutputField {
+    std::string name;  ///< Export field name.
+    /// NetCDF attributes (attribute -> value) from the entry's optional
+    /// "attributes" map. Fields without configured attributes get none —
+    /// the writer never fabricates units/long_name.
+    std::map<std::string, std::string> attributes;
+
+    /// The effective coordinates attribute: the entry's configured value
+    /// when present, kDefaultCoordinates otherwise. The returned view is
+    /// valid as long as this field's attributes map is unmodified.
+    std::string_view GetCoordinates() const {
+        auto it = attributes.find("coordinates");
+        return it != attributes.end() ? std::string_view(it->second) : kDefaultCoordinates;
+    }
+
+    /// This field's AMIO manifest variable block. Only configured
+    /// attributes are emitted; a field without configuration gets none —
+    /// never fabricated units/long_name. The structural coordinates
+    /// attribute is always present on data fields, resolved by
+    /// GetCoordinates; coordinate variables never receive one.
+    std::string CreateIOManifest() const {
+        std::string block = "  " + name + ":\n    attributes:\n";
+        for (const auto& [attr_name, attr_value] : attributes) {
+            if (attr_name == "coordinates") {
+                continue;  // emitted last via GetCoordinates
+            }
+            block += "      " + attr_name + ": \"" + attr_value + "\"\n";
+        }
+        if (!IsCoordinateName(name)) {
+            block += "      coordinates: \"" + std::string(GetCoordinates()) + "\"\n";
+        }
+        return block;
+    }
+};
+
+/// The writer-managed coordinate variables seeded into every
+/// CeceOutputFieldCollection. time's units attribute is runtime-derived
+/// ("seconds since <start>") and patched by the writer at manifest time.
+inline const std::vector<CeceOutputField> kCoordinateFields{
+    {"lon", {{"units", "degrees_east"}, {"long_name", "longitude"}}},
+    {"lat", {{"units", "degrees_north"}, {"long_name", "latitude"}}},
+    {"lev", {{"units", "level"}, {"long_name", "vertical level"}}},
+    {"time", {{"long_name", "time"}}},
+};
+
+/**
+ * @class CeceOutputFieldCollection
+ * @brief Owns the output fields and consolidates operations over them:
+ *        coordinate/data partition, name lookup, and manifest rendering
+ *        (composed from each field's CreateIOManifest). Every collection
+ *        is seeded with the coordinate variables (kCoordinateFields);
+ *        configured data fields join them via push_back.
+ */
+class CeceOutputFieldCollection {
+   public:
+    CeceOutputFieldCollection() : fields_(kCoordinateFields) {}
+    CeceOutputFieldCollection(std::initializer_list<CeceOutputField> fields) : CeceOutputFieldCollection() {
+        for (const auto& field : fields) {
+            push_back(field);
+        }
+    }
+
+    /// References to the entries naming coordinate variables
+    /// (kCoordinateNames), in declaration order. The references are valid
+    /// until the collection is mutated.
+    std::vector<std::reference_wrapper<const CeceOutputField>> GetCoordinateFields() const {
+        return Filter(true);
+    }
+
+    /// References to the entries naming data fields (everything that is not
+    /// a coordinate variable), in declaration order. The references are
+    /// valid until the collection is mutated.
+    std::vector<std::reference_wrapper<const CeceOutputField>> GetDataFields() const {
+        return Filter(false);
+    }
+
+    /// The entry with this field name, or nullptr. The pointer is valid
+    /// until the collection is mutated.
+    const CeceOutputField* Find(std::string_view field_name) const {
+        auto it = std::ranges::find_if(fields_, [&](const CeceOutputField& f) { return f.name == field_name; });
+        return it != fields_.end() ? &*it : nullptr;
+    }
+
+    /// True when any entry carries this field name.
+    bool Contains(std::string_view field_name) const {
+        return Find(field_name) != nullptr;
+    }
+
+    /// Sets the seeded time field's units from the run start time
+    /// ("seconds since YYYY-MM-DD hh:mm:ss"). Called where the collection
+    /// is initialized (ParseConfig uses driver.start_time); rendering
+    /// never mutates the collection.
+    void SetTimeUnits(std::string_view start_time_iso8601) {
+        std::string units = "seconds since " + std::string(start_time_iso8601);
+        if (const auto t_pos = units.find('T'); t_pos != std::string::npos) {
+            units[t_pos] = ' ';
+        }
+        auto it = std::ranges::find_if(fields_, [](const CeceOutputField& f) { return f.name == "time"; });
+        it->attributes["units"] = std::move(units);
+    }
+
+    /// The whole variable side of an AMIO manifest: the variable_names
+    /// list followed by every field's variable block, in declaration order.
+    /// Throws when time's units were never set (SetTimeUnits) — a time
+    /// block without units is structural breakage, not a configuration
+    /// choice.
+    std::string CreateIOManifest() const {
+        if (Find("time")->attributes.count("units") == 0) {
+            throw std::runtime_error("time units are not set — call SetTimeUnits() before CreateIOManifest()");
+        }
+        std::string manifest = "variable_names: [";
+        bool first_name = true;
+        for (const auto& field : fields_) {
+            manifest += (first_name ? "\"" : ", \"") + field.name + "\"";
+            first_name = false;
+        }
+        manifest += "]\nvariables:\n";
+        for (const auto& field : fields_) {
+            manifest += field.CreateIOManifest();
+        }
+        return manifest;
+    }
+
+    // std-style surface so the collection drops in where the storage vector
+    // was used directly (range-for, parser push_back, test indexing).
+    auto begin() const {
+        return fields_.begin();
+    }
+    auto end() const {
+        return fields_.end();
+    }
+    bool empty() const {
+        return fields_.empty();
+    }
+    std::size_t size() const {
+        return fields_.size();
+    }
+    /// Appends a data field. Field names must be unique across the whole
+    /// collection — a duplicate data name, or any coordinate name (the
+    /// seeded coordinate variables are always present and writer-managed),
+    /// is rejected.
+    void push_back(CeceOutputField field) {
+        if (Contains(field.name)) {
+            throw std::runtime_error("duplicate output field name '" + field.name +
+                                     "' — field names must be unique, and the coordinate variables (lon, lat, lev, time) are always present");
+        }
+        fields_.push_back(std::move(field));
+    }
+    const CeceOutputField& operator[](std::size_t index) const {
+        return fields_[index];
+    }
+
+   private:
+    std::vector<std::reference_wrapper<const CeceOutputField>> Filter(bool coordinates) const {
+        std::vector<std::reference_wrapper<const CeceOutputField>> matches;
+        for (const auto& field : fields_) {
+            if (IsCoordinateName(field.name) == coordinates) {
+                matches.emplace_back(field);
+            }
+        }
+        return matches;
+    }
+
+    std::vector<CeceOutputField> fields_;
+};
+
 /**
  * @struct CeceOutputConfig
  * @brief Configuration for standalone NetCDF output (Requirement 11.12).
@@ -147,10 +351,10 @@ struct CeceOutputConfig {
     std::string directory = ".";                                                  ///< Output directory (created if absent).
     std::string filename_pattern = "cece_output_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc";  ///< Filename pattern with time tokens.
     int frequency_steps = 1;                                                      ///< Write every N time steps.
-    std::vector<std::string> fields;                                              ///< Fields to write; empty means all export fields.
-    bool include_diagnostics = false;                                             ///< Also write diagnostic fields when true.
-    bool enabled = false;                                                         ///< True when an output block is present in the YAML.
-    int amio_worker_threads = -1;  ///< Number of AMIO background I/O worker threads (default: -1, meaning use fallback).
+    CeceOutputFieldCollection fields;  ///< Coordinate variables + configured data fields; no data fields means write all export fields.
+    bool include_diagnostics = false;  ///< Also write diagnostic fields when true.
+    bool enabled = false;              ///< True when an output block is present in the YAML.
+    int amio_worker_threads = -1;      ///< Number of AMIO background I/O worker threads (default: -1, meaning use fallback).
 };
 
 /**

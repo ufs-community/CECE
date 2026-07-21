@@ -378,7 +378,9 @@ CeceConfig ParseConfig(const std::string& filename) {
     // Parse standalone output configuration (Requirement 11.12)
     if (root["output"]) {
         auto out_node = root["output"];
-        config.output_config.enabled = true;
+        // Presence of the block enables output unless enabled: false — the
+        // rest of the block is kept as dormant configuration.
+        config.output_config.enabled = out_node["enabled"] ? out_node["enabled"].as<bool>() : true;
 
         if (out_node["directory"]) {
             config.output_config.directory = out_node["directory"].as<std::string>();
@@ -390,8 +392,30 @@ CeceConfig ParseConfig(const std::string& filename) {
             config.output_config.frequency_steps = out_node["frequency_steps"].as<int>();
         }
         if (out_node["fields"]) {
+            // Each entry is either a scalar field name (shorthand) or a map
+            // with a required "name" and optional "attributes" (attribute
+            // name -> value, written verbatim on the output variable).
+            std::size_t entry_index = 0;
             for (auto const& f : out_node["fields"]) {
-                config.output_config.fields.push_back(f.as<std::string>());
+                CeceOutputField field;
+                if (f.IsScalar()) {
+                    field.name = f.as<std::string>();
+                } else if (f.IsMap()) {
+                    if (!f["name"] || f["name"].as<std::string>().empty()) {
+                        throw std::runtime_error("output.fields entry " + std::to_string(entry_index) + " is missing a non-empty 'name'");
+                    }
+                    field.name = f["name"].as<std::string>();
+                    if (f["attributes"]) {
+                        for (auto const& attr_entry : f["attributes"]) {
+                            field.attributes[attr_entry.first.as<std::string>()] = attr_entry.second.as<std::string>();
+                        }
+                    }
+                } else {
+                    throw std::runtime_error("output.fields entry " + std::to_string(entry_index) +
+                                             " must be a field name or a map with 'name'/'attributes'");
+                }
+                config.output_config.fields.push_back(std::move(field));
+                ++entry_index;
             }
         }
         if (out_node["diagnostics"]) {
@@ -470,6 +494,11 @@ CeceConfig ParseConfig(const std::string& filename) {
             config.driver_config.amio_worker_threads = threads;
         }
     }
+
+    // The output field collection is fully initialized here: seed the time
+    // coordinate's units from the run start (the driver section parses
+    // after the output section, so this cannot happen inside it).
+    config.output_config.fields.SetTimeUnits(config.driver_config.start_time);
 
     return config;
 }

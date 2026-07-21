@@ -55,4 +55,7 @@ output:
   filename_pattern: "cece_ex6_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
   frequency_steps: 1
   fields:
-    - no
+    - name: "no"
+      attributes:
+        units: "kg m-2 s-1"
+        long_name: "nitrogen_monoxide_emission_flux"

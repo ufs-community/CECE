@@ -125,7 +125,11 @@ TEST_F(CeceUtilsTest, StandaloneWriterDuplicateFieldsFiltering) {
     CeceOutputConfig config;
     config.enabled = true;
     config.directory = test_dir;
-    config.fields = {"lon", "lat", "lev", "time", "test_field"};
+    // Coordinate variables are seeded automatically (configuring them is a
+    // duplicate-name error); only the data field is listed.
+    config.fields = {{"test_field", {}}};
+    // Hand-built configs (no ParseConfig) set time's units themselves.
+    config.fields.SetTimeUnits("2020-01-01T00:00:00");
 
     CeceStandaloneWriter writer(config);
 
@@ -171,7 +175,9 @@ TEST_F(CeceUtilsTest, CoreWriteStepSkipsInitialStep) {
     d.standalone_mode = true;
     d.config.output_config.enabled = true;
     d.config.output_config.directory = test_dir;
-    d.config.output_config.fields = {"test_field"};
+    d.config.output_config.fields = {{"test_field", {}}};
+    // Hand-built configs (no ParseConfig) set time's units themselves.
+    d.config.output_config.fields.SetTimeUnits("2020-01-01T00:00:00");
     d.config.output_config.frequency_steps = 1;
     d.config.output_config.filename_pattern = "cece_output_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc";
 

@@ -281,8 +281,17 @@ output:
   filename_pattern: "cece_advanced_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
   frequency_steps: 1
   fields:
-    - "co"
-    - "nox"
-    - "isoprene"
-    - "sea_salt_total"
+    - name: "co"
+      attributes:
+        units: "kg m-2 s-1"
+        long_name: "carbon_monoxide_emission_flux"
+    - name: "nox"
+      attributes:
+        units: "kg m-2 s-1"
+        long_name: "nitrogen_oxides_emission_flux"
+    - name: "isoprene"
+      attributes:
+        units: "kg m-2 s-1"
+        long_name: "isoprene_emission_flux"
+    - "sea_salt_total" # scalar shorthand: written with no configured attributes
     - "dust_total"

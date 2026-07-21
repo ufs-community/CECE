@@ -448,6 +448,9 @@ target_link_libraries(test_cece_utils PRIVATE cece GTest::gtest_main)
 add_executable(test_cece_compute tests/test_cece_compute.cpp)
 target_link_libraries(test_cece_compute PRIVATE cece GTest::gtest_main)
 
+add_executable(test_standalone_writer_attributes tests/test_standalone_writer_attributes.cpp)
+target_link_libraries(test_standalone_writer_attributes PRIVATE cece GTest::gtest)
+
 add_executable(test_physics tests/test_physics.cpp)
 target_link_libraries(test_physics PRIVATE cece GTest::gtest_main)
 
@@ -699,6 +702,7 @@ gtest_discover_tests(test_stacking_engine)
 gtest_discover_tests(test_vertical_distribution_single)
 gtest_discover_tests(test_cece_utils)
 gtest_discover_tests(test_cece_compute)
+gtest_discover_tests(test_standalone_writer_attributes)
 gtest_discover_tests(test_physics)
 gtest_discover_tests(test_cece_ingestor)
 gtest_discover_tests(test_hemco_mimic)

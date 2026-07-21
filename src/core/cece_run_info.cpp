@@ -199,13 +199,18 @@ void cece_run_log_setup(const char* config_path, int path_len) {
             std::cout << "\n";
         }
 
-        // Output fields.
+        // Output fields. Entries are either a scalar field name or a map
+        // with "name" (and optional "attributes").
         if (config["output"] && config["output"]["fields"]) {
             std::cout << RowLabel("Output fields");
             bool first = true;
             for (const auto& f : config["output"]["fields"]) {
                 if (!first) std::cout << ", ";
-                std::cout << f.as<std::string>();
+                if (f.IsMap()) {
+                    std::cout << (f["name"] ? f["name"].as<std::string>("") : "(unnamed)");
+                } else {
+                    std::cout << f.as<std::string>("");
+                }
                 first = false;
             }
             std::cout << "\n";

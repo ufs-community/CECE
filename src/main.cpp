@@ -15,6 +15,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "cece/cece_config.hpp"
 #include "cece/cece_driver_facade.hpp"
 #include "cece/cece_fatal.hpp"
 
@@ -142,15 +143,16 @@ int main(int argc, char* argv[]) {
         // Phase 2: Complete grid-binding (dynamically sized)
         cece_core_initialize_p2(cece_data_ptr, &nx, &ny, &nz, &rc);
 
-        // Register the export fields configured for output with persistent memory buffers
+        // Register the export fields configured for output with persistent
+        // memory buffers, via the parsed config — the single authoritative
+        // interpretation of output.fields. Data fields only: the collection
+        // also carries the writer-managed coordinate variables.
         std::unordered_map<std::string, std::vector<double>> export_fields_mem;
-        if (config["output"] && config["output"]["fields"]) {
-            for (const auto& field_node : config["output"]["fields"]) {
-                std::string field_name = field_node.as<std::string>();
-                export_fields_mem[field_name] = std::vector<double>(static_cast<std::size_t>(nx) * ny * nz, 0.0);
-                cece_core_set_export_field(cece_data_ptr, field_name.c_str(), static_cast<int>(field_name.length()),
-                                           export_fields_mem[field_name].data(), nx, ny, nz, &rc);
-            }
+        const cece::CeceConfig parsed_config = cece::ParseConfig(config_file);
+        for (const cece::CeceOutputField& field : parsed_config.output_config.fields.GetDataFields()) {
+            export_fields_mem[field.name] = std::vector<double>(static_cast<std::size_t>(nx) * ny * nz, 0.0);
+            cece_core_set_export_field(cece_data_ptr, field.name.c_str(), static_cast<int>(field.name.length()), export_fields_mem[field.name].data(),
+                                       nx, ny, nz, &rc);
         }
 
         // Setup CECE grid coordinate arrays (either generated dynamically from NamedGridRegistry, or calculated uniformly)
