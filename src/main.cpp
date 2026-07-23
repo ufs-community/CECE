@@ -183,12 +183,21 @@ int main(int argc, char* argv[]) {
             }
         } else {
             bool loaded_from_file = false;
-            std::string input_file_path = "../scripts/data/MACCity_4x5.nc";  // default fallback
-            if (config["cece_data"] && config["cece_data"]["streams"]) {
+            std::string input_file_path = "";
+            if (config["driver"] && config["driver"]["gridspec_file"]) {
+                std::string gf = config["driver"]["gridspec_file"].as<std::string>();
+                if (!gf.empty() && gf != "none" && gf != "NONE") {
+                    input_file_path = gf;
+                }
+            }
+            if (input_file_path.empty() && config["cece_data"] && config["cece_data"]["streams"]) {
                 auto stream = config["cece_data"]["streams"][0];
                 if (stream["file"]) {
                     input_file_path = stream["file"].as<std::string>();
                 }
+            }
+            if (input_file_path.empty()) {
+                input_file_path = "../scripts/data/MACCity_4x5.nc";  // default fallback
             }
 
             std::string read_manifest_path = "amio_coord_manifest.yaml";
@@ -221,7 +230,16 @@ int main(int argc, char* argv[]) {
                     std::vector<double> file_lon_coords;
                     std::vector<double> file_lat_coords;
 
-                    if (amio_read(coord_dataset, "lon", 0, nullptr, &lon_view) == AMIO_OK) {
+                    bool is_radian = false;
+                    amio_status_t lon_status = amio_read(coord_dataset, "lon", 0, nullptr, &lon_view);
+                    if (lon_status != AMIO_OK) {
+                        lon_status = amio_read(coord_dataset, "lonCell", 0, nullptr, &lon_view);
+                        if (lon_status == AMIO_OK) {
+                            is_radian = true;
+                        }
+                    }
+
+                    if (lon_status == AMIO_OK) {
                         const void* view_data = nullptr;
                         size_t view_size = 0;
                         if (amio_view_data(lon_view, &view_data, &view_size) == AMIO_OK) {
@@ -233,14 +251,23 @@ int main(int argc, char* argv[]) {
                                 const double* double_data = static_cast<const double*>(view_data);
                                 file_lon_coords.resize(file_nx);
                                 for (int i = 0; i < file_nx; ++i) {
-                                    file_lon_coords[i] = is_float ? static_cast<double>(float_data[i]) : double_data[i];
+                                    double val = is_float ? static_cast<double>(float_data[i]) : double_data[i];
+                                    if (is_radian) {
+                                        val *= 180.0 / M_PI;
+                                    }
+                                    file_lon_coords[i] = val;
                                 }
                             }
                         }
                         amio_release_view(lon_view);
                     }
 
-                    if (amio_read(coord_dataset, "lat", 0, nullptr, &lat_view) == AMIO_OK) {
+                    amio_status_t lat_status = amio_read(coord_dataset, "lat", 0, nullptr, &lat_view);
+                    if (lat_status != AMIO_OK) {
+                        lat_status = amio_read(coord_dataset, "latCell", 0, nullptr, &lat_view);
+                    }
+
+                    if (lat_status == AMIO_OK) {
                         const void* view_data = nullptr;
                         size_t view_size = 0;
                         if (amio_view_data(lat_view, &view_data, &view_size) == AMIO_OK) {
@@ -252,7 +279,11 @@ int main(int argc, char* argv[]) {
                                 const double* double_data = static_cast<const double*>(view_data);
                                 file_lat_coords.resize(file_ny);
                                 for (int j = 0; j < file_ny; ++j) {
-                                    file_lat_coords[j] = is_float ? static_cast<double>(float_data[j]) : double_data[j];
+                                    double val = is_float ? static_cast<double>(float_data[j]) : double_data[j];
+                                    if (is_radian) {
+                                        val *= 180.0 / M_PI;
+                                    }
+                                    file_lat_coords[j] = val;
                                 }
                             }
                         }
