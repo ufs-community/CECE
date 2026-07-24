@@ -259,8 +259,14 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
         }
         amio_shape_t lon_shape;
         std::memset(&lon_shape, 0, sizeof(lon_shape));
-        lon_shape.rank = 1;
-        lon_shape.extents[0] = nx_;
+        if (use_custom_coords_ && lon_values.size() == static_cast<size_t>(nx_) * ny_ && ny_ > 1) {
+            lon_shape.rank = 2;
+            lon_shape.extents[0] = ny_;
+            lon_shape.extents[1] = nx_;
+        } else {
+            lon_shape.rank = 1;
+            lon_shape.extents[0] = nx_;
+        }
         amio_io_handle lon_io = nullptr;
         check_amio_rc(amio_write(dataset, "lon", lon_values.data(), AMIO_DTYPE_F64, &lon_shape, &lon_io), "amio_write(lon)");
 
@@ -276,8 +282,14 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
         }
         amio_shape_t lat_shape;
         std::memset(&lat_shape, 0, sizeof(lat_shape));
-        lat_shape.rank = 1;
-        lat_shape.extents[0] = ny_;
+        if (use_custom_coords_ && lat_values.size() == static_cast<size_t>(nx_) * ny_ && ny_ > 1) {
+            lat_shape.rank = 2;
+            lat_shape.extents[0] = ny_;
+            lat_shape.extents[1] = nx_;
+        } else {
+            lat_shape.rank = 1;
+            lat_shape.extents[0] = ny_;
+        }
         amio_io_handle lat_io = nullptr;
         check_amio_rc(amio_write(dataset, "lat", lat_values.data(), AMIO_DTYPE_F64, &lat_shape, &lat_io), "amio_write(lat)");
 
