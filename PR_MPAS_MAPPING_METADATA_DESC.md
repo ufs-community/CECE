@@ -49,6 +49,30 @@ By integrating direct coordinate-discovery pipelines, unifying spatial grid topo
 
 ---
 
+## Internal Architecture: `gridspec_file` Pipeline
+
+The `gridspec_file` (specified via `driver.gridspec_file` inside the configuration YAML) represents the official geospatial mapping template for the target grid. It is ingested and processed dynamically through several key phases:
+
+1. **Coordinate Discovery & Configuration-Passing (`src/main.cpp` & `cece_core_writer_init.cpp`)**:
+   - At startup, `src/main.cpp` parses the path of the configured `gridspec_file` and inspects it for spatial dimensions ($n_x \times n_y$).
+   - Standard curvilinear rank-2 coordinates (variable grids like FV3 cubed sphere) are flattened and loaded.
+   - The file path is passed to the driver orchestrator (`CeceDriverOrchestrator`) and registered on the standalone NetCDF writer (`CeceStandaloneWriter`) during writer initialization via `cece_core_writer_initialize_with_coords`.
+
+2. **Ingestion & Topological Reconstruction (`src/driver/cece_regridder_utils.cpp`)**:
+   - When construction of regridding weights is triggered inside the AXIS engine (`build_regrid_plan`), the file path is forwarded to `build_axis_mesh`.
+   - `build_axis_mesh` dynamically opens the NetCDF file using the **AMIO NetCDF4 backend**.
+   - **Topological Pattern-Matching**:
+     - **SCRIP Layout**: Checks for SCRIP cell boundary variables (`grid_corner_lon`, `grid_corner_lat`). If present, it loads cell-corner coordinate matrices directly.
+     - **UGRID/MPAS Layout**: Checks for standard MPAS Voronoi parameters (`latVertex`, `lonVertex`, `verticesOnCell`, and `nEdgesOnCell`). If found, it converts 1-based Fortran mesh indices to 0-based C-indices, extracts vertex coordinates from radians to degrees, and normalizes longitudes into the $[-180, 180]$ range.
+   - AXIS then constructs a mathematically and physically perfect standard `UnstructuredMesh` of 5-sided/6-sided/N-sided cells based directly on these variables.
+
+3. **AXIS-to-Writer Boundary Binding (`src/driver/cece_standalone_writer.cpp`)**:
+   - Inside the NetCDF output writer (`WriteTimeStep`), instead of reading the gridspec file separately or manually recalculating bounds, the writer calls `cece::io::build_axis_mesh` to construct the identical destination AXIS mesh at run-time.
+   - By querying the AXIS mesh's high-level topological views (`node_coords()`, `conn_offsets()`, `conn_indices()`), the writer extracts the exact, physical cell coordinate boundaries (`lon_bnds` and `lat_bnds`).
+   - For MPAS grids, this dynamically outputs a compact polygon boundary array of shape `(nCells, 6)` (representing hexagons and pentagons) with **zero hardcoding or wasted padding columns**.
+
+---
+
 ## Verification & Output Validation
 
 The implementation has been exhaustively verified inside the CECE development container.
