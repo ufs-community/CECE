@@ -3,6 +3,8 @@
 #include <amio/amio.h>
 #include <mpi.h>
 
+#include "cece/cece_regridder_utils.hpp"
+
 extern "C" {
 void amio_set_parent_communicator(MPI_Fint comm);
 }
@@ -353,51 +355,34 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
         amio_io_handle lat_io = nullptr;
         check_amio_rc(amio_write(dataset, "lat", lat_values.data(), AMIO_DTYPE_F64, &lat_shape, &lat_io), "amio_write(lat)");
 
-        // Step 5b: Compute and write cell boundary coordinate variables (bounds)
+        // Step 5b: Compute and write cell boundary coordinate variables (bounds) using the AXIS mesh directly!
         std::vector<double> lon_bnds_values;
         std::vector<double> lat_bnds_values;
         amio_shape_t lon_bnds_shape{};
         amio_shape_t lat_bnds_shape{};
 
+        // Build the destination AXIS mesh dynamically using our unified mesh builder
+        auto dst_mesh = cece::io::build_axis_mesh(nx_, ny_, lon_values, lat_values, gridspec_file_);
+
+        auto node_coords = dst_mesh.node_coords();
+        auto conn_offsets = dst_mesh.conn_offsets();
+        auto conn_indices = dst_mesh.conn_indices();
+
         if (use_custom_coords_ && lon_values.size() == static_cast<size_t>(nx_) * ny_ && ny_ > 1) {
-            // Curvilinear case: shapes (ny_, nx_, 4)
+            // 1. Curvilinear case: shapes (ny_, nx_, 4)
             size_t n_cells = static_cast<size_t>(nx_) * ny_;
             lon_bnds_values.resize(n_cells * 4);
             lat_bnds_values.resize(n_cells * 4);
 
-            std::vector<double> dlons(n_cells, 0.0);
             for (int j = 0; j < ny_; ++j) {
                 for (int i = 0; i < nx_; ++i) {
                     size_t idx = static_cast<size_t>(j) * nx_ + i;
-                    double left = (i > 0) ? std::abs(lon_values[idx] - lon_values[idx - 1]) : std::abs(lon_values[idx + 1] - lon_values[idx]);
-                    double right = (i < nx_ - 1) ? std::abs(lon_values[idx + 1] - lon_values[idx]) : std::abs(lon_values[idx] - lon_values[idx - 1]);
-                    dlons[idx] = 0.5 * (left + right);
-                }
-            }
-
-            for (int j = 0; j < ny_; ++j) {
-                for (int i = 0; i < nx_; ++i) {
-                    size_t idx = static_cast<size_t>(j) * nx_ + i;
-                    double lon = lon_values[idx];
-                    double lat = lat_values[idx];
-
-                    double dlon_i = dlons[idx];
-                    double cos_lat = std::cos(lat * M_PI / 180.0);
-                    if (cos_lat < 1e-3) cos_lat = 1e-3;
-                    double dy_i = dlon_i * cos_lat;
-
-                    // 4 Corners: Bottom-Left, Bottom-Right, Top-Right, Top-Left
-                    lon_bnds_values[4 * idx + 0] = lon - 0.5 * dlon_i;
-                    lat_bnds_values[4 * idx + 0] = lat - 0.5 * dy_i;
-
-                    lon_bnds_values[4 * idx + 1] = lon + 0.5 * dlon_i;
-                    lat_bnds_values[4 * idx + 1] = lat - 0.5 * dy_i;
-
-                    lon_bnds_values[4 * idx + 2] = lon + 0.5 * dlon_i;
-                    lat_bnds_values[4 * idx + 2] = lat + 0.5 * dy_i;
-
-                    lon_bnds_values[4 * idx + 3] = lon - 0.5 * dlon_i;
-                    lat_bnds_values[4 * idx + 3] = lat + 0.5 * dy_i;
+                    size_t offset = conn_offsets(idx);
+                    for (int v = 0; v < 4; ++v) {
+                        axis::index_t node_idx = conn_indices(offset + v);
+                        lon_bnds_values[4 * idx + v] = node_coords(node_idx, 0);
+                        lat_bnds_values[4 * idx + v] = node_coords(node_idx, 1);
+                    }
                 }
             }
 
@@ -412,261 +397,57 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
             lat_bnds_shape.extents[2] = 4;
 
         } else if (ny_ == 1) {
-            // Unstructured case: shapes (nx_, maxEdges) if gridspec_file_ is specified and has verticesOnCell, otherwise default to (nx_, 4)
+            // 2. Unstructured case (MPAS, SCRIP, etc.): shapes (nx_, max_vertices)
             size_t n_cells = static_cast<size_t>(nx_);
-            bool loaded_real_bnds = false;
-            int max_edges = 4;
-
-            if (!gridspec_file_.empty() && gridspec_file_ != "none" && gridspec_file_ != "NONE") {
-                // Open the MPAS gridspec file and read actual vertices and connectivity using AMIO
-                std::string manifest_path = "amio_GS_mesh_writer_manifest.yaml";
-                std::ofstream m_file(manifest_path);
-                m_file << "backend: netcdf4\n"
-                       << "path: " << gridspec_file_ << "\n"
-                       << "data_model: enhanced\n"
-                       << "staging_pool:\n"
-                       << "  buffer_count: 16\n"
-                       << "  buffer_capacity_bytes: 104857600\n"
-                       << "worker_pool:\n"
-                       << "  threads: 1\n";
-                m_file.close();
-
-                amio_core_handle core = nullptr;
-                amio_dataset_handle dataset_gs = nullptr;
-                amio_view_handle lat_vertex_view = nullptr;
-                amio_view_handle lon_vertex_view = nullptr;
-                amio_view_handle edges_on_cell_view = nullptr;
-                amio_view_handle vertices_on_cell_view = nullptr;
-
-                amio_status_t amio_rc = amio_init(manifest_path.c_str(), &core);
-                if (amio_rc == AMIO_OK) {
-                    amio_rc = amio_open_dataset(core, manifest_path.c_str(), AMIO_MODE_READ, &dataset_gs);
-                    if (amio_rc == AMIO_OK) {
-                        // Try SCRIP-conventions coordinates first
-                        amio_view_handle scrip_lon_view = nullptr;
-                        amio_view_handle scrip_lat_view = nullptr;
-                        if (amio_read(dataset_gs, "grid_corner_lon", 0, nullptr, &scrip_lon_view) == AMIO_OK) {
-                            const void* lon_data = nullptr;
-                            size_t lon_size = 0;
-                            std::vector<double> scrip_lons;
-                            int grid_size = 0;
-                            int grid_corners = 0;
-
-                            if (amio_view_data(scrip_lon_view, &lon_data, &lon_size) == AMIO_OK) {
-                                amio_shape_t shape{};
-                                if (amio_view_shape(scrip_lon_view, &shape) == AMIO_OK && shape.rank == 2) {
-                                    grid_size = static_cast<int>(shape.extents[0]);
-                                    grid_corners = static_cast<int>(shape.extents[1]);
-                                    int total_pts = grid_size * grid_corners;
-                                    scrip_lons.resize(total_pts);
-                                    bool is_float = (lon_size == static_cast<size_t>(total_pts) * 4);
-                                    for (int i = 0; i < total_pts; ++i) {
-                                        scrip_lons[i] = is_float ? static_cast<const float*>(lon_data)[i] : static_cast<const double*>(lon_data)[i];
-                                        if (scrip_lons[i] >= 180.0)
-                                            scrip_lons[i] -= 360.0;
-                                        else if (scrip_lons[i] < -180.0)
-                                            scrip_lons[i] += 360.0;
-                                    }
-                                }
-                            }
-                            amio_release_view(scrip_lon_view);
-
-                            std::vector<double> scrip_lats;
-                            if (amio_read(dataset_gs, "grid_corner_lat", 0, nullptr, &scrip_lat_view) == AMIO_OK) {
-                                const void* lat_data = nullptr;
-                                size_t lat_size = 0;
-                                if (amio_view_data(scrip_lat_view, &lat_data, &lat_size) == AMIO_OK) {
-                                    int total_pts = grid_size * grid_corners;
-                                    scrip_lats.resize(total_pts);
-                                    bool is_float = (lat_size == static_cast<size_t>(total_pts) * 4);
-                                    for (int i = 0; i < total_pts; ++i) {
-                                        scrip_lats[i] = is_float ? static_cast<const float*>(lat_data)[i] : static_cast<const double*>(lat_data)[i];
-                                    }
-                                }
-                                amio_release_view(scrip_lat_view);
-                            }
-
-                            if (!scrip_lons.empty() && !scrip_lats.empty()) {
-                                max_edges = grid_corners;
-                                lon_bnds_values = scrip_lons;
-                                lat_bnds_values = scrip_lats;
-                                loaded_real_bnds = true;
-                            }
-                        }
-
-                        std::vector<double> lat_vertices;
-                        std::vector<double> lon_vertices;
-                        int n_vertices = 0;
-
-                        if (!loaded_real_bnds && amio_read(dataset_gs, "latVertex", 0, nullptr, &lat_vertex_view) == AMIO_OK) {
-                            const void* data = nullptr;
-                            size_t size = 0;
-                            if (amio_view_data(lat_vertex_view, &data, &size) == AMIO_OK) {
-                                amio_shape_t shape{};
-                                if (amio_view_shape(lat_vertex_view, &shape) == AMIO_OK) {
-                                    n_vertices = static_cast<int>(shape.extents[0]);
-                                    lat_vertices.resize(n_vertices);
-                                    bool is_float = (size == static_cast<size_t>(n_vertices) * 4);
-                                    for (int i = 0; i < n_vertices; ++i) {
-                                        lat_vertices[i] = is_float ? static_cast<const float*>(data)[i] : static_cast<const double*>(data)[i];
-                                        lat_vertices[i] *= 180.0 / M_PI;  // MPAS coordinates are in radians
-                                    }
-                                }
-                            }
-                            amio_release_view(lat_vertex_view);
-                        }
-
-                        if (amio_read(dataset_gs, "lonVertex", 0, nullptr, &lon_vertex_view) == AMIO_OK) {
-                            const void* data = nullptr;
-                            size_t size = 0;
-                            if (amio_view_data(lon_vertex_view, &data, &size) == AMIO_OK) {
-                                amio_shape_t shape{};
-                                if (amio_view_shape(lon_vertex_view, &shape) == AMIO_OK) {
-                                    int nv = static_cast<int>(shape.extents[0]);
-                                    lon_vertices.resize(nv);
-                                    bool is_float = (size == static_cast<size_t>(nv) * 4);
-                                    for (int i = 0; i < nv; ++i) {
-                                        lon_vertices[i] = is_float ? static_cast<const float*>(data)[i] : static_cast<const double*>(data)[i];
-                                        lon_vertices[i] *= 180.0 / M_PI;
-                                        if (lon_vertices[i] >= 180.0)
-                                            lon_vertices[i] -= 360.0;
-                                        else if (lon_vertices[i] < -180.0)
-                                            lon_vertices[i] += 360.0;
-                                    }
-                                }
-                            }
-                            amio_release_view(lon_vertex_view);
-                        }
-
-                        std::vector<int> n_edges_on_cell;
-                        std::vector<int> vertices_on_cell;
-
-                        if (amio_read(dataset_gs, "nEdgesOnCell", 0, nullptr, &edges_on_cell_view) == AMIO_OK) {
-                            const void* data = nullptr;
-                            size_t size = 0;
-                            if (amio_view_data(edges_on_cell_view, &data, &size) == AMIO_OK) {
-                                amio_shape_t shape{};
-                                if (amio_view_shape(edges_on_cell_view, &shape) == AMIO_OK) {
-                                    int nc = static_cast<int>(shape.extents[0]);
-                                    n_edges_on_cell.resize(nc);
-                                    for (int i = 0; i < nc; ++i) {
-                                        n_edges_on_cell[i] = static_cast<const int*>(data)[i];
-                                    }
-                                }
-                            }
-                            amio_release_view(edges_on_cell_view);
-                        }
-
-                        if (amio_read(dataset_gs, "verticesOnCell", 0, nullptr, &vertices_on_cell_view) == AMIO_OK) {
-                            const void* data = nullptr;
-                            size_t size = 0;
-                            if (amio_view_data(vertices_on_cell_view, &data, &size) == AMIO_OK) {
-                                amio_shape_t shape{};
-                                if (amio_view_shape(vertices_on_cell_view, &shape) == AMIO_OK) {
-                                    max_edges = static_cast<int>(shape.extents[1]);
-                                    int nc = static_cast<int>(shape.extents[0]);
-                                    vertices_on_cell.resize(nc * max_edges);
-                                    for (int i = 0; i < nc * max_edges; ++i) {
-                                        vertices_on_cell[i] = static_cast<const int*>(data)[i];
-                                    }
-                                }
-                            }
-                            amio_release_view(vertices_on_cell_view);
-                        }
-
-                        amio_close(dataset_gs);
-                        amio_finalize(core);
-                        std::remove(manifest_path.c_str());
-
-                        if (!lat_vertices.empty() && !lon_vertices.empty() && !n_edges_on_cell.empty() && !vertices_on_cell.empty()) {
-                            lon_bnds_values.resize(n_cells * max_edges, 0.0);
-                            lat_bnds_values.resize(n_cells * max_edges, 0.0);
-
-                            for (size_t i = 0; i < n_cells; ++i) {
-                                int n_edges = n_edges_on_cell[i];
-                                for (int v = 0; v < max_edges; ++v) {
-                                    int v_idx = (v < n_edges) ? vertices_on_cell[i * max_edges + v] : vertices_on_cell[i * max_edges + n_edges - 1];
-                                    if (v_idx > 0 && v_idx <= n_vertices) {
-                                        lon_bnds_values[i * max_edges + v] = lon_vertices[v_idx - 1];
-                                        lat_bnds_values[i * max_edges + v] = lat_vertices[v_idx - 1];
-                                    } else {
-                                        lon_bnds_values[i * max_edges + v] = lon_values[i];
-                                        lat_bnds_values[i * max_edges + v] = lat_values[i];
-                                    }
-                                }
-                            }
-                            loaded_real_bnds = true;
-                        }
-                    } else {
-                        amio_finalize(core);
-                        std::remove(manifest_path.c_str());
-                    }
-                }
+            int max_vertices = 0;
+            for (size_t i = 0; i < n_cells; ++i) {
+                int n_verts = static_cast<int>(conn_offsets(i + 1) - conn_offsets(i));
+                if (n_verts > max_vertices) max_vertices = n_verts;
             }
 
-            if (!loaded_real_bnds) {
-                // Fallback: Build unstructured mesh of ni quadrilaterals dynamically
-                max_edges = 4;
-                lon_bnds_values.resize(n_cells * 4);
-                lat_bnds_values.resize(n_cells * 4);
+            lon_bnds_values.resize(n_cells * max_vertices, 0.0);
+            lat_bnds_values.resize(n_cells * max_vertices, 0.0);
 
-                std::vector<double> dlons(n_cells, 0.0);
-                if (n_cells > 1) {
-                    dlons[0] = std::abs(lon_values[1] - lon_values[0]);
-                    for (size_t i = 1; i < n_cells - 1; ++i) {
-                        dlons[i] = 0.5 * (std::abs(lon_values[i] - lon_values[i - 1]) + std::abs(lon_values[i + 1] - lon_values[i]));
-                    }
-                    dlons[n_cells - 1] = std::abs(lon_values[n_cells - 1] - lon_values[n_cells - 2]);
-                } else {
-                    dlons[0] = 360.0;
-                }
-
-                for (size_t i = 0; i < n_cells; ++i) {
-                    double lon = lon_values[i];
-                    double lat = lat_values[i];
-
-                    double dlon_i = dlons[i];
-                    double cos_lat = std::cos(lat * M_PI / 180.0);
-                    if (cos_lat < 1e-3) cos_lat = 1e-3;
-                    double dy_i = dlon_i * cos_lat;
-
-                    lon_bnds_values[4 * i + 0] = lon - 0.5 * dlon_i;
-                    lat_bnds_values[4 * i + 0] = lat - 0.5 * dy_i;
-
-                    lon_bnds_values[4 * i + 1] = lon + 0.5 * dlon_i;
-                    lat_bnds_values[4 * i + 1] = lat - 0.5 * dy_i;
-
-                    lon_bnds_values[4 * i + 2] = lon + 0.5 * dlon_i;
-                    lat_bnds_values[4 * i + 2] = lat + 0.5 * dy_i;
-
-                    lon_bnds_values[4 * i + 3] = lon - 0.5 * dlon_i;
-                    lat_bnds_values[4 * i + 3] = lat + 0.5 * dy_i;
+            for (size_t i = 0; i < n_cells; ++i) {
+                int n_verts = static_cast<int>(conn_offsets(i + 1) - conn_offsets(i));
+                size_t offset = conn_offsets(i);
+                for (int v = 0; v < max_vertices; ++v) {
+                    int local_v = (v < n_verts) ? v : (n_verts - 1);
+                    axis::index_t node_idx = conn_indices(offset + local_v);
+                    lon_bnds_values[i * max_vertices + v] = node_coords(node_idx, 0);
+                    lat_bnds_values[i * max_vertices + v] = node_coords(node_idx, 1);
                 }
             }
 
             lon_bnds_shape.rank = 2;
             lon_bnds_shape.extents[0] = nx_;
-            lon_bnds_shape.extents[1] = max_edges;
+            lon_bnds_shape.extents[1] = max_vertices;
 
             lat_bnds_shape.rank = 2;
             lat_bnds_shape.extents[0] = nx_;
-            lat_bnds_shape.extents[1] = max_edges;
+            lat_bnds_shape.extents[1] = max_vertices;
 
         } else {
-            // Rectilinear case: shape (nx_, 2) for lon, (ny_, 2) for lat
+            // 3. Rectilinear case: shapes (nx_, 2) and (ny_, 2)
             lon_bnds_values.resize(nx_ * 2);
             lat_bnds_values.resize(ny_ * 2);
 
-            double dlon = 360.0 / nx_;
+            // Longitude bounds: query nodes from the first row of cells (j = 0)
             for (int i = 0; i < nx_; ++i) {
-                lon_bnds_values[2 * i + 0] = lon_values[i] - 0.5 * dlon;
-                lon_bnds_values[2 * i + 1] = lon_values[i] + 0.5 * dlon;
+                size_t offset = conn_offsets(i);
+                axis::index_t node0 = conn_indices(offset + 0);
+                axis::index_t node1 = conn_indices(offset + 1);
+                lon_bnds_values[2 * i + 0] = node_coords(node0, 0);
+                lon_bnds_values[2 * i + 1] = node_coords(node1, 0);
             }
 
-            double dlat = 180.0 / ny_;
+            // Latitude bounds: query nodes from the first column of cells (i = 0)
             for (int j = 0; j < ny_; ++j) {
-                lat_bnds_values[2 * j + 0] = lat_values[j] - 0.5 * dlat;
-                lat_bnds_values[2 * j + 1] = lat_values[j] + 0.5 * dlat;
+                size_t offset = conn_offsets(j * nx_);
+                axis::index_t node0 = conn_indices(offset + 0);
+                axis::index_t node3 = conn_indices(offset + 3);
+                lat_bnds_values[2 * j + 0] = node_coords(node0, 1);
+                lat_bnds_values[2 * j + 1] = node_coords(node3, 1);
             }
 
             lon_bnds_shape.rank = 2;
