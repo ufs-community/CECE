@@ -265,6 +265,12 @@ int main(int argc, char* argv[]) {
                                     if (is_radian) {
                                         val *= 180.0 / M_PI;
                                     }
+                                    // Wrap longitudes to [-180, 180] range for matching source grid boundaries
+                                    if (val >= 180.0) {
+                                        val -= 360.0;
+                                    } else if (val < -180.0) {
+                                        val += 360.0;
+                                    }
                                     file_lon_coords[i] = val;
                                 }
                             }
