@@ -32,8 +32,8 @@ extern "C" {
  * @param mpi_comm_f Fortran MPI communicator handle.
  * @param rc Return code (0 on success).
  */
-void cece_core_writer_initialize_with_coords(void* data_ptr, int nx, int ny, int nz, const double* lon_coords, const double* lat_coords,
-                                             const char* start_time_iso8601, int start_time_len, int mpi_comm_f, int* rc) {
+void cece_core_writer_initialize_with_coords(void* data_ptr, int nx, int ny, int nz, const double* lon_coords, int lon_len, const double* lat_coords,
+                                             int lat_len, const char* start_time_iso8601, int start_time_len, int mpi_comm_f, int* rc) {
     *rc = 0;
 
     if (data_ptr == nullptr) {
@@ -79,13 +79,13 @@ void cece_core_writer_initialize_with_coords(void* data_ptr, int nx, int ny, int
         std::string start_time(start_time_iso8601, start_time_len);
 
         // Convert C arrays to std::vectors
-        std::vector<double> lon_vec(lon_coords, lon_coords + nx);
-        std::vector<double> lat_vec(lat_coords, lat_coords + ny);
+        std::vector<double> lon_vec(lon_coords, lon_coords + lon_len);
+        std::vector<double> lat_vec(lat_coords, lat_coords + lat_len);
 
         std::cout << "INFO: Initializing standalone writer with coordinates: " << nx << "x" << ny << "x" << nz << " start_time=" << start_time
                   << "\n";
-        std::cout << "INFO: Longitude range: " << lon_vec[0] << " to " << lon_vec[nx - 1] << "\n";
-        std::cout << "INFO: Latitude range: " << lat_vec[0] << " to " << lat_vec[ny - 1] << "\n";
+        std::cout << "INFO: Longitude range: " << lon_vec[0] << " to " << lon_vec[lon_len - 1] << "\n";
+        std::cout << "INFO: Latitude range: " << lat_vec[0] << " to " << lat_vec[lat_len - 1] << "\n";
 
         // Initialize the writer with coordinates
         int writer_rc = g_standalone_writer->InitializeWithCoords(start_time, nx, ny, nz, lon_vec, lat_vec);

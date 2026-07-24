@@ -163,14 +163,14 @@ RecordBracket cadence_record_bracket(const std::string& cadence, const std::stri
 
 }  // namespace
 
-CeceDriverOrchestrator::CeceDriverOrchestrator(const std::string& config_file, int nx, int ny, int nz, const double* lon_coords,
-                                               const double* lat_coords, MPI_Comm comm_c)
+CeceDriverOrchestrator::CeceDriverOrchestrator(const std::string& config_file, int nx, int ny, int nz, const double* lon_coords, int lon_len,
+                                               const double* lat_coords, int lat_len, MPI_Comm comm_c)
     : config_file_(config_file),
       nx_(nx),
       ny_(ny),
       nz_(nz),
-      target_lons_(lon_coords, lon_coords + nx),
-      target_lats_(lat_coords, lat_coords + (ny == 1 ? nx : ny)),
+      target_lons_(lon_coords, lon_coords + lon_len),
+      target_lats_(lat_coords, lat_coords + lat_len),
       comm_c_(comm_c) {
     cece_io_ = std::make_unique<io::CeceIO>();
     cece_io_->Initialize(config_file_, nx_, ny_, nz_);
@@ -616,8 +616,8 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
 extern "C" {
 void amio_set_parent_communicator(MPI_Fint comm);
 
-void cece_driver_create(const char* yaml_path, int path_len, int nx, int ny, int nz, const double* lon_coords, const double* lat_coords,
-                        int mpi_comm_f, void** driver_ptr_out, int* rc) {
+void cece_driver_create(const char* yaml_path, int path_len, int nx, int ny, int nz, const double* lon_coords, int lon_len, const double* lat_coords,
+                        int lat_len, int mpi_comm_f, void** driver_ptr_out, int* rc) {
     if (rc) *rc = 0;
     try {
         std::string path(yaml_path, path_len);
@@ -629,7 +629,7 @@ void cece_driver_create(const char* yaml_path, int path_len, int nx, int ny, int
         MPI_Comm comm_c = MPI_Comm_f2c(static_cast<MPI_Fint>(mpi_comm_f));
 
         // 3. Create orchestrator using the custom communicator
-        auto* driver = new cece::CeceDriverOrchestrator(path, nx, ny, nz, lon_coords, lat_coords, comm_c);
+        auto* driver = new cece::CeceDriverOrchestrator(path, nx, ny, nz, lon_coords, lon_len, lat_coords, lat_len, comm_c);
         *driver_ptr_out = static_cast<void*>(driver);
     } catch (const std::exception& e) {
         std::cerr << "ERROR: cece_driver_create: " << e.what() << std::endl;

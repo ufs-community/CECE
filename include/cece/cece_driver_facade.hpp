@@ -16,8 +16,8 @@ namespace cece {
 
 class CeceDriverOrchestrator {
    public:
-    CeceDriverOrchestrator(const std::string& config_file, int nx, int ny, int nz, const double* lon_coords, const double* lat_coords,
-                           MPI_Comm comm_c);
+    CeceDriverOrchestrator(const std::string& config_file, int nx, int ny, int nz, const double* lon_coords, int lon_len, const double* lat_coords,
+                           int lat_len, MPI_Comm comm_c);
     ~CeceDriverOrchestrator();
 
     // Prevent copy/move construction and assignment (Rule of Five)
@@ -50,8 +50,8 @@ class CeceDriverOrchestrator {
 }  // namespace cece
 
 extern "C" {
-void cece_driver_create(const char* yaml_path, int path_len, int nx, int ny, int nz, const double* lon_coords, const double* lat_coords,
-                        int mpi_comm_f, void** driver_ptr_out, int* rc);
+void cece_driver_create(const char* yaml_path, int path_len, int nx, int ny, int nz, const double* lon_coords, int lon_len, const double* lat_coords,
+                        int lat_len, int mpi_comm_f, void** driver_ptr_out, int* rc);
 
 void cece_driver_advance_time(void* driver_ptr, const char* time_iso8601, int time_len, void* cece_core_data_ptr, int* rc);
 

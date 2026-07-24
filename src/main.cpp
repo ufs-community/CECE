@@ -29,15 +29,15 @@ void cece_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc)
 void cece_core_run(void* data_ptr, int hour, int day_of_week, int* rc);
 void cece_core_finalize(void* data_ptr, int* rc);
 void cece_core_writer_initialize(void* data_ptr, int nx, int ny, int nz, const char* start_time_iso8601, int start_time_len, int mpi_comm_f, int* rc);
-void cece_core_writer_initialize_with_coords(void* data_ptr, int nx, int ny, int nz, const double* lon_coords, const double* lat_coords,
-                                             const char* start_time_iso8601, int start_time_len, int mpi_comm_f, int* rc);
+void cece_core_writer_initialize_with_coords(void* data_ptr, int nx, int ny, int nz, const double* lon_coords, int lon_len, const double* lat_coords,
+                                             int lat_len, const char* start_time_iso8601, int start_time_len, int mpi_comm_f, int* rc);
 void cece_core_write_step(void* data_ptr, double time_seconds, int step_index, int* rc);
 void cece_core_set_export_field(void* data_ptr, const char* name, int name_len, const double* field_data, int nx, int ny, int nz, int* rc);
 }
 
 extern "C" {
-void cece_driver_create(const char* yaml_path, int path_len, int nx, int ny, int nz, const double* lon_coords, const double* lat_coords,
-                        int mpi_comm_f, void** driver_ptr_out, int* rc);
+void cece_driver_create(const char* yaml_path, int path_len, int nx, int ny, int nz, const double* lon_coords, int lon_len, const double* lat_coords,
+                        int lat_len, int mpi_comm_f, void** driver_ptr_out, int* rc);
 }
 
 int main(int argc, char* argv[]) {
@@ -236,6 +236,8 @@ int main(int argc, char* argv[]) {
                         lon_status = amio_read(coord_dataset, "lonCell", 0, nullptr, &lon_view);
                         if (lon_status == AMIO_OK) {
                             is_radian = true;
+                        } else {
+                            lon_status = amio_read(coord_dataset, "x", 0, nullptr, &lon_view);
                         }
                     }
 
@@ -245,8 +247,12 @@ int main(int argc, char* argv[]) {
                         if (amio_view_data(lon_view, &view_data, &view_size) == AMIO_OK) {
                             amio_shape_t lon_shape{};
                             if (amio_view_shape(lon_view, &lon_shape) == AMIO_OK) {
-                                file_nx = static_cast<int>(lon_shape.extents[0]);
-                                bool is_float = (view_size == static_cast<size_t>(file_nx) * 4);
+                                int total_len = 1;
+                                for (int r = 0; r < lon_shape.rank; ++r) {
+                                    total_len *= static_cast<int>(lon_shape.extents[r]);
+                                }
+                                file_nx = total_len;
+                                bool is_float = (view_size == static_cast<size_t>(total_len) * 4);
                                 const float* float_data = static_cast<const float*>(view_data);
                                 const double* double_data = static_cast<const double*>(view_data);
                                 file_lon_coords.resize(file_nx);
@@ -265,6 +271,9 @@ int main(int argc, char* argv[]) {
                     amio_status_t lat_status = amio_read(coord_dataset, "lat", 0, nullptr, &lat_view);
                     if (lat_status != AMIO_OK) {
                         lat_status = amio_read(coord_dataset, "latCell", 0, nullptr, &lat_view);
+                        if (lat_status != AMIO_OK) {
+                            lat_status = amio_read(coord_dataset, "y", 0, nullptr, &lat_view);
+                        }
                     }
 
                     if (lat_status == AMIO_OK) {
@@ -273,12 +282,17 @@ int main(int argc, char* argv[]) {
                         if (amio_view_data(lat_view, &view_data, &view_size) == AMIO_OK) {
                             amio_shape_t lat_shape{};
                             if (amio_view_shape(lat_view, &lat_shape) == AMIO_OK) {
-                                file_ny = static_cast<int>(lat_shape.extents[0]);
-                                bool is_float = (view_size == static_cast<size_t>(file_ny) * 4);
+                                int total_len = 1;
+                                for (int r = 0; r < lat_shape.rank; ++r) {
+                                    total_len *= static_cast<int>(lat_shape.extents[r]);
+                                }
+                                file_ny = (lat_shape.rank > 1) ? 1 : total_len;
+                                int lat_len = total_len;
+                                bool is_float = (view_size == static_cast<size_t>(lat_len) * 4);
                                 const float* float_data = static_cast<const float*>(view_data);
                                 const double* double_data = static_cast<const double*>(view_data);
-                                file_lat_coords.resize(file_ny);
-                                for (int j = 0; j < file_ny; ++j) {
+                                file_lat_coords.resize(lat_len);
+                                for (int j = 0; j < lat_len; ++j) {
                                     double val = is_float ? static_cast<double>(float_data[j]) : double_data[j];
                                     if (is_radian) {
                                         val *= 180.0 / M_PI;
@@ -332,14 +346,16 @@ int main(int argc, char* argv[]) {
         // 5. Initialize the cece_driver orchestrator facade
         void* cece_driver_data = nullptr;
         int mpi_comm_f = MPI_Comm_c2f(MPI_COMM_WORLD);
-        cece_driver_create(config_file.c_str(), static_cast<int>(config_file.length()), nx, ny, nz, file_lons.data(), file_lats.data(), mpi_comm_f,
-                           &cece_driver_data, &rc);
+        cece_driver_create(config_file.c_str(), static_cast<int>(config_file.length()), nx, ny, nz, file_lons.data(),
+                           static_cast<int>(file_lons.size()), file_lats.data(), static_cast<int>(file_lats.size()), mpi_comm_f, &cece_driver_data,
+                           &rc);
 
         // Standalone Writer: Initialize output writing if configured
         int writer_comm_f = MPI_Comm_c2f(MPI_COMM_WORLD);
         if (has_file_coords) {
-            cece_core_writer_initialize_with_coords(cece_data_ptr, nx, ny, nz, file_lons.data(), file_lats.data(), start_time_str.c_str(),
-                                                    start_time_str.length(), writer_comm_f, &rc);
+            cece_core_writer_initialize_with_coords(cece_data_ptr, nx, ny, nz, file_lons.data(), static_cast<int>(file_lons.size()), file_lats.data(),
+                                                    static_cast<int>(file_lats.size()), start_time_str.c_str(), start_time_str.length(),
+                                                    writer_comm_f, &rc);
         } else {
             cece_core_writer_initialize(cece_data_ptr, nx, ny, nz, start_time_str.c_str(), start_time_str.length(), writer_comm_f, &rc);
         }
