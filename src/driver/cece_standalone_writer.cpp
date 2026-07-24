@@ -442,11 +442,63 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
                 if (amio_rc == AMIO_OK) {
                     amio_rc = amio_open_dataset(core, manifest_path.c_str(), AMIO_MODE_READ, &dataset_gs);
                     if (amio_rc == AMIO_OK) {
+                        // Try SCRIP-conventions coordinates first
+                        amio_view_handle scrip_lon_view = nullptr;
+                        amio_view_handle scrip_lat_view = nullptr;
+                        if (amio_read(dataset_gs, "grid_corner_lon", 0, nullptr, &scrip_lon_view) == AMIO_OK) {
+                            const void* lon_data = nullptr;
+                            size_t lon_size = 0;
+                            std::vector<double> scrip_lons;
+                            int grid_size = 0;
+                            int grid_corners = 0;
+
+                            if (amio_view_data(scrip_lon_view, &lon_data, &lon_size) == AMIO_OK) {
+                                amio_shape_t shape{};
+                                if (amio_view_shape(scrip_lon_view, &shape) == AMIO_OK && shape.rank == 2) {
+                                    grid_size = static_cast<int>(shape.extents[0]);
+                                    grid_corners = static_cast<int>(shape.extents[1]);
+                                    int total_pts = grid_size * grid_corners;
+                                    scrip_lons.resize(total_pts);
+                                    bool is_float = (lon_size == static_cast<size_t>(total_pts) * 4);
+                                    for (int i = 0; i < total_pts; ++i) {
+                                        scrip_lons[i] = is_float ? static_cast<const float*>(lon_data)[i] : static_cast<const double*>(lon_data)[i];
+                                        if (scrip_lons[i] >= 180.0)
+                                            scrip_lons[i] -= 360.0;
+                                        else if (scrip_lons[i] < -180.0)
+                                            scrip_lons[i] += 360.0;
+                                    }
+                                }
+                            }
+                            amio_release_view(scrip_lon_view);
+
+                            std::vector<double> scrip_lats;
+                            if (amio_read(dataset_gs, "grid_corner_lat", 0, nullptr, &scrip_lat_view) == AMIO_OK) {
+                                const void* lat_data = nullptr;
+                                size_t lat_size = 0;
+                                if (amio_view_data(scrip_lat_view, &lat_data, &lat_size) == AMIO_OK) {
+                                    int total_pts = grid_size * grid_corners;
+                                    scrip_lats.resize(total_pts);
+                                    bool is_float = (lat_size == static_cast<size_t>(total_pts) * 4);
+                                    for (int i = 0; i < total_pts; ++i) {
+                                        scrip_lats[i] = is_float ? static_cast<const float*>(lat_data)[i] : static_cast<const double*>(lat_data)[i];
+                                    }
+                                }
+                                amio_release_view(scrip_lat_view);
+                            }
+
+                            if (!scrip_lons.empty() && !scrip_lats.empty()) {
+                                max_edges = grid_corners;
+                                lon_bnds_values = scrip_lons;
+                                lat_bnds_values = scrip_lats;
+                                loaded_real_bnds = true;
+                            }
+                        }
+
                         std::vector<double> lat_vertices;
                         std::vector<double> lon_vertices;
                         int n_vertices = 0;
 
-                        if (amio_read(dataset_gs, "latVertex", 0, nullptr, &lat_vertex_view) == AMIO_OK) {
+                        if (!loaded_real_bnds && amio_read(dataset_gs, "latVertex", 0, nullptr, &lat_vertex_view) == AMIO_OK) {
                             const void* data = nullptr;
                             size_t size = 0;
                             if (amio_view_data(lat_vertex_view, &data, &size) == AMIO_OK) {

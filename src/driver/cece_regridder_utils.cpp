@@ -39,6 +39,81 @@ axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_axis_mesh(int ni, int 
         if (amio_rc == AMIO_OK) {
             amio_rc = amio_open_dataset(core, manifest_path.c_str(), AMIO_MODE_READ, &dataset);
             if (amio_rc == AMIO_OK) {
+                // Try SCRIP-conventions coordinates
+                amio_view_handle scrip_lon_view = nullptr;
+                amio_view_handle scrip_lat_view = nullptr;
+                if (amio_read(dataset, "grid_corner_lon", 0, nullptr, &scrip_lon_view) == AMIO_OK) {
+                    const void* lon_data = nullptr;
+                    size_t lon_size = 0;
+                    std::vector<double> scrip_lons;
+                    int grid_size = 0;
+                    int grid_corners = 0;
+
+                    if (amio_view_data(scrip_lon_view, &lon_data, &lon_size) == AMIO_OK) {
+                        amio_shape_t shape{};
+                        if (amio_view_shape(scrip_lon_view, &shape) == AMIO_OK && shape.rank == 2) {
+                            grid_size = static_cast<int>(shape.extents[0]);
+                            grid_corners = static_cast<int>(shape.extents[1]);
+                            int total_pts = grid_size * grid_corners;
+                            scrip_lons.resize(total_pts);
+                            bool is_float = (lon_size == static_cast<size_t>(total_pts) * 4);
+                            for (int i = 0; i < total_pts; ++i) {
+                                scrip_lons[i] = is_float ? static_cast<const float*>(lon_data)[i] : static_cast<const double*>(lon_data)[i];
+                                if (scrip_lons[i] >= 180.0)
+                                    scrip_lons[i] -= 360.0;
+                                else if (scrip_lons[i] < -180.0)
+                                    scrip_lons[i] += 360.0;
+                            }
+                        }
+                    }
+                    amio_release_view(scrip_lon_view);
+
+                    std::vector<double> scrip_lats;
+                    if (amio_read(dataset, "grid_corner_lat", 0, nullptr, &scrip_lat_view) == AMIO_OK) {
+                        const void* lat_data = nullptr;
+                        size_t lat_size = 0;
+                        if (amio_view_data(scrip_lat_view, &lat_data, &lat_size) == AMIO_OK) {
+                            int total_pts = grid_size * grid_corners;
+                            scrip_lats.resize(total_pts);
+                            bool is_float = (lat_size == static_cast<size_t>(total_pts) * 4);
+                            for (int i = 0; i < total_pts; ++i) {
+                                scrip_lats[i] = is_float ? static_cast<const float*>(lat_data)[i] : static_cast<const double*>(lat_data)[i];
+                            }
+                        }
+                        amio_release_view(scrip_lat_view);
+                    }
+
+                    if (!scrip_lons.empty() && !scrip_lats.empty()) {
+                        amio_close(dataset);
+                        amio_finalize(core);
+                        std::remove(manifest_path.c_str());
+
+                        size_t n_vertices = scrip_lons.size();
+                        size_t n_cells = grid_size;
+
+                        Kokkos::View<double**, Kokkos::LayoutLeft, Kokkos::HostSpace> node_coords("node_coords", n_vertices, 2);
+                        for (size_t i = 0; i < n_vertices; ++i) {
+                            node_coords(i, 0) = scrip_lons[i];
+                            node_coords(i, 1) = scrip_lats[i];
+                        }
+
+                        Kokkos::View<axis::index_t*, Kokkos::HostSpace> conn_offsets("conn_offsets", n_cells + 1);
+                        Kokkos::View<axis::index_t*, Kokkos::HostSpace> conn_indices("conn_indices", n_vertices);
+
+                        for (size_t i = 0; i < n_cells; ++i) {
+                            conn_offsets(i) = i * grid_corners;
+                            for (int v = 0; v < grid_corners; ++v) {
+                                conn_indices(i * grid_corners + v) = i * grid_corners + v;
+                            }
+                        }
+                        conn_offsets(n_cells) = n_vertices;
+
+                        return axis::topology::UnstructuredMesh<Kokkos::HostSpace>(node_coords, conn_offsets, conn_indices,
+                                                                                   axis::topology::CoordinateSystem::SphericalDeg);
+                    }
+                }
+
+                // Try MPAS-conventions coordinates
                 std::vector<double> lat_vertices;
                 std::vector<double> lon_vertices;
                 int n_vertices = 0;
