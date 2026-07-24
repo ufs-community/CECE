@@ -288,7 +288,7 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
             lat_shape.extents[1] = nx_;
         } else {
             lat_shape.rank = 1;
-            lat_shape.extents[0] = ny_;
+            lat_shape.extents[0] = (ny_ == 1) ? nx_ : ny_;
         }
         amio_io_handle lat_io = nullptr;
         check_amio_rc(amio_write(dataset, "lat", lat_values.data(), AMIO_DTYPE_F64, &lat_shape, &lat_io), "amio_write(lat)");
@@ -350,13 +350,20 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
                 amio_shape_t field_shape;
                 std::memset(&field_shape, 0, sizeof(field_shape));
                 // Write with a leading (unlimited) time axis so per-timestep files
-                // form a proper CF time series: [time=1, lev, ny, nx]. The data
-                // layout is unchanged since the leading time extent is 1.
-                field_shape.rank = 4;
-                field_shape.extents[0] = 1;
-                field_shape.extents[1] = nz_;
-                field_shape.extents[2] = ny_;
-                field_shape.extents[3] = nx_;
+                // form a proper CF time series. For unstructured grids (where ny_ == 1),
+                // we write as a 3D variable [time=1, lev, nCells] to follow the UGRID convention.
+                if (ny_ == 1) {
+                    field_shape.rank = 3;
+                    field_shape.extents[0] = 1;
+                    field_shape.extents[1] = nz_;
+                    field_shape.extents[2] = nx_;
+                } else {
+                    field_shape.rank = 4;
+                    field_shape.extents[0] = 1;
+                    field_shape.extents[1] = nz_;
+                    field_shape.extents[2] = ny_;
+                    field_shape.extents[3] = nx_;
+                }
 
                 amio_io_handle field_io = nullptr;
                 check_amio_rc(amio_write(dataset, name.c_str(), netcdf_buffer.data(), AMIO_DTYPE_F64, &field_shape, &field_io),
