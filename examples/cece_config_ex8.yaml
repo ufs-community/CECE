@@ -55,4 +55,7 @@ output:
       attributes:
         units: "kg m-2 s-1"
         long_name: "carbon_monoxide_emission_flux"
-    - "no" # scalar shorthand: written with no configured attributes
+    - name: "no"
+      attributes:
+        units: "kg m-2 s-1"
+        long_name: "nitrous_dioxide_emission_flux"

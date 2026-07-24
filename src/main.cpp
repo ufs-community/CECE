@@ -157,7 +157,7 @@ int main(int argc, char* argv[]) {
 
         // Setup CECE grid coordinate arrays (either generated dynamically from NamedGridRegistry, or calculated uniformly)
         std::vector<double> file_lons(nx, 0.0);
-        std::vector<double> file_lats(ny, 0.0);
+        std::vector<double> file_lats(ny == 1 ? nx : ny, 0.0);
         bool has_file_coords = false;
 
         if (!grid_name.empty()) {
@@ -292,7 +292,7 @@ int main(int argc, char* argv[]) {
 
                     amio_close(coord_dataset);
 
-                    if (nx == file_nx && ny == file_ny && file_nx > 0 && file_ny > 0) {
+                    if (nx == file_nx && (ny == file_ny || (ny == 1 && file_ny == file_nx)) && file_nx > 0 && file_ny > 0) {
                         file_lons = file_lon_coords;
                         file_lats = file_lat_coords;
                         loaded_from_file = true;

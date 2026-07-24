@@ -148,8 +148,10 @@ void cece_core_run(void* data_ptr, int hour, int day_of_week, int* rc) {
             }
         }
 
-        // Sync fields for ESMF access
+        // Mark all export fields as modified on the device since they are computed on the device
+        // by the Stacking Engine and physics schemes, ensuring Kokkos copies device updates to host.
         for (auto& [name, field] : d->export_state.fields) {
+            field.modify<Kokkos::DefaultExecutionSpace>();
             field.sync_host();
         }
 

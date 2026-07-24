@@ -170,7 +170,7 @@ CeceDriverOrchestrator::CeceDriverOrchestrator(const std::string& config_file, i
       ny_(ny),
       nz_(nz),
       target_lons_(lon_coords, lon_coords + nx),
-      target_lats_(lat_coords, lat_coords + ny),
+      target_lats_(lat_coords, lat_coords + (ny == 1 ? nx : ny)),
       comm_c_(comm_c) {
     cece_io_ = std::make_unique<io::CeceIO>();
     cece_io_->Initialize(config_file_, nx_, ny_, nz_);

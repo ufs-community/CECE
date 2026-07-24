@@ -13,6 +13,70 @@ namespace cece::io {
 
 axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_axis_mesh(int ni, int nj, const std::vector<double>& lons,
                                                                     const std::vector<double>& lats) {
+    if (nj == 1) {
+        // Build unstructured mesh of ni quadrilaterals dynamically to support nj = 1 in standalone driver
+        size_t n_cells = static_cast<size_t>(ni);
+        size_t n_nodes = 4 * n_cells;
+
+        Kokkos::View<double**, Kokkos::LayoutLeft, Kokkos::HostSpace> node_coords("node_coords", n_nodes, 2);
+        Kokkos::View<axis::index_t*, Kokkos::HostSpace> conn_offsets("conn_offsets", n_cells + 1);
+        Kokkos::View<axis::index_t*, Kokkos::HostSpace> conn_indices("conn_indices", 4 * n_cells);
+
+        // Dynamically compute longitude cell spacing based on adjacent cells
+        std::vector<double> dlons(n_cells, 0.0);
+        if (n_cells > 1) {
+            dlons[0] = std::abs(lons[1] - lons[0]);
+            for (size_t i = 1; i < n_cells - 1; ++i) {
+                dlons[i] = 0.5 * (std::abs(lons[i] - lons[i - 1]) + std::abs(lons[i + 1] - lons[i]));
+            }
+            dlons[n_cells - 1] = std::abs(lons[n_cells - 1] - lons[n_cells - 2]);
+        } else {
+            dlons[0] = 360.0;
+        }
+
+        for (size_t i = 0; i < n_cells; ++i) {
+            double lon = lons[i];
+            double lat = lats[i];
+
+            double dlon_i = dlons[i];
+            double cos_lat = std::cos(lat * M_PI / 180.0);
+            if (cos_lat < 1e-3) cos_lat = 1e-3;  // safeguard near poles
+            double dy_i = dlon_i * cos_lat;
+
+            double x0 = lon - 0.5 * dlon_i;
+            double x1 = lon + 0.5 * dlon_i;
+            double y0 = lat - 0.5 * dy_i;
+            double y1 = lat + 0.5 * dy_i;
+
+            // clamp latitude to sphere bounds
+            if (y0 < -90.0) y0 = -90.0;
+            if (y1 > 90.0) y1 = 90.0;
+
+            node_coords(4 * i + 0, 0) = x0;  // lon
+            node_coords(4 * i + 0, 1) = y0;  // lat
+
+            node_coords(4 * i + 1, 0) = x1;
+            node_coords(4 * i + 1, 1) = y0;
+
+            node_coords(4 * i + 2, 0) = x1;
+            node_coords(4 * i + 2, 1) = y1;
+
+            node_coords(4 * i + 3, 0) = x0;
+            node_coords(4 * i + 3, 1) = y1;
+
+            conn_offsets(i) = 4 * i;
+
+            conn_indices(4 * i + 0) = 4 * i + 0;
+            conn_indices(4 * i + 1) = 4 * i + 1;
+            conn_indices(4 * i + 2) = 4 * i + 2;
+            conn_indices(4 * i + 3) = 4 * i + 3;
+        }
+        conn_offsets(n_cells) = 4 * n_cells;
+
+        return axis::topology::UnstructuredMesh<Kokkos::HostSpace>(node_coords, conn_offsets, conn_indices,
+                                                                   axis::topology::CoordinateSystem::SphericalDeg);
+    }
+
     size_t n_cells = static_cast<size_t>(ni) * nj;
     Kokkos::View<double*, Kokkos::HostSpace> center_lon("center_lon", n_cells);
     Kokkos::View<double*, Kokkos::HostSpace> center_lat("center_lat", n_cells);
@@ -228,6 +292,12 @@ bool apply_regrid_plan(const RegridPlan& plan, size_t time_offset, bool is_float
     axis::field_view<const double, 1> src_view(src_field.data(), static_cast<size_t>(file_nx) * file_ny);
     axis::field_view<double, 1> dst_view(dst_field.data(), static_cast<size_t>(nx) * nband);
     axis::solver::apply(plan.matrix, src_view, dst_view);
+
+    double src_sum = 0.0;
+    for (size_t k = 0; k < src_field.extent(0); ++k) src_sum += src_field(k);
+    double dst_sum = 0.0;
+    for (size_t k = 0; k < dst_field.extent(0); ++k) dst_sum += dst_field(k);
+    std::cout << "[DEBUG REGRID] src_sum: " << src_sum << ", dst_sum: " << dst_sum << std::endl;
 
     for (size_t k = 0; k < static_cast<size_t>(nx) * nband; ++k) {
         local_dst[k] = dst_field(k);
