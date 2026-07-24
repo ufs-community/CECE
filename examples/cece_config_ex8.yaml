@@ -3,9 +3,9 @@ driver:
   start_time: "2020-01-01T00:00:00"
   end_time: "2020-01-01T06:00:00"
   timestep_seconds: 3600
-  gridspec_file: "data/x1.2562.grid.nc"
+  gridspec_file: "data/C96_grid.tile1.nc"
   grid:
-    nx: 2562
+    nx: 37249
     ny: 1
 
 species:
