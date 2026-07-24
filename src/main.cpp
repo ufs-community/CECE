@@ -247,16 +247,20 @@ int main(int argc, char* argv[]) {
                         if (amio_view_data(lon_view, &view_data, &view_size) == AMIO_OK) {
                             amio_shape_t lon_shape{};
                             if (amio_view_shape(lon_view, &lon_shape) == AMIO_OK) {
+                                if (lon_shape.rank == 1) {
+                                    file_nx = static_cast<int>(lon_shape.extents[0]);
+                                } else if (lon_shape.rank == 2) {
+                                    file_nx = static_cast<int>(lon_shape.extents[1]);
+                                }
                                 int total_len = 1;
                                 for (int r = 0; r < lon_shape.rank; ++r) {
                                     total_len *= static_cast<int>(lon_shape.extents[r]);
                                 }
-                                file_nx = total_len;
                                 bool is_float = (view_size == static_cast<size_t>(total_len) * 4);
                                 const float* float_data = static_cast<const float*>(view_data);
                                 const double* double_data = static_cast<const double*>(view_data);
-                                file_lon_coords.resize(file_nx);
-                                for (int i = 0; i < file_nx; ++i) {
+                                file_lon_coords.resize(total_len);
+                                for (int i = 0; i < total_len; ++i) {
                                     double val = is_float ? static_cast<double>(float_data[i]) : double_data[i];
                                     if (is_radian) {
                                         val *= 180.0 / M_PI;
@@ -282,17 +286,20 @@ int main(int argc, char* argv[]) {
                         if (amio_view_data(lat_view, &view_data, &view_size) == AMIO_OK) {
                             amio_shape_t lat_shape{};
                             if (amio_view_shape(lat_view, &lat_shape) == AMIO_OK) {
+                                if (lat_shape.rank == 1) {
+                                    file_ny = static_cast<int>(lat_shape.extents[0]);
+                                } else if (lat_shape.rank == 2) {
+                                    file_ny = static_cast<int>(lat_shape.extents[0]);
+                                }
                                 int total_len = 1;
                                 for (int r = 0; r < lat_shape.rank; ++r) {
                                     total_len *= static_cast<int>(lat_shape.extents[r]);
                                 }
-                                file_ny = (lat_shape.rank > 1) ? 1 : total_len;
-                                int lat_len = total_len;
-                                bool is_float = (view_size == static_cast<size_t>(lat_len) * 4);
+                                bool is_float = (view_size == static_cast<size_t>(total_len) * 4);
                                 const float* float_data = static_cast<const float*>(view_data);
                                 const double* double_data = static_cast<const double*>(view_data);
-                                file_lat_coords.resize(lat_len);
-                                for (int j = 0; j < lat_len; ++j) {
+                                file_lat_coords.resize(total_len);
+                                for (int j = 0; j < total_len; ++j) {
                                     double val = is_float ? static_cast<double>(float_data[j]) : double_data[j];
                                     if (is_radian) {
                                         val *= 180.0 / M_PI;
