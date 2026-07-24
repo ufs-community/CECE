@@ -230,7 +230,7 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
                    << "staging_timeout_ms: 10000\n"
                    << "global_attributes:\n"
                    << "  title: \"CECE-HELM Standalone Simulation Output\"\n"
-                   << "  Conventions: \"CF-1.8\"\n";
+                   << "  Conventions: \"" << (ny_ == 1 ? "CF-1.9 UGRID-1.0" : "CF-1.9") << "\"\n";
             // The collection is seeded with the coordinate variables and
             // carries time's units from config initialization (SetTimeUnits),
             // so it renders the whole variable side of the manifest.
