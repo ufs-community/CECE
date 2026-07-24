@@ -235,9 +235,12 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
             // carries time's units from config initialization (SetTimeUnits),
             // so it renders the whole variable side of the manifest.
             m_file << "variable_names: [\"lon\", \"lat\", \"lev\", \"time\", \"lon_bnds\", \"lat_bnds\"";
+            if (ny_ == 1) {
+                m_file << ", \"mesh\"";
+            }
             for (const auto& field : config_.fields) {
                 if (field.name != "lon" && field.name != "lat" && field.name != "lev" && field.name != "time" && field.name != "lon_bnds" &&
-                    field.name != "lat_bnds") {
+                    field.name != "lat_bnds" && field.name != "mesh") {
                     m_file << ", \"" << field.name << "\"";
                 }
             }
@@ -267,15 +270,28 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
                    << "    attributes:\n"
                    << "      units: \"degrees_north\"\n";
 
+            if (ny_ == 1) {
+                m_file << "  mesh:\n"
+                       << "    attributes:\n"
+                       << "      cf_role: \"mesh_topology\"\n"
+                       << "      topology_dimension: 2\n"
+                       << "      face_coordinates: \"lon lat\"\n"
+                       << "      face_bounds: \"lon_bnds lat_bnds\"\n";
+            }
+
             for (const auto& field : config_.fields) {
                 if (field.name != "lon" && field.name != "lat" && field.name != "lev" && field.name != "time" && field.name != "lon_bnds" &&
-                    field.name != "lat_bnds") {
+                    field.name != "lat_bnds" && field.name != "mesh") {
                     m_file << "  " << field.name << ":\n"
                            << "    attributes:\n";
                     for (const auto& [attr_name, attr_value] : field.attributes) {
                         m_file << "      " << attr_name << ": \"" << attr_value << "\"\n";
                     }
                     m_file << "      coordinates: \"time lev lat lon\"\n";
+                    if (ny_ == 1) {
+                        m_file << "      mesh: \"mesh\"\n"
+                               << "      location: \"face\"\n";
+                    }
                 }
             }
             m_file.close();
@@ -478,6 +494,17 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
 
         amio_io_handle lat_bnds_io = nullptr;
         check_amio_rc(amio_write(dataset, "lat_bnds", lat_bnds_values.data(), AMIO_DTYPE_F64, &lat_bnds_shape, &lat_bnds_io), "amio_write(lat_bnds)");
+
+        // Step 5c: Write mesh topology variable for unstructured UGRID mesh
+        if (ny_ == 1) {
+            int mesh_val = 1;
+            amio_shape_t mesh_shape;
+            std::memset(&mesh_shape, 0, sizeof(mesh_shape));
+            mesh_shape.rank = 1;
+            mesh_shape.extents[0] = 1;
+            amio_io_handle mesh_io = nullptr;
+            check_amio_rc(amio_write(dataset, "mesh", &mesh_val, AMIO_DTYPE_I32, &mesh_shape, &mesh_io), "amio_write(mesh)");
+        }
 
         // Step 6: Write lev coordinate variable
         std::vector<double> lev_values(nz_);
