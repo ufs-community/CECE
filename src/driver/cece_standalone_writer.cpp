@@ -243,9 +243,9 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
                    << "  title: \"CECE Standalone Emissions Simulation Output\"\n"
                    << "  Conventions: \"" << (ny_ == 1 ? "CF-1.9 UGRID-1.0" : "CF-1.9") << "\"\n"
                    << "  institution: \"Community Emissions Computing Engine (CECE) Development Team\"\n"
-                   << "  source: \"CECE Standalone Driver (git branch: feature/mpas_test), regridded dynamically via HELM AXIS topology engine\"\n"
+                   << "  source: \"CECE Standalone Driver, regridded dynamically via HELM AXIS topology engine\"\n"
                    << "  history: \"Simulated on " << GetCurrentTimestamp() << " UTC\"\n"
-                   << "  references: \"CECE Documentation: See docs/index.md, AXIS Library: https://github.com/google/gemini-cli\"\n"
+                   << "  references: \"CECE Documentation: See docs/index.md, Repository: https://github.com/HELM-Earth-System-Model/cece\"\n"
                    << "  comment: \"Target spatial grid: " << nx_ << "x" << ny_ << "x" << nz_ << "\"\n"
                    << "  gridspec_file: \"" << (gridspec_file_.empty() ? "none" : gridspec_file_) << "\"\n";
             // The collection is seeded with the coordinate variables and
