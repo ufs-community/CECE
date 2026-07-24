@@ -292,9 +292,7 @@ int main(int argc, char* argv[]) {
                         if (amio_view_data(lat_view, &view_data, &view_size) == AMIO_OK) {
                             amio_shape_t lat_shape{};
                             if (amio_view_shape(lat_view, &lat_shape) == AMIO_OK) {
-                                if (lat_shape.rank == 1) {
-                                    file_ny = static_cast<int>(lat_shape.extents[0]);
-                                } else if (lat_shape.rank == 2) {
+                                if (lat_shape.rank == 1 || lat_shape.rank == 2) {
                                     file_ny = static_cast<int>(lat_shape.extents[0]);
                                 }
                                 int total_len = 1;

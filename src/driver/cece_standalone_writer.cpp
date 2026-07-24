@@ -453,8 +453,8 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
 
         } else {
             // 3. Rectilinear case: shapes (nx_, 2) and (ny_, 2)
-            lon_bnds_values.resize(nx_ * 2);
-            lat_bnds_values.resize(ny_ * 2);
+            lon_bnds_values.resize(static_cast<size_t>(nx_) * 2);
+            lat_bnds_values.resize(static_cast<size_t>(ny_) * 2);
 
             // Longitude bounds: query nodes from the first row of cells (j = 0)
             for (int i = 0; i < nx_; ++i) {

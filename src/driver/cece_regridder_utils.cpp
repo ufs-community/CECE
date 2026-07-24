@@ -187,7 +187,7 @@ axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_axis_mesh(int ni, int 
                         if (amio_view_shape(vertices_on_cell_view, &shape) == AMIO_OK) {
                             max_edges = static_cast<int>(shape.extents[1]);
                             int nc = static_cast<int>(shape.extents[0]);
-                            vertices_on_cell.resize(nc * max_edges);
+                            vertices_on_cell.resize(static_cast<size_t>(nc) * static_cast<size_t>(max_edges));
                             for (int i = 0; i < nc * max_edges; ++i) {
                                 vertices_on_cell[i] = static_cast<const int*>(data)[i];
                             }
