@@ -3,10 +3,10 @@ driver:
   start_time: "2020-01-01T00:00:00"
   end_time: "2020-01-01T06:00:00"
   timestep_seconds: 3600
-  gridspec_file: "data/C96_grid.tile1.nc"
+  gridspec_file: "data/x1.2562.grid.nc"
   grid:
-    nx: 193
-    ny: 193
+    nx: 2562
+    ny: 1
 
 species:
   co:
@@ -48,7 +48,7 @@ diagnostics:
 output:
   enabled: true
   directory: ./cece_output
-  filename_pattern: "cece_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
+  filename_pattern: "cece_mpas_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
   frequency_steps: 1
   fields:
     - name: co

@@ -126,7 +126,7 @@ int CeceStandaloneWriter::InitializeWithCoords(const std::string& start_time_iso
     if (!config_.enabled) return 0;
 
     // Check for duplicate longitude values (only for rectilinear grids)
-    if (lon_coords.size() == static_cast<size_t>(nx)) {
+    if (ny > 1 && lon_coords.size() == static_cast<size_t>(nx)) {
         std::set<double> unique_lons(lon_coords.begin(), lon_coords.end());
         if (unique_lons.size() < lon_coords.size()) {
             CECE_LOG_ERROR("[CECE] Duplicate longitude coordinates detected in input array!");
@@ -135,7 +135,7 @@ int CeceStandaloneWriter::InitializeWithCoords(const std::string& start_time_iso
     }
 
     // Check for duplicate latitude values (only for rectilinear grids)
-    if (lat_coords.size() == static_cast<size_t>(ny)) {
+    if (ny > 1 && lat_coords.size() == static_cast<size_t>(ny)) {
         std::set<double> unique_lats(lat_coords.begin(), lat_coords.end());
         if (unique_lats.size() < lat_coords.size()) {
             CECE_LOG_ERROR("[CECE] Duplicate latitude coordinates detected in input array!");
