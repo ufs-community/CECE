@@ -50,6 +50,9 @@ output:
   directory: ./cece_output
   filename_pattern: "cece_mpas_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
   frequency_steps: 1
+  global_attributes:
+    title: "My Custom MPAS Emission Simulation Run"
+    institution: "National Center for Atmospheric Research (NCAR)"
   fields:
     - name: co
       attributes:

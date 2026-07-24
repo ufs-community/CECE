@@ -429,6 +429,13 @@ CeceConfig ParseConfig(const std::string& filename) {
             }
             config.output_config.amio_worker_threads = threads;
         }
+        if (out_node["global_attributes"]) {
+            for (auto const& pair : out_node["global_attributes"]) {
+                std::string key = pair.first.as<std::string>();
+                std::string value = pair.second.as<std::string>();
+                config.output_config.global_attributes[key] = value;
+            }
+        }
 
         // Validate output directory writability; log INFO if it needs to be created.
         // Actual directory creation is deferred to CeceStandaloneWriter::Initialize.

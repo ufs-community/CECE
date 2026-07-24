@@ -355,6 +355,7 @@ struct CeceOutputConfig {
     bool include_diagnostics = false;  ///< Also write diagnostic fields when true.
     bool enabled = false;              ///< True when an output block is present in the YAML.
     int amio_worker_threads = -1;      ///< Number of AMIO background I/O worker threads (default: -1, meaning use fallback).
+    std::unordered_map<std::string, std::string> global_attributes;  ///< Custom global attributes to write verbatim on the output file.
 };
 
 /**

@@ -238,16 +238,26 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
                    << "prefetch:\n"
                    << "  depth: 4\n"
                    << "  read_timeout_s: 60\n"
-                   << "staging_timeout_ms: 10000\n"
-                   << "global_attributes:\n"
-                   << "  title: \"CECE Standalone Emissions Simulation Output\"\n"
-                   << "  Conventions: \"" << (ny_ == 1 ? "CF-1.9 UGRID-1.0" : "CF-1.9") << "\"\n"
-                   << "  institution: \"Community Emissions Computing Engine (CECE) Development Team\"\n"
-                   << "  source: \"CECE Standalone Driver, regridded dynamically via HELM AXIS topology engine\"\n"
-                   << "  history: \"Simulated on " << GetCurrentTimestamp() << " UTC\"\n"
-                   << "  references: \"CECE Documentation: See docs/index.md, Repository: https://github.com/HELM-Earth-System-Model/cece\"\n"
-                   << "  comment: \"Target spatial grid: " << nx_ << "x" << ny_ << "x" << nz_ << "\"\n"
-                   << "  gridspec_file: \"" << (gridspec_file_.empty() ? "none" : gridspec_file_) << "\"\n";
+                   << "staging_timeout_ms: 10000\n";
+
+            std::map<std::string, std::string> final_attrs;
+            final_attrs["title"] = "CECE Standalone Emissions Simulation Output";
+            final_attrs["Conventions"] = (ny_ == 1 ? "CF-1.9 UGRID-1.0" : "CF-1.9");
+            final_attrs["institution"] = "National Oceanic and Atmospheric Administration";
+            final_attrs["source"] = "CECE Standalone Driver, regridded dynamically via HELM AXIS topology engine";
+            final_attrs["history"] = "Simulated on " + GetCurrentTimestamp() + " UTC";
+            final_attrs["references"] = "CECE Documentation: https://ufs-community.github.io/CECE, Repository: https://github.com/ufs-community/cece";
+            final_attrs["comment"] = "Target spatial grid: " + std::to_string(nx_) + "x" + std::to_string(ny_) + "x" + std::to_string(nz_);
+            final_attrs["gridspec_file"] = (gridspec_file_.empty() ? "none" : gridspec_file_);
+
+            for (const auto& [key, value] : config_.global_attributes) {
+                final_attrs[key] = value;
+            }
+
+            m_file << "global_attributes:\n";
+            for (const auto& [key, value] : final_attrs) {
+                m_file << "  " << key << ": \"" << value << "\"\n";
+            }
             // The collection is seeded with the coordinate variables and
             // carries time's units from config initialization (SetTimeUnits),
             // so it renders the whole variable side of the manifest.
