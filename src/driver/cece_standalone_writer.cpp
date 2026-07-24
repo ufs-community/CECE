@@ -26,6 +26,14 @@ namespace cece {
 
 namespace {
 
+std::string GetCurrentTimestamp() {
+    std::time_t now = std::time(nullptr);
+    std::tm* gmt = std::gmtime(&now);
+    char buf[64];
+    std::strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%SZ", gmt);
+    return std::string(buf);
+}
+
 std::tm ParseISO8601(const std::string& iso_time) {
     std::tm tm = {};
     std::istringstream ss(iso_time);
@@ -232,8 +240,14 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
                    << "  read_timeout_s: 60\n"
                    << "staging_timeout_ms: 10000\n"
                    << "global_attributes:\n"
-                   << "  title: \"CECE-HELM Standalone Simulation Output\"\n"
-                   << "  Conventions: \"" << (ny_ == 1 ? "CF-1.9 UGRID-1.0" : "CF-1.9") << "\"\n";
+                   << "  title: \"CECE Standalone Emissions Simulation Output\"\n"
+                   << "  Conventions: \"" << (ny_ == 1 ? "CF-1.9 UGRID-1.0" : "CF-1.9") << "\"\n"
+                   << "  institution: \"Community Emissions Computing Engine (CECE) Development Team\"\n"
+                   << "  source: \"CECE Standalone Driver (git branch: feature/mpas_test), regridded dynamically via HELM AXIS topology engine\"\n"
+                   << "  history: \"Simulated on " << GetCurrentTimestamp() << " UTC\"\n"
+                   << "  references: \"CECE Documentation: See docs/index.md, AXIS Library: https://github.com/google/gemini-cli\"\n"
+                   << "  comment: \"Target spatial grid: " << nx_ << "x" << ny_ << "x" << nz_ << "\"\n"
+                   << "  gridspec_file: \"" << (gridspec_file_.empty() ? "none" : gridspec_file_) << "\"\n";
             // The collection is seeded with the coordinate variables and
             // carries time's units from config initialization (SetTimeUnits),
             // so it renders the whole variable side of the manifest.
