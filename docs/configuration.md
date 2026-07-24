@@ -622,6 +622,7 @@ Configuration for NetCDF output file generation with emission fields and diagnos
 | `fields` | List | Fields to write; each entry is either a field name string or a map with `name` and optional `attributes` |
 | `diagnostics` | Boolean | Also write diagnostic fields (default: false) |
 | `amio_worker_threads` | Integer | (Optional) Number of AMIO background I/O worker threads for output. Must be ≥ 1; invalid values warn and default to 1. Falls back to `driver.amio_worker_threads` when not set. |
+| `global_attributes` | Map | (Optional) Map of custom NetCDF global attributes to write verbatim on the output file, overriding any defaults. |
 
 ### Fields and Attributes
 
@@ -659,6 +660,20 @@ Semantics:
   eventually be required on every output field, sourced from a
   field-metadata dictionary with the inline `attributes` map acting as the
   per-config override layer.
+
+### Custom Global Attributes
+
+The optional `global_attributes` map allows you to specify custom global NetCDF attributes to write verbatim on the output files, overriding any default attributes:
+
+```yaml
+output:
+  global_attributes:
+    title: "My Custom MPAS Emission Simulation Run"
+    institution: "National Center for Atmospheric Research (NCAR)"
+    references: "Custom project publication URL (2026)"
+```
+
+The standalone writer automatically populates a standard set of geoscientific default attributes (`title`, `Conventions`, `institution`, `source`, `history`, `references`, `comment`, and `gridspec_file`). Any key-value pair specified under `global_attributes` overrides these defaults, while other omitted keys retain their professional defaults.
 
 ### Filename Pattern Substitutions
 
