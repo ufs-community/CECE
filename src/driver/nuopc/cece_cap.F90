@@ -110,13 +110,14 @@ module cece_cap_mod
     end subroutine
 
     subroutine cece_driver_create(yaml_path, path_len, nx, ny, nz, &
-                                  lon_coords, lat_coords, mpi_comm_f, driver_ptr, rc) &
+                                  lon_coords, lon_len, lat_coords, lat_len, mpi_comm_f, driver_ptr, rc) &
                                   bind(C, name="cece_driver_create")
       import :: c_ptr, c_char, c_int, c_double
       character(kind=c_char), intent(in) :: yaml_path(*)
       integer(c_int), value, intent(in) :: path_len
       integer(c_int), value, intent(in) :: nx, ny, nz
       real(c_double), intent(in) :: lon_coords(*), lat_coords(*)
+      integer(c_int), value, intent(in) :: lon_len, lat_len
       integer(c_int), value, intent(in) :: mpi_comm_f
       type(c_ptr), intent(out) :: driver_ptr
       integer(c_int), intent(out) :: rc
@@ -140,7 +141,7 @@ module cece_cap_mod
     end subroutine
 
     subroutine cece_core_writer_initialize_with_coords(data_ptr, nx, ny, nz, &
-                                                       lon_coords, lat_coords, &
+                                                       lon_coords, lon_len, lat_coords, lat_len, &
                                                        start_time, start_time_len, &
                                                        mpi_comm_f, rc) &
                                                        bind(C, name="cece_core_writer_initialize_with_coords")
@@ -148,6 +149,7 @@ module cece_cap_mod
       type(c_ptr), value :: data_ptr
       integer(c_int), value :: nx, ny, nz
       real(c_double), intent(in) :: lon_coords(*), lat_coords(*)
+      integer(c_int), value :: lon_len, lat_len
       character(kind=c_char), intent(in) :: start_time(*)
       integer(c_int), value :: start_time_len
       integer(c_int), value :: mpi_comm_f
@@ -359,7 +361,9 @@ contains
     call cece_driver_create(trim(g_config_file_path)//c_null_char, &
                             int(len_trim(g_config_file_path), c_int), &
                             int(g_nx, c_int), int(g_ny, c_int), int(g_nz, c_int), &
-                            lon_coords, lat_coords, int(mpi_comm_val, c_int), g_driver_ptr, c_rc)
+                            lon_coords, int(g_nx, c_int), &
+                            lat_coords, int(g_ny, c_int), &
+                            int(mpi_comm_val, c_int), g_driver_ptr, c_rc)
     if (c_rc /= 0) then
       write(*,'(A)') "ERROR: [Cap] Failed to create C++ Driver Facade"
       rc = ESMF_FAILURE
@@ -385,7 +389,8 @@ contains
 
     call cece_core_writer_initialize_with_coords(g_cece_data_ptr, &
                                                  int(g_nx, c_int), int(g_ny, c_int), int(g_nz, c_int), &
-                                                 lon_coords, lat_coords, &
+                                                 lon_coords, int(g_nx, c_int), &
+                                                 lat_coords, int(g_ny, c_int), &
                                                  trim(start_time_str)//c_null_char, &
                                                  int(len_trim(start_time_str), c_int), &
                                                  int(mpi_comm_val, c_int), c_rc)
