@@ -6,13 +6,167 @@
 
 #include <algorithm>
 #include <cmath>
+#include <fstream>
 #include <iostream>
 #include <sstream>
 
 namespace cece::io {
 
-axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_axis_mesh(int ni, int nj, const std::vector<double>& lons,
-                                                                    const std::vector<double>& lats) {
+axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_axis_mesh(int ni, int nj, const std::vector<double>& lons, const std::vector<double>& lats,
+                                                                    const std::string& gridspec_file) {
+    if (nj == 1 && !gridspec_file.empty() && gridspec_file != "none" && gridspec_file != "NONE") {
+        // Open the MPAS gridspec file and read actual vertices and connectivity using AMIO
+        std::string manifest_path = "amio_GS_mesh_manifest.yaml";
+        std::ofstream m_file(manifest_path);
+        m_file << "backend: netcdf4\n"
+               << "path: " << gridspec_file << "\n"
+               << "data_model: enhanced\n"
+               << "staging_pool:\n"
+               << "  buffer_count: 16\n"
+               << "  buffer_capacity_bytes: 104857600\n"
+               << "worker_pool:\n"
+               << "  threads: 1\n";
+        m_file.close();
+
+        amio_core_handle core = nullptr;
+        amio_dataset_handle dataset = nullptr;
+        amio_view_handle lat_vertex_view = nullptr;
+        amio_view_handle lon_vertex_view = nullptr;
+        amio_view_handle edges_on_cell_view = nullptr;
+        amio_view_handle vertices_on_cell_view = nullptr;
+
+        amio_status_t amio_rc = amio_init(manifest_path.c_str(), &core);
+        if (amio_rc == AMIO_OK) {
+            amio_rc = amio_open_dataset(core, manifest_path.c_str(), AMIO_MODE_READ, &dataset);
+            if (amio_rc == AMIO_OK) {
+                std::vector<double> lat_vertices;
+                std::vector<double> lon_vertices;
+                int n_vertices = 0;
+
+                if (amio_read(dataset, "latVertex", 0, nullptr, &lat_vertex_view) == AMIO_OK) {
+                    const void* data = nullptr;
+                    size_t size = 0;
+                    if (amio_view_data(lat_vertex_view, &data, &size) == AMIO_OK) {
+                        amio_shape_t shape{};
+                        if (amio_view_shape(lat_vertex_view, &shape) == AMIO_OK) {
+                            n_vertices = static_cast<int>(shape.extents[0]);
+                            lat_vertices.resize(n_vertices);
+                            bool is_float = (size == static_cast<size_t>(n_vertices) * 4);
+                            for (int i = 0; i < n_vertices; ++i) {
+                                lat_vertices[i] = is_float ? static_cast<const float*>(data)[i] : static_cast<const double*>(data)[i];
+                                lat_vertices[i] *= 180.0 / M_PI;  // MPAS coordinates are in radians
+                            }
+                        }
+                    }
+                    amio_release_view(lat_vertex_view);
+                }
+
+                if (amio_read(dataset, "lonVertex", 0, nullptr, &lon_vertex_view) == AMIO_OK) {
+                    const void* data = nullptr;
+                    size_t size = 0;
+                    if (amio_view_data(lon_vertex_view, &data, &size) == AMIO_OK) {
+                        amio_shape_t shape{};
+                        if (amio_view_shape(lon_vertex_view, &shape) == AMIO_OK) {
+                            int nv = static_cast<int>(shape.extents[0]);
+                            lon_vertices.resize(nv);
+                            bool is_float = (size == static_cast<size_t>(nv) * 4);
+                            for (int i = 0; i < nv; ++i) {
+                                lon_vertices[i] = is_float ? static_cast<const float*>(data)[i] : static_cast<const double*>(data)[i];
+                                lon_vertices[i] *= 180.0 / M_PI;
+                                if (lon_vertices[i] >= 180.0)
+                                    lon_vertices[i] -= 360.0;
+                                else if (lon_vertices[i] < -180.0)
+                                    lon_vertices[i] += 360.0;
+                            }
+                        }
+                    }
+                    amio_release_view(lon_vertex_view);
+                }
+
+                std::vector<int> n_edges_on_cell;
+                std::vector<int> vertices_on_cell;
+                int n_cells = ni;
+                int max_edges = 0;
+
+                if (amio_read(dataset, "nEdgesOnCell", 0, nullptr, &edges_on_cell_view) == AMIO_OK) {
+                    const void* data = nullptr;
+                    size_t size = 0;
+                    if (amio_view_data(edges_on_cell_view, &data, &size) == AMIO_OK) {
+                        amio_shape_t shape{};
+                        if (amio_view_shape(edges_on_cell_view, &shape) == AMIO_OK) {
+                            int nc = static_cast<int>(shape.extents[0]);
+                            n_edges_on_cell.resize(nc);
+                            for (int i = 0; i < nc; ++i) {
+                                n_edges_on_cell[i] = static_cast<const int*>(data)[i];
+                            }
+                        }
+                    }
+                    amio_release_view(edges_on_cell_view);
+                }
+
+                if (amio_read(dataset, "verticesOnCell", 0, nullptr, &vertices_on_cell_view) == AMIO_OK) {
+                    const void* data = nullptr;
+                    size_t size = 0;
+                    if (amio_view_data(vertices_on_cell_view, &data, &size) == AMIO_OK) {
+                        amio_shape_t shape{};
+                        if (amio_view_shape(vertices_on_cell_view, &shape) == AMIO_OK) {
+                            max_edges = static_cast<int>(shape.extents[1]);
+                            int nc = static_cast<int>(shape.extents[0]);
+                            vertices_on_cell.resize(nc * max_edges);
+                            for (int i = 0; i < nc * max_edges; ++i) {
+                                vertices_on_cell[i] = static_cast<const int*>(data)[i];
+                            }
+                        }
+                    }
+                    amio_release_view(vertices_on_cell_view);
+                }
+
+                amio_close(dataset);
+                amio_finalize(core);
+                std::remove(manifest_path.c_str());
+
+                if (!lat_vertices.empty() && !lon_vertices.empty() && !n_edges_on_cell.empty() && !vertices_on_cell.empty()) {
+                    // We loaded the full physical mesh data successfully! Now construct the real UnstructuredMesh!
+                    Kokkos::View<double**, Kokkos::LayoutLeft, Kokkos::HostSpace> node_coords("node_coords", n_vertices, 2);
+                    for (int i = 0; i < n_vertices; ++i) {
+                        node_coords(i, 0) = lon_vertices[i];
+                        node_coords(i, 1) = lat_vertices[i];
+                    }
+
+                    size_t total_conn = 0;
+                    for (int i = 0; i < n_cells; ++i) {
+                        total_conn += n_edges_on_cell[i];
+                    }
+
+                    Kokkos::View<axis::index_t*, Kokkos::HostSpace> conn_offsets("conn_offsets", n_cells + 1);
+                    Kokkos::View<axis::index_t*, Kokkos::HostSpace> conn_indices("conn_indices", total_conn);
+
+                    size_t offset = 0;
+                    for (int i = 0; i < n_cells; ++i) {
+                        conn_offsets(i) = offset;
+                        int n_edges = n_edges_on_cell[i];
+                        for (int v = 0; v < n_edges; ++v) {
+                            int v_idx = vertices_on_cell[i * max_edges + v];
+                            if (v_idx > 0 && v_idx <= n_vertices) {
+                                conn_indices(offset + v) = v_idx - 1;  // 1-based to 0-based index
+                            } else {
+                                conn_indices(offset + v) = 0;  // fallback safety
+                            }
+                        }
+                        offset += n_edges;
+                    }
+                    conn_offsets(n_cells) = offset;
+
+                    return axis::topology::UnstructuredMesh<Kokkos::HostSpace>(node_coords, conn_offsets, conn_indices,
+                                                                               axis::topology::CoordinateSystem::SphericalDeg);
+                }
+            } else {
+                amio_finalize(core);
+                std::remove(manifest_path.c_str());
+            }
+        }
+    }
+
     if (nj == 1) {
         // Build unstructured mesh of ni quadrilaterals dynamically to support nj = 1 in standalone driver
         size_t n_cells = static_cast<size_t>(ni);
@@ -102,7 +256,8 @@ axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_axis_mesh(int ni, int 
 }
 
 bool build_regrid_plan(amio_dataset_handle read_dataset, int nx, int ny, const std::vector<double>& target_lons,
-                       const std::vector<double>& target_lats, const std::string& map_algo, int j0, int j1, RegridPlan& plan) {
+                       const std::vector<double>& target_lats, const std::string& map_algo, int j0, int j1, const std::string& gridspec_file,
+                       RegridPlan& plan) {
     // Read a 1-D, 2-D or 3-D coordinate variable, trying several common naming conventions.
     auto read_coord = [&](const std::vector<std::string>& candidate_names, std::vector<double>& out, int& nx_val, int& ny_val) {
         for (const auto& name : candidate_names) {
@@ -254,7 +409,7 @@ bool build_regrid_plan(amio_dataset_handle read_dataset, int nx, int ny, const s
         band_lats.assign(target_lats.begin() + j0, target_lats.begin() + j1);
     }
 
-    auto dst_mesh = build_axis_mesh(nx, nband, band_lons, band_lats);
+    auto dst_mesh = build_axis_mesh(nx, nband, band_lons, band_lats, gridspec_file);
 
     // B. Configure weight generation method.
     axis::solver::RegridConfig regrid_cfg;

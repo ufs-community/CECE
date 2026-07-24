@@ -45,6 +45,7 @@ class CeceDriverOrchestrator {
     // HELM Orchestration and pipeline components
     std::unique_ptr<dagr::GraphOrchestrator> dagr_;
     std::unique_ptr<io::CeceIO> cece_io_;
+    std::string gridspec_file_;
 };
 
 }  // namespace cece

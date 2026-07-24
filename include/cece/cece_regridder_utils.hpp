@@ -15,7 +15,8 @@
 namespace cece::io {
 
 /// Build an AXIS UnstructuredMesh from rectilinear coordinate arrays.
-axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_axis_mesh(int ni, int nj, const std::vector<double>& lons, const std::vector<double>& lats);
+axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_axis_mesh(int ni, int nj, const std::vector<double>& lons, const std::vector<double>& lats,
+                                                                    const std::string& gridspec_file = "");
 
 /// A precomputed, reusable regridding plan for one stream variable.
 ///
@@ -43,7 +44,8 @@ struct RegridPlan {
 ///
 /// @return true on success; false if coordinates could not be read.
 bool build_regrid_plan(amio_dataset_handle read_dataset, int nx, int ny, const std::vector<double>& target_lons,
-                       const std::vector<double>& target_lats, const std::string& map_algo, int j0, int j1, RegridPlan& plan);
+                       const std::vector<double>& target_lats, const std::string& map_algo, int j0, int j1, const std::string& gridspec_file,
+                       RegridPlan& plan);
 
 /// Apply a previously built plan to one source field snapshot, producing the
 /// rank-local destination slice `local_dst` of size nx * (j1 - j0), laid out

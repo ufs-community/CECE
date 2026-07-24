@@ -172,6 +172,15 @@ CeceDriverOrchestrator::CeceDriverOrchestrator(const std::string& config_file, i
       target_lons_(lon_coords, lon_coords + lon_len),
       target_lats_(lat_coords, lat_coords + lat_len),
       comm_c_(comm_c) {
+    try {
+        YAML::Node config = YAML::LoadFile(config_file_);
+        if (config["driver"] && config["driver"]["gridspec_file"]) {
+            gridspec_file_ = config["driver"]["gridspec_file"].as<std::string>();
+        }
+    } catch (...) {
+        gridspec_file_ = "";
+    }
+
     cece_io_ = std::make_unique<io::CeceIO>();
     cece_io_->Initialize(config_file_, nx_, ny_, nz_);
     CompileHelmGraph(config_file_, dagr_, *cece_io_, comm_c_);
@@ -440,7 +449,7 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
             auto plan_it = regrid_plans_.find(var_name);
             if (plan_it == regrid_plans_.end() || !plan_it->second.built) {
                 cece::io::RegridPlan plan;
-                if (!cece::io::build_regrid_plan(read_dataset, nx_, ny_, target_lons_, target_lats_, mapalgo, j0, j1, plan)) {
+                if (!cece::io::build_regrid_plan(read_dataset, nx_, ny_, target_lons_, target_lats_, mapalgo, j0, j1, gridspec_file_, plan)) {
                     std::cout << "[DRIVER DEBUG] build_regrid_plan failed for '" << var_name << "'" << std::endl;
                     failure_detail = "regrid plan construction failed (could not read source grid coordinates)";
                 } else {

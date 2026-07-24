@@ -27,7 +27,7 @@ class CeceStandaloneWriter {
     int Initialize(const std::string& start_time_iso8601, int nx, int ny, int nz);
 
     int InitializeWithCoords(const std::string& start_time_iso8601, int nx, int ny, int nz, const std::vector<double>& lon_coords,
-                             const std::vector<double>& lat_coords);
+                             const std::vector<double>& lat_coords, const std::string& gridspec_file = "");
 
     int WriteTimeStep(const std::unordered_map<std::string, DualView3D>& export_fields, double time_seconds_since_start, int step_index);
 
@@ -47,6 +47,7 @@ class CeceStandaloneWriter {
     std::vector<double> lat_coords_;
     bool use_custom_coords_ = false;
     MPI_Comm comm_ = MPI_COMM_SELF;
+    std::string gridspec_file_;
 
     std::string ResolveFilename(double time_seconds_since_start) const;
 };

@@ -87,8 +87,9 @@ void cece_core_writer_initialize_with_coords(void* data_ptr, int nx, int ny, int
         std::cout << "INFO: Longitude range: " << lon_vec[0] << " to " << lon_vec[lon_len - 1] << "\n";
         std::cout << "INFO: Latitude range: " << lat_vec[0] << " to " << lat_vec[lat_len - 1] << "\n";
 
-        // Initialize the writer with coordinates
-        int writer_rc = g_standalone_writer->InitializeWithCoords(start_time, nx, ny, nz, lon_vec, lat_vec);
+        // Initialize the writer with coordinates and gridspec file path
+        int writer_rc =
+            g_standalone_writer->InitializeWithCoords(start_time, nx, ny, nz, lon_vec, lat_vec, internal_data->config.driver_config.gridspec_file);
 
         if (writer_rc != 0) {
             std::cerr << "ERROR: cece_core_writer_initialize_with_coords - writer initialization "
