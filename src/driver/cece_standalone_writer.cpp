@@ -234,7 +234,50 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
             // The collection is seeded with the coordinate variables and
             // carries time's units from config initialization (SetTimeUnits),
             // so it renders the whole variable side of the manifest.
-            m_file << config_.fields.CreateIOManifest();
+            m_file << "variable_names: [\"lon\", \"lat\", \"lev\", \"time\", \"lon_bnds\", \"lat_bnds\"";
+            for (const auto& field : config_.fields) {
+                if (field.name != "lon" && field.name != "lat" && field.name != "lev" && field.name != "time" && field.name != "lon_bnds" &&
+                    field.name != "lat_bnds") {
+                    m_file << ", \"" << field.name << "\"";
+                }
+            }
+            m_file << "]\nvariables:\n"
+                   << "  lon:\n"
+                   << "    attributes:\n"
+                   << "      units: \"degrees_east\"\n"
+                   << "      long_name: \"longitude\"\n"
+                   << "      bounds: \"lon_bnds\"\n"
+                   << "  lat:\n"
+                   << "    attributes:\n"
+                   << "      units: \"degrees_north\"\n"
+                   << "      long_name: \"latitude\"\n"
+                   << "      bounds: \"lat_bnds\"\n"
+                   << "  lev:\n"
+                   << "    attributes:\n"
+                   << "      units: \"level\"\n"
+                   << "      long_name: \"vertical level\"\n"
+                   << "  time:\n"
+                   << "    attributes:\n"
+                   << "      units: \"seconds since " << start_time_iso8601_ << "\"\n"
+                   << "      long_name: \"time\"\n"
+                   << "  lon_bnds:\n"
+                   << "    attributes:\n"
+                   << "      units: \"degrees_east\"\n"
+                   << "  lat_bnds:\n"
+                   << "    attributes:\n"
+                   << "      units: \"degrees_north\"\n";
+
+            for (const auto& field : config_.fields) {
+                if (field.name != "lon" && field.name != "lat" && field.name != "lev" && field.name != "time" && field.name != "lon_bnds" &&
+                    field.name != "lat_bnds") {
+                    m_file << "  " << field.name << ":\n"
+                           << "    attributes:\n";
+                    for (const auto& [attr_name, attr_value] : field.attributes) {
+                        m_file << "      " << attr_name << ": \"" << attr_value << "\"\n";
+                    }
+                    m_file << "      coordinates: \"time lev lat lon\"\n";
+                }
+            }
             m_file.close();
         }
 
@@ -292,6 +335,149 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
         }
         amio_io_handle lat_io = nullptr;
         check_amio_rc(amio_write(dataset, "lat", lat_values.data(), AMIO_DTYPE_F64, &lat_shape, &lat_io), "amio_write(lat)");
+
+        // Step 5b: Compute and write cell boundary coordinate variables (bounds)
+        std::vector<double> lon_bnds_values;
+        std::vector<double> lat_bnds_values;
+        amio_shape_t lon_bnds_shape{};
+        amio_shape_t lat_bnds_shape{};
+
+        if (use_custom_coords_ && lon_values.size() == static_cast<size_t>(nx_) * ny_ && ny_ > 1) {
+            // Curvilinear case: shapes (ny_, nx_, 4)
+            size_t n_cells = static_cast<size_t>(nx_) * ny_;
+            lon_bnds_values.resize(n_cells * 4);
+            lat_bnds_values.resize(n_cells * 4);
+
+            std::vector<double> dlons(n_cells, 0.0);
+            for (int j = 0; j < ny_; ++j) {
+                for (int i = 0; i < nx_; ++i) {
+                    size_t idx = static_cast<size_t>(j) * nx_ + i;
+                    double left = (i > 0) ? std::abs(lon_values[idx] - lon_values[idx - 1]) : std::abs(lon_values[idx + 1] - lon_values[idx]);
+                    double right = (i < nx_ - 1) ? std::abs(lon_values[idx + 1] - lon_values[idx]) : std::abs(lon_values[idx] - lon_values[idx - 1]);
+                    dlons[idx] = 0.5 * (left + right);
+                }
+            }
+
+            for (int j = 0; j < ny_; ++j) {
+                for (int i = 0; i < nx_; ++i) {
+                    size_t idx = static_cast<size_t>(j) * nx_ + i;
+                    double lon = lon_values[idx];
+                    double lat = lat_values[idx];
+
+                    double dlon_i = dlons[idx];
+                    double cos_lat = std::cos(lat * M_PI / 180.0);
+                    if (cos_lat < 1e-3) cos_lat = 1e-3;
+                    double dy_i = dlon_i * cos_lat;
+
+                    // 4 Corners: Bottom-Left, Bottom-Right, Top-Right, Top-Left
+                    lon_bnds_values[4 * idx + 0] = lon - 0.5 * dlon_i;
+                    lat_bnds_values[4 * idx + 0] = lat - 0.5 * dy_i;
+
+                    lon_bnds_values[4 * idx + 1] = lon + 0.5 * dlon_i;
+                    lat_bnds_values[4 * idx + 1] = lat - 0.5 * dy_i;
+
+                    lon_bnds_values[4 * idx + 2] = lon + 0.5 * dlon_i;
+                    lat_bnds_values[4 * idx + 2] = lat + 0.5 * dy_i;
+
+                    lon_bnds_values[4 * idx + 3] = lon - 0.5 * dlon_i;
+                    lat_bnds_values[4 * idx + 3] = lat + 0.5 * dy_i;
+                }
+            }
+
+            lon_bnds_shape.rank = 3;
+            lon_bnds_shape.extents[0] = ny_;
+            lon_bnds_shape.extents[1] = nx_;
+            lon_bnds_shape.extents[2] = 4;
+
+            lat_bnds_shape.rank = 3;
+            lat_bnds_shape.extents[0] = ny_;
+            lat_bnds_shape.extents[1] = nx_;
+            lat_bnds_shape.extents[2] = 4;
+
+        } else if (ny_ == 1) {
+            // Unstructured case: shapes (nx_, 4)
+            size_t n_cells = static_cast<size_t>(nx_);
+            lon_bnds_values.resize(n_cells * 4);
+            lat_bnds_values.resize(n_cells * 4);
+
+            std::vector<double> dlons(n_cells, 0.0);
+            if (n_cells > 1) {
+                dlons[0] = std::abs(lon_values[1] - lon_values[0]);
+                for (size_t i = 1; i < n_cells - 1; ++i) {
+                    dlons[i] = 0.5 * (std::abs(lon_values[i] - lon_values[i - 1]) + std::abs(lon_values[i + 1] - lon_values[i]));
+                }
+                dlons[n_cells - 1] = std::abs(lon_values[n_cells - 1] - lon_values[n_cells - 2]);
+            } else {
+                dlons[0] = 360.0;
+            }
+
+            for (size_t i = 0; i < n_cells; ++i) {
+                double lon = lon_values[i];
+                double lat = lat_values[i];
+
+                double dlon_i = dlons[i];
+                double cos_lat = std::cos(lat * M_PI / 180.0);
+                if (cos_lat < 1e-3) cos_lat = 1e-3;
+                double dy_i = dlon_i * cos_lat;
+
+                lon_bnds_values[4 * i + 0] = lon - 0.5 * dlon_i;
+                lat_bnds_values[4 * i + 0] = lat - 0.5 * dy_i;
+
+                lon_bnds_values[4 * i + 1] = lon + 0.5 * dlon_i;
+                lat_bnds_values[4 * i + 1] = lat - 0.5 * dy_i;
+
+                lon_bnds_values[4 * i + 2] = lon + 0.5 * dlon_i;
+                lat_bnds_values[4 * i + 2] = lat + 0.5 * dy_i;
+
+                lon_bnds_values[4 * i + 3] = lon - 0.5 * dlon_i;
+                lat_bnds_values[4 * i + 3] = lat + 0.5 * dy_i;
+            }
+
+            lon_bnds_shape.rank = 2;
+            lon_bnds_shape.extents[0] = nx_;
+            lon_bnds_shape.extents[1] = 4;
+
+            lat_bnds_shape.rank = 2;
+            lat_bnds_shape.extents[0] = nx_;
+            lat_bnds_shape.extents[1] = 4;
+
+        } else {
+            // Rectilinear case: shape (nx_, 2) for lon, (ny_, 2) for lat
+            lon_bnds_values.resize(nx_ * 2);
+            lat_bnds_values.resize(ny_ * 2);
+
+            double dlon = 360.0 / nx_;
+            for (int i = 0; i < nx_; ++i) {
+                lon_bnds_values[2 * i + 0] = lon_values[i] - 0.5 * dlon;
+                lon_bnds_values[2 * i + 1] = lon_values[i] + 0.5 * dlon;
+            }
+
+            double dlat = 180.0 / ny_;
+            for (int j = 0; j < ny_; ++j) {
+                lat_bnds_values[2 * j + 0] = lat_values[j] - 0.5 * dlat;
+                lat_bnds_values[2 * j + 1] = lat_values[j] + 0.5 * dlat;
+            }
+
+            lon_bnds_shape.rank = 2;
+            lon_bnds_shape.extents[0] = nx_;
+            lon_bnds_shape.extents[1] = 2;
+
+            lat_bnds_shape.rank = 2;
+            lat_bnds_shape.extents[0] = ny_;
+            lat_bnds_shape.extents[1] = 2;
+        }
+
+        // Clamp latitude bounds to sphere limits
+        for (size_t i = 0; i < lat_bnds_values.size(); ++i) {
+            if (lat_bnds_values[i] < -90.0) lat_bnds_values[i] = -90.0;
+            if (lat_bnds_values[i] > 90.0) lat_bnds_values[i] = 90.0;
+        }
+
+        amio_io_handle lon_bnds_io = nullptr;
+        check_amio_rc(amio_write(dataset, "lon_bnds", lon_bnds_values.data(), AMIO_DTYPE_F64, &lon_bnds_shape, &lon_bnds_io), "amio_write(lon_bnds)");
+
+        amio_io_handle lat_bnds_io = nullptr;
+        check_amio_rc(amio_write(dataset, "lat_bnds", lat_bnds_values.data(), AMIO_DTYPE_F64, &lat_bnds_shape, &lat_bnds_io), "amio_write(lat_bnds)");
 
         // Step 6: Write lev coordinate variable
         std::vector<double> lev_values(nz_);
