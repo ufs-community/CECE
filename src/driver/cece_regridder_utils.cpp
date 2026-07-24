@@ -241,8 +241,20 @@ bool build_regrid_plan(amio_dataset_handle read_dataset, int nx, int ny, const s
     // A. Build the (global) source mesh and the rank-local destination sub-mesh.
     auto src_mesh = build_axis_mesh(plan.file_nx, plan.file_ny, src_lons, src_lats);
 
-    std::vector<double> band_lats(target_lats.begin() + j0, target_lats.begin() + j1);
-    auto dst_mesh = build_axis_mesh(nx, nband, target_lons, band_lats);
+    std::vector<double> band_lons;
+    std::vector<double> band_lats;
+
+    if (target_lons.size() == static_cast<size_t>(nx) * ny && ny > 1) {
+        // Curvilinear coordinate arrays: slice [j0 * nx, j1 * nx] for both axes
+        band_lons.assign(target_lons.begin() + static_cast<size_t>(j0) * nx, target_lons.begin() + static_cast<size_t>(j1) * nx);
+        band_lats.assign(target_lats.begin() + static_cast<size_t>(j0) * nx, target_lats.begin() + static_cast<size_t>(j1) * nx);
+    } else {
+        // Rectilinear coordinate arrays: slice [j0, j1] for latitude, keep lons as-is
+        band_lons = target_lons;
+        band_lats.assign(target_lats.begin() + j0, target_lats.begin() + j1);
+    }
+
+    auto dst_mesh = build_axis_mesh(nx, nband, band_lons, band_lats);
 
     // B. Configure weight generation method.
     axis::solver::RegridConfig regrid_cfg;
