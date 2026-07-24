@@ -5,8 +5,8 @@ driver:
   timestep_seconds: 3600
   gridspec_file: "data/C96_grid.tile1.nc"
   grid:
-    nx: 37249
-    ny: 1
+    nx: 193
+    ny: 193
 
 species:
   co:
