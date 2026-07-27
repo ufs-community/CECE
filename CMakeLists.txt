@@ -51,6 +51,9 @@ endforeach()
 
 include(FetchContent)
 
+# Check for OpenMP availability to set generic defaults
+find_package(OpenMP QUIET)
+
 # Kokkos - Configure execution spaces Default to Serial and OpenMP for CPU
 # portability Users can override with -DKokkos_ENABLE_CUDA=ON or
 # -DKokkos_ENABLE_HIP=ON for GPU support
@@ -59,7 +62,11 @@ if(NOT DEFINED Kokkos_ENABLE_SERIAL)
 endif()
 
 if(NOT DEFINED Kokkos_ENABLE_OPENMP)
-  set(Kokkos_ENABLE_OPENMP ON CACHE BOOL "Enable Kokkos OpenMP execution space" FORCE)
+  if(OpenMP_CXX_FOUND)
+    set(Kokkos_ENABLE_OPENMP ON CACHE BOOL "Enable Kokkos OpenMP execution space" FORCE)
+  else()
+    set(Kokkos_ENABLE_OPENMP OFF CACHE BOOL "Enable Kokkos OpenMP execution space" FORCE)
+  endif()
 endif()
 
 # GPU support is optional - users must explicitly enable
@@ -85,6 +92,9 @@ FetchContent_Declare(kokkos GIT_REPOSITORY https://github.com/kokkos/kokkos.git 
 FetchContent_MakeAvailable(kokkos)
 
 # YAML-CPP
+if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.30")
+  set(CMAKE_POLICY_VERSION_MINIMUM "3.5")
+endif()
 FetchContent_Declare(yaml-cpp GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git GIT_TAG 0.8.0)
 FetchContent_MakeAvailable(yaml-cpp)
 
@@ -244,9 +254,6 @@ endif()
 
 find_package(MPI REQUIRED)
 message(STATUS "Found MPI: ${MPI_CXX_VERSION}")
-
-find_package(OpenMP REQUIRED)
-message(STATUS "Found OpenMP: ${OpenMP_CXX_VERSION}")
 
 # --- CECE Core Library ---
 
@@ -777,10 +784,10 @@ if(DOXYGEN_FOUND)
   set(DOXYGEN_PREDEFINED "KOKKOS_LAMBDA=[]" "KOKKOS_FUNCTION=" "KOKKOS_INLINE_FUNCTION=inline")
 
   doxygen_add_docs(
-    docs
+    cece_docs
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/src
-    COMMENT "Generating API documentation with Doxygen"
+    COMMENT "Generating CECE API documentation with Doxygen"
     ALL
   )
 else()
