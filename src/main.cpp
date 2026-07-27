@@ -246,9 +246,9 @@ int main(int argc, char* argv[]) {
                     std::vector<double> file_lon_coords;
                     std::vector<double> file_lat_coords;
 
-                    static const std::vector<std::string> kLonNames = {"grid_lont",   "grid_lon",      "XLONG",  "lonCell", "geolon",
-                                                                       "lon",         "longitude",     "LON",    "lon_rho", "nav_lon",
-                                                                       "mesh_node_x", "mesh2d_node_x", "node_x", "grid_xt", "x"};
+                    static const std::vector<std::string> kLonNames = {
+                        "grid_lont", "grid_lon", "XLONG",   "lonCell", "geolon",      "clon",          "glamt",  "mesh2d_face_lon", "lon",
+                        "longitude", "LON",      "lon_rho", "nav_lon", "mesh_node_x", "mesh2d_node_x", "node_x", "grid_xt",         "x"};
                     bool is_radian = false;
                     amio_status_t lon_status = static_cast<amio_status_t>(-1);
                     for (const auto& name : kLonNames) {
@@ -292,9 +292,9 @@ int main(int argc, char* argv[]) {
                         amio_release_view(lon_view);
                     }
 
-                    static const std::vector<std::string> kLatNames = {"grid_latt",   "grid_lat",      "XLAT",   "latCell", "geolat",
-                                                                       "lat",         "latitude",      "LAT",    "lat_rho", "nav_lat",
-                                                                       "mesh_node_y", "mesh2d_node_y", "node_y", "grid_yt", "y"};
+                    static const std::vector<std::string> kLatNames = {
+                        "grid_latt", "grid_lat", "XLAT",    "latCell", "geolat",      "clat",          "gphit",  "mesh2d_face_lat", "lat",
+                        "latitude",  "LAT",      "lat_rho", "nav_lat", "mesh_node_y", "mesh2d_node_y", "node_y", "grid_yt",         "y"};
                     amio_status_t lat_status = static_cast<amio_status_t>(-1);
                     for (const auto& name : kLatNames) {
                         lat_status = amio_read(coord_dataset, name.c_str(), 0, nullptr, &lat_view);
