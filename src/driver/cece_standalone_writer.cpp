@@ -392,95 +392,109 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
         auto conn_offsets = dst_mesh.conn_offsets();
         auto conn_indices = dst_mesh.conn_indices();
 
-        if (use_custom_coords_ && lon_values.size() == static_cast<size_t>(nx_) * ny_ && ny_ > 1) {
-            // 1. Curvilinear case: shapes (ny_, nx_, 4)
-            size_t n_cells = static_cast<size_t>(nx_) * ny_;
-            lon_bnds_values.resize(n_cells * 4);
-            lat_bnds_values.resize(n_cells * 4);
+        enum class GridType { Rectilinear, Curvilinear, Unstructured };
 
-            for (int j = 0; j < ny_; ++j) {
-                for (int i = 0; i < nx_; ++i) {
-                    size_t idx = static_cast<size_t>(j) * nx_ + i;
-                    size_t offset = conn_offsets(idx);
-                    for (int v = 0; v < 4; ++v) {
-                        axis::index_t node_idx = conn_indices(offset + v);
-                        lon_bnds_values[4 * idx + v] = node_coords(node_idx, 0);
-                        lat_bnds_values[4 * idx + v] = node_coords(node_idx, 1);
+        GridType grid_type = GridType::Rectilinear;
+        if (use_custom_coords_ && lon_values.size() == static_cast<size_t>(nx_) * ny_ && ny_ > 1) {
+            grid_type = GridType::Curvilinear;
+        } else if (ny_ == 1) {
+            grid_type = GridType::Unstructured;
+        }
+
+        switch (grid_type) {
+            case GridType::Curvilinear: {
+                // 1. Curvilinear case: shapes (ny_, nx_, 4)
+                size_t n_cells = static_cast<size_t>(nx_) * ny_;
+                lon_bnds_values.resize(n_cells * 4);
+                lat_bnds_values.resize(n_cells * 4);
+
+                for (int j = 0; j < ny_; ++j) {
+                    for (int i = 0; i < nx_; ++i) {
+                        size_t idx = static_cast<size_t>(j) * nx_ + i;
+                        size_t offset = conn_offsets(idx);
+                        for (int v = 0; v < 4; ++v) {
+                            axis::index_t node_idx = conn_indices(offset + v);
+                            lon_bnds_values[4 * idx + v] = node_coords(node_idx, 0);
+                            lat_bnds_values[4 * idx + v] = node_coords(node_idx, 1);
+                        }
                     }
                 }
+
+                lon_bnds_shape.rank = 3;
+                lon_bnds_shape.extents[0] = ny_;
+                lon_bnds_shape.extents[1] = nx_;
+                lon_bnds_shape.extents[2] = 4;
+
+                lat_bnds_shape.rank = 3;
+                lat_bnds_shape.extents[0] = ny_;
+                lat_bnds_shape.extents[1] = nx_;
+                lat_bnds_shape.extents[2] = 4;
+                break;
             }
-
-            lon_bnds_shape.rank = 3;
-            lon_bnds_shape.extents[0] = ny_;
-            lon_bnds_shape.extents[1] = nx_;
-            lon_bnds_shape.extents[2] = 4;
-
-            lat_bnds_shape.rank = 3;
-            lat_bnds_shape.extents[0] = ny_;
-            lat_bnds_shape.extents[1] = nx_;
-            lat_bnds_shape.extents[2] = 4;
-
-        } else if (ny_ == 1) {
-            // 2. Unstructured case (MPAS, SCRIP, etc.): shapes (nx_, max_vertices)
-            size_t n_cells = static_cast<size_t>(nx_);
-            int max_vertices = 0;
-            for (size_t i = 0; i < n_cells; ++i) {
-                int n_verts = static_cast<int>(conn_offsets(i + 1) - conn_offsets(i));
-                if (n_verts > max_vertices) max_vertices = n_verts;
-            }
-
-            lon_bnds_values.resize(n_cells * max_vertices, 0.0);
-            lat_bnds_values.resize(n_cells * max_vertices, 0.0);
-
-            for (size_t i = 0; i < n_cells; ++i) {
-                int n_verts = static_cast<int>(conn_offsets(i + 1) - conn_offsets(i));
-                size_t offset = conn_offsets(i);
-                for (int v = 0; v < max_vertices; ++v) {
-                    int local_v = (v < n_verts) ? v : (n_verts - 1);
-                    axis::index_t node_idx = conn_indices(offset + local_v);
-                    lon_bnds_values[i * max_vertices + v] = node_coords(node_idx, 0);
-                    lat_bnds_values[i * max_vertices + v] = node_coords(node_idx, 1);
+            case GridType::Unstructured: {
+                // 2. Unstructured case (MPAS, SCRIP, etc.): shapes (nx_, max_vertices)
+                size_t n_cells = static_cast<size_t>(nx_);
+                int max_vertices = 0;
+                for (size_t i = 0; i < n_cells; ++i) {
+                    int n_verts = static_cast<int>(conn_offsets(i + 1) - conn_offsets(i));
+                    if (n_verts > max_vertices) max_vertices = n_verts;
                 }
+
+                lon_bnds_values.resize(n_cells * max_vertices, 0.0);
+                lat_bnds_values.resize(n_cells * max_vertices, 0.0);
+
+                for (size_t i = 0; i < n_cells; ++i) {
+                    int n_verts = static_cast<int>(conn_offsets(i + 1) - conn_offsets(i));
+                    size_t offset = conn_offsets(i);
+                    for (int v = 0; v < max_vertices; ++v) {
+                        int local_v = (v < n_verts) ? v : (n_verts - 1);
+                        axis::index_t node_idx = conn_indices(offset + local_v);
+                        lon_bnds_values[i * max_vertices + v] = node_coords(node_idx, 0);
+                        lat_bnds_values[i * max_vertices + v] = node_coords(node_idx, 1);
+                    }
+                }
+
+                lon_bnds_shape.rank = 2;
+                lon_bnds_shape.extents[0] = nx_;
+                lon_bnds_shape.extents[1] = max_vertices;
+
+                lat_bnds_shape.rank = 2;
+                lat_bnds_shape.extents[0] = nx_;
+                lat_bnds_shape.extents[1] = max_vertices;
+                break;
             }
+            case GridType::Rectilinear: {
+                // 3. Rectilinear case: shapes (nx_, 2) and (ny_, 2)
+                lon_bnds_values.resize(static_cast<size_t>(nx_) * 2);
+                lat_bnds_values.resize(static_cast<size_t>(ny_) * 2);
 
-            lon_bnds_shape.rank = 2;
-            lon_bnds_shape.extents[0] = nx_;
-            lon_bnds_shape.extents[1] = max_vertices;
+                // Longitude bounds: query nodes from the first row of cells (j = 0)
+                for (int i = 0; i < nx_; ++i) {
+                    size_t offset = conn_offsets(i);
+                    axis::index_t node0 = conn_indices(offset + 0);
+                    axis::index_t node1 = conn_indices(offset + 1);
+                    lon_bnds_values[2 * i + 0] = node_coords(node0, 0);
+                    lon_bnds_values[2 * i + 1] = node_coords(node1, 0);
+                }
 
-            lat_bnds_shape.rank = 2;
-            lat_bnds_shape.extents[0] = nx_;
-            lat_bnds_shape.extents[1] = max_vertices;
+                // Latitude bounds: query nodes from the first column of cells (i = 0)
+                for (int j = 0; j < ny_; ++j) {
+                    size_t offset = conn_offsets(j * nx_);
+                    axis::index_t node0 = conn_indices(offset + 0);
+                    axis::index_t node3 = conn_indices(offset + 3);
+                    lat_bnds_values[2 * j + 0] = node_coords(node0, 1);
+                    lat_bnds_values[2 * j + 1] = node_coords(node3, 1);
+                }
 
-        } else {
-            // 3. Rectilinear case: shapes (nx_, 2) and (ny_, 2)
-            lon_bnds_values.resize(static_cast<size_t>(nx_) * 2);
-            lat_bnds_values.resize(static_cast<size_t>(ny_) * 2);
+                lon_bnds_shape.rank = 2;
+                lon_bnds_shape.extents[0] = nx_;
+                lon_bnds_shape.extents[1] = 2;
 
-            // Longitude bounds: query nodes from the first row of cells (j = 0)
-            for (int i = 0; i < nx_; ++i) {
-                size_t offset = conn_offsets(i);
-                axis::index_t node0 = conn_indices(offset + 0);
-                axis::index_t node1 = conn_indices(offset + 1);
-                lon_bnds_values[2 * i + 0] = node_coords(node0, 0);
-                lon_bnds_values[2 * i + 1] = node_coords(node1, 0);
+                lat_bnds_shape.rank = 2;
+                lat_bnds_shape.extents[0] = ny_;
+                lat_bnds_shape.extents[1] = 2;
+                break;
             }
-
-            // Latitude bounds: query nodes from the first column of cells (i = 0)
-            for (int j = 0; j < ny_; ++j) {
-                size_t offset = conn_offsets(j * nx_);
-                axis::index_t node0 = conn_indices(offset + 0);
-                axis::index_t node3 = conn_indices(offset + 3);
-                lat_bnds_values[2 * j + 0] = node_coords(node0, 1);
-                lat_bnds_values[2 * j + 1] = node_coords(node3, 1);
-            }
-
-            lon_bnds_shape.rank = 2;
-            lon_bnds_shape.extents[0] = nx_;
-            lon_bnds_shape.extents[1] = 2;
-
-            lat_bnds_shape.rank = 2;
-            lat_bnds_shape.extents[0] = ny_;
-            lat_bnds_shape.extents[1] = 2;
         }
 
         // Clamp latitude bounds to sphere limits

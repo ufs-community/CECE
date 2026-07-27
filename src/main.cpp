@@ -19,6 +19,24 @@
 #include "cece/cece_driver_facade.hpp"
 #include "cece/cece_fatal.hpp"
 
+namespace {
+
+inline double wrap_longitude(double lon) {
+    if (lon >= 180.0) {
+        return lon - 360.0;
+    }
+    if (lon < -180.0) {
+        return lon + 360.0;
+    }
+    return lon;
+}
+
+inline double radians_to_degrees(double rad) {
+    return rad * 180.0 / M_PI;
+}
+
+}  // namespace
+
 // CECE Core C-Linkage Lifecycle functions
 extern "C" {
 void cece_set_config_file_path(const char* config_path, int path_len);
@@ -165,11 +183,7 @@ int main(int argc, char* argv[]) {
                 auto mesh = axis::topology::NamedGridRegistry::generate<Kokkos::HostSpace>(grid_name);
                 auto coords = mesh.node_coords();
                 for (int i = 0; i < nx; ++i) {
-                    double lon = coords(i, 0);
-                    if (lon >= 180.0) {
-                        lon -= 360.0;
-                    }
-                    file_lons[i] = lon;
+                    file_lons[i] = wrap_longitude(coords(i, 0));
                 }
                 for (int j = 0; j < ny; ++j) {
                     file_lats[j] = coords(j * nx, 1);
@@ -183,11 +197,13 @@ int main(int argc, char* argv[]) {
             }
         } else {
             bool loaded_from_file = false;
+            bool is_explicit_gridspec = false;
             std::string input_file_path = "";
             if (config["driver"] && config["driver"]["gridspec_file"]) {
                 std::string gf = config["driver"]["gridspec_file"].as<std::string>();
                 if (!gf.empty() && gf != "none" && gf != "NONE") {
                     input_file_path = gf;
+                    is_explicit_gridspec = true;
                 }
             }
             if (input_file_path.empty() && config["cece_data"] && config["cece_data"]["streams"]) {
@@ -263,15 +279,9 @@ int main(int argc, char* argv[]) {
                                 for (int i = 0; i < total_len; ++i) {
                                     double val = is_float ? static_cast<double>(float_data[i]) : double_data[i];
                                     if (is_radian) {
-                                        val *= 180.0 / M_PI;
+                                        val = radians_to_degrees(val);
                                     }
-                                    // Wrap longitudes to [-180, 180] range for matching source grid boundaries
-                                    if (val >= 180.0) {
-                                        val -= 360.0;
-                                    } else if (val < -180.0) {
-                                        val += 360.0;
-                                    }
-                                    file_lon_coords[i] = val;
+                                    file_lon_coords[i] = wrap_longitude(val);
                                 }
                             }
                         }
@@ -306,7 +316,7 @@ int main(int argc, char* argv[]) {
                                 for (int j = 0; j < total_len; ++j) {
                                     double val = is_float ? static_cast<double>(float_data[j]) : double_data[j];
                                     if (is_radian) {
-                                        val *= 180.0 / M_PI;
+                                        val = radians_to_degrees(val);
                                     }
                                     file_lat_coords[j] = val;
                                 }
@@ -326,6 +336,12 @@ int main(int argc, char* argv[]) {
                 amio_finalize(coord_core);
             }
             std::remove(read_manifest_path.c_str());
+
+            if (is_explicit_gridspec && !loaded_from_file) {
+                std::cerr << "FATAL ERROR: Failed to load gridspec coordinates from explicitly specified gridspec file '" << input_file_path << "'"
+                          << std::endl;
+                return -1;
+            }
 
             if (!loaded_from_file) {
                 double lon_min = -180.0;
