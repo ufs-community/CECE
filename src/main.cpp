@@ -246,14 +246,18 @@ int main(int argc, char* argv[]) {
                     std::vector<double> file_lon_coords;
                     std::vector<double> file_lat_coords;
 
+                    static const std::vector<std::string> kLonNames = {"grid_lont",   "grid_lon",      "XLONG",  "lonCell", "geolon",
+                                                                       "lon",         "longitude",     "LON",    "lon_rho", "nav_lon",
+                                                                       "mesh_node_x", "mesh2d_node_x", "node_x", "grid_xt", "x"};
                     bool is_radian = false;
-                    amio_status_t lon_status = amio_read(coord_dataset, "lon", 0, nullptr, &lon_view);
-                    if (lon_status != AMIO_OK) {
-                        lon_status = amio_read(coord_dataset, "lonCell", 0, nullptr, &lon_view);
+                    amio_status_t lon_status = static_cast<amio_status_t>(-1);
+                    for (const auto& name : kLonNames) {
+                        lon_status = amio_read(coord_dataset, name.c_str(), 0, nullptr, &lon_view);
                         if (lon_status == AMIO_OK) {
-                            is_radian = true;
-                        } else {
-                            lon_status = amio_read(coord_dataset, "x", 0, nullptr, &lon_view);
+                            if (name == "lonCell" || name == "latCell" || name == "lonVertex" || name == "latVertex") {
+                                is_radian = true;
+                            }
+                            break;
                         }
                     }
 
@@ -288,11 +292,14 @@ int main(int argc, char* argv[]) {
                         amio_release_view(lon_view);
                     }
 
-                    amio_status_t lat_status = amio_read(coord_dataset, "lat", 0, nullptr, &lat_view);
-                    if (lat_status != AMIO_OK) {
-                        lat_status = amio_read(coord_dataset, "latCell", 0, nullptr, &lat_view);
-                        if (lat_status != AMIO_OK) {
-                            lat_status = amio_read(coord_dataset, "y", 0, nullptr, &lat_view);
+                    static const std::vector<std::string> kLatNames = {"grid_latt",   "grid_lat",      "XLAT",   "latCell", "geolat",
+                                                                       "lat",         "latitude",      "LAT",    "lat_rho", "nav_lat",
+                                                                       "mesh_node_y", "mesh2d_node_y", "node_y", "grid_yt", "y"};
+                    amio_status_t lat_status = static_cast<amio_status_t>(-1);
+                    for (const auto& name : kLatNames) {
+                        lat_status = amio_read(coord_dataset, name.c_str(), 0, nullptr, &lat_view);
+                        if (lat_status == AMIO_OK) {
+                            break;
                         }
                     }
 
