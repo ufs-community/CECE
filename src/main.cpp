@@ -334,6 +334,14 @@ int main(int argc, char* argv[]) {
 
                     amio_close(coord_dataset);
 
+                    // If nx and ny are not specified in the configuration, dynamically inherit them from the gridspec file
+                    if (nx == 0 && file_nx > 0) {
+                        nx = file_nx;
+                    }
+                    if (ny == 0 && file_ny > 0) {
+                        ny = (file_ny == file_nx) ? 1 : file_ny;
+                    }
+
                     if (nx == file_nx && (ny == file_ny || (ny == 1 && file_ny == file_nx)) && file_nx > 0 && file_ny > 0) {
                         file_lons = file_lon_coords;
                         file_lats = file_lat_coords;
