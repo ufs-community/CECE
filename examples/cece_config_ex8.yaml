@@ -52,7 +52,7 @@ output:
   frequency_steps: 1
   global_attributes:
     title: "My Custom MPAS Emission Simulation Run"
-    institution: "National Center for Atmospheric Research (NCAR)"
+    institution: "National Oceanic and Atmospheric Administration (NOAA)"
   fields:
     - name: co
       attributes:
