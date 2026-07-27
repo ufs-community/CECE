@@ -177,7 +177,7 @@ CeceDriverOrchestrator::CeceDriverOrchestrator(const std::string& config_file, i
         if (config["driver"] && config["driver"]["gridspec_file"]) {
             gridspec_file_ = config["driver"]["gridspec_file"].as<std::string>();
         }
-    } catch (...) {
+    } catch (const YAML::Exception& e) {
         gridspec_file_ = "";
     }
 

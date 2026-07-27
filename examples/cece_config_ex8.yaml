@@ -42,7 +42,7 @@ cece_data:
           model: "MACCITY_NO"
 
 diagnostics:
-  output_interval_seconds: 2592000
+  output_interval_seconds: 3600
   variables: ["co", "no"]
 
 output:
@@ -61,4 +61,4 @@ output:
     - name: "no"
       attributes:
         units: "kg m-2 s-1"
-        long_name: "nitrous_dioxide_emission_flux"
+        long_name: "nitric_oxide_emission_flux"
