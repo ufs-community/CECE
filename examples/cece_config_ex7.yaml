@@ -1,4 +1,14 @@
-# Basic single species example with small grid
+# =====================================================================
+# CECE Example 7: Named Grid Ingestion and Remapping
+# =====================================================================
+# This example tests dynamic Named Grid generation and spatial remapping
+# capabilities using AXIS NamedGridRegistry.
+#
+# Key Features Tested:
+#   - Ingestion and remapping on F360 named grids dynamically.
+#   - Core-driven single species CO emissions processing.
+#   - Log file output writing and parallel threading validation.
+# =====================================================================
 driver:
   start_time: "2010-01-01T00:00:00"
   end_time: "2010-01-01T23:00:00"

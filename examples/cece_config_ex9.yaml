@@ -1,12 +1,23 @@
-# Driver configuration for multi-timestep execution
+# =====================================================================
+# CECE Example 9: Curvilinear (FV3 Cubed Sphere) Mesh Simulation
+# =====================================================================
+# This example tests 2-D curvilinear mesh simulation capabilities
+# with physical center coordinate variables (96x96 or 192x192 centers)
+# conforming to the standard FV3 cubed-sphere tiles and CF-1.9 Conventions.
+#
+# Key Features Tested:
+#   - Ingestion and remapping on dynamic 2-D curvilinear structured grids.
+#   - Dynamic 2-D curvilinear coordinates (lon/lat) loading.
+#   - Curvilinear 3-D cell boundaries (lon_bnds/lat_bnds) shapes of (ny, nx, 4).
+# =====================================================================
 driver:
   start_time: "2020-01-01T00:00:00"
   end_time: "2020-01-01T06:00:00"
   timestep_seconds: 3600
-  gridspec_file: "data/C96_grid.tile1.nc"
+  gridspec_file: "data/C96_grid_spec.tile1.nc"
   grid:
-    nx: 193
-    ny: 193
+    nx: 96
+    ny: 96
 
 species:
   co:

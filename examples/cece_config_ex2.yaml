@@ -1,4 +1,14 @@
-# Regional masking example with European focus
+# =====================================================================
+# CECE Example 2: Hierarchical Masking and Regional Override
+# =====================================================================
+# This example tests the hierarchical masking and regional override
+# capability of the CECE data-stream engine focusing on Europe.
+#
+# Key Features Tested:
+#   - Hierarchical data merging (global MACCity + regional EMEP overlay).
+#   - Regional bounding grid mask focusing on the European domain.
+#   - "replace" and "add" mask override semantics.
+# =====================================================================
 driver:
   start_time: "2020-01-01T00:00:00"
   end_time: "2020-01-01T02:00:00"

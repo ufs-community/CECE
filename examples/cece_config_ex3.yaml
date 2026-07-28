@@ -1,4 +1,14 @@
-# Simple testing configuration with minimal grid
+# =====================================================================
+# CECE Example 3: Minimal Fast Testing Configuration
+# =====================================================================
+# This example tests the fast standalone core cycle with a minimal,
+# low-overhead rectilinear spatial layout.
+#
+# Key Features Tested:
+#   - Fast startup, minimal timing sequence, and debugging loop.
+#   - Rectilinear minimal grid (2x2) for instant linter and unit tests.
+#   - Basic stream ingestion without timing parameter constraints.
+# =====================================================================
 driver:
   start_time: "2020-01-01T00:00:00"
   end_time: "2020-01-01T01:00:00"

@@ -1,4 +1,15 @@
-# Advanced multi-species configuration demonstrating stacking engine features
+# =====================================================================
+# CECE Example: Advanced Multi-Species and Stacking Engine Demo
+# =====================================================================
+# This advanced example demonstrates the full capabilities of the CECE
+# StackingEngine executing multiple dependent speciation and emissions
+# physics schemes.
+#
+# Key Features Tested:
+#   - Multi-species (CO + NO + VOCs) speciation and emissionActivity calculations.
+#   - Stacking engine scheduler executing dependent physics schemes sequentially.
+#   - Medium-resolution global-scale rectilinear grid remapping.
+# =====================================================================
 driver:
   start_time: "2020-07-15T00:00:00"
   end_time: "2020-07-15T12:00:00"

@@ -1,4 +1,15 @@
-# Multi-stream NO emissions example
+# =====================================================================
+# CECE Example 6: Multi-Stream Multi-Source Addition
+# =====================================================================
+# This example tests multi-stream emissions blending, merging multiple
+# anthropogenic sectors (such as EDGAR and CEDS datasets) using additive
+# and scaling operators.
+#
+# Key Features Tested:
+#   - Additive emissions stream operations for a single target species.
+#   - Dynamic temporal and spatial remapping of disparate datasets.
+#   - Fast testing rectilinear grid configuration.
+# =====================================================================
 driver:
   start_time: "2020-01-01T00:00:00"
   end_time: "2020-01-01T04:00:00"

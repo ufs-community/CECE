@@ -1,4 +1,14 @@
-# Physics schemes demonstration example
+# =====================================================================
+# CECE Example 4: CCPP Physics Schemes processing
+# =====================================================================
+# This example tests CCPP physical scheme integrations, running diurnal
+# and seasonal scaling variation calculations.
+#
+# Key Features Tested:
+#   - Dynamic diurnal/seasonal variation scaling factors.
+#   - Physics scheme parameter ingestion and runtime scheduling.
+#   - 24-hour simulation cycle for full day-night profiling.
+# =====================================================================
 driver:
   start_time: "2020-01-01T00:00:00"
   end_time: "2020-01-02T00:00:00"

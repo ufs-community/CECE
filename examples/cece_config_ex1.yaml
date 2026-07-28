@@ -1,4 +1,15 @@
-# Basic single species example with small grid
+# =====================================================================
+# CECE Example 1: Basic Single Species Simulation
+# =====================================================================
+# This example tests basic emissions remapping capabilities for a
+# single chemical species (CO) from a single MACCity anthropogenic
+# data stream.
+#
+# Key Features Tested:
+#   - Core-driven single species CO emissions processing.
+#   - Guassian global grid (1440x720) with full global lat-lon coverage.
+#   - Basic diagnostics output verification.
+# =====================================================================
 driver:
   start_time: "2010-01-01T00:00:00"
   end_time: "2010-01-01T23:00:00"

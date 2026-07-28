@@ -1,4 +1,14 @@
-# Driver configuration for multi-timestep execution
+# =====================================================================
+# CECE Example 5: Production Multi-Timestep Ingestion
+# =====================================================================
+# This example tests multi-timestep emissions processing for multiple
+# species (CO + NO) with diverse data source configurations.
+#
+# Key Features Tested:
+#   - Dynamic multi-stream remapping and temporal alignment.
+#   - Medium-resolution global-scale rectilinear grid (270x135).
+#   - High-throughput parallel NetCDF output file generation.
+# =====================================================================
 driver:
   start_time: "2020-01-01T00:00:00"
   end_time: "2020-01-01T06:00:00"

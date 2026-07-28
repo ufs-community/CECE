@@ -1,4 +1,15 @@
-# Driver configuration for multi-timestep execution
+# =====================================================================
+# CECE Example 8: Unstructured Voronoi (MPAS) Mesh Simulation
+# =====================================================================
+# This example tests unstructured 1-D mesh simulation capabilities
+# with physical Voronoi cell boundaries and topology conforming to the
+# standard MPAS mesh and CF-1.9/UGRID-1.0 Conventions.
+#
+# Key Features Tested:
+#   - Ingestion and remapping on dynamic unstructured mesh grids.
+#   - Dynamic MPAS Voronoi polygon cell boundaries (hexagons/pentagons) loading.
+#   - UGRID-1.0 coordinate-variables linking and mesh topology metadata.
+# =====================================================================
 driver:
   start_time: "2020-01-01T00:00:00"
   end_time: "2020-01-01T06:00:00"
