@@ -5,9 +5,9 @@
 
 set -e
 
-echo "========================================================================"
-echo " Setting up temporary C96 tile grids (symlinks to tile1)..."
-echo "========================================================================"
+# ========================================================================
+# Setting up temporary C96 tile grids (symlinks to tile1)
+# ========================================================================
 for tile in 2 3 4 5 6; do
     ln -sf C96_grid.tile1.nc data/C96_grid.tile${tile}.nc
     ln -sf C96_grid_spec.tile1.nc data/C96_grid_spec.tile${tile}.nc
@@ -36,10 +36,10 @@ driver:
   start_time: "2020-01-01T00:00:00"
   end_time: "2020-01-01T01:00:00"
   timestep_seconds: 3600
-  gridspec_file: "data/C96_grid.tile${tile}.nc"
+  gridspec_file: "data/C96_grid_spec.tile${tile}.nc"
   grid:
-    nx: 193
-    ny: 193
+    nx: 96
+    ny: 96
 
 species:
   co:

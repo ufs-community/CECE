@@ -199,10 +199,6 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
         MPI_Comm_rank(comm_, &rank);
     }
 
-    if (rank != 0) {
-        return 0;  // Standalone writing is strictly serial and executed on Rank 0 only to avoid conflicts
-    }
-
     CECE_LOG_INFO("[CECE] Writing time step " + std::to_string(step) + " (t=" + std::to_string(time_seconds) + ") via AMIO");
 
     std::string filename = ResolveFilename(time_seconds);
@@ -231,12 +227,12 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
                    << "path: " << filename << "\n"
                    << "data_model: enhanced\n"
                    << "staging_pool:\n"
-                   << "  buffer_count: 16\n"
+                   << "  buffer_count: 1\n"
                    << "  buffer_capacity_bytes: 104857600\n"
                    << "worker_pool:\n"
-                   << "  threads: " << write_threads << "\n"
+                   << "  threads: 1\n"
                    << "prefetch:\n"
-                   << "  depth: 4\n"
+                   << "  depth: 1\n"
                    << "  read_timeout_s: 60\n"
                    << "staging_timeout_ms: 10000\n";
 
@@ -324,8 +320,15 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
             m_file.close();
         }
 
+        // Wait for Rank 0 to finish writing the manifest file before all ranks collectively load it!
+        if (mpi_initialized && comm_ != MPI_COMM_NULL) {
+            MPI_Barrier(comm_);
+        }
+
         // Step 2: Initialize AMIO Core
-        if (mpi_initialized) {
+        if (mpi_initialized && comm_ != MPI_COMM_NULL) {
+            amio_set_parent_communicator(MPI_Comm_c2f(comm_));
+        } else if (mpi_initialized) {
             amio_set_parent_communicator(MPI_Comm_c2f(MPI_COMM_SELF));
         }
         check_amio_rc(amio_init(manifest_path.c_str(), &core), "amio_init");
@@ -606,8 +609,13 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
         check_amio_rc(amio_finalize(core), "amio_finalize");
         core = nullptr;
 
-        // Cleanup temporary manifest file
-        fs::remove(manifest_path);
+        // Cleanup temporary manifest file on Rank 0 only after synchronizing all ranks
+        if (mpi_initialized && comm_ != MPI_COMM_NULL) {
+            MPI_Barrier(comm_);
+        }
+        if (rank == 0) {
+            fs::remove(manifest_path);
+        }
 
         CECE_LOG_INFO("[CECE] Successfully wrote " + filename + " via AMIO");
 

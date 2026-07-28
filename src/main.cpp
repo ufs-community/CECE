@@ -433,12 +433,6 @@ int main(int argc, char* argv[]) {
             int day_of_week = 1;  // Default Monday/Tuesday
             cece_core_run(cece_data_ptr, hour, day_of_week, &rc);
 
-            double co_sum = 0.0;
-            for (double val : export_fields_mem["co"]) {
-                co_sum += val;
-            }
-            std::cout << "[DRIVER DEBUG RANK " << my_rank << " STEP " << step_index << "] co memory buffer sum on host: " << co_sum << std::endl;
-
             // D. Advance simulation clock by one timestep BEFORE writing, so elapsed time reflects the end of the step!
             sim_time += dt;
             step_index++;

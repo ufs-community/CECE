@@ -357,17 +357,9 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                 MPI_Barrier(comm_c_);
             }
 
-            // Temporarily set communicator for parallel or serial I/O safely.
+            // Force serial I/O fallback for reading offline datasets to prevent MPI multithreading deadlocks.
             if (mpi_initialized) {
-                int m_size = 1;
-                if (comm_c_ != MPI_COMM_NULL) {
-                    MPI_Comm_size(comm_c_, &m_size);
-                }
-                if (m_size > 1) {
-                    amio_set_parent_communicator(MPI_Comm_c2f(comm_c_));
-                } else {
-                    amio_set_parent_communicator(MPI_Comm_c2f(MPI_COMM_SELF));
-                }
+                amio_set_parent_communicator(MPI_Comm_c2f(MPI_COMM_SELF));
             }
 
             amio_rc = amio_init(read_manifest_path.c_str(), &read_core);
