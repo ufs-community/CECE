@@ -76,7 +76,9 @@ void cece_core_run(void* data_ptr, int hour, int day_of_week, int* rc) {
                     case cece::ComponentType::kDataStream: {
                         // Ingest all streams when any data stream is due
                         // (per-stream ingestion is a future enhancement)
-                        if (!ingested && !d->config.cece_data.streams.empty()) {
+                        // In standalone mode, the driver facade already read, regridded, and populated d->import_state directly.
+                        // We bypass IngestEmissionsInline here to avoid parallel NetCDF serial file-opening conflicts on multi-process runs.
+                        if (!d->standalone_mode && !ingested && !d->config.cece_data.streams.empty()) {
                             try {
                                 d->ingestor.IngestEmissionsInline(d->config.cece_data, d->import_state, d->nx, d->ny, d->nz);
                             } catch (const std::exception& e) {
@@ -121,7 +123,9 @@ void cece_core_run(void* data_ptr, int hour, int day_of_week, int* rc) {
             std::cout << "CECE_Run: executing step (hour=" << hour << ", day_of_week=" << day_of_week << ")\n";
 
             // Ingest emissions from configured streams before stacking
-            if (!d->config.cece_data.streams.empty()) {
+            // In standalone mode, the driver facade already read, regridded, and populated d->import_state directly.
+            // We bypass IngestEmissionsInline here to avoid parallel NetCDF serial file-opening conflicts on multi-process runs.
+            if (!d->standalone_mode && !d->config.cece_data.streams.empty()) {
                 try {
                     d->ingestor.IngestEmissionsInline(d->config.cece_data, d->import_state, d->nx, d->ny, d->nz);
                 } catch (const std::exception& e) {

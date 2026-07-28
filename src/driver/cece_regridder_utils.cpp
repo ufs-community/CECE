@@ -4,6 +4,8 @@
 
 #include "cece/cece_regridder_utils.hpp"
 
+#include <mpi.h>
+
 #include <algorithm>
 #include <cmath>
 #include <fstream>
@@ -62,7 +64,13 @@ static std::vector<double> read_coordinate_array(amio_dataset_handle dataset, co
 }
 
 static axis::topology::UnstructuredMesh<Kokkos::HostSpace> load_mesh_from_file(int ni, const std::string& gridspec_file) {
-    std::string manifest_path = "amio_GS_mesh_manifest.yaml";
+    int rank = 0;
+    int mpi_initialized = 0;
+    MPI_Initialized(&mpi_initialized);
+    if (mpi_initialized) {
+        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    }
+    std::string manifest_path = "amio_GS_mesh_manifest_rank" + std::to_string(rank) + ".yaml";
     std::ofstream m_file(manifest_path);
     m_file << "backend: netcdf4\n"
            << "path: " << gridspec_file << "\n"

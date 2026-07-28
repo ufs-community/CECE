@@ -357,9 +357,17 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                 MPI_Barrier(comm_c_);
             }
 
-            // Temporarily force serial nc_open read fallback to improve portability.
+            // Temporarily set communicator for parallel or serial I/O safely.
             if (mpi_initialized) {
-                amio_set_parent_communicator(MPI_Comm_c2f(MPI_COMM_SELF));
+                int m_size = 1;
+                if (comm_c_ != MPI_COMM_NULL) {
+                    MPI_Comm_size(comm_c_, &m_size);
+                }
+                if (m_size > 1) {
+                    amio_set_parent_communicator(MPI_Comm_c2f(comm_c_));
+                } else {
+                    amio_set_parent_communicator(MPI_Comm_c2f(MPI_COMM_SELF));
+                }
             }
 
             amio_rc = amio_init(read_manifest_path.c_str(), &read_core);
@@ -577,6 +585,31 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                             }
                         }
                         Kokkos::deep_copy(stream_view, h_view);
+
+                        // Also directly populate the C++ Core's import state fields to guarantee
+                        // parallel-safe and synchronized import states across the driver facade and compute core!
+                        auto* d = static_cast<cece::CeceInternalData*>(cece_core_data_ptr);
+                        auto it_core = d->import_state.fields.find(var_name);
+                        if (it_core == d->import_state.fields.end()) {
+                            // Dynamically allocate the import field DualView inside the core
+                            cece::DualView3D dv(var_name, nx_, ny_, nz_);
+                            d->import_state.fields[var_name] = dv;
+                            it_core = d->import_state.fields.find(var_name);
+                        }
+
+                        if (it_core != d->import_state.fields.end()) {
+                            auto& core_field = it_core->second;
+                            auto h_view_core = Kokkos::create_mirror_view(core_field.view_device());
+                            for (int j = 0; j < ny_; ++j) {
+                                for (int i = 0; i < nx_; ++i) {
+                                    h_view_core(i, j, 0) = full_dst[static_cast<size_t>(j) * nx_ + i];
+                                }
+                            }
+                            Kokkos::deep_copy(core_field.view_device(), h_view_core);
+                            core_field.modify_device();
+                            core_field.sync_host();
+                        }
+
                         read_success = true;
                     } else {
                         std::cout << "[DRIVER DEBUG] apply_regrid_plan returned false!" << std::endl;

@@ -98,7 +98,7 @@ output:
 EOF
 
     # Run simulation inside the container
-    ./setup.sh -c "OMP_NUM_THREADS=1 OMP_PROC_BIND=false mpirun --allow-run-as-root -np 1 ./build/cece_standalone_driver examples/cece_config_ex9_tile${tile}.yaml"
+    ./setup.sh -c "OMP_NUM_THREADS=1 OMP_PROC_BIND=false mpirun --allow-run-as-root -np 2 ./build/cece_standalone_driver examples/cece_config_ex9_tile${tile}.yaml"
 
     # Clean up temporary config file
     rm examples/cece_config_ex9_tile${tile}.yaml
