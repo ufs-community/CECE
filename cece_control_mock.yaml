@@ -1,0 +1,66 @@
+# =====================================================================
+# CECE Control Mock Testing Configuration
+# =====================================================================
+driver:
+  start_time: "2010-01-01T00:00:00"
+  end_time: "2010-01-01T06:00:00"
+  timestep_seconds: 3600
+  grid:
+    nx: 72
+    ny: 46
+    lon_min: -180.0
+    lon_max: 180.0
+    lat_min: -90.0
+    lat_max: 90.0
+
+species:
+  co:
+    - field: "MACCITY_CO"
+      operation: "add"
+  no:
+    - field: "MACCITY_NO"
+      operation: "add"
+
+cece_data:
+  streams:
+    - name: "MACCITY_CO"
+      file: "data/MACCity_4x5.nc"
+      yearFirst: 2000
+      yearLast: 2010
+      yearAlign: 2020
+      taxmode: "cycle"
+      tintalgo: "linear"
+      mapalgo: "consd"
+      variables:
+        - file: "MACCity"
+          model: "MACCITY_CO"
+    - name: "MACCITY_NO"
+      file: "data/MACCity_anthro_NOx_2000-2010_16080.nc"
+      yearFirst: 2000
+      yearLast: 2010
+      yearAlign: 2020
+      taxmode: "cycle"
+      tintalgo: "linear"
+      mapalgo: "consd"
+      variables:
+        - file: "MACCity"
+          model: "MACCITY_NO"
+
+diagnostics:
+  output_interval_seconds: 3600
+  variables: ["co", "no"]
+
+output:
+  enabled: true
+  directory: ./cece_output
+  filename_pattern: "cece_c96_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
+  frequency_steps: 1
+  fields:
+    - name: co
+      attributes:
+        units: "kg m-2 s-1"
+        long_name: "carbon_monoxide_emission_flux"
+    - name: "no"
+      attributes:
+        units: "kg m-2 s-1"
+        long_name: "nitric_oxide_emission_flux"
