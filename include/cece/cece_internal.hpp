@@ -45,8 +45,9 @@ struct CeceInternalData {
     std::vector<std::string> unique_input_fields;   ///< List of all unique input fields required by configuration.
 
     // Field data pointers and metadata
-    std::vector<void*> field_pointers;     ///< Data pointers for ESMF fields (one per species).
-    std::vector<std::string> field_names;  ///< Names of fields corresponding to field_pointers.
+    std::vector<void*> field_pointers;                                ///< Data pointers for ESMF fields (one per species).
+    std::vector<std::string> field_names;                             ///< Names of fields corresponding to field_pointers.
+    std::unordered_map<std::string, double*> persistent_export_ptrs;  ///< Map of variable names to their raw unmanaged persistent host pointers.
 };
 
 }  // namespace cece

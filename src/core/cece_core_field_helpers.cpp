@@ -597,6 +597,7 @@ void cece_core_set_export_field(void* data_ptr, const char* name, int name_len, 
     dv.sync_device();
 
     internal_data->export_state.fields[name_str] = dv;
+    internal_data->persistent_export_ptrs[name_str] = field_data;
 
     std::cout << "INFO: cece_core_set_export_field - registered field '" << name_str << "' (" << nx << "x" << ny << "x" << nz << ")" << std::endl;
 

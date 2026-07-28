@@ -150,9 +150,17 @@ void cece_core_run(void* data_ptr, int hour, int day_of_week, int* rc) {
 
         // Mark all export fields as modified on the device since they are computed on the device
         // by the Stacking Engine and physics schemes, ensuring Kokkos copies device updates to host.
+        // Also copy the synced host values of managed views back to the persistent unmanaged ESMF pointers!
         for (auto& [name, field] : d->export_state.fields) {
             field.modify<Kokkos::DefaultExecutionSpace>();
             field.sync_host();
+
+            auto it = d->persistent_export_ptrs.find(name);
+            if (it != d->persistent_export_ptrs.end() && it->second != nullptr) {
+                using UnmanagedHost = Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+                UnmanagedHost h_view(it->second, d->nx, d->ny, d->nz);
+                Kokkos::deep_copy(h_view, field.view_host());
+            }
         }
 
         // Also sync import state fields to ensure ESMF can access them
