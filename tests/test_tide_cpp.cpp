@@ -17,9 +17,9 @@ void cece_core_finalize(void* data_ptr, int* rc);
 
 std::string GetConfigPath() {
 #ifdef CECE_SOURCE_DIR
-    return std::string(CECE_SOURCE_DIR) + "/cece_control_mock.yaml";
+    return std::string(CECE_SOURCE_DIR) + "/tests/cece_control_mock.yaml";
 #else
-    return "cece_control_mock.yaml";
+    return "tests/cece_control_mock.yaml";
 #endif
 }
 
