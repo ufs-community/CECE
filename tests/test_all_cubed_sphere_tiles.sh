@@ -6,11 +6,31 @@
 set -e
 
 # ========================================================================
-# Setting up temporary C96 tile grids (symlinks to tile1)
+# Download real C96 grid and gridspec files if they are missing
 # ========================================================================
-for tile in 2 3 4 5 6; do
-    ln -sf C96_grid.tile1.nc data/C96_grid.tile${tile}.nc
-    ln -sf C96_grid_spec.tile1.nc data/C96_grid_spec.tile${tile}.nc
+mkdir -p data
+
+download_file_if_missing() {
+    local filename=$1
+    local filepath="data/${filename}"
+    local url="https://ftp.emc.ncep.noaa.gov/static_files/public/UFS/GFS/fix/fix_fv3/C96/${filename}"
+
+    if [ ! -f "$filepath" ] || [ ! -s "$filepath" ]; then
+        echo "Downloading ${filename} from NOAA..."
+        if command -v curl >/dev/null 2>&1; then
+            curl -s -S -L -o "$filepath" "$url"
+        elif command -v wget >/dev/null 2>&1; then
+            wget -q -O "$filepath" "$url"
+        else
+            echo "Error: Neither curl nor wget found. Cannot download ${filename}." >&2
+            exit 1
+        fi
+    fi
+}
+
+for tile in 1 2 3 4 5 6; do
+    download_file_if_missing "C96_grid.tile${tile}.nc"
+    download_file_if_missing "C96_grid_spec.tile${tile}.nc"
 done
 
 # Ensure output directory exists
@@ -122,16 +142,7 @@ print(f'Tile ${tile} -> lon:{lon_shape}, lat:{lat_shape}, lon_bnds:{lon_bnds_sha
 "
 done
 
-# ========================================================================
-# Clean up temporary C96 tile gridspec files symlinks
-# ========================================================================
-echo "========================================================================"
-echo " Cleaning up temporary C96 tile symlinks..."
-echo "========================================================================"
-for tile in 2 3 4 5 6; do
-    rm -f data/C96_grid.tile${tile}.nc
-    rm -f data/C96_grid_spec.tile${tile}.nc
-done
+# Note: Real C96 grid and gridspec files are kept in the 'data/' directory as a local cache.
 
 echo "========================================================================"
 echo " All 6 tiles of the C96 curvilinear grid have been successfully tested!"

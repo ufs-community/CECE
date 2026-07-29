@@ -59,8 +59,10 @@ void cece_core_run(void* data_ptr, int hour, int day_of_week, int* rc) {
             // Clock-gated execution: only run due components
             cece::StepResult step = d->clock->Advance();
 
-            if (step.simulation_complete) {
-                *rc = 1;
+            if (step.due_components.empty()) {
+                if (step.simulation_complete) {
+                    *rc = 1;
+                }
                 return;
             }
 
@@ -115,6 +117,10 @@ void cece_core_run(void* data_ptr, int hour, int day_of_week, int* rc) {
                         break;
                     }
                 }
+            }
+
+            if (step.simulation_complete) {
+                *rc = 1;
             }
         } else {
             // Backward compatibility: no clock, execute all components unconditionally
