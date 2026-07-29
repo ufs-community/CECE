@@ -363,7 +363,7 @@ bool build_regrid_plan(amio_dataset_handle read_dataset, int nx, int ny, const s
                        const std::vector<double>& target_lats, const std::string& map_algo, int j0, int j1, const std::string& gridspec_file,
                        RegridPlan& plan) {
     // Read a 1-D, 2-D or 3-D coordinate variable, trying several common naming conventions.
-    auto read_coord = [&](const std::vector<std::string>& candidate_names, std::vector<double>& out, int& nx_val, int& ny_val) {
+    auto read_coord = [&](const std::vector<std::string>& candidate_names, std::vector<double>& out, int& nx_val, int& ny_val, bool wrap_lon) {
         for (const auto& name : candidate_names) {
             amio_view_handle view = nullptr;
             if (amio_read(read_dataset, name.c_str(), 0, nullptr, &view) != AMIO_OK) {
@@ -404,7 +404,15 @@ bool build_regrid_plan(amio_dataset_handle read_dataset, int nx, int ny, const s
                         out.resize(slice_len);
                         bool is_float = (size == static_cast<size_t>(len) * 4);
                         for (int i = 0; i < slice_len; ++i) {
-                            out[i] = is_float ? static_cast<const float*>(data)[i] : static_cast<const double*>(data)[i];
+                            double val = is_float ? static_cast<double>(static_cast<const float*>(data)[i]) : static_cast<const double*>(data)[i];
+                            if (wrap_lon) {
+                                if (val >= 180.0) {
+                                    val -= 360.0;
+                                } else if (val < -180.0) {
+                                    val += 360.0;
+                                }
+                            }
+                            out[i] = val;
                         }
                     }
                 }
@@ -427,7 +435,7 @@ bool build_regrid_plan(amio_dataset_handle read_dataset, int nx, int ny, const s
                                                        "nav_lon",   "mesh_node_x",     "mesh2d_node_x", "node_x",    "grid_xt", "x"};
     int lon_nx = 0, lon_ny = 0;
     std::vector<double> src_lons;
-    read_coord(kLonNames, src_lons, lon_nx, lon_ny);
+    read_coord(kLonNames, src_lons, lon_nx, lon_ny, false);
 
     // 2. Read source latitude coordinates (same convention families as above).
     static const std::vector<std::string> kLatNames = {"grid_latt", "grid_lat",        "XLAT",          "latCell",  "geolat",  "clat",
@@ -435,7 +443,7 @@ bool build_regrid_plan(amio_dataset_handle read_dataset, int nx, int ny, const s
                                                        "nav_lat",   "mesh_node_y",     "mesh2d_node_y", "node_y",   "grid_yt", "y"};
     int lat_nx = 0, lat_ny = 0;
     std::vector<double> src_lats;
-    read_coord(kLatNames, src_lats, lat_nx, lat_ny);
+    read_coord(kLatNames, src_lats, lat_nx, lat_ny, false);
 
     if (src_lons.empty() || src_lats.empty()) {
         std::cerr << "[DRIVER ERROR] build_regrid_plan: could not read source coordinates. Tried longitude names {"
@@ -511,6 +519,29 @@ bool build_regrid_plan(amio_dataset_handle read_dataset, int nx, int ny, const s
         // Rectilinear coordinate arrays: slice [j0, j1] for latitude, keep lons as-is
         band_lons = target_lons;
         band_lats.assign(target_lats.begin() + j0, target_lats.begin() + j1);
+    }
+
+    // Align the longitude range of the destination tile with the range of the source file.
+    // This keeps the source grid perfectly monotonic (avoiding any non-monotonic coordinate jumps
+    // or StructuredGrid distortions inside AXIS) and prevents disjoint coordinate range errors.
+    double src_min_lon = *std::min_element(src_lons.begin(), src_lons.end());
+    double src_max_lon = *std::max_element(src_lons.begin(), src_lons.end());
+    bool use_360_range = (src_max_lon > 180.0 && src_min_lon >= -1e-5);
+
+    if (use_360_range) {
+        for (auto& lon : band_lons) {
+            if (lon < 0.0)
+                lon += 360.0;
+            else if (lon >= 360.0)
+                lon -= 360.0;
+        }
+    } else {
+        for (auto& lon : band_lons) {
+            if (lon >= 180.0)
+                lon -= 360.0;
+            else if (lon < -180.0)
+                lon += 360.0;
+        }
     }
 
     auto dst_mesh = build_axis_mesh(nx, nband, band_lons, band_lats, gridspec_file);
