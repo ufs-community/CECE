@@ -16,8 +16,8 @@
 
 #include "cece/cece_fatal.hpp"
 #include "cece/cece_helm_graph.hpp"
-#include "cece/cece_logger.hpp"
 #include "cece/cece_internal.hpp"
+#include "cece/cece_logger.hpp"
 #include "cece/cece_regridder_utils.hpp"
 #include "cece/cece_standalone_writer.hpp"
 
@@ -487,9 +487,8 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                                                    : " (cadence=" + cadence + ", time=" + time_iso8601 + ")"));
                 } else {
                     CECE_LOG_INFO("[DRIVER] Interpolating time slices " + std::to_string(bracket.i0) + " & " + std::to_string(bracket.i1) + "/" +
-                                  std::to_string(file_nt) + " (w=" + std::to_string(bracket.weight) + ") from '" + input_file_path +
-                                  "' for field '" + var_name + "' (cadence=" + cadence + ", tintalgo=" + tintalgo +
-                                  ", time=" + time_iso8601 + ")");
+                                  std::to_string(file_nt) + " (w=" + std::to_string(bracket.weight) + ") from '" + input_file_path + "' for field '" +
+                                  var_name + "' (cadence=" + cadence + ", tintalgo=" + tintalgo + ", time=" + time_iso8601 + ")");
                 }
 
                 int file_nx = 0;
@@ -547,9 +546,8 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                     file_nx = fnx;
                     file_ny = fny;
                     amio_release_view(slab_view);
-                    CECE_LOG_DEBUG("[DRIVER] Read slab t=" + std::to_string(t_idx) + " for '" + input_var_name + "': " +
-                                   std::to_string(fny) + "x" + std::to_string(fnx) + " (" + std::to_string(spatial) + " elements, " +
-                                   (is_float ? "float32" : "float64") + ")");
+                    CECE_LOG_DEBUG("[DRIVER] Read slab t=" + std::to_string(t_idx) + " for '" + input_var_name + "': " + std::to_string(fny) + "x" +
+                                   std::to_string(fnx) + " (" + std::to_string(spatial) + " elements, " + (is_float ? "float32" : "float64") + ")");
                     return true;
                 };
 
