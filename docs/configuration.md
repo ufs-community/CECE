@@ -543,12 +543,12 @@ Configuration for data streams that read external emission inventories and auxil
 | `name` | String | Unique identifier for the data stream |
 | `file` | String | Path to NetCDF data file(s) |
 | `refresh_interval_seconds` | Integer | (Optional) Data ingestion interval in seconds. Must be a positive multiple of `timestep_seconds`. Default: `0` (use `timestep_seconds`, i.e., ingest every step). |
-| `cadence` | String | (Optional) Temporal cadence for record selection: `hourly`, `weekly`, or `monthly`. When set, the driver maps the simulation datetime onto the appropriate file record (hour-of-day, day-of-week, or month). If omitted, legacy step-index cycling is used. |
-| `yearFirst` | Integer | First year of data coverage |
-| `yearLast` | Integer | Last year of data coverage |
-| `yearAlign` | Integer | Simulation year to align with data |
-| `taxmode` | String | Time axis mode: `cycle`, `extend`, or `limit` |
-| `tintalgo` | String | Temporal interpolation: `linear` or `nearest`. For `monthly` cadence with `linear`, mid-month interpolation is applied between bracketing records. Default: `nearest`. |
+| `cadence` | String | (Optional) Temporal cadence for record selection: `hourly`, `daily`, `weekly`, or `monthly`. When set, the driver maps the simulation datetime onto the appropriate file record (hour-of-day, day-of-year, day-of-week, or month). If omitted, legacy step-index cycling is used. |
+| `yearFirst` | Integer | First calendar year of data coverage in the file |
+| `yearLast` | Integer | Last calendar year of data coverage in the file |
+| `yearAlign` | Integer | Simulation year corresponding to `yearFirst` (first file year). Default: same as `yearFirst` |
+| `taxmode` | String | Behavior when simulation year is out of range: `cycle` (repeat file year range), `extend` (clamp to `yearFirst`/`yearLast`), or `limit` (return invalid / fail) |
+| `tintalgo` | String | Temporal interpolation: `linear` or `nearest`. For `monthly` or `daily` cadence with `linear`, linear interpolation is applied between bracketing records. Default: `nearest`. |
 | `mapalgo` | String | Spatial regridding: `consd`, `bilinear`, `consf`, `nn`, `redist`, or `passthrough` (skip regridding — data must be on the model grid already, sizes are validated) |
 | `data_model` | String | (Optional) AMIO NetCDF data model for reads: `enhanced`, `classic`, or `auto`. Default behavior is auto (`enhanced` first, then `classic` fallback on backend open failure). |
 | `variables` | List | Variable mappings between file and model |
@@ -565,11 +565,11 @@ Configuration for data streams that read external emission inventories and auxil
 cece_data:
   streams:
     - name: "MACCITY_CO"
-      file: "/data/inventories/MACCity_CO_2010.nc"
+      file: "/data/inventories/MACCity_CO_2000-2010.nc"
       yearFirst: 2000
       yearLast: 2010
-      yearAlign: 2020           # Use 2010 data for year 2020
-      taxmode: "cycle"          # Repeat yearly cycle
+      yearAlign: 2000           # Simulation year 2000 corresponds to file year 2000
+      taxmode: "cycle"          # Repeat 2000-2010 cycle for other simulation years
       tintalgo: "linear"        # Linear time interpolation
       mapalgo: "consd"          # Conservative regridding
       variables:
@@ -580,8 +580,8 @@ cece_data:
       file: "/data/inventories/HTAPv3_NOx_*.nc"  # Wildcard for multiple files
       yearFirst: 2018
       yearLast: 2018
-      yearAlign: 2020
-      taxmode: "extend"         # Extend last value beyond data range
+      yearAlign: 2020           # Simulation year 2020 aligns to file year 2018
+      taxmode: "extend"         # Extend last available year for years outside range
       tintalgo: "linear"
       mapalgo: "consd"
       data_model: "classic"     # Force classic model for legacy files
@@ -605,6 +605,123 @@ cece_data:
       variables:
         - file: "CO_MONTHLY"
           model: "co_monthly_clim"
+```
+
+### Temporal Alignment Semantics (`yearFirst`, `yearAlign`, `taxmode`)
+
+When reading multi-year data files, CECE calculates the dataset year (`effective_year`) for a given simulation year using the formula:
+
+$$\text{effective\_year} = \text{yearFirst} + (\text{sim\_year} - \text{yearAlign})$$
+
+* **`yearAlign`**: Sets the anchor point. It specifies which simulation year corresponds to `yearFirst` (the beginning of the file).
+  * If `yearAlign` equals `yearFirst` (or is `0`), simulation years map 1-to-1 with file years.
+  * If `yearAlign` is specified as a different year, the entire time axis is shifted relative to `yearFirst`.
+
+* **`taxmode`**: Handles cases where `effective_year` falls outside `[yearFirst, yearLast]`:
+  * **`extend`**: Clamps out-of-range dates to the nearest file boundary (`yearFirst` or `yearLast`). Useful for using the latest available inventory year for future simulation dates.
+  * **`cycle`**: Repeats the multi-year cycle continuously using modulo wrapping.
+  * **`limit`**: Returns invalid data if the simulation date is outside the covered range.
+
+### Practical Applications & Common Use Cases
+
+#### 1. Future Projections / Present-Day Runs with Historical Inventories
+**Scenario:** You are running a simulation for year 2026, but your emissions inventory (e.g., CEDS or HTAP) only extends through 2023. You want all simulation years $\ge 2023$ to use the 2023 emission rates.
+```yaml
+cece_data:
+  streams:
+    - name: "CEDS_ANTHRO_NOX"
+      file: "/data/emissions/CEDS_NOx_2000-2023.nc"
+      cadence: "monthly"
+      yearFirst: 2000
+      yearLast: 2023
+      yearAlign: 2000           # Sim year 2000 maps to file year 2000
+      taxmode: "extend"         # Sim year 2026 maps to 2026 -> clamped to yearLast (2023)
+```
+
+#### 2. Historical Reanalysis / Hindcast Runs
+**Scenario:** You are running a historical simulation (e.g., 2010–2015) using a multi-year dataset that covers 2000–2020. Each simulation year should strictly use the corresponding file year.
+```yaml
+cece_data:
+  streams:
+    - name: "HISTORICAL_EMISSIONS"
+      file: "/data/emissions/inventory_2000-2020.nc"
+      cadence: "monthly"
+      yearFirst: 2000
+      yearLast: 2020
+      yearAlign: 2000           # 1-to-1 mapping (sim year 2015 -> file year 2015)
+      taxmode: "limit"          # Error / fail if simulation goes outside 2000-2020
+```
+
+#### 3. Repetitive Multi-Year Cycles
+**Scenario:** You have a 10-year dataset (2000–2010) and want to repeat this 10-year cycle continuously for long-term climate or air quality simulations (e.g., 2011–2030).
+```yaml
+cece_data:
+  streams:
+    - name: "CYCLING_INVENTORY"
+      file: "/data/emissions/inventory_2000-2010.nc"
+      cadence: "monthly"
+      yearFirst: 2000
+      yearLast: 2010
+      yearAlign: 2000
+      taxmode: "cycle"          # Sim year 2011 -> file year 2000; sim year 2020 -> file year 2009
+```
+
+#### 4. Applying a Single-Year Inventory to a Different Simulation Year
+**Scenario:** You have a single-year inventory for year 2010 (`yearFirst: 2010`, `yearLast: 2010`), but you are running a simulation for year 2020.
+```yaml
+cece_data:
+  streams:
+    - name: "SINGLE_YEAR_INVENTORY"
+      file: "/data/emissions/inventory_2010.nc"
+      cadence: "monthly"
+      yearFirst: 2010
+      yearLast: 2010
+      yearAlign: 2020           # Sim year 2020 maps to file year 2010
+      taxmode: "extend"
+```
+
+#### 5. Monthly Climatologies (12-Record Files)
+**Scenario:** You have a 12-month climatology file (Jan–Dec) that applies identically to every simulation year.
+```yaml
+cece_data:
+  streams:
+    - name: "MONTHLY_CLIMATOLOGY"
+      file: "/data/climatology/monthly_isoprene.nc"
+      cadence: "monthly"        # Automatically selects month 0-11 for each simulation month
+      tintalgo: "linear"        # Smooth mid-month interpolation
+```
+
+#### 6. Daily Climatologies and Daily Emissions Files
+**Scenario:** Reading daily data files (e.g., 365/366-day daily climatology or multi-year daily emissions).
+```yaml
+cece_data:
+  streams:
+    - name: "DAILY_CLIMATOLOGY"
+      file: "/data/climatology/daily_emissions.nc"
+      cadence: "daily"          # Selects record 0-364/365 by day of year
+      tintalgo: "linear"        # Smooth intra-day linear interpolation
+
+    - name: "MULTIYEAR_DAILY_EMISSIONS"
+      file: "/data/emissions/daily_inventory_2000-2023.nc"
+      cadence: "daily"          # Maps simulation date to exact day in multi-year daily dataset
+      yearFirst: 2000
+      yearLast: 2023
+      yearAlign: 2000
+      taxmode: "extend"
+```
+
+#### 7. Diurnal (Hourly) and Weekly Variation Profiles
+**Scenario:** Applying 24-hour diurnal scale factors or 7-day weekly scale factors.
+```yaml
+cece_data:
+  streams:
+    - name: "DIURNAL_SCALE"
+      file: "/data/profiles/diurnal_factors.nc"
+      cadence: "hourly"         # Selects record 0-23 by hour of day
+
+    - name: "WEEKLY_SCALE"
+      file: "/data/profiles/weekly_factors.nc"
+      cadence: "weekly"         # Selects record 0-6 by day of week (0=Mon ... 6=Sun)
 ```
 
 ---

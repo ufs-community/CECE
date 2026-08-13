@@ -6,6 +6,7 @@
 #include <Kokkos_Core.hpp>
 #include <algorithm>
 #include <axis/axis.hpp>
+#include <cmath>
 #include <dagr/logging.hpp>
 #include <filesystem>
 #include <fstream>
@@ -30,31 +31,14 @@ void amio_set_parent_communicator(MPI_Fint comm);
 
 namespace cece {
 
-namespace {
-
-/**
- * @brief Simulation datetime fields derived from an ISO-8601 timestamp.
- *
- * Used by the per-stream temporal-cadence mechanism to map the current
- * simulation time onto a record index within an input file.
- */
-struct SimDateTime {
-    int year = 0;
-    int month = 0;        ///< 1-12
-    int day = 0;          ///< 1-31
-    int hour = 0;         ///< 0-23
-    int day_of_week = 0;  ///< 0=Sunday .. 6=Saturday
-    bool valid = false;
-};
+namespace detail {
 
 /**
  * @brief Parse an ISO-8601 timestamp ("YYYY-MM-DDThh:mm:ss") into calendar fields.
  *
  * Parsing and calendar arithmetic use the HELM TICK library (tick::parse_iso8601
- * and tick::Gregorian_Calendar) rather than std::chrono, keeping time handling
- * consistent with the rest of CECE. The day-of-week is derived from TICK's
- * proleptic-Gregorian day count (TICK's epoch 2026-01-01 is a Thursday), so it
- * is correct for any date.
+ * and tick::Gregorian_Calendar). The day-of-week uses ISO 8601 numbering
+ * (1=Monday ... 7=Sunday).
  */
 SimDateTime parse_sim_datetime(const std::string& iso8601) {
     SimDateTime dt;
@@ -64,14 +48,8 @@ SimDateTime parse_sim_datetime(const std::string& iso8601) {
         dt.month = tdt.month;
         dt.day = tdt.day;
         dt.hour = tdt.hour;
-
-        // Whole days since TICK's epoch (2026-01-01T00:00:00), floored so dates
-        // before the epoch map correctly. 2026-01-01 is a Thursday, i.e. index 4
-        // in a 0=Sunday..6=Saturday week; offset by that to anchor the cycle.
-        const std::int64_t nanos = tick::Gregorian_Calendar::to_time_point(tdt).nanos();
-        std::int64_t days = nanos / tick::nanos_per_day;
-        if (nanos < 0 && nanos % tick::nanos_per_day != 0) --days;  // floor toward -inf
-        dt.day_of_week = static_cast<int>(((days + 4) % 7 + 7) % 7);
+        dt.day_of_week = tick::Gregorian_Calendar::day_of_week(tdt);
+        dt.day_of_year = tick::Gregorian_Calendar::day_of_year(tdt);
         dt.valid = true;
     } catch (const std::exception&) {
         // Malformed timestamp: use explicit default values so callers fall back
@@ -82,38 +60,34 @@ SimDateTime parse_sim_datetime(const std::string& iso8601) {
 }
 
 /**
- * @brief A pair of file records that bracket the current simulation time, plus a
- *        blend weight for linear temporal interpolation.
- *
- * @c weight is the fraction toward @c i1: the interpolated field is
- * @f$ (1-w)\,\mathrm{rec}[i_0] + w\,\mathrm{rec}[i_1] @f$. When @c weight is 0
- * (or @c i0 == @c i1) a single read of @c i0 suffices.
- */
-struct RecordBracket {
-    int i0 = 0;
-    int i1 = 0;
-    double weight = 0.0;
-    bool valid = false;  ///< false -> caller falls back to legacy step-index cycling.
-};
-
-/**
  * @brief Map a simulation datetime onto a record bracket for a given cadence.
  *
- * @param cadence  One of "hourly", "weekly", "monthly" (case-insensitive).
- *                 Any other value (including empty) returns an invalid bracket,
- *                 signalling the caller to fall back to legacy step-index cycling.
- * @param tintalgo Time-interpolation algorithm: "linear" enables interpolation
- *                 for the (continuous) monthly cadence; anything else -> nearest.
- * @param dt       Parsed simulation datetime.
- * @param file_nt  Number of records available in the file (for clamping).
+ * @param cadence    One of "hourly", "daily", "weekly", "monthly" (case-insensitive).
+ * @param tintalgo   Time-interpolation algorithm: "linear" enables mid-month
+ *                   or intra-day interpolation; anything else -> nearest.
+ * @param dt         Parsed simulation datetime.
+ * @param file_nt    Number of records available in the file (for clamping).
+ * @param yearFirst  First year covered by the file (0 = unknown/climatology).
+ * @param yearLast   Last year covered by the file (0 = unknown/climatology).
+ * @param yearAlign  Year the simulation time aligns to within the file range.
+ *                   When yearAlign != 0, the effective sim year is remapped:
+ *                   effective_year = yearFirst + (sim_year - yearAlign) mapped
+ *                   into [yearFirst, yearLast] per taxmode.
+ * @param taxmode    "cycle" (default): wrap sim year into file range.
+ *                   "extend": clamp to file boundary.
+ *                   "limit": return invalid bracket if outside range.
+ *
+ * For monthly cadence with multi-year files (file_nt > 12), the record index
+ * is computed as: (effective_year - yearFirst) * 12 + (month - 1).
+ * For daily cadence with multi-year files (file_nt > 366), the record index
+ * is computed from cumulative day offsets across years plus (day_of_year - 1).
  *
  * Hourly and weekly cadences select discrete profile records (hour-of-day,
- * day-of-week) and are always nearest-neighbour: interpolating between, say,
- * two day-type weights is not physically meaningful. Only the monthly cadence
- * honours @c tintalgo, using the mid-month convention so that, e.g., Jan 1 is
- * interpolated between the December and January climatological records.
+ * day-of-week) and always use nearest-neighbour. Monthly and daily cadences
+ * honour @c tintalgo for linear temporal interpolation.
  */
-RecordBracket cadence_record_bracket(const std::string& cadence, const std::string& tintalgo, const SimDateTime& dt, int file_nt) {
+RecordBracket cadence_record_bracket(const std::string& cadence, const std::string& tintalgo, const SimDateTime& dt, int file_nt, int yearFirst,
+                                     int yearLast, int yearAlign, const std::string& taxmode) {
     RecordBracket br;
     if (cadence.empty() || !dt.valid) return br;
 
@@ -121,6 +95,8 @@ RecordBracket cadence_record_bracket(const std::string& cadence, const std::stri
     std::transform(c.begin(), c.end(), c.begin(), [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
     std::string algo = tintalgo;
     std::transform(algo.begin(), algo.end(), algo.begin(), [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+    std::string tax = taxmode;
+    std::transform(tax.begin(), tax.end(), tax.begin(), [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
     const bool linear = (algo == "linear");
 
     auto clamp_idx = [&](int idx) {
@@ -130,39 +106,458 @@ RecordBracket cadence_record_bracket(const std::string& cadence, const std::stri
     };
 
     if (c == "hourly") {
-        br.i0 = br.i1 = clamp_idx(dt.hour);  // 0-23, discrete of-day profile
+        br.i0 = br.i1 = clamp_idx(dt.hour);
         br.valid = true;
-    } else if (c == "weekly") {
-        br.i0 = br.i1 = clamp_idx(dt.day_of_week);  // 0=Sunday..6=Saturday, discrete day-type
-        br.valid = true;
-    } else if (c == "monthly") {
-        const int m = dt.month - 1;  // 0-11
+    } else if (c == "daily") {
+        const bool multi_year = (yearFirst > 0 && file_nt > 366);
+        int eff_year = dt.year;
+
+        if (multi_year) {
+            if (yearAlign > 0) {
+                eff_year = yearFirst + (dt.year - yearAlign);
+            }
+
+            int yLast = yearLast;
+            if (yLast <= 0) {
+                yLast = yearFirst + std::max(1, file_nt / 365) - 1;
+            }
+
+            if (eff_year < yearFirst || eff_year > yLast) {
+                const int year_span = yLast - yearFirst + 1;
+                if (tax == "limit") {
+                    return br;
+                } else if (tax == "extend") {
+                    eff_year = std::max(yearFirst, std::min(eff_year, yLast));
+                } else {
+                    int offset = (eff_year - yearFirst) % year_span;
+                    if (offset < 0) offset += year_span;
+                    eff_year = yearFirst + offset;
+                }
+            }
+        }
+
+        int abs_day;
+        if (multi_year) {
+            int days_offset = 0;
+            for (int y = yearFirst; y < eff_year; ++y) {
+                days_offset += tick::Gregorian_Calendar::days_in_year(y);
+            }
+            abs_day = days_offset + (dt.day_of_year - 1);
+        } else {
+            abs_day = dt.day_of_year - 1;  // 0-364 or 0-365 for single-year / climatology files
+        }
+
         if (!linear) {
-            br.i0 = br.i1 = clamp_idx(m);
+            br.i0 = br.i1 = clamp_idx(abs_day);
             br.valid = true;
             return br;
         }
-        // Mid-month convention: each monthly record is valid at the midpoint of
-        // its month. Interpolate between the two records whose anchors bracket
-        // the current instant, cycling across the Dec<->Jan boundary.
-        const int dim = tick::Gregorian_Calendar::days_in_month(dt.year, dt.month);
-        const double frac = (static_cast<double>(dt.day - 1) + dt.hour / 24.0) / static_cast<double>(dim);  // [0,1)
-        const int nrec = (file_nt > 0) ? file_nt : 12;
+
+        const double frac = dt.hour / 24.0;
+        const int nrec = (file_nt > 0) ? file_nt : 365;
+
         if (frac >= 0.5) {
-            br.i0 = m % nrec;
-            br.i1 = (m + 1) % nrec;
-            br.weight = frac - 0.5;  // 0 at mid-month, ->0.5 approaching next anchor
+            br.i0 = abs_day % nrec;
+            br.i1 = (abs_day + 1) % nrec;
+            br.weight = frac - 0.5;
         } else {
-            br.i0 = (m - 1 + nrec) % nrec;
-            br.i1 = m % nrec;
-            br.weight = frac + 0.5;  // ->1 at mid-month, 0.5 just after previous anchor
+            br.i0 = (abs_day - 1 + nrec) % nrec;
+            br.i1 = abs_day % nrec;
+            br.weight = frac + 0.5;
+        }
+        br.valid = true;
+    } else if (c == "weekly") {
+        // dt.day_of_week is ISO 8601 (1=Monday ... 7=Sunday).
+        // Weekly profile records are 0-indexed (0=Monday ... 6=Sunday).
+        br.i0 = br.i1 = clamp_idx(dt.day_of_week - 1);
+        br.valid = true;
+    } else if (c == "monthly") {
+        // Determine effective year for multi-year files.
+        // If yearFirst is set and file has more than 12 records, compute
+        // the absolute month index within the file.
+        const bool multi_year = (yearFirst > 0 && file_nt > 12);
+        int eff_year = dt.year;
+
+        if (multi_year) {
+            // If yearAlign is specified, remap simulation year into file range.
+            // yearAlign means: simulation year `yearAlign` corresponds to file
+            // year `yearFirst`. So offset = sim_year - yearAlign + yearFirst.
+            if (yearAlign > 0) {
+                eff_year = yearFirst + (dt.year - yearAlign);
+            }
+
+            // Determine yearLast from file if not explicitly provided.
+            int yLast = yearLast;
+            if (yLast <= 0) {
+                yLast = yearFirst + (file_nt / 12) - 1;
+            }
+
+            // Apply taxmode to handle out-of-range years.
+            if (eff_year < yearFirst || eff_year > yLast) {
+                const int year_span = yLast - yearFirst + 1;
+                if (tax == "limit") {
+                    // Out of range: return invalid bracket.
+                    return br;
+                } else if (tax == "extend") {
+                    // Clamp to file boundaries.
+                    eff_year = std::max(yearFirst, std::min(eff_year, yLast));
+                } else {
+                    // Default: "cycle" — wrap into the file's year range.
+                    int offset = (eff_year - yearFirst) % year_span;
+                    if (offset < 0) offset += year_span;
+                    eff_year = yearFirst + offset;
+                }
+            }
+        }
+
+        // Compute absolute month index within the file.
+        int abs_month;
+        if (multi_year) {
+            abs_month = (eff_year - yearFirst) * 12 + (dt.month - 1);
+        } else {
+            abs_month = dt.month - 1;  // 0-11 for climatology files
+        }
+
+        if (!linear) {
+            br.i0 = br.i1 = clamp_idx(abs_month);
+            br.valid = true;
+            return br;
+        }
+
+        // Mid-month linear interpolation convention.
+        const int dim = tick::Gregorian_Calendar::days_in_month(dt.year, dt.month);
+        const double frac = (static_cast<double>(dt.day - 1) + dt.hour / 24.0) / static_cast<double>(dim);
+        const int nrec = (file_nt > 0) ? file_nt : 12;
+
+        if (frac >= 0.5) {
+            br.i0 = abs_month % nrec;
+            br.i1 = (abs_month + 1) % nrec;
+            br.weight = frac - 0.5;
+        } else {
+            br.i0 = (abs_month - 1 + nrec) % nrec;
+            br.i1 = abs_month % nrec;
+            br.weight = frac + 0.5;
         }
         br.valid = true;
     }
     return br;
 }
 
-}  // namespace
+/**
+ * @brief Resolve the time bracket by reading actual time coordinate values
+ *        from the netCDF file via AMIO and finding the nearest/bracketing
+ *        record for the given simulation datetime.
+ *
+ * This is the robust path: it reads the file's time variable (e.g., "time"),
+ * parses CF-convention units ("days since YYYY-MM-DD", "hours since ...", etc.)
+ * to convert each record's time value into an absolute date, then finds the
+ * record(s) that bracket the simulation time.
+ *
+ * @param dataset    Open AMIO dataset handle (read mode).
+ * @param time_var   Name of the time coordinate variable (default: "time").
+ * @param dt         Current simulation datetime.
+ * @param file_nt    Number of time records in the file.
+ * @param tintalgo   "linear" for interpolation, otherwise nearest.
+ * @param yearFirst  First year in file (for taxmode cycling fallback).
+ * @param yearLast   Last year in file.
+ * @param yearAlign  Alignment year.
+ * @param taxmode    Cycling mode.
+ * @return           A valid RecordBracket if successful, invalid otherwise.
+ *
+ * When this function returns an invalid bracket, the caller should fall back
+ * to the arithmetic cadence_record_bracket() above.
+ */
+RecordBracket resolve_time_bracket_from_axis(amio_dataset_handle dataset, const std::string& time_var, const SimDateTime& dt, int file_nt,
+                                             const std::string& tintalgo, int yearFirst, int yearLast, int yearAlign, const std::string& taxmode) {
+    RecordBracket br;
+    if (!dataset || !dt.valid || file_nt < 1) return br;
+
+    // Read the time coordinate variable. It's typically a 1D array of
+    // doubles representing offsets from a reference date.
+    std::string tvar = time_var.empty() ? "time" : time_var;
+
+    // Read all time values by reading timestep 0 of the time variable itself.
+    // The time coordinate variable is 1D [nt], so reading it at timestep 0
+    // should return the full array (since AMIO's describe_variable treats
+    // non-time-varying 1D variables as single-record).
+    amio_view_handle view = nullptr;
+    amio_status_t rc = amio_read(dataset, tvar.c_str(), 0, nullptr, &view);
+    if (rc != AMIO_OK) {
+        // Try alternate time variable names.
+        const char* alt_names[] = {"Time", "t", "valid_time", nullptr};
+        for (int i = 0; alt_names[i] != nullptr; ++i) {
+            rc = amio_read(dataset, alt_names[i], 0, nullptr, &view);
+            if (rc == AMIO_OK) break;
+        }
+        if (rc != AMIO_OK) return br;
+    }
+
+    const void* view_data = nullptr;
+    size_t view_size = 0;
+    if (amio_view_data(view, &view_data, &view_size) != AMIO_OK) {
+        amio_release_view(view);
+        return br;
+    }
+
+    amio_shape_t shape{};
+    if (amio_view_shape(view, &shape) != AMIO_OK) {
+        amio_release_view(view);
+        return br;
+    }
+
+    // Determine number of time values returned.
+    size_t n_vals = 1;
+    for (int d = 0; d < shape.rank; ++d) {
+        n_vals *= static_cast<size_t>(shape.extents[d]);
+    }
+
+    if (static_cast<int>(n_vals) < file_nt) {
+        // The view didn't return all time values — perhaps AMIO sliced it.
+        // Fall back to arithmetic approach.
+        amio_release_view(view);
+        return br;
+    }
+
+    // Convert to double array (time values in file units).
+    std::vector<double> time_vals(n_vals);
+    const bool is_float = (view_size == n_vals * 4);
+    if (is_float) {
+        const float* p = static_cast<const float*>(view_data);
+        for (size_t k = 0; k < n_vals; ++k) time_vals[k] = static_cast<double>(p[k]);
+    } else {
+        const double* p = static_cast<const double*>(view_data);
+        for (size_t k = 0; k < n_vals; ++k) time_vals[k] = p[k];
+    }
+    amio_release_view(view);
+
+    // Convert the simulation datetime to a "months since yearFirst-01"
+    // representation for comparison with the time values. For monthly data,
+    // the time values are typically "days since YYYY-01-01" or similar.
+    // We use a simpler approach: convert each time value to an absolute
+    // month index by looking at spacing, then find where the sim datetime
+    // falls.
+    //
+    // Strategy: Determine if the time axis represents monthly data by
+    // checking if the spacing between consecutive records is roughly 28-31
+    // days (if in days) or ~720-744 hours (if in hours). Then compute
+    // the simulation time in the same units as the file and do a binary
+    // search.
+
+    // Compute the simulation time as "days since yearFirst-01-01 00:00:00"
+    // which is a common CF reference. We'll compare against the file's
+    // time values after normalizing.
+    //
+    // More robustly: infer the file's time unit scale from the spacing
+    // of its values, then compute the sim time in those units relative
+    // to the same epoch the file uses.
+    //
+    // The most common CF units for monthly data are:
+    //   "days since YYYY-01-01"
+    //   "days since YYYY-1-1 00:00:00"
+    //
+    // Since we can't easily read the 'units' attribute via AMIO's current
+    // API, we infer the epoch from yearFirst and the scale from the data:
+    //   - If time_vals[0] ~ 0 and spacing ~ 30, units are "days since yearFirst"
+    //   - If time_vals[0] ~ large and spacing ~ 30, the epoch predates yearFirst
+
+    // Approach: Use yearFirst to define the reference epoch. Compute sim
+    // time as fractional days since yearFirst-01-01 and compare to file vals.
+    // If the file's first value doesn't start near 0, shift by the difference.
+
+    // Compute sim_days: days from yearFirst-01-01 00:00:00 to sim datetime.
+    const tick::Date_Time ref_dt{yearFirst > 0 ? yearFirst : 2000, 1, 1, 0, 0, 0, 0};
+    const tick::Date_Time sim_tdt{dt.year, dt.month, dt.day, dt.hour, 0, 0, 0};
+    const tick::Time_Point ref_tp = tick::Gregorian_Calendar::to_time_point(ref_dt);
+    const tick::Time_Point sim_tp = tick::Gregorian_Calendar::to_time_point(sim_tdt);
+    const double sim_days = static_cast<double>((sim_tp - ref_tp).nanos()) / static_cast<double>(tick::nanos_per_day);
+
+    // Estimate the scale/epoch of the file's time values.
+    // If file starts at yearFirst (time_vals[0] ~ 0..31), assume "days since yearFirst-01-01".
+    // If file starts at a larger value, compute the offset.
+    //
+    // For a 288-record monthly file starting at Jan 2000:
+    //   time_vals[0] should be ~15 (mid-Jan) or 0 (start-Jan) in "days since 2000-01-01"
+    //   time_vals[1] should be ~45 or 31, etc.
+    //
+    // We compute what mid-January yearFirst would be in "days since yearFirst-01-01" = ~15.
+    // If time_vals[0] is close to that, we're aligned. Otherwise, compute the shift.
+
+    // Simple heuristic: first value represents record 0's time.
+    // Compute expected first-record time as days since the reference epoch
+    // for the first month midpoint (Jan 15 of yearFirst).
+    // If the file value differs, that tells us the file's actual epoch.
+    //
+    // Actually, the most reliable approach is: compute what day each month
+    // midpoint would be (in "days since yearFirst-01-01") and find the
+    // closest match to time_vals[0] to determine the file epoch offset.
+
+    // More direct: assume the file's time values are in "days since" some
+    // epoch. The offset between our reference (yearFirst-01-01) and the
+    // file's epoch can be estimated as:
+    //   file_epoch_offset = time_vals[0] - expected_first_record_days
+    //
+    // For monthly data, the first record is typically at day 15 (midpoint)
+    // or day 0 (start of month). Check both.
+
+    double file_offset = 0.0;
+    if (n_vals >= 2) {
+        // Average spacing between records in file units.
+        double avg_spacing = (time_vals[n_vals - 1] - time_vals[0]) / static_cast<double>(n_vals - 1);
+
+        // Determine scale: if spacing ~ 28-31, units are likely days.
+        // If spacing ~ 1, units might be months. If spacing ~ 720, hours.
+        double scale_to_days = 1.0;  // default: assume days
+        if (avg_spacing > 600.0 && avg_spacing < 800.0) {
+            // Likely hours
+            scale_to_days = 1.0 / 24.0;
+        } else if (avg_spacing > 0.5 && avg_spacing < 1.5) {
+            // Likely months (each record = 1 month unit)
+            scale_to_days = 30.4375;  // average days per month
+        }
+        // else: assume days (spacing ~ 28-31 for monthly)
+
+        // Convert time values to days for comparison.
+        std::vector<double> time_days(n_vals);
+        for (size_t k = 0; k < n_vals; ++k) {
+            time_days[k] = time_vals[k] * scale_to_days;
+        }
+
+        // Compute the epoch offset: file_time_days[0] should correspond
+        // to some date. If yearFirst is known, record 0 is January of
+        // yearFirst. Mid-month would be ~15 days. Start-of-month = 0 days.
+        // The file_offset is what we subtract from time_days to get
+        // "days since yearFirst-01-01".
+        //
+        // We just need: sim_days == time_days[target_index] - file_offset
+        // => file_offset = time_days[0] - 0 (if file starts at yearFirst Jan 1)
+        //    or file_offset = time_days[0] - 15 (mid-month convention)
+        //
+        // Most robust: directly search for where sim_days falls in the
+        // time_days array by computing file_offset = time_days[0] (assuming
+        // record 0 = start of yearFirst) and adjusting.
+
+        // Best approach: the file's first time value represents the first
+        // record's date offset from the file's internal epoch. If yearFirst
+        // is set, record 0 = Jan yearFirst. So the epoch of the file is:
+        //   file_epoch_date = yearFirst-01-01 shifted back by time_days[0]
+        //
+        // Therefore, sim time in file units = sim_days + time_days[0]
+        // (since sim_days is days since yearFirst-01-01, and time_days[0]
+        // is the file's value for yearFirst-01-01 or mid-Jan).
+        //
+        // Actually simpler: just compute sim time in the same frame as the
+        // file by finding: target = sim_days + time_days[0]
+        // No — that's only correct if time_days[0] is at day 0 of yearFirst.
+        //
+        // Let's just do a direct search using the assumption that the
+        // time values are monotonically increasing and we need to find
+        // where our target falls. The target is sim_days expressed in
+        // the file's coordinate system.
+        //
+        // target_in_file_units = time_days[0] + sim_days
+        //   ... but only if record 0 corresponds to yearFirst-01-01.
+        //
+        // For CEDS files: time is "days since 1850-01-01" or similar,
+        // and yearFirst=2000 means record 0 corresponds to Jan 2000.
+        // So time_days[0] already encodes the offset from 1850 to Jan 2000.
+        // Our sim_days is relative to yearFirst (2000-01-01).
+        // Target in file coords = time_days[0] + sim_days.
+
+        // Estimate the offset of record 0 relative to yearFirst-01-01 00:00:00.
+        // For monthly cadence, time_days[0] represents the first record's timestamp.
+        // If time_days[0] represents a mid-month point (~15 days into month 1),
+        // rec0_days is ~15.2 days (0.5 * avg_spacing). If time_days[0] represents start-of-month,
+        // rec0_days is 0.
+        double rec0_days = 0.0;
+        if (avg_spacing >= 25.0 && avg_spacing <= 32.0) {
+            double month_phase = std::fmod(time_days[0], avg_spacing);
+            if (month_phase < 0) month_phase += avg_spacing;
+            if (month_phase >= 5.0) {
+                rec0_days = 0.5 * avg_spacing;
+            }
+        }
+
+        double base_time = time_days[0] - rec0_days;
+        double target = base_time + sim_days;
+
+        // Apply yearAlign adjustment.
+        if (yearAlign > 0 && yearFirst > 0 && yearAlign != yearFirst) {
+            // sim_days is computed relative to yearFirst, but the simulation
+            // year may not map directly. Recompute sim_days relative to
+            // yearAlign then add to base_time.
+            const tick::Date_Time align_ref{yearAlign, 1, 1, 0, 0, 0, 0};
+            const tick::Time_Point align_tp = tick::Gregorian_Calendar::to_time_point(align_ref);
+            double sim_days_from_align = static_cast<double>((sim_tp - align_tp).nanos()) / static_cast<double>(tick::nanos_per_day);
+            target = base_time + sim_days_from_align;
+        }
+
+        // Handle taxmode for out-of-range targets.
+        std::string tax = taxmode;
+        std::transform(tax.begin(), tax.end(), tax.begin(), [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+
+        double file_start = time_days[0];
+        double file_end = time_days[n_vals - 1];
+
+        if (target < file_start || target > file_end) {
+            double file_span = file_end - file_start;
+            if (tax == "limit") {
+                return br;  // invalid
+            } else if (tax == "extend") {
+                target = std::max(file_start, std::min(target, file_end));
+            } else {
+                // cycle
+                if (file_span > 0.0) {
+                    double offset_from_start = std::fmod(target - file_start, file_span);
+                    if (offset_from_start < 0.0) offset_from_start += file_span;
+                    target = file_start + offset_from_start;
+                }
+            }
+        }
+
+        // Binary search for the bracketing records.
+        int lo = 0, hi = static_cast<int>(n_vals) - 1;
+        while (lo < hi - 1) {
+            int mid = (lo + hi) / 2;
+            if (time_days[mid] <= target) {
+                lo = mid;
+            } else {
+                hi = mid;
+            }
+        }
+
+        std::string talgo = tintalgo;
+        std::transform(talgo.begin(), talgo.end(), talgo.begin(), [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+
+        if (talgo == "linear" && lo != hi) {
+            double span = time_days[hi] - time_days[lo];
+            double w = (span > 0.0) ? (target - time_days[lo]) / span : 0.0;
+            w = std::max(0.0, std::min(1.0, w));
+            br.i0 = lo;
+            br.i1 = hi;
+            br.weight = w;
+        } else {
+            // Nearest: pick whichever record is closer.
+            if (hi < static_cast<int>(n_vals) && std::abs(time_days[hi] - target) < std::abs(time_days[lo] - target)) {
+                br.i0 = br.i1 = hi;
+            } else {
+                br.i0 = br.i1 = lo;
+            }
+            br.weight = 0.0;
+        }
+        br.valid = true;
+    } else {
+        // Single time record.
+        br.i0 = br.i1 = 0;
+        br.weight = 0.0;
+        br.valid = true;
+    }
+
+    return br;
+}
+
+}  // namespace detail
+
+using namespace detail;
 
 CeceDriverOrchestrator::CeceDriverOrchestrator(const std::string& config_file, int nx, int ny, int nz, const double* lon_coords, int lon_len,
                                                const double* lat_coords, int lat_len, MPI_Comm comm_c)
@@ -236,12 +631,17 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
         auto stream_view = cece_io_->GetFieldView(var_name);
 
         // Parse input file path and variable name dynamically from YAML config cece_data block
-        std::string input_file_path = "";
-        std::string input_var_name = "";
-        std::string mapalgo = "consd";               // default fallback
-        std::string stream_data_model = "enhanced";  // default AMIO data model
-        std::string cadence;                         // temporal cadence: hourly|weekly|monthly ("" -> legacy cycling)
-        std::string tintalgo = "nearest";            // time-interp algorithm: linear|nearest
+        std::string input_file_path = "../scripts/data/MACCity_4x5.nc";  // default fallback
+        std::string input_var_name = "MACCity";                          // default fallback
+        std::string mapalgo = "consd";                                   // default fallback
+        std::string stream_data_model = "enhanced";                      // default AMIO data model
+        std::string cadence;                                             // temporal cadence: hourly|weekly|monthly ("" -> legacy cycling)
+        std::string tintalgo = "nearest";                                // time-interp algorithm: linear|nearest
+        int yearFirst = 0;                                               // first year covered by the file
+        int yearLast = 0;                                                // last year covered by the file
+        int yearAlign = 0;                                               // sim year that aligns to yearFirst
+        std::string taxmode;                                             // "cycle", "extend", or "limit"
+        std::string time_var;                                            // name of time coordinate variable
         bool stream_data_model_explicit = false;
         if (config["cece_data"] && config["cece_data"]["streams"]) {
             for (const auto& stream : config["cece_data"]["streams"]) {
@@ -262,6 +662,21 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                         }
                         if (stream["tintalgo"]) {
                             tintalgo = stream["tintalgo"].as<std::string>();
+                        }
+                        if (stream["yearFirst"]) {
+                            yearFirst = stream["yearFirst"].as<int>();
+                        }
+                        if (stream["yearLast"]) {
+                            yearLast = stream["yearLast"].as<int>();
+                        }
+                        if (stream["yearAlign"]) {
+                            yearAlign = stream["yearAlign"].as<int>();
+                        }
+                        if (stream["taxmode"]) {
+                            taxmode = stream["taxmode"].as<std::string>();
+                        }
+                        if (stream["time_var"]) {
+                            time_var = stream["time_var"].as<std::string>();
                         }
                         if (stream["data_model"]) {
                             std::string requested_model = stream["data_model"].as<std::string>();
@@ -493,7 +908,28 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
             if (plan_it != regrid_plans_.end() && plan_it->second.built) {
                 const cece::io::RegridPlan& plan = plan_it->second;
 
-                RecordBracket bracket = cadence_record_bracket(cadence, tintalgo, sim_dt, file_nt);
+                // Resolve the time bracket using a two-tier approach:
+                // 1. Primary: read the actual time coordinate values from the file
+                //    and find the bracketing records by matching the simulation time.
+                // 2. Fallback: arithmetic cadence-based index computation using
+                //    yearFirst/yearAlign/taxmode for multi-year files.
+                RecordBracket bracket;
+
+                // Try the robust time-axis reader first (for monthly or daily cadence with
+                // multi-year files where yearFirst is specified).
+                std::string c_lower = cadence;
+                std::transform(c_lower.begin(), c_lower.end(), c_lower.begin(), [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+                if ((c_lower == "monthly" || c_lower == "daily") && yearFirst > 0 && file_nt > 12) {
+                    bracket =
+                        resolve_time_bracket_from_axis(read_dataset, time_var, sim_dt, file_nt, tintalgo, yearFirst, yearLast, yearAlign, taxmode);
+                }
+
+                // Fallback to arithmetic cadence computation if the time-axis
+                // reader didn't produce a valid bracket.
+                if (!bracket.valid) {
+                    bracket = cadence_record_bracket(cadence, tintalgo, sim_dt, file_nt, yearFirst, yearLast, yearAlign, taxmode);
+                }
+
                 if (!bracket.valid) {
                     const int t_idx = (file_nt > 0) ? (step_index_ % file_nt) : 0;
                     bracket.i0 = bracket.i1 = t_idx;
@@ -502,13 +938,13 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
 
                 // Diagnostic: report which time slice(s) are being read from the file.
                 if (bracket.i0 == bracket.i1 || bracket.weight == 0.0) {
-                    CECE_LOG_INFO("[DRIVER] Reading time slice " + std::to_string(bracket.i0) + "/" + std::to_string(file_nt - 1) + " from '" +
+                    CECE_LOG_INFO("[DRIVER] Reading time slice " + std::to_string(bracket.i0 + 1) + "/" + std::to_string(file_nt) + " from '" +
                                   input_file_path + "' for field '" + var_name + "'" +
                                   (cadence.empty() ? " (cycling, step=" + std::to_string(step_index_) + ")"
                                                    : " (cadence=" + cadence + ", time=" + time_iso8601 + ")"));
                 } else {
-                    CECE_LOG_INFO("[DRIVER] Interpolating time slices " + std::to_string(bracket.i0) + " & " + std::to_string(bracket.i1) + "/" +
-                                  std::to_string(file_nt - 1) + " (w=" + std::to_string(bracket.weight) + ") from '" + input_file_path +
+                    CECE_LOG_INFO("[DRIVER] Interpolating time slices " + std::to_string(bracket.i0 + 1) + " & " + std::to_string(bracket.i1 + 1) + "/" +
+                                  std::to_string(file_nt) + " (w=" + std::to_string(bracket.weight) + ") from '" + input_file_path +
                                   "' for field '" + var_name + "' (cadence=" + cadence + ", tintalgo=" + tintalgo + ", time=" + time_iso8601 + ")");
                 }
 

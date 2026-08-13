@@ -51,9 +51,10 @@ stream::<stream_name>
   - `upper`: Use upper bound
 - `mapalgo`: Spatial mapping algorithm (default: "bilinear")
 - `dtlimit`: Delta time limit in seconds (default: 1500000000)
-- `yearFirst`: First year in data (default: 1)
-- `yearLast`: Last year in data (default: 1)
-- `yearAlign`: Year to align with model time (default: 1)
+- `yearFirst`: First calendar year in data (default: 1)
+- `yearLast`: Last calendar year in data (default: 1)
+- `yearAlign`: Simulation year corresponding to `yearFirst` (default: 1)
+- `taxmode`: Time axis mode when simulation year is out of range (`cycle`, `extend`, or `limit`)
 - `offset`: Time offset in seconds (default: 0)
 - `meshfile`: Path to source mesh file (optional)
 - `lev_dimname`: Name of vertical dimension (default: "lev")

@@ -51,11 +51,13 @@ amio_coord_manifest.yaml
 core.*
 GRA2PESv2.0_config_test1.yaml
 
-# --- AI Files ---
+# ---- AI folders ----
 specify/
 .specify/
-.gemini/
+specs/
 .github/agents/
 .github/prompts/
+.superpowers/
+.gemini/
+.vscode/
 docs/superpowers/
-specs/
