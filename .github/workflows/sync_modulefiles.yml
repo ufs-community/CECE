@@ -104,7 +104,7 @@ jobs:
           commit-message: "chore(modulefiles): 🤖 sync from ufs-weather-model"
           committer: "github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
           author: "github-actions[bot] <41898282+github-actions[bot]@users.noreply.github.com>"
-          branch: "chore/update-modulefiles-${{ steps.clone.outputs.uwm_hash }}"
+          branch: "chore/update-modulefiles"
           delete-branch: true
           title: "chore(modulefiles): 🤖 sync from ufs-weather-model"
           body: |
