@@ -53,9 +53,13 @@ jobs:
             -e '/\["scotch"\]/d' \
             modulefiles/ufs_common.lua
 
-          # Replace model names globally
+          # Replace Weather-Model-specific references only. Leave generic "UFS"
+          # (build environment, prerequisites) since CECE is part of the UFS
+          # enterprise and builds against that same shared stack.
           find modulefiles/ -type f -exec sed -i 's/UFS Weather Model/Community Emissions Computing Engine/g' {} +
+          find modulefiles/ -type f -exec sed -i 's/ufs-weather-model/CECE/g' {} +
           find modulefiles/ -type f -exec sed -i 's/UFS Model/CECE/g' {} +
+          find modulefiles/ -type f -exec sed -i 's/ufs_modules/cece_modules/g' {} +
 
       - name: Rename ufs_* to cece_* and update internal references
         run: |
