@@ -88,7 +88,7 @@ jobs:
         uses: peter-evans/create-pull-request@v8
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "Automated update: Sync modulefiles and clean up references"
+          commit-message: "chore(modulefiles): 🤖 sync from ufs-weather-model"
           branch: "chore/update-modulefiles"
           delete-branch: true
           title: "chore(modulefiles): 🤖 sync from ufs-weather-model"
