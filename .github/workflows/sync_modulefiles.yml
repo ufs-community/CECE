@@ -36,17 +36,22 @@ jobs:
 
       - name: Cleanup and Replace Text
         run: |
-          # Consolidate deletions for ufs_common.lua while it still has its original name
-          sed -i -e '/mapl/d' \
-                 -e '/scotch/d' \
-                 -e '/gftl-shared/d' \
-                 -e '/w3emc/d' \
-                 -e '/ip/d' \
-                 -e '/sp/d' \
-                 -e '/g2tmpl/d' \
-                 -e '/g2/d' \
-                 -e '/crtm/d' \
-                 -e '/bacio/d' modulefiles/ufs_common.lua
+          # Remove unused module entries (anchored on the quoted Lua table key
+          # so we match exactly one line each and never a substring like "Description")
+          sed -i \
+            -e '/\["jasper"\]/d' \
+            -e '/\["libpng"\]/d' \
+            -e '/\["bacio"\]/d' \
+            -e '/\["crtm"\]/d' \
+            -e '/\["g2"\]/d' \
+            -e '/\["g2tmpl"\]/d' \
+            -e '/\["ip"\]/d' \
+            -e '/\["sp"\]/d' \
+            -e '/\["w3emc"\]/d' \
+            -e '/\["gftl-shared"\]/d' \
+            -e '/\["mapl"\]/d' \
+            -e '/\["scotch"\]/d' \
+            modulefiles/ufs_common.lua
 
           # Replace model names globally
           find modulefiles/ -type f -exec sed -i 's/UFS Weather Model/Community Emissions Computing Engine/g' {} +
