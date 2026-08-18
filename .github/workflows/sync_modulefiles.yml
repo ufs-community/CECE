@@ -89,7 +89,7 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           commit-message: "chore(modulefiles): 🤖 sync from ufs-weather-model"
-          branch: "chore/update-modulefiles"
+          branch: "chore/update-modulefiles-${{ steps.clone.outputs.uwm_hash }}"
           delete-branch: true
           title: "chore(modulefiles): 🤖 sync from ufs-weather-model"
           body: |
