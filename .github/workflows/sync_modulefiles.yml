@@ -41,6 +41,7 @@ jobs:
           sed -i \
             -e '/\["jasper"\]/d' \
             -e '/\["libpng"\]/d' \
+            -e '/\["fms"\]/d' \
             -e '/\["bacio"\]/d' \
             -e '/\["crtm"\]/d' \
             -e '/\["g2"\]/d' \
