@@ -651,48 +651,73 @@ bool build_regrid_plan(amio_dataset_handle read_dataset, int nx, int ny, const s
         return true;
     }
 
-    // A. Build the (global) source mesh and the rank-local destination sub-mesh.
+    // A. Build the (global) source mesh.
     auto src_mesh = build_axis_mesh(plan.file_nx, plan.file_ny, 0, src_lons, src_lats);
 
-    std::vector<double> band_lons;
-    std::vector<double> band_lats;
-
-    if (target_lons.size() == static_cast<size_t>(nx) * ny && ny > 1) {
-        // Curvilinear coordinate arrays: slice [j0 * nx, j1 * nx] for both axes
-        band_lons.assign(target_lons.begin() + static_cast<size_t>(j0) * nx, target_lons.begin() + static_cast<size_t>(j1) * nx);
-        band_lats.assign(target_lats.begin() + static_cast<size_t>(j0) * nx, target_lats.begin() + static_cast<size_t>(j1) * nx);
-    } else {
-        // Rectilinear coordinate arrays: slice [j0, j1] for latitude, keep lons as-is
-        band_lons = target_lons;
-        band_lats.assign(target_lats.begin() + j0, target_lats.begin() + j1);
-    }
-
-    // Align the longitude range of the destination tile with the range of the source file.
-    // This keeps the source grid perfectly monotonic (avoiding any non-monotonic coordinate jumps
-    // or StructuredGrid distortions inside AXIS) and prevents disjoint coordinate range errors.
+    // Align destination longitudes with the source's 0/360 or -180/180 convention.
+    // Keeping both grids in the same convention keeps coordinates monotonic and
+    // prevents disjoint-range failures in the AXIS BVH queries.
     double src_min_lon = *std::min_element(src_lons.begin(), src_lons.end());
     double src_max_lon = *std::max_element(src_lons.begin(), src_lons.end());
     bool use_360_range = (src_max_lon > 180.0 && src_min_lon >= -1e-5);
-
-    if (use_360_range) {
-        for (auto& lon : band_lons) {
+    auto align_lon = [use_360_range](double lon) {
+        if (use_360_range) {
             if (lon < 0.0)
                 lon += 360.0;
             else if (lon >= 360.0)
                 lon -= 360.0;
-        }
-    } else {
-        for (auto& lon : band_lons) {
+        } else {
             if (lon >= 180.0)
                 lon -= 360.0;
             else if (lon < -180.0)
                 lon += 360.0;
         }
-    }
+        return lon;
+    };
 
-    auto dst_mesh = build_axis_mesh(nx, nband, j0, band_lons, band_lats, gridspec_file);
+    const bool synth_corners = gridspec_file.empty() || gridspec_file == "none" || gridspec_file == "NONE";
 
-    // B. Configure weight generation method.
+    // B. Build the rank-local destination sub-mesh for rows [j0, j1).
+    //
+    // For synthesized-corner grids (no grid file, ny > 1) build ONE global
+    // StructuredGrid and let AXIS extract this rank's band, so boundary vertices
+    // are synthesized with global context and shared bit-for-bit across ranks —
+    // no seam at MPI band boundaries. Grid files already index exact global
+    // corners by j0, and a single global row (ny == 1) has no neighbor to share
+    // with, so both take the coordinate-slicing path.
+    axis::topology::UnstructuredMesh<Kokkos::HostSpace> dst_mesh = [&] {
+        if (synth_corners && ny > 1) {
+            const bool curvilinear = (target_lons.size() == static_cast<size_t>(nx) * ny);
+            Kokkos::View<double*, Kokkos::HostSpace> center_lon("dst_center_lon", static_cast<size_t>(nx) * ny);
+            Kokkos::View<double*, Kokkos::HostSpace> center_lat("dst_center_lat", static_cast<size_t>(nx) * ny);
+            for (int j = 0; j < ny; ++j) {
+                for (int i = 0; i < nx; ++i) {
+                    size_t idx = static_cast<size_t>(j) * nx + i;
+                    center_lon(idx) = align_lon(curvilinear ? target_lons[idx] : target_lons[i]);
+                    center_lat(idx) = curvilinear ? target_lats[idx] : target_lats[j];
+                }
+            }
+            axis::topology::StructuredGrid<Kokkos::HostSpace> dst_global(nx, ny, center_lon, center_lat,
+                                                                         axis::topology::CoordinateSystem::SphericalDeg);
+            return dst_global.to_unstructured_band(static_cast<size_t>(j0), static_cast<size_t>(nband));
+        }
+
+        std::vector<double> band_lons;
+        std::vector<double> band_lats;
+        if (target_lons.size() == static_cast<size_t>(nx) * ny && ny > 1) {
+            // Curvilinear coordinate arrays: slice [j0 * nx, j1 * nx] for both axes
+            band_lons.assign(target_lons.begin() + static_cast<size_t>(j0) * nx, target_lons.begin() + static_cast<size_t>(j1) * nx);
+            band_lats.assign(target_lats.begin() + static_cast<size_t>(j0) * nx, target_lats.begin() + static_cast<size_t>(j1) * nx);
+        } else {
+            // Rectilinear coordinate arrays: slice [j0, j1] for latitude, keep lons as-is
+            band_lons = target_lons;
+            band_lats.assign(target_lats.begin() + j0, target_lats.begin() + j1);
+        }
+        for (auto& lon : band_lons) lon = align_lon(lon);
+        return build_axis_mesh(nx, nband, j0, band_lons, band_lats, gridspec_file);
+    }();
+
+    // C. Configure weight generation method.
     axis::solver::RegridConfig regrid_cfg;
     regrid_cfg.method = axis::solver::InterpolationMethod::Conservative1stOrder;
     if (map_algo == "nearest" || map_algo == "near" || map_algo == "nn") {
@@ -709,7 +734,7 @@ bool build_regrid_plan(amio_dataset_handle read_dataset, int nx, int ny, const s
     regrid_cfg.norm_type = axis::solver::NormType::DstArea;
     regrid_cfg.unmapped = axis::solver::UnmappedAction::Ignore;
 
-    // C. Generate the sparse weight matrix once and convert to CSR for fast apply.
+    // D. Generate the sparse weight matrix once and convert to CSR for fast apply.
     plan.matrix = axis::solver::WeightGenerator::generate<Kokkos::HostSpace>(src_mesh, dst_mesh, regrid_cfg);
     plan.matrix.to_csr();
     plan.built = true;
