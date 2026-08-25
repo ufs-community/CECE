@@ -1,5 +1,6 @@
 #include <Kokkos_Core.hpp>
 #include <cmath>
+#include <conf/config.hpp>
 #include <conf/value.hpp>
 #include <iostream>
 #include <unordered_map>
@@ -77,13 +78,14 @@ int main(int argc, char** argv) {
 
         cece::PhysicsSchemeConfig dms_cfg;
         dms_cfg.name = "dms";
-        dms_cfg.options = YAML::Load("schmidt_coeff: [2674.0, -147.12, 3.726, -0.038]\nkw_coeff: [0.222, 0.333]");
+        conf::Config dms_options = conf::Config::from_string("schmidt_coeff: [2674.0, -147.12, 3.726, -0.038]\nkw_coeff: [0.222, 0.333]");
+        dms_cfg.options = dms_options.root();
 
         std::cout << "[ComparisonDriver] Creating DMS Physics Scheme..." << std::endl;
         auto scheme = cece::PhysicsFactory::CreateScheme(dms_cfg);
         if (scheme) {
             std::cout << "[ComparisonDriver] Initializing DMS Physics Scheme..." << std::endl;
-            scheme->Initialize(conf::Value::from_raw(static_cast<const void*>(&dms_cfg.options)), nullptr);
+            scheme->Initialize(dms_cfg.options, nullptr);
             std::cout << "[ComparisonDriver] Running DMS Physics Scheme..." << std::endl;
             scheme->Run(import_state, export_state);
         } else {
