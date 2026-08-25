@@ -454,7 +454,7 @@ The `src/python/CMakeLists.txt` handles:
 
 - Fetching pybind11 v2.12.0 via `FetchContent`
 - Building the `_cece_core` extension module with `pybind11_add_module`
-- Linking against `cece`, `Kokkos::kokkos`, and `yaml-cpp`
+- Linking against `cece`, `Kokkos::kokkos`, and HELM CONF
 - Copying Python source files into the package output directory
 
 ## Migration Guide

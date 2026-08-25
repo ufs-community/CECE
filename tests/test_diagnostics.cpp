@@ -1,6 +1,5 @@
 #include <ESMC.h>
 #include <gtest/gtest.h>
-#include <yaml-cpp/yaml.h>
 
 #include <Kokkos_Core.hpp>
 #include <conf/value.hpp>
@@ -36,8 +35,7 @@ TEST(DiagnosticsTest, RegistrationAndWriteback) {
     CeceDiagnosticManager diag_manager;
     MockPhysicsScheme scheme;
 
-    YAML::Node config;
-    scheme.Initialize(conf::Value::from_raw(static_cast<const void*>(&config)), &diag_manager);
+    scheme.Initialize(conf::Value::from_raw(nullptr), &diag_manager);
 
     CeceImportState import_state;
     CeceExportState export_state;

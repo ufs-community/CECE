@@ -6,10 +6,9 @@
  * @brief Configuration structures and parser for CECE.
  */
 
-#include <yaml-cpp/yaml.h>
-
 #include <algorithm>
 #include <array>
+#include <conf/value.hpp>
 #include <cstddef>
 #include <functional>
 #include <initializer_list>
@@ -28,10 +27,10 @@ namespace cece {
  * @brief Configuration for a physics scheme.
  */
 struct PhysicsSchemeConfig {
-    std::string name;                  ///< Name of the physics scheme.
-    std::string language;              ///< Implementation language (e.g., "cpp", "fortran").
-    YAML::Node options;                ///< Scheme-specific options.
-    int refresh_interval_seconds = 0;  ///< Refresh interval in seconds (0 means use base timestep).
+    std::string name;                                      ///< Name of the physics scheme.
+    std::string language;                                  ///< Implementation language (e.g., "cpp", "fortran").
+    conf::Value options = conf::Value::from_raw(nullptr);  ///< Scheme-specific options.
+    int refresh_interval_seconds = 0;                      ///< Refresh interval in seconds (0 means use base timestep).
 };
 
 /**
@@ -439,7 +438,7 @@ struct CeceConfig {
  * @brief Parses the CECE configuration from a YAML file.
  * @param filename Path to the YAML configuration file.
  * @return CeceConfig object containing the parsed species and schemes.
- * @throws YAML::Exception if the file is invalid or missing.
+ * @throws std::exception if the file is invalid or missing.
  */
 CeceConfig ParseConfig(const std::string& filename);
 

@@ -85,7 +85,7 @@ CECE is built on a modular architecture:
 - MPI implementation
 - ESMF/NUOPC framework
 - Kokkos (included)
-- yaml-cpp (included)
+- HELM CONF (included)
 
 ## Development
 

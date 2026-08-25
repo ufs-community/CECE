@@ -20,8 +20,7 @@
  * This eliminates the previous 201-speciated-species intermediate step.
  */
 
-#include <yaml-cpp/yaml.h>
-
+#include <conf/value.hpp>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -165,7 +164,7 @@ class SpeciationConfigLoader {
      * @param dataset The dataset name to select from the MAP file (default: "MEGAN").
      * @return A validated SpeciationConfig.
      * @throws std::runtime_error if a file does not exist.
-     * @throws YAML::ParserException if YAML syntax is invalid.
+     * @throws conf::Conf_Error if configuration syntax is invalid.
      * @throws std::invalid_argument if validation fails or dataset not found.
      */
     SpeciationConfig Load(const std::string& mechanism_path, const std::string& mapping_path, const std::string& dataset = "MEGAN");
@@ -191,7 +190,7 @@ class SpeciationConfigLoader {
      *
      * Molecular weights are converted from kg/mol (MICM) to g/mol internally.
      */
-    SpeciationConfig ParseMechanism(const YAML::Node& node);
+    SpeciationConfig ParseMechanism(const conf::Value& node);
 
     /**
      * @brief Parse speciation mappings from a CECE dataset-oriented mapping YAML file.
@@ -206,7 +205,7 @@ class SpeciationConfigLoader {
      *       <mechanism_species>:
      *         <emission_class>: <scale_factor>
      */
-    void ParseMapping(const YAML::Node& node, SpeciationConfig& config, const std::string& dataset);
+    void ParseMapping(const conf::Value& node, SpeciationConfig& config, const std::string& dataset);
 
     /**
      * @brief Validate cross-references between mechanism and mapping data.

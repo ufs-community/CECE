@@ -39,10 +39,7 @@ target_include_directories(
 )
 
 # Link against our unified cece_nuopc_cap library target, cece, ESMF, etc.
-target_link_libraries(
-  cece_nuopc_app
-  PRIVATE cece_nuopc_cap cece ESMF::ESMF yaml-cpp ${ESMF_LIBRARIES}
-)
+target_link_libraries(cece_nuopc_app PRIVATE cece_nuopc_cap cece ESMF::ESMF ${ESMF_LIBRARIES})
 
 if(TARGET MPI::MPI_Fortran)
   target_link_libraries(cece_nuopc_app PRIVATE MPI::MPI_Fortran)
