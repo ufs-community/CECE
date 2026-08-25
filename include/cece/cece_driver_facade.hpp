@@ -17,8 +17,8 @@ namespace cece {
 /// Per-variable stream configuration cached at construction time.
 /// Eliminates repeated config re-parsing on every timestep.
 struct StreamVarConfig {
-    std::string input_file_path = "../scripts/data/MACCity_4x5.nc";
-    std::string input_var_name = "MACCity";
+    std::string input_file_path = "";
+    std::string input_var_name = "";
     std::string mapalgo = "consd";
     std::string cadence;  // "" means legacy step-index cycling
     std::string tintalgo = "nearest";

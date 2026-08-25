@@ -197,7 +197,7 @@ CeceDriverOrchestrator::CeceDriverOrchestrator(const std::string& config_file, i
             conf::Value streams = cfg.at("cece_data.streams");
             for (std::size_t si = 0; si < streams.size(); ++si) {
                 conf::Value stream = streams[si];
-                std::string stream_file = stream["file"].string_or("../scripts/data/MACCity_4x5.nc");
+                std::string stream_file = stream["file"].string_or("");
                 std::string stream_mapalgo = stream["mapalgo"].string_or("consd");
                 std::string stream_cadence = stream["cadence"].string_or("");
                 std::string stream_tintalgo = stream["tintalgo"].string_or("nearest");
@@ -294,8 +294,8 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
         auto stream_view = cece_io_->GetFieldView(var_name);
 
         // Use cached stream configuration (parsed once at construction)
-        std::string input_file_path = "../scripts/data/MACCity_4x5.nc";
-        std::string input_var_name = "MACCity";
+        std::string input_file_path = "";
+        std::string input_var_name = "";
         std::string mapalgo = "consd";
         std::string stream_data_model = "enhanced";
         std::string cadence;

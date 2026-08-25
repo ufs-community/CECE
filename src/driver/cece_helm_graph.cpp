@@ -3,7 +3,6 @@
 #include <mpi.h>
 
 #include <blend/helm_math_blend.hpp>
-#include <conf/conf.hpp>
 #include <dagr/pipeline_config.hpp>
 #include <fstream>
 #include <halo/communicator.hpp>

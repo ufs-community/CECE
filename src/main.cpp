@@ -98,16 +98,16 @@ int main(int argc, char* argv[]) {
         cece_set_config_file_path(config_file.c_str(), static_cast<int>(config_file.length()));
 
         // A. Grid Dimensions
-        int nx = 4;
-        int ny = 4;
+        int nx = 0;
+        int ny = 0;
         int nz = 1;
         std::string grid_name = "";
         if (config.has("driver.grid")) {
             nz = config.get_or("driver.grid.nz", 1);
             grid_name = config.get_or<std::string>("driver.grid.grid_name", "");
             if (grid_name.empty()) {
-                nx = config.get_or("driver.grid.nx", 4);
-                ny = config.get_or("driver.grid.ny", 4);
+                nx = config.get_or("driver.grid.nx", 0);
+                ny = config.get_or("driver.grid.ny", 0);
             } else {
                 try {
                     auto parsed = axis::topology::NamedGridRegistry::parse(grid_name);
@@ -138,6 +138,13 @@ int main(int argc, char* argv[]) {
                     return -1;
                 }
             }
+        }
+
+        if (nx <= 0 || ny <= 0 || nz <= 0) {
+            std::cerr << "ERROR: driver.grid.nx, driver.grid.ny, and driver.grid.nz must be positive, or "
+                         "driver.grid.grid_name must specify a supported named grid."
+                      << std::endl;
+            return -1;
         }
 
         CECE_LOG_DEBUG("[DRIVER] Parsed nx = " + std::to_string(nx) + ", ny = " + std::to_string(ny) + ", grid_name = '" + grid_name + "'");
