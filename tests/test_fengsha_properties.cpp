@@ -19,6 +19,7 @@
 
 #include <Kokkos_Core.hpp>
 #include <cmath>
+#include <conf/config.hpp>
 #include <random>
 
 #include "cece/cece_physics_factory.hpp"
@@ -171,7 +172,7 @@ TEST_F(FengshaPropertyTest, Property5_ZeroEmissionInvariant) {
     cfg.name = "fengsha";
     auto scheme = PhysicsFactory::CreateScheme(cfg);
     ASSERT_NE(scheme, nullptr) << "FengshaScheme must be registered";
-    scheme->Initialize(conf::Value::from_raw(static_cast<const void*>(&cfg.options)), nullptr);
+    scheme->Initialize(cfg.options, nullptr);
 
     for (int iter = 0; iter < 50; ++iter) {
         CeceImportState import_state;
@@ -273,8 +274,8 @@ TEST_F(FengshaPropertyTest, Property4_NumericalEquivalence) {
         ASSERT_NE(scheme_cpp, nullptr);
         ASSERT_NE(scheme_fort, nullptr);
 
-        scheme_cpp->Initialize(conf::Value::from_raw(static_cast<const void*>(&cfg_cpp.options)), nullptr);
-        scheme_fort->Initialize(conf::Value::from_raw(static_cast<const void*>(&cfg_fort.options)), nullptr);
+        scheme_cpp->Initialize(cfg_cpp.options, nullptr);
+        scheme_fort->Initialize(cfg_fort.options, nullptr);
 
         // Create import state with random physically valid values
         CeceImportState import_state;
@@ -365,7 +366,7 @@ TEST_F(FengshaPropertyTest, Property6_ConfigInitializationDefaults) {
 
     for (int iter = 0; iter < NUM_ITERATIONS; ++iter) {
         // Generate a random subset of config keys
-        YAML::Node config;
+        std::string yaml = "";
         std::map<std::string, double> provided;
 
         for (const auto& key : all_keys) {
@@ -373,23 +374,25 @@ TEST_F(FengshaPropertyTest, Property6_ConfigInitializationDefaults) {
                 double val;
                 if (key == "num_bins") {
                     int ival = rand_int(1, 10);
-                    config[key] = ival;
+                    yaml += key + ": " + std::to_string(ival) + "\n";
                     provided[key] = static_cast<double>(ival);
                 } else {
                     val = rand_uniform(0.01, 10.0);
-                    config[key] = val;
+                    yaml += key + ": " + std::to_string(val) + "\n";
                     provided[key] = val;
                 }
             }
         }
 
+        conf::Config config = conf::Config::from_string(yaml);
+
         PhysicsSchemeConfig cfg;
         cfg.name = "fengsha";
-        cfg.options = config;
+        cfg.options = config.root();
 
         auto scheme = PhysicsFactory::CreateScheme(cfg);
         ASSERT_NE(scheme, nullptr);
-        scheme->Initialize(conf::Value::from_raw(static_cast<const void*>(&cfg.options)), nullptr);
+        scheme->Initialize(cfg.options, nullptr);
 
         // We can't directly access private members, but we can verify the scheme
         // was created and initialized without error. The actual parameter verification
@@ -405,26 +408,20 @@ TEST_F(FengshaPropertyTest, Property6_ConfigInitializationDefaults) {
         cfg.name = "fengsha";
         auto scheme = PhysicsFactory::CreateScheme(cfg);
         ASSERT_NE(scheme, nullptr);
-        EXPECT_NO_THROW(scheme->Initialize(conf::Value::from_raw(static_cast<const void*>(&cfg.options)), nullptr));
+        EXPECT_NO_THROW(scheme->Initialize(cfg.options, nullptr));
     }
 
     // Verify full custom config
     {
-        YAML::Node config;
-        config["alpha"] = 2.5;
-        config["gamma"] = 0.8;
-        config["kvhmax"] = 1.0e-3;
-        config["grav"] = 9.80665;
-        config["drylimit_factor"] = 0.5;
-        config["num_bins"] = 3;
+        conf::Config config = conf::Config::from_string("alpha: 2.5\ngamma: 0.8\nkvhmax: 1.0e-3\ngrav: 9.80665\ndrylimit_factor: 0.5\nnum_bins: 3");
 
         PhysicsSchemeConfig cfg;
         cfg.name = "fengsha";
-        cfg.options = config;
+        cfg.options = config.root();
 
         auto scheme = PhysicsFactory::CreateScheme(cfg);
         ASSERT_NE(scheme, nullptr);
-        EXPECT_NO_THROW(scheme->Initialize(conf::Value::from_raw(static_cast<const void*>(&cfg.options)), nullptr));
+        EXPECT_NO_THROW(scheme->Initialize(cfg.options, nullptr));
     }
 }
 

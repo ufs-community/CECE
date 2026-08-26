@@ -76,19 +76,14 @@ struct TempFile {
 /// Write a SpeciationConfig to mechanism + mapping YAML temp files (new dataset-oriented format).
 /// Returns pair of (mechanism_yaml, mapping_yaml) strings.
 static std::pair<std::string, std::string> ConfigToYamlPair(const SpeciationConfig& config) {
-    // Mechanism file (MICM format) — use YAML emitter
-    YAML::Emitter mech_out;
-    mech_out << YAML::BeginMap;
-    mech_out << YAML::Key << "name" << YAML::Value << config.mechanism_name;
-    mech_out << YAML::Key << "species" << YAML::Value << YAML::BeginSeq;
+    // Mechanism file (MICM format) — write as raw string
+    std::ostringstream mech_ss;
+    mech_ss << "name: \"" << config.mechanism_name << "\"\n";
+    mech_ss << "species:\n";
     for (const auto& sp : config.species) {
-        mech_out << YAML::BeginMap;
-        mech_out << YAML::Key << "name" << YAML::Value << sp.name;
-        mech_out << YAML::Key << "molecular weight [kg mol-1]" << YAML::Value << (sp.molecular_weight / 1000.0);
-        mech_out << YAML::EndMap;
+        mech_ss << "  - name: \"" << sp.name << "\"\n";
+        mech_ss << "    molecular weight [kg mol-1]: " << std::setprecision(10) << (sp.molecular_weight / 1000.0) << "\n";
     }
-    mech_out << YAML::EndSeq;
-    mech_out << YAML::EndMap;
 
     // Mapping file (dataset-oriented format) — write as raw string to ensure
     // correct YAML output without yaml-cpp emitter quirks
@@ -112,7 +107,7 @@ static std::pair<std::string, std::string> ConfigToYamlPair(const SpeciationConf
         }
     }
 
-    return {mech_out.c_str(), map_ss.str()};
+    return {mech_ss.str(), map_ss.str()};
 }
 
 /// Generate a valid SpeciationConfig using RapidCheck generators.
@@ -287,26 +282,18 @@ RC_GTEST_PROP(SpeciationProperty, Property2_InvalidEmissionClassReference, ()) {
     auto [mech_yaml, _] = ConfigToYamlPair(config);
 
     // Build a MAP YAML with one invalid emission class name
-    YAML::Emitter map_out;
-    map_out << YAML::BeginMap;
-    map_out << YAML::Key << "mechanism" << YAML::Value << config.mechanism_name;
-    map_out << YAML::Key << "datasets" << YAML::Value << YAML::BeginMap;
-    map_out << YAML::Key << config.dataset_name << YAML::Value << YAML::BeginMap;
-
-    // Write first mapping with an invalid class name
+    std::ostringstream map_ss;
+    map_ss << "mechanism: \"" << config.mechanism_name << "\"\n";
+    map_ss << "datasets:\n";
+    map_ss << "  \"" << config.dataset_name << "\":\n";
     if (!config.mappings.empty()) {
         const auto& m = config.mappings[0];
-        map_out << YAML::Key << m.mechanism_species << YAML::Value << YAML::BeginMap;
-        map_out << YAML::Key << "INVALID_CLASS_XYZ" << YAML::Value << m.scale_factor;
-        map_out << YAML::EndMap;
+        map_ss << "    \"" << m.mechanism_species << "\":\n";
+        map_ss << "      INVALID_CLASS_XYZ: " << std::setprecision(6) << m.scale_factor << "\n";
     }
 
-    map_out << YAML::EndMap;  // end dataset
-    map_out << YAML::EndMap;  // end datasets
-    map_out << YAML::EndMap;
-
     TempFile mech_file(mech_yaml, "_mech.yaml");
-    TempFile map_file(map_out.c_str(), "_map.yaml");
+    TempFile map_file(map_ss.str(), "_map.yaml");
 
     SpeciationConfigLoader loader;
     try {
@@ -327,20 +314,15 @@ RC_GTEST_PROP(SpeciationProperty, Property3_MechanismFileMissingName, ()) {
     auto config = *genValidConfig();
 
     // Mechanism YAML missing 'name'
-    YAML::Emitter mech_out;
-    mech_out << YAML::BeginMap;
-    mech_out << YAML::Key << "species" << YAML::Value << YAML::BeginSeq;
+    std::ostringstream mech_ss;
+    mech_ss << "species:\n";
     for (const auto& sp : config.species) {
-        mech_out << YAML::BeginMap;
-        mech_out << YAML::Key << "name" << YAML::Value << sp.name;
-        mech_out << YAML::Key << "molecular weight [kg mol-1]" << YAML::Value << (sp.molecular_weight / 1000.0);
-        mech_out << YAML::EndMap;
+        mech_ss << "  - name: \"" << sp.name << "\"\n";
+        mech_ss << "    molecular weight [kg mol-1]: " << (sp.molecular_weight / 1000.0) << "\n";
     }
-    mech_out << YAML::EndSeq;
-    mech_out << YAML::EndMap;
 
     auto [_, map_yaml] = ConfigToYamlPair(config);
-    TempFile mech_file(mech_out.c_str(), "_mech.yaml");
+    TempFile mech_file(mech_ss.str(), "_mech.yaml");
     TempFile map_file(map_yaml, "_map.yaml");
 
     SpeciationConfigLoader loader;
@@ -359,26 +341,26 @@ RC_GTEST_PROP(SpeciationProperty, Property3_MechanismSpeciesMissingFields, ()) {
     auto omit_field = *rc::gen::inRange(0, 2);
     auto omit_idx = *rc::gen::inRange(0, static_cast<int>(config.species.size()));
 
-    YAML::Emitter mech_out;
-    mech_out << YAML::BeginMap;
-    mech_out << YAML::Key << "name" << YAML::Value << config.mechanism_name;
-    mech_out << YAML::Key << "species" << YAML::Value << YAML::BeginSeq;
+    std::ostringstream mech_ss;
+    mech_ss << "name: \"" << config.mechanism_name << "\"\n";
+    mech_ss << "species:\n";
     for (int i = 0; i < static_cast<int>(config.species.size()); ++i) {
-        mech_out << YAML::BeginMap;
+        const auto& sp = config.species[static_cast<std::size_t>(i)];
+        mech_ss << "  - ";
+        bool first = true;
         if (i != omit_idx || omit_field != 0) {
-            mech_out << YAML::Key << "name" << YAML::Value << config.species[static_cast<std::size_t>(i)].name;
+            mech_ss << (first ? "" : "    ") << "name: \"" << sp.name << "\"\n";
+            first = false;
         }
         if (i != omit_idx || omit_field != 1) {
-            mech_out << YAML::Key << "molecular weight [kg mol-1]" << YAML::Value
-                     << (config.species[static_cast<std::size_t>(i)].molecular_weight / 1000.0);
+            mech_ss << (first ? "" : "    ") << "molecular weight [kg mol-1]: " << (sp.molecular_weight / 1000.0) << "\n";
+            first = false;
         }
-        mech_out << YAML::EndMap;
+        if (first) mech_ss << "placeholder: true\n";
     }
-    mech_out << YAML::EndSeq;
-    mech_out << YAML::EndMap;
 
     auto [_, map_yaml] = ConfigToYamlPair(config);
-    TempFile mech_file(mech_out.c_str(), "_mech.yaml");
+    TempFile mech_file(mech_ss.str(), "_mech.yaml");
     TempFile map_file(map_yaml, "_map.yaml");
 
     SpeciationConfigLoader loader;
@@ -397,22 +379,18 @@ RC_GTEST_PROP(SpeciationProperty, Property3_NonPositiveMolecularWeight, ()) {
     auto bad_idx = *rc::gen::inRange(0, static_cast<int>(config.species.size()));
     auto bad_mw = *rc::gen::element(0.0, -1.0, -100.0, -0.001);
 
-    YAML::Emitter mech_out;
-    mech_out << YAML::BeginMap;
-    mech_out << YAML::Key << "name" << YAML::Value << config.mechanism_name;
-    mech_out << YAML::Key << "species" << YAML::Value << YAML::BeginSeq;
+    std::ostringstream mech_ss;
+    mech_ss << "name: \"" << config.mechanism_name << "\"\n";
+    mech_ss << "species:\n";
     for (int i = 0; i < static_cast<int>(config.species.size()); ++i) {
-        mech_out << YAML::BeginMap;
-        mech_out << YAML::Key << "name" << YAML::Value << config.species[static_cast<std::size_t>(i)].name;
-        double mw_kg = (i == bad_idx) ? bad_mw : (config.species[static_cast<std::size_t>(i)].molecular_weight / 1000.0);
-        mech_out << YAML::Key << "molecular weight [kg mol-1]" << YAML::Value << mw_kg;
-        mech_out << YAML::EndMap;
+        const auto& sp = config.species[static_cast<std::size_t>(i)];
+        double mw_kg = (i == bad_idx) ? bad_mw : (sp.molecular_weight / 1000.0);
+        mech_ss << "  - name: \"" << sp.name << "\"\n";
+        mech_ss << "    molecular weight [kg mol-1]: " << mw_kg << "\n";
     }
-    mech_out << YAML::EndSeq;
-    mech_out << YAML::EndMap;
 
     auto [_, map_yaml] = ConfigToYamlPair(config);
-    TempFile mech_file(mech_out.c_str(), "_mech.yaml");
+    TempFile mech_file(mech_ss.str(), "_mech.yaml");
     TempFile map_file(map_yaml, "_map.yaml");
 
     SpeciationConfigLoader loader;
@@ -430,22 +408,17 @@ RC_GTEST_PROP(SpeciationProperty, Property3_MappingFileMissingMechanism, ()) {
     auto [mech_yaml, _] = ConfigToYamlPair(config);
 
     // Mapping YAML missing 'mechanism' key
-    YAML::Emitter map_out;
-    map_out << YAML::BeginMap;
-    map_out << YAML::Key << "datasets" << YAML::Value << YAML::BeginMap;
-    map_out << YAML::Key << config.dataset_name << YAML::Value << YAML::BeginMap;
+    std::ostringstream map_ss;
+    map_ss << "datasets:\n";
+    map_ss << "  \"" << config.dataset_name << "\":\n";
     if (!config.mappings.empty()) {
         const auto& m = config.mappings[0];
-        map_out << YAML::Key << m.mechanism_species << YAML::Value << YAML::BeginMap;
-        map_out << YAML::Key << EmissionClassToString(m.emission_class) << YAML::Value << m.scale_factor;
-        map_out << YAML::EndMap;
+        map_ss << "    \"" << m.mechanism_species << "\":\n";
+        map_ss << "      \"" << EmissionClassToString(m.emission_class) << "\": " << std::setprecision(6) << m.scale_factor << "\n";
     }
-    map_out << YAML::EndMap;
-    map_out << YAML::EndMap;
-    map_out << YAML::EndMap;
 
     TempFile mech_file(mech_yaml, "_mech.yaml");
-    TempFile map_file(map_out.c_str(), "_map.yaml");
+    TempFile map_file(map_ss.str(), "_map.yaml");
 
     SpeciationConfigLoader loader;
     try {
@@ -462,13 +435,11 @@ RC_GTEST_PROP(SpeciationProperty, Property3_MappingFileMissingDatasets, ()) {
     auto [mech_yaml, _] = ConfigToYamlPair(config);
 
     // Mapping YAML missing 'datasets' section
-    YAML::Emitter map_out;
-    map_out << YAML::BeginMap;
-    map_out << YAML::Key << "mechanism" << YAML::Value << config.mechanism_name;
-    map_out << YAML::EndMap;
+    std::ostringstream map_ss;
+    map_ss << "mechanism: \"" << config.mechanism_name << "\"\n";
 
     TempFile mech_file(mech_yaml, "_mech.yaml");
-    TempFile map_file(map_out.c_str(), "_map.yaml");
+    TempFile map_file(map_ss.str(), "_map.yaml");
 
     SpeciationConfigLoader loader;
     try {
@@ -488,24 +459,16 @@ RC_GTEST_PROP(SpeciationProperty, Property3_NonPositiveScaleFactor, ()) {
     auto [mech_yaml, _] = ConfigToYamlPair(config);
 
     // Build MAP YAML with one non-positive scale factor
-    YAML::Emitter map_out;
-    map_out << YAML::BeginMap;
-    map_out << YAML::Key << "mechanism" << YAML::Value << config.mechanism_name;
-    map_out << YAML::Key << "datasets" << YAML::Value << YAML::BeginMap;
-    map_out << YAML::Key << config.dataset_name << YAML::Value << YAML::BeginMap;
-
-    // Write first mapping with bad scale factor
+    std::ostringstream map_ss;
+    map_ss << "mechanism: \"" << config.mechanism_name << "\"\n";
+    map_ss << "datasets:\n";
+    map_ss << "  \"" << config.dataset_name << "\":\n";
     const auto& m = config.mappings[0];
-    map_out << YAML::Key << m.mechanism_species << YAML::Value << YAML::BeginMap;
-    map_out << YAML::Key << EmissionClassToString(m.emission_class) << YAML::Value << bad_sf;
-    map_out << YAML::EndMap;
-
-    map_out << YAML::EndMap;
-    map_out << YAML::EndMap;
-    map_out << YAML::EndMap;
+    map_ss << "    \"" << m.mechanism_species << "\":\n";
+    map_ss << "      \"" << EmissionClassToString(m.emission_class) << "\": " << bad_sf << "\n";
 
     TempFile mech_file(mech_yaml, "_mech.yaml");
-    TempFile map_file(map_out.c_str(), "_map.yaml");
+    TempFile map_file(map_ss.str(), "_map.yaml");
 
     SpeciationConfigLoader loader;
     try {

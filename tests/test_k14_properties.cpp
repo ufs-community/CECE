@@ -19,6 +19,7 @@
 
 #include <Kokkos_Core.hpp>
 #include <cmath>
+#include <conf/config.hpp>
 #include <random>
 
 #include "cece/cece_physics_factory.hpp"
@@ -308,22 +309,21 @@ TEST_F(K14PropertyTest, Property9_NumericalEquivalence) {
             int nbins = rand_int(1, 5);
 
             // Configure both schemes with the same opt_clay
-            YAML::Node config;
-            config["opt_clay"] = opt_clay;
+            conf::Config config = conf::Config::from_string("opt_clay: " + std::to_string(opt_clay));
 
             PhysicsSchemeConfig cfg_cpp, cfg_fort;
             cfg_cpp.name = "k14";
-            cfg_cpp.options = config;
+            cfg_cpp.options = config.root();
             cfg_fort.name = "k14_fortran";
-            cfg_fort.options = config;
+            cfg_fort.options = config.root();
 
             auto scheme_cpp = PhysicsFactory::CreateScheme(cfg_cpp);
             auto scheme_fort = PhysicsFactory::CreateScheme(cfg_fort);
             ASSERT_NE(scheme_cpp, nullptr);
             ASSERT_NE(scheme_fort, nullptr);
 
-            scheme_cpp->Initialize(conf::Value::from_raw(static_cast<const void*>(&cfg_cpp.options)), nullptr);
-            scheme_fort->Initialize(conf::Value::from_raw(static_cast<const void*>(&cfg_fort.options)), nullptr);
+            scheme_cpp->Initialize(cfg_cpp.options, nullptr);
+            scheme_fort->Initialize(cfg_fort.options, nullptr);
 
             // Create import state with random physically valid values
             CeceImportState import_state;
@@ -389,12 +389,12 @@ TEST_F(K14PropertyTest, Property10_ZeroEmissionInvariant) {
 
         auto scheme_cpp = PhysicsFactory::CreateScheme(cfg_cpp);
         ASSERT_NE(scheme_cpp, nullptr);
-        scheme_cpp->Initialize(conf::Value::from_raw(static_cast<const void*>(&cfg_cpp.options)), nullptr);
+        scheme_cpp->Initialize(cfg_cpp.options, nullptr);
 
         std::unique_ptr<PhysicsScheme> scheme_fort;
         if (has_fortran) {
             scheme_fort = PhysicsFactory::CreateScheme(cfg_fort);
-            scheme_fort->Initialize(conf::Value::from_raw(static_cast<const void*>(&cfg_fort.options)), nullptr);
+            scheme_fort->Initialize(cfg_fort.options, nullptr);
         }
 
         CeceImportState import_state;

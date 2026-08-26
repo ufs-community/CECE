@@ -13,6 +13,7 @@
 
 #include <Kokkos_Core.hpp>
 #include <cmath>
+#include <conf/config.hpp>
 #include <string>
 
 #include "cece/cece_state.hpp"
@@ -130,11 +131,10 @@ RC_GTEST_PROP(BdsnpProperty, Property12_YL95_SchemeFreezingZeroEmissions, ()) {
     export_state.fields["soil_nox_emissions"].modify_device();
 
     // Initialize BdsnpScheme with YL95 mode
-    YAML::Node config;
-    config["soil_no_method"] = "yl95";
+    conf::Config config = conf::Config::from_string("soil_no_method: yl95");
 
     BdsnpScheme scheme;
-    scheme.Initialize(conf::Value::from_raw(static_cast<const void*>(&config)), nullptr);
+    scheme.Initialize(config.root(), nullptr);
     scheme.Run(import_state, export_state);
 
     // Read back results
@@ -194,11 +194,10 @@ RC_GTEST_PROP(BdsnpProperty, Property12_BDSNP_SchemeFreezingZeroEmissions, ()) {
     export_state.fields["soil_nox_emissions"].modify_device();
 
     // Initialize BdsnpScheme with BDSNP mode (default)
-    YAML::Node config;
-    config["soil_no_method"] = "bdsnp";
+    conf::Config config = conf::Config::from_string("soil_no_method: bdsnp");
 
     BdsnpScheme scheme;
-    scheme.Initialize(conf::Value::from_raw(static_cast<const void*>(&config)), nullptr);
+    scheme.Initialize(config.root(), nullptr);
     scheme.Run(import_state, export_state);
 
     // Read back results
@@ -264,16 +263,15 @@ RC_GTEST_PROP(BdsnpParityProperty, Property14_YL95_CppFortranParity, ()) {
     export_fort.fields["soil_nox_emissions"] = make_dv("snox_fort", 0.0);
 
     // ---- Initialize and run C++ scheme ----
-    YAML::Node config_yl95;
-    config_yl95["soil_no_method"] = "yl95";
+    conf::Config config_yl95 = conf::Config::from_string("soil_no_method: yl95");
 
     BdsnpScheme scheme_cpp;
-    scheme_cpp.Initialize(conf::Value::from_raw(static_cast<const void*>(&config_yl95)), nullptr);
+    scheme_cpp.Initialize(config_yl95.root(), nullptr);
     scheme_cpp.Run(import_cpp, export_cpp);
 
     // ---- Initialize and run Fortran scheme ----
     BdsnpFortranScheme scheme_fort;
-    scheme_fort.Initialize(conf::Value::from_raw(static_cast<const void*>(&config_yl95)), nullptr);
+    scheme_fort.Initialize(config_yl95.root(), nullptr);
     scheme_fort.Run(import_fort, export_fort);
 
     // ---- Compare results ----
@@ -327,16 +325,15 @@ RC_GTEST_PROP(BdsnpParityProperty, Property14_BDSNP_CppFortranParity, ()) {
     export_fort.fields["soil_nox_emissions"] = make_dv("snox_fort", 0.0);
 
     // ---- Initialize and run C++ scheme (BDSNP mode) ----
-    YAML::Node config_bdsnp;
-    config_bdsnp["soil_no_method"] = "bdsnp";
+    conf::Config config_bdsnp = conf::Config::from_string("soil_no_method: bdsnp");
 
     BdsnpScheme scheme_cpp;
-    scheme_cpp.Initialize(conf::Value::from_raw(static_cast<const void*>(&config_bdsnp)), nullptr);
+    scheme_cpp.Initialize(config_bdsnp.root(), nullptr);
     scheme_cpp.Run(import_cpp, export_cpp);
 
     // ---- Initialize and run Fortran scheme (BDSNP mode) ----
     BdsnpFortranScheme scheme_fort;
-    scheme_fort.Initialize(conf::Value::from_raw(static_cast<const void*>(&config_bdsnp)), nullptr);
+    scheme_fort.Initialize(config_bdsnp.root(), nullptr);
     scheme_fort.Run(import_fort, export_fort);
 
     // ---- Compare results ----
@@ -392,15 +389,14 @@ RC_GTEST_PROP(BdsnpParityProperty, Property14_Freezing_CppFortranParity, ()) {
     import_fort.fields["soil_moisture"] = make_dv("sm_fort", soil_moisture);
     export_fort.fields["soil_nox_emissions"] = make_dv("snox_fort", 0.0);
 
-    YAML::Node config;
-    config["soil_no_method"] = method;
+    conf::Config config = conf::Config::from_string("soil_no_method: " + method);
 
     BdsnpScheme scheme_cpp;
-    scheme_cpp.Initialize(conf::Value::from_raw(static_cast<const void*>(&config)), nullptr);
+    scheme_cpp.Initialize(config.root(), nullptr);
     scheme_cpp.Run(import_cpp, export_cpp);
 
     BdsnpFortranScheme scheme_fort;
-    scheme_fort.Initialize(conf::Value::from_raw(static_cast<const void*>(&config)), nullptr);
+    scheme_fort.Initialize(config.root(), nullptr);
     scheme_fort.Run(import_fort, export_fort);
 
     auto& dv_cpp = export_cpp.fields["soil_nox_emissions"];
@@ -473,17 +469,16 @@ RC_GTEST_PROP(BdsnpParityProperty, Property12_YL95_ParityWithSoilNoxScheme, ()) 
     export_soilnox.fields["soil_nox_emissions"] = make_dv("snox_soilnox", 0.0);
 
     // ---- Initialize and run BdsnpScheme in YL95 mode ----
-    YAML::Node config_yl95;
-    config_yl95["soil_no_method"] = "yl95";
+    conf::Config config_yl95 = conf::Config::from_string("soil_no_method: yl95");
 
     BdsnpScheme bdsnp_scheme;
-    bdsnp_scheme.Initialize(conf::Value::from_raw(static_cast<const void*>(&config_yl95)), nullptr);
+    bdsnp_scheme.Initialize(config_yl95.root(), nullptr);
     bdsnp_scheme.Run(import_bdsnp, export_bdsnp);
 
     // ---- Initialize and run SoilNoxScheme ----
-    YAML::Node config_soilnox;
+    conf::Config config_soilnox = conf::Config::from_string("");
     SoilNoxScheme soilnox_scheme;
-    soilnox_scheme.Initialize(conf::Value::from_raw(static_cast<const void*>(&config_soilnox)), nullptr);
+    soilnox_scheme.Initialize(config_soilnox.root(), nullptr);
     soilnox_scheme.Run(import_soilnox, export_soilnox);
 
     // ---- Compare results ----
@@ -574,11 +569,10 @@ TEST_F(BdsnpSchemeTest, FactoryCreatesBdsnpScheme) {
 // ============================================================================
 
 TEST_F(BdsnpSchemeTest, SoilNoMethodConfigParsing_Bdsnp) {
-    YAML::Node config;
-    config["soil_no_method"] = "bdsnp";
+    conf::Config config = conf::Config::from_string("soil_no_method: bdsnp");
 
     BdsnpScheme scheme;
-    EXPECT_NO_THROW(scheme.Initialize(conf::Value::from_raw(static_cast<const void*>(&config)), nullptr));
+    EXPECT_NO_THROW(scheme.Initialize(config.root(), nullptr));
 
     // Run with warm soil temp — should produce non-zero emissions in BDSNP mode
     scheme.Run(import_state, export_state);
@@ -590,11 +584,10 @@ TEST_F(BdsnpSchemeTest, SoilNoMethodConfigParsing_Bdsnp) {
 }
 
 TEST_F(BdsnpSchemeTest, SoilNoMethodConfigParsing_YL95) {
-    YAML::Node config;
-    config["soil_no_method"] = "yl95";
+    conf::Config config = conf::Config::from_string("soil_no_method: yl95");
 
     BdsnpScheme scheme;
-    EXPECT_NO_THROW(scheme.Initialize(conf::Value::from_raw(static_cast<const void*>(&config)), nullptr));
+    EXPECT_NO_THROW(scheme.Initialize(config.root(), nullptr));
 
     // Run with warm soil temp — should produce non-zero emissions in YL95 mode
     scheme.Run(import_state, export_state);
@@ -607,10 +600,10 @@ TEST_F(BdsnpSchemeTest, SoilNoMethodConfigParsing_YL95) {
 
 TEST_F(BdsnpSchemeTest, SoilNoMethodConfigParsing_DefaultIsBdsnp) {
     // No soil_no_method key — should default to "bdsnp"
-    YAML::Node config;
+    conf::Config config = conf::Config::from_string("");
 
     BdsnpScheme scheme;
-    EXPECT_NO_THROW(scheme.Initialize(conf::Value::from_raw(static_cast<const void*>(&config)), nullptr));
+    EXPECT_NO_THROW(scheme.Initialize(config.root(), nullptr));
 
     // Run with warm soil temp — should produce non-zero emissions (default bdsnp mode)
     scheme.Run(import_state, export_state);
@@ -629,11 +622,10 @@ TEST_F(BdsnpSchemeTest, SoilNoMethodConfigParsing_DefaultIsBdsnp) {
 // ============================================================================
 
 TEST_F(BdsnpSchemeTest, SoilNOWrittenToExportState) {
-    YAML::Node config;
-    config["soil_no_method"] = "yl95";
+    conf::Config config = conf::Config::from_string("soil_no_method: yl95");
 
     BdsnpScheme scheme;
-    scheme.Initialize(conf::Value::from_raw(static_cast<const void*>(&config)), nullptr);
+    scheme.Initialize(config.root(), nullptr);
 
     // Set warm soil temperature (300 K = 26.85°C) and moderate moisture
     SetFieldValue("soil_temperature", 300.0);
@@ -655,11 +647,10 @@ TEST_F(BdsnpSchemeTest, SoilNOWrittenToExportState) {
 }
 
 TEST_F(BdsnpSchemeTest, SoilNOWrittenToExportState_BdsnpMode) {
-    YAML::Node config;
-    config["soil_no_method"] = "bdsnp";
+    conf::Config config = conf::Config::from_string("soil_no_method: bdsnp");
 
     BdsnpScheme scheme;
-    scheme.Initialize(conf::Value::from_raw(static_cast<const void*>(&config)), nullptr);
+    scheme.Initialize(config.root(), nullptr);
 
     // Set warm soil temperature and moderate moisture
     SetFieldValue("soil_temperature", 300.0);
@@ -687,24 +678,20 @@ TEST_F(BdsnpSchemeTest, SoilNOWrittenToExportState_BdsnpMode) {
 // ============================================================================
 
 TEST_F(BdsnpSchemeTest, DiagnosticFieldsRegisteredWhenEnabled) {
-    YAML::Node config;
-    config["soil_no_method"] = "bdsnp";
-
-    // Add diagnostics list
-    config["diagnostics"].push_back("soil_no_emission_rate");
-    config["diagnostics"].push_back("soil_temp_response");
-    config["diagnostics"].push_back("soil_moisture_pulse");
-    config["diagnostics"].push_back("canopy_reduction_factor");
-    config["nx"] = nx;
-    config["ny"] = ny;
-    config["nz"] = nz;
+    std::string yaml = "soil_no_method: bdsnp\n";
+    yaml += "diagnostics:\n";
+    for (const char* name : {"soil_no_emission_rate", "soil_temp_response", "soil_moisture_pulse", "canopy_reduction_factor"}) {
+        yaml += std::string("  - ") + name + "\n";
+    }
+    yaml += "nx: " + std::to_string(nx) + "\nny: " + std::to_string(ny) + "\nnz: " + std::to_string(nz) + "\n";
+    conf::Config config = conf::Config::from_string(yaml);
 
     // Create a diagnostic manager
     CeceDiagnosticManager diag_manager;
 
     BdsnpScheme scheme;
     // Initialize with diagnostics enabled — should not throw
-    EXPECT_NO_THROW(scheme.Initialize(conf::Value::from_raw(static_cast<const void*>(&config)), &diag_manager));
+    EXPECT_NO_THROW(scheme.Initialize(config.root(), &diag_manager));
 }
 
 }  // namespace cece
