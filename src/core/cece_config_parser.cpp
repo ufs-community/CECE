@@ -1,6 +1,7 @@
 #include <sys/stat.h>
 
 #include <algorithm>
+#include <iostream>
 #include <stdexcept>
 #include <string>
 
@@ -179,6 +180,14 @@ CeceConfig ParseConfig(const std::string& filename) {
             if (attributes.kind() == conf::Node_Kind::Map)
                 for (const auto& key : attributes.keys()) field.attributes[key] = attributes[key].as_string();
             config.output_config.fields.push_back(std::move(field));
+        }
+        if (output["amio_worker_threads"]) {
+            int threads = output["amio_worker_threads"].as_int();
+            if (threads < 1) {
+                std::cerr << "WARNING: Invalid output amio_worker_threads: " << threads << ". Must be >= 1. Defaulting to 1.\n";
+                threads = 1;
+            }
+            config.output_config.amio_worker_threads = threads;
         }
     }
 
