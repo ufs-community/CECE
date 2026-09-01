@@ -9,6 +9,7 @@
 #include <iostream>
 
 #include "cece/cece_internal.hpp"
+#include "cece/cece_logger.hpp"
 #include "cece/cece_standalone_writer.hpp"
 
 namespace cece {
@@ -61,19 +62,19 @@ void cece_core_writer_initialize_with_coords(void* data_ptr, int nx, int ny, int
     *rc = 0;
 
     if (data_ptr == nullptr) {
-        std::cerr << "ERROR: cece_core_writer_initialize_with_coords - null data pointer\n";
+        CECE_LOG_ERROR("cece_core_writer_initialize_with_coords - null data pointer");
         *rc = -1;
         return;
     }
 
     if (lon_coords == nullptr || lat_coords == nullptr) {
-        std::cerr << "ERROR: cece_core_writer_initialize_with_coords - null coordinate arrays\n";
+        CECE_LOG_ERROR("cece_core_writer_initialize_with_coords - null coordinate arrays");
         *rc = -1;
         return;
     }
 
     if (start_time_iso8601 == nullptr) {
-        std::cerr << "ERROR: cece_core_writer_initialize_with_coords - null start_time_iso8601 pointer\n";
+        CECE_LOG_ERROR("cece_core_writer_initialize_with_coords - null start_time_iso8601 pointer");
         *rc = -1;
         return;
     }
@@ -89,25 +90,24 @@ void cece_core_writer_initialize_with_coords(void* data_ptr, int nx, int ny, int
         std::vector<double> lon_vec(lon_coords, lon_coords + lon_len);
         std::vector<double> lat_vec(lat_coords, lat_coords + lat_len);
 
-        std::cout << "INFO: Initializing standalone writer with coordinates: " << nx << "x" << ny << "x" << nz << " start_time=" << start_time
-                  << "\n";
-        std::cout << "INFO: Longitude range: " << lon_vec[0] << " to " << lon_vec[lon_len - 1] << "\n";
-        std::cout << "INFO: Latitude range: " << lat_vec[0] << " to " << lat_vec[lat_len - 1] << "\n";
+        CECE_LOG_INFO("Initializing standalone writer with coordinates: " + std::to_string(nx) + "x" + std::to_string(ny) + "x" + std::to_string(nz) +
+                      " start_time=" + start_time);
+        CECE_LOG_INFO("Longitude range: " + std::to_string(lon_vec[0]) + " to " + std::to_string(lon_vec[lon_len - 1]));
+        CECE_LOG_INFO("Latitude range: " + std::to_string(lat_vec[0]) + " to " + std::to_string(lat_vec[lat_len - 1]));
 
         // Initialize the writer with coordinates and gridspec file path
         int writer_rc =
             g_standalone_writer->InitializeWithCoords(start_time, nx, ny, nz, lon_vec, lat_vec, internal_data->config.driver_config.gridspec_file);
 
         if (writer_rc != 0) {
-            std::cerr << "ERROR: cece_core_writer_initialize_with_coords - writer initialization "
-                         "failed\n";
+            CECE_LOG_ERROR("cece_core_writer_initialize_with_coords - writer initialization failed");
             *rc = -1;
             return;
         }
 
-        std::cout << "INFO: Standalone writer initialized successfully\n";
+        CECE_LOG_INFO("Standalone writer initialized successfully");
     } catch (const std::exception& e) {
-        std::cerr << "ERROR: cece_core_writer_initialize_with_coords - " << e.what() << std::endl;
+        CECE_LOG_ERROR("cece_core_writer_initialize_with_coords - " + std::string(e.what()));
         *rc = -1;
     }
 }
@@ -132,13 +132,13 @@ void cece_core_writer_initialize(void* data_ptr, int nx, int ny, int nz, const c
     *rc = 0;
 
     if (data_ptr == nullptr) {
-        std::cerr << "ERROR: cece_core_writer_initialize - null data pointer\n";
+        CECE_LOG_ERROR("cece_core_writer_initialize - null data pointer");
         *rc = -1;
         return;
     }
 
     if (start_time_iso8601 == nullptr) {
-        std::cerr << "ERROR: cece_core_writer_initialize - null start_time_iso8601 pointer\n";
+        CECE_LOG_ERROR("cece_core_writer_initialize - null start_time_iso8601 pointer");
         *rc = -1;
         return;
     }
@@ -150,26 +150,27 @@ void cece_core_writer_initialize(void* data_ptr, int nx, int ny, int nz, const c
         // Convert C string to std::string
         std::string start_time(start_time_iso8601, start_time_len);
 
-        std::cout << "INFO: Initializing standalone writer with dimensions: " << nx << "x" << ny << "x" << nz << " start_time=" << start_time << "\n";
+        CECE_LOG_INFO("Initializing standalone writer with dimensions: " + std::to_string(nx) + "x" + std::to_string(ny) + "x" + std::to_string(nz) +
+                      " start_time=" + start_time);
 
         // Initialize the writer
         int writer_rc = g_standalone_writer->Initialize(start_time, nx, ny, nz);
 
         if (writer_rc != 0) {
-            std::cerr << "ERROR: cece_core_writer_initialize - writer initialization failed\n";
+            CECE_LOG_ERROR("cece_core_writer_initialize - writer initialization failed");
             *rc = -1;
             return;
         }
 
-        std::cout << "INFO: Standalone writer initialized successfully\n";
+        CECE_LOG_INFO("Standalone writer initialized successfully");
         *rc = 0;
 
     } catch (const std::exception& e) {
-        std::cerr << "ERROR: cece_core_writer_initialize - exception: " << e.what() << "\n";
+        CECE_LOG_ERROR("cece_core_writer_initialize - exception: " + std::string(e.what()));
         *rc = -1;
         return;
     } catch (...) {
-        std::cerr << "ERROR: cece_core_writer_initialize - unknown exception\n";
+        CECE_LOG_ERROR("cece_core_writer_initialize - unknown exception");
         *rc = -1;
         return;
     }

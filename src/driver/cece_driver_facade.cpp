@@ -713,7 +713,7 @@ void cece_driver_create(const char* yaml_path, int path_len, int nx, int ny, int
         auto* driver = new cece::CeceDriverOrchestrator(path, nx, ny, nz, lon_coords, lon_len, lat_coords, lat_len, comm_c);
         *driver_ptr_out = static_cast<void*>(driver);
     } catch (const std::exception& e) {
-        std::cerr << "ERROR: cece_driver_create: " << e.what() << std::endl;
+        CECE_LOG_ERROR("cece_driver_create: " + std::string(e.what()));
         if (rc) *rc = -1;
     }
 }
@@ -726,7 +726,7 @@ void cece_driver_advance_time(void* driver_ptr, const char* time_iso8601, int ti
         bool ok = driver->AdvanceTime(t_iso, cece_core_data_ptr);
         if (!ok && rc) *rc = -1;
     } catch (const std::exception& e) {
-        std::cerr << "ERROR: cece_driver_advance_time: " << e.what() << std::endl;
+        CECE_LOG_ERROR("cece_driver_advance_time: " + std::string(e.what()));
         if (rc) *rc = -1;
     }
 }

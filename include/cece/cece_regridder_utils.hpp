@@ -14,9 +14,9 @@
 
 namespace cece::io {
 
-/// Build an AXIS UnstructuredMesh from rectilinear coordinate arrays.
-axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_axis_mesh(int ni, int nj, const std::vector<double>& lons, const std::vector<double>& lats,
-                                                                    const std::string& gridspec_file = "");
+/// Build an AXIS UnstructuredMesh from rectilinear coordinate arrays or a FV3 NetCDF grid specification file.
+axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_axis_mesh(int nx, int nband, int j0, const std::vector<double>& lons,
+                                                                    const std::vector<double>& lats, const std::string& gridspec_file = "");
 
 /// A precomputed, reusable regridding plan for one stream variable.
 ///

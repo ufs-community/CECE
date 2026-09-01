@@ -11,6 +11,7 @@
 
 #include "cece/cece_config.hpp"
 #include "cece/cece_internal.hpp"
+#include "cece/cece_regridder_utils.hpp"
 #include "cece/cece_standalone_writer.hpp"
 #include "cece/cece_utils.hpp"
 
@@ -242,6 +243,86 @@ TEST_F(CeceUtilsTest, CoreWriteStepSkipsInitialStep) {
 
     if (std::filesystem::exists(test_dir)) {
         std::filesystem::remove_all(test_dir);
+    }
+}
+
+static std::string find_grid_file(const std::string& filename) {
+    std::vector<std::string> candidate_paths = {"data/" + filename, "../data/" + filename, "tests/data/" + filename, "../tests/data/" + filename,
+                                                "/work/data/" + filename};
+    for (const auto& path : candidate_paths) {
+        if (std::filesystem::exists(path)) {
+            return path;
+        }
+    }
+    return filename;
+}
+
+TEST_F(CeceUtilsTest, BuildAxisMeshFV3GridSpec) {
+    std::string spec_file = find_grid_file("C96_grid_spec.tile1.nc");
+    ASSERT_TRUE(std::filesystem::exists(spec_file)) << "Missing test file: " << spec_file;
+
+    std::vector<double> dummy_lons(96, 0.0);
+    std::vector<double> dummy_lats(96, 0.0);
+
+    auto mesh = cece::io::build_axis_mesh(96, 96, 0, dummy_lons, dummy_lats, spec_file);
+
+    EXPECT_EQ(mesh.n_cells(), static_cast<size_t>(96 * 96));
+
+    auto node_coords = mesh.node_coords();
+    EXPECT_EQ(node_coords.extent(0), static_cast<size_t>(96 * 96 * 4));
+    EXPECT_EQ(node_coords.extent(1), static_cast<size_t>(2));
+}
+
+TEST_F(CeceUtilsTest, BuildAxisMeshFV3NativeGrid) {
+    std::string grid_file = find_grid_file("C96_grid.tile1.nc");
+    ASSERT_TRUE(std::filesystem::exists(grid_file)) << "Missing test file: " << grid_file;
+
+    std::vector<double> dummy_lons(96, 0.0);
+    std::vector<double> dummy_lats(96, 0.0);
+
+    auto mesh = cece::io::build_axis_mesh(96, 96, 0, dummy_lons, dummy_lats, grid_file);
+
+    EXPECT_EQ(mesh.n_cells(), static_cast<size_t>(96 * 96));
+
+    auto node_coords = mesh.node_coords();
+    EXPECT_EQ(node_coords.extent(0), static_cast<size_t>(96 * 96 * 4));
+    EXPECT_EQ(node_coords.extent(1), static_cast<size_t>(2));
+}
+
+TEST_F(CeceUtilsTest, BuildAxisMeshMPIRankSlicing) {
+    std::string spec_file = find_grid_file("C96_grid_spec.tile1.nc");
+    ASSERT_TRUE(std::filesystem::exists(spec_file)) << "Missing test file: " << spec_file;
+
+    std::vector<double> dummy_lons(96, 0.0);
+    std::vector<double> dummy_lats(48, 0.0);
+
+    // Simulate Rank 0: j0 = 0, nband = 48
+    auto mesh_rank0 = cece::io::build_axis_mesh(96, 48, 0, dummy_lons, dummy_lats, spec_file);
+    EXPECT_EQ(mesh_rank0.n_cells(), static_cast<size_t>(96 * 48));
+    EXPECT_EQ(mesh_rank0.node_coords().extent(0), static_cast<size_t>(96 * 48 * 4));
+
+    // Simulate Rank 1: j0 = 48, nband = 48
+    auto mesh_rank1 = cece::io::build_axis_mesh(96, 48, 48, dummy_lons, dummy_lats, spec_file);
+    EXPECT_EQ(mesh_rank1.n_cells(), static_cast<size_t>(96 * 48));
+    EXPECT_EQ(mesh_rank1.node_coords().extent(0), static_cast<size_t>(96 * 48 * 4));
+
+    // Verify that coordinates for rank 0 and rank 1 are different (rank 1 is higher latitude band)
+    auto coords0 = mesh_rank0.node_coords();
+    auto coords1 = mesh_rank1.node_coords();
+    EXPECT_NE(coords0(0, 1), coords1(0, 1));
+}
+
+TEST_F(CeceUtilsTest, BuildAxisMeshFastFailOnInvalidGridspec) {
+    std::vector<double> dummy_lons(96, 0.0);
+    std::vector<double> dummy_lats(96, 0.0);
+
+    // Non-existent file must throw std::runtime_error
+    EXPECT_THROW(cece::io::build_axis_mesh(96, 96, 0, dummy_lons, dummy_lats, "non_existent_grid.nc"), std::runtime_error);
+
+    // Dimension mismatch must throw std::runtime_error
+    std::string spec_file = find_grid_file("C96_grid_spec.tile1.nc");
+    if (std::filesystem::exists(spec_file)) {
+        EXPECT_THROW(cece::io::build_axis_mesh(200, 200, 0, dummy_lons, dummy_lats, spec_file), std::runtime_error);
     }
 }
 

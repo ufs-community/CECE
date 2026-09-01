@@ -64,13 +64,14 @@ int main(int argc, char* argv[]) {
     int provided = 0;
     int mpi_rc = MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
     if (mpi_rc != MPI_SUCCESS) {
-        std::cerr << "FATAL ERROR: MPI_Init_thread failed with error code " << mpi_rc << std::endl;
+        cece::LogFatal("[DRIVER FATAL] MPI_Init_thread failed with error code " + std::to_string(mpi_rc));
         return mpi_rc;
     }
 
     if (provided < MPI_THREAD_MULTIPLE) {
-        std::cerr << "WARNING: MPI implementation provided thread level " << provided << ", which is less than requested MPI_THREAD_MULTIPLE ("
-                  << MPI_THREAD_MULTIPLE << "). Threaded operations may be restricted." << std::endl;
+        CECE_LOG_WARNING("[DRIVER WARNING] MPI implementation provided thread level " + std::to_string(provided) +
+                         ", which is less than requested MPI_THREAD_MULTIPLE (" + std::to_string(MPI_THREAD_MULTIPLE) +
+                         "). Threaded operations may be restricted.");
     }
 
     // 2. Initialize Kokkos (allocates execution resources on GPU or CPU)
@@ -130,22 +131,22 @@ int main(int argc, char* argv[]) {
                         int declared_ny = grid_node["ny"].as<int>(0);
                         if (declared_nx != 0 && declared_ny != 0) {
                             if (declared_nx != expected_nx || declared_ny != expected_ny) {
-                                std::cerr << "ERROR: Grid dimensions nx=" << declared_nx << ", ny=" << declared_ny
-                                          << " do not match the expected dimensions for Named Grid " << grid_name << " (" << expected_nx << "x"
-                                          << expected_ny << ")!" << std::endl;
+                                CECE_LOG_ERROR("Grid dimensions nx=" + std::to_string(declared_nx) + ", ny=" + std::to_string(declared_ny) +
+                                               " do not match the expected dimensions for Named Grid " + grid_name + " (" +
+                                               std::to_string(expected_nx) + "x" + std::to_string(expected_ny) + ")!");
                                 return -1;
                             }
                         }
                         nx = expected_nx;
                         ny = expected_ny;
                     } else {
-                        std::cerr << "ERROR: Only regular Gaussian grids (family 'F', e.g. 'F360') and regular lat-lon grids (family 'R', e.g. "
-                                     "'R360') are currently supported as structured CECE target grids."
-                                  << std::endl;
+                        CECE_LOG_ERROR(
+                            "Only regular Gaussian grids (family 'F', e.g. 'F360') and regular lat-lon grids (family 'R', e.g. 'R360') are currently "
+                            "supported as structured CECE target grids.");
                         return -1;
                     }
                 } catch (const std::exception& e) {
-                    std::cerr << "ERROR: Failed to parse named grid '" << grid_name << "': " << e.what() << std::endl;
+                    CECE_LOG_ERROR("Failed to parse named grid '" + grid_name + "': " + std::string(e.what()));
                     return -1;
                 }
             }
@@ -227,7 +228,7 @@ int main(int argc, char* argv[]) {
                 std::sort(file_lats.begin(), file_lats.end());
                 has_file_coords = true;
             } catch (const std::exception& e) {
-                std::cerr << "ERROR: Failed to retrieve coordinates from named grid '" << grid_name << "': " << e.what() << std::endl;
+                CECE_LOG_ERROR("Failed to retrieve coordinates from named grid '" + grid_name + "': " + std::string(e.what()));
                 return -1;
             }
         } else {
@@ -272,13 +273,11 @@ int main(int argc, char* argv[]) {
 
                 amio_status_t amio_rc = amio_init(read_manifest_path.c_str(), &coord_core);
                 if (amio_rc != AMIO_OK) {
-                    std::cerr << "ERROR: amio_init failed for coordinate manifest '" << read_manifest_path << "': " << amio_strerror(amio_rc)
-                              << std::endl;
+                    CECE_LOG_ERROR("amio_init failed for coordinate manifest '" + read_manifest_path + "': " + std::string(amio_strerror(amio_rc)));
                 } else {
                     amio_rc = amio_open_dataset(coord_core, read_manifest_path.c_str(), AMIO_MODE_READ, &coord_dataset);
                     if (amio_rc != AMIO_OK) {
-                        std::cerr << "ERROR: amio_open_dataset failed for dataset '" << input_file_path << "': " << amio_strerror(amio_rc)
-                                  << std::endl;
+                        CECE_LOG_ERROR("amio_open_dataset failed for dataset '" + input_file_path + "': " + std::string(amio_strerror(amio_rc)));
                     } else {
                         int file_nx = 0;
                         int file_ny = 0;

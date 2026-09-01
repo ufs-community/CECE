@@ -389,7 +389,7 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
         amio_shape_t lat_bnds_shape{};
 
         // Build the destination AXIS mesh dynamically using our unified mesh builder
-        auto dst_mesh = cece::io::build_axis_mesh(nx_, ny_, lon_values, lat_values, gridspec_file_);
+        auto dst_mesh = cece::io::build_axis_mesh(nx_, ny_, 0, lon_values, lat_values, gridspec_file_);
 
         auto node_coords = dst_mesh.node_coords();
         auto conn_offsets = dst_mesh.conn_offsets();
@@ -633,13 +633,13 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
 void CeceStandaloneWriter::Finalize() {
     if (!initialized_) return;
 
-    std::cout << "[RANK:0000] [INFO] [CECE] CeceStandaloneWriter finalizing...\n";
+    CECE_LOG_INFO("[CECE] CeceStandaloneWriter finalizing...");
 
     lon_coords_.clear();
     lat_coords_.clear();
 
     initialized_ = false;
-    std::cout << "[RANK:0000] [INFO] [CECE] CeceStandaloneWriter finalized successfully\n";
+    CECE_LOG_INFO("[CECE] CeceStandaloneWriter finalized successfully");
 }
 
 }  // namespace cece
@@ -656,7 +656,7 @@ void cece_core_write_step(void* data_ptr, double time_seconds, int step_index, i
     if (rc != nullptr) *rc = 0;
 
     if (data_ptr == nullptr) {
-        std::cerr << "ERROR: cece_core_write_step - data_ptr is null" << std::endl;
+        CECE_LOG_ERROR("cece_core_write_step - data_ptr is null");
         if (rc != nullptr) *rc = -1;
         return;
     }
@@ -680,7 +680,7 @@ void cece_core_write_step(void* data_ptr, double time_seconds, int step_index, i
     Kokkos::fence();
 
     if (w != 0) {
-        std::cerr << "WARNING: cece_core_write_step - WriteTimeStep returned " << w << std::endl;
+        CECE_LOG_WARNING("cece_core_write_step - WriteTimeStep returned " + std::to_string(w));
         if (rc != nullptr) *rc = w;
     }
 }
