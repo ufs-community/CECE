@@ -96,8 +96,9 @@ void ExecuteStepClockGated(cece::CeceInternalData& d, int* rc) {
     cece::StepResult step = d.clock->Advance();
 
     if (step.due_components.empty()) {
-        // No components to execute; only update rc if it's still success
-        // Do not overwrite any error codes that may have been set
+        if (step.simulation_complete) {
+            *rc = 1;
+        }
         return;
     }
 
@@ -107,6 +108,10 @@ void ExecuteStepClockGated(cece::CeceInternalData& d, int* rc) {
     bool ingested = false;
     for (const auto* comp : step.due_components) {
         ExecuteClockComponent(d, comp, step, ingested);
+    }
+
+    if (step.simulation_complete) {
+        *rc = 1;
     }
 }
 
@@ -161,7 +166,7 @@ extern "C" {
  * @param data_ptr    Pointer to CeceInternalData.
  * @param hour        Hour of day (0-23), extracted by the driver from the simulation clock.
  * @param day_of_week Day of week (0=Sunday..6=Saturday).
- * @param rc          0 on success, -1 on failure.
+ * @param rc          0 on success, 1 on simulation complete, -1 on failure.
  */
 void cece_core_run(void* data_ptr, int hour, int day_of_week, int* rc) {
     *rc = 0;
