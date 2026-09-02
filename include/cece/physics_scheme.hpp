@@ -27,7 +27,8 @@ class PhysicsScheme {
      * @brief Initializes the physics scheme with configuration options.
      * @param config Value node containing scheme-specific options.
      * @param diag_manager Pointer to the diagnostic manager for registering
-     * variables.
+     * variables. May be nullptr in unit/property tests or when diagnostic
+     * registration is disabled.
      */
     virtual void Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) = 0;
 

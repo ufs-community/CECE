@@ -15,9 +15,7 @@ namespace cece {
 static PhysicsRegistration<LightningFortranScheme> register_scheme("lightning_fortran");
 #endif
 
-void LightningFortranScheme::Initialize(const conf::Value& /*config*/, CeceDiagnosticManager* /*diag_manager*/) {
-    std::cout << "LightningFortranScheme: Initialized." << "\n";
-}
+void LightningFortranScheme::Initialize(const conf::Value& /*config*/, CeceDiagnosticManager* /*diag_manager*/) {}
 
 void LightningFortranScheme::Run(CeceImportState& import_state, CeceExportState& export_state) {
     auto it_conv_depth = import_state.fields.find("convective_cloud_top_height");

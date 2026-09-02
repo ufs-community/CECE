@@ -17,7 +17,6 @@ static PhysicsRegistration<VolcanoFortranScheme> register_scheme("volcano_fortra
 
 void VolcanoFortranScheme::Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
-    std::cout << "VolcanoFortranScheme: Initialized.\n";
 }
 
 void VolcanoFortranScheme::Run(CeceImportState& import_state, CeceExportState& export_state) {

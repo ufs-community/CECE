@@ -147,6 +147,9 @@ void cece_run_log_setup(const char* config_path, int path_len) {
     }
 #endif
 
+    // Print startup banner to rank-0 stdout (which is tee'd to log file if configured).
+    // std::cout is used directly here rather than CeceLogger to preserve fixed table formatting
+    // and avoid logger timestamp/rank prefixes on each table row.
     std::cout << "========================================================================\n";
     std::cout << "  CECE - Community Emissions Computing Engine\n";
     std::cout << "========================================================================\n";

@@ -15,9 +15,7 @@ namespace cece {
 static PhysicsRegistration<DMSFortranScheme> register_scheme("dms_fortran");
 #endif
 
-void DMSFortranScheme::Initialize(const conf::Value& /*config*/, CeceDiagnosticManager* /*diag_manager*/) {
-    std::cout << "DMSFortranScheme: Initialized." << "\n";
-}
+void DMSFortranScheme::Initialize(const conf::Value& /*config*/, CeceDiagnosticManager* /*diag_manager*/) {}
 
 void DMSFortranScheme::Run(CeceImportState& import_state, CeceExportState& export_state) {
     auto it_u10 = import_state.fields.find("wind_speed_10m");

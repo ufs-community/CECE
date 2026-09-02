@@ -23,12 +23,12 @@ std::string GetConfigPath() {
 #endif
 }
 
-TEST(TideTest, TestBMIPointerAllocation) {
+TEST(HelmGraphTest, TestBMIPointerAllocation) {
     cece::io::CeceIO cece_io;
     EXPECT_ANY_THROW(cece_io.Initialize("non_existent_file.yaml", 72, 46, 1));
 }
 
-TEST(TideTest, TestDynamicGraphCompilation) {
+TEST(HelmGraphTest, TestDynamicGraphCompilation) {
     std::unique_ptr<dagr::GraphOrchestrator> dagr;
     cece::io::CeceIO cece_io;
 
@@ -39,7 +39,7 @@ TEST(TideTest, TestDynamicGraphCompilation) {
     EXPECT_TRUE(true);
 }
 
-TEST(TideTest, TestShutdownNoTimeout) {
+TEST(HelmGraphTest, TestShutdownNoTimeout) {
     std::unique_ptr<dagr::GraphOrchestrator> dagr;
     cece::io::CeceIO cece_io;
 
@@ -60,7 +60,7 @@ TEST(TideTest, TestShutdownNoTimeout) {
     EXPECT_LT(elapsed_ms, 1000);
 }
 
-TEST(TideTest, TestEndToEndDriverLoopStub) {
+TEST(HelmGraphTest, TestEndToEndDriverLoopStub) {
     // Set config file path dynamically
     std::string mock_config = GetConfigPath();
     cece_set_config_file_path(mock_config.c_str(), static_cast<int>(mock_config.length()));

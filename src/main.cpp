@@ -119,31 +119,31 @@ int main(int argc, char* argv[]) {
                         int declared_ny = config.get_or("driver.grid.ny", 0);
                         if (declared_nx != 0 && declared_ny != 0) {
                             if (declared_nx != expected_nx || declared_ny != expected_ny) {
-                                std::cerr << "ERROR: Grid dimensions nx=" << declared_nx << ", ny=" << declared_ny
-                                          << " do not match the expected dimensions for Named Grid " << grid_name << " (" << expected_nx << "x"
-                                          << expected_ny << ")!" << std::endl;
+                                CECE_LOG_ERROR("Grid dimensions nx=" + std::to_string(declared_nx) + ", ny=" + std::to_string(declared_ny) +
+                                               " do not match the expected dimensions for Named Grid " + grid_name + " (" +
+                                               std::to_string(expected_nx) + "x" + std::to_string(expected_ny) + ")!");
                                 return -1;
                             }
                         }
                         nx = expected_nx;
                         ny = expected_ny;
                     } else {
-                        std::cerr << "ERROR: Only regular Gaussian grids (family 'F', e.g. 'F360') and regular lat-lon grids (family 'R', e.g. "
-                                     "'R360') are currently supported as structured CECE target grids."
-                                  << std::endl;
+                        CECE_LOG_ERROR(
+                            "Only regular Gaussian grids (family 'F', e.g. 'F360') and regular lat-lon grids (family 'R', e.g. "
+                            "'R360') are currently supported as structured CECE target grids.");
                         return -1;
                     }
                 } catch (const std::exception& e) {
-                    std::cerr << "ERROR: Failed to parse named grid '" << grid_name << "': " << e.what() << std::endl;
+                    CECE_LOG_ERROR("Failed to parse named grid '" + grid_name + "': " + e.what());
                     return -1;
                 }
             }
         }
 
         if (nx <= 0 || ny <= 0 || nz <= 0) {
-            std::cerr << "ERROR: driver.grid.nx, driver.grid.ny, and driver.grid.nz must be positive, or "
-                         "driver.grid.grid_name must specify a supported named grid."
-                      << std::endl;
+            CECE_LOG_ERROR(
+                "driver.grid.nx, driver.grid.ny, and driver.grid.nz must be positive, or "
+                "driver.grid.grid_name must specify a supported named grid.");
             return -1;
         }
 
@@ -221,7 +221,7 @@ int main(int argc, char* argv[]) {
                 std::sort(file_lats.begin(), file_lats.end());
                 has_file_coords = true;
             } catch (const std::exception& e) {
-                std::cerr << "ERROR: Failed to retrieve coordinates from named grid '" << grid_name << "': " << e.what() << std::endl;
+                CECE_LOG_ERROR("Failed to retrieve coordinates from named grid '" + grid_name + "': " + e.what());
                 return -1;
             }
         } else {
@@ -268,13 +268,11 @@ int main(int argc, char* argv[]) {
 
                 amio_status_t amio_rc = amio_init(read_manifest_path.c_str(), &coord_core);
                 if (amio_rc != AMIO_OK) {
-                    std::cerr << "ERROR: amio_init failed for coordinate manifest '" << read_manifest_path << "': " << amio_strerror(amio_rc)
-                              << std::endl;
+                    CECE_LOG_ERROR("amio_init failed for coordinate manifest '" + read_manifest_path + "': " + amio_strerror(amio_rc));
                 } else {
                     amio_rc = amio_open_dataset(coord_core, read_manifest_path.c_str(), AMIO_MODE_READ, &coord_dataset);
                     if (amio_rc != AMIO_OK) {
-                        std::cerr << "ERROR: amio_open_dataset failed for dataset '" << input_file_path << "': " << amio_strerror(amio_rc)
-                                  << std::endl;
+                        CECE_LOG_ERROR("amio_open_dataset failed for dataset '" + input_file_path + "': " + amio_strerror(amio_rc));
                     } else {
                         int file_nx = 0;
                         int file_ny = 0;
@@ -389,16 +387,16 @@ int main(int argc, char* argv[]) {
             }
 
             if (is_explicit_gridspec && !loaded_from_file) {
-                std::cerr << "FATAL ERROR: Failed to load gridspec coordinates from explicitly specified gridspec file '" << input_file_path << "'"
-                          << std::endl;
+                cece::LogFatal("[DRIVER FATAL] Failed to load gridspec coordinates from explicitly specified gridspec file '" + input_file_path +
+                               "'");
                 return -1;
             }
 
             if (!loaded_from_file) {
                 if (nx <= 0 || ny <= 0) {
-                    std::cerr << "ERROR: Grid dimensions (nx, ny) were not specified in driver.grid configuration and could not be determined from "
-                                 "input files!"
-                              << std::endl;
+                    CECE_LOG_ERROR(
+                        "Grid dimensions (nx, ny) were not specified in driver.grid configuration and could not be determined from "
+                        "input files!");
                     return -1;
                 }
 
@@ -423,7 +421,7 @@ int main(int argc, char* argv[]) {
         }
 
         if (nx <= 0 || ny <= 0 || nz <= 0) {
-            std::cerr << "ERROR: Invalid grid dimensions nx=" << nx << ", ny=" << ny << ", nz=" << nz << std::endl;
+            CECE_LOG_ERROR("Invalid grid dimensions nx=" + std::to_string(nx) + ", ny=" + std::to_string(ny) + ", nz=" + std::to_string(nz));
             return -1;
         }
         // 5. Initialize the cece_driver orchestrator facade

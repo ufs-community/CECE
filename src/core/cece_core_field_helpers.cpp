@@ -298,9 +298,14 @@ void cece_read_timing_config(const char* config_path, int path_len, char* start_
         // Parse config file
         conf::Config cfg = conf::Config::from_file(yaml_path);
 
-        // Default values
-        std::string start_default = cfg.get_or<std::string>("driver.start_time", "2020-01-01T00:00:00");
-        std::string end_default = cfg.get_or<std::string>("driver.end_time", "2020-01-01T06:00:00");
+        // Read timing configuration (start_time and end_time are required)
+        auto start_opt = cfg.try_string("driver.start_time");
+        auto end_opt = cfg.try_string("driver.end_time");
+        if (!start_opt.has_value() || !end_opt.has_value()) {
+            throw std::invalid_argument("Configuration missing required 'driver.start_time' and/or 'driver.end_time'");
+        }
+        std::string start_default = *start_opt;
+        std::string end_default = *end_opt;
         int timestep_default = cfg.get_or("driver.timestep_seconds", 3600);
 
         // Copy strings safely

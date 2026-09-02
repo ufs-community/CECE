@@ -70,23 +70,23 @@ void DMSScheme::Initialize(const conf::Value& config, CeceDiagnosticManager* dia
 
     if (config["schmidt_coeff"]) {
         auto sc = config["schmidt_coeff"];
-        if (sc.kind() == conf::Node_Kind::Sequence && sc.size() == 4) {
-            sc_c0_ = sc[0].as_double();
-            sc_c1_ = sc[1].as_double();
-            sc_c2_ = sc[2].as_double();
-            sc_c3_ = sc[3].as_double();
+        if (sc.kind() != conf::Node_Kind::Sequence || sc.size() != 4) {
+            throw std::invalid_argument("DMSScheme: 'schmidt_coeff' must be a sequence of 4 double values");
         }
+        sc_c0_ = sc[0].as_double();
+        sc_c1_ = sc[1].as_double();
+        sc_c2_ = sc[2].as_double();
+        sc_c3_ = sc[3].as_double();
     }
 
     if (config["kw_coeff"]) {
         auto kw = config["kw_coeff"];
-        if (kw.kind() == conf::Node_Kind::Sequence && kw.size() == 2) {
-            kw_c0_ = kw[0].as_double();
-            kw_c1_ = kw[1].as_double();
+        if (kw.kind() != conf::Node_Kind::Sequence || kw.size() != 2) {
+            throw std::invalid_argument("DMSScheme: 'kw_coeff' must be a sequence of 2 double values");
         }
+        kw_c0_ = kw[0].as_double();
+        kw_c1_ = kw[1].as_double();
     }
-
-    std::cout << "DMSScheme: Initialized." << "\n";
 }
 
 void DMSScheme::Run(CeceImportState& import_state, CeceExportState& export_state) {

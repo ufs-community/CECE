@@ -37,84 +37,45 @@ static PhysicsRegistration<MeganScheme> register_scheme("megan");
 void MeganScheme::Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
 
-    gamma_co2_coeff_1_ = 8.9406;
-    gamma_co2_coeff_2_ = 0.0024;
-    if (config["gamma_co2_coeff_1"]) gamma_co2_coeff_1_ = config["gamma_co2_coeff_1"].as_double();
-    if (config["gamma_co2_coeff_2"]) gamma_co2_coeff_2_ = config["gamma_co2_coeff_2"].as_double();
+    gamma_co2_coeff_1_ = config["gamma_co2_coeff_1"].double_or(8.9406);
+    gamma_co2_coeff_2_ = config["gamma_co2_coeff_2"].double_or(0.0024);
 
-    if (config["anew"]) anew_ = config["anew"].as_double();
-    if (config["agro"]) agro_ = config["agro"].as_double();
-    if (config["amat"]) amat_ = config["amat"].as_double();
-    if (config["aold"]) aold_ = config["aold"].as_double();
-    if (config["is_bidirectional"]) is_bidirectional_ = config["is_bidirectional"].as_bool();
-    if (config["use_wilkinson"]) use_wilkinson_ = config["use_wilkinson"].as_bool();
-    if (config["is_ald2_or_eoh"]) is_ald2_or_eoh_ = config["is_ald2_or_eoh"].as_bool();
+    anew_ = config["anew"].double_or(anew_);
+    agro_ = config["agro"].double_or(agro_);
+    amat_ = config["amat"].double_or(amat_);
+    aold_ = config["aold"].double_or(aold_);
+    is_bidirectional_ = config["is_bidirectional"].bool_or(is_bidirectional_);
+    use_wilkinson_ = config["use_wilkinson"].bool_or(use_wilkinson_);
+    is_ald2_or_eoh_ = config["is_ald2_or_eoh"].bool_or(is_ald2_or_eoh_);
 
-    double co2a = 400.0;
-    if (config["co2_concentration"]) {
-        co2a = config["co2_concentration"].as_double();
-    }
+    double co2a = config["co2_concentration"].double_or(400.0);
     gamma_co2_ = get_gamma_co2(co2a, gamma_co2_coeff_1_, gamma_co2_coeff_2_, use_wilkinson_);
 
-    beta_ = 0.13;
-    ct1_ = 95.0;
-    ceo_ = 2.0;
-    ldf_ = 1.0;
+    beta_ = config["beta"].double_or(0.13);
+    ct1_ = config["ct1"].double_or(95.0);
+    ceo_ = config["ceo"].double_or(2.0);
+    ldf_ = config["ldf"].double_or(1.0);
 
-    aef_ = 1.0e-9;
-    if (config["aef"]) {
-        aef_ = config["aef"].as_double();
-    } else if (config["aef_isop"]) {  // Fallback for backward compatibility
-        aef_ = config["aef_isop"].as_double();
-    }
+    aef_ = config["aef"].double_or(config["aef_isop"].double_or(1.0e-9));
 
-    species_name_ = "isoprene";
-    if (config["species_name"]) {
-        species_name_ = config["species_name"].as_string();
-    }
+    species_name_ = config["species_name"].string_or("isoprene");
+    export_field_name_ = config["export_field_name"].string_or(species_name_ + "_emissions");
 
-    export_field_name_ = species_name_ + "_emissions";
-    if (config["export_field_name"]) {
-        export_field_name_ = config["export_field_name"].as_string();
-    }
-
-    lai_coeff_1_ = 0.49;
-    lai_coeff_2_ = 0.2;
-    standard_temp_ = 303.0;
-    gas_constant_ = 8.3144598e-3;
-    ct2_const_ = 200.0;
-    t_opt_coeff_1_ = 313.0;
-    t_opt_coeff_2_ = 0.6;
-    e_opt_coeff_ = 0.08;
-    wm2_to_umolm2s_ = 4.766;
-    ptoa_coeff_1_ = 3000.0;
-    ptoa_coeff_2_ = 99.0;
-    gamma_p_coeff_1_ = 1.0;
-    gamma_p_coeff_2_ = 0.0005;
-    gamma_p_coeff_3_ = 2.46;
-    gamma_p_coeff_4_ = 0.9;
-
-    if (config["beta"]) beta_ = config["beta"].as_double();
-    if (config["ct1"]) ct1_ = config["ct1"].as_double();
-    if (config["ceo"]) ceo_ = config["ceo"].as_double();
-    if (config["ldf"]) ldf_ = config["ldf"].as_double();
-    if (config["lai_coeff_1"]) lai_coeff_1_ = config["lai_coeff_1"].as_double();
-    if (config["lai_coeff_2"]) lai_coeff_2_ = config["lai_coeff_2"].as_double();
-    if (config["standard_temp"]) standard_temp_ = config["standard_temp"].as_double();
-    if (config["gas_constant"]) gas_constant_ = config["gas_constant"].as_double();
-    if (config["ct2_const"]) ct2_const_ = config["ct2_const"].as_double();
-    if (config["t_opt_coeff_1"]) t_opt_coeff_1_ = config["t_opt_coeff_1"].as_double();
-    if (config["t_opt_coeff_2"]) t_opt_coeff_2_ = config["t_opt_coeff_2"].as_double();
-    if (config["e_opt_coeff"]) e_opt_coeff_ = config["e_opt_coeff"].as_double();
-    if (config["wm2_to_umolm2s"]) wm2_to_umolm2s_ = config["wm2_to_umolm2s"].as_double();
-    if (config["ptoa_coeff_1"]) ptoa_coeff_1_ = config["ptoa_coeff_1"].as_double();
-    if (config["ptoa_coeff_2"]) ptoa_coeff_2_ = config["ptoa_coeff_2"].as_double();
-    if (config["gamma_p_coeff_1"]) gamma_p_coeff_1_ = config["gamma_p_coeff_1"].as_double();
-    if (config["gamma_p_coeff_2"]) gamma_p_coeff_2_ = config["gamma_p_coeff_2"].as_double();
-    if (config["gamma_p_coeff_3"]) gamma_p_coeff_3_ = config["gamma_p_coeff_3"].as_double();
-    if (config["gamma_p_coeff_4"]) gamma_p_coeff_4_ = config["gamma_p_coeff_4"].as_double();
-
-    std::cout << "MeganScheme: Initialized. GAMMA_CO2=" << gamma_co2_ << "\n";
+    lai_coeff_1_ = config["lai_coeff_1"].double_or(0.49);
+    lai_coeff_2_ = config["lai_coeff_2"].double_or(0.2);
+    standard_temp_ = config["standard_temp"].double_or(303.0);
+    gas_constant_ = config["gas_constant"].double_or(8.3144598e-3);
+    ct2_const_ = config["ct2_const"].double_or(200.0);
+    t_opt_coeff_1_ = config["t_opt_coeff_1"].double_or(313.0);
+    t_opt_coeff_2_ = config["t_opt_coeff_2"].double_or(0.6);
+    e_opt_coeff_ = config["e_opt_coeff"].double_or(0.08);
+    wm2_to_umolm2s_ = config["wm2_to_umolm2s"].double_or(4.766);
+    ptoa_coeff_1_ = config["ptoa_coeff_1"].double_or(3000.0);
+    ptoa_coeff_2_ = config["ptoa_coeff_2"].double_or(99.0);
+    gamma_p_coeff_1_ = config["gamma_p_coeff_1"].double_or(1.0);
+    gamma_p_coeff_2_ = config["gamma_p_coeff_2"].double_or(0.0005);
+    gamma_p_coeff_3_ = config["gamma_p_coeff_3"].double_or(2.46);
+    gamma_p_coeff_4_ = config["gamma_p_coeff_4"].double_or(0.9);
 }
 
 void MeganScheme::Run(CeceImportState& import_state, CeceExportState& export_state) {

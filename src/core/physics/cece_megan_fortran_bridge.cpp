@@ -57,9 +57,7 @@ static PhysicsRegistration<MeganFortranScheme> register_scheme("megan_fortran");
  * @param config YAML configuration node (unused for Fortran version)
  * @param diag_manager Diagnostic manager for output handling (unused)
  */
-void MeganFortranScheme::Initialize(const conf::Value& /*config*/, CeceDiagnosticManager* /*diag_manager*/) {
-    std::cout << "MeganFortranScheme: Initialized." << "\n";
-}
+void MeganFortranScheme::Initialize(const conf::Value& /*config*/, CeceDiagnosticManager* /*diag_manager*/) {}
 
 /**
  * @brief Execute MEGAN biogenic emission calculations using Fortran implementation.

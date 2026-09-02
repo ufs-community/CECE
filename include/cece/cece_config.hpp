@@ -23,12 +23,44 @@
 namespace cece {
 
 /**
+ * @enum SchemeLanguage
+ * @brief Implementation language for a physics scheme.
+ */
+enum class SchemeLanguage : std::uint8_t {
+    CPP,      ///< C++ implementation
+    FORTRAN,  ///< Fortran implementation
+    PYTHON,   ///< Python implementation
+    UNKNOWN   ///< Unspecified / unknown language
+};
+
+inline SchemeLanguage StringToSchemeLanguage(std::string_view lang) {
+    if (lang == "cpp" || lang == "c++" || lang == "cxx" || lang.empty()) return SchemeLanguage::CPP;
+    if (lang == "fortran" || lang == "f90" || lang == "f") return SchemeLanguage::FORTRAN;
+    if (lang == "python" || lang == "py") return SchemeLanguage::PYTHON;
+    return SchemeLanguage::UNKNOWN;
+}
+
+inline std::string_view SchemeLanguageToString(SchemeLanguage lang) {
+    switch (lang) {
+        case SchemeLanguage::CPP:
+            return "cpp";
+        case SchemeLanguage::FORTRAN:
+            return "fortran";
+        case SchemeLanguage::PYTHON:
+            return "python";
+        default:
+            return "unknown";
+    }
+}
+
+/**
  * @struct PhysicsSchemeConfig
  * @brief Configuration for a physics scheme.
  */
 struct PhysicsSchemeConfig {
     std::string name;                                      ///< Name of the physics scheme.
-    std::string language;                                  ///< Implementation language (e.g., "cpp", "fortran").
+    std::string language = "cpp";                          ///< Implementation language string (e.g., "cpp", "fortran").
+    SchemeLanguage language_type = SchemeLanguage::CPP;    ///< Implementation language enum.
     conf::Value options = conf::Value::from_raw(nullptr);  ///< Scheme-specific options.
     int refresh_interval_seconds = 0;                      ///< Refresh interval in seconds (0 means use base timestep).
 };

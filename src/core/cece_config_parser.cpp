@@ -42,21 +42,27 @@ CeceConfig ParseConfig(const std::string& filename) {
                 layer.weekly_cycle = string_or(node, "weekly_cycle");
                 layer.seasonal_cycle = string_or(node, "seasonal_cycle");
                 conf::Value vdist = node["vdist"];
-                std::string method = string_or(vdist, "method");
-                if (method == "range")
-                    layer.vdist_method = VerticalDistributionMethod::RANGE;
-                else if (method == "pressure")
-                    layer.vdist_method = VerticalDistributionMethod::PRESSURE;
-                else if (method == "height")
-                    layer.vdist_method = VerticalDistributionMethod::HEIGHT;
-                else if (method == "pbl")
-                    layer.vdist_method = VerticalDistributionMethod::PBL;
-                layer.vdist_layer_start = vdist["layer_start"].int_or(layer.vdist_layer_start);
-                layer.vdist_layer_end = vdist["layer_end"].int_or(layer.vdist_layer_end);
-                layer.vdist_p_start = vdist["p_start"].double_or(layer.vdist_p_start);
-                layer.vdist_p_end = vdist["p_end"].double_or(layer.vdist_p_end);
-                layer.vdist_h_start = vdist["h_start"].double_or(layer.vdist_h_start);
-                layer.vdist_h_end = vdist["h_end"].double_or(layer.vdist_h_end);
+                if (vdist && vdist.is_defined()) {
+                    std::string method = string_or(vdist, "method");
+                    if (method == "single" || method.empty())
+                        layer.vdist_method = VerticalDistributionMethod::SINGLE;
+                    else if (method == "range")
+                        layer.vdist_method = VerticalDistributionMethod::RANGE;
+                    else if (method == "pressure")
+                        layer.vdist_method = VerticalDistributionMethod::PRESSURE;
+                    else if (method == "height")
+                        layer.vdist_method = VerticalDistributionMethod::HEIGHT;
+                    else if (method == "pbl")
+                        layer.vdist_method = VerticalDistributionMethod::PBL;
+                    else
+                        throw std::invalid_argument("Unknown vertical distribution method '" + method + "' in species '" + species_name + "'");
+                    layer.vdist_layer_start = vdist["layer_start"].int_or(layer.vdist_layer_start);
+                    layer.vdist_layer_end = vdist["layer_end"].int_or(layer.vdist_layer_end);
+                    layer.vdist_p_start = vdist["p_start"].double_or(layer.vdist_p_start);
+                    layer.vdist_p_end = vdist["p_end"].double_or(layer.vdist_p_end);
+                    layer.vdist_h_start = vdist["h_start"].double_or(layer.vdist_h_start);
+                    layer.vdist_h_end = vdist["h_end"].double_or(layer.vdist_h_end);
+                }
                 layers.push_back(std::move(layer));
             }
             config.species_layers[species_name] = std::move(layers);
@@ -89,7 +95,8 @@ CeceConfig ParseConfig(const std::string& filename) {
         conf::Value node = schemes[i];
         PhysicsSchemeConfig scheme;
         scheme.name = node["name"].as_string();
-        scheme.language = string_or(node, "language");
+        scheme.language = string_or(node, "language", "cpp");
+        scheme.language_type = StringToSchemeLanguage(scheme.language);
         if (node["options"]) scheme.options = node["options"];
         scheme.refresh_interval_seconds = node["refresh_interval_seconds"].int_or(0);
         config.physics_schemes.push_back(std::move(scheme));
@@ -110,18 +117,24 @@ CeceConfig ParseConfig(const std::string& filename) {
     }
 
     conf::Value vertical = root["vertical_grid"];
-    std::string type = string_or(vertical, "type");
-    if (type == "fv3")
-        config.vertical_config.type = VerticalCoordType::FV3;
-    else if (type == "mpas")
-        config.vertical_config.type = VerticalCoordType::MPAS;
-    else if (type == "wrf")
-        config.vertical_config.type = VerticalCoordType::WRF;
-    config.vertical_config.ak_field = string_or(vertical, "ak_field", config.vertical_config.ak_field);
-    config.vertical_config.bk_field = string_or(vertical, "bk_field", config.vertical_config.bk_field);
-    config.vertical_config.p_surf_field = string_or(vertical, "p_surf_field", config.vertical_config.p_surf_field);
-    config.vertical_config.z_field = string_or(vertical, "z_field", config.vertical_config.z_field);
-    config.vertical_config.pbl_field = string_or(vertical, "pbl_field", config.vertical_config.pbl_field);
+    if (vertical && vertical.is_defined()) {
+        std::string type = string_or(vertical, "type");
+        if (type == "fv3")
+            config.vertical_config.type = VerticalCoordType::FV3;
+        else if (type == "mpas")
+            config.vertical_config.type = VerticalCoordType::MPAS;
+        else if (type == "wrf")
+            config.vertical_config.type = VerticalCoordType::WRF;
+        else if (type == "none" || type.empty())
+            config.vertical_config.type = VerticalCoordType::NONE;
+        else
+            throw std::invalid_argument("Unknown vertical_grid type: '" + type + "'. Supported types: 'fv3', 'mpas', 'wrf', 'none'");
+        config.vertical_config.ak_field = string_or(vertical, "ak_field", config.vertical_config.ak_field);
+        config.vertical_config.bk_field = string_or(vertical, "bk_field", config.vertical_config.bk_field);
+        config.vertical_config.p_surf_field = string_or(vertical, "p_surf_field", config.vertical_config.p_surf_field);
+        config.vertical_config.z_field = string_or(vertical, "z_field", config.vertical_config.z_field);
+        config.vertical_config.pbl_field = string_or(vertical, "pbl_field", config.vertical_config.pbl_field);
+    }
 
     conf::Value data = root["cece_data"];
     if (data) {

@@ -26,8 +26,6 @@ void GinouxFortranScheme::Initialize(const conf::Value& config, CeceDiagnosticMa
     if (config["ch_du"]) ch_du_ = config["ch_du"].as_double();
     if (config["grav"]) grav_ = config["grav"].as_double();
     if (config["num_bins"]) num_bins_ = config["num_bins"].as_int();
-
-    std::cout << "GinouxFortranScheme: Initialized." << "\n";
 }
 
 void GinouxFortranScheme::Run(CeceImportState& import_state, CeceExportState& export_state) {

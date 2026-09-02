@@ -15,9 +15,7 @@ namespace cece {
 static PhysicsRegistration<SeaSaltFortranScheme> register_scheme("sea_salt_fortran");
 #endif
 
-void SeaSaltFortranScheme::Initialize(const conf::Value& /*config*/, CeceDiagnosticManager* /*diag_manager*/) {
-    std::cout << "SeaSaltFortranScheme: Initialized." << "\n";
-}
+void SeaSaltFortranScheme::Initialize(const conf::Value& /*config*/, CeceDiagnosticManager* /*diag_manager*/) {}
 
 void SeaSaltFortranScheme::Run(CeceImportState& import_state, CeceExportState& export_state) {
     auto it_u10 = import_state.fields.find("wind_speed_10m");

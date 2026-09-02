@@ -11,7 +11,7 @@
 
 namespace cece {
 
-SpeciationConfig SpeciationConfigLoader::Load(const std::string& mechanism_path, const std::string& mapping_path, const std::string& dataset) {
+SpeciationConfig SpeciationConfigLoader::Load(const std::string& mechanism_path, const std::string& mapping_path, const std::string& dataset) const {
     if (!std::filesystem::exists(mechanism_path)) throw std::runtime_error("Mechanism file not found: " + mechanism_path);
     if (!std::filesystem::exists(mapping_path)) throw std::runtime_error("Mapping file not found: " + mapping_path);
 
@@ -23,7 +23,7 @@ SpeciationConfig SpeciationConfigLoader::Load(const std::string& mechanism_path,
     return config;
 }
 
-SpeciationConfig SpeciationConfigLoader::ParseMechanism(const conf::Value& node) {
+SpeciationConfig SpeciationConfigLoader::ParseMechanism(const conf::Value& node) const {
     SpeciationConfig config;
     if (!node["name"]) throw std::invalid_argument("Mechanism file missing required 'name' key");
     config.mechanism_name = node["name"].as_string();
@@ -43,7 +43,7 @@ SpeciationConfig SpeciationConfigLoader::ParseMechanism(const conf::Value& node)
     return config;
 }
 
-void SpeciationConfigLoader::ParseMapping(const conf::Value& node, SpeciationConfig& config, const std::string& dataset) {
+void SpeciationConfigLoader::ParseMapping(const conf::Value& node, SpeciationConfig& config, const std::string& dataset) const {
     if (!node["mechanism"]) throw std::invalid_argument("Mapping file missing required 'mechanism' key");
     conf::Value datasets = node["datasets"];
     if (!datasets || datasets.kind() != conf::Node_Kind::Map) throw std::invalid_argument("Mapping file missing required 'datasets' section");
@@ -76,7 +76,7 @@ void SpeciationConfigLoader::ParseMapping(const conf::Value& node, SpeciationCon
     }
 }
 
-void SpeciationConfigLoader::Validate(const SpeciationConfig& config) {
+void SpeciationConfigLoader::Validate(const SpeciationConfig& config) const {
     std::unordered_set<std::string> species_names;
     for (const auto& species : config.species) species_names.insert(species.name);
     std::vector<std::string> unknown;
@@ -97,6 +97,7 @@ void SpeciationConfigLoader::Validate(const SpeciationConfig& config) {
 }
 
 std::string SpeciationConfigLoader::ToYaml(const SpeciationConfig& config) {
+    // Direct stream formatting avoids reintroducing yaml-cpp emitter dependency
     std::ostringstream out;
     out << "name: \"" << config.mechanism_name << "\"\nspecies:\n";
     for (const auto& species : config.species) {
