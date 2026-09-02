@@ -7,9 +7,13 @@
  */
 
 #include <conf/value.hpp>
+#include <initializer_list>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include "cece/cece_diagnostics.hpp"
 #include "cece/cece_state.hpp"
@@ -95,6 +99,25 @@ class BasePhysicsScheme : public PhysicsScheme {
     }
 
    protected:
+    /**
+     * @brief Fails with the names of every required field that is unavailable.
+     */
+    static void RequireFields(const std::string& context, std::initializer_list<std::pair<std::string, bool>> fields) {
+        std::string missing_fields;
+        for (const auto& [name, available] : fields) {
+            if (!available) {
+                if (!missing_fields.empty()) {
+                    missing_fields += ", ";
+                }
+                missing_fields += "'" + name + "'";
+            }
+        }
+
+        if (!missing_fields.empty()) {
+            throw std::runtime_error(context + " missing required field(s): " + missing_fields);
+        }
+    }
+
     /**
      * @brief Maps an internal input name to an external field name.
      */

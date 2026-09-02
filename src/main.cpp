@@ -166,21 +166,21 @@ int main(int argc, char* argv[]) {
 
         // Phase 1: Allocate internal structures (StackingEngine, DiagnosticManager)
         cece_core_initialize_p1(&cece_data_ptr, &rc);
-        if (rc != 0) {
+        if (rc < 0) {
             cece::LogFatal("[DRIVER FATAL] (rank " + std::to_string(my_rank) + ") cece_core_initialize_p1 failed with rc=" + std::to_string(rc));
             return rc;
         }
 
         // Realize: Validate and lock configuration
         cece_core_realize(cece_data_ptr, &rc);
-        if (rc != 0) {
+        if (rc < 0) {
             cece::LogFatal("[DRIVER FATAL] (rank " + std::to_string(my_rank) + ") cece_core_realize failed with rc=" + std::to_string(rc));
             return rc;
         }
 
         // Phase 2: Complete grid-binding (dynamically sized)
         cece_core_initialize_p2(cece_data_ptr, &nx, &ny, &nz, &rc);
-        if (rc != 0) {
+        if (rc < 0) {
             cece::LogFatal("[DRIVER FATAL] (rank " + std::to_string(my_rank) + ") cece_core_initialize_p2 failed with rc=" + std::to_string(rc));
             return rc;
         }
@@ -195,7 +195,7 @@ int main(int argc, char* argv[]) {
             export_fields_mem[field.name] = std::vector<double>(static_cast<std::size_t>(nx) * ny * nz, 0.0);
             cece_core_set_export_field(cece_data_ptr, field.name.c_str(), static_cast<int>(field.name.length()), export_fields_mem[field.name].data(),
                                        nx, ny, nz, &rc);
-            if (rc != 0) {
+            if (rc < 0) {
                 cece::LogFatal("[DRIVER FATAL] (rank " + std::to_string(my_rank) + ") cece_core_set_export_field failed for '" + field.name +
                                "' with rc=" + std::to_string(rc));
                 return rc;
@@ -430,7 +430,7 @@ int main(int argc, char* argv[]) {
         cece_driver_create(config_file.c_str(), static_cast<int>(config_file.length()), nx, ny, nz, file_lons.data(),
                            static_cast<int>(file_lons.size()), file_lats.data(), static_cast<int>(file_lats.size()), mpi_comm_f, &cece_driver_data,
                            &rc);
-        if (rc != 0) {
+        if (rc < 0) {
             cece::LogFatal("[DRIVER FATAL] (rank " + std::to_string(my_rank) + ") cece_driver_create failed with rc=" + std::to_string(rc));
             return rc;
         }
@@ -444,7 +444,7 @@ int main(int argc, char* argv[]) {
         } else {
             cece_core_writer_initialize(cece_data_ptr, nx, ny, nz, start_time_str.c_str(), start_time_str.length(), writer_comm_f, &rc);
         }
-        if (rc != 0) {
+        if (rc < 0) {
             cece::LogFatal("[DRIVER FATAL] (rank " + std::to_string(my_rank) + ") Writer initialization failed with rc=" + std::to_string(rc));
             return rc;
         }
@@ -468,7 +468,7 @@ int main(int argc, char* argv[]) {
 
             // A. Let cece_driver handle all offline AMIO reading and AXIS regridding:
             cece_driver_advance_time(cece_driver_data, time_str.c_str(), static_cast<int>(time_str.length()), cece_data_ptr, &rc);
-            if (rc != 0) {
+            if (rc < 0) {
                 // Emit on both the log (real stdout, all ranks) and stderr so the
                 // failure is never lost regardless of how output is captured.
                 cece::LogFatal("[DRIVER FATAL] (rank " + std::to_string(my_rank) +
@@ -480,7 +480,8 @@ int main(int argc, char* argv[]) {
             int hour = current_dt.hour;
             int day_of_week = 1;  // Default Monday/Tuesday
             cece_core_run(cece_data_ptr, hour, day_of_week, &rc);
-            if (rc != 0) {
+            const bool simulation_complete = (rc == 1);
+            if (rc < 0) {
                 cece::LogFatal("[DRIVER FATAL] (rank " + std::to_string(my_rank) + ") cece_core_run failed with rc=" + std::to_string(rc));
                 throw std::runtime_error("cece_core_run failed");
             }
@@ -493,9 +494,13 @@ int main(int argc, char* argv[]) {
 
             // C. Write output timestep via standalone writer
             cece_core_write_step(cece_data_ptr, elapsed_seconds, step_index, &rc);
-            if (rc != 0) {
+            if (rc < 0) {
                 cece::LogFatal("[DRIVER FATAL] (rank " + std::to_string(my_rank) + ") cece_core_write_step failed with rc=" + std::to_string(rc));
                 throw std::runtime_error("cece_core_write_step failed");
+            }
+
+            if (simulation_complete) {
+                break;
             }
         }
 
@@ -506,7 +511,7 @@ int main(int argc, char* argv[]) {
 
         cece_driver_destroy(cece_driver_data);
         cece_core_finalize(cece_data_ptr, &rc);
-        if (rc != 0) {
+        if (rc < 0) {
             cece::LogFatal("[DRIVER FATAL] (rank " + std::to_string(my_rank) + ") cece_core_finalize failed with rc=" + std::to_string(rc));
             return rc;
         }

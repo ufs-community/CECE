@@ -25,6 +25,7 @@ struct StreamVarConfig {
     std::string data_model = "enhanced";
     bool data_model_explicit = false;
     int amio_threads = 1;
+    int amio_staging_buffer_count = 8;
 };
 class CeceDriverOrchestrator {
    public:
@@ -41,6 +42,12 @@ class CeceDriverOrchestrator {
     bool AdvanceTime(const std::string& time_iso8601, void* cece_core_data_ptr);
 
    private:
+    using DeviceView3D = Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>;
+
+    bool AssembleReplicatedField(const std::string& var_name, const io::RegridPlan& plan, const std::vector<double>& source, int file_nx, int file_ny,
+                                 int field_nlev, DeviceView3D stream_view, void* cece_core_data_ptr, std::vector<double>& ingest_buffer,
+                                 std::string& failure_detail);
+
     std::string config_file_;
     int nx_{0}, ny_{0}, nz_{0};
     std::vector<double> target_lons_;

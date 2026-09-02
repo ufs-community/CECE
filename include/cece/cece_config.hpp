@@ -430,6 +430,7 @@ struct DriverConfig {
     DriverGridConfig grid;  ///< Grid configuration for generated Gaussian grid.
     int stacking_refresh_interval_seconds = 0;  ///< Stacking engine refresh interval in seconds (0 means use base timestep).
     int amio_worker_threads = 1;                ///< Number of AMIO background I/O worker threads (default: 1).
+    int amio_staging_buffer_count = 8;          ///< Number of AMIO input staging buffers (default: 8).
 };
 
 /**

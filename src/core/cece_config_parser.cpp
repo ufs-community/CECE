@@ -197,8 +197,7 @@ CeceConfig ParseConfig(const std::string& filename) {
         if (output["amio_worker_threads"]) {
             int threads = output["amio_worker_threads"].as_int();
             if (threads < 1) {
-                std::cerr << "WARNING: Invalid output amio_worker_threads: " << threads << ". Must be >= 1. Defaulting to 1.\n";
-                threads = 1;
+                throw std::invalid_argument("output.amio_worker_threads must be >= 1; got " + std::to_string(threads) + ".");
             }
             config.output_config.amio_worker_threads = threads;
         }
@@ -219,7 +218,20 @@ CeceConfig ParseConfig(const std::string& filename) {
         config.driver_config.grid.lat_min = grid["lat_min"].double_or(config.driver_config.grid.lat_min);
         config.driver_config.grid.lat_max = grid["lat_max"].double_or(config.driver_config.grid.lat_max);
         config.driver_config.stacking_refresh_interval_seconds = driver["stacking_refresh_interval_seconds"].int_or(0);
-        config.driver_config.amio_worker_threads = std::max(1, driver["amio_worker_threads"].int_or(1));
+        if (driver["amio_worker_threads"]) {
+            int threads = driver["amio_worker_threads"].as_int();
+            if (threads < 1) {
+                throw std::invalid_argument("driver.amio_worker_threads must be >= 1; got " + std::to_string(threads) + ".");
+            }
+            config.driver_config.amio_worker_threads = threads;
+        }
+        if (driver["amio_staging_buffer_count"]) {
+            int count = driver["amio_staging_buffer_count"].as_int();
+            if (count < 1) {
+                throw std::invalid_argument("driver.amio_staging_buffer_count must be >= 1; got " + std::to_string(count) + ".");
+            }
+            config.driver_config.amio_staging_buffer_count = count;
+        }
     }
     config.output_config.fields.SetTimeUnits(config.driver_config.start_time);
     return config;

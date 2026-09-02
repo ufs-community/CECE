@@ -166,10 +166,6 @@ TEST_F(PhysicsTest, Megan3CppFortranParity) {
     TestParity(this, "megan3", "megan3_fortran", "MEGAN_ISOP");
 }
 
-TEST_F(PhysicsTest, BdsnpCppFortranParity) {
-    TestParity(this, "bdsnp", "bdsnp_fortran", "soil_nox_emissions");
-}
-
 // Vertical Distribution Verification
 TEST_F(PhysicsTest, SurfaceEmissionVerticalDistribution) {
     std::vector<std::string> schemes = {"sea_salt", "megan", "dms", "dust", "soil_nox"};

@@ -190,7 +190,13 @@ CeceDriverOrchestrator::CeceDriverOrchestrator(const std::string& config_file, i
         gridspec_file_ = cfg.get_or<std::string>("driver.gridspec_file", "");
 
         int amio_threads = cfg.get_or("driver.amio_worker_threads", 1);
-        if (amio_threads < 1) amio_threads = 1;
+        if (amio_threads < 1) {
+            throw std::invalid_argument("driver.amio_worker_threads must be >= 1; got " + std::to_string(amio_threads) + ".");
+        }
+        int amio_staging_buffer_count = cfg.get_or("driver.amio_staging_buffer_count", 8);
+        if (amio_staging_buffer_count < 1) {
+            throw std::invalid_argument("driver.amio_staging_buffer_count must be >= 1; got " + std::to_string(amio_staging_buffer_count) + ".");
+        }
 
         // Cache per-variable stream configuration
         if (cfg.has("cece_data.streams")) {
@@ -235,6 +241,7 @@ CeceDriverOrchestrator::CeceDriverOrchestrator(const std::string& config_file, i
                     svc.data_model = data_model;
                     svc.data_model_explicit = data_model_explicit;
                     svc.amio_threads = amio_threads;
+                    svc.amio_staging_buffer_count = amio_staging_buffer_count;
                     stream_var_configs_[model_name] = svc;
                 }
             }
@@ -302,6 +309,7 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
         std::string tintalgo = "nearest";
         bool stream_data_model_explicit = false;
         int amio_threads = 1;
+        int amio_staging_buffer_count = 8;
 
         auto cfg_it = stream_var_configs_.find(var_name);
         if (cfg_it != stream_var_configs_.end()) {
@@ -314,6 +322,7 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
             stream_data_model = svc.data_model;
             stream_data_model_explicit = svc.data_model_explicit;
             amio_threads = svc.amio_threads;
+            amio_staging_buffer_count = svc.amio_staging_buffer_count;
         }
 
         if (input_file_path.empty()) {
@@ -375,7 +384,7 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                        << "path: " << input_file_path << "\n"
                        << "data_model: " << candidate_model << "\n"
                        << "staging_pool:\n"
-                       << "  buffer_count: 8\n"
+                       << "  buffer_count: " << amio_staging_buffer_count << "\n"
                        << "  buffer_capacity_bytes: 268435456\n"
                        << "worker_pool:\n"
                        << "  threads: " << amio_threads << "\n"

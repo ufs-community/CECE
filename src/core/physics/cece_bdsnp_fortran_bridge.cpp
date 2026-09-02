@@ -18,6 +18,7 @@
 
 #include <Kokkos_Core.hpp>
 #include <iostream>
+#include <stdexcept>
 
 #include "cece/cece_physics_factory.hpp"
 #include "cece/physics/cece_bdsnp_fortran.hpp"
@@ -78,7 +79,9 @@ void BdsnpFortranScheme::Run(CeceImportState& import_state, CeceExportState& exp
     auto it_soil_nox = export_state.fields.find(MapOutput("soil_nox_emissions"));
 
     if (it_temp == import_state.fields.end() || it_moisture == import_state.fields.end() || it_soil_nox == export_state.fields.end()) {
-        return;
+        throw std::runtime_error(
+            "BdsnpFortranScheme requires imports 'soil_temperature' and "
+            "'soil_moisture' plus export 'soil_nox_emissions'");
     }
 
     auto& dv_temp = it_temp->second;

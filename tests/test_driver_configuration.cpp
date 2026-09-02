@@ -20,8 +20,10 @@
 #include <ctime>
 #include <fstream>
 #include <sstream>
+#include <stdexcept>
 
 #include "cece/cece_config.hpp"
+#include "cece/cece_driver_facade.hpp"
 
 using namespace cece;
 
@@ -37,6 +39,27 @@ static void WriteConfigFile(const std::string& path, const std::string& content)
 
 static void DeleteFile(const std::string& path) {
     std::remove(path.c_str());
+}
+
+static void ExpectConfigInvalidArgument(const std::string& path, const std::string& content, const std::string& expected_message) {
+    WriteConfigFile(path, content);
+    try {
+        (void)ParseConfig(path);
+        FAIL() << "Expected ParseConfig to reject: " << content;
+    } catch (const std::invalid_argument& error) {
+        EXPECT_EQ(error.what(), expected_message);
+    }
+}
+
+static void ExpectFacadeInvalidArgument(const std::string& path, const std::string& content, const std::string& expected_message) {
+    WriteConfigFile(path, content);
+    constexpr double coordinate = 0.0;
+    try {
+        CeceDriverOrchestrator driver(path, 1, 1, 1, &coordinate, 1, &coordinate, 1, MPI_COMM_NULL);
+        FAIL() << "Expected the direct driver facade to reject: " << content;
+    } catch (const std::invalid_argument& error) {
+        EXPECT_EQ(error.what(), expected_message);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -259,7 +282,7 @@ species:
 }
 
 TEST_F(DriverConfigurationTest, ParseAmioWorkerThreads) {
-    // 1. Verify custom positive values are successfully parsed
+    // 1. Verify custom positive values are successfully parsed.
     WriteConfigFile(test_config_file, R"(
 driver:
   start_time: "2010-01-01T00:00:00"
@@ -281,29 +304,7 @@ physics_schemes:
     CeceConfig config = ParseConfig(test_config_file);
     EXPECT_EQ(config.driver_config.amio_worker_threads, 4);
 
-    // 2. Verify invalid (0 or negative) values are clamped to 1
-    WriteConfigFile(test_config_file, R"(
-driver:
-  start_time: "2010-01-01T00:00:00"
-  end_time: "2010-01-01T23:00:00"
-  timestep_seconds: 3600
-  amio_worker_threads: -3
-
-species:
-  CO:
-    - operation: add
-      field: CO_anthro
-      hierarchy: 0
-      scale: 1.0
-
-physics_schemes:
-  - name: NativeExample
-    language: cpp
-)");
-    config = ParseConfig(test_config_file);
-    EXPECT_EQ(config.driver_config.amio_worker_threads, 1);
-
-    // 3. Verify omitted values default to 1
+    // 2. Verify omitted values retain the default of 1.
     WriteConfigFile(test_config_file, R"(
 driver:
   start_time: "2010-01-01T00:00:00"
@@ -325,8 +326,53 @@ physics_schemes:
     EXPECT_EQ(config.driver_config.amio_worker_threads, 1);
 }
 
+TEST_F(DriverConfigurationTest, RejectNonpositiveDriverAmioWorkerThreads) {
+    for (const int threads : {0, -3}) {
+        const std::string yaml = "driver:\n  amio_worker_threads: " + std::to_string(threads) + "\nphysics_schemes: []\n";
+        ExpectConfigInvalidArgument(test_config_file, yaml, "driver.amio_worker_threads must be >= 1; got " + std::to_string(threads) + ".");
+    }
+}
+
+TEST_F(DriverConfigurationTest, DirectFacadeRejectsNonpositiveAmioWorkerThreads) {
+    for (const int threads : {0, -3}) {
+        const std::string yaml = "driver:\n  amio_worker_threads: " + std::to_string(threads) + "\nphysics_schemes: []\n";
+        ExpectFacadeInvalidArgument(test_config_file, yaml, "driver.amio_worker_threads must be >= 1; got " + std::to_string(threads) + ".");
+    }
+}
+
+TEST_F(DriverConfigurationTest, ParseAmioStagingBufferCount) {
+    WriteConfigFile(test_config_file, R"(
+driver:
+  amio_staging_buffer_count: 16
+physics_schemes: []
+)");
+    CeceConfig config = ParseConfig(test_config_file);
+    EXPECT_EQ(config.driver_config.amio_staging_buffer_count, 16);
+
+    WriteConfigFile(test_config_file, R"(
+driver: {}
+physics_schemes: []
+)");
+    config = ParseConfig(test_config_file);
+    EXPECT_EQ(config.driver_config.amio_staging_buffer_count, 8);
+}
+
+TEST_F(DriverConfigurationTest, RejectNonpositiveAmioStagingBufferCount) {
+    for (const int count : {0, -3}) {
+        const std::string yaml = "driver:\n  amio_staging_buffer_count: " + std::to_string(count) + "\nphysics_schemes: []\n";
+        ExpectConfigInvalidArgument(test_config_file, yaml, "driver.amio_staging_buffer_count must be >= 1; got " + std::to_string(count) + ".");
+    }
+}
+
+TEST_F(DriverConfigurationTest, DirectFacadeRejectsNonpositiveAmioStagingBufferCount) {
+    for (const int count : {0, -3}) {
+        const std::string yaml = "driver:\n  amio_staging_buffer_count: " + std::to_string(count) + "\nphysics_schemes: []\n";
+        ExpectFacadeInvalidArgument(test_config_file, yaml, "driver.amio_staging_buffer_count must be >= 1; got " + std::to_string(count) + ".");
+    }
+}
+
 TEST_F(DriverConfigurationTest, ParseAmioWorkerThreadsOutput) {
-    // 1. Verify custom positive values parse correctly in output block
+    // 1. Verify custom positive values parse correctly in output block.
     WriteConfigFile(test_config_file, R"(
 output:
   enabled: true
@@ -350,31 +396,7 @@ physics_schemes:
     CeceConfig config = ParseConfig(test_config_file);
     EXPECT_EQ(config.output_config.amio_worker_threads, 3);
 
-    // 2. Verify invalid output values are clamped to 1
-    WriteConfigFile(test_config_file, R"(
-output:
-  enabled: true
-  directory: ./cece_output
-  filename_pattern: "cece_ex1_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
-  frequency_steps: 1
-  fields: [CO]
-  amio_worker_threads: 0
-
-species:
-  CO:
-    - operation: add
-      field: CO_anthro
-      hierarchy: 0
-      scale: 1.0
-
-physics_schemes:
-  - name: NativeExample
-    language: cpp
-)");
-    config = ParseConfig(test_config_file);
-    EXPECT_EQ(config.output_config.amio_worker_threads, 1);
-
-    // 3. Verify omitted output values default to -1 (representing fallback unset)
+    // 2. Verify omitted output values retain -1 (representing fallback unset).
     WriteConfigFile(test_config_file, R"(
 output:
   enabled: true
@@ -396,6 +418,14 @@ physics_schemes:
 )");
     config = ParseConfig(test_config_file);
     EXPECT_EQ(config.output_config.amio_worker_threads, -1);
+}
+
+TEST_F(DriverConfigurationTest, RejectNonpositiveOutputAmioWorkerThreads) {
+    for (const int threads : {0, -3}) {
+        const std::string yaml =
+            "output:\n  enabled: true\n  directory: ./cece_output\n  amio_worker_threads: " + std::to_string(threads) + "\nphysics_schemes: []\n";
+        ExpectConfigInvalidArgument(test_config_file, yaml, "output.amio_worker_threads must be >= 1; got " + std::to_string(threads) + ".");
+    }
 }
 
 TEST_F(DriverConfigurationTest, ParseOutputFieldsWithInlineAttributes) {

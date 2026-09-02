@@ -94,7 +94,7 @@ void CeceDataIngestor::SetField(const std::string& name, const double* data, int
     }
 
     // Create a host mirror view with correct dimensions
-    using HostMirrorView = Kokkos::View<double***, Kokkos::LayoutLeft>;
+    using HostMirrorView = Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace>;
     HostMirrorView host_view("host_" + name, nx, ny, actual_nz);
 
     if (is_2d_emission) {

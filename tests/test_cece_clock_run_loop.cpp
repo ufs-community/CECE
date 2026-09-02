@@ -13,14 +13,51 @@
 #include <gtest/gtest.h>
 
 #include <algorithm>
+#include <memory>
 #include <set>
+#include <stdexcept>
 #include <string>
 #include <unordered_set>
 #include <vector>
 
 #include "cece/cece_clock.hpp"
+#include "cece/cece_internal.hpp"
+#include "cece/physics_scheme.hpp"
 
 using namespace cece;
+
+extern "C" void cece_core_run(void* data_ptr, int hour, int day_of_week, int* rc);
+
+namespace {
+
+class ThrowingPhysicsScheme final : public PhysicsScheme {
+   public:
+    void Initialize(const conf::Value&, CeceDiagnosticManager*) override {}
+
+    void Run(CeceImportState&, CeceExportState&) override {
+        throw std::runtime_error("intentional physics failure");
+    }
+};
+
+class CountingPhysicsScheme final : public PhysicsScheme {
+   public:
+    void Initialize(const conf::Value&, CeceDiagnosticManager*) override {}
+
+    void Run(CeceImportState&, CeceExportState&) override {
+        ++run_count;
+    }
+
+    int run_count = 0;
+};
+
+void ConfigureSingleScheme(CeceInternalData& data, const std::string& name, std::unique_ptr<PhysicsScheme> scheme) {
+    PhysicsSchemeConfig config;
+    config.name = name;
+    data.config.physics_schemes.push_back(config);
+    data.active_schemes.push_back(std::move(scheme));
+}
+
+}  // namespace
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -50,6 +87,40 @@ static int DueIndex(const StepResult& step, const std::string& name) {
         if (step.due_components[i]->name == name) return static_cast<int>(i);
     }
     return -1;
+}
+
+// ---------------------------------------------------------------------------
+// Test: Execution stages are ordered independently of registration order
+// ---------------------------------------------------------------------------
+
+TEST(StageOrderTest, DataStreamsPrecedePhysicsAndStackingRegardlessOfRegistrationOrder) {
+    std::vector<ClockComponent> components = {
+        {ComponentType::kPhysicsScheme, "physics_b", 300}, {ComponentType::kDataStream, "stream_b", 300},
+        {ComponentType::kPhysicsScheme, "physics_a", 300}, {ComponentType::kDataStream, "stream_a", 300},
+        {ComponentType::kStackingEngine, "stacking", 300},
+    };
+
+    CeceClock clock("2020-07-15T00:00:00", "2020-07-15T01:00:00", 300, components);
+    const StepResult step = clock.Advance();
+
+    const std::vector<std::string> expected = {
+        "stream_b", "stream_a", "physics_b", "physics_a", "stacking",
+    };
+    EXPECT_EQ(DueNames(step), expected);
+}
+
+TEST(StageOrderTest, InvalidComponentTypeFailsClosedWithComponentName) {
+    const std::vector<ClockComponent> components = {
+        {static_cast<ComponentType>(255), "invalid_component", 300},
+    };
+    CeceClock clock("2020-07-15T00:00:00", "2020-07-15T01:00:00", 300, components);
+
+    try {
+        (void)clock.Advance();
+        FAIL() << "Expected invalid component type to be rejected";
+    } catch (const std::invalid_argument& error) {
+        EXPECT_STREQ(error.what(), "Component \"invalid_component\" has an invalid ComponentType value.");
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -362,6 +433,53 @@ TEST(ClockGatedRunLoopNullClockTest, NullClockBackwardCompatibility) {
     EXPECT_FALSE(static_cast<bool>(clock)) << "Null clock should evaluate to false, triggering unconditional execution path";
 }
 
+TEST(CoreRunCapiTest, NullDataReturnsFailure) {
+    int rc = 0;
+    cece_core_run(nullptr, 0, 0, &rc);
+    EXPECT_EQ(rc, -1);
+}
+
+TEST(CoreRunCapiTest, ClockGatedSchemeFailureReturnsFailure) {
+    CeceInternalData data;
+    ConfigureSingleScheme(data, "throwing", std::make_unique<ThrowingPhysicsScheme>());
+
+    const std::vector<ClockComponent> components = {
+        {ComponentType::kPhysicsScheme, "throwing", 300},
+    };
+    data.clock = std::make_unique<CeceClock>("2020-07-15T00:00:00", "2020-07-15T01:00:00", 300, components);
+
+    int rc = 0;
+    cece_core_run(&data, 0, 0, &rc);
+    EXPECT_EQ(rc, -1);
+}
+
+TEST(CoreRunCapiTest, UnconditionalSchemeFailureReturnsFailure) {
+    CeceInternalData data;
+    ConfigureSingleScheme(data, "throwing", std::make_unique<ThrowingPhysicsScheme>());
+
+    int rc = 0;
+    cece_core_run(&data, 0, 0, &rc);
+    EXPECT_EQ(rc, -1);
+}
+
+TEST(CoreRunCapiTest, FinalStepExecutesSchemeOnceAndReturnsCompletion) {
+    CeceInternalData data;
+    auto scheme = std::make_unique<CountingPhysicsScheme>();
+    CountingPhysicsScheme* scheme_ptr = scheme.get();
+    ConfigureSingleScheme(data, "counting", std::move(scheme));
+
+    const std::vector<ClockComponent> components = {
+        {ComponentType::kPhysicsScheme, "counting", 300},
+    };
+    data.clock = std::make_unique<CeceClock>("2020-07-15T00:00:00", "2020-07-15T00:05:00", 300, components);
+
+    int rc = 0;
+    cece_core_run(&data, 0, 0, &rc);
+
+    EXPECT_EQ(rc, 1);
+    EXPECT_EQ(scheme_ptr->run_count, 1);
+}
+
 // ---------------------------------------------------------------------------
 // Test: Due component count varies correctly across steps
 // ---------------------------------------------------------------------------
@@ -418,6 +536,9 @@ TEST_F(ClockGatedRunLoopTest, ComponentTypesPreservedInDueList) {
 }
 
 int main(int argc, char** argv) {
+    Kokkos::initialize(argc, argv);
     ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
+    const int result = RUN_ALL_TESTS();
+    Kokkos::finalize();
+    return result;
 }

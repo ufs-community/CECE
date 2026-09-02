@@ -8,14 +8,19 @@ namespace cece {
 /**
  * @class BdsnpScheme
  * @brief Standalone soil NO physics module implementing the Berkeley-Dalhousie
- * Soil NO Parameterization (BDSNP) with YL95 fallback.
+ * Soil NOx Parameterization (BDSNP) with YL95 fallback.
  *
- * Replaces the existing SoilNoxScheme ("soil_nox") registration. Supports two
- * algorithms selectable via the `soil_no_method` YAML configuration key:
- *   - "bdsnp" (default): biome-specific base emission factors, soil moisture
- *     dependence, nitrogen deposition fertilization, canopy reduction
- *   - "yl95": Yienger & Levy (1995) soil temperature response, soil moisture
- *     pulse, canopy reduction factor
+ * Provides a comprehensive soil-NO model alongside the legacy SoilNoxScheme
+ * ("soil_nox"). Supports two algorithms selectable via the `soil_no_method`
+ * YAML configuration key:
+ *   - "bdsnp" (default): validated effective-input BDSNP calculation with
+ *     24-biome weighting, temperature and moisture responses, canopy reduction,
+ *     pulse scaling, fertilizer, and deposited nitrogen
+ *   - "yl95": Yienger & Levy (1995) temperature and moisture response
+ *
+ * BDSNP pulse, canopy, fertilizer, and deposited-nitrogen terms are supplied as
+ * effective input fields. Persistent pulse and deposited-nitrogen reservoir
+ * evolution are outside this stateless scheme.
  *
  * Writes computed soil NO emissions to the export state field
  * "soil_nox_emissions" for consumption by MEGAN3 or other schemes.
@@ -29,20 +34,22 @@ class BdsnpScheme : public BasePhysicsScheme {
     void Run(CeceImportState& import_state, CeceExportState& export_state) override;
 
    private:
-    std::string soil_no_method_ = "bdsnp";  // "bdsnp" or "yl95"
+    enum class SoilNoMethod { kBdsnp, kYl95 };
 
-    // YL95 parameters (reused from existing SoilNoxScheme)
-    double a_biome_wet_ = 0.5;
-    double tc_max_ = 30.0;
-    double exp_coeff_ = 0.103;
-    double wet_c1_ = 5.5;
-    double wet_c2_ = -5.55;
+    struct Yl95Parameters {
+        double biome_coefficient_wet = 0.5;
+        double temperature_limit = 30.0;
+        double temperature_exponential_coefficient = 0.103;
+        double wetness_coefficient_1 = 5.5;
+        double wetness_coefficient_2 = -5.55;
+    };
 
-    // BDSNP parameters
-    double fert_emission_factor_ = 1.0;
-    double wet_dep_scaling_ = 1.0;
-    double dry_dep_scaling_ = 1.0;
-    double pulse_decay_constant_ = 0.5;
+    void RunBdsnp(CeceImportState& import_state, CeceExportState& export_state);
+    void RunYl95(CeceImportState& import_state, CeceExportState& export_state);
+
+    SoilNoMethod soil_no_method_ = SoilNoMethod::kBdsnp;
+    bool use_soil_temperature_ = false;
+    Yl95Parameters yl95_parameters_;
 };
 
 }  // namespace cece
