@@ -1,0 +1,87 @@
+# =====================================================================
+# CECE earthaccess Test Config: BDSNP + MEGAN3 on global 4x5 grid
+# =====================================================================
+# Matches the exact HEMCO reference grid from PRs #85 (SoilNOx parity)
+# and #90 (MEGAN isoprene parity): 72 lon x 46 lat, 5-degree longitude
+# spacing, nominal 4-degree latitude spacing, +/-89 degree polar centres.
+#
+# Used by tests/test_earthaccess_stream_bdsnp_megan3.py.
+# All streams use source: earthaccess — no local NetCDF files required.
+# =====================================================================
+
+driver:
+  start_time: "2022-07-01T12:00:00"
+  end_time:   "2022-07-01T13:00:00"
+  timestep_seconds: 3600
+  grid:
+    grid_name: "HEMCO_4x5"
+    lon_min: -180.0
+    lon_max:  175.0
+    lat_min:  -89.0
+    lat_max:   89.0
+
+meteorology: {}
+
+species:
+  isoprene:
+    - field: "megan3_ISOP"
+      operation: "add"
+  soil_no:
+    - field: "soil_nox_emissions"
+      operation: "add"
+
+physics_schemes:
+  - name: megan3
+    language: cpp
+  - name: bdsnp
+    language: cpp
+    options:
+      soil_no_method: hemco_3_12_1   # matches PR #85 parity mode
+
+cece_data:
+  streams:
+    # ------------------------------------------------------------------
+    # MODIS MCD15A2H — Leaf Area Index (8-day, LP DAAC)
+    # temporal window is wider than the run to cover prev-LAI
+    # ------------------------------------------------------------------
+    - name: modis_lai
+      source: earthaccess
+      short_name: MCD15A2H
+      version: "061"
+      daac: LPDAAC_ECS
+      cloud_hosted: true
+      temporal_start: "2022-06-25"
+      temporal_end:   "2022-07-04"
+      variables:
+        Lai_500m: leaf_area_index
+
+    # ------------------------------------------------------------------
+    # SMAP L4 SPL4SMGP — soil temperature and moisture (3-hourly)
+    # Feeds both MEGAN3 and BDSNP
+    # ------------------------------------------------------------------
+    - name: smap_soil
+      source: earthaccess
+      short_name: SPL4SMGP
+      daac: NSIDC_CPRD
+      cloud_hosted: true
+      temporal_start: "2022-07-01"
+      temporal_end:   "2022-07-02"
+      variables:
+        soil_temp_layer1: soil_temperature
+        sm_rootzone:      soil_moisture_root
+        sm_surface:       soil_moisture
+
+    # ------------------------------------------------------------------
+    # CERES SYN1deg — direct/diffuse PAR and solar cosine (MEGAN3)
+    # ------------------------------------------------------------------
+    - name: ceres_par
+      source: earthaccess
+      short_name: CER_SYN1deg-Day_Terra-Aqua-MODIS_Edition4A
+      daac: LARC_ASDC
+      cloud_hosted: true
+      temporal_start: "2022-07-01"
+      temporal_end:   "2022-07-02"
+      variables:
+        sfc_sw_down_dir_all_1h: par_direct
+        sfc_sw_down_dif_all_1h: par_diffuse
+        solar_zenith_angle:     solar_cosine

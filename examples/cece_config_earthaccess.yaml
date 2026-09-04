@@ -1,0 +1,146 @@
+# =====================================================================
+# CECE earthaccess Example: Cloud-Native NASA Earthdata Streaming
+# =====================================================================
+# Demonstrates sourcing CECE input data directly from NASA Earthdata
+# Cloud via earthaccess, bypassing local file staging entirely.
+#
+# Required setup (one-time):
+#   export EARTHDATA_USERNAME=<your-EDL-username>
+#   export EARTHDATA_TOKEN=<your-EDL-token>
+#   # Or: store credentials in ~/.netrc (see earthaccess docs)
+#
+# Install cloud extras before running:
+#   pip install 'cece-tools[cloud]'
+#
+# Physics schemes demonstrated:
+#   - megan3  : biogenic VOC emissions (needs LAI, PAR, soil moisture)
+#   - bdsnp   : soil NO emissions (needs soil temperature + moisture)
+#   - fengsha : wind-blown dust (needs soil properties, friction velocity)
+#
+# All input streams use source: earthaccess — no local NetCDF files needed.
+# =====================================================================
+
+driver:
+  start_time: "2022-07-01T00:00:00"
+  end_time:   "2022-07-03T23:00:00"
+  timestep_seconds: 3600
+  # HEMCO reference 4x5 grid — matches PR #85 (SoilNOx) and PR #90 (MEGAN) parity grids
+  grid:
+    grid_name: "HEMCO_4x5"
+    lon_min: -180.0
+    lon_max:  175.0
+    lat_min:  -89.0
+    lat_max:   89.0
+
+meteorology: {}
+
+species:
+  isoprene:
+    - field: "megan3_ISOP"
+      operation: "add"
+  soil_no:
+    - field: "soil_nox_emissions"
+      operation: "add"
+  dust_fine:
+    - field: "fengsha_dust_emissions"
+      operation: "add"
+
+physics_schemes:
+  - name: megan3
+    language: cpp
+  - name: bdsnp
+    language: cpp
+  - name: fengsha
+    language: cpp
+
+cece_data:
+  streams:
+    # ------------------------------------------------------------------
+    # Leaf Area Index — MODIS MCD15A2H (LP DAAC, 500 m, 8-day)
+    # Provides: leaf_area_index, leaf_area_index_prev (from prior cycle)
+    # ------------------------------------------------------------------
+    - name: modis_lai
+      source: earthaccess
+      short_name: MCD15A2H
+      version: "061"
+      daac: LPDAAC_ECS
+      cloud_hosted: true
+      temporal_start: "2022-06-25"   # overlap for prev-LAI interpolation
+      temporal_end:   "2022-07-04"
+      variables:
+        Lai_500m: leaf_area_index
+
+    # ------------------------------------------------------------------
+    # Root-zone and surface soil moisture — SMAP L4 (NSIDC, 3-hourly)
+    # Provides: soil_moisture_root, soil_moisture (surface)
+    # ------------------------------------------------------------------
+    - name: smap_soil
+      source: earthaccess
+      short_name: SPL4SMGP
+      daac: NSIDC_CPRD
+      cloud_hosted: true
+      temporal_start: "2022-07-01"
+      temporal_end:   "2022-07-04"
+      variables:
+        sm_rootzone: soil_moisture_root
+        sm_surface:  soil_moisture
+
+    # ------------------------------------------------------------------
+    # Soil temperature — SMAP L4 (same collection as above)
+    # Provides: soil_temperature (used by BDSNP)
+    # ------------------------------------------------------------------
+    - name: smap_soiltemp
+      source: earthaccess
+      short_name: SPL4SMGP
+      daac: NSIDC_CPRD
+      cloud_hosted: true
+      temporal_start: "2022-07-01"
+      temporal_end:   "2022-07-04"
+      variables:
+        soil_temp_layer1: soil_temperature
+
+    # ------------------------------------------------------------------
+    # Photosynthetically active radiation — CERES SYN1deg (GES DISC)
+    # Provides: par_direct, par_diffuse, solar_cosine (MEGAN3 inputs)
+    # ------------------------------------------------------------------
+    - name: ceres_par
+      source: earthaccess
+      short_name: CER_SYN1deg-Day_Terra-Aqua-MODIS_Edition4A
+      daac: LARC_ASDC
+      cloud_hosted: true
+      temporal_start: "2022-07-01"
+      temporal_end:   "2022-07-04"
+      variables:
+        sfc_sw_down_dir_all_1h: par_direct
+        sfc_sw_down_dif_all_1h: par_diffuse
+        solar_zenith_angle:     solar_cosine
+
+    # ------------------------------------------------------------------
+    # Wind speed at 10 m — ERA5 reanalysis (GES DISC mirror)
+    # Provides: wind_speed (sea-salt, DMS, dust schemes)
+    # ------------------------------------------------------------------
+    - name: era5_wind
+      source: earthaccess
+      short_name: ERA5_SURFACE_1HR
+      daac: GES_DISC
+      cloud_hosted: true
+      temporal_start: "2022-07-01"
+      temporal_end:   "2022-07-04"
+      variables:
+        u10: u_wind
+        v10: v_wind
+
+    # ------------------------------------------------------------------
+    # Soil texture fractions — STATSGO/FAO (static, LP DAAC)
+    # Provides: clay_fraction, sand_fraction, silt_fraction (Fengsha)
+    # ------------------------------------------------------------------
+    - name: soil_texture
+      source: earthaccess
+      short_name: MCD12Q1
+      version: "061"
+      daac: LPDAAC_ECS
+      cloud_hosted: true
+      temporal_start: "2022-01-01"
+      temporal_end:   "2022-12-31"
+      variables:
+        LC_Type1: land_use_type

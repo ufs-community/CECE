@@ -17,6 +17,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any
 
+# Support both package (relative) and direct-module import
+try:
+    from .earthaccess_resolver import EarthAccessStreamConfig
+except ImportError:
+    from earthaccess_resolver import EarthAccessStreamConfig  # type: ignore[no-redef]
+
 
 @dataclass
 class VerticalDistributionConfig:
@@ -711,16 +717,30 @@ class CeceConfig:
                 options=scheme_data.get("options", {}),
             )
 
-        # Data streams
+        # Data streams — earthaccess streams are stored separately, not sent to AMIO
         for stream_data in config_dict.get("cece_data", {}).get("streams", []):
-            self.add_data_stream(
-                name=stream_data.get("name", ""),
-                file_paths=stream_data.get("file_paths", []),
-                variables=stream_data.get("variables", {}),
-                taxmode=stream_data.get("taxmode", "cycle"),
-                tintalgo=stream_data.get("tintalgo", "linear"),
-                mapalgo=stream_data.get("mapalgo", "default"),
-            )
+            if stream_data.get("source") == "earthaccess":
+                ea_cfg = EarthAccessStreamConfig(
+                    name=stream_data.get("name", ""),
+                    short_name=stream_data["short_name"],
+                    temporal_start=stream_data["temporal_start"],
+                    temporal_end=stream_data["temporal_end"],
+                    variable_map=stream_data.get("variables", {}),
+                    bounding_box=stream_data.get("bounding_box"),
+                    version=stream_data.get("version"),
+                    cloud_hosted=stream_data.get("cloud_hosted", True),
+                    daac=stream_data.get("daac"),
+                )
+                self._cece_data.setdefault("earthaccess_streams", []).append(ea_cfg)
+            else:
+                self.add_data_stream(
+                    name=stream_data.get("name", ""),
+                    file_paths=stream_data.get("file_paths", []),
+                    variables=stream_data.get("variables", {}),
+                    taxmode=stream_data.get("taxmode", "cycle"),
+                    tintalgo=stream_data.get("tintalgo", "linear"),
+                    mapalgo=stream_data.get("mapalgo", "default"),
+                )
 
         # Temporal cycles
         for name, factors in config_dict.get("temporal_cycles", {}).items():
@@ -745,3 +765,44 @@ class CeceConfig:
     def vertical_config(self) -> VerticalDistributionConfig:
         """VerticalDistributionConfig : Default vertical distribution settings."""
         return self._vertical_config
+
+    @property
+    def earthaccess_streams(self) -> List[EarthAccessStreamConfig]:
+        """list of EarthAccessStreamConfig : Cloud-streamed NASA Earthdata sources."""
+        return self._cece_data.get("earthaccess_streams", [])
+
+
+def parse_earthaccess_streams(cece_cfg: dict) -> List[EarthAccessStreamConfig]:
+    """Extract ``source: earthaccess`` stream entries from a raw config dict.
+
+    Suitable for use before a full ``CeceConfig`` parse, e.g. to pre-open
+    remote datasets while the C++ core is initializing.
+
+    Parameters
+    ----------
+    cece_cfg : dict
+        Top-level CECE configuration dictionary (e.g. from ``yaml.safe_load``).
+
+    Returns
+    -------
+    list of EarthAccessStreamConfig
+        One entry per stream that declares ``source: earthaccess``.
+    """
+    results: List[EarthAccessStreamConfig] = []
+    for stream in cece_cfg.get("cece_data", {}).get("streams", []):
+        if stream.get("source") != "earthaccess":
+            continue
+        results.append(
+            EarthAccessStreamConfig(
+                name=stream.get("name", ""),
+                short_name=stream["short_name"],
+                temporal_start=stream["temporal_start"],
+                temporal_end=stream["temporal_end"],
+                variable_map=stream.get("variables", {}),
+                bounding_box=stream.get("bounding_box"),
+                version=stream.get("version"),
+                cloud_hosted=stream.get("cloud_hosted", True),
+                daac=stream.get("daac"),
+            )
+        )
+    return results
