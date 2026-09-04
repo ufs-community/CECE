@@ -9,20 +9,36 @@ message(STATUS "Found Python3: ${Python3_EXECUTABLE}")
 message(STATUS "Python3 version: ${Python3_VERSION}")
 message(STATUS "Python3 include dirs: ${Python3_INCLUDE_DIRS}")
 
-# Fetch pybind11 v2.12.0
+# pybind11 — find_package first; FetchContent fallback (v2.12.0)
 include(FetchContent)
 
-# Disable LTO before fetching pybind11 to work around GCC 13 internal compiler
+# Disable LTO before resolving pybind11 to work around GCC 13 internal compiler
 # error. pybind11 enables LTO by default via pybind11::lto target.
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION OFF)
 
-FetchContent_Declare(pybind11 GIT_REPOSITORY https://github.com/pybind/pybind11.git GIT_TAG v2.12.0)
-FetchContent_MakeAvailable(pybind11)
+find_package(pybind11 CONFIG QUIET)
+
+if(pybind11_FOUND)
+  cece_register_dep("pybind11" "system ${pybind11_VERSION} (${pybind11_DIR})")
+elseif(CECE_FETCH_DEPS)
+  FetchContent_Declare(
+    pybind11
+    GIT_REPOSITORY https://github.com/pybind/pybind11.git
+    GIT_TAG v2.12.0
+  )
+  FetchContent_MakeAvailable(pybind11)
+  cece_register_dep("pybind11" "FetchContent (v2.12.0)")
+else()
+  message(
+    FATAL_ERROR
+    "pybind11 not found via find_package() and CECE_FETCH_DEPS=OFF. Install pybind11 or configure with -DBUILD_PYTHON_BINDINGS=OFF."
+  )
+endif()
 
 # Build the pybind11 extension module
 pybind11_add_module(_cece_core cece_pybind.cpp)
 
-target_link_libraries(_cece_core PRIVATE cece Kokkos::kokkos yaml-cpp)
+target_link_libraries(_cece_core PRIVATE cece Kokkos::kokkos yaml-cpp::yaml-cpp)
 
 # Place the compiled .so in the cece package directory
 set_target_properties(
@@ -79,7 +95,7 @@ add_custom_target(
 )
 
 message(STATUS "Python bindings configuration:")
-message(STATUS "  Binding method: pybind11 (v2.12.0 via FetchContent)")
+message(STATUS "  Binding method: pybind11 ${pybind11_VERSION}")
 message(STATUS "  Extension module: _cece_core")
 message(STATUS "  Package directory: ${CMAKE_CURRENT_BINARY_DIR}/cece")
 message(STATUS "  Installation target: ${Python3_SITELIB}/cece")

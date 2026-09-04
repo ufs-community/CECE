@@ -7,6 +7,7 @@
 
 #include "cece/cece_helm_graph.hpp"
 #include "cece/cece_io.hpp"
+#include "test_mpi_singleton.hpp"
 
 // Forward declare CECE C-Linkage APIs
 extern "C" {
@@ -116,15 +117,8 @@ class KokkosMpiEnvironment : public ::testing::Environment {
 };
 
 int main(int argc, char** argv) {
-    // Prevent Intel MPI from detecting Slurm and attempting PMI/PMIX process manager bootstrap during unit tests
-    unsetenv("SLURM_JOB_ID");
-    unsetenv("SLURM_STEP_ID");
-    unsetenv("PMI_RANK");
-    unsetenv("PMI_SIZE");
-
-    // Configure Intel MPI to allow standalone, local-only execution on login nodes (prevent PMI2/Hydra aborts)
-    setenv("I_MPI_HYDRA_BOOTSTRAP", "none", 0);
-    setenv("I_MPI_SHM", "disable", 0);
+    // Force standalone MPI init (no Slurm/PMI); see test_mpi_singleton.hpp.
+    cece::test::force_mpi_singleton();
 
     ::testing::InitGoogleTest(&argc, argv);
     ::testing::AddGlobalTestEnvironment(new KokkosMpiEnvironment(argc, argv));
