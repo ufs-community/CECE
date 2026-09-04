@@ -52,9 +52,19 @@ void StackingEngine::PreCompile() {
         spec.name = species;
         spec.export_name = species;
 
+        // Sort a copy of the raw layers by category first, then hierarchy
+        // This ensures contiguous evaluation of categories in the device kernel.
+        auto sorted_layers = layers;
+        std::stable_sort(sorted_layers.begin(), sorted_layers.end(), [](const auto& a, const auto& b) {
+            if (a.category != b.category) {
+                return a.category < b.category;
+            }
+            return a.hierarchy < b.hierarchy;
+        });
+
         std::vector<LayerContribution> contributions;
 
-        for (auto const& layer : layers) {
+        for (auto const& layer : sorted_layers) {
             spec.layers.push_back({layer.field_name, layer.operation, layer.scale, layer.hierarchy, layer.masks, layer.scale_fields,
                                    layer.diurnal_cycle, layer.weekly_cycle, layer.seasonal_cycle, layer.vdist_method, layer.vdist_layer_start,
                                    layer.vdist_layer_end, layer.vdist_p_start, layer.vdist_p_end, layer.vdist_h_start, layer.vdist_h_end});
@@ -73,13 +83,24 @@ void StackingEngine::PreCompile() {
             contributions.push_back(std::move(contrib));
         }
 
-        std::sort(spec.layers.begin(), spec.layers.end(), [](const CompiledLayer& a, const CompiledLayer& b) { return a.hierarchy < b.hierarchy; });
-        // Keep contributions in the same sorted order
-        std::sort(contributions.begin(), contributions.end(),
-                  [](const LayerContribution& a, const LayerContribution& b) { return a.hierarchy < b.hierarchy; });
-
         spec.device_layers = Kokkos::View<DeviceLayer*, Kokkos::DefaultExecutionSpace>("device_layers_" + species, spec.layers.size());
         spec.host_layers = Kokkos::create_mirror_view(spec.device_layers);
+
+        // Map contiguous string categories into unique integer IDs for the device
+        int current_cat_id = 0;
+        std::string current_cat = "";
+        if (!sorted_layers.empty()) {
+            current_cat = sorted_layers[0].category;
+        }
+
+        for (size_t i = 0; i < sorted_layers.size(); ++i) {
+            if (sorted_layers[i].category != current_cat) {
+                current_cat = sorted_layers[i].category;
+                current_cat_id++;
+            }
+            // record the integer id in the compiled-layer metadata, not directly into the host mirror
+            spec.layers[i].category_id = current_cat_id;
+        }
 
         m_compiled.push_back(std::move(spec));
         m_provenance_tracker.RegisterSpecies(species, std::move(contributions));
@@ -151,6 +172,9 @@ void StackingEngine::BindFields(CompiledSpecies& spec, FieldResolver& resolver, 
                 dev.masks[dev.num_masks++] = m_view;
             }
         }
+
+        // Ensure the category id is set on the host mirror at bind time
+        dev.category_id = spec.layers[i].category_id;
     }
     spec.fields_bound = true;
 }
@@ -240,8 +264,16 @@ void StackingEngine::AddSpecies(const std::string& species_name) {
     spec.name = species_name;
     spec.export_name = species_name;
 
+    auto sorted_layers = it->second;
+    std::sort(sorted_layers.begin(), sorted_layers.end(), [](const auto& a, const auto& b) {
+        if (a.category != b.category) {
+            return a.category < b.category;
+        }
+        return a.hierarchy < b.hierarchy;
+    });
+
     std::vector<LayerContribution> contributions;
-    for (const auto& layer : it->second) {
+    for (const auto& layer : sorted_layers) {
         spec.layers.push_back({layer.field_name, layer.operation, layer.scale, layer.hierarchy, layer.masks, layer.scale_fields, layer.diurnal_cycle,
                                layer.weekly_cycle, layer.seasonal_cycle, layer.vdist_method, layer.vdist_layer_start, layer.vdist_layer_end,
                                layer.vdist_p_start, layer.vdist_p_end, layer.vdist_h_start, layer.vdist_h_end});
@@ -260,12 +292,23 @@ void StackingEngine::AddSpecies(const std::string& species_name) {
         contributions.push_back(std::move(contrib));
     }
 
-    std::sort(spec.layers.begin(), spec.layers.end(), [](const CompiledLayer& a, const CompiledLayer& b) { return a.hierarchy < b.hierarchy; });
-    std::sort(contributions.begin(), contributions.end(),
-              [](const LayerContribution& a, const LayerContribution& b) { return a.hierarchy < b.hierarchy; });
-
     spec.device_layers = Kokkos::View<DeviceLayer*, Kokkos::DefaultExecutionSpace>("device_layers_" + species_name, spec.layers.size());
     spec.host_layers = Kokkos::create_mirror_view(spec.device_layers);
+
+    int current_cat_id = 0;
+    std::string current_cat = "";
+    if (!sorted_layers.empty()) {
+        current_cat = sorted_layers[0].category;
+    }
+
+    for (size_t i = 0; i < sorted_layers.size(); ++i) {
+        if (sorted_layers[i].category != current_cat) {
+            current_cat = sorted_layers[i].category;
+            current_cat_id++;
+        }
+        // record the integer id on the compiled layer
+        spec.layers[i].category_id = current_cat_id;
+    }
 
     m_compiled.push_back(std::move(spec));
     m_provenance_tracker.RegisterSpecies(species_name, std::move(contributions));
@@ -275,21 +318,24 @@ void StackingEngine::AddSpecies(const std::string& species_name) {
  * @brief Executes the emission stacking using fused Kokkos kernels.
  * @details Iterates through all species, binds their fields, and dispatches
  * a single fused kernel per species to accumulate or replace emissions based
- * on the pre-compiled hierarchy.
+ * on the pre-compiled hierarchy. Sub-accumulation happens per category.
  *
  * **Optimization Strategy:**
  * - **Pre-computed Temporal Scales**: All temporal scale factors (diurnal, weekly, seasonal)
  *   are computed on the host in UpdateTemporalScales() and transferred to device via deep_copy.
  *   This avoids redundant calculations inside the kernel.
+ * - **Integer Category Mapping**: Expensive string-based categories are converted to contiguous
+ *   integer IDs during the host pre-compilation step. The layers are sorted so the GPU kernel
+ *   only needs to track when this simple integer ID changes to flush category subtotals.
  * - **POD DeviceLayer Structure**: Uses Plain Old Data (POD) structures with Unmanaged Kokkos::View
  *   handles for efficient device transfer. The entire layer metadata is deep_copied once per
  *   timestep, minimizing host-device communication.
  * - **Fused Kernel Design**: Single Kokkos::parallel_for kernel fuses:
- *   - Layer aggregation (loop over layers)
+ *   - Two-level layer aggregation (category subtotaling and grand total accumulation)
  *   - Vertical distribution weight calculation (switch statement for branch prediction)
  *   - Scale factor application (fused multiplication loop)
  *   - Mask application (fused multiplication loop)
- *   - Replace vs add operation handling
+ *   - Category-isolated Replace vs Add operations
  *   This reduces memory bandwidth by eliminating intermediate passes through data.
  * - **Memory Access Patterns**: Uses LayoutLeft for coalesced memory access on GPUs.
  *   Vertical distribution calculations are optimized with switch statements for better
@@ -354,13 +400,24 @@ void StackingEngine::Execute(FieldResolver& resolver, int nx, int ny, int nz,
 
         Kokkos::parallel_for(
             "StackingEngine_FusedSpeciesKernel", Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}), KOKKOS_LAMBDA(int i, int j, int k) {
-                double accumulated = 0.0;
+                double total_accumulated = 0.0;
+                double current_category_accumulated = 0.0;
+                int current_category = -1;
 
                 // Iterate over all layers
                 for (int l = 0; l < num_layers; ++l) {
                     const auto& layer = layers(l);
                     if (layer.field.data() == nullptr) {
                         continue;
+                    }
+
+                    // Check if we are moving to a new category block
+                    if (layer.category_id != current_category) {
+                        if (current_category != -1) {
+                            total_accumulated += current_category_accumulated;
+                        }
+                        current_category = layer.category_id;
+                        current_category_accumulated = 0.0;
                     }
 
                     // Determine distribution weight
@@ -525,13 +582,19 @@ void StackingEngine::Execute(FieldResolver& resolver, int nx, int ny, int nz,
                     double contribution = val * combined_scale * combined_mask;
 
                     if (layer.replace_flag > 0.5) {
-                        if (combined_mask > 0.0) accumulated = contribution;
+                        // Only replace within the context of the CURRENT category's total
+                        if (combined_mask > 0.0) current_category_accumulated = contribution;
                     } else {
-                        accumulated += contribution;
+                        current_category_accumulated += contribution;
                     }
                 }
 
-                total_view(i, j, k) = accumulated;
+                // Add the final category's accumulation to the grand total
+                if (current_category != -1) {
+                    total_accumulated += current_category_accumulated;
+                }
+
+                total_view(i, j, k) = total_accumulated;
             });
     }
     Kokkos::fence();
