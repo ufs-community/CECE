@@ -159,9 +159,9 @@ class MeganScheme : public BasePhysicsScheme {
     std::string megan_method_ = "native";  // "native" or "hemco_3_12_1"
 
     // ---- HEMCO 3.12.1 parity-mode overrides ----
-    double hemco_co2_ppm_      = 390.0;                                  ///< pinned reference CO₂ [ppm]
-    double hemco_par_avg_umol_ = hemco_megan::v3_12_1::kParAvgUmol;     ///< 400 µmol/m²/s
-    double hemco_t_avg_15_k_   = hemco_megan::v3_12_1::kTAvg15;         ///< 297 K
+    double hemco_co2_ppm_ = 390.0;                                   ///< pinned reference CO₂ [ppm]
+    double hemco_par_avg_umol_ = hemco_megan::v3_12_1::kParAvgUmol;  ///< 400 µmol/m²/s
+    double hemco_t_avg_15_k_ = hemco_megan::v3_12_1::kTAvg15;        ///< 297 K
 
     // ---- Native-mode parameters (ignored in hemco_3_12_1 mode) ----
     double gamma_co2_ = 0.0;

@@ -21,16 +21,16 @@
 
 driver:
   start_time: "2021-06-20T00:00:00"
-  end_time:   "2021-06-20T23:00:00"
+  end_time: "2021-06-20T23:00:00"
   timestep_seconds: 3600
   grid:
     # Exact global HEMCO 4°×5° grid (72 lon × 46 lat)
     nx: 72
     ny: 46
     lon_min: -180.0
-    lon_max:  175.0
-    lat_min:  -90.0
-    lat_max:   90.0
+    lon_max: 175.0
+    lat_min: -90.0
+    lat_max: 90.0
   output:
     file: "cece_hemco_megan_parity_4x5.nc"
     variables:
@@ -41,18 +41,18 @@ physics_schemes:
   - name: megan
     language: cpp
     options:
-      megan_method: hemco_3_12_1    # Source-pinned HEMCO 3.12.1 stateless path
-      aef: 1.0e-9                   # Isoprene AEF [kg m⁻² s⁻¹]; replace with gridded file in production
-      hemco_co2_ppm: 390.0          # Pinned reference CO₂ [ppm]
-      hemco_par_avg_umol: 400.0     # 24-hr PAR average [µmol m⁻² s⁻¹]
-      hemco_t_avg_15_k: 297.0       # 15-day temperature average [K]
+      megan_method: hemco_3_12_1 # Source-pinned HEMCO 3.12.1 stateless path
+      aef: 1.0e-9 # Isoprene AEF [kg m⁻² s⁻¹]; replace with gridded file in production
+      hemco_co2_ppm: 390.0 # Pinned reference CO₂ [ppm]
+      hemco_par_avg_umol: 400.0 # 24-hr PAR average [µmol m⁻² s⁻¹]
+      hemco_t_avg_15_k: 297.0 # 15-day temperature average [K]
     input_mapping:
-      temperature:        TSFC       # Surface temperature [K]
-      leaf_area_index:    LAI        # Current-month LAI [m² m⁻²]
+      temperature: TSFC # Surface temperature [K]
+      leaf_area_index: LAI # Current-month LAI [m² m⁻²]
       leaf_area_index_prev: LAI_PREV # Previous-month LAI [m² m⁻²] (optional)
-      par_direct:         PARDR      # Direct PAR [W m⁻²]
-      par_diffuse:        PARDF      # Diffuse PAR [W m⁻²]
-      solar_cosine:       SUNCOS     # Solar zenith cosine
+      par_direct: PARDR # Direct PAR [W m⁻²]
+      par_diffuse: PARDF # Diffuse PAR [W m⁻²]
+      solar_cosine: SUNCOS # Solar zenith cosine
     output_mapping:
       isoprene_emissions: ISOP_HEMCO_3121
 
@@ -64,23 +64,23 @@ cece_data:
     - name: "MERRA2_MET"
       file: "/path/to/MERRA2/MERRA2.20210620.A1.4x5.nc4"
       yearFirst: 2021
-      yearLast:  2021
+      yearLast: 2021
       variables:
         - model: TSFC
-          file:  T2M
+          file: T2M
         - model: PARDR
-          file:  PARDR
+          file: PARDR
         - model: PARDF
-          file:  PARDF
+          file: PARDF
         - model: SUNCOS
-          file:  SUNCOS
+          file: SUNCOS
 
     - name: "MEGAN_LAI"
       file: "/path/to/MEGAN/lai.geos.1x1.nc"
       yearFirst: 2000
-      yearLast:  2000
+      yearLast: 2000
       variables:
         - model: LAI
-          file:  LAI
+          file: LAI
         - model: LAI_PREV
-          file:  LAI_PREV
+          file: LAI_PREV

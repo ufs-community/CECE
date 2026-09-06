@@ -217,26 +217,22 @@ class HEMCO3121MeganOracle : public ::testing::TestWithParam<OracleRow> {};
 TEST_P(HEMCO3121MeganOracle, MatchesReference) {
     const OracleRow& r = GetParam();
     MeganInputs in;
-    in.T_K          = r.T_K;
-    in.lai          = r.lai;
-    in.lai_prev     = r.lai_prev;
-    in.pardr_Wm2    = r.pardr_Wm2;
-    in.pardf_Wm2    = r.pardf_Wm2;
-    in.suncos       = r.suncos;
-    in.gwetroot     = r.gwetroot;
-    in.co2_ppm      = r.co2_ppm;
+    in.T_K = r.T_K;
+    in.lai = r.lai;
+    in.lai_prev = r.lai_prev;
+    in.pardr_Wm2 = r.pardr_Wm2;
+    in.pardf_Wm2 = r.pardf_Wm2;
+    in.suncos = r.suncos;
+    in.gwetroot = r.gwetroot;
+    in.co2_ppm = r.co2_ppm;
     in.par_avg_umol = kParAvgUmol;
-    in.T_avg_15_K   = kTAvg15;
-    in.doy          = kReferenceDoy;
+    in.T_avg_15_K = kTAvg15;
+    in.doy = kReferenceDoy;
 
     const double got = IsopreneEmissionFactor(in);
     const double scale = std::max(std::abs(r.expected), 1.0e-30);
-    EXPECT_NEAR(got, r.expected, kTol * scale)
-        << "Case: " << r.case_id
-        << "  T=" << r.T_K << " K"
-        << "  LAI=" << r.lai
-        << "  suncos=" << r.suncos
-        << "  CO2=" << r.co2_ppm << " ppm";
+    EXPECT_NEAR(got, r.expected, kTol * scale) << "Case: " << r.case_id << "  T=" << r.T_K << " K"
+                                               << "  LAI=" << r.lai << "  suncos=" << r.suncos << "  CO2=" << r.co2_ppm << " ppm";
 }
 
 // Instantiate from CSV (loaded once at test fixture construction time).
@@ -245,21 +241,15 @@ static std::vector<OracleRow> gOracleRows;
 struct OracleLoader {
     OracleLoader() {
         // Path relative to CTest working directory (CMAKE_BINARY_DIR).
-        const std::string path =
-            std::string(CECE_SOURCE_DIR) +
-            "/tests/data/hemco_megan/hemco_3_12_1_megan_reference.csv";
+        const std::string path = std::string(CECE_SOURCE_DIR) + "/tests/data/hemco_megan/hemco_3_12_1_megan_reference.csv";
         gOracleRows = LoadOracle(path);
     }
 } gLoader;
 
-INSTANTIATE_TEST_SUITE_P(
-    Oracle,
-    HEMCO3121MeganOracle,
-    ::testing::ValuesIn(gOracleRows),
-    [](const ::testing::TestParamInfo<OracleRow>& info) {
-        std::string n = info.param.case_id;
-        std::replace(n.begin(), n.end(), ' ', '_');
-        return n;
-    });
+INSTANTIATE_TEST_SUITE_P(Oracle, HEMCO3121MeganOracle, ::testing::ValuesIn(gOracleRows), [](const ::testing::TestParamInfo<OracleRow>& info) {
+    std::string n = info.param.case_id;
+    std::replace(n.begin(), n.end(), ' ', '_');
+    return n;
+});
 
 }  // namespace cece::hemco_megan::v3_12_1

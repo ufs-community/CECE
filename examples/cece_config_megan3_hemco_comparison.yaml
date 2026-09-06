@@ -13,15 +13,15 @@
 
 driver:
   start_time: "2021-06-20T00:00:00"
-  end_time:   "2021-06-20T23:00:00"
+  end_time: "2021-06-20T23:00:00"
   timestep_seconds: 3600
   grid:
     nx: 72
     ny: 46
     lon_min: -180.0
-    lon_max:  175.0
-    lat_min:  -90.0
-    lat_max:   90.0
+    lon_max: 175.0
+    lat_min: -90.0
+    lat_max: 90.0
   output:
     file: "cece_megan3_hemco_comparison.nc"
     variables:
@@ -42,8 +42,8 @@ physics_schemes:
       co2_method: possell
       emission_classes:
         ISOP:
-          ldf:  0.9996
-          ct1:  95.0
+          ldf: 0.9996
+          ct1: 95.0
           cleo: 2.0
           beta: 0.13
           anew: 0.05
@@ -52,12 +52,12 @@ physics_schemes:
           aold: 0.9
           default_aef: 1.0e-9
     input_mapping:
-      temperature:          TSFC
-      leaf_area_index:      LAI
+      temperature: TSFC
+      leaf_area_index: LAI
       leaf_area_index_prev: LAI_PREV
-      par_direct:           PARDR
-      par_diffuse:          PARDF
-      solar_cosine:         SUNCOS
+      par_direct: PARDR
+      par_diffuse: PARDF
+      solar_cosine: SUNCOS
 
   # --- HEMCO 3.12.1 stateless MEGAN parity reference ---
   - name: megan
@@ -70,12 +70,12 @@ physics_schemes:
       hemco_t_avg_15_k: 297.0
       export_field_name: isoprene_hemco3121
     input_mapping:
-      temperature:          TSFC
-      leaf_area_index:      LAI
+      temperature: TSFC
+      leaf_area_index: LAI
       leaf_area_index_prev: LAI_PREV
-      par_direct:           PARDR
-      par_diffuse:          PARDF
-      solar_cosine:         SUNCOS
+      par_direct: PARDR
+      par_diffuse: PARDF
+      solar_cosine: SUNCOS
     output_mapping:
       isoprene_hemco3121: ISOP_HEMCO3121
 
@@ -84,23 +84,23 @@ cece_data:
     - name: "MERRA2_MET"
       file: "/path/to/MERRA2/MERRA2.20210620.A1.4x5.nc4"
       yearFirst: 2021
-      yearLast:  2021
+      yearLast: 2021
       variables:
         - model: TSFC
-          file:  T2M
+          file: T2M
         - model: PARDR
-          file:  PARDR
+          file: PARDR
         - model: PARDF
-          file:  PARDF
+          file: PARDF
         - model: SUNCOS
-          file:  SUNCOS
+          file: SUNCOS
 
     - name: "MEGAN_LAI"
       file: "/path/to/MEGAN/lai.geos.1x1.nc"
       yearFirst: 2000
-      yearLast:  2000
+      yearLast: 2000
       variables:
         - model: LAI
-          file:  LAI
+          file: LAI
         - model: LAI_PREV
-          file:  LAI_PREV
+          file: LAI_PREV

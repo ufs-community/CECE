@@ -177,9 +177,9 @@ inline double GammaTLI(double T_K) noexcept {
 inline double GammaTLD(double T_K, double T_avg_15_K = kTAvg15) noexcept {
     const double e_opt = kCEO * std::exp(kEOptCoeff * (T_avg_15_K - 297.0));
     const double t_opt = kTOptC1 + kTOptC2 * (T_avg_15_K - 297.0);
-    const double x     = (1.0 / t_opt - 1.0 / T_K) / kR;
-    const double num   = e_opt * kCT2 * std::exp(kCT1 * x);
-    const double den   = kCT2 - kCT1 * (1.0 - std::exp(kCT2 * x));
+    const double x = (1.0 / t_opt - 1.0 / T_K) / kR;
+    const double num = e_opt * kCT2 * std::exp(kCT1 * x);
+    const double den = kCT2 - kCT1 * (1.0 - std::exp(kCT2 * x));
     return (den > 0.0) ? std::max(num / den, 0.0) : 0.0;
 }
 
@@ -197,15 +197,13 @@ inline double GammaTLD(double T_K, double T_avg_15_K = kTAvg15) noexcept {
  * @param doy           Day-of-year (default: kReferenceDoy).
  * @return gamma_PAR ≥ 0.
  */
-inline double GammaPAR(double pardr_Wm2, double pardf_Wm2, double suncos,
-                       double par_avg_umol = kParAvgUmol, int doy = kReferenceDoy) noexcept {
+inline double GammaPAR(double pardr_Wm2, double pardf_Wm2, double suncos, double par_avg_umol = kParAvgUmol, int doy = kReferenceDoy) noexcept {
     if (suncos <= 0.0) return 0.0;
     const double pac_i = (pardr_Wm2 + pardf_Wm2) * kWm2ToUmol;
-    const double bbb   = kGpC1 + kGpC2 * (par_avg_umol - 400.0);
-    const double ptoa  = kPtoaC1 + kPtoaC2 *
-                         std::cos(2.0 * std::numbers::pi * (doy - kPtoaDoyOffset) / 365.0);
-    const double phi   = pac_i / (suncos * ptoa);
-    const double aaa   = kGpC3 * bbb * phi - kGpC4 * phi * phi;
+    const double bbb = kGpC1 + kGpC2 * (par_avg_umol - 400.0);
+    const double ptoa = kPtoaC1 + kPtoaC2 * std::cos(2.0 * std::numbers::pi * (doy - kPtoaDoyOffset) / 365.0);
+    const double phi = pac_i / (suncos * ptoa);
+    const double aaa = kGpC3 * bbb * phi - kGpC4 * phi * phi;
     return std::max(suncos * aaa, 0.0);
 }
 
@@ -222,18 +220,18 @@ inline double GammaAge(double cmlai, double pmlai, double T_K) noexcept {
     double fnew, fgro, fmat, fold;
 
     if (cmlai == pmlai) {
-        fnew = 0.0; fgro = 0.1; fmat = 0.8; fold = 0.1;
+        fnew = 0.0;
+        fgro = 0.1;
+        fmat = 0.8;
+        fold = 0.1;
     } else if (cmlai > pmlai) {
-        fnew = (kDbtwn > ti)
-             ? (ti / kDbtwn) * (1.0 - pmlai / cmlai)
-             : (1.0 - pmlai / cmlai);
-        fmat = (kDbtwn > tm)
-             ? (pmlai / cmlai) + ((kDbtwn - tm) / kDbtwn) * (1.0 - pmlai / cmlai)
-             : (pmlai / cmlai);
+        fnew = (kDbtwn > ti) ? (ti / kDbtwn) * (1.0 - pmlai / cmlai) : (1.0 - pmlai / cmlai);
+        fmat = (kDbtwn > tm) ? (pmlai / cmlai) + ((kDbtwn - tm) / kDbtwn) * (1.0 - pmlai / cmlai) : (pmlai / cmlai);
         fgro = 1.0 - fnew - fmat;
         fold = 0.0;
     } else {
-        fnew = 0.0; fgro = 0.0;
+        fnew = 0.0;
+        fgro = 0.0;
         fold = (pmlai - cmlai) / pmlai;
         fmat = 1.0 - fold;
     }
@@ -249,17 +247,17 @@ inline double GammaAge(double cmlai, double pmlai, double T_K) noexcept {
  * @brief All inputs for one stateless HEMCO 3.12.1 MEGAN isoprene cell.
  */
 struct MeganInputs {
-    double T_K         = 303.0;   ///< Instantaneous temperature [K]
-    double lai         = 0.0;     ///< Current-month LAI [m² m⁻²]
-    double lai_prev    = 0.0;     ///< Previous-month LAI [m² m⁻²]
-    double pardr_Wm2   = 0.0;     ///< Direct PAR [W m⁻²]
-    double pardf_Wm2   = 0.0;     ///< Diffuse PAR [W m⁻²]
-    double suncos      = 0.0;     ///< Solar zenith cosine
-    double gwetroot    = 1.0;     ///< Root-zone soil moisture (unused for ISOP)
-    double co2_ppm     = 390.0;   ///< Ambient CO₂ [ppm]
+    double T_K = 303.0;                 ///< Instantaneous temperature [K]
+    double lai = 0.0;                   ///< Current-month LAI [m² m⁻²]
+    double lai_prev = 0.0;              ///< Previous-month LAI [m² m⁻²]
+    double pardr_Wm2 = 0.0;             ///< Direct PAR [W m⁻²]
+    double pardf_Wm2 = 0.0;             ///< Diffuse PAR [W m⁻²]
+    double suncos = 0.0;                ///< Solar zenith cosine
+    double gwetroot = 1.0;              ///< Root-zone soil moisture (unused for ISOP)
+    double co2_ppm = 390.0;             ///< Ambient CO₂ [ppm]
     double par_avg_umol = kParAvgUmol;  ///< 24-hr PAR avg [µmol m⁻² s⁻¹]
-    double T_avg_15_K  = kTAvg15;       ///< 15-day T avg [K]
-    int    doy         = kReferenceDoy; ///< Day-of-year
+    double T_avg_15_K = kTAvg15;        ///< 15-day T avg [K]
+    int doy = kReferenceDoy;            ///< Day-of-year
 };
 
 /**
@@ -275,7 +273,7 @@ struct MeganInputs {
 inline double IsopreneEmissionFactor(const MeganInputs& in) noexcept {
     if (in.lai <= 0.0) return 0.0;
 
-    const double gc   = GammaCO2(in.co2_ppm);
+    const double gc = GammaCO2(in.co2_ppm);
     const double glai = GammaLAI(in.lai);
     const double gage = GammaAge(in.lai, in.lai_prev, in.T_K);
     const double gtli = GammaTLI(in.T_K);
