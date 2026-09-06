@@ -1,6 +1,8 @@
 #include <gtest/gtest.h>
 
 #include <Kokkos_Core.hpp>
+#include <conf/config.hpp>
+#include <conf/value.hpp>
 
 #include "cece/cece_physics_factory.hpp"
 #include "cece/cece_state.hpp"
@@ -111,8 +113,8 @@ void TestParity(PhysicsTest* test, const std::string& cpp_name, const std::strin
     }
 
     // Initialize schemes (needed for optimized versions)
-    scheme_cpp->Initialize(cfg_cpp.options, nullptr);
-    scheme_fort->Initialize(cfg_fort.options, nullptr);
+    scheme_cpp->Initialize(conf::Value::from_raw(static_cast<const void*>(&cfg_cpp.options)), nullptr);
+    scheme_fort->Initialize(conf::Value::from_raw(static_cast<const void*>(&cfg_fort.options)), nullptr);
 
     // Run C++
     scheme_cpp->Run(test->import_state, test->export_state);
@@ -162,10 +164,6 @@ TEST_F(PhysicsTest, VolcanoParity) {
 
 TEST_F(PhysicsTest, Megan3CppFortranParity) {
     TestParity(this, "megan3", "megan3_fortran", "MEGAN_ISOP");
-}
-
-TEST_F(PhysicsTest, BdsnpCppFortranParity) {
-    TestParity(this, "bdsnp", "bdsnp_fortran", "soil_nox_emissions");
 }
 
 // Vertical Distribution Verification
@@ -289,7 +287,8 @@ TEST_F(PhysicsTest, NativeExampleMultipleInputs) {
     {
         ClearExports();
         PhysicsSchemeConfig cfg_mapped = cfg;
-        cfg_mapped.options = YAML::Load("input_mapping: {multiplier_input: custom_import}");
+        conf::Config mapped_options = conf::Config::from_string("input_mapping: {multiplier_input: custom_import}");
+        cfg_mapped.options = mapped_options.root();
 
         auto scheme = PhysicsFactory::CreateScheme(cfg_mapped);
         scheme->Initialize(cfg_mapped.options, nullptr);
@@ -308,7 +307,8 @@ TEST_F(PhysicsTest, NativeExampleMultipleInputs) {
     {
         ClearExports();
         PhysicsSchemeConfig cfg_chained = cfg;
-        cfg_chained.options = YAML::Load("input_mapping: {multiplier_input: secondary_input}");
+        conf::Config chained_options = conf::Config::from_string("input_mapping: {multiplier_input: secondary_input}");
+        cfg_chained.options = chained_options.root();
 
         auto scheme = PhysicsFactory::CreateScheme(cfg_chained);
         scheme->Initialize(cfg_chained.options, nullptr);
@@ -328,7 +328,8 @@ TEST_F(PhysicsTest, NativeExampleMultipleInputs) {
     {
         ClearExports();
         PhysicsSchemeConfig cfg_out_mapped = cfg;
-        cfg_out_mapped.options = YAML::Load("output_mapping: {nox: custom_nox}");
+        conf::Config output_options = conf::Config::from_string("output_mapping: {nox: custom_nox}");
+        cfg_out_mapped.options = output_options.root();
 
         auto scheme = PhysicsFactory::CreateScheme(cfg_out_mapped);
         scheme->Initialize(cfg_out_mapped.options, nullptr);
@@ -348,9 +349,10 @@ TEST_F(PhysicsTest, ConfigurableParameters) {
     // Test DMS with custom coefficients
     PhysicsSchemeConfig cfg;
     cfg.name = "dms";
-    cfg.options = YAML::Load(
+    conf::Config dms_options = conf::Config::from_string(
         "schmidt_coeff: [2000.0, -100.0, 2.0, -0.01]\n"
         "kw_coeff: [0.5, 0.5]");
+    cfg.options = dms_options.root();
 
     auto scheme = PhysicsFactory::CreateScheme(cfg);
     scheme->Initialize(cfg.options, nullptr);

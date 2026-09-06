@@ -20,14 +20,12 @@ namespace cece {
 static PhysicsRegistration<GinouxFortranScheme> register_ginoux_fortran("ginoux_fortran");
 #endif
 
-void GinouxFortranScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
+void GinouxFortranScheme::Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
 
-    if (config["ch_du"]) ch_du_ = config["ch_du"].as<double>();
-    if (config["grav"]) grav_ = config["grav"].as<double>();
-    if (config["num_bins"]) num_bins_ = config["num_bins"].as<int>();
-
-    std::cout << "GinouxFortranScheme: Initialized." << "\n";
+    if (config["ch_du"]) ch_du_ = config["ch_du"].as_double();
+    if (config["grav"]) grav_ = config["grav"].as_double();
+    if (config["num_bins"]) num_bins_ = config["num_bins"].as_int();
 }
 
 void GinouxFortranScheme::Run(CeceImportState& import_state, CeceExportState& export_state) {

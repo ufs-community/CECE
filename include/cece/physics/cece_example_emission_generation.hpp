@@ -24,9 +24,8 @@
 #ifndef CECE_EXAMPLE_EMISSION_GENERATION_HPP
 #define CECE_EXAMPLE_EMISSION_GENERATION_HPP
 
-#include <yaml-cpp/yaml.h>
-
 #include <Kokkos_Core.hpp>
+#include <conf/value.hpp>
 
 #include "cece/cece_diagnostics.hpp"
 #include "cece/cece_state.hpp"
@@ -50,7 +49,7 @@ class ExampleEmissionGeneration : public BasePhysicsScheme {
     ExampleEmissionGeneration() = default;
     ~ExampleEmissionGeneration() override = default;
 
-    void Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) override;
+    void Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) override;
     void Run(CeceImportState& import_state, CeceExportState& export_state) override;
     void Finalize() override;
 

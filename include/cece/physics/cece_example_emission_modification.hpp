@@ -25,9 +25,8 @@
 #ifndef CECE_EXAMPLE_EMISSION_MODIFICATION_HPP
 #define CECE_EXAMPLE_EMISSION_MODIFICATION_HPP
 
-#include <yaml-cpp/yaml.h>
-
 #include <Kokkos_Core.hpp>
+#include <conf/value.hpp>
 
 #include "cece/cece_diagnostics.hpp"
 #include "cece/cece_state.hpp"
@@ -51,7 +50,7 @@ class ExampleEmissionModification : public BasePhysicsScheme {
     ExampleEmissionModification() = default;
     ~ExampleEmissionModification() override = default;
 
-    void Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) override;
+    void Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) override;
     void Run(CeceImportState& import_state, CeceExportState& export_state) override;
     void Finalize() override;
 

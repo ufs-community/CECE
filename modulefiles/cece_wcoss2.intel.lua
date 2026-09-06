@@ -18,7 +18,10 @@ load(pathJoin("cray-mpich", cray_mpich_ver))
 cmake_ver=os.getenv("cmake_ver") or "3.20.2"
 load(pathJoin("cmake", cmake_ver))
 
-local ufs_modules = {
+python_ver=os.getenv("python_ver") or "3.12.0"
+load(pathJoin("python", python_ver))
+
+local cece_modules = {
   {["jasper"]      = "2.0.25"},
   {["zlib"]        = "1.2.11"},
   {["libpng"]      = "1.6.37"},
@@ -41,8 +44,8 @@ local ufs_modules = {
   {["zstd"]        = "1.5.0"},
 }
 
-for i = 1, #ufs_modules do
-  for name, default_version in pairs(ufs_modules[i]) do
+for i = 1, #cece_modules do
+  for name, default_version in pairs(cece_modules[i]) do
     local env_version_name = string.gsub(name, "-", "_") .. "_ver"
     load(pathJoin(name, os.getenv(env_version_name) or default_version))
   end

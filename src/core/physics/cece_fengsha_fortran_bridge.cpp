@@ -55,21 +55,21 @@ namespace cece {
 static PhysicsRegistration<FengshaFortranScheme> register_fengsha_fortran("fengsha_fortran");
 #endif
 
-void FengshaFortranScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
+void FengshaFortranScheme::Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
 
-    if (config["alpha"]) alpha_ = config["alpha"].as<double>();
-    if (config["gamma"]) gamma_ = config["gamma"].as<double>();
-    if (config["kvhmax"]) kvhmax_ = config["kvhmax"].as<double>();
-    if (config["grav"]) grav_ = config["grav"].as<double>();
-    if (config["drylimit_factor"]) drylimit_factor_ = config["drylimit_factor"].as<double>();
-    if (config["num_bins"]) num_bins_ = config["num_bins"].as<int>();
+    if (config["alpha"]) alpha_ = config["alpha"].as_double();
+    if (config["gamma"]) gamma_ = config["gamma"].as_double();
+    if (config["kvhmax"]) kvhmax_ = config["kvhmax"].as_double();
+    if (config["grav"]) grav_ = config["grav"].as_double();
+    if (config["drylimit_factor"]) drylimit_factor_ = config["drylimit_factor"].as_double();
+    if (config["num_bins"]) num_bins_ = config["num_bins"].as_int();
 
     // Compute Kok distribution from particle size parameters if provided
     if (config["particle_radii"] && config["bin_lower_edges"] && config["bin_upper_edges"]) {
-        auto radii = config["particle_radii"].as<std::vector<double>>();
-        auto lower = config["bin_lower_edges"].as<std::vector<double>>();
-        auto upper = config["bin_upper_edges"].as<std::vector<double>>();
+        auto radii = config["particle_radii"].as_double_list();
+        auto lower = config["bin_lower_edges"].as_double_list();
+        auto upper = config["bin_upper_edges"].as_double_list();
         num_bins_ = static_cast<int>(radii.size());
 
         bin_distribution_ = compute_kok_distribution(radii, lower, upper);

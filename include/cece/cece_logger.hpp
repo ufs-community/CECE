@@ -107,6 +107,7 @@ class CeceLogger {
      */
     void LogWarning(const std::string& message, const std::string& file = "", int line = 0) {
         EnsureCommunicatorConfigured();
+        if (logger_.rank() > 0) return;  // Only Rank 0 logs warnings
         logs::Submit_Options opts;
         if (!file.empty() && line > 0) {
             opts.location = logs::Source_Location{file, line, ""};
@@ -119,6 +120,7 @@ class CeceLogger {
      */
     void LogInfo(const std::string& message, const std::string& file = "", int line = 0) {
         EnsureCommunicatorConfigured();
+        if (logger_.rank() > 0) return;  // Only Rank 0 logs info messages
         logs::Submit_Options opts;
         if (!file.empty() && line > 0) {
             opts.location = logs::Source_Location{file, line, ""};
@@ -127,7 +129,7 @@ class CeceLogger {
     }
 
     /**
-     * @brief Log a debug message
+     * @brief Log a debug message (logged across all ranks with rank attribution)
      */
     void LogDebug(const std::string& message, const std::string& file = "", int line = 0) {
         EnsureCommunicatorConfigured();

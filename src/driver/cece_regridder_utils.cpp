@@ -12,6 +12,8 @@
 #include <iostream>
 #include <sstream>
 
+#include "cece/cece_logger.hpp"
+
 namespace cece::io {
 
 static std::vector<double> read_coordinate_array(amio_dataset_handle dataset, const std::string& name, bool is_radian, bool wrap_lon,
@@ -359,6 +361,65 @@ axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_axis_mesh(int ni, int 
     return grid.to_unstructured();
 }
 
+namespace {
+
+bool coordinate_at(const std::vector<double>& values, int nx, int ny, int i, int j, bool longitude, double& value) {
+    const size_t ncell = static_cast<size_t>(nx) * ny;
+    if (values.size() == ncell) {
+        value = values[static_cast<size_t>(j) * nx + i];
+        return true;
+    }
+    if (longitude && values.size() == static_cast<size_t>(nx)) {
+        value = values[i];
+        return true;
+    }
+    if (!longitude && values.size() == static_cast<size_t>(ny)) {
+        value = values[j];
+        return true;
+    }
+    return false;
+}
+
+bool coordinates_equal(double source, double target, bool longitude, double tolerance) {
+    if (!std::isfinite(source) || !std::isfinite(target)) {
+        return false;
+    }
+    double difference = source - target;
+    if (longitude) {
+        difference = std::fmod(difference, 360.0);
+        if (difference > 180.0) {
+            difference -= 360.0;
+        } else if (difference < -180.0) {
+            difference += 360.0;
+        }
+    }
+    return std::abs(difference) <= tolerance;
+}
+
+}  // namespace
+
+bool same_spherical_grid_coordinates(int nx, int ny, const std::vector<double>& source_lons, const std::vector<double>& source_lats,
+                                     const std::vector<double>& target_lons, const std::vector<double>& target_lats, double tolerance) {
+    if (nx <= 0 || ny <= 0 || tolerance < 0.0) {
+        return false;
+    }
+
+    for (int j = 0; j < ny; ++j) {
+        for (int i = 0; i < nx; ++i) {
+            double source_lon = 0.0;
+            double source_lat = 0.0;
+            double target_lon = 0.0;
+            double target_lat = 0.0;
+            if (!coordinate_at(source_lons, nx, ny, i, j, true, source_lon) || !coordinate_at(source_lats, nx, ny, i, j, false, source_lat) ||
+                !coordinate_at(target_lons, nx, ny, i, j, true, target_lon) || !coordinate_at(target_lats, nx, ny, i, j, false, target_lat) ||
+                !coordinates_equal(source_lon, target_lon, true, tolerance) || !coordinates_equal(source_lat, target_lat, false, tolerance)) {
+                return false;
+            }
+        }
+    }
+    return true;
+}
+
 bool build_regrid_plan(amio_dataset_handle read_dataset, int nx, int ny, const std::vector<double>& target_lons,
                        const std::vector<double>& target_lats, const std::string& map_algo, int j0, int j1, const std::string& gridspec_file,
                        RegridPlan& plan) {
@@ -487,16 +548,27 @@ bool build_regrid_plan(amio_dataset_handle read_dataset, int nx, int ny, const s
                   << "lat_range=[" << min_lat << ", " << max_lat << "]" << std::endl;
     }
 
-    if (map_algo == "passthrough") {
-        if (nx != plan.file_nx || ny != plan.file_ny) {
-            std::cerr << "[DRIVER ERROR] passthrough regridding requested but grid dimensions do not match! "
-                      << "Source grid: " << plan.file_nx << "x" << plan.file_ny << ", Target grid: " << nx << "x" << ny << std::endl;
-            throw std::runtime_error("passthrough regridding dimension mismatch");
-        }
-    }
-
     plan.j0 = j0;
     plan.j1 = j1;
+
+    if (map_algo == "passthrough") {
+        if (nx != plan.file_nx || ny != plan.file_ny) {
+            CECE_LOG_ERROR(
+                "[DRIVER ERROR] passthrough regridding requested but grid dimensions do not match! Source grid: " + std::to_string(plan.file_nx) +
+                "x" + std::to_string(plan.file_ny) + ", Target grid: " + std::to_string(nx) + "x" + std::to_string(ny));
+            throw std::runtime_error("passthrough regridding dimension mismatch");
+        }
+        if (!same_spherical_grid_coordinates(nx, ny, src_lons, src_lats, target_lons, target_lats)) {
+            throw std::runtime_error("passthrough regridding coordinate mismatch");
+        }
+
+        plan.identity = true;
+        plan.built = true;
+        CECE_LOG_INFO(
+            "[DRIVER] passthrough verified identical source and target coordinates; "
+            "skipping AXIS regridding");
+        return true;
+    }
 
     const int nband = j1 - j0;
     if (nband <= 0) {
@@ -576,6 +648,24 @@ bool apply_regrid_plan(const RegridPlan& plan, size_t time_offset, bool is_float
     local_dst.assign(static_cast<size_t>(nx) * std::max(nband, 0), 0.0);
     if (nband <= 0) {
         return true;  // No rows on this rank.
+    }
+
+    if (plan.identity) {
+        if (file_nx != plan.file_nx || file_ny != plan.file_ny || nx != file_nx || plan.j0 < 0 || plan.j1 > file_ny) {
+            CECE_LOG_ERROR("[DRIVER ERROR] identity-plan field dimensions do not match the verified source grid");
+            return false;
+        }
+        const float* float_data = static_cast<const float*>(view_data);
+        const double* double_data = static_cast<const double*>(view_data);
+        for (int local_j = 0; local_j < nband; ++local_j) {
+            const int source_j = plan.j0 + local_j;
+            for (int i = 0; i < nx; ++i) {
+                const size_t source_index = time_offset + static_cast<size_t>(source_j) * file_nx + i;
+                const size_t destination_index = static_cast<size_t>(local_j) * nx + i;
+                local_dst[destination_index] = is_float ? static_cast<double>(float_data[source_index]) : double_data[source_index];
+            }
+        }
+        return true;
     }
 
     // D. Prepare the (global) source field view [file_nx * file_ny].

@@ -28,7 +28,7 @@ static PhysicsRegistration<FortranBridgeExample> register_scheme("fortran_bridge
  * @param config YAML node containing scheme-specific options.
  * @param diag_manager Pointer to the diagnostic manager.
  */
-void FortranBridgeExample::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
+void FortranBridgeExample::Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
     std::cout << "FortranBridgeExample: Initialized.\n";
 }

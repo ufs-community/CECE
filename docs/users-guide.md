@@ -11,7 +11,7 @@ To build CECE, you need the following dependencies:
 - **Kokkos** (4.0+)
 - **ESMF** (8.0+)
 - **MPI** (OpenMPI, MPICH, etc.)
-- **yaml-cpp** (0.7+)
+- **HELM CONF** (included)
 - **AMIO** (Asynchronous Multidimensional I/O, via HELM)
 - **NetCDF** (C and Fortran interfaces)
 - **Python 3.8+** (for scripts and testing)

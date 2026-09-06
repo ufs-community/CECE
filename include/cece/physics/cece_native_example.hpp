@@ -34,7 +34,7 @@ class NativePhysicsExample : public BasePhysicsScheme {
      * @param config YAML node with scheme options.
      * @param diag_manager Pointer to the diagnostic manager.
      */
-    void Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) override;
+    void Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) override;
 
     /**
      * @brief Executes the computational kernel.

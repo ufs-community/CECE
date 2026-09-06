@@ -53,6 +53,7 @@ To run these examples, you need the associated NetCDF data files. CECE provides 
 ./scripts/setup_hemco_examples.sh
 ```
 This script will:
+
 -   Create the `examples/` directory if it doesn't exist.
 -   Copy or generate the example configuration files.
 -   Create a `scripts/data_download/` directory with shell scripts to download the required data from S3.

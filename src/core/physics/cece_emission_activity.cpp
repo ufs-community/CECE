@@ -65,7 +65,7 @@ static constexpr double kDefaultAmat[NUM_CLASSES] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.
 // Default Aold values per class
 static constexpr double kDefaultAold[NUM_CLASSES] = {0.9, 0.9, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.9, 0.9, 1.2, 0.9, 1.2, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9};
 
-void EmissionActivityCalculator::Initialize(const YAML::Node& config) {
+void EmissionActivityCalculator::Initialize(const conf::Value& config) {
     // ---- Allocate device views for per-class coefficients ----
     coefficients_.ldf = Kokkos::View<double[19], Kokkos::DefaultExecutionSpace>("eac_ldf");
     coefficients_.ct1 = Kokkos::View<double[19], Kokkos::DefaultExecutionSpace>("eac_ct1");
@@ -101,12 +101,11 @@ void EmissionActivityCalculator::Initialize(const YAML::Node& config) {
         h_bidir(i) = false;
     }
 
-    // ---- Parse per-class coefficients from YAML emission_classes section ----
+    // ---- Parse per-class coefficients from config emission_classes section ----
     if (config && config["emission_classes"]) {
-        const auto& classes_node = config["emission_classes"];
-        for (auto it = classes_node.begin(); it != classes_node.end(); ++it) {
-            std::string class_name = it->first.as<std::string>();
-            const auto& class_config = it->second;
+        auto classes_node = config["emission_classes"];
+        for (const auto& class_name : classes_node.keys()) {
+            auto class_config = classes_node[class_name];
 
             EmissionClass ec;
             if (!StringToEmissionClass(class_name, ec)) {
@@ -116,16 +115,16 @@ void EmissionActivityCalculator::Initialize(const YAML::Node& config) {
 
             int idx = static_cast<int>(ec);
 
-            if (class_config["ldf"]) h_ldf(idx) = class_config["ldf"].as<double>();
-            if (class_config["ct1"]) h_ct1(idx) = class_config["ct1"].as<double>();
-            if (class_config["cleo"]) h_cleo(idx) = class_config["cleo"].as<double>();
-            if (class_config["beta"]) h_beta(idx) = class_config["beta"].as<double>();
-            if (class_config["anew"]) h_anew(idx) = class_config["anew"].as<double>();
-            if (class_config["agro"]) h_agro(idx) = class_config["agro"].as<double>();
-            if (class_config["amat"]) h_amat(idx) = class_config["amat"].as<double>();
-            if (class_config["aold"]) h_aold(idx) = class_config["aold"].as<double>();
+            if (class_config["ldf"]) h_ldf(idx) = class_config["ldf"].as_double();
+            if (class_config["ct1"]) h_ct1(idx) = class_config["ct1"].as_double();
+            if (class_config["cleo"]) h_cleo(idx) = class_config["cleo"].as_double();
+            if (class_config["beta"]) h_beta(idx) = class_config["beta"].as_double();
+            if (class_config["anew"]) h_anew(idx) = class_config["anew"].as_double();
+            if (class_config["agro"]) h_agro(idx) = class_config["agro"].as_double();
+            if (class_config["amat"]) h_amat(idx) = class_config["amat"].as_double();
+            if (class_config["aold"]) h_aold(idx) = class_config["aold"].as_double();
             if (class_config["bidirectional"]) {
-                h_bidir(idx) = class_config["bidirectional"].as<bool>();
+                h_bidir(idx) = class_config["bidirectional"].as_bool();
             }
         }
     } else {
@@ -150,13 +149,13 @@ void EmissionActivityCalculator::Initialize(const YAML::Node& config) {
     enable_aq_stress_ = false;
     if (config) {
         if (config["enable_wind_stress"]) {
-            enable_wind_stress_ = config["enable_wind_stress"].as<bool>();
+            enable_wind_stress_ = config["enable_wind_stress"].as_bool();
         }
         if (config["enable_temp_stress"]) {
-            enable_temp_stress_ = config["enable_temp_stress"].as<bool>();
+            enable_temp_stress_ = config["enable_temp_stress"].as_bool();
         }
         if (config["enable_aq_stress"]) {
-            enable_aq_stress_ = config["enable_aq_stress"].as<bool>();
+            enable_aq_stress_ = config["enable_aq_stress"].as_bool();
         }
     }
 
@@ -165,10 +164,10 @@ void EmissionActivityCalculator::Initialize(const YAML::Node& config) {
     co2_concentration_ = 400.0;
     if (config) {
         if (config["co2_method"]) {
-            co2_method_ = config["co2_method"].as<std::string>();
+            co2_method_ = config["co2_method"].as_string();
         }
         if (config["co2_concentration"]) {
-            co2_concentration_ = config["co2_concentration"].as<double>();
+            co2_concentration_ = config["co2_concentration"].as_double();
         }
     }
 

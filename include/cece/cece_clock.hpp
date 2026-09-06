@@ -25,7 +25,7 @@ struct ClockComponent {
  * @brief Returned by Advance() — the set of components due this step.
  */
 struct StepResult {
-    std::vector<const ClockComponent*> due_components;  ///< ordered: schemes/streams first, stacking last
+    std::vector<const ClockComponent*> due_components;  ///< ordered: streams, physics schemes, stacking
     int elapsed_seconds;                                ///< total seconds since start_time
     int hour_of_day;                                    ///< 0-23
     int day_of_week;                                    ///< 0-6, Sunday=0

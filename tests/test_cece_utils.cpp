@@ -1,5 +1,6 @@
 #include <gtest/gtest.h>
 #include <mpi.h>
+#include <netcdf.h>
 #include <unistd.h>
 
 #include <Kokkos_Core.hpp>
@@ -11,6 +12,7 @@
 
 #include "cece/cece_config.hpp"
 #include "cece/cece_internal.hpp"
+#include "cece/cece_regridder_utils.hpp"
 #include "cece/cece_standalone_writer.hpp"
 #include "cece/cece_utils.hpp"
 
@@ -58,6 +60,137 @@ TEST_F(CeceUtilsTest, WrapESMCFieldUpdatesRawData) {
 
     // Also verify through the view
     EXPECT_DOUBLE_EQ(view(2, 3, 1), 42.0);
+}
+
+TEST_F(CeceUtilsTest, Hemco4x5CoordinatesAreTheSameOrderedGrid) {
+    constexpr int nx = 72;
+    constexpr int ny = 46;
+
+    std::vector<double> lons(nx);
+    for (int i = 0; i < nx; ++i) {
+        lons[i] = -180.0 + 5.0 * i;
+    }
+
+    std::vector<double> lats;
+    lats.reserve(ny);
+    lats.push_back(-89.0);
+    for (double lat = -86.0; lat <= 86.0; lat += 4.0) {
+        lats.push_back(lat);
+    }
+    lats.push_back(89.0);
+    ASSERT_EQ(lats.size(), static_cast<size_t>(ny));
+
+    EXPECT_TRUE(io::same_spherical_grid_coordinates(nx, ny, lons, lats, lons, lats));
+
+    // A 0..360 convention is equivalent only when cell ordering is unchanged.
+    std::vector<double> lons_360 = lons;
+    for (double& lon : lons_360) {
+        if (lon < 0.0) lon += 360.0;
+    }
+    EXPECT_TRUE(io::same_spherical_grid_coordinates(nx, ny, lons_360, lats, lons, lats));
+
+    std::vector<double> cyclically_shifted_lons = lons;
+    std::rotate(cyclically_shifted_lons.begin(), cyclically_shifted_lons.begin() + 1, cyclically_shifted_lons.end());
+    EXPECT_FALSE(io::same_spherical_grid_coordinates(nx, ny, cyclically_shifted_lons, lats, lons, lats));
+
+    std::vector<double> shifted_lats = lats;
+    shifted_lats.front() = -90.0;
+    EXPECT_FALSE(io::same_spherical_grid_coordinates(nx, ny, lons, shifted_lats, lons, lats));
+}
+
+TEST_F(CeceUtilsTest, IdentityRegridPlanCopiesTheOwnedRowsExactly) {
+    io::RegridPlan plan;
+    plan.file_nx = 3;
+    plan.file_ny = 4;
+    plan.j0 = 1;
+    plan.j1 = 3;
+    plan.identity = true;
+    plan.built = true;
+
+    const std::vector<double> source = {0.0, 1.0, 2.0, 10.0, 11.0, 12.0, 20.0, 21.0, 22.0, 30.0, 31.0, 32.0};
+    std::vector<double> destination;
+
+    ASSERT_TRUE(io::apply_regrid_plan(plan, 0, false, source.data(), 3, 4, 3, destination));
+    const std::vector<double> expected = {10.0, 11.0, 12.0, 20.0, 21.0, 22.0};
+    EXPECT_EQ(destination, expected);
+
+    plan.j0 = 0;
+    plan.j1 = 4;
+    const std::vector<float> source_with_offset = {-999.0F, 0.0F, 1.0F, 2.0F, 10.0F, 11.0F, 12.0F, 20.0F, 21.0F, 22.0F, 30.0F, 31.0F, 32.0F};
+    ASSERT_TRUE(io::apply_regrid_plan(plan, 1, true, source_with_offset.data(), 3, 4, 3, destination));
+    EXPECT_EQ(destination, source);
+}
+
+TEST_F(CeceUtilsTest, IdentityRegridPlanRejectsDimensionsDifferentFromVerifiedGrid) {
+    io::RegridPlan plan;
+    plan.file_nx = 3;
+    plan.file_ny = 4;
+    plan.j0 = 0;
+    plan.j1 = 4;
+    plan.identity = true;
+    plan.built = true;
+
+    const std::vector<double> source(12, 1.0);
+    std::vector<double> destination;
+    EXPECT_FALSE(io::apply_regrid_plan(plan, 0, false, source.data(), 2, 4, 3, destination));
+}
+
+TEST_F(CeceUtilsTest, StandaloneWriterPreservesHemco4x5CoordinateCenters) {
+    constexpr int nx = 72;
+    constexpr int ny = 46;
+    const std::string test_dir = "test_output_dir_hemco_coords_" + std::to_string(getpid());
+
+    std::vector<double> lons(nx);
+    for (int i = 0; i < nx; ++i) {
+        lons[i] = -180.0 + 5.0 * i;
+    }
+    std::vector<double> lats;
+    lats.reserve(ny);
+    lats.push_back(-89.0);
+    for (double lat = -86.0; lat <= 86.0; lat += 4.0) {
+        lats.push_back(lat);
+    }
+    lats.push_back(89.0);
+
+    CeceOutputConfig config;
+    config.enabled = true;
+    config.directory = test_dir;
+    config.filename_pattern = "hemco_grid.nc";
+    config.fields = {{"test_field", {}}};
+    config.fields.SetTimeUnits("2021-06-20T12:00:00");
+
+    CeceStandaloneWriter writer(config);
+    ASSERT_EQ(writer.InitializeWithCoords("2021-06-20T12:00:00", nx, ny, 1, lons, lats), 0);
+
+    DualView3D test_field("test_field", nx, ny, 1);
+    test_field.sync<Kokkos::HostSpace>();
+    auto test_field_host = test_field.view_host();
+    Kokkos::deep_copy(test_field_host, 0.0);
+    test_field.modify<Kokkos::HostSpace>();
+    std::unordered_map<std::string, DualView3D> fields;
+    fields["test_field"] = test_field;
+    ASSERT_EQ(writer.WriteTimeStep(fields, 3600.0, 1), 0);
+    writer.Finalize();
+
+    const std::string output_path = test_dir + "/hemco_grid.nc";
+    int ncid = -1;
+    ASSERT_EQ(nc_open(output_path.c_str(), NC_NOWRITE, &ncid), NC_NOERR);
+
+    int lon_varid = -1;
+    int lat_varid = -1;
+    ASSERT_EQ(nc_inq_varid(ncid, "lon", &lon_varid), NC_NOERR);
+    ASSERT_EQ(nc_inq_varid(ncid, "lat", &lat_varid), NC_NOERR);
+    std::vector<double> written_lons(nx);
+    std::vector<double> written_lats(ny);
+    ASSERT_EQ(nc_get_var_double(ncid, lon_varid, written_lons.data()), NC_NOERR);
+    ASSERT_EQ(nc_get_var_double(ncid, lat_varid, written_lats.data()), NC_NOERR);
+    EXPECT_EQ(written_lons, lons);
+    EXPECT_EQ(written_lats, lats);
+    EXPECT_EQ(nc_close(ncid), NC_NOERR);
+
+    if (std::filesystem::exists(test_dir)) {
+        std::filesystem::remove_all(test_dir);
+    }
 }
 
 TEST_F(CeceUtilsTest, StandaloneWriterDuplicateCoordsDetection) {

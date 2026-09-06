@@ -27,7 +27,7 @@ class Gocart2gScheme : public BasePhysicsScheme {
     Gocart2gScheme() = default;
     ~Gocart2gScheme() override = default;
 
-    void Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) override;
+    void Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) override;
     void Run(CeceImportState& import_state, CeceExportState& export_state) override;
 
    private:

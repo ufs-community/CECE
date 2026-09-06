@@ -55,16 +55,16 @@ double ginoux_moisture_threshold(double u_thresh0, double gwettop) {
 
 namespace cece {
 
-void GinouxScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
+void GinouxScheme::Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
 
-    if (config["ch_du"]) ch_du_ = config["ch_du"].as<double>();
-    if (config["grav"]) grav_ = config["grav"].as<double>();
-    if (config["num_bins"]) num_bins_ = config["num_bins"].as<int>();
+    if (config["ch_du"]) ch_du_ = config["ch_du"].as_double();
+    if (config["grav"]) grav_ = config["grav"].as_double();
+    if (config["num_bins"]) num_bins_ = config["num_bins"].as_int();
 
     // Read particle radii from config or use defaults
     if (config["particle_radii"]) {
-        auto radii_vec = config["particle_radii"].as<std::vector<double>>();
+        auto radii_vec = config["particle_radii"].as_double_list();
         num_bins_ = static_cast<int>(radii_vec.size());
         particle_radii_ = Kokkos::View<double*, Kokkos::DefaultExecutionSpace>("particle_radii", num_bins_);
         auto h_radii = Kokkos::create_mirror_view(particle_radii_);

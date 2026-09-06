@@ -3,7 +3,6 @@
  * @brief Tests for driver configuration parsing and validation.
  *
  * Validates:
- *   - ISO8601 datetime parsing (YYYY-MM-DDTHH:MM:SS format)
  *   - Configuration file parsing for driver section
  *   - Default value fallback
  *   - Validation of start_time < end_time
@@ -20,8 +19,10 @@
 #include <ctime>
 #include <fstream>
 #include <sstream>
+#include <stdexcept>
 
 #include "cece/cece_config.hpp"
+#include "cece/cece_driver_facade.hpp"
 
 using namespace cece;
 
@@ -39,70 +40,25 @@ static void DeleteFile(const std::string& path) {
     std::remove(path.c_str());
 }
 
-// ---------------------------------------------------------------------------
-// Tests for ISO8601 Parsing (Task 1.3, 1.4)
-// ---------------------------------------------------------------------------
-
-class ISO8601ParsingTest : public ::testing::Test {
-   protected:
-    // Helper to parse ISO8601 string (mimics Fortran parse_iso8601)
-    static bool ParseISO8601(const std::string& iso_str, int& yy, int& mm, int& dd, int& hh, int& mn, int& ss) {
-        if (iso_str.length() < 19) return false;  // YYYY-MM-DDTHH:MM:SS
-
-        try {
-            yy = std::stoi(iso_str.substr(0, 4));
-            mm = std::stoi(iso_str.substr(5, 2));
-            dd = std::stoi(iso_str.substr(8, 2));
-
-            if (iso_str[10] != 'T') return false;
-
-            hh = std::stoi(iso_str.substr(11, 2));
-            mn = std::stoi(iso_str.substr(14, 2));
-            ss = std::stoi(iso_str.substr(17, 2));
-
-            return true;
-        } catch (...) {
-            return false;
-        }
+static void ExpectConfigInvalidArgument(const std::string& path, const std::string& content, const std::string& expected_message) {
+    WriteConfigFile(path, content);
+    try {
+        (void)ParseConfig(path);
+        FAIL() << "Expected ParseConfig to reject: " << content;
+    } catch (const std::invalid_argument& error) {
+        EXPECT_EQ(error.what(), expected_message);
     }
-};
-
-// Property 1: ISO8601 Parsing Round Trip
-// For any valid ISO8601 datetime string, parsing and reconstructing should produce equivalent
-// datetime
-TEST_F(ISO8601ParsingTest, ValidISO8601Format) {
-    int yy, mm, dd, hh, mn, ss;
-
-    // Test valid format
-    EXPECT_TRUE(ParseISO8601("2020-01-01T00:00:00", yy, mm, dd, hh, mn, ss));
-    EXPECT_EQ(yy, 2020);
-    EXPECT_EQ(mm, 1);
-    EXPECT_EQ(dd, 1);
-    EXPECT_EQ(hh, 0);
-    EXPECT_EQ(mn, 0);
-    EXPECT_EQ(ss, 0);
 }
 
-TEST_F(ISO8601ParsingTest, ValidISO8601FormatWithTime) {
-    int yy, mm, dd, hh, mn, ss;
-
-    // Test with non-zero time
-    EXPECT_TRUE(ParseISO8601("2020-06-15T14:30:45", yy, mm, dd, hh, mn, ss));
-    EXPECT_EQ(yy, 2020);
-    EXPECT_EQ(mm, 6);
-    EXPECT_EQ(dd, 15);
-    EXPECT_EQ(hh, 14);
-    EXPECT_EQ(mn, 30);
-    EXPECT_EQ(ss, 45);
-}
-
-TEST_F(ISO8601ParsingTest, InvalidISO8601Format) {
-    int yy, mm, dd, hh, mn, ss;
-
-    // Test invalid formats
-    EXPECT_FALSE(ParseISO8601("2020-01-01", yy, mm, dd, hh, mn, ss));       // Missing time
-    EXPECT_FALSE(ParseISO8601("20200101T000000", yy, mm, dd, hh, mn, ss));  // No separators
-    EXPECT_FALSE(ParseISO8601("invalid", yy, mm, dd, hh, mn, ss));          // Completely invalid
+static void ExpectFacadeInvalidArgument(const std::string& path, const std::string& content, const std::string& expected_message) {
+    WriteConfigFile(path, content);
+    constexpr double coordinate = 0.0;
+    try {
+        CeceDriverOrchestrator driver(path, 1, 1, 1, &coordinate, 1, &coordinate, 1, MPI_COMM_NULL);
+        FAIL() << "Expected the direct driver facade to reject: " << content;
+    } catch (const std::invalid_argument& error) {
+        EXPECT_EQ(error.what(), expected_message);
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -259,7 +215,7 @@ species:
 }
 
 TEST_F(DriverConfigurationTest, ParseAmioWorkerThreads) {
-    // 1. Verify custom positive values are successfully parsed
+    // 1. Verify custom positive values are successfully parsed.
     WriteConfigFile(test_config_file, R"(
 driver:
   start_time: "2010-01-01T00:00:00"
@@ -281,29 +237,7 @@ physics_schemes:
     CeceConfig config = ParseConfig(test_config_file);
     EXPECT_EQ(config.driver_config.amio_worker_threads, 4);
 
-    // 2. Verify invalid (0 or negative) values are clamped to 1
-    WriteConfigFile(test_config_file, R"(
-driver:
-  start_time: "2010-01-01T00:00:00"
-  end_time: "2010-01-01T23:00:00"
-  timestep_seconds: 3600
-  amio_worker_threads: -3
-
-species:
-  CO:
-    - operation: add
-      field: CO_anthro
-      hierarchy: 0
-      scale: 1.0
-
-physics_schemes:
-  - name: NativeExample
-    language: cpp
-)");
-    config = ParseConfig(test_config_file);
-    EXPECT_EQ(config.driver_config.amio_worker_threads, 1);
-
-    // 3. Verify omitted values default to 1
+    // 2. Verify omitted values retain the default of 1.
     WriteConfigFile(test_config_file, R"(
 driver:
   start_time: "2010-01-01T00:00:00"
@@ -325,8 +259,53 @@ physics_schemes:
     EXPECT_EQ(config.driver_config.amio_worker_threads, 1);
 }
 
+TEST_F(DriverConfigurationTest, RejectNonpositiveDriverAmioWorkerThreads) {
+    for (const int threads : {0, -3}) {
+        const std::string yaml = "driver:\n  amio_worker_threads: " + std::to_string(threads) + "\nphysics_schemes: []\n";
+        ExpectConfigInvalidArgument(test_config_file, yaml, "driver.amio_worker_threads must be >= 1; got " + std::to_string(threads) + ".");
+    }
+}
+
+TEST_F(DriverConfigurationTest, DirectFacadeRejectsNonpositiveAmioWorkerThreads) {
+    for (const int threads : {0, -3}) {
+        const std::string yaml = "driver:\n  amio_worker_threads: " + std::to_string(threads) + "\nphysics_schemes: []\n";
+        ExpectFacadeInvalidArgument(test_config_file, yaml, "driver.amio_worker_threads must be >= 1; got " + std::to_string(threads) + ".");
+    }
+}
+
+TEST_F(DriverConfigurationTest, ParseAmioStagingBufferCount) {
+    WriteConfigFile(test_config_file, R"(
+driver:
+  amio_staging_buffer_count: 16
+physics_schemes: []
+)");
+    CeceConfig config = ParseConfig(test_config_file);
+    EXPECT_EQ(config.driver_config.amio_staging_buffer_count, 16);
+
+    WriteConfigFile(test_config_file, R"(
+driver: {}
+physics_schemes: []
+)");
+    config = ParseConfig(test_config_file);
+    EXPECT_EQ(config.driver_config.amio_staging_buffer_count, 8);
+}
+
+TEST_F(DriverConfigurationTest, RejectNonpositiveAmioStagingBufferCount) {
+    for (const int count : {0, -3}) {
+        const std::string yaml = "driver:\n  amio_staging_buffer_count: " + std::to_string(count) + "\nphysics_schemes: []\n";
+        ExpectConfigInvalidArgument(test_config_file, yaml, "driver.amio_staging_buffer_count must be >= 1; got " + std::to_string(count) + ".");
+    }
+}
+
+TEST_F(DriverConfigurationTest, DirectFacadeRejectsNonpositiveAmioStagingBufferCount) {
+    for (const int count : {0, -3}) {
+        const std::string yaml = "driver:\n  amio_staging_buffer_count: " + std::to_string(count) + "\nphysics_schemes: []\n";
+        ExpectFacadeInvalidArgument(test_config_file, yaml, "driver.amio_staging_buffer_count must be >= 1; got " + std::to_string(count) + ".");
+    }
+}
+
 TEST_F(DriverConfigurationTest, ParseAmioWorkerThreadsOutput) {
-    // 1. Verify custom positive values parse correctly in output block
+    // 1. Verify custom positive values parse correctly in output block.
     WriteConfigFile(test_config_file, R"(
 output:
   enabled: true
@@ -350,31 +329,7 @@ physics_schemes:
     CeceConfig config = ParseConfig(test_config_file);
     EXPECT_EQ(config.output_config.amio_worker_threads, 3);
 
-    // 2. Verify invalid output values are clamped to 1
-    WriteConfigFile(test_config_file, R"(
-output:
-  enabled: true
-  directory: ./cece_output
-  filename_pattern: "cece_ex1_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
-  frequency_steps: 1
-  fields: [CO]
-  amio_worker_threads: 0
-
-species:
-  CO:
-    - operation: add
-      field: CO_anthro
-      hierarchy: 0
-      scale: 1.0
-
-physics_schemes:
-  - name: NativeExample
-    language: cpp
-)");
-    config = ParseConfig(test_config_file);
-    EXPECT_EQ(config.output_config.amio_worker_threads, 1);
-
-    // 3. Verify omitted output values default to -1 (representing fallback unset)
+    // 2. Verify omitted output values retain -1 (representing fallback unset).
     WriteConfigFile(test_config_file, R"(
 output:
   enabled: true
@@ -396,6 +351,14 @@ physics_schemes:
 )");
     config = ParseConfig(test_config_file);
     EXPECT_EQ(config.output_config.amio_worker_threads, -1);
+}
+
+TEST_F(DriverConfigurationTest, RejectNonpositiveOutputAmioWorkerThreads) {
+    for (const int threads : {0, -3}) {
+        const std::string yaml =
+            "output:\n  enabled: true\n  directory: ./cece_output\n  amio_worker_threads: " + std::to_string(threads) + "\nphysics_schemes: []\n";
+        ExpectConfigInvalidArgument(test_config_file, yaml, "output.amio_worker_threads must be >= 1; got " + std::to_string(threads) + ".");
+    }
 }
 
 TEST_F(DriverConfigurationTest, ParseOutputFieldsWithInlineAttributes) {
@@ -909,23 +872,6 @@ grid_ny: -1
 // ---------------------------------------------------------------------------
 // Property-Based Tests
 // ---------------------------------------------------------------------------
-
-// Property 1: ISO8601 Parsing Round Trip
-// For any valid ISO8601 datetime string, parsing should succeed
-TEST_F(ISO8601ParsingTest, Property1_ISO8601RoundTrip) {
-    // Test a range of valid dates
-    std::vector<std::string> valid_dates = {
-        "2000-01-01T00:00:00",
-        "2020-06-15T14:30:45",
-        "2099-12-31T23:59:59",
-        "2020-02-29T12:00:00",  // Leap year
-    };
-
-    int yy, mm, dd, hh, mn, ss;
-    for (const auto& date_str : valid_dates) {
-        EXPECT_TRUE(ParseISO8601(date_str, yy, mm, dd, hh, mn, ss)) << "Failed to parse: " << date_str;
-    }
-}
 
 // Property 20: Default Configuration Correctness
 // For any invocation without explicit driver configuration, defaults must be used
