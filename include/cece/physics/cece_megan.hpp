@@ -141,10 +141,13 @@ double get_gamma_co2(double co2a, double c1, double c2, bool use_wilkinson) {
  * Supported `megan_method` values:
  *   - `"native"` (default) — fully configurable MEGAN2.1 isoprene calculation.
  *   - `"hemco_3_12_1"` — source-pinned HEMCO 3.12.1 stateless cell arithmetic
- *     using frozen constants from hemco_megan_stateless.hpp.  All native-mode
- *     tuning parameters are ignored; the CO₂ concentration, 15-day temperature
- *     average, and 24-hr PAR average can be overridden via `hemco_co2_ppm`,
- *     `hemco_t_avg_15_k`, and `hemco_par_avg_umol` config keys.
+ *     using frozen constants from hemco_megan_stateless.hpp. All native-mode
+ *     tuning parameters are ignored. HEMCO restart-derived temperature and
+ *     direct/diffuse PAR histories are explicit scalar options in this mode;
+ *     the mode consumes them but does not evolve them. HEMCO's one-day LAI
+ *     interval remains fixed by the source contract. The caller must provide
+ *     exact effective current and previous-day LAI after upstream HEMCO
+ *     preprocessing; CECE does not reconstruct or re-round those fields.
  */
 class MeganScheme : public BasePhysicsScheme {
    public:
@@ -158,10 +161,13 @@ class MeganScheme : public BasePhysicsScheme {
     // ---- Emission method selection ----
     std::string megan_method_ = "native";  // "native" or "hemco_3_12_1"
 
-    // ---- HEMCO 3.12.1 parity-mode overrides ----
-    double hemco_co2_ppm_ = 390.0;                                   ///< pinned reference CO₂ [ppm]
-    double hemco_par_avg_umol_ = hemco_megan::v3_12_1::kParAvgUmol;  ///< 400 µmol/m²/s
-    double hemco_t_avg_15_k_ = hemco_megan::v3_12_1::kTAvg15;        ///< 297 K
+    // ---- HEMCO 3.12.1 source-conformance-mode settings ----
+    double hemco_co2_ppm_ = 390.0;  ///< selected reference-case CO₂ [ppm]
+    bool hemco_co2_inhibition_ = true;
+    double hemco_par_direct_history_wm2_ = hemco_megan::v3_12_1::kParDirectHistoryWm2;
+    double hemco_par_diffuse_history_wm2_ = hemco_megan::v3_12_1::kParDiffuseHistoryWm2;
+    double hemco_temperature_history_k_ = hemco_megan::v3_12_1::kTemperatureHistoryK;
+    int hemco_day_of_year_ = hemco_megan::v3_12_1::kReferenceDoy;
 
     // ---- Native-mode parameters (ignored in hemco_3_12_1 mode) ----
     double gamma_co2_ = 0.0;

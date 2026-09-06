@@ -1,86 +1,66 @@
-# =====================================================================
-# CECE HEMCO 3.12.1 MEGAN isoprene parity configuration
-# =====================================================================
-# Reproduces the HEMCO-effective stateless isoprene calculation on the
-# exact global HEMCO 4°×5° grid (72×46 cells) using frozen HEMCO 3.12.1
-# constants.
-#
-# megan_method: hemco_3_12_1  selects:
-#   - PTOA = 2650 + 130·cos(2π(doy−18)/365) µmol/m²/s
-#   - PAR_AVG = 400 µmol/m²/s (direct, not converted from W/m²)
-#   - T_AVG_15 = 297 K (climatological stateless default)
-#   - CO₂ = 390 ppm (HEMCO 3.12.1 offline reference)
-#   - NORM_FAC = 1/1.0101081, LDF = 0.9996 (all frozen)
-#
-# Compare this output against:
-#   examples/cece_config_megan_hemco_comparison.yaml  (CECE native MEGAN)
-#   examples/cece_config_megan3_hemco_comparison.yaml (CECE MEGAN3)
-#
-# See docs/hemco_megan_parity.md for full instructions.
-# =====================================================================
+# HEMCO 3.12.1 MEGAN isoprene stateless source-conformance template.
+# This does not run HEMCO. Replace every /path/to placeholder before use.
+# The gridspec and every input stream must carry identical ordered GEOS 4x5
+# centers: lon=-180,-175,...,175 and lat=-89,-86,-82,...,86,89.
 
 driver:
-  start_time: "2021-06-20T00:00:00"
-  end_time: "2021-06-20T23:00:00"
+  start_time: "2021-06-20T12:00:00"
+  end_time: "2021-06-20T13:00:00"
   timestep_seconds: 3600
+  amio_staging_buffer_count: 8
+  gridspec_file: "/path/to/hemco_4x5_gridspec.nc"
   grid:
-    # Exact global HEMCO 4°×5° grid (72 lon × 46 lat)
     nx: 72
     ny: 46
-    lon_min: -180.0
-    lon_max: 175.0
-    lat_min: -90.0
-    lat_max: 90.0
-  output:
-    file: "cece_hemco_megan_parity_4x5.nc"
-    variables:
-      - name: isoprene_emissions
-        units: "kg m-2 s-1"
+    nz: 1
 
 physics_schemes:
   - name: megan
     language: cpp
     options:
-      megan_method: hemco_3_12_1 # Source-pinned HEMCO 3.12.1 stateless path
-      aef: 1.0e-9 # Isoprene AEF [kg m⁻² s⁻¹]; replace with gridded file in production
-      hemco_co2_ppm: 390.0 # Pinned reference CO₂ [ppm]
-      hemco_par_avg_umol: 400.0 # 24-hr PAR average [µmol m⁻² s⁻¹]
-      hemco_t_avg_15_k: 297.0 # 15-day temperature average [K]
-    input_mapping:
-      temperature: TSFC # Surface temperature [K]
-      leaf_area_index: LAI # Current-month LAI [m² m⁻²]
-      leaf_area_index_prev: LAI_PREV # Previous-month LAI [m² m⁻²] (optional)
-      par_direct: PARDR # Direct PAR [W m⁻²]
-      par_diffuse: PARDF # Diffuse PAR [W m⁻²]
-      solar_cosine: SUNCOS # Solar zenith cosine
-    output_mapping:
-      isoprene_emissions: ISOP_HEMCO_3121
+      megan_method: hemco_3_12_1
+      aef: 1.0e-9 # Scalar effective AEF [kg compound m-2 s-1]
+      export_field_name: isoprene_hemco_source_reference
+      hemco_co2_inhibition: true
+      hemco_co2_ppm: 390.0
+      hemco_par_direct_history_wm2: 30.0
+      hemco_par_diffuse_history_wm2: 48.0
+      hemco_temperature_history_k: 288.15
+      hemco_day_of_year: 171
 
-# ---- Input data streams ------------------------------------------------
-# Point these paths at your MERRA-2 or equivalent GEOS fields.
-# The meteorology section below shows the expected variable names.
 cece_data:
   streams:
-    - name: "MERRA2_MET"
-      file: "/path/to/MERRA2/MERRA2.20210620.A1.4x5.nc4"
-      yearFirst: 2021
-      yearLast: 2021
+    - name: "MEGAN_MET_4X5"
+      file: "/path/to/megan_met_4x5_20210620.nc"
+      mapalgo: passthrough
+      data_model: auto
       variables:
-        - model: TSFC
-          file: T2M
-        - model: PARDR
-          file: PARDR
-        - model: PARDF
-          file: PARDF
-        - model: SUNCOS
-          file: SUNCOS
+        - file: T2M
+          model: temperature
+        - file: PARDR
+          model: par_direct
+        - file: PARDF
+          model: par_diffuse
+        - file: SUNCOS
+          model: solar_cosine
 
-    - name: "MEGAN_LAI"
-      file: "/path/to/MEGAN/lai.geos.1x1.nc"
-      yearFirst: 2000
-      yearLast: 2000
+    - name: "MEGAN_LAI_4X5"
+      file: "/path/to/megan_lai_4x5_20210620.nc"
+      mapalgo: passthrough
+      data_model: auto
       variables:
-        - model: LAI
-          file: LAI
-        - model: LAI_PREV
-          file: LAI_PREV
+        - file: LAI
+          model: leaf_area_index
+        - file: LAI_PREV
+          model: leaf_area_index_prev
+
+output:
+  enabled: true
+  directory: "./output"
+  filename_pattern: "cece_hemco_source_reference_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
+  frequency_steps: 1
+  fields:
+    - name: isoprene_hemco_source_reference
+      attributes:
+        units: "kg m-2 s-1"
+        long_name: "CECE HEMCO-3.12.1-source-derived stateless isoprene flux"

@@ -1,37 +1,19 @@
-# =====================================================================
-# CECE MEGAN3 multi-species vs HEMCO 3.12.1 isoprene comparison
-# =====================================================================
-# Runs the full MEGAN3 multi-species scheme alongside the HEMCO 3.12.1
-# parity scheme to validate the ISOP class of MEGAN3 against the
-# validated HEMCO reference.
-#
-# MEGAN3 ISOP class output is compared against the hemco_3_12_1 emission
-# after applying the CB6 speciation weights for isoprene.
-#
-# See docs/hemco_megan_parity.md for full comparison instructions.
-# =====================================================================
+# CECE MEGAN3 ISOP diagnostic comparison with the source-derived HEMCO 3.12.1
+# stateless isoprene calculation. This template does not run HEMCO and does not
+# establish MEGAN3 parity. Replace all /path/to values.
 
 driver:
-  start_time: "2021-06-20T00:00:00"
-  end_time: "2021-06-20T23:00:00"
+  start_time: "2021-06-20T12:00:00"
+  end_time: "2021-06-20T13:00:00"
   timestep_seconds: 3600
+  amio_staging_buffer_count: 8
+  gridspec_file: "/path/to/hemco_4x5_gridspec.nc"
   grid:
     nx: 72
     ny: 46
-    lon_min: -180.0
-    lon_max: 175.0
-    lat_min: -90.0
-    lat_max: 90.0
-  output:
-    file: "cece_megan3_hemco_comparison.nc"
-    variables:
-      - name: ISOP
-        units: "kg m-2 s-1"
-      - name: isoprene_hemco3121
-        units: "kg m-2 s-1"
+    nz: 1
 
 physics_schemes:
-  # --- Full MEGAN3 multi-species biogenic scheme ---
   - name: megan3
     language: cpp
     options:
@@ -51,56 +33,48 @@ physics_schemes:
           amat: 1.0
           aold: 0.9
           default_aef: 1.0e-9
-    input_mapping:
-      temperature: TSFC
-      leaf_area_index: LAI
-      leaf_area_index_prev: LAI_PREV
-      par_direct: PARDR
-      par_diffuse: PARDF
-      solar_cosine: SUNCOS
 
-  # --- HEMCO 3.12.1 stateless MEGAN parity reference ---
   - name: megan
     language: cpp
     options:
       megan_method: hemco_3_12_1
       aef: 1.0e-9
+      export_field_name: isoprene_hemco_source_reference
+      hemco_co2_inhibition: true
       hemco_co2_ppm: 390.0
-      hemco_par_avg_umol: 400.0
-      hemco_t_avg_15_k: 297.0
-      export_field_name: isoprene_hemco3121
-    input_mapping:
-      temperature: TSFC
-      leaf_area_index: LAI
-      leaf_area_index_prev: LAI_PREV
-      par_direct: PARDR
-      par_diffuse: PARDF
-      solar_cosine: SUNCOS
-    output_mapping:
-      isoprene_hemco3121: ISOP_HEMCO3121
+      hemco_par_direct_history_wm2: 30.0
+      hemco_par_diffuse_history_wm2: 48.0
+      hemco_temperature_history_k: 288.15
+      hemco_day_of_year: 171
 
 cece_data:
   streams:
-    - name: "MERRA2_MET"
-      file: "/path/to/MERRA2/MERRA2.20210620.A1.4x5.nc4"
-      yearFirst: 2021
-      yearLast: 2021
+    - name: "MEGAN_MET_4X5"
+      file: "/path/to/megan_met_4x5_20210620.nc"
+      mapalgo: passthrough
+      data_model: auto
       variables:
-        - model: TSFC
-          file: T2M
-        - model: PARDR
-          file: PARDR
-        - model: PARDF
-          file: PARDF
-        - model: SUNCOS
-          file: SUNCOS
+        - { file: T2M, model: temperature }
+        - { file: PARDR, model: par_direct }
+        - { file: PARDF, model: par_diffuse }
+        - { file: SUNCOS, model: solar_cosine }
+    - name: "MEGAN_LAI_4X5"
+      file: "/path/to/megan_lai_4x5_20210620.nc"
+      mapalgo: passthrough
+      data_model: auto
+      variables:
+        - { file: LAI, model: leaf_area_index }
+        - { file: LAI_PREV, model: leaf_area_index_prev }
 
-    - name: "MEGAN_LAI"
-      file: "/path/to/MEGAN/lai.geos.1x1.nc"
-      yearFirst: 2000
-      yearLast: 2000
-      variables:
-        - model: LAI
-          file: LAI
-        - model: LAI_PREV
-          file: LAI_PREV
+output:
+  enabled: true
+  directory: "./output"
+  filename_pattern: "cece_megan3_source_comparison_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
+  frequency_steps: 1
+  fields:
+    - name: MEGAN_ISOP
+      attributes:
+        units: "kg m-2 s-1"
+    - name: isoprene_hemco_source_reference
+      attributes:
+        units: "kg m-2 s-1"

@@ -320,7 +320,7 @@ List of physics schemes to instantiate and execute during the Run phase. Physics
 | Scheme Name | Description | Key Parameters |
 | ----------- | ----------- | -------------- |
 | `sea_salt` | Marine aerosol emissions | `r_sala_min`, `r_salc_max`, `sea_salt_density` |
-| `megan` | Biogenic isoprene emissions (single-species) | `megan_method`, `beta`, `ldf`, `aef`, `co2_concentration` |
+| `megan` | [Biogenic isoprene emissions](megan.md), including native and HEMCO-source-conformance modes | `megan_method`, `aef`, `hemco_co2_inhibition`, history settings |
 | `megan3` | Full MEGAN3 multi-species biogenic emissions | `mechanism_file`, `speciation_file`, `emission_classes` |
 | `bdsnp` | [Berkeley-Dalhousie Soil NOx Parameterization (BDSNP) or YL95 soil NO emissions](soil_nox.md) | `soil_no_method`, `use_soil_temperature` |
 | `dust` | Mineral dust emissions | `particle_density`, `tuning_factor` |

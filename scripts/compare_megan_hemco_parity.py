@@ -1,304 +1,547 @@
 #!/usr/bin/env python3
-"""
-compare_megan_hemco_parity.py
-─────────────────────────────
-Compare CECE MEGAN / MEGAN3 isoprene outputs against the HEMCO 3.12.1
-stateless parity reference on the global 4°×5° grid.
+"""Compare three CECE MEGAN isoprene diagnostics on one identical grid.
 
-Usage
-─────
-  python scripts/compare_megan_hemco_parity.py \\
-      --hemco   cece_hemco_megan_parity_4x5.nc \\
-      --native  cece_megan_comparison.nc \\
-      --megan3  cece_megan3_hemco_comparison.nc \\
-      --outdir  plots/
+Despite the historical filename, this script does not execute HEMCO and does
+not establish HEMCO-versus-CECE runtime parity. The source-reference input is
+the CECE ``megan_method: hemco_3_12_1`` stateless, source-derived calculation.
+It is compared diagnostically with CECE native MEGAN and CECE MEGAN3.
 
-Outputs (written to --outdir)
-──────────────────────────────
-  global_isop_maps.png          — side-by-side global emission maps
-  isop_bias_native_vs_hemco.png — (native − HEMCO3121) bias map
-  isop_bias_megan3_vs_hemco.png — (MEGAN3  − HEMCO3121) bias map
-  isop_zonal_mean.png           — zonal-mean comparison
-  isop_scatter_native.png       — scatter: native vs HEMCO3121
-  isop_scatter_megan3.png       — scatter: MEGAN3  vs HEMCO3121
-  summary_stats.txt             — global mean, RMSE, bias, spatial correlation
+All files must contain identically ordered longitude and latitude coordinates,
+the same selected time/level, and an isoprene mass flux in kg m-2 s-1. The
+script never reorders, regrids, or silently averages records.
 """
 
 import argparse
-import os
-import textwrap
+import math
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Optional
 
 import matplotlib
 
 matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
+import matplotlib.pyplot as plt
+import netCDF4 as nc
 import numpy as np
 
-# Optional netCDF4 dependency; fall back to a lightweight stub if absent.
-try:
-    import netCDF4 as nc  # type: ignore
-
-    HAS_NC4 = True
-except ImportError:
-    HAS_NC4 = False
+PLOT_UNITS = "mg C m-2 hr-1"
+ISOPRENE_CARBON_FRACTION = 5.0 * 12.011 / 68.12
 
 
-# ── helpers ─────────────────────────────────────────────────────────────────
+class ComparisonError(RuntimeError):
+    """Raised when inputs cannot support an exact diagnostic comparison."""
 
 
-def read_field(path: str, varname: str, time_idx: int = -1) -> np.ndarray:
-    """Return a 2-D (lat × lon) slice from a NetCDF file.
+@dataclass(frozen=True)
+class Field:
+    role: str
+    path: Path
+    variable: str
+    data: np.ma.MaskedArray
+    longitude: np.ndarray
+    longitude_units: str
+    latitude: np.ndarray
+    latitude_units: str
+    time_value: Optional[float]
+    time_units: Optional[str]
+    time_calendar: Optional[str]
+    level_value: Optional[float]
+    level_units: Optional[str]
+    declared_units: str
 
-    Averages over the time dimension if multiple timesteps are present.
-    """
-    if not HAS_NC4:
-        raise ImportError(
-            "netCDF4 is required to read model output. "
-            "Install it with:  pip install netCDF4"
+
+def _text_attr(variable, name: str) -> Optional[str]:
+    value = getattr(variable, name, None)
+    return str(value).strip() if value is not None else None
+
+
+def _compact_units(units: str) -> str:
+    compact = units.lower().replace("−", "-").replace("²", "2")
+    for token in (" ", "_", "^", "**", "(", ")"):
+        compact = compact.replace(token, "")
+    return compact
+
+
+def _validate_flux_units(variable, path: Path) -> str:
+    units = _text_attr(variable, "units")
+    if units is None:
+        raise ComparisonError(f"{path}: {variable.name!r} has no units attribute")
+    accepted = {"kgm-2s-1", "kg/m2/s", "kgm-2/s", "kg/m2s"}
+    if _compact_units(units) not in accepted:
+        raise ComparisonError(
+            f"{path}: {variable.name!r} units are {units!r}; expected isoprene mass flux in kg m-2 s-1"
         )
-    with nc.Dataset(path) as ds:  # type: ignore[union-attr]
-        if varname not in ds.variables:
-            raise KeyError(
-                f"Variable '{varname}' not found in {path}. "
-                f"Available: {list(ds.variables)}"
+    return units
+
+
+def _axis_kind(name: str, coordinate) -> Optional[str]:
+    lowered = name.lower()
+    standard_name = (_text_attr(coordinate, "standard_name") or "").lower()
+    axis = (_text_attr(coordinate, "axis") or "").upper()
+    units = (_text_attr(coordinate, "units") or "").lower()
+    if (
+        standard_name == "longitude"
+        or axis == "X"
+        or "degrees_east" in units
+        or lowered in {"lon", "longitude"}
+    ):
+        return "longitude"
+    if (
+        standard_name == "latitude"
+        or axis == "Y"
+        or "degrees_north" in units
+        or lowered in {"lat", "latitude"}
+    ):
+        return "latitude"
+    if standard_name == "time" or axis == "T" or lowered == "time":
+        return "time"
+    if axis == "Z" or lowered in {"lev", "level", "levels", "z"}:
+        return "level"
+    return None
+
+
+def _coordinate(ds, dimension: str, path: Path):
+    if dimension not in ds.variables:
+        raise ComparisonError(
+            f"{path}: dimension {dimension!r} has no same-named coordinate variable"
+        )
+    variable = ds.variables[dimension]
+    if tuple(variable.dimensions) != (dimension,):
+        raise ComparisonError(
+            f"{path}: coordinate {dimension!r} is not one-dimensional on its own dimension"
+        )
+    values = np.ma.asarray(variable[:], dtype=np.float64)
+    if np.any(np.ma.getmaskarray(values)) or not np.all(np.isfinite(values.data)):
+        raise ComparisonError(
+            f"{path}: coordinate {dimension!r} contains missing or non-finite values"
+        )
+    return variable, np.asarray(values.data, dtype=np.float64)
+
+
+def _select_index(
+    kind: str, size: int, requested: Optional[int], path: Path, variable: str
+) -> int:
+    if size == 1 and requested is None:
+        return 0
+    if requested is None:
+        raise ComparisonError(
+            f"{path}: {variable!r} has {size} {kind} records; pass --{kind}-index explicitly (no averaging is done)"
+        )
+    index = requested if requested >= 0 else size + requested
+    if index < 0 or index >= size:
+        raise ComparisonError(
+            f"{path}: --{kind}-index {requested} is outside 0..{size - 1}"
+        )
+    return index
+
+
+def read_field(
+    role: str,
+    path: Path,
+    variable_name: str,
+    time_index: Optional[int],
+    level_index: Optional[int],
+) -> Field:
+    if not path.is_file():
+        raise ComparisonError(f"{role}: file does not exist: {path}")
+    with nc.Dataset(path) as ds:
+        if variable_name not in ds.variables:
+            raise ComparisonError(
+                f"{path}: variable {variable_name!r} is absent; available variables: {', '.join(ds.variables)}"
             )
-        data = ds.variables[varname][:]
-        # Squeeze trivial dimensions; handle (time, lat, lon) or (lat, lon).
-        data = np.squeeze(data)
-        if data.ndim == 3:
-            data = np.nanmean(data, axis=0)
-        return np.asarray(data, dtype=np.float64)
+        variable = ds.variables[variable_name]
+        units = _validate_flux_units(variable, path)
+        dimensions = list(variable.dimensions)
+        data = np.ma.asarray(variable[:], dtype=np.float64)
 
+        axes = {}
+        coordinates = {}
+        for dimension in dimensions:
+            coordinate, values = _coordinate(ds, dimension, path)
+            kind = _axis_kind(dimension, coordinate)
+            if kind is None:
+                raise ComparisonError(
+                    f"{path}: cannot classify dimension {dimension!r} of {variable_name!r}"
+                )
+            if kind in axes:
+                raise ComparisonError(
+                    f"{path}: multiple {kind} dimensions occur in {variable_name!r}"
+                )
+            axes[kind] = dimension
+            coordinates[kind] = (coordinate, values)
 
-def lons_lats_4x5():
-    """Return (lon_centres, lat_centres) for the HEMCO 4°×5° grid."""
-    lons = np.arange(-180.0, 180.0, 5.0) + 2.5  # 72 points
-    lats = np.arange(-90.0, 92.0, 4.0) - 2.0  # 46 points
-    return lons, lats
+        for required in ("longitude", "latitude"):
+            if required not in axes:
+                raise ComparisonError(
+                    f"{path}: {variable_name!r} has no identifiable {required} dimension"
+                )
 
+        selected = {"time": (None, None), "level": (None, None)}
+        for kind, requested in (("time", time_index), ("level", level_index)):
+            if kind not in axes:
+                if requested is not None:
+                    raise ComparisonError(
+                        f"{path}: --{kind}-index was supplied but {variable_name!r} has no {kind} dimension"
+                    )
+                continue
+            dimension = axes[kind]
+            coordinate, values = coordinates[kind]
+            index = _select_index(kind, values.size, requested, path, variable_name)
+            axis = dimensions.index(dimension)
+            data = np.take(data, index, axis=axis)
+            dimensions.pop(axis)
+            selected[kind] = (float(values[index]), _text_attr(coordinate, "units"))
 
-def kg_to_mgC(arr: np.ndarray, mw_isop: float = 68.12) -> np.ndarray:
-    """Convert kg[isop] m⁻² s⁻¹ → mg[C] m⁻² hr⁻¹ (HEMCO diagnostic convention)."""
-    # 1 mol C5H8 = 5 mol C; molar mass isoprene = 68.12 g/mol, C = 12.011 g/mol
-    carbon_fraction = 5.0 * 12.011 / mw_isop
-    return arr * 1.0e6 * 3600.0 * carbon_fraction  # kg/m²/s → mg C/m²/hr
+        if len(dimensions) != 2 or set(dimensions) != {
+            axes["latitude"],
+            axes["longitude"],
+        }:
+            raise ComparisonError(
+                f"{path}: after time/level selection, dimensions are {dimensions!r}; expected only latitude and longitude"
+            )
+        if dimensions != [axes["latitude"], axes["longitude"]]:
+            data = np.ma.transpose(
+                data,
+                (
+                    dimensions.index(axes["latitude"]),
+                    dimensions.index(axes["longitude"]),
+                ),
+            )
 
+        longitude = coordinates["longitude"][1]
+        latitude = coordinates["latitude"][1]
+        expected_shape = (latitude.size, longitude.size)
+        if data.shape != expected_shape:
+            raise ComparisonError(
+                f"{path}: field shape {data.shape} does not match coordinates {expected_shape}"
+            )
+        valid = np.asarray(data.compressed(), dtype=np.float64)
+        if valid.size and not np.all(np.isfinite(valid)):
+            raise ComparisonError(
+                f"{path}: {variable_name!r} contains non-finite unmasked values"
+            )
+        if valid.size and np.any(valid < 0.0):
+            raise ComparisonError(
+                f"{path}: {variable_name!r} contains negative emission values"
+            )
 
-# ── plotting ────────────────────────────────────────────────────────────────
+        longitude_units = _text_attr(coordinates["longitude"][0], "units")
+        latitude_units = _text_attr(coordinates["latitude"][0], "units")
+        if longitude_units is None or latitude_units is None:
+            raise ComparisonError(
+                f"{path}: longitude and latitude coordinates must declare units"
+            )
+        time_calendar = None
+        if "time" in coordinates:
+            time_calendar = _text_attr(coordinates["time"][0], "calendar") or "standard"
 
-
-def _map_ax(
-    ax,
-    data,
-    lons,
-    lats,
-    title,
-    units,
-    vmin=None,
-    vmax=None,
-    cmap="YlOrRd",
-    diverging=False,
-):
-    """Filled-contour global map on a simple cylindrical projection."""
-    if diverging:
-        cmap = "RdBu_r"
-        amax = np.nanpercentile(np.abs(data), 99)
-        vmin, vmax = -amax, amax
-    lon2d, lat2d = np.meshgrid(lons, lats)
-    cf = ax.contourf(lon2d, lat2d, data, levels=20, cmap=cmap, vmin=vmin, vmax=vmax)
-    ax.set_title(title, fontsize=9)
-    ax.set_xlabel("Longitude [°]")
-    ax.set_ylabel("Latitude [°]")
-    ax.set_xlim(-180, 180)
-    ax.set_ylim(-90, 90)
-    plt.colorbar(
-        cf, ax=ax, orientation="horizontal", pad=0.12, label=units, fraction=0.046
+    return Field(
+        role=role,
+        path=path,
+        variable=variable_name,
+        data=data,
+        longitude=longitude,
+        longitude_units=longitude_units,
+        latitude=latitude,
+        latitude_units=latitude_units,
+        time_value=selected["time"][0],
+        time_units=selected["time"][1],
+        time_calendar=time_calendar,
+        level_value=selected["level"][0],
+        level_units=selected["level"][1],
+        declared_units=units,
     )
 
 
-def plot_global_maps(hemco, native, megan3, lons, lats, outdir):
-    units = "mg C m⁻² hr⁻¹"
-    fig, axes = plt.subplots(1, 3, figsize=(18, 5))
-    vmax = np.nanpercentile(np.concatenate([hemco.ravel(), native.ravel()]), 99)
-    _map_ax(axes[0], hemco, lons, lats, "HEMCO 3.12.1 reference", units, 0, vmax)
-    _map_ax(axes[1], native, lons, lats, "CECE native MEGAN", units, 0, vmax)
-    _map_ax(axes[2], megan3, lons, lats, "CECE MEGAN3 ISOP", units, 0, vmax)
-    fig.suptitle(
-        "MEGAN isoprene emission comparison — 2021-06-20 daily mean", fontsize=11
+def _assert_same_grid(reference: Field, diagnostic: Field) -> None:
+    for name in ("longitude", "latitude"):
+        left = getattr(reference, name)
+        right = getattr(diagnostic, name)
+        if not np.array_equal(left, right):
+            mismatch = (
+                np.flatnonzero(left != right)
+                if left.shape == right.shape
+                else np.array([], dtype=int)
+            )
+            detail = (
+                f"; first differing index {int(mismatch[0])}" if mismatch.size else ""
+            )
+            raise ComparisonError(
+                f"{diagnostic.role}: ordered {name} coordinates differ from the source reference{detail}; no reordering is allowed"
+            )
+        if getattr(reference, f"{name}_units") != getattr(diagnostic, f"{name}_units"):
+            raise ComparisonError(
+                f"{diagnostic.role}: {name} coordinate units differ from the source reference"
+            )
+    for kind in ("time", "level"):
+        if getattr(reference, f"{kind}_value") != getattr(diagnostic, f"{kind}_value"):
+            raise ComparisonError(
+                f"{diagnostic.role}: selected {kind} differs from the source reference"
+            )
+        if getattr(reference, f"{kind}_units") != getattr(diagnostic, f"{kind}_units"):
+            raise ComparisonError(
+                f"{diagnostic.role}: selected {kind} units differ from the source reference"
+            )
+    if reference.time_calendar != diagnostic.time_calendar:
+        raise ComparisonError(
+            f"{diagnostic.role}: selected time calendar differs from the source reference"
+        )
+    if not np.array_equal(
+        np.ma.getmaskarray(reference.data), np.ma.getmaskarray(diagnostic.data)
+    ):
+        raise ComparisonError(
+            f"{diagnostic.role}: missing-value mask differs from the source reference"
+        )
+
+
+def to_mg_carbon(field: Field) -> np.ma.MaskedArray:
+    return field.data * 1.0e6 * 3600.0 * ISOPRENE_CARBON_FRACTION
+
+
+def metrics(reference: np.ndarray, diagnostic: np.ndarray) -> dict:
+    valid = np.isfinite(reference) & np.isfinite(diagnostic)
+    ref = reference[valid]
+    test = diagnostic[valid]
+    if not ref.size:
+        raise ComparisonError("no valid cells remain for statistics")
+    difference = test - ref
+    positive = ref > 0.0
+    relative = (
+        np.abs(difference[positive] / ref[positive])
+        if np.any(positive)
+        else np.array([])
     )
-    fig.tight_layout()
-    fig.savefig(os.path.join(outdir, "global_isop_maps.png"), dpi=150)
-    plt.close(fig)
-
-
-def plot_bias(diff, lons, lats, label, fname, outdir):
-    fig, ax = plt.subplots(figsize=(10, 5))
-    _map_ax(ax, diff, lons, lats, label, "mg C m⁻² hr⁻¹", diverging=True)
-    fig.tight_layout()
-    fig.savefig(os.path.join(outdir, fname), dpi=150)
-    plt.close(fig)
-
-
-def plot_zonal(hemco, native, megan3, lats, outdir):
-    fig, ax = plt.subplots(figsize=(7, 5))
-    ax.plot(np.nanmean(hemco, axis=1), lats, label="HEMCO 3.12.1", color="k", lw=2)
-    ax.plot(
-        np.nanmean(native, axis=1),
-        lats,
-        label="CECE native",
-        color="#1f77b4",
-        lw=1.5,
-        ls="--",
+    correlation = (
+        float(np.corrcoef(ref, test)[0, 1])
+        if ref.size > 1 and np.std(ref) and np.std(test)
+        else math.nan
     )
-    ax.plot(
-        np.nanmean(megan3, axis=1),
-        lats,
-        label="CECE MEGAN3 ISOP",
-        color="#d62728",
-        lw=1.5,
-        ls=":",
-    )
-    ax.set_xlabel("mg C m⁻² hr⁻¹")
-    ax.set_ylabel("Latitude [°]")
-    ax.set_title("Zonal-mean isoprene emission")
-    ax.legend()
-    ax.grid(True, alpha=0.3)
-    fig.tight_layout()
-    fig.savefig(os.path.join(outdir, "isop_zonal_mean.png"), dpi=150)
-    plt.close(fig)
-
-
-def plot_scatter(ref, test, label, fname, outdir):
-    mask = np.isfinite(ref) & np.isfinite(test) & (ref > 0)
-    x, y = ref[mask], test[mask]
-    fig, ax = plt.subplots(figsize=(6, 6))
-    h = ax.hist2d(x, y, bins=80, norm=mcolors.LogNorm(), cmap="viridis")
-    plt.colorbar(h[3], ax=ax, label="Cell count")
-    lim = max(x.max(), y.max()) * 1.05
-    ax.plot([0, lim], [0, lim], "k--", lw=1, label="1:1")
-    ax.set_xlabel("HEMCO 3.12.1 [mg C m⁻² hr⁻¹]")
-    ax.set_ylabel(f"{label} [mg C m⁻² hr⁻¹]")
-    ax.set_title(f"{label} vs HEMCO 3.12.1 — isoprene")
-    ax.legend()
-    fig.tight_layout()
-    fig.savefig(os.path.join(outdir, fname), dpi=150)
-    plt.close(fig)
-
-
-def summary_stats(hemco, test, label):
-    mask = np.isfinite(hemco) & np.isfinite(test)
-    h, t = hemco[mask], test[mask]
-    bias = float(np.mean(t - h))
-    rmse = float(np.sqrt(np.mean((t - h) ** 2)))
-    corr = float(np.corrcoef(h, t)[0, 1]) if len(h) > 1 else float("nan")
-    mean_h = float(np.mean(h))
-    mean_t = float(np.mean(t))
     return {
-        "label": label,
-        "mean_ref": mean_h,
-        "mean_test": mean_t,
-        "bias": bias,
-        "rmse": rmse,
-        "corr": corr,
-        "n_cells": int(mask.sum()),
+        "cells": int(ref.size),
+        "mean_reference": float(np.mean(ref)),
+        "mean_diagnostic": float(np.mean(test)),
+        "bias": float(np.mean(difference)),
+        "rmse": float(np.sqrt(np.mean(difference**2))),
+        "mean_absolute_relative_difference_percent": float(np.mean(relative) * 100.0)
+        if relative.size
+        else math.nan,
+        "correlation": correlation,
+        "zero_mask_mismatches": int(np.count_nonzero((ref == 0.0) != (test == 0.0))),
     }
 
 
-# ── main ────────────────────────────────────────────────────────────────────
-
-
-def main():
-    parser = argparse.ArgumentParser(
-        description=textwrap.dedent(__doc__),
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-    )
-    parser.add_argument(
-        "--hemco", required=True, help="NetCDF from cece_config_hemco_megan_parity.yaml"
-    )
-    parser.add_argument(
-        "--native",
-        required=True,
-        help="NetCDF from cece_config_megan_hemco_comparison.yaml",
-    )
-    parser.add_argument(
-        "--megan3",
-        required=True,
-        help="NetCDF from cece_config_megan3_hemco_comparison.yaml",
-    )
-    parser.add_argument("--hemco_var", default="isoprene_emissions")
-    parser.add_argument("--native_var", default="isoprene_native")
-    parser.add_argument("--megan3_var", default="ISOP")
-    parser.add_argument(
-        "--outdir", default="plots", help="Directory for output figures and summary"
-    )
-    args = parser.parse_args()
-
-    Path(args.outdir).mkdir(parents=True, exist_ok=True)
-    lons, lats = lons_lats_4x5()
-
-    print(f"Reading HEMCO reference  : {args.hemco} [{args.hemco_var}]")
-    hemco_raw = read_field(args.hemco, args.hemco_var)
-    print(f"Reading CECE native MEGAN: {args.native} [{args.native_var}]")
-    native_raw = read_field(args.native, args.native_var)
-    print(f"Reading CECE MEGAN3 ISOP : {args.megan3} [{args.megan3_var}]")
-    megan3_raw = read_field(args.megan3, args.megan3_var)
-
-    # Convert to mg C m⁻² hr⁻¹ for plotting.
-    hemco = kg_to_mgC(hemco_raw)
-    native = kg_to_mgC(native_raw)
-    megan3 = kg_to_mgC(megan3_raw)
-
-    print("\nGenerating plots …")
-    plot_global_maps(hemco, native, megan3, lons, lats, args.outdir)
-    plot_bias(
-        native - hemco,
-        lons,
-        lats,
-        "CECE native − HEMCO 3.12.1",
-        "isop_bias_native_vs_hemco.png",
-        args.outdir,
-    )
-    plot_bias(
-        megan3 - hemco,
-        lons,
-        lats,
-        "CECE MEGAN3 − HEMCO 3.12.1",
-        "isop_bias_megan3_vs_hemco.png",
-        args.outdir,
-    )
-    plot_zonal(hemco, native, megan3, lats, args.outdir)
-    plot_scatter(hemco, native, "CECE native", "isop_scatter_native.png", args.outdir)
-    plot_scatter(hemco, megan3, "CECE MEGAN3", "isop_scatter_megan3.png", args.outdir)
-
-    stats_native = summary_stats(hemco, native, "CECE native MEGAN")
-    stats_megan3 = summary_stats(hemco, megan3, "CECE MEGAN3")
-
-    summary_path = os.path.join(args.outdir, "summary_stats.txt")
-    with open(summary_path, "w") as fh:
-        fh.write("MEGAN isoprene parity — summary statistics\n")
-        fh.write("=" * 50 + "\n")
-        fh.write("Reference: HEMCO 3.12.1 stateless (megan_method=hemco_3_12_1)\n")
-        fh.write("Grid:      global 4°×5° (72×46), 2021-06-20 daily mean\n")
-        fh.write("Units:     mg C m⁻² hr⁻¹\n\n")
-        for s in (stats_native, stats_megan3):
-            fh.write(f"  {s['label']}\n")
-            fh.write(f"    Mean reference : {s['mean_ref']:.4f}\n")
-            fh.write(f"    Mean test      : {s['mean_test']:.4f}\n")
-            fh.write(f"    Bias (test-ref): {s['bias']:+.4f}\n")
-            fh.write(f"    RMSE           : {s['rmse']:.4f}\n")
-            fh.write(f"    Spatial corr   : {s['corr']:.6f}\n")
-            fh.write(f"    Grid cells     : {s['n_cells']}\n\n")
-
-    print(f"\nSummary statistics written to {summary_path}")
-    for s in (stats_native, stats_megan3):
-        print(
-            f"  {s['label']:30s}  bias={s['bias']:+.4f}  "
-            f"rmse={s['rmse']:.4f}  corr={s['corr']:.4f}"
+def _map(ax, data, longitude, latitude, title, limit, *, difference=False) -> None:
+    if difference:
+        image = ax.pcolormesh(
+            longitude,
+            latitude,
+            data,
+            shading="auto",
+            cmap="RdBu_r",
+            vmin=-limit,
+            vmax=limit,
         )
-    print(f"\nPlots saved to {args.outdir}/")
+    else:
+        image = ax.pcolormesh(
+            longitude,
+            latitude,
+            data,
+            shading="auto",
+            cmap="YlOrRd",
+            vmin=0.0,
+            vmax=limit,
+        )
+    ax.set(title=title, xlabel="Longitude [degrees]", ylabel="Latitude [degrees]")
+    ax.figure.colorbar(
+        image, ax=ax, orientation="horizontal", pad=0.14, label=PLOT_UNITS
+    )
+
+
+def create_plots(
+    reference: Field, native: Field, megan3: Field, output_dir: Path
+) -> None:
+    fields = [to_mg_carbon(field) for field in (reference, native, megan3)]
+    names = ["CECE HEMCO-source reference", "CECE native MEGAN", "CECE MEGAN3 ISOP"]
+    absolute_values = np.ma.concatenate(
+        [field.ravel() for field in fields]
+    ).compressed()
+    if not absolute_values.size:
+        raise ComparisonError("no valid cells remain for absolute maps")
+    absolute_limit = float(np.percentile(absolute_values, 99.0))
+    absolute_limit = absolute_limit if absolute_limit > 0.0 else 1.0
+
+    fig, axes = plt.subplots(1, 3, figsize=(18, 5), constrained_layout=True)
+    for ax, data, title in zip(axes, fields, names):
+        _map(ax, data, reference.longitude, reference.latitude, title, absolute_limit)
+    fig.suptitle("CECE isoprene diagnostic comparison (not HEMCO runtime parity)")
+    fig.savefig(output_dir / "global_isop_diagnostic_maps.png", dpi=180)
+    plt.close(fig)
+
+    differences = [data - fields[0] for data in fields[1:]]
+    difference_values = np.ma.concatenate(
+        [np.ma.abs(data).ravel() for data in differences]
+    ).compressed()
+    difference_limit = (
+        float(np.percentile(difference_values, 99.0)) if difference_values.size else 0.0
+    )
+    difference_limit = difference_limit if difference_limit > 0.0 else 1.0
+    fig, axes = plt.subplots(1, 2, figsize=(13, 5), constrained_layout=True)
+    for ax, data, title in zip(axes, differences, names[1:]):
+        _map(
+            ax,
+            data,
+            reference.longitude,
+            reference.latitude,
+            f"{title} minus source reference",
+            difference_limit,
+            difference=True,
+        )
+    fig.savefig(output_dir / "global_isop_diagnostic_differences.png", dpi=180)
+    plt.close(fig)
+
+    fig, ax = plt.subplots(figsize=(7, 5), constrained_layout=True)
+    for data, title in zip(fields, names):
+        ax.plot(np.ma.mean(data, axis=1), reference.latitude, label=title)
+    ax.set(
+        title="Zonal-mean isoprene diagnostic",
+        xlabel=PLOT_UNITS,
+        ylabel="Latitude [degrees]",
+    )
+    ax.grid(alpha=0.3)
+    ax.legend()
+    fig.savefig(output_dir / "isop_diagnostic_zonal_mean.png", dpi=180)
+    plt.close(fig)
+
+    fig, axes = plt.subplots(1, 2, figsize=(12, 5), constrained_layout=True)
+    baseline = fields[0].filled(np.nan)
+    for ax, data, title in zip(axes, fields[1:], names[1:]):
+        diagnostic = data.filled(np.nan)
+        valid = np.isfinite(baseline) & np.isfinite(diagnostic) & (baseline > 0.0)
+        x, y = baseline[valid], diagnostic[valid]
+        if not x.size:
+            raise ComparisonError(
+                f"{title}: no positive source-reference cells for scatter plot"
+            )
+        histogram = ax.hist2d(x, y, bins=60, norm=mcolors.LogNorm(), cmap="viridis")
+        limit = float(max(np.max(x), np.max(y)) * 1.05)
+        ax.plot([0.0, limit], [0.0, limit], "k--", linewidth=1, label="1:1")
+        ax.set(
+            title=title,
+            xlabel=f"CECE HEMCO-source reference [{PLOT_UNITS}]",
+            ylabel=f"Diagnostic [{PLOT_UNITS}]",
+        )
+        ax.legend()
+        fig.colorbar(histogram[3], ax=ax, label="Cell count")
+    fig.savefig(output_dir / "isop_diagnostic_scatter.png", dpi=180)
+    plt.close(fig)
+
+
+def write_report(reference: Field, diagnostics: list, output_dir: Path) -> None:
+    reference_values = to_mg_carbon(reference).filled(np.nan)
+    lines = [
+        "CECE MEGAN isoprene diagnostic comparison",
+        "===========================================",
+        "Baseline: CECE hemco_3_12_1 stateless source-derived output",
+        "Claim: diagnostic source comparison only; not executed HEMCO runtime parity",
+        "Grid handling: exact ordered-coordinate equality; no sorting or regridding",
+        f"Selected time: {reference.time_value!r} {reference.time_units or ''}".rstrip(),
+        f"Selected level: {reference.level_value!r} {reference.level_units or ''}".rstrip(),
+        f"Shape: {reference.data.shape[0]} latitude x {reference.data.shape[1]} longitude",
+        f"Plot/statistics units: {PLOT_UNITS}",
+        "",
+    ]
+    for field in diagnostics:
+        result = metrics(reference_values, to_mg_carbon(field).filled(np.nan))
+        lines.extend(
+            [f"{field.role} ({field.variable}; declared {field.declared_units})"]
+        )
+        lines.extend(f"  {key}: {value}" for key, value in result.items())
+        lines.append("")
+    (output_dir / "diagnostic_summary.txt").write_text(
+        "\n".join(lines), encoding="utf-8"
+    )
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--source-reference",
+        "--hemco",
+        dest="source_reference",
+        type=Path,
+        required=True,
+    )
+    parser.add_argument("--native", type=Path, required=True)
+    parser.add_argument("--megan3", type=Path, required=True)
+    parser.add_argument(
+        "--source-reference-var",
+        "--hemco-var",
+        "--hemco_var",
+        dest="source_reference_var",
+        default="isoprene_hemco_source_reference",
+    )
+    parser.add_argument(
+        "--native-var", "--native_var", dest="native_var", default="isoprene_native"
+    )
+    parser.add_argument(
+        "--megan3-var", "--megan3_var", dest="megan3_var", default="MEGAN_ISOP"
+    )
+    parser.add_argument(
+        "--time-index",
+        "--time_index",
+        dest="time_index",
+        type=int,
+        help="record index; required when a field has multiple time records",
+    )
+    parser.add_argument(
+        "--level-index",
+        "--level_index",
+        dest="level_index",
+        type=int,
+        help="level index; required when a field has multiple levels",
+    )
+    parser.add_argument("--outdir", type=Path, default=Path("plots"))
+    return parser.parse_args()
+
+
+def main() -> None:
+    args = parse_args()
+    fields = [
+        read_field(
+            "source reference",
+            args.source_reference,
+            args.source_reference_var,
+            args.time_index,
+            args.level_index,
+        ),
+        read_field(
+            "CECE native MEGAN",
+            args.native,
+            args.native_var,
+            args.time_index,
+            args.level_index,
+        ),
+        read_field(
+            "CECE MEGAN3",
+            args.megan3,
+            args.megan3_var,
+            args.time_index,
+            args.level_index,
+        ),
+    ]
+    for field in fields[1:]:
+        _assert_same_grid(fields[0], field)
+
+    args.outdir.mkdir(parents=True, exist_ok=False)
+    create_plots(*fields, args.outdir)
+    write_report(fields[0], fields[1:], args.outdir)
+    print(f"PASS: diagnostic comparison written to {args.outdir}")
+    print("SCOPE=CECE source-reference comparison; not HEMCO runtime parity")
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except ComparisonError as error:
+        raise SystemExit(f"ERROR: {error}") from error

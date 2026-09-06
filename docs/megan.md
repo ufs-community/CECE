@@ -7,13 +7,13 @@ CECE provides two MEGAN biogenic emission schemes:
 - **`megan`** — Single-species isoprene scheme (original, ported from HEMCO).  Supports
   two emission methods:
   - `"native"` (default) — fully configurable MEGAN2.1 isoprene calculation.
-  - `"hemco_3_12_1"` — source-pinned HEMCO 3.12.1 stateless parity reference.
+  - `"hemco_3_12_1"` — source-pinned HEMCO 3.12.1 stateless source-conformance calculation.
 - **`megan3`** — Full MEGAN3 multi-species, multi-class emission system with 19 emission classes, 5-layer canopy model, and chemical mechanism speciation.
 
 Both schemes coexist and can be selected independently via the YAML configuration.
 
-See [docs/hemco_megan_parity.md](hemco_megan_parity.md) for full instructions on
-running the HEMCO 3.12.1 parity test.
+See [docs/hemco_megan_parity.md](hemco_megan_parity.md) for the exact implemented
+contract, limits, and validation terminology.
 
 ---
 
@@ -31,7 +31,7 @@ The original scheme computes isoprene emissions using activity factors for LAI, 
 | `megan_method` value | Description |
 |---|---|
 | `"native"` (default) | Fully configurable MEGAN2.1 isoprene (all gamma coefficients tunable) |
-| `"hemco_3_12_1"` | Source-pinned HEMCO 3.12.1 stateless parity — frozen PTOA, PAR_AVG µmol convention, CO₂ |
+| `"hemco_3_12_1"` | Source-pinned HEMCO 3.12.1 stateless isoprene arithmetic with explicit cold-start histories and CO₂ switch |
 
 ### Configuration (native mode)
 
@@ -46,46 +46,50 @@ physics_schemes:
       co2_concentration: 400.0
 ```
 
-### Configuration (HEMCO 3.12.1 parity mode)
+### Configuration (HEMCO 3.12.1 source-conformance mode)
 
 ```yaml
 physics_schemes:
   - name: megan
     language: cpp
     options:
-      megan_method: hemco_3_12_1   # Source-pinned HEMCO 3.12.1 stateless path
-      aef: 1.0e-9                  # Isoprene AEF [kg m⁻² s⁻¹]
-      hemco_co2_ppm: 390.0         # CO₂ [ppm] (default: 390)
-      hemco_par_avg_umol: 400.0    # 24-hr PAR average [µmol m⁻² s⁻¹] (default: 400)
-      hemco_t_avg_15_k: 297.0      # 15-day T average [K] (default: 297)
-    input_mapping:
-      temperature:          TSFC
-      leaf_area_index:      LAI
-      leaf_area_index_prev: LAI_PREV
-      par_direct:           PARDR
-      par_diffuse:          PARDF
-      solar_cosine:         SUNCOS
+      megan_method: hemco_3_12_1
+      aef: 1.0e-9
+      hemco_co2_inhibition: true
+      hemco_co2_ppm: 390.0
+      hemco_par_direct_history_wm2: 30.0
+      hemco_par_diffuse_history_wm2: 48.0
+      hemco_temperature_history_k: 288.15
+      hemco_day_of_year: 171
 ```
 
 | Parameter | Type | Default | Description |
 |---|---|---|---|
 | `megan_method` | string | `"native"` | `"native"` or `"hemco_3_12_1"` |
-| `aef` | double | `1.0e-9` | AEF [kg m⁻² s⁻¹] |
-| `hemco_co2_ppm` | double | `390.0` | CO₂ concentration [ppm] (hemco_3_12_1 only) |
-| `hemco_par_avg_umol` | double | `400.0` | 24-hr PAR average [µmol m⁻² s⁻¹] (hemco_3_12_1 only) |
-| `hemco_t_avg_15_k` | double | `297.0` | 15-day T average [K] (hemco_3_12_1 only) |
+| `aef` | double | required | Scalar effective AEF [kg m⁻² s⁻¹] |
+| `species_name` | string | `"isoprene"` | This source-conformance path accepts only `"isoprene"` or HEMCO name `"ISOP"` |
+| `hemco_co2_inhibition` | bool | required | Explicitly enable or disable the HEMCO CO₂ inhibition option |
+| `hemco_co2_ppm` | double | required if enabled | CO₂ concentration [ppm] in the finite range 150-1250 (`hemco_3_12_1` only) |
+| `hemco_par_direct_history_wm2` | double | `30.0` | No-restart direct PAR history [W m⁻²] |
+| `hemco_par_diffuse_history_wm2` | double | `48.0` | No-restart diffuse PAR history [W m⁻²] |
+| `hemco_temperature_history_k` | double | `REAL(sp)(288.15)` | No-restart `T_DAVG` [K] |
+| `hemco_day_of_year` | integer | required | Controlled-case day of year (1-366) |
 
 ### Import Fields
 
 | Field Name | Units | Description |
 | --- | --- | --- |
 | `temperature` | K | Surface air temperature |
-| `leaf_area_index` | m²/m² | Current month LAI |
-| `leaf_area_index_prev` | m²/m² | Previous month LAI (optional) |
+| `leaf_area_index` | m²/m² | Effective current LAI |
+| `leaf_area_index_prev` | m²/m² | Required exact effective previous-day `PMISOLAI` in `hemco_3_12_1` mode, after HEMCO storage and optional PFT normalization; CECE does not round it again |
 | `par_direct` | W/m² | Direct PAR |
 | `par_diffuse` | W/m² | Diffuse PAR |
-| `solar_cosine` | — | Cosine of solar zenith angle |
+| `solar_cosine` | — | Finite effective sine of solar elevation (cosine of zenith) in [-1, 1]; nonpositive values represent night |
 | `soil_moisture_root` | fraction | Root-zone soil moisture (optional) |
+
+All required source-conformance fields, including previous-day LAI, and the
+output must have the same horizontal extents and one level;
+the scheme fails before launching its kernel if those shapes differ.
 
 ### Export Fields
 
