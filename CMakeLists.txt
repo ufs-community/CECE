@@ -569,6 +569,9 @@ target_link_libraries(test_cece_clock_run_loop PRIVATE cece GTest::gtest_main)
 # MEGAN3 Canopy Model Property Tests
 add_executable(test_megan3 tests/test_megan3.cpp)
 target_link_libraries(test_megan3 PRIVATE cece GTest::gtest_main rapidcheck rapidcheck_gtest)
+if(CECE_HAS_FORTRAN)
+  target_compile_definitions(test_megan3 PRIVATE CECE_HAS_FORTRAN)
+endif()
 
 # BDSNP Soil NO Property Tests
 add_executable(test_bdsnp tests/test_bdsnp.cpp)
@@ -581,12 +584,18 @@ target_link_libraries(test_bdsnp_runtime PRIVATE cece GTest::gtest)
 # HEMCO 3.12.1 MEGAN isoprene parity tests
 add_executable(test_hemco_megan_runtime tests/test_hemco_megan_runtime.cpp)
 target_link_libraries(test_hemco_megan_runtime PRIVATE cece GTest::gtest_main)
-target_compile_definitions(test_hemco_megan_runtime PRIVATE CECE_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+target_compile_definitions(
+  test_hemco_megan_runtime
+  PRIVATE CECE_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+)
 
 # HEMCO 3.12.1 MEGAN global 4°×5° spatial tests with land/water masks
 add_executable(test_hemco_megan_global tests/test_hemco_megan_global.cpp)
 target_link_libraries(test_hemco_megan_global PRIVATE cece GTest::gtest_main)
-target_compile_definitions(test_hemco_megan_global PRIVATE CECE_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+target_compile_definitions(
+  test_hemco_megan_global
+  PRIVATE CECE_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+)
 
 if(ESMF_FOUND)
   add_executable(test_field_creation tests/test_field_creation.cpp)

@@ -22,6 +22,7 @@
 
 #include "cece/cece_physics_factory.hpp"
 #include "cece/physics/cece_megan3_fortran.hpp"
+#include "cece/physics/cece_megan3_units.hpp"
 #include "cece/physics/cece_speciation_config.hpp"
 
 extern "C" {
@@ -39,7 +40,7 @@ extern "C" {
  * @param suncos        Cosine of solar zenith angle
  * @param soil_moisture Root-zone soil moisture
  * @param wind_speed    Wind speed [m/s]
- * @param soil_nox      Soil NO emissions from BDSNP [kg/m²/s]
+ * @param soil_no_amount_flux Soil NO amount flux for speciation [kmol/m²/s]
  * @param output        Output mechanism species emissions [kg/m²/s]
  * @param nx            Grid dimension in x-direction
  * @param ny            Grid dimension in y-direction
@@ -53,7 +54,7 @@ extern "C" {
  * @param num_mechanism_species Number of mechanism species
  */
 void run_megan3_fortran(double* temp, double* lai, double* lai_prev, double* pardr, double* pardf, double* suncos, double* soil_moisture,
-                        double* wind_speed, double* soil_nox, double* output, int nx, int ny, int nz, int num_output_species,
+                        double* wind_speed, double* soil_no_amount_flux, double* output, int nx, int ny, int nz, int num_output_species,
                         double* conversion_factors, int* class_indices, int* mechanism_indices, double* molecular_weights, int num_mappings,
                         int num_mechanism_species);
 }
@@ -214,19 +215,22 @@ void Megan3FortranScheme::Run(CeceImportState& import_state, CeceExportState& ex
         wind_speed_ptr = dummy_ws.data();
     }
 
-    // Handle soil_nox_emissions from export state
-    double* soil_nox_ptr = nullptr;
-    std::vector<double> dummy_soil_nox;
+    // Convert soil_nox_emissions from its BDSNP mass-flux contract to the
+    // amount basis expected by the generic speciation calculation.
+    double* soil_no_amount_ptr = nullptr;
+    std::vector<double> soil_nox_amount(static_cast<size_t>(nx) * ny * nz, 0.0);
     auto it_soil_nox = export_state.fields.find(MapOutput("soil_nox_emissions"));
     if (it_soil_nox != export_state.fields.end()) {
         it_soil_nox->second.sync<Kokkos::HostSpace>();
-        soil_nox_ptr = it_soil_nox->second.view_host().data();
+        const double* soil_nox_mass = it_soil_nox->second.view_host().data();
+        for (size_t cell = 0; cell < soil_nox_amount.size(); ++cell) {
+            soil_nox_amount[cell] = SoilNoMassToAmountFlux(soil_nox_mass[cell]);
+        }
     } else {
         std::cerr << "Megan3FortranScheme: WARNING - soil_nox_emissions not found in export state, "
                      "setting soil NO to zero\n";
-        dummy_soil_nox.assign(static_cast<size_t>(nx) * ny * nz, 0.0);
-        soil_nox_ptr = dummy_soil_nox.data();
     }
+    soil_no_amount_ptr = soil_nox_amount.data();
 
     // ---- Allocate flat output buffer for all mechanism species ----
     int total_output_size = num_mechanism_species_ * nx * ny * nz;
@@ -234,7 +238,7 @@ void Megan3FortranScheme::Run(CeceImportState& import_state, CeceExportState& ex
 
     // ---- Call Fortran subroutine ----
     run_megan3_fortran(dv_temp.view_host().data(), dv_lai.view_host().data(), lai_prev_ptr, dv_pardr.view_host().data(), dv_pardf.view_host().data(),
-                       dv_suncos.view_host().data(), soil_moisture_ptr, wind_speed_ptr, soil_nox_ptr, output_buffer.data(), nx, ny, nz,
+                       dv_suncos.view_host().data(), soil_moisture_ptr, wind_speed_ptr, soil_no_amount_ptr, output_buffer.data(), nx, ny, nz,
                        num_mechanism_species_, scale_factors_.data(), class_indices_.data(), mechanism_indices_.data(), molecular_weights_.data(),
                        num_mappings_, num_mechanism_species_);
 
