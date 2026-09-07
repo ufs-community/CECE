@@ -24,6 +24,7 @@
 #include "cece/physics/cece_canopy_model.hpp"
 #include "cece/physics/cece_emission_activity.hpp"
 #include "cece/physics/cece_megan.hpp"
+#include "cece/physics/cece_megan3_units.hpp"
 #include "cece/physics/cece_speciation_config.hpp"
 #include "cece/physics/cece_speciation_engine.hpp"
 
@@ -33,7 +34,7 @@ namespace cece {
 static PhysicsRegistration<Megan3Scheme> reg("megan3");
 
 // ============================================================================
-// Default AEF values for the 19 emission classes
+// Default AEF amount fluxes [kmol class m-2 s-1]
 // ============================================================================
 static constexpr double kDefaultAef[19] = {
     1.0e-9,   // ISOP
@@ -266,11 +267,17 @@ void Megan3Scheme::Run(CeceImportState& import_state, CeceExportState& export_st
             double pdr = par_direct(i, j, 0);
             double pdf = par_diffuse(i, j, 0);
 
+            int cell = i + j * local_nx;
+
+            // The speciation engine expects class totals on an amount basis and
+            // applies the target-species molecular weight. Soil NO arrives from
+            // BDSNP as a mass flux, so convert it before the generic speciation
+            // step. Soil emissions are independent of the vegetation LAI gate.
+            d_class_totals(NO_CLASS_IDX, cell) = has_soil_nox ? SoilNoMassToAmountFlux(soil_nox_view(i, j, 0)) : 0.0;
+
             if (L <= 0.0) {
                 return;
             }
-
-            int cell = i + j * local_nx;
 
             // Averaged values (defaults when not dynamically passed)
             double T_AVG_15 = 297.0;
@@ -290,6 +297,10 @@ void Megan3Scheme::Run(CeceImportState& import_state, CeceExportState& export_st
 
             // Compute per-class emissions
             for (int c = 0; c < 19; ++c) {
+                if (c == NO_CLASS_IDX) {
+                    continue;
+                }
+
                 double ldf = d_ldf(c);
                 double ct1 = d_ct1(c);
                 double cleo = d_cleo(c);
@@ -323,15 +334,6 @@ void Megan3Scheme::Run(CeceImportState& import_state, CeceExportState& export_st
 
                 // Combined emission for this class
                 double emission = NORM_FAC * aef * g_lai_c * g_age_c * g_sm * gamma_co2_val * ldf_combined * g_stress;
-
-                // Special handling for NO class: use soil NO from export state
-                if (c == NO_CLASS_IDX) {
-                    if (has_soil_nox) {
-                        emission = soil_nox_view(i, j, 0);
-                    } else {
-                        emission = 0.0;
-                    }
-                }
 
                 d_class_totals(c, cell) = emission;
             }

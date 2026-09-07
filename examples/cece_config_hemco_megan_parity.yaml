@@ -1,0 +1,66 @@
+# HEMCO 3.12.1 MEGAN isoprene stateless source-conformance template.
+# This does not run HEMCO. Replace every /path/to placeholder before use.
+# The gridspec and every input stream must carry identical ordered GEOS 4x5
+# centers: lon=-180,-175,...,175 and lat=-89,-86,-82,...,86,89.
+
+driver:
+  start_time: "2021-06-20T12:00:00"
+  end_time: "2021-06-20T13:00:00"
+  timestep_seconds: 3600
+  amio_staging_buffer_count: 8
+  gridspec_file: "/path/to/hemco_4x5_gridspec.nc"
+  grid:
+    nx: 72
+    ny: 46
+    nz: 1
+
+physics_schemes:
+  - name: megan
+    language: cpp
+    options:
+      megan_method: hemco_3_12_1
+      aef: 1.0e-9 # Scalar effective AEF [kg compound m-2 s-1]
+      export_field_name: isoprene_hemco_source_reference
+      hemco_co2_inhibition: true
+      hemco_co2_ppm: 390.0
+      hemco_par_direct_history_wm2: 30.0
+      hemco_par_diffuse_history_wm2: 48.0
+      hemco_temperature_history_k: 288.15
+      hemco_day_of_year: 171
+
+cece_data:
+  streams:
+    - name: "MEGAN_MET_4X5"
+      file: "/path/to/megan_met_4x5_20210620.nc"
+      mapalgo: passthrough
+      data_model: auto
+      variables:
+        - file: T2M
+          model: temperature
+        - file: PARDR
+          model: par_direct
+        - file: PARDF
+          model: par_diffuse
+        - file: SUNCOS
+          model: solar_cosine
+
+    - name: "MEGAN_LAI_4X5"
+      file: "/path/to/megan_lai_4x5_20210620.nc"
+      mapalgo: passthrough
+      data_model: auto
+      variables:
+        - file: LAI
+          model: leaf_area_index
+        - file: LAI_PREV
+          model: leaf_area_index_prev
+
+output:
+  enabled: true
+  directory: "./output"
+  filename_pattern: "cece_hemco_source_reference_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
+  frequency_steps: 1
+  fields:
+    - name: isoprene_hemco_source_reference
+      attributes:
+        units: "kg m-2 s-1"
+        long_name: "CECE HEMCO-3.12.1-source-derived stateless isoprene flux"

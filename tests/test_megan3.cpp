@@ -716,8 +716,8 @@ RC_GTEST_PROP(Megan3ParityProperty, Property15_CppFortranParity, ()) {
     double sm_val = 0.1 + (*rc::gen::inRange(0, 8001)) / 10000.0;
     // Wind speed in [0, 15] m/s
     double ws_val = (*rc::gen::inRange(0, 15001)) / 1000.0;
-    // Soil NO from export state in [0, 1e-8] kg/m²/s
-    double soil_no_val = (*rc::gen::inRange(0, 10001)) / 10000.0 * 1e-8;
+    // Soil NO from export state in (0, 1e-8] kg/m²/s
+    double soil_no_val = (*rc::gen::inRange(1, 10001)) / 10000.0 * 1e-8;
 
     int nx = 2, ny = 2, nz = 1;
 
@@ -733,7 +733,9 @@ RC_GTEST_PROP(Megan3ParityProperty, Property15_CppFortranParity, ()) {
           << "  - name: ISOP\n"
           << "    molecular weight [kg mol-1]: 0.06812\n"
           << "  - name: TERP\n"
-          << "    molecular weight [kg mol-1]: 0.13623\n";
+          << "    molecular weight [kg mol-1]: 0.13623\n"
+          << "  - name: NO\n"
+          << "    molecular weight [kg mol-1]: 0.03001\n";
     }
 
     // Write minimal MAP file
@@ -745,7 +747,9 @@ RC_GTEST_PROP(Megan3ParityProperty, Property15_CppFortranParity, ()) {
           << "    ISOP:\n"
           << "      ISOP: 1.0\n"
           << "    TERP:\n"
-          << "      MT_PINE: 1.0\n";
+          << "      MT_PINE: 1.0\n"
+          << "    \"NO\":\n"
+          << "      \"NO\": 1.0\n";
     }
 
     // ---- Helper to create DualView3D ----
@@ -783,10 +787,12 @@ RC_GTEST_PROP(Megan3ParityProperty, Property15_CppFortranParity, ()) {
     // Export fields (mechanism species + soil_nox_emissions)
     export_cpp.fields["MEGAN_ISOP"] = make_dv("isop_cpp", 0.0);
     export_cpp.fields["MEGAN_TERP"] = make_dv("terp_cpp", 0.0);
+    export_cpp.fields["MEGAN_NO"] = make_dv("no_cpp", 0.0);
     export_cpp.fields["soil_nox_emissions"] = make_dv("snox_cpp", soil_no_val);
 
     export_fort.fields["MEGAN_ISOP"] = make_dv("isop_fort", 0.0);
     export_fort.fields["MEGAN_TERP"] = make_dv("terp_fort", 0.0);
+    export_fort.fields["MEGAN_NO"] = make_dv("no_fort", 0.0);
     export_fort.fields["soil_nox_emissions"] = make_dv("snox_fort", soil_no_val);
 
     // ---- Build config pointing to speciation files ----
@@ -838,8 +844,116 @@ RC_GTEST_PROP(Megan3ParityProperty, Property15_CppFortranParity, ()) {
         }
     }
 
+    // ---- Compare MEGAN_NO ----
+    {
+        auto& dv_cpp = export_cpp.fields["MEGAN_NO"];
+        auto& dv_fort = export_fort.fields["MEGAN_NO"];
+        dv_cpp.sync_host();
+        dv_fort.sync_host();
+
+        for (int i = 0; i < nx; ++i) {
+            for (int j = 0; j < ny; ++j) {
+                double val_cpp = dv_cpp.view_host()(i, j, 0);
+                double val_fort = dv_fort.view_host()(i, j, 0);
+                double tol = std::max(std::abs(val_cpp) * 1e-12, 1e-30);
+                RC_ASSERT(std::abs(val_cpp - val_fort) <= tol);
+            }
+        }
+    }
+
     // Cleanup
     std::filesystem::remove_all(tmp_dir);
+}
+
+struct Megan3FortranSoilNOResult {
+    double no;
+    double isop;
+};
+
+Megan3FortranSoilNOResult RunMegan3FortranSoilNO(double lai_value, double soil_no_value) {
+    constexpr int nx = 1;
+    constexpr int ny = 1;
+    constexpr int nz = 1;
+
+    auto tmp_dir = std::filesystem::temp_directory_path() / "cece_test_megan3_fortran_soil_no";
+    std::filesystem::remove_all(tmp_dir);
+    std::filesystem::create_directories(tmp_dir);
+
+    {
+        std::ofstream f(tmp_dir / "spc.yaml");
+        f << "name: SOIL_NO_CONTRACT\n"
+          << "species:\n"
+          << "  - name: ISOP\n"
+          << "    molecular weight [kg mol-1]: 0.06812\n"
+          << "  - name: NO\n"
+          << "    molecular weight [kg mol-1]: 0.03001\n";
+    }
+    {
+        std::ofstream f(tmp_dir / "map.yaml");
+        f << "mechanism: SOIL_NO_CONTRACT\n"
+          << "datasets:\n"
+          << "  MEGAN:\n"
+          << "    ISOP:\n"
+          << "      ISOP: 1.0\n"
+          << "    \"NO\":\n"
+          << "      \"NO\": 1.0\n";
+    }
+
+    auto make_dv = [&](const std::string& label, double value) {
+        DualView3D dv(label, nx, ny, nz);
+        dv.view_host()(0, 0, 0) = value;
+        dv.modify_host();
+        dv.sync_device();
+        return dv;
+    };
+
+    CeceImportState import_state;
+    CeceExportState export_state;
+    import_state.fields["temperature"] = make_dv("fortran_temperature", 300.0);
+    import_state.fields["leaf_area_index"] = make_dv("fortran_lai", lai_value);
+    import_state.fields["par_direct"] = make_dv("fortran_par_direct", 100.0);
+    import_state.fields["par_diffuse"] = make_dv("fortran_par_diffuse", 50.0);
+    import_state.fields["solar_cosine"] = make_dv("fortran_solar_cosine", 0.7);
+    import_state.fields["soil_moisture_root"] = make_dv("fortran_soil_moisture", 0.3);
+    import_state.fields["wind_speed"] = make_dv("fortran_wind_speed", 2.0);
+    export_state.fields["MEGAN_ISOP"] = make_dv("fortran_megan_isop", 0.0);
+    export_state.fields["MEGAN_NO"] = make_dv("fortran_megan_no", 0.0);
+    export_state.fields["soil_nox_emissions"] = make_dv("fortran_soil_no", soil_no_value);
+
+    std::string yaml = "mechanism_file: \"" + (tmp_dir / "spc.yaml").string() + "\"\n";
+    yaml += "speciation_file: \"" + (tmp_dir / "map.yaml").string() + "\"\n";
+    conf::Config config = conf::Config::from_string(yaml);
+
+    Megan3FortranScheme scheme;
+    scheme.Initialize(config.root(), nullptr);
+    scheme.Run(import_state, export_state);
+
+    auto& no = export_state.fields["MEGAN_NO"];
+    auto& isop = export_state.fields["MEGAN_ISOP"];
+    no.sync_host();
+    isop.sync_host();
+    Megan3FortranSoilNOResult result{no.view_host()(0, 0, 0), isop.view_host()(0, 0, 0)};
+    std::filesystem::remove_all(tmp_dir);
+    return result;
+}
+
+TEST(Megan3FortranSoilNOContractTest, MassFluxPreserved) {
+    constexpr double soil_no_value = 5.5e-8;
+    auto result = RunMegan3FortranSoilNO(3.0, soil_no_value);
+    double tol = std::max(std::abs(soil_no_value) * 1e-12, 1e-30);
+    EXPECT_NEAR(result.no, soil_no_value, tol) << "Fortran MEGAN_NO must preserve the BDSNP soil-NO mass-flux contract";
+}
+
+TEST(Megan3FortranSoilNOContractTest, IndependentOfLeafAreaIndex) {
+    constexpr double soil_no_value = 5.5e-8;
+    auto vegetated = RunMegan3FortranSoilNO(3.0, soil_no_value);
+    auto bare = RunMegan3FortranSoilNO(0.0, soil_no_value);
+    double tol = std::max(std::abs(vegetated.no) * 1e-12, 1e-30);
+
+    ASSERT_GT(vegetated.no, 0.0);
+    EXPECT_GT(bare.no, 0.0) << "Fortran positive soil NO must not be suppressed solely because LAI is zero";
+    EXPECT_NEAR(bare.no, vegetated.no, tol) << "Fortran soil NO must be independent of the vegetation LAI gate";
+    EXPECT_DOUBLE_EQ(bare.isop, 0.0);
 }
 
 #endif  // CECE_HAS_FORTRAN
@@ -892,7 +1006,9 @@ class Megan3SchemeTest : public ::testing::Test {
               << "  - name: ISOP\n"
               << "    molecular weight [kg mol-1]: 0.06812\n"
               << "  - name: TERP\n"
-              << "    molecular weight [kg mol-1]: 0.13623\n";
+              << "    molecular weight [kg mol-1]: 0.13623\n"
+              << "  - name: NO\n"
+              << "    molecular weight [kg mol-1]: 0.03001\n";
         }
 
         // Write minimal MAP file (speciation mappings - dataset-oriented format)
@@ -904,7 +1020,9 @@ class Megan3SchemeTest : public ::testing::Test {
               << "    ISOP:\n"
               << "      ISOP: 1.0\n"
               << "    TERP:\n"
-              << "      MT_PINE: 1.0\n";
+              << "      MT_PINE: 1.0\n"
+              << "    \"NO\":\n"
+              << "      \"NO\": 1.0\n";
         }
 
         // Set up common import fields
@@ -919,6 +1037,7 @@ class Megan3SchemeTest : public ::testing::Test {
         // Set up export fields for mechanism species
         export_state.fields["MEGAN_ISOP"] = create_dv("megan_isop", 0.0);
         export_state.fields["MEGAN_TERP"] = create_dv("megan_terp", 0.0);
+        export_state.fields["MEGAN_NO"] = create_dv("megan_no", 0.0);
         export_state.fields["soil_nox_emissions"] = create_dv("soil_nox", 0.0);
     }
 
@@ -1033,6 +1152,14 @@ TEST_F(Megan3SchemeTest, SoilNOReadFromExportState) {
     double isop_val = dv_isop.view_host()(0, 0, 0);
     EXPECT_GT(isop_val, 0.0) << "MEGAN_ISOP should be positive for daytime conditions";
 
+    // soil_nox_emissions is already a mass flux in kg NO m-2 s-1.  A 1:1
+    // NO-class mapping must preserve that mass rather than applying MW again.
+    auto& dv_no = export_state.fields["MEGAN_NO"];
+    dv_no.sync<Kokkos::HostSpace>();
+    double no_val = dv_no.view_host()(0, 0, 0);
+    double tol = std::max(std::abs(soil_no_value) * 1e-12, 1e-30);
+    EXPECT_NEAR(no_val, soil_no_value, tol) << "MEGAN_NO must preserve the BDSNP soil-NO mass-flux contract";
+
     // The MEGAN_TERP field should also have been written
     auto& dv_terp = export_state.fields["MEGAN_TERP"];
     dv_terp.sync<Kokkos::HostSpace>();
@@ -1075,6 +1202,52 @@ TEST_F(Megan3SchemeTest, MissingSoilNoxEmissionsProducesZeroNO) {
     dv_isop.sync<Kokkos::HostSpace>();
     double isop_val = dv_isop.view_host()(0, 0, 0);
     EXPECT_GT(isop_val, 0.0) << "MEGAN_ISOP should still be positive even without soil NO";
+
+    auto& dv_no = export_state.fields["MEGAN_NO"];
+    dv_no.sync<Kokkos::HostSpace>();
+    EXPECT_DOUBLE_EQ(dv_no.view_host()(0, 0, 0), 0.0);
+}
+
+// ============================================================================
+// Test: Soil NO is independent of the vegetation LAI gate
+// ============================================================================
+
+TEST_F(Megan3SchemeTest, SoilNOIsIndependentOfLeafAreaIndex) {
+    auto config = MakeConfig();
+
+    PhysicsSchemeConfig cfg;
+    cfg.name = "megan3";
+    cfg.options = config;
+
+    auto scheme = PhysicsFactory::CreateScheme(cfg);
+    ASSERT_NE(scheme, nullptr);
+    scheme->Initialize(cfg.options, nullptr);
+
+    const double soil_no_value = 5.5e-8;
+    SetFieldValue("soil_nox_emissions", soil_no_value, false);
+
+    scheme->Run(import_state, export_state);
+
+    auto& dv_no = export_state.fields["MEGAN_NO"];
+    dv_no.sync<Kokkos::HostSpace>();
+    double vegetated_no = dv_no.view_host()(0, 0, 0);
+    ASSERT_GT(vegetated_no, 0.0);
+
+    SetFieldValue("leaf_area_index", 0.0);
+    SetFieldValue("MEGAN_ISOP", 0.0, false);
+    SetFieldValue("MEGAN_TERP", 0.0, false);
+    SetFieldValue("MEGAN_NO", 0.0, false);
+    scheme->Run(import_state, export_state);
+
+    dv_no.sync<Kokkos::HostSpace>();
+    double bare_no = dv_no.view_host()(0, 0, 0);
+    double tol = std::max(std::abs(vegetated_no) * 1e-12, 1e-30);
+    EXPECT_GT(bare_no, 0.0) << "positive soil NO must not be suppressed solely because LAI is zero";
+    EXPECT_NEAR(bare_no, vegetated_no, tol) << "soil NO must be independent of the vegetation LAI gate";
+
+    auto& dv_isop = export_state.fields["MEGAN_ISOP"];
+    dv_isop.sync<Kokkos::HostSpace>();
+    EXPECT_DOUBLE_EQ(dv_isop.view_host()(0, 0, 0), 0.0);
 }
 
 // ============================================================================
@@ -1204,10 +1377,17 @@ TEST_F(Megan3SchemeTest, BdsnpToMegan3Pipeline) {
     double isop_val = dv_isop.view_host()(0, 0, 0);
     EXPECT_GT(isop_val, 0.0) << "MEGAN_ISOP should be positive after pipeline";
 
+    auto& dv_no = export_state.fields["MEGAN_NO"];
+    dv_no.sync<Kokkos::HostSpace>();
+    double no_val = dv_no.view_host()(0, 0, 0);
+    double no_tol = std::max(std::abs(soil_no_val) * 1e-12, 1e-30);
+    EXPECT_NEAR(no_val, soil_no_val, no_tol) << "BDSNP-to-MEGAN3 coupling must preserve soil-NO mass flux";
+
     // ---- Step 5: Compare with a run where soil_nox_emissions is zero ----
     // Reset export fields
     SetFieldValue("MEGAN_ISOP", 0.0, false);
     SetFieldValue("MEGAN_TERP", 0.0, false);
+    SetFieldValue("MEGAN_NO", 0.0, false);
     SetFieldValue("soil_nox_emissions", 0.0, false);
 
     // Clear cache so MEGAN3 re-resolves fields
@@ -1222,6 +1402,10 @@ TEST_F(Megan3SchemeTest, BdsnpToMegan3Pipeline) {
     // ISOP should be the same regardless of soil NO (ISOP class != NO class)
     // The key test is that the pipeline ran without error and produced valid output
     EXPECT_GT(isop_val_no_soil, 0.0) << "MEGAN_ISOP should still be positive without soil NO";
+
+    auto& dv_no_soil_zero = export_state.fields["MEGAN_NO"];
+    dv_no_soil_zero.sync<Kokkos::HostSpace>();
+    EXPECT_DOUBLE_EQ(dv_no_soil_zero.view_host()(0, 0, 0), 0.0);
 }
 
 }  // namespace cece

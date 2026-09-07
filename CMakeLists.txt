@@ -569,6 +569,9 @@ target_link_libraries(test_cece_clock_run_loop PRIVATE cece GTest::gtest_main)
 # MEGAN3 Canopy Model Property Tests
 add_executable(test_megan3 tests/test_megan3.cpp)
 target_link_libraries(test_megan3 PRIVATE cece GTest::gtest_main rapidcheck rapidcheck_gtest)
+if(CECE_HAS_FORTRAN)
+  target_compile_definitions(test_megan3 PRIVATE CECE_HAS_FORTRAN)
+endif()
 
 # BDSNP Soil NO Property Tests
 add_executable(test_bdsnp tests/test_bdsnp.cpp)
@@ -577,6 +580,22 @@ target_link_libraries(test_bdsnp PRIVATE cece GTest::gtest rapidcheck rapidcheck
 # Canonical BDSNP production-kernel regression tests
 add_executable(test_bdsnp_runtime tests/test_bdsnp_runtime.cpp)
 target_link_libraries(test_bdsnp_runtime PRIVATE cece GTest::gtest)
+
+# HEMCO 3.12.1 MEGAN isoprene stateless source-conformance tests
+add_executable(test_hemco_megan_runtime tests/test_hemco_megan_runtime.cpp)
+target_link_libraries(test_hemco_megan_runtime PRIVATE cece GTest::gtest)
+target_compile_definitions(
+  test_hemco_megan_runtime
+  PRIVATE CECE_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+)
+
+# HEMCO 3.12.1 MEGAN synthetic global 4°×5° invariant tests
+add_executable(test_hemco_megan_global tests/test_hemco_megan_global.cpp)
+target_link_libraries(test_hemco_megan_global PRIVATE cece GTest::gtest_main)
+target_compile_definitions(
+  test_hemco_megan_global
+  PRIVATE CECE_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+)
 
 if(ESMF_FOUND)
   add_executable(test_field_creation tests/test_field_creation.cpp)
@@ -685,7 +704,7 @@ if(Python3_Interpreter_FOUND)
 
   add_test(
     NAME install_python_deps
-    COMMAND ${VENV_PYTHON} -I -m pip install pytest PyYAML matplotlib numpy
+    COMMAND ${VENV_PYTHON} -I -m pip install pytest PyYAML matplotlib netCDF4 numpy
   )
   set_tests_properties(
     install_python_deps
@@ -715,6 +734,25 @@ if(Python3_Interpreter_FOUND)
     PROPERTIES
       ENVIRONMENT "PYTHONPATH=${CMAKE_CURRENT_SOURCE_DIR}/scripts"
       FIXTURES_REQUIRED "python_deps_installed"
+  )
+
+  add_test(
+    NAME test_megan_global_source_conformance_python
+    COMMAND ${VENV_PYTHON} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_megan_global_parity.py
+  )
+  set_tests_properties(
+    test_megan_global_source_conformance_python
+    PROPERTIES FIXTURES_REQUIRED "python_deps_installed"
+  )
+
+  add_test(
+    NAME test_megan_comparator_cli
+    COMMAND
+      ${VENV_PYTHON} -I ${CMAKE_CURRENT_SOURCE_DIR}/scripts/compare_megan_hemco_parity.py --help
+  )
+  set_tests_properties(
+    test_megan_comparator_cli
+    PROPERTIES FIXTURES_REQUIRED "python_deps_installed"
   )
 
   if(BUILD_PYTHON_BINDINGS)
@@ -812,6 +850,8 @@ gtest_discover_tests(test_cece_clock_properties)
 gtest_discover_tests(test_cece_clock_run_loop)
 gtest_discover_tests(test_bdsnp PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
 gtest_discover_tests(test_bdsnp_runtime PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
+gtest_discover_tests(test_hemco_megan_runtime PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
+gtest_discover_tests(test_hemco_megan_global PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
 gtest_discover_tests(
   test_helm_cpp
   PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMP_PROC_BIND=false" PROCESSORS 1

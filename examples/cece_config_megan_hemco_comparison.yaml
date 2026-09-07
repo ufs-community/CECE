@@ -1,0 +1,61 @@
+# CECE native MEGAN side of a diagnostic comparison. Run this separately from
+# cece_config_hemco_megan_parity.yaml: CECE dispatches registered scheme names,
+# so two `name: megan` entries cannot be scheduled in one run. Neither template
+# runs HEMCO or establishes runtime parity. Replace all /path/to values.
+
+driver:
+  start_time: "2021-06-20T12:00:00"
+  end_time: "2021-06-20T13:00:00"
+  timestep_seconds: 3600
+  amio_staging_buffer_count: 8
+  gridspec_file: "/path/to/hemco_4x5_gridspec.nc"
+  grid:
+    nx: 72
+    ny: 46
+    nz: 1
+
+physics_schemes:
+  - name: megan
+    language: cpp
+    options:
+      megan_method: native
+      co2_concentration: 390.0
+      aef: 1.0e-9
+      ldf: 0.9996
+      beta: 0.13
+      ct1: 95.0
+      ceo: 2.0
+      anew: 0.05
+      agro: 0.6
+      amat: 1.0
+      aold: 0.9
+      export_field_name: isoprene_native
+
+cece_data:
+  streams:
+    - name: "MEGAN_MET_4X5"
+      file: "/path/to/megan_met_4x5_20210620.nc"
+      mapalgo: passthrough
+      data_model: auto
+      variables:
+        - { file: T2M, model: temperature }
+        - { file: PARDR, model: par_direct }
+        - { file: PARDF, model: par_diffuse }
+        - { file: SUNCOS, model: solar_cosine }
+    - name: "MEGAN_LAI_4X5"
+      file: "/path/to/megan_lai_4x5_20210620.nc"
+      mapalgo: passthrough
+      data_model: auto
+      variables:
+        - { file: LAI, model: leaf_area_index }
+        - { file: LAI_PREV, model: leaf_area_index_prev }
+
+output:
+  enabled: true
+  directory: "./output"
+  filename_pattern: "cece_megan_native_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
+  frequency_steps: 1
+  fields:
+    - name: isoprene_native
+      attributes:
+        units: "kg m-2 s-1"

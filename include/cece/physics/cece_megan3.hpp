@@ -82,10 +82,10 @@ class Megan3Scheme : public BasePhysicsScheme {
     /// @name Device-side data
     /// @{
 
-    /// Per-class default AEF values used when import fields are missing.
+    /// Per-class default AEF amount fluxes [kmol class m-2 s-1].
     Kokkos::View<double[19], Kokkos::DefaultExecutionSpace> default_aef_;
 
-    /// Intermediate storage for 19-class totals per grid cell (num_classes x nx*ny).
+    /// Intermediate 19-class amount fluxes [kmol class m-2 s-1].
     Kokkos::View<double**, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> class_totals_;
 
     /// @}

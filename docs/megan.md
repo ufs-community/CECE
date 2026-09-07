@@ -4,10 +4,16 @@
 
 CECE provides two MEGAN biogenic emission schemes:
 
-- **`megan`** — Single-species isoprene scheme (original, ported from HEMCO)
-- **`megan3`** — Full MEGAN3 multi-species, multi-class emission system with 19 emission classes, 5-layer canopy model, and chemical mechanism speciation
+- **`megan`** — Single-species isoprene scheme (original, ported from HEMCO).  Supports
+  two emission methods:
+  - `"native"` (default) — fully configurable MEGAN2.1 isoprene calculation.
+  - `"hemco_3_12_1"` — source-pinned HEMCO 3.12.1 stateless source-conformance calculation.
+- **`megan3`** — Full MEGAN3 multi-species, multi-class emission system with 19 emission classes, 5-layer canopy model, and chemical mechanism speciation.
 
 Both schemes coexist and can be selected independently via the YAML configuration.
+
+See [docs/hemco_megan_parity.md](hemco_megan_parity.md) for the exact implemented
+contract, limits, and validation terminology.
 
 ---
 
@@ -20,29 +26,70 @@ The original scheme computes isoprene emissions using activity factors for LAI, 
 - Native C++: `"megan"`
 - Fortran bridge: `"megan_fortran"`
 
-### Configuration
+### Emission methods
+
+| `megan_method` value | Description |
+|---|---|
+| `"native"` (default) | Fully configurable MEGAN2.1 isoprene (all gamma coefficients tunable) |
+| `"hemco_3_12_1"` | Source-pinned HEMCO 3.12.1 stateless isoprene arithmetic with explicit cold-start histories and CO₂ switch |
+
+### Configuration (native mode)
 
 ```yaml
 physics_schemes:
   - name: megan
     options:
+      megan_method: native   # optional — "native" is the default
       beta: 0.13
       ldf: 1.0
       aef: 1.0e-9
       co2_concentration: 400.0
 ```
 
+### Configuration (HEMCO 3.12.1 source-conformance mode)
+
+```yaml
+physics_schemes:
+  - name: megan
+    language: cpp
+    options:
+      megan_method: hemco_3_12_1
+      aef: 1.0e-9
+      hemco_co2_inhibition: true
+      hemco_co2_ppm: 390.0
+      hemco_par_direct_history_wm2: 30.0
+      hemco_par_diffuse_history_wm2: 48.0
+      hemco_temperature_history_k: 288.15
+      hemco_day_of_year: 171
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `megan_method` | string | `"native"` | `"native"` or `"hemco_3_12_1"` |
+| `aef` | double | required | Scalar effective AEF [kg m⁻² s⁻¹] |
+| `species_name` | string | `"isoprene"` | This source-conformance path accepts only `"isoprene"` or HEMCO name `"ISOP"` |
+| `hemco_co2_inhibition` | bool | required | Explicitly enable or disable the HEMCO CO₂ inhibition option |
+| `hemco_co2_ppm` | double | required if enabled | CO₂ concentration [ppm] in the finite range 150-1250 (`hemco_3_12_1` only) |
+| `hemco_par_direct_history_wm2` | double | `30.0` | No-restart direct PAR history [W m⁻²] |
+| `hemco_par_diffuse_history_wm2` | double | `48.0` | No-restart diffuse PAR history [W m⁻²] |
+| `hemco_temperature_history_k` | double | `REAL(sp)(288.15)` | No-restart `T_DAVG` [K] |
+| `hemco_day_of_year` | integer | required | Controlled-case day of year (1-366) |
+
 ### Import Fields
 
 | Field Name | Units | Description |
 | --- | --- | --- |
 | `temperature` | K | Surface air temperature |
-| `leaf_area_index` | m²/m² | Current month LAI |
-| `leaf_area_index_prev` | m²/m² | Previous month LAI (optional) |
+| `leaf_area_index` | m²/m² | Effective current LAI |
+| `leaf_area_index_prev` | m²/m² | Required exact effective previous-day `PMISOLAI` in `hemco_3_12_1` mode, after HEMCO storage and optional PFT normalization; CECE does not round it again |
 | `par_direct` | W/m² | Direct PAR |
 | `par_diffuse` | W/m² | Diffuse PAR |
-| `solar_cosine` | — | Cosine of solar zenith angle |
+| `solar_cosine` | — | Finite effective sine of solar elevation (cosine of zenith) in [-1, 1]; nonpositive values represent night |
 | `soil_moisture_root` | fraction | Root-zone soil moisture (optional) |
+
+All required source-conformance fields, including previous-day LAI, and the
+output must have the same horizontal extents and one level;
+the scheme fails before launching its kernel if those shapes differ.
 
 ### Export Fields
 
@@ -122,6 +169,13 @@ After computing 19 class totals, the speciation engine converts them to mechanis
 output[species] = (Σ class_total[c] × scale_factor[c→s]) × MW[s]
 ```
 
+The vegetation-class totals and their AEF inputs are amount fluxes in kmol
+class m⁻² s⁻¹. The loader multiplies each SPC molecular weight in kg mol⁻¹ by
+1000; the resulting numerical value is also the molecular weight in kg
+kmol⁻¹ used by the calculation. Mechanism-species outputs are therefore mass
+fluxes in kg m⁻² s⁻¹. Divide a mass-basis AEF by its class molecular weight
+before supplying it to MEGAN3.
+
 See [Speciation Configuration](#speciation-configuration) below for the YAML format.
 
 ### Soil NO Handling
@@ -133,6 +187,14 @@ requires the complete stateless effective-input contract documented in
 [BDSNP Soil NO Emissions](soil_nox.md), including both 24-layer fields. The
 compact example below selects `yl95` so it does not imply those effective
 inputs are generated by MEGAN3.
+
+`soil_nox_emissions` has a mass-flux contract of kg NO m⁻² s⁻¹. MEGAN3
+converts that field to an NO amount flux before the generic speciation engine
+applies target-species molecular weights. This preserves the incoming mass for
+the one-to-one `NO` mapping and permits other configured mappings to retain the
+normal speciation behavior. Soil NO is independent of the vegetation LAI gate:
+a positive soil flux remains positive when `leaf_area_index` is zero, while
+LAI-dependent biogenic VOC classes remain zero there.
 
 ### Configuration
 
@@ -160,7 +222,7 @@ physics_schemes:
           agro: 0.6
           amat: 1.0
           aold: 0.9
-          default_aef: 1.0e-9
+          default_aef: 1.0e-9  # kmol ISOP m-2 s-1
         MT_PINE:
           ldf: 0.10
           ct1: 80.0
@@ -170,7 +232,7 @@ physics_schemes:
           agro: 1.8
           amat: 1.0
           aold: 1.05
-          default_aef: 3.0e-10
+          default_aef: 3.0e-10  # kmol MT_PINE m-2 s-1
         # ... remaining classes
     input_mapping:
       temperature: T2M
@@ -197,7 +259,7 @@ physics_schemes:
 | `solar_cosine` | — | Cosine of solar zenith angle |
 | `soil_moisture_root` | fraction | Root-zone soil moisture (optional) |
 | `wind_speed` | m/s | Wind speed (optional, for stress) |
-| `AEF_<CLASS>` | μg/m²/hr | Per-class gridded AEF (optional) |
+| `AEF_<CLASS>` | kmol class/m²/s | Per-class gridded amount-basis AEF (optional) |
 
 ### Export Fields
 
