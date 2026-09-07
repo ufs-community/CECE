@@ -80,7 +80,7 @@ module megan3_kernel_mod
         0.0d0, 0.9d0, 0.9d0, 1.2d0, 0.9d0, 1.2d0, 0.9d0, &
         0.9d0, 0.9d0, 0.9d0, 0.9d0, 0.9d0 /)
 
-    ! Default AEF values matching cece_megan3.cpp kDefaultAef
+    ! Default AEF amount fluxes [kmol class m-2 s-1], matching C++
     real(c_double), parameter :: DEFAULT_AEF(NUM_CLASSES) = (/ &
         1.0d-9,  2.0d-10, 3.0d-10, 3.0d-10, 3.0d-10, 3.0d-10, 3.0d-10, &
         0.0d0,   1.0d-10, 1.0d-10, 5.0d-10, 2.0d-10, 2.0d-10, 1.0d-10, &

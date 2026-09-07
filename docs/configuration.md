@@ -474,6 +474,12 @@ datasets:
 
 Reference the speciation files in the MEGAN3 scheme configuration:
 
+MEGAN3 class AEFs, including `default_aef` and imported `AEF_<CLASS>`
+fields, are amount fluxes in kmol class m⁻² s⁻¹. The speciation engine applies
+the target-species molecular weight in kg kmol⁻¹ to produce output mass fluxes
+in kg m⁻² s⁻¹. Convert a mass-basis AEF to an amount-basis AEF before supplying
+it to MEGAN3.
+
 ```yaml
 physics_schemes:
   - name: bdsnp
@@ -494,13 +500,13 @@ physics_schemes:
           ct1: 95.0
           cleo: 2.0
           beta: 0.13
-          default_aef: 1.0e-9
+          default_aef: 1.0e-9  # kmol ISOP m-2 s-1
         MT_PINE:
           ldf: 0.10
           ct1: 80.0
           cleo: 1.83
           beta: 0.10
-          default_aef: 3.0e-10
+          default_aef: 3.0e-10  # kmol MT_PINE m-2 s-1
         # ... remaining 17 classes
     output_mapping:
       MEGAN_ISOP: ISOP_BIOG

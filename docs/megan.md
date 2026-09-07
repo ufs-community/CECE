@@ -169,6 +169,13 @@ After computing 19 class totals, the speciation engine converts them to mechanis
 output[species] = (Σ class_total[c] × scale_factor[c→s]) × MW[s]
 ```
 
+The vegetation-class totals and their AEF inputs are amount fluxes in kmol
+class m⁻² s⁻¹. The loader multiplies each SPC molecular weight in kg mol⁻¹ by
+1000; the resulting numerical value is also the molecular weight in kg
+kmol⁻¹ used by the calculation. Mechanism-species outputs are therefore mass
+fluxes in kg m⁻² s⁻¹. Divide a mass-basis AEF by its class molecular weight
+before supplying it to MEGAN3.
+
 See [Speciation Configuration](#speciation-configuration) below for the YAML format.
 
 ### Soil NO Handling
@@ -215,7 +222,7 @@ physics_schemes:
           agro: 0.6
           amat: 1.0
           aold: 0.9
-          default_aef: 1.0e-9
+          default_aef: 1.0e-9  # kmol ISOP m-2 s-1
         MT_PINE:
           ldf: 0.10
           ct1: 80.0
@@ -225,7 +232,7 @@ physics_schemes:
           agro: 1.8
           amat: 1.0
           aold: 1.05
-          default_aef: 3.0e-10
+          default_aef: 3.0e-10  # kmol MT_PINE m-2 s-1
         # ... remaining classes
     input_mapping:
       temperature: T2M
@@ -252,7 +259,7 @@ physics_schemes:
 | `solar_cosine` | — | Cosine of solar zenith angle |
 | `soil_moisture_root` | fraction | Root-zone soil moisture (optional) |
 | `wind_speed` | m/s | Wind speed (optional, for stress) |
-| `AEF_<CLASS>` | μg/m²/hr | Per-class gridded AEF (optional) |
+| `AEF_<CLASS>` | kmol class/m²/s | Per-class gridded amount-basis AEF (optional) |
 
 ### Export Fields
 

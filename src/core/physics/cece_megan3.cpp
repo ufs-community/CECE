@@ -34,7 +34,7 @@ namespace cece {
 static PhysicsRegistration<Megan3Scheme> reg("megan3");
 
 // ============================================================================
-// Default AEF values for the 19 emission classes
+// Default AEF amount fluxes [kmol class m-2 s-1]
 // ============================================================================
 static constexpr double kDefaultAef[19] = {
     1.0e-9,   // ISOP

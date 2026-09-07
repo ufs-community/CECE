@@ -32,7 +32,10 @@ physics_schemes:
           agro: 0.6
           amat: 1.0
           aold: 0.9
-          default_aef: 1.0e-9
+          # MEGAN3 AEF is an amount flux. Multiplication by the configured
+          # 68.12 kg kmol-1 ISOP molecular weight gives the same 1.0e-9
+          # kg m-2 s-1 effective AEF used by the source-reference path below.
+          default_aef: 1.4679976512037582e-11
 
   - name: megan
     language: cpp

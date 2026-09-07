@@ -123,6 +123,13 @@ selects only the first configured instance with a requested name. The MEGAN3
 comparison template can schedule `megan3` and `megan` together because those
 registration names differ.
 
+The two schemes use different AEF bases. The single-species `megan` AEF is a
+mass flux in kg compound m⁻² s⁻¹, whereas a MEGAN3 class AEF is an amount flux
+in kmol class m⁻² s⁻¹ and is multiplied by the mechanism-species molecular
+weight during speciation. The MEGAN3 comparison template therefore uses
+`1.4679976512037582e-11` kmol ISOP m⁻² s⁻¹, which maps to exactly `1.0e-9`
+kg isoprene m⁻² s⁻¹ with the configured 68.12 kg kmol⁻¹ molecular weight.
+
 ## Tests
 
 ```console
