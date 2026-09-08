@@ -152,7 +152,19 @@ RecordBracket cadence_record_bracket(const std::string& cadence, const std::stri
     return br;
 }
 
-bool collective_all_ready(MPI_Comm comm, bool local_ready, const std::string& context, std::string& failure_detail) {
+// Reimplemented on halo::allreduce<int> (Decision C): the size>1 branch reduces
+// the single-element 0/1 readiness flag with MPI_MIN through the orchestrator's
+// long-lived halo_comm_ wrapper (passed in as halo_comm) rather than a
+// hand-rolled MPI_Allreduce. The signature adds the halo::Communicator* so this
+// free function can reach the wrapper the orchestrator already owns; every call
+// site passes `halo_comm_ ? &*halo_comm_ : nullptr`. The short-circuits
+// (uninitialized MPI / MPI_COMM_NULL / mpi_size <= 1 return the local readiness
+// value with the same context-based failure_detail discipline) and the
+// not-ready message are preserved verbatim. HALO's throwing error policy
+// replaces the former rc != MPI_SUCCESS branch; the try/catch maps any throw to
+// a failure_detail and returns false (Req 4.1-4.4).
+bool collective_all_ready(halo::Communicator* halo_comm, MPI_Comm comm, bool local_ready, const std::string& context,
+                          std::string& failure_detail) {
     int mpi_initialized = 0;
     MPI_Initialized(&mpi_initialized);
     if (!mpi_initialized || comm == MPI_COMM_NULL) {
@@ -167,21 +179,33 @@ bool collective_all_ready(MPI_Comm comm, bool local_ready, const std::string& co
         return local_ready;
     }
 
-    const int local_value = local_ready ? 1 : 0;
-    int global_value = 0;
-    const int rc = MPI_Allreduce(&local_value, &global_value, 1, MPI_INT, MPI_MIN, comm);
-    if (rc != MPI_SUCCESS) {
-        failure_detail = "MPI_Allreduce failed while synchronizing " + context + " (error code " + std::to_string(rc) + ")";
+    // size > 1: reduce the 0/1 readiness flag with MPI_MIN via halo::allreduce.
+    try {
+        const std::vector<int> out = halo::allreduce<int>(*halo_comm, std::vector<int>{local_ready ? 1 : 0}, MPI_MIN);
+        if (out[0] != 1) {
+            if (failure_detail.empty()) failure_detail = context + " failed on one or more ranks";
+            return false;
+        }
+        return true;
+    } catch (const std::exception& e) {
+        failure_detail = context + " failed: " + e.what();
         return false;
     }
-    if (global_value != 1) {
-        if (failure_detail.empty()) failure_detail = context + " failed on one or more ranks";
-        return false;
-    }
-    return true;
 }
 
-bool collective_int_matches(MPI_Comm comm, int local_value, const std::string& name, std::string& failure_detail) {
+// Reimplemented on halo::allreduce<int> (Req 5). Reduces the single-element
+// local_value with MPI_MIN and then MPI_MAX through the orchestrator's
+// long-lived halo_comm_ wrapper (passed in as halo_comm) rather than two
+// hand-rolled MPI_Allreduce calls. The signature adds the halo::Communicator*
+// so this free function can reach the wrapper the orchestrator already owns;
+// every call site passes `halo_comm_ ? &*halo_comm_ : nullptr`. The
+// short-circuits (uninitialized MPI / MPI_COMM_NULL / mpi_size <= 1 return true
+// without any collective) and the mismatch message are preserved verbatim. The
+// two-reduce (MIN then MAX) op sequence is kept. HALO's throwing error policy
+// replaces the former rc != MPI_SUCCESS branch; the try/catch maps any throw to
+// a failure_detail and returns false (Req 5.1-5.4).
+bool collective_int_matches(halo::Communicator* halo_comm, MPI_Comm comm, int local_value, const std::string& name,
+                            std::string& failure_detail) {
     int mpi_initialized = 0;
     MPI_Initialized(&mpi_initialized);
     if (!mpi_initialized || comm == MPI_COMM_NULL) return true;
@@ -190,22 +214,69 @@ bool collective_int_matches(MPI_Comm comm, int local_value, const std::string& n
     MPI_Comm_size(comm, &mpi_size);
     if (mpi_size <= 1) return true;
 
-    int minimum = 0;
-    int maximum = 0;
-    const int min_rc = MPI_Allreduce(&local_value, &minimum, 1, MPI_INT, MPI_MIN, comm);
-    const int max_rc = MPI_Allreduce(&local_value, &maximum, 1, MPI_INT, MPI_MAX, comm);
-    if (min_rc != MPI_SUCCESS || max_rc != MPI_SUCCESS) {
-        failure_detail = "MPI_Allreduce failed while comparing " + name + " across ranks";
+    // size > 1: reduce local_value with MPI_MIN then MPI_MAX via halo::allreduce,
+    // preserving the two-reduce op sequence; flag a mismatch when min != max.
+    try {
+        const std::vector<int> mins = halo::allreduce<int>(*halo_comm, std::vector<int>{local_value}, MPI_MIN);
+        const std::vector<int> maxs = halo::allreduce<int>(*halo_comm, std::vector<int>{local_value}, MPI_MAX);
+        const int minimum = mins[0];
+        const int maximum = maxs[0];
+        if (minimum != maximum) {
+            failure_detail = name + " differs across ranks (minimum " + std::to_string(minimum) + ", maximum " + std::to_string(maximum) + ")";
+            return false;
+        }
+        return true;
+    } catch (const std::exception& e) {
+        failure_detail = "collective comparison of " + name + " failed: " + e.what();
         return false;
     }
-    if (minimum != maximum) {
-        failure_detail = name + " differs across ranks (minimum " + std::to_string(minimum) + ", maximum " + std::to_string(maximum) + ")";
-        return false;
-    }
-    return true;
 }
 
 }  // namespace
+
+bool CeceDriverOrchestrator::CallCollectiveAllReady(MPI_Comm comm, bool local_ready, const std::string& context, std::string& failure_detail) {
+    // Test-only forwarder (Task 10.2, P2). Builds a short-lived halo::Communicator
+    // wrapping `comm` exactly as src/driver/cece_helm_graph.cpp does (duplicating a
+    // non-predefined handle so the caller's handle is never freed; wrapping
+    // WORLD/SELF directly) only on the size>1 branch, then delegates to the REAL
+    // anonymous-namespace collective_all_ready helper. The short-circuit branches
+    // (uninitialized MPI / MPI_COMM_NULL / mpi_size <= 1) never touch the wrapper
+    // and are handled inside the helper. This changes no production signature and
+    // is never called by production code.
+    int mpi_initialized = 0;
+    MPI_Initialized(&mpi_initialized);
+    int mpi_size = 1;
+    if (mpi_initialized && comm != MPI_COMM_NULL) MPI_Comm_size(comm, &mpi_size);
+    if (!mpi_initialized || comm == MPI_COMM_NULL || mpi_size <= 1) {
+        return collective_all_ready(nullptr, comm, local_ready, context, failure_detail);
+    }
+    MPI_Comm comm_to_wrap = comm;
+    if (comm != MPI_COMM_WORLD && comm != MPI_COMM_SELF) {
+        MPI_Comm_dup(comm, &comm_to_wrap);
+    }
+    halo::Communicator wrapper(comm_to_wrap);
+    return collective_all_ready(&wrapper, comm, local_ready, context, failure_detail);
+}
+
+bool CeceDriverOrchestrator::CallCollectiveIntMatches(MPI_Comm comm, int local_value, const std::string& name, std::string& failure_detail) {
+    // Test-only forwarder (Task 10.2, P3). Same wrapping discipline as
+    // CallCollectiveAllReady; delegates to the REAL anonymous-namespace
+    // collective_int_matches helper. No production signature change; never called
+    // by production code.
+    int mpi_initialized = 0;
+    MPI_Initialized(&mpi_initialized);
+    int mpi_size = 1;
+    if (mpi_initialized && comm != MPI_COMM_NULL) MPI_Comm_size(comm, &mpi_size);
+    if (!mpi_initialized || comm == MPI_COMM_NULL || mpi_size <= 1) {
+        return collective_int_matches(nullptr, comm, local_value, name, failure_detail);
+    }
+    MPI_Comm comm_to_wrap = comm;
+    if (comm != MPI_COMM_WORLD && comm != MPI_COMM_SELF) {
+        MPI_Comm_dup(comm, &comm_to_wrap);
+    }
+    halo::Communicator wrapper(comm_to_wrap);
+    return collective_int_matches(&wrapper, comm, local_value, name, failure_detail);
+}
 
 void CeceDriverOrchestrator::ResolveStreamConfigs() {
     // Thin wrapper: run the pure YAML->StreamConfig resolution against
@@ -388,6 +459,52 @@ bool CeceDriverOrchestrator::bracket_equal(const RecordBracket& a, const RecordB
     return a.i0 == b.i0 && a.i1 == b.i1 && std::fabs(a.weight - b.weight) <= kBracketWeightTol;
 }
 
+bool CeceDriverOrchestrator::FusedGateDecision(const std::vector<int>& mn, const std::vector<int>& mx, std::string& failure_detail) {
+    // Pure decision over the elementwise MIN/MAX reductions of the packed
+    // 5-entry front-half gate vector [readiness, file_nx, file_ny, field_nlev,
+    // plan.identity]. Because elementwise allreduce is independent per position,
+    // mn[k]/mx[k] equal exactly what the standalone legacy gate for value k
+    // would have computed: mn[0] == the legacy collective_all_ready MIN over
+    // readiness, and (mn[k], mx[k]) == the legacy collective_int_matches
+    // (MIN, MAX) for k in {1..4}. This maps those reductions to the SAME
+    // accept/reject decision and the SAME failure_detail under the SAME
+    // precedence the five separate gates used (Req 6.1, 6.3, 6.4, 8.3). It
+    // issues no collective itself, so it is unit/property testable off-MPI.
+
+    // Index 0 — readiness (MIN semantics): ready iff every rank contributed 1.
+    // Message written only when failure_detail is still empty, preserving the
+    // local not-ready branch's "source buffer or regrid metadata changed after
+    // AMIO validation" detail, exactly as the legacy collective_all_ready did
+    // with context "source and regrid metadata readiness".
+    if (mn[0] != 1) {
+        if (failure_detail.empty()) failure_detail = "source and regrid metadata readiness failed on one or more ranks";
+        return false;
+    }
+
+    // Indices 1..4 — metadata match values: entry k agrees iff mn[k] == mx[k].
+    // Precedence and messages match the legacy collective_int_matches order:
+    // file_nx, then file_ny, then field_nlev, then plan.identity.
+    if (mn[1] != mx[1]) {
+        failure_detail = "source longitude count differs across ranks (minimum " + std::to_string(mn[1]) + ", maximum " + std::to_string(mx[1]) + ")";
+        return false;
+    }
+    if (mn[2] != mx[2]) {
+        failure_detail = "source latitude count differs across ranks (minimum " + std::to_string(mn[2]) + ", maximum " + std::to_string(mx[2]) + ")";
+        return false;
+    }
+    if (mn[3] != mx[3]) {
+        failure_detail = "source level count differs across ranks (minimum " + std::to_string(mn[3]) + ", maximum " + std::to_string(mx[3]) + ")";
+        return false;
+    }
+    if (mn[4] != mx[4]) {
+        failure_detail =
+            "regrid-plan identity mode differs across ranks (minimum " + std::to_string(mn[4]) + ", maximum " + std::to_string(mx[4]) + ")";
+        return false;
+    }
+
+    return true;
+}
+
 AmioHandleSet* CeceDriverOrchestrator::GetOrOpenHandleSet(const std::string& handle_key, const StreamConfig& cfg, std::string& failure_detail) {
     // Lazy-open-once: if the handle set already exists for this
     // Handle_Identity_Key, reuse it without any re-open. Variables that read the
@@ -489,6 +606,11 @@ CeceDriverOrchestrator::CeceDriverOrchestrator(const std::string& config_file, i
       target_lons_(lon_coords, lon_coords + lon_len),
       target_lats_(lat_coords, lat_coords + lat_len),
       comm_c_(comm_c) {
+    // Build the long-lived HALO wrapper over comm_c_ now that it is set, so the
+    // fused gate and cached gather plans have a valid Communicator to reference
+    // (Req 7.1-7.3). Absent for single-rank / uninitialized MPI / MPI_COMM_NULL.
+    RefreshHaloCommunicator();
+
     // Parse the YAML once and resolve the StreamConfig for every stream
     // variable, plus driver-level values and gridspec_file_ (Req 1.1). This
     // preserves the previous constructor's driver-block validation (a < 1
@@ -514,6 +636,41 @@ CeceDriverOrchestrator::CeceDriverOrchestrator(const std::string& config_file, i
         }
         dagr::configure_logging(comm_c_ != MPI_COMM_NULL ? comm_c_ : MPI_COMM_WORLD, rank == 0 ? dagr::Log_Level::info : dagr::Log_Level::error);
     }
+}
+
+void CeceDriverOrchestrator::RefreshHaloCommunicator() {
+    // Drop any existing wrapper first so nothing references a stale handle while
+    // we rebuild. The wrapper is used by the fused front-half gate and the
+    // pre-gather readiness allreduce.
+    halo_comm_.reset();
+
+    // Preserve the existing single-rank short-circuit: build a HALO Communicator
+    // ONLY on the distributed branch (MPI initialized, valid comm, size > 1).
+    // This mirrors RegridToDestinationBuffer's `distributed` predicate and
+    // guarantees we never wrap MPI_COMM_NULL or an uninitialized environment
+    // (Req 7.2). halo::Environment::initialize() is assumed already run in
+    // main.cpp after MPI init, so we do not re-init here.
+    int mpi_initialized = 0;
+    MPI_Initialized(&mpi_initialized);
+    if (!mpi_initialized || comm_c_ == MPI_COMM_NULL) {
+        return;
+    }
+
+    int mpi_size = 1;
+    MPI_Comm_size(comm_c_, &mpi_size);
+    if (mpi_size <= 1) {
+        return;
+    }
+
+    // Wrap comm_c_ in a halo::Communicator following cece_helm_graph.cpp's
+    // convention: duplicate a non-predefined handle (so the wrapper's RAII
+    // MPI_Comm_free does not destroy the caller's communicator), and wrap the
+    // predefined WORLD/SELF handles directly (the wrapper never frees those).
+    MPI_Comm comm_to_wrap = comm_c_;
+    if (comm_c_ != MPI_COMM_WORLD && comm_c_ != MPI_COMM_SELF) {
+        MPI_Comm_dup(comm_c_, &comm_to_wrap);
+    }
+    halo_comm_.emplace(comm_to_wrap);
 }
 
 void CeceDriverOrchestrator::TeardownHandles() {
@@ -607,24 +764,54 @@ bool CeceDriverOrchestrator::RegridToDestinationBuffer(const std::string& var_na
     if (!local_source_ready && failure_detail.empty()) {
         failure_detail = "source buffer or regrid metadata changed after AMIO validation";
     }
-    if (!collective_all_ready(comm_c_, local_source_ready, "source and regrid metadata readiness", failure_detail)) return false;
-    if (!collective_int_matches(comm_c_, file_nx, "source longitude count", failure_detail) ||
-        !collective_int_matches(comm_c_, file_ny, "source latitude count", failure_detail) ||
-        !collective_int_matches(comm_c_, field_nlev, "source level count", failure_detail) ||
-        !collective_int_matches(comm_c_, plan.identity ? 1 : 0, "regrid-plan identity mode", failure_detail)) {
-        return false;
+
+    // Fused front-half gate (Req 6.1-6.4, 8.3): replace the former
+    // collective_all_ready + four collective_int_matches sequence (~9 reductions)
+    // with ONE packed 5-entry vector reduced by one MIN and one MAX (2
+    // reductions), then apply the pure FusedGateDecision helper. The packed
+    // order is fixed: [readiness, file_nx, file_ny, field_nlev, identity].
+    const std::vector<int> gate_vec{local_source_ready ? 1 : 0, file_nx, file_ny, field_nlev, plan.identity ? 1 : 0};
+    if (!distributed_regrid) {
+        // Short-circuit (uninitialized MPI / MPI_COMM_NULL / mpi_size <= 1): issue
+        // NO collective. With a single participant, elementwise min == max ==
+        // local, so passing the local vector as both mn and mx reproduces the
+        // legacy short-circuit outcome exactly: collective_all_ready returned the
+        // local readiness (mn[0] == local_source_ready ? 1 : 0), and each
+        // collective_int_matches returned true (mn[k] == mx[k] for k in 1..4).
+        // FusedGateDecision(gate_vec, gate_vec, ...) therefore returns
+        // local_source_ready and preserves the already-set not-ready detail.
+        if (!FusedGateDecision(gate_vec, gate_vec, failure_detail)) return false;
+    } else {
+        // Distributed (size > 1): every rank issues the same two allreduce
+        // collectives in the same order (the predicate is rank-invariant), so no
+        // rank skips a collective a peer enters (Req 6.2, 8.3, 8.4). Any HALO
+        // throw maps to failure_detail and returns false.
+        try {
+            const std::vector<int> mn = halo::allreduce<int>(*halo_comm_, gate_vec, MPI_MIN);
+            const std::vector<int> mx = halo::allreduce<int>(*halo_comm_, gate_vec, MPI_MAX);
+            if (!FusedGateDecision(mn, mx, failure_detail)) return false;
+        } catch (const std::exception& e) {
+            failure_detail = "front-half readiness gate failed: " + std::string(e.what());
+            return false;
+        }
     }
 
     const size_t target_spatial = static_cast<size_t>(nx_) * ny_;
 
-    std::vector<int> counts;
-    std::vector<int> displs;
+    // Per-rank latitude-band counts/displacements for the per-level
+    // MPI_Allgatherv assembly. These are rank-invariant (derived purely from
+    // ny_, nx_, and mpi_size), so every rank builds identical arrays and issues
+    // the same collectives in lock-step. Cheap to recompute each assembly.
+    std::vector<int> band_counts;
+    std::vector<int> band_displs;
     if (distributed_regrid) {
-        counts.resize(mpi_size);
-        displs.resize(mpi_size);
-        for (int rank = 0; rank < mpi_size; ++rank) {
-            counts[rank] = (band_start(rank + 1) - band_start(rank)) * nx_;
-            displs[rank] = band_start(rank) * nx_;
+        band_counts.resize(mpi_size);
+        band_displs.resize(mpi_size);
+        for (int r = 0; r < mpi_size; ++r) {
+            const int rj0 = band_start(r);
+            const int rj1 = band_start(r + 1);
+            band_counts[r] = (rj1 - rj0) * nx_;
+            band_displs[r] = rj0 * nx_;
         }
     }
 
@@ -635,39 +822,70 @@ bool CeceDriverOrchestrator::RegridToDestinationBuffer(const std::string& var_na
     // before populating those views. Removing this collective requires a
     // coordinated distributed-state/output redesign rather than a local
     // driver change.
+    //
+    // Assembly: regrid each level's rank-local band into a contiguous
+    // [level][band] send buffer, then issue one MPI_Allgatherv PER LEVEL that
+    // places element (level, jrel, i) at level*nx*ny + j*nx + i in
+    // full_destination. band_elems is the PER-LEVEL band element count
+    // (expected_j1 - expected_j0) * nx_, and send_buf holds
+    // field_nlev * band_elems doubles laid out so (level, jrel, i) lives at
+    // level*band_elems + jrel*nx_ + i. A single pre-gather readiness allreduce
+    // over local_ok keeps the collectives deadlock-free (Req 8.4).
+    const size_t band_elems = static_cast<size_t>(expected_j1 - expected_j0) * nx_;
     std::vector<double> full_destination(static_cast<size_t>(field_nlev) * target_spatial, 0.0);
+    std::vector<double> send_buf;
+    if (distributed_regrid) {
+        send_buf.assign(static_cast<size_t>(field_nlev) * band_elems, 0.0);
+    }
+
+    // Per-level regrid into the contiguous send buffer (distributed) or directly
+    // into full_destination (single-rank fast path, Decision A). Preserve
+    // lock-step: a per-level regrid failure sets local_ok = false but does NOT
+    // early-return before the collective — a single pre-gather allreduce(MIN)
+    // over local_ok lets a failing rank still enter the per-level MPI_Allgatherv
+    // assembly (Req 8.4).
+    std::vector<double> band_scratch;  // reused across levels
+    bool local_ok = true;
     for (int level = 0; level < field_nlev; ++level) {
-        std::vector<double> local_destination;
         const double* source_layer = source.data() + static_cast<size_t>(level) * source_spatial;
         bool local_regrid_succeeded = false;
         try {
             local_regrid_succeeded =
-                cece::io::apply_regrid_plan(plan, /*time_offset=*/0, /*is_float=*/false, source_layer, file_nx, file_ny, nx_, local_destination);
+                cece::io::apply_regrid_plan(plan, /*time_offset=*/0, /*is_float=*/false, source_layer, file_nx, file_ny, nx_, band_scratch);
         } catch (const std::exception& error) {
             failure_detail = "regrid weight application threw an exception: " + std::string(error.what());
         } catch (...) {
             failure_detail = "regrid weight application threw an unknown exception";
         }
         const size_t expected_local_size = static_cast<size_t>(plan.j1 - plan.j0) * nx_;
-        const bool gather_count_matches = !distributed_regrid || expected_local_size == static_cast<size_t>(counts[mpi_rank]);
-        const bool local_layer_ready = local_regrid_succeeded && local_destination.size() == expected_local_size && gather_count_matches;
-        bool all_ranks_ready = local_layer_ready;
-
-        // All ranks must make the same decision before entering the gather. A
-        // rank-local early exit here would strand peers in MPI_Allgatherv.
-        if (distributed_regrid) {
-            const int local_ready = local_layer_ready ? 1 : 0;
-            int global_ready = 0;
-            const int ready_rc = MPI_Allreduce(&local_ready, &global_ready, 1, MPI_INT, MPI_MIN, comm_c_);
-            if (ready_rc != MPI_SUCCESS) {
-                failure_detail = "MPI_Allreduce failed while validating rank-local regrid bands (error code " + std::to_string(ready_rc) + ")";
-                CECE_LOG_DEBUG("[DRIVER] rank-local regrid or replicated-field assembly failed!");
-                return false;
-            }
-            all_ranks_ready = global_ready == 1;
+        const bool band_size_matches = !distributed_regrid || expected_local_size == band_elems;
+        const bool local_layer_ready = local_regrid_succeeded && band_scratch.size() == expected_local_size && band_size_matches;
+        if (!local_layer_ready) {
+            local_ok = false;
+            continue;  // Do NOT early-return: preserve lock-step for the collective.
         }
 
-        if (!all_ranks_ready) {
+        if (distributed_regrid) {
+            // Copy this level's band into the contiguous [level][band] send
+            // buffer at offset level*band_elems (Req 2.1, 2.4).
+            std::copy(band_scratch.begin(), band_scratch.end(), send_buf.begin() + static_cast<size_t>(level) * band_elems);
+        } else {
+            // Single-rank fast path (Decision A, Req 1.4, 2.3): byte-identical to
+            // the former non-distributed std::copy — place the band directly into
+            // full_destination[level*nx*ny + plan.j0*nx ...].
+            double* destination_layer = full_destination.data() + static_cast<size_t>(level) * target_spatial;
+            std::copy(band_scratch.begin(), band_scratch.end(), destination_layer + static_cast<size_t>(plan.j0) * nx_);
+        }
+    }
+
+    if (distributed_regrid) {
+        // Single pre-gather readiness reduction over local_ok (Req 8.4): every
+        // rank enters this collective, so a rank whose per-level regrid failed
+        // still participates and no peer is stranded. Keeps the fused-gate-era
+        // single readiness reduction (not one per level).
+        const std::vector<int> ready_vec{local_ok ? 1 : 0};
+        const std::vector<int> reduced = halo::allreduce<int>(*halo_comm_, ready_vec, MPI_MIN);
+        if (reduced.empty() || reduced[0] != 1) {
             if (failure_detail.empty()) {
                 failure_detail = "rank-local regrid failed or produced an unexpected destination-band size";
             }
@@ -675,29 +893,36 @@ bool CeceDriverOrchestrator::RegridToDestinationBuffer(const std::string& var_na
             return false;
         }
 
-        double* destination_layer = full_destination.data() + static_cast<size_t>(level) * target_spatial;
-        if (distributed_regrid) {
-            const int gather_rc = MPI_Allgatherv(local_destination.data(), counts[mpi_rank], MPI_DOUBLE, destination_layer, counts.data(),
-                                                 displs.data(), MPI_DOUBLE, comm_c_);
-            const int local_gather_ok = gather_rc == MPI_SUCCESS ? 1 : 0;
-            int global_gather_ok = 0;
-            const int gather_status_rc = MPI_Allreduce(&local_gather_ok, &global_gather_ok, 1, MPI_INT, MPI_MIN, comm_c_);
-            if (gather_status_rc != MPI_SUCCESS || global_gather_ok != 1) {
-                if (gather_status_rc != MPI_SUCCESS) {
-                    failure_detail =
-                        "MPI_Allreduce failed while synchronizing MPI_Allgatherv status (error code " + std::to_string(gather_status_rc) + ")";
-                } else {
-                    failure_detail =
-                        "MPI_Allgatherv failed on one or more ranks while assembling the replicated destination field "
-                        "(local error code " +
-                        std::to_string(gather_rc) + ")";
+        // Per-level assembly: one MPI_Allgatherv PER LEVEL, each moving this
+        // rank's contiguous latitude band directly into
+        // full_destination[level*nx*ny + j*nx + i]. Benchmarking at the F360+
+        // (>=1440x720) x 64-128 level target showed this contiguous per-level
+        // loop is markedly faster than a single strided-datatype gather in the
+        // container's OpenMPI (the strided derived datatype forces element-wise
+        // pack/unpack that dominates cost and scales with nlev), so we assemble
+        // level by level with plain MPI_DOUBLE transfers. All ranks issue the
+        // same field_nlev collectives in lock-step (rank-invariant counts).
+        for (int level = 0; level < field_nlev; ++level) {
+            const double* level_send = send_buf.data() + static_cast<size_t>(level) * band_elems;
+            double* level_dst = full_destination.data() + static_cast<size_t>(level) * target_spatial;
+            const int rc = MPI_Allgatherv(level_send, static_cast<int>(band_elems), MPI_DOUBLE, level_dst,
+                                          band_counts.data(), band_displs.data(), MPI_DOUBLE, comm_c_);
+            if (rc != MPI_SUCCESS) {
+                if (failure_detail.empty()) {
+                    failure_detail = "replicated-field assembly MPI_Allgatherv failed (level " + std::to_string(level) + ")";
                 }
                 CECE_LOG_DEBUG("[DRIVER] rank-local regrid or replicated-field assembly failed!");
                 return false;
             }
-        } else {
-            std::copy(local_destination.begin(), local_destination.end(), destination_layer + static_cast<size_t>(plan.j0) * nx_);
         }
+    } else if (!local_ok) {
+        // Single-rank path: no collective, but still honor the readiness result
+        // so the single-rank outcome matches the distributed all-ranks decision.
+        if (failure_detail.empty()) {
+            failure_detail = "rank-local regrid failed or produced an unexpected destination-band size";
+        }
+        CECE_LOG_DEBUG("[DRIVER] rank-local regrid or replicated-field assembly failed!");
+        return false;
     }
 
     out_buffer = std::move(full_destination);
@@ -741,7 +966,7 @@ bool CeceDriverOrchestrator::WriteDestinationBufferToImport(const std::string& v
                          "x" + std::to_string(field_nlev) + ", found " + std::to_string(core_view.extent(0)) + "x" +
                          std::to_string(core_view.extent(1)) + "x" + std::to_string(core_view.extent(2));
     }
-    if (!collective_all_ready(comm_c_, local_core_shape_ready, "core import field shape validation", failure_detail)) return false;
+    if (!collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, local_core_shape_ready, "core import field shape validation", failure_detail)) return false;
 
     // Authoritative write of the core import field from the single host buffer.
     // This is now the SOLE authoritative write of the assembled field. The
@@ -800,7 +1025,7 @@ bool CeceDriverOrchestrator::AssembleReplicatedField(const std::string& var_name
 
 bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* cece_core_data_ptr) {
     std::string core_readiness_detail;
-    if (!collective_all_ready(comm_c_, cece_core_data_ptr != nullptr, "CECE core-data readiness", core_readiness_detail)) {
+    if (!collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, cece_core_data_ptr != nullptr, "CECE core-data readiness", core_readiness_detail)) {
         CECE_LOG_ERROR("[DRIVER FATAL] " + core_readiness_detail);
         return false;
     }
@@ -838,7 +1063,7 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
             CECE_LOG_ERROR("[DRIVER FATAL] Field '" + var_name + "' has no configured levels");
             failure_detail = "field has no configured levels";
         }
-        if (!collective_all_ready(comm_c_, field_nlev >= 1, "field-level metadata readiness for '" + var_name + "'", failure_detail)) return false;
+        if (!collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, field_nlev >= 1, "field-level metadata readiness for '" + var_name + "'", failure_detail)) return false;
         std::vector<double> ingest_buffer;
         bool read_success = false;
 
@@ -879,7 +1104,7 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
         if (input_var_name.empty()) {
             input_var_name = var_name;
         }
-        if (!collective_all_ready(comm_c_, !input_file_path.empty(), "stream configuration readiness for '" + var_name + "'", failure_detail)) {
+        if (!collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, !input_file_path.empty(), "stream configuration readiness for '" + var_name + "'", failure_detail)) {
             return false;
         }
 
@@ -893,7 +1118,7 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
         } else {
             CECE_LOG_DEBUG("[DRIVER] Input file '" + input_file_path + "' successfully verified on local filesystem.");
         }
-        if (!collective_all_ready(comm_c_, local_file_ready, "input-file readiness for '" + var_name + "'", failure_detail)) return false;
+        if (!collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, local_file_ready, "input-file readiness for '" + var_name + "'", failure_detail)) return false;
 
         // Dynamically open and read using AMIO API
         // First-touch open (once per variable) via GetOrOpenHandleSet, which
@@ -905,7 +1130,7 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
         // actual open work only happens on the first touch.
         AmioHandleSet* handle_set = GetOrOpenHandleSet(handle_key, cfg, failure_detail);
         const bool local_open_ready = handle_set != nullptr && handle_set->dataset != nullptr && handle_set->core != nullptr;
-        const bool amio_open_ready = collective_all_ready(comm_c_, local_open_ready, "AMIO dataset open for '" + var_name + "'", failure_detail);
+        const bool amio_open_ready = collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, local_open_ready, "AMIO dataset open for '" + var_name + "'", failure_detail);
 
         if (!amio_open_ready) {
             CECE_LOG_DEBUG("[DRIVER] amio open failed for " + input_file_path + ": " + failure_detail);
@@ -955,9 +1180,9 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                 file_nt_cache_[handle_key] = file_nt;
             }
             bool file_records_ready =
-                collective_all_ready(comm_c_, file_nt > 0, "AMIO record-count readiness for '" + var_name + "'", failure_detail);
+                collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, file_nt > 0, "AMIO record-count readiness for '" + var_name + "'", failure_detail);
             if (file_records_ready) {
-                file_records_ready = collective_int_matches(comm_c_, file_nt, "AMIO record count for '" + var_name + "'", failure_detail);
+                file_records_ready = collective_int_matches(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, file_nt, "AMIO record count for '" + var_name + "'", failure_detail);
             }
 
             // 2. Build (or reuse cached) interpolation weights for this rank's band.
@@ -1018,7 +1243,7 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
             }
             const bool local_plan_ready = file_records_ready && plan_it != regrid_plans_.end() && plan_it->second.built;
             const bool all_plans_ready =
-                collective_all_ready(comm_c_, local_plan_ready, "regrid-plan readiness for '" + var_name + "'", failure_detail);
+                collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, local_plan_ready, "regrid-plan readiness for '" + var_name + "'", failure_detail);
 
             // 3. Read the bracketing record(s) for this timestep, blend in time on
             //    the SOURCE grid, then regrid ONCE. Because regridding is a linear
@@ -1044,9 +1269,9 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                 // Run the record-index / interp-mode collectives EVERY step so
                 // all ranks resolve an identical bracket and therefore make the
                 // same hit/miss decision (Req 6.3, 6.4).
-                const bool bracket_ready = collective_int_matches(comm_c_, bracket.i0, "lower AMIO record index", failure_detail) &&
-                                           collective_int_matches(comm_c_, bracket.i1, "upper AMIO record index", failure_detail) &&
-                                           collective_int_matches(comm_c_, needs_upper_record ? 1 : 0, "AMIO interpolation mode", failure_detail);
+                const bool bracket_ready = collective_int_matches(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, bracket.i0, "lower AMIO record index", failure_detail) &&
+                                           collective_int_matches(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, bracket.i1, "upper AMIO record index", failure_detail) &&
+                                           collective_int_matches(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, needs_upper_record ? 1 : 0, "AMIO interpolation mode", failure_detail);
 
                 // Cache decision (Req 3, 5, 9.4): if the previously computed
                 // result was for the same bracket, reuse its ingest buffer and
@@ -1212,7 +1437,7 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                 int file_nx = 0;
                 int file_ny = 0;
                 const bool local_lower_ready = bracket_ready && read_slab(bracket.i0, src, file_nx, file_ny);
-                bool have_data = collective_all_ready(comm_c_, local_lower_ready, "lower AMIO slab readiness for '" + var_name + "'", failure_detail);
+                bool have_data = collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, local_lower_ready, "lower AMIO slab readiness for '" + var_name + "'", failure_detail);
 
                 if (needs_upper_record) {
                     // ---- Tier 3 interpolation sub-case: rebuild endpoints ----
@@ -1231,7 +1456,7 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                         const bool local_upper_ready = read_slab(bracket.i1, srcB, upper_nx, upper_ny) && srcB.size() == src.size() &&
                                                        upper_nx == file_nx && upper_ny == file_ny;
                         have_data =
-                            collective_all_ready(comm_c_, local_upper_ready, "upper AMIO slab readiness for '" + var_name + "'", failure_detail);
+                            collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, local_upper_ready, "upper AMIO slab readiness for '" + var_name + "'", failure_detail);
                     }
 
                     if (have_data) {
@@ -1317,7 +1542,7 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                 }
                 }  // end Tier 3 (cache-miss / rollover / single-record) branch
             }
-            read_success = collective_all_ready(comm_c_, read_success, "replicated field assembly for '" + var_name + "'", failure_detail);
+            read_success = collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, read_success, "replicated field assembly for '" + var_name + "'", failure_detail);
             // The AMIO handle set persists in amio_handles_ across timesteps
             // (Req 2.2, 9.1); it is closed/finalized only in the destructor
             // (task 10.1). No per-step amio_close/amio_finalize, no manifest
@@ -1339,7 +1564,7 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
         if (!local_ingest_size_ready) {
             failure_detail = "internal ingest buffer size mismatch for field '" + var_name + "'";
         }
-        if (!collective_all_ready(comm_c_, local_ingest_size_ready, "ingest-buffer readiness for '" + var_name + "'", failure_detail)) {
+        if (!collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, local_ingest_size_ready, "ingest-buffer readiness for '" + var_name + "'", failure_detail)) {
             CECE_LOG_ERROR("[DRIVER FATAL] " + failure_detail);
             return false;
         }

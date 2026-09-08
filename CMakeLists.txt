@@ -525,6 +525,20 @@ target_link_libraries(benchmark_regrid_apply PRIVATE cece)
 add_executable(benchmark_pipeline_develop_vs_optimize tests/benchmark_pipeline_develop_vs_optimize.cpp)
 target_link_libraries(benchmark_pipeline_develop_vs_optimize PRIVATE cece)
 
+# Standalone MPI develop-vs-optimize distributed gather/assembly timing harness.
+# MPI-main pattern (own main() with MPI + Kokkos init; does NOT link
+# GTest::gtest_main). Runnable single-process AND under mpirun --oversubscribe
+# -np {1,2,4}. Reports actual MPI wall-time per assembly for the per-level
+# MPI_Allgatherv (develop) vs the single cached gather_replicated (optimize).
+add_executable(benchmark_mpi_pipeline tests/benchmark_mpi_pipeline.cpp tools/pmpi_allgatherv_timer.cpp)
+target_link_libraries(benchmark_mpi_pipeline PRIVATE cece HELM::HALO MPI::MPI_CXX Kokkos::kokkos)
+if(NOT "${MPIEXEC_PREFLAGS}" MATCHES "allow-run-as-root")
+  list(APPEND MPIEXEC_PREFLAGS "--allow-run-as-root")
+endif()
+if(NOT "${MPIEXEC_PREFLAGS}" MATCHES "oversubscribe")
+  list(APPEND MPIEXEC_PREFLAGS "--oversubscribe")
+endif()
+
 add_executable(test_hemco_parity tests/test_hemco_parity.cpp)
 target_link_libraries(test_hemco_parity PRIVATE cece GTest::gtest_main)
 
@@ -761,6 +775,287 @@ add_test(
 )
 set_tests_properties(
   test_endpoint_reuse_decision_np2
+  PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1"
+)
+
+# Fused front-half gate-equivalence property test
+# (cece-halo-collective-adoption, Property 4, Task 10.3). Drives the REAL pure
+# static CeceDriverOrchestrator::FusedGateDecision (reached via the
+# CollectiveGateTestAccess friend shim) with generated (mn, mx) vectors and
+# asserts it equals the conjunction of the five separate legacy gates and their
+# failure_detail under the legacy precedence; plus an end-to-end packing case
+# exercising the REAL fused halo::allreduce<int>(MIN)/(MAX) over a
+# halo::Communicator. Provides its own main() with MPI init (so it does NOT link
+# GTest::gtest_main) and is runnable as a single process AND under
+# mpirun -np 2 / -np 4. Uses RapidCheck (>=100 iterations) so it links
+# rapidcheck + rapidcheck_gtest, and HELM::HALO for the fused collective.
+add_executable(test_fused_gate_equivalence tests/test_fused_gate_equivalence.cpp)
+target_link_libraries(test_fused_gate_equivalence PRIVATE cece GTest::gtest MPI::MPI_CXX HELM::HALO rapidcheck rapidcheck_gtest)
+# Single-process registration (ctest default): runs the binary directly so the
+# pure-decision properties and the (identity-reduction) packing case validate
+# structurally even without a launcher.
+add_test(NAME test_fused_gate_equivalence_np1 COMMAND $<TARGET_FILE:test_fused_gate_equivalence>)
+set_tests_properties(
+  test_fused_gate_equivalence_np1
+  PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm"
+)
+# Multi-rank registration under mpirun. --allow-run-as-root is required for the
+# root user in the cece-dev container; it is injected via MPIEXEC_PREFLAGS if not
+# already present (earlier guards may have added it).
+if(NOT "${MPIEXEC_PREFLAGS}" MATCHES "allow-run-as-root")
+  list(APPEND MPIEXEC_PREFLAGS "--allow-run-as-root")
+endif()
+# --oversubscribe lets the container (fewer physical slots than 4) launch the
+# -np 4 case without failing slot allocation, matching the baseline harness.
+if(NOT "${MPIEXEC_PREFLAGS}" MATCHES "oversubscribe")
+  list(APPEND MPIEXEC_PREFLAGS "--oversubscribe")
+endif()
+add_test(
+  NAME test_fused_gate_equivalence_np2
+  COMMAND
+    ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 2 ${MPIEXEC_PREFLAGS}
+    $<TARGET_FILE:test_fused_gate_equivalence> ${MPIEXEC_POSTFLAGS}
+)
+set_tests_properties(
+  test_fused_gate_equivalence_np2
+  PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1"
+)
+add_test(
+  NAME test_fused_gate_equivalence_np4
+  COMMAND
+    ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 4 ${MPIEXEC_PREFLAGS}
+    $<TARGET_FILE:test_fused_gate_equivalence> ${MPIEXEC_POSTFLAGS}
+)
+set_tests_properties(
+  test_fused_gate_equivalence_np4
+  PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1"
+)
+
+# Collective-count independence Property Test (cece-halo-collective-adoption,
+# Property 5, Task 10.4). PMPI-style spy counts MPI_Allgatherv/MPI_Allreduce and
+# proves the single-gather assembly issues exactly one Allgatherv and a total
+# collective count independent of field_nlev, with a fixed front-gate reduction
+# count of 2. Provides its own main() with MPI + Kokkos init (so it does NOT link
+# GTest::gtest_main); uses RapidCheck; links HELM::HALO and Kokkos. Runnable as a
+# single process AND under mpirun --oversubscribe -np 2.
+add_executable(test_collective_count tests/test_collective_count.cpp)
+target_link_libraries(
+  test_collective_count
+  PRIVATE cece HELM::HALO MPI::MPI_CXX Kokkos::kokkos GTest::gtest rapidcheck rapidcheck_gtest
+)
+# Single-process registration (ctest default): runs the binary directly so the
+# level-independence property is validated structurally even without a launcher.
+add_test(NAME test_collective_count_np1 COMMAND $<TARGET_FILE:test_collective_count>)
+set_tests_properties(
+  test_collective_count_np1
+  PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm"
+)
+# Multi-rank registration under mpirun. --allow-run-as-root is required for the
+# root user in the cece-dev container; it is injected via MPIEXEC_PREFLAGS if not
+# already present (earlier guards may have added it). --oversubscribe lets the
+# container run -np 2 with limited slots.
+if(NOT "${MPIEXEC_PREFLAGS}" MATCHES "allow-run-as-root")
+  list(APPEND MPIEXEC_PREFLAGS "--allow-run-as-root")
+endif()
+if(NOT "${MPIEXEC_PREFLAGS}" MATCHES "oversubscribe")
+  list(APPEND MPIEXEC_PREFLAGS "--oversubscribe")
+endif()
+add_test(
+  NAME test_collective_count_np2
+  COMMAND
+    ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 2 ${MPIEXEC_PREFLAGS}
+    $<TARGET_FILE:test_collective_count> ${MPIEXEC_POSTFLAGS}
+)
+set_tests_properties(
+  test_collective_count_np2
+  PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1"
+)
+
+# HALO single-gather assembly equivalence Property Test
+# (cece-halo-collective-adoption, Property 1, Task 10.1). Compares the naive
+# per-level MPI_Allgatherv assembly against the new contiguous-send-buffer +
+# Replicated_Gather_Plan + gather_replicated assembly on the same random source,
+# a real identity plan and matrix-style bands, asserting bit-for-bit (identity)
+# or within kRegridTolerance (matrix), the mpi_size == 1 boundary, and cross-rank
+# bit-identity. Provides its own main() with MPI + Kokkos init (so it does NOT
+# link GTest::gtest_main); uses RapidCheck; links HELM::HALO and Kokkos. Runnable
+# as a single process AND under mpirun --oversubscribe -np {2,4}.
+add_executable(test_halo_gather_equivalence tests/test_halo_gather_equivalence.cpp)
+target_link_libraries(
+  test_halo_gather_equivalence
+  PRIVATE cece HELM::HALO MPI::MPI_CXX Kokkos::kokkos GTest::gtest rapidcheck rapidcheck_gtest
+)
+# Single-process registration (ctest default): runs the binary directly so the
+# mpi_size == 1 boundary (Decision A std::copy fast path) is validated even
+# without a launcher.
+add_test(NAME test_halo_gather_equivalence_np1 COMMAND $<TARGET_FILE:test_halo_gather_equivalence>)
+set_tests_properties(
+  test_halo_gather_equivalence_np1
+  PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm"
+)
+# Multi-rank registration under mpirun. --allow-run-as-root is required for the
+# root user in the cece-dev container; it is injected via MPIEXEC_PREFLAGS if not
+# already present (earlier guards may have added it). --oversubscribe lets the
+# container run -np 2/4 with limited slots.
+if(NOT "${MPIEXEC_PREFLAGS}" MATCHES "allow-run-as-root")
+  list(APPEND MPIEXEC_PREFLAGS "--allow-run-as-root")
+endif()
+if(NOT "${MPIEXEC_PREFLAGS}" MATCHES "oversubscribe")
+  list(APPEND MPIEXEC_PREFLAGS "--oversubscribe")
+endif()
+add_test(
+  NAME test_halo_gather_equivalence_np2
+  COMMAND
+    ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 2 ${MPIEXEC_PREFLAGS}
+    $<TARGET_FILE:test_halo_gather_equivalence> ${MPIEXEC_POSTFLAGS}
+)
+set_tests_properties(
+  test_halo_gather_equivalence_np2
+  PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1"
+)
+add_test(
+  NAME test_halo_gather_equivalence_np4
+  COMMAND
+    ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 4 ${MPIEXEC_PREFLAGS}
+    $<TARGET_FILE:test_halo_gather_equivalence> ${MPIEXEC_POSTFLAGS}
+)
+set_tests_properties(
+  test_halo_gather_equivalence_np4
+  PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1"
+)
+
+# Collective gate-equivalence property tests (cece-halo-collective-adoption,
+# Properties 2 & 3, Task 10.2). Compares the HALO-backed collective_all_ready /
+# collective_int_matches helpers' (bool, failure_detail) against a legacy
+# reference over generated per-rank readiness/int vectors, including the
+# short-circuit cases (NULL comm / size-1). Reaches the REAL production helpers
+# via the CollectiveGateTestAccess friend shim's CallCollectiveAllReady /
+# CallCollectiveIntMatches forwarders. Provides its own main() with MPI init (so
+# it does NOT link GTest::gtest_main) and is runnable as a single process AND
+# under mpirun --oversubscribe -np 2. Uses RapidCheck (>=100 iterations), so it
+# links rapidcheck + rapidcheck_gtest.
+add_executable(test_collective_gate_equivalence tests/test_collective_gate_equivalence.cpp)
+target_link_libraries(test_collective_gate_equivalence PRIVATE cece GTest::gtest MPI::MPI_CXX rapidcheck rapidcheck_gtest)
+# Single-process registration (ctest default): runs the binary directly so the
+# short-circuit (NULL comm / size-1) branches are validated even without a
+# launcher.
+add_test(NAME test_collective_gate_equivalence_np1 COMMAND $<TARGET_FILE:test_collective_gate_equivalence>)
+set_tests_properties(
+  test_collective_gate_equivalence_np1
+  PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm"
+)
+# Multi-rank registration under mpirun. --allow-run-as-root is required for the
+# root user in the cece-dev container; it is injected via MPIEXEC_PREFLAGS if not
+# already present (earlier guards may have added it). --oversubscribe lets the
+# resource-constrained container run -np 2 with limited slots.
+if(NOT "${MPIEXEC_PREFLAGS}" MATCHES "allow-run-as-root")
+  list(APPEND MPIEXEC_PREFLAGS "--allow-run-as-root")
+endif()
+if(NOT "${MPIEXEC_PREFLAGS}" MATCHES "oversubscribe")
+  list(APPEND MPIEXEC_PREFLAGS "--oversubscribe")
+endif()
+add_test(
+  NAME test_collective_gate_equivalence_np2
+  COMMAND
+    ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 2 ${MPIEXEC_PREFLAGS}
+    $<TARGET_FILE:test_collective_gate_equivalence> ${MPIEXEC_POSTFLAGS}
+)
+set_tests_properties(
+  test_collective_gate_equivalence_np2
+  PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1"
+)
+
+# HALO-adoption unit / example / edge-case tests (cece-halo-collective-adoption,
+# Task 10.6). Deterministic checks pinning: Replicated_Gather_Plan accessors ==
+# CECE's counts/displs, send_buf offset index-math, the halo_comm_ wrapping
+# decision + real predefined/duplicated wrap behavior, and the cache-clear
+# invalidation invariant. Needs a size>1 halo::Communicator for the plan
+# accessors, so it uses the MPI-main pattern (own main(), links
+# GTest::gtest MPI::MPI_CXX HELM::HALO) and registers at np1/np2/np4 via
+# mpirun --oversubscribe. The np1 registration validates the pure index-math and
+# decision-predicate tests even without a launcher.
+add_executable(test_halo_adoption_units tests/test_halo_adoption_units.cpp)
+target_link_libraries(test_halo_adoption_units PRIVATE cece GTest::gtest MPI::MPI_CXX HELM::HALO)
+add_test(NAME test_halo_adoption_units_np1 COMMAND $<TARGET_FILE:test_halo_adoption_units>)
+set_tests_properties(
+  test_halo_adoption_units_np1
+  PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm"
+)
+if(NOT "--oversubscribe" IN_LIST MPIEXEC_PREFLAGS)
+  list(APPEND MPIEXEC_PREFLAGS "--oversubscribe")
+endif()
+add_test(
+  NAME test_halo_adoption_units_np2
+  COMMAND
+    ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 2 ${MPIEXEC_PREFLAGS}
+    $<TARGET_FILE:test_halo_adoption_units> ${MPIEXEC_POSTFLAGS}
+)
+set_tests_properties(
+  test_halo_adoption_units_np2
+  PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1"
+)
+add_test(
+  NAME test_halo_adoption_units_np4
+  COMMAND
+    ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 4 ${MPIEXEC_PREFLAGS}
+    $<TARGET_FILE:test_halo_adoption_units> ${MPIEXEC_POSTFLAGS}
+)
+set_tests_properties(
+  test_halo_adoption_units_np4
+  PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1"
+)
+
+# HALO-adoption multi-rank integration test (cece-halo-collective-adoption,
+# Task 11.1). Exercises the REAL regrid+gather path primitives — the pre-gather
+# local_ok readiness allreduce, the fused front-half gate (packed 5-entry
+# halo::allreduce MIN + MAX), and the single-gather assembly (Replicated_Gather_
+# Plan + gather_replicated) — in a focused harness. Asserts deadlock freedom /
+# no-skip under a not-ready failure injection (rank 0, a non-zero rank, and a
+# shape mismatch), np2/np4 cross-rank bit-identity, and np1-equivalence against
+# the full-grid serial reference within 1e-10. Provides its own main() with MPI +
+# Kokkos init (so it does NOT link GTest::gtest_main); links HELM::HALO and
+# Kokkos. Runnable as a single process AND under mpirun --oversubscribe -np {2,4}.
+add_executable(test_halo_multirank_integration tests/test_halo_multirank_integration.cpp)
+target_link_libraries(
+  test_halo_multirank_integration
+  PRIVATE cece HELM::HALO MPI::MPI_CXX Kokkos::kokkos GTest::gtest
+)
+# Single-process registration (ctest default): the np1 short-circuit branches
+# (local decision, Decision A std::copy fast path) are validated without a
+# launcher.
+add_test(NAME test_halo_multirank_integration_np1 COMMAND $<TARGET_FILE:test_halo_multirank_integration>)
+set_tests_properties(
+  test_halo_multirank_integration_np1
+  PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm"
+)
+# Multi-rank registration under mpirun. --allow-run-as-root is required for the
+# root user in the cece-dev container; --oversubscribe lets the resource-
+# constrained container run -np 2/4 with limited slots. Injected only if an
+# earlier guard has not already added them.
+if(NOT "${MPIEXEC_PREFLAGS}" MATCHES "allow-run-as-root")
+  list(APPEND MPIEXEC_PREFLAGS "--allow-run-as-root")
+endif()
+if(NOT "${MPIEXEC_PREFLAGS}" MATCHES "oversubscribe")
+  list(APPEND MPIEXEC_PREFLAGS "--oversubscribe")
+endif()
+add_test(
+  NAME test_halo_multirank_integration_np2
+  COMMAND
+    ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 2 ${MPIEXEC_PREFLAGS}
+    $<TARGET_FILE:test_halo_multirank_integration> ${MPIEXEC_POSTFLAGS}
+)
+set_tests_properties(
+  test_halo_multirank_integration_np2
+  PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1"
+)
+add_test(
+  NAME test_halo_multirank_integration_np4
+  COMMAND
+    ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 4 ${MPIEXEC_PREFLAGS}
+    $<TARGET_FILE:test_halo_multirank_integration> ${MPIEXEC_POSTFLAGS}
+)
+set_tests_properties(
+  test_halo_multirank_integration_np4
   PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1"
 )
 

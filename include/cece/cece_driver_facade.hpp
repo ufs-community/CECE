@@ -6,7 +6,11 @@
 
 #include <cstddef>
 #include <dagr/dagr.hpp>
+#include <halo/collectives.hpp>
+#include <halo/communicator.hpp>
+#include <halo/environment.hpp>
 #include <memory>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -139,6 +143,18 @@ class CeceDriverOrchestrator {
     bool WriteDestinationBufferToImport(const std::string& var_name, const std::vector<double>& dest_buffer, int field_nlev,
                                         void* cece_core_data_ptr, std::string& failure_detail);
 
+    // Build or rebuild halo_comm_ to wrap the current comm_c_. Duplicates a
+    // non-predefined handle (comm != WORLD/SELF/NULL) mirroring
+    // src/driver/cece_helm_graph.cpp's convention, and wraps MPI_COMM_WORLD /
+    // MPI_COMM_SELF directly. Leaves halo_comm_ absent
+    // when MPI is uninitialized, comm_c_ is MPI_COMM_NULL, or mpi_size <= 1,
+    // preserving the single-rank short-circuit rather than constructing a HALO
+    // Communicator over an invalid comm (Req 7.1, 7.2). Assumes
+    // halo::Environment::initialize() has already run (invoked in main.cpp after
+    // MPI init); does not re-init here. Must be called wherever comm_c_ is
+    // (re)assigned so the wrapper never lags the communicator (Req 7.3).
+    void RefreshHaloCommunicator();
+
     // Parse config_file_ once at construction and populate stream_configs_ for
     // every model variable, resolving the same fields and defaults the legacy
     // inline AdvanceTime parse produced. Also resolves the driver-level
@@ -195,6 +211,42 @@ class CeceDriverOrchestrator {
     // `valid` field is intentionally NOT compared (Req 3.5, 6.3).
     static bool bracket_equal(const RecordBracket& a, const RecordBracket& b);
 
+    // Pure fused front-half gate DECISION helper (Req 6.1, 6.3, 6.4, 8.3).
+    //
+    // Given the two elementwise-reduced vectors produced by the fused
+    // halo::allreduce pair over the packed 5-entry vector
+    // [readiness, file_nx, file_ny, field_nlev, plan.identity]:
+    //   mn[k] = MIN over ranks of entry k,
+    //   mx[k] = MAX over ranks of entry k,
+    // returns the accept/reject decision that is IDENTICAL to the conjunction
+    // of the five legacy gates: accept iff `mn[0] == 1` (readiness, MIN
+    // semantics — any not-ready rank contributes 0) AND `mn[k] == mx[k]` for
+    // k in {1,2,3,4} (each metadata value agrees across ranks). On rejection it
+    // sets failure_detail to the SAME message the legacy per-check gate would
+    // report, under the SAME precedence (readiness, then file_nx, file_ny,
+    // field_nlev, plan.identity). The readiness message is only written when
+    // failure_detail is empty, preserving the local not-ready branch's
+    // "source buffer or regrid metadata changed after AMIO validation" detail.
+    //
+    // Pure and free of any MPI/collective call so it is unit/property testable
+    // off-MPI (Task 10.3, P4). The reduce itself is issued by the caller
+    // (RegridToDestinationBuffer, Task 6.2); this helper only maps (mn, mx) to
+    // (decision, failure_detail). Requires mn.size() == mx.size() == 5.
+    static bool FusedGateDecision(const std::vector<int>& mn, const std::vector<int>& mx, std::string& failure_detail);
+
+    // Test-only forwarding seams to the reworked HALO-backed collective helpers
+    // (Task 10.2, P2/P3). The helpers collective_all_ready / collective_int_matches
+    // live in the facade translation unit's anonymous namespace, so they have
+    // internal linkage and cannot be reached from a test TU nor by a friend
+    // declaration alone. These thin static forwarders are defined in the same
+    // translation unit (after the helpers), so they can call them, and they are
+    // reachable off the CollectiveGateTestAccess friend shim. Production code
+    // never calls them and they change no existing signature or visibility, so
+    // production behavior is unchanged; they merely expose the REAL production
+    // helpers (not a copy) to the gate-equivalence property test.
+    static bool CallCollectiveAllReady(MPI_Comm comm, bool local_ready, const std::string& context, std::string& failure_detail);
+    static bool CallCollectiveIntMatches(MPI_Comm comm, int local_value, const std::string& name, std::string& failure_detail);
+
     // Return the retained AMIO handle set for the given Handle_Identity_Key
     // (input_file_path + data_model + worker_threads + staging_buffer_count),
     // opening it lazily on first touch and reusing it on every subsequent call.
@@ -233,6 +285,13 @@ class CeceDriverOrchestrator {
     std::vector<double> target_lats_;
     int step_index_{0};
     MPI_Comm comm_c_{MPI_COMM_NULL};
+
+    // Long-lived HALO wrapper over comm_c_. Built once when comm_c_ is set to a
+    // valid, size>1 communicator (duplicating a non-predefined handle exactly as
+    // cece_helm_graph.cpp does; wrapping WORLD/SELF directly). Used by the fused
+    // front-half gate and the pre-gather readiness allreduce. Absent when MPI is
+    // uninitialized, comm_c_ is MPI_COMM_NULL, or mpi_size <= 1 (Req 7.2).
+    std::optional<halo::Communicator> halo_comm_;
 
     // Cached regridding plans keyed by Stream_Identity_Key, now
     // = HandleKey + "|" + mapalgo. Variables that share a HandleKey but differ
@@ -342,6 +401,15 @@ class CeceDriverOrchestrator {
     // bracket_equal needs friend access. Has no effect on production behavior.
     // (Task 12.3)
     friend struct CrossRankReuseTestAccess;
+
+    // Test-only access to the pure fused front-half gate decision helper
+    // (FusedGateDecision) and the reworked HALO-backed collective helpers, so
+    // the fused-gate-equivalence property test
+    // (tests/test_fused_gate_equivalence.cpp, Property 4) and the collective
+    // gate-equivalence tests can drive the REAL production decision logic
+    // off-MPI, without changing any production signature or visibility. Has no
+    // effect on production behavior. (Task 6.1)
+    friend struct CollectiveGateTestAccess;
 };
 
 }  // namespace cece
