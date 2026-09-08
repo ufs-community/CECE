@@ -73,6 +73,7 @@ Both modes follow the same three-phase lifecycle:
 ## Performance Portability with Kokkos
 
 CECE uses the **Kokkos** programming model to achieve performance portability. By writing algorithms using Kokkos `parallel_for` and `View` abstractions, the same C++ code can be compiled to run on:
+
 -   **NVIDIA GPUs** (via CUDA)
 -   **AMD GPUs** (via HIP)
 -   **Multi-core CPUs** (via OpenMP or C++ Threads)

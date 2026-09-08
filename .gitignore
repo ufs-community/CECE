@@ -52,12 +52,12 @@ core.*
 GRA2PESv2.0_config_test1.yaml
 
 # ---- AI folders ----
+docs/superpowers/
 specify/
-.specify/
 specs/
+.gemini/
 .github/agents/
 .github/prompts/
+.specify/
 .superpowers/
-.gemini/
 .vscode/
-docs/superpowers/

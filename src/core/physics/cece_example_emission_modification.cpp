@@ -10,19 +10,19 @@ namespace cece {
 // Self-registration
 static PhysicsRegistration<ExampleEmissionModification> register_example_emission_modification("example_emission_modification");
 
-void ExampleEmissionModification::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
+void ExampleEmissionModification::Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) {
     // Call base class initialization
     BasePhysicsScheme::Initialize(config, diag_manager);
 
     // Read configuration parameters
     if (config["apply_diurnal_cycle"]) {
-        apply_diurnal_cycle_ = config["apply_diurnal_cycle"].as<bool>();
+        apply_diurnal_cycle_ = config["apply_diurnal_cycle"].as_bool();
     }
     if (config["peak_hour"]) {
-        peak_hour_ = config["peak_hour"].as<double>();
+        peak_hour_ = config["peak_hour"].as_double();
     }
     if (config["peak_factor"]) {
-        peak_factor_ = config["peak_factor"].as<double>();
+        peak_factor_ = config["peak_factor"].as_double();
     }
 
     // Pre-compute diurnal cycle factors for all 24 hours

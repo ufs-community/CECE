@@ -22,6 +22,7 @@
  */
 
 #include <Kokkos_Core.hpp>
+#include <conf/value.hpp>
 #include <cstdlib>
 #include <iostream>
 #include <limits>

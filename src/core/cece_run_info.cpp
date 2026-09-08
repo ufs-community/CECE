@@ -16,8 +16,8 @@
  */
 
 #include <mpi.h>
-#include <yaml-cpp/yaml.h>
 
+#include <conf/conf.hpp>
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
@@ -75,10 +75,10 @@ void cece_run_log_setup(const char* config_path, int path_len) {
     }
 
     // Load configuration (best effort; a parse failure should not be fatal here).
-    YAML::Node config;
     bool config_ok = false;
+    conf::Config config = conf::Config::from_string("");  // empty placeholder
     try {
-        config = YAML::LoadFile(config_file);
+        config = conf::Config::from_file(config_file);
         config_ok = true;
     } catch (const std::exception&) {
         config_ok = false;
@@ -87,10 +87,12 @@ void cece_run_log_setup(const char* config_path, int path_len) {
     // Determine optional log file path.
     std::string log_file_path;
     if (config_ok) {
-        if (config["driver"] && config["driver"]["log_file"]) {
-            log_file_path = config["driver"]["log_file"].as<std::string>("");
-        } else if (config["output"] && config["output"]["log_file"]) {
-            log_file_path = config["output"]["log_file"].as<std::string>("");
+        auto opt = config.try_string("driver.log_file");
+        if (!opt.has_value()) {
+            opt = config.try_string("output.log_file");
+        }
+        if (opt.has_value()) {
+            log_file_path = *opt;
         }
     }
 
@@ -145,6 +147,9 @@ void cece_run_log_setup(const char* config_path, int path_len) {
     }
 #endif
 
+    // Print startup banner to rank-0 stdout (which is tee'd to log file if configured).
+    // std::cout is used directly here rather than CeceLogger to preserve fixed table formatting
+    // and avoid logger timestamp/rank prefixes on each table row.
     std::cout << "========================================================================\n";
     std::cout << "  CECE - Community Emissions Computing Engine\n";
     std::cout << "========================================================================\n";
@@ -158,27 +163,25 @@ void cece_run_log_setup(const char* config_path, int path_len) {
 
     if (config_ok) {
         // Grid.
-        if (config["driver"] && config["driver"]["grid"]) {
-            auto grid = config["driver"]["grid"];
-            std::string grid_name = grid["grid_name"] ? grid["grid_name"].as<std::string>("") : "";
+        if (config.has("driver.grid")) {
+            std::string grid_name = config.get_or<std::string>("driver.grid.grid_name", "");
             std::cout << RowLabel("Grid");
             if (!grid_name.empty()) {
                 std::cout << grid_name;
             } else {
-                std::cout << grid["nx"].as<int>(0) << " x " << grid["ny"].as<int>(0);
+                std::cout << config.get_or("driver.grid.nx", 0) << " x " << config.get_or("driver.grid.ny", 0);
             }
-            if (grid["nz"]) {
-                std::cout << " x " << grid["nz"].as<int>(1) << " (nz)";
+            if (config.has("driver.grid.nz")) {
+                std::cout << " x " << config.get_or("driver.grid.nz", 1) << " (nz)";
             }
             std::cout << "\n";
         }
 
         // Simulation window.
-        if (config["driver"]) {
-            auto drv = config["driver"];
-            std::string start = drv["start_time"] ? drv["start_time"].as<std::string>("") : "";
-            std::string end = drv["end_time"] ? drv["end_time"].as<std::string>("") : "";
-            int ts = drv["timestep_seconds"] ? drv["timestep_seconds"].as<int>(0) : 0;
+        if (config.has("driver")) {
+            std::string start = config.get_or<std::string>("driver.start_time", "");
+            std::string end = config.get_or<std::string>("driver.end_time", "");
+            int ts = config.get_or("driver.timestep_seconds", 0);
             if (!start.empty() && !end.empty()) {
                 std::cout << RowLabel("Simulation window") << start << "  ->  " << end << "\n";
             }
@@ -188,12 +191,14 @@ void cece_run_log_setup(const char* config_path, int path_len) {
         }
 
         // Species.
-        if (config["species"]) {
+        if (config.has("species")) {
             std::cout << RowLabel("Species");
+            conf::Value species = config.at("species");
+            auto species_keys = species.keys();
             bool first = true;
-            for (const auto& sp : config["species"]) {
+            for (const auto& sp : species_keys) {
                 if (!first) std::cout << ", ";
-                std::cout << sp.first.as<std::string>();
+                std::cout << sp;
                 first = false;
             }
             std::cout << "\n";
@@ -201,15 +206,17 @@ void cece_run_log_setup(const char* config_path, int path_len) {
 
         // Output fields. Entries are either a scalar field name or a map
         // with "name" (and optional "attributes").
-        if (config["output"] && config["output"]["fields"]) {
+        if (config.has("output.fields")) {
             std::cout << RowLabel("Output fields");
+            conf::Value fields = config.at("output.fields");
             bool first = true;
-            for (const auto& f : config["output"]["fields"]) {
+            for (std::size_t i = 0; i < fields.size(); ++i) {
+                conf::Value f = fields[i];
                 if (!first) std::cout << ", ";
-                if (f.IsMap()) {
-                    std::cout << (f["name"] ? f["name"].as<std::string>("") : "(unnamed)");
+                if (f.kind() == conf::Node_Kind::Map) {
+                    std::cout << f["name"].string_or("(unnamed)");
                 } else {
-                    std::cout << f.as<std::string>("");
+                    std::cout << f.string_or("");
                 }
                 first = false;
             }
@@ -217,12 +224,13 @@ void cece_run_log_setup(const char* config_path, int path_len) {
         }
 
         // Input streams.
-        if (config["cece_data"] && config["cece_data"]["streams"]) {
-            auto streams = config["cece_data"]["streams"];
+        if (config.has("cece_data.streams")) {
+            conf::Value streams = config.at("cece_data.streams");
             std::cout << RowLabel("Input streams") << streams.size() << "\n";
-            for (const auto& s : streams) {
-                std::string name = s["name"] ? s["name"].as<std::string>("") : "(unnamed)";
-                std::string file = s["file"] ? s["file"].as<std::string>("") : "";
+            for (std::size_t i = 0; i < streams.size(); ++i) {
+                conf::Value s = streams[i];
+                std::string name = s["name"].string_or("(unnamed)");
+                std::string file = s["file"].string_or("");
                 std::cout << "      - " << name;
                 if (!file.empty()) {
                     std::cout << "  <-  " << file;

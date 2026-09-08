@@ -1,7 +1,8 @@
 # MEGAN3 + BDSNP Example Configuration
 #
 # Demonstrates the full MEGAN3 biogenic emission system with:
-#   - BDSNP soil NO module (runs first, writes soil_nox_emissions)
+#   - Soil NO module using the compact YL95 fallback (runs first and writes
+#     soil_nox_emissions)
 #   - MEGAN3 multi-species scheme (runs second, reads soil_nox_emissions)
 #   - CB6 chemical mechanism speciation
 #   - Per-class emission coefficients
@@ -23,23 +24,16 @@ driver:
     lat_max: 45.0
 
 physics_schemes:
-  # --- BDSNP Soil NO Module (runs first) ---
+  # --- Soil NO Module (runs first) ---
+  # This compact coupling example selects YL95. Canonical BDSNP is the default,
+  # but requires the complete scalar + two 24-layer effective-input contract
+  # documented in docs/soil_nox.md.
   - name: bdsnp
     options:
-      soil_no_method: bdsnp # "bdsnp" (default) or "yl95"
-      fert_emission_factor: 1.0
-      wet_dep_scaling: 1.0
-      dry_dep_scaling: 1.0
-      pulse_decay_constant: 0.5
+      soil_no_method: yl95
     input_mapping:
       soil_temperature: TSOIL
       soil_moisture: GWETTOP
-      nitrogen_deposition: NDEP
-      land_use_type: LANDTYPE
-      leaf_area_index: LAI
-      biome_emission_factors: BIOME_EF
-    output_mapping:
-      soil_nox_emissions: SOIL_NO
 
   # --- MEGAN3 Multi-Species Biogenic Emissions (runs second) ---
   - name: megan3

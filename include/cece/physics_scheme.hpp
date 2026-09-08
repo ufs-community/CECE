@@ -6,11 +6,14 @@
  * @brief Defines the base classes for physics schemes in CECE.
  */
 
-#include <yaml-cpp/yaml.h>
-
+#include <conf/value.hpp>
+#include <initializer_list>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include "cece/cece_diagnostics.hpp"
 #include "cece/cece_state.hpp"
@@ -26,11 +29,12 @@ class PhysicsScheme {
 
     /**
      * @brief Initializes the physics scheme with configuration options.
-     * @param config YAML node containing scheme-specific options.
+     * @param config Value node containing scheme-specific options.
      * @param diag_manager Pointer to the diagnostic manager for registering
-     * variables.
+     * variables. May be nullptr in unit/property tests or when diagnostic
+     * registration is disabled.
      */
-    virtual void Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) = 0;
+    virtual void Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) = 0;
 
     /**
      * @brief Finalizes the physics scheme.
@@ -58,38 +62,62 @@ class BasePhysicsScheme : public PhysicsScheme {
      * @brief Default implementation of Initialize.
      * Can be overridden by subclasses if they need specific setup.
      */
-    void Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) override {
+    void Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) override {
         diag_manager_ = diag_manager;
         ClearPhysicsCache();
         input_mapping_.clear();
         output_mapping_.clear();
 
-        if (config["input_mapping"]) {
-            for (auto const& node : config["input_mapping"]) {
-                input_mapping_[node.first.as<std::string>()] = node.second.as<std::string>();
+        conf::Value input_map = config["input_mapping"];
+        if (input_map.is_defined()) {
+            for (const auto& key : input_map.keys()) {
+                input_mapping_[key] = input_map[key].as_string();
             }
         }
-        if (config["output_mapping"]) {
-            for (auto const& node : config["output_mapping"]) {
-                output_mapping_[node.first.as<std::string>()] = node.second.as<std::string>();
+        conf::Value output_map = config["output_mapping"];
+        if (output_map.is_defined()) {
+            for (const auto& key : output_map.keys()) {
+                output_mapping_[key] = output_map[key].as_string();
             }
         }
 
-        if (diag_manager_ != nullptr && config["diagnostics"]) {
-            // Read dimensions if available in options, otherwise use defaults
-            int nx = config["nx"] ? config["nx"].as<int>() : 1;
-            int ny = config["ny"] ? config["ny"].as<int>() : 1;
-            int nz = config["nz"] ? config["nz"].as<int>() : 1;
+        if (diag_manager_ != nullptr) {
+            conf::Value diags = config["diagnostics"];
+            if (diags.is_defined()) {
+                // Read dimensions if available in options, otherwise use defaults
+                int nx = config["nx"].int_or(1);
+                int ny = config["ny"].int_or(1);
+                int nz = config["nz"].int_or(1);
 
-            for (auto const& node : config["diagnostics"]) {
-                std::string diag_name = node.as<std::string>();
-                diag_manager_->RegisterDiagnostic(diag_name, nx, ny, nz);
-                registered_diagnostics_.push_back(diag_name);
+                for (std::size_t i = 0; i < diags.size(); ++i) {
+                    std::string diag_name = diags[i].as_string();
+                    diag_manager_->RegisterDiagnostic(diag_name, nx, ny, nz);
+                    registered_diagnostics_.push_back(diag_name);
+                }
             }
         }
     }
 
    protected:
+    /**
+     * @brief Fails with the names of every required field that is unavailable.
+     */
+    static void RequireFields(const std::string& context, std::initializer_list<std::pair<std::string, bool>> fields) {
+        std::string missing_fields;
+        for (const auto& [name, available] : fields) {
+            if (!available) {
+                if (!missing_fields.empty()) {
+                    missing_fields += ", ";
+                }
+                missing_fields += "'" + name + "'";
+            }
+        }
+
+        if (!missing_fields.empty()) {
+            throw std::runtime_error(context + " missing required field(s): " + missing_fields);
+        }
+    }
+
     /**
      * @brief Maps an internal input name to an external field name.
      */

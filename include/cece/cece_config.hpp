@@ -6,10 +6,9 @@
  * @brief Configuration structures and parser for CECE.
  */
 
-#include <yaml-cpp/yaml.h>
-
 #include <algorithm>
 #include <array>
+#include <conf/value.hpp>
 #include <cstddef>
 #include <functional>
 #include <initializer_list>
@@ -24,14 +23,46 @@
 namespace cece {
 
 /**
+ * @enum SchemeLanguage
+ * @brief Implementation language for a physics scheme.
+ */
+enum class SchemeLanguage : std::uint8_t {
+    CPP,      ///< C++ implementation
+    FORTRAN,  ///< Fortran implementation
+    PYTHON,   ///< Python implementation
+    UNKNOWN   ///< Unspecified / unknown language
+};
+
+inline SchemeLanguage StringToSchemeLanguage(std::string_view lang) {
+    if (lang == "cpp" || lang == "c++" || lang == "cxx" || lang.empty()) return SchemeLanguage::CPP;
+    if (lang == "fortran" || lang == "f90" || lang == "f") return SchemeLanguage::FORTRAN;
+    if (lang == "python" || lang == "py") return SchemeLanguage::PYTHON;
+    return SchemeLanguage::UNKNOWN;
+}
+
+inline std::string_view SchemeLanguageToString(SchemeLanguage lang) {
+    switch (lang) {
+        case SchemeLanguage::CPP:
+            return "cpp";
+        case SchemeLanguage::FORTRAN:
+            return "fortran";
+        case SchemeLanguage::PYTHON:
+            return "python";
+        default:
+            return "unknown";
+    }
+}
+
+/**
  * @struct PhysicsSchemeConfig
  * @brief Configuration for a physics scheme.
  */
 struct PhysicsSchemeConfig {
-    std::string name;                  ///< Name of the physics scheme.
-    std::string language;              ///< Implementation language (e.g., "cpp", "fortran").
-    YAML::Node options;                ///< Scheme-specific options.
-    int refresh_interval_seconds = 0;  ///< Refresh interval in seconds (0 means use base timestep).
+    std::string name;                                      ///< Name of the physics scheme.
+    std::string language = "cpp";                          ///< Implementation language string (e.g., "cpp", "fortran").
+    SchemeLanguage language_type = SchemeLanguage::CPP;    ///< Implementation language enum.
+    conf::Value options = conf::Value::from_raw(nullptr);  ///< Scheme-specific options.
+    int refresh_interval_seconds = 0;                      ///< Refresh interval in seconds (0 means use base timestep).
 };
 
 /**
@@ -399,6 +430,7 @@ struct DriverConfig {
     DriverGridConfig grid;  ///< Grid configuration for generated Gaussian grid.
     int stacking_refresh_interval_seconds = 0;  ///< Stacking engine refresh interval in seconds (0 means use base timestep).
     int amio_worker_threads = 1;                ///< Number of AMIO background I/O worker threads (default: 1).
+    int amio_staging_buffer_count = 8;          ///< Number of AMIO input staging buffers (default: 8).
 };
 
 /**
@@ -439,7 +471,7 @@ struct CeceConfig {
  * @brief Parses the CECE configuration from a YAML file.
  * @param filename Path to the YAML configuration file.
  * @return CeceConfig object containing the parsed species and schemes.
- * @throws YAML::Exception if the file is invalid or missing.
+ * @throws std::exception if the file is invalid or missing.
  */
 CeceConfig ParseConfig(const std::string& filename);
 

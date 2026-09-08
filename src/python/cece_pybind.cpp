@@ -9,6 +9,8 @@
 #include "cece/cece_logger.hpp"
 #include "cece/cece_stacking_engine.hpp"
 #include "cece/cece_state.hpp"
+#include "conf/config.hpp"
+#include "conf/error.hpp"
 
 namespace py = pybind11;
 
@@ -423,13 +425,12 @@ PYBIND11_MODULE(_cece_core, m) {
         .def_static(
             "ValidateConfig",
             [](const std::string& yaml_str) {
-                YAML::Node config;
                 try {
-                    config = YAML::Load(yaml_str);
-                } catch (const YAML::Exception& e) {
-                    throw py::value_error(std::string("YAML parse error: ") + e.what());
+                    conf::Config parsed = conf::Config::from_string(yaml_str);
+                    return cece::ConfigValidator::ValidateConfig(parsed.root());
+                } catch (const conf::Conf_Error& e) {
+                    throw py::value_error(std::string("Configuration parse error: ") + e.what());
                 }
-                return cece::ConfigValidator::ValidateConfig(config);
             },
             py::arg("yaml_string"), "Validate an CECE YAML configuration string. Raises ValueError on parse failure.");
 

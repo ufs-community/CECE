@@ -1,3 +1,4 @@
+#include <conf/value.hpp>
 /**
  * @file test_ginoux_properties.cpp
  * @brief Property-based tests for the Ginoux (GOCART2G) dust emission scheme.

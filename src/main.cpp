@@ -1,10 +1,10 @@
 #include <amio/amio.h>
 #include <mpi.h>
-#include <yaml-cpp/yaml.h>
 
 #include <Kokkos_Core.hpp>
 #include <axis/topology/named_grid_registry.hpp>
 #include <cmath>
+#include <conf/conf.hpp>
 #include <fstream>
 #include <halo/communicator.hpp>
 #include <halo/environment.hpp>
@@ -87,7 +87,7 @@ int main(int argc, char* argv[]) {
         }
 
         // --- Load configuration up front (grid, timing, streams parsed below) ---
-        YAML::Node config = YAML::LoadFile(config_file);
+        conf::Config config = conf::Config::from_file(config_file);
 
         // Configure run logging (optional log file, per-rank stdout suppression)
         // and print the startup banner. Shared with the NUOPC cap so behavior is
@@ -100,25 +100,14 @@ int main(int argc, char* argv[]) {
         // A. Grid Dimensions
         int nx = 0;
         int ny = 0;
-        int nz = 0;
+        int nz = 1;
         std::string grid_name = "";
-        if (config["driver"] && config["driver"]["grid"]) {
-            auto grid_node = config["driver"]["grid"];
-            if (grid_node["nz"]) {
-                nz = grid_node["nz"].as<int>(1);
-            } else {
-                nz = 1;
-            }
-            if (grid_node["grid_name"]) {
-                grid_name = grid_node["grid_name"].as<std::string>();
-            }
+        if (config.has("driver.grid")) {
+            nz = config.get_or("driver.grid.nz", 1);
+            grid_name = config.get_or<std::string>("driver.grid.grid_name", "");
             if (grid_name.empty()) {
-                if (grid_node["nx"]) {
-                    nx = grid_node["nx"].as<int>(0);
-                }
-                if (grid_node["ny"]) {
-                    ny = grid_node["ny"].as<int>(0);
-                }
+                nx = config.get_or("driver.grid.nx", 0);
+                ny = config.get_or("driver.grid.ny", 0);
             } else {
                 try {
                     auto parsed = axis::topology::NamedGridRegistry::parse(grid_name);
@@ -126,39 +115,44 @@ int main(int argc, char* argv[]) {
                         int expected_nx = 4 * parsed.number;
                         int expected_ny = 2 * parsed.number;
 
-                        int declared_nx = grid_node["nx"].as<int>(0);
-                        int declared_ny = grid_node["ny"].as<int>(0);
+                        int declared_nx = config.get_or("driver.grid.nx", 0);
+                        int declared_ny = config.get_or("driver.grid.ny", 0);
                         if (declared_nx != 0 && declared_ny != 0) {
                             if (declared_nx != expected_nx || declared_ny != expected_ny) {
-                                std::cerr << "ERROR: Grid dimensions nx=" << declared_nx << ", ny=" << declared_ny
-                                          << " do not match the expected dimensions for Named Grid " << grid_name << " (" << expected_nx << "x"
-                                          << expected_ny << ")!" << std::endl;
+                                CECE_LOG_ERROR("Grid dimensions nx=" + std::to_string(declared_nx) + ", ny=" + std::to_string(declared_ny) +
+                                               " do not match the expected dimensions for Named Grid " + grid_name + " (" +
+                                               std::to_string(expected_nx) + "x" + std::to_string(expected_ny) + ")!");
                                 return -1;
                             }
                         }
                         nx = expected_nx;
                         ny = expected_ny;
                     } else {
-                        std::cerr << "ERROR: Only regular Gaussian grids (family 'F', e.g. 'F360') and regular lat-lon grids (family 'R', e.g. "
-                                     "'R360') are currently supported as structured CECE target grids."
-                                  << std::endl;
+                        CECE_LOG_ERROR(
+                            "Only regular Gaussian grids (family 'F', e.g. 'F360') and regular lat-lon grids (family 'R', e.g. "
+                            "'R360') are currently supported as structured CECE target grids.");
                         return -1;
                     }
                 } catch (const std::exception& e) {
-                    std::cerr << "ERROR: Failed to parse named grid '" << grid_name << "': " << e.what() << std::endl;
+                    CECE_LOG_ERROR("Failed to parse named grid '" + grid_name + "': " + e.what());
                     return -1;
                 }
             }
-        } else {
-            nz = 1;
+        }
+
+        if (nx <= 0 || ny <= 0 || nz <= 0) {
+            CECE_LOG_ERROR(
+                "driver.grid.nx, driver.grid.ny, and driver.grid.nz must be positive, or "
+                "driver.grid.grid_name must specify a supported named grid.");
+            return -1;
         }
 
         CECE_LOG_DEBUG("[DRIVER] Parsed nx = " + std::to_string(nx) + ", ny = " + std::to_string(ny) + ", grid_name = '" + grid_name + "'");
 
         // B. Simulation Clock Timing
-        std::string start_time_str = config["driver"]["start_time"].as<std::string>();
-        std::string end_time_str = config["driver"]["end_time"].as<std::string>();
-        int timestep_seconds = config["driver"]["timestep_seconds"].as<int>();
+        std::string start_time_str = config.get_string("driver.start_time");
+        std::string end_time_str = config.get_string("driver.end_time");
+        int timestep_seconds = config.get_int("driver.timestep_seconds");
 
         // 3. Initialize TICK Clock
         tick::Gregorian_Calendar cal;
@@ -172,21 +166,21 @@ int main(int argc, char* argv[]) {
 
         // Phase 1: Allocate internal structures (StackingEngine, DiagnosticManager)
         cece_core_initialize_p1(&cece_data_ptr, &rc);
-        if (rc != 0) {
+        if (rc < 0) {
             cece::LogFatal("[DRIVER FATAL] (rank " + std::to_string(my_rank) + ") cece_core_initialize_p1 failed with rc=" + std::to_string(rc));
             return rc;
         }
 
         // Realize: Validate and lock configuration
         cece_core_realize(cece_data_ptr, &rc);
-        if (rc != 0) {
+        if (rc < 0) {
             cece::LogFatal("[DRIVER FATAL] (rank " + std::to_string(my_rank) + ") cece_core_realize failed with rc=" + std::to_string(rc));
             return rc;
         }
 
         // Phase 2: Complete grid-binding (dynamically sized)
         cece_core_initialize_p2(cece_data_ptr, &nx, &ny, &nz, &rc);
-        if (rc != 0) {
+        if (rc < 0) {
             cece::LogFatal("[DRIVER FATAL] (rank " + std::to_string(my_rank) + ") cece_core_initialize_p2 failed with rc=" + std::to_string(rc));
             return rc;
         }
@@ -201,7 +195,7 @@ int main(int argc, char* argv[]) {
             export_fields_mem[field.name] = std::vector<double>(static_cast<std::size_t>(nx) * ny * nz, 0.0);
             cece_core_set_export_field(cece_data_ptr, field.name.c_str(), static_cast<int>(field.name.length()), export_fields_mem[field.name].data(),
                                        nx, ny, nz, &rc);
-            if (rc != 0) {
+            if (rc < 0) {
                 cece::LogFatal("[DRIVER FATAL] (rank " + std::to_string(my_rank) + ") cece_core_set_export_field failed for '" + field.name +
                                "' with rc=" + std::to_string(rc));
                 return rc;
@@ -227,24 +221,26 @@ int main(int argc, char* argv[]) {
                 std::sort(file_lats.begin(), file_lats.end());
                 has_file_coords = true;
             } catch (const std::exception& e) {
-                std::cerr << "ERROR: Failed to retrieve coordinates from named grid '" << grid_name << "': " << e.what() << std::endl;
+                CECE_LOG_ERROR("Failed to retrieve coordinates from named grid '" + grid_name + "': " + e.what());
                 return -1;
             }
         } else {
             bool loaded_from_file = false;
             bool is_explicit_gridspec = false;
             std::string input_file_path = "";
-            if (config["driver"] && config["driver"]["gridspec_file"]) {
-                std::string gf = config["driver"]["gridspec_file"].as<std::string>();
-                if (!gf.empty() && gf != "none" && gf != "NONE") {
-                    input_file_path = gf;
-                    is_explicit_gridspec = true;
-                }
+            auto gridspec_opt = config.try_string("driver.gridspec_file");
+            if (gridspec_opt.has_value() && !gridspec_opt->empty() && *gridspec_opt != "none" && *gridspec_opt != "NONE") {
+                input_file_path = *gridspec_opt;
+                is_explicit_gridspec = true;
             }
-            if (input_file_path.empty() && config["cece_data"] && config["cece_data"]["streams"]) {
-                auto stream = config["cece_data"]["streams"][0];
-                if (stream["file"]) {
-                    input_file_path = stream["file"].as<std::string>();
+            if (input_file_path.empty() && config.has("cece_data.streams")) {
+                auto streams = config.at("cece_data.streams");
+                if (streams.size() > 0) {
+                    auto first_stream = streams[static_cast<std::size_t>(0)];
+                    auto file_val = first_stream["file"];
+                    if (file_val.is_defined()) {
+                        input_file_path = file_val.as_string();
+                    }
                 }
             }
 
@@ -272,13 +268,11 @@ int main(int argc, char* argv[]) {
 
                 amio_status_t amio_rc = amio_init(read_manifest_path.c_str(), &coord_core);
                 if (amio_rc != AMIO_OK) {
-                    std::cerr << "ERROR: amio_init failed for coordinate manifest '" << read_manifest_path << "': " << amio_strerror(amio_rc)
-                              << std::endl;
+                    CECE_LOG_ERROR("amio_init failed for coordinate manifest '" + read_manifest_path + "': " + amio_strerror(amio_rc));
                 } else {
                     amio_rc = amio_open_dataset(coord_core, read_manifest_path.c_str(), AMIO_MODE_READ, &coord_dataset);
                     if (amio_rc != AMIO_OK) {
-                        std::cerr << "ERROR: amio_open_dataset failed for dataset '" << input_file_path << "': " << amio_strerror(amio_rc)
-                                  << std::endl;
+                        CECE_LOG_ERROR("amio_open_dataset failed for dataset '" + input_file_path + "': " + amio_strerror(amio_rc));
                     } else {
                         int file_nx = 0;
                         int file_ny = 0;
@@ -393,31 +387,23 @@ int main(int argc, char* argv[]) {
             }
 
             if (is_explicit_gridspec && !loaded_from_file) {
-                std::cerr << "FATAL ERROR: Failed to load gridspec coordinates from explicitly specified gridspec file '" << input_file_path << "'"
-                          << std::endl;
+                cece::LogFatal("[DRIVER FATAL] Failed to load gridspec coordinates from explicitly specified gridspec file '" + input_file_path +
+                               "'");
                 return -1;
             }
 
             if (!loaded_from_file) {
                 if (nx <= 0 || ny <= 0) {
-                    std::cerr << "ERROR: Grid dimensions (nx, ny) were not specified in driver.grid configuration and could not be determined from "
-                                 "input files!"
-                              << std::endl;
+                    CECE_LOG_ERROR(
+                        "Grid dimensions (nx, ny) were not specified in driver.grid configuration and could not be determined from "
+                        "input files!");
                     return -1;
                 }
 
-                double lon_min = -180.0;
-                double lon_max = 180.0;
-                double lat_min = -90.0;
-                double lat_max = 90.0;
-
-                if (config["driver"] && config["driver"]["grid"]) {
-                    auto grid_node = config["driver"]["grid"];
-                    lon_min = grid_node["lon_min"].as<double>(-180.0);
-                    lon_max = grid_node["lon_max"].as<double>(180.0);
-                    lat_min = grid_node["lat_min"].as<double>(-90.0);
-                    lat_max = grid_node["lat_max"].as<double>(90.0);
-                }
+                double lon_min = config.get_or("driver.grid.lon_min", -180.0);
+                double lon_max = config.get_or("driver.grid.lon_max", 180.0);
+                double lat_min = config.get_or("driver.grid.lat_min", -90.0);
+                double lat_max = config.get_or("driver.grid.lat_max", 90.0);
 
                 double dlon = (lon_max - lon_min) / nx;
                 double dlat = (lat_max - lat_min) / ny;
@@ -435,17 +421,16 @@ int main(int argc, char* argv[]) {
         }
 
         if (nx <= 0 || ny <= 0 || nz <= 0) {
-            std::cerr << "ERROR: Invalid grid dimensions nx=" << nx << ", ny=" << ny << ", nz=" << nz << std::endl;
+            CECE_LOG_ERROR("Invalid grid dimensions nx=" + std::to_string(nx) + ", ny=" + std::to_string(ny) + ", nz=" + std::to_string(nz));
             return -1;
         }
-
         // 5. Initialize the cece_driver orchestrator facade
         void* cece_driver_data = nullptr;
         int mpi_comm_f = MPI_Comm_c2f(MPI_COMM_WORLD);
         cece_driver_create(config_file.c_str(), static_cast<int>(config_file.length()), nx, ny, nz, file_lons.data(),
                            static_cast<int>(file_lons.size()), file_lats.data(), static_cast<int>(file_lats.size()), mpi_comm_f, &cece_driver_data,
                            &rc);
-        if (rc != 0) {
+        if (rc < 0) {
             cece::LogFatal("[DRIVER FATAL] (rank " + std::to_string(my_rank) + ") cece_driver_create failed with rc=" + std::to_string(rc));
             return rc;
         }
@@ -459,7 +444,7 @@ int main(int argc, char* argv[]) {
         } else {
             cece_core_writer_initialize(cece_data_ptr, nx, ny, nz, start_time_str.c_str(), start_time_str.length(), writer_comm_f, &rc);
         }
-        if (rc != 0) {
+        if (rc < 0) {
             cece::LogFatal("[DRIVER FATAL] (rank " + std::to_string(my_rank) + ") Writer initialization failed with rc=" + std::to_string(rc));
             return rc;
         }
@@ -483,7 +468,7 @@ int main(int argc, char* argv[]) {
 
             // A. Let cece_driver handle all offline AMIO reading and AXIS regridding:
             cece_driver_advance_time(cece_driver_data, time_str.c_str(), static_cast<int>(time_str.length()), cece_data_ptr, &rc);
-            if (rc != 0) {
+            if (rc < 0) {
                 // Emit on both the log (real stdout, all ranks) and stderr so the
                 // failure is never lost regardless of how output is captured.
                 cece::LogFatal("[DRIVER FATAL] (rank " + std::to_string(my_rank) +
@@ -495,7 +480,8 @@ int main(int argc, char* argv[]) {
             int hour = current_dt.hour;
             int day_of_week = 1;  // Default Monday/Tuesday
             cece_core_run(cece_data_ptr, hour, day_of_week, &rc);
-            if (rc != 0) {
+            const bool simulation_complete = (rc == 1);
+            if (rc < 0) {
                 cece::LogFatal("[DRIVER FATAL] (rank " + std::to_string(my_rank) + ") cece_core_run failed with rc=" + std::to_string(rc));
                 throw std::runtime_error("cece_core_run failed");
             }
@@ -508,9 +494,13 @@ int main(int argc, char* argv[]) {
 
             // C. Write output timestep via standalone writer
             cece_core_write_step(cece_data_ptr, elapsed_seconds, step_index, &rc);
-            if (rc != 0) {
+            if (rc < 0) {
                 cece::LogFatal("[DRIVER FATAL] (rank " + std::to_string(my_rank) + ") cece_core_write_step failed with rc=" + std::to_string(rc));
                 throw std::runtime_error("cece_core_write_step failed");
+            }
+
+            if (simulation_complete) {
+                break;
             }
         }
 
@@ -521,7 +511,7 @@ int main(int argc, char* argv[]) {
 
         cece_driver_destroy(cece_driver_data);
         cece_core_finalize(cece_data_ptr, &rc);
-        if (rc != 0) {
+        if (rc < 0) {
             cece::LogFatal("[DRIVER FATAL] (rank " + std::to_string(my_rank) + ") cece_core_finalize failed with rc=" + std::to_string(rc));
             return rc;
         }

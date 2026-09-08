@@ -23,7 +23,7 @@ class K14FortranScheme : public BasePhysicsScheme {
     K14FortranScheme() = default;
     ~K14FortranScheme() override = default;
 
-    void Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) override;
+    void Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) override;
     void Run(CeceImportState& import_state, CeceExportState& export_state) override;
 
    private:

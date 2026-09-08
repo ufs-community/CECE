@@ -1,536 +1,248 @@
-/**
- * @file cece_config_parser.cpp
- * @brief Implementation of the YAML configuration parser for CECE.
- *
- * This module handles parsing of YAML configuration files containing:
- * - Species definitions and emission layer configurations
- * - Physics scheme parameters and settings
- * - Grid and timing configuration options
- * - Data stream specifications for TIDE integration
- *
- * The parser provides robust error handling, validation, and default value
- * management to ensure configuration consistency across CECE components.
- *
- * @author Barry Baker
- * @date 2024
- * @version 1.0
- */
-
 #include <sys/stat.h>
-#include <yaml-cpp/yaml.h>
 
+#include <algorithm>
 #include <iostream>
+#include <stdexcept>
 #include <string>
-#include <vector>
 
 #include "cece/cece_config.hpp"
+#include "conf/config.hpp"
 
 namespace cece {
 
-/**
- * @brief Parses the CECE configuration from a YAML file.
- *
- * This function reads species definitions, emission layers, and physics scheme
- * configurations from the specified file.
- *
- * @param filename Path to the YAML configuration file.
- * @return CeceConfig object containing all parsed information.
- */
 CeceConfig ParseConfig(const std::string& filename) {
-    std::cout << "DEBUG: ParseConfig called with filename: '" << filename << "'" << std::endl;
-
-    // Check if file exists
     struct stat buffer;
-    if (stat(filename.c_str(), &buffer) != 0) {
-        std::cout << "ERROR: File does not exist: " << filename << std::endl;
-        throw std::runtime_error("File not found: " + filename);
-    }
-    std::cout << "DEBUG: File exists, proceeding to load" << std::endl;
-
+    if (stat(filename.c_str(), &buffer) != 0) throw std::runtime_error("File not found: " + filename);
+    conf::Config parsed = conf::Config::from_file(filename);
+    conf::Value root = parsed.root();
     CeceConfig config;
-    YAML::Node root = YAML::LoadFile(filename);
 
-    // Parse species and their associated emission layers
-    if (root["species"]) {
-        for (auto const& species_node : root["species"]) {
-            std::string species_name = species_node.first.as<std::string>();
+    auto string_or = [](const conf::Value& node, const std::string& key, const std::string& fallback = std::string{}) {
+        return node[key].string_or(fallback);
+    };
+
+    conf::Value species = root["species"];
+    if (species && species.kind() == conf::Node_Kind::Map) {
+        for (const auto& species_name : species.keys()) {
+            conf::Value entries = species[species_name];
             std::vector<EmissionLayer> layers;
-
-            for (auto const& layer_node : species_node.second) {
+            for (std::size_t i = 0; i < entries.size(); ++i) {
+                conf::Value node = entries[i];
                 EmissionLayer layer;
-                layer.operation = layer_node["operation"].as<std::string>();
-                layer.field_name = layer_node["field"].as<std::string>();
-                if (layer_node["mask"]) {
-                    if (layer_node["mask"].IsSequence()) {
-                        for (auto const& m : layer_node["mask"]) {
-                            layer.masks.push_back(m.as<std::string>());
-                        }
-                    } else {
-                        layer.masks.push_back(layer_node["mask"].as<std::string>());
-                    }
+                layer.operation = node["operation"].as_string();
+                layer.field_name = node["field"].as_string();
+                conf::Value masks = node["mask"];
+                if (masks)
+                    layer.masks = masks.kind() == conf::Node_Kind::Sequence ? masks.as_string_list() : std::vector<std::string>{masks.as_string()};
+                layer.scale = node["scale"].double_or(layer.scale);
+                layer.hierarchy = node["hierarchy"].int_or(layer.hierarchy);
+                layer.category = string_or(node, "category", layer.category);
+                if (node["scale_fields"]) layer.scale_fields = node["scale_fields"].as_string_list();
+                layer.diurnal_cycle = string_or(node, "diurnal_cycle");
+                layer.weekly_cycle = string_or(node, "weekly_cycle");
+                layer.seasonal_cycle = string_or(node, "seasonal_cycle");
+                conf::Value vdist = node["vdist"];
+                if (vdist && vdist.is_defined()) {
+                    std::string method = string_or(vdist, "method");
+                    if (method == "single" || method.empty())
+                        layer.vdist_method = VerticalDistributionMethod::SINGLE;
+                    else if (method == "range")
+                        layer.vdist_method = VerticalDistributionMethod::RANGE;
+                    else if (method == "pressure")
+                        layer.vdist_method = VerticalDistributionMethod::PRESSURE;
+                    else if (method == "height")
+                        layer.vdist_method = VerticalDistributionMethod::HEIGHT;
+                    else if (method == "pbl")
+                        layer.vdist_method = VerticalDistributionMethod::PBL;
+                    else
+                        throw std::invalid_argument("Unknown vertical distribution method '" + method + "' in species '" + species_name + "'");
+                    layer.vdist_layer_start = vdist["layer_start"].int_or(layer.vdist_layer_start);
+                    layer.vdist_layer_end = vdist["layer_end"].int_or(layer.vdist_layer_end);
+                    layer.vdist_p_start = vdist["p_start"].double_or(layer.vdist_p_start);
+                    layer.vdist_p_end = vdist["p_end"].double_or(layer.vdist_p_end);
+                    layer.vdist_h_start = vdist["h_start"].double_or(layer.vdist_h_start);
+                    layer.vdist_h_end = vdist["h_end"].double_or(layer.vdist_h_end);
                 }
-                if (layer_node["scale"]) {
-                    layer.scale = layer_node["scale"].as<double>();
-                }
-                if (layer_node["hierarchy"]) {
-                    layer.hierarchy = layer_node["hierarchy"].as<int>();
-                }
-                if (layer_node["category"]) {
-                    layer.category = layer_node["category"].as<std::string>();
-                }
-                if (layer_node["scale_fields"]) {
-                    for (auto const& sf_node : layer_node["scale_fields"]) {
-                        layer.scale_fields.push_back(sf_node.as<std::string>());
-                    }
-                }
-                if (layer_node["diurnal_cycle"]) {
-                    layer.diurnal_cycle = layer_node["diurnal_cycle"].as<std::string>();
-                }
-                if (layer_node["weekly_cycle"]) {
-                    layer.weekly_cycle = layer_node["weekly_cycle"].as<std::string>();
-                }
-                if (layer_node["seasonal_cycle"]) {
-                    layer.seasonal_cycle = layer_node["seasonal_cycle"].as<std::string>();
-                }
-                if (layer_node["vdist"]) {
-                    auto vdist = layer_node["vdist"];
-                    if (vdist["method"]) {
-                        std::string method_str = vdist["method"].as<std::string>();
-                        if (method_str == "range") {
-                            layer.vdist_method = VerticalDistributionMethod::RANGE;
-                        } else if (method_str == "pressure") {
-                            layer.vdist_method = VerticalDistributionMethod::PRESSURE;
-                        } else if (method_str == "height") {
-                            layer.vdist_method = VerticalDistributionMethod::HEIGHT;
-                        } else if (method_str == "pbl") {
-                            layer.vdist_method = VerticalDistributionMethod::PBL;
-                        } else {
-                            layer.vdist_method = VerticalDistributionMethod::SINGLE;
-                        }
-                    }
-                    if (vdist["layer_start"]) {
-                        layer.vdist_layer_start = vdist["layer_start"].as<int>();
-                    }
-                    if (vdist["layer_end"]) {
-                        layer.vdist_layer_end = vdist["layer_end"].as<int>();
-                    }
-                    if (vdist["p_start"]) {
-                        layer.vdist_p_start = vdist["p_start"].as<double>();
-                    }
-                    if (vdist["p_end"]) {
-                        layer.vdist_p_end = vdist["p_end"].as<double>();
-                    }
-                    if (vdist["h_start"]) {
-                        layer.vdist_h_start = vdist["h_start"].as<double>();
-                    }
-                    if (vdist["h_end"]) {
-                        layer.vdist_h_end = vdist["h_end"].as<double>();
-                    }
-                }
-                layers.push_back(layer);
+                layers.push_back(std::move(layer));
             }
-            config.species_layers[species_name] = layers;
+            config.species_layers[species_name] = std::move(layers);
         }
     }
 
-    // Parse meteorology mapping
-    if (root["meteorology"]) {
-        for (auto const& met_node : root["meteorology"]) {
-            config.met_mapping[met_node.first.as<std::string>()] = met_node.second.as<std::string>();
+    auto read_string_map = [](const conf::Value& node, auto& output) {
+        if (!node || node.kind() != conf::Node_Kind::Map) return;
+        for (const auto& key : node.keys()) output[key] = node[key].as_string();
+    };
+    read_string_map(root["meteorology"], config.met_mapping);
+    read_string_map(root["scale_factors"], config.scale_factor_mapping);
+    read_string_map(root["masks"], config.mask_mapping);
+    conf::Value registry = root["met_registry"];
+    if (registry && registry.kind() == conf::Node_Kind::Map)
+        for (const auto& key : registry.keys()) {
+            conf::Value value = registry[key];
+            config.met_registry[key] =
+                value.kind() == conf::Node_Kind::Sequence ? value.as_string_list() : std::vector<std::string>{value.as_string()};
+        }
+    auto read_cycles = [](const conf::Value& node, auto& output) {
+        if (!node || node.kind() != conf::Node_Kind::Map) return;
+        for (const auto& key : node.keys()) output[key].factors = node[key].as_double_list();
+    };
+    read_cycles(root["temporal_cycles"], config.temporal_cycles);
+    read_cycles(root["temporal_profiles"], config.temporal_profiles);
+
+    conf::Value schemes = root["physics_schemes"];
+    for (std::size_t i = 0; schemes && i < schemes.size(); ++i) {
+        conf::Value node = schemes[i];
+        PhysicsSchemeConfig scheme;
+        scheme.name = node["name"].as_string();
+        scheme.language = string_or(node, "language", "cpp");
+        scheme.language_type = StringToSchemeLanguage(scheme.language);
+        if (node["options"]) scheme.options = node["options"];
+        scheme.refresh_interval_seconds = node["refresh_interval_seconds"].int_or(0);
+        config.physics_schemes.push_back(std::move(scheme));
+    }
+
+    conf::Value diagnostics = root["diagnostics"];
+    if (diagnostics) {
+        if (diagnostics.kind() == conf::Node_Kind::Sequence)
+            config.diagnostics.variables = diagnostics.as_string_list();
+        else {
+            config.diagnostics.output_interval_seconds = diagnostics["output_interval"].int_or(0);
+            config.diagnostics.grid_type = string_or(diagnostics, "grid_type", config.diagnostics.grid_type);
+            config.diagnostics.grid_file = string_or(diagnostics, "grid_file");
+            config.diagnostics.nx = diagnostics["nx"].int_or(0);
+            config.diagnostics.ny = diagnostics["ny"].int_or(0);
+            if (diagnostics["variables"]) config.diagnostics.variables = diagnostics["variables"].as_string_list();
         }
     }
 
-    // Parse meteorology registry (internal name -> list of external aliases)
-    if (root["met_registry"]) {
-        for (auto const& reg_node : root["met_registry"]) {
-            std::string internal_name = reg_node.first.as<std::string>();
-            std::vector<std::string> aliases;
-            if (reg_node.second.IsSequence()) {
-                for (auto const& alias : reg_node.second) {
-                    aliases.push_back(alias.as<std::string>());
-                }
-            } else if (reg_node.second.IsScalar()) {
-                aliases.push_back(reg_node.second.as<std::string>());
-            }
-            config.met_registry[internal_name] = std::move(aliases);
-        }
+    conf::Value vertical = root["vertical_grid"];
+    if (vertical && vertical.is_defined()) {
+        std::string type = string_or(vertical, "type");
+        if (type == "fv3")
+            config.vertical_config.type = VerticalCoordType::FV3;
+        else if (type == "mpas")
+            config.vertical_config.type = VerticalCoordType::MPAS;
+        else if (type == "wrf")
+            config.vertical_config.type = VerticalCoordType::WRF;
+        else if (type == "none" || type.empty())
+            config.vertical_config.type = VerticalCoordType::NONE;
+        else
+            throw std::invalid_argument("Unknown vertical_grid type: '" + type + "'. Supported types: 'fv3', 'mpas', 'wrf', 'none'");
+        config.vertical_config.ak_field = string_or(vertical, "ak_field", config.vertical_config.ak_field);
+        config.vertical_config.bk_field = string_or(vertical, "bk_field", config.vertical_config.bk_field);
+        config.vertical_config.p_surf_field = string_or(vertical, "p_surf_field", config.vertical_config.p_surf_field);
+        config.vertical_config.z_field = string_or(vertical, "z_field", config.vertical_config.z_field);
+        config.vertical_config.pbl_field = string_or(vertical, "pbl_field", config.vertical_config.pbl_field);
     }
 
-    // Parse scale factor mapping
-    if (root["scale_factors"]) {
-        for (auto const& sf_node : root["scale_factors"]) {
-            config.scale_factor_mapping[sf_node.first.as<std::string>()] = sf_node.second.as<std::string>();
-        }
-    }
-
-    // Parse mask mapping
-    if (root["masks"]) {
-        for (auto const& mask_node : root["masks"]) {
-            config.mask_mapping[mask_node.first.as<std::string>()] = mask_node.second.as<std::string>();
-        }
-    }
-
-    // Parse temporal cycles (backward compatibility)
-    if (root["temporal_cycles"]) {
-        for (auto const& cycle_node : root["temporal_cycles"]) {
-            std::string cycle_name = cycle_node.first.as<std::string>();
-            TemporalCycle cycle;
-            if (cycle_node.second.IsSequence()) {
-                for (auto const& factor : cycle_node.second) {
-                    cycle.factors.push_back(factor.as<double>());
-                }
-            }
-            config.temporal_cycles[cycle_name] = cycle;
-        }
-    }
-
-    // Parse temporal profiles
-    if (root["temporal_profiles"]) {
-        for (auto const& profile_node : root["temporal_profiles"]) {
-            std::string profile_name = profile_node.first.as<std::string>();
-            TemporalCycle profile;
-            if (profile_node.second.IsSequence()) {
-                for (auto const& factor : profile_node.second) {
-                    profile.factors.push_back(factor.as<double>());
-                }
-            }
-            config.temporal_profiles[profile_name] = profile;
-        }
-    }
-
-    // Parse physics schemes and their options
-    if (root["physics_schemes"]) {
-        for (auto const& scheme_node : root["physics_schemes"]) {
-            PhysicsSchemeConfig scheme;
-            scheme.name = scheme_node["name"].as<std::string>();
-            if (scheme_node["language"]) {
-                scheme.language = scheme_node["language"].as<std::string>();
-            }
-            if (scheme_node["options"]) {
-                scheme.options = scheme_node["options"];
-            }
-            if (scheme_node["refresh_interval_seconds"]) {
-                scheme.refresh_interval_seconds = scheme_node["refresh_interval_seconds"].as<int>();
-            }
-            config.physics_schemes.push_back(scheme);
-        }
-    }
-
-    // Parse diagnostics
-    if (root["diagnostics"]) {
-        auto diag_node = root["diagnostics"];
-        if (diag_node.IsSequence()) {
-            // Backward compatibility for simple list
-            for (auto const& item : diag_node) {
-                config.diagnostics.variables.push_back(item.as<std::string>());
-            }
-        } else if (diag_node.IsMap()) {
-            if (diag_node["output_interval"]) {
-                config.diagnostics.output_interval_seconds = diag_node["output_interval"].as<int>();
-            }
-            if (diag_node["grid_type"]) {
-                config.diagnostics.grid_type = diag_node["grid_type"].as<std::string>();
-            }
-            if (diag_node["grid_file"]) {
-                config.diagnostics.grid_file = diag_node["grid_file"].as<std::string>();
-            }
-            if (diag_node["nx"]) {
-                config.diagnostics.nx = diag_node["nx"].as<int>();
-            }
-            if (diag_node["ny"]) {
-                config.diagnostics.ny = diag_node["ny"].as<int>();
-            }
-            if (diag_node["variables"]) {
-                for (auto const& var_node : diag_node["variables"]) {
-                    config.diagnostics.variables.push_back(var_node.as<std::string>());
-                }
-            }
-        }
-    }
-
-    // Parse vertical grid configuration
-    if (root["vertical_grid"]) {
-        auto v_node = root["vertical_grid"];
-        if (v_node["type"]) {
-            std::string type_str = v_node["type"].as<std::string>();
-            if (type_str == "fv3") {
-                config.vertical_config.type = VerticalCoordType::FV3;
-            } else if (type_str == "mpas") {
-                config.vertical_config.type = VerticalCoordType::MPAS;
-            } else if (type_str == "wrf") {
-                config.vertical_config.type = VerticalCoordType::WRF;
-            }
-        }
-        if (v_node["ak_field"]) {
-            config.vertical_config.ak_field = v_node["ak_field"].as<std::string>();
-        }
-        if (v_node["bk_field"]) {
-            config.vertical_config.bk_field = v_node["bk_field"].as<std::string>();
-        }
-        if (v_node["p_surf_field"]) {
-            config.vertical_config.p_surf_field = v_node["p_surf_field"].as<std::string>();
-        }
-        if (v_node["z_field"]) {
-            config.vertical_config.z_field = v_node["z_field"].as<std::string>();
-        }
-        if (v_node["pbl_field"]) {
-            config.vertical_config.pbl_field = v_node["pbl_field"].as<std::string>();
-        }
-    }
-
-    // Parse cece_data configuration
-    YAML::Node data_node;
-    if (root["cece_data"]) {
-        data_node = root["cece_data"];
-    }
-    if (data_node && data_node["debug_level"]) {
-        config.cece_data.debug_level = data_node["debug_level"].as<int>();
-    }
-    if (data_node && data_node["streams"]) {
-        for (auto const& stream_node : data_node["streams"]) {
+    conf::Value data = root["cece_data"];
+    if (data) {
+        config.cece_data.debug_level = data["debug_level"].int_or(0);
+        conf::Value streams = data["streams"];
+        for (std::size_t i = 0; i < streams.size(); ++i) {
+            conf::Value node = streams[i];
             CeceDataStreamConfig stream;
-            if (stream_node["name"]) {
-                stream.name = stream_node["name"].as<std::string>();
-            }
-
-            if (stream_node["file"]) {
-                if (stream_node["file"].IsSequence()) {
-                    for (auto const& f : stream_node["file"]) {
-                        stream.file_paths.push_back(f.as<std::string>());
-                    }
-                } else {
-                    stream.file_paths.push_back(stream_node["file"].as<std::string>());
+            stream.name = string_or(node, "name");
+            conf::Value files = node["file"];
+            if (files)
+                stream.file_paths = files.kind() == conf::Node_Kind::Sequence ? files.as_string_list() : std::vector<std::string>{files.as_string()};
+            conf::Value variables = node["variables"];
+            for (std::size_t j = 0; j < variables.size(); ++j) {
+                conf::Value value = variables[j];
+                CeceDataVariableConfig variable;
+                if (value.kind() == conf::Node_Kind::Scalar)
+                    variable.name_in_file = variable.name_in_model = value.as_string();
+                else {
+                    variable.name_in_file = string_or(value, "file");
+                    variable.name_in_model = string_or(value, "model");
                 }
+                stream.variables.push_back(std::move(variable));
             }
-
-            if (stream_node["variables"]) {
-                for (auto const& var_node : stream_node["variables"]) {
-                    CeceDataVariableConfig var;
-                    if (var_node.IsScalar()) {
-                        var.name_in_file = var_node.as<std::string>();
-                        var.name_in_model = var.name_in_file;
-                    } else if (var_node.IsMap()) {
-                        if (var_node["file"]) {
-                            var.name_in_file = var_node["file"].as<std::string>();
-                        }
-                        if (var_node["model"]) {
-                            var.name_in_model = var_node["model"].as<std::string>();
-                        }
-                    }
-                    stream.variables.push_back(var);
-                }
-            } else if (!stream.name.empty()) {
-                CeceDataVariableConfig var;
-                var.name_in_file = stream.name;
-                var.name_in_model = stream.name;
-                stream.variables.push_back(var);
-            }
-
-            if (stream_node["taxmode"]) {
-                stream.taxmode = stream_node["taxmode"].as<std::string>();
-            }
-            if (stream_node["tintalgo"]) {
-                stream.tintalgo = stream_node["tintalgo"].as<std::string>();
-            } else if (stream_node["interpolation"]) {
-                stream.tintalgo = stream_node["interpolation"].as<std::string>();
-            }
-            if (stream_node["mapalgo"]) {
-                stream.mapalgo = stream_node["mapalgo"].as<std::string>();
-            }
-            if (stream_node["dtlimit"]) {
-                stream.dtlimit = stream_node["dtlimit"].as<int>();
-            }
-            if (stream_node["yearFirst"]) {
-                stream.yearFirst = stream_node["yearFirst"].as<int>();
-            }
-            if (stream_node["yearLast"]) {
-                stream.yearLast = stream_node["yearLast"].as<int>();
-            }
-            if (stream_node["yearAlign"]) {
-                stream.yearAlign = stream_node["yearAlign"].as<int>();
-            }
-            if (stream_node["offset"]) {
-                stream.offset = stream_node["offset"].as<int>();
-            }
-            if (stream_node["meshfile"]) {
-                stream.meshfile = stream_node["meshfile"].as<std::string>();
-            }
-            if (stream_node["lev_dimname"]) {
-                stream.lev_dimname = stream_node["lev_dimname"].as<std::string>();
-            }
-            if (stream_node["time_var"]) {
-                stream.time_var = stream_node["time_var"].as<std::string>();
-            }
-            if (stream_node["lon_var"]) {
-                stream.lon_var = stream_node["lon_var"].as<std::string>();
-            }
-            if (stream_node["lat_var"]) {
-                stream.lat_var = stream_node["lat_var"].as<std::string>();
-            }
-            if (stream_node["refresh_interval_seconds"]) {
-                stream.refresh_interval_seconds = stream_node["refresh_interval_seconds"].as<int>();
-            }
-
-            config.cece_data.streams.push_back(stream);
+            if (variables.size() == 0 && !stream.name.empty()) stream.variables.push_back({stream.name, stream.name});
+            stream.taxmode = string_or(node, "taxmode", stream.taxmode);
+            stream.tintalgo = string_or(node, "tintalgo", string_or(node, "interpolation", stream.tintalgo));
+            stream.mapalgo = string_or(node, "mapalgo", stream.mapalgo);
+            stream.dtlimit = node["dtlimit"].int_or(stream.dtlimit);
+            stream.yearFirst = node["yearFirst"].int_or(stream.yearFirst);
+            stream.yearLast = node["yearLast"].int_or(stream.yearLast);
+            stream.yearAlign = node["yearAlign"].int_or(stream.yearAlign);
+            stream.offset = node["offset"].int_or(stream.offset);
+            stream.meshfile = string_or(node, "meshfile");
+            stream.lev_dimname = string_or(node, "lev_dimname", stream.lev_dimname);
+            stream.time_var = string_or(node, "time_var", stream.time_var);
+            stream.lon_var = string_or(node, "lon_var", stream.lon_var);
+            stream.lat_var = string_or(node, "lat_var", stream.lat_var);
+            stream.refresh_interval_seconds = node["refresh_interval_seconds"].int_or(0);
+            config.cece_data.streams.push_back(std::move(stream));
         }
     }
 
-    // Parse standalone output configuration (Requirement 11.12)
-    if (root["output"]) {
-        auto out_node = root["output"];
-        // Presence of the block enables output unless enabled: false — the
-        // rest of the block is kept as dormant configuration.
-        config.output_config.enabled = out_node["enabled"] ? out_node["enabled"].as<bool>() : true;
-
-        if (out_node["directory"]) {
-            config.output_config.directory = out_node["directory"].as<std::string>();
+    conf::Value output = root["output"];
+    if (output) {
+        config.output_config.enabled = output["enabled"] ? output["enabled"].as_bool() : true;
+        config.output_config.directory = string_or(output, "directory", config.output_config.directory);
+        config.output_config.filename_pattern = string_or(output, "filename_pattern", config.output_config.filename_pattern);
+        config.output_config.frequency_steps = output["frequency_steps"].int_or(config.output_config.frequency_steps);
+        conf::Value fields = output["fields"];
+        for (std::size_t i = 0; i < fields.size(); ++i) {
+            conf::Value value = fields[i];
+            CeceOutputField field;
+            field.name = value.kind() == conf::Node_Kind::Scalar ? value.as_string() : value["name"].as_string();
+            conf::Value attributes = value["attributes"];
+            if (attributes.kind() == conf::Node_Kind::Map)
+                for (const auto& key : attributes.keys()) field.attributes[key] = attributes[key].as_string();
+            config.output_config.fields.push_back(std::move(field));
         }
-        if (out_node["filename_pattern"]) {
-            config.output_config.filename_pattern = out_node["filename_pattern"].as<std::string>();
-        }
-        if (out_node["frequency_steps"]) {
-            config.output_config.frequency_steps = out_node["frequency_steps"].as<int>();
-        }
-        if (out_node["fields"]) {
-            // Each entry is either a scalar field name (shorthand) or a map
-            // with a required "name" and optional "attributes" (attribute
-            // name -> value, written verbatim on the output variable).
-            std::size_t entry_index = 0;
-            for (auto const& f : out_node["fields"]) {
-                CeceOutputField field;
-                if (f.IsScalar()) {
-                    field.name = f.as<std::string>();
-                } else if (f.IsMap()) {
-                    if (!f["name"] || f["name"].as<std::string>().empty()) {
-                        throw std::runtime_error("output.fields entry " + std::to_string(entry_index) + " is missing a non-empty 'name'");
-                    }
-                    field.name = f["name"].as<std::string>();
-                    if (f["attributes"]) {
-                        for (auto const& attr_entry : f["attributes"]) {
-                            field.attributes[attr_entry.first.as<std::string>()] = attr_entry.second.as<std::string>();
-                        }
-                    }
-                } else {
-                    throw std::runtime_error("output.fields entry " + std::to_string(entry_index) +
-                                             " must be a field name or a map with 'name'/'attributes'");
-                }
-                config.output_config.fields.push_back(std::move(field));
-                ++entry_index;
-            }
-        }
-        if (out_node["diagnostics"]) {
-            config.output_config.include_diagnostics = out_node["diagnostics"].as<bool>();
-        }
-        if (out_node["amio_worker_threads"]) {
-            int threads = out_node["amio_worker_threads"].as<int>();
+        if (output["amio_worker_threads"]) {
+            int threads = output["amio_worker_threads"].as_int();
             if (threads < 1) {
-                std::cerr << "WARNING: Invalid output amio_worker_threads: " << threads << ". Must be >= 1. Defaulting to 1.\n";
-                threads = 1;
+                throw std::invalid_argument("output.amio_worker_threads must be >= 1; got " + std::to_string(threads) + ".");
             }
             config.output_config.amio_worker_threads = threads;
         }
-        if (out_node["global_attributes"]) {
-            for (auto const& pair : out_node["global_attributes"]) {
-                std::string key = pair.first.as<std::string>();
-                std::string value = pair.second.as<std::string>();
-                config.output_config.global_attributes[key] = value;
-            }
-        }
-
-        // Validate output directory writability; log INFO if it needs to be created.
-        // Actual directory creation is deferred to CeceStandaloneWriter::Initialize.
-        const std::string& dir = config.output_config.directory;
-        struct stat st{};
-        if (stat(dir.c_str(), &st) != 0) {
-            std::cout << "[CECE INFO] Output directory '" << dir << "' does not exist and will be created at runtime.\n";
-        } else if (!(st.st_mode & S_IWUSR)) {
-            std::cerr << "[CECE ERROR] Output directory '" << dir << "' is not writable.\n";
-        }
     }
 
-    // Parse driver configuration (optional, for standalone execution)
-    // Requirements: 1.1, 2.1, 3.1, 14.1, 15.1
-    if (root["driver"]) {
-        auto driver_node = root["driver"];
-
-        if (driver_node["start_time"]) {
-            config.driver_config.start_time = driver_node["start_time"].as<std::string>();
-        }
-        if (driver_node["end_time"]) {
-            config.driver_config.end_time = driver_node["end_time"].as<std::string>();
-        }
-        if (driver_node["timestep_seconds"]) {
-            config.driver_config.timestep_seconds = driver_node["timestep_seconds"].as<int>();
-        }
-        if (driver_node["gridspec_file"]) {
-            config.driver_config.gridspec_file = driver_node["gridspec_file"].as<std::string>();
-        }
-        if (driver_node["grid"]) {
-            auto grid_node = driver_node["grid"];
-            if (grid_node["nx"]) {
-                config.driver_config.grid.nx = grid_node["nx"].as<int>();
-            }
-            if (grid_node["ny"]) {
-                config.driver_config.grid.ny = grid_node["ny"].as<int>();
-            }
-            if (grid_node["nz"]) {
-                config.driver_config.grid.nz = grid_node["nz"].as<int>();
-            }
-            if (grid_node["lon_min"]) {
-                config.driver_config.grid.lon_min = grid_node["lon_min"].as<double>();
-            }
-            if (grid_node["lon_max"]) {
-                config.driver_config.grid.lon_max = grid_node["lon_max"].as<double>();
-            }
-            if (grid_node["lat_min"]) {
-                config.driver_config.grid.lat_min = grid_node["lat_min"].as<double>();
-            }
-            if (grid_node["lat_max"]) {
-                config.driver_config.grid.lat_max = grid_node["lat_max"].as<double>();
-            }
-        }
-        if (driver_node["stacking_refresh_interval_seconds"]) {
-            config.driver_config.stacking_refresh_interval_seconds = driver_node["stacking_refresh_interval_seconds"].as<int>();
-        }
-        if (driver_node["amio_worker_threads"]) {
-            int threads = driver_node["amio_worker_threads"].as<int>();
+    conf::Value driver = root["driver"];
+    if (driver) {
+        config.driver_config.start_time = string_or(driver, "start_time", config.driver_config.start_time);
+        config.driver_config.end_time = string_or(driver, "end_time", config.driver_config.end_time);
+        config.driver_config.timestep_seconds = driver["timestep_seconds"].int_or(config.driver_config.timestep_seconds);
+        config.driver_config.gridspec_file = string_or(driver, "gridspec_file");
+        conf::Value grid = driver["grid"];
+        config.driver_config.grid.nx = grid["nx"].int_or(config.driver_config.grid.nx);
+        config.driver_config.grid.ny = grid["ny"].int_or(config.driver_config.grid.ny);
+        config.driver_config.grid.nz = grid["nz"].int_or(config.driver_config.grid.nz);
+        config.driver_config.grid.lon_min = grid["lon_min"].double_or(config.driver_config.grid.lon_min);
+        config.driver_config.grid.lon_max = grid["lon_max"].double_or(config.driver_config.grid.lon_max);
+        config.driver_config.grid.lat_min = grid["lat_min"].double_or(config.driver_config.grid.lat_min);
+        config.driver_config.grid.lat_max = grid["lat_max"].double_or(config.driver_config.grid.lat_max);
+        config.driver_config.stacking_refresh_interval_seconds = driver["stacking_refresh_interval_seconds"].int_or(0);
+        if (driver["amio_worker_threads"]) {
+            int threads = driver["amio_worker_threads"].as_int();
             if (threads < 1) {
-                std::cerr << "WARNING: Invalid amio_worker_threads: " << threads << ". Must be >= 1. Defaulting to 1.\n";
-                threads = 1;
+                throw std::invalid_argument("driver.amio_worker_threads must be >= 1; got " + std::to_string(threads) + ".");
             }
             config.driver_config.amio_worker_threads = threads;
         }
+        if (driver["amio_staging_buffer_count"]) {
+            int count = driver["amio_staging_buffer_count"].as_int();
+            if (count < 1) {
+                throw std::invalid_argument("driver.amio_staging_buffer_count must be >= 1; got " + std::to_string(count) + ".");
+            }
+            config.driver_config.amio_staging_buffer_count = count;
+        }
     }
-
-    // The output field collection is fully initialized here: seed the time
-    // coordinate's units from the run start (the driver section parses
-    // after the output section, so this cannot happen inside it).
     config.output_config.fields.SetTimeUnits(config.driver_config.start_time);
-
     return config;
 }
 
-// ---------------------------------------------------------------------------
-// Runtime dynamic registration helpers
-// ---------------------------------------------------------------------------
-
-/**
- * @brief Adds a new emission species with its layers to an existing config at runtime.
- */
 void AddSpecies(CeceConfig& config, const std::string& species_name, std::vector<EmissionLayer> layers) {
     config.species_layers[species_name] = std::move(layers);
 }
-
-/**
- * @brief Adds a new scale factor mapping to an existing config at runtime.
- */
 void AddScaleFactor(CeceConfig& config, const std::string& internal_name, const std::string& external_name) {
     config.scale_factor_mapping[internal_name] = external_name;
 }
-
-/**
- * @brief Adds a new mask mapping to an existing config at runtime.
- */
 void AddMask(CeceConfig& config, const std::string& internal_name, const std::string& external_name) {
     config.mask_mapping[internal_name] = external_name;
 }

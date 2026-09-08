@@ -61,7 +61,7 @@ static constexpr double kDefaultAef[19] = {
 // Initialize
 // ============================================================================
 
-void Megan3Scheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
+void Megan3Scheme::Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) {
     // Call base class to parse input_mapping, output_mapping, diagnostics
     BasePhysicsScheme::Initialize(config, diag_manager);
 
@@ -71,13 +71,13 @@ void Megan3Scheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* d
     std::string speciation_dataset = "MEGAN";
 
     if (config["mechanism_file"]) {
-        mechanism_path = config["mechanism_file"].as<std::string>();
+        mechanism_path = config["mechanism_file"].as_string();
     }
     if (config["speciation_file"]) {
-        speciation_path = config["speciation_file"].as<std::string>();
+        speciation_path = config["speciation_file"].as_string();
     }
     if (config["speciation_dataset"]) {
-        speciation_dataset = config["speciation_dataset"].as<std::string>();
+        speciation_dataset = config["speciation_dataset"].as_string();
     }
 
     SpeciationConfig spec_config = config_loader_.Load(mechanism_path, speciation_path, speciation_dataset);
@@ -97,9 +97,8 @@ void Megan3Scheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* d
 
     if (config["emission_classes"]) {
         const auto& classes_node = config["emission_classes"];
-        for (auto it = classes_node.begin(); it != classes_node.end(); ++it) {
-            std::string class_name = it->first.as<std::string>();
-            const auto& class_config = it->second;
+        for (const auto& class_name : classes_node.keys()) {
+            auto class_config = classes_node[class_name];
 
             EmissionClass ec;
             if (!StringToEmissionClass(class_name, ec)) {
@@ -108,7 +107,7 @@ void Megan3Scheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* d
             int idx = static_cast<int>(ec);
 
             if (class_config["default_aef"]) {
-                h_default_aef(idx) = class_config["default_aef"].as<double>();
+                h_default_aef(idx) = class_config["default_aef"].as_double();
             }
         }
     }

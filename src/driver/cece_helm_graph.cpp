@@ -1,7 +1,6 @@
 #include "cece/cece_helm_graph.hpp"
 
 #include <mpi.h>
-#include <yaml-cpp/yaml.h>
 
 #include <blend/helm_math_blend.hpp>
 #include <dagr/pipeline_config.hpp>
@@ -15,9 +14,6 @@ void CompileHelmGraph(const std::string& config_file, std::unique_ptr<dagr::Grap
     if (!f.good()) {
         throw std::runtime_error("File not found: " + config_file);
     }
-
-    YAML::Node config = YAML::LoadFile(config_file);
-
     // Build the Pipeline_Config dynamically from standard YAML
     dagr::Pipeline_Config pc;
     pc.max_concurrency = 4;
@@ -46,7 +42,11 @@ void CompileHelmGraph(const std::string& config_file, std::unique_ptr<dagr::Grap
     // Wrap custom MPI communicator in halo::Communicator safely (duplicating to prevent RAII destruction of the caller's handle)
     MPI_Comm comm_to_wrap = comm_c;
     if (comm_c != MPI_COMM_NULL && comm_c != MPI_COMM_WORLD && comm_c != MPI_COMM_SELF) {
-        MPI_Comm_dup(comm_c, &comm_to_wrap);
+        int dup_rc = MPI_Comm_dup(comm_c, &comm_to_wrap);
+        if (dup_rc != MPI_SUCCESS) {
+            throw std::runtime_error("[CECE] MPI_Comm_dup failed (rc=" + std::to_string(dup_rc) +
+                                     ") — cannot safely wrap communicator for GraphOrchestrator");
+        }
     }
     halo::Communicator world(comm_to_wrap);
 

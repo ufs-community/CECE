@@ -65,29 +65,29 @@ double calculate_u_ts0(double den, double diam, double g, double rhoa) {
     return 129.0e-5 * std::sqrt(alpha) * std::sqrt(beta) / std::sqrt(gamma);
 }
 
-void DustScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
+void DustScheme::Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
     G_const_ = 980.665;     // cm/s^2
     RHOA_const_ = 1.25e-3;  // g/cm3
 
-    if (config["g_constant"]) G_const_ = config["g_constant"].as<double>();
-    if (config["air_density"]) RHOA_const_ = config["air_density"].as<double>();
+    if (config["g_constant"]) G_const_ = config["g_constant"].as_double();
+    if (config["air_density"]) RHOA_const_ = config["air_density"].as_double();
 
     double den = 2500.0 * 1.0e-3;         // g/cm3
     double diam = 2.0 * 0.73e-6 * 1.0e2;  // cm
 
     if (config["particle_density"]) {
-        den = config["particle_density"].as<double>() * 1.0e-3;
+        den = config["particle_density"].as_double() * 1.0e-3;
     }
     if (config["particle_diameter"]) {
-        diam = config["particle_diameter"].as<double>() * 1.0e2;
+        diam = config["particle_diameter"].as_double() * 1.0e2;
     }
 
     u_ts0_ = calculate_u_ts0(den, diam, G_const_, RHOA_const_);
 
     ch_dust_ = 9.375e-10;
     if (config["tuning_factor"]) {
-        ch_dust_ = config["tuning_factor"].as<double>();
+        ch_dust_ = config["tuning_factor"].as_double();
     }
 
     std::cout << "DustScheme: Initialized. U_TS0=" << u_ts0_ << " CH_DUST=" << ch_dust_ << "\n";

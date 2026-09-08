@@ -39,26 +39,19 @@
 
 namespace {
 
+// These helpers deliberately do not catch failures. Ingestion, physics, and
+// stacking exceptions must reach the cece_core_run C-ABI boundary below,
+// which reports them through rc=-1.
 void IngestEmissions(cece::CeceInternalData& d) {
     if (d.config.cece_data.streams.empty()) return;
-    try {
-        d.ingestor.IngestEmissionsInline(d.config.cece_data, d.import_state, d.nx, d.ny, d.nz);
-    } catch (const std::exception& e) {
-        std::cerr << "CECE_Run: ingest failed: " << e.what() << "\n";
-    } catch (...) {
-        std::cerr << "CECE_Run: ingest failed (unknown)\n";
-    }
+    d.ingestor.IngestEmissionsInline(d.config.cece_data, d.import_state, d.nx, d.ny, d.nz);
 }
 
 void RunPhysicsSchemeByName(cece::CeceInternalData& d, const std::string& scheme_name) {
     for (size_t i = 0; i < d.active_schemes.size(); ++i) {
         if (i < d.config.physics_schemes.size() && d.config.physics_schemes[i].name == scheme_name) {
             if (d.active_schemes[i]) {
-                try {
-                    d.active_schemes[i]->Run(d.import_state, d.export_state);
-                } catch (const std::exception& e) {
-                    std::cerr << "CECE_Run: scheme '" << scheme_name << "': " << e.what() << "\n";
-                }
+                d.active_schemes[i]->Run(d.import_state, d.export_state);
             }
             break;
         }
@@ -119,17 +112,14 @@ void ExecuteStepUnconditional(cece::CeceInternalData& d, int hour, int day_of_we
     std::cout << "CECE_Run: executing step (hour=" << hour << ", day_of_week=" << day_of_week << ")\n";
 
     IngestEmissions(d);
-    ExecuteStackingEngine(d, hour, day_of_week, 0);
 
     for (auto& scheme : d.active_schemes) {
         if (scheme) {
-            try {
-                scheme->Run(d.import_state, d.export_state);
-            } catch (const std::exception& e) {
-                std::cerr << "CECE_Run: scheme: " << e.what() << "\n";
-            }
+            scheme->Run(d.import_state, d.export_state);
         }
     }
+
+    ExecuteStackingEngine(d, hour, day_of_week, 0);
 }
 
 void SyncAndCopyState(cece::CeceInternalData& d) {

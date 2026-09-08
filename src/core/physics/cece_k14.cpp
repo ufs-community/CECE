@@ -128,24 +128,24 @@ double k14_erodibility(double z0, int texture) {
 
 namespace cece {
 
-void K14Scheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
+void K14Scheme::Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
 
-    if (config["ch_du"]) ch_du_ = config["ch_du"].as<double>();
-    if (config["f_w"]) f_w_ = config["f_w"].as<double>();
-    if (config["f_c"]) f_c_ = config["f_c"].as<double>();
-    if (config["uts_gamma"]) uts_gamma_ = config["uts_gamma"].as<double>();
-    if (config["undef"]) undef_ = config["undef"].as<double>();
-    if (config["grav"]) grav_ = config["grav"].as<double>();
-    if (config["von_karman"]) von_karman_ = config["von_karman"].as<double>();
-    if (config["opt_clay"]) opt_clay_ = config["opt_clay"].as<int>();
-    if (config["num_bins"]) num_bins_ = config["num_bins"].as<int>();
+    if (config["ch_du"]) ch_du_ = config["ch_du"].as_double();
+    if (config["f_w"]) f_w_ = config["f_w"].as_double();
+    if (config["f_c"]) f_c_ = config["f_c"].as_double();
+    if (config["uts_gamma"]) uts_gamma_ = config["uts_gamma"].as_double();
+    if (config["undef"]) undef_ = config["undef"].as_double();
+    if (config["grav"]) grav_ = config["grav"].as_double();
+    if (config["von_karman"]) von_karman_ = config["von_karman"].as_double();
+    if (config["opt_clay"]) opt_clay_ = config["opt_clay"].as_int();
+    if (config["num_bins"]) num_bins_ = config["num_bins"].as_int();
 
     // Compute Kok distribution from particle size parameters if provided
     if (config["particle_radii"] && config["bin_lower_edges"] && config["bin_upper_edges"]) {
-        auto radii = config["particle_radii"].as<std::vector<double>>();
-        auto lower = config["bin_lower_edges"].as<std::vector<double>>();
-        auto upper = config["bin_upper_edges"].as<std::vector<double>>();
+        auto radii = config["particle_radii"].as_double_list();
+        auto lower = config["bin_lower_edges"].as_double_list();
+        auto upper = config["bin_upper_edges"].as_double_list();
         num_bins_ = static_cast<int>(radii.size());
 
         auto dist = compute_kok_distribution(radii, lower, upper);

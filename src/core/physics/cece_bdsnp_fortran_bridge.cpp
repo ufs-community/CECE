@@ -18,6 +18,7 @@
 
 #include <Kokkos_Core.hpp>
 #include <iostream>
+#include <stdexcept>
 
 #include "cece/cece_physics_factory.hpp"
 #include "cece/physics/cece_bdsnp_fortran.hpp"
@@ -51,14 +52,14 @@ static PhysicsRegistration<BdsnpFortranScheme> register_scheme("bdsnp_fortran");
 // Initialize
 // ============================================================================
 
-void BdsnpFortranScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
+void BdsnpFortranScheme::Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) {
     // Call base class to parse input_mapping, output_mapping, diagnostics
     BasePhysicsScheme::Initialize(config, diag_manager);
 
     // Read soil_no_method (default "bdsnp", fallback "yl95")
     soil_no_method_ = "bdsnp";
     if (config["soil_no_method"]) {
-        soil_no_method_ = config["soil_no_method"].as<std::string>();
+        soil_no_method_ = config["soil_no_method"].as_string();
     }
     if (soil_no_method_ != "bdsnp" && soil_no_method_ != "yl95") {
         std::cout << "BdsnpFortranScheme: WARNING - Unknown soil_no_method '" << soil_no_method_ << "', falling back to 'bdsnp'\n";
@@ -78,7 +79,9 @@ void BdsnpFortranScheme::Run(CeceImportState& import_state, CeceExportState& exp
     auto it_soil_nox = export_state.fields.find(MapOutput("soil_nox_emissions"));
 
     if (it_temp == import_state.fields.end() || it_moisture == import_state.fields.end() || it_soil_nox == export_state.fields.end()) {
-        return;
+        throw std::runtime_error(
+            "BdsnpFortranScheme requires imports 'soil_temperature' and "
+            "'soil_moisture' plus export 'soil_nox_emissions'");
     }
 
     auto& dv_temp = it_temp->second;

@@ -143,8 +143,10 @@ StepResult CeceClock::Advance() {
 
     bool is_first_step = (elapsed_seconds_ == base_timestep_secs_);
 
-    // Collect due components: non-stacking first, stacking last
-    std::vector<const ClockComponent*> non_stacking;
+    // Collect due components in execution-stage order while preserving
+    // configured order within each stage.
+    std::vector<const ClockComponent*> streams;
+    std::vector<const ClockComponent*> physics;
     std::vector<const ClockComponent*> stacking;
 
     for (auto& cs : components_) {
@@ -159,17 +161,25 @@ StepResult CeceClock::Advance() {
         }
 
         if (due) {
-            if (cs.component.type == ComponentType::kStackingEngine) {
-                stacking.push_back(&cs.component);
-            } else {
-                non_stacking.push_back(&cs.component);
+            switch (cs.component.type) {
+                case ComponentType::kDataStream:
+                    streams.push_back(&cs.component);
+                    break;
+                case ComponentType::kPhysicsScheme:
+                    physics.push_back(&cs.component);
+                    break;
+                case ComponentType::kStackingEngine:
+                    stacking.push_back(&cs.component);
+                    break;
+                default:
+                    throw std::invalid_argument("Component \"" + cs.component.name + "\" has an invalid ComponentType value.");
             }
             cs.last_executed_at = elapsed_seconds_;
         }
     }
 
-    // Stacking engine always appears last
-    result.due_components = std::move(non_stacking);
+    result.due_components = std::move(streams);
+    result.due_components.insert(result.due_components.end(), physics.begin(), physics.end());
     result.due_components.insert(result.due_components.end(), stacking.begin(), stacking.end());
 
     return result;

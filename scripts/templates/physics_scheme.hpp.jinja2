@@ -24,7 +24,7 @@
  */
 
 #include <Kokkos_Core.hpp>
-#include <yaml-cpp/yaml.h>
+#include <conf/value.hpp>
 
 #include <string>
 #include <unordered_map>
@@ -72,7 +72,7 @@ class {{ class_name }} : public BasePhysicsScheme {
      * @note Always call BasePhysicsScheme::Initialize(config, diag_manager)
      *       first to set up field name mappings and diagnostics
      */
-    void Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) override;
+    void Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) override;
 
     /**
      * @brief Execute the physics scheme for one time step.
@@ -115,7 +115,7 @@ class {{ class_name }} : public BasePhysicsScheme {
     // and used in the Run() kernel. NEVER hardcode physical constants.
     // Example:
     //   if (config["emission_factor"]) {
-    //       emission_factor_ = config["emission_factor"].as<double>();
+    //       emission_factor_ = config["emission_factor"].as_double();
     //   }
 
     {% for option in options %}
