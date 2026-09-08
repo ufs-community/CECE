@@ -583,7 +583,7 @@ void StackingEngine::Execute(FieldResolver& resolver, int nx, int ny, int nz,
 
                     if (layer.replace_flag > 0.5) {
                         // Only replace within the context of the CURRENT category's total
-                        if (combined_mask > 0.0) current_category_accumulated = current_category_accumulated*(1.0-combined_mask) + contribution;
+                        if (combined_mask > 0.0) current_category_accumulated = current_category_accumulated * (1.0 - combined_mask) + contribution;
                     } else {
                         current_category_accumulated += contribution;
                     }
