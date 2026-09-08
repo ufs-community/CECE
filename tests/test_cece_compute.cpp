@@ -244,7 +244,7 @@ TEST_F(CeceComputeTest, HierarchyAndCategory) {
         for (int j = 0; j < ny; ++j) {
             left_mask(i, j, 0) = (i < nx / 2) ? 1.0 : 0.0;
             bottom_mask(i, j, 0) = (j < ny / 2) ? 1.0 : 0.0;
-            // If j is 0, check if i is less than 2. If true -> 1.0, else -> 0.8. 
+            // If j is 0, check if i is less than 2. If true -> 1.0, else -> 0.8.
             // If j is not 0, the value is 0.0.
             very_bottom_mask(i, j, 0) = (j == 0) ? ((i < 2) ? 1.0 : 0.8) : 0.0;
         }
@@ -380,7 +380,7 @@ TEST_F(CeceComputeTest, HierarchyAndCategory) {
 
             // --- Cat 3 Evaluation ---
             if (j < 1) {
-                if (i <2 ) {
+                if (i < 2 ) {
                     // Left half of bottom row: mask is 1.0, so replace applies fully.
                     expected += 5.0;  // No additional contribution from base since it's replaced.
                 } else {
