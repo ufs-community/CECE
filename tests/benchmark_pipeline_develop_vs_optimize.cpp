@@ -33,16 +33,11 @@
 #include <axis/axis.hpp>
 
 // develop's axis::solver::apply CSR path rebuilt a KokkosSparse::CrsMatrix per
-// call; reproduce that here. AXIS builds with KokkosKernels in the cece-dev
-// container, so include these unconditionally if the guard macro is not
-// visible in this translation unit.
-#ifdef AXIS_HAVE_KOKKOSKERNELS
+// call; reproduce that here. KokkosKernels is now a hard AXIS dependency (found
+// or fetched by AXIS's CMake), so KokkosSparse is always available through the
+// cece->axis link.
 #include <KokkosSparse_CrsMatrix.hpp>
 #include <KokkosSparse_spmv.hpp>
-#else
-#include <KokkosSparse_CrsMatrix.hpp>
-#include <KokkosSparse_spmv.hpp>
-#endif
 
 #include <algorithm>
 #include <chrono>
