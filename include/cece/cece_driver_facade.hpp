@@ -52,7 +52,12 @@ struct StreamVarConfig {
     std::string input_var_name = "";
     std::string mapalgo = "consd";
     std::string cadence;  // "" means legacy step-index cycling
+    int yearFirst = 0;    // 0 = unknown/climatology
+    int yearLast = 0;
+    int yearAlign = 0;
+    std::string taxmode;  // "" defaults to cycle
     std::string tintalgo = "nearest";
+    std::string time_var = "time";  // time coordinate variable name
     std::string data_model = "enhanced";
     bool data_model_explicit = false;
     int amio_threads = 1;

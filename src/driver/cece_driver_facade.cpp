@@ -64,8 +64,13 @@ SimDateTime parse_sim_datetime(const std::string& iso8601) {
  * @brief Map a simulation datetime onto a record bracket for a given cadence.
  *
  * @param cadence    One of "hourly", "daily", "weekly", "monthly" (case-insensitive).
- * @param tintalgo   Time-interpolation algorithm: "linear" enables mid-month
- *                   or intra-day interpolation; anything else -> nearest.
+ * @param tintalgo   Time-interpolation algorithm. "linear" interpolates between
+ *                   the two bracketing records for monthly (mid-month
+ *                   convention) and daily (mid-day convention) cadences;
+ *                   any other @c tintalgo value selects the nearest record.
+ *                   Hourly and weekly cadences ignore @c tintalgo
+ *                   and always use nearest-neighbour
+ *                   (there is no true sub-hourly interpolation).
  * @param dt         Parsed simulation datetime.
  * @param file_nt    Number of records available in the file (for clamping).
  * @param yearFirst  First year covered by the file (0 = unknown/climatology).
@@ -85,7 +90,7 @@ SimDateTime parse_sim_datetime(const std::string& iso8601) {
  *
  * Hourly and weekly cadences select discrete profile records (hour-of-day,
  * day-of-week) and always use nearest-neighbour. Monthly and daily cadences
- * honour @c tintalgo for linear temporal interpolation.
+ * honor @c tintalgo for linear temporal interpolation.
  */
 RecordBracket cadence_record_bracket(const std::string& cadence, const std::string& tintalgo, const SimDateTime& dt, int file_nt, int yearFirst,
                                      int yearLast, int yearAlign, const std::string& taxmode) {
@@ -400,7 +405,6 @@ RecordBracket resolve_time_bracket_from_axis(amio_dataset_handle dataset, const 
     // For monthly data, the first record is typically at day 15 (midpoint)
     // or day 0 (start of month). Check both.
 
-    double file_offset = 0.0;
     if (n_vals >= 2) {
         // Average spacing between records in file units.
         double avg_spacing = (time_vals[n_vals - 1] - time_vals[0]) / static_cast<double>(n_vals - 1);
@@ -601,7 +605,12 @@ CeceDriverOrchestrator::CeceDriverOrchestrator(const std::string& config_file, i
                 std::string stream_file = stream["file"].string_or("");
                 std::string stream_mapalgo = stream["mapalgo"].string_or("consd");
                 std::string stream_cadence = stream["cadence"].string_or("");
+                int stream_year_first = stream["yearFirst"].int_or(0);
+                int stream_year_last = stream["yearLast"].int_or(0);
+                int stream_year_align = stream["yearAlign"].int_or(0);
+                std::string stream_taxmode = stream["taxmode"].string_or("");
                 std::string stream_tintalgo = stream["tintalgo"].string_or("nearest");
+                std::string stream_time_var = stream["time_var"].string_or("time");
 
                 // Parse data_model
                 std::string data_model = "enhanced";
@@ -632,7 +641,12 @@ CeceDriverOrchestrator::CeceDriverOrchestrator(const std::string& config_file, i
                     svc.input_var_name = var["file"].string_or(model_name);
                     svc.mapalgo = stream_mapalgo;
                     svc.cadence = stream_cadence;
+                    svc.yearFirst = stream_year_first;
+                    svc.yearLast = stream_year_last;
+                    svc.yearAlign = stream_year_align;
+                    svc.taxmode = stream_taxmode;
                     svc.tintalgo = stream_tintalgo;
+                    svc.time_var = stream_time_var;
                     svc.data_model = data_model;
                     svc.data_model_explicit = data_model_explicit;
                     svc.amio_threads = amio_threads;
@@ -701,7 +715,12 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
         std::string mapalgo = "consd";
         std::string stream_data_model = "enhanced";
         std::string cadence;
+        int yearFirst = 0;
+        int yearLast = 0;
+        int yearAlign = 0;
+        std::string taxmode;
         std::string tintalgo = "nearest";
+        std::string time_var = "time";
         bool stream_data_model_explicit = false;
         int amio_threads = 1;
         int amio_staging_buffer_count = 8;
@@ -713,7 +732,12 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
             input_var_name = svc.input_var_name;
             mapalgo = svc.mapalgo;
             cadence = svc.cadence;
+            yearFirst = svc.yearFirst;
+            yearLast = svc.yearLast;
+            yearAlign = svc.yearAlign;
+            taxmode = svc.taxmode;
             tintalgo = svc.tintalgo;
+            time_var = svc.time_var;
             stream_data_model = svc.data_model;
             stream_data_model_explicit = svc.data_model_explicit;
             amio_threads = svc.amio_threads;
