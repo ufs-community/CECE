@@ -380,7 +380,7 @@ TEST_F(CeceComputeTest, HierarchyAndCategory) {
 
             // --- Cat 3 Evaluation ---
             if (j < 1) {
-                if (i < 2 ) {
+                if (i < 2) {
                     // Left half of bottom row: mask is 1.0, so replace applies fully.
                     expected += 5.0;  // No additional contribution from base since it's replaced.
                 } else {
