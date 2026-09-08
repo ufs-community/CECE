@@ -1261,6 +1261,17 @@ if(Python3_Interpreter_FOUND)
 endif()
 
 include(GoogleTest)
+
+# Defer GTest test enumeration from build time to test (ctest) run time for ALL
+# gtest_discover_tests calls below. With the default POST_BUILD mode, CMake runs
+# each test binary during `make` to list its cases; on HPC/MPI systems that
+# aborts for MPI-initializing binaries when built on a login/build node with no
+# Slurm PMI context (e.g. "PMI2_Job_GetId returned 14"), breaking the build.
+# PRE_TEST enumerates at `ctest` time instead — inside the job allocation where
+# MPI can initialize. Set as the global default so every discovery call honors
+# it without per-call edits. Requires CMake >= 3.18 (project already uses 3.27).
+set(CMAKE_GTEST_DISCOVER_TESTS_DISCOVERY_MODE PRE_TEST)
+
 gtest_discover_tests(test_driver_configuration)
 gtest_discover_tests(test_driver_clock_management)
 gtest_discover_tests(test_clock_operations_unit)
