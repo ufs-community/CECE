@@ -87,6 +87,8 @@ SimDateTime parse_sim_datetime(const std::string& iso8601) {
  * is computed as: (effective_year - yearFirst) * 12 + (month - 1).
  * For daily cadence with multi-year files (file_nt > 366), the record index
  * is computed from cumulative day offsets across years plus (day_of_year - 1).
+ * For single-year daily files with linear interpolation, a leap-year Dec 31
+ * (day_of_year 366) is clamped to the final record when the file has only 365.
  *
  * Hourly and weekly cadences select discrete profile records (hour-of-day,
  * day-of-week) and always use nearest-neighbour. Monthly and daily cadences
@@ -162,6 +164,16 @@ RecordBracket cadence_record_bracket(const std::string& cadence, const std::stri
         const double frac = dt.hour / 24.0;
         const int nrec = (file_nt > 0) ? file_nt : 365;
 
+        // A single-year (climatology) file has no 366th record; in a leap year
+        // Dec 31 gives abs_day == nrec, which would wrap to record 0. Clamp it to
+        // the final record so linear matches the nearest-neighbour branch.
+        if (!multi_year && tick::Gregorian_Calendar::is_leap_year(dt.year) && abs_day >= nrec) {
+            abs_day = nrec - 1;
+        }
+
+        // Caveat: for multi-year files the modulo wrap makes the first/last
+        // records interpolate against the opposite file end; the axis-based
+        // resolver is the robust path, this arithmetic path is the fallback.
         if (frac >= 0.5) {
             br.i0 = abs_day % nrec;
             br.i1 = (abs_day + 1) % nrec;
@@ -235,6 +247,9 @@ RecordBracket cadence_record_bracket(const std::string& cadence, const std::stri
         const double frac = (static_cast<double>(dt.day - 1) + dt.hour / 24.0) / static_cast<double>(dim);
         const int nrec = (file_nt > 0) ? file_nt : 12;
 
+        // Caveat: for multi-year files the modulo wrap makes the first/last
+        // records interpolate against the opposite file end (Dec of the last
+        // year <-> Jan of the first); the axis-based resolver avoids this.
         if (frac >= 0.5) {
             br.i0 = abs_month % nrec;
             br.i1 = (abs_month + 1) % nrec;
