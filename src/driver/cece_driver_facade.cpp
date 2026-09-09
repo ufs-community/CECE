@@ -242,8 +242,11 @@ static RecordBracket midpoint_bracket(int idx, double frac, int nrec) {
  * is computed as: (effective_year - yearFirst) * 12 + (month - 1).
  * For daily cadence with multi-year files (file_nt > 366), the record index
  * is computed from cumulative day offsets across years plus (day_of_year - 1).
- * For single-year daily files with linear interpolation, a leap-year Dec 31
- * (day_of_year 366) is clamped to the final record when the file has only 365.
+ * For single-year daily files the day-of-year is normalised against the file's
+ * record count so a record keeps meaning the same calendar day in both leap and
+ * non-leap simulation years: a 365-record file maps Feb 29 onto the Feb 28
+ * record and shifts subsequent dates back one, and a 366-record file skips its
+ * Feb 29 record in non-leap years.
  *
  * Hourly and weekly cadences select discrete profile records (hour-of-day,
  * day-of-week) and always use nearest-neighbour. Monthly and daily cadences
@@ -310,6 +313,23 @@ RecordBracket bracket_from_cadence(const std::string& cadence, const std::string
             abs_day = dt.day_of_year - 1;  // 0-364 or 0-365 for single-year / climatology files
         }
 
+        const int nrec = (file_nt > 0) ? file_nt : 365;
+
+        // Reconcile the simulation calendar with a fixed-length climatology so
+        // that a record keeps meaning the same calendar day either side of the
+        // leap day. Day-of-year 60 is Feb 29 in a leap year and Mar 1 otherwise.
+        //   365-record file, leap sim year  -> Feb 29 reuses the Feb 28 record
+        //                                      and later dates shift back one.
+        //   366-record file, non-leap year  -> later dates skip the Feb 29 record.
+        if (!multi_year && dt.day_of_year >= 60) {
+            const bool leap = tick::Gregorian_Calendar::is_leap_year(dt.year);
+            if (nrec == 365 && leap) {
+                abs_day -= 1;
+            } else if (nrec == 366 && !leap) {
+                abs_day += 1;
+            }
+        }
+
         if (!linear) {
             br.i0 = br.i1 = clamp_idx(abs_day);
             br.valid = true;
@@ -317,14 +337,6 @@ RecordBracket bracket_from_cadence(const std::string& cadence, const std::string
         }
 
         const double frac = day_fraction(dt);
-        const int nrec = (file_nt > 0) ? file_nt : 365;
-
-        // A single-year (climatology) file has no 366th record; in a leap year
-        // Dec 31 gives abs_day == nrec, which would wrap to record 0. Clamp it to
-        // the final record so linear matches the nearest-neighbour branch.
-        if (!multi_year && tick::Gregorian_Calendar::is_leap_year(dt.year) && abs_day >= nrec) {
-            abs_day = nrec - 1;
-        }
 
         // Caveat: for multi-year files the modulo wrap makes the first/last
         // records interpolate against the opposite file end; the axis-based

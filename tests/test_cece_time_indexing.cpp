@@ -12,6 +12,7 @@
 #include <gtest/gtest.h>
 
 #include <cstdio>
+#include <string>
 #include <tick/tick.hpp>
 #include <vector>
 
@@ -116,41 +117,94 @@ TEST(CeceCadenceIndexing, DailyCadenceLinear) {
     EXPECT_NEAR(br_eve.weight, 0.25, 1e-9);
 }
 
+TEST(CeceCadenceIndexing, DailyCadenceLeapYearNormalization) {
+    using namespace cece::detail;
+
+    // A 365-record daily climatology has no leap-day record, so every date
+    // after Feb 28 of a leap simulation year must shift back one to keep
+    // pointing at its own calendar day.
+
+    // Feb 28 is unaffected either way (day_of_year 59 -> record 58).
+    EXPECT_EQ(bracket_from_cadence("daily", "nearest", parse_sim_datetime("2024-02-28T00:00:00"), 365).i0, 58);
+    EXPECT_EQ(bracket_from_cadence("daily", "nearest", parse_sim_datetime("2026-02-28T00:00:00"), 365).i0, 58);
+
+    // Policy: Feb 29 reuses the Feb 28 record rather than consuming Mar 1's.
+    EXPECT_EQ(bracket_from_cadence("daily", "nearest", parse_sim_datetime("2024-02-29T00:00:00"), 365).i0, 58);
+
+    // Dates after the leap day line up with the same record as in a non-leap
+    // year. Without normalisation the leap year is one record ahead all the way
+    // to December.
+    for (const char* mmdd : {"03-01", "07-04", "10-15", "12-31"}) {
+        const std::string leap = std::string("2024-") + mmdd + "T00:00:00";
+        const std::string plain = std::string("2026-") + mmdd + "T00:00:00";
+        const RecordBracket br_leap = bracket_from_cadence("daily", "nearest", parse_sim_datetime(leap), 365);
+        const RecordBracket br_plain = bracket_from_cadence("daily", "nearest", parse_sim_datetime(plain), 365);
+        ASSERT_TRUE(br_leap.valid) << leap;
+        ASSERT_TRUE(br_plain.valid) << plain;
+        EXPECT_EQ(br_leap.i0, br_plain.i0) << mmdd;
+    }
+
+    // Mar 1 is record 59 in both years (Jan 0-30, Feb 31-58, Mar 1 -> 59).
+    EXPECT_EQ(bracket_from_cadence("daily", "nearest", parse_sim_datetime("2024-03-01T00:00:00"), 365).i0, 59);
+
+    // The normalisation happens before the nearest/linear split, so the linear
+    // path agrees on the record it interpolates from.
+    const RecordBracket lin = bracket_from_cadence("daily", "linear", parse_sim_datetime("2024-03-01T12:00:00"), 365);
+    ASSERT_TRUE(lin.valid);
+    EXPECT_EQ(lin.i0, 59);
+    EXPECT_EQ(lin.i1, 60);
+    EXPECT_NEAR(lin.weight, 0.0, 1e-9);
+}
+
+TEST(CeceCadenceIndexing, DailyCadenceLeapAwareClimatologyInNonLeapYear) {
+    using namespace cece::detail;
+
+    // The mirror case: a 366-record climatology carries a Feb 29 record that a
+    // non-leap simulation year has to skip.
+    EXPECT_EQ(bracket_from_cadence("daily", "nearest", parse_sim_datetime("2026-02-28T00:00:00"), 366).i0, 58);
+    EXPECT_EQ(bracket_from_cadence("daily", "nearest", parse_sim_datetime("2026-03-01T00:00:00"), 366).i0, 60);
+    EXPECT_EQ(bracket_from_cadence("daily", "nearest", parse_sim_datetime("2026-12-31T00:00:00"), 366).i0, 365);
+
+    // A leap year uses the same file with no shift at all.
+    EXPECT_EQ(bracket_from_cadence("daily", "nearest", parse_sim_datetime("2024-02-29T00:00:00"), 366).i0, 59);
+    EXPECT_EQ(bracket_from_cadence("daily", "nearest", parse_sim_datetime("2024-03-01T00:00:00"), 366).i0, 60);
+    EXPECT_EQ(bracket_from_cadence("daily", "nearest", parse_sim_datetime("2024-12-31T00:00:00"), 366).i0, 365);
+}
+
 TEST(CeceCadenceIndexing, DailyCadenceLinearLeapYearOverflow) {
     using namespace cece::detail;
 
     // A 365-record daily climatology used during a leap simulation year.
-    // Dec 31 2024 has day_of_year = 366 -> abs_day = 365 == file_nt. Without the
-    // leap-overflow clamp this wrapped to record 0 (Jan 1) in the linear branch,
-    // disagreeing with the nearest branch (which clamps to the final record).
+    // Dec 31 2024 has day_of_year = 366; the leap normalisation brings it back
+    // to the final record instead of overflowing past the end of the file.
     SimDateTime dt_noon = parse_sim_datetime("2024-12-31T12:00:00");
     EXPECT_EQ(dt_noon.day_of_year, 366);
 
-    // Nearest clamps to the final record (364) of the 365-record file.
+    // Nearest resolves to the final record (364) of the 365-record file.
     RecordBracket br_near = bracket_from_cadence("daily", "nearest", dt_noon, 365);
     EXPECT_TRUE(br_near.valid);
     EXPECT_EQ(br_near.i0, 364);
     EXPECT_EQ(br_near.i1, 364);
 
-    // Linear clamps the overflow to the final record, then applies the mid-day
-    // convention. At noon (frac = 0.5) the weight is 0 -> pure record 364, with
-    // the cyclic upper bracket wrapping to record 0 (Jan 1).
+    // Linear normalises the same way, then applies the mid-day convention. At
+    // noon (frac = 0.5) the weight is 0 -> pure record 364, with the cyclic
+    // upper bracket wrapping to record 0 (Jan 1).
     RecordBracket br_lin = bracket_from_cadence("daily", "linear", dt_noon, 365);
     EXPECT_TRUE(br_lin.valid);
     EXPECT_EQ(br_lin.i0, 364);
     EXPECT_EQ(br_lin.i1, 0);
     EXPECT_NEAR(br_lin.weight, 0.0, 1e-9);
 
-    // A 366-record (leap-aware) climatology has a record for the leap day, so no
-    // clamp is needed: abs_day = 365 maps directly to record 365.
+    // A 366-record (leap-aware) climatology has a record for the leap day, so a
+    // leap year needs no shift: abs_day = 365 maps directly to record 365.
     RecordBracket br_366 = bracket_from_cadence("daily", "linear", dt_noon, 366);
     EXPECT_TRUE(br_366.valid);
     EXPECT_EQ(br_366.i0, 365);
     EXPECT_EQ(br_366.i1, 0);  // cyclic wrap to Jan 1
     EXPECT_NEAR(br_366.weight, 0.0, 1e-9);
 
-    // Non-leap years are unaffected: Dec 31 2026 -> day_of_year 365 -> abs_day
-    // 364, no clamp, cyclic wrap to Jan 1 at noon.
+    // Non-leap years against a 365-record file need no shift either: Dec 31
+    // 2026 -> day_of_year 365 -> abs_day 364, cyclic wrap to Jan 1 at noon.
     SimDateTime dt_nonleap = parse_sim_datetime("2026-12-31T12:00:00");
     EXPECT_EQ(dt_nonleap.day_of_year, 365);
     RecordBracket br_nonleap = bracket_from_cadence("daily", "linear", dt_nonleap, 365);
