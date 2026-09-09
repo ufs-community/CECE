@@ -309,16 +309,18 @@ int main(int argc, char* argv[]) {
                                     for (int r = 0; r < lon_shape.rank; ++r) {
                                         total_len *= static_cast<int>(lon_shape.extents[r]);
                                     }
-                                    bool is_float = (view_size == static_cast<size_t>(total_len) * 4);
-                                    const float* float_data = static_cast<const float*>(view_data);
-                                    const double* double_data = static_cast<const double*>(view_data);
-                                    file_lon_coords.resize(total_len);
-                                    for (int i = 0; i < total_len; ++i) {
-                                        double val = is_float ? static_cast<double>(float_data[i]) : double_data[i];
-                                        if (is_radian) {
-                                            val = radians_to_degrees(val);
+                                    amio_dtype_t dtype = AMIO_DTYPE_F64;
+                                    std::vector<double> widened;
+                                    if (amio_view_dtype(lon_view, &dtype) == AMIO_OK &&
+                                        cece::detail::widen_amio_elements(view_data, dtype, static_cast<std::size_t>(total_len), 1.0, 0.0, widened)) {
+                                        file_lon_coords.resize(total_len);
+                                        for (int i = 0; i < total_len; ++i) {
+                                            double val = widened[i];
+                                            if (is_radian) {
+                                                val = radians_to_degrees(val);
+                                            }
+                                            file_lon_coords[i] = wrap_longitude(val);
                                         }
-                                        file_lon_coords[i] = wrap_longitude(val);
                                     }
                                 }
                             }
@@ -349,16 +351,18 @@ int main(int argc, char* argv[]) {
                                     for (int r = 0; r < lat_shape.rank; ++r) {
                                         total_len *= static_cast<int>(lat_shape.extents[r]);
                                     }
-                                    bool is_float = (view_size == static_cast<size_t>(total_len) * 4);
-                                    const float* float_data = static_cast<const float*>(view_data);
-                                    const double* double_data = static_cast<const double*>(view_data);
-                                    file_lat_coords.resize(total_len);
-                                    for (int j = 0; j < total_len; ++j) {
-                                        double val = is_float ? static_cast<double>(float_data[j]) : double_data[j];
-                                        if (is_radian) {
-                                            val = radians_to_degrees(val);
+                                    amio_dtype_t dtype = AMIO_DTYPE_F64;
+                                    std::vector<double> widened;
+                                    if (amio_view_dtype(lat_view, &dtype) == AMIO_OK &&
+                                        cece::detail::widen_amio_elements(view_data, dtype, static_cast<std::size_t>(total_len), 1.0, 0.0, widened)) {
+                                        file_lat_coords.resize(total_len);
+                                        for (int j = 0; j < total_len; ++j) {
+                                            double val = widened[j];
+                                            if (is_radian) {
+                                                val = radians_to_degrees(val);
+                                            }
+                                            file_lat_coords[j] = val;
                                         }
-                                        file_lat_coords[j] = val;
                                     }
                                 }
                             }

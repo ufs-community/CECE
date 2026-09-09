@@ -888,4 +888,141 @@ TEST(CeceCadenceIndexing, DecodeRejectsIntegerAxisMisreadAsFloat) {
     EXPECT_EQ(ok.i0, 29);
 }
 
+// ============================================================================
+// Widening AMIO view payloads. The view's declared element type -- not its
+// byte size -- decides how the payload is read, and CF packing attributes are
+// applied on the way to double.
+// ============================================================================
+
+TEST(CeceViewWidening, DtypeSizes) {
+    using namespace cece::detail;
+
+    EXPECT_EQ(amio_dtype_size(AMIO_DTYPE_I8), 1u);
+    EXPECT_EQ(amio_dtype_size(AMIO_DTYPE_U8), 1u);
+    EXPECT_EQ(amio_dtype_size(AMIO_DTYPE_I16), 2u);
+    EXPECT_EQ(amio_dtype_size(AMIO_DTYPE_U16), 2u);
+    EXPECT_EQ(amio_dtype_size(AMIO_DTYPE_I32), 4u);
+    EXPECT_EQ(amio_dtype_size(AMIO_DTYPE_U32), 4u);
+    EXPECT_EQ(amio_dtype_size(AMIO_DTYPE_F32), 4u);
+    EXPECT_EQ(amio_dtype_size(AMIO_DTYPE_I64), 8u);
+    EXPECT_EQ(amio_dtype_size(AMIO_DTYPE_U64), 8u);
+    EXPECT_EQ(amio_dtype_size(AMIO_DTYPE_F64), 8u);
+
+    // An unknown tag is reported as unhandled rather than guessed.
+    EXPECT_EQ(amio_dtype_size(static_cast<amio_dtype_t>(999)), 0u);
+}
+
+TEST(CeceViewWidening, WidensEveryNumericType) {
+    using namespace cece::detail;
+
+    std::vector<double> out;
+
+    const float f32[] = {0.5f, -1.5f};
+    ASSERT_TRUE(widen_amio_elements(f32, AMIO_DTYPE_F32, 2, 1.0, 0.0, out));
+    EXPECT_EQ(out, (std::vector<double>{0.5, -1.5}));
+
+    const double f64[] = {0.25, -2.75};
+    ASSERT_TRUE(widen_amio_elements(f64, AMIO_DTYPE_F64, 2, 1.0, 0.0, out));
+    EXPECT_EQ(out, (std::vector<double>{0.25, -2.75}));
+
+    const std::int8_t i8[] = {-128, 127};
+    ASSERT_TRUE(widen_amio_elements(i8, AMIO_DTYPE_I8, 2, 1.0, 0.0, out));
+    EXPECT_EQ(out, (std::vector<double>{-128.0, 127.0}));
+
+    const std::int16_t i16[] = {-32768, 32767};
+    ASSERT_TRUE(widen_amio_elements(i16, AMIO_DTYPE_I16, 2, 1.0, 0.0, out));
+    EXPECT_EQ(out, (std::vector<double>{-32768.0, 32767.0}));
+
+    const std::int32_t i32[] = {0, 6, 12, 18};
+    ASSERT_TRUE(widen_amio_elements(i32, AMIO_DTYPE_I32, 4, 1.0, 0.0, out));
+    EXPECT_EQ(out, (std::vector<double>{0.0, 6.0, 12.0, 18.0}));
+
+    const std::int64_t i64[] = {1, std::int64_t{1} << 40};
+    ASSERT_TRUE(widen_amio_elements(i64, AMIO_DTYPE_I64, 2, 1.0, 0.0, out));
+    EXPECT_EQ(out, (std::vector<double>{1.0, 1099511627776.0}));
+
+    const std::uint8_t u8[] = {0, 255};
+    ASSERT_TRUE(widen_amio_elements(u8, AMIO_DTYPE_U8, 2, 1.0, 0.0, out));
+    EXPECT_EQ(out, (std::vector<double>{0.0, 255.0}));
+
+    const std::uint16_t u16[] = {0, 65535};
+    ASSERT_TRUE(widen_amio_elements(u16, AMIO_DTYPE_U16, 2, 1.0, 0.0, out));
+    EXPECT_EQ(out, (std::vector<double>{0.0, 65535.0}));
+
+    const std::uint32_t u32[] = {0u, 4294967295u};
+    ASSERT_TRUE(widen_amio_elements(u32, AMIO_DTYPE_U32, 2, 1.0, 0.0, out));
+    EXPECT_EQ(out, (std::vector<double>{0.0, 4294967295.0}));
+
+    const std::uint64_t u64[] = {0u, std::uint64_t{1} << 40};
+    ASSERT_TRUE(widen_amio_elements(u64, AMIO_DTYPE_U64, 2, 1.0, 0.0, out));
+    EXPECT_EQ(out, (std::vector<double>{0.0, 1099511627776.0}));
+
+    // Unsupported tag and null payload are rejected, not guessed.
+    EXPECT_FALSE(widen_amio_elements(i32, static_cast<amio_dtype_t>(999), 4, 1.0, 0.0, out));
+    EXPECT_FALSE(widen_amio_elements(nullptr, AMIO_DTYPE_F64, 4, 1.0, 0.0, out));
+}
+
+TEST(CeceViewWidening, AppliesCfPacking) {
+    using namespace cece::detail;
+
+    // CF packing: unpacked = stored * scale_factor + add_offset. This is how
+    // int16-packed emission inventories store their values.
+    const std::int16_t packed[] = {0, 100, 1000, -500};
+    std::vector<double> out;
+    ASSERT_TRUE(widen_amio_elements(packed, AMIO_DTYPE_I16, 4, 0.001, 5.0, out));
+    EXPECT_NEAR(out[0], 5.0, 1e-12);
+    EXPECT_NEAR(out[1], 5.1, 1e-12);
+    EXPECT_NEAR(out[2], 6.0, 1e-12);
+    EXPECT_NEAR(out[3], 4.5, 1e-12);
+
+    // The identity transform leaves float data untouched.
+    const float raw[] = {1.5f, 2.5f};
+    ASSERT_TRUE(widen_amio_elements(raw, AMIO_DTYPE_F32, 2, 1.0, 0.0, out));
+    EXPECT_EQ(out, (std::vector<double>{1.5, 2.5}));
+}
+
+TEST(CeceCadenceIndexing, DecodeIntegerTimeAxis) {
+    using namespace cece::detail;
+
+    // int32 "hours since ..." is a common CF encoding. Widening through the
+    // view's dtype gives the same answer a float64 axis would.
+    std::vector<std::int32_t> stored(48);
+    for (int k = 0; k < 48; ++k) stored[k] = k;
+
+    std::vector<double> decoded;
+    ASSERT_TRUE(widen_amio_elements(stored.data(), AMIO_DTYPE_I32, stored.size(), 1.0, 0.0, decoded));
+    EXPECT_EQ(decoded, two_day_hourly_axis());
+
+    const SimDateTime dt = parse_sim_datetime("2000-01-02T05:00:00");
+    const RecordBracket br = bracket_from_coords(decoded, kTwoDayHourlyUnits, "gregorian", dt, "nearest");
+    ASSERT_TRUE(br.valid);
+    EXPECT_EQ(br.i0, 29);
+}
+
+TEST(CeceCadenceIndexing, DecodePackedTimeAxis) {
+    using namespace cece::detail;
+
+    // Stored as int16 half-hour counts with scale_factor 0.5, so record k is
+    // hour k on a "hours since" axis.
+    std::vector<std::int16_t> stored(48);
+    for (int k = 0; k < 48; ++k) stored[k] = static_cast<std::int16_t>(2 * k);
+
+    std::vector<double> decoded;
+    ASSERT_TRUE(widen_amio_elements(stored.data(), AMIO_DTYPE_I16, stored.size(), 0.5, 0.0, decoded));
+    EXPECT_NEAR(decoded[29], 29.0, 1e-12);
+
+    const SimDateTime dt = parse_sim_datetime("2000-01-02T05:00:00");
+    const RecordBracket br = bracket_from_coords(decoded, kTwoDayHourlyUnits, "gregorian", dt, "nearest");
+    ASSERT_TRUE(br.valid);
+    EXPECT_EQ(br.i0, 29);
+
+    // Ignoring the packing would put every record at twice its true hour, so
+    // the same stamp would land on record 14 instead.
+    std::vector<double> unscaled;
+    ASSERT_TRUE(widen_amio_elements(stored.data(), AMIO_DTYPE_I16, stored.size(), 1.0, 0.0, unscaled));
+    const RecordBracket wrong = bracket_from_coords(unscaled, kTwoDayHourlyUnits, "gregorian", dt, "nearest");
+    ASSERT_TRUE(wrong.valid);
+    EXPECT_EQ(wrong.i0, 14);
+}
+
 }  // namespace cece

@@ -71,6 +71,85 @@ static double day_fraction(const SimDateTime& dt) {
     return (dt.hour + dt.minute / 60.0 + dt.second / 3600.0) / 24.0;
 }
 
+std::size_t amio_dtype_size(amio_dtype_t dtype) {
+    switch (dtype) {
+        case AMIO_DTYPE_I8:
+        case AMIO_DTYPE_U8:
+            return 1;
+        case AMIO_DTYPE_I16:
+        case AMIO_DTYPE_U16:
+            return 2;
+        case AMIO_DTYPE_F32:
+        case AMIO_DTYPE_I32:
+        case AMIO_DTYPE_U32:
+            return 4;
+        case AMIO_DTYPE_F64:
+        case AMIO_DTYPE_I64:
+        case AMIO_DTYPE_U64:
+            return 8;
+        default:
+            return 0;
+    }
+}
+
+bool widen_amio_elements(const void* data, amio_dtype_t dtype, std::size_t n, double scale, double offset, std::vector<double>& out) {
+    if (data == nullptr) return false;
+    out.resize(n);
+
+    auto convert = [&](auto tag) {
+        using T = decltype(tag);
+        const T* p = static_cast<const T*>(data);
+        for (std::size_t k = 0; k < n; ++k) {
+            out[k] = static_cast<double>(p[k]) * scale + offset;
+        }
+    };
+
+    switch (dtype) {
+        case AMIO_DTYPE_F32:
+            convert(float{});
+            return true;
+        case AMIO_DTYPE_F64:
+            convert(double{});
+            return true;
+        case AMIO_DTYPE_I8:
+            convert(std::int8_t{});
+            return true;
+        case AMIO_DTYPE_I16:
+            convert(std::int16_t{});
+            return true;
+        case AMIO_DTYPE_I32:
+            convert(std::int32_t{});
+            return true;
+        case AMIO_DTYPE_I64:
+            convert(std::int64_t{});
+            return true;
+        case AMIO_DTYPE_U8:
+            convert(std::uint8_t{});
+            return true;
+        case AMIO_DTYPE_U16:
+            convert(std::uint16_t{});
+            return true;
+        case AMIO_DTYPE_U32:
+            convert(std::uint32_t{});
+            return true;
+        case AMIO_DTYPE_U64:
+            convert(std::uint64_t{});
+            return true;
+        default:
+            out.clear();
+            return false;
+    }
+}
+
+/// CF packing attributes; absent attributes leave the identity transform.
+static void read_cf_packing(amio_dataset_handle dataset, const std::string& var, double& scale, double& offset) {
+    scale = 1.0;
+    offset = 0.0;
+    double value = 0.0;
+    if (amio_get_var_attribute_double(dataset, var.c_str(), "scale_factor", &value) == AMIO_OK) scale = value;
+    if (amio_get_var_attribute_double(dataset, var.c_str(), "add_offset", &value) == AMIO_OK) offset = value;
+}
+
 // Calendar selection for the CF "calendar" attribute value.
 enum class CalKind { Gregorian, NoLeap, Cal360 };
 
@@ -642,27 +721,39 @@ RecordBracket bracket_from_dataset(amio_dataset_handle dataset, const std::strin
         return br;
     }
 
-    // Convert to double array (time values in file units).
-    std::vector<double> time_vals(n_vals);
-    const bool is_float = (view_size == n_vals * 4);
-    if (is_float) {
-        const float* p = static_cast<const float*>(view_data);
-        for (size_t k = 0; k < n_vals; ++k) time_vals[k] = static_cast<double>(p[k]);
-    } else {
-        const double* p = static_cast<const double*>(view_data);
-        for (size_t k = 0; k < n_vals; ++k) time_vals[k] = p[k];
+    // Convert to double using the view's own element type. CF time coordinates
+    // are commonly stored as integers, so the payload size alone cannot say how
+    // to read them.
+    amio_dtype_t dtype = AMIO_DTYPE_F64;
+    if (amio_view_dtype(view, &dtype) != AMIO_OK) {
+        amio_release_view(view);
+        return br;
     }
+    const std::size_t elem_size = amio_dtype_size(dtype);
+    if (elem_size == 0 || view_size < n_vals * elem_size) {
+        amio_release_view(view);
+        return br;
+    }
+
+    // A packed time axis is unusual but legal.
+    double time_scale = 1.0;
+    double time_offset = 0.0;
+    read_cf_packing(dataset, tvar, time_scale, time_offset);
+
+    std::vector<double> time_vals;
+    const bool widened = widen_amio_elements(view_data, dtype, n_vals, time_scale, time_offset, time_vals);
     amio_release_view(view);
+    if (!widened) return br;
 
     // Decode the axis using the file's own CF metadata. Missing/undecodable
     // units make bracket_from_coords return an invalid bracket, so
     // the caller degrades to the arithmetic bracket_from_cadence.
     auto read_text_attr = [&](const char* name) -> std::string {
         size_t len = 0;
-        if (amio_get_var_attribute(dataset, tvar.c_str(), name, nullptr, 0, &len) != AMIO_OK) return std::string();
+        if (amio_get_var_attribute_text(dataset, tvar.c_str(), name, nullptr, 0, &len) != AMIO_OK) return std::string();
         std::string buf(len + 1, '\0');
         size_t got = 0;
-        if (amio_get_var_attribute(dataset, tvar.c_str(), name, buf.data(), buf.size(), &got) != AMIO_OK) return std::string();
+        if (amio_get_var_attribute_text(dataset, tvar.c_str(), name, buf.data(), buf.size(), &got) != AMIO_OK) return std::string();
         buf.resize(got);
         return buf;
     };
@@ -1151,6 +1242,11 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                 int file_nx = 0;
                 int file_ny = 0;
 
+                // CF packing for this variable, read once per step.
+                double var_scale = 1.0;
+                double var_offset = 0.0;
+                read_cf_packing(read_dataset, input_var_name, var_scale, var_offset);
+
                 // Read a single record into a double buffer on the source grid. The
                 // AMIO netCDF backend detects the CF time dimension and returns a
                 // single [lat, lon] slab, so each read stays at ny*nx elements even
@@ -1181,31 +1277,46 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                         amio_release_view(slab_view);
                         return false;
                     }
+                    amio_dtype_t slab_dtype = AMIO_DTYPE_F32;
+                    if (amio_view_dtype(slab_view, &slab_dtype) != AMIO_OK) {
+                        failure_detail = "amio_view_dtype failed";
+                        amio_release_view(slab_view);
+                        return false;
+                    }
+                    const std::size_t elem_size = amio_dtype_size(slab_dtype);
+                    if (elem_size == 0) {
+                        failure_detail = "unsupported element type on variable '" + input_var_name + "'";
+                        amio_release_view(slab_view);
+                        return false;
+                    }
                     const int fny = static_cast<int>(read_shape.extents[read_shape.rank - 2]);
                     const int fnx = static_cast<int>(read_shape.extents[read_shape.rank - 1]);
                     size_t total_elements = 1;
                     for (int d = 0; d < read_shape.rank; ++d) {
                         total_elements *= read_shape.extents[d];
                     }
-                    const bool is_float = (view_size == total_elements * 4);
                     const size_t spatial = static_cast<size_t>(fny) * fnx;
                     // Normally the view holds a single slab (offset 0). Stay robust to
                     // a backend that returns the whole variable.
                     const size_t slices_in_view = (spatial > 0) ? (total_elements / spatial) : 1;
                     const size_t off = (slices_in_view > 1) ? static_cast<size_t>(t_idx) * spatial : 0;
-                    out.resize(spatial);
-                    if (is_float) {
-                        const float* p = static_cast<const float*>(view_data) + off;
-                        for (size_t k = 0; k < spatial; ++k) out[k] = static_cast<double>(p[k]);
-                    } else {
-                        const double* p = static_cast<const double*>(view_data) + off;
-                        for (size_t k = 0; k < spatial; ++k) out[k] = p[k];
+                    if (view_size < (off + spatial) * elem_size) {
+                        failure_detail = "view payload smaller than the requested slab";
+                        amio_release_view(slab_view);
+                        return false;
+                    }
+                    const void* slab_start = static_cast<const char*>(view_data) + off * elem_size;
+                    if (!widen_amio_elements(slab_start, slab_dtype, spatial, var_scale, var_offset, out)) {
+                        failure_detail = "could not widen element type of variable '" + input_var_name + "'";
+                        amio_release_view(slab_view);
+                        return false;
                     }
                     file_nx = fnx;
                     file_ny = fny;
                     amio_release_view(slab_view);
                     CECE_LOG_DEBUG("[DRIVER] Read slab t=" + std::to_string(t_idx) + " for '" + input_var_name + "': " + std::to_string(fny) + "x" +
-                                   std::to_string(fnx) + " (" + std::to_string(spatial) + " elements, " + (is_float ? "float32" : "float64") + ")");
+                                   std::to_string(fnx) + " (" + std::to_string(spatial) + " elements, " + std::to_string(elem_size) + "-byte dtype " +
+                                   std::to_string(static_cast<int>(slab_dtype)) + ")");
                     return true;
                 };
 

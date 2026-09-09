@@ -46,6 +46,15 @@ struct CFTimeUnits {
 
 CFTimeUnits parse_cf_units(const std::string& units);
 
+/// Size in bytes of one @p dtype element, or 0 if CECE cannot handle it.
+std::size_t amio_dtype_size(amio_dtype_t dtype);
+
+/// Widen @p n elements of an AMIO view payload to double, applying CF packing
+/// (`value = stored * scale + offset`). Handles every AMIO numeric type, so an
+/// integer-typed coordinate or packed variable decodes correctly rather than
+/// being reinterpreted. Returns false for a dtype CECE does not handle.
+bool widen_amio_elements(const void* data, amio_dtype_t dtype, std::size_t n, double scale, double offset, std::vector<double>& out);
+
 SimDateTime parse_sim_datetime(const std::string& iso8601);
 
 RecordBracket bracket_from_cadence(const std::string& cadence, const std::string& tintalgo, const SimDateTime& dt, int file_nt, int yearFirst = 0,

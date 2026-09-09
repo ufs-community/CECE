@@ -679,6 +679,17 @@ message pointing at the three ways out: set `time_units`, use `cadence: daily`/`
 or use `cadence: stepwise` to ignore time altogether. Files with a single record always
 resolve to record 0.
 
+#### Numeric types and packed data
+
+Variables and coordinates are read using the element type the file declares, so
+integer-valued time axes, coordinates, and data (all common in CF files) decode
+correctly. CF packing attributes are applied on read wherever they are present:
+
+$$\text{value} = \text{stored} \times \text{scale\_factor} + \text{add\_offset}$$
+
+This needs no configuration — `scale_factor` and `add_offset` are picked up from the
+file, and a variable without them is read unchanged.
+
 #### Interpolation
 
 `tintalgo: nearest` (the default) reads the single closest record. `tintalgo: linear`
