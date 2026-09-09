@@ -68,6 +68,29 @@ All examples include these configurable sections:
 
 Grid configuration must be nested under `driver:` to take effect.
 
+### Data Stream Time Handling (`cece_data.streams[].cadence`)
+
+Each stream chooses how its file records are matched to the simulation date-time:
+
+- **`series`** (the default, used when `cadence` is omitted) — decode the file's CF
+  time axis and bracket the simulation time against the actual record times.
+  `cadence: daily` and `cadence: monthly` behave the same way but add a calendar
+  arithmetic fallback when the axis cannot be decoded.
+- **`hourly` / `weekly`** — climatological profiles indexed directly by hour-of-day
+  (24 records) or day-of-week (7 records, 0 = Monday). The time axis is not read, and
+  `taxmode`, `yearAlign`, `yearFirst`, `yearLast`, and `tintalgo` do not apply.
+  See the CAMS-TEMPO streams in `cece_config_ex1.yaml` and `cece_config_ex7.yaml`.
+- **`stepwise`** — ignore time entirely and walk the record index one step at a time.
+
+`taxmode` (`cycle`, `extend`, `limit`) controls what happens when the simulation time
+falls outside the file's coverage, and `yearAlign` names the simulation year that lines
+up with the file's first year. See
+[docs/configuration.md](../docs/configuration.md#record-selection-cadence) for the
+complete reference.
+
+> Omitting `cadence` used to mean step-index cycling; it now means `series`. Set
+> `cadence: stepwise` to restore the old behavior.
+
 ## Usage
 
 **Simplified Command (Recommended):**

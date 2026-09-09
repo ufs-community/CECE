@@ -227,6 +227,12 @@ class DataStreamConfig:
         ``"consf"``, ``"nn"``, ``"redist"``, or ``"passthrough"``
         (skip regridding when data is already on the model grid).
         Default is ``"default"``.
+    cadence : str, optional
+        How file records are addressed. One of ``"series"`` (decode the
+        file's time axis), ``"daily"``/``"monthly"`` (series with a calendar
+        arithmetic fallback), ``"hourly"``/``"weekly"`` (climatological
+        profile indexed by hour-of-day / day-of-week), or ``"stepwise"``
+        (ignore time and walk the record index). Default is ``"series"``.
 
     Examples
     --------
@@ -239,6 +245,7 @@ class DataStreamConfig:
     taxmode: str = "cycle"
     tintalgo: str = "linear"
     mapalgo: str = "default"
+    cadence: str = "series"
 
     def validate(self) -> None:
         """
@@ -248,7 +255,8 @@ class DataStreamConfig:
         ------
         ValueError
             If ``name`` is empty, ``file_paths`` is empty, ``taxmode`` is
-            not recognized, or ``tintalgo`` is not recognized.
+            not recognized, ``tintalgo`` is not recognized, or ``cadence``
+            is not recognized.
         """
         if not self.name:
             raise ValueError("stream name cannot be empty")
@@ -258,6 +266,15 @@ class DataStreamConfig:
             raise ValueError(f"Invalid taxmode: {self.taxmode}")
         if self.tintalgo not in ["linear", "constant"]:
             raise ValueError(f"Invalid tintalgo: {self.tintalgo}")
+        if self.cadence not in [
+            "series",
+            "daily",
+            "monthly",
+            "hourly",
+            "weekly",
+            "stepwise",
+        ]:
+            raise ValueError(f"Invalid cadence: {self.cadence}")
 
 
 class ValidationResult:
@@ -422,6 +439,7 @@ class CeceConfig:
         taxmode: str = "cycle",
         tintalgo: str = "linear",
         mapalgo: str = "default",
+        cadence: str = "series",
     ) -> None:
         """
         Configure a TIDE data stream.
@@ -443,6 +461,10 @@ class CeceConfig:
             ``"consf"``, ``"nn"``, ``"redist"``, or ``"passthrough"``
             (skip regridding when data is already on the model grid).
             Default is ``"default"``.
+        cadence : str, optional
+            How file records are addressed: ``"series"``, ``"daily"``,
+            ``"monthly"``, ``"hourly"``, ``"weekly"``, or ``"stepwise"``.
+            Default is ``"series"``.
 
         Raises
         ------
@@ -450,7 +472,7 @@ class CeceConfig:
             If parameters fail validation.
         """
         stream = DataStreamConfig(
-            name, file_paths, variables, taxmode, tintalgo, mapalgo
+            name, file_paths, variables, taxmode, tintalgo, mapalgo, cadence
         )
         stream.validate()
         self._cece_data["streams"].append(stream)
@@ -602,6 +624,7 @@ class CeceConfig:
                         "taxmode": s.taxmode,
                         "tintalgo": s.tintalgo,
                         "mapalgo": s.mapalgo,
+                        "cadence": s.cadence,
                     }
                     for s in self._cece_data.get("streams", [])
                 ]
@@ -720,6 +743,7 @@ class CeceConfig:
                 taxmode=stream_data.get("taxmode", "cycle"),
                 tintalgo=stream_data.get("tintalgo", "linear"),
                 mapalgo=stream_data.get("mapalgo", "default"),
+                cadence=stream_data.get("cadence", "series"),
             )
 
         # Temporal cycles

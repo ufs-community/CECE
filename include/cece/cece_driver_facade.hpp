@@ -66,7 +66,7 @@ struct StreamVarConfig {
     std::string input_file_path = "";
     std::string input_var_name = "";
     std::string mapalgo = "consd";
-    std::string cadence;  // "" means legacy step-index cycling
+    std::string cadence;  // "" means series (time-aware default)
     int yearFirst = 0;    // 0 = unknown/climatology
     int yearLast = 0;
     int yearAlign = 0;

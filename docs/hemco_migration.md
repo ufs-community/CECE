@@ -321,6 +321,7 @@ cece_data:
   streams:
     - name: hourly_sf
       file: data/hourly.nc
+      cadence: hourly     # 24-record hour-of-day profile, not a time series
     - name: mask_europe
       file: data/europe.nc
 ```

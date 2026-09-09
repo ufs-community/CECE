@@ -33,9 +33,8 @@ cece_data:
   streams:
     - name: "MACCITY_CO"
       file: "/work/data/MACCity_4x5.nc"
-      yearFirst: 2000
-      yearLast: 2010
-      yearAlign: 2020
+      cadence: "monthly"
+      yearAlign: 2020 # Simulation year 2020 aligns to the first file year
       taxmode: "cycle"
       tintalgo: "linear"
       mapalgo: "consd"
@@ -44,8 +43,7 @@ cece_data:
           model: "MACCITY_CO"
     - name: "MACCITY_NO"
       file: "/work/data/MACCity_anthro_NOx_2000-2010_16080.nc"
-      yearFirst: 2000
-      yearLast: 2010
+      cadence: "monthly"
       yearAlign: 2020
       taxmode: "cycle"
       tintalgo: "linear"

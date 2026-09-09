@@ -57,8 +57,8 @@ SimDateTime parse_sim_datetime(const std::string& iso8601) {
         dt.day_of_year = tick::Gregorian_Calendar::day_of_year(tdt);
         dt.valid = true;
     } catch (const std::exception&) {
-        // Malformed timestamp: use explicit default values so callers fall back
-        // to legacy step-index cycling.
+        // Malformed timestamp: use explicit default values so callers report an
+        // invalid bracket rather than silently picking a record.
         dt = SimDateTime{};
     }
     return dt;
@@ -780,10 +780,8 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
     // A. Advance the pipeline step
     dagr_->advance_step();
     Kokkos::fence();
-    // Parse the current simulation datetime once. Streams that declare a
-    // temporal cadence (hourly/weekly/monthly) use these calendar fields to
-    // select the correct file record; streams without a cadence keep the
-    // legacy step-index cycling behaviour and ignore this.
+    // Parse the current simulation datetime once. Every cadence except
+    // 'stepwise' uses these calendar fields to select the correct file record.
     const SimDateTime sim_dt = parse_sim_datetime(time_iso8601);
 
     // B. Push CeceIO's newly computed emission views into CECE's data ingestor
