@@ -19,21 +19,31 @@
  *
  * Why a test-local manifest builder is faithful and sufficient:
  *   BuildManifestContent (see src/driver/cece_driver_facade.cpp) emits a fixed
- *   YAML block whose ONLY variable inputs are four StreamConfig fields:
- *     - input_file_path            (rendered as `path:`)
- *     - data_model                 (the data_model argument; HandleKey passes
- *                                    cfg.data_model, so we build with that)
- *     - amio_staging_buffer_count  (rendered as `buffer_count:`)
- *     - amio_worker_threads        (rendered as `threads:`)
- *   Every other line is a compile-time constant (backend, buffer_capacity_bytes,
- *   prefetch depth/read_timeout_s, staging_timeout_ms). Therefore two manifests
- *   are byte-identical iff those four fields are pairwise equal.
- *   HandleKey concatenates exactly those same four fields
- *   (input_file_path | data_model | to_string(worker_threads) |
- *    to_string(staging_buffer_count)), so manifest-equality reduces to equality
- *   of the four fields, which is precisely what HandleKey encodes. The tests
- *   below assert the iff against a faithful test-local manifest builder over
- *   those four fields, tying each direction back to BuildManifestContent.
+ *   YAML block whose ONLY variable inputs are six StreamConfig fields:
+ *     - input_file_path                     (rendered as `path:`)
+ *     - data_model                          (the data_model argument; HandleKey
+ *                                            passes cfg.data_model, so we build
+ *                                            with that)
+ *     - amio_staging_buffer_count           (rendered as `buffer_count:`)
+ *     - amio_staging_buffer_capacity_bytes  (rendered as `buffer_capacity_bytes:`)
+ *     - amio_worker_threads                 (rendered as `threads:`)
+ *     - amio_prefetch_depth                 (rendered as `depth:`)
+ *   The capacity/depth fields became variable inputs with the AMIO
+ *   lazy-allocation staging-pool fix (they are now configurable), so every
+ *   other line is a compile-time constant (backend, read_timeout_s,
+ *   staging_timeout_ms). Therefore two manifests are byte-identical iff those
+ *   six fields are pairwise equal. HandleKey concatenates exactly those same
+ *   six fields (input_file_path | data_model | to_string(worker_threads) |
+ *    to_string(staging_buffer_count) | to_string(staging_buffer_capacity_bytes)
+ *    | to_string(prefetch_depth)), so manifest-equality reduces to equality of
+ *   the six fields, which is precisely what HandleKey encodes. The tests below
+ *   assert the iff against a faithful test-local manifest builder over those
+ *   six fields, tying each direction back to BuildManifestContent. The
+ *   manifest's max_buffer_count line is DERIVED from amio_staging_buffer_count
+ *   (min(4096, max(count, count*8))) rather than being an independent field,
+ *   so it adds no new key dimension: HandleKey still tracks exactly the six
+ *   independent fields BuildManifestContent consumes, and the derived ceiling
+ *   is identical whenever the six are (TestManifest reproduces the formula).
  *
  * **Validates: Requirements 11.1, 11.2, 11.3**
  */
@@ -42,6 +52,7 @@
 #include <rapidcheck.h>
 #include <rapidcheck/gtest.h>
 
+#include <algorithm>
 #include <sstream>
 #include <string>
 
@@ -66,26 +77,31 @@ struct HandleKeyTestAccess {
 namespace {
 
 // Faithful test-local reproduction of the manifest bytes that
-// BuildManifestContent(cfg, cfg.data_model) would emit. Only the four
+// BuildManifestContent(cfg, cfg.data_model) would emit. Only the six
 // manifest-affecting fields vary; every other line is the exact constant
-// BuildManifestContent uses (backend, buffer_capacity_bytes, prefetch
-// depth/read_timeout_s, staging_timeout_ms). This lets the property compare
-// manifests without constructing an orchestrator (BuildManifestContent is a
-// non-static const member that only reads cfg fields + a data_model string).
-// data_model is fixed to cfg.data_model because that is exactly what HandleKey
-// feeds BuildManifestContent.
+// BuildManifestContent uses (backend, read_timeout_s, staging_timeout_ms).
+// This lets the property compare manifests without constructing an orchestrator
+// (BuildManifestContent is a non-static const member that only reads cfg fields
+// + a data_model string). data_model is fixed to cfg.data_model because that is
+// exactly what HandleKey feeds BuildManifestContent.
 std::string TestManifest(const StreamConfig& cfg) {
+    // The staging ceiling is derived in BuildManifestContent as
+    // min(4096, max(count, count*8)); reproduce it faithfully so the
+    // manifest bytes match production exactly.
+    const long long ceiling_raw = static_cast<long long>(cfg.amio_staging_buffer_count) * 8;
+    const long long ceiling = std::min<long long>(4096, std::max<long long>(cfg.amio_staging_buffer_count, ceiling_raw));
     std::ostringstream m_content;
     m_content << "backend: netcdf4\n"
               << "path: " << cfg.input_file_path << "\n"
               << "data_model: " << cfg.data_model << "\n"
               << "staging_pool:\n"
               << "  buffer_count: " << cfg.amio_staging_buffer_count << "\n"
-              << "  buffer_capacity_bytes: 268435456\n"
+              << "  buffer_capacity_bytes: " << cfg.amio_staging_buffer_capacity_bytes << "\n"
+              << "  max_buffer_count: " << ceiling << "\n"
               << "worker_pool:\n"
               << "  threads: " << cfg.amio_worker_threads << "\n"
               << "prefetch:\n"
-              << "  depth: 2\n"
+              << "  depth: " << cfg.amio_prefetch_depth << "\n"
               << "  read_timeout_s: 120\n"
               << "staging_timeout_ms: 30000\n";
     return m_content.str();
@@ -101,7 +117,8 @@ std::string TestManifest(const StreamConfig& cfg) {
 rc::Gen<StreamConfig> genStreamConfig() {
     return rc::gen::apply(
         [](std::string input_file_path, std::string input_var_name, std::string mapalgo, std::string cadence, std::string tintalgo,
-           std::string data_model, bool data_model_explicit, int amio_worker_threads, int amio_staging_buffer_count) {
+           std::string data_model, bool data_model_explicit, int amio_worker_threads, int amio_staging_buffer_count,
+           int amio_staging_buffer_capacity_bytes, int amio_prefetch_depth) {
             StreamConfig cfg;
             cfg.input_file_path = std::move(input_file_path);
             cfg.input_var_name = std::move(input_var_name);
@@ -112,11 +129,14 @@ rc::Gen<StreamConfig> genStreamConfig() {
             cfg.data_model_explicit = data_model_explicit;
             cfg.amio_worker_threads = amio_worker_threads;
             cfg.amio_staging_buffer_count = amio_staging_buffer_count;
+            cfg.amio_staging_buffer_capacity_bytes = amio_staging_buffer_capacity_bytes;
+            cfg.amio_prefetch_depth = amio_prefetch_depth;
             return cfg;
         },
         rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(),
         rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(),
-        rc::gen::arbitrary<bool>(), rc::gen::inRange(1, 65), rc::gen::inRange(1, 65));
+        rc::gen::arbitrary<bool>(), rc::gen::inRange(1, 65), rc::gen::inRange(1, 65), rc::gen::inRange(1, 65),
+        rc::gen::inRange(1, 65));
 }
 
 }  // namespace
@@ -135,13 +155,15 @@ RC_GTEST_PROP(HandleKeyProperty, Property4_ManifestEqualImpliesKeyEqual, ()) {
     const StreamConfig a = *genStreamConfig();
 
     StreamConfig b = *genStreamConfig();
-    // Copy exactly the four manifest-affecting fields; everything else (the
+    // Copy exactly the six manifest-affecting fields; everything else (the
     // non-key noise: mapalgo/cadence/tintalgo/input_var_name/data_model_explicit)
     // stays arbitrary.
     b.input_file_path = a.input_file_path;
     b.data_model = a.data_model;
     b.amio_worker_threads = a.amio_worker_threads;
     b.amio_staging_buffer_count = a.amio_staging_buffer_count;
+    b.amio_staging_buffer_capacity_bytes = a.amio_staging_buffer_capacity_bytes;
+    b.amio_prefetch_depth = a.amio_prefetch_depth;
 
     // Precondition sanity: the manifests really are byte-identical here.
     RC_ASSERT(TestManifest(a) == TestManifest(b));
@@ -176,13 +198,15 @@ RC_GTEST_PROP(HandleKeyProperty, Property4_KeyEqualImpliesManifestEqual, ()) {
     RC_PRE(a.input_file_path.find('|') == std::string::npos);
     RC_PRE(a.data_model.find('|') == std::string::npos);
 
-    // Build a genuine key collision: force b's four manifest-affecting fields to
+    // Build a genuine key collision: force b's six manifest-affecting fields to
     // match a's; every non-key field stays arbitrary.
     StreamConfig b = *genStreamConfig();
     b.input_file_path = a.input_file_path;
     b.data_model = a.data_model;
     b.amio_worker_threads = a.amio_worker_threads;
     b.amio_staging_buffer_count = a.amio_staging_buffer_count;
+    b.amio_staging_buffer_capacity_bytes = a.amio_staging_buffer_capacity_bytes;
+    b.amio_prefetch_depth = a.amio_prefetch_depth;
 
     // The antecedent of the reverse direction now holds by construction.
     RC_ASSERT(HandleKeyTestAccess::Key(a) == HandleKeyTestAccess::Key(b));

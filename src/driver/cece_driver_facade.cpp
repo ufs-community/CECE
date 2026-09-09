@@ -308,6 +308,8 @@ void CeceDriverOrchestrator::ResolveStreamConfigsFromFile(const std::string& con
     // and the same message.
     int amio_worker_threads = 1;
     int amio_staging_buffer_count = 8;
+    int amio_staging_buffer_capacity_bytes = 33554432;  // 32 MiB per buffer
+    int amio_prefetch_depth = 2;
     if (config["driver"]) {
         if (config["driver"]["gridspec_file"]) {
             out_gridspec_file = config["driver"]["gridspec_file"].as<std::string>();
@@ -322,6 +324,18 @@ void CeceDriverOrchestrator::ResolveStreamConfigsFromFile(const std::string& con
             amio_staging_buffer_count = config["driver"]["amio_staging_buffer_count"].as<int>();
             if (amio_staging_buffer_count < 1) {
                 throw std::invalid_argument("driver.amio_staging_buffer_count must be >= 1; got " + std::to_string(amio_staging_buffer_count) + ".");
+            }
+        }
+        if (config["driver"]["amio_staging_buffer_capacity_bytes"]) {
+            amio_staging_buffer_capacity_bytes = config["driver"]["amio_staging_buffer_capacity_bytes"].as<int>();
+            if (amio_staging_buffer_capacity_bytes < 1) {
+                throw std::invalid_argument("driver.amio_staging_buffer_capacity_bytes must be >= 1; got " + std::to_string(amio_staging_buffer_capacity_bytes) + ".");
+            }
+        }
+        if (config["driver"]["amio_prefetch_depth"]) {
+            amio_prefetch_depth = config["driver"]["amio_prefetch_depth"].as<int>();
+            if (amio_prefetch_depth < 1) {
+                throw std::invalid_argument("driver.amio_prefetch_depth must be >= 1; got " + std::to_string(amio_prefetch_depth) + ".");
             }
         }
     }
@@ -382,6 +396,8 @@ void CeceDriverOrchestrator::ResolveStreamConfigsFromFile(const std::string& con
             }
             cfg.amio_worker_threads = amio_worker_threads;
             cfg.amio_staging_buffer_count = amio_staging_buffer_count;
+            cfg.amio_staging_buffer_capacity_bytes = amio_staging_buffer_capacity_bytes;
+            cfg.amio_prefetch_depth = amio_prefetch_depth;
 
             // Match the legacy inline parse's first-match-wins behavior: it
             // stopped at the first stream/variable matching the model name.
@@ -396,16 +412,29 @@ std::string CeceDriverOrchestrator::BuildManifestContent(const StreamConfig& cfg
     // block), just to a string instead of a file, so the resulting manifest is
     // byte-for-byte identical (Req 2.3, 2.5, 2.6).
     std::ostringstream m_content;
+    // The staging pool auto-grows its slot count on demand (AMIO lazy
+    // allocation + grow-to-required + grow-on-exhaustion), so buffer_count is
+    // a provisioning hint, not a hard limit a run can crash on.  We emit an
+    // explicit ceiling = 8x the requested count (clamped to [count, 4096]) so
+    // a genuine view-leak / stuck-IO is still bounded: past the ceiling the
+    // pool reverts to the staging-timeout tripwire (AMIO_ERR_STAGING_BACKPRESSURE)
+    // instead of growing without limit.  The ceiling is a pure function of
+    // amio_staging_buffer_count (already part of HandleKey), so the
+    // key <-> manifest-identity invariant is preserved.
+    const long long ceiling_raw = static_cast<long long>(cfg.amio_staging_buffer_count) * 8;
+    const int staging_ceiling =
+        static_cast<int>(std::min<long long>(4096, std::max<long long>(cfg.amio_staging_buffer_count, ceiling_raw)));
     m_content << "backend: netcdf4\n"
               << "path: " << cfg.input_file_path << "\n"
               << "data_model: " << data_model << "\n"
               << "staging_pool:\n"
               << "  buffer_count: " << cfg.amio_staging_buffer_count << "\n"
-              << "  buffer_capacity_bytes: 268435456\n"
+              << "  buffer_capacity_bytes: " << cfg.amio_staging_buffer_capacity_bytes << "\n"
+              << "  max_buffer_count: " << staging_ceiling << "\n"
               << "worker_pool:\n"
               << "  threads: " << cfg.amio_worker_threads << "\n"
               << "prefetch:\n"
-              << "  depth: 2\n"
+              << "  depth: " << cfg.amio_prefetch_depth << "\n"
               << "  read_timeout_s: 120\n"
               << "staging_timeout_ms: 30000\n";
     return m_content.str();
@@ -440,7 +469,8 @@ std::string CeceDriverOrchestrator::HandleKey(const StreamConfig& cfg) {
     // File/manifest-scoped identity key: it concatenates exactly the
     // StreamConfig fields that BuildManifestContent consumes
     // (input_file_path, data_model, amio_worker_threads,
-    // amio_staging_buffer_count), so two configs share a HandleKey iff they
+    // amio_staging_buffer_count, amio_staging_buffer_capacity_bytes,
+    // amio_prefetch_depth), so two configs share a HandleKey iff they
     // would produce a byte-identical AMIO manifest. data_model here is the
     // resolved pre-open value (identical across ranks). The "|" separator
     // cannot appear in NetCDF file paths, so the concatenation is unambiguous
@@ -448,7 +478,9 @@ std::string CeceDriverOrchestrator::HandleKey(const StreamConfig& cfg) {
     // handle set and one file record count even when mapalgo differs.
     return cfg.input_file_path + "|" + cfg.data_model + "|" +
            std::to_string(cfg.amio_worker_threads) + "|" +
-           std::to_string(cfg.amio_staging_buffer_count);
+           std::to_string(cfg.amio_staging_buffer_count) + "|" +
+           std::to_string(cfg.amio_staging_buffer_capacity_bytes) + "|" +
+           std::to_string(cfg.amio_prefetch_depth);
 }
 
 bool CeceDriverOrchestrator::bracket_equal(const RecordBracket& a, const RecordBracket& b) {

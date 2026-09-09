@@ -5,19 +5,22 @@
  * Feature: regrid-per-stream, Property 5: StreamKey extends HandleKey
  * (shared-handle, split-plan)
  *
- * Amendment 1 introduces a coarser HandleKey (input_file_path + data_model +
- * worker_threads + staging_buffer_count) for the file-scoped caches
+ * Amendment 1 introduces a coarser HandleKey for the file-scoped caches
  * (amio_handles_, file_nt_cache_), while StreamKey is redefined as
  * HandleKey(cfg) + "|" + cfg.mapalgo and keys the regrid plan cache. The
  * consequence is that two variables reading the same file/manifest share one
  * open handle set and one record count even when they request a different
- * mapalgo, but they still get separate regrid plans.
+ * mapalgo, but they still get separate regrid plans. HandleKey tracks every
+ * field BuildManifestContent consumes (with the AMIO lazy-allocation fix that
+ * is input_file_path + data_model + worker_threads + staging_buffer_count +
+ * staging_buffer_capacity_bytes + prefetch_depth).
  *
  * Properties tested:
  *   1. Vary ONLY mapalgo: HandleKey is shared (-> shared handle + record count)
  *      but StreamKey differs (-> separate plans).
  *   2. Vary a manifest field (input_file_path / data_model /
- *      amio_worker_threads / amio_staging_buffer_count) so the four-field
+ *      amio_worker_threads / amio_staging_buffer_count /
+ *      amio_staging_buffer_capacity_bytes / amio_prefetch_depth) so the
  *      manifest tuple differs: BOTH HandleKey and StreamKey differ.
  *   3. Structural: StreamKey(cfg) == HandleKey(cfg) + "|" + cfg.mapalgo.
  *
@@ -61,13 +64,15 @@ namespace {
 // Generate an arbitrary StreamConfig. Every field is populated with arbitrary
 // (but constrained-to-sane) values so the tests exercise the key derivation
 // against noise in the non-key fields. The manifest-relevant fields
-// (input_file_path, data_model, amio_worker_threads, amio_staging_buffer_count)
-// and mapalgo are drawn from a broad space to stress the concatenation
-// formulas. Mirrors the generator in tests/test_stream_key_properties.cpp.
+// (input_file_path, data_model, amio_worker_threads, amio_staging_buffer_count,
+// amio_staging_buffer_capacity_bytes, amio_prefetch_depth) and mapalgo are
+// drawn from a broad space to stress the concatenation formulas. Mirrors the
+// generator in tests/test_stream_key_properties.cpp.
 rc::Gen<StreamConfig> genStreamConfig() {
     return rc::gen::apply(
         [](std::string input_file_path, std::string input_var_name, std::string mapalgo, std::string cadence, std::string tintalgo,
-           std::string data_model, bool data_model_explicit, int amio_worker_threads, int amio_staging_buffer_count) {
+           std::string data_model, bool data_model_explicit, int amio_worker_threads, int amio_staging_buffer_count,
+           int amio_staging_buffer_capacity_bytes, int amio_prefetch_depth) {
             StreamConfig cfg;
             cfg.input_file_path = std::move(input_file_path);
             cfg.input_var_name = std::move(input_var_name);
@@ -78,11 +83,14 @@ rc::Gen<StreamConfig> genStreamConfig() {
             cfg.data_model_explicit = data_model_explicit;
             cfg.amio_worker_threads = amio_worker_threads;
             cfg.amio_staging_buffer_count = amio_staging_buffer_count;
+            cfg.amio_staging_buffer_capacity_bytes = amio_staging_buffer_capacity_bytes;
+            cfg.amio_prefetch_depth = amio_prefetch_depth;
             return cfg;
         },
         rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(),
         rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(),
-        rc::gen::arbitrary<bool>(), rc::gen::inRange(1, 65), rc::gen::inRange(1, 65));
+        rc::gen::arbitrary<bool>(), rc::gen::inRange(1, 65), rc::gen::inRange(1, 65), rc::gen::inRange(1, 65),
+        rc::gen::inRange(1, 65));
 }
 
 }  // namespace
@@ -126,10 +134,11 @@ RC_GTEST_PROP(StreamKeyExtends, Property5_MapalgoOnlySharesHandleSplitsStream, (
 // (shared-handle, split-plan)
 // **Validates: Requirements 11.6**
 //
-// When the four-field manifest tuple (input_file_path, data_model,
-// amio_worker_threads, amio_staging_buffer_count) differs, both the coarser
-// HandleKey and the finer StreamKey differ. The "|" separator ban on the
-// string manifest fields keeps both concatenations unambiguous.
+// When the manifest tuple (input_file_path, data_model, amio_worker_threads,
+// amio_staging_buffer_count, amio_staging_buffer_capacity_bytes,
+// amio_prefetch_depth) differs, both the coarser HandleKey and the finer
+// StreamKey differ. The "|" separator ban on the string manifest fields keeps
+// both concatenations unambiguous.
 // ============================================================================
 RC_GTEST_PROP(StreamKeyExtends, Property5_ManifestFieldDiffersBothKeysDiffer, ()) {
     StreamConfig a = *genStreamConfig();
@@ -140,7 +149,7 @@ RC_GTEST_PROP(StreamKeyExtends, Property5_ManifestFieldDiffersBothKeysDiffer, ()
     b.mapalgo = a.mapalgo;
 
     // Ban the reserved separator from the string manifest fields and mapalgo so
-    // the four-field HandleKey concatenation is injective on the tuple.
+    // the six-field HandleKey concatenation is injective on the tuple.
     RC_PRE(a.input_file_path.find('|') == std::string::npos);
     RC_PRE(a.data_model.find('|') == std::string::npos);
     RC_PRE(a.mapalgo.find('|') == std::string::npos);
@@ -150,7 +159,9 @@ RC_GTEST_PROP(StreamKeyExtends, Property5_ManifestFieldDiffersBothKeysDiffer, ()
     // Only meaningful when the manifest tuple actually differs in some field.
     RC_PRE(a.input_file_path != b.input_file_path || a.data_model != b.data_model ||
            a.amio_worker_threads != b.amio_worker_threads ||
-           a.amio_staging_buffer_count != b.amio_staging_buffer_count);
+           a.amio_staging_buffer_count != b.amio_staging_buffer_count ||
+           a.amio_staging_buffer_capacity_bytes != b.amio_staging_buffer_capacity_bytes ||
+           a.amio_prefetch_depth != b.amio_prefetch_depth);
 
     // Manifest tuple differs -> HandleKey differs (separate handle + count).
     RC_ASSERT(StreamKeyExtendsAccess::HKey(a) != StreamKeyExtendsAccess::HKey(b));

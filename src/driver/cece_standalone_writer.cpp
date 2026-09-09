@@ -239,7 +239,7 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
                    << "data_model: enhanced\n"
                    << "staging_pool:\n"
                    << "  buffer_count: 1\n"
-                   << "  buffer_capacity_bytes: 104857600\n"
+                   << "  buffer_capacity_bytes: 33554432\n"
                    << "worker_pool:\n"
                    << "  threads: 1\n"
                    << "prefetch:\n"

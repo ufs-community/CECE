@@ -8,22 +8,29 @@
  * cfg.input_file_path + "|" + cfg.mapalgo. It now returns
  * HandleKey(cfg) + "|" + cfg.mapalgo, where
  * HandleKey(cfg) = input_file_path + "|" + data_model + "|" + worker_threads +
- * "|" + staging_buffer_count. So the full StreamKey concatenation is:
+ * "|" + staging_buffer_count + "|" + staging_buffer_capacity_bytes + "|" +
+ * prefetch_depth (the capacity/depth fields were added with the AMIO
+ * lazy-allocation staging-pool fix so the key tracks every field
+ * BuildManifestContent consumes). So the full StreamKey concatenation is:
  *   input_file_path + "|" + data_model + "|" +
  *   to_string(amio_worker_threads) + "|" +
- *   to_string(amio_staging_buffer_count) + "|" + mapalgo.
+ *   to_string(amio_staging_buffer_count) + "|" +
+ *   to_string(amio_staging_buffer_capacity_bytes) + "|" +
+ *   to_string(amio_prefetch_depth) + "|" + mapalgo.
  * StreamKey remains the Stream_Identity_Key that keys the regrid_plans_ cache;
  * under Amendment 1 amio_handles_ / file_nt_cache_ are keyed by the coarser
  * HandleKey instead. These tests are updated to the extended-key contract.
  *
  * Properties tested (under the extended key):
  *   - Concatenation: StreamKey(cfg) == input_file_path + "|" + data_model +
- *     "|" + worker_threads + "|" + staging_buffer_count + "|" + mapalgo.
- *   - Determinism / equality: two configs matching on the full five-field key
+ *     "|" + worker_threads + "|" + staging_buffer_count + "|" +
+ *     staging_buffer_capacity_bytes + "|" + prefetch_depth + "|" + mapalgo.
+ *   - Determinism / equality: two configs matching on the full seven-field key
  *     tuple {input_file_path, data_model, amio_worker_threads,
- *     amio_staging_buffer_count, mapalgo} produce the same key regardless of
+ *     amio_staging_buffer_count, amio_staging_buffer_capacity_bytes,
+ *     amio_prefetch_depth, mapalgo} produce the same key regardless of
  *     any other field.
- *   - Injectivity on the key tuple: two configs differing in any of those five
+ *   - Injectivity on the key tuple: two configs differing in any of those seven
  *     fields produce different keys.
  *
  * **Validates: Requirements 1.1, 1.2, 1.3, 8.1, 9.4** (under the Amendment 1
@@ -63,7 +70,8 @@ namespace {
 rc::Gen<StreamConfig> genStreamConfig() {
     return rc::gen::apply(
         [](std::string input_file_path, std::string input_var_name, std::string mapalgo, std::string cadence, std::string tintalgo,
-           std::string data_model, bool data_model_explicit, int amio_worker_threads, int amio_staging_buffer_count) {
+           std::string data_model, bool data_model_explicit, int amio_worker_threads, int amio_staging_buffer_count,
+           int amio_staging_buffer_capacity_bytes, int amio_prefetch_depth) {
             StreamConfig cfg;
             cfg.input_file_path = std::move(input_file_path);
             cfg.input_var_name = std::move(input_var_name);
@@ -74,11 +82,14 @@ rc::Gen<StreamConfig> genStreamConfig() {
             cfg.data_model_explicit = data_model_explicit;
             cfg.amio_worker_threads = amio_worker_threads;
             cfg.amio_staging_buffer_count = amio_staging_buffer_count;
+            cfg.amio_staging_buffer_capacity_bytes = amio_staging_buffer_capacity_bytes;
+            cfg.amio_prefetch_depth = amio_prefetch_depth;
             return cfg;
         },
         rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(),
         rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(),
-        rc::gen::arbitrary<bool>(), rc::gen::inRange(1, 65), rc::gen::inRange(1, 65));
+        rc::gen::arbitrary<bool>(), rc::gen::inRange(1, 65), rc::gen::inRange(1, 65), rc::gen::inRange(1, 65),
+        rc::gen::inRange(1, 65));
 }
 
 }  // namespace
@@ -88,17 +99,21 @@ rc::Gen<StreamConfig> genStreamConfig() {
 // Feature: regrid-per-stream, Property 1: StreamKey concatenation correctness
 // **Validates: Requirements 1.1, 9.4**
 //
-// For any StreamConfig, StreamKey(cfg) equals exactly the five-field
+// For any StreamConfig, StreamKey(cfg) equals exactly the seven-field
 // concatenation HandleKey(cfg) + "|" + cfg.mapalgo, i.e.
 //   input_file_path + "|" + data_model + "|" + to_string(worker_threads) +
-//   "|" + to_string(staging_buffer_count) + "|" + mapalgo.
+//   "|" + to_string(staging_buffer_count) + "|"
+//   + to_string(staging_buffer_capacity_bytes) + "|"
+//   + to_string(prefetch_depth) + "|" + mapalgo.
 // The full concatenation is inlined here to keep this file self-contained.
 // ============================================================================
 RC_GTEST_PROP(StreamKeyProperty, Property1_Concatenation, ()) {
     const StreamConfig cfg = *genStreamConfig();
     const std::string expected = cfg.input_file_path + "|" + cfg.data_model + "|" +
                                  std::to_string(cfg.amio_worker_threads) + "|" +
-                                 std::to_string(cfg.amio_staging_buffer_count) + "|" + cfg.mapalgo;
+                                 std::to_string(cfg.amio_staging_buffer_count) + "|" +
+                                 std::to_string(cfg.amio_staging_buffer_capacity_bytes) + "|" +
+                                 std::to_string(cfg.amio_prefetch_depth) + "|" + cfg.mapalgo;
     RC_ASSERT(StreamKeyTestAccess::Key(cfg) == expected);
 }
 
@@ -107,9 +122,10 @@ RC_GTEST_PROP(StreamKeyProperty, Property1_Concatenation, ()) {
 // Feature: regrid-per-stream, Property 1: StreamKey concatenation correctness
 // **Validates: Requirements 1.2, 8.1**
 //
-// Under the Amendment 1 extended key, StreamKey depends on the five-field
+// Under the Amendment 1 extended key, StreamKey depends on the seven-field
 // tuple {input_file_path, data_model, amio_worker_threads,
-// amio_staging_buffer_count, mapalgo}. Two configs matching on ALL five
+// amio_staging_buffer_count, amio_staging_buffer_capacity_bytes,
+// amio_prefetch_depth, mapalgo}. Two configs matching on ALL seven
 // produce the same key, regardless of any other field.
 // ============================================================================
 RC_GTEST_PROP(StreamKeyProperty, Property1_EqualWhenPathAndAlgoMatch, ()) {
@@ -121,6 +137,8 @@ RC_GTEST_PROP(StreamKeyProperty, Property1_EqualWhenPathAndAlgoMatch, ()) {
     b.data_model = a.data_model;
     b.amio_worker_threads = a.amio_worker_threads;
     b.amio_staging_buffer_count = a.amio_staging_buffer_count;
+    b.amio_staging_buffer_capacity_bytes = a.amio_staging_buffer_capacity_bytes;
+    b.amio_prefetch_depth = a.amio_prefetch_depth;
     b.mapalgo = a.mapalgo;
 
     RC_ASSERT(StreamKeyTestAccess::Key(a) == StreamKeyTestAccess::Key(b));
@@ -144,9 +162,10 @@ RC_GTEST_PROP(StreamKeyProperty, Property1_DeterministicOnIdenticalConfig, ()) {
 // Feature: regrid-per-stream, Property 1: StreamKey concatenation correctness
 // **Validates: Requirements 1.3, 9.4**
 //
-// Under the Amendment 1 extended key, two configs differing in ANY of the five
+// Under the Amendment 1 extended key, two configs differing in ANY of the seven
 // key-tuple fields {input_file_path, data_model, amio_worker_threads,
-// amio_staging_buffer_count, mapalgo} produce different keys. Because "|"
+// amio_staging_buffer_count, amio_staging_buffer_capacity_bytes,
+// amio_prefetch_depth, mapalgo} produce different keys. Because "|"
 // cannot appear in the string key fields here (we guard with RC_PRE that none
 // of input_file_path, data_model, or mapalgo contains "|"; the integer fields
 // stringify without "|"), the concatenation is unambiguous and the mapping
@@ -165,10 +184,12 @@ RC_GTEST_PROP(StreamKeyProperty, Property1_UnequalWhenPathOrAlgoDiffers, ()) {
     RC_PRE(b.data_model.find('|') == std::string::npos);
     RC_PRE(b.mapalgo.find('|') == std::string::npos);
 
-    // Only meaningful when the five-field key tuple actually differs.
+    // Only meaningful when the seven-field key tuple actually differs.
     RC_PRE(a.input_file_path != b.input_file_path || a.data_model != b.data_model ||
            a.amio_worker_threads != b.amio_worker_threads ||
-           a.amio_staging_buffer_count != b.amio_staging_buffer_count || a.mapalgo != b.mapalgo);
+           a.amio_staging_buffer_count != b.amio_staging_buffer_count ||
+           a.amio_staging_buffer_capacity_bytes != b.amio_staging_buffer_capacity_bytes ||
+           a.amio_prefetch_depth != b.amio_prefetch_depth || a.mapalgo != b.mapalgo);
 
     RC_ASSERT(StreamKeyTestAccess::Key(a) != StreamKeyTestAccess::Key(b));
 }

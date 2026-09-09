@@ -57,6 +57,8 @@ struct StreamConfig {
     bool data_model_explicit = false;   ///< true => open with only data_model
     int amio_worker_threads = 1;        ///< driver-level, validated >= 1
     int amio_staging_buffer_count = 8;  ///< driver-level, validated >= 1
+    int amio_staging_buffer_capacity_bytes = 33554432;  ///< driver-level, validated >= 1 (32 MiB)
+    int amio_prefetch_depth = 2;                        ///< driver-level, validated >= 1
 };
 
 /**

@@ -265,7 +265,7 @@ int main(int argc, char* argv[]) {
                               << "data_model: enhanced\n"
                               << "staging_pool:\n"
                               << "  buffer_count: 16\n"
-                              << "  buffer_capacity_bytes: 104857600\n"
+                              << "  buffer_capacity_bytes: 33554432\n"
                               << "worker_pool:\n"
                               << "  threads: 1\n"
                               << "prefetch:\n"

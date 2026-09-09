@@ -514,6 +514,20 @@ CeceConfig ParseConfig(const std::string& filename) {
             }
             config.driver_config.amio_staging_buffer_count = count;
         }
+        if (driver_node["amio_staging_buffer_capacity_bytes"]) {
+            int cap = driver_node["amio_staging_buffer_capacity_bytes"].as<int>();
+            if (cap < 1) {
+                throw std::invalid_argument("driver.amio_staging_buffer_capacity_bytes must be >= 1; got " + std::to_string(cap) + ".");
+            }
+            config.driver_config.amio_staging_buffer_capacity_bytes = cap;
+        }
+        if (driver_node["amio_prefetch_depth"]) {
+            int depth = driver_node["amio_prefetch_depth"].as<int>();
+            if (depth < 1) {
+                throw std::invalid_argument("driver.amio_prefetch_depth must be >= 1; got " + std::to_string(depth) + ".");
+            }
+            config.driver_config.amio_prefetch_depth = depth;
+        }
     }
 
     // The output field collection is fully initialized here: seed the time
