@@ -244,7 +244,9 @@ TEST_F(CeceComputeTest, HierarchyAndCategory) {
         for (int j = 0; j < ny; ++j) {
             left_mask(i, j, 0) = (i < nx / 2) ? 1.0 : 0.0;
             bottom_mask(i, j, 0) = (j < ny / 2) ? 1.0 : 0.0;
-            very_bottom_mask(i, j, 0) = (j < 1) ? 1.0 : 0.0;
+            // If j is 0, check if i is less than 2. If true -> 1.0, else -> 0.8.
+            // If j is not 0, the value is 0.0.
+            very_bottom_mask(i, j, 0) = (j == 0) ? ((i < 2) ? 1.0 : 0.8) : 0.0;
         }
     }
 
@@ -378,8 +380,13 @@ TEST_F(CeceComputeTest, HierarchyAndCategory) {
 
             // --- Cat 3 Evaluation ---
             if (j < 1) {
-                // Bottom row: masked high-hierarchy replace applies.
-                expected += 5;
+                if (i < 2) {
+                    // Left half of bottom row: mask is 1.0, so replace applies fully.
+                    expected += 5.0;  // No additional contribution from base since it's replaced.
+                } else {
+                    // Right half of bottom row: mask is 0.8, so replace applies partially.
+                    expected += 5.0 * 0.8 + 1.0 * (1.0 - 0.8);  // Base contribution scaled by (1 - mask)
+                }
             } else {
                 // top 3 rows: mask doesn't apply, fall back to base layer
                 expected += 1;
@@ -390,7 +397,7 @@ TEST_F(CeceComputeTest, HierarchyAndCategory) {
             //      1251.0, 1251.0, 1261.0, 1261.0
             //      1251.0, 1251.0, 1261.0, 1261.0
             //      5251.0, 5251.0, 5261.0, 5261.0
-            //      5255.0, 5255.0, 5265.0, 5265.0
+            //      5255.0, 5255.0, 5264.2, 5264.2
 
             // Verify final summed output of both categories
             EXPECT_DOUBLE_EQ(result(i, j, 0), expected);
