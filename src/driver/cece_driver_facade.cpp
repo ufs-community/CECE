@@ -611,6 +611,12 @@ CeceDriverOrchestrator::CeceDriverOrchestrator(const std::string& config_file, i
     // (Req 7.1-7.3). Absent for single-rank / uninitialized MPI / MPI_COMM_NULL.
     RefreshHaloCommunicator();
 
+    // Compute this rank's destination latitude band once from ny_ and comm_c_.
+    // This is the single source of truth for the band geometry, replacing the
+    // inline band_start j0/j1 computations. Recomputed wherever comm_c_ is
+    // reassigned (Req 1.1, 1.2, 1.5).
+    band_ = BandDecomposition::compute(ny_, comm_c_);
+
     // Parse the YAML once and resolve the StreamConfig for every stream
     // variable, plus driver-level values and gridspec_file_ (Req 1.1). This
     // preserves the previous constructor's driver-block validation (a < 1
@@ -646,7 +652,7 @@ void CeceDriverOrchestrator::RefreshHaloCommunicator() {
 
     // Preserve the existing single-rank short-circuit: build a HALO Communicator
     // ONLY on the distributed branch (MPI initialized, valid comm, size > 1).
-    // This mirrors RegridToDestinationBuffer's `distributed` predicate and
+    // This mirrors RegridToBandBuffer's `distributed` predicate and
     // guarantees we never wrap MPI_COMM_NULL or an uninitialized environment
     // (Req 7.2). halo::Environment::initialize() is assumed already run in
     // main.cpp after MPI init, so we do not re-init here.
@@ -729,33 +735,34 @@ CeceDriverOrchestrator::~CeceDriverOrchestrator() {
     cece_io_.reset();
 }
 
-bool CeceDriverOrchestrator::RegridToDestinationBuffer(const std::string& var_name, const io::RegridPlan& plan,
-                                                       const std::vector<double>& source_record, int file_nx, int file_ny, int field_nlev,
-                                                       std::vector<double>& out_buffer, std::string& failure_detail) {
+bool CeceDriverOrchestrator::RegridToBandBuffer(const std::string& var_name, const io::RegridPlan& plan,
+                                                const std::vector<double>& source_record, int file_nx, int file_ny, int field_nlev,
+                                                std::vector<double>& out_buffer, std::string& failure_detail) {
     (void)var_name;
     const std::vector<double>& source = source_record;
     int mpi_initialized = 0;
     MPI_Initialized(&mpi_initialized);
     int mpi_size = 1;
-    int mpi_rank = 0;
     if (mpi_initialized && comm_c_ != MPI_COMM_NULL) {
         MPI_Comm_size(comm_c_, &mpi_size);
-        MPI_Comm_rank(comm_c_, &mpi_rank);
     }
     const bool distributed_regrid = mpi_initialized && mpi_size > 1 && comm_c_ != MPI_COMM_NULL;
-    const int band_base = ny_ / mpi_size;
-    const int band_rem = ny_ % mpi_size;
-    auto band_start = [&](int rank) { return rank * band_base + std::min(rank, band_rem); };
-    const int expected_j0 = band_start(mpi_rank);
-    const int expected_j1 = band_start(mpi_rank + 1);
+    // This rank's own band comes from the stored decomposition (single source
+    // of truth), preserving the identical values the inline band_start(mpi_rank)
+    // /band_start(mpi_rank + 1) produced (Req 1.1, 1.2, 1.5). The per-rank
+    // row_counts/row_displs the removed per-level MPI_Allgatherv used are no
+    // longer needed here — the Output_Gather (task 8) uses
+    // band_.row_counts/row_displs.
+    const int expected_j0 = band_.j0;
+    const int expected_j1 = band_.j1;
 
     // This must be the helper's first distributed gate. Every caller reaches
     // it before any rank-local return, so a bad source buffer or inconsistent
     // AMIO metadata cannot leave peer ranks waiting in the layer collectives.
     // This front half does NOT touch import_state or stream_view, so the
     // readiness check omits the cece_core_data_ptr / stream_view extent
-    // conditions the full AssembleReplicatedField applies; those are enforced
-    // by the write-back half (WriteDestinationBufferToImport).
+    // conditions the full AssembleBandField applies; those are enforced
+    // by the write-back half (WriteBandToImport).
     const bool positive_dimensions = file_nx > 0 && file_ny > 0 && field_nlev > 0 && nx_ > 0 && ny_ > 0;
     const size_t source_spatial = positive_dimensions ? static_cast<size_t>(file_nx) * file_ny : 0;
     const size_t expected_source_size = positive_dimensions ? static_cast<size_t>(field_nlev) * source_spatial : 0;
@@ -796,54 +803,35 @@ bool CeceDriverOrchestrator::RegridToDestinationBuffer(const std::string& var_na
         }
     }
 
-    const size_t target_spatial = static_cast<size_t>(nx_) * ny_;
-
-    // Per-rank latitude-band counts/displacements for the per-level
-    // MPI_Allgatherv assembly. These are rank-invariant (derived purely from
-    // ny_, nx_, and mpi_size), so every rank builds identical arrays and issues
-    // the same collectives in lock-step. Cheap to recompute each assembly.
-    std::vector<int> band_counts;
-    std::vector<int> band_displs;
-    if (distributed_regrid) {
-        band_counts.resize(mpi_size);
-        band_displs.resize(mpi_size);
-        for (int r = 0; r < mpi_size; ++r) {
-            const int rj0 = band_start(r);
-            const int rj1 = band_start(r + 1);
-            band_counts[r] = (rj1 - rj0) * nx_;
-            band_displs[r] = rj0 * nx_;
-        }
-    }
-
-    // Regridding is decomposed into rank-local latitude bands, but CECE's
-    // current downstream contract is replicated: stream_view,
-    // CeceImportState, the ingestor cache, physics, and output all consume
-    // nx_ x ny_ x levels fields on every rank. Assemble each layer globally
-    // before populating those views. Removing this collective requires a
-    // coordinated distributed-state/output redesign rather than a local
-    // driver change.
+    // Band decomposition rework (Req 3.1, 3.3, 3.4, 3.5): the per-level
+    // MPI_Allgatherv that re-replicated every rank's band into a global
+    // field_nlev * nx_ * ny_ buffer is REMOVED. apply_regrid_plan already emits
+    // exactly this rank's band slice (nx_ * ny_local), so we keep that slice as
+    // the final per-rank result. out_buffer becomes the band buffer of size
+    // field_nlev * nx_ * ny_local, laid out [level][jrel][i] with element
+    // (level, jrel, i) at level*(nx_*ny_local) + jrel*nx_ + i. Downstream
+    // (WriteBandToImport, task 3.3) transposes only [0, ny_local) rows and the
+    // Output_Gather (task 8) reassembles the global field at write time.
     //
-    // Assembly: regrid each level's rank-local band into a contiguous
-    // [level][band] send buffer, then issue one MPI_Allgatherv PER LEVEL that
-    // places element (level, jrel, i) at level*nx*ny + j*nx + i in
-    // full_destination. band_elems is the PER-LEVEL band element count
-    // (expected_j1 - expected_j0) * nx_, and send_buf holds
-    // field_nlev * band_elems doubles laid out so (level, jrel, i) lives at
-    // level*band_elems + jrel*nx_ + i. A single pre-gather readiness allreduce
-    // over local_ok keeps the collectives deadlock-free (Req 8.4).
+    // On the single-rank / no-MPI path ny_local == ny_, so the band buffer IS
+    // the global buffer: the outcome is unchanged from the former single-rank
+    // fast path (each level's band is placed contiguously at jrel 0..ny_local).
+    //
+    // band_elems is the per-level band element count nx_ * ny_local, where
+    // ny_local == band_.ny_local == expected_j1 - expected_j0.
     const size_t band_elems = static_cast<size_t>(expected_j1 - expected_j0) * nx_;
-    std::vector<double> full_destination(static_cast<size_t>(field_nlev) * target_spatial, 0.0);
-    std::vector<double> send_buf;
-    if (distributed_regrid) {
-        send_buf.assign(static_cast<size_t>(field_nlev) * band_elems, 0.0);
-    }
 
-    // Per-level regrid into the contiguous send buffer (distributed) or directly
-    // into full_destination (single-rank fast path, Decision A). Preserve
+    // band_buffer holds this rank's band for every level: field_nlev per-level
+    // band slices of band_elems doubles each, concatenated so (level, jrel, i)
+    // lives at level*band_elems + jrel*nx_ + i. This is precisely the former
+    // distributed send_buf layout, now promoted to the returned buffer.
+    std::vector<double> band_buffer(static_cast<size_t>(field_nlev) * band_elems, 0.0);
+
+    // Per-level regrid directly into the contiguous band buffer. Preserve
     // lock-step: a per-level regrid failure sets local_ok = false but does NOT
-    // early-return before the collective — a single pre-gather allreduce(MIN)
-    // over local_ok lets a failing rank still enter the per-level MPI_Allgatherv
-    // assembly (Req 8.4).
+    // early-return before the collective — the single pre-gather
+    // allreduce(MIN) over local_ok (retained below) lets a failing rank still
+    // enter the collective so no peer is stranded (Req 3.5, 8.4).
     std::vector<double> band_scratch;  // reused across levels
     bool local_ok = true;
     for (int level = 0; level < field_nlev; ++level) {
@@ -858,62 +846,34 @@ bool CeceDriverOrchestrator::RegridToDestinationBuffer(const std::string& var_na
             failure_detail = "regrid weight application threw an unknown exception";
         }
         const size_t expected_local_size = static_cast<size_t>(plan.j1 - plan.j0) * nx_;
-        const bool band_size_matches = !distributed_regrid || expected_local_size == band_elems;
+        const bool band_size_matches = expected_local_size == band_elems;
         const bool local_layer_ready = local_regrid_succeeded && band_scratch.size() == expected_local_size && band_size_matches;
         if (!local_layer_ready) {
             local_ok = false;
             continue;  // Do NOT early-return: preserve lock-step for the collective.
         }
 
-        if (distributed_regrid) {
-            // Copy this level's band into the contiguous [level][band] send
-            // buffer at offset level*band_elems (Req 2.1, 2.4).
-            std::copy(band_scratch.begin(), band_scratch.end(), send_buf.begin() + static_cast<size_t>(level) * band_elems);
-        } else {
-            // Single-rank fast path (Decision A, Req 1.4, 2.3): byte-identical to
-            // the former non-distributed std::copy — place the band directly into
-            // full_destination[level*nx*ny + plan.j0*nx ...].
-            double* destination_layer = full_destination.data() + static_cast<size_t>(level) * target_spatial;
-            std::copy(band_scratch.begin(), band_scratch.end(), destination_layer + static_cast<size_t>(plan.j0) * nx_);
-        }
+        // Copy this level's band into the contiguous [level][band] band buffer
+        // at offset level*band_elems (Req 3.1, 3.3). No global placement / no
+        // gather: the band slice is the final per-rank result.
+        std::copy(band_scratch.begin(), band_scratch.end(), band_buffer.begin() + static_cast<size_t>(level) * band_elems);
     }
 
     if (distributed_regrid) {
-        // Single pre-gather readiness reduction over local_ok (Req 8.4): every
-        // rank enters this collective, so a rank whose per-level regrid failed
-        // still participates and no peer is stranded. Keeps the fused-gate-era
-        // single readiness reduction (not one per level).
+        // Single pre-gather readiness reduction over local_ok, RETAINED from the
+        // former gather path (Req 3.4, 3.5, 8.4): every rank enters this
+        // collective, so a rank whose per-level regrid failed still participates
+        // and no peer is stranded. This is the sole collective the band regrid
+        // now issues — the per-level MPI_Allgatherv assembly is gone. All ranks
+        // still agree the band regrid succeeded before proceeding.
         const std::vector<int> ready_vec{local_ok ? 1 : 0};
         const std::vector<int> reduced = halo::allreduce<int>(*halo_comm_, ready_vec, MPI_MIN);
         if (reduced.empty() || reduced[0] != 1) {
             if (failure_detail.empty()) {
                 failure_detail = "rank-local regrid failed or produced an unexpected destination-band size";
             }
-            CECE_LOG_DEBUG("[DRIVER] rank-local regrid or replicated-field assembly failed!");
+            CECE_LOG_DEBUG("[DRIVER] rank-local band regrid failed!");
             return false;
-        }
-
-        // Per-level assembly: one MPI_Allgatherv PER LEVEL, each moving this
-        // rank's contiguous latitude band directly into
-        // full_destination[level*nx*ny + j*nx + i]. Benchmarking at the F360+
-        // (>=1440x720) x 64-128 level target showed this contiguous per-level
-        // loop is markedly faster than a single strided-datatype gather in the
-        // container's OpenMPI (the strided derived datatype forces element-wise
-        // pack/unpack that dominates cost and scales with nlev), so we assemble
-        // level by level with plain MPI_DOUBLE transfers. All ranks issue the
-        // same field_nlev collectives in lock-step (rank-invariant counts).
-        for (int level = 0; level < field_nlev; ++level) {
-            const double* level_send = send_buf.data() + static_cast<size_t>(level) * band_elems;
-            double* level_dst = full_destination.data() + static_cast<size_t>(level) * target_spatial;
-            const int rc = MPI_Allgatherv(level_send, static_cast<int>(band_elems), MPI_DOUBLE, level_dst,
-                                          band_counts.data(), band_displs.data(), MPI_DOUBLE, comm_c_);
-            if (rc != MPI_SUCCESS) {
-                if (failure_detail.empty()) {
-                    failure_detail = "replicated-field assembly MPI_Allgatherv failed (level " + std::to_string(level) + ")";
-                }
-                CECE_LOG_DEBUG("[DRIVER] rank-local regrid or replicated-field assembly failed!");
-                return false;
-            }
         }
     } else if (!local_ok) {
         // Single-rank path: no collective, but still honor the readiness result
@@ -921,48 +881,81 @@ bool CeceDriverOrchestrator::RegridToDestinationBuffer(const std::string& var_na
         if (failure_detail.empty()) {
             failure_detail = "rank-local regrid failed or produced an unexpected destination-band size";
         }
-        CECE_LOG_DEBUG("[DRIVER] rank-local regrid or replicated-field assembly failed!");
+        CECE_LOG_DEBUG("[DRIVER] rank-local band regrid failed!");
         return false;
     }
 
-    out_buffer = std::move(full_destination);
+    out_buffer = std::move(band_buffer);
     return true;
 }
 
-bool CeceDriverOrchestrator::WriteDestinationBufferToImport(const std::string& var_name, const std::vector<double>& dest_buffer, int field_nlev,
-                                                            void* cece_core_data_ptr, std::string& failure_detail) {
-    const std::vector<double>& full_destination = dest_buffer;
-    const size_t target_spatial = static_cast<size_t>(nx_) * ny_;
+bool CeceDriverOrchestrator::WriteBandToImport(const std::string& var_name, const std::vector<double>& dest_buffer, int field_nlev,
+                                              void* cece_core_data_ptr, std::string& failure_detail) {
+    // Band decomposition rework (Req 2.1, 2.4, 2.5, 3.2, 3.4): the incoming
+    // dest_buffer is now the rank-local BAND buffer produced by
+    // RegridToBandBuffer, laid out [level][jrel][i] with element (level, jrel, i)
+    // at level*(nx_*ny_local) + jrel*nx_ + i, sized field_nlev * nx_ * ny_local
+    // (NOT the former global field_nlev * nx_ * ny_). This method transposes only
+    // the [0, ny_local) band rows into the LayoutLeft (i, jrel, level) core
+    // import DualView and allocates it band-tall (nx_ x ny_local x field_nlev).
+    // The global field is reassembled later by the Output_Gather (task 8).
+    //
+    // ny_local comes from the stored band decomposition (single source of truth,
+    // identical to expected_j1 - expected_j0 in RegridToBandBuffer). On the
+    // single-rank / no-MPI path ny_local == ny_, so this is byte-for-byte the
+    // former global transpose and the outcome is unchanged.
+    const std::vector<double>& band_destination = dest_buffer;
+    const int ny_local = band_.ny_local;
+    const size_t band_spatial = static_cast<size_t>(nx_) * ny_local;
 
-    // Transpose the gathered [level][j][i] full_destination into the LayoutLeft
-    // (i, j, level) DualView layout exactly ONCE, into a single host mirror
-    // buffer. This one buffer feeds the sole live consumer below (the core
-    // import field) via deep_copy. The index math is unchanged:
-    //   host(i, j, level) = full_destination[level*nx*ny + j*nx + i].
-    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> transposed_host("assembled_field_host", nx_, ny_, field_nlev);
+    // Transpose the [level][jrel][i] band buffer into the LayoutLeft
+    // (i, jrel, level) DualView layout exactly ONCE, into a single host mirror
+    // buffer sized to the band. The index math mirrors the former global
+    // transpose but is bounded by ny_local rows:
+    //   host(i, jrel, level) = band_destination[level*nx*ny_local + jrel*nx + i].
+    // Surplus ranks (ny_local == 0) allocate a zero-row host mirror and the copy
+    // loop iterates zero times, so no band data is touched (Req 2.5, 3.4).
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace> transposed_host("assembled_field_host", nx_, ny_local, field_nlev);
     for (int level = 0; level < field_nlev; ++level) {
-        for (int j = 0; j < ny_; ++j) {
+        for (int jrel = 0; jrel < ny_local; ++jrel) {
             for (int i = 0; i < nx_; ++i) {
-                transposed_host(i, j, level) = full_destination[static_cast<size_t>(level) * target_spatial + static_cast<size_t>(j) * nx_ + i];
+                transposed_host(i, jrel, level) =
+                    band_destination[static_cast<size_t>(level) * band_spatial + static_cast<size_t>(jrel) * nx_ + i];
             }
         }
     }
 
-    // Also populate the Core import state with the same full field.
+    // Populate the Core import state with the band-local field. Surplus ranks
+    // (ny_local == 0) allocate a zero-row DualView3D(nx_, 0, field_nlev) without
+    // error (Req 2.5).
     auto* data = static_cast<cece::CeceInternalData*>(cece_core_data_ptr);
+    // Publish this rank's band geometry to the core so band-local compute
+    // (task 6.2) sizes its work over ny_local rows instead of the global ny_.
+    // This runs during AdvanceTime, before cece_core_run consumes d.ny_local,
+    // and is idempotent — band_ is fixed for the life of the orchestrator, so
+    // writing the same values every step is safe. On the single-rank / no-MPI
+    // path band_.ny_local == ny_ and band_.j0 == 0, matching the global grid
+    // (Req 1.5, 2.3).
+    data->ny_local = band_.ny_local;
+    data->j0 = band_.j0;
     auto core_it = data->import_state.fields.find(var_name);
     if (core_it == data->import_state.fields.end()) {
-        cece::DualView3D field(var_name, nx_, ny_, field_nlev);
+        cece::DualView3D field(var_name, nx_, ny_local, field_nlev);
         data->import_state.fields[var_name] = field;
         core_it = data->import_state.fields.find(var_name);
     }
 
     auto& core_field = core_it->second;
     auto core_view = core_field.view_device();
-    const bool local_core_shape_ready = core_view.extent(0) == static_cast<size_t>(nx_) && core_view.extent(1) == static_cast<size_t>(ny_) &&
+    // Validate the core import field extents against ny_local (Req 2.4, 3.4):
+    // extent(1) must be ny_local, not the global ny_. The collective_all_ready
+    // gate below keeps every rank — including surplus ranks (ny_local == 0) —
+    // in lock-step (Req 2.5, 3.4).
+    const bool local_core_shape_ready = core_view.extent(0) == static_cast<size_t>(nx_) &&
+                                        core_view.extent(1) == static_cast<size_t>(ny_local) &&
                                         core_view.extent(2) == static_cast<size_t>(field_nlev);
     if (!local_core_shape_ready) {
-        failure_detail = "core import field shape mismatch for '" + var_name + "': expected " + std::to_string(nx_) + "x" + std::to_string(ny_) +
+        failure_detail = "core import field shape mismatch for '" + var_name + "': expected " + std::to_string(nx_) + "x" + std::to_string(ny_local) +
                          "x" + std::to_string(field_nlev) + ", found " + std::to_string(core_view.extent(0)) + "x" +
                          std::to_string(core_view.extent(1)) + "x" + std::to_string(core_view.extent(2));
     }
@@ -976,7 +969,9 @@ bool CeceDriverOrchestrator::WriteDestinationBufferToImport(const std::string& v
     // .extent(...) shape/metadata queries and the readiness gate above, both of
     // which are preserved). Dropping the stream_view deep_copy removes one
     // per-field-per-step copy without changing any value seen by a live
-    // consumer, any layout, or any collective gate.
+    // consumer, any layout, or any collective gate. Surplus ranks (ny_local == 0)
+    // deep_copy a zero-row view (a no-op) but still issue modify/sync so the
+    // DualView invariants hold.
     Kokkos::deep_copy(core_view, transposed_host);
     core_field.modify_device();
     core_field.sync_host();
@@ -984,39 +979,52 @@ bool CeceDriverOrchestrator::WriteDestinationBufferToImport(const std::string& v
     return true;
 }
 
-bool CeceDriverOrchestrator::AssembleReplicatedField(const std::string& var_name, const io::RegridPlan& plan, const std::vector<double>& source,
-                                                     int file_nx, int file_ny, int field_nlev, DeviceView3D stream_view, void* cece_core_data_ptr,
-                                                     std::vector<double>& ingest_buffer, std::string& failure_detail) {
-    // Pure behavior-preserving composition (Decision 2a): the front half
-    // (readiness gates + per-level apply_regrid_plan + MPI_Allgatherv producing
-    // the replicated [level][j][i] destination buffer) followed by the back half
-    // (transpose to LayoutLeft (i,j,level), core-import-shape collective gate,
-    // deep_copy + modify_device + sync_host). The composed collective sequence
-    // is byte-for-byte identical to the former inline implementation: the front
-    // half's source/metadata readiness, nx/ny/nlev/identity int matches, and
-    // per-level readiness/gather collectives run first, then the back half's
-    // core-import-field-shape gate, in exactly the same order.
+bool CeceDriverOrchestrator::AssembleBandField(const std::string& var_name, const io::RegridPlan& plan, const std::vector<double>& source,
+                                               int file_nx, int file_ny, int field_nlev, DeviceView3D stream_view, void* cece_core_data_ptr,
+                                               std::vector<double>& ingest_buffer, std::string& failure_detail) {
+    // Band composition (Req 3.1, 3.2, 7.5): the front half (RegridToBandBuffer)
+    // runs the readiness gates + per-level apply_regrid_plan into this rank's
+    // contiguous [level][jrel][i] LATITUDE-BAND buffer sized
+    // field_nlev * nx_ * ny_local (the former per-level MPI_Allgatherv that
+    // re-replicated every band into a global field_nlev * nx_ * ny_ buffer was
+    // removed in task 3.2). The returned ingest_buffer IS that band buffer. The
+    // back half (WriteBandToImport) transposes only [0, ny_local) rows into a
+    // band-tall LayoutLeft (i, jrel, level) DualView, runs the core-import-shape
+    // collective gate (validated against ny_local), and deep_copy +
+    // modify_device + sync_host. The composed collective sequence is identical
+    // across ranks: the front half's source/metadata readiness, nx/ny/nlev/
+    // identity int matches, and the retained pre-gather allreduce(MIN) run
+    // first, then the back half's core-import-field-shape gate, in exactly the
+    // same order. On the single-rank / no-MPI path ny_local == ny_, so the band
+    // buffer IS the former global buffer and the outcome is unchanged.
     //
     // stream_view is now unused: the former stream_view readiness condition and
     // populate were dropped when the sole authoritative write became the core
-    // import field (see WriteDestinationBufferToImport). The signature is kept
+    // import field (see WriteBandToImport). The signature is kept
     // unchanged for every existing caller and the slice-cache path.
     (void)stream_view;
 
-    // Front half: produce the destination-grid replicated buffer.
-    std::vector<double> full_destination;
-    if (!RegridToDestinationBuffer(var_name, plan, source, file_nx, file_ny, field_nlev, full_destination, failure_detail)) {
+    // Front half: produce this rank's latitude-band buffer (task 3.2). The
+    // per-level MPI_Allgatherv re-replication was removed, so band_buffer is
+    // sized field_nlev * nx_ * band_.ny_local (was field_nlev * nx_ * ny_) and
+    // is the returned ingest_buffer.
+    std::vector<double> band_buffer;
+    if (!RegridToBandBuffer(var_name, plan, source, file_nx, file_ny, field_nlev, band_buffer, failure_detail)) {
         return false;
     }
 
-    // Return the destination-grid ingest_buffer exactly as today. Assign the
-    // buffer to ingest_buffer before the write-back so the destination-grid
-    // buffer is surfaced to the caller/slice-cache verbatim, then reuse it for
-    // the core import write.
-    ingest_buffer = std::move(full_destination);
+    // Surface the band buffer to the caller/slice-cache verbatim, then reuse it
+    // for the core import write.
+    ingest_buffer = std::move(band_buffer);
 
-    // Back half: authoritative write of the core import field.
-    if (!WriteDestinationBufferToImport(var_name, ingest_buffer, field_nlev, cece_core_data_ptr, failure_detail)) {
+    // Back half: authoritative write of the core import field (task 3.3).
+    // WriteBandToImport transposes only the [0, ny_local) band rows into a
+    // band-tall DualView3D(nx_, band_.ny_local, field_nlev) and validates the
+    // core-import shape against ny_local. On the single-rank path
+    // (ny_local == ny_) the band field IS the global field and the outcome is
+    // unchanged; on the multi-rank path the write side now matches the band
+    // buffer RegridToBandBuffer produced.
+    if (!WriteBandToImport(var_name, ingest_buffer, field_nlev, cece_core_data_ptr, failure_detail)) {
         return false;
     }
 
@@ -1037,14 +1045,6 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
     // Configuration is parsed exactly once at construction (Req 9.3); AdvanceTime
     // consults the resolved StreamConfig via stream_configs_ and never re-reads
     // the YAML file from disk.
-    int mpi_initialized = 0;
-    MPI_Initialized(&mpi_initialized);
-    int mpi_rank = 0;
-    int mpi_size = 1;
-    if (mpi_initialized && comm_c_ != MPI_COMM_NULL) {
-        MPI_Comm_rank(comm_c_, &mpi_rank);
-        MPI_Comm_size(comm_c_, &mpi_size);
-    }
 
     // Parse the current simulation datetime once. Streams that declare a
     // temporal cadence (hourly/weekly/monthly) use these calendar fields to
@@ -1141,13 +1141,12 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
             // and is torn down in the destructor (task 10.1).
             amio_dataset_handle read_dataset = handle_set->dataset;
 
-            // Determine this rank's contiguous destination latitude band [j0, j1)
-            // via a simple block decomposition of the ny_ destination rows.
-            const int band_base = ny_ / mpi_size;
-            const int band_rem = ny_ % mpi_size;
-            auto band_start = [&](int r) { return r * band_base + std::min(r, band_rem); };
-            const int j0 = band_start(mpi_rank);
-            const int j1 = band_start(mpi_rank + 1);
+            // This rank's contiguous destination latitude band [j0, j1) comes
+            // from the stored decomposition (single source of truth),
+            // preserving the identical values the inline block decomposition
+            // produced (Req 1.1, 1.2, 1.5).
+            const int j0 = band_.j0;
+            const int j1 = band_.j1;
 
             // 1. Determine total timesteps from the input variable.
             //    Since AMIO doesn't expose a public function to query total timesteps,
@@ -1288,15 +1287,16 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                 const bool tier1_slice_hit = bracket_ready && slice_cache.valid && bracket_equal(bracket, slice_cache.last_bracket);
 
                 // Tier 2: endpoint-cache hit (same indices, different weight) —
-                // reuse the two cached destination-grid endpoints regrid(i0)/
-                // regrid(i1) and recompute only the cheap blend, skipping both
-                // reads and both regrids (Req 2.1, 2.2). The gate is a pure
-                // function of collective-agreed (i0,i1) + rank-invariant
-                // nx_/ny_/field_nlev, so every rank makes the same decision
-                // (Req 4.2, 4.3, 4.5).
+                // reuse the two cached band-grid endpoints regrid(i0)/regrid(i1)
+                // and recompute only the cheap blend, skipping both reads and
+                // both regrids (Req 2.1, 2.2). The gate is a pure function of
+                // collective-agreed (i0,i1) + rank-invariant nx_/field_nlev and
+                // the rank's band rows band_.ny_local (equal to the built_ny the
+                // endpoints were stored with), so every rank makes the same
+                // decision (Req 4.2, 4.3, 4.5).
                 const bool tier2_endpoint_hit = bracket_ready && needs_upper_record && endpoint_cache.valid &&
                                                 endpoint_cache.cached_i0 == bracket.i0 && endpoint_cache.cached_i1 == bracket.i1 &&
-                                                endpoint_cache.built_nx == nx_ && endpoint_cache.built_ny == ny_ &&
+                                                endpoint_cache.built_nx == nx_ && endpoint_cache.built_ny == band_.ny_local &&
                                                 endpoint_cache.built_field_nlev == field_nlev;
 
                 if (tier1_slice_hit) {
@@ -1313,27 +1313,35 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                     // bracket weight and write the result back through the same
                     // core-import shape gate every other tier uses (Req 2.1,
                     // 2.2, 4.5, 5.1, 5.4, 6.5). No rank-local early return: all
-                    // ranks reach WriteDestinationBufferToImport, whose single
-                    // collective shape gate keeps them in lock-step.
+                    // ranks reach WriteBandToImport, whose single collective
+                    // shape gate keeps them in lock-step.
+                    //
+                    // The cached endpoints are band buffers of size
+                    // field_nlev * nx_ * band_.ny_local (task 3.2), and
+                    // WriteBandToImport consumes a band buffer indexing only
+                    // [0, ny_local) rows. blend_size and the refreshed
+                    // slice_cache.ingest_size are therefore band-sized. On the
+                    // single-rank path (ny_local == ny_) this is byte-for-byte
+                    // the former global blend (Req 3.1, 3.2, 7.5).
                     CECE_LOG_DEBUG("[DRIVER] Reusing cached regrid endpoints " + std::to_string(bracket.i0) + " & " + std::to_string(bracket.i1) +
                                    " for field '" + var_name + "' (w=" + std::to_string(bracket.weight) + "; no read, no regrid)");
                     const double w = bracket.weight;
-                    const size_t blend_size = static_cast<size_t>(field_nlev) * nx_ * ny_;
+                    const size_t blend_size = static_cast<size_t>(field_nlev) * nx_ * band_.ny_local;
                     std::vector<double> blended(blend_size);
                     for (size_t k = 0; k < blend_size; ++k) {
                         blended[k] = (1.0 - w) * endpoint_cache.endpoint_i0[k] + w * endpoint_cache.endpoint_i1[k];
                     }
-                    // Surface the destination-grid buffer to the caller/slice
-                    // cache first (mirror AssembleReplicatedField), then write
-                    // back from the same buffer so it stays valid.
+                    // Surface the band buffer to the caller/slice cache first
+                    // (mirror AssembleBandField), then write back from the same
+                    // buffer so it stays valid.
                     ingest_buffer = std::move(blended);
-                    read_success = WriteDestinationBufferToImport(var_name, ingest_buffer, field_nlev, cece_core_data_ptr, failure_detail);
+                    read_success = WriteBandToImport(var_name, ingest_buffer, field_nlev, cece_core_data_ptr, failure_detail);
                     if (read_success) {
                         // Refresh the slice cache so an immediate exact repeat
                         // (same indices AND weight) re-hits Tier 1 (Req 6.5).
                         slice_cache.last_bracket = bracket;
                         slice_cache.ingest_buffer = ingest_buffer;
-                        slice_cache.ingest_size = static_cast<size_t>(field_nlev) * nx_ * ny_;
+                        slice_cache.ingest_size = static_cast<size_t>(field_nlev) * nx_ * band_.ny_local;
                         slice_cache.valid = true;
                     }
                 } else {
@@ -1460,18 +1468,28 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                     }
 
                     if (have_data) {
-                        // Regrid each endpoint on the destination grid.
-                        // RegridToDestinationBuffer owns its own source/metadata
-                        // readiness gate, int-match collectives, and per-level
-                        // MPI_Allgatherv, so both calls run in lock-step across
-                        // ranks. All ranks reach BOTH calls (they are inside the
-                        // collective-agreed have_data branch, not behind any
-                        // rank-local condition), keeping the collective sequence
-                        // identical on every rank (Req 4.2, 4.3, 4.5).
+                        // Regrid each endpoint into this rank's latitude band.
+                        // RegridToBandBuffer owns its own source/metadata
+                        // readiness gate, int-match collectives, and the retained
+                        // pre-gather allreduce(MIN), so both calls run in
+                        // lock-step across ranks. All ranks reach BOTH calls
+                        // (they are inside the collective-agreed have_data branch,
+                        // not behind any rank-local condition), keeping the
+                        // collective sequence identical on every rank
+                        // (Req 4.2, 4.3, 4.5).
+                        //
+                        // epA/epB are band buffers of size
+                        // field_nlev * nx_ * band_.ny_local (the per-level
+                        // MPI_Allgatherv was removed in task 3.2), so the blend,
+                        // the endpoint cache, and the refreshed slice cache below
+                        // are all band-sized. built_ny stores band_.ny_local so
+                        // the Tier-2 gate compares like-for-like. On the
+                        // single-rank path (ny_local == ny_) this is byte-for-byte
+                        // the former global blend/cache (Req 3.1, 3.2, 7.5).
                         std::vector<double> epA;
                         std::vector<double> epB;
-                        const bool regridA_ok = RegridToDestinationBuffer(var_name, plan, src, file_nx, file_ny, field_nlev, epA, failure_detail);
-                        const bool regridB_ok = RegridToDestinationBuffer(var_name, plan, srcB, file_nx, file_ny, field_nlev, epB, failure_detail);
+                        const bool regridA_ok = RegridToBandBuffer(var_name, plan, src, file_nx, file_ny, field_nlev, epA, failure_detail);
+                        const bool regridB_ok = RegridToBandBuffer(var_name, plan, srcB, file_nx, file_ny, field_nlev, epB, failure_detail);
 
                         if (regridA_ok && regridB_ok) {
                             // Store the endpoint cache keyed on (i0, i1) only; the
@@ -1480,7 +1498,7 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                             // epA/epB BEFORE moving them into the cache so both the
                             // cache and the blend see the same values.
                             const double w = bracket.weight;
-                            const size_t blend_size = static_cast<size_t>(field_nlev) * nx_ * ny_;
+                            const size_t blend_size = static_cast<size_t>(field_nlev) * nx_ * band_.ny_local;
                             std::vector<double> blended(blend_size);
                             for (size_t k = 0; k < blend_size; ++k) {
                                 blended[k] = (1.0 - w) * epA[k] + w * epB[k];
@@ -1492,21 +1510,21 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                             endpoint_cache.endpoint_i1 = std::move(epB);
                             endpoint_cache.built_field_nlev = field_nlev;
                             endpoint_cache.built_nx = nx_;
-                            endpoint_cache.built_ny = ny_;
+                            endpoint_cache.built_ny = band_.ny_local;
                             endpoint_cache.valid = true;
 
                             // Surface the destination-grid blend to the caller,
                             // then write it back through the same core-import
                             // shape gate the other tiers use.
                             ingest_buffer = std::move(blended);
-                            read_success = WriteDestinationBufferToImport(var_name, ingest_buffer, field_nlev, cece_core_data_ptr, failure_detail);
+                            read_success = WriteBandToImport(var_name, ingest_buffer, field_nlev, cece_core_data_ptr, failure_detail);
                             if (read_success) {
                                 // Refresh the slice cache so an immediate exact
                                 // repeat (same indices AND weight) re-hits Tier 1
-                                // (Req 3.3, 9.4).
+                                // (Req 3.3, 9.4). Band-sized.
                                 slice_cache.last_bracket = bracket;
                                 slice_cache.ingest_buffer = ingest_buffer;
-                                slice_cache.ingest_size = static_cast<size_t>(field_nlev) * nx_ * ny_;
+                                slice_cache.ingest_size = static_cast<size_t>(field_nlev) * nx_ * band_.ny_local;
                                 slice_cache.valid = true;
                             }
                         } else {
@@ -1525,24 +1543,25 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                     // into src. No temporal interpolation, so there is no upper
                     // endpoint and nothing to cache for interpolation reuse: the
                     // endpoint cache is intentionally NOT populated here. Regrid
-                    // the single record through the existing full assembly path
-                    // exactly as the pre-cache code did (Req 2.5, 5.2).
-                    read_success = AssembleReplicatedField(var_name, plan, src, file_nx, file_ny, field_nlev, stream_view, cece_core_data_ptr,
-                                                           ingest_buffer, failure_detail);
+                    // the single record through the band assembly path exactly as
+                    // the pre-cache code did (Req 2.5, 5.2).
+                    read_success = AssembleBandField(var_name, plan, src, file_nx, file_ny, field_nlev, stream_view, cece_core_data_ptr,
+                                                     ingest_buffer, failure_detail);
                     if (read_success) {
                         // Refresh the slice cache with the freshly computed
                         // ingest buffer and the bracket that produced it, so a
                         // later step resolving the same bracket can reuse it
-                        // (Req 3.3, 9.4).
+                        // (Req 3.3, 9.4). The band buffer is sized
+                        // field_nlev * nx_ * ny_local.
                         slice_cache.last_bracket = bracket;
                         slice_cache.ingest_buffer = ingest_buffer;
-                        slice_cache.ingest_size = static_cast<size_t>(field_nlev) * nx_ * ny_;
+                        slice_cache.ingest_size = static_cast<size_t>(field_nlev) * nx_ * band_.ny_local;
                         slice_cache.valid = true;
                     }
                 }
                 }  // end Tier 3 (cache-miss / rollover / single-record) branch
             }
-            read_success = collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, read_success, "replicated field assembly for '" + var_name + "'", failure_detail);
+            read_success = collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, read_success, "band field assembly for '" + var_name + "'", failure_detail);
             // The AMIO handle set persists in amio_handles_ across timesteps
             // (Req 2.2, 9.1); it is closed/finalized only in the destructor
             // (task 10.1). No per-step amio_close/amio_finalize, no manifest
@@ -1559,7 +1578,7 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
             CECE_LOG_INFO("[DRIVER] AMIO read succeeded for field '" + var_name + "' - loaded real data from " + input_file_path);
         }
 
-        const size_t expected_ingest_size = static_cast<size_t>(field_nlev) * nx_ * ny_;
+        const size_t expected_ingest_size = static_cast<size_t>(field_nlev) * nx_ * band_.ny_local;
         const bool local_ingest_size_ready = ingest_buffer.size() == expected_ingest_size;
         if (!local_ingest_size_ready) {
             failure_detail = "internal ingest buffer size mismatch for field '" + var_name + "'";
@@ -1571,7 +1590,7 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
 
         // Ingest-copy consolidation (Req 3.1, 3.2, 3.4, 5.3): the driver facade
         // already wrote import_state.fields[var_name] directly and authoritatively
-        // in AssembleReplicatedField, so the legacy ingestor round-trip here is
+        // in AssembleBandField, so the legacy ingestor round-trip here is
         // redundant. The `cece_ingestor_set_field` call (which populated the
         // separate field_cache_ for AMIO variables) and its guarding
         // `CECE ingestor readiness` collective gate were removed together as a
@@ -1587,7 +1606,7 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
         // also naturally neutralizes IngestEmissionsInline's copy-back for those
         // fields: its HasCachedField(...) check now returns false, so it skips
         // them. No edit to IngestEmissionsInline itself is required.
-        CECE_LOG_INFO("[DRIVER] Ingested field '" + var_name + "' with shape " + std::to_string(nx_) + "x" + std::to_string(ny_) + "x" +
+        CECE_LOG_INFO("[DRIVER] Ingested field '" + var_name + "' with band shape " + std::to_string(nx_) + "x" + std::to_string(band_.ny_local) + "x" +
                       std::to_string(field_nlev));
     }
 

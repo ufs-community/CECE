@@ -361,6 +361,104 @@ axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_axis_mesh(int ni, int 
     return grid.to_unstructured();
 }
 
+// Build the destination sub-mesh for the rectilinear band [j0, j1) with
+// GLOBALLY-CONSISTENT corners. StructuredGrid::synthesize_corners would
+// extrapolate the band's outer latitude edges from band-local centers only,
+// which is correct on a uniform grid but WRONG on a non-uniform latitude grid
+// (the true band-boundary edge is the midpoint to the neighbour row owned by an
+// adjacent rank). Rather than reimplement the edge geometry here (which can
+// drift from AXIS), this expands the rectilinear centers to the FULL global
+// nx x ny grid and delegates to AXIS's single shared corner-synthesis kernel
+// (axis::topology::synthesize_band_corners) — the SAME 2x2 midpoint / periodic-
+// wrap / one-sided-boundary logic the global mesh uses — restricted to the
+// band's corner rows [j0, j1]. The result is provably identical to rows
+// [j0, j1] of the global mesh's synthesized corners, so the band conservative
+// regrid matches the corresponding global rows at the seams and a whole-grid
+// (single-rank) band is byte-for-byte the global mesh.
+axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_band_mesh_with_global_corners(
+    int nx, int j0, int j1, const std::vector<double>& full_lons, const std::vector<double>& full_lats) {
+    const int nband = j1 - j0;
+    const std::size_t ny_global = full_lats.size();
+
+    // Band-local cell centers (row-major, band rows [j0, j1)) — the StructuredGrid
+    // extent for the band.
+    Kokkos::View<double*, Kokkos::HostSpace> band_center_lon("band_center_lon", static_cast<size_t>(nx) * nband);
+    Kokkos::View<double*, Kokkos::HostSpace> band_center_lat("band_center_lat", static_cast<size_t>(nx) * nband);
+    for (int jr = 0; jr < nband; ++jr) {
+        for (int i = 0; i < nx; ++i) {
+            const size_t idx = static_cast<size_t>(jr) * nx + i;
+            band_center_lon(idx) = full_lons[i];
+            band_center_lat(idx) = full_lats[static_cast<size_t>(j0) + jr];
+        }
+    }
+
+    // FULL global center arrays (column-major, index i + j*nx) that the shared
+    // AXIS kernel synthesizes corners from, so the band's boundary edges see the
+    // neighbour rows owned by adjacent ranks.
+    Kokkos::View<double*, Kokkos::HostSpace> global_center_lon("global_center_lon", static_cast<size_t>(nx) * ny_global);
+    Kokkos::View<double*, Kokkos::HostSpace> global_center_lat("global_center_lat", static_cast<size_t>(nx) * ny_global);
+    for (std::size_t j = 0; j < ny_global; ++j) {
+        for (int i = 0; i < nx; ++i) {
+            const size_t idx = j * static_cast<size_t>(nx) + i;
+            global_center_lon(idx) = full_lons[i];
+            global_center_lat(idx) = full_lats[j];
+        }
+    }
+
+    Kokkos::View<double*, Kokkos::HostSpace> corner_lon, corner_lat;
+    axis::topology::synthesize_band_corners<Kokkos::HostSpace>(nx, ny_global, global_center_lon, global_center_lat,
+                                                               static_cast<std::size_t>(j0), static_cast<std::size_t>(j1),
+                                                               corner_lon, corner_lat);
+
+    axis::topology::StructuredGrid<Kokkos::HostSpace> grid(nx, nband, band_center_lon, band_center_lat,
+                                                           axis::topology::CoordinateSystem::SphericalDeg);
+    grid.set_corners(std::move(corner_lon), std::move(corner_lat));
+    return grid.to_unstructured();
+}
+
+// Build the destination sub-mesh for a CURVILINEAR latitude band [j0, j1) with
+// GLOBALLY-CONSISTENT 2-D corners. A curvilinear boundary corner depends on the
+// neighbour centers in BOTH longitude and latitude, so — like the rectilinear
+// case — it must be derived from the FULL global center arrays, not a band-local
+// slice. This delegates to the same AXIS shared kernel
+// (axis::topology::synthesize_band_corners) used for the rectilinear band, so
+// both grid types share one corner-geometry implementation (periodic-longitude
+// wrap, one-sided domain-boundary convention, 2x2 averaging) and cannot drift
+// from the global mesh. `full_center_lon`/`full_center_lat` are the flattened
+// global curvilinear centers of length nx * ny_global (index i + j*nx);
+// `band_center_lon`/`band_center_lat` are the band's nx * (j1-j0) centers.
+axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_band_mesh_curvilinear_with_global_corners(
+    int nx, int j0, int j1, const std::vector<double>& full_center_lon, const std::vector<double>& full_center_lat,
+    const std::vector<double>& band_center_lon, const std::vector<double>& band_center_lat) {
+    const int nband = j1 - j0;
+    const std::size_t ny_global = full_center_lon.size() / static_cast<std::size_t>(nx);
+
+    Kokkos::View<double*, Kokkos::HostSpace> global_clon("global_clon", full_center_lon.size());
+    Kokkos::View<double*, Kokkos::HostSpace> global_clat("global_clat", full_center_lat.size());
+    for (std::size_t k = 0; k < full_center_lon.size(); ++k) {
+        global_clon(k) = full_center_lon[k];
+        global_clat(k) = full_center_lat[k];
+    }
+
+    Kokkos::View<double*, Kokkos::HostSpace> band_clon("band_clon", static_cast<std::size_t>(nx) * nband);
+    Kokkos::View<double*, Kokkos::HostSpace> band_clat("band_clat", static_cast<std::size_t>(nx) * nband);
+    for (std::size_t k = 0; k < band_clon.extent(0); ++k) {
+        band_clon(k) = band_center_lon[k];
+        band_clat(k) = band_center_lat[k];
+    }
+
+    Kokkos::View<double*, Kokkos::HostSpace> corner_lon, corner_lat;
+    axis::topology::synthesize_band_corners<Kokkos::HostSpace>(nx, ny_global, global_clon, global_clat,
+                                                               static_cast<std::size_t>(j0), static_cast<std::size_t>(j1),
+                                                               corner_lon, corner_lat);
+
+    axis::topology::StructuredGrid<Kokkos::HostSpace> grid(nx, nband, band_clon, band_clat,
+                                                           axis::topology::CoordinateSystem::SphericalDeg);
+    grid.set_corners(std::move(corner_lon), std::move(corner_lat));
+    return grid.to_unstructured();
+}
+
+
 namespace {
 
 bool coordinate_at(const std::vector<double>& values, int nx, int ny, int i, int j, bool longitude, double& value) {
@@ -580,10 +678,12 @@ bool build_regrid_plan(amio_dataset_handle read_dataset, int nx, int ny, const s
     // A. Build the (global) source mesh and the rank-local destination sub-mesh.
     auto src_mesh = build_axis_mesh(plan.file_nx, plan.file_ny, src_lons, src_lats);
 
+    const bool curvilinear_target = (target_lons.size() == static_cast<size_t>(nx) * ny && ny > 1);
+
     std::vector<double> band_lons;
     std::vector<double> band_lats;
 
-    if (target_lons.size() == static_cast<size_t>(nx) * ny && ny > 1) {
+    if (curvilinear_target) {
         // Curvilinear coordinate arrays: slice [j0 * nx, j1 * nx] for both axes
         band_lons.assign(target_lons.begin() + static_cast<size_t>(j0) * nx, target_lons.begin() + static_cast<size_t>(j1) * nx);
         band_lats.assign(target_lats.begin() + static_cast<size_t>(j0) * nx, target_lats.begin() + static_cast<size_t>(j1) * nx);
@@ -600,23 +700,52 @@ bool build_regrid_plan(amio_dataset_handle read_dataset, int nx, int ny, const s
     double src_max_lon = *std::max_element(src_lons.begin(), src_lons.end());
     bool use_360_range = (src_max_lon > 180.0 && src_min_lon >= -1e-5);
 
-    if (use_360_range) {
-        for (auto& lon : band_lons) {
-            if (lon < 0.0)
-                lon += 360.0;
-            else if (lon >= 360.0)
-                lon -= 360.0;
+    auto normalize_lons = [&](std::vector<double>& lons) {
+        if (use_360_range) {
+            for (auto& lon : lons) {
+                if (lon < 0.0)
+                    lon += 360.0;
+                else if (lon >= 360.0)
+                    lon -= 360.0;
+            }
+        } else {
+            for (auto& lon : lons) {
+                if (lon >= 180.0)
+                    lon -= 360.0;
+                else if (lon < -180.0)
+                    lon += 360.0;
+            }
         }
+    };
+
+    // Build the rank-local destination sub-mesh. For a rectilinear target the
+    // band's outer latitude edges MUST be the true GLOBAL cell edges (midpoint
+    // to the neighbour row owned by an adjacent rank), not the one-sided
+    // extrapolation StructuredGrid::synthesize_corners would derive from the
+    // band-local center slice. On a non-uniform latitude grid those differ, and
+    // the extrapolated edge changes the conservative overlap areas of the band's
+    // first/last rows, breaking band==global equivalence and conservation at the
+    // seam (uniform grids are unaffected because the extrapolation coincides).
+    // Both build_band_mesh_*_with_global_corners derive every corner from the
+    // FULL global target coordinate arrays via the shared AXIS kernel
+    // (axis::topology::synthesize_band_corners) and pin them via set_corners, so
+    // the band regrid matches the corresponding rows of the global regrid exactly
+    // — for rectilinear AND curvilinear grids. A gridspec/file target supplies its
+    // own explicit corners and keeps the prior path.
+    std::vector<double> full_center_lon;  // normalized full global centers (curvilinear only)
+    if (curvilinear_target) {
+        full_center_lon = target_lons;
+        normalize_lons(full_center_lon);
+        band_lons.assign(full_center_lon.begin() + static_cast<size_t>(j0) * nx, full_center_lon.begin() + static_cast<size_t>(j1) * nx);
     } else {
-        for (auto& lon : band_lons) {
-            if (lon >= 180.0)
-                lon -= 360.0;
-            else if (lon < -180.0)
-                lon += 360.0;
-        }
+        normalize_lons(band_lons);
     }
 
-    auto dst_mesh = build_axis_mesh(nx, nband, band_lons, band_lats, gridspec_file);
+    axis::topology::UnstructuredMesh<Kokkos::HostSpace> dst_mesh =
+        gridspec_file.empty()
+            ? (curvilinear_target ? build_band_mesh_curvilinear_with_global_corners(nx, j0, j1, full_center_lon, target_lats, band_lons, band_lats)
+                                  : build_band_mesh_with_global_corners(nx, j0, j1, band_lons, target_lats))
+            : build_axis_mesh(nx, nband, band_lons, band_lats, gridspec_file);
 
     // B. Configure weight generation method.
     axis::solver::RegridConfig regrid_cfg;

@@ -43,9 +43,12 @@ void cece_ingestor_set_field(void* data_ptr, const char* field_name, int name_le
     // Construct the string from the char pointer and length
     std::string name(field_name, name_len);
 
-    // Call the ingestor's SetField method
-    // We pass the cached grid dimensions (nx, ny, nz) for validation
-    internal_data->ingestor.SetField(name, field_data, n_lev, n_elem, internal_data->nx, internal_data->ny, internal_data->nz, rc);
+    // Call the ingestor's SetField method.
+    // Fields ingested here are band-local: we pass the rank-local band latitude extent
+    // (ny_local) in the latitude slot so views are sized (nx, ny_local, nz) and the 2D
+    // reshape is bounded by ny_local rows. On a single rank ny_local == ny, so behavior
+    // is identical to the replicated path.
+    internal_data->ingestor.SetField(name, field_data, n_lev, n_elem, internal_data->nx, internal_data->ny_local, internal_data->nz, rc);
 }
 
 }  // extern "C"

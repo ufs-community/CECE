@@ -15,6 +15,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "cece/cece_band_decomposition.hpp"
 #include "cece/cece_config.hpp"
 #include "cece/cece_driver_facade.hpp"
 #include "cece/cece_fatal.hpp"
@@ -197,10 +198,18 @@ int main(int argc, char* argv[]) {
         // also carries the writer-managed coordinate variables.
         std::unordered_map<std::string, std::vector<double>> export_fields_mem;
         const cece::CeceConfig parsed_config = cece::ParseConfig(config_file);
+
+        // Compute this rank's latitude band once. Export buffers are band-local
+        // (nx x ny_local x nz): the core writes back only the rank's band via
+        // SyncAndCopyState, and the writer assembles the global field at output
+        // time. On a single rank (or uninitialized MPI) ny_local == ny, so this
+        // is byte-identical to the replicated allocation.
+        const cece::BandDecomposition band = cece::BandDecomposition::compute(ny, MPI_COMM_WORLD);
+
         for (const cece::CeceOutputField& field : parsed_config.output_config.fields.GetDataFields()) {
-            export_fields_mem[field.name] = std::vector<double>(static_cast<std::size_t>(nx) * ny * nz, 0.0);
+            export_fields_mem[field.name] = std::vector<double>(static_cast<std::size_t>(nx) * band.ny_local * nz, 0.0);
             cece_core_set_export_field(cece_data_ptr, field.name.c_str(), static_cast<int>(field.name.length()), export_fields_mem[field.name].data(),
-                                       nx, ny, nz, &rc);
+                                       nx, band.ny_local, nz, &rc);
             if (rc < 0) {
                 cece::LogFatal("[DRIVER FATAL] (rank " + std::to_string(my_rank) + ") cece_core_set_export_field failed for '" + field.name +
                                "' with rc=" + std::to_string(rc));

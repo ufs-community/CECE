@@ -44,7 +44,8 @@ namespace {
 // which reports them through rc=-1.
 void IngestEmissions(cece::CeceInternalData& d) {
     if (d.config.cece_data.streams.empty()) return;
-    d.ingestor.IngestEmissionsInline(d.config.cece_data, d.import_state, d.nx, d.ny, d.nz);
+    // Latitude extent is the rank-local band height (ny_local == ny on a single rank).
+    d.ingestor.IngestEmissionsInline(d.config.cece_data, d.import_state, d.nx, d.ny_local, d.nz);
 }
 
 void RunPhysicsSchemeByName(cece::CeceInternalData& d, const std::string& scheme_name) {
@@ -61,7 +62,8 @@ void RunPhysicsSchemeByName(cece::CeceInternalData& d, const std::string& scheme
 void ExecuteStackingEngine(cece::CeceInternalData& d, int hour, int day_of_week, int month = 0) {
     if (d.stacking_engine) {
         cece::CeceStateResolver resolver(d.import_state, d.export_state, d.config.met_mapping, d.config.scale_factor_mapping, d.config.mask_mapping);
-        d.stacking_engine->Execute(resolver, d.nx, d.ny, d.nz, d.default_mask, hour, day_of_week, month);
+        // Compute over this rank's latitude band only (ny_local == ny on a single rank).
+        d.stacking_engine->Execute(resolver, d.nx, d.ny_local, d.nz, d.default_mask, hour, day_of_week, month);
     }
 }
 
@@ -133,7 +135,9 @@ void SyncAndCopyState(cece::CeceInternalData& d) {
         auto it = d.persistent_export_ptrs.find(name);
         if (it != d.persistent_export_ptrs.end() && it->second != nullptr) {
             using UnmanagedHost = Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
-            UnmanagedHost h_view(it->second, d.nx, d.ny, d.nz);
+            // Export write-back views are band-local; persistent_export_ptrs buffers are
+            // sized nx*ny_local*nz (band extent; == nx*ny*nz on a single rank).
+            UnmanagedHost h_view(it->second, d.nx, d.ny_local, d.nz);
             Kokkos::deep_copy(h_view, field.view_host());
         }
     }

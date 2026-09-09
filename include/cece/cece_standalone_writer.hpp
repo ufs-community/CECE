@@ -9,6 +9,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "cece/cece_band_decomposition.hpp"
 #include "cece_compute.hpp"
 #include "cece_config.hpp"
 
@@ -48,6 +49,11 @@ class CeceStandaloneWriter {
     bool use_custom_coords_ = false;
     MPI_Comm comm_ = MPI_COMM_SELF;
     std::string gridspec_file_;
+
+    // Band decomposition of the global latitude rows [0, ny_) across comm_.
+    // Computed in Initialize/InitializeWithCoords from ny_ + comm_ and used by
+    // the Output_Gather in WriteTimeStep to assemble the global field on rank 0.
+    BandDecomposition band_;
 
     std::string ResolveFilename(double time_seconds_since_start) const;
 };

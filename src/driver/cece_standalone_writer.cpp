@@ -9,6 +9,7 @@ extern "C" {
 void amio_set_parent_communicator(MPI_Fint comm);
 }
 
+#include <algorithm>
 #include <cstring>
 #include <ctime>
 #include <filesystem>
@@ -115,6 +116,11 @@ int CeceStandaloneWriter::Initialize(const std::string& start_time_iso8601, int 
     ny_ = ny;
     nz_ = nz;
 
+    // Band decomposition of the global latitude rows across comm_ (single source
+    // of truth for the Output_Gather). Short-circuits to whole_grid for the
+    // single-rank / no-MPI path, so ny_local == ny_ and the gather is skipped.
+    band_ = cece::BandDecomposition::compute(ny_, comm_);
+
     CECE_LOG_INFO("[CECE] Initializing AMIO standalone writer with start time: " + start_time_iso8601);
 
     if (!fs::exists(config_.directory)) {
@@ -161,6 +167,11 @@ int CeceStandaloneWriter::InitializeWithCoords(const std::string& start_time_iso
     lat_coords_ = lat_coords;
     use_custom_coords_ = true;
     gridspec_file_ = gridspec_file;
+
+    // Band decomposition of the global latitude rows across comm_ (single source
+    // of truth for the Output_Gather). Short-circuits to whole_grid for the
+    // single-rank / no-MPI path, so ny_local == ny_ and the gather is skipped.
+    band_ = cece::BandDecomposition::compute(ny_, comm_);
 
     CECE_LOG_INFO("[CECE] Initializing AMIO standalone writer with coordinates: " + start_time_iso8601);
 
@@ -548,31 +559,173 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
         // export fields (the collection itself is never empty — it always
         // holds the coordinate variables).
         const bool write_all = config_.fields.GetDataFields().empty();
+
+        // --- Output_Gather setup (task 8.1) -------------------------------------
+        //
+        // Export fields are now BAND-LOCAL: each field host view is
+        // nx_ x band_.ny_local x nz_ (LayoutLeft, (i, jrel, k)). To write the
+        // global NetCDF field, every rank packs its band into a contiguous
+        // [level][jrel][i] send buffer and issues one MPI_Gatherv PER LEVEL into a
+        // global [level][j][i] buffer on rank 0, using row_counts[r]*nx_ /
+        // row_displs[r]*nx_ (plain MPI_DOUBLE, mirroring the old per-level
+        // MPI_Allgatherv transfer choice from RegridToDestinationBuffer, which
+        // benchmarked markedly faster than a strided datatype in the container's
+        // OpenMPI). Surplus ranks (ny_local == 0) contribute a zero-count band.
+        //
+        // Collective correctness (Req 6.6): iterating an unordered_map is NOT
+        // order-deterministic across ranks, so we first collect the names to
+        // write and SORT them, then iterate that rank-invariant order. Every rank
+        // therefore issues exactly nz_ MPI_Gatherv calls per written field, in the
+        // same field order, so the collective sequence is identical on all ranks.
+        int mpi_size = 1;
+        const bool use_mpi = (mpi_initialized && comm_ != MPI_COMM_NULL);
+        if (use_mpi) {
+            MPI_Comm_size(comm_, &mpi_size);
+        }
+        // The gather is only needed when there is genuinely more than one rank AND
+        // the band actually splits the grid. In the single-rank / no-MPI path the
+        // band host view already IS the global field (ny_local == ny_), so we use
+        // it directly and issue no collective — byte-for-byte today's behavior.
+        const bool do_gather = use_mpi && mpi_size > 1;
+
+        std::vector<std::string> write_names;
+        write_names.reserve(fields.size());
         for (const auto& [name, view] : fields) {
             if (IsCoordinateName(name)) {
                 continue;
             }
+            if (write_all || config_.fields.Contains(name)) {
+                write_names.push_back(name);
+            }
+        }
+        std::sort(write_names.begin(), write_names.end());
 
-            const bool should_write = write_all || config_.fields.Contains(name);
-            if (should_write) {
+        const int ny_local = band_.ny_local;
+        const size_t band_level_elems = static_cast<size_t>(nx_) * ny_local;  // nx_ * ny_local
+        const size_t global_level_elems = static_cast<size_t>(nx_) * ny_;     // nx_ * ny_
+
+        // Per-level recvcounts / displs for MPI_Gatherv, scaled by nx_ (Req 6.3).
+        // Rank-invariant: derived purely from band_.row_counts/row_displs.
+        std::vector<int> recvcounts;
+        std::vector<int> recvdispls;
+        if (do_gather) {
+            recvcounts.resize(mpi_size);
+            recvdispls.resize(mpi_size);
+            for (int r = 0; r < mpi_size; ++r) {
+                recvcounts[r] = band_.row_counts[r] * nx_;
+                recvdispls[r] = band_.row_displs[r] * nx_;
+            }
+        }
+
+        for (const auto& name : write_names) {
+            {
+                auto it = fields.find(name);
+                const DualView3D& view = it->second;
                 auto& view_rw = const_cast<DualView3D&>(view);
                 view_rw.sync<Kokkos::HostSpace>();
                 auto h_view = view_rw.view_host();
 
-                size_t total_elements = static_cast<size_t>(nx_) * ny_ * nz_;
-                if (h_view.size() != total_elements) {
+                // Band-local size check: nx_ * ny_local * nz_.
+                const size_t band_total = static_cast<size_t>(nx_) * ny_local * nz_;
+                if (h_view.size() != band_total) {
                     CECE_LOG_ERROR("Size mismatch in field '" + name + "': h_view.size()=" + std::to_string(h_view.size()) +
-                                   " expected=" + std::to_string(total_elements));
+                                   " expected band-local=" + std::to_string(band_total) + " (nx_=" + std::to_string(nx_) +
+                                   " ny_local=" + std::to_string(ny_local) + " nz_=" + std::to_string(nz_) + ")");
                     return -1;
                 }
 
+                // Pack the band host view (LayoutLeft (i, jrel, k)) into a
+                // contiguous per-level send buffer laid out [level][jrel][i]:
+                // element (k, jrel, i) at k*(ny_local*nx_) + jrel*nx_ + i.
+                std::vector<double> send_buf(static_cast<size_t>(nz_) * band_level_elems);
+                for (int k = 0; k < nz_; ++k) {
+                    for (int jrel = 0; jrel < ny_local; ++jrel) {
+                        for (int i = 0; i < nx_; ++i) {
+                            size_t kokkos_idx =
+                                static_cast<size_t>(i) + static_cast<size_t>(jrel) * nx_ + static_cast<size_t>(k) * nx_ * ny_local;
+                            size_t send_idx = static_cast<size_t>(k) * band_level_elems + static_cast<size_t>(jrel) * nx_ + i;
+                            send_buf[send_idx] = h_view.data()[kokkos_idx];
+                        }
+                    }
+                }
+
+                // global_field is the assembled global [level][j][i] buffer
+                // (size nz_ * ny_ * nx_). In the single-rank path it IS send_buf
+                // (already the whole grid). In the multi-rank path rank 0 fills it
+                // via the per-level MPI_Gatherv below, then broadcasts it so ALL
+                // ranks hold identical authoritative data for the collective write.
+                std::vector<double> global_field;
+                if (!do_gather) {
+                    // Single-rank / no-MPI: ny_local == ny_, so send_buf is already
+                    // the global [level][j][i] field. Move it in directly.
+                    global_field = std::move(send_buf);
+                } else {
+                    if (rank == 0) {
+                        global_field.assign(static_cast<size_t>(nz_) * global_level_elems, 0.0);
+                    }
+                    // One MPI_Gatherv PER LEVEL (Req 6.1, 6.3, 6.6). Every rank
+                    // (including rank 0 and surplus ranks with ny_local == 0)
+                    // issues exactly nz_ calls, in the same field order, so the
+                    // collective sequence is identical across ranks. Surplus ranks
+                    // send a zero-count band (sendcount 0).
+                    const int sendcount = static_cast<int>(band_level_elems);  // nx_ * ny_local
+                    for (int k = 0; k < nz_; ++k) {
+                        const double* level_send = send_buf.data() + static_cast<size_t>(k) * band_level_elems;
+                        double* level_recv = (rank == 0) ? (global_field.data() + static_cast<size_t>(k) * global_level_elems) : nullptr;
+                        const int gather_rc =
+                            MPI_Gatherv(level_send, sendcount, MPI_DOUBLE, level_recv, (rank == 0) ? recvcounts.data() : nullptr,
+                                        (rank == 0) ? recvdispls.data() : nullptr, MPI_DOUBLE, 0, comm_);
+                        if (gather_rc != MPI_SUCCESS) {
+                            CECE_LOG_ERROR("Output_Gather MPI_Gatherv failed for field '" + name + "' (level " + std::to_string(k) +
+                                           ", rc=" + std::to_string(gather_rc) + ")");
+                            return -1;
+                        }
+                    }
+                    // The Output_Gather leaves the authoritative assembled global
+                    // field on rank 0 only. The AMIO netcdf4 backend, however,
+                    // writes COLLECTIVELY when comm size > 1: it opens the file
+                    // with nc_create_par and sets NC_COLLECTIVE var access, so the
+                    // underlying nc_put_vara is an MPI collective that EVERY rank
+                    // in comm_ must enter (on its worker thread) with the SAME
+                    // hyperslab. Every rank writes the full variable at start
+                    // [0,0,0,0]; parallel-HDF5 collective semantics require the
+                    // data each rank contributes to that shared region be identical
+                    // (this exactly matches the pre-rework replicated writer, where
+                    // every rank held and wrote the full global field). A rank-0-
+                    // only field write would desynchronize the collective and
+                    // deadlock. So broadcast rank 0's authoritative global_field to
+                    // all ranks, then every rank builds an identical netcdf_buffer
+                    // and issues the same collective amio_write below (Req 6.2, 6.6).
+                    if (rank != 0) {
+                        global_field.assign(static_cast<size_t>(nz_) * global_level_elems, 0.0);
+                    }
+                    const int bcast_rc =
+                        MPI_Bcast(global_field.data(), static_cast<int>(static_cast<size_t>(nz_) * global_level_elems), MPI_DOUBLE, 0, comm_);
+                    if (bcast_rc != MPI_SUCCESS) {
+                        CECE_LOG_ERROR("Output_Gather MPI_Bcast failed for field '" + name + "' (rc=" + std::to_string(bcast_rc) + ")");
+                        return -1;
+                    }
+                }
+
+                // --- Global write assembly (task 8.2) ---------------------------
+                // Build the NetCDF [time, lev, lat, lon] buffer from the assembled
+                // global field. After the gather+broadcast above, global_field holds
+                // the authoritative global [level][j][i] field IDENTICALLY on every
+                // rank (rank 0 gathered it; all others received the broadcast; the
+                // single-rank path moved its own whole-grid band in). It is already
+                // laid out [k][j][i] (== k*ny_*nx_ + j*nx_ + i), which is exactly the
+                // NetCDF ordering, so this is a straight copy, kept as an explicit
+                // transpose loop to mirror the original for clarity. Every rank
+                // produces the same netcdf_buffer, so the collective amio_write below
+                // contributes identical data across ranks (Req 6.2, 6.4, 6.6).
+                size_t total_elements = static_cast<size_t>(nx_) * ny_ * nz_;
                 std::vector<double> netcdf_buffer(total_elements);
                 for (int k = 0; k < nz_; k++) {
                     for (int j = 0; j < ny_; j++) {
                         for (int i = 0; i < nx_; i++) {
-                            size_t kokkos_idx = static_cast<size_t>(i) + static_cast<size_t>(j) * nx_ + k * static_cast<size_t>(nx_) * ny_;
+                            size_t src_idx = static_cast<size_t>(k) * ny_ * nx_ + static_cast<size_t>(j) * nx_ + i;
                             size_t netcdf_idx = k * static_cast<size_t>(ny_) * nx_ + static_cast<size_t>(j) * nx_ + i;
-                            netcdf_buffer[netcdf_idx] = h_view.data()[kokkos_idx];
+                            netcdf_buffer[netcdf_idx] = global_field[src_idx];
                         }
                     }
                 }

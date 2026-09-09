@@ -270,6 +270,7 @@ message(STATUS "Found MPI: ${MPI_CXX_VERSION}")
 
 set(
   CECE_CORE_SRCS
+  src/core/cece_band_decomposition.cpp
   src/core/cece_clock.cpp
   src/core/cece_config_parser.cpp
   src/core/cece_compute.cpp
@@ -597,6 +598,15 @@ target_link_libraries(test_cece_clock_run_loop PRIVATE cece GTest::gtest_main)
 # Bracket-equality Property Tests (driver-io-regrid-perf, Property 5)
 add_executable(test_bracket_equal_properties tests/test_bracket_equal_properties.cpp)
 target_link_libraries(test_bracket_equal_properties PRIVATE cece GTest::gtest_main rapidcheck rapidcheck_gtest)
+
+add_executable(test_band_decomposition_partition tests/test_band_decomposition_partition.cpp)
+target_link_libraries(test_band_decomposition_partition PRIVATE cece GTest::gtest_main rapidcheck rapidcheck_gtest)
+
+add_executable(test_band_single_rank_properties tests/test_band_single_rank_properties.cpp)
+target_link_libraries(test_band_single_rank_properties PRIVATE cece MPI::MPI_CXX rapidcheck rapidcheck_gtest GTest::gtest)
+
+add_executable(test_band_regrid_equals_global_rows tests/test_band_regrid_equals_global_rows.cpp)
+target_link_libraries(test_band_regrid_equals_global_rows PRIVATE cece GTest::gtest_main rapidcheck rapidcheck_gtest)
 
 # StreamKey Property Tests (regrid-per-stream, Property 1)
 add_executable(test_stream_key_properties tests/test_stream_key_properties.cpp)
@@ -1302,6 +1312,9 @@ gtest_discover_tests(test_megan3)
 gtest_discover_tests(test_cece_clock_properties)
 gtest_discover_tests(test_cece_clock_run_loop)
 gtest_discover_tests(test_bracket_equal_properties)
+gtest_discover_tests(test_band_decomposition_partition PROPERTIES ENVIRONMENT "RC_PARAMS=max_success=100")
+gtest_discover_tests(test_band_regrid_equals_global_rows PROPERTIES ENVIRONMENT "RC_PARAMS=max_success=100")
+gtest_discover_tests(test_band_single_rank_properties)
 gtest_discover_tests(test_stream_key_properties)
 gtest_discover_tests(test_handle_key_properties)
 gtest_discover_tests(test_stream_key_extends_handle_key)
@@ -1483,3 +1496,93 @@ target_link_libraries(
     yaml-cpp
     MPI::MPI_CXX
 )
+
+# Band-boundary conservation on NON-UNIFORM grids (distributed-domain-decomposition,
+# Property 10). Drives the REAL build_band_mesh_with_global_corners production
+# helper + AXIS conservative regrid; own Kokkos/MPI main().
+add_executable(test_band_boundary_conservation tests/test_band_boundary_conservation.cpp)
+target_link_libraries(test_band_boundary_conservation PRIVATE cece GTest::gtest MPI::MPI_CXX Kokkos::kokkos HELM::AXIS rapidcheck rapidcheck_gtest)
+
+# Band-boundary conservation on CURVILINEAR grids (distributed-domain-decomposition,
+# Property 11). Drives the REAL build_band_mesh_curvilinear_with_global_corners
+# production helper (AXIS synthesize_band_corners) + AXIS conservative regrid;
+# own Kokkos/MPI main().
+add_executable(test_band_boundary_curvilinear tests/test_band_boundary_curvilinear.cpp)
+target_link_libraries(test_band_boundary_curvilinear PRIVATE cece GTest::gtest MPI::MPI_CXX Kokkos::kokkos HELM::AXIS rapidcheck rapidcheck_gtest)
+
+gtest_discover_tests(test_band_boundary_conservation PROPERTIES ENVIRONMENT "RC_PARAMS=max_success=100")
+gtest_discover_tests(test_band_boundary_curvilinear PROPERTIES ENVIRONMENT "RC_PARAMS=max_success=100")
+
+# ---------------------------------------------------------------------------
+# Task 10 — integration / property tests (distributed-domain-decomposition)
+# ---------------------------------------------------------------------------
+
+# 10.1 Output_Gather reconstruction (Property 4). Pure pack/place reassembly +
+# a per-level MPI_Gatherv multi-rank variant, both RapidCheck. Own main() with
+# MPI init (does NOT link GTest::gtest_main), so it runs single-process AND
+# under mpirun. Registered at np1/np2/np4 so the surplus-rank (ny < size) case
+# is exercised by the gatherv property.
+add_executable(test_output_gather_reconstruction tests/test_output_gather_reconstruction.cpp)
+target_link_libraries(test_output_gather_reconstruction PRIVATE cece GTest::gtest MPI::MPI_CXX rapidcheck rapidcheck_gtest)
+add_test(NAME test_output_gather_reconstruction_np1 COMMAND $<TARGET_FILE:test_output_gather_reconstruction>)
+set_tests_properties(test_output_gather_reconstruction_np1 PROPERTIES
+  ENVIRONMENT "RC_PARAMS=max_success=100;FI_PROVIDER=tcp;I_MPI_FABRICS=shm")
+foreach(np 2 4)
+  add_test(
+    NAME test_output_gather_reconstruction_np${np}
+    COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} ${np} ${MPIEXEC_PREFLAGS}
+      $<TARGET_FILE:test_output_gather_reconstruction> ${MPIEXEC_POSTFLAGS}
+  )
+  set_tests_properties(test_output_gather_reconstruction_np${np} PROPERTIES
+    ENVIRONMENT "RC_PARAMS=max_success=100;FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1")
+endforeach()
+
+# 10.3 Column-local band invariance (Property 7). Drives the REAL Ginoux scheme
+# over the full global range vs a band and asserts bit-for-bit equality of the
+# band-owned cells. Own main() with Kokkos init; single-process.
+add_executable(test_column_local_band_invariance tests/test_column_local_band_invariance.cpp)
+target_link_libraries(test_column_local_band_invariance PRIVATE cece GTest::gtest Kokkos::kokkos rapidcheck rapidcheck_gtest)
+add_test(NAME test_column_local_band_invariance COMMAND $<TARGET_FILE:test_column_local_band_invariance>)
+set_tests_properties(test_column_local_band_invariance PROPERTIES
+  ENVIRONMENT "RC_PARAMS=max_success=100")
+
+# 10.4 Collective lock-step with a surplus rank (Property 8). Drives the exact
+# Output_Gather primitive sequence (per-level Gatherv + Bcast) under size > ny
+# so a rank owns ny_local == 0. Own main() with MPI init. The harness uses
+# ny = 2 and ny = 3, so it needs np >= 4 to produce a surplus rank; registered
+# at np1 (structural, single-rank == whole-grid path) and np4 (surplus path).
+add_executable(test_surplus_rank_lockstep tests/test_surplus_rank_lockstep.cpp)
+target_link_libraries(test_surplus_rank_lockstep PRIVATE cece GTest::gtest MPI::MPI_CXX)
+add_test(NAME test_surplus_rank_lockstep_np1 COMMAND $<TARGET_FILE:test_surplus_rank_lockstep>)
+set_tests_properties(test_surplus_rank_lockstep_np1 PROPERTIES
+  ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm")
+add_test(
+  NAME test_surplus_rank_lockstep_np4
+  COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 4 ${MPIEXEC_PREFLAGS}
+    $<TARGET_FILE:test_surplus_rank_lockstep> ${MPIEXEC_POSTFLAGS}
+)
+set_tests_properties(test_surplus_rank_lockstep_np4 PROPERTIES
+  ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1")
+
+# 10.2 Distributed output equivalence (Property 5 & 6). End-to-end: runs the
+# REAL cece_standalone_driver at -np 1/2/3 on the tiny CEDS OC config and
+# asserts the written `oc` field is bit-for-bit identical across rank counts.
+# The shell harness compiles tests/nccmp_var.c against the container NetCDF-C
+# and drives mpirun itself, so it is registered as a single ctest entry with a
+# DEPENDS on the driver target. Requires the CEDS source data in data/.
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/data/OC-em-anthro_CMIP_CEDS_2023.nc")
+  add_test(
+    NAME test_distributed_output_equivalence
+    COMMAND ${CMAKE_COMMAND} -E env
+      "MPIEXEC_EXECUTABLE=${MPIEXEC_EXECUTABLE}"
+      bash ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_distributed_output_equivalence.sh
+        --driver $<TARGET_FILE:cece_standalone_driver>
+        --config ${CMAKE_CURRENT_SOURCE_DIR}/examples/cece_config_ceds_oc_small.yaml
+        --comparator ${CMAKE_CURRENT_SOURCE_DIR}/tests/nccmp_var.c
+        --workdir ${CMAKE_CURRENT_BINARY_DIR}/_equiv_workdir
+  )
+  set_tests_properties(test_distributed_output_equivalence PROPERTIES
+    DEPENDS cece_standalone_driver
+    ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1"
+    TIMEOUT 600)
+endif()
