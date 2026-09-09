@@ -23,6 +23,8 @@ struct SimDateTime {
     int month = 0;        ///< 1-12
     int day = 0;          ///< 1-31
     int hour = 0;         ///< 0-23
+    int minute = 0;       ///< 0-59
+    int second = 0;       ///< 0-59
     int day_of_week = 0;  ///< 1=Monday .. 7=Sunday (ISO 8601)
     int day_of_year = 0;  ///< 1-365/366
     bool valid = false;

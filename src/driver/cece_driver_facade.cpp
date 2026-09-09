@@ -53,6 +53,8 @@ SimDateTime parse_sim_datetime(const std::string& iso8601) {
         dt.month = tdt.month;
         dt.day = tdt.day;
         dt.hour = tdt.hour;
+        dt.minute = tdt.minute;
+        dt.second = tdt.second;
         dt.day_of_week = tick::Gregorian_Calendar::day_of_week(tdt);
         dt.day_of_year = tick::Gregorian_Calendar::day_of_year(tdt);
         dt.valid = true;
@@ -62,6 +64,11 @@ SimDateTime parse_sim_datetime(const std::string& iso8601) {
         dt = SimDateTime{};
     }
     return dt;
+}
+
+/// Position within the calendar day, in [0, 1), at sub-hour resolution.
+static double day_fraction(const SimDateTime& dt) {
+    return (dt.hour + dt.minute / 60.0 + dt.second / 3600.0) / 24.0;
 }
 
 // Calendar selection for the CF "calendar" attribute value.
@@ -309,7 +316,7 @@ RecordBracket bracket_from_cadence(const std::string& cadence, const std::string
             return br;
         }
 
-        const double frac = dt.hour / 24.0;
+        const double frac = day_fraction(dt);
         const int nrec = (file_nt > 0) ? file_nt : 365;
 
         // A single-year (climatology) file has no 366th record; in a leap year
@@ -383,7 +390,7 @@ RecordBracket bracket_from_cadence(const std::string& cadence, const std::string
 
         // Mid-month linear interpolation convention.
         const int dim = tick::Gregorian_Calendar::days_in_month(dt.year, dt.month);
-        const double frac = (static_cast<double>(dt.day - 1) + dt.hour / 24.0) / static_cast<double>(dim);
+        const double frac = (static_cast<double>(dt.day - 1) + day_fraction(dt)) / static_cast<double>(dim);
         const int nrec = (file_nt > 0) ? file_nt : 12;
 
         // Caveat: for multi-year files the modulo wrap makes the first/last
@@ -530,7 +537,7 @@ RecordBracket bracket_from_coords(const std::vector<double>& time_vals, const st
             sim_year = dt.year + (cal_to_dt(cal, rec0_nanos).year - yearAlign);
         }
 
-        const tick::Date_Time sim_dt{sim_year, dt.month, dt.day, dt.hour, 0, 0, 0};
+        const tick::Date_Time sim_dt{sim_year, dt.month, dt.day, dt.hour, dt.minute, dt.second, 0};
         const std::int64_t sim_nanos = cal_to_nanos(cal, sim_dt);
         const double target_days = static_cast<double>(sim_nanos - ref_nanos) / static_cast<double>(tick::nanos_per_day);
 

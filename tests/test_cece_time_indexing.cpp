@@ -681,4 +681,93 @@ TEST(CeceCadenceIndexing, SeriesHourlyRunOutlastsFile) {
     }
 }
 
+// ============================================================================
+// Sub-hourly simulation times. SimDateTime must carry minutes and seconds all
+// the way through to the record lookup; truncating to the hour silently reads
+// the wrong record (or the wrong interpolation weight) on sub-hourly axes.
+// ============================================================================
+
+TEST(CeceCadenceIndexing, ParseKeepsMinutesAndSeconds) {
+    using namespace cece::detail;
+
+    const SimDateTime dt = parse_sim_datetime("2000-01-01T00:40:30");
+    ASSERT_TRUE(dt.valid);
+    EXPECT_EQ(dt.hour, 0);
+    EXPECT_EQ(dt.minute, 40);
+    EXPECT_EQ(dt.second, 30);
+}
+
+TEST(CeceCadenceIndexing, DecodeSubHourlySimTimeOnHourlyAxis) {
+    using namespace cece::detail;
+
+    const std::vector<double> raw = two_day_hourly_axis();
+
+    // nearest: 00:40 is closer to the 01Z record than to 00Z. Truncating to the
+    // hour would keep record 0.
+    const SimDateTime late = parse_sim_datetime("2000-01-01T00:40:00");
+    const RecordBracket nr = bracket_from_coords(raw, kTwoDayHourlyUnits, "gregorian", late, "nearest");
+    ASSERT_TRUE(nr.valid);
+    EXPECT_EQ(nr.i0, 1);
+
+    // linear: half past the hour blends the bracketing records evenly. Under
+    // hour truncation the weight would collapse to 0.
+    const SimDateTime half = parse_sim_datetime("2000-01-01T00:30:00");
+    const RecordBracket lin = bracket_from_coords(raw, kTwoDayHourlyUnits, "gregorian", half, "linear");
+    ASSERT_TRUE(lin.valid);
+    EXPECT_EQ(lin.i0, 0);
+    EXPECT_EQ(lin.i1, 1);
+    EXPECT_NEAR(lin.weight, 0.5, 1e-9);
+}
+
+TEST(CeceCadenceIndexing, DecodeQuarterHourlyAxis) {
+    using namespace cece::detail;
+
+    // Six 15-minute records covering 00:00 .. 01:15.
+    std::vector<double> raw(6);
+    for (int k = 0; k < 6; ++k) raw[k] = 15.0 * k;
+    const char* units = "minutes since 2000-01-01 00:00:00";
+
+    // Every quarter-hour stamp lands exactly on its own record; hour truncation
+    // would collapse the first four onto record 0.
+    const char* stamps[] = {"2000-01-01T00:00:00", "2000-01-01T00:15:00", "2000-01-01T00:30:00",
+                            "2000-01-01T00:45:00", "2000-01-01T01:00:00", "2000-01-01T01:15:00"};
+    for (int k = 0; k < 6; ++k) {
+        const SimDateTime dt = parse_sim_datetime(stamps[k]);
+        ASSERT_TRUE(dt.valid) << stamps[k];
+        const RecordBracket br = bracket_from_coords(raw, units, "gregorian", dt, "nearest");
+        ASSERT_TRUE(br.valid) << stamps[k];
+        EXPECT_EQ(br.i0, k) << stamps[k];
+    }
+
+    // Seconds count as well: 00:37:30 sits midway between records 2 and 3.
+    const SimDateTime dt = parse_sim_datetime("2000-01-01T00:37:30");
+    const RecordBracket lin = bracket_from_coords(raw, units, "gregorian", dt, "linear");
+    ASSERT_TRUE(lin.valid);
+    EXPECT_EQ(lin.i0, 2);
+    EXPECT_EQ(lin.i1, 3);
+    EXPECT_NEAR(lin.weight, 0.5, 1e-9);
+}
+
+TEST(CeceCadenceIndexing, SubHourlyRefinesArithmeticFraction) {
+    using namespace cece::detail;
+
+    // Daily mid-day convention: 06:00 and 06:30 must not produce the same weight.
+    const RecordBracket at_0600 = bracket_from_cadence("daily", "linear", parse_sim_datetime("2026-06-15T06:00:00"), 365);
+    const RecordBracket at_0630 = bracket_from_cadence("daily", "linear", parse_sim_datetime("2026-06-15T06:30:00"), 365);
+    ASSERT_TRUE(at_0600.valid);
+    ASSERT_TRUE(at_0630.valid);
+    EXPECT_EQ(at_0600.i0, 164);
+    EXPECT_EQ(at_0600.i1, 165);
+    EXPECT_NEAR(at_0600.weight, 6.0 / 24.0 + 0.5, 1e-9);
+    EXPECT_NEAR(at_0630.weight, 6.5 / 24.0 + 0.5, 1e-9);
+
+    // Monthly mid-month convention: June 16 00:36 is just past the mid-month
+    // midpoint, which hour truncation would report as exactly on it.
+    const RecordBracket mon = bracket_from_cadence("monthly", "linear", parse_sim_datetime("2020-06-16T00:36:00"), 12);
+    ASSERT_TRUE(mon.valid);
+    EXPECT_EQ(mon.i0, 5);
+    EXPECT_EQ(mon.i1, 6);
+    EXPECT_NEAR(mon.weight, (0.6 / 24.0) / 30.0, 1e-12);
+}
+
 }  // namespace cece
