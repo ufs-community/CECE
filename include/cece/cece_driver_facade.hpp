@@ -35,12 +35,18 @@ struct RecordBracket {
     int i1 = 0;
     double weight = 0.0;
     bool valid = false;
+    /// Set when the simulation time was resolvable but fell outside the file's
+    /// coverage under taxmode "limit". Distinguishes a deliberate rejection
+    /// from an axis that could not be read or decoded, which must not degrade
+    /// to the arithmetic fallback.
+    bool out_of_range = false;
 };
 
 /// Decoded CF "<unit> since <reference>" time-units string.
 struct CFTimeUnits {
     double unit_days = 0.0;       ///< length of one axis unit, in days
-    tick::Date_Time reference{};  ///< the "since" reference date-time
+    tick::Date_Time reference{};  ///< the "since" reference date-time, as written
+    double offset_days = 0.0;     ///< UTC offset of @c reference (e.g. -0.25 for "-06:00"); subtract to get UTC
     bool valid = false;           ///< false when the units are missing or not decodable
 };
 

@@ -235,8 +235,13 @@ static tick::Date_Time cal_to_dt(CalKind kind, std::int64_t nanos) {
  *
  * Only fixed-length units (seconds/minutes/hours/days) are decodable; months
  * and years are calendar-ambiguous and yield an invalid result. The reference
- * parser is lenient: "YYYY-M-D", optional " [T]h[:m[:s]]", and trailing text
- * (fractional seconds, "UTC", "Z", an offset) is ignored.
+ * parser is lenient: "YYYY-M-D", optional " [T]h[:m[:s]]", optional fractional
+ * seconds, and an optional UTC offset ("Z", "UTC", "+HH:MM", "-HHMM", "+HH").
+ * The offset is reported as @c offset_days rather than folded into
+ * @c reference because normalising to UTC can cross a day boundary, and the
+ * file's calendar is not known here. Callers subtract it once they have one.
+ * A malformed offset makes the units undecodable rather than silently decoding
+ * the wrong epoch.
  */
 CFTimeUnits parse_cf_units(const std::string& units) {
     auto trim = [](std::string& s) {
@@ -268,10 +273,6 @@ CFTimeUnits parse_cf_units(const std::string& units) {
 
     std::string ref = units.substr(pos + key.size());
     trim(ref);
-    for (char& ch : ref) {
-        if (ch == 'T' || ch == 't') ch = ' ';  // normalise the date/time separator
-    }
-    // strtol skips leading whitespace, so it consumes the date/time separator.
     auto parse_int = [](const char*& p, int& value) -> bool {
         errno = 0;
         char* end = nullptr;
@@ -286,6 +287,19 @@ CFTimeUnits parse_cf_units(const std::string& units) {
         p += 1;
         return true;
     };
+    auto skip_ws = [](const char*& p) {
+        while (*p == ' ' || *p == '\t') ++p;
+    };
+    auto is_digit = [](char ch) { return ch >= '0' && ch <= '9'; };
+    auto read_digits = [&](const char*& p, int count, int& value) -> bool {
+        value = 0;
+        for (int i = 0; i < count; ++i) {
+            if (!is_digit(*p)) return false;
+            value = value * 10 + (*p - '0');
+            ++p;
+        }
+        return true;
+    };
 
     int y = 0, mo = 1, d = 1, h = 0, mi = 0, s = 0;
     const char* p = ref.c_str();
@@ -293,15 +307,41 @@ CFTimeUnits parse_cf_units(const std::string& units) {
     if (!parse_int(p, mo) || !consume(p, '-')) return {};
     if (!parse_int(p, d)) return {};
 
-    // The time part is optional and trailing text is ignored.
-    if (parse_int(p, h) && consume(p, ':')) {
+    // Optional time part, separated by 'T' or whitespace. Consume the separator
+    // explicitly rather than rewriting it, so a trailing "UTC" stays intact.
+    skip_ws(p);
+    if (*p == 'T' || *p == 't') ++p;
+    skip_ws(p);
+    if (is_digit(*p) && parse_int(p, h) && consume(p, ':')) {
         if (parse_int(p, mi) && consume(p, ':')) {
             parse_int(p, s);
         }
     }
+    if (*p == '.') {  // fractional seconds
+        ++p;
+        while (is_digit(*p)) ++p;
+    }
+
+    // Optional UTC offset. CF gives the reference in that zone, so a record at
+    // offset 0 is `offset` later in UTC.
+    double offset_days = 0.0;
+    skip_ws(p);
+    if (*p == 'Z' || *p == 'z') {
+        ++p;
+    } else if (*p == '+' || *p == '-') {
+        const int sign = (*p == '-') ? -1 : 1;
+        ++p;
+        int oh = 0;
+        int om = 0;
+        if (!read_digits(p, 2, oh)) return {};
+        if (*p == ':') ++p;
+        if (is_digit(*p) && !read_digits(p, 2, om)) return {};
+        if (oh > 23 || om > 59) return {};
+        offset_days = sign * (oh * 60 + om) / 1440.0;
+    }
 
     if (mo < 1 || mo > 12 || d < 1 || d > 31) return {};
-    return CFTimeUnits{unit_days, tick::Date_Time{y, mo, d, h, mi, s, 0}, true};
+    return CFTimeUnits{unit_days, tick::Date_Time{y, mo, d, h, mi, s, 0}, offset_days, true};
 }
 
 // Cadence dispatch: how a stream's records are addressed.
@@ -338,14 +378,18 @@ static RecordBracket midpoint_bracket(int idx, double frac, int nrec) {
 }
 
 // Map `eff_year` into [yearFirst, yLast] per taxmode. Returns false when no
-// year can be resolved: an out-of-range year under "limit", or an inverted
-// range (which would otherwise make the cycle span zero years).
-static bool apply_year_taxmode(int& eff_year, int yearFirst, int yLast, const std::string& tax) {
+// year can be resolved: an out-of-range year under "limit" (which also sets
+// @p out_of_range), or an inverted range (which would otherwise make the cycle
+// span zero years).
+static bool apply_year_taxmode(int& eff_year, int yearFirst, int yLast, const std::string& tax, bool& out_of_range) {
     if (eff_year >= yearFirst && eff_year <= yLast) return true;
 
     const int year_span = yLast - yearFirst + 1;
     if (year_span <= 0) return false;
-    if (tax == "limit") return false;
+    if (tax == "limit") {
+        out_of_range = true;
+        return false;
+    }
     if (tax == "extend") {
         eff_year = std::max(yearFirst, std::min(eff_year, yLast));
         return true;
@@ -429,7 +473,7 @@ RecordBracket bracket_from_cadence(const std::string& cadence, const std::string
                 yLast = yearFirst + std::max(1, file_nt / 365) - 1;
             }
 
-            if (!apply_year_taxmode(eff_year, yearFirst, yLast, tax)) return br;
+            if (!apply_year_taxmode(eff_year, yearFirst, yLast, tax, br.out_of_range)) return br;
         }
 
         int abs_day;
@@ -438,7 +482,15 @@ RecordBracket bracket_from_cadence(const std::string& cadence, const std::string
             for (int y = yearFirst; y < eff_year; ++y) {
                 days_offset += tick::Gregorian_Calendar::days_in_year(y);
             }
-            abs_day = days_offset + (dt.day_of_year - 1);
+            // Day-of-year must come from the effective year: remapping a leap
+            // simulation year onto a non-leap file year (or vice versa) shifts
+            // every date after February otherwise. Feb 29 maps onto Feb 28.
+            int eff_day = dt.day;
+            if (dt.month == 2 && dt.day == 29 && !tick::Gregorian_Calendar::is_leap_year(eff_year)) {
+                eff_day = 28;
+            }
+            const int eff_doy = tick::Gregorian_Calendar::day_of_year(tick::Date_Time{eff_year, dt.month, eff_day, 0, 0, 0, 0});
+            abs_day = days_offset + (eff_doy - 1);
         } else {
             abs_day = dt.day_of_year - 1;  // 0-364 or 0-365 for single-year / climatology files
         }
@@ -498,7 +550,7 @@ RecordBracket bracket_from_cadence(const std::string& cadence, const std::string
                 yLast = yearFirst + (file_nt / 12) - 1;
             }
 
-            if (!apply_year_taxmode(eff_year, yearFirst, yLast, tax)) return br;
+            if (!apply_year_taxmode(eff_year, yearFirst, yLast, tax, br.out_of_range)) return br;
         }
 
         // Compute absolute month index within the file.
@@ -575,7 +627,8 @@ RecordBracket find_bracket(const std::vector<double>& times, double target, bool
 
     if (target < file_start || target > file_end) {
         if (tax == "limit") {
-            return br;  // invalid
+            br.out_of_range = true;  // decodable axis, deliberate rejection
+            return br;
         } else if (tax == "extend") {
             target = std::max(file_start, std::min(target, file_end));
         } else {
@@ -656,7 +709,12 @@ RecordBracket bracket_from_coords(const std::vector<double>& time_vals, const st
         if (!cf.valid) return br;  // not decodable -> degrade
 
         const CalKind cal = parse_calendar(calendar);
-        const std::int64_t ref_nanos = cal_to_nanos(cal, cf.reference);
+        // Normalise the reference to UTC. Shifting in the time-point domain is
+        // calendar-agnostic, whereas adding hours to the reference date could
+        // land on a date the file's calendar does not have (e.g. Jan 31 under
+        // 360_day).
+        const std::int64_t ref_nanos =
+            cal_to_nanos(cal, cf.reference) - static_cast<std::int64_t>(std::llround(cf.offset_days * static_cast<double>(tick::nanos_per_day)));
 
         // Record times as days since the file's reference epoch.
         std::vector<double> rec_days(time_vals.size());
@@ -1218,6 +1276,10 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                     }
                     if (bracket.valid) {
                         bracket_note = "decoded axis";
+                    } else if (bracket.out_of_range) {
+                        // The axis decoded; taxmode 'limit' rejected the time. Degrading
+                        // here would quietly hand back a climatology record instead.
+                        bracket_note = "decoded axis, out of range";
                     } else if (c_lower == "daily" || c_lower == "monthly") {
                         // Undecodable axis but the cadence carries a granularity: degrade.
                         bracket = bracket_from_cadence(cadence, tintalgo, sim_dt, file_nt, yearFirst, yearLast, yearAlign, taxmode);
@@ -1233,11 +1295,18 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                 if (!bracket.valid) {
                     amio_close(read_dataset);
                     amio_finalize(read_core);
-                    LogFatal("[DRIVER FATAL] Could not resolve a time record for field '" + var_name + "' in '" + input_file_path + "' (cadence='" +
-                             (cadence.empty() ? std::string("series (default)") : cadence) +
-                             "'): the time axis is not usable (missing/non-fixed units, records out of ascending order, or a degenerate span) "
-                             "and there is no cadence granularity to fall back on. "
-                             "Set 'cadence: stepwise' to ignore time, use 'cadence: daily'/'monthly', or provide 'time_units'.");
+                    const std::string cadence_note = (cadence.empty() ? std::string("series (default)") : cadence);
+                    if (bracket.out_of_range) {
+                        LogFatal("[DRIVER FATAL] Simulation time " + time_iso8601 + " is outside the coverage of '" + input_file_path +
+                                 "' for field '" + var_name + "' (cadence='" + cadence_note +
+                                 "', taxmode='limit'). Use taxmode 'extend' to hold the nearest end or 'cycle' to repeat the file.");
+                    } else {
+                        LogFatal("[DRIVER FATAL] Could not resolve a time record for field '" + var_name + "' in '" + input_file_path +
+                                 "' (cadence='" + cadence_note +
+                                 "'): the time axis is not usable (missing/non-fixed units, records out of ascending order, or a degenerate span) "
+                                 "and there is no cadence granularity to fall back on. "
+                                 "Set 'cadence: stepwise' to ignore time, use 'cadence: daily'/'monthly', or provide 'time_units'.");
+                    }
                     return false;
                 }
 

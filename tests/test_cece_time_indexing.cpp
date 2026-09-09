@@ -24,6 +24,19 @@
 
 namespace cece {
 
+namespace {
+
+// 48 hourly records covering 2000-01-01T00 .. 2000-01-02T23.
+std::vector<double> two_day_hourly_axis() {
+    std::vector<double> raw(48);
+    for (int k = 0; k < 48; ++k) raw[k] = static_cast<double>(k);
+    return raw;
+}
+
+constexpr const char* kTwoDayHourlyUnits = "hours since 2000-01-01 00:00:00";
+
+}  // namespace
+
 TEST(CeceCadenceIndexing, HourlyCadence) {
     using namespace cece::detail;
 
@@ -442,6 +455,79 @@ TEST(CeceCadenceIndexing, InvertedYearRangeIsRejected) {
     EXPECT_TRUE(ok.valid);
 }
 
+TEST(CeceCadenceIndexing, DecodeAppliesUtcOffset) {
+    using namespace cece::detail;
+
+    // Records 0..47 of "hours since 2000-01-01 00:00:00 -06:00" are 06Z, 07Z, ...
+    const std::vector<double> raw = two_day_hourly_axis();
+    const char* units_local = "hours since 2000-01-01 00:00:00 -06:00";
+
+    // 06Z is record 0 on the offset axis, but record 6 if the offset is dropped.
+    const SimDateTime at_06z = parse_sim_datetime("2000-01-01T06:00:00");
+    EXPECT_EQ(bracket_from_coords(raw, units_local, "gregorian", at_06z, "nearest").i0, 0);
+    EXPECT_EQ(bracket_from_coords(raw, kTwoDayHourlyUnits, "gregorian", at_06z, "nearest").i0, 6);
+
+    const SimDateTime at_11z = parse_sim_datetime("2000-01-01T11:00:00");
+    EXPECT_EQ(bracket_from_coords(raw, units_local, "gregorian", at_11z, "nearest").i0, 5);
+}
+
+TEST(CeceCadenceIndexing, LimitRejectionIsDistinguishedFromUnusableAxis) {
+    using namespace cece::detail;
+
+    const std::vector<double> raw = two_day_hourly_axis();
+    const SimDateTime day3 = parse_sim_datetime("2000-01-03T05:00:00");
+
+    // Decoded fine, but outside coverage under 'limit'. The caller must not
+    // degrade to the arithmetic fallback on this.
+    const RecordBracket limited = bracket_from_coords(raw, kTwoDayHourlyUnits, "gregorian", day3, "nearest", 0, "limit");
+    EXPECT_FALSE(limited.valid);
+    EXPECT_TRUE(limited.out_of_range);
+
+    // Undecodable units: there is no axis to be out of range against.
+    const RecordBracket undecodable = bracket_from_coords(raw, "months since 2000-01-01", "gregorian", day3, "nearest", 0, "limit");
+    EXPECT_FALSE(undecodable.valid);
+    EXPECT_FALSE(undecodable.out_of_range);
+
+    // An in-range time is unaffected.
+    const RecordBracket ok =
+        bracket_from_coords(raw, kTwoDayHourlyUnits, "gregorian", parse_sim_datetime("2000-01-02T05:00:00"), "nearest", 0, "limit");
+    EXPECT_TRUE(ok.valid);
+    EXPECT_FALSE(ok.out_of_range);
+
+    // The arithmetic path reports it the same way.
+    const RecordBracket arith = bracket_from_cadence("monthly", "nearest", parse_sim_datetime("2024-01-01T00:00:00"), 288, 2000, 2023, 2000, "limit");
+    EXPECT_FALSE(arith.valid);
+    EXPECT_TRUE(arith.out_of_range);
+
+    // An inverted range is a configuration error, not an out-of-range rejection.
+    const RecordBracket inverted = bracket_from_cadence("monthly", "nearest", parse_sim_datetime("2024-01-01T00:00:00"), 288, 2000, 1999, 0, "limit");
+    EXPECT_FALSE(inverted.valid);
+    EXPECT_FALSE(inverted.out_of_range);
+}
+
+TEST(CeceCadenceIndexing, MultiYearDailyRemapUsesEffectiveYearDayOfYear) {
+    using namespace cece::detail;
+
+    // A 1095-record daily file covering 2021-2023 (no leap years). A leap
+    // simulation year cycles onto 2021, so the day-of-year has to be recomputed
+    // in the effective year -- using the simulation year's puts every date
+    // after February one record late.
+    const int nt = 1095;
+    auto rec = [&](const char* iso) { return bracket_from_cadence("daily", "nearest", parse_sim_datetime(iso), nt, 2021, 2023, 2021, "cycle").i0; };
+
+    // 2024-03-01 cycles to 2021-03-01, which is record 59 (2021 day-of-year 60).
+    EXPECT_EQ(rec("2024-03-01T00:00:00"), 59);
+    EXPECT_EQ(rec("2021-03-01T00:00:00"), 59);
+
+    // The alignment holds through the rest of the year.
+    EXPECT_EQ(rec("2024-07-04T00:00:00"), 184);
+    EXPECT_EQ(rec("2021-07-04T00:00:00"), 184);
+
+    // Policy: Feb 29 maps onto Feb 28 of the non-leap effective year.
+    EXPECT_EQ(rec("2024-02-29T00:00:00"), 58);
+    EXPECT_EQ(rec("2021-02-28T00:00:00"), 58);
+}
+
 TEST(CeceCadenceIndexing, TimeAxisFallbackOnNullDataset) {
     using namespace cece::detail;
 
@@ -513,16 +599,40 @@ TEST(CeceCfUnits, ParseReferenceDateTime) {
     EXPECT_EQ(partial.reference, (tick::Date_Time{1850, 1, 2, 12, 30, 0, 0}));
 }
 
-TEST(CeceCfUnits, ParseIgnoresTrailingReferenceText) {
+TEST(CeceCfUnits, ParseHandlesZeroOffsetSuffixes) {
     using namespace cece::detail;
 
-    // Fractional seconds, a zone suffix and a UTC offset are all common in real files.
+    // Fractional seconds and the various spellings of "UTC" are all common in
+    // real files, and all leave the reference unshifted.
     for (const char* units : {"hours since 1900-01-01 00:00:00.0", "seconds since 1900-01-01 00:00:00 UTC", "days since 1900-01-01T00:00:00Z",
                               "days since 1900-01-01 00:00:00+00:00"}) {
         const CFTimeUnits u = parse_cf_units(units);
         EXPECT_TRUE(u.valid) << units;
         EXPECT_EQ(u.reference, (tick::Date_Time{1900, 1, 1, 0, 0, 0, 0})) << units;
+        EXPECT_NEAR(u.offset_days, 0.0, 1e-12) << units;
     }
+}
+
+TEST(CeceCfUnits, ParseCapturesNonZeroUtcOffsets) {
+    using namespace cece::detail;
+
+    // A non-zero offset must not be discarded: the reference is given in that
+    // zone, so ignoring it shifts every selected record.
+    EXPECT_NEAR(parse_cf_units("hours since 2000-01-01 00:00:00 -06:00").offset_days, -0.25, 1e-12);
+    EXPECT_NEAR(parse_cf_units("hours since 2000-01-01 00:00:00 -0600").offset_days, -0.25, 1e-12);
+    EXPECT_NEAR(parse_cf_units("hours since 2000-01-01 00:00:00 -06").offset_days, -0.25, 1e-12);
+    EXPECT_NEAR(parse_cf_units("hours since 2000-01-01 00:00:00 +05:30").offset_days, 5.5 / 24.0, 1e-12);
+    EXPECT_NEAR(parse_cf_units("hours since 2000-01-01T00:00:00.000 -06:00").offset_days, -0.25, 1e-12);
+
+    // The reference itself is reported as written, not pre-shifted.
+    const CFTimeUnits cf = parse_cf_units("hours since 2000-01-01 00:00:00 -06:00");
+    EXPECT_TRUE(cf.valid);
+    EXPECT_EQ(cf.reference, (tick::Date_Time{2000, 1, 1, 0, 0, 0, 0}));
+
+    // A malformed offset makes the units undecodable rather than silently UTC.
+    EXPECT_FALSE(parse_cf_units("hours since 2000-01-01 00:00:00 +").valid);
+    EXPECT_FALSE(parse_cf_units("hours since 2000-01-01 00:00:00 -6:00").valid);
+    EXPECT_FALSE(parse_cf_units("hours since 2000-01-01 00:00:00 +25:00").valid);
 }
 
 TEST(CeceCfUnits, ParseRejectsUndecodableUnits) {
@@ -739,19 +849,6 @@ TEST(CeceCadenceIndexing, DecodeRejectsDegenerateAxisSpan) {
 // Sim times are whole hours and the records are hourly, so every target lands
 // exactly on a record and nearest-neighbour is the meaningful assertion.
 // ============================================================================
-
-namespace {
-
-// 48 hourly records covering 2000-01-01T00 .. 2000-01-02T23.
-std::vector<double> two_day_hourly_axis() {
-    std::vector<double> raw(48);
-    for (int k = 0; k < 48; ++k) raw[k] = static_cast<double>(k);
-    return raw;
-}
-
-constexpr const char* kTwoDayHourlyUnits = "hours since 2000-01-01 00:00:00";
-
-}  // namespace
 
 TEST(CeceCadenceIndexing, SeriesHourlyTwoDayFileWalksAllRecords) {
     using namespace cece::detail;
