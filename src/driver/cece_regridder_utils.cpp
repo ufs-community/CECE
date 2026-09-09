@@ -66,40 +66,34 @@ static std::vector<double> read_coordinate_array(amio_dataset_handle dataset, co
 }
 
 static axis::topology::UnstructuredMesh<Kokkos::HostSpace> load_mesh_from_file(int ni, const std::string& gridspec_file) {
-    int rank = 0;
-    int mpi_initialized = 0;
-    MPI_Initialized(&mpi_initialized);
-    if (mpi_initialized) {
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    }
-    std::string manifest_path = "amio_GS_mesh_manifest_rank" + std::to_string(rank) + ".yaml";
-    std::ofstream m_file(manifest_path);
-    m_file << "backend: netcdf4\n"
-           << "path: " << gridspec_file << "\n"
-           << "data_model: enhanced\n"
-           << "staging_pool:\n"
-           << "  buffer_count: 16\n"
-           << "  buffer_capacity_bytes: 33554432\n"
-           << "worker_pool:\n"
-           << "  threads: 1\n";
-    m_file.close();
+    // Build the gridspec manifest in memory and pass it directly to AMIO. Writing a
+    // per-rank manifest file to a shared-disk workdir (e.g. Lustre) is unnecessary and
+    // leaves stray files behind; the in-memory API avoids both the I/O and any race.
+    std::ostringstream manifest;
+    manifest << "backend: netcdf4\n"
+             << "path: " << gridspec_file << "\n"
+             << "data_model: enhanced\n"
+             << "staging_pool:\n"
+             << "  buffer_count: 16\n"
+             << "  buffer_capacity_bytes: 33554432\n"
+             << "worker_pool:\n"
+             << "  threads: 1\n";
+    const std::string manifest_content = manifest.str();
 
     amio_core_handle core = nullptr;
     amio_dataset_handle dataset = nullptr;
     amio_view_handle edges_on_cell_view = nullptr;
     amio_view_handle vertices_on_cell_view = nullptr;
 
-    amio_status_t amio_rc = amio_init(manifest_path.c_str(), &core);
+    amio_status_t amio_rc = amio_init_from_string(manifest_content.c_str(), "yaml", &core);
     if (amio_rc != AMIO_OK) {
-        std::remove(manifest_path.c_str());
-        throw std::runtime_error("amio_init failed");
+        throw std::runtime_error("amio_init_from_string failed");
     }
 
-    amio_rc = amio_open_dataset(core, manifest_path.c_str(), AMIO_MODE_READ, &dataset);
+    amio_rc = amio_open_dataset_from_string(core, manifest_content.c_str(), "yaml", AMIO_MODE_READ, &dataset);
     if (amio_rc != AMIO_OK) {
         amio_finalize(core);
-        std::remove(manifest_path.c_str());
-        throw std::runtime_error("amio_open_dataset failed");
+        throw std::runtime_error("amio_open_dataset_from_string failed");
     }
 
     // A. Try SCRIP-conventions coordinates first
@@ -212,7 +206,6 @@ static axis::topology::UnstructuredMesh<Kokkos::HostSpace> load_mesh_from_file(i
 
             amio_close(dataset);
             amio_finalize(core);
-            std::remove(manifest_path.c_str());
 
             size_t n_vertices = lat_vertices.size();
 
@@ -258,7 +251,6 @@ static axis::topology::UnstructuredMesh<Kokkos::HostSpace> load_mesh_from_file(i
 
     amio_close(dataset);
     amio_finalize(core);
-    std::remove(manifest_path.c_str());
     throw std::runtime_error("Unsupported gridspec mesh topology convention (neither SCRIP nor MPAS/UGRID found)");
 }
 

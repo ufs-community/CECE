@@ -5,8 +5,8 @@
 #include <Kokkos_Core.hpp>
 #include <axis/topology/named_grid_registry.hpp>
 #include <cmath>
-#include <fstream>
 #include <halo/communicator.hpp>
+#include <sstream>
 #include <halo/environment.hpp>
 #include <iostream>
 #include <memory>
@@ -258,35 +258,38 @@ int main(int argc, char* argv[]) {
             }
 
             if (!input_file_path.empty()) {
-                std::string read_manifest_path = "amio_coord_manifest.yaml";
-                std::ofstream m_file_coords(read_manifest_path);
-                m_file_coords << "backend: netcdf4\n"
-                              << "path: " << input_file_path << "\n"
-                              << "data_model: enhanced\n"
-                              << "staging_pool:\n"
-                              << "  buffer_count: 16\n"
-                              << "  buffer_capacity_bytes: 33554432\n"
-                              << "worker_pool:\n"
-                              << "  threads: 1\n"
-                              << "prefetch:\n"
-                              << "  depth: 4\n"
-                              << "  read_timeout_s: 60\n"
-                              << "staging_timeout_ms: 10000\n";
-                m_file_coords.close();
+                // Build the coordinate manifest in memory and pass it directly to AMIO.
+                // Writing it to a shared-disk file (e.g. Lustre) races when multiple MPI
+                // ranks per node truncate/rewrite the same path concurrently, which
+                // produces torn reads (empty/partial YAML) and spurious open failures.
+                std::ostringstream coord_manifest;
+                coord_manifest << "backend: netcdf4\n"
+                               << "path: " << input_file_path << "\n"
+                               << "data_model: enhanced\n"
+                               << "staging_pool:\n"
+                               << "  buffer_count: 16\n"
+                               << "  buffer_capacity_bytes: 33554432\n"
+                               << "worker_pool:\n"
+                               << "  threads: 1\n"
+                               << "prefetch:\n"
+                               << "  depth: 4\n"
+                               << "  read_timeout_s: 60\n"
+                               << "staging_timeout_ms: 10000\n";
+                const std::string coord_manifest_content = coord_manifest.str();
 
                 amio_core_handle coord_core = nullptr;
                 amio_dataset_handle coord_dataset = nullptr;
                 amio_view_handle lon_view = nullptr;
                 amio_view_handle lat_view = nullptr;
 
-                amio_status_t amio_rc = amio_init(read_manifest_path.c_str(), &coord_core);
+                amio_status_t amio_rc = amio_init_from_string(coord_manifest_content.c_str(), "yaml", &coord_core);
                 if (amio_rc != AMIO_OK) {
-                    std::cerr << "ERROR: amio_init failed for coordinate manifest '" << read_manifest_path << "': " << amio_strerror(amio_rc)
+                    std::cerr << "ERROR: amio_init_from_string failed for coordinate manifest: " << amio_strerror(amio_rc)
                               << std::endl;
                 } else {
-                    amio_rc = amio_open_dataset(coord_core, read_manifest_path.c_str(), AMIO_MODE_READ, &coord_dataset);
+                    amio_rc = amio_open_dataset_from_string(coord_core, coord_manifest_content.c_str(), "yaml", AMIO_MODE_READ, &coord_dataset);
                     if (amio_rc != AMIO_OK) {
-                        std::cerr << "ERROR: amio_open_dataset failed for dataset '" << input_file_path << "': " << amio_strerror(amio_rc)
+                        std::cerr << "ERROR: amio_open_dataset_from_string failed for dataset '" << input_file_path << "': " << amio_strerror(amio_rc)
                                   << std::endl;
                     } else {
                         int file_nx = 0;
@@ -398,7 +401,6 @@ int main(int argc, char* argv[]) {
                     }
                     amio_finalize(coord_core);
                 }
-                std::remove(read_manifest_path.c_str());
             }
 
             if (is_explicit_gridspec && !loaded_from_file) {

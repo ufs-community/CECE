@@ -215,24 +215,21 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
     std::string filename = ResolveFilename(time_seconds);
     CECE_LOG_INFO("[CECE] Output file: " + filename);
 
-    std::string manifest_path = filename + "_manifest.yaml";
+    // The writer manifest is built in memory (rank 0) and broadcast to the peer ranks,
+    // then handed directly to AMIO via amio_init_from_string / amio_open_dataset_from_string.
+    // Writing it to a shared-disk file races when multiple ranks per node access the same
+    // path (torn/empty reads, MANIFEST_NOT_FOUND from a peer deleting it first); the
+    // in-memory path avoids the file entirely.
+    std::string manifest_content;
 
     amio_core_handle core = nullptr;
     amio_dataset_handle dataset = nullptr;
 
     try {
         if (rank == 0) {
-            // Step 1: Write dynamic AMIO netcdf4 manifest YAML (Rank 0 only to avoid parallel write conflicts)
-            std::ofstream m_file(manifest_path);
-            if (!m_file.is_open()) {
-                CECE_LOG_ERROR("Failed to open manifest file for writing: " + manifest_path);
-                return -1;
-            }
-
-            int write_threads = config_.amio_worker_threads;
-            if (write_threads < 1) {
-                write_threads = 1;
-            }
+            // Step 1: Build the dynamic AMIO netcdf4 manifest YAML in memory (rank 0 only,
+            // then broadcast so every rank opens with byte-identical content).
+            std::ostringstream m_file;
 
             m_file << "backend: netcdf4\n"
                    << "path: " << filename << "\n"
@@ -328,12 +325,18 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
                     }
                 }
             }
-            m_file.close();
+            manifest_content = m_file.str();
         }
 
-        // Wait for Rank 0 to finish writing the manifest file before all ranks collectively load it!
+        // Broadcast the in-memory manifest from rank 0 to every rank so all ranks open the
+        // dataset with identical content, without ever touching the shared filesystem.
         if (mpi_initialized && comm_ != MPI_COMM_NULL) {
-            MPI_Barrier(comm_);
+            int manifest_len = static_cast<int>(manifest_content.size());
+            MPI_Bcast(&manifest_len, 1, MPI_INT, 0, comm_);
+            manifest_content.resize(static_cast<size_t>(manifest_len));
+            if (manifest_len > 0) {
+                MPI_Bcast(manifest_content.data(), manifest_len, MPI_CHAR, 0, comm_);
+            }
         }
 
         // Step 2: Initialize AMIO Core
@@ -342,10 +345,11 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
         } else if (mpi_initialized) {
             amio_set_parent_communicator(MPI_Comm_c2f(MPI_COMM_SELF));
         }
-        check_amio_rc(amio_init(manifest_path.c_str(), &core), "amio_init");
+        check_amio_rc(amio_init_from_string(manifest_content.c_str(), "yaml", &core), "amio_init_from_string");
 
         // Step 3: Open Dataset
-        check_amio_rc(amio_open_dataset(core, manifest_path.c_str(), AMIO_MODE_WRITE, &dataset), "amio_open_dataset");
+        check_amio_rc(amio_open_dataset_from_string(core, manifest_content.c_str(), "yaml", AMIO_MODE_WRITE, &dataset),
+                      "amio_open_dataset_from_string");
 
         // Step 4: Write lon coordinate variable
         std::vector<double> lon_values;
@@ -762,21 +766,12 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
         check_amio_rc(amio_finalize(core), "amio_finalize");
         core = nullptr;
 
-        // Cleanup temporary manifest file on Rank 0 only after synchronizing all ranks
-        if (mpi_initialized && comm_ != MPI_COMM_NULL) {
-            MPI_Barrier(comm_);
-        }
-        if (rank == 0) {
-            fs::remove(manifest_path);
-        }
-
         CECE_LOG_INFO("[CECE] Successfully wrote " + filename + " via AMIO");
 
     } catch (const std::exception& e) {
         CECE_LOG_ERROR("[CECE] Failed to write NetCDF file via AMIO: " + std::string(e.what()));
         if (dataset) amio_close(dataset);
         if (core) amio_finalize(core);
-        if (fs::exists(manifest_path)) fs::remove(manifest_path);
         return -1;
     }
 
