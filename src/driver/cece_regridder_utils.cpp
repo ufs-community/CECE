@@ -121,7 +121,6 @@ static axis::topology::UnstructuredMesh<Kokkos::HostSpace> load_mesh_from_file(i
 
             amio_close(dataset);
             amio_finalize(core);
-            std::remove(manifest_path.c_str());
 
             size_t n_vertices = scrip_lons.size();
             size_t n_cells = grid_size;
@@ -148,7 +147,6 @@ static axis::topology::UnstructuredMesh<Kokkos::HostSpace> load_mesh_from_file(i
         } catch (const std::exception& e) {
             amio_close(dataset);
             amio_finalize(core);
-            std::remove(manifest_path.c_str());
             throw;
         }
     }
@@ -244,7 +242,6 @@ static axis::topology::UnstructuredMesh<Kokkos::HostSpace> load_mesh_from_file(i
         } catch (const std::exception& e) {
             amio_close(dataset);
             amio_finalize(core);
-            std::remove(manifest_path.c_str());
             throw;
         }
     }
