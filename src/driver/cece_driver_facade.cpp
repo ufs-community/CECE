@@ -401,6 +401,12 @@ RecordBracket bracket_from_cadence(const std::string& cadence, const std::string
  * @p taxmode ("cycle"/"extend"/"limit") to out-of-range targets, and returns
  * the nearest record or (when @p linear) the two bracketing records with a
  * blend weight. @p times and @p target must share the same units.
+ *
+ * "cycle" repeats the file with a period of one record interval past the last
+ * record, so a uniformly sampled N-record axis has period N (not N-1): hour 53
+ * of a 48-record hourly file resolves to record 5. A target landing in that
+ * trailing interval brackets the last record against the first record of the
+ * next cycle.
  */
 RecordBracket find_bracket(const std::vector<double>& times, double target, bool linear, const std::string& taxmode) {
     RecordBracket br;
@@ -418,20 +424,43 @@ RecordBracket find_bracket(const std::vector<double>& times, double target, bool
 
     const double file_start = times[0];
     const double file_end = times[n - 1];
+    const double file_span = file_end - file_start;
+    // The last interval stands in for the (unrecorded) step from the final
+    // record back to the start of the next cycle.
+    const double last_interval = times[n - 1] - times[n - 2];
+    const double period = (last_interval > 0.0) ? file_span + last_interval : file_span;
+    bool in_wrap_gap = false;
+
     if (target < file_start || target > file_end) {
-        const double file_span = file_end - file_start;
         if (tax == "limit") {
             return br;  // invalid
         } else if (tax == "extend") {
             target = std::max(file_start, std::min(target, file_end));
         } else {
             // cycle
-            if (file_span > 0.0) {
-                double offset_from_start = std::fmod(target - file_start, file_span);
-                if (offset_from_start < 0.0) offset_from_start += file_span;
+            if (period > 0.0) {
+                double offset_from_start = std::fmod(target - file_start, period);
+                if (offset_from_start < 0.0) offset_from_start += period;
                 target = file_start + offset_from_start;
+                in_wrap_gap = (target > file_end);
             }
         }
+    }
+
+    if (in_wrap_gap) {
+        const double gap = period - file_span;
+        double w = (gap > 0.0) ? (target - file_end) / gap : 0.0;
+        w = std::max(0.0, std::min(1.0, w));
+        if (linear) {
+            br.i0 = static_cast<int>(n) - 1;
+            br.i1 = 0;
+            br.weight = w;
+        } else {
+            br.i0 = br.i1 = (w < 0.5) ? static_cast<int>(n) - 1 : 0;
+            br.weight = 0.0;
+        }
+        br.valid = true;
+        return br;
     }
 
     int lo = 0, hi = static_cast<int>(n) - 1;

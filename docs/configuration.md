@@ -699,7 +699,9 @@ $$\text{effective\_year} = \text{yearFirst} + (\text{sim\_year} - \text{yearAlig
 coverage:
 
 * **`cycle`** (default): wrap the simulation time back into the file's range, repeating
-  the file's coverage indefinitely.
+  the file's coverage indefinitely. The repeat period runs one record interval past the
+  last record, so a 48-record hourly file repeats every 48 hours and simulation hour 53
+  reads record 5.
 * **`extend`**: clamp to the nearest end of the file's coverage. Useful for running past
   the last year of an inventory.
 * **`limit`**: no record is resolved and the run fails.

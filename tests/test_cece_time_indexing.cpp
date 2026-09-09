@@ -532,11 +532,14 @@ TEST(CeceCadenceIndexing, DecodeTaxmode) {
     EXPECT_EQ(ext.i0, 2);
     EXPECT_EQ(ext.i1, 2);
 
+    // cycle: the file repeats with period 89 d (60 d span + the trailing 29 d
+    // interval), so day 166 wraps to day 77 -- past the last record, in the
+    // trailing interval that brackets Mar 1 against Jan 1 of the next cycle.
     RecordBracket cyc = bracket_from_coords(raw, "days since 2000-01-01", "", dt, "linear", 0, "cycle");
     EXPECT_TRUE(cyc.valid);
-    EXPECT_EQ(cyc.i0, 1);
-    EXPECT_EQ(cyc.i1, 2);
-    EXPECT_NEAR(cyc.weight, 15.0 / 29.0, 1e-9);
+    EXPECT_EQ(cyc.i0, 2);
+    EXPECT_EQ(cyc.i1, 0);
+    EXPECT_NEAR(cyc.weight, 17.0 / 29.0, 1e-9);
 }
 
 // Direct tests for the shared generic bracketer that both the arithmetic and
@@ -562,12 +565,21 @@ TEST(CeceCadenceIndexing, BracketTimesDirect) {
     // taxmode limit: out-of-range target -> invalid.
     EXPECT_FALSE(find_bracket(times, 166.0, true, "limit").valid);
 
-    // taxmode cycle: 166 wraps modulo the 60-day span to 46 -> rec 1..2.
+    // taxmode cycle: the repeat period is 89 (the 60 span plus the trailing 29
+    // interval), so 166 wraps to 77 -- inside that trailing interval, which
+    // brackets the last record against the first of the next cycle.
     RecordBracket cyc = find_bracket(times, 166.0, true, "cycle");
     EXPECT_TRUE(cyc.valid);
-    EXPECT_EQ(cyc.i0, 1);
-    EXPECT_EQ(cyc.i1, 2);
-    EXPECT_NEAR(cyc.weight, 15.0 / 29.0, 1e-9);
+    EXPECT_EQ(cyc.i0, 2);
+    EXPECT_EQ(cyc.i1, 0);
+    EXPECT_NEAR(cyc.weight, 17.0 / 29.0, 1e-9);
+
+    // A target inside the recorded range is unaffected by the period.
+    RecordBracket in_range = find_bracket(times, 46.0, true, "cycle");
+    EXPECT_TRUE(in_range.valid);
+    EXPECT_EQ(in_range.i0, 1);
+    EXPECT_EQ(in_range.i1, 2);
+    EXPECT_NEAR(in_range.weight, 15.0 / 29.0, 1e-9);
 
     // Single record and empty edge cases.
     RecordBracket single = find_bracket({5.0}, 99.0, true, "extend");
@@ -650,10 +662,23 @@ TEST(CeceCadenceIndexing, SeriesHourlyRunOutlastsFile) {
     ASSERT_TRUE(ext.valid);
     EXPECT_EQ(ext.i0, 47);
 
-    // cycle (default): wrap back into the file's 47-hour span.
+    // cycle (default): a 48-record hourly file repeats with a 48-hour period,
+    // so hour 53 of the run resolves to record 53 % 48 == 5.
     const RecordBracket cyc = bracket_from_coords(raw, kTwoDayHourlyUnits, "gregorian", day3, "nearest", 0, "cycle");
     ASSERT_TRUE(cyc.valid);
-    EXPECT_EQ(cyc.i0, 6);
+    EXPECT_EQ(cyc.i0, 5);
+
+    // The whole third day replays the first day record-for-record, with no
+    // drift at the seam that a period of 47 h would introduce.
+    for (int h = 0; h < 24; ++h) {
+        char iso[32];
+        std::snprintf(iso, sizeof(iso), "2000-01-03T%02d:00:00", h);
+        const SimDateTime dt = parse_sim_datetime(iso);
+        ASSERT_TRUE(dt.valid) << iso;
+        const RecordBracket br = bracket_from_coords(raw, kTwoDayHourlyUnits, "gregorian", dt, "nearest", 0, "cycle");
+        ASSERT_TRUE(br.valid) << iso;
+        EXPECT_EQ(br.i0, h) << iso;
+    }
 }
 
 }  // namespace cece
