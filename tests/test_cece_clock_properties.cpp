@@ -1465,4 +1465,83 @@ TEST(CeceCadenceIndexing, BracketTimesDirect) {
     EXPECT_FALSE(find_bracket({}, 0.0, true, "extend").valid);
 }
 
+// ============================================================================
+// Dated hourly meteorology: a file holding 48 hourly records (two full days)
+// driving a two-day run must resolve each simulation hour to the record for
+// that absolute date-hour, so day 2 reads records 24-47 rather than replaying
+// day 1. This is the "series" cadence, not "hourly" which is for a single profile.
+//
+// Sim times are whole hours and the records are hourly, so every target lands
+// exactly on a record and nearest-neighbour is the meaningful assertion.
+// ============================================================================
+
+namespace {
+
+// 48 hourly records covering 2000-01-01T00 .. 2000-01-02T23.
+std::vector<double> two_day_hourly_axis() {
+    std::vector<double> raw(48);
+    for (int k = 0; k < 48; ++k) raw[k] = static_cast<double>(k);
+    return raw;
+}
+
+constexpr const char* kTwoDayHourlyUnits = "hours since 2000-01-01 00:00:00";
+
+}  // namespace
+
+TEST(CeceCadenceIndexing, SeriesHourlyTwoDayFileWalksAllRecords) {
+    using namespace cece::detail;
+
+    const std::vector<double> raw = two_day_hourly_axis();
+
+    for (int k = 0; k < 48; ++k) {
+        char iso[32];
+        std::snprintf(iso, sizeof(iso), "2000-01-%02dT%02d:00:00", 1 + k / 24, k % 24);
+
+        const SimDateTime dt = parse_sim_datetime(iso);
+        ASSERT_TRUE(dt.valid) << iso;
+
+        const RecordBracket br = bracket_from_coords(raw, kTwoDayHourlyUnits, "gregorian", dt, "nearest");
+        ASSERT_TRUE(br.valid) << iso;
+        EXPECT_EQ(br.i0, k) << iso;
+        EXPECT_EQ(br.i1, k) << iso;
+    }
+}
+
+TEST(CeceCadenceIndexing, SeriesHourlyDiffersFromHourlyProfile) {
+    using namespace cece::detail;
+
+    const std::vector<double> raw = two_day_hourly_axis();
+    const SimDateTime day1 = parse_sim_datetime("2000-01-01T05:00:00");
+    const SimDateTime day2 = parse_sim_datetime("2000-01-02T05:00:00");
+
+    // series: 05Z on the second day advances to that day's own record.
+    EXPECT_EQ(bracket_from_coords(raw, kTwoDayHourlyUnits, "gregorian", day1, "nearest").i0, 5);
+    EXPECT_EQ(bracket_from_coords(raw, kTwoDayHourlyUnits, "gregorian", day2, "nearest").i0, 29);
+
+    // hourly profile: preserved repeating hour-of-day, so both days give record 5.
+    EXPECT_EQ(bracket_from_cadence("hourly", "nearest", day1, 48).i0, 5);
+    EXPECT_EQ(bracket_from_cadence("hourly", "nearest", day2, 48).i0, 5);
+}
+
+TEST(CeceCadenceIndexing, SeriesHourlyRunOutlastsFile) {
+    using namespace cece::detail;
+
+    const std::vector<double> raw = two_day_hourly_axis();
+    // A third day is past the final record (53 h > 47 h).
+    const SimDateTime day3 = parse_sim_datetime("2000-01-03T05:00:00");
+
+    // limit: a run that outlasts the file is reported as unresolvable.
+    EXPECT_FALSE(bracket_from_coords(raw, kTwoDayHourlyUnits, "gregorian", day3, "nearest", 0, "limit").valid);
+
+    // extend: hold the last record.
+    const RecordBracket ext = bracket_from_coords(raw, kTwoDayHourlyUnits, "gregorian", day3, "nearest", 0, "extend");
+    ASSERT_TRUE(ext.valid);
+    EXPECT_EQ(ext.i0, 47);
+
+    // cycle (default): wrap back into the file's 47-hour span.
+    const RecordBracket cyc = bracket_from_coords(raw, kTwoDayHourlyUnits, "gregorian", day3, "nearest", 0, "cycle");
+    ASSERT_TRUE(cyc.valid);
+    EXPECT_EQ(cyc.i0, 6);
+}
+
 }  // namespace cece
