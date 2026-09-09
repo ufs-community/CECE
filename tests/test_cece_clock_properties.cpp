@@ -913,7 +913,7 @@ TEST(CeceCadenceIndexing, HourlyCadence) {
     SimDateTime dt_05 = parse_sim_datetime("2026-01-01T05:00:00");
     EXPECT_TRUE(dt_05.valid);
     EXPECT_EQ(dt_05.hour, 5);
-    RecordBracket br_05 = cadence_record_bracket("hourly", "nearest", dt_05, 24);
+    RecordBracket br_05 = bracket_from_cadence("hourly", "nearest", dt_05, 24);
     EXPECT_TRUE(br_05.valid);
     EXPECT_EQ(br_05.i0, 5);
     EXPECT_EQ(br_05.i1, 5);
@@ -921,21 +921,21 @@ TEST(CeceCadenceIndexing, HourlyCadence) {
 
     // Last hour of the day -> record 23.
     SimDateTime dt_23 = parse_sim_datetime("2026-01-01T23:00:00");
-    RecordBracket br_23 = cadence_record_bracket("hourly", "nearest", dt_23, 24);
+    RecordBracket br_23 = bracket_from_cadence("hourly", "nearest", dt_23, 24);
     EXPECT_TRUE(br_23.valid);
     EXPECT_EQ(br_23.i0, 23);
     EXPECT_EQ(br_23.i1, 23);
 
     // Hourly cadence ignores tintalgo=linear: still nearest, no interpolation.
     // (Documents that there is no true sub-hourly interpolation path.)
-    RecordBracket br_lin = cadence_record_bracket("hourly", "linear", dt_05, 24);
+    RecordBracket br_lin = bracket_from_cadence("hourly", "linear", dt_05, 24);
     EXPECT_TRUE(br_lin.valid);
     EXPECT_EQ(br_lin.i0, 5);
     EXPECT_EQ(br_lin.i1, 5);
     EXPECT_DOUBLE_EQ(br_lin.weight, 0.0);
 
     // Fewer records than 24 -> clamp to the last available record.
-    RecordBracket br_clamp = cadence_record_bracket("hourly", "nearest", dt_23, 12);
+    RecordBracket br_clamp = bracket_from_cadence("hourly", "nearest", dt_23, 12);
     EXPECT_TRUE(br_clamp.valid);
     EXPECT_EQ(br_clamp.i0, 11);
     EXPECT_EQ(br_clamp.i1, 11);
@@ -948,7 +948,7 @@ TEST(CeceCadenceIndexing, DailyCadenceNearest) {
     SimDateTime dt_jan1 = parse_sim_datetime("2026-01-01T00:00:00");
     EXPECT_TRUE(dt_jan1.valid);
     EXPECT_EQ(dt_jan1.day_of_year, 1);
-    RecordBracket br_jan1 = cadence_record_bracket("daily", "nearest", dt_jan1, 365);
+    RecordBracket br_jan1 = bracket_from_cadence("daily", "nearest", dt_jan1, 365);
     EXPECT_TRUE(br_jan1.valid);
     EXPECT_EQ(br_jan1.i0, 0);
     EXPECT_EQ(br_jan1.i1, 0);
@@ -957,7 +957,7 @@ TEST(CeceCadenceIndexing, DailyCadenceNearest) {
     SimDateTime dt_dec31 = parse_sim_datetime("2026-12-31T00:00:00");
     EXPECT_TRUE(dt_dec31.valid);
     EXPECT_EQ(dt_dec31.day_of_year, 365);
-    RecordBracket br_dec31 = cadence_record_bracket("daily", "nearest", dt_dec31, 365);
+    RecordBracket br_dec31 = bracket_from_cadence("daily", "nearest", dt_dec31, 365);
     EXPECT_TRUE(br_dec31.valid);
     EXPECT_EQ(br_dec31.i0, 364);
     EXPECT_EQ(br_dec31.i1, 364);
@@ -966,7 +966,7 @@ TEST(CeceCadenceIndexing, DailyCadenceNearest) {
     SimDateTime dt_leap = parse_sim_datetime("2024-12-31T00:00:00");
     EXPECT_TRUE(dt_leap.valid);
     EXPECT_EQ(dt_leap.day_of_year, 366);
-    RecordBracket br_leap = cadence_record_bracket("daily", "nearest", dt_leap, 366);
+    RecordBracket br_leap = bracket_from_cadence("daily", "nearest", dt_leap, 366);
     EXPECT_TRUE(br_leap.valid);
     EXPECT_EQ(br_leap.i0, 365);
     EXPECT_EQ(br_leap.i1, 365);
@@ -980,7 +980,7 @@ TEST(CeceCadenceIndexing, DailyCadenceLinear) {
     // 2026-06-15 -> day_of_year = 166 -> abs_day = 165.
     SimDateTime dt_noon = parse_sim_datetime("2026-06-15T12:00:00");
     EXPECT_EQ(dt_noon.day_of_year, 166);
-    RecordBracket br_noon = cadence_record_bracket("daily", "linear", dt_noon, 365);
+    RecordBracket br_noon = bracket_from_cadence("daily", "linear", dt_noon, 365);
     EXPECT_TRUE(br_noon.valid);
     EXPECT_EQ(br_noon.i0, 165);
     EXPECT_EQ(br_noon.i1, 166);
@@ -988,7 +988,7 @@ TEST(CeceCadenceIndexing, DailyCadenceLinear) {
 
     // Midnight -> frac = 0 -> halfway between the previous day and today.
     SimDateTime dt_mid = parse_sim_datetime("2026-06-15T00:00:00");
-    RecordBracket br_mid = cadence_record_bracket("daily", "linear", dt_mid, 365);
+    RecordBracket br_mid = bracket_from_cadence("daily", "linear", dt_mid, 365);
     EXPECT_TRUE(br_mid.valid);
     EXPECT_EQ(br_mid.i0, 164);
     EXPECT_EQ(br_mid.i1, 165);
@@ -996,7 +996,7 @@ TEST(CeceCadenceIndexing, DailyCadenceLinear) {
 
     // 18:00 -> frac = 0.75 -> quarter of the way from today to tomorrow.
     SimDateTime dt_eve = parse_sim_datetime("2026-06-15T18:00:00");
-    RecordBracket br_eve = cadence_record_bracket("daily", "linear", dt_eve, 365);
+    RecordBracket br_eve = bracket_from_cadence("daily", "linear", dt_eve, 365);
     EXPECT_TRUE(br_eve.valid);
     EXPECT_EQ(br_eve.i0, 165);
     EXPECT_EQ(br_eve.i1, 166);
@@ -1014,7 +1014,7 @@ TEST(CeceCadenceIndexing, DailyCadenceLinearLeapYearOverflow) {
     EXPECT_EQ(dt_noon.day_of_year, 366);
 
     // Nearest clamps to the final record (364) of the 365-record file.
-    RecordBracket br_near = cadence_record_bracket("daily", "nearest", dt_noon, 365);
+    RecordBracket br_near = bracket_from_cadence("daily", "nearest", dt_noon, 365);
     EXPECT_TRUE(br_near.valid);
     EXPECT_EQ(br_near.i0, 364);
     EXPECT_EQ(br_near.i1, 364);
@@ -1022,7 +1022,7 @@ TEST(CeceCadenceIndexing, DailyCadenceLinearLeapYearOverflow) {
     // Linear clamps the overflow to the final record, then applies the mid-day
     // convention. At noon (frac = 0.5) the weight is 0 -> pure record 364, with
     // the cyclic upper bracket wrapping to record 0 (Jan 1).
-    RecordBracket br_lin = cadence_record_bracket("daily", "linear", dt_noon, 365);
+    RecordBracket br_lin = bracket_from_cadence("daily", "linear", dt_noon, 365);
     EXPECT_TRUE(br_lin.valid);
     EXPECT_EQ(br_lin.i0, 364);
     EXPECT_EQ(br_lin.i1, 0);
@@ -1030,7 +1030,7 @@ TEST(CeceCadenceIndexing, DailyCadenceLinearLeapYearOverflow) {
 
     // A 366-record (leap-aware) climatology has a record for the leap day, so no
     // clamp is needed: abs_day = 365 maps directly to record 365.
-    RecordBracket br_366 = cadence_record_bracket("daily", "linear", dt_noon, 366);
+    RecordBracket br_366 = bracket_from_cadence("daily", "linear", dt_noon, 366);
     EXPECT_TRUE(br_366.valid);
     EXPECT_EQ(br_366.i0, 365);
     EXPECT_EQ(br_366.i1, 0);  // cyclic wrap to Jan 1
@@ -1040,7 +1040,7 @@ TEST(CeceCadenceIndexing, DailyCadenceLinearLeapYearOverflow) {
     // 364, no clamp, cyclic wrap to Jan 1 at noon.
     SimDateTime dt_nonleap = parse_sim_datetime("2026-12-31T12:00:00");
     EXPECT_EQ(dt_nonleap.day_of_year, 365);
-    RecordBracket br_nonleap = cadence_record_bracket("daily", "linear", dt_nonleap, 365);
+    RecordBracket br_nonleap = bracket_from_cadence("daily", "linear", dt_nonleap, 365);
     EXPECT_TRUE(br_nonleap.valid);
     EXPECT_EQ(br_nonleap.i0, 364);
     EXPECT_EQ(br_nonleap.i1, 0);
@@ -1054,7 +1054,7 @@ TEST(CeceCadenceIndexing, WeeklyCadenceISO8601) {
     SimDateTime dt_mon = parse_sim_datetime("2026-01-05T00:00:00");
     EXPECT_TRUE(dt_mon.valid);
     EXPECT_EQ(dt_mon.day_of_week, 1);
-    RecordBracket br_mon = cadence_record_bracket("weekly", "nearest", dt_mon, 7);
+    RecordBracket br_mon = bracket_from_cadence("weekly", "nearest", dt_mon, 7);
     EXPECT_TRUE(br_mon.valid);
     EXPECT_EQ(br_mon.i0, 0);
     EXPECT_EQ(br_mon.i1, 0);
@@ -1063,7 +1063,7 @@ TEST(CeceCadenceIndexing, WeeklyCadenceISO8601) {
     SimDateTime dt_sun = parse_sim_datetime("2026-01-04T00:00:00");
     EXPECT_TRUE(dt_sun.valid);
     EXPECT_EQ(dt_sun.day_of_week, 7);
-    RecordBracket br_sun = cadence_record_bracket("weekly", "nearest", dt_sun, 7);
+    RecordBracket br_sun = bracket_from_cadence("weekly", "nearest", dt_sun, 7);
     EXPECT_TRUE(br_sun.valid);
     EXPECT_EQ(br_sun.i0, 6);
     EXPECT_EQ(br_sun.i1, 6);
@@ -1072,7 +1072,7 @@ TEST(CeceCadenceIndexing, WeeklyCadenceISO8601) {
     SimDateTime dt_thu = parse_sim_datetime("2026-01-01T00:00:00");
     EXPECT_TRUE(dt_thu.valid);
     EXPECT_EQ(dt_thu.day_of_week, 4);
-    RecordBracket br_thu = cadence_record_bracket("weekly", "nearest", dt_thu, 7);
+    RecordBracket br_thu = bracket_from_cadence("weekly", "nearest", dt_thu, 7);
     EXPECT_TRUE(br_thu.valid);
     EXPECT_EQ(br_thu.i0, 3);
     EXPECT_EQ(br_thu.i1, 3);
@@ -1090,7 +1090,7 @@ TEST(CeceCadenceIndexing, MonthlyCadenceNearestMultiYear) {
     // Multi-year file: CEDS 2000-2023 (288 records, nearest neighbor interpolation)
     // Formula: (effective_year - yearFirst) * 12 + (month - 1)
     // (2023 - 2000) * 12 + (7 - 1) = 23 * 12 + 6 = 282
-    RecordBracket br = cadence_record_bracket("monthly", "nearest", dt, 288, 2000, 2023, 2000, "extend");
+    RecordBracket br = bracket_from_cadence("monthly", "nearest", dt, 288, 2000, 2023, 2000, "extend");
     EXPECT_TRUE(br.valid);
     EXPECT_EQ(br.i0, 282);
     EXPECT_EQ(br.i1, 282);
@@ -1098,14 +1098,14 @@ TEST(CeceCadenceIndexing, MonthlyCadenceNearestMultiYear) {
     // Out-of-range simulation date: 2026-08-01 with taxmode="extend"
     // Clamps effective year to 2023 -> August 2023 -> (2023-2000)*12 + 7 = 283
     SimDateTime dt_future = parse_sim_datetime("2026-08-01T00:00:00");
-    RecordBracket br_future = cadence_record_bracket("monthly", "nearest", dt_future, 288, 2000, 2023, 2000, "extend");
+    RecordBracket br_future = bracket_from_cadence("monthly", "nearest", dt_future, 288, 2000, 2023, 2000, "extend");
     EXPECT_TRUE(br_future.valid);
     EXPECT_EQ(br_future.i0, 283);
     EXPECT_EQ(br_future.i1, 283);
 
     // First month: 2000-01-01 -> record 0
     SimDateTime dt_first = parse_sim_datetime("2000-01-01T00:00:00");
-    RecordBracket br_first = cadence_record_bracket("monthly", "nearest", dt_first, 288, 2000, 2023, 2000, "extend");
+    RecordBracket br_first = bracket_from_cadence("monthly", "nearest", dt_first, 288, 2000, 2023, 2000, "extend");
     EXPECT_TRUE(br_first.valid);
     EXPECT_EQ(br_first.i0, 0);
     EXPECT_EQ(br_first.i1, 0);
@@ -1118,7 +1118,7 @@ TEST(CeceCadenceIndexing, MonthlyCadenceLinearMultiYear) {
     // June 2023 -> abs_month = (2023-2000)*12 + 5 = 281. Mid-month (frac=0.5)
     // gives pure record 281.
     SimDateTime dt = parse_sim_datetime("2023-06-16T00:00:00");
-    RecordBracket br = cadence_record_bracket("monthly", "linear", dt, 288, 2000, 2023, 2000, "extend");
+    RecordBracket br = bracket_from_cadence("monthly", "linear", dt, 288, 2000, 2023, 2000, "extend");
     EXPECT_TRUE(br.valid);
     EXPECT_EQ(br.i0, 281);
     EXPECT_EQ(br.i1, 282);
@@ -1132,13 +1132,13 @@ TEST(CeceCadenceIndexing, MonthlyCadenceLinearMultiYearBoundaryWrapCaveat) {
     // For a multi-year monthly file (288 records, 2000-2023) the arithmetic
     // linear path wraps modulo file_nt, so the first/last records interpolate
     // against the opposite end of the file instead of clamping. The robust
-    // axis-based resolver (resolve_time_bracket_from_axis) avoids this;
-    // cadence_record_bracket is only the fallback used when the axis read fails.
+    // axis-based resolver (bracket_from_dataset) avoids this;
+    // bracket_from_cadence is only the fallback used when the axis read fails.
 
     // Late December 2023 (last month, record 287). December has 31 days;
     // day 20 -> frac = 19/31 ~= 0.613 -> forward interpolation wraps i1 to 0.
     SimDateTime dt_end = parse_sim_datetime("2023-12-20T00:00:00");
-    RecordBracket br_end = cadence_record_bracket("monthly", "linear", dt_end, 288, 2000, 2023, 2000, "extend");
+    RecordBracket br_end = bracket_from_cadence("monthly", "linear", dt_end, 288, 2000, 2023, 2000, "extend");
     EXPECT_TRUE(br_end.valid);
     EXPECT_EQ(br_end.i0, 287);
     EXPECT_EQ(br_end.i1, 0);  // wraps to the first record (Jan 2000) -- caveat
@@ -1147,7 +1147,7 @@ TEST(CeceCadenceIndexing, MonthlyCadenceLinearMultiYearBoundaryWrapCaveat) {
     // Early January 2000 (first month, record 0). Jan day 5 -> frac = 4/31 ~= 0.129
     // -> backward interpolation wraps i0 to the last record (Dec 2023).
     SimDateTime dt_start = parse_sim_datetime("2000-01-05T00:00:00");
-    RecordBracket br_start = cadence_record_bracket("monthly", "linear", dt_start, 288, 2000, 2023, 2000, "extend");
+    RecordBracket br_start = bracket_from_cadence("monthly", "linear", dt_start, 288, 2000, 2023, 2000, "extend");
     EXPECT_TRUE(br_start.valid);
     EXPECT_EQ(br_start.i0, 287);  // wraps to the last record (Dec 2023) -- caveat
     EXPECT_EQ(br_start.i1, 0);
@@ -1164,7 +1164,7 @@ TEST(CeceCadenceIndexing, MonthlyCadenceLinearClimatology) {
     // June has 30 days, so day 16 (day-1=15) at hour 0 -> frac = 15/30 = 0.5,
     // which is exactly mid-month -> pure June (i0=5), weight 0.
     SimDateTime dt_mid = parse_sim_datetime("2020-06-16T00:00:00");
-    RecordBracket br_mid = cadence_record_bracket("monthly", "linear", dt_mid, 12);
+    RecordBracket br_mid = bracket_from_cadence("monthly", "linear", dt_mid, 12);
     EXPECT_TRUE(br_mid.valid);
     EXPECT_EQ(br_mid.i0, 5);
     EXPECT_EQ(br_mid.i1, 6);
@@ -1172,7 +1172,7 @@ TEST(CeceCadenceIndexing, MonthlyCadenceLinearClimatology) {
 
     // June 1 -> frac = 0 -> halfway between May (i0=4) and June (i1=5).
     SimDateTime dt_start = parse_sim_datetime("2020-06-01T00:00:00");
-    RecordBracket br_start = cadence_record_bracket("monthly", "linear", dt_start, 12);
+    RecordBracket br_start = bracket_from_cadence("monthly", "linear", dt_start, 12);
     EXPECT_TRUE(br_start.valid);
     EXPECT_EQ(br_start.i0, 4);
     EXPECT_EQ(br_start.i1, 5);
@@ -1181,7 +1181,7 @@ TEST(CeceCadenceIndexing, MonthlyCadenceLinearClimatology) {
     // Hour-of-day contributes to the sub-month fraction: June 16 12:00 ->
     // frac = (15 + 0.5)/30 = 0.51667 -> just past mid-month.
     SimDateTime dt_hour = parse_sim_datetime("2020-06-16T12:00:00");
-    RecordBracket br_hour = cadence_record_bracket("monthly", "linear", dt_hour, 12);
+    RecordBracket br_hour = bracket_from_cadence("monthly", "linear", dt_hour, 12);
     EXPECT_TRUE(br_hour.valid);
     EXPECT_EQ(br_hour.i0, 5);
     EXPECT_EQ(br_hour.i1, 6);
@@ -1189,7 +1189,7 @@ TEST(CeceCadenceIndexing, MonthlyCadenceLinearClimatology) {
 
     // January 1 wraps the lower bracket to December for a climatology file.
     SimDateTime dt_jan = parse_sim_datetime("2020-01-01T00:00:00");
-    RecordBracket br_jan = cadence_record_bracket("monthly", "linear", dt_jan, 12);
+    RecordBracket br_jan = bracket_from_cadence("monthly", "linear", dt_jan, 12);
     EXPECT_TRUE(br_jan.valid);
     EXPECT_EQ(br_jan.i0, 11);
     EXPECT_EQ(br_jan.i1, 0);
@@ -1204,19 +1204,19 @@ TEST(CeceCadenceIndexing, MonthlyTaxmodeCycleAndLimit) {
     SimDateTime dt_oob = parse_sim_datetime("2024-01-01T00:00:00");
 
     // Default taxmode ("") == cycle: 2024 wraps back to 2000 -> record 0.
-    RecordBracket br_cycle = cadence_record_bracket("monthly", "nearest", dt_oob, 288, 2000, 2023, 2000, "");
+    RecordBracket br_cycle = bracket_from_cadence("monthly", "nearest", dt_oob, 288, 2000, 2023, 2000, "");
     EXPECT_TRUE(br_cycle.valid);
     EXPECT_EQ(br_cycle.i0, 0);
     EXPECT_EQ(br_cycle.i1, 0);
 
     // taxmode "limit": out-of-range year yields an invalid bracket.
-    RecordBracket br_limit = cadence_record_bracket("monthly", "nearest", dt_oob, 288, 2000, 2023, 2000, "limit");
+    RecordBracket br_limit = bracket_from_cadence("monthly", "nearest", dt_oob, 288, 2000, 2023, 2000, "limit");
     EXPECT_FALSE(br_limit.valid);
 
     // taxmode cycle for 2025-07: (2025-2000) % 24 = 1 -> effective year 2001,
     // July -> abs_month = 1*12 + 6 = 18.
     SimDateTime dt_2025 = parse_sim_datetime("2025-07-01T00:00:00");
-    RecordBracket br_2025 = cadence_record_bracket("monthly", "nearest", dt_2025, 288, 2000, 2023, 2000, "cycle");
+    RecordBracket br_2025 = bracket_from_cadence("monthly", "nearest", dt_2025, 288, 2000, 2023, 2000, "cycle");
     EXPECT_TRUE(br_2025.valid);
     EXPECT_EQ(br_2025.i0, 18);
     EXPECT_EQ(br_2025.i1, 18);
@@ -1226,7 +1226,7 @@ TEST(CeceCadenceIndexing, TimeAxisFallbackOnNullDataset) {
     using namespace cece::detail;
 
     SimDateTime dt = parse_sim_datetime("2023-07-01T00:00:00");
-    RecordBracket br = resolve_time_bracket_from_axis(nullptr, "time", dt, 288, "nearest", 2000, 2023, 2000, "extend");
+    RecordBracket br = bracket_from_dataset(nullptr, "time", dt, 288, "nearest", 2000, "extend");
     EXPECT_FALSE(br.valid);
 }
 
@@ -1237,23 +1237,170 @@ TEST(CeceCadenceIndexing, InvalidAndCaseInsensitiveInputs) {
     EXPECT_TRUE(dt.valid);
 
     // Empty cadence -> invalid (falls back to legacy step-index cycling).
-    RecordBracket br_empty = cadence_record_bracket("", "nearest", dt, 12);
+    RecordBracket br_empty = bracket_from_cadence("", "nearest", dt, 12);
     EXPECT_FALSE(br_empty.valid);
 
     // Unknown cadence -> invalid.
-    RecordBracket br_unknown = cadence_record_bracket("yearly", "nearest", dt, 12);
+    RecordBracket br_unknown = bracket_from_cadence("yearly", "nearest", dt, 12);
     EXPECT_FALSE(br_unknown.valid);
 
     // Invalid (unparsed) datetime -> invalid regardless of cadence.
     SimDateTime bad_dt;  // valid == false
-    RecordBracket br_bad = cadence_record_bracket("monthly", "nearest", bad_dt, 12);
+    RecordBracket br_bad = bracket_from_cadence("monthly", "nearest", bad_dt, 12);
     EXPECT_FALSE(br_bad.valid);
 
     // Cadence matching is case-insensitive: "MONTHLY" == "monthly".
-    RecordBracket br_upper = cadence_record_bracket("MONTHLY", "NEAREST", dt, 12);
+    RecordBracket br_upper = bracket_from_cadence("MONTHLY", "NEAREST", dt, 12);
     EXPECT_TRUE(br_upper.valid);
     EXPECT_EQ(br_upper.i0, 6);  // July -> month-1 for a 12-record climatology
     EXPECT_EQ(br_upper.i1, 6);
+}
+
+// ============================================================================
+// Tests for the decoded axis path, bracket_from_coords. These feed
+// synthetic raw axes plus CF units/calendar strings (no AMIO handle) and check
+// the decode -> absolute-time -> find_bracket flow. The reference sim date
+// 2000-02-10 is exactly 40 days after a 2000-01-01 epoch.
+// ============================================================================
+
+TEST(CeceCadenceIndexing, DecodeDaysGregorian) {
+    using namespace cece::detail;
+
+    // "days since 2000-01-01" start-of-month (2000 is a leap year: Mar 1 = 60).
+    const std::vector<double> raw = {0.0, 31.0, 60.0};
+    SimDateTime dt = parse_sim_datetime("2000-02-10T00:00:00");
+
+    RecordBracket lin = bracket_from_coords(raw, "days since 2000-01-01", "gregorian", dt, "linear");
+    EXPECT_TRUE(lin.valid);
+    EXPECT_EQ(lin.i0, 1);
+    EXPECT_EQ(lin.i1, 2);
+    EXPECT_NEAR(lin.weight, 9.0 / 29.0, 1e-9);
+
+    RecordBracket nr = bracket_from_coords(raw, "days since 2000-01-01", "gregorian", dt, "nearest");
+    EXPECT_TRUE(nr.valid);
+    EXPECT_EQ(nr.i0, 1);
+    EXPECT_EQ(nr.i1, 1);
+}
+
+TEST(CeceCadenceIndexing, DecodeHoursUnitAndBlankCalendar) {
+    using namespace cece::detail;
+
+    // Same axis in hours; a blank calendar defaults to gregorian. The 'T' in
+    // the reference and the sub-day scaling must both be handled.
+    const std::vector<double> raw = {0.0, 744.0, 1440.0};  // 31 d, then +29 d, in hours
+    SimDateTime dt = parse_sim_datetime("2000-02-10T00:00:00");
+
+    RecordBracket lin = bracket_from_coords(raw, "hours since 2000-01-01T00:00:00", "", dt, "linear");
+    EXPECT_TRUE(lin.valid);
+    EXPECT_EQ(lin.i0, 1);
+    EXPECT_EQ(lin.i1, 2);
+    EXPECT_NEAR(lin.weight, 9.0 / 29.0, 1e-9);
+}
+
+TEST(CeceCadenceIndexing, DecodeNoLeapCalendar) {
+    using namespace cece::detail;
+
+    // noleap calendar: February always has 28 days, so Mar 1 = day 59.
+    const std::vector<double> raw = {0.0, 31.0, 59.0};
+    SimDateTime dt = parse_sim_datetime("2000-02-10T00:00:00");
+
+    RecordBracket lin = bracket_from_coords(raw, "days since 2000-01-01", "noleap", dt, "linear");
+    EXPECT_TRUE(lin.valid);
+    EXPECT_EQ(lin.i0, 1);
+    EXPECT_EQ(lin.i1, 2);
+    EXPECT_NEAR(lin.weight, 9.0 / 28.0, 1e-9);  // (40 - 31) / (59 - 31)
+}
+
+TEST(CeceCadenceIndexing, DecodeNonDecodableUnitsDegrade) {
+    using namespace cece::detail;
+
+    const std::vector<double> raw = {0.0, 1.0, 2.0};
+    SimDateTime dt = parse_sim_datetime("2000-02-10T00:00:00");
+
+    // Non-fixed unit (months/years) -> invalid so the caller degrades.
+    EXPECT_FALSE(bracket_from_coords(raw, "months since 2000-01-01", "", dt, "linear").valid);
+    EXPECT_FALSE(bracket_from_coords(raw, "years since 2000-01-01", "", dt, "linear").valid);
+    // Missing / garbled units -> invalid.
+    EXPECT_FALSE(bracket_from_coords(raw, "", "", dt, "linear").valid);
+    EXPECT_FALSE(bracket_from_coords(raw, "time_counter", "", dt, "linear").valid);
+    // Empty axis / invalid datetime -> invalid.
+    EXPECT_FALSE(bracket_from_coords({}, "days since 2000-01-01", "", dt, "linear").valid);
+    SimDateTime bad_dt;
+    EXPECT_FALSE(bracket_from_coords(raw, "days since 2000-01-01", "", bad_dt, "linear").valid);
+}
+
+TEST(CeceCadenceIndexing, DecodeYearAlignRemap) {
+    using namespace cece::detail;
+
+    // File covers year 2000 (record 0). yearAlign=2020 means sim year 2020
+    // aligns to the file's first year -> 2020-02-10 maps to 2000-02-10 (day 40).
+    const std::vector<double> raw = {0.0, 31.0, 60.0};
+    SimDateTime dt = parse_sim_datetime("2020-02-10T00:00:00");
+
+    RecordBracket br = bracket_from_coords(raw, "days since 2000-01-01", "gregorian", dt, "linear", 2020);
+    EXPECT_TRUE(br.valid);
+    EXPECT_EQ(br.i0, 1);
+    EXPECT_EQ(br.i1, 2);
+    EXPECT_NEAR(br.weight, 9.0 / 29.0, 1e-9);
+}
+
+TEST(CeceCadenceIndexing, DecodeTaxmode) {
+    using namespace cece::detail;
+
+    // Jan-Mar 2000 file. Sim 2000-06-15 is 166 days in -> beyond day 60.
+    const std::vector<double> raw = {0.0, 31.0, 60.0};
+    SimDateTime dt = parse_sim_datetime("2000-06-15T00:00:00");
+
+    EXPECT_FALSE(bracket_from_coords(raw, "days since 2000-01-01", "", dt, "nearest", 0, "limit").valid);
+
+    RecordBracket ext = bracket_from_coords(raw, "days since 2000-01-01", "", dt, "nearest", 0, "extend");
+    EXPECT_TRUE(ext.valid);
+    EXPECT_EQ(ext.i0, 2);
+    EXPECT_EQ(ext.i1, 2);
+
+    RecordBracket cyc = bracket_from_coords(raw, "days since 2000-01-01", "", dt, "linear", 0, "cycle");
+    EXPECT_TRUE(cyc.valid);
+    EXPECT_EQ(cyc.i0, 1);
+    EXPECT_EQ(cyc.i1, 2);
+    EXPECT_NEAR(cyc.weight, 15.0 / 29.0, 1e-9);
+}
+
+// Direct tests for the shared generic bracketer that both the arithmetic and
+// axis paths now delegate to. Times are already in a common unit (days here).
+TEST(CeceCadenceIndexing, BracketTimesDirect) {
+    using namespace cece::detail;
+
+    const std::vector<double> times = {0.0, 31.0, 60.0};
+
+    // Linear: 40 falls between rec 1 (31) and rec 2 (60).
+    RecordBracket lin = find_bracket(times, 40.0, /*linear=*/true, "extend");
+    EXPECT_TRUE(lin.valid);
+    EXPECT_EQ(lin.i0, 1);
+    EXPECT_EQ(lin.i1, 2);
+    EXPECT_NEAR(lin.weight, 9.0 / 29.0, 1e-9);
+
+    // Nearest: 40 is closer to rec 1 (31) than rec 2 (60).
+    RecordBracket nr = find_bracket(times, 40.0, /*linear=*/false, "extend");
+    EXPECT_TRUE(nr.valid);
+    EXPECT_EQ(nr.i0, 1);
+    EXPECT_EQ(nr.i1, 1);
+
+    // taxmode limit: out-of-range target -> invalid.
+    EXPECT_FALSE(find_bracket(times, 166.0, true, "limit").valid);
+
+    // taxmode cycle: 166 wraps modulo the 60-day span to 46 -> rec 1..2.
+    RecordBracket cyc = find_bracket(times, 166.0, true, "cycle");
+    EXPECT_TRUE(cyc.valid);
+    EXPECT_EQ(cyc.i0, 1);
+    EXPECT_EQ(cyc.i1, 2);
+    EXPECT_NEAR(cyc.weight, 15.0 / 29.0, 1e-9);
+
+    // Single record and empty edge cases.
+    RecordBracket single = find_bracket({5.0}, 99.0, true, "extend");
+    EXPECT_TRUE(single.valid);
+    EXPECT_EQ(single.i0, 0);
+    EXPECT_EQ(single.i1, 0);
+    EXPECT_FALSE(find_bracket({}, 0.0, true, "extend").valid);
 }
 
 }  // namespace cece

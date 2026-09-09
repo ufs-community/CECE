@@ -36,12 +36,17 @@ struct RecordBracket {
 
 SimDateTime parse_sim_datetime(const std::string& iso8601);
 
-RecordBracket cadence_record_bracket(const std::string& cadence, const std::string& tintalgo, const SimDateTime& dt, int file_nt, int yearFirst = 0,
-                                     int yearLast = 0, int yearAlign = 0, const std::string& taxmode = "");
+RecordBracket bracket_from_cadence(const std::string& cadence, const std::string& tintalgo, const SimDateTime& dt, int file_nt, int yearFirst = 0,
+                                   int yearLast = 0, int yearAlign = 0, const std::string& taxmode = "");
 
-RecordBracket resolve_time_bracket_from_axis(amio_dataset_handle dataset, const std::string& time_var, const SimDateTime& dt, int file_nt,
-                                             const std::string& tintalgo, int yearFirst = 0, int yearLast = 0, int yearAlign = 0,
-                                             const std::string& taxmode = "");
+RecordBracket find_bracket(const std::vector<double>& times, double target, bool linear, const std::string& taxmode = "");
+
+RecordBracket bracket_from_coords(const std::vector<double>& time_vals, const std::string& units, const std::string& calendar, const SimDateTime& dt,
+                                  const std::string& tintalgo, int yearAlign = 0, const std::string& taxmode = "");
+
+RecordBracket bracket_from_dataset(amio_dataset_handle dataset, const std::string& time_var, const SimDateTime& dt, int file_nt,
+                                   const std::string& tintalgo, int yearAlign = 0, const std::string& taxmode = "",
+                                   const std::string& units_override = "", const std::string& calendar_override = "");
 
 }  // namespace detail
 
@@ -58,6 +63,8 @@ struct StreamVarConfig {
     std::string taxmode;  // "" defaults to cycle
     std::string tintalgo = "nearest";
     std::string time_var = "time";  // time coordinate variable name
+    std::string time_units;         // override for a missing/non-standard "units" attribute
+    std::string calendar;           // "" -> file attribute, else gregorian
     std::string data_model = "enhanced";
     bool data_model_explicit = false;
     int amio_threads = 1;
