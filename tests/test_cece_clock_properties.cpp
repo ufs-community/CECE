@@ -18,6 +18,7 @@
 #include <cstdio>
 #include <fstream>
 #include <string>
+#include <tick/tick.hpp>
 #include <vector>
 
 #include "cece/cece_clock.hpp"
@@ -1262,6 +1263,67 @@ TEST(CeceCadenceIndexing, InvalidAndCaseInsensitiveInputs) {
 // the decode -> absolute-time -> find_bracket flow. The reference sim date
 // 2000-02-10 is exactly 40 days after a 2000-01-01 epoch.
 // ============================================================================
+
+TEST(CeceCfUnits, ParseFixedLengthUnits) {
+    using namespace cece::detail;
+
+    EXPECT_NEAR(parse_cf_units("seconds since 2000-01-01").unit_days, 1.0 / 86400.0, 1e-15);
+    EXPECT_NEAR(parse_cf_units("minutes since 2000-01-01").unit_days, 1.0 / 1440.0, 1e-15);
+    EXPECT_NEAR(parse_cf_units("hours since 2000-01-01").unit_days, 1.0 / 24.0, 1e-15);
+    EXPECT_NEAR(parse_cf_units("days since 2000-01-01").unit_days, 1.0, 1e-15);
+
+    // Abbreviations and case are both tolerated.
+    EXPECT_NEAR(parse_cf_units("Hrs SINCE 2000-01-01").unit_days, 1.0 / 24.0, 1e-15);
+    EXPECT_NEAR(parse_cf_units("  d  since 2000-01-01").unit_days, 1.0, 1e-15);
+}
+
+TEST(CeceCfUnits, ParseReferenceDateTime) {
+    using namespace cece::detail;
+
+    const CFTimeUnits full = parse_cf_units("hours since 1999-03-04T05:06:07");
+    ASSERT_TRUE(full.valid);
+    EXPECT_EQ(full.reference, (tick::Date_Time{1999, 3, 4, 5, 6, 7, 0}));
+
+    // A bare date leaves the time at midnight; a partial time fills only what is given.
+    const CFTimeUnits bare = parse_cf_units("days since 1850-1-2");
+    ASSERT_TRUE(bare.valid);
+    EXPECT_EQ(bare.reference, (tick::Date_Time{1850, 1, 2, 0, 0, 0, 0}));
+
+    const CFTimeUnits partial = parse_cf_units("days since 1850-01-02 12:30");
+    ASSERT_TRUE(partial.valid);
+    EXPECT_EQ(partial.reference, (tick::Date_Time{1850, 1, 2, 12, 30, 0, 0}));
+}
+
+TEST(CeceCfUnits, ParseIgnoresTrailingReferenceText) {
+    using namespace cece::detail;
+
+    // Fractional seconds, a zone suffix and a UTC offset are all common in real files.
+    for (const char* units : {"hours since 1900-01-01 00:00:00.0", "seconds since 1900-01-01 00:00:00 UTC", "days since 1900-01-01T00:00:00Z",
+                              "days since 1900-01-01 00:00:00+00:00"}) {
+        const CFTimeUnits u = parse_cf_units(units);
+        EXPECT_TRUE(u.valid) << units;
+        EXPECT_EQ(u.reference, (tick::Date_Time{1900, 1, 1, 0, 0, 0, 0})) << units;
+    }
+}
+
+TEST(CeceCfUnits, ParseRejectsUndecodableUnits) {
+    using namespace cece::detail;
+
+    // Calendar-ambiguous units.
+    EXPECT_FALSE(parse_cf_units("months since 2000-01-01").valid);
+    EXPECT_FALSE(parse_cf_units("years since 2000-01-01").valid);
+    EXPECT_FALSE(parse_cf_units("furlongs since 2000-01-01").valid);
+    // Missing or garbled units strings.
+    EXPECT_FALSE(parse_cf_units("").valid);
+    EXPECT_FALSE(parse_cf_units("time_counter").valid);
+    EXPECT_FALSE(parse_cf_units("days 2000-01-01").valid);
+    // Unparsable or out-of-range reference dates.
+    EXPECT_FALSE(parse_cf_units("days since not-a-date").valid);
+    EXPECT_FALSE(parse_cf_units("days since 2000").valid);
+    EXPECT_FALSE(parse_cf_units("days since 2000-01").valid);
+    EXPECT_FALSE(parse_cf_units("days since 2000-13-01").valid);
+    EXPECT_FALSE(parse_cf_units("days since 2000-01-32").valid);
+}
 
 TEST(CeceCadenceIndexing, DecodeDaysGregorian) {
     using namespace cece::detail;

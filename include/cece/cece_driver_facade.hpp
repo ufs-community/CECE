@@ -7,6 +7,7 @@
 #include <dagr/dagr.hpp>
 #include <memory>
 #include <string>
+#include <tick/tick.hpp>
 #include <unordered_map>
 #include <vector>
 
@@ -33,6 +34,15 @@ struct RecordBracket {
     double weight = 0.0;
     bool valid = false;
 };
+
+/// Decoded CF "<unit> since <reference>" time-units string.
+struct CFTimeUnits {
+    double unit_days = 0.0;       ///< length of one axis unit, in days
+    tick::Date_Time reference{};  ///< the "since" reference date-time
+    bool valid = false;           ///< false when the units are missing or not decodable
+};
+
+CFTimeUnits parse_cf_units(const std::string& units);
 
 SimDateTime parse_sim_datetime(const std::string& iso8601);
 

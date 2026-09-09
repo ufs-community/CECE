@@ -6,14 +6,16 @@
 #include <algorithm>
 #include <axis/axis.hpp>
 #include <cctype>
+#include <cerrno>
 #include <cmath>
 #include <conf/conf.hpp>
 #include <cstdint>
-#include <cstdio>
+#include <cstdlib>
 #include <dagr/logging.hpp>
 #include <filesystem>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <string>
 #include <tick/tick.hpp>
 #include <vector>
@@ -103,11 +105,11 @@ static tick::Date_Time cal_to_dt(CalKind kind, std::int64_t nanos) {
  * @brief Parse a CF time-units string "<unit> since <reference>".
  *
  * Only fixed-length units (seconds/minutes/hours/days) are decodable; months
- * and years are calendar-ambiguous and rejected. On success sets @p unit_days
- * (unit length in days) and @p ref_dt (reference date-time) and returns true.
- * The reference parser is lenient: "YYYY-M-D", optional " [T]h[:m[:s]]".
+ * and years are calendar-ambiguous and yield an invalid result. The reference
+ * parser is lenient: "YYYY-M-D", optional " [T]h[:m[:s]]", and trailing text
+ * (fractional seconds, "UTC", "Z", an offset) is ignored.
  */
-static bool parse_cf_units(const std::string& units, double& unit_days, tick::Date_Time& ref_dt) {
+CFTimeUnits parse_cf_units(const std::string& units) {
     auto trim = [](std::string& s) {
         const auto b = s.find_first_not_of(" \t");
         const auto e = s.find_last_not_of(" \t");
@@ -118,10 +120,11 @@ static bool parse_cf_units(const std::string& units, double& unit_days, tick::Da
     std::transform(lower.begin(), lower.end(), lower.begin(), [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
     const std::string key = " since ";
     const auto pos = lower.find(key);
-    if (pos == std::string::npos) return false;
+    if (pos == std::string::npos) return {};
 
     std::string unit = lower.substr(0, pos);
     trim(unit);
+    double unit_days = 0.0;
     if (unit == "s" || unit == "sec" || unit == "secs" || unit == "second" || unit == "seconds") {
         unit_days = 1.0 / 86400.0;
     } else if (unit == "min" || unit == "mins" || unit == "minute" || unit == "minutes") {
@@ -131,7 +134,7 @@ static bool parse_cf_units(const std::string& units, double& unit_days, tick::Da
     } else if (unit == "d" || unit == "day" || unit == "days") {
         unit_days = 1.0;
     } else {
-        return false;  // months / years / unknown -> not decodable
+        return {};  // months / years / unknown -> not decodable
     }
 
     std::string ref = units.substr(pos + key.size());
@@ -139,12 +142,34 @@ static bool parse_cf_units(const std::string& units, double& unit_days, tick::Da
     for (char& ch : ref) {
         if (ch == 'T' || ch == 't') ch = ' ';  // normalise the date/time separator
     }
+    // strtol skips leading whitespace, so it consumes the date/time separator.
+    auto parse_int = [](const char*& p, int& value) -> bool {
+        errno = 0;
+        char* end = nullptr;
+        const long v = std::strtol(p, &end, 10);
+        if (end == p || errno == ERANGE || v < std::numeric_limits<int>::min() || v > std::numeric_limits<int>::max()) return false;
+        value = static_cast<int>(v);
+        p = end;
+        return true;
+    };
+
     int y = 0, mo = 1, d = 1, h = 0, mi = 0, s = 0;
-    const int got = std::sscanf(ref.c_str(), "%d-%d-%d %d:%d:%d", &y, &mo, &d, &h, &mi, &s);
-    if (got < 3) return false;
-    if (mo < 1 || mo > 12 || d < 1 || d > 31) return false;
-    ref_dt = tick::Date_Time{y, mo, d, h, mi, s, 0};
-    return true;
+    const char* p = ref.c_str();
+    if (!parse_int(p, y) || *p++ != '-') return {};
+    if (!parse_int(p, mo) || *p++ != '-') return {};
+    if (!parse_int(p, d)) return {};
+
+    // The time part is optional and trailing text is ignored.
+    if (parse_int(p, h) && *p == ':') {
+        ++p;
+        if (parse_int(p, mi) && *p == ':') {
+            ++p;
+            parse_int(p, s);
+        }
+    }
+
+    if (mo < 1 || mo > 12 || d < 1 || d > 31) return {};
+    return CFTimeUnits{unit_days, tick::Date_Time{y, mo, d, h, mi, s, 0}, true};
 }
 
 // Cadence dispatch: how a stream's records are addressed.
@@ -452,17 +477,16 @@ RecordBracket bracket_from_coords(const std::vector<double>& time_vals, const st
     if (!dt.valid || time_vals.empty()) return br;
 
     try {
-        double unit_days = 0.0;
-        tick::Date_Time ref_dt{};
-        if (!parse_cf_units(units, unit_days, ref_dt)) return br;  // not decodable -> degrade
+        const CFTimeUnits cf = parse_cf_units(units);
+        if (!cf.valid) return br;  // not decodable -> degrade
 
         const CalKind cal = parse_calendar(calendar);
-        const std::int64_t ref_nanos = cal_to_nanos(cal, ref_dt);
+        const std::int64_t ref_nanos = cal_to_nanos(cal, cf.reference);
 
         // Record times as days since the file's reference epoch.
         std::vector<double> rec_days(time_vals.size());
         for (size_t k = 0; k < time_vals.size(); ++k) {
-            rec_days[k] = time_vals[k] * unit_days;
+            rec_days[k] = time_vals[k] * cf.unit_days;
         }
 
         // Optional year remap: yearAlign is the simulation year that aligns to
