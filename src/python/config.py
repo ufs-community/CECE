@@ -217,10 +217,11 @@ class DataStreamConfig:
         Mapping of file variable names to model variable names.
         Default is an empty dict.
     taxmode : str, optional
-        Time axis mode. One of ``"cycle"``, ``"extend"``, ``"interp"``.
-        Default is ``"cycle"``.
+        Behavior when the simulation time falls outside the file's coverage.
+        One of ``"cycle"`` (wrap), ``"extend"`` (clamp to the nearest end),
+        or ``"limit"`` (fail). Default is ``"cycle"``.
     tintalgo : str, optional
-        Time interpolation algorithm. One of ``"linear"``, ``"constant"``.
+        Time interpolation algorithm. One of ``"linear"``, ``"nearest"``.
         Default is ``"linear"``.
     mapalgo : str, optional
         Spatial mapping algorithm. One of ``"bilinear"``, ``"consd"``,
@@ -262,9 +263,9 @@ class DataStreamConfig:
             raise ValueError("stream name cannot be empty")
         if not self.file_paths:
             raise ValueError("file_paths cannot be empty")
-        if self.taxmode not in ["cycle", "extend", "interp"]:
+        if self.taxmode not in ["cycle", "extend", "limit"]:
             raise ValueError(f"Invalid taxmode: {self.taxmode}")
-        if self.tintalgo not in ["linear", "constant"]:
+        if self.tintalgo not in ["linear", "nearest"]:
             raise ValueError(f"Invalid tintalgo: {self.tintalgo}")
         if self.cadence not in [
             "series",
@@ -453,9 +454,11 @@ class CeceConfig:
         variables : dict
             Mapping of file variable names to model variable names.
         taxmode : str, optional
-            Time axis mode. Default is ``"cycle"``.
+            Behavior outside the file's coverage. One of ``"cycle"``,
+            ``"extend"``, or ``"limit"``. Default is ``"cycle"``.
         tintalgo : str, optional
-            Time interpolation algorithm. Default is ``"linear"``.
+            Time interpolation algorithm. One of ``"linear"`` or
+            ``"nearest"``. Default is ``"linear"``.
         mapalgo : str, optional
             Spatial mapping algorithm. One of ``"bilinear"``, ``"consd"``,
             ``"consf"``, ``"nn"``, ``"redist"``, or ``"passthrough"``
