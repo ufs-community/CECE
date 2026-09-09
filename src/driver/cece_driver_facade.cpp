@@ -152,18 +152,21 @@ CFTimeUnits parse_cf_units(const std::string& units) {
         p = end;
         return true;
     };
+    auto consume = [](const char*& p, char expected) -> bool {
+        if (*p != expected) return false;
+        p += 1;
+        return true;
+    };
 
     int y = 0, mo = 1, d = 1, h = 0, mi = 0, s = 0;
     const char* p = ref.c_str();
-    if (!parse_int(p, y) || *p++ != '-') return {};
-    if (!parse_int(p, mo) || *p++ != '-') return {};
+    if (!parse_int(p, y) || !consume(p, '-')) return {};
+    if (!parse_int(p, mo) || !consume(p, '-')) return {};
     if (!parse_int(p, d)) return {};
 
     // The time part is optional and trailing text is ignored.
-    if (parse_int(p, h) && *p == ':') {
-        ++p;
-        if (parse_int(p, mi) && *p == ':') {
-            ++p;
+    if (parse_int(p, h) && consume(p, ':')) {
+        if (parse_int(p, mi) && consume(p, ':')) {
             parse_int(p, s);
         }
     }
