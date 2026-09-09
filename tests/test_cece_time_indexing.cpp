@@ -15,6 +15,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <stdexcept>
 #include <string>
 #include <tick/tick.hpp>
 #include <vector>
@@ -390,6 +391,55 @@ TEST(CeceCadenceIndexing, MonthlyTaxmodeCycleAndLimit) {
     EXPECT_TRUE(br_2025.valid);
     EXPECT_EQ(br_2025.i0, 18);
     EXPECT_EQ(br_2025.i1, 18);
+}
+
+TEST(CeceStreamConfigValidation, RejectsUnknownTemporalValues) {
+    using namespace cece::detail;
+
+    // A typo must be reported, not silently normalised: "limti" would otherwise
+    // become cycling, and an unknown tintalgo would become nearest.
+    EXPECT_THROW(validate_stream_temporal_config("series", "limti", "linear", 0, 0, 0, ""), std::invalid_argument);
+    EXPECT_THROW(validate_stream_temporal_config("series", "cycle", "cubic", 0, 0, 0, ""), std::invalid_argument);
+    EXPECT_THROW(validate_stream_temporal_config("yearly", "cycle", "linear", 0, 0, 0, ""), std::invalid_argument);
+
+    // The values the driver actually implements are accepted, case-insensitively.
+    for (const char* tax : {"", "cycle", "extend", "limit", "LIMIT"}) {
+        EXPECT_NO_THROW(validate_stream_temporal_config("series", tax, "linear", 0, 0, 0, "")) << tax;
+    }
+    for (const char* algo : {"linear", "nearest", "NEAREST"}) {
+        EXPECT_NO_THROW(validate_stream_temporal_config("monthly", "cycle", algo, 0, 0, 0, "")) << algo;
+    }
+    for (const char* cad : {"", "series", "daily", "monthly", "hourly", "weekly", "stepwise", "step", "MONTHLY"}) {
+        EXPECT_NO_THROW(validate_stream_temporal_config(cad, "", "nearest", 0, 0, 0, "")) << cad;
+    }
+}
+
+TEST(CeceStreamConfigValidation, RejectsInvertedYearRange) {
+    using namespace cece::detail;
+
+    EXPECT_THROW(validate_stream_temporal_config("monthly", "cycle", "linear", 2000, 1999, 0, ""), std::invalid_argument);
+
+    // A single-year range and an unset range are both fine.
+    EXPECT_NO_THROW(validate_stream_temporal_config("monthly", "cycle", "linear", 2000, 2000, 0, ""));
+    EXPECT_NO_THROW(validate_stream_temporal_config("monthly", "cycle", "linear", 2000, 0, 0, ""));
+    EXPECT_NO_THROW(validate_stream_temporal_config("monthly", "cycle", "linear", 0, 0, 0, ""));
+}
+
+TEST(CeceCadenceIndexing, InvertedYearRangeIsRejected) {
+    using namespace cece::detail;
+
+    // yearLast == yearFirst - 1 makes the cycle span zero years. Before the
+    // guard the modulo divided by zero as soon as a date fell out of range.
+    SimDateTime dt = parse_sim_datetime("2024-07-01T00:00:00");
+
+    for (const char* tax : {"", "cycle", "extend", "limit"}) {
+        EXPECT_FALSE(bracket_from_cadence("monthly", "nearest", dt, 288, 2000, 1999, 0, tax).valid) << tax;
+        EXPECT_FALSE(bracket_from_cadence("daily", "nearest", dt, 730, 2000, 1999, 0, tax).valid) << tax;
+    }
+
+    // A single-year range (yearLast == yearFirst) spans one year and still works.
+    const RecordBracket ok = bracket_from_cadence("monthly", "nearest", dt, 288, 2000, 2000, 0, "cycle");
+    EXPECT_TRUE(ok.valid);
 }
 
 TEST(CeceCadenceIndexing, TimeAxisFallbackOnNullDataset) {

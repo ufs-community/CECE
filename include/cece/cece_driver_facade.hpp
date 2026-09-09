@@ -57,6 +57,13 @@ bool widen_amio_elements(const void* data, amio_dtype_t dtype, std::size_t n, do
 
 SimDateTime parse_sim_datetime(const std::string& iso8601);
 
+/// Validate a stream's temporal options and warn about knobs the chosen cadence
+/// ignores. @p where is appended to messages to identify the offending stream.
+/// Throws std::invalid_argument for an unknown cadence/taxmode/tintalgo or an
+/// inverted yearFirst/yearLast range.
+void validate_stream_temporal_config(const std::string& cadence, const std::string& taxmode, const std::string& tintalgo, int yearFirst, int yearLast,
+                                     int yearAlign, const std::string& where);
+
 RecordBracket bracket_from_cadence(const std::string& cadence, const std::string& tintalgo, const SimDateTime& dt, int file_nt, int yearFirst = 0,
                                    int yearLast = 0, int yearAlign = 0, const std::string& taxmode = "");
 

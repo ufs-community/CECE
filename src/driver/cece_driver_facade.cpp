@@ -16,6 +16,7 @@
 #include <fstream>
 #include <iostream>
 #include <limits>
+#include <stdexcept>
 #include <string>
 #include <tick/tick.hpp>
 #include <vector>
@@ -148,6 +149,48 @@ static void read_cf_packing(amio_dataset_handle dataset, const std::string& var,
     double value = 0.0;
     if (amio_get_var_attribute_double(dataset, var.c_str(), "scale_factor", &value) == AMIO_OK) scale = value;
     if (amio_get_var_attribute_double(dataset, var.c_str(), "add_offset", &value) == AMIO_OK) offset = value;
+}
+
+static std::string to_lower(std::string s) {
+    std::transform(s.begin(), s.end(), s.begin(), [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
+    return s;
+}
+
+void validate_stream_temporal_config(const std::string& cadence, const std::string& taxmode, const std::string& tintalgo, int yearFirst, int yearLast,
+                                     int yearAlign, const std::string& where) {
+    const std::string cl = to_lower(cadence);
+    const bool is_profile = (cl == "hourly" || cl == "weekly");
+    const bool is_stepwise = (cl == "stepwise" || cl == "step");
+    const bool is_series = (cl.empty() || cl == "series" || cl == "daily" || cl == "monthly");
+    if (!is_profile && !is_stepwise && !is_series) {
+        throw std::invalid_argument("Unknown stream cadence '" + cadence + "' (expected series|daily|monthly|hourly|weekly|stepwise)" + where + ".");
+    }
+
+    const std::string xl = to_lower(taxmode);
+    if (!xl.empty() && xl != "cycle" && xl != "extend" && xl != "limit") {
+        throw std::invalid_argument("Unknown stream taxmode '" + taxmode + "' (expected cycle|extend|limit)" + where + ".");
+    }
+
+    const std::string tl = to_lower(tintalgo);
+    if (!tl.empty() && tl != "linear" && tl != "nearest") {
+        throw std::invalid_argument("Unknown stream tintalgo '" + tintalgo + "' (expected linear|nearest)" + where + ".");
+    }
+
+    // An inverted range would make the cycle span zero years.
+    if (yearFirst != 0 && yearLast != 0 && yearLast < yearFirst) {
+        throw std::invalid_argument("Stream yearLast (" + std::to_string(yearLast) + ") is before yearFirst (" + std::to_string(yearFirst) + ")" +
+                                    where + ".");
+    }
+
+    if (is_profile && (yearAlign != 0 || yearFirst != 0 || yearLast != 0 || !taxmode.empty() || tl == "linear")) {
+        CECE_LOG_WARNING("[DRIVER] taxmode/yearAlign/yearFirst/yearLast/tintalgo are ignored for profile cadence '" + cl + "'" + where + ".");
+    }
+    if (is_stepwise && (yearAlign != 0 || !taxmode.empty() || tl == "linear")) {
+        CECE_LOG_WARNING("[DRIVER] taxmode/yearAlign/tintalgo are ignored for stepwise cadence" + where + " (the time axis is not consulted).");
+    }
+    if (is_series && (yearFirst != 0 || yearLast != 0)) {
+        CECE_LOG_WARNING("[DRIVER] yearFirst/yearLast are only consulted if the time axis cannot be decoded" + where + ".");
+    }
 }
 
 // Calendar selection for the CF "calendar" attribute value.
@@ -294,6 +337,25 @@ static RecordBracket midpoint_bracket(int idx, double frac, int nrec) {
     return br;
 }
 
+// Map `eff_year` into [yearFirst, yLast] per taxmode. Returns false when no
+// year can be resolved: an out-of-range year under "limit", or an inverted
+// range (which would otherwise make the cycle span zero years).
+static bool apply_year_taxmode(int& eff_year, int yearFirst, int yLast, const std::string& tax) {
+    if (eff_year >= yearFirst && eff_year <= yLast) return true;
+
+    const int year_span = yLast - yearFirst + 1;
+    if (year_span <= 0) return false;
+    if (tax == "limit") return false;
+    if (tax == "extend") {
+        eff_year = std::max(yearFirst, std::min(eff_year, yLast));
+        return true;
+    }
+    int offset = (eff_year - yearFirst) % year_span;  // default: cycle
+    if (offset < 0) offset += year_span;
+    eff_year = yearFirst + offset;
+    return true;
+}
+
 /**
  * @brief Map a simulation datetime onto a record bracket for a given cadence.
  *
@@ -367,18 +429,7 @@ RecordBracket bracket_from_cadence(const std::string& cadence, const std::string
                 yLast = yearFirst + std::max(1, file_nt / 365) - 1;
             }
 
-            if (eff_year < yearFirst || eff_year > yLast) {
-                const int year_span = yLast - yearFirst + 1;
-                if (tax == "limit") {
-                    return br;
-                } else if (tax == "extend") {
-                    eff_year = std::max(yearFirst, std::min(eff_year, yLast));
-                } else {
-                    int offset = (eff_year - yearFirst) % year_span;
-                    if (offset < 0) offset += year_span;
-                    eff_year = yearFirst + offset;
-                }
-            }
+            if (!apply_year_taxmode(eff_year, yearFirst, yLast, tax)) return br;
         }
 
         int abs_day;
@@ -447,22 +498,7 @@ RecordBracket bracket_from_cadence(const std::string& cadence, const std::string
                 yLast = yearFirst + (file_nt / 12) - 1;
             }
 
-            // Apply taxmode to handle out-of-range years.
-            if (eff_year < yearFirst || eff_year > yLast) {
-                const int year_span = yLast - yearFirst + 1;
-                if (tax == "limit") {
-                    // Out of range: return invalid bracket.
-                    return br;
-                } else if (tax == "extend") {
-                    // Clamp to file boundaries.
-                    eff_year = std::max(yearFirst, std::min(eff_year, yLast));
-                } else {
-                    // Default: "cycle" — wrap into the file's year range.
-                    int offset = (eff_year - yearFirst) % year_span;
-                    if (offset < 0) offset += year_span;
-                    eff_year = yearFirst + offset;
-                }
-            }
+            if (!apply_year_taxmode(eff_year, yearFirst, yLast, tax)) return br;
         }
 
         // Compute absolute month index within the file.
@@ -820,32 +856,8 @@ CeceDriverOrchestrator::CeceDriverOrchestrator(const std::string& config_file, i
                 std::string stream_calendar = stream["calendar"].string_or("");
 
                 // Validate the cadence and warn on knobs that the chosen cadence ignores.
-                {
-                    std::string cl = stream_cadence;
-                    std::transform(cl.begin(), cl.end(), cl.begin(), [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
-                    const bool is_profile = (cl == "hourly" || cl == "weekly");
-                    const bool is_stepwise = (cl == "stepwise" || cl == "step");
-                    const bool is_series = (cl.empty() || cl == "series" || cl == "daily" || cl == "monthly");
-                    if (!is_profile && !is_stepwise && !is_series) {
-                        throw std::invalid_argument("Unknown stream cadence '" + stream_cadence +
-                                                    "' (expected series|daily|monthly|hourly|weekly|stepwise) for file '" + stream_file + "'.");
-                    }
-                    std::string tl = stream_tintalgo;
-                    std::transform(tl.begin(), tl.end(), tl.begin(), [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
-                    const std::string where = " (stream file '" + stream_file + "')";
-                    if (is_profile &&
-                        (stream_year_align != 0 || stream_year_first != 0 || stream_year_last != 0 || !stream_taxmode.empty() || tl == "linear")) {
-                        CECE_LOG_WARNING("[DRIVER] taxmode/yearAlign/yearFirst/yearLast/tintalgo are ignored for profile cadence '" + cl + "'" +
-                                         where + ".");
-                    }
-                    if (is_stepwise && (stream_year_align != 0 || !stream_taxmode.empty() || tl == "linear")) {
-                        CECE_LOG_WARNING("[DRIVER] taxmode/yearAlign/tintalgo are ignored for stepwise cadence" + where +
-                                         " (the time axis is not consulted).");
-                    }
-                    if (is_series && (stream_year_first != 0 || stream_year_last != 0)) {
-                        CECE_LOG_WARNING("[DRIVER] yearFirst/yearLast are only consulted if the time axis cannot be decoded" + where + ".");
-                    }
-                }
+                validate_stream_temporal_config(stream_cadence, stream_taxmode, stream_tintalgo, stream_year_first, stream_year_last,
+                                                stream_year_align, " (stream file '" + stream_file + "')");
 
                 // Parse data_model
                 std::string data_model = "enhanced";
