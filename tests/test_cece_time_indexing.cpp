@@ -11,7 +11,10 @@
 
 #include <gtest/gtest.h>
 
+#include <algorithm>
+#include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <string>
 #include <tick/tick.hpp>
 #include <vector>
@@ -643,6 +646,40 @@ TEST(CeceCadenceIndexing, BracketTimesDirect) {
     EXPECT_FALSE(find_bracket({}, 0.0, true, "extend").valid);
 }
 
+TEST(CeceCadenceIndexing, RejectsUnorderedAxis) {
+    using namespace cece::detail;
+
+    // find_bracket binary-searches, so an out-of-order axis has no meaningful
+    // answer; returning invalid lets the caller degrade instead of silently
+    // resolving to the wrong record.
+    const std::vector<double> unsorted = {0.0, 60.0, 31.0};
+    EXPECT_FALSE(find_bracket(unsorted, 40.0, true, "extend").valid);
+    EXPECT_FALSE(find_bracket(unsorted, 40.0, false, "cycle").valid);
+
+    const SimDateTime dt = parse_sim_datetime("2000-02-10T00:00:00");
+    EXPECT_FALSE(bracket_from_coords(unsorted, "days since 2000-01-01", "gregorian", dt, "linear").valid);
+
+    // Repeated stamps are still ordered, so they stay usable.
+    const std::vector<double> repeated = {0.0, 31.0, 31.0, 60.0};
+    const RecordBracket br = find_bracket(repeated, 40.0, true, "extend");
+    EXPECT_TRUE(br.valid);
+    EXPECT_EQ(br.i0, 2);
+    EXPECT_EQ(br.i1, 3);
+    EXPECT_NEAR(br.weight, 9.0 / 29.0, 1e-9);
+}
+
+TEST(CeceCadenceIndexing, DecodeRejectsDegenerateAxisSpan) {
+    using namespace cece::detail;
+
+    const SimDateTime dt = parse_sim_datetime("2000-02-10T00:00:00");
+
+    // Several records at the same instant carry no time information.
+    EXPECT_FALSE(bracket_from_coords({5.0, 5.0, 5.0}, "days since 2000-01-01", "gregorian", dt, "nearest").valid);
+
+    // A single-record file is still fine -- there is nothing to bracket.
+    EXPECT_TRUE(bracket_from_coords({5.0}, "days since 2000-01-01", "gregorian", dt, "nearest").valid);
+}
+
 // ============================================================================
 // Dated hourly meteorology: a file holding 48 hourly records (two full days)
 // driving a two-day run must resolve each simulation hour to the record for
@@ -822,6 +859,33 @@ TEST(CeceCadenceIndexing, SubHourlyRefinesArithmeticFraction) {
     EXPECT_EQ(mon.i0, 5);
     EXPECT_EQ(mon.i1, 6);
     EXPECT_NEAR(mon.weight, (0.6 / 24.0) / 30.0, 1e-12);
+}
+
+TEST(CeceCadenceIndexing, DecodeRejectsIntegerAxisMisreadAsFloat) {
+    using namespace cece::detail;
+
+    // CF time coordinates are commonly stored as integers. Reading an int32
+    // "hours since ..." axis as float32 is the failure this guards: the bit
+    // patterns of ascending non-negative integers are themselves ascending
+    // floats, so the axis still looks ordered, but every value collapses to a
+    // denormal and the whole file decodes to a single instant.
+    std::vector<double> misread(48);
+    for (int k = 0; k < 48; ++k) {
+        const std::int32_t stored = k;
+        float reinterpreted = 0.0f;
+        std::memcpy(&reinterpreted, &stored, sizeof(reinterpreted));
+        misread[k] = static_cast<double>(reinterpreted);
+    }
+    // Ordering alone does not reveal the misread -- the span guard is what does.
+    ASSERT_TRUE(std::is_sorted(misread.begin(), misread.end()));
+
+    const SimDateTime dt = parse_sim_datetime("2000-01-02T05:00:00");
+    EXPECT_FALSE(bracket_from_coords(misread, kTwoDayHourlyUnits, "gregorian", dt, "nearest").valid);
+
+    // The same axis with the correct numeric type resolves normally.
+    const RecordBracket ok = bracket_from_coords(two_day_hourly_axis(), kTwoDayHourlyUnits, "gregorian", dt, "nearest");
+    ASSERT_TRUE(ok.valid);
+    EXPECT_EQ(ok.i0, 29);
 }
 
 }  // namespace cece

@@ -426,6 +426,9 @@ RecordBracket bracket_from_cadence(const std::string& cadence, const std::string
  * of a 48-record hourly file resolves to record 5. A target landing in that
  * trailing interval brackets the last record against the first record of the
  * next cycle.
+ *
+ * Returns an invalid bracket for an out-of-order @p times, which the binary
+ * search cannot answer meaningfully.
  */
 RecordBracket find_bracket(const std::vector<double>& times, double target, bool linear, const std::string& taxmode) {
     RecordBracket br;
@@ -436,6 +439,11 @@ RecordBracket find_bracket(const std::vector<double>& times, double target, bool
         br.weight = 0.0;
         br.valid = true;
         return br;
+    }
+
+    // Nothing upstream guarantees the file's records are in ascending order.
+    for (size_t k = 1; k < n; ++k) {
+        if (times[k] < times[k - 1]) return br;
     }
 
     std::string tax = taxmode;
@@ -519,8 +527,9 @@ RecordBracket find_bracket(const std::vector<double>& times, double target, bool
  * maps the simulation datetime into the same frame (with an optional
  * @p yearAlign remap onto the file's first record year), and delegates to
  * find_bracket(). Returns an invalid bracket when the axis is not decodable
- * (non-fixed unit, missing/garbled units, or an out-of-range calendar date) so
- * the caller falls back to the arithmetic bracket_from_cadence().
+ * (non-fixed unit, missing/garbled units, an out-of-range calendar date, or a
+ * multi-record axis that spans less than a second) so the caller falls back to
+ * the arithmetic bracket_from_cadence().
  */
 RecordBracket bracket_from_coords(const std::vector<double>& time_vals, const std::string& units, const std::string& calendar, const SimDateTime& dt,
                                   const std::string& tintalgo, int yearAlign, const std::string& taxmode) {
@@ -538,6 +547,14 @@ RecordBracket bracket_from_coords(const std::vector<double>& time_vals, const st
         std::vector<double> rec_days(time_vals.size());
         for (size_t k = 0; k < time_vals.size(); ++k) {
             rec_days[k] = time_vals[k] * cf.unit_days;
+        }
+
+        // A multi-record axis covering under a second is not a real time axis.
+        // An integer time variable read as floating point looks exactly like
+        // this: the reinterpreted bit patterns stay ordered but collapse to
+        // denormals, so every record decodes to the same instant.
+        if (rec_days.size() > 1 && (rec_days.back() - rec_days.front()) < 1.0 / 86400.0) {
+            return br;
         }
 
         // Optional year remap: yearAlign is the simulation year that aligns to
@@ -1115,7 +1132,8 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                     amio_finalize(read_core);
                     LogFatal("[DRIVER FATAL] Could not resolve a time record for field '" + var_name + "' in '" + input_file_path + "' (cadence='" +
                              (cadence.empty() ? std::string("series (default)") : cadence) +
-                             "'): the time axis is not decodable (missing/non-fixed units) and there is no cadence granularity to fall back on. "
+                             "'): the time axis is not usable (missing/non-fixed units, records out of ascending order, or a degenerate span) "
+                             "and there is no cadence granularity to fall back on. "
                              "Set 'cadence: stepwise' to ignore time, use 'cadence: daily'/'monthly', or provide 'time_units'.");
                     return false;
                 }
