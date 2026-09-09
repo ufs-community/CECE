@@ -562,6 +562,15 @@ target_link_libraries(
   PRIVATE cece GTest::gtest_main rapidcheck rapidcheck_gtest
 )
 
+# Data Stream Time Indexing Unit Tests
+add_executable(test_cece_time_indexing tests/test_cece_time_indexing.cpp)
+target_link_libraries(test_cece_time_indexing PRIVATE cece GTest::gtest_main)
+if(UNIX AND NOT APPLE)
+  # This test only references cece_driver, so --as-needed drops libcece_core from DT_NEEDED;
+  # Kokkos statics are duplicated in both libraries and double-free at teardown when it does.
+  target_link_options(test_cece_time_indexing PRIVATE "LINKER:--no-as-needed")
+endif()
+
 # CeceClock Run Loop Unit Tests
 add_executable(test_cece_clock_run_loop tests/test_cece_clock_run_loop.cpp)
 target_link_libraries(test_cece_clock_run_loop PRIVATE cece GTest::gtest_main)
@@ -809,6 +818,7 @@ gtest_discover_tests(test_k14_properties PROPERTIES ENVIRONMENT "OMP_PROC_BIND=f
 gtest_discover_tests(test_speciation PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
 gtest_discover_tests(test_megan3 PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
 gtest_discover_tests(test_cece_clock_properties)
+gtest_discover_tests(test_cece_time_indexing)
 gtest_discover_tests(test_cece_clock_run_loop)
 gtest_discover_tests(test_bdsnp PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
 gtest_discover_tests(test_bdsnp_runtime PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
