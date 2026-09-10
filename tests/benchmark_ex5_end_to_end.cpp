@@ -56,7 +56,6 @@
 
 #include <Kokkos_Core.hpp>
 #include <Kokkos_DualView.hpp>
-
 #include <chrono>
 #include <cstdlib>
 #include <iomanip>
@@ -110,7 +109,8 @@ void TransposeInto(HostView& host, const std::vector<double>& full_destination, 
 }
 
 // One (var, step) unit of BEFORE work: 3 deep_copies + 2 host transposes.
-void BeforeStep(const std::vector<double>& full_destination, int nx, int ny, int nlev, DualView3D& stream, DualView3D& core, FieldCacheView& field_cache) {
+void BeforeStep(const std::vector<double>& full_destination, int nx, int ny, int nlev, DualView3D& stream, DualView3D& core,
+                FieldCacheView& field_cache) {
     auto stream_view = stream.view_device();
     auto core_view = core.view_device();
 
@@ -130,8 +130,8 @@ void BeforeStep(const std::vector<double>& full_destination, int nx, int ny, int
     // field_cache_, then IngestEmissionsInline deep_copy's field_cache_ back into
     // the core import field + Kokkos::fence(). This is the THIRD deep_copy of the
     // same field. SetField's source is the same transposed host layout.
-    Kokkos::deep_copy(field_cache, core_host);   // SetField -> field_cache_
-    Kokkos::deep_copy(core_view, field_cache);   // IngestEmissionsInline copy-back
+    Kokkos::deep_copy(field_cache, core_host);  // SetField -> field_cache_
+    Kokkos::deep_copy(core_view, field_cache);  // IngestEmissionsInline copy-back
     Kokkos::fence();
 }
 
@@ -155,12 +155,12 @@ void AfterStep(const std::vector<double>& full_destination, int nx, int ny, int 
 int main(int argc, char** argv) {
     // F360 defaults, ex5-shaped. All overridable on the command line.
     const char* grid_label = "F360";
-    int nx = 1440;  // 4 * 360
-    int ny = 720;   // 2 * 360
-    int nlev = 1;   // 2D-emission fields
-    int nvars = 2;  // MACCITY_CO, MACCITY_NO
-    int nsteps = 6; // hourly 00:00 -> 06:00 at 3600s
-    int iters = 5;  // modest; F360 field ~8.3 MB per DualView fits ~7 GB budget
+    int nx = 1440;   // 4 * 360
+    int ny = 720;    // 2 * 360
+    int nlev = 1;    // 2D-emission fields
+    int nvars = 2;   // MACCITY_CO, MACCITY_NO
+    int nsteps = 6;  // hourly 00:00 -> 06:00 at 3600s
+    int iters = 5;   // modest; F360 field ~8.3 MB per DualView fits ~7 GB budget
 
     for (int i = 1; i < argc; ++i) {
         const std::string arg = argv[i];

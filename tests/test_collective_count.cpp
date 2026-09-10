@@ -55,22 +55,20 @@
 // mpirun --oversubscribe -np 2: the collectives are real on every rank, so the
 // counts are identical and rank-invariant.
 
+#include <gtest/gtest.h>
 #include <mpi.h>
+#include <rapidcheck.h>
+#include <rapidcheck/gtest.h>
 #include <unistd.h>
 
 #include <atomic>
 #include <cstddef>
 #include <cstdlib>
-#include <string>
-#include <vector>
-
-#include <gtest/gtest.h>
-#include <rapidcheck.h>
-#include <rapidcheck/gtest.h>
-
 #include <halo/collectives.hpp>
 #include <halo/communicator.hpp>
 #include <halo/environment.hpp>
+#include <string>
+#include <vector>
 
 // ============================================================================
 // PMPI-style interposition spy.
@@ -91,21 +89,24 @@ void ResetSpy() {
     g_allreduce_count.store(0, std::memory_order_relaxed);
 }
 
-long AllgathervCount() { return g_allgatherv_count.load(std::memory_order_relaxed); }
-long AllreduceCount() { return g_allreduce_count.load(std::memory_order_relaxed); }
+long AllgathervCount() {
+    return g_allgatherv_count.load(std::memory_order_relaxed);
+}
+long AllreduceCount() {
+    return g_allreduce_count.load(std::memory_order_relaxed);
+}
 
 }  // namespace
 
 extern "C" {
 
-int MPI_Allgatherv(const void* sendbuf, int sendcount, MPI_Datatype sendtype, void* recvbuf,
-                   const int recvcounts[], const int displs[], MPI_Datatype recvtype, MPI_Comm comm) {
+int MPI_Allgatherv(const void* sendbuf, int sendcount, MPI_Datatype sendtype, void* recvbuf, const int recvcounts[], const int displs[],
+                   MPI_Datatype recvtype, MPI_Comm comm) {
     g_allgatherv_count.fetch_add(1, std::memory_order_relaxed);
     return PMPI_Allgatherv(sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype, comm);
 }
 
-int MPI_Allreduce(const void* sendbuf, void* recvbuf, int count, MPI_Datatype datatype, MPI_Op op,
-                  MPI_Comm comm) {
+int MPI_Allreduce(const void* sendbuf, void* recvbuf, int count, MPI_Datatype datatype, MPI_Op op, MPI_Comm comm) {
     g_allreduce_count.fetch_add(1, std::memory_order_relaxed);
     return PMPI_Allreduce(sendbuf, recvbuf, count, datatype, op, comm);
 }
@@ -188,8 +189,7 @@ AssemblyCounts RunAssembly(const halo::Communicator& comm, int size, int rank, i
     std::vector<double> send_buf(static_cast<std::size_t>(field_nlev) * static_cast<std::size_t>(band_elems));
     for (int level = 0; level < field_nlev; ++level) {
         for (int e = 0; e < band_elems; ++e) {
-            send_buf[static_cast<std::size_t>(level) * band_elems + e] =
-                static_cast<double>(rank * 100000 + level * 1000 + e);
+            send_buf[static_cast<std::size_t>(level) * band_elems + e] = static_cast<double>(rank * 100000 + level * 1000 + e);
         }
     }
     std::vector<double> full_destination(static_cast<std::size_t>(field_nlev) * kNx * kNy, 0.0);
@@ -221,8 +221,7 @@ AssemblyCounts RunAssembly(const halo::Communicator& comm, int size, int rank, i
         for (int level = 0; level < field_nlev; ++level) {
             const double* level_send = send_buf.data() + static_cast<std::size_t>(level) * band_elems;
             double* level_dst = full_destination.data() + static_cast<std::size_t>(level) * kNx * kNy;
-            MPI_Allgatherv(level_send, band_elems, MPI_DOUBLE, level_dst, band_counts.data(), band_displs.data(),
-                           MPI_DOUBLE, MPI_COMM_WORLD);
+            MPI_Allgatherv(level_send, band_elems, MPI_DOUBLE, level_dst, band_counts.data(), band_displs.data(), MPI_DOUBLE, MPI_COMM_WORLD);
         }
     } else {
         // mpi_size == 1 fast path (Decision A): std::copy, no collectives.

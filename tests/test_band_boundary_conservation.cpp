@@ -25,8 +25,8 @@
 #include <rapidcheck/gtest.h>
 
 #include <Kokkos_Core.hpp>
-#include <axis/solver/weight_generator.hpp>
 #include <algorithm>
+#include <axis/solver/weight_generator.hpp>
 #include <cmath>
 #include <vector>
 
@@ -152,23 +152,39 @@ TEST(BandBoundaryConservation, NonUniformFixedCase) {
     auto sg = build_axis_mesh(src_nx, src_ny, src_lons, src_lats);
     auto dg = build_band_mesh_with_global_corners(dst_nx, 0, dst_ny, dst_lons, dst_lats);
     RegridPlan g;
-    g.file_nx = src_nx; g.file_ny = src_ny; g.j0 = 0; g.j1 = dst_ny; g.identity = false;
-    axis::solver::RegridConfig cfg; cfg.method = axis::solver::InterpolationMethod::Conservative1stOrder;
-    cfg.norm_type = axis::solver::NormType::DstArea; cfg.unmapped = axis::solver::UnmappedAction::Ignore;
-    g.matrix = axis::solver::WeightGenerator::generate<Kokkos::HostSpace>(sg, dg, cfg); g.matrix.to_csr(); g.built = true;
-    std::vector<double> global; ASSERT_TRUE(apply_regrid_plan(g, 0, false, src.data(), src_nx, src_ny, dst_nx, global));
+    g.file_nx = src_nx;
+    g.file_ny = src_ny;
+    g.j0 = 0;
+    g.j1 = dst_ny;
+    g.identity = false;
+    axis::solver::RegridConfig cfg;
+    cfg.method = axis::solver::InterpolationMethod::Conservative1stOrder;
+    cfg.norm_type = axis::solver::NormType::DstArea;
+    cfg.unmapped = axis::solver::UnmappedAction::Ignore;
+    g.matrix = axis::solver::WeightGenerator::generate<Kokkos::HostSpace>(sg, dg, cfg);
+    g.matrix.to_csr();
+    g.built = true;
+    std::vector<double> global;
+    ASSERT_TRUE(apply_regrid_plan(g, 0, false, src.data(), src_nx, src_ny, dst_nx, global));
 
     const int j0 = 6, j1 = 14;
     auto sb = build_axis_mesh(src_nx, src_ny, src_lons, src_lats);
     auto db = build_band_mesh_with_global_corners(dst_nx, j0, j1, dst_lons, dst_lats);
-    RegridPlan b; b.file_nx = src_nx; b.file_ny = src_ny; b.j0 = j0; b.j1 = j1; b.identity = false;
-    b.matrix = axis::solver::WeightGenerator::generate<Kokkos::HostSpace>(sb, db, cfg); b.matrix.to_csr(); b.built = true;
-    std::vector<double> band; ASSERT_TRUE(apply_regrid_plan(b, 0, false, src.data(), src_nx, src_ny, dst_nx, band));
+    RegridPlan b;
+    b.file_nx = src_nx;
+    b.file_ny = src_ny;
+    b.j0 = j0;
+    b.j1 = j1;
+    b.identity = false;
+    b.matrix = axis::solver::WeightGenerator::generate<Kokkos::HostSpace>(sb, db, cfg);
+    b.matrix.to_csr();
+    b.built = true;
+    std::vector<double> band;
+    ASSERT_TRUE(apply_regrid_plan(b, 0, false, src.data(), src_nx, src_ny, dst_nx, band));
 
     double maxd = 0.0;
     for (int jr = 0; jr < (j1 - j0); ++jr)
-        for (int i = 0; i < dst_nx; ++i)
-            maxd = std::max(maxd, std::fabs(band[(size_t)jr * dst_nx + i] - global[(size_t)(j0 + jr) * dst_nx + i]));
+        for (int i = 0; i < dst_nx; ++i) maxd = std::max(maxd, std::fabs(band[(size_t)jr * dst_nx + i] - global[(size_t)(j0 + jr) * dst_nx + i]));
     EXPECT_LE(maxd, 1e-12) << "band boundary rows diverge from global regrid on non-uniform grid";
 }
 

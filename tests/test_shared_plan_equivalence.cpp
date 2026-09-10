@@ -62,8 +62,7 @@ RegridPlan MakeIdentityPlan(int file_nx, int file_ny, int j0, int j1) {
 // Generate a source field of exactly file_nx * file_ny doubles. Values span a
 // mix of signs and magnitudes so the shared-plan comparison is non-trivial.
 rc::Gen<std::vector<double>> genSourceField(std::size_t n) {
-    return rc::gen::container<std::vector<double>>(
-        n, rc::gen::map(rc::gen::inRange(-1000000, 1000001), [](int v) { return v / 1000.0; }));
+    return rc::gen::container<std::vector<double>>(n, rc::gen::map(rc::gen::inRange(-1000000, 1000001), [](int v) { return v / 1000.0; }));
 }
 
 }  // namespace
@@ -90,8 +89,7 @@ RC_GTEST_PROP(SharedPlanEquivalenceProperty, SharedPlanProducesIdenticalOutput, 
 
     // One source-grid data array, shared by both applies (same stream => same
     // source file/grid).
-    const std::vector<double> source =
-        *genSourceField(static_cast<std::size_t>(file_nx) * file_ny);
+    const std::vector<double> source = *genSourceField(static_cast<std::size_t>(file_nx) * file_ny);
 
     // Apply the SAME plan to the SAME source, once for each of two variables
     // that share the stream. The variable name never enters apply_regrid_plan.
@@ -123,8 +121,7 @@ RC_GTEST_PROP(SharedPlanEquivalenceProperty, SharedPlanProducesIdenticalOutputFl
     const int j1 = 4;  // whole grid
     const RegridPlan plan = MakeIdentityPlan(file_nx, file_ny, j0, j1);
 
-    const std::vector<double> source_d =
-        *genSourceField(static_cast<std::size_t>(file_nx) * file_ny);
+    const std::vector<double> source_d = *genSourceField(static_cast<std::size_t>(file_nx) * file_ny);
     std::vector<float> source_f;
     source_f.reserve(source_d.size());
     for (double v : source_d) {

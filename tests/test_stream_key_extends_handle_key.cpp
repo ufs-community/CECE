@@ -55,8 +55,12 @@ namespace cece {
 // ever linked together.
 // ============================================================================
 struct StreamKeyExtendsAccess {
-    static std::string HKey(const cece::StreamConfig& cfg) { return CeceDriverOrchestrator::HandleKey(cfg); }
-    static std::string SKey(const cece::StreamConfig& cfg) { return CeceDriverOrchestrator::StreamKey(cfg); }
+    static std::string HKey(const cece::StreamConfig& cfg) {
+        return CeceDriverOrchestrator::HandleKey(cfg);
+    }
+    static std::string SKey(const cece::StreamConfig& cfg) {
+        return CeceDriverOrchestrator::StreamKey(cfg);
+    }
 };
 
 namespace {
@@ -87,10 +91,9 @@ rc::Gen<StreamConfig> genStreamConfig() {
             cfg.amio_prefetch_depth = amio_prefetch_depth;
             return cfg;
         },
-        rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(),
-        rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(),
-        rc::gen::arbitrary<bool>(), rc::gen::inRange(1, 65), rc::gen::inRange(1, 65), rc::gen::inRange(1, 65),
-        rc::gen::inRange(1, 65));
+        rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(),
+        rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<bool>(), rc::gen::inRange(1, 65),
+        rc::gen::inRange(1, 65), rc::gen::inRange(1, 65), rc::gen::inRange(1, 65));
 }
 
 }  // namespace
@@ -157,11 +160,9 @@ RC_GTEST_PROP(StreamKeyExtends, Property5_ManifestFieldDiffersBothKeysDiffer, ()
     RC_PRE(b.data_model.find('|') == std::string::npos);
 
     // Only meaningful when the manifest tuple actually differs in some field.
-    RC_PRE(a.input_file_path != b.input_file_path || a.data_model != b.data_model ||
-           a.amio_worker_threads != b.amio_worker_threads ||
+    RC_PRE(a.input_file_path != b.input_file_path || a.data_model != b.data_model || a.amio_worker_threads != b.amio_worker_threads ||
            a.amio_staging_buffer_count != b.amio_staging_buffer_count ||
-           a.amio_staging_buffer_capacity_bytes != b.amio_staging_buffer_capacity_bytes ||
-           a.amio_prefetch_depth != b.amio_prefetch_depth);
+           a.amio_staging_buffer_capacity_bytes != b.amio_staging_buffer_capacity_bytes || a.amio_prefetch_depth != b.amio_prefetch_depth);
 
     // Manifest tuple differs -> HandleKey differs (separate handle + count).
     RC_ASSERT(StreamKeyExtendsAccess::HKey(a) != StreamKeyExtendsAccess::HKey(b));

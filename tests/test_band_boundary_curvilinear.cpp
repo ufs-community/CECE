@@ -27,8 +27,8 @@
 #include <rapidcheck/gtest.h>
 
 #include <Kokkos_Core.hpp>
-#include <axis/solver/weight_generator.hpp>
 #include <algorithm>
+#include <axis/solver/weight_generator.hpp>
 #include <cmath>
 #include <vector>
 
@@ -177,13 +177,18 @@ TEST(BandBoundaryConservation, CurvilinearFixedCase) {
     auto sg = build_axis_mesh(src_nx, src_ny, src_rect_lons(src_nx), src_rect_lats(src_ny));
     auto dg = build_axis_mesh(dst_nx, dst_ny, dst.lon, dst.lat);
     RegridPlan g;
-    g.file_nx = src_nx; g.file_ny = src_ny; g.j0 = 0; g.j1 = dst_ny; g.identity = false;
+    g.file_nx = src_nx;
+    g.file_ny = src_ny;
+    g.j0 = 0;
+    g.j1 = dst_ny;
+    g.identity = false;
     axis::solver::RegridConfig cfg;
     cfg.method = axis::solver::InterpolationMethod::Conservative1stOrder;
     cfg.norm_type = axis::solver::NormType::DstArea;
     cfg.unmapped = axis::solver::UnmappedAction::Ignore;
     g.matrix = axis::solver::WeightGenerator::generate<Kokkos::HostSpace>(sg, dg, cfg);
-    g.matrix.to_csr(); g.built = true;
+    g.matrix.to_csr();
+    g.built = true;
     std::vector<double> global;
     ASSERT_TRUE(apply_regrid_plan(g, 0, false, src.data(), src_nx, src_ny, dst_nx, global));
 
@@ -194,8 +199,15 @@ TEST(BandBoundaryConservation, CurvilinearFixedCase) {
     // Fixed path: globally-consistent corners.
     auto sb = build_axis_mesh(src_nx, src_ny, src_rect_lons(src_nx), src_rect_lats(src_ny));
     auto db = build_band_mesh_curvilinear_with_global_corners(dst_nx, j0, j1, dst.lon, dst.lat, blon, blat);
-    RegridPlan b; b.file_nx = src_nx; b.file_ny = src_ny; b.j0 = j0; b.j1 = j1; b.identity = false;
-    b.matrix = axis::solver::WeightGenerator::generate<Kokkos::HostSpace>(sb, db, cfg); b.matrix.to_csr(); b.built = true;
+    RegridPlan b;
+    b.file_nx = src_nx;
+    b.file_ny = src_ny;
+    b.j0 = j0;
+    b.j1 = j1;
+    b.identity = false;
+    b.matrix = axis::solver::WeightGenerator::generate<Kokkos::HostSpace>(sb, db, cfg);
+    b.matrix.to_csr();
+    b.built = true;
     std::vector<double> band;
     ASSERT_TRUE(apply_regrid_plan(b, 0, false, src.data(), src_nx, src_ny, dst_nx, band));
 
@@ -209,14 +221,22 @@ TEST(BandBoundaryConservation, CurvilinearFixedCase) {
     // proving the global-corner fix is load-bearing.
     auto sn = build_axis_mesh(src_nx, src_ny, src_rect_lons(src_nx), src_rect_lats(src_ny));
     auto dn = naive_band_mesh(dst_nx, j0, j1, dst.lon, dst.lat);
-    RegridPlan n; n.file_nx = src_nx; n.file_ny = src_ny; n.j0 = j0; n.j1 = j1; n.identity = false;
-    n.matrix = axis::solver::WeightGenerator::generate<Kokkos::HostSpace>(sn, dn, cfg); n.matrix.to_csr(); n.built = true;
+    RegridPlan n;
+    n.file_nx = src_nx;
+    n.file_ny = src_ny;
+    n.j0 = j0;
+    n.j1 = j1;
+    n.identity = false;
+    n.matrix = axis::solver::WeightGenerator::generate<Kokkos::HostSpace>(sn, dn, cfg);
+    n.matrix.to_csr();
+    n.built = true;
     std::vector<double> nband;
     ASSERT_TRUE(apply_regrid_plan(n, 0, false, src.data(), src_nx, src_ny, dst_nx, nband));
     double naive_maxd = 0.0;
     for (int jr = 0; jr < (j1 - j0); ++jr)
         for (int i = 0; i < dst_nx; ++i)
-            naive_maxd = std::max(naive_maxd, std::fabs(nband[static_cast<size_t>(jr) * dst_nx + i] - global[static_cast<size_t>(j0 + jr) * dst_nx + i]));
+            naive_maxd =
+                std::max(naive_maxd, std::fabs(nband[static_cast<size_t>(jr) * dst_nx + i] - global[static_cast<size_t>(j0 + jr) * dst_nx + i]));
     EXPECT_GT(naive_maxd, 1e-9) << "expected the naive slice-based band mesh to diverge (fix is load-bearing)";
 }
 

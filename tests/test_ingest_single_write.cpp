@@ -111,13 +111,23 @@ class CountingCoreField {
         return it == write_counts_.end() ? 0 : it->second;
     }
 
-    void ResetCounts() { write_counts_.clear(); }
+    void ResetCounts() {
+        write_counts_.clear();
+    }
 
-    int nx() const { return nx_; }
-    int ny() const { return ny_; }
-    int nlev() const { return nlev_; }
+    int nx() const {
+        return nx_;
+    }
+    int ny() const {
+        return ny_;
+    }
+    int nlev() const {
+        return nlev_;
+    }
 
-    DualView3D& field() { return field_; }
+    DualView3D& field() {
+        return field_;
+    }
 
    private:
     DualView3D field_;
@@ -204,9 +214,9 @@ RC_GTEST_PROP(IngestSingleWriteProperty, Property2_CoreImportFieldWrittenExactly
     // exercising the real (i, j, level) layout and transpose index math.
     const int nx = *rc::gen::inRange(1, 9);
     const int ny = *rc::gen::inRange(1, 9);
-    const int nlev = *rc::gen::inRange(1, 4);      // 2D-emission (1) up to a few levels
-    const int nvars = *rc::gen::inRange(1, 6);     // a handful of stream variables
-    const int nsteps = *rc::gen::inRange(1, 6);    // several per-step iterations
+    const int nlev = *rc::gen::inRange(1, 4);    // 2D-emission (1) up to a few levels
+    const int nvars = *rc::gen::inRange(1, 6);   // a handful of stream variables
+    const int nsteps = *rc::gen::inRange(1, 6);  // several per-step iterations
 
     CountingCoreField core(nx, ny, nlev);
 

@@ -45,11 +45,10 @@
 #include <unistd.h>
 
 #include <cstddef>
-#include <string>
-#include <vector>
-
 #include <halo/communicator.hpp>
 #include <halo/environment.hpp>
+#include <string>
+#include <vector>
 
 namespace cece::test {
 
@@ -104,7 +103,7 @@ TEST(HaloAdoptionSendBufOffset, OffsetIsContiguousBijection) {
 
     for (const Case& c : cases) {
         const int nx = c.nx;
-        const int band_rows = c.band_rows;         // (j1 - j0)
+        const int band_rows = c.band_rows;  // (j1 - j0)
         const size_t band_elems = static_cast<size_t>(band_rows) * nx;
         const size_t total = static_cast<size_t>(c.field_nlev) * band_elems;
 

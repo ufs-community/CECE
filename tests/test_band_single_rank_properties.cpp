@@ -32,12 +32,11 @@
 
 #include <gtest/gtest.h>
 #include <mpi.h>
+#include <rapidcheck.h>
+#include <rapidcheck/gtest.h>
 
 #include <cstdlib>
 #include <string>
-
-#include <rapidcheck.h>
-#include <rapidcheck/gtest.h>
 
 #include "cece/cece_band_decomposition.hpp"
 
@@ -56,7 +55,9 @@ void ExpectWholeGrid(const BandDecomposition& band, int ny) {
 // Generate a non-negative destination latitude count. Spans the trivial and
 // small-grid regime up through a modest global grid so the property covers the
 // realistic `ny` space without allocating large vectors.
-rc::Gen<int> genNy() { return rc::gen::inRange(0, 5000); }
+rc::Gen<int> genNy() {
+    return rc::gen::inRange(0, 5000);
+}
 
 }  // namespace
 

@@ -73,8 +73,7 @@ RegridPlan MakeIdentityPlan(int file_nx, int file_ny, int j0, int j1) {
 // mix of signs and magnitudes so the aggregate is a non-trivial cancellation,
 // not just a monotone sum.
 rc::Gen<std::vector<double>> genSourceField(std::size_t n) {
-    return rc::gen::container<std::vector<double>>(
-        n, rc::gen::map(rc::gen::inRange(-1000000, 1000001), [](int v) { return v / 1000.0; }));
+    return rc::gen::container<std::vector<double>>(n, rc::gen::map(rc::gen::inRange(-1000000, 1000001), [](int v) { return v / 1000.0; }));
 }
 
 // The aggregate the pre-optimization apply produced for an identity plan: the
@@ -109,8 +108,7 @@ RC_GTEST_PROP(RegridConservationProperty, Property9_DeterministicApply, ()) {
     const int j1 = 3;
     const RegridPlan plan = MakeIdentityPlan(file_nx, file_ny, j0, j1);
 
-    const std::vector<double> source =
-        *genSourceField(static_cast<std::size_t>(file_nx) * file_ny);
+    const std::vector<double> source = *genSourceField(static_cast<std::size_t>(file_nx) * file_ny);
 
     std::vector<double> dst_a;
     std::vector<double> dst_b;
@@ -140,8 +138,7 @@ RC_GTEST_PROP(RegridConservationProperty, Property9_IdentityAggregateStable, ())
     const int j1 = 3;
     const RegridPlan plan = MakeIdentityPlan(file_nx, file_ny, j0, j1);
 
-    const std::vector<double> source =
-        *genSourceField(static_cast<std::size_t>(file_nx) * file_ny);
+    const std::vector<double> source = *genSourceField(static_cast<std::size_t>(file_nx) * file_ny);
 
     std::vector<double> dst;
     RC_ASSERT(apply_regrid_plan(plan, /*time_offset=*/0, /*is_float=*/false, source.data(), file_nx, file_ny,
@@ -203,8 +200,7 @@ RC_GTEST_PROP(RegridConservationProperty, Property9_AggregateInvariantAcrossReco
 
     // Select the second record (time_offset == record_len).
     std::vector<double> dst_d;
-    RC_ASSERT(apply_regrid_plan(plan, /*time_offset=*/record_len, /*is_float=*/false, buffer_d.data(), file_nx,
-                                file_ny, /*nx=*/file_nx, dst_d));
+    RC_ASSERT(apply_regrid_plan(plan, /*time_offset=*/record_len, /*is_float=*/false, buffer_d.data(), file_nx, file_ny, /*nx=*/file_nx, dst_d));
 
     // The selected-record aggregate equals the aggregate of record1 directly.
     const double expected_d = std::accumulate(record1.begin(), record1.end(), 0.0);
@@ -212,8 +208,7 @@ RC_GTEST_PROP(RegridConservationProperty, Property9_AggregateInvariantAcrossReco
 
     // The float-buffer apply preserves the aggregate of the float-cast record1.
     std::vector<double> dst_f;
-    RC_ASSERT(apply_regrid_plan(plan, /*time_offset=*/record_len, /*is_float=*/true, buffer_f.data(), file_nx,
-                                file_ny, /*nx=*/file_nx, dst_f));
+    RC_ASSERT(apply_regrid_plan(plan, /*time_offset=*/record_len, /*is_float=*/true, buffer_f.data(), file_nx, file_ny, /*nx=*/file_nx, dst_f));
 
     double expected_f = 0.0;
     for (std::size_t k = 0; k < record_len; ++k) {

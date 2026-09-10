@@ -92,7 +92,9 @@ namespace cece {
 // owns its own copy, so this is self-contained.)
 // ============================================================================
 struct SliceCacheTestAccess {
-    static bool Equal(const RecordBracket& a, const RecordBracket& b) { return CeceDriverOrchestrator::bracket_equal(a, b); }
+    static bool Equal(const RecordBracket& a, const RecordBracket& b) {
+        return CeceDriverOrchestrator::bracket_equal(a, b);
+    }
 };
 
 namespace {
@@ -104,7 +106,9 @@ struct FieldShape {
     int field_nlev;
     int nx;
     int ny;
-    std::size_t size() const { return static_cast<std::size_t>(field_nlev) * nx * ny; }
+    std::size_t size() const {
+        return static_cast<std::size_t>(field_nlev) * nx * ny;
+    }
 };
 
 rc::Gen<FieldShape> genShape() {
@@ -157,8 +161,7 @@ void WriteCoreImportField(DualView3D& core_field, const std::vector<double>& ing
     for (int level = 0; level < nlev; ++level) {
         for (int j = 0; j < ny; ++j) {
             for (int i = 0; i < nx; ++i) {
-                transposed_host(i, j, level) =
-                    ingest_buffer[static_cast<std::size_t>(level) * target_spatial + static_cast<std::size_t>(j) * nx + i];
+                transposed_host(i, j, level) = ingest_buffer[static_cast<std::size_t>(level) * target_spatial + static_cast<std::size_t>(j) * nx + i];
             }
         }
     }
@@ -242,10 +245,9 @@ RC_GTEST_PROP(IngestNoStaleDataProperty, Property4_NoStaleDataAcrossSteps, ()) {
     // A pool of distinct bracket keys; drawing step keys from this pool makes
     // repeats (hits) and new values (misses) both likely. Small pool + longer
     // sequence => many genuine hits are exercised.
-    const int pool_size = *rc::gen::inRange(1, 5);           // 1..4 distinct brackets
-    const int num_steps = *rc::gen::inRange(2, 13);          // 2..12 steps
-    const auto step_keys = *rc::gen::container<std::vector<int>>(
-        static_cast<std::size_t>(num_steps), rc::gen::inRange(0, pool_size));
+    const int pool_size = *rc::gen::inRange(1, 5);   // 1..4 distinct brackets
+    const int num_steps = *rc::gen::inRange(2, 13);  // 2..12 steps
+    const auto step_keys = *rc::gen::container<std::vector<int>>(static_cast<std::size_t>(num_steps), rc::gen::inRange(0, pool_size));
 
     // One live cache + one live core import field for the whole sequence, exactly
     // as a single stream variable keeps one slice cache and one import field

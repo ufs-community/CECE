@@ -364,8 +364,8 @@ axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_axis_mesh(int ni, int 
 // [j0, j1] of the global mesh's synthesized corners, so the band conservative
 // regrid matches the corresponding global rows at the seams and a whole-grid
 // (single-rank) band is byte-for-byte the global mesh.
-axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_band_mesh_with_global_corners(
-    int nx, int j0, int j1, const std::vector<double>& full_lons, const std::vector<double>& full_lats) {
+axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_band_mesh_with_global_corners(int nx, int j0, int j1, const std::vector<double>& full_lons,
+                                                                                        const std::vector<double>& full_lats) {
     const int nband = j1 - j0;
     const std::size_t ny_global = full_lats.size();
 
@@ -395,9 +395,8 @@ axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_band_mesh_with_global_
     }
 
     Kokkos::View<double*, Kokkos::HostSpace> corner_lon, corner_lat;
-    axis::topology::synthesize_band_corners<Kokkos::HostSpace>(nx, ny_global, global_center_lon, global_center_lat,
-                                                               static_cast<std::size_t>(j0), static_cast<std::size_t>(j1),
-                                                               corner_lon, corner_lat);
+    axis::topology::synthesize_band_corners<Kokkos::HostSpace>(nx, ny_global, global_center_lon, global_center_lat, static_cast<std::size_t>(j0),
+                                                               static_cast<std::size_t>(j1), corner_lon, corner_lat);
 
     axis::topology::StructuredGrid<Kokkos::HostSpace> grid(nx, nband, band_center_lon, band_center_lat,
                                                            axis::topology::CoordinateSystem::SphericalDeg);
@@ -416,9 +415,11 @@ axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_band_mesh_with_global_
 // from the global mesh. `full_center_lon`/`full_center_lat` are the flattened
 // global curvilinear centers of length nx * ny_global (index i + j*nx);
 // `band_center_lon`/`band_center_lat` are the band's nx * (j1-j0) centers.
-axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_band_mesh_curvilinear_with_global_corners(
-    int nx, int j0, int j1, const std::vector<double>& full_center_lon, const std::vector<double>& full_center_lat,
-    const std::vector<double>& band_center_lon, const std::vector<double>& band_center_lat) {
+axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_band_mesh_curvilinear_with_global_corners(int nx, int j0, int j1,
+                                                                                                    const std::vector<double>& full_center_lon,
+                                                                                                    const std::vector<double>& full_center_lat,
+                                                                                                    const std::vector<double>& band_center_lon,
+                                                                                                    const std::vector<double>& band_center_lat) {
     const int nband = j1 - j0;
     const std::size_t ny_global = full_center_lon.size() / static_cast<std::size_t>(nx);
 
@@ -437,16 +438,13 @@ axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_band_mesh_curvilinear_
     }
 
     Kokkos::View<double*, Kokkos::HostSpace> corner_lon, corner_lat;
-    axis::topology::synthesize_band_corners<Kokkos::HostSpace>(nx, ny_global, global_clon, global_clat,
-                                                               static_cast<std::size_t>(j0), static_cast<std::size_t>(j1),
-                                                               corner_lon, corner_lat);
+    axis::topology::synthesize_band_corners<Kokkos::HostSpace>(nx, ny_global, global_clon, global_clat, static_cast<std::size_t>(j0),
+                                                               static_cast<std::size_t>(j1), corner_lon, corner_lat);
 
-    axis::topology::StructuredGrid<Kokkos::HostSpace> grid(nx, nband, band_clon, band_clat,
-                                                           axis::topology::CoordinateSystem::SphericalDeg);
+    axis::topology::StructuredGrid<Kokkos::HostSpace> grid(nx, nband, band_clon, band_clat, axis::topology::CoordinateSystem::SphericalDeg);
     grid.set_corners(std::move(corner_lon), std::move(corner_lat));
     return grid.to_unstructured();
 }
-
 
 namespace {
 

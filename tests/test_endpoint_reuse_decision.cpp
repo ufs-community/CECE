@@ -60,6 +60,8 @@
 
 #include <gtest/gtest.h>
 #include <mpi.h>
+#include <rapidcheck.h>
+#include <rapidcheck/gtest.h>
 #include <unistd.h>
 
 #include <algorithm>
@@ -69,9 +71,6 @@
 #include <string>
 #include <tick/tick.hpp>
 #include <vector>
-
-#include <rapidcheck.h>
-#include <rapidcheck/gtest.h>
 
 #include "cece/cece_driver_facade.hpp"
 
@@ -87,7 +86,9 @@ namespace cece {
 // visibility.
 // ============================================================================
 struct EndpointCacheTestAccess {
-    static bool Equal(const RecordBracket& a, const RecordBracket& b) { return CeceDriverOrchestrator::bracket_equal(a, b); }
+    static bool Equal(const RecordBracket& a, const RecordBracket& b) {
+        return CeceDriverOrchestrator::bracket_equal(a, b);
+    }
 };
 
 }  // namespace cece
@@ -200,7 +201,9 @@ RecordBracket ResolveBracket(const std::string& cadence, const std::string& tint
 // Production's interp-mode flag: needs an upper record only when i1 != i0 and
 // the blend weight is strictly positive. (Tier 2 only ever fires when this is
 // true — a single-record step takes the unchanged Tier-3 single path.)
-bool NeedsUpperRecord(const RecordBracket& b) { return (b.i1 != b.i0 && b.weight > 0.0); }
+bool NeedsUpperRecord(const RecordBracket& b) {
+    return (b.i1 != b.i0 && b.weight > 0.0);
+}
 
 // ---------------------------------------------------------------------------
 // Rank-invariant Tier-2 endpoint hit/miss decision, reproduced faithfully from

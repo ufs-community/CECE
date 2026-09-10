@@ -6,10 +6,10 @@
 #include <axis/topology/named_grid_registry.hpp>
 #include <cmath>
 #include <halo/communicator.hpp>
-#include <sstream>
 #include <halo/environment.hpp>
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <tick/tick.hpp>
 #include <unordered_map>
@@ -284,8 +284,7 @@ int main(int argc, char* argv[]) {
 
                 amio_status_t amio_rc = amio_init_from_string(coord_manifest_content.c_str(), "yaml", &coord_core);
                 if (amio_rc != AMIO_OK) {
-                    std::cerr << "ERROR: amio_init_from_string failed for coordinate manifest: " << amio_strerror(amio_rc)
-                              << std::endl;
+                    std::cerr << "ERROR: amio_init_from_string failed for coordinate manifest: " << amio_strerror(amio_rc) << std::endl;
                 } else {
                     amio_rc = amio_open_dataset_from_string(coord_core, coord_manifest_content.c_str(), "yaml", AMIO_MODE_READ, &coord_dataset);
                     if (amio_rc != AMIO_OK) {

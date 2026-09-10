@@ -55,15 +55,14 @@
 
 #include <gtest/gtest.h>
 #include <mpi.h>
+#include <rapidcheck.h>
+#include <rapidcheck/gtest.h>
 #include <unistd.h>
 
 #include <algorithm>
 #include <cstdlib>
 #include <string>
 #include <vector>
-
-#include <rapidcheck.h>
-#include <rapidcheck/gtest.h>
 
 #include "cece/cece_driver_facade.hpp"
 

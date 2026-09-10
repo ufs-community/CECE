@@ -84,16 +84,17 @@ struct FieldShape {
     int nx;
     int ny;
     int nlev;
-    std::size_t spatial() const { return static_cast<std::size_t>(nx) * static_cast<std::size_t>(ny); }
-    std::size_t size() const { return spatial() * static_cast<std::size_t>(nlev); }
+    std::size_t spatial() const {
+        return static_cast<std::size_t>(nx) * static_cast<std::size_t>(ny);
+    }
+    std::size_t size() const {
+        return spatial() * static_cast<std::size_t>(nlev);
+    }
 };
 
 rc::Gen<FieldShape> genShape() {
-    return rc::gen::apply(
-        [](int nx, int ny, int nlev) {
-            return FieldShape{nx, ny, nlev};
-        },
-        rc::gen::inRange(1, 17), rc::gen::inRange(1, 17), rc::gen::inRange(1, 5));
+    return rc::gen::apply([](int nx, int ny, int nlev) { return FieldShape{nx, ny, nlev}; }, rc::gen::inRange(1, 17), rc::gen::inRange(1, 17),
+                          rc::gen::inRange(1, 5));
 }
 
 // Generate a gathered `full_destination` of exactly `n` doubles laid out
@@ -123,9 +124,8 @@ rc::Gen<std::vector<double>> genFullDestination(std::size_t n) {
         123456.789,
         -0.000123456789,
     };
-    return rc::gen::container<std::vector<double>>(n, rc::gen::map(rc::gen::inRange<std::size_t>(0, kPool.size()), [](std::size_t idx) {
-                                                       return kPool[idx];
-                                                   }));
+    return rc::gen::container<std::vector<double>>(
+        n, rc::gen::map(rc::gen::inRange<std::size_t>(0, kPool.size()), [](std::size_t idx) { return kPool[idx]; }));
 }
 
 // ----------------------------------------------------------------------------
@@ -157,8 +157,7 @@ void AssembleBaselineMultiCopy(const std::vector<double>& full_destination, cons
     for (int level = 0; level < s.nlev; ++level) {
         for (int j = 0; j < s.ny; ++j) {
             for (int i = 0; i < s.nx; ++i) {
-                core_host(i, j, level) =
-                    full_destination[static_cast<std::size_t>(level) * target_spatial + static_cast<std::size_t>(j) * s.nx + i];
+                core_host(i, j, level) = full_destination[static_cast<std::size_t>(level) * target_spatial + static_cast<std::size_t>(j) * s.nx + i];
             }
         }
     }
@@ -212,9 +211,9 @@ std::vector<double> SnapshotToHost(DualView3D& dv, const FieldShape& s) {
     for (int level = 0; level < s.nlev; ++level) {
         for (int j = 0; j < s.ny; ++j) {
             for (int i = 0; i < s.nx; ++i) {
-                out[static_cast<std::size_t>(i) + static_cast<std::size_t>(s.nx) * (static_cast<std::size_t>(j) + static_cast<std::size_t>(s.ny) *
-                                                                                                                        static_cast<std::size_t>(level))] =
-                    host(i, j, level);
+                out[static_cast<std::size_t>(i) +
+                    static_cast<std::size_t>(s.nx) *
+                        (static_cast<std::size_t>(j) + static_cast<std::size_t>(s.ny) * static_cast<std::size_t>(level))] = host(i, j, level);
             }
         }
     }

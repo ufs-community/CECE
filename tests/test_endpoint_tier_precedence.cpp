@@ -79,7 +79,9 @@ namespace cece {
 // comparison directly, not a copy.
 // ============================================================================
 struct EndpointCacheTestAccess {
-    static bool Equal(const RecordBracket& a, const RecordBracket& b) { return CeceDriverOrchestrator::bracket_equal(a, b); }
+    static bool Equal(const RecordBracket& a, const RecordBracket& b) {
+        return CeceDriverOrchestrator::bracket_equal(a, b);
+    }
 };
 
 namespace {
@@ -105,8 +107,8 @@ struct WorkSpy {
 // bracket_equal for the Tier-1 test. The shape parameters (nx, ny, field_nlev)
 // are the rank-invariant destination-grid dimensions the Tier-2 gate compares
 // against the endpoint entry's built_* fields. Returns the tier that fired.
-Tier ExecuteLadder(const RecordBracket& resolved, bool bracket_ready, const SliceCacheEntry& slice_cache,
-                   const EndpointCacheEntry& endpoint_cache, int nx, int ny, int field_nlev, WorkSpy& spy) {
+Tier ExecuteLadder(const RecordBracket& resolved, bool bracket_ready, const SliceCacheEntry& slice_cache, const EndpointCacheEntry& endpoint_cache,
+                   int nx, int ny, int field_nlev, WorkSpy& spy) {
     const bool needs_upper_record = (resolved.i1 != resolved.i0 && resolved.weight > 0.0);
 
     // ---- Tier 1: exact slice-cache hit (indices AND weight), Req 2.4, 9.3 ----
@@ -189,7 +191,7 @@ rc::Gen<RecordBracket> genInterpolatingBracket() {
         [](int i0, int gap, double w01) {
             RecordBracket b;
             b.i0 = i0;
-            b.i1 = i0 + 1 + gap;  // guarantees i1 != i0
+            b.i1 = i0 + 1 + gap;             // guarantees i1 != i0
             b.weight = 0.001 + w01 * 0.998;  // guarantees weight in (0,1)
             b.valid = true;
             return b;

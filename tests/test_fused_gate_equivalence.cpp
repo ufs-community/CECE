@@ -104,20 +104,17 @@ bool LegacyFiveGates(const std::vector<int>& mn, const std::vector<int>& mx, std
     }
     // Gate 1: file_nx (MIN vs MAX).
     if (mn[1] != mx[1]) {
-        failure_detail =
-            "source longitude count differs across ranks (minimum " + std::to_string(mn[1]) + ", maximum " + std::to_string(mx[1]) + ")";
+        failure_detail = "source longitude count differs across ranks (minimum " + std::to_string(mn[1]) + ", maximum " + std::to_string(mx[1]) + ")";
         return false;
     }
     // Gate 2: file_ny.
     if (mn[2] != mx[2]) {
-        failure_detail =
-            "source latitude count differs across ranks (minimum " + std::to_string(mn[2]) + ", maximum " + std::to_string(mx[2]) + ")";
+        failure_detail = "source latitude count differs across ranks (minimum " + std::to_string(mn[2]) + ", maximum " + std::to_string(mx[2]) + ")";
         return false;
     }
     // Gate 3: field_nlev.
     if (mn[3] != mx[3]) {
-        failure_detail =
-            "source level count differs across ranks (minimum " + std::to_string(mn[3]) + ", maximum " + std::to_string(mx[3]) + ")";
+        failure_detail = "source level count differs across ranks (minimum " + std::to_string(mn[3]) + ", maximum " + std::to_string(mx[3]) + ")";
         return false;
     }
     // Gate 4: plan.identity.

@@ -16,9 +16,9 @@
 //   g++ -O2 -std=c++17 -fPIC -shared tools/kp_kernel_timer.cpp -o build/libkp_kernel_timer.so
 
 #include <algorithm>
+#include <chrono>
 #include <cstdint>
 #include <cstdio>
-#include <chrono>
 #include <map>
 #include <string>
 #include <vector>
@@ -41,7 +41,9 @@ struct Frame {
 std::map<std::string, Stat> g_stats;
 std::vector<Frame> g_stack;
 
-void push(const std::string& name) { g_stack.push_back({name, Clock::now()}); }
+void push(const std::string& name) {
+    g_stack.push_back({name, Clock::now()});
+}
 
 void pop() {
     if (g_stack.empty()) return;
@@ -59,8 +61,7 @@ void pop() {
 
 extern "C" {
 
-void kokkosp_init_library(const int /*loadseq*/, const uint64_t /*version*/, const uint32_t /*ndevinfos*/,
-                          void* /*devinfos*/) {
+void kokkosp_init_library(const int /*loadseq*/, const uint64_t /*version*/, const uint32_t /*ndevinfos*/, void* /*devinfos*/) {
     std::fprintf(stderr, "[kp_kernel_timer] attached\n");
 }
 
@@ -69,14 +70,12 @@ void kokkosp_finalize_library() {
     std::fprintf(stderr, "\n[kp_kernel_timer] ===== Kokkos region timing (by total time) =====\n");
     std::fprintf(stderr, "%-52s %8s %14s %12s %12s\n", "name", "count", "total_ms", "avg_us", "max_us");
     std::vector<std::pair<std::string, Stat>> rows(g_stats.begin(), g_stats.end());
-    std::sort(rows.begin(), rows.end(),
-              [](const auto& a, const auto& b) { return a.second.total_ns > b.second.total_ns; });
+    std::sort(rows.begin(), rows.end(), [](const auto& a, const auto& b) { return a.second.total_ns > b.second.total_ns; });
     for (const auto& [name, s] : rows) {
         const double total_ms = s.total_ns / 1.0e6;
         const double avg_us = (s.count ? s.total_ns / s.count : 0.0) / 1.0e3;
         const double max_us = s.max_ns / 1.0e3;
-        std::fprintf(stderr, "%-52s %8llu %14.4f %12.3f %12.3f\n", name.c_str(),
-                     static_cast<unsigned long long>(s.count), total_ms, avg_us, max_us);
+        std::fprintf(stderr, "%-52s %8llu %14.4f %12.3f %12.3f\n", name.c_str(), static_cast<unsigned long long>(s.count), total_ms, avg_us, max_us);
     }
     std::fprintf(stderr, "[kp_kernel_timer] ================================================\n");
 }
@@ -85,29 +84,40 @@ void kokkosp_begin_parallel_for(const char* name, const uint32_t /*devid*/, uint
     *kernid = 0;
     push(std::string("[for] ") + (name ? name : "anon"));
 }
-void kokkosp_end_parallel_for(const uint64_t /*kernid*/) { pop(); }
+void kokkosp_end_parallel_for(const uint64_t /*kernid*/) {
+    pop();
+}
 
 void kokkosp_begin_parallel_reduce(const char* name, const uint32_t /*devid*/, uint64_t* kernid) {
     *kernid = 0;
     push(std::string("[reduce] ") + (name ? name : "anon"));
 }
-void kokkosp_end_parallel_reduce(const uint64_t /*kernid*/) { pop(); }
+void kokkosp_end_parallel_reduce(const uint64_t /*kernid*/) {
+    pop();
+}
 
 void kokkosp_begin_parallel_scan(const char* name, const uint32_t /*devid*/, uint64_t* kernid) {
     *kernid = 0;
     push(std::string("[scan] ") + (name ? name : "anon"));
 }
-void kokkosp_end_parallel_scan(const uint64_t /*kernid*/) { pop(); }
+void kokkosp_end_parallel_scan(const uint64_t /*kernid*/) {
+    pop();
+}
 
-void kokkosp_begin_deep_copy(const uint32_t /*dst_space*/, const char* dst_name, const void* /*dst_ptr*/,
-                             const uint32_t /*src_space*/, const char* src_name, const void* /*src_ptr*/,
-                             const uint64_t /*size*/) {
+void kokkosp_begin_deep_copy(const uint32_t /*dst_space*/, const char* dst_name, const void* /*dst_ptr*/, const uint32_t /*src_space*/,
+                             const char* src_name, const void* /*src_ptr*/, const uint64_t /*size*/) {
     push(std::string("[deep_copy] ") + (dst_name ? dst_name : "?") + " <- " + (src_name ? src_name : "?"));
 }
-void kokkosp_end_deep_copy() { pop(); }
+void kokkosp_end_deep_copy() {
+    pop();
+}
 
 // Region markers (Kokkos::Profiling::pushRegion / popRegion).
-void kokkosp_push_profile_region(const char* name) { push(std::string("[region] ") + (name ? name : "anon")); }
-void kokkosp_pop_profile_region() { pop(); }
+void kokkosp_push_profile_region(const char* name) {
+    push(std::string("[region] ") + (name ? name : "anon"));
+}
+void kokkosp_pop_profile_region() {
+    pop();
+}
 
 }  // extern "C"

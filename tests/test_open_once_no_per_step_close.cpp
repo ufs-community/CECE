@@ -128,7 +128,9 @@ class HandleCacheModel {
         return it == open_count_.end() ? 0 : it->second;
     }
 
-    std::size_t distinct_variables() const { return amio_handles_.size(); }
+    std::size_t distinct_variables() const {
+        return amio_handles_.size();
+    }
 
    private:
     // Same type and keying (model variable name) as the real member.
@@ -194,8 +196,7 @@ TEST(OpenOnceCacheContract, MultipleVariablesEachOpenOnce) {
 // Feature: driver-io-regrid-perf
 // Validates: Requirements 9.1
 // ----------------------------------------------------------------------------
-RC_GTEST_PROP(OpenOnceCacheContractProperty, OpenAtMostOncePerVariable,
-              (const std::vector<std::string>& touch_sequence)) {
+RC_GTEST_PROP(OpenOnceCacheContractProperty, OpenAtMostOncePerVariable, (const std::vector<std::string>& touch_sequence)) {
     HandleCacheModel model;
 
     // Record the first-seen pointers per variable so we can assert stability.
@@ -282,7 +283,9 @@ std::string ExtractMemberBody(const std::string& src, const std::string& method_
 class DriverSourceGuard : public ::testing::Test {
    protected:
     static std::string src_;
-    static void SetUpTestSuite() { src_ = ReadDriverSource(); }
+    static void SetUpTestSuite() {
+        src_ = ReadDriverSource();
+    }
 };
 std::string DriverSourceGuard::src_;
 
@@ -297,8 +300,7 @@ TEST_F(DriverSourceGuard, AdvanceTimeHasNoInlineOpenOrClose) {
     EXPECT_EQ(body.find("amio_init("), std::string::npos) << "AdvanceTime must not call amio_init inline";
     EXPECT_EQ(body.find("amio_init_from_string("), std::string::npos) << "AdvanceTime must not open datasets inline";
     EXPECT_EQ(body.find("amio_open_dataset("), std::string::npos) << "AdvanceTime must not call amio_open_dataset inline";
-    EXPECT_EQ(body.find("amio_open_dataset_from_string("), std::string::npos)
-        << "AdvanceTime must not open datasets inline";
+    EXPECT_EQ(body.find("amio_open_dataset_from_string("), std::string::npos) << "AdvanceTime must not open datasets inline";
     EXPECT_EQ(body.find("amio_close("), std::string::npos) << "AdvanceTime must not close datasets mid-run";
     EXPECT_EQ(body.find("amio_finalize("), std::string::npos) << "AdvanceTime must not finalize cores mid-run";
 }
@@ -341,8 +343,7 @@ TEST_F(DriverSourceGuard, CloseAndFinalizeLiveInTeardownPath) {
     // state) plus GetOrOpenHandleSet (failed-first-open cleanup). Nothing leaks
     // into AdvanceTime or any per-step path.
     EXPECT_EQ(total_close, teardown_close + open_close) << "amio_close appears outside the teardown/open-cleanup paths";
-    EXPECT_EQ(total_finalize, teardown_finalize + open_finalize)
-        << "amio_finalize appears outside the teardown/open-cleanup paths";
+    EXPECT_EQ(total_finalize, teardown_finalize + open_finalize) << "amio_finalize appears outside the teardown/open-cleanup paths";
 }
 
 // GetOrOpenHandleSet must open via the STRING-based entry points and cache into

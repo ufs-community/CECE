@@ -57,7 +57,9 @@ namespace cece {
 // visibility. It does not touch any production code path.
 // ============================================================================
 struct StreamKeyTestAccess {
-    static std::string Key(const StreamConfig& cfg) { return CeceDriverOrchestrator::StreamKey(cfg); }
+    static std::string Key(const StreamConfig& cfg) {
+        return CeceDriverOrchestrator::StreamKey(cfg);
+    }
 };
 
 namespace {
@@ -86,10 +88,9 @@ rc::Gen<StreamConfig> genStreamConfig() {
             cfg.amio_prefetch_depth = amio_prefetch_depth;
             return cfg;
         },
-        rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(),
-        rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(),
-        rc::gen::arbitrary<bool>(), rc::gen::inRange(1, 65), rc::gen::inRange(1, 65), rc::gen::inRange(1, 65),
-        rc::gen::inRange(1, 65));
+        rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(),
+        rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<bool>(), rc::gen::inRange(1, 65),
+        rc::gen::inRange(1, 65), rc::gen::inRange(1, 65), rc::gen::inRange(1, 65));
 }
 
 }  // namespace
@@ -109,10 +110,8 @@ rc::Gen<StreamConfig> genStreamConfig() {
 // ============================================================================
 RC_GTEST_PROP(StreamKeyProperty, Property1_Concatenation, ()) {
     const StreamConfig cfg = *genStreamConfig();
-    const std::string expected = cfg.input_file_path + "|" + cfg.data_model + "|" +
-                                 std::to_string(cfg.amio_worker_threads) + "|" +
-                                 std::to_string(cfg.amio_staging_buffer_count) + "|" +
-                                 std::to_string(cfg.amio_staging_buffer_capacity_bytes) + "|" +
+    const std::string expected = cfg.input_file_path + "|" + cfg.data_model + "|" + std::to_string(cfg.amio_worker_threads) + "|" +
+                                 std::to_string(cfg.amio_staging_buffer_count) + "|" + std::to_string(cfg.amio_staging_buffer_capacity_bytes) + "|" +
                                  std::to_string(cfg.amio_prefetch_depth) + "|" + cfg.mapalgo;
     RC_ASSERT(StreamKeyTestAccess::Key(cfg) == expected);
 }
@@ -185,11 +184,10 @@ RC_GTEST_PROP(StreamKeyProperty, Property1_UnequalWhenPathOrAlgoDiffers, ()) {
     RC_PRE(b.mapalgo.find('|') == std::string::npos);
 
     // Only meaningful when the seven-field key tuple actually differs.
-    RC_PRE(a.input_file_path != b.input_file_path || a.data_model != b.data_model ||
-           a.amio_worker_threads != b.amio_worker_threads ||
+    RC_PRE(a.input_file_path != b.input_file_path || a.data_model != b.data_model || a.amio_worker_threads != b.amio_worker_threads ||
            a.amio_staging_buffer_count != b.amio_staging_buffer_count ||
-           a.amio_staging_buffer_capacity_bytes != b.amio_staging_buffer_capacity_bytes ||
-           a.amio_prefetch_depth != b.amio_prefetch_depth || a.mapalgo != b.mapalgo);
+           a.amio_staging_buffer_capacity_bytes != b.amio_staging_buffer_capacity_bytes || a.amio_prefetch_depth != b.amio_prefetch_depth ||
+           a.mapalgo != b.mapalgo);
 
     RC_ASSERT(StreamKeyTestAccess::Key(a) != StreamKeyTestAccess::Key(b));
 }

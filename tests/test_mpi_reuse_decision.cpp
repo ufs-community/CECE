@@ -81,7 +81,9 @@ namespace cece {
 // REAL production comparison, not a copy.
 // ============================================================================
 struct CrossRankReuseTestAccess {
-    static bool Equal(const RecordBracket& a, const RecordBracket& b) { return CeceDriverOrchestrator::bracket_equal(a, b); }
+    static bool Equal(const RecordBracket& a, const RecordBracket& b) {
+        return CeceDriverOrchestrator::bracket_equal(a, b);
+    }
 };
 
 }  // namespace cece
@@ -194,7 +196,9 @@ RecordBracket ResolveBracket(const std::string& cadence, const std::string& tint
 
 // Production's interp-mode flag: needs an upper record only when i1 != i0 and
 // the blend weight is strictly positive.
-int InterpMode(const RecordBracket& b) { return (b.i1 != b.i0 && b.weight > 0.0) ? 1 : 0; }
+int InterpMode(const RecordBracket& b) {
+    return (b.i1 != b.i0 && b.weight > 0.0) ? 1 : 0;
+}
 
 // ---------------------------------------------------------------------------
 // Scenario table. Every field (cadence, tintalgo, sim_time, file_nt,

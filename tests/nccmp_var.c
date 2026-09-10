@@ -169,22 +169,23 @@ int main(int argc, char** argv) {
     }
 
     if (n_diff == 0) {
-        printf("nccmp_var: EQUIVALENT var='%s' n=%zu max_abs_diff=%.3e tol=%.3e (%s) "
-               "fieldA_nonzero=%zu fieldA_sum=%.6e fieldA_max=%.6e\n",
-               varname, na, max_abs_diff, abs_tol,
-               abs_tol > 0.0 ? "within-tol" : "bit-for-bit", a_nonzero, a_sum, a_max);
+        printf(
+            "nccmp_var: EQUIVALENT var='%s' n=%zu max_abs_diff=%.3e tol=%.3e (%s) "
+            "fieldA_nonzero=%zu fieldA_sum=%.6e fieldA_max=%.6e\n",
+            varname, na, max_abs_diff, abs_tol, abs_tol > 0.0 ? "within-tol" : "bit-for-bit", a_nonzero, a_sum, a_max);
         if (a_nonzero == 0) {
-            fprintf(stderr, "nccmp_var: WARNING field '%s' in file A is entirely ZERO -> "
-                            "equivalence may be vacuous\n", varname);
+            fprintf(stderr,
+                    "nccmp_var: WARNING field '%s' in file A is entirely ZERO -> "
+                    "equivalence may be vacuous\n",
+                    varname);
         }
         free(a);
         free(b);
         return 0;
     }
 
-    fprintf(stderr,
-            "nccmp_var: DIFFER var='%s' n=%zu ndiff=%zu first_diff_idx=%zu a=%.17g b=%.17g max_abs_diff=%.3e tol=%.3e\n",
-            varname, na, n_diff, first_diff, a[first_diff], b[first_diff], max_abs_diff, abs_tol);
+    fprintf(stderr, "nccmp_var: DIFFER var='%s' n=%zu ndiff=%zu first_diff_idx=%zu a=%.17g b=%.17g max_abs_diff=%.3e tol=%.3e\n", varname, na, n_diff,
+            first_diff, a[first_diff], b[first_diff], max_abs_diff, abs_tol);
     free(a);
     free(b);
     return 1;

@@ -48,15 +48,15 @@ struct RecordBracket {
  * configuration + file, never on simulation time.
  */
 struct StreamConfig {
-    std::string input_file_path;        ///< stream["file"]; "" => missing (Req 1.4)
-    std::string input_var_name;         ///< resolved file var name (falls back to model name)
-    std::string mapalgo = "consd";      ///< default matches current AdvanceTime
-    std::string cadence;                ///< "" => legacy step-index cycling
-    std::string tintalgo = "nearest";   ///< "linear" | "nearest"
+    std::string input_file_path;       ///< stream["file"]; "" => missing (Req 1.4)
+    std::string input_var_name;        ///< resolved file var name (falls back to model name)
+    std::string mapalgo = "consd";     ///< default matches current AdvanceTime
+    std::string cadence;               ///< "" => legacy step-index cycling
+    std::string tintalgo = "nearest";  ///< "linear" | "nearest"
     std::string data_model = "enhanced";
-    bool data_model_explicit = false;   ///< true => open with only data_model
-    int amio_worker_threads = 1;        ///< driver-level, validated >= 1
-    int amio_staging_buffer_count = 8;  ///< driver-level, validated >= 1
+    bool data_model_explicit = false;                   ///< true => open with only data_model
+    int amio_worker_threads = 1;                        ///< driver-level, validated >= 1
+    int amio_staging_buffer_count = 8;                  ///< driver-level, validated >= 1
     int amio_staging_buffer_capacity_bytes = 33554432;  ///< driver-level, validated >= 1 (32 MiB)
     int amio_prefetch_depth = 2;                        ///< driver-level, validated >= 1
 };
@@ -93,14 +93,14 @@ struct SliceCacheEntry {
  * ny_ so the band buffer IS the former global buffer.
  */
 struct EndpointCacheEntry {
-    int cached_i0 = -1;                  ///< bracket index that produced endpoint_i0
-    int cached_i1 = -1;                  ///< bracket index that produced endpoint_i1
-    bool valid = false;                  ///< false until both endpoints built for (cached_i0,cached_i1)
-    std::vector<double> endpoint_i0;     ///< regrid(record i0), field_nlev*nx*ny_local
-    std::vector<double> endpoint_i1;     ///< regrid(record i1), field_nlev*nx*ny_local
-    int built_field_nlev = 0;            ///< shape at build time (shape-change invalidation)
+    int cached_i0 = -1;               ///< bracket index that produced endpoint_i0
+    int cached_i1 = -1;               ///< bracket index that produced endpoint_i1
+    bool valid = false;               ///< false until both endpoints built for (cached_i0,cached_i1)
+    std::vector<double> endpoint_i0;  ///< regrid(record i0), field_nlev*nx*ny_local
+    std::vector<double> endpoint_i1;  ///< regrid(record i1), field_nlev*nx*ny_local
+    int built_field_nlev = 0;         ///< shape at build time (shape-change invalidation)
     int built_nx = 0;
-    int built_ny = 0;                    ///< stores ny_local (this rank's band rows), compared against band_.ny_local
+    int built_ny = 0;  ///< stores ny_local (this rank's band rows), compared against band_.ny_local
 };
 
 class CeceDriverOrchestrator {
@@ -160,8 +160,8 @@ class CeceDriverOrchestrator {
     // enter the collective gate so ranks stay in lock-step (Req 2.5, 3.4).
     // Single-rank (ny_local == ny_) outcome is unchanged: the band field IS the
     // global field. Local work plus the single core-import-shape collective gate.
-    bool WriteBandToImport(const std::string& var_name, const std::vector<double>& dest_buffer, int field_nlev,
-                           void* cece_core_data_ptr, std::string& failure_detail);
+    bool WriteBandToImport(const std::string& var_name, const std::vector<double>& dest_buffer, int field_nlev, void* cece_core_data_ptr,
+                           std::string& failure_detail);
 
     // Build or rebuild halo_comm_ to wrap the current comm_c_. Duplicates a
     // non-predefined handle (comm != WORLD/SELF/NULL) mirroring

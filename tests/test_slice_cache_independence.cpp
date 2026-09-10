@@ -41,8 +41,7 @@ namespace {
 // Generate a non-empty variable name from a modest alphabet. Non-empty keeps
 // the two names distinguishable and mirrors real model variable names.
 rc::Gen<std::string> genVarName() {
-    return rc::gen::nonEmpty(rc::gen::container<std::string>(
-        rc::gen::elementOf(std::string("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"))));
+    return rc::gen::nonEmpty(rc::gen::container<std::string>(rc::gen::elementOf(std::string("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_"))));
 }
 
 // Generate an arbitrary SliceCacheEntry with a small, valid ingest buffer.
@@ -59,17 +58,14 @@ rc::Gen<SliceCacheEntry> genSliceEntry() {
             e.ingest_size = e.ingest_buffer.size();
             return e;
         },
-        rc::gen::inRange(0, 1000), rc::gen::inRange(0, 1000),
-        rc::gen::map(rc::gen::inRange(0, 1000001), [](int n) { return n / 1000000.0; }),
+        rc::gen::inRange(0, 1000), rc::gen::inRange(0, 1000), rc::gen::map(rc::gen::inRange(0, 1000001), [](int n) { return n / 1000000.0; }),
         rc::gen::arbitrary<bool>(), rc::gen::arbitrary<bool>(),
-        rc::gen::container<std::vector<double>>(
-            rc::gen::map(rc::gen::inRange(-100000, 100000), [](int n) { return n / 1000.0; })));
+        rc::gen::container<std::vector<double>>(rc::gen::map(rc::gen::inRange(-100000, 100000), [](int n) { return n / 1000.0; })));
 }
 
 bool EntriesEqual(const SliceCacheEntry& a, const SliceCacheEntry& b) {
-    return a.valid == b.valid && a.ingest_size == b.ingest_size && a.ingest_buffer == b.ingest_buffer &&
-           a.last_bracket.i0 == b.last_bracket.i0 && a.last_bracket.i1 == b.last_bracket.i1 &&
-           a.last_bracket.weight == b.last_bracket.weight && a.last_bracket.valid == b.last_bracket.valid;
+    return a.valid == b.valid && a.ingest_size == b.ingest_size && a.ingest_buffer == b.ingest_buffer && a.last_bracket.i0 == b.last_bracket.i0 &&
+           a.last_bracket.i1 == b.last_bracket.i1 && a.last_bracket.weight == b.last_bracket.weight && a.last_bracket.valid == b.last_bracket.valid;
 }
 
 }  // namespace

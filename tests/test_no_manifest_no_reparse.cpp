@@ -52,7 +52,9 @@ namespace {
 // ----------------------------------------------------------------------------
 
 // Absolute path to the production driver facade translation unit.
-std::string FacadeSourcePath() { return std::string(CECE_SOURCE_DIR) + "/src/driver/cece_driver_facade.cpp"; }
+std::string FacadeSourcePath() {
+    return std::string(CECE_SOURCE_DIR) + "/src/driver/cece_driver_facade.cpp";
+}
 
 // Read a whole text file into a string.
 std::string ReadFile(const std::string& path) {
@@ -192,7 +194,8 @@ TEST(NoManifestNoReparse, AdvanceTimeDoesNotReparseYaml) {
     // The AdvanceTime body must contain no YAML parse.
     const std::string advance_body = ExtractMemberBody(src, "AdvanceTime");
     ASSERT_FALSE(advance_body.empty());
-    EXPECT_EQ(advance_body.find("YAML::LoadFile"), std::string::npos) << "AdvanceTime re-parses the YAML configuration per step (YAML::LoadFile found)";
+    EXPECT_EQ(advance_body.find("YAML::LoadFile"), std::string::npos)
+        << "AdvanceTime re-parses the YAML configuration per step (YAML::LoadFile found)";
     EXPECT_EQ(advance_body.find("YAML::Load("), std::string::npos) << "AdvanceTime parses YAML per step (YAML::Load found)";
 
     // And the config-resolution helper is the (only) legitimate parse site.

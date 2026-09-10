@@ -10,7 +10,7 @@
 driver:
   start_time: "2023-01-01T00:00:00"
   end_time: "2023-04-01T00:00:00"
-  timestep_seconds: 2592000   # ~30 days; monthly cadence -> distinct records
+  timestep_seconds: 2592000 # ~30 days; monthly cadence -> distinct records
   grid:
     nx: 1440
     ny: 720

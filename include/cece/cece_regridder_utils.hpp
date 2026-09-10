@@ -29,8 +29,8 @@ axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_axis_mesh(int ni, int 
 /// the corresponding rows of the global regrid exactly on non-uniform grids.
 /// `full_lons` has length nx (rectilinear); `full_lats` is the full global
 /// latitude center array of length >= j1.
-axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_band_mesh_with_global_corners(
-    int nx, int j0, int j1, const std::vector<double>& full_lons, const std::vector<double>& full_lats);
+axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_band_mesh_with_global_corners(int nx, int j0, int j1, const std::vector<double>& full_lons,
+                                                                                        const std::vector<double>& full_lats);
 
 /// Build the destination sub-mesh for a CURVILINEAR latitude band [j0, j1) with
 /// GLOBALLY-CONSISTENT 2-D cell corners. The band's boundary corners depend on
@@ -43,9 +43,11 @@ axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_band_mesh_with_global_
 /// mesh. `full_center_lon`/`full_center_lat` are the flattened global centers
 /// (length nx * ny_global, index i + j*nx); `band_center_lon`/`band_center_lat`
 /// are the band's nx * (j1 - j0) centers (the global rows [j0, j1)).
-axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_band_mesh_curvilinear_with_global_corners(
-    int nx, int j0, int j1, const std::vector<double>& full_center_lon, const std::vector<double>& full_center_lat,
-    const std::vector<double>& band_center_lon, const std::vector<double>& band_center_lat);
+axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_band_mesh_curvilinear_with_global_corners(int nx, int j0, int j1,
+                                                                                                    const std::vector<double>& full_center_lon,
+                                                                                                    const std::vector<double>& full_center_lat,
+                                                                                                    const std::vector<double>& band_center_lon,
+                                                                                                    const std::vector<double>& band_center_lat);
 
 /// A precomputed, reusable regridding plan for one stream variable.
 ///
@@ -72,8 +74,8 @@ struct RegridPlan {
     /// build_regrid_plan always sets it for built plans.
     int src_j0 = 0;
     int src_rows = 0;
-    bool identity = false;                                        ///< copy source cells directly; no AXIS weights are applied
-    bool built = false;                                           ///< true once weights are generated
+    bool identity = false;  ///< copy source cells directly; no AXIS weights are applied
+    bool built = false;     ///< true once weights are generated
 };
 
 /// Return true when source and target longitude/latitude coordinates describe

@@ -72,7 +72,9 @@ namespace cece {
 // Task 4.3). Exercises the production comparison directly, not a copy.
 // ============================================================================
 struct EndpointCacheTestAccess {
-    static bool Equal(const RecordBracket& a, const RecordBracket& b) { return CeceDriverOrchestrator::bracket_equal(a, b); }
+    static bool Equal(const RecordBracket& a, const RecordBracket& b) {
+        return CeceDriverOrchestrator::bracket_equal(a, b);
+    }
 };
 
 namespace {
@@ -390,9 +392,8 @@ TEST(EndpointInvalidation, InjectedComputeFailureInvalidatesEntryAndSetsDetail) 
     std::string failure_detail;
 
     // Interpolating step whose endpoint compute is injected to fail.
-    const bool read_success =
-        RunTierLadderStep(make_bracket(11, 0, 0.6), /*bracket_ready=*/true, slice_cache, endpoint_cache, spy,
-                          /*regrid_should_fail=*/true, failure_detail);
+    const bool read_success = RunTierLadderStep(make_bracket(11, 0, 0.6), /*bracket_ready=*/true, slice_cache, endpoint_cache, spy,
+                                                /*regrid_should_fail=*/true, failure_detail);
 
     // Failure is reported and the entry is invalid (Req 6.4).
     EXPECT_FALSE(read_success);
@@ -406,9 +407,8 @@ TEST(EndpointInvalidation, InjectedComputeFailureInvalidatesEntryAndSetsDetail) 
 
     // A following successful step with the same indices must rebuild.
     std::string detail2;
-    const bool retry_ok =
-        RunTierLadderStep(make_bracket(11, 0, 0.6), /*bracket_ready=*/true, slice_cache, endpoint_cache, spy,
-                          /*regrid_should_fail=*/false, detail2);
+    const bool retry_ok = RunTierLadderStep(make_bracket(11, 0, 0.6), /*bracket_ready=*/true, slice_cache, endpoint_cache, spy,
+                                            /*regrid_should_fail=*/false, detail2);
     EXPECT_TRUE(retry_ok);
     EXPECT_TRUE(endpoint_cache.valid);
     EXPECT_TRUE(detail2.empty());

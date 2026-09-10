@@ -52,12 +52,11 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <string>
-#include <vector>
-
 #include <halo/collectives.hpp>
 #include <halo/communicator.hpp>
 #include <halo/environment.hpp>
+#include <string>
+#include <vector>
 
 #include "cece/cece_regridder_utils.hpp"
 
@@ -118,8 +117,7 @@ RegridPlan MakeIdentityPlan(int nx, int ny, int j0, int j1) {
 // send_buf is the contiguous [level][band] source: element (level, jrel, i) at
 // level*band_elems + jrel*nx + i. At size 1 the loop degrades to the Decision A
 // std::copy fast path (this rank's band copied into each layer at displs[rank]).
-std::vector<double> AssemblePerLevel(const std::vector<double>& send_buf, int nx, int ny, int nlev, int size, int rank,
-                                     MPI_Comm comm) {
+std::vector<double> AssemblePerLevel(const std::vector<double>& send_buf, int nx, int ny, int nlev, int size, int rank, MPI_Comm comm) {
     std::vector<int> counts(static_cast<std::size_t>(size));
     std::vector<int> displs(static_cast<std::size_t>(size));
     for (int r = 0; r < size; ++r) {
@@ -217,16 +215,16 @@ RC_GTEST_PROP(HaloGatherEquivalence, IdentityPerLevelAssemblyMatchesSerialRefere
     const int rank = WorldRank();
 
     // Rank-invariant modest dims (drawn on rank 0, broadcast to all ranks).
-    int nx = BcastInt(*rc::gen::inRange(2, 33));      // 2..32
-    int ny = BcastInt(*rc::gen::inRange(size, 33));   // at least `size` rows so every rank owns >=1
-    int nlev = BcastInt(*rc::gen::inRange(1, 5));      // 1..4
+    int nx = BcastInt(*rc::gen::inRange(2, 33));     // 2..32
+    int ny = BcastInt(*rc::gen::inRange(size, 33));  // at least `size` rows so every rank owns >=1
+    int nlev = BcastInt(*rc::gen::inRange(1, 5));    // 1..4
 
     // Rank-invariant random global source field [ny][nx] doubles (rank 0 draws;
     // broadcast so every rank regrids from the identical source).
     std::vector<double> source(static_cast<std::size_t>(nx) * ny, 0.0);
     if (rank == 0) {
-        source = *rc::gen::container<std::vector<double>>(
-            source.size(), rc::gen::map(rc::gen::inRange(-1000000, 1000001), [](int v) { return v / 1000.0; }));
+        source = *rc::gen::container<std::vector<double>>(source.size(),
+                                                          rc::gen::map(rc::gen::inRange(-1000000, 1000001), [](int v) { return v / 1000.0; }));
     }
     BcastDoubles(source);
 

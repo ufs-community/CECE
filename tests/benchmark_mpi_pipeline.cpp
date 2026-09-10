@@ -46,17 +46,16 @@
 #include <cstddef>
 #include <cstdlib>
 #include <cstring>
-#include <iomanip>
-#include <iostream>
-#include <optional>
-#include <string>
-#include <vector>
-
 #include <halo/collectives.hpp>
 #include <halo/communicator.hpp>
 #include <halo/environment.hpp>
 #include <halo/gather_replicated.hpp>
 #include <halo/replicated_gather_plan.hpp>
+#include <iomanip>
+#include <iostream>
+#include <optional>
+#include <string>
+#include <vector>
 
 #include "cece/cece_regridder_utils.hpp"
 
@@ -69,8 +68,8 @@ double pmpi_allgatherv_total_ms();
 
 namespace {
 
-using cece::io::RegridPlan;
 using cece::io::apply_regrid_plan;
+using cece::io::RegridPlan;
 
 int WorldRank() {
     int r = 0;
@@ -169,8 +168,7 @@ std::vector<double> AssembleDevelop(const std::vector<double>& send_buf, int nx,
 
         const double* level_send = send_buf.data() + static_cast<std::size_t>(level) * band_elems;
         double* level_dst = full.data() + static_cast<std::size_t>(level) * nx * ny;
-        MPI_Allgatherv(level_send, band_elems, MPI_DOUBLE, level_dst, counts.data(), displs.data(), MPI_DOUBLE,
-                       MPI_COMM_WORLD);
+        MPI_Allgatherv(level_send, band_elems, MPI_DOUBLE, level_dst, counts.data(), displs.data(), MPI_DOUBLE, MPI_COMM_WORLD);
 
         // Post-gather status reduction (per level, as develop).
         int local_ok = 1;
@@ -189,8 +187,7 @@ std::vector<double> AssembleOptimize(const std::vector<double>& send_buf, int nx
         std::copy(send_buf.begin(), send_buf.end(), full.begin());
         return full;
     }
-    Kokkos::View<const double*, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> send_view(send_buf.data(),
-                                                                                                      send_buf.size());
+    Kokkos::View<const double*, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> send_view(send_buf.data(), send_buf.size());
     Kokkos::View<double*, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> dest_view(full.data(), full.size());
     halo::gather_replicated(*plan, send_view, dest_view);
     return full;
@@ -224,8 +221,7 @@ std::vector<double> AssembleOptimize2(const std::vector<double>& send_buf, int n
 
     const int my_rows = band_rows_per_rank[rank];
     const int my_send = nlev * my_rows * nx;
-    MPI_Allgatherv(send_buf.data(), my_send, MPI_DOUBLE, recv.data(), counts.data(), displs.data(), MPI_DOUBLE,
-                   MPI_COMM_WORLD);
+    MPI_Allgatherv(send_buf.data(), my_send, MPI_DOUBLE, recv.data(), counts.data(), displs.data(), MPI_DOUBLE, MPI_COMM_WORLD);
 
     // Local reorder: for each rank block, each level's band of rows_r*nx doubles
     // is copied contiguously into full[level][j0_r .. j1_r][:]. This is a plain
@@ -274,8 +270,7 @@ std::vector<double> AssembleOptimize3(const std::vector<double>& send_buf, int n
 
     const int my_rows = band_rows_per_rank[rank];
     const int my_send = nlev * my_rows * nx;
-    MPI_Allgatherv(send_buf.data(), my_send, MPI_DOUBLE, recv.data(), counts.data(), displs.data(), MPI_DOUBLE,
-                   MPI_COMM_WORLD);
+    MPI_Allgatherv(send_buf.data(), my_send, MPI_DOUBLE, recv.data(), counts.data(), displs.data(), MPI_DOUBLE, MPI_COMM_WORLD);
 
     // Parallel reorder over the flat set of (rank, level) bands. Each work item
     // copies one contiguous band_r-length row-block. Raw pointers are captured
@@ -292,18 +287,17 @@ std::vector<double> AssembleOptimize3(const std::vector<double>& send_buf, int n
     const int* rows_ptr = band_rows_per_rank.data();
     const int* j0_ptr = j0_of.data();
 
-    Kokkos::parallel_for(
-        "optimize3_reorder", Kokkos::RangePolicy<Kokkos::DefaultHostExecutionSpace>(0, static_cast<std::size_t>(nsize) * levels),
-        [=](const std::size_t idx) {
-            const int r = static_cast<int>(idx / levels);
-            const int level = static_cast<int>(idx % levels);
-            const int rows_r = rows_ptr[r];
-            if (rows_r == 0) return;
-            const int band_r = rows_r * nx;
-            const double* src = recv_ptr + displs_ptr[r] + static_cast<std::size_t>(level) * band_r;
-            double* dst = full_ptr + static_cast<std::size_t>(level) * plane + static_cast<std::size_t>(j0_ptr[r]) * nx;
-            for (int k = 0; k < band_r; ++k) dst[k] = src[k];
-        });
+    Kokkos::parallel_for("optimize3_reorder", Kokkos::RangePolicy<Kokkos::DefaultHostExecutionSpace>(0, static_cast<std::size_t>(nsize) * levels),
+                         [=](const std::size_t idx) {
+                             const int r = static_cast<int>(idx / levels);
+                             const int level = static_cast<int>(idx % levels);
+                             const int rows_r = rows_ptr[r];
+                             if (rows_r == 0) return;
+                             const int band_r = rows_r * nx;
+                             const double* src = recv_ptr + displs_ptr[r] + static_cast<std::size_t>(level) * band_r;
+                             double* dst = full_ptr + static_cast<std::size_t>(level) * plane + static_cast<std::size_t>(j0_ptr[r]) * nx;
+                             for (int k = 0; k < band_r; ++k) dst[k] = src[k];
+                         });
     Kokkos::fence();
     return full;
 }
@@ -344,8 +338,8 @@ int main(int argc, char** argv) {
 
         if (rank == 0) {
             std::cout << "[MpiPipeBench] develop-vs-optimize distributed gather/assembly\n";
-            std::cout << "[MpiPipeBench] np=" << size << " nx=" << nx << " ny=" << ny << " nlev=" << nlev
-                      << " iters=" << iters << " reps=" << reps << "\n"
+            std::cout << "[MpiPipeBench] np=" << size << " nx=" << nx << " ny=" << ny << " nlev=" << nlev << " iters=" << iters << " reps=" << reps
+                      << "\n"
                       << std::flush;
         }
 
@@ -375,8 +369,7 @@ int main(int argc, char** argv) {
         // Correctness: both variants must produce the same field.
         {
             const std::vector<double> a = AssembleDevelop(send_buf, nx, ny, nlev, size, rank);
-            const std::vector<double> b =
-                AssembleOptimize(send_buf, nx, ny, nlev, size, rank, plan.has_value() ? &plan.value() : nullptr);
+            const std::vector<double> b = AssembleOptimize(send_buf, nx, ny, nlev, size, rank, plan.has_value() ? &plan.value() : nullptr);
             double maxdiff = 0.0;
             for (std::size_t k = 0; k < a.size(); ++k) maxdiff = std::max(maxdiff, std::abs(a[k] - b[k]));
             const std::vector<double> c = AssembleOptimize2(send_buf, nx, ny, nlev, size, rank, band_rows_per_rank);
@@ -398,8 +391,7 @@ int main(int argc, char** argv) {
             if (rank == 0) {
                 std::cout << "[MpiPipeBench] develop/optimize  max abs diff=" << std::scientific << global_maxdiff << "\n";
                 std::cout << "[MpiPipeBench] develop/optimize2 max abs diff=" << std::scientific << global_maxdiff2 << "\n";
-                std::cout << "[MpiPipeBench] develop/optimize3 max abs diff=" << std::scientific << global_maxdiff3
-                          << std::fixed << "\n"
+                std::cout << "[MpiPipeBench] develop/optimize3 max abs diff=" << std::scientific << global_maxdiff3 << std::fixed << "\n"
                           << std::flush;
             }
         }
@@ -425,10 +417,10 @@ int main(int argc, char** argv) {
             MPI_Allreduce(&opt_coll_ms, &opt_coll_max, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
             if (rank == 0) {
                 std::cout << std::fixed << std::setprecision(5);
-                std::cout << "MPI_PIPE_COLL: np=" << size << " nlev=" << nlev
-                          << " develop  allgatherv_calls=" << dev_calls << " allgatherv_ms=" << dev_coll_max << "\n";
-                std::cout << "MPI_PIPE_COLL: np=" << size << " nlev=" << nlev
-                          << " optimize allgatherv_calls=" << opt_calls << " allgatherv_ms=" << opt_coll_max << "\n"
+                std::cout << "MPI_PIPE_COLL: np=" << size << " nlev=" << nlev << " develop  allgatherv_calls=" << dev_calls
+                          << " allgatherv_ms=" << dev_coll_max << "\n";
+                std::cout << "MPI_PIPE_COLL: np=" << size << " nlev=" << nlev << " optimize allgatherv_calls=" << opt_calls
+                          << " allgatherv_ms=" << opt_coll_max << "\n"
                           << std::flush;
             }
         }
@@ -453,8 +445,7 @@ int main(int argc, char** argv) {
                     if (which == Variant::Develop) {
                         sink = AssembleDevelop(send_buf, nx, ny, nlev, size, rank)[0];
                     } else if (which == Variant::Optimize) {
-                        sink = AssembleOptimize(send_buf, nx, ny, nlev, size, rank,
-                                                plan.has_value() ? &plan.value() : nullptr)[0];
+                        sink = AssembleOptimize(send_buf, nx, ny, nlev, size, rank, plan.has_value() ? &plan.value() : nullptr)[0];
                     } else if (which == Variant::Optimize2) {
                         sink = AssembleOptimize2(send_buf, nx, ny, nlev, size, rank, band_rows_per_rank)[0];
                     } else {

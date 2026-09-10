@@ -86,7 +86,9 @@ namespace cece {
 // comparison directly, not a copy.
 // ============================================================================
 struct EndpointCacheTestAccess {
-    static bool Equal(const RecordBracket& a, const RecordBracket& b) { return CeceDriverOrchestrator::bracket_equal(a, b); }
+    static bool Equal(const RecordBracket& a, const RecordBracket& b) {
+        return CeceDriverOrchestrator::bracket_equal(a, b);
+    }
 };
 
 namespace {
@@ -221,8 +223,7 @@ rc::Gen<std::vector<RecordBracket>> genConstantIndexRun() {
             }
             return run;
         },
-        rc::gen::inRange(0, 500), rc::gen::inRange(1, 50),
-        rc::gen::container<std::vector<int>>(rc::gen::inRange(1, 1001)));
+        rc::gen::inRange(0, 500), rc::gen::inRange(1, 50), rc::gen::container<std::vector<int>>(rc::gen::inRange(1, 1001)));
 }
 
 }  // namespace

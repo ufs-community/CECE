@@ -37,9 +37,13 @@ namespace cece {
 // visibility. It does not touch any production code path.
 // ============================================================================
 struct BracketEqualTestAccess {
-    static bool Equal(const RecordBracket& a, const RecordBracket& b) { return CeceDriverOrchestrator::bracket_equal(a, b); }
+    static bool Equal(const RecordBracket& a, const RecordBracket& b) {
+        return CeceDriverOrchestrator::bracket_equal(a, b);
+    }
 
-    static constexpr double Tol() { return CeceDriverOrchestrator::kBracketWeightTol; }
+    static constexpr double Tol() {
+        return CeceDriverOrchestrator::kBracketWeightTol;
+    }
 };
 
 namespace {

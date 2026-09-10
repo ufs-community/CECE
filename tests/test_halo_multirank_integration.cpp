@@ -57,13 +57,12 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <optional>
-#include <string>
-#include <vector>
-
 #include <halo/collectives.hpp>
 #include <halo/communicator.hpp>
 #include <halo/environment.hpp>
+#include <optional>
+#include <string>
+#include <vector>
 
 #include "cece/cece_regridder_utils.hpp"
 

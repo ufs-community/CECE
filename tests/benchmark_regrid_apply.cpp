@@ -24,8 +24,8 @@
 //   ./setup.sh -c "/work/build/benchmark_regrid_apply"
 
 #include <Kokkos_Core.hpp>
-#include <axis/axis.hpp>
 #include <algorithm>
+#include <axis/axis.hpp>
 #include <chrono>
 #include <cmath>
 #include <cstdlib>

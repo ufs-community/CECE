@@ -185,8 +185,7 @@ RC_GTEST_PROP(OutputGatherReconstruction, Property4_PureReassemblyEqualsReferenc
     for (int k = 0; k < nz; ++k) {
         for (int j = 0; j < ny; ++j) {
             for (int i = 0; i < nx; ++i) {
-                reference[static_cast<std::size_t>(k) * global_level_elems + static_cast<std::size_t>(j) * nx + i] =
-                    RefValue(k, j, i, nx);
+                reference[static_cast<std::size_t>(k) * global_level_elems + static_cast<std::size_t>(j) * nx + i] = RefValue(k, j, i, nx);
             }
         }
     }

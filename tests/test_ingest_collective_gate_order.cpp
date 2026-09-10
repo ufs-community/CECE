@@ -113,8 +113,8 @@ struct VarScenario {
     bool amio_open_ok = true;
     bool record_count_ready = true;
     bool record_count_match = true;
-    bool cache_miss = true;      // cache-miss exercises the bracket + slab gates
-    bool needs_upper = true;     // temporal interpolation reads an upper slab
+    bool cache_miss = true;   // cache-miss exercises the bracket + slab gates
+    bool needs_upper = true;  // temporal interpolation reads an upper slab
     bool bracket_ok = true;
     bool lower_slab_ok = true;
     bool upper_slab_ok = true;

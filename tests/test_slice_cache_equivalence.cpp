@@ -77,7 +77,9 @@ namespace cece {
 // comparison directly, not a copy.
 // ============================================================================
 struct SliceCacheTestAccess {
-    static bool Equal(const RecordBracket& a, const RecordBracket& b) { return CeceDriverOrchestrator::bracket_equal(a, b); }
+    static bool Equal(const RecordBracket& a, const RecordBracket& b) {
+        return CeceDriverOrchestrator::bracket_equal(a, b);
+    }
 };
 
 namespace {
@@ -88,15 +90,14 @@ struct FieldShape {
     int field_nlev;
     int nx;
     int ny;
-    size_t size() const { return static_cast<size_t>(field_nlev) * nx * ny; }
+    size_t size() const {
+        return static_cast<size_t>(field_nlev) * nx * ny;
+    }
 };
 
 rc::Gen<FieldShape> genShape() {
-    return rc::gen::apply(
-        [](int nlev, int nx, int ny) {
-            return FieldShape{nlev, nx, ny};
-        },
-        rc::gen::inRange(1, 4), rc::gen::inRange(1, 8), rc::gen::inRange(1, 8));
+    return rc::gen::apply([](int nlev, int nx, int ny) { return FieldShape{nlev, nx, ny}; }, rc::gen::inRange(1, 4), rc::gen::inRange(1, 8),
+                          rc::gen::inRange(1, 8));
 }
 
 // Generate an assembled/replicated ingest buffer of exactly `n` doubles. Values

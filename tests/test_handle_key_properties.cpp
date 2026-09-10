@@ -71,7 +71,9 @@ namespace cece {
 // StreamKeyTestAccess pattern in tests/test_stream_key_properties.cpp.
 // ============================================================================
 struct HandleKeyTestAccess {
-    static std::string Key(const StreamConfig& cfg) { return CeceDriverOrchestrator::HandleKey(cfg); }
+    static std::string Key(const StreamConfig& cfg) {
+        return CeceDriverOrchestrator::HandleKey(cfg);
+    }
 };
 
 namespace {
@@ -133,10 +135,9 @@ rc::Gen<StreamConfig> genStreamConfig() {
             cfg.amio_prefetch_depth = amio_prefetch_depth;
             return cfg;
         },
-        rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(),
-        rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(),
-        rc::gen::arbitrary<bool>(), rc::gen::inRange(1, 65), rc::gen::inRange(1, 65), rc::gen::inRange(1, 65),
-        rc::gen::inRange(1, 65));
+        rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(),
+        rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<bool>(), rc::gen::inRange(1, 65),
+        rc::gen::inRange(1, 65), rc::gen::inRange(1, 65), rc::gen::inRange(1, 65));
 }
 
 }  // namespace

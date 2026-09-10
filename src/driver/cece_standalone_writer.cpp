@@ -224,6 +224,9 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
 
     amio_core_handle core = nullptr;
     amio_dataset_handle dataset = nullptr;
+    // Set when rank 0's manifest build failed (empty string after bcast);
+    // every rank then skips the file work and returns -1 together.
+    bool skip_file_work = false;
 
     try {
         if (rank == 0) {
@@ -328,236 +331,288 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
             manifest_content = m_file.str();
         }
 
-        // Broadcast the in-memory manifest from rank 0 to every rank so all ranks open the
-        // dataset with identical content, without ever touching the shared filesystem.
-        if (mpi_initialized && comm_ != MPI_COMM_NULL) {
+        // Broadcast the in-memory manifest from rank 0 to every rank so all ranks see
+        // identical content, without ever touching the shared filesystem. In the
+        // multi-rank path only rank 0 goes on to open the dataset (independent-mode
+        // writer, see Step 2); peers still receive the manifest so the failure mode
+        // below is detected identically on every rank.
+        const bool multi_rank_writer = (mpi_initialized && comm_ != MPI_COMM_NULL);
+        if (multi_rank_writer) {
             int manifest_len = static_cast<int>(manifest_content.size());
             MPI_Bcast(&manifest_len, 1, MPI_INT, 0, comm_);
-            manifest_content.resize(static_cast<size_t>(manifest_len));
-            if (manifest_len > 0) {
+            if (manifest_len == 0) {
+                // Rank 0 could not build the manifest (e.g. output directory
+                // creation failed). Nobody opens the file; all ranks return -1
+                // together after the trailing barrier — no partial file, no deadlock.
+                skip_file_work = true;
+            } else {
+                manifest_content.resize(static_cast<size_t>(manifest_len));
                 MPI_Bcast(manifest_content.data(), manifest_len, MPI_CHAR, 0, comm_);
             }
         }
 
-        // Step 2: Initialize AMIO Core
-        if (mpi_initialized && comm_ != MPI_COMM_NULL) {
-            amio_set_parent_communicator(MPI_Comm_c2f(comm_));
-        } else if (mpi_initialized) {
-            amio_set_parent_communicator(MPI_Comm_c2f(MPI_COMM_SELF));
+        // Step 2: Initialize AMIO Core.
+        //
+        // Writer-file ownership (perf): in the multi-rank path ONLY rank 0 opens
+        // and writes the output file. The parent communicator is swapped to
+        // MPI_COMM_SELF so AMIO's netcdf4 driver takes its serial-create branch
+        // (nc_create, not nc_create_par + NC_COLLECTIVE). Rank 0 already holds
+        // the complete global field after the per-level MPI_Gatherv, so
+        // independent rank-0 writing produces the same file while the full-grid
+        // MPI_Bcast and the per-rank full-grid buffer copy are eliminated
+        // (Req 6.2, 6.4, 6.6). Peers contribute their Gatherv sends and skip the
+        // file work; the trailing MPI_Barrier keeps every rank in lock-step.
+        // The single-rank / no-MPI path keeps the original full open + write
+        // here, byte-for-byte unchanged behavior.
+        const bool rank0_writes = !multi_rank_writer || rank == 0;
+        if (mpi_initialized) {
+            amio_set_parent_communicator(MPI_Comm_c2f(rank0_writes ? MPI_COMM_SELF : comm_));
         }
-        check_amio_rc(amio_init_from_string(manifest_content.c_str(), "yaml", &core), "amio_init_from_string");
+        // Rank 0's file work is guarded locally: an open/coordinate-write failure
+        // must NOT skip the field-loop gathers below, or the peers (already
+        // waiting in MPI_Gatherv with rank 0 as root) would hang. Recording the
+        // error and skipping only the writes keeps every rank on the same
+        // collective path to the trailing barrier.
+        if (!skip_file_work && rank0_writes) {
+            try {
+                check_amio_rc(amio_init_from_string(manifest_content.c_str(), "yaml", &core), "amio_init_from_string");
 
-        // Step 3: Open Dataset
-        check_amio_rc(amio_open_dataset_from_string(core, manifest_content.c_str(), "yaml", AMIO_MODE_WRITE, &dataset),
-                      "amio_open_dataset_from_string");
-
-        // Step 4: Write lon coordinate variable
-        std::vector<double> lon_values;
-        if (use_custom_coords_) {
-            lon_values = lon_coords_;
-        } else {
-            lon_values.resize(nx_);
-            for (int i = 0; i < nx_; i++) {
-                lon_values[i] = -180.0 + (360.0 * (i + 0.5)) / nx_;
+                // Step 3: Open Dataset
+                check_amio_rc(amio_open_dataset_from_string(core, manifest_content.c_str(), "yaml", AMIO_MODE_WRITE, &dataset),
+                              "amio_open_dataset_from_string");
+            } catch (const std::exception& e) {
+                CECE_LOG_ERROR(std::string("[CECE] Writer open failed: ") + e.what());
+                if (dataset) {
+                    amio_close(dataset);
+                    dataset = nullptr;
+                }
+                if (core) {
+                    amio_finalize(core);
+                    core = nullptr;
+                }
+                skip_file_work = true;
             }
         }
-        amio_shape_t lon_shape;
-        std::memset(&lon_shape, 0, sizeof(lon_shape));
-        if (use_custom_coords_ && lon_values.size() == static_cast<size_t>(nx_) * ny_ && ny_ > 1) {
-            lon_shape.rank = 2;
-            lon_shape.extents[0] = ny_;
-            lon_shape.extents[1] = nx_;
-        } else {
-            lon_shape.rank = 1;
-            lon_shape.extents[0] = nx_;
-        }
-        amio_io_handle lon_io = nullptr;
-        check_amio_rc(amio_write(dataset, "lon", lon_values.data(), AMIO_DTYPE_F64, &lon_shape, &lon_io), "amio_write(lon)");
 
-        // Step 5: Write lat coordinate variable
-        std::vector<double> lat_values;
-        if (use_custom_coords_) {
-            lat_values = lat_coords_;
-        } else {
-            lat_values.resize(ny_);
-            for (int j = 0; j < ny_; j++) {
-                lat_values[j] = -90.0 + (180.0 * (j + 0.5)) / ny_;
-            }
-        }
-        amio_shape_t lat_shape;
-        std::memset(&lat_shape, 0, sizeof(lat_shape));
-        if (use_custom_coords_ && lat_values.size() == static_cast<size_t>(nx_) * ny_ && ny_ > 1) {
-            lat_shape.rank = 2;
-            lat_shape.extents[0] = ny_;
-            lat_shape.extents[1] = nx_;
-        } else {
-            lat_shape.rank = 1;
-            lat_shape.extents[0] = (ny_ == 1) ? nx_ : ny_;
-        }
-        amio_io_handle lat_io = nullptr;
-        check_amio_rc(amio_write(dataset, "lat", lat_values.data(), AMIO_DTYPE_F64, &lat_shape, &lat_io), "amio_write(lat)");
+        // Coordinate-variable writes belong to the file owner only (see Step 2):
+        // rank 0 in the multi-rank path, the single process otherwise. Peers skip
+        // straight to the field gather below. Local try/catch: a coordinate-write
+        // failure must not skip the field-loop gathers (peers wait at the root),
+        // so it degrades to skip_file_work instead of throwing to the outer catch.
+        if (!skip_file_work && rank0_writes) try {
+                // Step 4: Write lon coordinate variable
+                std::vector<double> lon_values;
+                if (use_custom_coords_) {
+                    lon_values = lon_coords_;
+                } else {
+                    lon_values.resize(nx_);
+                    for (int i = 0; i < nx_; i++) {
+                        lon_values[i] = -180.0 + (360.0 * (i + 0.5)) / nx_;
+                    }
+                }
+                amio_shape_t lon_shape;
+                std::memset(&lon_shape, 0, sizeof(lon_shape));
+                if (use_custom_coords_ && lon_values.size() == static_cast<size_t>(nx_) * ny_ && ny_ > 1) {
+                    lon_shape.rank = 2;
+                    lon_shape.extents[0] = ny_;
+                    lon_shape.extents[1] = nx_;
+                } else {
+                    lon_shape.rank = 1;
+                    lon_shape.extents[0] = nx_;
+                }
+                amio_io_handle lon_io = nullptr;
+                check_amio_rc(amio_write(dataset, "lon", lon_values.data(), AMIO_DTYPE_F64, &lon_shape, &lon_io), "amio_write(lon)");
 
-        // Step 5b: Compute and write cell boundary coordinate variables (bounds) using the AXIS mesh directly!
-        std::vector<double> lon_bnds_values;
-        std::vector<double> lat_bnds_values;
-        amio_shape_t lon_bnds_shape{};
-        amio_shape_t lat_bnds_shape{};
+                // Step 5: Write lat coordinate variable
+                std::vector<double> lat_values;
+                if (use_custom_coords_) {
+                    lat_values = lat_coords_;
+                } else {
+                    lat_values.resize(ny_);
+                    for (int j = 0; j < ny_; j++) {
+                        lat_values[j] = -90.0 + (180.0 * (j + 0.5)) / ny_;
+                    }
+                }
+                amio_shape_t lat_shape;
+                std::memset(&lat_shape, 0, sizeof(lat_shape));
+                if (use_custom_coords_ && lat_values.size() == static_cast<size_t>(nx_) * ny_ && ny_ > 1) {
+                    lat_shape.rank = 2;
+                    lat_shape.extents[0] = ny_;
+                    lat_shape.extents[1] = nx_;
+                } else {
+                    lat_shape.rank = 1;
+                    lat_shape.extents[0] = (ny_ == 1) ? nx_ : ny_;
+                }
+                amio_io_handle lat_io = nullptr;
+                check_amio_rc(amio_write(dataset, "lat", lat_values.data(), AMIO_DTYPE_F64, &lat_shape, &lat_io), "amio_write(lat)");
 
-        // Build the destination AXIS mesh dynamically using our unified mesh builder
-        auto dst_mesh = cece::io::build_axis_mesh(nx_, ny_, lon_values, lat_values, gridspec_file_);
+                // Step 5b: Compute and write cell boundary coordinate variables (bounds) using the AXIS mesh directly!
+                std::vector<double> lon_bnds_values;
+                std::vector<double> lat_bnds_values;
+                amio_shape_t lon_bnds_shape{};
+                amio_shape_t lat_bnds_shape{};
 
-        auto node_coords = dst_mesh.node_coords();
-        auto conn_offsets = dst_mesh.conn_offsets();
-        auto conn_indices = dst_mesh.conn_indices();
+                // Build the destination AXIS mesh dynamically using our unified mesh builder
+                auto dst_mesh = cece::io::build_axis_mesh(nx_, ny_, lon_values, lat_values, gridspec_file_);
 
-        enum class GridType { Rectilinear, Curvilinear, Unstructured };
+                auto node_coords = dst_mesh.node_coords();
+                auto conn_offsets = dst_mesh.conn_offsets();
+                auto conn_indices = dst_mesh.conn_indices();
 
-        GridType grid_type = GridType::Rectilinear;
-        if (use_custom_coords_ && lon_values.size() == static_cast<size_t>(nx_) * ny_ && ny_ > 1) {
-            grid_type = GridType::Curvilinear;
-        } else if (ny_ == 1) {
-            grid_type = GridType::Unstructured;
-        }
+                enum class GridType { Rectilinear, Curvilinear, Unstructured };
 
-        switch (grid_type) {
-            case GridType::Curvilinear: {
-                // 1. Curvilinear case: shapes (ny_, nx_, 4)
-                size_t n_cells = static_cast<size_t>(nx_) * ny_;
-                lon_bnds_values.resize(n_cells * 4);
-                lat_bnds_values.resize(n_cells * 4);
+                GridType grid_type = GridType::Rectilinear;
+                if (use_custom_coords_ && lon_values.size() == static_cast<size_t>(nx_) * ny_ && ny_ > 1) {
+                    grid_type = GridType::Curvilinear;
+                } else if (ny_ == 1) {
+                    grid_type = GridType::Unstructured;
+                }
 
-                for (int j = 0; j < ny_; ++j) {
-                    for (int i = 0; i < nx_; ++i) {
-                        size_t idx = static_cast<size_t>(j) * nx_ + i;
-                        size_t offset = conn_offsets(idx);
-                        for (int v = 0; v < 4; ++v) {
-                            axis::index_t node_idx = conn_indices(offset + v);
-                            lon_bnds_values[4 * idx + v] = node_coords(node_idx, 0);
-                            lat_bnds_values[4 * idx + v] = node_coords(node_idx, 1);
+                switch (grid_type) {
+                    case GridType::Curvilinear: {
+                        // 1. Curvilinear case: shapes (ny_, nx_, 4)
+                        size_t n_cells = static_cast<size_t>(nx_) * ny_;
+                        lon_bnds_values.resize(n_cells * 4);
+                        lat_bnds_values.resize(n_cells * 4);
+
+                        for (int j = 0; j < ny_; ++j) {
+                            for (int i = 0; i < nx_; ++i) {
+                                size_t idx = static_cast<size_t>(j) * nx_ + i;
+                                size_t offset = conn_offsets(idx);
+                                for (int v = 0; v < 4; ++v) {
+                                    axis::index_t node_idx = conn_indices(offset + v);
+                                    lon_bnds_values[4 * idx + v] = node_coords(node_idx, 0);
+                                    lat_bnds_values[4 * idx + v] = node_coords(node_idx, 1);
+                                }
+                            }
                         }
+
+                        lon_bnds_shape.rank = 3;
+                        lon_bnds_shape.extents[0] = ny_;
+                        lon_bnds_shape.extents[1] = nx_;
+                        lon_bnds_shape.extents[2] = 4;
+
+                        lat_bnds_shape.rank = 3;
+                        lat_bnds_shape.extents[0] = ny_;
+                        lat_bnds_shape.extents[1] = nx_;
+                        lat_bnds_shape.extents[2] = 4;
+                        break;
+                    }
+                    case GridType::Unstructured: {
+                        // 2. Unstructured case (MPAS, SCRIP, etc.): shapes (nx_, max_vertices)
+                        size_t n_cells = static_cast<size_t>(nx_);
+                        int max_vertices = 0;
+                        for (size_t i = 0; i < n_cells; ++i) {
+                            int n_verts = static_cast<int>(conn_offsets(i + 1) - conn_offsets(i));
+                            if (n_verts > max_vertices) max_vertices = n_verts;
+                        }
+
+                        lon_bnds_values.resize(n_cells * max_vertices, 0.0);
+                        lat_bnds_values.resize(n_cells * max_vertices, 0.0);
+
+                        for (size_t i = 0; i < n_cells; ++i) {
+                            int n_verts = static_cast<int>(conn_offsets(i + 1) - conn_offsets(i));
+                            size_t offset = conn_offsets(i);
+                            for (int v = 0; v < max_vertices; ++v) {
+                                int local_v = (v < n_verts) ? v : (n_verts - 1);
+                                axis::index_t node_idx = conn_indices(offset + local_v);
+                                lon_bnds_values[i * max_vertices + v] = node_coords(node_idx, 0);
+                                lat_bnds_values[i * max_vertices + v] = node_coords(node_idx, 1);
+                            }
+                        }
+
+                        lon_bnds_shape.rank = 2;
+                        lon_bnds_shape.extents[0] = nx_;
+                        lon_bnds_shape.extents[1] = max_vertices;
+
+                        lat_bnds_shape.rank = 2;
+                        lat_bnds_shape.extents[0] = nx_;
+                        lat_bnds_shape.extents[1] = max_vertices;
+                        break;
+                    }
+                    case GridType::Rectilinear: {
+                        // 3. Rectilinear case: shapes (nx_, 2) and (ny_, 2)
+                        lon_bnds_values.resize(static_cast<size_t>(nx_) * 2);
+                        lat_bnds_values.resize(static_cast<size_t>(ny_) * 2);
+
+                        // Longitude bounds: query nodes from the first row of cells (j = 0)
+                        for (int i = 0; i < nx_; ++i) {
+                            size_t offset = conn_offsets(i);
+                            axis::index_t node0 = conn_indices(offset + 0);
+                            axis::index_t node1 = conn_indices(offset + 1);
+                            lon_bnds_values[2 * i + 0] = node_coords(node0, 0);
+                            lon_bnds_values[2 * i + 1] = node_coords(node1, 0);
+                        }
+
+                        // Latitude bounds: query nodes from the first column of cells (i = 0)
+                        for (int j = 0; j < ny_; ++j) {
+                            size_t offset = conn_offsets(j * nx_);
+                            axis::index_t node0 = conn_indices(offset + 0);
+                            axis::index_t node3 = conn_indices(offset + 3);
+                            lat_bnds_values[2 * j + 0] = node_coords(node0, 1);
+                            lat_bnds_values[2 * j + 1] = node_coords(node3, 1);
+                        }
+
+                        lon_bnds_shape.rank = 2;
+                        lon_bnds_shape.extents[0] = nx_;
+                        lon_bnds_shape.extents[1] = 2;
+
+                        lat_bnds_shape.rank = 2;
+                        lat_bnds_shape.extents[0] = ny_;
+                        lat_bnds_shape.extents[1] = 2;
+                        break;
                     }
                 }
 
-                lon_bnds_shape.rank = 3;
-                lon_bnds_shape.extents[0] = ny_;
-                lon_bnds_shape.extents[1] = nx_;
-                lon_bnds_shape.extents[2] = 4;
-
-                lat_bnds_shape.rank = 3;
-                lat_bnds_shape.extents[0] = ny_;
-                lat_bnds_shape.extents[1] = nx_;
-                lat_bnds_shape.extents[2] = 4;
-                break;
-            }
-            case GridType::Unstructured: {
-                // 2. Unstructured case (MPAS, SCRIP, etc.): shapes (nx_, max_vertices)
-                size_t n_cells = static_cast<size_t>(nx_);
-                int max_vertices = 0;
-                for (size_t i = 0; i < n_cells; ++i) {
-                    int n_verts = static_cast<int>(conn_offsets(i + 1) - conn_offsets(i));
-                    if (n_verts > max_vertices) max_vertices = n_verts;
+                // Clamp latitude bounds to sphere limits
+                for (size_t i = 0; i < lat_bnds_values.size(); ++i) {
+                    if (lat_bnds_values[i] < -90.0) lat_bnds_values[i] = -90.0;
+                    if (lat_bnds_values[i] > 90.0) lat_bnds_values[i] = 90.0;
                 }
 
-                lon_bnds_values.resize(n_cells * max_vertices, 0.0);
-                lat_bnds_values.resize(n_cells * max_vertices, 0.0);
+                amio_io_handle lon_bnds_io = nullptr;
+                check_amio_rc(amio_write(dataset, "lon_bnds", lon_bnds_values.data(), AMIO_DTYPE_F64, &lon_bnds_shape, &lon_bnds_io),
+                              "amio_write(lon_bnds)");
 
-                for (size_t i = 0; i < n_cells; ++i) {
-                    int n_verts = static_cast<int>(conn_offsets(i + 1) - conn_offsets(i));
-                    size_t offset = conn_offsets(i);
-                    for (int v = 0; v < max_vertices; ++v) {
-                        int local_v = (v < n_verts) ? v : (n_verts - 1);
-                        axis::index_t node_idx = conn_indices(offset + local_v);
-                        lon_bnds_values[i * max_vertices + v] = node_coords(node_idx, 0);
-                        lat_bnds_values[i * max_vertices + v] = node_coords(node_idx, 1);
-                    }
+                amio_io_handle lat_bnds_io = nullptr;
+                check_amio_rc(amio_write(dataset, "lat_bnds", lat_bnds_values.data(), AMIO_DTYPE_F64, &lat_bnds_shape, &lat_bnds_io),
+                              "amio_write(lat_bnds)");
+
+                // Step 5c: Write mesh topology variable for unstructured UGRID mesh
+                if (ny_ == 1) {
+                    int mesh_val = 1;
+                    amio_shape_t mesh_shape;
+                    std::memset(&mesh_shape, 0, sizeof(mesh_shape));
+                    mesh_shape.rank = 1;
+                    mesh_shape.extents[0] = 1;
+                    amio_io_handle mesh_io = nullptr;
+                    check_amio_rc(amio_write(dataset, "mesh", &mesh_val, AMIO_DTYPE_I32, &mesh_shape, &mesh_io), "amio_write(mesh)");
                 }
 
-                lon_bnds_shape.rank = 2;
-                lon_bnds_shape.extents[0] = nx_;
-                lon_bnds_shape.extents[1] = max_vertices;
-
-                lat_bnds_shape.rank = 2;
-                lat_bnds_shape.extents[0] = nx_;
-                lat_bnds_shape.extents[1] = max_vertices;
-                break;
-            }
-            case GridType::Rectilinear: {
-                // 3. Rectilinear case: shapes (nx_, 2) and (ny_, 2)
-                lon_bnds_values.resize(static_cast<size_t>(nx_) * 2);
-                lat_bnds_values.resize(static_cast<size_t>(ny_) * 2);
-
-                // Longitude bounds: query nodes from the first row of cells (j = 0)
-                for (int i = 0; i < nx_; ++i) {
-                    size_t offset = conn_offsets(i);
-                    axis::index_t node0 = conn_indices(offset + 0);
-                    axis::index_t node1 = conn_indices(offset + 1);
-                    lon_bnds_values[2 * i + 0] = node_coords(node0, 0);
-                    lon_bnds_values[2 * i + 1] = node_coords(node1, 0);
+                // Step 6: Write lev coordinate variable
+                std::vector<double> lev_values(nz_);
+                for (int k = 0; k < nz_; k++) {
+                    lev_values[k] = k + 1.0;
                 }
+                amio_shape_t lev_shape;
+                std::memset(&lev_shape, 0, sizeof(lev_shape));
+                lev_shape.rank = 1;
+                lev_shape.extents[0] = nz_;
+                amio_io_handle lev_io = nullptr;
+                check_amio_rc(amio_write(dataset, "lev", lev_values.data(), AMIO_DTYPE_F64, &lev_shape, &lev_io), "amio_write(lev)");
 
-                // Latitude bounds: query nodes from the first column of cells (i = 0)
-                for (int j = 0; j < ny_; ++j) {
-                    size_t offset = conn_offsets(j * nx_);
-                    axis::index_t node0 = conn_indices(offset + 0);
-                    axis::index_t node3 = conn_indices(offset + 3);
-                    lat_bnds_values[2 * j + 0] = node_coords(node0, 1);
-                    lat_bnds_values[2 * j + 1] = node_coords(node3, 1);
-                }
-
-                lon_bnds_shape.rank = 2;
-                lon_bnds_shape.extents[0] = nx_;
-                lon_bnds_shape.extents[1] = 2;
-
-                lat_bnds_shape.rank = 2;
-                lat_bnds_shape.extents[0] = ny_;
-                lat_bnds_shape.extents[1] = 2;
-                break;
-            }
-        }
-
-        // Clamp latitude bounds to sphere limits
-        for (size_t i = 0; i < lat_bnds_values.size(); ++i) {
-            if (lat_bnds_values[i] < -90.0) lat_bnds_values[i] = -90.0;
-            if (lat_bnds_values[i] > 90.0) lat_bnds_values[i] = 90.0;
-        }
-
-        amio_io_handle lon_bnds_io = nullptr;
-        check_amio_rc(amio_write(dataset, "lon_bnds", lon_bnds_values.data(), AMIO_DTYPE_F64, &lon_bnds_shape, &lon_bnds_io), "amio_write(lon_bnds)");
-
-        amio_io_handle lat_bnds_io = nullptr;
-        check_amio_rc(amio_write(dataset, "lat_bnds", lat_bnds_values.data(), AMIO_DTYPE_F64, &lat_bnds_shape, &lat_bnds_io), "amio_write(lat_bnds)");
-
-        // Step 5c: Write mesh topology variable for unstructured UGRID mesh
-        if (ny_ == 1) {
-            int mesh_val = 1;
-            amio_shape_t mesh_shape;
-            std::memset(&mesh_shape, 0, sizeof(mesh_shape));
-            mesh_shape.rank = 1;
-            mesh_shape.extents[0] = 1;
-            amio_io_handle mesh_io = nullptr;
-            check_amio_rc(amio_write(dataset, "mesh", &mesh_val, AMIO_DTYPE_I32, &mesh_shape, &mesh_io), "amio_write(mesh)");
-        }
-
-        // Step 6: Write lev coordinate variable
-        std::vector<double> lev_values(nz_);
-        for (int k = 0; k < nz_; k++) {
-            lev_values[k] = k + 1.0;
-        }
-        amio_shape_t lev_shape;
-        std::memset(&lev_shape, 0, sizeof(lev_shape));
-        lev_shape.rank = 1;
-        lev_shape.extents[0] = nz_;
-        amio_io_handle lev_io = nullptr;
-        check_amio_rc(amio_write(dataset, "lev", lev_values.data(), AMIO_DTYPE_F64, &lev_shape, &lev_io), "amio_write(lev)");
-
-        // Step 7: Write time coordinate variable
-        double time_val = time_seconds;
-        amio_shape_t time_shape;
-        std::memset(&time_shape, 0, sizeof(time_shape));
-        time_shape.rank = 1;
-        time_shape.extents[0] = 1;
-        amio_io_handle time_io = nullptr;
-        check_amio_rc(amio_write(dataset, "time", &time_val, AMIO_DTYPE_F64, &time_shape, &time_io), "amio_write(time)");
+                // Step 7: Write time coordinate variable
+                double time_val = time_seconds;
+                amio_shape_t time_shape;
+                std::memset(&time_shape, 0, sizeof(time_shape));
+                time_shape.rank = 1;
+                time_shape.extents[0] = 1;
+                amio_io_handle time_io = nullptr;
+                check_amio_rc(amio_write(dataset, "time", &time_val, AMIO_DTYPE_F64, &time_shape, &time_io), "amio_write(time)");
+            } catch (const std::exception& e) {
+                CECE_LOG_ERROR(std::string("[CECE] Writer coordinate write failed: ") + e.what());
+                skip_file_work = true;
+            }  // coordinate-variable writes (file owner only)
 
         // Step 8: Write fields. No configured data fields means write all
         // export fields (the collection itself is never empty — it always
@@ -645,8 +700,7 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
                 for (int k = 0; k < nz_; ++k) {
                     for (int jrel = 0; jrel < ny_local; ++jrel) {
                         for (int i = 0; i < nx_; ++i) {
-                            size_t kokkos_idx =
-                                static_cast<size_t>(i) + static_cast<size_t>(jrel) * nx_ + static_cast<size_t>(k) * nx_ * ny_local;
+                            size_t kokkos_idx = static_cast<size_t>(i) + static_cast<size_t>(jrel) * nx_ + static_cast<size_t>(k) * nx_ * ny_local;
                             size_t send_idx = static_cast<size_t>(k) * band_level_elems + static_cast<size_t>(jrel) * nx_ + i;
                             send_buf[send_idx] = h_view.data()[kokkos_idx];
                         }
@@ -656,8 +710,9 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
                 // global_field is the assembled global [level][j][i] buffer
                 // (size nz_ * ny_ * nx_). In the single-rank path it IS send_buf
                 // (already the whole grid). In the multi-rank path rank 0 fills it
-                // via the per-level MPI_Gatherv below, then broadcasts it so ALL
-                // ranks hold identical authoritative data for the collective write.
+                // via the per-level MPI_Gatherv below and writes it directly — the
+                // file is rank-0-owned in independent mode (see Step 2), so no
+                // broadcast and no per-rank copy are needed.
                 std::vector<double> global_field;
                 if (!do_gather) {
                     // Single-rank / no-MPI: ny_local == ny_, so send_buf is already
@@ -676,97 +731,102 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
                     for (int k = 0; k < nz_; ++k) {
                         const double* level_send = send_buf.data() + static_cast<size_t>(k) * band_level_elems;
                         double* level_recv = (rank == 0) ? (global_field.data() + static_cast<size_t>(k) * global_level_elems) : nullptr;
-                        const int gather_rc =
-                            MPI_Gatherv(level_send, sendcount, MPI_DOUBLE, level_recv, (rank == 0) ? recvcounts.data() : nullptr,
-                                        (rank == 0) ? recvdispls.data() : nullptr, MPI_DOUBLE, 0, comm_);
+                        const int gather_rc = MPI_Gatherv(level_send, sendcount, MPI_DOUBLE, level_recv, (rank == 0) ? recvcounts.data() : nullptr,
+                                                          (rank == 0) ? recvdispls.data() : nullptr, MPI_DOUBLE, 0, comm_);
                         if (gather_rc != MPI_SUCCESS) {
                             CECE_LOG_ERROR("Output_Gather MPI_Gatherv failed for field '" + name + "' (level " + std::to_string(k) +
                                            ", rc=" + std::to_string(gather_rc) + ")");
                             return -1;
                         }
                     }
-                    // The Output_Gather leaves the authoritative assembled global
-                    // field on rank 0 only. The AMIO netcdf4 backend, however,
-                    // writes COLLECTIVELY when comm size > 1: it opens the file
-                    // with nc_create_par and sets NC_COLLECTIVE var access, so the
-                    // underlying nc_put_vara is an MPI collective that EVERY rank
-                    // in comm_ must enter (on its worker thread) with the SAME
-                    // hyperslab. Every rank writes the full variable at start
-                    // [0,0,0,0]; parallel-HDF5 collective semantics require the
-                    // data each rank contributes to that shared region be identical
-                    // (this exactly matches the pre-rework replicated writer, where
-                    // every rank held and wrote the full global field). A rank-0-
-                    // only field write would desynchronize the collective and
-                    // deadlock. So broadcast rank 0's authoritative global_field to
-                    // all ranks, then every rank builds an identical netcdf_buffer
-                    // and issues the same collective amio_write below (Req 6.2, 6.6).
-                    if (rank != 0) {
-                        global_field.assign(static_cast<size_t>(nz_) * global_level_elems, 0.0);
-                    }
-                    const int bcast_rc =
-                        MPI_Bcast(global_field.data(), static_cast<int>(static_cast<size_t>(nz_) * global_level_elems), MPI_DOUBLE, 0, comm_);
-                    if (bcast_rc != MPI_SUCCESS) {
-                        CECE_LOG_ERROR("Output_Gather MPI_Bcast failed for field '" + name + "' (rc=" + std::to_string(bcast_rc) + ")");
-                        return -1;
-                    }
+                    // The gather leaves the authoritative global field on rank 0.
+                    // The output file is opened in INDEPENDENT mode by rank 0 only
+                    // (see Step 2), so rank 0 writes it directly below: no full-grid
+                    // MPI_Bcast and no per-rank buffer copy. Peers issued their nz
+                    // Gatherv sends above and skip the write (Req 6.2, 6.6).
                 }
 
                 // --- Global write assembly (task 8.2) ---------------------------
-                // Build the NetCDF [time, lev, lat, lon] buffer from the assembled
-                // global field. After the gather+broadcast above, global_field holds
-                // the authoritative global [level][j][i] field IDENTICALLY on every
-                // rank (rank 0 gathered it; all others received the broadcast; the
-                // single-rank path moved its own whole-grid band in). It is already
-                // laid out [k][j][i] (== k*ny_*nx_ + j*nx_ + i), which is exactly the
-                // NetCDF ordering, so this is a straight copy, kept as an explicit
-                // transpose loop to mirror the original for clarity. Every rank
-                // produces the same netcdf_buffer, so the collective amio_write below
-                // contributes identical data across ranks (Req 6.2, 6.4, 6.6).
-                size_t total_elements = static_cast<size_t>(nx_) * ny_ * nz_;
-                std::vector<double> netcdf_buffer(total_elements);
-                for (int k = 0; k < nz_; k++) {
-                    for (int j = 0; j < ny_; j++) {
-                        for (int i = 0; i < nx_; i++) {
-                            size_t src_idx = static_cast<size_t>(k) * ny_ * nx_ + static_cast<size_t>(j) * nx_ + i;
-                            size_t netcdf_idx = k * static_cast<size_t>(ny_) * nx_ + static_cast<size_t>(j) * nx_ + i;
-                            netcdf_buffer[netcdf_idx] = global_field[src_idx];
+                // Only the file owner writes: rank 0 in the multi-rank path (it
+                // assembled global_field via Gatherv), the single process in the
+                // no-gather path (global_field was moved from send_buf). The
+                // [level][j][i] layout is already exactly the NetCDF
+                // [lev, lat, lon] ordering — the old "transpose" loop computed
+                // src_idx and netcdf_idx as the same value — so global_field is
+                // written directly with no copy (Req 6.4).
+                if (!skip_file_work && rank0_writes) {
+                    try {
+                        amio_shape_t field_shape;
+                        std::memset(&field_shape, 0, sizeof(field_shape));
+                        // Write with a leading (unlimited) time axis so per-timestep files
+                        // form a proper CF time series. For unstructured grids (where ny_ == 1),
+                        // we write as a 3D variable [time=1, lev, nCells] to follow the UGRID convention.
+                        if (ny_ == 1) {
+                            field_shape.rank = 3;
+                            field_shape.extents[0] = 1;
+                            field_shape.extents[1] = nz_;
+                            field_shape.extents[2] = nx_;
+                        } else {
+                            field_shape.rank = 4;
+                            field_shape.extents[0] = 1;
+                            field_shape.extents[1] = nz_;
+                            field_shape.extents[2] = ny_;
+                            field_shape.extents[3] = nx_;
                         }
+
+                        amio_io_handle field_io = nullptr;
+                        check_amio_rc(amio_write(dataset, name.c_str(), global_field.data(), AMIO_DTYPE_F64, &field_shape, &field_io),
+                                      "amio_write(" + name + ")");
+                    } catch (const std::exception& e) {
+                        CECE_LOG_ERROR(std::string("[CECE] Writer field write failed for '") + name + "': " + e.what());
+                        skip_file_work = true;
                     }
-                }
-
-                amio_shape_t field_shape;
-                std::memset(&field_shape, 0, sizeof(field_shape));
-                // Write with a leading (unlimited) time axis so per-timestep files
-                // form a proper CF time series. For unstructured grids (where ny_ == 1),
-                // we write as a 3D variable [time=1, lev, nCells] to follow the UGRID convention.
-                if (ny_ == 1) {
-                    field_shape.rank = 3;
-                    field_shape.extents[0] = 1;
-                    field_shape.extents[1] = nz_;
-                    field_shape.extents[2] = nx_;
-                } else {
-                    field_shape.rank = 4;
-                    field_shape.extents[0] = 1;
-                    field_shape.extents[1] = nz_;
-                    field_shape.extents[2] = ny_;
-                    field_shape.extents[3] = nx_;
-                }
-
-                amio_io_handle field_io = nullptr;
-                check_amio_rc(amio_write(dataset, name.c_str(), netcdf_buffer.data(), AMIO_DTYPE_F64, &field_shape, &field_io),
-                              "amio_write(" + name + ")");
+                }  // field write (file owner only)
             }
         }
 
-        // Step 9: Flush, Close, and Finalize
-        check_amio_rc(amio_flush(dataset, 0), "amio_flush");
-        check_amio_rc(amio_close(dataset), "amio_close");
-        dataset = nullptr;
+        // Step 9: Flush, Close, and Finalize (file owner only), then a trailing
+        // barrier so every rank leaves WriteTimeStep in lock-step (Req 6.6).
+        // Deliberately NON-THROWING: a close/finalize error must not bypass the
+        // barrier (peers are already waiting there), so it degrades to
+        // skip_file_work and a -1 return after everyone has arrived.
+        if (dataset != nullptr) {
+            const int flush_rc = amio_flush(dataset, 0);
+            const int close_rc = amio_close(dataset);
+            dataset = nullptr;
+            if (flush_rc != AMIO_OK || close_rc != AMIO_OK) {
+                CECE_LOG_ERROR("[CECE] Writer flush/close failed (flush_rc=" + std::to_string(flush_rc) + ", close_rc=" + std::to_string(close_rc) +
+                               ")");
+                skip_file_work = true;
+            }
+        }
+        if (core != nullptr) {
+            const int fin_rc = amio_finalize(core);
+            core = nullptr;
+            if (fin_rc != AMIO_OK) {
+                CECE_LOG_ERROR("[CECE] Writer finalize failed (rc=" + std::to_string(fin_rc) + ")");
+                skip_file_work = true;
+            }
+        }
 
-        check_amio_rc(amio_finalize(core), "amio_finalize");
-        core = nullptr;
+        if (multi_rank_writer) {
+            MPI_Barrier(comm_);
+        }
 
-        CECE_LOG_INFO("[CECE] Successfully wrote " + filename + " via AMIO");
+        // Restore the ambient parent communicator for downstream AMIO users
+        // (rank 0's writer open used MPI_COMM_SELF; the facade read path
+        // sets/restores its own around opens, but other consumers inherit the
+        // ambient value).
+        if (mpi_initialized && comm_ != MPI_COMM_NULL) {
+            amio_set_parent_communicator(MPI_Comm_c2f(comm_));
+        }
+
+        if (skip_file_work) {
+            return -1;
+        }
+        if (rank == 0) {
+            CECE_LOG_INFO("[CECE] Successfully wrote " + filename + " via AMIO");
+        }
 
     } catch (const std::exception& e) {
         CECE_LOG_ERROR("[CECE] Failed to write NetCDF file via AMIO: " + std::string(e.what()));

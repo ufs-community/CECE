@@ -47,8 +47,8 @@
 #include <rapidcheck/gtest.h>
 
 #include <Kokkos_Core.hpp>
-#include <axis/axis.hpp>
 #include <algorithm>
+#include <axis/axis.hpp>
 #include <cmath>
 #include <cstddef>
 #include <vector>

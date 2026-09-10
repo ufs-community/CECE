@@ -38,7 +38,6 @@
 // cece->axis link.
 #include <KokkosSparse_CrsMatrix.hpp>
 #include <KokkosSparse_spmv.hpp>
-
 #include <algorithm>
 #include <chrono>
 #include <cmath>

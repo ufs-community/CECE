@@ -82,8 +82,8 @@
 #include <rapidcheck/gtest.h>
 
 #include <Kokkos_Core.hpp>
-#include <axis/axis.hpp>
 #include <algorithm>
+#include <axis/axis.hpp>
 #include <cmath>
 #include <cstddef>
 #include <numeric>
@@ -186,8 +186,8 @@ RegridPlan RestrictPlanToBand(const RegridPlan& whole, int dst_nx, int j0, int j
 
     // Read the whole-grid COO (weights + row/col indices) on the host.
     auto factor_list = whole.matrix.factor_list();  // [nnz]
-    auto factor_row = whole.matrix.factor_row();     // [nnz] global dst rows
-    auto factor_col = whole.matrix.factor_col();     // [nnz] src cols
+    auto factor_row = whole.matrix.factor_row();    // [nnz] global dst rows
+    auto factor_col = whole.matrix.factor_col();    // [nnz] src cols
     const std::size_t nnz = whole.matrix.nnz();
 
     std::vector<double> b_vals;

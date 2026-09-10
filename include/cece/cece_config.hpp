@@ -408,7 +408,7 @@ struct DriverConfig {
     /// IO memory (the historical 256 MiB default cost 8 x 256 MiB = 2 GiB per
     /// input file per rank on the pre-lazy pool).
     int amio_staging_buffer_capacity_bytes = 33554432;
-    int amio_prefetch_depth = 2;                ///< AMIO read look-ahead depth (default: 2). Lower = fewer in-flight slabs.
+    int amio_prefetch_depth = 2;  ///< AMIO read look-ahead depth (default: 2). Lower = fewer in-flight slabs.
 };
 
 /**

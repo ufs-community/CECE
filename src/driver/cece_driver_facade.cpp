@@ -163,8 +163,7 @@ RecordBracket cadence_record_bracket(const std::string& cadence, const std::stri
 // not-ready message are preserved verbatim. HALO's throwing error policy
 // replaces the former rc != MPI_SUCCESS branch; the try/catch maps any throw to
 // a failure_detail and returns false (Req 4.1-4.4).
-bool collective_all_ready(halo::Communicator* halo_comm, MPI_Comm comm, bool local_ready, const std::string& context,
-                          std::string& failure_detail) {
+bool collective_all_ready(halo::Communicator* halo_comm, MPI_Comm comm, bool local_ready, const std::string& context, std::string& failure_detail) {
     int mpi_initialized = 0;
     MPI_Initialized(&mpi_initialized);
     if (!mpi_initialized || comm == MPI_COMM_NULL) {
@@ -204,8 +203,7 @@ bool collective_all_ready(halo::Communicator* halo_comm, MPI_Comm comm, bool loc
 // two-reduce (MIN then MAX) op sequence is kept. HALO's throwing error policy
 // replaces the former rc != MPI_SUCCESS branch; the try/catch maps any throw to
 // a failure_detail and returns false (Req 5.1-5.4).
-bool collective_int_matches(halo::Communicator* halo_comm, MPI_Comm comm, int local_value, const std::string& name,
-                            std::string& failure_detail) {
+bool collective_int_matches(halo::Communicator* halo_comm, MPI_Comm comm, int local_value, const std::string& name, std::string& failure_detail) {
     int mpi_initialized = 0;
     MPI_Initialized(&mpi_initialized);
     if (!mpi_initialized || comm == MPI_COMM_NULL) return true;
@@ -288,8 +286,7 @@ void CeceDriverOrchestrator::ResolveStreamConfigs() {
     ResolveStreamConfigsFromFile(config_file_, stream_configs_, gridspec_file_);
 }
 
-void CeceDriverOrchestrator::ResolveStreamConfigsFromFile(const std::string& config_file,
-                                                          std::unordered_map<std::string, StreamConfig>& out_configs,
+void CeceDriverOrchestrator::ResolveStreamConfigsFromFile(const std::string& config_file, std::unordered_map<std::string, StreamConfig>& out_configs,
                                                           std::string& out_gridspec_file) {
     // Parse config_file exactly once. On a YAML error keep the orchestrator
     // robust (out_gridspec_file = "", out_configs left empty) so the existing
@@ -329,7 +326,8 @@ void CeceDriverOrchestrator::ResolveStreamConfigsFromFile(const std::string& con
         if (config["driver"]["amio_staging_buffer_capacity_bytes"]) {
             amio_staging_buffer_capacity_bytes = config["driver"]["amio_staging_buffer_capacity_bytes"].as<int>();
             if (amio_staging_buffer_capacity_bytes < 1) {
-                throw std::invalid_argument("driver.amio_staging_buffer_capacity_bytes must be >= 1; got " + std::to_string(amio_staging_buffer_capacity_bytes) + ".");
+                throw std::invalid_argument("driver.amio_staging_buffer_capacity_bytes must be >= 1; got " +
+                                            std::to_string(amio_staging_buffer_capacity_bytes) + ".");
             }
         }
         if (config["driver"]["amio_prefetch_depth"]) {
@@ -422,8 +420,7 @@ std::string CeceDriverOrchestrator::BuildManifestContent(const StreamConfig& cfg
     // amio_staging_buffer_count (already part of HandleKey), so the
     // key <-> manifest-identity invariant is preserved.
     const long long ceiling_raw = static_cast<long long>(cfg.amio_staging_buffer_count) * 8;
-    const int staging_ceiling =
-        static_cast<int>(std::min<long long>(4096, std::max<long long>(cfg.amio_staging_buffer_count, ceiling_raw)));
+    const int staging_ceiling = static_cast<int>(std::min<long long>(4096, std::max<long long>(cfg.amio_staging_buffer_count, ceiling_raw)));
     m_content << "backend: netcdf4\n"
               << "path: " << cfg.input_file_path << "\n"
               << "data_model: " << data_model << "\n"
@@ -476,10 +473,8 @@ std::string CeceDriverOrchestrator::HandleKey(const StreamConfig& cfg) {
     // cannot appear in NetCDF file paths, so the concatenation is unambiguous
     // (Req 11.1). Variables reading the same file/manifest share one open AMIO
     // handle set and one file record count even when mapalgo differs.
-    return cfg.input_file_path + "|" + cfg.data_model + "|" +
-           std::to_string(cfg.amio_worker_threads) + "|" +
-           std::to_string(cfg.amio_staging_buffer_count) + "|" +
-           std::to_string(cfg.amio_staging_buffer_capacity_bytes) + "|" +
+    return cfg.input_file_path + "|" + cfg.data_model + "|" + std::to_string(cfg.amio_worker_threads) + "|" +
+           std::to_string(cfg.amio_staging_buffer_count) + "|" + std::to_string(cfg.amio_staging_buffer_capacity_bytes) + "|" +
            std::to_string(cfg.amio_prefetch_depth);
 }
 
@@ -581,8 +576,8 @@ AmioHandleSet* CeceDriverOrchestrator::GetOrOpenHandleSet(const std::string& han
         } else {
             amio_rc = amio_open_dataset_from_string(read_core, manifest_content.c_str(), "yaml", AMIO_MODE_READ, &read_dataset);
             if (amio_rc != AMIO_OK) {
-                failure_detail = std::string("amio_open_dataset_from_string failed for '") + cfg.input_file_path + "': rc=" + std::to_string(amio_rc) +
-                                 " (" + amio_strerror(amio_rc) + ")";
+                failure_detail = std::string("amio_open_dataset_from_string failed for '") + cfg.input_file_path +
+                                 "': rc=" + std::to_string(amio_rc) + " (" + amio_strerror(amio_rc) + ")";
             }
         }
 
@@ -767,9 +762,9 @@ CeceDriverOrchestrator::~CeceDriverOrchestrator() {
     cece_io_.reset();
 }
 
-bool CeceDriverOrchestrator::RegridToBandBuffer(const std::string& var_name, const io::RegridPlan& plan,
-                                                const std::vector<double>& source_record, int file_nx, int file_ny, int field_nlev,
-                                                std::vector<double>& out_buffer, std::string& failure_detail) {
+bool CeceDriverOrchestrator::RegridToBandBuffer(const std::string& var_name, const io::RegridPlan& plan, const std::vector<double>& source_record,
+                                                int file_nx, int file_ny, int field_nlev, std::vector<double>& out_buffer,
+                                                std::string& failure_detail) {
     (void)var_name;
     const std::vector<double>& source = source_record;
     int mpi_initialized = 0;
@@ -922,7 +917,7 @@ bool CeceDriverOrchestrator::RegridToBandBuffer(const std::string& var_name, con
 }
 
 bool CeceDriverOrchestrator::WriteBandToImport(const std::string& var_name, const std::vector<double>& dest_buffer, int field_nlev,
-                                              void* cece_core_data_ptr, std::string& failure_detail) {
+                                               void* cece_core_data_ptr, std::string& failure_detail) {
     // Band decomposition rework (Req 2.1, 2.4, 2.5, 3.2, 3.4): the incoming
     // dest_buffer is now the rank-local BAND buffer produced by
     // RegridToBandBuffer, laid out [level][jrel][i] with element (level, jrel, i)
@@ -951,8 +946,7 @@ bool CeceDriverOrchestrator::WriteBandToImport(const std::string& var_name, cons
     for (int level = 0; level < field_nlev; ++level) {
         for (int jrel = 0; jrel < ny_local; ++jrel) {
             for (int i = 0; i < nx_; ++i) {
-                transposed_host(i, jrel, level) =
-                    band_destination[static_cast<size_t>(level) * band_spatial + static_cast<size_t>(jrel) * nx_ + i];
+                transposed_host(i, jrel, level) = band_destination[static_cast<size_t>(level) * band_spatial + static_cast<size_t>(jrel) * nx_ + i];
             }
         }
     }
@@ -983,15 +977,16 @@ bool CeceDriverOrchestrator::WriteBandToImport(const std::string& var_name, cons
     // extent(1) must be ny_local, not the global ny_. The collective_all_ready
     // gate below keeps every rank — including surplus ranks (ny_local == 0) —
     // in lock-step (Req 2.5, 3.4).
-    const bool local_core_shape_ready = core_view.extent(0) == static_cast<size_t>(nx_) &&
-                                        core_view.extent(1) == static_cast<size_t>(ny_local) &&
+    const bool local_core_shape_ready = core_view.extent(0) == static_cast<size_t>(nx_) && core_view.extent(1) == static_cast<size_t>(ny_local) &&
                                         core_view.extent(2) == static_cast<size_t>(field_nlev);
     if (!local_core_shape_ready) {
         failure_detail = "core import field shape mismatch for '" + var_name + "': expected " + std::to_string(nx_) + "x" + std::to_string(ny_local) +
                          "x" + std::to_string(field_nlev) + ", found " + std::to_string(core_view.extent(0)) + "x" +
                          std::to_string(core_view.extent(1)) + "x" + std::to_string(core_view.extent(2));
     }
-    if (!collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, local_core_shape_ready, "core import field shape validation", failure_detail)) return false;
+    if (!collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, local_core_shape_ready, "core import field shape validation",
+                              failure_detail))
+        return false;
 
     // Authoritative write of the core import field from the single host buffer.
     // This is now the SOLE authoritative write of the assembled field. The
@@ -1065,7 +1060,8 @@ bool CeceDriverOrchestrator::AssembleBandField(const std::string& var_name, cons
 
 bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* cece_core_data_ptr) {
     std::string core_readiness_detail;
-    if (!collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, cece_core_data_ptr != nullptr, "CECE core-data readiness", core_readiness_detail)) {
+    if (!collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, cece_core_data_ptr != nullptr, "CECE core-data readiness",
+                              core_readiness_detail)) {
         CECE_LOG_ERROR("[DRIVER FATAL] " + core_readiness_detail);
         return false;
     }
@@ -1095,7 +1091,9 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
             CECE_LOG_ERROR("[DRIVER FATAL] Field '" + var_name + "' has no configured levels");
             failure_detail = "field has no configured levels";
         }
-        if (!collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, field_nlev >= 1, "field-level metadata readiness for '" + var_name + "'", failure_detail)) return false;
+        if (!collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, field_nlev >= 1,
+                                  "field-level metadata readiness for '" + var_name + "'", failure_detail))
+            return false;
         std::vector<double> ingest_buffer;
         bool read_success = false;
 
@@ -1136,7 +1134,8 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
         if (input_var_name.empty()) {
             input_var_name = var_name;
         }
-        if (!collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, !input_file_path.empty(), "stream configuration readiness for '" + var_name + "'", failure_detail)) {
+        if (!collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, !input_file_path.empty(),
+                                  "stream configuration readiness for '" + var_name + "'", failure_detail)) {
             return false;
         }
 
@@ -1150,7 +1149,9 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
         } else {
             CECE_LOG_DEBUG("[DRIVER] Input file '" + input_file_path + "' successfully verified on local filesystem.");
         }
-        if (!collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, local_file_ready, "input-file readiness for '" + var_name + "'", failure_detail)) return false;
+        if (!collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, local_file_ready, "input-file readiness for '" + var_name + "'",
+                                  failure_detail))
+            return false;
 
         // Dynamically open and read using AMIO API
         // First-touch open (once per variable) via GetOrOpenHandleSet, which
@@ -1162,7 +1163,8 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
         // actual open work only happens on the first touch.
         AmioHandleSet* handle_set = GetOrOpenHandleSet(handle_key, cfg, failure_detail);
         const bool local_open_ready = handle_set != nullptr && handle_set->dataset != nullptr && handle_set->core != nullptr;
-        const bool amio_open_ready = collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, local_open_ready, "AMIO dataset open for '" + var_name + "'", failure_detail);
+        const bool amio_open_ready = collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, local_open_ready,
+                                                          "AMIO dataset open for '" + var_name + "'", failure_detail);
 
         if (!amio_open_ready) {
             CECE_LOG_DEBUG("[DRIVER] amio open failed for " + input_file_path + ": " + failure_detail);
@@ -1237,10 +1239,11 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                     file_nt_cache_[handle_key] = file_nt;
                 }
             }
-            bool file_records_ready =
-                collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, file_nt > 0, "AMIO record-count readiness for '" + var_name + "'", failure_detail);
+            bool file_records_ready = collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, file_nt > 0,
+                                                           "AMIO record-count readiness for '" + var_name + "'", failure_detail);
             if (file_records_ready) {
-                file_records_ready = collective_int_matches(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, file_nt, "AMIO record count for '" + var_name + "'", failure_detail);
+                file_records_ready = collective_int_matches(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, file_nt,
+                                                            "AMIO record count for '" + var_name + "'", failure_detail);
             }
 
             // 2. Build (or reuse cached) interpolation weights for this rank's band.
@@ -1305,8 +1308,8 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                 }
             }
             const bool local_plan_ready = file_records_ready && plan_it != regrid_plans_.end() && plan_it->second.built;
-            const bool all_plans_ready =
-                collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, local_plan_ready, "regrid-plan readiness for '" + var_name + "'", failure_detail);
+            const bool all_plans_ready = collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, local_plan_ready,
+                                                              "regrid-plan readiness for '" + var_name + "'", failure_detail);
 
             // 3. Read the bracketing record(s) for this timestep, blend in time on
             //    the SOURCE grid, then regrid ONCE. Because regridding is a linear
@@ -1332,9 +1335,11 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                 // Run the record-index / interp-mode collectives EVERY step so
                 // all ranks resolve an identical bracket and therefore make the
                 // same hit/miss decision (Req 6.3, 6.4).
-                const bool bracket_ready = collective_int_matches(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, bracket.i0, "lower AMIO record index", failure_detail) &&
-                                           collective_int_matches(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, bracket.i1, "upper AMIO record index", failure_detail) &&
-                                           collective_int_matches(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, needs_upper_record ? 1 : 0, "AMIO interpolation mode", failure_detail);
+                const bool bracket_ready =
+                    collective_int_matches(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, bracket.i0, "lower AMIO record index", failure_detail) &&
+                    collective_int_matches(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, bracket.i1, "upper AMIO record index", failure_detail) &&
+                    collective_int_matches(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, needs_upper_record ? 1 : 0, "AMIO interpolation mode",
+                                           failure_detail);
 
                 // Cache decision (Req 3, 5, 9.4): if the previously computed
                 // result was for the same bracket, reuse its ingest buffer and
@@ -1410,285 +1415,288 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                     }
                 } else {
                     // ---- Tier 3: interpolation miss / rollover / single record ----
-                // Diagnostic: report which time slice(s) are being read from the file.
-                if (bracket.i0 == bracket.i1 || bracket.weight == 0.0) {
-                    CECE_LOG_INFO("[DRIVER] Reading time slice " + std::to_string(bracket.i0) + "/" + std::to_string(file_nt - 1) + " from '" +
-                                  input_file_path + "' for field '" + var_name + "'" +
-                                  (cadence.empty() ? " (cycling, step=" + std::to_string(step_index_) + ")"
-                                                   : " (cadence=" + cadence + ", time=" + time_iso8601 + ")"));
-                } else {
-                    CECE_LOG_INFO("[DRIVER] Interpolating time slices " + std::to_string(bracket.i0) + " & " + std::to_string(bracket.i1) + "/" +
-                                  std::to_string(file_nt - 1) + " (w=" + std::to_string(bracket.weight) + ") from '" + input_file_path +
-                                  "' for field '" + var_name + "' (cadence=" + cadence + ", tintalgo=" + tintalgo + ", time=" + time_iso8601 + ")");
-                }
-
-                // Read one time record into a double buffer on the source grid.
-                // AMIO removes the CF time dimension, but any remaining dimensions
-                // before [lat, lon] are preserved as per-variable levels.
-                //
-                // Band-scoped read: when the plan carries an exact source-row
-                // window (build_regrid_plan derives it from the weight matrix's
-                // column range) and the variable's per-timestep shape is known
-                // (amio_describe), the on-disk fetch is restricted to rows
-                // [src_j0, src_j0 + src_rows). Without this every rank pulls the
-                // WHOLE global record from shared storage and discards all but
-                // its band's footprint -- nranks-fold replicated IO that made
-                // the 16-rank run slower than serial. The windowed payload is
-                // scattered into a GLOBAL-geometry buffer below, so
-                // RegridToBandBuffer / apply_regrid_plan (which index the source
-                // globally) and their size gates are unchanged; rows outside the
-                // window are provably never referenced (the window spans
-                // min..max matrix column) and stay zero-filled.
-                auto read_slab = [&](int t_idx, std::vector<double>& out, int& slab_nx, int& slab_ny) -> bool {
-                    amio_view_handle slab_view = nullptr;
-                    amio_bbox_t bbox{};
-                    const int fny_global_full = have_shape ? static_cast<int>(var_shape.extents[var_shape.rank - 2]) : 0;
-                    const bool use_window = have_shape && var_shape.rank >= 2 && plan.src_rows > 0 && plan.src_j0 >= 0 &&
-                                            fny_global_full > 0 && plan.src_j0 + plan.src_rows <= fny_global_full;
-                    if (use_window) {
-                        bbox.rank = var_shape.rank;
-                        for (int d = 0; d < var_shape.rank; ++d) {
-                            bbox.offsets[d] = 0;
-                            bbox.extents[d] = var_shape.extents[d];
-                            bbox.strides[d] = 1;
-                        }
-                        bbox.offsets[var_shape.rank - 2] = plan.src_j0;
-                        bbox.extents[var_shape.rank - 2] = plan.src_rows;
-                    }
-                    amio_status_t rc = amio_read(read_dataset, input_var_name.c_str(), t_idx, use_window ? &bbox : nullptr, &slab_view);
-                    if (rc != AMIO_OK) {
-                        CECE_LOG_DEBUG("[DRIVER] amio_read('" + input_var_name + "', t=" + std::to_string(t_idx) +
-                                       ") failed with rc = " + std::to_string(rc));
-                        failure_detail =
-                            std::string("amio_read('") + input_var_name + "') failed: rc=" + std::to_string(rc) + " (" + amio_strerror(rc) + ")";
-                        return false;
-                    }
-                    const void* view_data = nullptr;
-                    size_t view_size = 0;
-                    rc = amio_view_data(slab_view, &view_data, &view_size);
-                    if (rc != AMIO_OK) {
-                        failure_detail = std::string("amio_view_data failed: rc=") + std::to_string(rc) + " (" + amio_strerror(rc) + ")";
-                        amio_release_view(slab_view);
-                        return false;
-                    }
-                    amio_shape_t read_shape{};
-                    if (amio_view_shape(slab_view, &read_shape) != AMIO_OK) {
-                        failure_detail = "amio_view_shape failed";
-                        amio_release_view(slab_view);
-                        return false;
-                    }
-                    if (read_shape.rank < 2) {
-                        failure_detail = "AMIO field rank is less than two for '" + input_var_name + "'";
-                        amio_release_view(slab_view);
-                        return false;
-                    }
-                    const int fny_view = static_cast<int>(read_shape.extents[read_shape.rank - 2]);
-                    const int fnx = static_cast<int>(read_shape.extents[read_shape.rank - 1]);
-                    size_t total_elements = 1;
-                    for (int d = 0; d < read_shape.rank; ++d) {
-                        total_elements *= read_shape.extents[d];
-                    }
-                    // Global source latitude count: the full grid the
-                    // downstream regrid indexes against. For a windowed read
-                    // this is the describe shape's lat extent; for a full read
-                    // it equals the view's lat extent.
-                    const int fny_global = use_window ? fny_global_full : fny_view;
-                    if (fny_global <= 0 || fnx <= 0) {
-                        failure_detail = "AMIO view has non-positive source geometry for '" + input_var_name + "'";
-                        amio_release_view(slab_view);
-                        return false;
-                    }
-                    // View record geometry (windowed or full) and global record
-                    // geometry (what `out` is sized to).
-                    const size_t view_spatial = static_cast<size_t>(fny_view) * fnx;
-                    const size_t view_record_elements = static_cast<size_t>(field_nlev) * view_spatial;
-                    const size_t global_spatial = static_cast<size_t>(fny_global) * fnx;
-                    const size_t global_record_elements = static_cast<size_t>(field_nlev) * global_spatial;
-                    if (view_spatial == 0 || view_record_elements == 0 || total_elements % view_record_elements != 0) {
-                        failure_detail =
-                            "AMIO field shape is incompatible with configured levels=" + std::to_string(field_nlev) + " for '" + input_var_name + "'";
-                        amio_release_view(slab_view);
-                        return false;
-                    }
-                    const size_t records_in_view = total_elements / view_record_elements;
-                    const size_t record_index = records_in_view > 1 ? static_cast<size_t>(t_idx) : 0;
-                    if (record_index >= records_in_view) {
-                        failure_detail = "AMIO view does not contain requested record " + std::to_string(t_idx) + " for '" + input_var_name + "'";
-                        amio_release_view(slab_view);
-                        return false;
-                    }
-                    const size_t view_offset = record_index * view_record_elements;
-
-                    const bool is_float = (view_size == total_elements * sizeof(float));
-                    const bool is_double = (view_size == total_elements * sizeof(double));
-                    if (!is_float && !is_double) {
-                        failure_detail = "AMIO returned an unsupported element size for '" + input_var_name + "'";
-                        amio_release_view(slab_view);
-                        return false;
+                    // Diagnostic: report which time slice(s) are being read from the file.
+                    if (bracket.i0 == bracket.i1 || bracket.weight == 0.0) {
+                        CECE_LOG_INFO("[DRIVER] Reading time slice " + std::to_string(bracket.i0) + "/" + std::to_string(file_nt - 1) + " from '" +
+                                      input_file_path + "' for field '" + var_name + "'" +
+                                      (cadence.empty() ? " (cycling, step=" + std::to_string(step_index_) + ")"
+                                                       : " (cadence=" + cadence + ", time=" + time_iso8601 + ")"));
+                    } else {
+                        CECE_LOG_INFO("[DRIVER] Interpolating time slices " + std::to_string(bracket.i0) + " & " + std::to_string(bracket.i1) + "/" +
+                                      std::to_string(file_nt - 1) + " (w=" + std::to_string(bracket.weight) + ") from '" + input_file_path +
+                                      "' for field '" + var_name + "' (cadence=" + cadence + ", tintalgo=" + tintalgo + ", time=" + time_iso8601 +
+                                      ")");
                     }
 
-                    // Scatter into global geometry. Full read: window covers
-                    // every row, so this reduces to a straight widened copy.
-                    // Windowed read: place rows [src_j0, src_j0+src_rows) at
-                    // their global positions; untouched rows stay zero (and are
-                    // provably never referenced by the regrid).
-                    const int win_j0 = use_window ? plan.src_j0 : 0;
-                    const int win_rows = use_window ? plan.src_rows : fny_view;
-                    out.assign(global_record_elements, 0.0);
-                    for (int level = 0; level < field_nlev; ++level) {
-                        const size_t view_level_base = view_offset + static_cast<size_t>(level) * view_spatial;
-                        const size_t global_level_base = static_cast<size_t>(level) * global_spatial;
-                        for (int wr = 0; wr < win_rows; ++wr) {
-                            const int gr = win_j0 + wr;
-                            if (gr < 0 || gr >= fny_global) {
-                                continue;
+                    // Read one time record into a double buffer on the source grid.
+                    // AMIO removes the CF time dimension, but any remaining dimensions
+                    // before [lat, lon] are preserved as per-variable levels.
+                    //
+                    // Band-scoped read: when the plan carries an exact source-row
+                    // window (build_regrid_plan derives it from the weight matrix's
+                    // column range) and the variable's per-timestep shape is known
+                    // (amio_describe), the on-disk fetch is restricted to rows
+                    // [src_j0, src_j0 + src_rows). Without this every rank pulls the
+                    // WHOLE global record from shared storage and discards all but
+                    // its band's footprint -- nranks-fold replicated IO that made
+                    // the 16-rank run slower than serial. The windowed payload is
+                    // scattered into a GLOBAL-geometry buffer below, so
+                    // RegridToBandBuffer / apply_regrid_plan (which index the source
+                    // globally) and their size gates are unchanged; rows outside the
+                    // window are provably never referenced (the window spans
+                    // min..max matrix column) and stay zero-filled.
+                    auto read_slab = [&](int t_idx, std::vector<double>& out, int& slab_nx, int& slab_ny) -> bool {
+                        amio_view_handle slab_view = nullptr;
+                        amio_bbox_t bbox{};
+                        const int fny_global_full = have_shape ? static_cast<int>(var_shape.extents[var_shape.rank - 2]) : 0;
+                        const bool use_window = have_shape && var_shape.rank >= 2 && plan.src_rows > 0 && plan.src_j0 >= 0 && fny_global_full > 0 &&
+                                                plan.src_j0 + plan.src_rows <= fny_global_full;
+                        if (use_window) {
+                            bbox.rank = var_shape.rank;
+                            for (int d = 0; d < var_shape.rank; ++d) {
+                                bbox.offsets[d] = 0;
+                                bbox.extents[d] = var_shape.extents[d];
+                                bbox.strides[d] = 1;
                             }
-                            const size_t src_row = view_level_base + static_cast<size_t>(wr) * fnx;
-                            const size_t dst_row = global_level_base + static_cast<size_t>(gr) * fnx;
-                            if (is_float) {
-                                const float* p = static_cast<const float*>(view_data);
-                                for (int i = 0; i < fnx; ++i) out[dst_row + i] = static_cast<double>(p[src_row + i]);
+                            bbox.offsets[var_shape.rank - 2] = plan.src_j0;
+                            bbox.extents[var_shape.rank - 2] = plan.src_rows;
+                        }
+                        amio_status_t rc = amio_read(read_dataset, input_var_name.c_str(), t_idx, use_window ? &bbox : nullptr, &slab_view);
+                        if (rc != AMIO_OK) {
+                            CECE_LOG_DEBUG("[DRIVER] amio_read('" + input_var_name + "', t=" + std::to_string(t_idx) +
+                                           ") failed with rc = " + std::to_string(rc));
+                            failure_detail =
+                                std::string("amio_read('") + input_var_name + "') failed: rc=" + std::to_string(rc) + " (" + amio_strerror(rc) + ")";
+                            return false;
+                        }
+                        const void* view_data = nullptr;
+                        size_t view_size = 0;
+                        rc = amio_view_data(slab_view, &view_data, &view_size);
+                        if (rc != AMIO_OK) {
+                            failure_detail = std::string("amio_view_data failed: rc=") + std::to_string(rc) + " (" + amio_strerror(rc) + ")";
+                            amio_release_view(slab_view);
+                            return false;
+                        }
+                        amio_shape_t read_shape{};
+                        if (amio_view_shape(slab_view, &read_shape) != AMIO_OK) {
+                            failure_detail = "amio_view_shape failed";
+                            amio_release_view(slab_view);
+                            return false;
+                        }
+                        if (read_shape.rank < 2) {
+                            failure_detail = "AMIO field rank is less than two for '" + input_var_name + "'";
+                            amio_release_view(slab_view);
+                            return false;
+                        }
+                        const int fny_view = static_cast<int>(read_shape.extents[read_shape.rank - 2]);
+                        const int fnx = static_cast<int>(read_shape.extents[read_shape.rank - 1]);
+                        size_t total_elements = 1;
+                        for (int d = 0; d < read_shape.rank; ++d) {
+                            total_elements *= read_shape.extents[d];
+                        }
+                        // Global source latitude count: the full grid the
+                        // downstream regrid indexes against. For a windowed read
+                        // this is the describe shape's lat extent; for a full read
+                        // it equals the view's lat extent.
+                        const int fny_global = use_window ? fny_global_full : fny_view;
+                        if (fny_global <= 0 || fnx <= 0) {
+                            failure_detail = "AMIO view has non-positive source geometry for '" + input_var_name + "'";
+                            amio_release_view(slab_view);
+                            return false;
+                        }
+                        // View record geometry (windowed or full) and global record
+                        // geometry (what `out` is sized to).
+                        const size_t view_spatial = static_cast<size_t>(fny_view) * fnx;
+                        const size_t view_record_elements = static_cast<size_t>(field_nlev) * view_spatial;
+                        const size_t global_spatial = static_cast<size_t>(fny_global) * fnx;
+                        const size_t global_record_elements = static_cast<size_t>(field_nlev) * global_spatial;
+                        if (view_spatial == 0 || view_record_elements == 0 || total_elements % view_record_elements != 0) {
+                            failure_detail = "AMIO field shape is incompatible with configured levels=" + std::to_string(field_nlev) + " for '" +
+                                             input_var_name + "'";
+                            amio_release_view(slab_view);
+                            return false;
+                        }
+                        const size_t records_in_view = total_elements / view_record_elements;
+                        const size_t record_index = records_in_view > 1 ? static_cast<size_t>(t_idx) : 0;
+                        if (record_index >= records_in_view) {
+                            failure_detail = "AMIO view does not contain requested record " + std::to_string(t_idx) + " for '" + input_var_name + "'";
+                            amio_release_view(slab_view);
+                            return false;
+                        }
+                        const size_t view_offset = record_index * view_record_elements;
+
+                        const bool is_float = (view_size == total_elements * sizeof(float));
+                        const bool is_double = (view_size == total_elements * sizeof(double));
+                        if (!is_float && !is_double) {
+                            failure_detail = "AMIO returned an unsupported element size for '" + input_var_name + "'";
+                            amio_release_view(slab_view);
+                            return false;
+                        }
+
+                        // Scatter into global geometry. Full read: window covers
+                        // every row, so this reduces to a straight widened copy.
+                        // Windowed read: place rows [src_j0, src_j0+src_rows) at
+                        // their global positions; untouched rows stay zero (and are
+                        // provably never referenced by the regrid).
+                        const int win_j0 = use_window ? plan.src_j0 : 0;
+                        const int win_rows = use_window ? plan.src_rows : fny_view;
+                        out.assign(global_record_elements, 0.0);
+                        for (int level = 0; level < field_nlev; ++level) {
+                            const size_t view_level_base = view_offset + static_cast<size_t>(level) * view_spatial;
+                            const size_t global_level_base = static_cast<size_t>(level) * global_spatial;
+                            for (int wr = 0; wr < win_rows; ++wr) {
+                                const int gr = win_j0 + wr;
+                                if (gr < 0 || gr >= fny_global) {
+                                    continue;
+                                }
+                                const size_t src_row = view_level_base + static_cast<size_t>(wr) * fnx;
+                                const size_t dst_row = global_level_base + static_cast<size_t>(gr) * fnx;
+                                if (is_float) {
+                                    const float* p = static_cast<const float*>(view_data);
+                                    for (int i = 0; i < fnx; ++i) out[dst_row + i] = static_cast<double>(p[src_row + i]);
+                                } else {
+                                    const double* p = static_cast<const double*>(view_data);
+                                    for (int i = 0; i < fnx; ++i) out[dst_row + i] = p[src_row + i];
+                                }
+                            }
+                        }
+                        slab_nx = fnx;
+                        slab_ny = fny_global;
+                        amio_release_view(slab_view);
+                        CECE_LOG_DEBUG("[DRIVER] Read slab t=" + std::to_string(t_idx) + " for '" + input_var_name + "': window rows [" +
+                                       std::to_string(win_j0) + "," + std::to_string(win_j0 + win_rows) + ") of " + std::to_string(fny_global) + "x" +
+                                       std::to_string(fnx) + "x" + std::to_string(field_nlev) + " (global buffer " +
+                                       std::to_string(global_record_elements) + " elements, view " + std::to_string(view_record_elements) +
+                                       ", records_in_view=" + std::to_string(records_in_view) + ", " + (is_float ? "float32" : "float64") + ")");
+                        return true;
+                    };
+
+                    // Read the lower record (record i0) on the source grid. This
+                    // guard is identical to the pre-cache path; every rank agrees on
+                    // readiness before either sub-case proceeds.
+                    std::vector<double> src;
+                    int file_nx = 0;
+                    int file_ny = 0;
+                    const bool local_lower_ready = bracket_ready && read_slab(bracket.i0, src, file_nx, file_ny);
+                    bool have_data = collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, local_lower_ready,
+                                                          "lower AMIO slab readiness for '" + var_name + "'", failure_detail);
+
+                    if (needs_upper_record) {
+                        // ---- Tier 3 interpolation sub-case: rebuild endpoints ----
+                        // Read the upper record (record i1) into srcB with the same
+                        // readiness guard the pre-cache path used, then regrid EACH
+                        // endpoint separately on the destination grid instead of
+                        // blending on the source grid and regridding once. Because
+                        // regrid is linear, (1-w)*R(A)+w*R(B) == R((1-w)A+w*B), and
+                        // caching R(A)/R(B) lets same-index/different-weight steps
+                        // skip both reads and both regrids (Req 1.4, 2.3, 3.1, 3.2,
+                        // 5.3, 5.4).
+                        std::vector<double> srcB;
+                        if (have_data) {
+                            int upper_nx = 0;
+                            int upper_ny = 0;
+                            const bool local_upper_ready = read_slab(bracket.i1, srcB, upper_nx, upper_ny) && srcB.size() == src.size() &&
+                                                           upper_nx == file_nx && upper_ny == file_ny;
+                            have_data = collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, local_upper_ready,
+                                                             "upper AMIO slab readiness for '" + var_name + "'", failure_detail);
+                        }
+
+                        if (have_data) {
+                            // Regrid each endpoint into this rank's latitude band.
+                            // RegridToBandBuffer owns its own source/metadata
+                            // readiness gate, int-match collectives, and the retained
+                            // pre-gather allreduce(MIN), so both calls run in
+                            // lock-step across ranks. All ranks reach BOTH calls
+                            // (they are inside the collective-agreed have_data branch,
+                            // not behind any rank-local condition), keeping the
+                            // collective sequence identical on every rank
+                            // (Req 4.2, 4.3, 4.5).
+                            //
+                            // epA/epB are band buffers of size
+                            // field_nlev * nx_ * band_.ny_local (the per-level
+                            // MPI_Allgatherv was removed in task 3.2), so the blend,
+                            // the endpoint cache, and the refreshed slice cache below
+                            // are all band-sized. built_ny stores band_.ny_local so
+                            // the Tier-2 gate compares like-for-like. On the
+                            // single-rank path (ny_local == ny_) this is byte-for-byte
+                            // the former global blend/cache (Req 3.1, 3.2, 7.5).
+                            std::vector<double> epA;
+                            std::vector<double> epB;
+                            const bool regridA_ok = RegridToBandBuffer(var_name, plan, src, file_nx, file_ny, field_nlev, epA, failure_detail);
+                            const bool regridB_ok = RegridToBandBuffer(var_name, plan, srcB, file_nx, file_ny, field_nlev, epB, failure_detail);
+
+                            if (regridA_ok && regridB_ok) {
+                                // Store the endpoint cache keyed on (i0, i1) only; the
+                                // weight is intentionally excluded so later same-index
+                                // steps re-hit Tier 2 (Req 1.1, 1.2, 1.3). Blend from
+                                // epA/epB BEFORE moving them into the cache so both the
+                                // cache and the blend see the same values.
+                                const double w = bracket.weight;
+                                const size_t blend_size = static_cast<size_t>(field_nlev) * nx_ * band_.ny_local;
+                                std::vector<double> blended(blend_size);
+                                for (size_t k = 0; k < blend_size; ++k) {
+                                    blended[k] = (1.0 - w) * epA[k] + w * epB[k];
+                                }
+
+                                endpoint_cache.cached_i0 = bracket.i0;
+                                endpoint_cache.cached_i1 = bracket.i1;
+                                endpoint_cache.endpoint_i0 = std::move(epA);
+                                endpoint_cache.endpoint_i1 = std::move(epB);
+                                endpoint_cache.built_field_nlev = field_nlev;
+                                endpoint_cache.built_nx = nx_;
+                                endpoint_cache.built_ny = band_.ny_local;
+                                endpoint_cache.valid = true;
+
+                                // Surface the destination-grid blend to the caller,
+                                // then write it back through the same core-import
+                                // shape gate the other tiers use.
+                                ingest_buffer = std::move(blended);
+                                read_success = WriteBandToImport(var_name, ingest_buffer, field_nlev, cece_core_data_ptr, failure_detail);
+                                if (read_success) {
+                                    // Refresh the slice cache so an immediate exact
+                                    // repeat (same indices AND weight) re-hits Tier 1
+                                    // (Req 3.3, 9.4). Band-sized.
+                                    slice_cache.last_bracket = bracket;
+                                    slice_cache.ingest_buffer = ingest_buffer;
+                                    slice_cache.ingest_size = static_cast<size_t>(field_nlev) * nx_ * band_.ny_local;
+                                    slice_cache.valid = true;
+                                }
                             } else {
-                                const double* p = static_cast<const double*>(view_data);
-                                for (int i = 0; i < fnx; ++i) out[dst_row + i] = p[src_row + i];
+                                // A regrid failed on this refresh: invalidate the
+                                // endpoint entry so no stale endpoint is reused and
+                                // leave read_success false. The failure surfaces via
+                                // failure_detail and the trailing collective_all_ready
+                                // on read_success (Req 6.4).
+                                endpoint_cache.valid = false;
                             }
                         }
-                    }
-                    slab_nx = fnx;
-                    slab_ny = fny_global;
-                    amio_release_view(slab_view);
-                    CECE_LOG_DEBUG("[DRIVER] Read slab t=" + std::to_string(t_idx) + " for '" + input_var_name + "': window rows [" +
-                                   std::to_string(win_j0) + "," + std::to_string(win_j0 + win_rows) + ") of " + std::to_string(fny_global) + "x" +
-                                   std::to_string(fnx) + "x" + std::to_string(field_nlev) + " (global buffer " + std::to_string(global_record_elements) +
-                                   " elements, view " + std::to_string(view_record_elements) + ", records_in_view=" + std::to_string(records_in_view) +
-                                   ", " + (is_float ? "float32" : "float64") + ")");
-                    return true;
-                };
-
-                // Read the lower record (record i0) on the source grid. This
-                // guard is identical to the pre-cache path; every rank agrees on
-                // readiness before either sub-case proceeds.
-                std::vector<double> src;
-                int file_nx = 0;
-                int file_ny = 0;
-                const bool local_lower_ready = bracket_ready && read_slab(bracket.i0, src, file_nx, file_ny);
-                bool have_data = collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, local_lower_ready, "lower AMIO slab readiness for '" + var_name + "'", failure_detail);
-
-                if (needs_upper_record) {
-                    // ---- Tier 3 interpolation sub-case: rebuild endpoints ----
-                    // Read the upper record (record i1) into srcB with the same
-                    // readiness guard the pre-cache path used, then regrid EACH
-                    // endpoint separately on the destination grid instead of
-                    // blending on the source grid and regridding once. Because
-                    // regrid is linear, (1-w)*R(A)+w*R(B) == R((1-w)A+w*B), and
-                    // caching R(A)/R(B) lets same-index/different-weight steps
-                    // skip both reads and both regrids (Req 1.4, 2.3, 3.1, 3.2,
-                    // 5.3, 5.4).
-                    std::vector<double> srcB;
-                    if (have_data) {
-                        int upper_nx = 0;
-                        int upper_ny = 0;
-                        const bool local_upper_ready = read_slab(bracket.i1, srcB, upper_nx, upper_ny) && srcB.size() == src.size() &&
-                                                       upper_nx == file_nx && upper_ny == file_ny;
-                        have_data =
-                            collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, local_upper_ready, "upper AMIO slab readiness for '" + var_name + "'", failure_detail);
-                    }
-
-                    if (have_data) {
-                        // Regrid each endpoint into this rank's latitude band.
-                        // RegridToBandBuffer owns its own source/metadata
-                        // readiness gate, int-match collectives, and the retained
-                        // pre-gather allreduce(MIN), so both calls run in
-                        // lock-step across ranks. All ranks reach BOTH calls
-                        // (they are inside the collective-agreed have_data branch,
-                        // not behind any rank-local condition), keeping the
-                        // collective sequence identical on every rank
-                        // (Req 4.2, 4.3, 4.5).
-                        //
-                        // epA/epB are band buffers of size
-                        // field_nlev * nx_ * band_.ny_local (the per-level
-                        // MPI_Allgatherv was removed in task 3.2), so the blend,
-                        // the endpoint cache, and the refreshed slice cache below
-                        // are all band-sized. built_ny stores band_.ny_local so
-                        // the Tier-2 gate compares like-for-like. On the
-                        // single-rank path (ny_local == ny_) this is byte-for-byte
-                        // the former global blend/cache (Req 3.1, 3.2, 7.5).
-                        std::vector<double> epA;
-                        std::vector<double> epB;
-                        const bool regridA_ok = RegridToBandBuffer(var_name, plan, src, file_nx, file_ny, field_nlev, epA, failure_detail);
-                        const bool regridB_ok = RegridToBandBuffer(var_name, plan, srcB, file_nx, file_ny, field_nlev, epB, failure_detail);
-
-                        if (regridA_ok && regridB_ok) {
-                            // Store the endpoint cache keyed on (i0, i1) only; the
-                            // weight is intentionally excluded so later same-index
-                            // steps re-hit Tier 2 (Req 1.1, 1.2, 1.3). Blend from
-                            // epA/epB BEFORE moving them into the cache so both the
-                            // cache and the blend see the same values.
-                            const double w = bracket.weight;
-                            const size_t blend_size = static_cast<size_t>(field_nlev) * nx_ * band_.ny_local;
-                            std::vector<double> blended(blend_size);
-                            for (size_t k = 0; k < blend_size; ++k) {
-                                blended[k] = (1.0 - w) * epA[k] + w * epB[k];
-                            }
-
-                            endpoint_cache.cached_i0 = bracket.i0;
-                            endpoint_cache.cached_i1 = bracket.i1;
-                            endpoint_cache.endpoint_i0 = std::move(epA);
-                            endpoint_cache.endpoint_i1 = std::move(epB);
-                            endpoint_cache.built_field_nlev = field_nlev;
-                            endpoint_cache.built_nx = nx_;
-                            endpoint_cache.built_ny = band_.ny_local;
-                            endpoint_cache.valid = true;
-
-                            // Surface the destination-grid blend to the caller,
-                            // then write it back through the same core-import
-                            // shape gate the other tiers use.
-                            ingest_buffer = std::move(blended);
-                            read_success = WriteBandToImport(var_name, ingest_buffer, field_nlev, cece_core_data_ptr, failure_detail);
-                            if (read_success) {
-                                // Refresh the slice cache so an immediate exact
-                                // repeat (same indices AND weight) re-hits Tier 1
-                                // (Req 3.3, 9.4). Band-sized.
-                                slice_cache.last_bracket = bracket;
-                                slice_cache.ingest_buffer = ingest_buffer;
-                                slice_cache.ingest_size = static_cast<size_t>(field_nlev) * nx_ * band_.ny_local;
-                                slice_cache.valid = true;
-                            }
-                        } else {
-                            // A regrid failed on this refresh: invalidate the
-                            // endpoint entry so no stale endpoint is reused and
-                            // leave read_success false. The failure surfaces via
-                            // failure_detail and the trailing collective_all_ready
-                            // on read_success (Req 6.4).
-                            endpoint_cache.valid = false;
+                    } else if (have_data) {
+                        // ---- Tier 3 single-record sub-case (unchanged) ----
+                        // Reached when !needs_upper_record and the collective-agreed
+                        // "lower AMIO slab readiness" guard read record bracket.i0
+                        // into src. No temporal interpolation, so there is no upper
+                        // endpoint and nothing to cache for interpolation reuse: the
+                        // endpoint cache is intentionally NOT populated here. Regrid
+                        // the single record through the band assembly path exactly as
+                        // the pre-cache code did (Req 2.5, 5.2).
+                        read_success = AssembleBandField(var_name, plan, src, file_nx, file_ny, field_nlev, stream_view, cece_core_data_ptr,
+                                                         ingest_buffer, failure_detail);
+                        if (read_success) {
+                            // Refresh the slice cache with the freshly computed
+                            // ingest buffer and the bracket that produced it, so a
+                            // later step resolving the same bracket can reuse it
+                            // (Req 3.3, 9.4). The band buffer is sized
+                            // field_nlev * nx_ * ny_local.
+                            slice_cache.last_bracket = bracket;
+                            slice_cache.ingest_buffer = ingest_buffer;
+                            slice_cache.ingest_size = static_cast<size_t>(field_nlev) * nx_ * band_.ny_local;
+                            slice_cache.valid = true;
                         }
                     }
-                } else if (have_data) {
-                    // ---- Tier 3 single-record sub-case (unchanged) ----
-                    // Reached when !needs_upper_record and the collective-agreed
-                    // "lower AMIO slab readiness" guard read record bracket.i0
-                    // into src. No temporal interpolation, so there is no upper
-                    // endpoint and nothing to cache for interpolation reuse: the
-                    // endpoint cache is intentionally NOT populated here. Regrid
-                    // the single record through the band assembly path exactly as
-                    // the pre-cache code did (Req 2.5, 5.2).
-                    read_success = AssembleBandField(var_name, plan, src, file_nx, file_ny, field_nlev, stream_view, cece_core_data_ptr,
-                                                     ingest_buffer, failure_detail);
-                    if (read_success) {
-                        // Refresh the slice cache with the freshly computed
-                        // ingest buffer and the bracket that produced it, so a
-                        // later step resolving the same bracket can reuse it
-                        // (Req 3.3, 9.4). The band buffer is sized
-                        // field_nlev * nx_ * ny_local.
-                        slice_cache.last_bracket = bracket;
-                        slice_cache.ingest_buffer = ingest_buffer;
-                        slice_cache.ingest_size = static_cast<size_t>(field_nlev) * nx_ * band_.ny_local;
-                        slice_cache.valid = true;
-                    }
-                }
                 }  // end Tier 3 (cache-miss / rollover / single-record) branch
             }
-            read_success = collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, read_success, "band field assembly for '" + var_name + "'", failure_detail);
+            read_success = collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, read_success,
+                                                "band field assembly for '" + var_name + "'", failure_detail);
             // The AMIO handle set persists in amio_handles_ across timesteps
             // (Req 2.2, 9.1); it is closed/finalized only in the destructor
             // (task 10.1). No per-step amio_close/amio_finalize, no manifest
@@ -1710,7 +1718,8 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
         if (!local_ingest_size_ready) {
             failure_detail = "internal ingest buffer size mismatch for field '" + var_name + "'";
         }
-        if (!collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, local_ingest_size_ready, "ingest-buffer readiness for '" + var_name + "'", failure_detail)) {
+        if (!collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, local_ingest_size_ready,
+                                  "ingest-buffer readiness for '" + var_name + "'", failure_detail)) {
             CECE_LOG_ERROR("[DRIVER FATAL] " + failure_detail);
             return false;
         }
@@ -1733,8 +1742,8 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
         // also naturally neutralizes IngestEmissionsInline's copy-back for those
         // fields: its HasCachedField(...) check now returns false, so it skips
         // them. No edit to IngestEmissionsInline itself is required.
-        CECE_LOG_INFO("[DRIVER] Ingested field '" + var_name + "' with band shape " + std::to_string(nx_) + "x" + std::to_string(band_.ny_local) + "x" +
-                      std::to_string(field_nlev));
+        CECE_LOG_INFO("[DRIVER] Ingested field '" + var_name + "' with band shape " + std::to_string(nx_) + "x" + std::to_string(band_.ny_local) +
+                      "x" + std::to_string(field_nlev));
     }
 
     step_index_++;

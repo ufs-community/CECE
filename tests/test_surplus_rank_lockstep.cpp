@@ -199,7 +199,8 @@ std::vector<double> RunOutputGatherOneField(const BandDecomposition& band, int n
     // Broadcast the assembled global field so all ranks hold identical data
     // (mirrors the writer's collective-write broadcast). Every rank enters.
     if (rank != 0) global_field.assign(static_cast<std::size_t>(nz) * global_level_elems, 0.0);
-    const int brc = MPI_Bcast(global_field.data(), static_cast<int>(static_cast<std::size_t>(nz) * global_level_elems), MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    const int brc =
+        MPI_Bcast(global_field.data(), static_cast<int>(static_cast<std::size_t>(nz) * global_level_elems), MPI_DOUBLE, 0, MPI_COMM_WORLD);
     EXPECT_EQ(brc, MPI_SUCCESS) << "Output_Gather MPI_Bcast failed";
     ++collective_count;
 

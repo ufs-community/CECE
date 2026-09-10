@@ -90,12 +90,12 @@ struct CellInputs {
 // that exercise both emitting and non-emitting branches of the Ginoux kernel.
 CellInputs GenCell() {
     CellInputs c;
-    c.u10m = *rc::gen::inRange(-1500, 1500) / 100.0;   // [-15, 15] m/s
-    c.v10m = *rc::gen::inRange(-1500, 1500) / 100.0;   // [-15, 15] m/s
-    c.gwettop = *rc::gen::inRange(0, 100) / 100.0;     // [0, 1]
+    c.u10m = *rc::gen::inRange(-1500, 1500) / 100.0;     // [-15, 15] m/s
+    c.v10m = *rc::gen::inRange(-1500, 1500) / 100.0;     // [-15, 15] m/s
+    c.gwettop = *rc::gen::inRange(0, 100) / 100.0;       // [0, 1]
     c.oro = (*rc::gen::inRange(0, 4) == 0) ? 0.0 : 1.0;  // ~75% land
-    c.fraclake = *rc::gen::inRange(0, 40) / 100.0;     // [0, 0.4]
-    c.du_src = *rc::gen::inRange(0, 300) / 100.0;      // [0, 3]
+    c.fraclake = *rc::gen::inRange(0, 40) / 100.0;       // [0, 0.4]
+    c.du_src = *rc::gen::inRange(0, 300) / 100.0;        // [0, 3]
     return c;
 }
 
@@ -114,8 +114,7 @@ std::unique_ptr<PhysicsScheme> MakeGinoux() {
 // export emissions host view (nx, ny_run, nbins) copied out into a flat vector
 // in (i, jrel, n) order.
 std::vector<double> RunGinouxOverRows(const std::vector<std::vector<CellInputs>>& global,  // [j][i]
-                                      const std::vector<double>& radii, int nx, int nbins, int row_offset,
-                                      int ny_run) {
+                                      const std::vector<double>& radii, int nx, int nbins, int row_offset, int ny_run) {
     auto scheme = MakeGinoux();
     RC_ASSERT(scheme != nullptr);
 

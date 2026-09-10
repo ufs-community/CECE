@@ -64,7 +64,9 @@ namespace cece {
 // Task 4.3). Exercises the production comparison directly, not a copy.
 // ============================================================================
 struct EndpointCacheTestAccess {
-    static bool Equal(const RecordBracket& a, const RecordBracket& b) { return CeceDriverOrchestrator::bracket_equal(a, b); }
+    static bool Equal(const RecordBracket& a, const RecordBracket& b) {
+        return CeceDriverOrchestrator::bracket_equal(a, b);
+    }
 };
 
 namespace {

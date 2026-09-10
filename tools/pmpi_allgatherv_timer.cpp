@@ -28,8 +28,8 @@ void add_ns(double ns) {
 
 extern "C" {
 
-int MPI_Allgatherv(const void* sendbuf, int sendcount, MPI_Datatype sendtype, void* recvbuf,
-                   const int* recvcounts, const int* displs, MPI_Datatype recvtype, MPI_Comm comm) {
+int MPI_Allgatherv(const void* sendbuf, int sendcount, MPI_Datatype sendtype, void* recvbuf, const int* recvcounts, const int* displs,
+                   MPI_Datatype recvtype, MPI_Comm comm) {
     const auto t0 = std::chrono::steady_clock::now();
     const int rc = PMPI_Allgatherv(sendbuf, sendcount, sendtype, recvbuf, recvcounts, displs, recvtype, comm);
     const auto t1 = std::chrono::steady_clock::now();
@@ -43,7 +43,11 @@ void pmpi_allgatherv_reset() {
     g_calls.store(0, std::memory_order_relaxed);
     g_total_ns.store(0.0, std::memory_order_relaxed);
 }
-unsigned long long pmpi_allgatherv_calls() { return g_calls.load(std::memory_order_relaxed); }
-double pmpi_allgatherv_total_ms() { return g_total_ns.load(std::memory_order_relaxed) / 1.0e6; }
+unsigned long long pmpi_allgatherv_calls() {
+    return g_calls.load(std::memory_order_relaxed);
+}
+double pmpi_allgatherv_total_ms() {
+    return g_total_ns.load(std::memory_order_relaxed) / 1.0e6;
+}
 
 }  // extern "C"
