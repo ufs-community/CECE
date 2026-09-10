@@ -2,11 +2,16 @@
  * @file test_cece_time_indexing.cpp
  * @brief Tests for resolving a simulation date-time to file record indices.
  *
- * Covers the cece::detail helpers behind data stream time indexing:
- *   - parse_cf_units: decoding CF "<unit> since <reference>" strings
- *   - bracket_from_cadence: the arithmetic cadence fallback (hourly/daily/weekly/monthly)
- *   - bracket_from_coords: the decoded time-axis path
- *   - find_bracket: the shared bracketing primitive both paths delegate to
+ * Covers the cece::detail helpers behind data stream time indexing, one suite
+ * per function under test:
+ *   - CeceCadenceArithmetic: bracket_from_cadence, the arithmetic fallback
+ *   - CeceAxisDecode:        bracket_from_coords, the decoded time-axis path
+ *   - CeceFindBracket:       find_bracket, the primitive both paths delegate to
+ *   - CeceSimDateTime:       parse_sim_datetime
+ *   - CeceCycleYearAlignment and CeceStreamConfigValidation cut across these
+ *
+ * CF units parsing is covered by test_cece_calendar.cpp and view widening by
+ * test_cece_amio_utils.cpp; both are used here to build decode-path fixtures.
  */
 
 #include <gtest/gtest.h>
@@ -20,7 +25,9 @@
 #include <tick/tick.hpp>
 #include <vector>
 
-#include "cece/cece_driver_facade.hpp"
+#include "cece/cece_amio_utils.hpp"
+#include "cece/cece_calendar.hpp"
+#include "cece/cece_time_indexing.hpp"
 
 namespace cece {
 
@@ -37,7 +44,7 @@ constexpr const char* kTwoDayHourlyUnits = "hours since 2000-01-01 00:00:00";
 
 }  // namespace
 
-TEST(CeceCadenceIndexing, HourlyCadence) {
+TEST(CeceCadenceArithmetic, HourlyCadence) {
     using namespace cece::detail;
 
     // Hourly cadence selects the hour-of-day profile record (0-23).
@@ -72,7 +79,7 @@ TEST(CeceCadenceIndexing, HourlyCadence) {
     EXPECT_EQ(br_clamp.i1, 11);
 }
 
-TEST(CeceCadenceIndexing, DailyCadenceNearest) {
+TEST(CeceCadenceArithmetic, DailyCadenceNearest) {
     using namespace cece::detail;
 
     // 2026-01-01 -> day_of_year = 1 -> record index 0
@@ -103,7 +110,7 @@ TEST(CeceCadenceIndexing, DailyCadenceNearest) {
     EXPECT_EQ(br_leap.i1, 365);
 }
 
-TEST(CeceCadenceIndexing, DailyCadenceLinear) {
+TEST(CeceCadenceArithmetic, DailyCadenceLinear) {
     using namespace cece::detail;
 
     // Single-year daily file (365 records). Mid-day convention: hour-of-day
@@ -134,7 +141,7 @@ TEST(CeceCadenceIndexing, DailyCadenceLinear) {
     EXPECT_NEAR(br_eve.weight, 0.25, 1e-9);
 }
 
-TEST(CeceCadenceIndexing, DailyCadenceLeapYearNormalization) {
+TEST(CeceCadenceArithmetic, DailyCadenceLeapYearNormalization) {
     using namespace cece::detail;
 
     // A 365-record daily climatology has no leap-day record, so every date
@@ -173,7 +180,7 @@ TEST(CeceCadenceIndexing, DailyCadenceLeapYearNormalization) {
     EXPECT_NEAR(lin.weight, 0.0, 1e-9);
 }
 
-TEST(CeceCadenceIndexing, DailyCadenceLeapAwareClimatologyInNonLeapYear) {
+TEST(CeceCadenceArithmetic, DailyCadenceLeapAwareClimatologyInNonLeapYear) {
     using namespace cece::detail;
 
     // The mirror case: a 366-record climatology carries a Feb 29 record that a
@@ -188,7 +195,7 @@ TEST(CeceCadenceIndexing, DailyCadenceLeapAwareClimatologyInNonLeapYear) {
     EXPECT_EQ(bracket_from_cadence("daily", "nearest", parse_sim_datetime("2024-12-31T00:00:00"), 366).i0, 365);
 }
 
-TEST(CeceCadenceIndexing, DailyCadenceLinearLeapYearOverflow) {
+TEST(CeceCadenceArithmetic, DailyCadenceLinearLeapYearOverflow) {
     using namespace cece::detail;
 
     // A 365-record daily climatology used during a leap simulation year.
@@ -231,7 +238,7 @@ TEST(CeceCadenceIndexing, DailyCadenceLinearLeapYearOverflow) {
     EXPECT_NEAR(br_nonleap.weight, 0.0, 1e-9);
 }
 
-TEST(CeceCadenceIndexing, WeeklyCadenceISO8601) {
+TEST(CeceCadenceArithmetic, WeeklyCadenceISO8601) {
     using namespace cece::detail;
 
     // 2026-01-05 is Monday -> ISO 1 -> 0-indexed profile index 0
@@ -262,7 +269,7 @@ TEST(CeceCadenceIndexing, WeeklyCadenceISO8601) {
     EXPECT_EQ(br_thu.i1, 3);
 }
 
-TEST(CeceCadenceIndexing, MonthlyCadenceNearestMultiYear) {
+TEST(CeceCadenceArithmetic, MonthlyCadenceNearestMultiYear) {
     using namespace cece::detail;
 
     // Simulation date: 2023-07-01 (July 2023)
@@ -295,7 +302,7 @@ TEST(CeceCadenceIndexing, MonthlyCadenceNearestMultiYear) {
     EXPECT_EQ(br_first.i1, 0);
 }
 
-TEST(CeceCadenceIndexing, MonthlyCadenceLinearMultiYear) {
+TEST(CeceCadenceArithmetic, MonthlyCadenceLinearMultiYear) {
     using namespace cece::detail;
 
     // Multi-year monthly file (288 records, 2000-2023) with linear interpolation.
@@ -309,7 +316,7 @@ TEST(CeceCadenceIndexing, MonthlyCadenceLinearMultiYear) {
     EXPECT_NEAR(br.weight, 0.0, 1e-9);
 }
 
-TEST(CeceCadenceIndexing, MonthlyCadenceLinearMultiYearBoundaryWrapCaveat) {
+TEST(CeceCadenceArithmetic, MonthlyCadenceLinearMultiYearBoundaryWrapCaveat) {
     using namespace cece::detail;
 
     // CAVEAT TEST (documents current fallback behaviour, not ideal semantics):
@@ -338,7 +345,7 @@ TEST(CeceCadenceIndexing, MonthlyCadenceLinearMultiYearBoundaryWrapCaveat) {
     EXPECT_NEAR(br_start.weight, 4.0 / 31.0 + 0.5, 1e-9);
 }
 
-TEST(CeceCadenceIndexing, MonthlyCadenceLinearClimatology) {
+TEST(CeceCadenceArithmetic, MonthlyCadenceLinearClimatology) {
     using namespace cece::detail;
 
     // 12-record climatology (yearFirst=0). Mid-month linear convention:
@@ -380,7 +387,7 @@ TEST(CeceCadenceIndexing, MonthlyCadenceLinearClimatology) {
     EXPECT_NEAR(br_jan.weight, 0.5, 1e-9);
 }
 
-TEST(CeceCadenceIndexing, MonthlyTaxmodeCycleAndLimit) {
+TEST(CeceCadenceArithmetic, MonthlyTaxmodeCycleAndLimit) {
     using namespace cece::detail;
 
     // Multi-year monthly file 2000-2023 (288 records). 2024 is one year past
@@ -438,7 +445,7 @@ TEST(CeceStreamConfigValidation, RejectsInvertedYearRange) {
     EXPECT_NO_THROW(validate_stream_temporal_config("monthly", "cycle", "linear", 0, 0, 0, ""));
 }
 
-TEST(CeceCadenceIndexing, InvertedYearRangeIsRejected) {
+TEST(CeceCadenceArithmetic, InvertedYearRangeIsRejected) {
     using namespace cece::detail;
 
     // yearLast == yearFirst - 1 makes the cycle span zero years. Before the
@@ -455,7 +462,7 @@ TEST(CeceCadenceIndexing, InvertedYearRangeIsRejected) {
     EXPECT_TRUE(ok.valid);
 }
 
-TEST(CeceCadenceIndexing, DecodeAppliesUtcOffset) {
+TEST(CeceAxisDecode, DecodeAppliesUtcOffset) {
     using namespace cece::detail;
 
     // Records 0..47 of "hours since 2000-01-01 00:00:00 -06:00" are 06Z, 07Z, ...
@@ -471,7 +478,7 @@ TEST(CeceCadenceIndexing, DecodeAppliesUtcOffset) {
     EXPECT_EQ(bracket_from_coords(raw, units_local, "gregorian", at_11z, "nearest").i0, 5);
 }
 
-TEST(CeceCadenceIndexing, LimitRejectionIsDistinguishedFromUnusableAxis) {
+TEST(CeceAxisDecode, LimitRejectionIsDistinguishedFromUnusableAxis) {
     using namespace cece::detail;
 
     const std::vector<double> raw = two_day_hourly_axis();
@@ -505,7 +512,7 @@ TEST(CeceCadenceIndexing, LimitRejectionIsDistinguishedFromUnusableAxis) {
     EXPECT_FALSE(inverted.out_of_range);
 }
 
-TEST(CeceCadenceIndexing, MultiYearDailyRemapUsesEffectiveYearDayOfYear) {
+TEST(CeceCadenceArithmetic, MultiYearDailyRemapUsesEffectiveYearDayOfYear) {
     using namespace cece::detail;
 
     // A 1095-record daily file covering 2021-2023 (no leap years). A leap
@@ -683,7 +690,7 @@ TEST(CeceCycleYearAlignment, Feb29ClampsOntoNonLeapFileYear) {
     EXPECT_EQ(br.i0, 1);
 }
 
-TEST(CeceCadenceIndexing, TimeAxisFallbackOnNullDataset) {
+TEST(CeceAxisDecode, TimeAxisFallbackOnNullDataset) {
     using namespace cece::detail;
 
     SimDateTime dt = parse_sim_datetime("2023-07-01T00:00:00");
@@ -691,7 +698,7 @@ TEST(CeceCadenceIndexing, TimeAxisFallbackOnNullDataset) {
     EXPECT_FALSE(br.valid);
 }
 
-TEST(CeceCadenceIndexing, InvalidAndCaseInsensitiveInputs) {
+TEST(CeceCadenceArithmetic, InvalidAndCaseInsensitiveInputs) {
     using namespace cece::detail;
 
     SimDateTime dt = parse_sim_datetime("2023-07-01T00:00:00");
@@ -724,92 +731,7 @@ TEST(CeceCadenceIndexing, InvalidAndCaseInsensitiveInputs) {
 // 2000-02-10 is exactly 40 days after a 2000-01-01 epoch.
 // ============================================================================
 
-TEST(CeceCfUnits, ParseFixedLengthUnits) {
-    using namespace cece::detail;
-
-    EXPECT_NEAR(parse_cf_units("seconds since 2000-01-01").unit_days, 1.0 / 86400.0, 1e-15);
-    EXPECT_NEAR(parse_cf_units("minutes since 2000-01-01").unit_days, 1.0 / 1440.0, 1e-15);
-    EXPECT_NEAR(parse_cf_units("hours since 2000-01-01").unit_days, 1.0 / 24.0, 1e-15);
-    EXPECT_NEAR(parse_cf_units("days since 2000-01-01").unit_days, 1.0, 1e-15);
-
-    // Abbreviations and case are both tolerated.
-    EXPECT_NEAR(parse_cf_units("Hrs SINCE 2000-01-01").unit_days, 1.0 / 24.0, 1e-15);
-    EXPECT_NEAR(parse_cf_units("  d  since 2000-01-01").unit_days, 1.0, 1e-15);
-}
-
-TEST(CeceCfUnits, ParseReferenceDateTime) {
-    using namespace cece::detail;
-
-    const CFTimeUnits full = parse_cf_units("hours since 1999-03-04T05:06:07");
-    ASSERT_TRUE(full.valid);
-    EXPECT_EQ(full.reference, (tick::Date_Time{1999, 3, 4, 5, 6, 7, 0}));
-
-    // A bare date leaves the time at midnight; a partial time fills only what is given.
-    const CFTimeUnits bare = parse_cf_units("days since 1850-1-2");
-    ASSERT_TRUE(bare.valid);
-    EXPECT_EQ(bare.reference, (tick::Date_Time{1850, 1, 2, 0, 0, 0, 0}));
-
-    const CFTimeUnits partial = parse_cf_units("days since 1850-01-02 12:30");
-    ASSERT_TRUE(partial.valid);
-    EXPECT_EQ(partial.reference, (tick::Date_Time{1850, 1, 2, 12, 30, 0, 0}));
-}
-
-TEST(CeceCfUnits, ParseHandlesZeroOffsetSuffixes) {
-    using namespace cece::detail;
-
-    // Fractional seconds and the various spellings of "UTC" are all common in
-    // real files, and all leave the reference unshifted.
-    for (const char* units : {"hours since 1900-01-01 00:00:00.0", "seconds since 1900-01-01 00:00:00 UTC", "days since 1900-01-01T00:00:00Z",
-                              "days since 1900-01-01 00:00:00+00:00"}) {
-        const CFTimeUnits u = parse_cf_units(units);
-        EXPECT_TRUE(u.valid) << units;
-        EXPECT_EQ(u.reference, (tick::Date_Time{1900, 1, 1, 0, 0, 0, 0})) << units;
-        EXPECT_NEAR(u.offset_days, 0.0, 1e-12) << units;
-    }
-}
-
-TEST(CeceCfUnits, ParseCapturesNonZeroUtcOffsets) {
-    using namespace cece::detail;
-
-    // A non-zero offset must not be discarded: the reference is given in that
-    // zone, so ignoring it shifts every selected record.
-    EXPECT_NEAR(parse_cf_units("hours since 2000-01-01 00:00:00 -06:00").offset_days, -0.25, 1e-12);
-    EXPECT_NEAR(parse_cf_units("hours since 2000-01-01 00:00:00 -0600").offset_days, -0.25, 1e-12);
-    EXPECT_NEAR(parse_cf_units("hours since 2000-01-01 00:00:00 -06").offset_days, -0.25, 1e-12);
-    EXPECT_NEAR(parse_cf_units("hours since 2000-01-01 00:00:00 +05:30").offset_days, 5.5 / 24.0, 1e-12);
-    EXPECT_NEAR(parse_cf_units("hours since 2000-01-01T00:00:00.000 -06:00").offset_days, -0.25, 1e-12);
-
-    // The reference itself is reported as written, not pre-shifted.
-    const CFTimeUnits cf = parse_cf_units("hours since 2000-01-01 00:00:00 -06:00");
-    EXPECT_TRUE(cf.valid);
-    EXPECT_EQ(cf.reference, (tick::Date_Time{2000, 1, 1, 0, 0, 0, 0}));
-
-    // A malformed offset makes the units undecodable rather than silently UTC.
-    EXPECT_FALSE(parse_cf_units("hours since 2000-01-01 00:00:00 +").valid);
-    EXPECT_FALSE(parse_cf_units("hours since 2000-01-01 00:00:00 -6:00").valid);
-    EXPECT_FALSE(parse_cf_units("hours since 2000-01-01 00:00:00 +25:00").valid);
-}
-
-TEST(CeceCfUnits, ParseRejectsUndecodableUnits) {
-    using namespace cece::detail;
-
-    // Calendar-ambiguous units.
-    EXPECT_FALSE(parse_cf_units("months since 2000-01-01").valid);
-    EXPECT_FALSE(parse_cf_units("years since 2000-01-01").valid);
-    EXPECT_FALSE(parse_cf_units("furlongs since 2000-01-01").valid);
-    // Missing or garbled units strings.
-    EXPECT_FALSE(parse_cf_units("").valid);
-    EXPECT_FALSE(parse_cf_units("time_counter").valid);
-    EXPECT_FALSE(parse_cf_units("days 2000-01-01").valid);
-    // Unparsable or out-of-range reference dates.
-    EXPECT_FALSE(parse_cf_units("days since not-a-date").valid);
-    EXPECT_FALSE(parse_cf_units("days since 2000").valid);
-    EXPECT_FALSE(parse_cf_units("days since 2000-01").valid);
-    EXPECT_FALSE(parse_cf_units("days since 2000-13-01").valid);
-    EXPECT_FALSE(parse_cf_units("days since 2000-01-32").valid);
-}
-
-TEST(CeceCadenceIndexing, DecodeDaysGregorian) {
+TEST(CeceAxisDecode, DecodeDaysGregorian) {
     using namespace cece::detail;
 
     // "days since 2000-01-01" start-of-month (2000 is a leap year: Mar 1 = 60).
@@ -828,7 +750,7 @@ TEST(CeceCadenceIndexing, DecodeDaysGregorian) {
     EXPECT_EQ(nr.i1, 1);
 }
 
-TEST(CeceCadenceIndexing, DecodeHoursUnitAndBlankCalendar) {
+TEST(CeceAxisDecode, DecodeHoursUnitAndBlankCalendar) {
     using namespace cece::detail;
 
     // Same axis in hours; a blank calendar defaults to gregorian. The 'T' in
@@ -843,7 +765,7 @@ TEST(CeceCadenceIndexing, DecodeHoursUnitAndBlankCalendar) {
     EXPECT_NEAR(lin.weight, 9.0 / 29.0, 1e-9);
 }
 
-TEST(CeceCadenceIndexing, DecodeNoLeapCalendar) {
+TEST(CeceAxisDecode, DecodeNoLeapCalendar) {
     using namespace cece::detail;
 
     // noleap calendar: February always has 28 days, so Mar 1 = day 59.
@@ -857,7 +779,7 @@ TEST(CeceCadenceIndexing, DecodeNoLeapCalendar) {
     EXPECT_NEAR(lin.weight, 9.0 / 28.0, 1e-9);  // (40 - 31) / (59 - 31)
 }
 
-TEST(CeceCadenceIndexing, DecodeNonDecodableUnitsDegrade) {
+TEST(CeceAxisDecode, DecodeNonDecodableUnitsDegrade) {
     using namespace cece::detail;
 
     const std::vector<double> raw = {0.0, 1.0, 2.0};
@@ -875,7 +797,7 @@ TEST(CeceCadenceIndexing, DecodeNonDecodableUnitsDegrade) {
     EXPECT_FALSE(bracket_from_coords(raw, "days since 2000-01-01", "", bad_dt, "linear").valid);
 }
 
-TEST(CeceCadenceIndexing, DecodeYearAlignRemap) {
+TEST(CeceAxisDecode, DecodeYearAlignRemap) {
     using namespace cece::detail;
 
     // File covers year 2000 (record 0). yearAlign=2020 means sim year 2020
@@ -890,7 +812,7 @@ TEST(CeceCadenceIndexing, DecodeYearAlignRemap) {
     EXPECT_NEAR(br.weight, 9.0 / 29.0, 1e-9);
 }
 
-TEST(CeceCadenceIndexing, DecodeTaxmode) {
+TEST(CeceAxisDecode, DecodeTaxmode) {
     using namespace cece::detail;
 
     // Jan-Mar 2000 file. Sim 2000-06-15 is 166 days in -> beyond day 60.
@@ -916,7 +838,7 @@ TEST(CeceCadenceIndexing, DecodeTaxmode) {
 
 // Direct tests for the shared generic bracketer that both the arithmetic and
 // axis paths now delegate to. Times are already in a common unit (days here).
-TEST(CeceCadenceIndexing, BracketTimesDirect) {
+TEST(CeceFindBracket, BracketTimesDirect) {
     using namespace cece::detail;
 
     const std::vector<double> times = {0.0, 31.0, 60.0};
@@ -961,7 +883,7 @@ TEST(CeceCadenceIndexing, BracketTimesDirect) {
     EXPECT_FALSE(find_bracket({}, 0.0, true, "extend").valid);
 }
 
-TEST(CeceCadenceIndexing, RejectsUnorderedAxis) {
+TEST(CeceFindBracket, RejectsUnorderedAxis) {
     using namespace cece::detail;
 
     // find_bracket binary-searches, so an out-of-order axis has no meaningful
@@ -983,7 +905,7 @@ TEST(CeceCadenceIndexing, RejectsUnorderedAxis) {
     EXPECT_NEAR(br.weight, 9.0 / 29.0, 1e-9);
 }
 
-TEST(CeceCadenceIndexing, DecodeRejectsDegenerateAxisSpan) {
+TEST(CeceAxisDecode, DecodeRejectsDegenerateAxisSpan) {
     using namespace cece::detail;
 
     const SimDateTime dt = parse_sim_datetime("2000-02-10T00:00:00");
@@ -1005,7 +927,7 @@ TEST(CeceCadenceIndexing, DecodeRejectsDegenerateAxisSpan) {
 // exactly on a record and nearest-neighbour is the meaningful assertion.
 // ============================================================================
 
-TEST(CeceCadenceIndexing, SeriesHourlyTwoDayFileWalksAllRecords) {
+TEST(CeceAxisDecode, SeriesHourlyTwoDayFileWalksAllRecords) {
     using namespace cece::detail;
 
     const std::vector<double> raw = two_day_hourly_axis();
@@ -1024,7 +946,7 @@ TEST(CeceCadenceIndexing, SeriesHourlyTwoDayFileWalksAllRecords) {
     }
 }
 
-TEST(CeceCadenceIndexing, SeriesHourlyDiffersFromHourlyProfile) {
+TEST(CeceAxisDecode, SeriesHourlyDiffersFromHourlyProfile) {
     using namespace cece::detail;
 
     const std::vector<double> raw = two_day_hourly_axis();
@@ -1040,7 +962,7 @@ TEST(CeceCadenceIndexing, SeriesHourlyDiffersFromHourlyProfile) {
     EXPECT_EQ(bracket_from_cadence("hourly", "nearest", day2, 48).i0, 5);
 }
 
-TEST(CeceCadenceIndexing, SeriesHourlyRunOutlastsFile) {
+TEST(CeceAxisDecode, SeriesHourlyRunOutlastsFile) {
     using namespace cece::detail;
 
     const std::vector<double> raw = two_day_hourly_axis();
@@ -1080,7 +1002,7 @@ TEST(CeceCadenceIndexing, SeriesHourlyRunOutlastsFile) {
 // the wrong record (or the wrong interpolation weight) on sub-hourly axes.
 // ============================================================================
 
-TEST(CeceCadenceIndexing, ParseKeepsMinutesAndSeconds) {
+TEST(CeceSimDateTime, ParseKeepsMinutesAndSeconds) {
     using namespace cece::detail;
 
     const SimDateTime dt = parse_sim_datetime("2000-01-01T00:40:30");
@@ -1090,7 +1012,7 @@ TEST(CeceCadenceIndexing, ParseKeepsMinutesAndSeconds) {
     EXPECT_EQ(dt.second, 30);
 }
 
-TEST(CeceCadenceIndexing, DecodeSubHourlySimTimeOnHourlyAxis) {
+TEST(CeceAxisDecode, DecodeSubHourlySimTimeOnHourlyAxis) {
     using namespace cece::detail;
 
     const std::vector<double> raw = two_day_hourly_axis();
@@ -1112,7 +1034,7 @@ TEST(CeceCadenceIndexing, DecodeSubHourlySimTimeOnHourlyAxis) {
     EXPECT_NEAR(lin.weight, 0.5, 1e-9);
 }
 
-TEST(CeceCadenceIndexing, DecodeQuarterHourlyAxis) {
+TEST(CeceAxisDecode, DecodeQuarterHourlyAxis) {
     using namespace cece::detail;
 
     // Six 15-minute records covering 00:00 .. 01:15.
@@ -1141,7 +1063,7 @@ TEST(CeceCadenceIndexing, DecodeQuarterHourlyAxis) {
     EXPECT_NEAR(lin.weight, 0.5, 1e-9);
 }
 
-TEST(CeceCadenceIndexing, SubHourlyRefinesArithmeticFraction) {
+TEST(CeceCadenceArithmetic, SubHourlyRefinesArithmeticFraction) {
     using namespace cece::detail;
 
     // Daily mid-day convention: 06:00 and 06:30 must not produce the same weight.
@@ -1163,7 +1085,7 @@ TEST(CeceCadenceIndexing, SubHourlyRefinesArithmeticFraction) {
     EXPECT_NEAR(mon.weight, (0.6 / 24.0) / 30.0, 1e-12);
 }
 
-TEST(CeceCadenceIndexing, DecodeRejectsIntegerAxisMisreadAsFloat) {
+TEST(CeceAxisDecode, DecodeRejectsIntegerAxisMisreadAsFloat) {
     using namespace cece::detail;
 
     // CF time coordinates are commonly stored as integers. Reading an int32
@@ -1190,100 +1112,7 @@ TEST(CeceCadenceIndexing, DecodeRejectsIntegerAxisMisreadAsFloat) {
     EXPECT_EQ(ok.i0, 29);
 }
 
-// ============================================================================
-// Widening AMIO view payloads. The view's declared element type -- not its
-// byte size -- decides how the payload is read, and CF packing attributes are
-// applied on the way to double.
-// ============================================================================
-
-TEST(CeceViewWidening, DtypeSizes) {
-    using namespace cece::detail;
-
-    EXPECT_EQ(amio_dtype_size(AMIO_DTYPE_I8), 1u);
-    EXPECT_EQ(amio_dtype_size(AMIO_DTYPE_U8), 1u);
-    EXPECT_EQ(amio_dtype_size(AMIO_DTYPE_I16), 2u);
-    EXPECT_EQ(amio_dtype_size(AMIO_DTYPE_U16), 2u);
-    EXPECT_EQ(amio_dtype_size(AMIO_DTYPE_I32), 4u);
-    EXPECT_EQ(amio_dtype_size(AMIO_DTYPE_U32), 4u);
-    EXPECT_EQ(amio_dtype_size(AMIO_DTYPE_F32), 4u);
-    EXPECT_EQ(amio_dtype_size(AMIO_DTYPE_I64), 8u);
-    EXPECT_EQ(amio_dtype_size(AMIO_DTYPE_U64), 8u);
-    EXPECT_EQ(amio_dtype_size(AMIO_DTYPE_F64), 8u);
-
-    // An unknown tag is reported as unhandled rather than guessed.
-    EXPECT_EQ(amio_dtype_size(static_cast<amio_dtype_t>(999)), 0u);
-}
-
-TEST(CeceViewWidening, WidensEveryNumericType) {
-    using namespace cece::detail;
-
-    std::vector<double> out;
-
-    const float f32[] = {0.5f, -1.5f};
-    ASSERT_TRUE(widen_amio_elements(f32, AMIO_DTYPE_F32, 2, 1.0, 0.0, out));
-    EXPECT_EQ(out, (std::vector<double>{0.5, -1.5}));
-
-    const double f64[] = {0.25, -2.75};
-    ASSERT_TRUE(widen_amio_elements(f64, AMIO_DTYPE_F64, 2, 1.0, 0.0, out));
-    EXPECT_EQ(out, (std::vector<double>{0.25, -2.75}));
-
-    const std::int8_t i8[] = {-128, 127};
-    ASSERT_TRUE(widen_amio_elements(i8, AMIO_DTYPE_I8, 2, 1.0, 0.0, out));
-    EXPECT_EQ(out, (std::vector<double>{-128.0, 127.0}));
-
-    const std::int16_t i16[] = {-32768, 32767};
-    ASSERT_TRUE(widen_amio_elements(i16, AMIO_DTYPE_I16, 2, 1.0, 0.0, out));
-    EXPECT_EQ(out, (std::vector<double>{-32768.0, 32767.0}));
-
-    const std::int32_t i32[] = {0, 6, 12, 18};
-    ASSERT_TRUE(widen_amio_elements(i32, AMIO_DTYPE_I32, 4, 1.0, 0.0, out));
-    EXPECT_EQ(out, (std::vector<double>{0.0, 6.0, 12.0, 18.0}));
-
-    const std::int64_t i64[] = {1, std::int64_t{1} << 40};
-    ASSERT_TRUE(widen_amio_elements(i64, AMIO_DTYPE_I64, 2, 1.0, 0.0, out));
-    EXPECT_EQ(out, (std::vector<double>{1.0, 1099511627776.0}));
-
-    const std::uint8_t u8[] = {0, 255};
-    ASSERT_TRUE(widen_amio_elements(u8, AMIO_DTYPE_U8, 2, 1.0, 0.0, out));
-    EXPECT_EQ(out, (std::vector<double>{0.0, 255.0}));
-
-    const std::uint16_t u16[] = {0, 65535};
-    ASSERT_TRUE(widen_amio_elements(u16, AMIO_DTYPE_U16, 2, 1.0, 0.0, out));
-    EXPECT_EQ(out, (std::vector<double>{0.0, 65535.0}));
-
-    const std::uint32_t u32[] = {0u, 4294967295u};
-    ASSERT_TRUE(widen_amio_elements(u32, AMIO_DTYPE_U32, 2, 1.0, 0.0, out));
-    EXPECT_EQ(out, (std::vector<double>{0.0, 4294967295.0}));
-
-    const std::uint64_t u64[] = {0u, std::uint64_t{1} << 40};
-    ASSERT_TRUE(widen_amio_elements(u64, AMIO_DTYPE_U64, 2, 1.0, 0.0, out));
-    EXPECT_EQ(out, (std::vector<double>{0.0, 1099511627776.0}));
-
-    // Unsupported tag and null payload are rejected, not guessed.
-    EXPECT_FALSE(widen_amio_elements(i32, static_cast<amio_dtype_t>(999), 4, 1.0, 0.0, out));
-    EXPECT_FALSE(widen_amio_elements(nullptr, AMIO_DTYPE_F64, 4, 1.0, 0.0, out));
-}
-
-TEST(CeceViewWidening, AppliesCfPacking) {
-    using namespace cece::detail;
-
-    // CF packing: unpacked = stored * scale_factor + add_offset. This is how
-    // int16-packed emission inventories store their values.
-    const std::int16_t packed[] = {0, 100, 1000, -500};
-    std::vector<double> out;
-    ASSERT_TRUE(widen_amio_elements(packed, AMIO_DTYPE_I16, 4, 0.001, 5.0, out));
-    EXPECT_NEAR(out[0], 5.0, 1e-12);
-    EXPECT_NEAR(out[1], 5.1, 1e-12);
-    EXPECT_NEAR(out[2], 6.0, 1e-12);
-    EXPECT_NEAR(out[3], 4.5, 1e-12);
-
-    // The identity transform leaves float data untouched.
-    const float raw[] = {1.5f, 2.5f};
-    ASSERT_TRUE(widen_amio_elements(raw, AMIO_DTYPE_F32, 2, 1.0, 0.0, out));
-    EXPECT_EQ(out, (std::vector<double>{1.5, 2.5}));
-}
-
-TEST(CeceCadenceIndexing, DecodeIntegerTimeAxis) {
+TEST(CeceAxisDecode, DecodeIntegerTimeAxis) {
     using namespace cece::detail;
 
     // int32 "hours since ..." is a common CF encoding. Widening through the
@@ -1301,7 +1130,7 @@ TEST(CeceCadenceIndexing, DecodeIntegerTimeAxis) {
     EXPECT_EQ(br.i0, 29);
 }
 
-TEST(CeceCadenceIndexing, DecodePackedTimeAxis) {
+TEST(CeceAxisDecode, DecodePackedTimeAxis) {
     using namespace cece::detail;
 
     // Stored as int16 half-hour counts with scale_factor 0.5, so record k is

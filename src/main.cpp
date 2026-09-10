@@ -15,6 +15,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "cece/cece_amio_utils.hpp"
 #include "cece/cece_config.hpp"
 #include "cece/cece_driver_facade.hpp"
 #include "cece/cece_fatal.hpp"
@@ -52,11 +53,6 @@ void cece_core_writer_initialize_with_coords(void* data_ptr, int nx, int ny, int
                                              int lat_len, const char* start_time_iso8601, int start_time_len, int mpi_comm_f, int* rc);
 void cece_core_write_step(void* data_ptr, double time_seconds, int step_index, int* rc);
 void cece_core_set_export_field(void* data_ptr, const char* name, int name_len, const double* field_data, int nx, int ny, int nz, int* rc);
-}
-
-extern "C" {
-void cece_driver_create(const char* yaml_path, int path_len, int nx, int ny, int nz, const double* lon_coords, int lon_len, const double* lat_coords,
-                        int lat_len, int mpi_comm_f, void** driver_ptr_out, int* rc);
 }
 
 int main(int argc, char* argv[]) {

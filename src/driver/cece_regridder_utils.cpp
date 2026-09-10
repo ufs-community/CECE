@@ -11,8 +11,9 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
 
-#include "cece/cece_driver_facade.hpp"
+#include "cece/cece_amio_utils.hpp"
 #include "cece/cece_logger.hpp"
 
 namespace cece::io {

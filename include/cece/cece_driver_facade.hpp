@@ -7,84 +7,14 @@
 #include <dagr/dagr.hpp>
 #include <memory>
 #include <string>
-#include <tick/tick.hpp>
 #include <unordered_map>
 #include <vector>
 
 #include "cece/cece_io.hpp"
 #include "cece/cece_regridder_utils.hpp"
+#include "cece/cece_time_indexing.hpp"
 
 namespace cece {
-
-namespace detail {
-
-struct SimDateTime {
-    int year = 0;
-    int month = 0;        ///< 1-12
-    int day = 0;          ///< 1-31
-    int hour = 0;         ///< 0-23
-    int minute = 0;       ///< 0-59
-    int second = 0;       ///< 0-59
-    int day_of_week = 0;  ///< 1=Monday .. 7=Sunday (ISO 8601)
-    int day_of_year = 0;  ///< 1-365/366
-    bool valid = false;
-};
-
-struct RecordBracket {
-    int i0 = 0;
-    int i1 = 0;
-    double weight = 0.0;
-    bool valid = false;
-    /// Set when the simulation time was resolvable but fell outside the file's
-    /// coverage under taxmode "limit". Distinguishes a deliberate rejection
-    /// from an axis that could not be read or decoded, which must not degrade
-    /// to the arithmetic fallback.
-    bool out_of_range = false;
-};
-
-/// Decoded CF "<unit> since <reference>" time-units string.
-struct CFTimeUnits {
-    double unit_days = 0.0;       ///< length of one axis unit, in days
-    tick::Date_Time reference{};  ///< the "since" reference date-time, as written
-    double offset_days = 0.0;     ///< UTC offset of @c reference (e.g. -0.25 for "-06:00"); subtract to get UTC
-    bool valid = false;           ///< false when the units are missing or not decodable
-};
-
-CFTimeUnits parse_cf_units(const std::string& units);
-
-/// Size in bytes of one @p dtype element, or 0 if CECE cannot handle it.
-std::size_t amio_dtype_size(amio_dtype_t dtype);
-
-/// Widen @p n elements of an AMIO view payload to double, applying CF packing
-/// (`value = stored * scale + offset`). Handles every AMIO numeric type, so an
-/// integer-typed coordinate or packed variable decodes correctly rather than
-/// being reinterpreted. Returns false for a dtype CECE does not handle.
-bool widen_amio_elements(const void* data, amio_dtype_t dtype, std::size_t n, double scale, double offset, std::vector<double>& out);
-
-SimDateTime parse_sim_datetime(const std::string& iso8601);
-
-/// Validate a stream's temporal options and warn about knobs the chosen cadence
-/// ignores. @p where is appended to messages to identify the offending stream.
-/// Throws std::invalid_argument for an unknown cadence/taxmode/tintalgo or an
-/// inverted yearFirst/yearLast range.
-void validate_stream_temporal_config(const std::string& cadence, const std::string& taxmode, const std::string& tintalgo, int yearFirst, int yearLast,
-                                     int yearAlign, const std::string& where);
-
-RecordBracket bracket_from_cadence(const std::string& cadence, const std::string& tintalgo, const SimDateTime& dt, int file_nt, int yearFirst = 0,
-                                   int yearLast = 0, int yearAlign = 0, const std::string& taxmode = "");
-
-/// @p period_days is the repeat period used by taxmode "cycle". Pass 0 to infer
-/// it from the axis, which is exact only for uniformly sampled records.
-RecordBracket find_bracket(const std::vector<double>& times, double target, bool linear, const std::string& taxmode = "", double period_days = 0.0);
-
-RecordBracket bracket_from_coords(const std::vector<double>& time_vals, const std::string& units, const std::string& calendar, const SimDateTime& dt,
-                                  const std::string& tintalgo, int yearAlign = 0, const std::string& taxmode = "");
-
-RecordBracket bracket_from_dataset(amio_dataset_handle dataset, const std::string& time_var, const SimDateTime& dt, int file_nt,
-                                   const std::string& tintalgo, int yearAlign = 0, const std::string& taxmode = "",
-                                   const std::string& units_override = "", const std::string& calendar_override = "");
-
-}  // namespace detail
 
 /// Per-variable stream configuration cached at construction time.
 /// Eliminates repeated config re-parsing on every timestep.
