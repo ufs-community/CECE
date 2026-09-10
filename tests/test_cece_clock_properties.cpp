@@ -34,7 +34,12 @@ namespace {
 std::string iso8601_utc(std::int64_t epoch_seconds) {
     const std::time_t t = static_cast<std::time_t>(epoch_seconds);
     std::tm gm{};
-    gmtime_r(&t, &gm);
+#if defined(_WIN32)
+    const bool ok = (gmtime_s(&gm, &t) == 0);
+#else
+    const bool ok = (gmtime_r(&t, &gm) != nullptr);
+#endif
+    if (!ok) return {};
 
     std::ostringstream os;
     os << std::setfill('0');

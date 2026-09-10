@@ -225,9 +225,8 @@ cece_data:
     - name: "GLOBAL_ANTHROPOGENIC"
       file: "/data/inventories/CEDS_global_2020.nc"
       refresh_interval_seconds: 3600 # Anthropogenic data changes slowly — ingest hourly
-      cadence:
-        "monthly" # Series; degrades to month-of-year if the axis
-        # carries no decodable CF units
+      # Series; degrades to month-of-year if the axis carries no decodable CF units
+      cadence: "monthly"
       taxmode: "cycle"
       tintalgo: "linear"
       mapalgo: "consd"

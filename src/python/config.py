@@ -233,7 +233,8 @@ class DataStreamConfig:
         file's time axis), ``"daily"``/``"monthly"`` (series with a calendar
         arithmetic fallback), ``"hourly"``/``"weekly"`` (climatological
         profile indexed by hour-of-day / day-of-week), or ``"stepwise"``
-        (ignore time and walk the record index). Default is ``"series"``.
+        (also spelled ``"step"``; ignore time and walk the record index).
+        Default is ``"series"``.
 
     Examples
     --------
@@ -274,6 +275,7 @@ class DataStreamConfig:
             "hourly",
             "weekly",
             "stepwise",
+            "step",
         ]:
             raise ValueError(f"Invalid cadence: {self.cadence}")
 
@@ -466,7 +468,8 @@ class CeceConfig:
             Default is ``"default"``.
         cadence : str, optional
             How file records are addressed: ``"series"``, ``"daily"``,
-            ``"monthly"``, ``"hourly"``, ``"weekly"``, or ``"stepwise"``.
+            ``"monthly"``, ``"hourly"``, ``"weekly"``, or ``"stepwise"``
+            (alias ``"step"``).
             Default is ``"series"``.
 
         Raises

@@ -481,6 +481,15 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                     return false;
                 }
 
+                // A weight of exactly 1.0 is the upper record, which happens on
+                // every step under taxmode "extend" once the run outlasts the
+                // file. Blending would read a second slab to return that record's
+                // own values.
+                if (bracket.weight >= 1.0) {
+                    bracket.i0 = bracket.i1;
+                    bracket.weight = 0.0;
+                }
+
                 // Diagnostic: report which time slice(s) are being read and via which path.
                 if (bracket.i0 == bracket.i1 || bracket.weight == 0.0) {
                     CECE_LOG_INFO("[DRIVER] Reading time slice " + std::to_string(bracket.i0 + 1) + "/" + std::to_string(file_nt) + " from '" +

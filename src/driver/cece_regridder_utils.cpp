@@ -496,7 +496,7 @@ bool build_regrid_plan(amio_dataset_handle read_dataset, int nx, int ny, const s
                         if (amio_get_var_attribute_double(read_dataset, name.c_str(), "add_offset", &attr) == AMIO_OK) offset = attr;
 
                         std::vector<double> widened;
-                        if (elem_size > 0 && size >= static_cast<std::size_t>(len) * elem_size &&
+                        if (elem_size > 0 && size >= static_cast<std::size_t>(slice_len) * elem_size &&
                             cece::detail::widen_amio_elements(data, dtype, static_cast<std::size_t>(slice_len), scale, offset, widened)) {
                             out.resize(slice_len);
                             for (int i = 0; i < slice_len; ++i) {

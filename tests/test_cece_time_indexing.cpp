@@ -1032,6 +1032,32 @@ TEST(CeceFindBracket, BracketTimesDirect) {
     EXPECT_FALSE(find_bracket({}, 0.0, true, "extend").valid);
 }
 
+TEST(CeceFindBracket, ExtendPastTheEndLandsFullyOnTheLastRecord) {
+    using namespace cece::detail;
+
+    // "extend" clamps the target onto the final record time, so the binary
+    // search cannot advance past n-2 and the weight comes out at exactly 1.0.
+    // The driver collapses that to a single read of the upper record; without
+    // it every step past the end reads and blends two slabs to reproduce one.
+    const std::vector<double> times = {0.0, 31.0, 60.0};
+    const RecordBracket ext = find_bracket(times, 166.0, /*linear=*/true, "extend");
+    ASSERT_TRUE(ext.valid);
+    EXPECT_EQ(ext.i0, 1);
+    EXPECT_EQ(ext.i1, 2);
+    EXPECT_NEAR(ext.weight, 1.0, 1e-12);
+
+    // Landing exactly on the final record does the same.
+    const RecordBracket on_end = find_bracket(times, 60.0, /*linear=*/true, "extend");
+    ASSERT_TRUE(on_end.valid);
+    EXPECT_NEAR(on_end.weight, 1.0, 1e-12);
+
+    // An interior record still resolves to weight 0 on its own index.
+    const RecordBracket interior = find_bracket(times, 31.0, /*linear=*/true, "extend");
+    ASSERT_TRUE(interior.valid);
+    EXPECT_EQ(interior.i0, 1);
+    EXPECT_NEAR(interior.weight, 0.0, 1e-12);
+}
+
 TEST(CeceFindBracket, RejectsUnorderedAxis) {
     using namespace cece::detail;
 
