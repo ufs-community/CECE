@@ -10,6 +10,7 @@
 #include <Kokkos_Core.hpp>
 #include <algorithm>
 #include <cmath>
+#include <conf/conf.hpp>
 #include <stdexcept>
 #include <string>
 
@@ -40,10 +41,9 @@ double RunBdsnpYl95(double temperature_k, double soil_moisture) {
     import_state.fields["soil_moisture"] = MakeField("soil_moisture", soil_moisture);
     export_state.fields["soil_nox_emissions"] = MakeField("soil_nox_emissions", -1.0);
 
-    YAML::Node config;
-    config["soil_no_method"] = "yl95";
+    conf::Config config = conf::Config::from_string("soil_no_method: yl95");
     BdsnpScheme scheme;
-    scheme.Initialize(config, nullptr);
+    scheme.Initialize(config.root(), nullptr);
     scheme.Run(import_state, export_state);
 
     auto& output = export_state.fields.at("soil_nox_emissions");
@@ -60,7 +60,8 @@ double RunSoilNoxYl95(double temperature_k, double soil_moisture) {
     export_state.fields["soil_nox_emissions"] = MakeField("soil_nox_emissions", 0.0);
 
     SoilNoxScheme scheme;
-    scheme.Initialize(YAML::Node{}, nullptr);
+    conf::Config config = conf::Config::from_string("");
+    scheme.Initialize(config.root(), nullptr);
     scheme.Run(import_state, export_state);
 
     auto& output = export_state.fields.at("soil_nox_emissions");
@@ -77,41 +78,34 @@ TEST(BdsnpSchemeTest, FactoryCreatesBdsnpScheme) {
 
 TEST(BdsnpSchemeTest, SupportedMethodsInitializeAndUnknownMethodsFail) {
     BdsnpScheme canonical;
-    YAML::Node bdsnp;
-    bdsnp["soil_no_method"] = "bdsnp";
-    EXPECT_NO_THROW(canonical.Initialize(bdsnp, nullptr));
+    conf::Config bdsnp = conf::Config::from_string("soil_no_method: bdsnp");
+    EXPECT_NO_THROW(canonical.Initialize(bdsnp.root(), nullptr));
 
     BdsnpScheme fallback;
-    YAML::Node yl95;
-    yl95["soil_no_method"] = "yl95";
-    EXPECT_NO_THROW(fallback.Initialize(yl95, nullptr));
+    conf::Config yl95 = conf::Config::from_string("soil_no_method: yl95");
+    EXPECT_NO_THROW(fallback.Initialize(yl95.root(), nullptr));
 
     BdsnpScheme removed_selector;
-    YAML::Node old_name;
-    old_name["soil_no_method"] = "hemco_3_12_1";
-    EXPECT_THROW(removed_selector.Initialize(old_name, nullptr), std::invalid_argument);
+    conf::Config old_name = conf::Config::from_string("soil_no_method: hemco_3_12_1");
+    EXPECT_THROW(removed_selector.Initialize(old_name.root(), nullptr), std::invalid_argument);
 
     BdsnpScheme unknown;
-    YAML::Node typo;
-    typo["soil_no_method"] = "not-a-method";
-    EXPECT_THROW(unknown.Initialize(typo, nullptr), std::invalid_argument);
+    conf::Config typo = conf::Config::from_string("soil_no_method: not-a-method");
+    EXPECT_THROW(unknown.Initialize(typo.root(), nullptr), std::invalid_argument);
 
     BdsnpScheme obsolete;
-    YAML::Node removed_option;
-    removed_option["fert_emission_factor"] = 1.0;
-    EXPECT_THROW(obsolete.Initialize(removed_option, nullptr), std::invalid_argument);
+    conf::Config removed_option = conf::Config::from_string("fert_emission_factor: 1.0");
+    EXPECT_THROW(obsolete.Initialize(removed_option.root(), nullptr), std::invalid_argument);
 }
 
 TEST(BdsnpSchemeTest, CanonicalMethodRejectsEveryYl95OnlyCoefficientAlias) {
     for (const char* option : {"biome_coefficient_wet", "a_biome_wet", "temp_limit", "tc_max", "temp_exp_coeff", "exp_coeff", "wet_coeff_1", "wet_c1",
                                "wet_coeff_2", "wet_c2"}) {
-        YAML::Node config;
-        config["soil_no_method"] = "bdsnp";
-        config[option] = 1.0;
+        conf::Config config = conf::Config::from_string(std::string("soil_no_method: bdsnp\n") + option + ": 1.0");
 
         BdsnpScheme scheme;
         try {
-            scheme.Initialize(config, nullptr);
+            scheme.Initialize(config.root(), nullptr);
             FAIL() << "Expected canonical BDSNP to reject YL95-only option " << option;
         } catch (const std::invalid_argument& error) {
             EXPECT_NE(std::string(error.what()).find(option), std::string::npos);
@@ -120,12 +114,11 @@ TEST(BdsnpSchemeTest, CanonicalMethodRejectsEveryYl95OnlyCoefficientAlias) {
 }
 
 TEST(BdsnpSchemeTest, CanonicalMethodDoesNotLogYl95Defaults) {
-    YAML::Node config;
-    config["soil_no_method"] = "bdsnp";
+    conf::Config config = conf::Config::from_string("soil_no_method: bdsnp");
 
     testing::internal::CaptureStdout();
     BdsnpScheme scheme;
-    scheme.Initialize(config, nullptr);
+    scheme.Initialize(config.root(), nullptr);
     const std::string output = testing::internal::GetCapturedStdout();
 
     EXPECT_EQ(output.find("Using default a_biome_wet"), std::string::npos);
@@ -138,36 +131,28 @@ TEST(BdsnpSchemeTest, CanonicalMethodDoesNotLogYl95Defaults) {
 TEST(BdsnpSchemeTest, Yl95MethodAcceptsCoefficientAliases) {
     for (const char* option : {"biome_coefficient_wet", "a_biome_wet", "temp_limit", "tc_max", "temp_exp_coeff", "exp_coeff", "wet_coeff_1", "wet_c1",
                                "wet_coeff_2", "wet_c2"}) {
-        YAML::Node config;
-        config["soil_no_method"] = "yl95";
-        config[option] = 1.0;
+        conf::Config config = conf::Config::from_string(std::string("soil_no_method: yl95\n") + option + ": 1.0");
 
         BdsnpScheme scheme;
-        EXPECT_NO_THROW(scheme.Initialize(config, nullptr)) << "YL95 option: " << option;
+        EXPECT_NO_THROW(scheme.Initialize(config.root(), nullptr)) << "YL95 option: " << option;
     }
 }
 
 TEST(BdsnpSchemeTest, DiagnosticFieldsRegisterWhenEnabled) {
-    YAML::Node config;
-    config["soil_no_method"] = "bdsnp";
-    config["diagnostics"].push_back("soil_no_emission_rate");
-    config["nx"] = 1;
-    config["ny"] = 1;
-    config["nz"] = 1;
+    conf::Config config = conf::Config::from_string("soil_no_method: bdsnp\ndiagnostics:\n  - soil_no_emission_rate\nnx: 1\nny: 1\nnz: 1\n");
 
     CeceDiagnosticManager diagnostics;
     BdsnpScheme scheme;
-    EXPECT_NO_THROW(scheme.Initialize(config, &diagnostics));
+    EXPECT_NO_THROW(scheme.Initialize(config.root(), &diagnostics));
 }
 
 TEST(BdsnpSchemeTest, Yl95MissingFieldsReportEveryRequiredName) {
     CeceImportState import_state;
     CeceExportState export_state;
-    YAML::Node config;
-    config["soil_no_method"] = "yl95";
+    conf::Config config = conf::Config::from_string("soil_no_method: yl95");
 
     BdsnpScheme scheme;
-    scheme.Initialize(config, nullptr);
+    scheme.Initialize(config.root(), nullptr);
     try {
         scheme.Run(import_state, export_state);
         FAIL() << "Expected missing YL95 fields to fail";
@@ -206,10 +191,9 @@ RC_GTEST_PROP(BdsnpProperty, Yl95MatchesLegacyFortranInterface, ()) {
     import_state.fields["soil_moisture"] = MakeField("soil_moisture", soil_moisture);
     export_state.fields["soil_nox_emissions"] = MakeField("soil_nox_emissions", -1.0);
 
-    YAML::Node config;
-    config["soil_no_method"] = "yl95";
+    conf::Config config = conf::Config::from_string("soil_no_method: yl95");
     BdsnpFortranScheme scheme;
-    scheme.Initialize(config, nullptr);
+    scheme.Initialize(config.root(), nullptr);
     scheme.Run(import_state, export_state);
 
     auto& output = export_state.fields.at("soil_nox_emissions");

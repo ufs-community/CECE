@@ -84,12 +84,12 @@ double bdsnp_soil_wet_term(double gw, double wet_c1, double wet_c2) {
 // Initialize
 // ============================================================================
 
-void BdsnpScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
+void BdsnpScheme::Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) {
     // Call base class to parse input_mapping, output_mapping, diagnostics
     BasePhysicsScheme::Initialize(config, diag_manager);
 
     // Parse the external string once; runtime dispatch uses a typed selector.
-    const std::string soil_no_method = config["soil_no_method"] ? config["soil_no_method"].as<std::string>() : "bdsnp";
+    const std::string soil_no_method = config["soil_no_method"].string_or("bdsnp");
     if (soil_no_method == "bdsnp") {
         soil_no_method_ = SoilNoMethod::kBdsnp;
     } else if (soil_no_method == "yl95") {
@@ -107,7 +107,7 @@ void BdsnpScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* di
 
     use_soil_temperature_ = false;
     if (config["use_soil_temperature"]) {
-        use_soil_temperature_ = config["use_soil_temperature"].as<bool>();
+        use_soil_temperature_ = config["use_soil_temperature"].as_bool();
     }
 
     // These tunable coefficients belong only to the YL95 fallback. Canonical
@@ -127,41 +127,41 @@ void BdsnpScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* di
         yl95_parameters_ = {};
 
         if (config["biome_coefficient_wet"]) {
-            yl95_parameters_.biome_coefficient_wet = config["biome_coefficient_wet"].as<double>();
+            yl95_parameters_.biome_coefficient_wet = config["biome_coefficient_wet"].as_double();
         } else if (config["a_biome_wet"]) {
-            yl95_parameters_.biome_coefficient_wet = config["a_biome_wet"].as<double>();
+            yl95_parameters_.biome_coefficient_wet = config["a_biome_wet"].as_double();
         } else {
             std::cout << "BdsnpScheme: Using default a_biome_wet = " << yl95_parameters_.biome_coefficient_wet << "\n";
         }
 
         if (config["temp_limit"]) {
-            yl95_parameters_.temperature_limit = config["temp_limit"].as<double>();
+            yl95_parameters_.temperature_limit = config["temp_limit"].as_double();
         } else if (config["tc_max"]) {
-            yl95_parameters_.temperature_limit = config["tc_max"].as<double>();
+            yl95_parameters_.temperature_limit = config["tc_max"].as_double();
         } else {
             std::cout << "BdsnpScheme: Using default tc_max = " << yl95_parameters_.temperature_limit << "\n";
         }
 
         if (config["temp_exp_coeff"]) {
-            yl95_parameters_.temperature_exponential_coefficient = config["temp_exp_coeff"].as<double>();
+            yl95_parameters_.temperature_exponential_coefficient = config["temp_exp_coeff"].as_double();
         } else if (config["exp_coeff"]) {
-            yl95_parameters_.temperature_exponential_coefficient = config["exp_coeff"].as<double>();
+            yl95_parameters_.temperature_exponential_coefficient = config["exp_coeff"].as_double();
         } else {
             std::cout << "BdsnpScheme: Using default exp_coeff = " << yl95_parameters_.temperature_exponential_coefficient << "\n";
         }
 
         if (config["wet_coeff_1"]) {
-            yl95_parameters_.wetness_coefficient_1 = config["wet_coeff_1"].as<double>();
+            yl95_parameters_.wetness_coefficient_1 = config["wet_coeff_1"].as_double();
         } else if (config["wet_c1"]) {
-            yl95_parameters_.wetness_coefficient_1 = config["wet_c1"].as<double>();
+            yl95_parameters_.wetness_coefficient_1 = config["wet_c1"].as_double();
         } else {
             std::cout << "BdsnpScheme: Using default wet_c1 = " << yl95_parameters_.wetness_coefficient_1 << "\n";
         }
 
         if (config["wet_coeff_2"]) {
-            yl95_parameters_.wetness_coefficient_2 = config["wet_coeff_2"].as<double>();
+            yl95_parameters_.wetness_coefficient_2 = config["wet_coeff_2"].as_double();
         } else if (config["wet_c2"]) {
-            yl95_parameters_.wetness_coefficient_2 = config["wet_c2"].as<double>();
+            yl95_parameters_.wetness_coefficient_2 = config["wet_c2"].as_double();
         } else {
             std::cout << "BdsnpScheme: Using default wet_c2 = " << yl95_parameters_.wetness_coefficient_2 << "\n";
         }

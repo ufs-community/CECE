@@ -19,8 +19,6 @@
 
 #include "cece/cece_data_ingestor.hpp"
 
-#include <yaml-cpp/yaml.h>
-
 #include <Kokkos_Core.hpp>
 #include <cstring>
 #include <iostream>
@@ -224,7 +222,8 @@ bool CeceDataIngestor::HasCachedField(const std::string& name) const {
 std::string CeceDataIngestor::SerializeStreamESMFConfig(const CeceDataConfig& config) {
     std::ostringstream oss;
 
-    // RC file header
+    // ESMF-compatible RC file header (format retained for backward compatibility
+    // with NUOPC/CDEPS stream readers that consume this key-value layout).
     oss << "file_id: \"streams\"\n";
     oss << "file_version: 1.0\n";
     oss << "stream_info: " << config.streams.size() << "\n";

@@ -1,3 +1,4 @@
+#include <conf/value.hpp>
 /**
  * @file test_megan3.cpp
  * @brief Property-based tests for the MEGAN3 canopy model and emission activity.
@@ -19,8 +20,10 @@
 
 #include <Kokkos_Core.hpp>
 #include <cmath>
+#include <conf/config.hpp>
 #include <cstring>
 #include <numbers>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -615,31 +618,33 @@ RC_GTEST_PROP(Megan3SchemeProperty, Property17_MissingConfigDefaultValues, ()) {
     bool include_aq_stress = *rc::gen::inRange(0, 2) == 1;
 
     // Build a YAML config with only the selected parameters
-    YAML::Node config;
+    std::string yaml;
 
     if (include_co2_conc) {
         double val = 200.0 + (*rc::gen::inRange(0, 8001)) / 10.0;
-        config["co2_concentration"] = val;
+        yaml += "co2_concentration: " + std::to_string(val) + "\n";
     }
     if (include_co2_method) {
         auto method = *rc::gen::element(std::string("possell"), std::string("wilkinson"));
-        config["co2_method"] = method;
+        yaml += "co2_method: " + method + "\n";
     }
     if (include_wind_stress) {
-        config["enable_wind_stress"] = (*rc::gen::inRange(0, 2) == 1);
+        yaml += std::string("enable_wind_stress: ") + ((*rc::gen::inRange(0, 2) == 1) ? "true" : "false") + "\n";
     }
     if (include_temp_stress) {
-        config["enable_temp_stress"] = (*rc::gen::inRange(0, 2) == 1);
+        yaml += std::string("enable_temp_stress: ") + ((*rc::gen::inRange(0, 2) == 1) ? "true" : "false") + "\n";
     }
     if (include_aq_stress) {
-        config["enable_aq_stress"] = (*rc::gen::inRange(0, 2) == 1);
+        yaml += std::string("enable_aq_stress: ") + ((*rc::gen::inRange(0, 2) == 1) ? "true" : "false") + "\n";
     }
 
     // Do NOT include emission_classes section — all per-class coefficients
     // should use documented defaults
 
+    conf::Config config = conf::Config::from_string(yaml);
+
     EmissionActivityCalculator calc;
-    calc.Initialize(config);
+    calc.Initialize(config.root());
 
     // Check defaults for omitted parameters
     if (!include_co2_conc) {
@@ -785,18 +790,18 @@ RC_GTEST_PROP(Megan3ParityProperty, Property15_CppFortranParity, ()) {
     export_fort.fields["soil_nox_emissions"] = make_dv("snox_fort", soil_no_val);
 
     // ---- Build config pointing to speciation files ----
-    YAML::Node config;
-    config["mechanism_file"] = (tmp_dir / "spc_parity.yaml").string();
-    config["speciation_file"] = (tmp_dir / "map_parity.yaml").string();
+    std::string yaml = "mechanism_file: \"" + (tmp_dir / "spc_parity.yaml").string() + "\"\n";
+    yaml += "speciation_file: \"" + (tmp_dir / "map_parity.yaml").string() + "\"\n";
+    conf::Config config = conf::Config::from_string(yaml);
 
     // ---- Initialize and run C++ scheme ----
     Megan3Scheme scheme_cpp;
-    scheme_cpp.Initialize(config, nullptr);
+    scheme_cpp.Initialize(config.root(), nullptr);
     scheme_cpp.Run(import_cpp, export_cpp);
 
     // ---- Initialize and run Fortran scheme ----
     Megan3FortranScheme scheme_fort;
-    scheme_fort.Initialize(config, nullptr);
+    scheme_fort.Initialize(config.root(), nullptr);
     scheme_fort.Run(import_fort, export_fort);
 
     // ---- Compare MEGAN_ISOP ----
@@ -936,13 +941,16 @@ class Megan3SchemeTest : public ::testing::Test {
         fields[name].sync<Kokkos::DefaultExecutionSpace>();
     }
 
-    /// Build a YAML config node pointing to our temp speciation files
-    YAML::Node MakeConfig() {
-        YAML::Node config;
-        config["mechanism_file"] = (tmp_dir / "spc_test.yaml").string();
-        config["speciation_file"] = (tmp_dir / "map_test.yaml").string();
-        return config;
+    /// Build a config pointing to our temp speciation files. The returned
+    /// conf::Value view is valid while this test fixture object is alive.
+    conf::Value MakeConfig() {
+        std::string yaml = "mechanism_file: \"" + (tmp_dir / "spc_test.yaml").string() + "\"\n";
+        yaml += "speciation_file: \"" + (tmp_dir / "map_test.yaml").string() + "\"\n";
+        config_.emplace(conf::Config::from_string(yaml));
+        return config_->root();
     }
+
+    std::optional<conf::Config> config_;
 };
 
 // ============================================================================
@@ -1078,13 +1086,17 @@ TEST_F(Megan3SchemeTest, MissingSoilNoxEmissionsProducesZeroNO) {
 
 TEST_F(Megan3SchemeTest, OutputMappingRenamesMeganFields) {
     auto config = MakeConfig();
-
-    // Add output_mapping to rename MEGAN_ISOP -> ISOP_BIOG
-    config["output_mapping"]["MEGAN_ISOP"] = "ISOP_BIOG";
+    config_.emplace(conf::Config::from_string("mechanism_file: \"" + (tmp_dir / "spc_test.yaml").string() +
+                                              "\"\n"
+                                              "speciation_file: \"" +
+                                              (tmp_dir / "map_test.yaml").string() +
+                                              "\"\n"
+                                              "output_mapping:\n  MEGAN_ISOP: ISOP_BIOG\n"));
+    auto mapped = config_->root();
 
     PhysicsSchemeConfig cfg;
     cfg.name = "megan3";
-    cfg.options = config;
+    cfg.options = mapped;
 
     auto scheme = PhysicsFactory::CreateScheme(cfg);
     ASSERT_NE(scheme, nullptr);
@@ -1114,19 +1126,18 @@ TEST_F(Megan3SchemeTest, OutputMappingRenamesMeganFields) {
 // ============================================================================
 
 TEST_F(Megan3SchemeTest, DiagnosticFieldsRegisteredWhenEnabled) {
-    auto config = MakeConfig();
-
-    // Add diagnostics list
-    config["diagnostics"].push_back("gamma_T_ISOP");
-    config["diagnostics"].push_back("gamma_PAR_ISOP");
-    config["diagnostics"].push_back("gamma_LAI_ISOP");
-    config["nx"] = nx;
-    config["ny"] = ny;
-    config["nz"] = 1;
+    std::string yaml = "mechanism_file: \"" + (tmp_dir / "spc_test.yaml").string() + "\"\n";
+    yaml += "speciation_file: \"" + (tmp_dir / "map_test.yaml").string() + "\"\n";
+    yaml += "diagnostics:\n";
+    for (const char* name : {"gamma_T_ISOP", "gamma_PAR_ISOP", "gamma_LAI_ISOP"}) {
+        yaml += std::string("  - ") + name + "\n";
+    }
+    yaml += "nx: " + std::to_string(nx) + "\nny: " + std::to_string(ny) + "\nnz: 1\n";
+    conf::Config diag_config = conf::Config::from_string(yaml);
 
     PhysicsSchemeConfig cfg;
     cfg.name = "megan3";
-    cfg.options = config;
+    cfg.options = diag_config.root();
 
     auto scheme = PhysicsFactory::CreateScheme(cfg);
     ASSERT_NE(scheme, nullptr);
@@ -1163,11 +1174,10 @@ TEST_F(Megan3SchemeTest, BdsnpToMegan3Pipeline) {
     SetFieldValue("soil_nox_emissions", 0.0, false);
 
     // ---- Step 2: Run BdsnpScheme (YL95 mode) ----
-    YAML::Node bdsnp_config;
-    bdsnp_config["soil_no_method"] = "yl95";
+    conf::Config bdsnp_config = conf::Config::from_string("soil_no_method: yl95");
 
     BdsnpScheme bdsnp_scheme;
-    bdsnp_scheme.Initialize(bdsnp_config, nullptr);
+    bdsnp_scheme.Initialize(bdsnp_config.root(), nullptr);
     bdsnp_scheme.Run(import_state, export_state);
 
     // Verify BDSNP wrote non-zero soil NO

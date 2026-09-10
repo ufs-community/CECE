@@ -55,7 +55,7 @@ static PhysicsRegistration<DMSScheme> register_scheme("dms");
  * @param config YAML configuration node with DMS parameters
  * @param diag_manager Diagnostic manager for tracking outputs
  */
-void DMSScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
+void DMSScheme::Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
 
     // Default Schmidt number coefficients for DMS
@@ -70,23 +70,23 @@ void DMSScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag
 
     if (config["schmidt_coeff"]) {
         auto sc = config["schmidt_coeff"];
-        if (sc.IsSequence() && sc.size() == 4) {
-            sc_c0_ = sc[0].as<double>();
-            sc_c1_ = sc[1].as<double>();
-            sc_c2_ = sc[2].as<double>();
-            sc_c3_ = sc[3].as<double>();
+        if (sc.kind() != conf::Node_Kind::Sequence || sc.size() != 4) {
+            throw std::invalid_argument("DMSScheme: 'schmidt_coeff' must be a sequence of 4 double values");
         }
+        sc_c0_ = sc[0].as_double();
+        sc_c1_ = sc[1].as_double();
+        sc_c2_ = sc[2].as_double();
+        sc_c3_ = sc[3].as_double();
     }
 
     if (config["kw_coeff"]) {
         auto kw = config["kw_coeff"];
-        if (kw.IsSequence() && kw.size() == 2) {
-            kw_c0_ = kw[0].as<double>();
-            kw_c1_ = kw[1].as<double>();
+        if (kw.kind() != conf::Node_Kind::Sequence || kw.size() != 2) {
+            throw std::invalid_argument("DMSScheme: 'kw_coeff' must be a sequence of 2 double values");
         }
+        kw_c0_ = kw[0].as_double();
+        kw_c1_ = kw[1].as_double();
     }
-
-    std::cout << "DMSScheme: Initialized." << "\n";
 }
 
 void DMSScheme::Run(CeceImportState& import_state, CeceExportState& export_state) {

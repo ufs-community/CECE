@@ -79,11 +79,11 @@ double soil_wet_term(double gw, double wet_c1, double wet_c2) {
     return wet_c1 * gw * std::exp(wet_c2 * gw * gw);
 }
 
-void SoilNoxScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
+void SoilNoxScheme::Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
     a_biome_wet_ = 0.5;
     if (config["biome_coefficient_wet"]) {
-        a_biome_wet_ = config["biome_coefficient_wet"].as<double>();
+        a_biome_wet_ = config["biome_coefficient_wet"].as_double();
     }
 
     tc_max_ = 30.0;
@@ -91,10 +91,10 @@ void SoilNoxScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* 
     wet_c1_ = 5.5;
     wet_c2_ = -5.55;
 
-    if (config["temp_limit"]) tc_max_ = config["temp_limit"].as<double>();
-    if (config["temp_exp_coeff"]) exp_coeff_ = config["temp_exp_coeff"].as<double>();
-    if (config["wet_coeff_1"]) wet_c1_ = config["wet_coeff_1"].as<double>();
-    if (config["wet_coeff_2"]) wet_c2_ = config["wet_coeff_2"].as<double>();
+    if (config["temp_limit"]) tc_max_ = config["temp_limit"].as_double();
+    if (config["temp_exp_coeff"]) exp_coeff_ = config["temp_exp_coeff"].as_double();
+    if (config["wet_coeff_1"]) wet_c1_ = config["wet_coeff_1"].as_double();
+    if (config["wet_coeff_2"]) wet_c2_ = config["wet_coeff_2"].as_double();
 
     std::cout << "SoilNoxScheme: Initialized with Hudman et al. (2012) logic." << "\n";
 }

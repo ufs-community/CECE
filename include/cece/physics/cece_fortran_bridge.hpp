@@ -35,7 +35,7 @@ class FortranBridgeExample : public BasePhysicsScheme {
      * @param config YAML node with bridge options.
      * @param diag_manager Pointer to the diagnostic manager.
      */
-    void Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) override;
+    void Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) override;
 
     /**
      * @brief Coordinates the execution of the Fortran routine.

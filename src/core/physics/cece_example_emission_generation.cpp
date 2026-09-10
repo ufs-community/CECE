@@ -10,7 +10,7 @@ namespace cece {
 // Self-registration: allows PhysicsFactory to discover this scheme
 static PhysicsRegistration<ExampleEmissionGeneration> register_example_emission_generation("example_emission_generation");
 
-void ExampleEmissionGeneration::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
+void ExampleEmissionGeneration::Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) {
     // Call base class initialization to set up field name mappings
     BasePhysicsScheme::Initialize(config, diag_manager);
 
@@ -25,16 +25,16 @@ void ExampleEmissionGeneration::Initialize(const YAML::Node& config, CeceDiagnos
     //         solar_factor: 0.5
 
     if (config["base_emission_factor"]) {
-        base_emission_factor_ = config["base_emission_factor"].as<double>();
+        base_emission_factor_ = config["base_emission_factor"].as_double();
     }
     if (config["temperature_ref"]) {
-        temperature_ref_ = config["temperature_ref"].as<double>();
+        temperature_ref_ = config["temperature_ref"].as_double();
     }
     if (config["q10"]) {
-        q10_ = config["q10"].as<double>();
+        q10_ = config["q10"].as_double();
     }
     if (config["solar_factor"]) {
-        solar_factor_ = config["solar_factor"].as<double>();
+        solar_factor_ = config["solar_factor"].as_double();
     }
 
     // Register diagnostic fields for output

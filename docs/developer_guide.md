@@ -27,6 +27,7 @@ CECE is designed as a modular, performance-portable emissions framework. Key com
 
 ## Physics Scheme Development
 When implementing or modifying physics schemes:
+
 1.  **Configurability:** NEVER hardcode physical constants or tuning factors. All parameters must be read from the YAML `options` block in `Initialize`.
 2.  **BasePhysicsScheme Helpers:** Use provided scientist-friendly helpers:
     *   `ResolveImport(name, state)`: Retrieve input fields.
@@ -36,6 +37,7 @@ When implementing or modifying physics schemes:
 3.  **Optimization:** Use Horner's Method for evaluating polynomials (e.g., Schmidt numbers, SST scaling) to minimize floating-point operations.
 
 ## Vertical Distribution
+
 CECE supports multiple vertical distribution methods for mapping 2D emissions to 3D grids:
 *   **SINGLE:** Place all emissions in a single specific layer.
 *   **RANGE:** Distribute evenly over a range of layer indices.
@@ -48,6 +50,7 @@ For complete algorithm descriptions, performance characteristics, and usage exam
 
 ## Configuration System
 CECE uses a comprehensive YAML configuration system that supports:
+
 - Hierarchical emission layer processing with categories and priorities
 - Temporal scaling profiles (diurnal, weekly, seasonal)
 - Environmental dependencies and dynamic scaling factors
@@ -98,6 +101,9 @@ The physics scheme generator and other scripts require `jinja2`, `pyyaml`, and `
 ```bash
 python3 -m pip install jinja2 pyyaml pytest
 ```
+
+### Pull Requests
+Reviewers and approval requirements are defined in [`.github/CODEOWNERS`](https://github.com/ufs-community/CECE/blob/develop/.github/CODEOWNERS); the header of that file explains the policy.
 
 ## Documentation Resources
 *   **ESMF User Guide:** [https://earthsystemmodeling.org/docs/release/latest/ESMF_usrdoc](https://earthsystemmodeling.org/docs/release/latest/ESMF_usrdoc)

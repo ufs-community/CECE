@@ -50,7 +50,7 @@ static PhysicsRegistration<VolcanoScheme> register_scheme("volcano");
  * @param config YAML configuration node with volcanic parameters
  * @param diag_manager Diagnostic manager for tracking outputs
  */
-void VolcanoScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
+void VolcanoScheme::Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
 
     target_i_ = 1;
@@ -59,11 +59,11 @@ void VolcanoScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* 
     volcano_elv_ = 600.0;
     volcano_cld_ = 2000.0;
 
-    if (config["target_i"]) target_i_ = config["target_i"].as<int>();
-    if (config["target_j"]) target_j_ = config["target_j"].as<int>();
-    if (config["sulfur_emission"]) volcano_sulf_ = config["sulfur_emission"].as<double>();
-    if (config["elevation"]) volcano_elv_ = config["elevation"].as<double>();
-    if (config["cloud_top"]) volcano_cld_ = config["cloud_top"].as<double>();
+    if (config["target_i"]) target_i_ = config["target_i"].as_int();
+    if (config["target_j"]) target_j_ = config["target_j"].as_int();
+    if (config["sulfur_emission"]) volcano_sulf_ = config["sulfur_emission"].as_double();
+    if (config["elevation"]) volcano_elv_ = config["elevation"].as_double();
+    if (config["cloud_top"]) volcano_cld_ = config["cloud_top"].as_double();
 
     std::cout << "VolcanoScheme: Initialized." << "\n";
 }

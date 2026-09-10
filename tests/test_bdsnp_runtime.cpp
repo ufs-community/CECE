@@ -12,6 +12,7 @@
 #include <Kokkos_Core.hpp>
 #include <algorithm>
 #include <cmath>
+#include <conf/conf.hpp>
 #include <stdexcept>
 #include <string>
 
@@ -59,11 +60,8 @@ class BdsnpRuntimeTest : public ::testing::Test {
     CeceImportState import_state;
     CeceExportState export_state;
 
-    static YAML::Node CanonicalConfig(bool use_soil_temperature) {
-        YAML::Node config;
-        config["soil_no_method"] = "bdsnp";
-        config["use_soil_temperature"] = use_soil_temperature;
-        return config;
+    static conf::Config CanonicalConfig(bool use_soil_temperature) {
+        return conf::Config::from_string(std::string("soil_no_method: bdsnp\nuse_soil_temperature: ") + (use_soil_temperature ? "true" : "false"));
     }
 
     DualView3D MakeField(const std::string& name, int levels, double value, int nx = kNx, int ny = kNy) {
@@ -120,7 +118,7 @@ class BdsnpRuntimeTest : public ::testing::Test {
 
     void RunCanonical(bool use_soil_temperature) {
         BdsnpScheme scheme;
-        scheme.Initialize(CanonicalConfig(use_soil_temperature), nullptr);
+        scheme.Initialize(CanonicalConfig(use_soil_temperature).root(), nullptr);
         scheme.Run(import_state, export_state);
     }
 
@@ -241,21 +239,20 @@ TEST_F(BdsnpRuntimeTest, DefaultConfigurationSelectsCanonicalBdsnp) {
     BuildInputs(default_case);
 
     BdsnpScheme scheme;
-    scheme.Initialize(YAML::Node{}, nullptr);
+    scheme.Initialize(conf::Config::from_string("").root(), nullptr);
     scheme.Run(import_state, export_state);
     ExpectOutputs(default_case.expected_total, default_case.expected_added_n);
 }
 
 TEST_F(BdsnpRuntimeTest, RemovedVersionPinnedSelectorIsRejected) {
-    YAML::Node config;
-    config["soil_no_method"] = "hemco_3_12_1";
+    conf::Config config = conf::Config::from_string("soil_no_method: hemco_3_12_1");
     BdsnpScheme scheme;
-    EXPECT_THROW(scheme.Initialize(config, nullptr), std::invalid_argument);
+    EXPECT_THROW(scheme.Initialize(config.root(), nullptr), std::invalid_argument);
 }
 
 TEST_F(BdsnpRuntimeTest, MissingAndMalformedProductionContractFailsLoudly) {
     BdsnpScheme missing_scheme;
-    missing_scheme.Initialize(CanonicalConfig(false), nullptr);
+    missing_scheme.Initialize(CanonicalConfig(false).root(), nullptr);
     try {
         missing_scheme.Run(import_state, export_state);
         FAIL() << "Expected missing canonical BDSNP fields to fail";
@@ -274,7 +271,7 @@ TEST_F(BdsnpRuntimeTest, MissingAndMalformedProductionContractFailsLoudly) {
         BuildInputs(valid);
         mutate();
         BdsnpScheme scheme;
-        scheme.Initialize(CanonicalConfig(false), nullptr);
+        scheme.Initialize(CanonicalConfig(false).root(), nullptr);
         EXPECT_THROW(scheme.Run(import_state, export_state), std::runtime_error);
     };
 

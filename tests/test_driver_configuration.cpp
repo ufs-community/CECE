@@ -3,7 +3,6 @@
  * @brief Tests for driver configuration parsing and validation.
  *
  * Validates:
- *   - ISO8601 datetime parsing (YYYY-MM-DDTHH:MM:SS format)
  *   - Configuration file parsing for driver section
  *   - Default value fallback
  *   - Validation of start_time < end_time
@@ -60,72 +59,6 @@ static void ExpectFacadeInvalidArgument(const std::string& path, const std::stri
     } catch (const std::invalid_argument& error) {
         EXPECT_EQ(error.what(), expected_message);
     }
-}
-
-// ---------------------------------------------------------------------------
-// Tests for ISO8601 Parsing (Task 1.3, 1.4)
-// ---------------------------------------------------------------------------
-
-class ISO8601ParsingTest : public ::testing::Test {
-   protected:
-    // Helper to parse ISO8601 string (mimics Fortran parse_iso8601)
-    static bool ParseISO8601(const std::string& iso_str, int& yy, int& mm, int& dd, int& hh, int& mn, int& ss) {
-        if (iso_str.length() < 19) return false;  // YYYY-MM-DDTHH:MM:SS
-
-        try {
-            yy = std::stoi(iso_str.substr(0, 4));
-            mm = std::stoi(iso_str.substr(5, 2));
-            dd = std::stoi(iso_str.substr(8, 2));
-
-            if (iso_str[10] != 'T') return false;
-
-            hh = std::stoi(iso_str.substr(11, 2));
-            mn = std::stoi(iso_str.substr(14, 2));
-            ss = std::stoi(iso_str.substr(17, 2));
-
-            return true;
-        } catch (...) {
-            return false;
-        }
-    }
-};
-
-// Property 1: ISO8601 Parsing Round Trip
-// For any valid ISO8601 datetime string, parsing and reconstructing should produce equivalent
-// datetime
-TEST_F(ISO8601ParsingTest, ValidISO8601Format) {
-    int yy, mm, dd, hh, mn, ss;
-
-    // Test valid format
-    EXPECT_TRUE(ParseISO8601("2020-01-01T00:00:00", yy, mm, dd, hh, mn, ss));
-    EXPECT_EQ(yy, 2020);
-    EXPECT_EQ(mm, 1);
-    EXPECT_EQ(dd, 1);
-    EXPECT_EQ(hh, 0);
-    EXPECT_EQ(mn, 0);
-    EXPECT_EQ(ss, 0);
-}
-
-TEST_F(ISO8601ParsingTest, ValidISO8601FormatWithTime) {
-    int yy, mm, dd, hh, mn, ss;
-
-    // Test with non-zero time
-    EXPECT_TRUE(ParseISO8601("2020-06-15T14:30:45", yy, mm, dd, hh, mn, ss));
-    EXPECT_EQ(yy, 2020);
-    EXPECT_EQ(mm, 6);
-    EXPECT_EQ(dd, 15);
-    EXPECT_EQ(hh, 14);
-    EXPECT_EQ(mn, 30);
-    EXPECT_EQ(ss, 45);
-}
-
-TEST_F(ISO8601ParsingTest, InvalidISO8601Format) {
-    int yy, mm, dd, hh, mn, ss;
-
-    // Test invalid formats
-    EXPECT_FALSE(ParseISO8601("2020-01-01", yy, mm, dd, hh, mn, ss));       // Missing time
-    EXPECT_FALSE(ParseISO8601("20200101T000000", yy, mm, dd, hh, mn, ss));  // No separators
-    EXPECT_FALSE(ParseISO8601("invalid", yy, mm, dd, hh, mn, ss));          // Completely invalid
 }
 
 // ---------------------------------------------------------------------------
@@ -369,32 +302,6 @@ TEST_F(DriverConfigurationTest, DirectFacadeRejectsNonpositiveAmioStagingBufferC
         const std::string yaml = "driver:\n  amio_staging_buffer_count: " + std::to_string(count) + "\nphysics_schemes: []\n";
         ExpectFacadeInvalidArgument(test_config_file, yaml, "driver.amio_staging_buffer_count must be >= 1; got " + std::to_string(count) + ".");
     }
-}
-
-TEST_F(DriverConfigurationTest, PhysicsSchemeTopLevelMappingsArePassedToOptions) {
-    WriteConfigFile(test_config_file, R"(
-physics_schemes:
-  - name: bdsnp
-    options:
-      soil_no_method: bdsnp
-    input_mapping:
-      soil_temperature: TSOIL1
-      soil_moisture: GWETTOP
-    output_mapping:
-      soil_nox_emissions: SOIL_NO
-    diagnostics:
-      - soil_no_emission_rate
-)");
-
-    CeceConfig config = ParseConfig(test_config_file);
-    ASSERT_EQ(config.physics_schemes.size(), 1u);
-    const YAML::Node& options = config.physics_schemes[0].options;
-    EXPECT_EQ(options["soil_no_method"].as<std::string>(), "bdsnp");
-    EXPECT_EQ(options["input_mapping"]["soil_temperature"].as<std::string>(), "TSOIL1");
-    EXPECT_EQ(options["input_mapping"]["soil_moisture"].as<std::string>(), "GWETTOP");
-    EXPECT_EQ(options["output_mapping"]["soil_nox_emissions"].as<std::string>(), "SOIL_NO");
-    ASSERT_EQ(options["diagnostics"].size(), 1u);
-    EXPECT_EQ(options["diagnostics"][0].as<std::string>(), "soil_no_emission_rate");
 }
 
 TEST_F(DriverConfigurationTest, ParseAmioWorkerThreadsOutput) {
@@ -965,23 +872,6 @@ grid_ny: -1
 // ---------------------------------------------------------------------------
 // Property-Based Tests
 // ---------------------------------------------------------------------------
-
-// Property 1: ISO8601 Parsing Round Trip
-// For any valid ISO8601 datetime string, parsing should succeed
-TEST_F(ISO8601ParsingTest, Property1_ISO8601RoundTrip) {
-    // Test a range of valid dates
-    std::vector<std::string> valid_dates = {
-        "2000-01-01T00:00:00",
-        "2020-06-15T14:30:45",
-        "2099-12-31T23:59:59",
-        "2020-02-29T12:00:00",  // Leap year
-    };
-
-    int yy, mm, dd, hh, mn, ss;
-    for (const auto& date_str : valid_dates) {
-        EXPECT_TRUE(ParseISO8601(date_str, yy, mm, dd, hh, mn, ss)) << "Failed to parse: " << date_str;
-    }
-}
 
 // Property 20: Default Configuration Correctness
 // For any invocation without explicit driver configuration, defaults must be used

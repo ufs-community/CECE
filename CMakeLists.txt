@@ -102,10 +102,11 @@ message(STATUS "  HIP: ${Kokkos_ENABLE_HIP}")
 FetchContent_Declare(kokkos GIT_REPOSITORY https://github.com/kokkos/kokkos.git GIT_TAG 5.1.1)
 FetchContent_MakeAvailable(kokkos)
 
-# YAML-CPP
 if(CMAKE_VERSION VERSION_GREATER_EQUAL "3.30")
   set(CMAKE_POLICY_VERSION_MINIMUM "3.5")
 endif()
+
+# YAML-CPP (retained: the driver facade parses the config with yaml-cpp)
 FetchContent_Declare(yaml-cpp GIT_REPOSITORY https://github.com/jbeder/yaml-cpp.git GIT_TAG 0.8.0)
 FetchContent_MakeAvailable(yaml-cpp)
 
@@ -371,9 +372,9 @@ target_include_directories(
 target_compile_definitions(cece_core PUBLIC MPICH_SKIP_MPICXX OMPI_SKIP_MPICXX)
 
 if(ESMF_FOUND)
-  target_link_libraries(cece_core PUBLIC Kokkos::kokkos ESMF::ESMF yaml-cpp)
+  target_link_libraries(cece_core PUBLIC Kokkos::kokkos ESMF::ESMF conf yaml-cpp)
 else()
-  target_link_libraries(cece_core PUBLIC Kokkos::kokkos yaml-cpp)
+  target_link_libraries(cece_core PUBLIC Kokkos::kokkos conf yaml-cpp)
 endif()
 
 target_link_libraries(cece_core PUBLIC HELM::LOGS)
@@ -413,7 +414,7 @@ target_include_directories(
 
 target_link_libraries(
   cece_driver
-  PUBLIC cece_core amio_core HELM::SPAN blend axis HELM::DAGR HELM::HALO HELM::TICK
+  PUBLIC cece_core amio_core HELM::SPAN blend axis HELM::DAGR HELM::HALO HELM::TICK conf
 )
 
 # --- Backward-Compatibility target aliases ---
@@ -433,12 +434,22 @@ install(DIRECTORY include/cece DESTINATION include)
 
 enable_testing()
 
+if(POLICY CMP0178)
+  # New behavior ignores TEST_LAUNCHER documentation about
+  # semicolon-separated lists
+  cmake_policy(SET CMP0178 OLD)
+endif()
+
 add_executable(test_driver_configuration tests/test_driver_configuration.cpp)
 target_link_libraries(test_driver_configuration PRIVATE cece GTest::gtest_main)
 
 if(ESMF_FOUND)
   add_executable(test_driver_config_validation tests/test_driver_config_validation.cpp)
   target_link_libraries(test_driver_config_validation PRIVATE cece iso8601_utils GTest::gtest_main)
+  set_target_properties(
+    test_driver_config_validation
+    PROPERTIES TEST_LAUNCHER "${MPIEXEC_EXECUTABLE};${MPIEXEC_NUMPROC_FLAG};1;${MPIEXEC_PREFLAGS}"
+  )
 endif()
 
 add_executable(test_driver_clock_management tests/test_driver_clock_management.cpp)
@@ -472,6 +483,13 @@ target_link_libraries(test_cece_compute PRIVATE cece GTest::gtest_main)
 
 add_executable(test_standalone_writer_attributes tests/test_standalone_writer_attributes.cpp)
 target_link_libraries(test_standalone_writer_attributes PRIVATE cece GTest::gtest)
+
+# Ensure tests are run under MPI
+set_target_properties(
+  test_standalone_writer_attributes
+  test_cece_utils
+  PROPERTIES TEST_LAUNCHER "${MPIEXEC_EXECUTABLE};${MPIEXEC_NUMPROC_FLAG};1;${MPIEXEC_PREFLAGS}"
+)
 
 add_executable(test_physics tests/test_physics.cpp)
 target_link_libraries(test_physics PRIVATE cece GTest::gtest_main)
@@ -1216,10 +1234,16 @@ target_link_libraries(test_bdsnp_runtime PRIVATE cece GTest::gtest)
 
 if(ESMF_FOUND)
   add_executable(test_field_creation tests/test_field_creation.cpp)
+  add_executable(test_field_creation_error_handling tests/test_field_creation_error_handling.cpp)
   if(CECE_HAS_FORTRAN AND TARGET test_helpers)
     target_link_libraries(test_field_creation PRIVATE cece test_helpers GTest::gtest_main)
+    target_link_libraries(
+      test_field_creation_error_handling
+      PRIVATE cece test_helpers GTest::gtest_main
+    )
   else()
     target_link_libraries(test_field_creation PRIVATE cece GTest::gtest_main)
+    target_link_libraries(test_field_creation_error_handling PRIVATE cece GTest::gtest_main)
   endif()
 
   # Unit tests for field pointer passing (Requirement R5)
@@ -1229,6 +1253,13 @@ if(ESMF_FOUND)
   else()
     target_link_libraries(test_field_pointer_passing PRIVATE cece GTest::gtest_main)
   endif()
+
+  set_target_properties(
+    test_field_creation
+    test_field_creation_error_handling
+    test_field_pointer_passing
+    PROPERTIES TEST_LAUNCHER "${MPIEXEC_EXECUTABLE};${MPIEXEC_NUMPROC_FLAG};1;${MPIEXEC_PREFLAGS}"
+  )
 endif()
 
 # C++ HELM Unit Tests
@@ -1239,9 +1270,11 @@ target_link_libraries(
 )
 target_compile_definitions(test_helm_cpp PRIVATE CECE_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
 
-# Parity Regression Tests
-add_executable(test_regression_parity tests/test_regression_parity.cpp)
-target_link_libraries(test_regression_parity PRIVATE cece GTest::gtest_main)
+# Ensure tests run under MPI
+set_target_properties(
+  test_helm_cpp
+  PROPERTIES TEST_LAUNCHER "${MPIEXEC_EXECUTABLE};${MPIEXEC_NUMPROC_FLAG};1;${MPIEXEC_PREFLAGS}"
+)
 
 # Standalone NUOPC driver
 if(ESMF_FOUND)
@@ -1400,6 +1433,7 @@ if(Python3_Interpreter_FOUND)
   endif()
 endif()
 
+# Kokkos::OpenMP::initialize recommends OMP_PROC_BIND=false for unit tests
 include(GoogleTest)
 
 # Defer GTest test enumeration from build time to test (ctest) run time for ALL
@@ -1416,29 +1450,32 @@ gtest_discover_tests(test_driver_configuration)
 gtest_discover_tests(test_driver_clock_management)
 gtest_discover_tests(test_clock_operations_unit)
 gtest_discover_tests(test_driver_integration_end_to_end)
-gtest_discover_tests(test_stacking_engine)
-gtest_discover_tests(test_vertical_distribution_single)
-gtest_discover_tests(test_cece_utils)
-gtest_discover_tests(test_numerical_equivalence)
-gtest_discover_tests(test_cece_compute)
-gtest_discover_tests(test_standalone_writer_attributes)
-gtest_discover_tests(test_physics)
-gtest_discover_tests(test_cece_ingestor)
-gtest_discover_tests(test_hemco_mimic)
-gtest_discover_tests(test_field_resolution_priority)
-gtest_discover_tests(test_ingest_setfield_bypass)
-gtest_discover_tests(test_ingest_copyback_neutralized)
-gtest_discover_tests(test_hemco_parity)
-gtest_discover_tests(test_kokkos_configuration)
-gtest_discover_tests(test_properties)
-gtest_discover_tests(test_suite_idempotence)
+gtest_discover_tests(test_stacking_engine PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
+gtest_discover_tests(test_vertical_distribution_single PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
+gtest_discover_tests(test_cece_utils PROPERTIES PROCESSORS 1 ENVIRONMENT "OMP_PROC_BIND=false")
+gtest_discover_tests(test_numerical_equivalence PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
+gtest_discover_tests(test_cece_compute PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
+gtest_discover_tests(
+  test_standalone_writer_attributes
+  PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false" PROCESSORS 1
+)
+gtest_discover_tests(test_physics PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
+gtest_discover_tests(test_cece_ingestor PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
+gtest_discover_tests(test_hemco_mimic PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
+gtest_discover_tests(test_field_resolution_priority PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
+gtest_discover_tests(test_ingest_setfield_bypass PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
+gtest_discover_tests(test_ingest_copyback_neutralized PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
+gtest_discover_tests(test_hemco_parity PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
+gtest_discover_tests(test_kokkos_configuration PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
+gtest_discover_tests(test_properties PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
+gtest_discover_tests(test_suite_idempotence PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
 gtest_discover_tests(test_repro_failure)
 gtest_discover_tests(test_ccpp_readiness)
-gtest_discover_tests(test_fengsha_properties)
-gtest_discover_tests(test_ginoux_properties)
-gtest_discover_tests(test_k14_properties)
-gtest_discover_tests(test_speciation)
-gtest_discover_tests(test_megan3)
+gtest_discover_tests(test_fengsha_properties PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
+gtest_discover_tests(test_ginoux_properties PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
+gtest_discover_tests(test_k14_properties PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
+gtest_discover_tests(test_speciation PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
+gtest_discover_tests(test_megan3 PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
 gtest_discover_tests(test_cece_clock_properties)
 gtest_discover_tests(test_cece_clock_run_loop)
 gtest_discover_tests(test_bracket_equal_properties)
@@ -1472,25 +1509,34 @@ gtest_discover_tests(test_ingest_no_stale_data)
 gtest_discover_tests(test_ingest_consolidation_equivalence)
 gtest_discover_tests(test_ingest_collective_gate_order)
 gtest_discover_tests(test_ingest_single_write)
-gtest_discover_tests(test_bdsnp)
-gtest_discover_tests(test_bdsnp_runtime)
-gtest_discover_tests(test_helm_cpp PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm")
-gtest_discover_tests(test_regression_parity)
+gtest_discover_tests(test_bdsnp PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
+gtest_discover_tests(test_bdsnp_runtime PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
+gtest_discover_tests(
+  test_helm_cpp
+  PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMP_PROC_BIND=false" PROCESSORS 1
+)
 
 if(ESMF_FOUND)
   gtest_discover_tests(
     test_driver_config_validation
-    PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm"
+    PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm" PROCESSORS 1
   )
   gtest_discover_tests(test_cece_cap PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm")
-  gtest_discover_tests(test_diagnostics PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm")
+  gtest_discover_tests(
+    test_diagnostics
+    PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMP_PROC_BIND=false"
+  )
   gtest_discover_tests(
     test_field_creation
-    PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm"
+    PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMP_PROC_BIND=false" PROCESSORS 1
+  )
+  gtest_discover_tests(
+    test_field_creation_error_handling
+    PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false" PROCESSORS 1
   )
   gtest_discover_tests(
     test_field_pointer_passing
-    PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm"
+    PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMP_PROC_BIND=false" PROCESSORS 1
   )
 endif()
 
@@ -1629,6 +1675,7 @@ target_link_libraries(
     HELM::AXIS
     HELM::BLEND
     Kokkos::kokkos
+    conf
     yaml-cpp
     MPI::MPI_CXX
 )

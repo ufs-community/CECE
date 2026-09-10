@@ -32,7 +32,7 @@ namespace {
 
 class ThrowingPhysicsScheme final : public PhysicsScheme {
    public:
-    void Initialize(const YAML::Node&, CeceDiagnosticManager*) override {}
+    void Initialize(const conf::Value&, CeceDiagnosticManager*) override {}
 
     void Run(CeceImportState&, CeceExportState&) override {
         throw std::runtime_error("intentional physics failure");
@@ -41,7 +41,7 @@ class ThrowingPhysicsScheme final : public PhysicsScheme {
 
 class CountingPhysicsScheme final : public PhysicsScheme {
    public:
-    void Initialize(const YAML::Node&, CeceDiagnosticManager*) override {}
+    void Initialize(const conf::Value&, CeceDiagnosticManager*) override {}
 
     void Run(CeceImportState&, CeceExportState&) override {
         ++run_count;
