@@ -815,6 +815,13 @@ bool CeceDriverOrchestrator::RegridToBandBuffer(const std::string& var_name, con
         // FusedGateDecision(gate_vec, gate_vec, ...) therefore returns
         // local_source_ready and preserves the already-set not-ready detail.
         if (!FusedGateDecision(gate_vec, gate_vec, failure_detail)) return false;
+    } else if (!halo_comm_) {
+        // Defensive: RefreshHaloCommunicator engages halo_comm_ under exactly
+        // this distributed predicate, so this branch is unreachable; the
+        // explicit check keeps the dereferences below clang-tidy-clean
+        // (bugprone-unchecked-optional-access).
+        failure_detail = "front-half readiness gate: HALO communicator unavailable";
+        return false;
     } else {
         // Distributed (size > 1): every rank issues the same two allreduce
         // collectives in the same order (the predicate is rank-invariant), so no
@@ -893,6 +900,11 @@ bool CeceDriverOrchestrator::RegridToBandBuffer(const std::string& var_name, con
         // and no peer is stranded. This is the sole collective the band regrid
         // now issues — the per-level MPI_Allgatherv assembly is gone. All ranks
         // still agree the band regrid succeeded before proceeding.
+        if (!halo_comm_) {
+            // Defensive, unreachable (see front-half gate above).
+            failure_detail = "pre-gather readiness gate: HALO communicator unavailable";
+            return false;
+        }
         const std::vector<int> ready_vec{local_ok ? 1 : 0};
         const std::vector<int> reduced = halo::allreduce<int>(*halo_comm_, ready_vec, MPI_MIN);
         if (reduced.empty() || reduced[0] != 1) {
