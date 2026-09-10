@@ -333,6 +333,14 @@ class CeceDriverOrchestrator {
     // search runs at most once per file/manifest.
     std::unordered_map<std::string, int> file_nt_cache_;
 
+    // Per-variable source shape (rank + per-timestep extents, CF time
+    // stripped) keyed by Handle_Identity_Key + "|" + var_name. Populated once
+    // per variable via amio_describe (metadata only, no payload staged) and
+    // reused to size the band-scoped read bounding box in read_slab. Kept
+    // separate from file_nt_cache_ because two variables in one file may have
+    // different ranks/extents.
+    std::unordered_map<std::string, amio_shape_t> var_shape_cache_;
+
     // Loop-invariant work moved out of AdvanceTime:
     //  - stream_configs_ : YAML resolved once at construction, keyed by model
     //                      variable name (Req 1).

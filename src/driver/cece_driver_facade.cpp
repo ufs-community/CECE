@@ -1180,35 +1180,62 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
             const int j0 = band_.j0;
             const int j1 = band_.j1;
 
-            // 1. Determine total timesteps from the input variable.
-            //    Since AMIO doesn't expose a public function to query total timesteps,
-            //    we use a binary search with amio_read on the input variable to identify
-            //    the actual record limit (since reads beyond the record limit return AMIO_ERR_INVALID_INPUT).
-            //    We cache the result in file_nt_cache_ to avoid binary search overhead on subsequent steps.
+            // 1. Determine total timesteps (and the per-timestep shape) for the
+            //    input variable. amio_describe answers both from the file's
+            //    metadata without staging any payload, replacing the old
+            //    binary search that probed amio_read at ~20 record indices --
+            //    each probe a full-record read, which is exactly the traffic
+            //    band-scoped reads exist to avoid. Results are cached per
+            //    handle_key (record count) and per (handle_key, variable)
+            //    (shape) so the query runs at most once per file/variable.
             int file_nt = 1;
+            amio_shape_t var_shape{};
+            bool have_shape = false;
+            const std::string shape_key = handle_key + "|" + input_var_name;
+            auto shape_it = var_shape_cache_.find(shape_key);
             auto nt_it = file_nt_cache_.find(handle_key);
+            if (shape_it != var_shape_cache_.end()) {
+                var_shape = shape_it->second;
+                have_shape = true;
+            }
             if (nt_it != file_nt_cache_.end()) {
                 file_nt = nt_it->second;
-            } else {
-                if (!input_var_name.empty()) {
-                    int low = 1;
-                    int high = 1000000;
-                    int found_nt = 1;
-                    while (low <= high) {
-                        int mid = low + (high - low) / 2;
-                        amio_view_handle v = nullptr;
-                        amio_status_t rc = amio_read(read_dataset, input_var_name.c_str(), mid, nullptr, &v);
-                        if (rc == AMIO_OK) {
-                            amio_release_view(v);
-                            found_nt = mid + 1;
-                            low = mid + 1;
-                        } else {
-                            high = mid - 1;
+            }
+            if (nt_it == file_nt_cache_.end() || !have_shape) {
+                int64_t nt64 = 0;
+                amio_shape_t desc_shape{};
+                amio_status_t desc_rc = amio_describe(read_dataset, input_var_name.c_str(), &desc_shape, &nt64);
+                if (desc_rc == AMIO_OK && nt64 > 0) {
+                    file_nt = static_cast<int>(nt64);
+                    var_shape = desc_shape;
+                    have_shape = true;
+                    file_nt_cache_[handle_key] = file_nt;
+                    var_shape_cache_[shape_key] = var_shape;
+                } else {
+                    // Metadata unavailable (older driver, absent variable, ...):
+                    // fall back to the historical binary search so record
+                    // discovery still works. The bbox path stays disabled
+                    // (have_shape == false -> full-record reads).
+                    if (!input_var_name.empty()) {
+                        int low = 1;
+                        int high = 1000000;
+                        int found_nt = 1;
+                        while (low <= high) {
+                            int mid = low + (high - low) / 2;
+                            amio_view_handle v = nullptr;
+                            amio_status_t rc = amio_read(read_dataset, input_var_name.c_str(), mid, nullptr, &v);
+                            if (rc == AMIO_OK) {
+                                amio_release_view(v);
+                                found_nt = mid + 1;
+                                low = mid + 1;
+                            } else {
+                                high = mid - 1;
+                            }
                         }
+                        file_nt = found_nt;
                     }
-                    file_nt = found_nt;
+                    file_nt_cache_[handle_key] = file_nt;
                 }
-                file_nt_cache_[handle_key] = file_nt;
             }
             bool file_records_ready =
                 collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, file_nt > 0, "AMIO record-count readiness for '" + var_name + "'", failure_detail);
@@ -1238,6 +1265,11 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                     plan.file_nx = nx_;
                     plan.file_ny = ny_;
                     plan.identity = true;
+                    // Identity apply reads source rows [j0, j1) verbatim, so
+                    // the exact window is the band itself (same rule as
+                    // build_regrid_plan's passthrough branch).
+                    plan.src_j0 = j0;
+                    plan.src_rows = j1 - j0;
                     plan.built = true;
                     CECE_LOG_INFO("[DRIVER] passthrough verified stream file equals explicit gridspec file for '" + var_name +
                                   "'; using exact cell copy");
@@ -1393,9 +1425,37 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                 // Read one time record into a double buffer on the source grid.
                 // AMIO removes the CF time dimension, but any remaining dimensions
                 // before [lat, lon] are preserved as per-variable levels.
+                //
+                // Band-scoped read: when the plan carries an exact source-row
+                // window (build_regrid_plan derives it from the weight matrix's
+                // column range) and the variable's per-timestep shape is known
+                // (amio_describe), the on-disk fetch is restricted to rows
+                // [src_j0, src_j0 + src_rows). Without this every rank pulls the
+                // WHOLE global record from shared storage and discards all but
+                // its band's footprint -- nranks-fold replicated IO that made
+                // the 16-rank run slower than serial. The windowed payload is
+                // scattered into a GLOBAL-geometry buffer below, so
+                // RegridToBandBuffer / apply_regrid_plan (which index the source
+                // globally) and their size gates are unchanged; rows outside the
+                // window are provably never referenced (the window spans
+                // min..max matrix column) and stay zero-filled.
                 auto read_slab = [&](int t_idx, std::vector<double>& out, int& slab_nx, int& slab_ny) -> bool {
                     amio_view_handle slab_view = nullptr;
-                    amio_status_t rc = amio_read(read_dataset, input_var_name.c_str(), t_idx, nullptr, &slab_view);
+                    amio_bbox_t bbox{};
+                    const int fny_global_full = have_shape ? static_cast<int>(var_shape.extents[var_shape.rank - 2]) : 0;
+                    const bool use_window = have_shape && var_shape.rank >= 2 && plan.src_rows > 0 && plan.src_j0 >= 0 &&
+                                            fny_global_full > 0 && plan.src_j0 + plan.src_rows <= fny_global_full;
+                    if (use_window) {
+                        bbox.rank = var_shape.rank;
+                        for (int d = 0; d < var_shape.rank; ++d) {
+                            bbox.offsets[d] = 0;
+                            bbox.extents[d] = var_shape.extents[d];
+                            bbox.strides[d] = 1;
+                        }
+                        bbox.offsets[var_shape.rank - 2] = plan.src_j0;
+                        bbox.extents[var_shape.rank - 2] = plan.src_rows;
+                    }
+                    amio_status_t rc = amio_read(read_dataset, input_var_name.c_str(), t_idx, use_window ? &bbox : nullptr, &slab_view);
                     if (rc != AMIO_OK) {
                         CECE_LOG_DEBUG("[DRIVER] amio_read('" + input_var_name + "', t=" + std::to_string(t_idx) +
                                        ") failed with rc = " + std::to_string(rc));
@@ -1422,28 +1482,42 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                         amio_release_view(slab_view);
                         return false;
                     }
-                    const int fny = static_cast<int>(read_shape.extents[read_shape.rank - 2]);
+                    const int fny_view = static_cast<int>(read_shape.extents[read_shape.rank - 2]);
                     const int fnx = static_cast<int>(read_shape.extents[read_shape.rank - 1]);
                     size_t total_elements = 1;
                     for (int d = 0; d < read_shape.rank; ++d) {
                         total_elements *= read_shape.extents[d];
                     }
-                    const size_t spatial = static_cast<size_t>(fny) * fnx;
-                    const size_t record_elements = static_cast<size_t>(field_nlev) * spatial;
-                    if (spatial == 0 || record_elements == 0 || total_elements % record_elements != 0) {
+                    // Global source latitude count: the full grid the
+                    // downstream regrid indexes against. For a windowed read
+                    // this is the describe shape's lat extent; for a full read
+                    // it equals the view's lat extent.
+                    const int fny_global = use_window ? fny_global_full : fny_view;
+                    if (fny_global <= 0 || fnx <= 0) {
+                        failure_detail = "AMIO view has non-positive source geometry for '" + input_var_name + "'";
+                        amio_release_view(slab_view);
+                        return false;
+                    }
+                    // View record geometry (windowed or full) and global record
+                    // geometry (what `out` is sized to).
+                    const size_t view_spatial = static_cast<size_t>(fny_view) * fnx;
+                    const size_t view_record_elements = static_cast<size_t>(field_nlev) * view_spatial;
+                    const size_t global_spatial = static_cast<size_t>(fny_global) * fnx;
+                    const size_t global_record_elements = static_cast<size_t>(field_nlev) * global_spatial;
+                    if (view_spatial == 0 || view_record_elements == 0 || total_elements % view_record_elements != 0) {
                         failure_detail =
                             "AMIO field shape is incompatible with configured levels=" + std::to_string(field_nlev) + " for '" + input_var_name + "'";
                         amio_release_view(slab_view);
                         return false;
                     }
-                    const size_t records_in_view = total_elements / record_elements;
+                    const size_t records_in_view = total_elements / view_record_elements;
                     const size_t record_index = records_in_view > 1 ? static_cast<size_t>(t_idx) : 0;
                     if (record_index >= records_in_view) {
                         failure_detail = "AMIO view does not contain requested record " + std::to_string(t_idx) + " for '" + input_var_name + "'";
                         amio_release_view(slab_view);
                         return false;
                     }
-                    const size_t offset = record_index * record_elements;
+                    const size_t view_offset = record_index * view_record_elements;
 
                     const bool is_float = (view_size == total_elements * sizeof(float));
                     const bool is_double = (view_size == total_elements * sizeof(double));
@@ -1453,20 +1527,41 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                         return false;
                     }
 
-                    out.resize(record_elements);
-                    if (is_float) {
-                        const float* p = static_cast<const float*>(view_data) + offset;
-                        for (size_t k = 0; k < record_elements; ++k) out[k] = static_cast<double>(p[k]);
-                    } else {
-                        const double* p = static_cast<const double*>(view_data) + offset;
-                        for (size_t k = 0; k < record_elements; ++k) out[k] = p[k];
+                    // Scatter into global geometry. Full read: window covers
+                    // every row, so this reduces to a straight widened copy.
+                    // Windowed read: place rows [src_j0, src_j0+src_rows) at
+                    // their global positions; untouched rows stay zero (and are
+                    // provably never referenced by the regrid).
+                    const int win_j0 = use_window ? plan.src_j0 : 0;
+                    const int win_rows = use_window ? plan.src_rows : fny_view;
+                    out.assign(global_record_elements, 0.0);
+                    for (int level = 0; level < field_nlev; ++level) {
+                        const size_t view_level_base = view_offset + static_cast<size_t>(level) * view_spatial;
+                        const size_t global_level_base = static_cast<size_t>(level) * global_spatial;
+                        for (int wr = 0; wr < win_rows; ++wr) {
+                            const int gr = win_j0 + wr;
+                            if (gr < 0 || gr >= fny_global) {
+                                continue;
+                            }
+                            const size_t src_row = view_level_base + static_cast<size_t>(wr) * fnx;
+                            const size_t dst_row = global_level_base + static_cast<size_t>(gr) * fnx;
+                            if (is_float) {
+                                const float* p = static_cast<const float*>(view_data);
+                                for (int i = 0; i < fnx; ++i) out[dst_row + i] = static_cast<double>(p[src_row + i]);
+                            } else {
+                                const double* p = static_cast<const double*>(view_data);
+                                for (int i = 0; i < fnx; ++i) out[dst_row + i] = p[src_row + i];
+                            }
+                        }
                     }
                     slab_nx = fnx;
-                    slab_ny = fny;
+                    slab_ny = fny_global;
                     amio_release_view(slab_view);
-                    CECE_LOG_DEBUG("[DRIVER] Read slab t=" + std::to_string(t_idx) + " for '" + input_var_name + "': " + std::to_string(fny) + "x" +
-                                   std::to_string(fnx) + "x" + std::to_string(field_nlev) + " (" + std::to_string(record_elements) +
-                                   " elements, records_in_view=" + std::to_string(records_in_view) + ", " + (is_float ? "float32" : "float64") + ")");
+                    CECE_LOG_DEBUG("[DRIVER] Read slab t=" + std::to_string(t_idx) + " for '" + input_var_name + "': window rows [" +
+                                   std::to_string(win_j0) + "," + std::to_string(win_j0 + win_rows) + ") of " + std::to_string(fny_global) + "x" +
+                                   std::to_string(fnx) + "x" + std::to_string(field_nlev) + " (global buffer " + std::to_string(global_record_elements) +
+                                   " elements, view " + std::to_string(view_record_elements) + ", records_in_view=" + std::to_string(records_in_view) +
+                                   ", " + (is_float ? "float32" : "float64") + ")");
                     return true;
                 };
 

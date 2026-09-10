@@ -63,6 +63,15 @@ struct RegridPlan {
     int j1 = 0;                                                   ///< one-past-last destination row owned by this rank
     int file_nx = 0;                                              ///< source longitude count (from coords)
     int file_ny = 0;                                              ///< source latitude count (from coords)
+    /// Exact source latitude-row window [src_j0, src_j0 + src_rows) that the
+    /// weight matrix actually references (min/max column / file_nx). Band-scoped
+    /// reads fetch only these rows instead of the full source record: under MPI
+    /// this is the difference between every rank pulling the whole global field
+    /// (16x replicated IO) and each rank pulling only its band's footprint.
+    /// src_rows == 0 means "no window computed" (callers read full records);
+    /// build_regrid_plan always sets it for built plans.
+    int src_j0 = 0;
+    int src_rows = 0;
     bool identity = false;                                        ///< copy source cells directly; no AXIS weights are applied
     bool built = false;                                           ///< true once weights are generated
 };

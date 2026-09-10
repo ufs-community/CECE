@@ -651,6 +651,10 @@ bool build_regrid_plan(amio_dataset_handle read_dataset, int nx, int ny, const s
 
         plan.identity = true;
         plan.built = true;
+        // Identity apply reads source rows [j0, j1) directly (source grid ==
+        // target grid), so the exact window is the band itself.
+        plan.src_j0 = j0;
+        plan.src_rows = j1 - j0;
         CECE_LOG_INFO(
             "[DRIVER] passthrough verified identical source and target coordinates; "
             "skipping AXIS regridding");
@@ -756,6 +760,38 @@ bool build_regrid_plan(amio_dataset_handle read_dataset, int nx, int ny, const s
     // C. Generate the sparse weight matrix once and convert to CSR for fast apply.
     plan.matrix = axis::solver::WeightGenerator::generate<Kokkos::HostSpace>(src_mesh, dst_mesh, regrid_cfg);
     plan.matrix.to_csr();
+
+    // Source-row window (band-scoped reads): the exact latitude rows of the
+    // SOURCE grid this rank's weight matrix references, derived from the COO
+    // column range (still valid after to_csr). read_slab uses it to fetch
+    // rows [src_j0, src_j0+src_rows) instead of the full record: under MPI
+    // every rank otherwise pulls the whole global field from disk and
+    // discards all but its band (~nranks x replicated IO). Exact for any
+    // mapalgo because it is computed from the actual nonzeros, not guessed
+    // from the destination band. Left at src_rows == 0 ("no window") when the
+    // matrix is empty or geometry is unexpected; callers then read full records.
+    const std::size_t plan_nnz = plan.matrix.nnz();
+    if (plan_nnz > 0 && plan.file_nx > 0 && plan.file_ny > 0) {
+        const axis::index_t* cols = plan.matrix.factor_col().data_handle();
+        axis::index_t min_col = cols[0];
+        axis::index_t max_col = cols[0];
+        for (std::size_t k = 1; k < plan_nnz; ++k) {
+            if (cols[k] < min_col) min_col = cols[k];
+            if (cols[k] > max_col) max_col = cols[k];
+        }
+        const int r0 = static_cast<int>(min_col) / plan.file_nx;
+        const int r1 = static_cast<int>(max_col) / plan.file_nx;
+        if (r0 >= 0 && r1 < plan.file_ny) {
+            plan.src_j0 = r0;
+            plan.src_rows = r1 - r0 + 1;
+        }
+    }
+    if (plan.src_rows > 0) {
+        CECE_LOG_INFO("[DRIVER] band-scoped read window: source rows [" + std::to_string(plan.src_j0) + "," +
+                      std::to_string(plan.src_j0 + plan.src_rows) + ") of " + std::to_string(plan.file_ny) + " (dst band [" + std::to_string(j0) +
+                      "," + std::to_string(j1) + "))");
+    }
+
     plan.built = true;
     return true;
 }
