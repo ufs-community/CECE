@@ -230,6 +230,31 @@ static tick::Date_Time cal_to_dt(CalKind kind, std::int64_t nanos) {
     }
 }
 
+static std::int64_t cal_add_months(CalKind kind, std::int64_t nanos, int months) {
+    const tick::Time_Point tp{nanos};
+    switch (kind) {
+        case CalKind::NoLeap:
+            return tick::NoLeap_Calendar::add_months(tp, months).nanos();
+        case CalKind::Cal360:
+            return tick::Cal360_Calendar::add_months(tp, months).nanos();
+        case CalKind::Gregorian:
+        default:
+            return tick::Gregorian_Calendar::add_months(tp, months).nanos();
+    }
+}
+
+static int cal_days_in_month(CalKind kind, int year, int month) {
+    switch (kind) {
+        case CalKind::NoLeap:
+            return tick::NoLeap_Calendar::days_in_month(year, month);
+        case CalKind::Cal360:
+            return tick::Cal360_Calendar::days_in_month(year, month);
+        case CalKind::Gregorian:
+        default:
+            return tick::Gregorian_Calendar::days_in_month(year, month);
+    }
+}
+
 /**
  * @brief Parse a CF time-units string "<unit> since <reference>".
  *
@@ -588,16 +613,19 @@ RecordBracket bracket_from_cadence(const std::string& cadence, const std::string
  * the nearest record or (when @p linear) the two bracketing records with a
  * blend weight. @p times and @p target must share the same units.
  *
- * "cycle" repeats the file with a period of one record interval past the last
- * record, so a uniformly sampled N-record axis has period N (not N-1): hour 53
- * of a 48-record hourly file resolves to record 5. A target landing in that
- * trailing interval brackets the last record against the first record of the
- * next cycle.
+ * "cycle" repeats the file with period @p period_days. Pass 0 to infer it as
+ * span + the final record interval, which is exact for a uniformly sampled
+ * axis: a 48-record hourly file then has period 48 h, so hour 53 resolves to
+ * record 5. No fixed period is exact for year-aligned data, where a cycle is
+ * 365 or 366 days -- bracket_from_coords() handles that by wrapping the
+ * simulation year instead, and passes the resulting cycle length here so the
+ * seam is right. A target landing in the trailing interval brackets the last
+ * record against the first record of the next cycle.
  *
  * Returns an invalid bracket for an out-of-order @p times, which the binary
  * search cannot answer meaningfully.
  */
-RecordBracket find_bracket(const std::vector<double>& times, double target, bool linear, const std::string& taxmode) {
+RecordBracket find_bracket(const std::vector<double>& times, double target, bool linear, const std::string& taxmode, double period_days) {
     RecordBracket br;
     const size_t n = times.size();
     if (n == 0) return br;
@@ -619,10 +647,13 @@ RecordBracket find_bracket(const std::vector<double>& times, double target, bool
     const double file_start = times[0];
     const double file_end = times[n - 1];
     const double file_span = file_end - file_start;
-    // The last interval stands in for the (unrecorded) step from the final
-    // record back to the start of the next cycle.
-    const double last_interval = times[n - 1] - times[n - 2];
-    const double period = (last_interval > 0.0) ? file_span + last_interval : file_span;
+    double period = period_days;
+    if (period <= 0.0) {
+        // The last interval stands in for the (unrecorded) step from the final
+        // record back to the start of the next cycle.
+        const double last_interval = times[n - 1] - times[n - 2];
+        period = (last_interval > 0.0) ? file_span + last_interval : file_span;
+    }
     bool in_wrap_gap = false;
 
     if (target < file_start || target > file_end) {
@@ -698,6 +729,14 @@ RecordBracket find_bracket(const std::vector<double>& times, double target, bool
  * (non-fixed unit, missing/garbled units, an out-of-range calendar date, or a
  * multi-record axis that spans less than a second) so the caller falls back to
  * the arithmetic bracket_from_cadence().
+ *
+ * For taxmode "cycle" on an axis covering a whole number of calendar years,
+ * the simulation *year* is wrapped into the file's coverage. Wrapping the
+ * instant by a fixed period instead drifts a day per leap year and keeps
+ * accumulating. Coverage is inferred from the decoded records; the CF-exact
+ * source would be the time variable's `bounds` (time_bnds), whose first and
+ * last cell edges delimit the cycle directly, but AMIO does not surface bounds
+ * variables yet.
  */
 RecordBracket bracket_from_coords(const std::vector<double>& time_vals, const std::string& units, const std::string& calendar, const SimDateTime& dt,
                                   const std::string& tintalgo, int yearAlign, const std::string& taxmode) {
@@ -730,22 +769,51 @@ RecordBracket bracket_from_coords(const std::vector<double>& time_vals, const st
             return br;
         }
 
-        // Optional year remap: yearAlign is the simulation year that aligns to
-        // the file's first record year. yearAlign == 0 keeps the sim year.
+        auto abs_nanos = [&](double d) { return ref_nanos + static_cast<std::int64_t>(std::llround(d * static_cast<double>(tick::nanos_per_day))); };
+        const std::int64_t first_nanos = abs_nanos(rec_days.front());
+        const int first_year = cal_to_dt(cal, first_nanos).year;
+
+        // yearAlign is the simulation year that aligns to the file's first
+        // record year. yearAlign == 0 keeps the sim year.
         int sim_year = dt.year;
         if (yearAlign > 0) {
-            const std::int64_t rec0_nanos =
-                ref_nanos + static_cast<std::int64_t>(std::llround(rec_days.front() * static_cast<double>(tick::nanos_per_day)));
-            sim_year = dt.year + (cal_to_dt(cal, rec0_nanos).year - yearAlign);
+            sim_year = dt.year + (first_year - yearAlign);
         }
 
-        const tick::Date_Time sim_dt{sim_year, dt.month, dt.day, dt.hour, dt.minute, dt.second, 0};
+        // Does the axis cover a whole number of calendar years? If so, cycling
+        // repeats calendar years, which no fixed period can express because a
+        // year is 365 or 366 days. Detect it by checking that the leftover
+        // between the last record and the same calendar point one cycle on is
+        // no larger than the axis's own coarsest record spacing.
+        const int last_year = cal_to_dt(cal, abs_nanos(rec_days.back())).year;
+        const int span_years = last_year - first_year + 1;
+        const double span_days = rec_days.back() - rec_days.front();
+        double max_interval = 0.0;
+        for (size_t k = 1; k < rec_days.size(); ++k) {
+            max_interval = std::max(max_interval, rec_days[k] - rec_days[k - 1]);
+        }
+        const double annual_days =
+            static_cast<double>(cal_add_months(cal, first_nanos, span_years * 12) - first_nanos) / static_cast<double>(tick::nanos_per_day);
+        const bool annual_cycle = (rec_days.size() > 1 && annual_days > span_days && (annual_days - span_days) <= 1.5 * max_interval);
+
+        // Wrap the simulation *year* into the file's coverage rather than
+        // wrapping the instant: wrapping the instant by a fixed period drifts
+        // a day per leap year and never stops accumulating.
+        const std::string tax = to_lower(taxmode);
+        if (annual_cycle && (tax.empty() || tax == "cycle")) {
+            int offset = (sim_year - first_year) % span_years;
+            if (offset < 0) offset += span_years;
+            sim_year = first_year + offset;
+        }
+
+        // Feb 29 has no counterpart in a non-leap target year.
+        const int sim_day = std::min(dt.day, cal_days_in_month(cal, sim_year, dt.month));
+        const tick::Date_Time sim_dt{sim_year, dt.month, sim_day, dt.hour, dt.minute, dt.second, 0};
         const std::int64_t sim_nanos = cal_to_nanos(cal, sim_dt);
         const double target_days = static_cast<double>(sim_nanos - ref_nanos) / static_cast<double>(tick::nanos_per_day);
 
-        std::string talgo = tintalgo;
-        std::transform(talgo.begin(), talgo.end(), talgo.begin(), [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
-        return find_bracket(rec_days, target_days, talgo == "linear", taxmode);
+        const std::string talgo = to_lower(tintalgo);
+        return find_bracket(rec_days, target_days, talgo == "linear", taxmode, annual_cycle ? annual_days : 0.0);
     } catch (const std::exception&) {
         return br;  // any calendar/parse error -> degrade
     }

@@ -528,6 +528,161 @@ TEST(CeceCadenceIndexing, MultiYearDailyRemapUsesEffectiveYearDayOfYear) {
     EXPECT_EQ(rec("2021-02-28T00:00:00"), 58);
 }
 
+// ============================================================================
+// Cycling year-aligned data. A calendar year is 365 or 366 days, so no fixed
+// repeat period exists; wrapping the instant by one drifts a day per leap year
+// and accumulates without bound. bracket_from_coords wraps the simulation year
+// instead. Sub-annual files keep the (exact) modular behaviour.
+// ============================================================================
+
+namespace {
+
+// Mid-month records for the given inclusive year range, as "days since 2000-01-01".
+std::vector<double> monthly_axis(int year_first, int year_last) {
+    std::vector<double> raw;
+    const std::int64_t epoch = tick::Gregorian_Calendar::to_time_point(tick::Date_Time{2000, 1, 1, 0, 0, 0, 0}).nanos();
+    for (int y = year_first; y <= year_last; ++y) {
+        for (int m = 1; m <= 12; ++m) {
+            const std::int64_t t = tick::Gregorian_Calendar::to_time_point(tick::Date_Time{y, m, 15, 0, 0, 0, 0}).nanos();
+            raw.push_back(static_cast<double>(t - epoch) / static_cast<double>(tick::nanos_per_day));
+        }
+    }
+    return raw;
+}
+
+constexpr const char* kEpochDays = "days since 2000-01-01 00:00:00";
+
+}  // namespace
+
+TEST(CeceCycleYearAlignment, MonthlyCyclingDoesNotDriftAcrossLeapYears) {
+    using namespace cece::detail;
+
+    // A Jan-Dec 2023 monthly climatology. Mar 15 of *any* later year must land
+    // exactly on the March record. Under a fixed period the weight crept from
+    // 0.06 in 2024 to 0.77 by 2042.
+    const std::vector<double> raw = monthly_axis(2023, 2023);
+
+    for (int yr : {2024, 2025, 2027, 2030, 2036, 2042}) {
+        char iso[32];
+        std::snprintf(iso, sizeof(iso), "%04d-03-15T00:00:00", yr);
+        const RecordBracket br = bracket_from_coords(raw, kEpochDays, "gregorian", parse_sim_datetime(iso), "linear", 0, "cycle");
+        ASSERT_TRUE(br.valid) << iso;
+        EXPECT_EQ(br.i0, 2) << iso;
+        EXPECT_NEAR(br.weight, 0.0, 1e-9) << iso;
+    }
+}
+
+TEST(CeceCycleYearAlignment, MultiYearMonthlyCyclesByCalendarYear) {
+    using namespace cece::detail;
+
+    // 2020-2023, 48 records. Cycling repeats the four-year block.
+    const std::vector<double> raw = monthly_axis(2020, 2023);
+
+    // 2025 -> (2025-2020) % 4 = 1 -> 2021; March is record 1*12 + 2 = 14.
+    EXPECT_EQ(bracket_from_coords(raw, kEpochDays, "gregorian", parse_sim_datetime("2025-03-15T00:00:00"), "nearest", 0, "cycle").i0, 14);
+    // 2028 -> offset 0 -> 2020; July is record 6.
+    EXPECT_EQ(bracket_from_coords(raw, kEpochDays, "gregorian", parse_sim_datetime("2028-07-15T00:00:00"), "nearest", 0, "cycle").i0, 6);
+}
+
+TEST(CeceCycleYearAlignment, SeamBetweenCyclesBracketsLastAgainstFirst) {
+    using namespace cece::detail;
+
+    // Jan 5 sits in the 31-day gap between the Dec 15 and Jan 15 records, so a
+    // future Jan 5 must blend December into January, 21/31 of the way across.
+    const std::vector<double> raw = monthly_axis(2023, 2023);
+    const RecordBracket br = bracket_from_coords(raw, kEpochDays, "gregorian", parse_sim_datetime("2025-01-05T00:00:00"), "linear", 0, "cycle");
+    ASSERT_TRUE(br.valid);
+    EXPECT_EQ(br.i0, 11);
+    EXPECT_EQ(br.i1, 0);
+    EXPECT_NEAR(br.weight, 21.0 / 31.0, 1e-9);
+}
+
+TEST(CeceCycleYearAlignment, DailyCyclingSurvivesTheLeapDay) {
+    using namespace cece::detail;
+
+    // 365 daily records for 2023. March 1 of leap year 2024 must still be the
+    // March 1 record (59), not the March 2 record that a 365-day period gives.
+    std::vector<double> raw(365);
+    const std::int64_t epoch = tick::Gregorian_Calendar::to_time_point(tick::Date_Time{2000, 1, 1, 0, 0, 0, 0}).nanos();
+    const std::int64_t jan1 = tick::Gregorian_Calendar::to_time_point(tick::Date_Time{2023, 1, 1, 0, 0, 0, 0}).nanos();
+    const double base = static_cast<double>(jan1 - epoch) / static_cast<double>(tick::nanos_per_day);
+    for (int k = 0; k < 365; ++k) raw[k] = base + k;
+
+    EXPECT_EQ(bracket_from_coords(raw, kEpochDays, "gregorian", parse_sim_datetime("2024-03-01T00:00:00"), "nearest", 0, "cycle").i0, 59);
+    // The same date in a non-leap year is unchanged.
+    EXPECT_EQ(bracket_from_coords(raw, kEpochDays, "gregorian", parse_sim_datetime("2025-03-01T00:00:00"), "nearest", 0, "cycle").i0, 59);
+}
+
+TEST(CeceCycleYearAlignment, SubAnnualFilesStillCycleModulo) {
+    using namespace cece::detail;
+
+    // A 48-hour file is not year-aligned, so it must keep wrapping on the axis:
+    // hour 53 -> record 5. Year wrapping would be meaningless here.
+    const std::vector<double> raw = two_day_hourly_axis();
+    const RecordBracket br =
+        bracket_from_coords(raw, kTwoDayHourlyUnits, "gregorian", parse_sim_datetime("2000-01-03T05:00:00"), "nearest", 0, "cycle");
+    ASSERT_TRUE(br.valid);
+    EXPECT_EQ(br.i0, 5);
+}
+
+TEST(CeceCycleYearAlignment, PartialYearFileIsNotTreatedAsAnnual) {
+    using namespace cece::detail;
+
+    // Mar-Aug only: the leftover to the next calendar year dwarfs the record
+    // spacing, so this is not an annual cycle and must keep wrapping on the
+    // axis. January is outside the covered months, which is where the two
+    // regimes diverge -- year-wrapping would put it in the Aug/Mar seam
+    // (record 0), modular wrapping lands it on record 4.
+    std::vector<double> raw = monthly_axis(2023, 2023);
+    raw = std::vector<double>(raw.begin() + 2, raw.begin() + 8);  // Mar..Aug
+
+    const RecordBracket br = bracket_from_coords(raw, kEpochDays, "gregorian", parse_sim_datetime("2025-01-15T00:00:00"), "nearest", 0, "cycle");
+    ASSERT_TRUE(br.valid);
+    EXPECT_EQ(br.i0, 4);
+
+    // Months the file does cover are unremarkable either way.
+    EXPECT_EQ(bracket_from_coords(raw, kEpochDays, "gregorian", parse_sim_datetime("2025-05-15T00:00:00"), "nearest", 0, "cycle").i0, 2);
+}
+
+TEST(CeceCycleYearAlignment, ExtendAndLimitAreUnaffected) {
+    using namespace cece::detail;
+
+    const std::vector<double> raw = monthly_axis(2023, 2023);
+    const SimDateTime future = parse_sim_datetime("2030-06-15T00:00:00");
+
+    // extend clamps to the last record rather than wrapping the year.
+    const RecordBracket ext = bracket_from_coords(raw, kEpochDays, "gregorian", future, "nearest", 0, "extend");
+    ASSERT_TRUE(ext.valid);
+    EXPECT_EQ(ext.i0, 11);
+
+    // limit still rejects, and reports it as a deliberate rejection.
+    const RecordBracket lim = bracket_from_coords(raw, kEpochDays, "gregorian", future, "nearest", 0, "limit");
+    EXPECT_FALSE(lim.valid);
+    EXPECT_TRUE(lim.out_of_range);
+}
+
+TEST(CeceCycleYearAlignment, InRangeDatesAreUnaffected) {
+    using namespace cece::detail;
+
+    // Nothing about the year wrap should touch a date the file already covers.
+    const std::vector<double> raw = monthly_axis(2023, 2023);
+    EXPECT_EQ(bracket_from_coords(raw, kEpochDays, "gregorian", parse_sim_datetime("2023-07-15T00:00:00"), "nearest", 0, "cycle").i0, 6);
+    EXPECT_EQ(bracket_from_coords(raw, kEpochDays, "gregorian", parse_sim_datetime("2023-01-15T00:00:00"), "nearest", 0, "cycle").i0, 0);
+    EXPECT_EQ(bracket_from_coords(raw, kEpochDays, "gregorian", parse_sim_datetime("2023-12-15T00:00:00"), "nearest", 0, "cycle").i0, 11);
+}
+
+TEST(CeceCycleYearAlignment, Feb29ClampsOntoNonLeapFileYear) {
+    using namespace cece::detail;
+
+    // Cycling Feb 29 onto non-leap 2023 must clamp to Feb 28 rather than
+    // constructing a date the calendar rejects (which would degrade the whole
+    // decode).
+    const std::vector<double> raw = monthly_axis(2023, 2023);
+    const RecordBracket br = bracket_from_coords(raw, kEpochDays, "gregorian", parse_sim_datetime("2024-02-29T00:00:00"), "nearest", 0, "cycle");
+    ASSERT_TRUE(br.valid);
+    EXPECT_EQ(br.i0, 1);
+}
+
 TEST(CeceCadenceIndexing, TimeAxisFallbackOnNullDataset) {
     using namespace cece::detail;
 

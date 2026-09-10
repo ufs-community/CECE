@@ -73,7 +73,9 @@ void validate_stream_temporal_config(const std::string& cadence, const std::stri
 RecordBracket bracket_from_cadence(const std::string& cadence, const std::string& tintalgo, const SimDateTime& dt, int file_nt, int yearFirst = 0,
                                    int yearLast = 0, int yearAlign = 0, const std::string& taxmode = "");
 
-RecordBracket find_bracket(const std::vector<double>& times, double target, bool linear, const std::string& taxmode = "");
+/// @p period_days is the repeat period used by taxmode "cycle". Pass 0 to infer
+/// it from the axis, which is exact only for uniformly sampled records.
+RecordBracket find_bracket(const std::vector<double>& times, double target, bool linear, const std::string& taxmode = "", double period_days = 0.0);
 
 RecordBracket bracket_from_coords(const std::vector<double>& time_vals, const std::string& units, const std::string& calendar, const SimDateTime& dt,
                                   const std::string& tintalgo, int yearAlign = 0, const std::string& taxmode = "");
