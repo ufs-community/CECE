@@ -838,10 +838,9 @@ RecordBracket bracket_from_dataset(amio_dataset_handle dataset, const std::strin
     // doubles representing offsets from a reference date.
     std::string tvar = time_var.empty() ? "time" : time_var;
 
-    // Read all time values by reading timestep 0 of the time variable itself.
-    // The time coordinate variable is 1D [nt], so reading it at timestep 0
-    // should return the full array (since AMIO's describe_variable treats
-    // non-time-varying 1D variables as single-record).
+    // Read the whole axis in one call: AMIO describes a variable whose only
+    // dimension is the record dimension as that axis's coordinate variable
+    // rather than a field sampled along it, so this returns all nt values.
     amio_view_handle view = nullptr;
     amio_status_t rc = amio_read(dataset, tvar.c_str(), 0, nullptr, &view);
     if (rc != AMIO_OK) {

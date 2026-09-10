@@ -571,6 +571,18 @@ if(UNIX AND NOT APPLE)
   target_link_options(test_cece_time_indexing PRIVATE "LINKER:--no-as-needed")
 endif()
 
+# Time Axis Integration Tests (real NetCDF fixtures read through AMIO).
+# Provides its own main() for MPI init, so it links GTest::gtest rather than gtest_main.
+add_executable(test_cece_time_axis_netcdf tests/test_cece_time_axis_netcdf.cpp)
+target_link_libraries(test_cece_time_axis_netcdf PRIVATE cece GTest::gtest)
+if(UNIX AND NOT APPLE)
+  target_link_options(test_cece_time_axis_netcdf PRIVATE "LINKER:--no-as-needed")
+endif()
+set_target_properties(
+  test_cece_time_axis_netcdf
+  PROPERTIES TEST_LAUNCHER "${MPIEXEC_EXECUTABLE};${MPIEXEC_NUMPROC_FLAG};1;${MPIEXEC_PREFLAGS}"
+)
+
 # CeceClock Run Loop Unit Tests
 add_executable(test_cece_clock_run_loop tests/test_cece_clock_run_loop.cpp)
 target_link_libraries(test_cece_clock_run_loop PRIVATE cece GTest::gtest_main)
@@ -819,6 +831,10 @@ gtest_discover_tests(test_speciation PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false
 gtest_discover_tests(test_megan3 PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
 gtest_discover_tests(test_cece_clock_properties)
 gtest_discover_tests(test_cece_time_indexing)
+gtest_discover_tests(
+  test_cece_time_axis_netcdf
+  PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false" PROCESSORS 1
+)
 gtest_discover_tests(test_cece_clock_run_loop)
 gtest_discover_tests(test_bdsnp PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
 gtest_discover_tests(test_bdsnp_runtime PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
