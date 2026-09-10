@@ -286,13 +286,15 @@ TEST(CeceCadenceArithmetic, MonthlyCadenceNearestMultiYear) {
     EXPECT_EQ(br.i0, 282);
     EXPECT_EQ(br.i1, 282);
 
-    // Out-of-range simulation date: 2026-08-01 with taxmode="extend"
-    // Clamps effective year to 2023 -> August 2023 -> (2023-2000)*12 + 7 = 283
+    // Out-of-range simulation date: 2026-08-01 with taxmode="extend".
+    // "extend" holds the file's last record (Dec 2023, index 287). Clamping
+    // only the year would keep August and give 283, which is mid-file and
+    // disagrees with the decoded-axis path.
     SimDateTime dt_future = parse_sim_datetime("2026-08-01T00:00:00");
     RecordBracket br_future = bracket_from_cadence("monthly", "nearest", dt_future, 288, 2000, 2023, 2000, "extend");
     EXPECT_TRUE(br_future.valid);
-    EXPECT_EQ(br_future.i0, 283);
-    EXPECT_EQ(br_future.i1, 283);
+    EXPECT_EQ(br_future.i0, 287);
+    EXPECT_EQ(br_future.i1, 287);
 
     // First month: 2000-01-01 -> record 0
     SimDateTime dt_first = parse_sim_datetime("2000-01-01T00:00:00");
@@ -316,33 +318,109 @@ TEST(CeceCadenceArithmetic, MonthlyCadenceLinearMultiYear) {
     EXPECT_NEAR(br.weight, 0.0, 1e-9);
 }
 
-TEST(CeceCadenceArithmetic, MonthlyCadenceLinearMultiYearBoundaryWrapCaveat) {
+TEST(CeceCadenceArithmetic, MultiYearLinearHonorsTaxmodeAtFileEdges) {
     using namespace cece::detail;
 
-    // CAVEAT TEST (documents current fallback behaviour, not ideal semantics):
-    // For a multi-year monthly file (288 records, 2000-2023) the arithmetic
-    // linear path wraps modulo file_nt, so the first/last records interpolate
-    // against the opposite end of the file instead of clamping. The robust
-    // axis-based resolver (bracket_from_dataset) avoids this;
-    // bracket_from_cadence is only the fallback used when the axis read fails.
+    // Multi-year monthly file (288 records, 2000-2023). At the file edges the
+    // mid-month bracket would otherwise wrap, blending December of the last
+    // year into January of the first. Only "cycle" should do that.
 
-    // Late December 2023 (last month, record 287). December has 31 days;
-    // day 20 -> frac = 19/31 ~= 0.613 -> forward interpolation wraps i1 to 0.
-    SimDateTime dt_end = parse_sim_datetime("2023-12-20T00:00:00");
-    RecordBracket br_end = bracket_from_cadence("monthly", "linear", dt_end, 288, 2000, 2023, 2000, "extend");
-    EXPECT_TRUE(br_end.valid);
-    EXPECT_EQ(br_end.i0, 287);
-    EXPECT_EQ(br_end.i1, 0);  // wraps to the first record (Jan 2000) -- caveat
-    EXPECT_NEAR(br_end.weight, 19.0 / 31.0 - 0.5, 1e-9);
+    // Late December 2023 (last record, 287). December has 31 days; day 20 ->
+    // frac = 19/31 ~= 0.613, so the forward neighbour is off the end.
+    const SimDateTime dt_end = parse_sim_datetime("2023-12-20T00:00:00");
+    // Early January 2000 (record 0). Jan day 5 -> frac = 4/31 ~= 0.129, so the
+    // backward neighbour is off the front.
+    const SimDateTime dt_start = parse_sim_datetime("2000-01-05T00:00:00");
 
-    // Early January 2000 (first month, record 0). Jan day 5 -> frac = 4/31 ~= 0.129
-    // -> backward interpolation wraps i0 to the last record (Dec 2023).
-    SimDateTime dt_start = parse_sim_datetime("2000-01-05T00:00:00");
-    RecordBracket br_start = bracket_from_cadence("monthly", "linear", dt_start, 288, 2000, 2023, 2000, "extend");
-    EXPECT_TRUE(br_start.valid);
-    EXPECT_EQ(br_start.i0, 287);  // wraps to the last record (Dec 2023) -- caveat
-    EXPECT_EQ(br_start.i1, 0);
-    EXPECT_NEAR(br_start.weight, 4.0 / 31.0 + 0.5, 1e-9);
+    // extend: hold the edge record rather than wrapping to the far end.
+    const RecordBracket ext_end = bracket_from_cadence("monthly", "linear", dt_end, 288, 2000, 2023, 2000, "extend");
+    ASSERT_TRUE(ext_end.valid);
+    EXPECT_EQ(ext_end.i0, 287);
+    EXPECT_EQ(ext_end.i1, 287);
+    EXPECT_NEAR(ext_end.weight, 0.0, 1e-12);
+
+    const RecordBracket ext_start = bracket_from_cadence("monthly", "linear", dt_start, 288, 2000, 2023, 2000, "extend");
+    ASSERT_TRUE(ext_start.valid);
+    EXPECT_EQ(ext_start.i0, 0);
+    EXPECT_EQ(ext_start.i1, 0);
+
+    // limit: the target lies outside the records' coverage, so it is rejected
+    // the same way the decoded-axis path rejects it.
+    const RecordBracket lim_end = bracket_from_cadence("monthly", "linear", dt_end, 288, 2000, 2023, 2000, "limit");
+    EXPECT_FALSE(lim_end.valid);
+    EXPECT_TRUE(lim_end.out_of_range);
+
+    // cycle: wrapping is the whole point, so the far end is the neighbour.
+    const RecordBracket cyc_end = bracket_from_cadence("monthly", "linear", dt_end, 288, 2000, 2023, 2000, "cycle");
+    ASSERT_TRUE(cyc_end.valid);
+    EXPECT_EQ(cyc_end.i0, 287);
+    EXPECT_EQ(cyc_end.i1, 0);
+    EXPECT_NEAR(cyc_end.weight, 19.0 / 31.0 - 0.5, 1e-9);
+
+    const RecordBracket cyc_start = bracket_from_cadence("monthly", "linear", dt_start, 288, 2000, 2023, 2000, "cycle");
+    ASSERT_TRUE(cyc_start.valid);
+    EXPECT_EQ(cyc_start.i0, 287);
+    EXPECT_EQ(cyc_start.i1, 0);
+    EXPECT_NEAR(cyc_start.weight, 4.0 / 31.0 + 0.5, 1e-9);
+
+    // A mid-file month is unaffected by taxmode.
+    const SimDateTime dt_mid = parse_sim_datetime("2010-06-20T00:00:00");
+    for (const char* tax : {"cycle", "extend", "limit"}) {
+        const RecordBracket br = bracket_from_cadence("monthly", "linear", dt_mid, 288, 2000, 2023, 2000, tax);
+        ASSERT_TRUE(br.valid) << tax;
+        EXPECT_EQ(br.i0, 125) << tax;  // (2010-2000)*12 + 5
+        EXPECT_EQ(br.i1, 126) << tax;
+    }
+}
+
+TEST(CeceCadenceArithmetic, ExtendHoldsTheEndRecordNotTheSameMonth) {
+    using namespace cece::detail;
+
+    // A simulation year past the end of a 2000-2023 monthly file. "extend"
+    // means hold the last record (Dec 2023, index 287) -- clamping only the
+    // year would keep August and land on index 283, disagreeing with the
+    // decoded-axis path, which clamps the instant to the final record.
+    const SimDateTime aug_2026 = parse_sim_datetime("2026-08-15T00:00:00");
+    const RecordBracket late = bracket_from_cadence("monthly", "nearest", aug_2026, 288, 2000, 2023, 2000, "extend");
+    ASSERT_TRUE(late.valid);
+    EXPECT_EQ(late.i0, 287);
+    EXPECT_EQ(late.i1, 287);
+
+    // Symmetrically, a year before the file holds the first record.
+    const SimDateTime aug_1990 = parse_sim_datetime("1990-08-15T00:00:00");
+    const RecordBracket early = bracket_from_cadence("monthly", "nearest", aug_1990, 288, 2000, 2023, 2000, "extend");
+    ASSERT_TRUE(early.valid);
+    EXPECT_EQ(early.i0, 0);
+
+    // The daily branch follows the same rule: a 1095-record file over 2021-2023.
+    const RecordBracket daily_late =
+        bracket_from_cadence("daily", "nearest", parse_sim_datetime("2026-08-15T00:00:00"), 1095, 2021, 2023, 2021, "extend");
+    ASSERT_TRUE(daily_late.valid);
+    EXPECT_EQ(daily_late.i0, 1094);
+
+    const RecordBracket daily_early =
+        bracket_from_cadence("daily", "nearest", parse_sim_datetime("1990-08-15T00:00:00"), 1095, 2021, 2023, 2021, "extend");
+    ASSERT_TRUE(daily_early.valid);
+    EXPECT_EQ(daily_early.i0, 0);
+}
+
+TEST(CeceCadenceArithmetic, RemappedFebruaryUsesTheEffectiveYearMonthLength) {
+    using namespace cece::detail;
+
+    // A 36-record monthly file covering non-leap 2021-2023. February 2024 has
+    // 29 days but cycles onto 2021, which has 28: dividing by the simulation
+    // year's month length would give a weight the decoded path never produces.
+    const RecordBracket feb29 = bracket_from_cadence("monthly", "linear", parse_sim_datetime("2024-02-29T00:00:00"), 36, 2021, 2023, 2021, "cycle");
+    ASSERT_TRUE(feb29.valid);
+    EXPECT_EQ(feb29.i0, 1);  // Feb 2021
+    EXPECT_EQ(feb29.i1, 2);
+    // Day 29 is clamped onto the 28-day February, so frac = 27/28.
+    EXPECT_NEAR(feb29.weight, 27.0 / 28.0 - 0.5, 1e-9);
+
+    // A mid-February date divides by 28, not 29.
+    const RecordBracket feb10 = bracket_from_cadence("monthly", "linear", parse_sim_datetime("2024-02-10T00:00:00"), 36, 2021, 2023, 2021, "cycle");
+    ASSERT_TRUE(feb10.valid);
+    EXPECT_NEAR(feb10.weight, 9.0 / 28.0 + 0.5, 1e-9);
 }
 
 TEST(CeceCadenceArithmetic, MonthlyCadenceLinearClimatology) {
@@ -651,6 +729,39 @@ TEST(CeceCycleYearAlignment, PartialYearFileIsNotTreatedAsAnnual) {
     EXPECT_EQ(bracket_from_coords(raw, kEpochDays, "gregorian", parse_sim_datetime("2025-05-15T00:00:00"), "nearest", 0, "cycle").i0, 2);
 }
 
+TEST(CeceCycleYearAlignment, PhaseShiftedAnnualFileIsRecognised) {
+    using namespace cece::detail;
+
+    // A complete 12-month cycle that does not start in January (July 2023 to
+    // June 2024). Counting cycles from the first and last year *labels* called
+    // this a two-year partial axis and fell back to a period inferred from the
+    // final interval, so month alignment drifted a day per year.
+    std::vector<double> raw;
+    const std::int64_t epoch = tick::Gregorian_Calendar::to_time_point(tick::Date_Time{2000, 1, 1, 0, 0, 0, 0}).nanos();
+    for (int k = 0; k < 12; ++k) {
+        const int y = 2023 + (6 + k) / 12;
+        const int m = 1 + (6 + k) % 12;
+        const std::int64_t t = tick::Gregorian_Calendar::to_time_point(tick::Date_Time{y, m, 15, 0, 0, 0, 0}).nanos();
+        raw.push_back(static_cast<double>(t - epoch) / static_cast<double>(tick::nanos_per_day));
+    }
+
+    // Record 0 is July, so September is record 2 and January is record 6.
+    // Year remapping is not available here (the coverage is not January-
+    // aligned), so this leans on the cycle period being one calendar year;
+    // an inferred period drifts far enough to pick the wrong month.
+    for (int y = 2025; y <= 2035; ++y) {
+        const std::string sep = std::to_string(y) + "-09-15T00:00:00";
+        EXPECT_EQ(bracket_from_coords(raw, kEpochDays, "gregorian", parse_sim_datetime(sep), "nearest", 0, "cycle").i0, 2) << sep;
+
+        const std::string jan = std::to_string(y) + "-01-15T00:00:00";
+        EXPECT_EQ(bracket_from_coords(raw, kEpochDays, "gregorian", parse_sim_datetime(jan), "nearest", 0, "cycle").i0, 6) << jan;
+    }
+
+    // Dates the file already covers are unaffected.
+    EXPECT_EQ(bracket_from_coords(raw, kEpochDays, "gregorian", parse_sim_datetime("2023-07-15T00:00:00"), "nearest", 0, "cycle").i0, 0);
+    EXPECT_EQ(bracket_from_coords(raw, kEpochDays, "gregorian", parse_sim_datetime("2024-06-15T00:00:00"), "nearest", 0, "cycle").i0, 11);
+}
+
 TEST(CeceCycleYearAlignment, ExtendAndLimitAreUnaffected) {
     using namespace cece::detail;
 
@@ -763,6 +874,44 @@ TEST(CeceAxisDecode, DecodeHoursUnitAndBlankCalendar) {
     EXPECT_EQ(lin.i0, 1);
     EXPECT_EQ(lin.i1, 2);
     EXPECT_NEAR(lin.weight, 9.0 / 29.0, 1e-9);
+}
+
+TEST(CeceAxisDecode, UnsupportedCalendarsDoNotDecodeAsGregorian) {
+    using namespace cece::detail;
+
+    const std::vector<double> raw = {0.0, 31.0, 60.0};
+    const SimDateTime dt = parse_sim_datetime("2000-02-10T00:00:00");
+
+    // julian and all_leap are real CF calendars TICK cannot honour. Silently
+    // treating them as Gregorian gives a plausible but wrong record (julian is
+    // 13 days from Gregorian today), so the axis is reported as undecodable.
+    for (const char* cal : {"julian", "all_leap", "366_day", "not_a_calendar"}) {
+        EXPECT_FALSE(bracket_from_coords(raw, "days since 2000-01-01", cal, dt, "linear").valid) << cal;
+    }
+
+    // The supported spellings still decode, including CF's default for an
+    // absent attribute.
+    for (const char* cal : {"", "standard", "gregorian", "proleptic_gregorian", "noleap", "360_day"}) {
+        EXPECT_TRUE(bracket_from_coords(raw, "days since 2000-01-01", cal, dt, "linear").valid) << cal;
+    }
+}
+
+TEST(CeceAxisDecode, SubSecondAxesAreUsable) {
+    using namespace cece::detail;
+
+    // Ten records 0.05 s apart. The old guard rejected any multi-record axis
+    // spanning under a second, which threw away legitimate high-frequency data.
+    std::vector<double> raw(10);
+    for (int k = 0; k < 10; ++k) raw[k] = 0.05 * k;
+
+    const SimDateTime dt = parse_sim_datetime("2000-01-01T00:00:00");
+    const RecordBracket br = bracket_from_coords(raw, "seconds since 2000-01-01 00:00:00", "gregorian", dt, "nearest");
+    ASSERT_TRUE(br.valid);
+    EXPECT_EQ(br.i0, 0);
+
+    // A span below TICK's nanosecond resolution still cannot be a time axis.
+    const std::vector<double> collapsed = {0.0, 1e-20, 2e-20};
+    EXPECT_FALSE(bracket_from_coords(collapsed, "seconds since 2000-01-01 00:00:00", "gregorian", dt, "nearest").valid);
 }
 
 TEST(CeceAxisDecode, DecodeNoLeapCalendar) {

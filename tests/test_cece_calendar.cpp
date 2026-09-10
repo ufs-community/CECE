@@ -51,7 +51,7 @@ TEST(CeceCfUnits, ParseHandlesZeroOffsetSuffixes) {
     // Fractional seconds and the various spellings of "UTC" are all common in
     // real files, and all leave the reference unshifted.
     for (const char* units : {"hours since 1900-01-01 00:00:00.0", "seconds since 1900-01-01 00:00:00 UTC", "days since 1900-01-01T00:00:00Z",
-                              "days since 1900-01-01 00:00:00+00:00"}) {
+                              "days since 1900-01-01 00:00:00 utc", "days since 1900-01-01 00:00:00 GMT", "days since 1900-01-01 00:00:00+00:00"}) {
         const CFTimeUnits u = parse_cf_units(units);
         EXPECT_TRUE(u.valid) << units;
         EXPECT_EQ(u.reference, (tick::Date_Time{1900, 1, 1, 0, 0, 0, 0})) << units;
@@ -98,6 +98,74 @@ TEST(CeceCfUnits, ParseRejectsUndecodableUnits) {
     EXPECT_FALSE(parse_cf_units("days since 2000-01").valid);
     EXPECT_FALSE(parse_cf_units("days since 2000-13-01").valid);
     EXPECT_FALSE(parse_cf_units("days since 2000-01-32").valid);
+}
+
+TEST(CeceCfUnits, ParseKeepsFractionalSeconds) {
+    using namespace cece::detail;
+
+    // Discarding the fraction shifts every record by up to a second.
+    EXPECT_EQ(parse_cf_units("seconds since 2000-01-01 00:00:00.5").reference.nanosecond, 500000000);
+    EXPECT_EQ(parse_cf_units("seconds since 2000-01-01 00:00:00.25").reference.nanosecond, 250000000);
+    EXPECT_EQ(parse_cf_units("seconds since 2000-01-01 00:00:00.000000001").reference.nanosecond, 1);
+
+    // Digits below nanosecond resolution are dropped, not rolled over.
+    EXPECT_EQ(parse_cf_units("seconds since 2000-01-01 00:00:00.0000000009").reference.nanosecond, 0);
+
+    // The fraction survives alongside a zone suffix.
+    const CFTimeUnits offset = parse_cf_units("seconds since 2000-01-01 00:00:00.5 -06:00");
+    ASSERT_TRUE(offset.valid);
+    EXPECT_EQ(offset.reference.nanosecond, 500000000);
+    EXPECT_NEAR(offset.offset_days, -0.25, 1e-12);
+
+    // A bare decimal point is malformed.
+    EXPECT_FALSE(parse_cf_units("seconds since 2000-01-01 00:00:00.").valid);
+}
+
+TEST(CeceCfUnits, ParseRejectsMalformedReference) {
+    using namespace cece::detail;
+
+    // A time component that starts must finish; accepting a partial parse
+    // silently decoded this as 12:00.
+    EXPECT_FALSE(parse_cf_units("hours since 2000-01-01T12:bogus").valid);
+    EXPECT_FALSE(parse_cf_units("hours since 2000-01-01T12:30:bogus").valid);
+
+    // Trailing text is not a zone suffix, so the reference was not understood.
+    EXPECT_FALSE(parse_cf_units("days since 2000-01-01 nonsense").valid);
+    EXPECT_FALSE(parse_cf_units("days since 2000-01-01 12:30:45 extra").valid);
+    EXPECT_FALSE(parse_cf_units("days since 2000-01-01T00:00:00Z junk").valid);
+
+    // Out-of-range time components.
+    EXPECT_FALSE(parse_cf_units("hours since 2000-01-01 25:00:00").valid);
+    EXPECT_FALSE(parse_cf_units("hours since 2000-01-01 00:70:00").valid);
+
+    // Trailing whitespace is not junk.
+    EXPECT_TRUE(parse_cf_units("days since 2000-01-01 12:30:45  ").valid);
+}
+
+TEST(CeceCalendarKind, MapsSupportedNamesAndRejectsTheRest) {
+    using namespace cece::detail;
+
+    // An absent attribute means CF's default, "standard".
+    EXPECT_EQ(parse_calendar(""), CalKind::Gregorian);
+    EXPECT_EQ(parse_calendar("gregorian"), CalKind::Gregorian);
+    EXPECT_EQ(parse_calendar("standard"), CalKind::Gregorian);
+    EXPECT_EQ(parse_calendar("proleptic_gregorian"), CalKind::Gregorian);
+    EXPECT_EQ(parse_calendar("Gregorian"), CalKind::Gregorian);
+
+    EXPECT_EQ(parse_calendar("noleap"), CalKind::NoLeap);
+    EXPECT_EQ(parse_calendar("no_leap"), CalKind::NoLeap);
+    EXPECT_EQ(parse_calendar("365_day"), CalKind::NoLeap);
+    EXPECT_EQ(parse_calendar("365day"), CalKind::NoLeap);
+
+    EXPECT_EQ(parse_calendar("360_day"), CalKind::Cal360);
+    EXPECT_EQ(parse_calendar("360day"), CalKind::Cal360);
+
+    // Real CF calendars TICK has no engine for. Decoding them as Gregorian
+    // would be silently wrong -- julian is 13 days off in the modern era.
+    EXPECT_EQ(parse_calendar("julian"), CalKind::Unsupported);
+    EXPECT_EQ(parse_calendar("all_leap"), CalKind::Unsupported);
+    EXPECT_EQ(parse_calendar("366_day"), CalKind::Unsupported);
+    EXPECT_EQ(parse_calendar("not_a_calendar"), CalKind::Unsupported);
 }
 
 }  // namespace cece

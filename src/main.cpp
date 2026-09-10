@@ -279,10 +279,12 @@ int main(int argc, char* argv[]) {
                             "grid_lont", "grid_lon", "XLONG",   "lonCell", "geolon",      "clon",          "glamt",  "mesh2d_face_lon", "lon",
                             "longitude", "LON",      "lon_rho", "nav_lon", "mesh_node_x", "mesh2d_node_x", "node_x", "grid_xt",         "x"};
                         bool is_radian = false;
+                        std::string lon_var_name;
                         amio_status_t lon_status = static_cast<amio_status_t>(-1);
                         for (const auto& name : kLonNames) {
                             lon_status = amio_read(coord_dataset, name.c_str(), 0, nullptr, &lon_view);
                             if (lon_status == AMIO_OK) {
+                                lon_var_name = name;
                                 if (name == "lonCell" || name == "latCell" || name == "lonVertex" || name == "latVertex") {
                                     is_radian = true;
                                 }
@@ -306,9 +308,13 @@ int main(int argc, char* argv[]) {
                                         total_len *= static_cast<int>(lon_shape.extents[r]);
                                     }
                                     amio_dtype_t dtype = AMIO_DTYPE_F64;
+                                    double lon_scale = 1.0;
+                                    double lon_offset = 0.0;
+                                    cece::detail::read_cf_packing(coord_dataset, lon_var_name, lon_scale, lon_offset);
                                     std::vector<double> widened;
                                     if (amio_view_dtype(lon_view, &dtype) == AMIO_OK &&
-                                        cece::detail::widen_amio_elements(view_data, dtype, static_cast<std::size_t>(total_len), 1.0, 0.0, widened)) {
+                                        cece::detail::widen_amio_elements(view_data, dtype, static_cast<std::size_t>(total_len), lon_scale,
+                                                                          lon_offset, widened)) {
                                         file_lon_coords.resize(total_len);
                                         for (int i = 0; i < total_len; ++i) {
                                             double val = widened[i];
@@ -327,9 +333,11 @@ int main(int argc, char* argv[]) {
                             "grid_latt", "grid_lat", "XLAT",    "latCell", "geolat",      "clat",          "gphit",  "mesh2d_face_lat", "lat",
                             "latitude",  "LAT",      "lat_rho", "nav_lat", "mesh_node_y", "mesh2d_node_y", "node_y", "grid_yt",         "y"};
                         amio_status_t lat_status = static_cast<amio_status_t>(-1);
+                        std::string lat_var_name;
                         for (const auto& name : kLatNames) {
                             lat_status = amio_read(coord_dataset, name.c_str(), 0, nullptr, &lat_view);
                             if (lat_status == AMIO_OK) {
+                                lat_var_name = name;
                                 break;
                             }
                         }
@@ -348,9 +356,13 @@ int main(int argc, char* argv[]) {
                                         total_len *= static_cast<int>(lat_shape.extents[r]);
                                     }
                                     amio_dtype_t dtype = AMIO_DTYPE_F64;
+                                    double lat_scale = 1.0;
+                                    double lat_offset = 0.0;
+                                    cece::detail::read_cf_packing(coord_dataset, lat_var_name, lat_scale, lat_offset);
                                     std::vector<double> widened;
                                     if (amio_view_dtype(lat_view, &dtype) == AMIO_OK &&
-                                        cece::detail::widen_amio_elements(view_data, dtype, static_cast<std::size_t>(total_len), 1.0, 0.0, widened)) {
+                                        cece::detail::widen_amio_elements(view_data, dtype, static_cast<std::size_t>(total_len), lat_scale,
+                                                                          lat_offset, widened)) {
                                         file_lat_coords.resize(total_len);
                                         for (int j = 0; j < total_len; ++j) {
                                             double val = widened[j];

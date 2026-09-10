@@ -1,5 +1,6 @@
 #include "cece/cece_calendar.hpp"
 
+#include <cctype>
 #include <cerrno>
 #include <cstdlib>
 #include <limits>
@@ -13,10 +14,11 @@ namespace detail {
 
 CalKind parse_calendar(const std::string& calendar) {
     const std::string c = to_lower(calendar);
+    if (c.empty() || c == "gregorian" || c == "standard" || c == "proleptic_gregorian") return CalKind::Gregorian;
     if (c == "noleap" || c == "no_leap" || c == "365_day" || c == "365day") return CalKind::NoLeap;
     if (c == "360_day" || c == "360day") return CalKind::Cal360;
-    // "", "gregorian", "standard", "proleptic_gregorian", "julian" (approx), unknown.
-    return CalKind::Gregorian;
+    // julian, all_leap/366_day, and anything unrecognised.
+    return CalKind::Unsupported;
 }
 
 std::int64_t cal_to_nanos(CalKind kind, const tick::Date_Time& dt) {
@@ -74,13 +76,14 @@ int cal_days_in_month(CalKind kind, int year, int month) {
  *
  * Only fixed-length units (seconds/minutes/hours/days) are decodable; months
  * and years are calendar-ambiguous and yield an invalid result. The reference
- * parser is lenient: "YYYY-M-D", optional " [T]h[:m[:s]]", optional fractional
- * seconds, and an optional UTC offset ("Z", "UTC", "+HH:MM", "-HHMM", "+HH").
- * The offset is reported as @c offset_days rather than folded into
+ * accepts "YYYY-M-D", an optional " [T]h[:m[:s[.frac]]]", and an optional zone
+ * suffix ("Z", "UTC", "GMT", "+HH:MM", "-HHMM", "+HH"), but nothing else: a
+ * component that starts must parse, and any leftover text makes the units
+ * undecodable rather than silently decoding a wrong epoch. Fractional seconds
+ * are kept, since dropping them shifts every record.
+ * The zone offset is reported as @c offset_days rather than folded into
  * @c reference because normalising to UTC can cross a day boundary, and the
  * file's calendar is not known here. Callers subtract it once they have one.
- * A malformed offset makes the units undecodable rather than silently decoding
- * the wrong epoch.
  */
 CFTimeUnits parse_cf_units(const std::string& units) {
     auto trim = [](std::string& s) {
@@ -138,8 +141,18 @@ CFTimeUnits parse_cf_units(const std::string& units) {
         }
         return true;
     };
+    // @p word must be lower case.
+    auto consume_word_ci = [](const char*& p, const char* word) -> bool {
+        std::size_t i = 0;
+        for (; word[i] != '\0'; ++i) {
+            if (std::tolower(static_cast<unsigned char>(p[i])) != word[i]) return false;
+        }
+        p += i;
+        return true;
+    };
 
     int y = 0, mo = 1, d = 1, h = 0, mi = 0, s = 0;
+    int nanosecond = 0;
     const char* p = ref.c_str();
     if (!parse_int(p, y) || !consume(p, '-')) return {};
     if (!parse_int(p, mo) || !consume(p, '-')) return {};
@@ -150,20 +163,36 @@ CFTimeUnits parse_cf_units(const std::string& units) {
     skip_ws(p);
     if (*p == 'T' || *p == 't') ++p;
     skip_ws(p);
-    if (is_digit(*p) && parse_int(p, h) && consume(p, ':')) {
-        if (parse_int(p, mi) && consume(p, ':')) {
-            parse_int(p, s);
+    if (is_digit(*p)) {
+        // Each component that is present must parse. Accepting a partial time
+        // would silently decode "12:bogus" as 12:00.
+        if (!parse_int(p, h)) return {};
+        if (consume(p, ':')) {
+            if (!parse_int(p, mi)) return {};
+            if (consume(p, ':')) {
+                if (!parse_int(p, s)) return {};
+                if (*p == '.') {
+                    ++p;
+                    if (!is_digit(*p)) return {};
+                    // Dropping the fraction shifts every record by up to a second.
+                    int scale = 100000000;
+                    while (is_digit(*p)) {
+                        if (scale > 0) {
+                            nanosecond += (*p - '0') * scale;
+                            scale /= 10;
+                        }
+                        ++p;
+                    }
+                }
+            }
         }
-    }
-    if (*p == '.') {  // fractional seconds
-        ++p;
-        while (is_digit(*p)) ++p;
     }
 
     // Optional UTC offset. CF gives the reference in that zone, so a record at
     // offset 0 is `offset` later in UTC.
     double offset_days = 0.0;
     skip_ws(p);
+    if (consume_word_ci(p, "utc") || consume_word_ci(p, "gmt")) skip_ws(p);
     if (*p == 'Z' || *p == 'z') {
         ++p;
     } else if (*p == '+' || *p == '-') {
@@ -178,8 +207,14 @@ CFTimeUnits parse_cf_units(const std::string& units) {
         offset_days = sign * (oh * 60 + om) / 1440.0;
     }
 
+    // Anything left over means the reference was not understood. Ignoring it
+    // would decode "days since 2000-01-01 nonsense" as midnight.
+    skip_ws(p);
+    if (*p != '\0') return {};
+
     if (mo < 1 || mo > 12 || d < 1 || d > 31) return {};
-    return CFTimeUnits{unit_days, tick::Date_Time{y, mo, d, h, mi, s, 0}, offset_days, true};
+    if (h > 23 || mi > 59 || s > 59) return {};
+    return CFTimeUnits{unit_days, tick::Date_Time{y, mo, d, h, mi, s, nanosecond}, offset_days, true};
 }
 
 }  // namespace detail

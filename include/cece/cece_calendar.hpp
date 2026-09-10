@@ -33,9 +33,14 @@ namespace cece {
 namespace detail {
 
 /// Calendar selected by the CF "calendar" attribute value.
-enum class CalKind { Gregorian, NoLeap, Cal360 };
+/// @c Unsupported covers names CF defines but TICK has no engine for, such as
+/// @c julian (13 days from Gregorian today) and @c all_leap. Decoding those as
+/// Gregorian would silently produce wrong dates, so callers must treat the axis
+/// as undecodable instead.
+enum class CalKind { Gregorian, NoLeap, Cal360, Unsupported };
 
-/// Unrecognised names fall back to Gregorian, matching CF's default.
+/// An empty attribute means CF's default, @c standard. A name we cannot honour
+/// yields @c Unsupported rather than a wrong-but-plausible Gregorian date.
 CalKind parse_calendar(const std::string& calendar);
 
 std::int64_t cal_to_nanos(CalKind kind, const tick::Date_Time& dt);

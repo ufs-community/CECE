@@ -96,45 +96,73 @@ CadenceKind classify_cadence(const std::string& cadence) {
     return CadenceKind::Series;
 }
 
+// What a mid-point bracket does when a neighbour falls off either end of the
+// file. A climatology always wraps; a multi-year file follows taxmode, so that
+// the arithmetic fallback agrees with the decoded-axis path.
+enum class EdgePolicy { Wrap, Hold, Reject };
+
 // Mid-point cyclic bracket shared by the daily (mid-day) and monthly
 // (mid-month) linear paths. `frac` is the fractional position through record
-// `idx`'s interval; records wrap modulo `nrec` (climatology cycle).
-static RecordBracket midpoint_bracket(int idx, double frac, int nrec) {
+// `idx`'s interval.
+static RecordBracket midpoint_bracket(int idx, double frac, int nrec, EdgePolicy edge) {
     RecordBracket br;
+    int lo, hi;
+    double weight;
     if (frac >= 0.5) {
-        br.i0 = idx % nrec;
-        br.i1 = (idx + 1) % nrec;
-        br.weight = frac - 0.5;
+        lo = idx;
+        hi = idx + 1;
+        weight = frac - 0.5;
     } else {
-        br.i0 = (idx - 1 + nrec) % nrec;
-        br.i1 = idx % nrec;
-        br.weight = frac + 0.5;
+        lo = idx - 1;
+        hi = idx;
+        weight = frac + 0.5;
     }
+
+    if (lo < 0 || hi >= nrec) {
+        if (edge == EdgePolicy::Hold) {
+            br.i0 = br.i1 = (lo < 0) ? 0 : nrec - 1;
+            br.weight = 0.0;
+            br.valid = true;
+            return br;
+        }
+        if (edge == EdgePolicy::Reject) {
+            br.out_of_range = true;
+            return br;
+        }
+    }
+
+    br.i0 = ((lo % nrec) + nrec) % nrec;
+    br.i1 = ((hi % nrec) + nrec) % nrec;
+    br.weight = weight;
     br.valid = true;
     return br;
 }
 
-// Map `eff_year` into [yearFirst, yLast] per taxmode. Returns false when no
-// year can be resolved: an out-of-range year under "limit" (which also sets
-// @p out_of_range), or an inverted range (which would otherwise make the cycle
-// span zero years).
-static bool apply_year_taxmode(int& eff_year, int yearFirst, int yLast, const std::string& tax, bool& out_of_range) {
-    if (eff_year >= yearFirst && eff_year <= yLast) return true;
+// How a simulation year outside [yearFirst, yLast] was resolved.
+enum class YearMapping { Resolved, ClampFirst, ClampLast, Reject };
+
+// Map `eff_year` into [yearFirst, yLast] per taxmode. Reject covers an
+// out-of-range year under "limit" (which also sets @p out_of_range) and an
+// inverted range (which would otherwise make the cycle span zero years).
+static YearMapping apply_year_taxmode(int& eff_year, int yearFirst, int yLast, const std::string& tax, bool& out_of_range) {
+    if (eff_year >= yearFirst && eff_year <= yLast) return YearMapping::Resolved;
 
     const int year_span = yLast - yearFirst + 1;
-    if (year_span <= 0) return false;
+    if (year_span <= 0) return YearMapping::Reject;
     if (tax == "limit") {
         out_of_range = true;
-        return false;
+        return YearMapping::Reject;
     }
     if (tax == "extend") {
-        eff_year = std::max(yearFirst, std::min(eff_year, yLast));
-        return true;
+        // "extend" holds the first/last record, as the decoded-axis path does.
+        // Clamping only the year would keep the month and land mid-file: August
+        // 2026 against a 2000-2023 file would give August 2023, not December.
+        return (eff_year < yearFirst) ? YearMapping::ClampFirst : YearMapping::ClampLast;
     }
     int offset = (eff_year - yearFirst) % year_span;  // default: cycle
     if (offset < 0) offset += year_span;
     eff_year = yearFirst + offset;
-    return true;
+    return YearMapping::Resolved;
 }
 
 /**
@@ -157,7 +185,7 @@ static bool apply_year_taxmode(int& eff_year, int yearFirst, int yLast, const st
  *                   effective_year = yearFirst + (sim_year - yearAlign) mapped
  *                   into [yearFirst, yearLast] per taxmode.
  * @param taxmode    "cycle" (default): wrap sim year into file range.
- *                   "extend": clamp to file boundary.
+ *                   "extend": hold the file's first/last record.
  *                   "limit": return invalid bracket if outside range.
  *
  * For monthly cadence with multi-year files (file_nt > 12), the record index
@@ -206,7 +234,13 @@ RecordBracket bracket_from_cadence(const std::string& cadence, const std::string
                 yLast = yearFirst + std::max(1, file_nt / 365) - 1;
             }
 
-            if (!apply_year_taxmode(eff_year, yearFirst, yLast, tax, br.out_of_range)) return br;
+            const YearMapping mapping = apply_year_taxmode(eff_year, yearFirst, yLast, tax, br.out_of_range);
+            if (mapping == YearMapping::Reject) return br;
+            if (mapping != YearMapping::Resolved) {
+                br.i0 = br.i1 = (mapping == YearMapping::ClampFirst) ? 0 : std::max(0, file_nt - 1);
+                br.valid = true;
+                return br;
+            }
         }
 
         int abs_day;
@@ -253,10 +287,11 @@ RecordBracket bracket_from_cadence(const std::string& cadence, const std::string
 
         const double frac = day_fraction(dt);
 
-        // Caveat: for multi-year files the modulo wrap makes the first/last
-        // records interpolate against the opposite file end; the axis-based
-        // resolver is the robust path, this arithmetic path is the fallback.
-        br = midpoint_bracket(abs_day, frac, nrec);
+        const EdgePolicy edge = !multi_year         ? EdgePolicy::Wrap
+                                : (tax == "extend") ? EdgePolicy::Hold
+                                : (tax == "limit")  ? EdgePolicy::Reject
+                                                    : EdgePolicy::Wrap;
+        br = midpoint_bracket(abs_day, frac, nrec, edge);
     } else if (c == "weekly") {
         // dt.day_of_week is ISO 8601 (1=Monday ... 7=Sunday).
         // Weekly profile records are 0-indexed (0=Monday ... 6=Sunday).
@@ -283,7 +318,13 @@ RecordBracket bracket_from_cadence(const std::string& cadence, const std::string
                 yLast = yearFirst + (file_nt / 12) - 1;
             }
 
-            if (!apply_year_taxmode(eff_year, yearFirst, yLast, tax, br.out_of_range)) return br;
+            const YearMapping mapping = apply_year_taxmode(eff_year, yearFirst, yLast, tax, br.out_of_range);
+            if (mapping == YearMapping::Reject) return br;
+            if (mapping != YearMapping::Resolved) {
+                br.i0 = br.i1 = (mapping == YearMapping::ClampFirst) ? 0 : std::max(0, file_nt - 1);
+                br.valid = true;
+                return br;
+            }
         }
 
         // Compute absolute month index within the file.
@@ -300,15 +341,19 @@ RecordBracket bracket_from_cadence(const std::string& cadence, const std::string
             return br;
         }
 
-        // Mid-month linear interpolation convention.
-        const int dim = tick::Gregorian_Calendar::days_in_month(dt.year, dt.month);
-        const double frac = (static_cast<double>(dt.day - 1) + day_fraction(dt)) / static_cast<double>(dim);
+        // Mid-month linear interpolation convention. The month length comes
+        // from the effective year: remapping February 2024 onto non-leap 2021
+        // must divide by 28, not 29.
+        const int dim = tick::Gregorian_Calendar::days_in_month(eff_year, dt.month);
+        const int eff_day = std::min(dt.day, dim);
+        const double frac = (static_cast<double>(eff_day - 1) + day_fraction(dt)) / static_cast<double>(dim);
         const int nrec = (file_nt > 0) ? file_nt : 12;
 
-        // Caveat: for multi-year files the modulo wrap makes the first/last
-        // records interpolate against the opposite file end (Dec of the last
-        // year <-> Jan of the first); the axis-based resolver avoids this.
-        br = midpoint_bracket(abs_month, frac, nrec);
+        const EdgePolicy edge = !multi_year         ? EdgePolicy::Wrap
+                                : (tax == "extend") ? EdgePolicy::Hold
+                                : (tax == "limit")  ? EdgePolicy::Reject
+                                                    : EdgePolicy::Wrap;
+        br = midpoint_bracket(abs_month, frac, nrec, edge);
     }
     return br;
 }
@@ -455,6 +500,10 @@ RecordBracket bracket_from_coords(const std::vector<double>& time_vals, const st
         if (!cf.valid) return br;  // not decodable -> degrade
 
         const CalKind cal = parse_calendar(calendar);
+        if (cal == CalKind::Unsupported) {
+            CECE_LOG_WARNING("[DRIVER] Unsupported stream calendar '" + calendar + "'; the time axis cannot be decoded.");
+            return br;
+        }
         // Normalise the reference to UTC. Shifting in the time-point domain is
         // calendar-agnostic, whereas adding hours to the reference date could
         // land on a date the file's calendar does not have (e.g. Jan 31 under
@@ -468,11 +517,13 @@ RecordBracket bracket_from_coords(const std::vector<double>& time_vals, const st
             rec_days[k] = time_vals[k] * cf.unit_days;
         }
 
-        // A multi-record axis covering under a second is not a real time axis.
-        // An integer time variable read as floating point looks exactly like
-        // this: the reinterpreted bit patterns stay ordered but collapse to
-        // denormals, so every record decodes to the same instant.
-        if (rec_days.size() > 1 && (rec_days.back() - rec_days.front()) < 1.0 / 86400.0) {
+        // Records must be distinguishable at TICK's nanosecond resolution. An
+        // integer time variable read as floating point fails this: the
+        // reinterpreted bit patterns stay ordered but collapse to denormals, so
+        // the whole axis spans ~1e-29 ns. Anything coarser than a nanosecond is
+        // a real axis, including legitimately sub-second ones.
+        const double span_days = rec_days.back() - rec_days.front();
+        if (rec_days.size() > 1 && span_days * static_cast<double>(tick::nanos_per_day) < 1.0) {
             return br;
         }
 
@@ -489,25 +540,30 @@ RecordBracket bracket_from_coords(const std::vector<double>& time_vals, const st
 
         // Does the axis cover a whole number of calendar years? If so, cycling
         // repeats calendar years, which no fixed period can express because a
-        // year is 365 or 366 days. Detect it by checking that the leftover
-        // between the last record and the same calendar point one cycle on is
-        // no larger than the axis's own coarsest record spacing.
-        const int last_year = cal_to_dt(cal, abs_nanos(rec_days.back())).year;
-        const int span_years = last_year - first_year + 1;
-        const double span_days = rec_days.back() - rec_days.front();
+        // year is 365 or 366 days. Count the cycles from the span itself rather
+        // than from the first and last year labels, which would call a
+        // July-to-June file two years and never detect it. Then check that the
+        // leftover between the last record and the same calendar point one
+        // cycle on is no larger than the axis's own coarsest record spacing.
         double max_interval = 0.0;
         for (size_t k = 1; k < rec_days.size(); ++k) {
             max_interval = std::max(max_interval, rec_days[k] - rec_days[k - 1]);
         }
+        const int span_years = std::max(1, static_cast<int>(std::llround(span_days / 365.25)));
         const double annual_days =
             static_cast<double>(cal_add_months(cal, first_nanos, span_years * 12) - first_nanos) / static_cast<double>(tick::nanos_per_day);
         const bool annual_cycle = (rec_days.size() > 1 && annual_days > span_days && (annual_days - span_days) <= 1.5 * max_interval);
+
+        // Year remapping assumes the coverage starts on a January boundary. A
+        // phase-shifted annual file (July-June) is cycled by find_bracket
+        // instead, using the exact annual_days period computed above.
+        const bool year_aligned = (cal_to_dt(cal, first_nanos).month == 1);
 
         // Wrap the simulation *year* into the file's coverage rather than
         // wrapping the instant: wrapping the instant by a fixed period drifts
         // a day per leap year and never stops accumulating.
         const std::string tax = to_lower(taxmode);
-        if (annual_cycle && (tax.empty() || tax == "cycle")) {
+        if (annual_cycle && year_aligned && (tax.empty() || tax == "cycle")) {
             int offset = (sim_year - first_year) % span_years;
             if (offset < 0) offset += span_years;
             sim_year = first_year + offset;
