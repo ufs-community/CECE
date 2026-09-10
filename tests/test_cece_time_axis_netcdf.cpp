@@ -186,6 +186,35 @@ TEST(CeceTimeAxisNetcdf, ResolvesRecordFromDecodedFileAxis) {
     EXPECT_NEAR(lin.weight, 0.5, 1e-9);
 }
 
+TEST(CeceTimeAxisNetcdf, AxisIsTruncatedToTheRecordCount) {
+    using namespace cece::detail;
+
+    AmioFixture fx{AxisSpec{}};
+    if (!fx.usable()) GTEST_SKIP() << "AMIO could not open the NetCDF fixture in this build";
+
+    // file_nt is probed from the data variable, so a partially written file can
+    // leave the time axis longer than the records that exist. Bracketing must
+    // stay inside file_nt or the driver reads a record that is not there.
+    constexpr int kShortNt = 6;
+
+    // 09Z exists on the axis but is past the last readable record.
+    const RecordBracket past =
+        bracket_from_dataset(fx.dataset(), "time", parse_sim_datetime("2020-03-01T09:00:00"), kShortNt, "nearest", 0, "extend");
+    ASSERT_TRUE(past.valid);
+    EXPECT_LE(past.i0, kShortNt - 1);
+    EXPECT_EQ(past.i0, kShortNt - 1) << "extend should hold the last readable record";
+
+    // Records inside the truncated range are unaffected.
+    const RecordBracket inside = bracket_from_dataset(fx.dataset(), "time", parse_sim_datetime("2020-03-01T03:00:00"), kShortNt, "nearest");
+    ASSERT_TRUE(inside.valid);
+    EXPECT_EQ(inside.i0, 3);
+
+    // With the full count the same axis still reaches its later records.
+    const RecordBracket full = bracket_from_dataset(fx.dataset(), "time", parse_sim_datetime("2020-03-01T09:00:00"), kNumRecords, "nearest");
+    ASSERT_TRUE(full.valid);
+    EXPECT_EQ(full.i0, 9);
+}
+
 TEST(CeceTimeAxisNetcdf, ReadsIntegerTimeCoordinate) {
     using namespace cece::detail;
 

@@ -323,6 +323,11 @@ int main(int argc, char* argv[]) {
                                             }
                                             file_lon_coords[i] = wrap_longitude(val);
                                         }
+                                    } else {
+                                        // Leaving file_nx set here would let an empty
+                                        // coordinate array pass as a loaded gridspec.
+                                        CECE_LOG_ERROR("Could not decode gridspec longitude variable '" + lon_var_name + "'");
+                                        file_nx = 0;
                                     }
                                 }
                             }
@@ -371,6 +376,9 @@ int main(int argc, char* argv[]) {
                                             }
                                             file_lat_coords[j] = val;
                                         }
+                                    } else {
+                                        CECE_LOG_ERROR("Could not decode gridspec latitude variable '" + lat_var_name + "'");
+                                        file_ny = 0;
                                     }
                                 }
                             }

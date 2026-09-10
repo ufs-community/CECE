@@ -222,7 +222,7 @@ class DataStreamConfig:
         or ``"limit"`` (fail). Default is ``"cycle"``.
     tintalgo : str, optional
         Time interpolation algorithm. One of ``"linear"``, ``"nearest"``.
-        Default is ``"linear"``.
+        Default is ``"nearest"``, matching the driver.
     mapalgo : str, optional
         Spatial mapping algorithm. One of ``"bilinear"``, ``"consd"``,
         ``"consf"``, ``"nn"``, ``"redist"``, or ``"passthrough"``
@@ -245,7 +245,7 @@ class DataStreamConfig:
     file_paths: List[str] = field(default_factory=list)
     variables: Dict[str, str] = field(default_factory=dict)
     taxmode: str = "cycle"
-    tintalgo: str = "linear"
+    tintalgo: str = "nearest"
     mapalgo: str = "default"
     cadence: str = "series"
 
@@ -440,7 +440,7 @@ class CeceConfig:
         file_paths: List[str],
         variables: Dict[str, str],
         taxmode: str = "cycle",
-        tintalgo: str = "linear",
+        tintalgo: str = "nearest",
         mapalgo: str = "default",
         cadence: str = "series",
     ) -> None:
@@ -460,7 +460,7 @@ class CeceConfig:
             ``"extend"``, or ``"limit"``. Default is ``"cycle"``.
         tintalgo : str, optional
             Time interpolation algorithm. One of ``"linear"`` or
-            ``"nearest"``. Default is ``"linear"``.
+            ``"nearest"``. Default is ``"nearest"``, matching the driver.
         mapalgo : str, optional
             Spatial mapping algorithm. One of ``"bilinear"``, ``"consd"``,
             ``"consf"``, ``"nn"``, ``"redist"``, or ``"passthrough"``
@@ -747,7 +747,7 @@ class CeceConfig:
                 file_paths=stream_data.get("file_paths", []),
                 variables=stream_data.get("variables", {}),
                 taxmode=stream_data.get("taxmode", "cycle"),
-                tintalgo=stream_data.get("tintalgo", "linear"),
+                tintalgo=stream_data.get("tintalgo", "nearest"),
                 mapalgo=stream_data.get("mapalgo", "default"),
                 cadence=stream_data.get("cadence", "series"),
             )

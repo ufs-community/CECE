@@ -664,8 +664,14 @@ RecordBracket bracket_from_dataset(amio_dataset_handle dataset, const std::strin
     double time_offset = 0.0;
     read_cf_packing(dataset, tvar, time_scale, time_offset);
 
+    // file_nt comes from the data variable, not the time variable. A partially
+    // written file can leave the axis longer than the records that exist, and
+    // bracketing against the surplus would hand back indices that cannot be
+    // read. Only the records the data variable actually has are usable.
+    const std::size_t n_axis = std::min(n_vals, static_cast<std::size_t>(file_nt));
+
     std::vector<double> time_vals;
-    const bool widened = widen_amio_elements(view_data, dtype, n_vals, time_scale, time_offset, time_vals);
+    const bool widened = widen_amio_elements(view_data, dtype, n_axis, time_scale, time_offset, time_vals);
     amio_release_view(view);
     if (!widened) return br;
 
