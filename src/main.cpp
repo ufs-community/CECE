@@ -37,6 +37,27 @@ constexpr inline double radians_to_degrees(double rad) {
     return rad * 180.0 / M_PI;
 }
 
+// Build the in-memory AMIO coordinate-manifest YAML for reading lon/lat out
+// of `path`. Kept as a named helper so the manifest schema (backend, staging
+// pool, worker pool, prefetch tuning) lives in exactly one place; the call
+// site in main() only opens/reads with the returned string.
+std::string BuildCoordinateManifest(const std::string& path) {
+    std::ostringstream manifest;
+    manifest << "backend: netcdf4\n"
+             << "path: " << path << "\n"
+             << "data_model: enhanced\n"
+             << "staging_pool:\n"
+             << "  buffer_count: 16\n"
+             << "  buffer_capacity_bytes: 33554432\n"
+             << "worker_pool:\n"
+             << "  threads: 1\n"
+             << "prefetch:\n"
+             << "  depth: 4\n"
+             << "  read_timeout_s: 60\n"
+             << "staging_timeout_ms: 10000\n";
+    return manifest.str();
+}
+
 }  // namespace
 
 // CECE Core C-Linkage Lifecycle functions
@@ -258,20 +279,7 @@ int main(int argc, char* argv[]) {
                 // Writing it to a shared-disk file (e.g. Lustre) races when multiple MPI
                 // ranks per node truncate/rewrite the same path concurrently, which
                 // produces torn reads (empty/partial YAML) and spurious open failures.
-                std::ostringstream coord_manifest;
-                coord_manifest << "backend: netcdf4\n"
-                               << "path: " << input_file_path << "\n"
-                               << "data_model: enhanced\n"
-                               << "staging_pool:\n"
-                               << "  buffer_count: 16\n"
-                               << "  buffer_capacity_bytes: 33554432\n"
-                               << "worker_pool:\n"
-                               << "  threads: 1\n"
-                               << "prefetch:\n"
-                               << "  depth: 4\n"
-                               << "  read_timeout_s: 60\n"
-                               << "staging_timeout_ms: 10000\n";
-                const std::string coord_manifest_content = coord_manifest.str();
+                const std::string coord_manifest_content = BuildCoordinateManifest(input_file_path);
 
                 amio_core_handle coord_core = nullptr;
                 amio_dataset_handle coord_dataset = nullptr;
@@ -520,7 +528,12 @@ int main(int argc, char* argv[]) {
             CECE_LOG_INFO("[DRIVER] Standalone execution completed. Cleaning up...");
         }
 
-        cece_driver_destroy(cece_driver_data);
+        int destroy_rc = 0;
+        cece_driver_destroy(cece_driver_data, &destroy_rc);
+        if (destroy_rc != 0) {
+            CECE_LOG_ERROR("[DRIVER] AMIO teardown reported failures during cece_driver_destroy (rc=" + std::to_string(destroy_rc) +
+                           "); output data was already flushed, but some resources may have leaked.");
+        }
         cece_core_finalize(cece_data_ptr, &rc);
         if (rc < 0) {
             cece::LogFatal("[DRIVER FATAL] (rank " + std::to_string(my_rank) + ") cece_core_finalize failed with rc=" + std::to_string(rc));

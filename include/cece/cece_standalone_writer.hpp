@@ -15,6 +15,12 @@
 
 namespace cece {
 
+// Opaque AMIO dataset handle (typedef of void* in amio/amio_types.h). The
+// writer header never includes AMIO, so re-declare the typedef for the
+// private helper's signature; identical typedef re-declarations of the same
+// type are valid C++ and refer to the same entity.
+using amio_dataset_handle_t = void*;
+
 class CeceStandaloneWriter {
    public:
     explicit CeceStandaloneWriter(const CeceOutputConfig& config, MPI_Comm comm = MPI_COMM_SELF);
@@ -56,6 +62,15 @@ class CeceStandaloneWriter {
     BandDecomposition band_;
 
     std::string ResolveFilename(double time_seconds_since_start) const;
+
+    // Write all coordinate variables (lon, lat, lon_bnds, lat_bnds, optional
+    // UGRID mesh, lev, time) into an open WRITE-mode dataset. Extracted from
+    // WriteTimeStep, whose body had grown past 600 lines; this is the
+    // file-owner (rank-0 / single-process) coordinate section only. Throws
+    // std::runtime_error (via check_amio_rc) on any AMIO write failure; the
+    // caller degrades that to skip_file_work so the mandatory field gathers
+    // still run. Steps 4-7 = lon, lat, bounds (+mesh), lev, time.
+    void WriteCoordinateVariables(amio_dataset_handle_t dataset, double time_seconds);
 };
 
 }  // namespace cece

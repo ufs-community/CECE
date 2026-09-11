@@ -19,6 +19,7 @@
 #include "cece/cece_helm_graph.hpp"
 #include "cece/cece_internal.hpp"
 #include "cece/cece_logger.hpp"
+#include "cece/cece_mpi_env.hpp"
 #include "cece/cece_regridder_utils.hpp"
 #include "cece/cece_standalone_writer.hpp"
 
@@ -164,16 +165,9 @@ RecordBracket cadence_record_bracket(const std::string& cadence, const std::stri
 // replaces the former rc != MPI_SUCCESS branch; the try/catch maps any throw to
 // a failure_detail and returns false (Req 4.1-4.4).
 bool collective_all_ready(halo::Communicator* halo_comm, MPI_Comm comm, bool local_ready, const std::string& context, std::string& failure_detail) {
-    int mpi_initialized = 0;
-    MPI_Initialized(&mpi_initialized);
-    if (!mpi_initialized || comm == MPI_COMM_NULL) {
-        if (!local_ready && failure_detail.empty()) failure_detail = context;
-        return local_ready;
-    }
-
-    int mpi_size = 1;
-    MPI_Comm_size(comm, &mpi_size);
-    if (mpi_size <= 1) {
+    // Single distributed predicate (cece_mpi_env.hpp): uninitialized MPI /
+    // MPI_COMM_NULL / size <= 1 all take the serial path.
+    if (!comm_is_distributed(comm)) {
         if (!local_ready && failure_detail.empty()) failure_detail = context;
         return local_ready;
     }
@@ -204,13 +198,9 @@ bool collective_all_ready(halo::Communicator* halo_comm, MPI_Comm comm, bool loc
 // replaces the former rc != MPI_SUCCESS branch; the try/catch maps any throw to
 // a failure_detail and returns false (Req 5.1-5.4).
 bool collective_int_matches(halo::Communicator* halo_comm, MPI_Comm comm, int local_value, const std::string& name, std::string& failure_detail) {
-    int mpi_initialized = 0;
-    MPI_Initialized(&mpi_initialized);
-    if (!mpi_initialized || comm == MPI_COMM_NULL) return true;
-
-    int mpi_size = 1;
-    MPI_Comm_size(comm, &mpi_size);
-    if (mpi_size <= 1) return true;
+    // Single distributed predicate (cece_mpi_env.hpp): with one participant
+    // min == max == local, so the serial path trivially matches.
+    if (!comm_is_distributed(comm)) return true;
 
     // size > 1: reduce local_value with MPI_MIN then MPI_MAX via halo::allreduce,
     // preserving the two-reduce op sequence; flag a mismatch when min != max.
@@ -241,11 +231,7 @@ bool CeceDriverOrchestrator::CallCollectiveAllReady(MPI_Comm comm, bool local_re
     // (uninitialized MPI / MPI_COMM_NULL / mpi_size <= 1) never touch the wrapper
     // and are handled inside the helper. This changes no production signature and
     // is never called by production code.
-    int mpi_initialized = 0;
-    MPI_Initialized(&mpi_initialized);
-    int mpi_size = 1;
-    if (mpi_initialized && comm != MPI_COMM_NULL) MPI_Comm_size(comm, &mpi_size);
-    if (!mpi_initialized || comm == MPI_COMM_NULL || mpi_size <= 1) {
+    if (!comm_is_distributed(comm)) {
         return collective_all_ready(nullptr, comm, local_ready, context, failure_detail);
     }
     MPI_Comm comm_to_wrap = comm;
@@ -261,11 +247,7 @@ bool CeceDriverOrchestrator::CallCollectiveIntMatches(MPI_Comm comm, int local_v
     // CallCollectiveAllReady; delegates to the REAL anonymous-namespace
     // collective_int_matches helper. No production signature change; never called
     // by production code.
-    int mpi_initialized = 0;
-    MPI_Initialized(&mpi_initialized);
-    int mpi_size = 1;
-    if (mpi_initialized && comm != MPI_COMM_NULL) MPI_Comm_size(comm, &mpi_size);
-    if (!mpi_initialized || comm == MPI_COMM_NULL || mpi_size <= 1) {
+    if (!comm_is_distributed(comm)) {
         return collective_int_matches(nullptr, comm, local_value, name, failure_detail);
     }
     MPI_Comm comm_to_wrap = comm;
@@ -274,6 +256,51 @@ bool CeceDriverOrchestrator::CallCollectiveIntMatches(MPI_Comm comm, int local_v
     }
     halo::Communicator wrapper(comm_to_wrap);
     return collective_int_matches(&wrapper, comm, local_value, name, failure_detail);
+}
+
+StreamConfig CeceDriverOrchestrator::BuildStreamConfig(const YAML::Node& stream, const std::string& model_name, const std::string& file_name,
+                                                       int amio_worker_threads, int amio_staging_buffer_count, int amio_staging_buffer_capacity_bytes,
+                                                       int amio_prefetch_depth) {
+    // Resolve one stream variable's YAML node into a StreamConfig. Field
+    // resolution + defaults mirror the legacy inline AdvanceTime parse exactly.
+    StreamConfig cfg;
+    // Missing file path is recorded as empty (not thrown); the existing
+    // collective gate in AdvanceTime surfaces it later (Req 1.4).
+    if (stream["file"]) {
+        cfg.input_file_path = stream["file"].as<std::string>();
+    }
+    cfg.input_var_name = file_name;
+    if (stream["mapalgo"]) {
+        cfg.mapalgo = stream["mapalgo"].as<std::string>();
+    }
+    if (stream["cadence"]) {
+        cfg.cadence = stream["cadence"].as<std::string>();
+    }
+    if (stream["tintalgo"]) {
+        cfg.tintalgo = stream["tintalgo"].as<std::string>();
+    }
+    if (stream["data_model"]) {
+        std::string requested_model = stream["data_model"].as<std::string>();
+        std::transform(requested_model.begin(), requested_model.end(), requested_model.begin(),
+                       [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+        if (requested_model == "classic" || requested_model == "enhanced") {
+            cfg.data_model = requested_model;
+            cfg.data_model_explicit = true;
+        } else if (requested_model == "auto") {
+            cfg.data_model = "enhanced";
+            cfg.data_model_explicit = false;
+        } else {
+            CECE_LOG_WARNING("[DRIVER] Invalid stream data_model='" + requested_model + "' for stream variable '" + model_name +
+                             "'; using default auto behavior (enhanced then classic fallback).");
+            cfg.data_model = "enhanced";
+            cfg.data_model_explicit = false;
+        }
+    }
+    cfg.amio_worker_threads = amio_worker_threads;
+    cfg.amio_staging_buffer_count = amio_staging_buffer_count;
+    cfg.amio_staging_buffer_capacity_bytes = amio_staging_buffer_capacity_bytes;
+    cfg.amio_prefetch_depth = amio_prefetch_depth;
+    return cfg;
 }
 
 void CeceDriverOrchestrator::ResolveStreamConfigs() {
@@ -359,47 +386,10 @@ void CeceDriverOrchestrator::ResolveStreamConfigsFromFile(const std::string& con
                 continue;
             }
 
-            StreamConfig cfg;
-            // Missing file path is recorded as empty (not thrown); the existing
-            // collective gate in AdvanceTime surfaces it later (Req 1.4).
-            if (stream["file"]) {
-                cfg.input_file_path = stream["file"].as<std::string>();
-            }
-            cfg.input_var_name = file_name;
-            if (stream["mapalgo"]) {
-                cfg.mapalgo = stream["mapalgo"].as<std::string>();
-            }
-            if (stream["cadence"]) {
-                cfg.cadence = stream["cadence"].as<std::string>();
-            }
-            if (stream["tintalgo"]) {
-                cfg.tintalgo = stream["tintalgo"].as<std::string>();
-            }
-            if (stream["data_model"]) {
-                std::string requested_model = stream["data_model"].as<std::string>();
-                std::transform(requested_model.begin(), requested_model.end(), requested_model.begin(),
-                               [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-                if (requested_model == "classic" || requested_model == "enhanced") {
-                    cfg.data_model = requested_model;
-                    cfg.data_model_explicit = true;
-                } else if (requested_model == "auto") {
-                    cfg.data_model = "enhanced";
-                    cfg.data_model_explicit = false;
-                } else {
-                    CECE_LOG_WARNING("[DRIVER] Invalid stream data_model='" + requested_model + "' for stream variable '" + model_name +
-                                     "'; using default auto behavior (enhanced then classic fallback).");
-                    cfg.data_model = "enhanced";
-                    cfg.data_model_explicit = false;
-                }
-            }
-            cfg.amio_worker_threads = amio_worker_threads;
-            cfg.amio_staging_buffer_count = amio_staging_buffer_count;
-            cfg.amio_staging_buffer_capacity_bytes = amio_staging_buffer_capacity_bytes;
-            cfg.amio_prefetch_depth = amio_prefetch_depth;
-
             // Match the legacy inline parse's first-match-wins behavior: it
             // stopped at the first stream/variable matching the model name.
-            out_configs.emplace(model_name, std::move(cfg));
+            out_configs.emplace(model_name, BuildStreamConfig(stream, model_name, file_name, amio_worker_threads, amio_staging_buffer_count,
+                                                              amio_staging_buffer_capacity_bytes, amio_prefetch_depth));
         }
     }
 }
@@ -542,8 +532,9 @@ AmioHandleSet* CeceDriverOrchestrator::GetOrOpenHandleSet(const std::string& han
         return &existing->second;
     }
 
-    int mpi_initialized = 0;
-    MPI_Initialized(&mpi_initialized);
+    // Whether MPI is live at all (not whether comm_c_ is multi-rank): gates the
+    // MPI_COMM_SELF parent-communicator swap around the serial open below.
+    const bool mpi_live = mpi_environment_ready();
 
     // Candidate data models, mirroring the legacy AdvanceTime fallback ordering
     // (Req 2.5, 2.6).
@@ -565,7 +556,7 @@ AmioHandleSet* CeceDriverOrchestrator::GetOrOpenHandleSet(const std::string& han
 
         // Force serial I/O fallback for reading offline datasets to prevent MPI
         // multithreading deadlocks. Only the open is wrapped in the swap.
-        if (mpi_initialized) {
+        if (mpi_live) {
             amio_set_parent_communicator(MPI_Comm_c2f(MPI_COMM_SELF));
         }
 
@@ -583,7 +574,7 @@ AmioHandleSet* CeceDriverOrchestrator::GetOrOpenHandleSet(const std::string& han
 
         // Restore parent communicator for downstream operations (match the
         // legacy guards exactly).
-        if (mpi_initialized && comm_c_ != MPI_COMM_NULL) {
+        if (mpi_live && comm_c_ != MPI_COMM_NULL) {
             amio_set_parent_communicator(MPI_Comm_c2f(comm_c_));
         }
 
@@ -661,10 +652,8 @@ CeceDriverOrchestrator::CeceDriverOrchestrator(const std::string& config_file, i
     // identical "GraphOrchestrator: shutdown initiated" lines with a [RANK:----]
     // sentinel stamp.
     {
-        int mpi_initialized = 0;
-        MPI_Initialized(&mpi_initialized);
         int rank = 0;
-        if (mpi_initialized && comm_c_ != MPI_COMM_NULL) {
+        if (mpi_environment_ready() && comm_c_ != MPI_COMM_NULL) {
             MPI_Comm_rank(comm_c_, &rank);
         }
         dagr::configure_logging(comm_c_ != MPI_COMM_NULL ? comm_c_ : MPI_COMM_WORLD, rank == 0 ? dagr::Log_Level::info : dagr::Log_Level::error);
@@ -683,15 +672,7 @@ void CeceDriverOrchestrator::RefreshHaloCommunicator() {
     // guarantees we never wrap MPI_COMM_NULL or an uninitialized environment
     // (Req 7.2). halo::Environment::initialize() is assumed already run in
     // main.cpp after MPI init, so we do not re-init here.
-    int mpi_initialized = 0;
-    MPI_Initialized(&mpi_initialized);
-    if (!mpi_initialized || comm_c_ == MPI_COMM_NULL) {
-        return;
-    }
-
-    int mpi_size = 1;
-    MPI_Comm_size(comm_c_, &mpi_size);
-    if (mpi_size <= 1) {
+    if (!comm_is_distributed(comm_c_)) {
         return;
     }
 
@@ -706,32 +687,53 @@ void CeceDriverOrchestrator::RefreshHaloCommunicator() {
     halo_comm_.emplace(comm_to_wrap);
 }
 
-void CeceDriverOrchestrator::TeardownHandles() {
+bool CeceDriverOrchestrator::TeardownHandles() {
     // Release every retained AMIO handle set. Close the dataset first, then
     // finalize the core, each wrapped in its own best-effort try/catch so one
     // failing handle does not prevent the rest from tearing down (Req 7.2, 7.4).
     // amio_handles_ is now keyed by Handle_Identity_Key, so this generic loop
     // closes each shared handle set exactly once regardless of how many
     // variables shared it (Req 3.6, 7.4).
+    //
+    // Failures are reported, not swallowed: each one is logged at ERROR with
+    // the AMIO status code and the function returns false so the caller
+    // (cece_driver_destroy) can surface a nonzero shutdown rc. The loop stays
+    // best-effort — a destructor must not throw, and skipping the remaining
+    // handles would turn one leaky file into N.
+    bool all_ok = true;
     for (auto& entry : amio_handles_) {
         AmioHandleSet& set = entry.second;
         if (set.dataset != nullptr) {
             try {
-                amio_close(set.dataset);
+                const amio_status_t close_rc = amio_close(set.dataset);
+                if (close_rc != AMIO_OK) {
+                    all_ok = false;
+                    CECE_LOG_ERROR("[DRIVER] AMIO dataset close failed (rc=" + std::to_string(static_cast<int>(close_rc)) + ") for handle '" +
+                                   entry.first + "' — resources may leak.");
+                }
             } catch (const std::exception& e) {
-                CECE_LOG_DEBUG("[DRIVER] amio_close threw during teardown for '" + entry.first + "': " + e.what());
+                all_ok = false;
+                CECE_LOG_ERROR("[DRIVER] amio_close threw during teardown for '" + entry.first + "': " + e.what());
             } catch (...) {
-                CECE_LOG_DEBUG("[DRIVER] amio_close threw an unknown exception during teardown for '" + entry.first + "'");
+                all_ok = false;
+                CECE_LOG_ERROR("[DRIVER] amio_close threw an unknown exception during teardown for '" + entry.first + "'");
             }
             set.dataset = nullptr;
         }
         if (set.core != nullptr) {
             try {
-                amio_finalize(set.core);
+                const amio_status_t finalize_rc = amio_finalize(set.core);
+                if (finalize_rc != AMIO_OK) {
+                    all_ok = false;
+                    CECE_LOG_ERROR("[DRIVER] AMIO core finalize failed (rc=" + std::to_string(static_cast<int>(finalize_rc)) + ") for handle '" +
+                                   entry.first + "' — resources may leak.");
+                }
             } catch (const std::exception& e) {
-                CECE_LOG_DEBUG("[DRIVER] amio_finalize threw during teardown for '" + entry.first + "': " + e.what());
+                all_ok = false;
+                CECE_LOG_ERROR("[DRIVER] amio_finalize threw during teardown for '" + entry.first + "': " + e.what());
             } catch (...) {
-                CECE_LOG_DEBUG("[DRIVER] amio_finalize threw an unknown exception during teardown for '" + entry.first + "'");
+                all_ok = false;
+                CECE_LOG_ERROR("[DRIVER] amio_finalize threw an unknown exception during teardown for '" + entry.first + "'");
             }
             set.core = nullptr;
         }
@@ -743,6 +745,7 @@ void CeceDriverOrchestrator::TeardownHandles() {
     stream_configs_.clear();
     slice_caches_.clear();
     endpoint_caches_.clear();
+    return all_ok;
 }
 
 CeceDriverOrchestrator::~CeceDriverOrchestrator() {
@@ -767,13 +770,7 @@ bool CeceDriverOrchestrator::RegridToBandBuffer(const std::string& var_name, con
                                                 std::string& failure_detail) {
     (void)var_name;
     const std::vector<double>& source = source_record;
-    int mpi_initialized = 0;
-    MPI_Initialized(&mpi_initialized);
-    int mpi_size = 1;
-    if (mpi_initialized && comm_c_ != MPI_COMM_NULL) {
-        MPI_Comm_size(comm_c_, &mpi_size);
-    }
-    const bool distributed_regrid = mpi_initialized && mpi_size > 1 && comm_c_ != MPI_COMM_NULL;
+    const bool distributed_regrid = comm_is_distributed(comm_c_);
     // This rank's own band comes from the stored decomposition (single source
     // of truth), preserving the identical values the inline band_start(mpi_rank)
     // /band_start(mpi_rank + 1) produced (Req 1.1, 1.2, 1.5). The per-rank
@@ -1226,29 +1223,18 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                     file_nt_cache_[handle_key] = file_nt;
                     var_shape_cache_[shape_key] = var_shape;
                 } else {
-                    // Metadata unavailable (older driver, absent variable, ...):
-                    // fall back to the historical binary search so record
-                    // discovery still works. The bbox path stays disabled
-                    // (have_shape == false -> full-record reads).
-                    if (!input_var_name.empty()) {
-                        int low = 1;
-                        int high = 1000000;
-                        int found_nt = 1;
-                        while (low <= high) {
-                            int mid = low + (high - low) / 2;
-                            amio_view_handle v = nullptr;
-                            amio_status_t rc = amio_read(read_dataset, input_var_name.c_str(), mid, nullptr, &v);
-                            if (rc == AMIO_OK) {
-                                amio_release_view(v);
-                                found_nt = mid + 1;
-                                low = mid + 1;
-                            } else {
-                                high = mid - 1;
-                            }
-                        }
-                        file_nt = found_nt;
-                    }
-                    file_nt_cache_[handle_key] = file_nt;
+                    // Metadata unavailable (absent variable, corrupt file, ...).
+                    // There is deliberately no read-probing fallback here: the
+                    // historical binary search probed amio_read at ~20 record
+                    // indices, each probe a full-record read — exactly the
+                    // traffic this band-scoped design exists to avoid — and
+                    // CECE always builds against the pinned AMIO submodule,
+                    // which provides amio_describe. Fail the step instead:
+                    // file_nt = 0 makes the collective readiness gate below
+                    // report a detailed error for this variable.
+                    CECE_LOG_WARNING("[DRIVER] amio_describe failed for '" + input_var_name + "' in '" + cfg.input_file_path +
+                                     "' (rc=" + std::to_string(static_cast<int>(desc_rc)) + "); no record-count fallback is attempted.");
+                    file_nt = 0;
                 }
             }
             bool file_records_ready = collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, file_nt > 0,
@@ -1803,9 +1789,22 @@ void cece_driver_advance_time(void* driver_ptr, const char* time_iso8601, int ti
 
 extern std::unique_ptr<cece::CeceStandaloneWriter> g_standalone_writer;
 
-void cece_driver_destroy(void* driver_ptr) {
+void cece_driver_destroy(void* driver_ptr, int* rc) {
+    if (rc != nullptr) {
+        *rc = 0;
+    }
     if (driver_ptr) {
-        delete static_cast<cece::CeceDriverOrchestrator*>(driver_ptr);
+        auto* driver = static_cast<cece::CeceDriverOrchestrator*>(driver_ptr);
+        // Tear the AMIO handles down explicitly (rather than relying on the
+        // destructor's call, which becomes a no-op afterwards) so a close/
+        // finalize failure can be reported through *rc: destructors cannot
+        // throw and the C API has no exception channel. The destruction
+        // itself always runs; a nonzero *rc means resources leaked, not that
+        // the driver is still alive.
+        if (!driver->TeardownHandles() && rc != nullptr) {
+            *rc = -1;
+        }
+        delete driver;
     }
     g_standalone_writer.reset();
 }

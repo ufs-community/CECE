@@ -13,7 +13,7 @@
 // and accumulates (count, total_ns, max_ns) keyed by the kernel/copy name.
 //
 // Build (inside cece-dev container):
-//   g++ -O2 -std=c++17 -fPIC -shared tools/kp_kernel_timer.cpp -o build/libkp_kernel_timer.so
+//   g++ -O2 -std=c++17 -fPIC -shared tests/tools/kp_kernel_timer.cpp -o build/libkp_kernel_timer.so
 
 #include <algorithm>
 #include <chrono>

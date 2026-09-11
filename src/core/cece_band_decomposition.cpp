@@ -6,10 +6,23 @@
 
 #include <algorithm>
 
+#include "cece/cece_logger.hpp"
+#include "cece/cece_mpi_env.hpp"
+
 namespace cece {
 
+// A negative ny_global is a caller bug (grid dimensions are unsigned by
+// construction everywhere upstream), but feeding one into the band arithmetic
+// would produce negative row_counts — which is undefined behavior once handed
+// to MPI_Allgatherv. Clamp to 0 and log loudly rather than fail silently, so
+// the misconfiguration is visible in the rank logs while the run degrades to
+// an empty band instead of corrupting memory.
 BandDecomposition BandDecomposition::whole_grid(int ny_global) {
-    if (ny_global < 0) ny_global = 0;
+    if (ny_global < 0) {
+        CECE_LOG_ERROR("[BAND] whole_grid called with negative ny_global=" + std::to_string(ny_global) +
+                       "; clamped to 0 (empty grid). This is a caller/configuration bug — check the grid spec.");
+        ny_global = 0;
+    }
     BandDecomposition band;
     band.ny_global = ny_global;
     band.j0 = 0;
@@ -22,14 +35,19 @@ BandDecomposition BandDecomposition::whole_grid(int ny_global) {
 }
 
 BandDecomposition BandDecomposition::compute(int ny_global, MPI_Comm comm) {
-    if (ny_global < 0) ny_global = 0;
+    if (ny_global < 0) {
+        CECE_LOG_ERROR("[BAND] compute called with negative ny_global=" + std::to_string(ny_global) +
+                       "; clamped to 0 (empty grid). This is a caller/configuration bug — check the grid spec.");
+        ny_global = 0;
+    }
 
     // Short-circuit to the whole grid when MPI is unavailable/degenerate,
-    // issuing NO collective — mirrors the existing single-rank guards
-    // (MPI_Initialized / MPI_COMM_NULL / size <= 1).
-    int mpi_initialized = 0;
-    MPI_Initialized(&mpi_initialized);
-    if (!mpi_initialized || comm == MPI_COMM_NULL) {
+    // issuing NO collective. The uninitialized case is real, not theoretical:
+    // the unit tests (and any tool linking CECE without MPI) exercise the
+    // serial path before/without MPI_Init, and a rank whose host model never
+    // gave it a communicator arrives with MPI_COMM_NULL. Both must land on
+    // identical whole-grid geometry rather than call into MPI.
+    if (!comm_is_distributed(comm)) {
         return whole_grid(ny_global);
     }
 
@@ -37,9 +55,6 @@ BandDecomposition BandDecomposition::compute(int ny_global, MPI_Comm comm) {
     int rank = 0;
     MPI_Comm_size(comm, &size);
     MPI_Comm_rank(comm, &rank);
-    if (size <= 1) {
-        return whole_grid(ny_global);
-    }
 
     // Exact existing block decomposition:
     //   band_base    = ny / size

@@ -198,6 +198,222 @@ std::string CeceStandaloneWriter::ResolveFilename(double time_seconds_since_star
     return p.string();
 }
 
+void CeceStandaloneWriter::WriteCoordinateVariables(amio_dataset_handle_t dataset, double time_seconds) {
+    // Writes every coordinate variable into the open WRITE-mode dataset:
+    // lon, lat, cell bounds (lon_bnds/lat_bnds, plus a UGRID mesh marker when
+    // ny_ == 1), lev, and time. Moved out of WriteTimeStep verbatim; throws
+    // via check_amio_rc on any AMIO write failure (the caller degrades that
+    // to skip_file_work so the mandatory field gathers still run).
+
+    // Step 4: Write lon coordinate variable
+    std::vector<double> lon_values;
+    if (use_custom_coords_) {
+        lon_values = lon_coords_;
+    } else {
+        lon_values.resize(nx_);
+        for (int i = 0; i < nx_; i++) {
+            lon_values[i] = -180.0 + (360.0 * (i + 0.5)) / nx_;
+        }
+    }
+    amio_shape_t lon_shape;
+    std::memset(&lon_shape, 0, sizeof(lon_shape));
+    if (use_custom_coords_ && lon_values.size() == static_cast<size_t>(nx_) * ny_ && ny_ > 1) {
+        lon_shape.rank = 2;
+        lon_shape.extents[0] = ny_;
+        lon_shape.extents[1] = nx_;
+    } else {
+        lon_shape.rank = 1;
+        lon_shape.extents[0] = nx_;
+    }
+    amio_io_handle lon_io = nullptr;
+    check_amio_rc(amio_write(dataset, "lon", lon_values.data(), AMIO_DTYPE_F64, &lon_shape, &lon_io), "amio_write(lon)");
+
+    // Step 5: Write lat coordinate variable
+    std::vector<double> lat_values;
+    if (use_custom_coords_) {
+        lat_values = lat_coords_;
+    } else {
+        lat_values.resize(ny_);
+        for (int j = 0; j < ny_; j++) {
+            lat_values[j] = -90.0 + (180.0 * (j + 0.5)) / ny_;
+        }
+    }
+    amio_shape_t lat_shape;
+    std::memset(&lat_shape, 0, sizeof(lat_shape));
+    if (use_custom_coords_ && lat_values.size() == static_cast<size_t>(nx_) * ny_ && ny_ > 1) {
+        lat_shape.rank = 2;
+        lat_shape.extents[0] = ny_;
+        lat_shape.extents[1] = nx_;
+    } else {
+        lat_shape.rank = 1;
+        lat_shape.extents[0] = (ny_ == 1) ? nx_ : ny_;
+    }
+    amio_io_handle lat_io = nullptr;
+    check_amio_rc(amio_write(dataset, "lat", lat_values.data(), AMIO_DTYPE_F64, &lat_shape, &lat_io), "amio_write(lat)");
+
+    // Step 5b: Compute and write cell boundary coordinate variables (bounds) using the AXIS mesh directly!
+    std::vector<double> lon_bnds_values;
+    std::vector<double> lat_bnds_values;
+    amio_shape_t lon_bnds_shape{};
+    amio_shape_t lat_bnds_shape{};
+
+    // Build the destination AXIS mesh dynamically using our unified mesh builder
+    auto dst_mesh = cece::io::build_axis_mesh(nx_, ny_, lon_values, lat_values, gridspec_file_);
+
+    auto node_coords = dst_mesh.node_coords();
+    auto conn_offsets = dst_mesh.conn_offsets();
+    auto conn_indices = dst_mesh.conn_indices();
+
+    enum class GridType { Rectilinear, Curvilinear, Unstructured };
+
+    GridType grid_type = GridType::Rectilinear;
+    if (use_custom_coords_ && lon_values.size() == static_cast<size_t>(nx_) * ny_ && ny_ > 1) {
+        grid_type = GridType::Curvilinear;
+    } else if (ny_ == 1) {
+        grid_type = GridType::Unstructured;
+    }
+
+    switch (grid_type) {
+        case GridType::Curvilinear: {
+            // 1. Curvilinear case: shapes (ny_, nx_, 4)
+            size_t n_cells = static_cast<size_t>(nx_) * ny_;
+            lon_bnds_values.resize(n_cells * 4);
+            lat_bnds_values.resize(n_cells * 4);
+
+            for (int j = 0; j < ny_; ++j) {
+                for (int i = 0; i < nx_; ++i) {
+                    size_t idx = static_cast<size_t>(j) * nx_ + i;
+                    size_t offset = conn_offsets(idx);
+                    for (int v = 0; v < 4; ++v) {
+                        axis::index_t node_idx = conn_indices(offset + v);
+                        lon_bnds_values[4 * idx + v] = node_coords(node_idx, 0);
+                        lat_bnds_values[4 * idx + v] = node_coords(node_idx, 1);
+                    }
+                }
+            }
+
+            lon_bnds_shape.rank = 3;
+            lon_bnds_shape.extents[0] = ny_;
+            lon_bnds_shape.extents[1] = nx_;
+            lon_bnds_shape.extents[2] = 4;
+
+            lat_bnds_shape.rank = 3;
+            lat_bnds_shape.extents[0] = ny_;
+            lat_bnds_shape.extents[1] = nx_;
+            lat_bnds_shape.extents[2] = 4;
+            break;
+        }
+        case GridType::Unstructured: {
+            // 2. Unstructured case (MPAS, SCRIP, etc.): shapes (nx_, max_vertices)
+            size_t n_cells = static_cast<size_t>(nx_);
+            int max_vertices = 0;
+            for (size_t i = 0; i < n_cells; ++i) {
+                int n_verts = static_cast<int>(conn_offsets(i + 1) - conn_offsets(i));
+                if (n_verts > max_vertices) max_vertices = n_verts;
+            }
+
+            lon_bnds_values.resize(n_cells * max_vertices, 0.0);
+            lat_bnds_values.resize(n_cells * max_vertices, 0.0);
+
+            for (size_t i = 0; i < n_cells; ++i) {
+                int n_verts = static_cast<int>(conn_offsets(i + 1) - conn_offsets(i));
+                size_t offset = conn_offsets(i);
+                for (int v = 0; v < max_vertices; ++v) {
+                    int local_v = (v < n_verts) ? v : (n_verts - 1);
+                    axis::index_t node_idx = conn_indices(offset + local_v);
+                    lon_bnds_values[i * max_vertices + v] = node_coords(node_idx, 0);
+                    lat_bnds_values[i * max_vertices + v] = node_coords(node_idx, 1);
+                }
+            }
+
+            lon_bnds_shape.rank = 2;
+            lon_bnds_shape.extents[0] = nx_;
+            lon_bnds_shape.extents[1] = max_vertices;
+
+            lat_bnds_shape.rank = 2;
+            lat_bnds_shape.extents[0] = nx_;
+            lat_bnds_shape.extents[1] = max_vertices;
+            break;
+        }
+        case GridType::Rectilinear: {
+            // 3. Rectilinear case: shapes (nx_, 2) and (ny_, 2)
+            lon_bnds_values.resize(static_cast<size_t>(nx_) * 2);
+            lat_bnds_values.resize(static_cast<size_t>(ny_) * 2);
+
+            // Longitude bounds: query nodes from the first row of cells (j = 0)
+            for (int i = 0; i < nx_; ++i) {
+                size_t offset = conn_offsets(i);
+                axis::index_t node0 = conn_indices(offset + 0);
+                axis::index_t node1 = conn_indices(offset + 1);
+                lon_bnds_values[2 * i + 0] = node_coords(node0, 0);
+                lon_bnds_values[2 * i + 1] = node_coords(node1, 0);
+            }
+
+            // Latitude bounds: query nodes from the first column of cells (i = 0)
+            for (int j = 0; j < ny_; ++j) {
+                size_t offset = conn_offsets(j * nx_);
+                axis::index_t node0 = conn_indices(offset + 0);
+                axis::index_t node3 = conn_indices(offset + 3);
+                lat_bnds_values[2 * j + 0] = node_coords(node0, 1);
+                lat_bnds_values[2 * j + 1] = node_coords(node3, 1);
+            }
+
+            lon_bnds_shape.rank = 2;
+            lon_bnds_shape.extents[0] = nx_;
+            lon_bnds_shape.extents[1] = 2;
+
+            lat_bnds_shape.rank = 2;
+            lat_bnds_shape.extents[0] = ny_;
+            lat_bnds_shape.extents[1] = 2;
+            break;
+        }
+    }
+
+    // Clamp latitude bounds to sphere limits
+    for (size_t i = 0; i < lat_bnds_values.size(); ++i) {
+        if (lat_bnds_values[i] < -90.0) lat_bnds_values[i] = -90.0;
+        if (lat_bnds_values[i] > 90.0) lat_bnds_values[i] = 90.0;
+    }
+
+    amio_io_handle lon_bnds_io = nullptr;
+    check_amio_rc(amio_write(dataset, "lon_bnds", lon_bnds_values.data(), AMIO_DTYPE_F64, &lon_bnds_shape, &lon_bnds_io), "amio_write(lon_bnds)");
+
+    amio_io_handle lat_bnds_io = nullptr;
+    check_amio_rc(amio_write(dataset, "lat_bnds", lat_bnds_values.data(), AMIO_DTYPE_F64, &lat_bnds_shape, &lat_bnds_io), "amio_write(lat_bnds)");
+
+    // Step 5c: Write mesh topology variable for unstructured UGRID mesh
+    if (ny_ == 1) {
+        int mesh_val = 1;
+        amio_shape_t mesh_shape;
+        std::memset(&mesh_shape, 0, sizeof(mesh_shape));
+        mesh_shape.rank = 1;
+        mesh_shape.extents[0] = 1;
+        amio_io_handle mesh_io = nullptr;
+        check_amio_rc(amio_write(dataset, "mesh", &mesh_val, AMIO_DTYPE_I32, &mesh_shape, &mesh_io), "amio_write(mesh)");
+    }
+
+    // Step 6: Write lev coordinate variable
+    std::vector<double> lev_values(nz_);
+    for (int k = 0; k < nz_; k++) {
+        lev_values[k] = k + 1.0;
+    }
+    amio_shape_t lev_shape;
+    std::memset(&lev_shape, 0, sizeof(lev_shape));
+    lev_shape.rank = 1;
+    lev_shape.extents[0] = nz_;
+    amio_io_handle lev_io = nullptr;
+    check_amio_rc(amio_write(dataset, "lev", lev_values.data(), AMIO_DTYPE_F64, &lev_shape, &lev_io), "amio_write(lev)");
+
+    // Step 7: Write time coordinate variable
+    double time_val = time_seconds;
+    amio_shape_t time_shape;
+    std::memset(&time_shape, 0, sizeof(time_shape));
+    time_shape.rank = 1;
+    time_shape.extents[0] = 1;
+    amio_io_handle time_io = nullptr;
+    check_amio_rc(amio_write(dataset, "time", &time_val, AMIO_DTYPE_F64, &time_shape, &time_io), "amio_write(time)");
+}
+
 int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, DualView3D>& fields, double time_seconds, int step) {
     if (!initialized_ || !config_.enabled) return 0;
 
@@ -399,220 +615,14 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
         // straight to the field gather below. Local try/catch: a coordinate-write
         // failure must not skip the field-loop gathers (peers wait at the root),
         // so it degrades to skip_file_work instead of throwing to the outer catch.
-        if (!skip_file_work && rank0_writes) try {
-                // Step 4: Write lon coordinate variable
-                std::vector<double> lon_values;
-                if (use_custom_coords_) {
-                    lon_values = lon_coords_;
-                } else {
-                    lon_values.resize(nx_);
-                    for (int i = 0; i < nx_; i++) {
-                        lon_values[i] = -180.0 + (360.0 * (i + 0.5)) / nx_;
-                    }
-                }
-                amio_shape_t lon_shape;
-                std::memset(&lon_shape, 0, sizeof(lon_shape));
-                if (use_custom_coords_ && lon_values.size() == static_cast<size_t>(nx_) * ny_ && ny_ > 1) {
-                    lon_shape.rank = 2;
-                    lon_shape.extents[0] = ny_;
-                    lon_shape.extents[1] = nx_;
-                } else {
-                    lon_shape.rank = 1;
-                    lon_shape.extents[0] = nx_;
-                }
-                amio_io_handle lon_io = nullptr;
-                check_amio_rc(amio_write(dataset, "lon", lon_values.data(), AMIO_DTYPE_F64, &lon_shape, &lon_io), "amio_write(lon)");
-
-                // Step 5: Write lat coordinate variable
-                std::vector<double> lat_values;
-                if (use_custom_coords_) {
-                    lat_values = lat_coords_;
-                } else {
-                    lat_values.resize(ny_);
-                    for (int j = 0; j < ny_; j++) {
-                        lat_values[j] = -90.0 + (180.0 * (j + 0.5)) / ny_;
-                    }
-                }
-                amio_shape_t lat_shape;
-                std::memset(&lat_shape, 0, sizeof(lat_shape));
-                if (use_custom_coords_ && lat_values.size() == static_cast<size_t>(nx_) * ny_ && ny_ > 1) {
-                    lat_shape.rank = 2;
-                    lat_shape.extents[0] = ny_;
-                    lat_shape.extents[1] = nx_;
-                } else {
-                    lat_shape.rank = 1;
-                    lat_shape.extents[0] = (ny_ == 1) ? nx_ : ny_;
-                }
-                amio_io_handle lat_io = nullptr;
-                check_amio_rc(amio_write(dataset, "lat", lat_values.data(), AMIO_DTYPE_F64, &lat_shape, &lat_io), "amio_write(lat)");
-
-                // Step 5b: Compute and write cell boundary coordinate variables (bounds) using the AXIS mesh directly!
-                std::vector<double> lon_bnds_values;
-                std::vector<double> lat_bnds_values;
-                amio_shape_t lon_bnds_shape{};
-                amio_shape_t lat_bnds_shape{};
-
-                // Build the destination AXIS mesh dynamically using our unified mesh builder
-                auto dst_mesh = cece::io::build_axis_mesh(nx_, ny_, lon_values, lat_values, gridspec_file_);
-
-                auto node_coords = dst_mesh.node_coords();
-                auto conn_offsets = dst_mesh.conn_offsets();
-                auto conn_indices = dst_mesh.conn_indices();
-
-                enum class GridType { Rectilinear, Curvilinear, Unstructured };
-
-                GridType grid_type = GridType::Rectilinear;
-                if (use_custom_coords_ && lon_values.size() == static_cast<size_t>(nx_) * ny_ && ny_ > 1) {
-                    grid_type = GridType::Curvilinear;
-                } else if (ny_ == 1) {
-                    grid_type = GridType::Unstructured;
-                }
-
-                switch (grid_type) {
-                    case GridType::Curvilinear: {
-                        // 1. Curvilinear case: shapes (ny_, nx_, 4)
-                        size_t n_cells = static_cast<size_t>(nx_) * ny_;
-                        lon_bnds_values.resize(n_cells * 4);
-                        lat_bnds_values.resize(n_cells * 4);
-
-                        for (int j = 0; j < ny_; ++j) {
-                            for (int i = 0; i < nx_; ++i) {
-                                size_t idx = static_cast<size_t>(j) * nx_ + i;
-                                size_t offset = conn_offsets(idx);
-                                for (int v = 0; v < 4; ++v) {
-                                    axis::index_t node_idx = conn_indices(offset + v);
-                                    lon_bnds_values[4 * idx + v] = node_coords(node_idx, 0);
-                                    lat_bnds_values[4 * idx + v] = node_coords(node_idx, 1);
-                                }
-                            }
-                        }
-
-                        lon_bnds_shape.rank = 3;
-                        lon_bnds_shape.extents[0] = ny_;
-                        lon_bnds_shape.extents[1] = nx_;
-                        lon_bnds_shape.extents[2] = 4;
-
-                        lat_bnds_shape.rank = 3;
-                        lat_bnds_shape.extents[0] = ny_;
-                        lat_bnds_shape.extents[1] = nx_;
-                        lat_bnds_shape.extents[2] = 4;
-                        break;
-                    }
-                    case GridType::Unstructured: {
-                        // 2. Unstructured case (MPAS, SCRIP, etc.): shapes (nx_, max_vertices)
-                        size_t n_cells = static_cast<size_t>(nx_);
-                        int max_vertices = 0;
-                        for (size_t i = 0; i < n_cells; ++i) {
-                            int n_verts = static_cast<int>(conn_offsets(i + 1) - conn_offsets(i));
-                            if (n_verts > max_vertices) max_vertices = n_verts;
-                        }
-
-                        lon_bnds_values.resize(n_cells * max_vertices, 0.0);
-                        lat_bnds_values.resize(n_cells * max_vertices, 0.0);
-
-                        for (size_t i = 0; i < n_cells; ++i) {
-                            int n_verts = static_cast<int>(conn_offsets(i + 1) - conn_offsets(i));
-                            size_t offset = conn_offsets(i);
-                            for (int v = 0; v < max_vertices; ++v) {
-                                int local_v = (v < n_verts) ? v : (n_verts - 1);
-                                axis::index_t node_idx = conn_indices(offset + local_v);
-                                lon_bnds_values[i * max_vertices + v] = node_coords(node_idx, 0);
-                                lat_bnds_values[i * max_vertices + v] = node_coords(node_idx, 1);
-                            }
-                        }
-
-                        lon_bnds_shape.rank = 2;
-                        lon_bnds_shape.extents[0] = nx_;
-                        lon_bnds_shape.extents[1] = max_vertices;
-
-                        lat_bnds_shape.rank = 2;
-                        lat_bnds_shape.extents[0] = nx_;
-                        lat_bnds_shape.extents[1] = max_vertices;
-                        break;
-                    }
-                    case GridType::Rectilinear: {
-                        // 3. Rectilinear case: shapes (nx_, 2) and (ny_, 2)
-                        lon_bnds_values.resize(static_cast<size_t>(nx_) * 2);
-                        lat_bnds_values.resize(static_cast<size_t>(ny_) * 2);
-
-                        // Longitude bounds: query nodes from the first row of cells (j = 0)
-                        for (int i = 0; i < nx_; ++i) {
-                            size_t offset = conn_offsets(i);
-                            axis::index_t node0 = conn_indices(offset + 0);
-                            axis::index_t node1 = conn_indices(offset + 1);
-                            lon_bnds_values[2 * i + 0] = node_coords(node0, 0);
-                            lon_bnds_values[2 * i + 1] = node_coords(node1, 0);
-                        }
-
-                        // Latitude bounds: query nodes from the first column of cells (i = 0)
-                        for (int j = 0; j < ny_; ++j) {
-                            size_t offset = conn_offsets(j * nx_);
-                            axis::index_t node0 = conn_indices(offset + 0);
-                            axis::index_t node3 = conn_indices(offset + 3);
-                            lat_bnds_values[2 * j + 0] = node_coords(node0, 1);
-                            lat_bnds_values[2 * j + 1] = node_coords(node3, 1);
-                        }
-
-                        lon_bnds_shape.rank = 2;
-                        lon_bnds_shape.extents[0] = nx_;
-                        lon_bnds_shape.extents[1] = 2;
-
-                        lat_bnds_shape.rank = 2;
-                        lat_bnds_shape.extents[0] = ny_;
-                        lat_bnds_shape.extents[1] = 2;
-                        break;
-                    }
-                }
-
-                // Clamp latitude bounds to sphere limits
-                for (size_t i = 0; i < lat_bnds_values.size(); ++i) {
-                    if (lat_bnds_values[i] < -90.0) lat_bnds_values[i] = -90.0;
-                    if (lat_bnds_values[i] > 90.0) lat_bnds_values[i] = 90.0;
-                }
-
-                amio_io_handle lon_bnds_io = nullptr;
-                check_amio_rc(amio_write(dataset, "lon_bnds", lon_bnds_values.data(), AMIO_DTYPE_F64, &lon_bnds_shape, &lon_bnds_io),
-                              "amio_write(lon_bnds)");
-
-                amio_io_handle lat_bnds_io = nullptr;
-                check_amio_rc(amio_write(dataset, "lat_bnds", lat_bnds_values.data(), AMIO_DTYPE_F64, &lat_bnds_shape, &lat_bnds_io),
-                              "amio_write(lat_bnds)");
-
-                // Step 5c: Write mesh topology variable for unstructured UGRID mesh
-                if (ny_ == 1) {
-                    int mesh_val = 1;
-                    amio_shape_t mesh_shape;
-                    std::memset(&mesh_shape, 0, sizeof(mesh_shape));
-                    mesh_shape.rank = 1;
-                    mesh_shape.extents[0] = 1;
-                    amio_io_handle mesh_io = nullptr;
-                    check_amio_rc(amio_write(dataset, "mesh", &mesh_val, AMIO_DTYPE_I32, &mesh_shape, &mesh_io), "amio_write(mesh)");
-                }
-
-                // Step 6: Write lev coordinate variable
-                std::vector<double> lev_values(nz_);
-                for (int k = 0; k < nz_; k++) {
-                    lev_values[k] = k + 1.0;
-                }
-                amio_shape_t lev_shape;
-                std::memset(&lev_shape, 0, sizeof(lev_shape));
-                lev_shape.rank = 1;
-                lev_shape.extents[0] = nz_;
-                amio_io_handle lev_io = nullptr;
-                check_amio_rc(amio_write(dataset, "lev", lev_values.data(), AMIO_DTYPE_F64, &lev_shape, &lev_io), "amio_write(lev)");
-
-                // Step 7: Write time coordinate variable
-                double time_val = time_seconds;
-                amio_shape_t time_shape;
-                std::memset(&time_shape, 0, sizeof(time_shape));
-                time_shape.rank = 1;
-                time_shape.extents[0] = 1;
-                amio_io_handle time_io = nullptr;
-                check_amio_rc(amio_write(dataset, "time", &time_val, AMIO_DTYPE_F64, &time_shape, &time_io), "amio_write(time)");
+        if (!skip_file_work && rank0_writes) {
+            try {
+                WriteCoordinateVariables(dataset, time_seconds);
             } catch (const std::exception& e) {
                 CECE_LOG_ERROR(std::string("[CECE] Writer coordinate write failed: ") + e.what());
                 skip_file_work = true;
-            }  // coordinate-variable writes (file owner only)
+            }
+        }  // coordinate-variable writes (file owner only)
 
         // Step 8: Write fields. No configured data fields means write all
         // export fields (the collection itself is never empty — it always

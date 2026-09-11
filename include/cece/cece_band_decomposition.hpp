@@ -45,11 +45,21 @@ struct BandDecomposition {
     /// Short-circuits to `whole_grid(ny_global)` — issuing NO collective — when
     /// MPI is uninitialized, `comm == MPI_COMM_NULL`, or the communicator size
     /// is <= 1, matching the existing single-rank path (j0=0, j1=ny_global,
-    /// ny_local=ny_global).
+    /// ny_local=ny_global). The uninitialized/NULL-comm cases are supported
+    /// entry points, not errors: CECE's serial path (standalone runs, unit
+    /// tests, tools linking without MPI_Init) reaches `compute` outside an MPI
+    /// environment, and every such caller must land on the same whole-grid
+    /// geometry the size-1 path produces.
+    ///
+    /// A negative `ny_global` is a caller/configuration bug (grid dimensions
+    /// are unsigned everywhere upstream). It is clamped to 0 and logged at
+    /// ERROR level — never fed into the band arithmetic, where it would yield
+    /// negative row_counts and UB in the MPI_Allgatherv consumers.
     static BandDecomposition compute(int ny_global, MPI_Comm comm);
 
     /// Convenience for the single-rank / no-MPI short-circuit: the whole grid
-    /// on one rank (j0=0, j1=ny_global, ny_local=ny_global).
+    /// on one rank (j0=0, j1=ny_global, ny_local=ny_global). Negative
+    /// `ny_global` is clamped to 0 with an ERROR log, as for `compute`.
     static BandDecomposition whole_grid(int ny_global);
 };
 

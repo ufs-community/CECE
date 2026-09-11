@@ -19,6 +19,12 @@
 #include "cece/cece_io.hpp"
 #include "cece/cece_regridder_utils.hpp"
 
+// Forward declaration only: the header never touches yaml-cpp; the member
+// taking a const YAML::Node& is defined in the .cpp, which includes yaml.h.
+namespace YAML {
+class Node;
+}
+
 namespace cece {
 
 /**
@@ -117,6 +123,20 @@ class CeceDriverOrchestrator {
 
     bool AdvanceTime(const std::string& time_iso8601, void* cece_core_data_ptr);
 
+    // Release every retained AMIO handle set at shutdown. Iterates amio_handles_
+    // and for each set closes the dataset (amio_close) then finalizes the core
+    // (amio_finalize), each wrapped in its own best-effort try/catch so one
+    // failing handle does not prevent the rest from tearing down; null
+    // dataset/core are skipped. After the loop it clears amio_handles_,
+    // stream_configs_, and slice_caches_. No manifest files are deleted because
+    // none are ever created (all manifests are in-memory strings) (Req 7.2-7.5).
+    // Returns false if any close/finalize failed or threw (failures are logged
+    // at ERROR, never thrown: the destructor path must stay noexcept). Public
+    // so the cece_driver_destroy C wrapper can invoke it explicitly and report
+    // teardown failures through its rc out-param; the destructor also calls it,
+    // where a second invocation is a safe no-op.
+    bool TeardownHandles();
+
    private:
     using DeviceView3D = Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>;
 
@@ -191,6 +211,16 @@ class CeceDriverOrchestrator {
     // is not a copy (Req 1.1-1.5, 4.3).
     static void ResolveStreamConfigsFromFile(const std::string& config_file, std::unordered_map<std::string, StreamConfig>& out_configs,
                                              std::string& out_gridspec_file);
+
+    // Resolve one stream variable's YAML node into a StreamConfig: field
+    // resolution + defaults for file/mapalgo/cadence/tintalgo/data_model plus
+    // the four driver-level AMIO tuning defaults. Extracted from the
+    // ResolveStreamConfigsFromFile stream loop, which had grown to ~40 lines
+    // of per-field if/else logic; the loop now keeps only the iteration and
+    // first-match-wins bookkeeping. Behavior is unchanged.
+    static StreamConfig BuildStreamConfig(const YAML::Node& stream, const std::string& model_name, const std::string& file_name,
+                                          int amio_worker_threads, int amio_staging_buffer_count, int amio_staging_buffer_capacity_bytes,
+                                          int amio_prefetch_depth);
 
     // Build the in-memory AMIO manifest YAML for one stream, byte-for-byte
     // identical to the manifest the legacy inline AdvanceTime code wrote to
@@ -289,15 +319,6 @@ class CeceDriverOrchestrator {
     // returns nullptr (Req 8.1). This helper only opens; it does not read or
     // regrid.
     AmioHandleSet* GetOrOpenHandleSet(const std::string& handle_key, const StreamConfig& cfg, std::string& failure_detail);
-
-    // Release every retained AMIO handle set at shutdown. Iterates amio_handles_
-    // and for each set closes the dataset (amio_close) then finalizes the core
-    // (amio_finalize), each wrapped in its own best-effort try/catch so one
-    // failing handle does not prevent the rest from tearing down; null
-    // dataset/core are skipped. After the loop it clears amio_handles_,
-    // stream_configs_, and slice_caches_. No manifest files are deleted because
-    // none are ever created (all manifests are in-memory strings) (Req 7.2-7.5).
-    void TeardownHandles();
 
     std::string config_file_;
     int nx_{0}, ny_{0}, nz_{0};
@@ -456,7 +477,10 @@ void cece_driver_create(const char* yaml_path, int path_len, int nx, int ny, int
 
 void cece_driver_advance_time(void* driver_ptr, const char* time_iso8601, int time_len, void* cece_core_data_ptr, int* rc);
 
-void cece_driver_destroy(void* driver_ptr);
+// Destroys the driver. On return, *rc (when non-NULL) is 0 on clean shutdown
+// or -1 if the final AMIO close/finalize teardown reported failures (the
+// destruction itself always runs; see TeardownHandles).
+void cece_driver_destroy(void* driver_ptr, int* rc);
 }
 
 #endif  // CECE_DRIVER_FACADE_HPP
