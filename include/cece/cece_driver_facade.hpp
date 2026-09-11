@@ -1,6 +1,7 @@
 #ifndef CECE_DRIVER_FACADE_HPP
 #define CECE_DRIVER_FACADE_HPP
 
+#include <amio/amio.h>
 #include <mpi.h>
 
 #include <dagr/dagr.hpp>
@@ -11,6 +12,7 @@
 
 #include "cece/cece_io.hpp"
 #include "cece/cece_regridder_utils.hpp"
+#include "cece/cece_time_indexing.hpp"
 
 namespace cece {
 
@@ -20,13 +22,21 @@ struct StreamVarConfig {
     std::string input_file_path = "";
     std::string input_var_name = "";
     std::string mapalgo = "consd";
-    std::string cadence;  // "" means legacy step-index cycling
+    std::string cadence;  // "" means series (time-aware default)
+    int yearFirst = 0;    // 0 = unknown/climatology
+    int yearLast = 0;
+    int yearAlign = 0;
+    std::string taxmode;  // "" defaults to cycle
     std::string tintalgo = "nearest";
+    std::string time_var = "time";  // time coordinate variable name
+    std::string time_units;         // override for a missing/non-standard "units" attribute
+    std::string calendar;           // "" -> file attribute, else gregorian
     std::string data_model = "enhanced";
     bool data_model_explicit = false;
     int amio_threads = 1;
     int amio_staging_buffer_count = 8;
 };
+
 class CeceDriverOrchestrator {
    public:
     CeceDriverOrchestrator(const std::string& config_file, int nx, int ny, int nz, const double* lon_coords, int lon_len, const double* lat_coords,

@@ -75,11 +75,12 @@ species:
 
 cece_data:
   streams:
+    # HTAP sector files are 12-record monthly climatologies. `cadence: monthly`
+    # decodes the file's time axis and falls back to month-of-year indexing if
+    # that axis carries no usable CF units.
     - name: "HTAP_NO_TRANSPORT"
       file: "/gpfs/f6/bil-fire3/world-shared/Emissions/nexus/HTAP/v2015-03/NO/EDGAR_HTAP_NO_TRANSPORT.generic.01x01.nc"
-      yearFirst: 2000
-      yearLast: 2010
-      yearAlign: 2020
+      cadence: "monthly"
       taxmode: "cycle"
       tintalgo: "linear"
       mapalgo: "consd"
@@ -89,9 +90,7 @@ cece_data:
           model: "HTAP_TRANSPORT_NO"
     - name: "HTAP_NO_SHIPS"
       file: "/gpfs/f6/bil-fire3/world-shared/Emissions/nexus/HTAP/v2015-03/NO/EDGAR_HTAP_NO_SHIPS.generic.01x01.nc"
-      yearFirst: 2000
-      yearLast: 2010
-      yearAlign: 2020
+      cadence: "monthly"
       taxmode: "cycle"
       tintalgo: "linear"
       mapalgo: "consd"
@@ -101,9 +100,7 @@ cece_data:
           model: "HTAP_SHIPS_NO"
     - name: "HTAP_NO_RESIDENTIAL"
       file: "/gpfs/f6/bil-fire3/world-shared/Emissions/nexus/HTAP/v2015-03/NO/EDGAR_HTAP_NO_RESIDENTIAL.generic.01x01.nc"
-      yearFirst: 2000
-      yearLast: 2010
-      yearAlign: 2020
+      cadence: "monthly"
       taxmode: "cycle"
       tintalgo: "linear"
       mapalgo: "consd"
@@ -113,9 +110,7 @@ cece_data:
           model: "HTAP_RESIDENTIAL_NO"
     - name: "HTAP_NO_INDUSTRY"
       file: "/gpfs/f6/bil-fire3/world-shared/Emissions/nexus/HTAP/v2015-03/NO/EDGAR_HTAP_NO_INDUSTRY.generic.01x01.nc"
-      yearFirst: 2000
-      yearLast: 2010
-      yearAlign: 2020
+      cadence: "monthly"
       taxmode: "cycle"
       tintalgo: "linear"
       mapalgo: "consd"
@@ -125,9 +120,7 @@ cece_data:
           model: "HTAP_INDUSTRY_NO"
     - name: "HTAP_NO_ENERGY"
       file: "/gpfs/f6/bil-fire3/world-shared/Emissions/nexus/HTAP/v2015-03/NO/EDGAR_HTAP_NO_ENERGY.generic.01x01.nc"
-      yearFirst: 2000
-      yearLast: 2010
-      yearAlign: 2020
+      cadence: "monthly"
       taxmode: "cycle"
       tintalgo: "linear"
       mapalgo: "consd"
@@ -137,11 +130,10 @@ cece_data:
           model: "HTAP_ENERGY_NO"
     - name: "CAMS_HOURLY"
       file: "/gpfs/f6/bil-fire3/world-shared/Emissions/nexus/CAMS-TEMPO/v3.1-2021/CAMS-GLOB-TEMPO_Glb_0.1x0.1_tmp_weights_v3.1_hourly_fixtime.nc"
-      yearFirst: 2021
-      yearLast: 2021
-      yearAlign: 2021
-      taxmode: "cycle"
-      tintalgo: "linear"
+      # Discrete hour-of-day profile (24 records), not a time series: pick the
+      # record matching the current simulation hour. taxmode/yearAlign/tintalgo
+      # do not apply to profile cadences.
+      cadence: "hourly"
       mapalgo: "bilinear"
       data_model: "classic"
       variables:
@@ -149,11 +141,8 @@ cece_data:
           model: "CAMS_HOURLY"
     - name: "CAMS_WEEKLY"
       file: "/gpfs/f6/bil-fire3/world-shared/Emissions/nexus/CAMS-TEMPO/v3.1-2021/CAMS-GLOB-TEMPO_Glb_0.1x0.1_tmp_weights_v3.1_weekly.nc"
-      yearFirst: 2021
-      yearLast: 2021
-      yearAlign: 2021
-      taxmode: "cycle"
-      tintalgo: "linear"
+      # Discrete day-of-week profile (7 records, 0=Monday).
+      cadence: "weekly"
       mapalgo: "bilinear"
       data_model: "classic"
       variables:
@@ -161,9 +150,10 @@ cece_data:
           model: "CAMS_WEEKLY"
     - name: "CAMS_MONTHLY"
       file: "/gpfs/f6/bil-fire3/world-shared/Emissions/nexus/CAMS-TEMPO/v3.1-2021/CAMS-GLOB-TEMPO_Glb_0.1x0.1_tmp_weights_v3.1_monthly.nc"
-      yearFirst: 2021
-      yearLast: 2021
-      yearAlign: 2021
+      # Continuous monthly climatology (12 records). With tintalgo=linear the
+      # value is interpolated to the current day using the mid-month convention
+      # (e.g. Jan 1 blends the Dec and Jan records).
+      cadence: "monthly"
       taxmode: "cycle"
       tintalgo: "linear"
       mapalgo: "bilinear"
@@ -173,9 +163,7 @@ cece_data:
           model: "CAMS_MONTHLY"
     - name: "CAMS_MONTHLY_ind"
       file: "/gpfs/f6/bil-fire3/world-shared/Emissions/nexus/CAMS-TEMPO/v3.1-2021/CAMS-GLOB-TEMPO_Glb_0.1x0.1_tmp_weights_v3.1_monthly.nc"
-      yearFirst: 2021
-      yearLast: 2021
-      yearAlign: 2021
+      cadence: "monthly"
       taxmode: "cycle"
       tintalgo: "linear"
       mapalgo: "bilinear"

@@ -217,16 +217,24 @@ class DataStreamConfig:
         Mapping of file variable names to model variable names.
         Default is an empty dict.
     taxmode : str, optional
-        Time axis mode. One of ``"cycle"``, ``"extend"``, ``"interp"``.
-        Default is ``"cycle"``.
+        Behavior when the simulation time falls outside the file's coverage.
+        One of ``"cycle"`` (wrap), ``"extend"`` (clamp to the nearest end),
+        or ``"limit"`` (fail). Default is ``"cycle"``.
     tintalgo : str, optional
-        Time interpolation algorithm. One of ``"linear"``, ``"constant"``.
-        Default is ``"linear"``.
+        Time interpolation algorithm. One of ``"linear"``, ``"nearest"``.
+        Default is ``"nearest"``, matching the driver.
     mapalgo : str, optional
         Spatial mapping algorithm. One of ``"bilinear"``, ``"consd"``,
         ``"consf"``, ``"nn"``, ``"redist"``, or ``"passthrough"``
         (skip regridding when data is already on the model grid).
         Default is ``"default"``.
+    cadence : str, optional
+        How file records are addressed. One of ``"series"`` (decode the
+        file's time axis), ``"daily"``/``"monthly"`` (series with a calendar
+        arithmetic fallback), ``"hourly"``/``"weekly"`` (climatological
+        profile indexed by hour-of-day / day-of-week), or ``"stepwise"``
+        (also spelled ``"step"``; ignore time and walk the record index).
+        Default is ``"series"``.
 
     Examples
     --------
@@ -237,8 +245,9 @@ class DataStreamConfig:
     file_paths: List[str] = field(default_factory=list)
     variables: Dict[str, str] = field(default_factory=dict)
     taxmode: str = "cycle"
-    tintalgo: str = "linear"
+    tintalgo: str = "nearest"
     mapalgo: str = "default"
+    cadence: str = "series"
 
     def validate(self) -> None:
         """
@@ -248,16 +257,27 @@ class DataStreamConfig:
         ------
         ValueError
             If ``name`` is empty, ``file_paths`` is empty, ``taxmode`` is
-            not recognized, or ``tintalgo`` is not recognized.
+            not recognized, ``tintalgo`` is not recognized, or ``cadence``
+            is not recognized.
         """
         if not self.name:
             raise ValueError("stream name cannot be empty")
         if not self.file_paths:
             raise ValueError("file_paths cannot be empty")
-        if self.taxmode not in ["cycle", "extend", "interp"]:
+        if self.taxmode not in ["cycle", "extend", "limit"]:
             raise ValueError(f"Invalid taxmode: {self.taxmode}")
-        if self.tintalgo not in ["linear", "constant"]:
+        if self.tintalgo not in ["linear", "nearest"]:
             raise ValueError(f"Invalid tintalgo: {self.tintalgo}")
+        if self.cadence not in [
+            "series",
+            "daily",
+            "monthly",
+            "hourly",
+            "weekly",
+            "stepwise",
+            "step",
+        ]:
+            raise ValueError(f"Invalid cadence: {self.cadence}")
 
 
 class ValidationResult:
@@ -420,8 +440,9 @@ class CeceConfig:
         file_paths: List[str],
         variables: Dict[str, str],
         taxmode: str = "cycle",
-        tintalgo: str = "linear",
+        tintalgo: str = "nearest",
         mapalgo: str = "default",
+        cadence: str = "series",
     ) -> None:
         """
         Configure a TIDE data stream.
@@ -435,14 +456,21 @@ class CeceConfig:
         variables : dict
             Mapping of file variable names to model variable names.
         taxmode : str, optional
-            Time axis mode. Default is ``"cycle"``.
+            Behavior outside the file's coverage. One of ``"cycle"``,
+            ``"extend"``, or ``"limit"``. Default is ``"cycle"``.
         tintalgo : str, optional
-            Time interpolation algorithm. Default is ``"linear"``.
+            Time interpolation algorithm. One of ``"linear"`` or
+            ``"nearest"``. Default is ``"nearest"``, matching the driver.
         mapalgo : str, optional
             Spatial mapping algorithm. One of ``"bilinear"``, ``"consd"``,
             ``"consf"``, ``"nn"``, ``"redist"``, or ``"passthrough"``
             (skip regridding when data is already on the model grid).
             Default is ``"default"``.
+        cadence : str, optional
+            How file records are addressed: ``"series"``, ``"daily"``,
+            ``"monthly"``, ``"hourly"``, ``"weekly"``, or ``"stepwise"``
+            (alias ``"step"``).
+            Default is ``"series"``.
 
         Raises
         ------
@@ -450,7 +478,7 @@ class CeceConfig:
             If parameters fail validation.
         """
         stream = DataStreamConfig(
-            name, file_paths, variables, taxmode, tintalgo, mapalgo
+            name, file_paths, variables, taxmode, tintalgo, mapalgo, cadence
         )
         stream.validate()
         self._cece_data["streams"].append(stream)
@@ -602,6 +630,7 @@ class CeceConfig:
                         "taxmode": s.taxmode,
                         "tintalgo": s.tintalgo,
                         "mapalgo": s.mapalgo,
+                        "cadence": s.cadence,
                     }
                     for s in self._cece_data.get("streams", [])
                 ]
@@ -718,8 +747,9 @@ class CeceConfig:
                 file_paths=stream_data.get("file_paths", []),
                 variables=stream_data.get("variables", {}),
                 taxmode=stream_data.get("taxmode", "cycle"),
-                tintalgo=stream_data.get("tintalgo", "linear"),
+                tintalgo=stream_data.get("tintalgo", "nearest"),
                 mapalgo=stream_data.get("mapalgo", "default"),
+                cadence=stream_data.get("cadence", "series"),
             )
 
         # Temporal cycles

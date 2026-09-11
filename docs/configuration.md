@@ -566,12 +566,15 @@ Configuration for data streams that read external emission inventories and auxil
 | `name` | String | Unique identifier for the data stream |
 | `file` | String | Path to NetCDF data file(s) |
 | `refresh_interval_seconds` | Integer | (Optional) Data ingestion interval in seconds. Must be a positive multiple of `timestep_seconds`. Default: `0` (use `timestep_seconds`, i.e., ingest every step). |
-| `cadence` | String | (Optional) Temporal cadence for record selection: `hourly`, `weekly`, or `monthly`. When set, the driver maps the simulation datetime onto the appropriate file record (hour-of-day, day-of-week, or month). If omitted, legacy step-index cycling is used. |
-| `yearFirst` | Integer | First year of data coverage |
-| `yearLast` | Integer | Last year of data coverage |
-| `yearAlign` | Integer | Simulation year to align with data |
-| `taxmode` | String | Time axis mode: `cycle`, `extend`, or `limit` |
-| `tintalgo` | String | Temporal interpolation: `linear` or `nearest`. For `monthly` cadence with `linear`, mid-month interpolation is applied between bracketing records. Default: `nearest`. |
+| `cadence` | String | (Optional) How file records are addressed: `series` (default), `daily`, `monthly`, `hourly`, `weekly`, or `stepwise`. See [Record Selection](#record-selection-cadence). |
+| `time_var` | String | (Optional) Name of the time coordinate variable. Default: `time` (falls back to `Time`, `t`, `valid_time`). |
+| `time_units` | String | (Optional) Override for the time variable's CF `units` attribute (e.g. `"hours since 2020-01-01 00:00:00"`). Use when the file's attribute is missing or non-standard. |
+| `calendar` | String | (Optional) Override for the time variable's CF `calendar` attribute: `gregorian`/`standard`/`proleptic_gregorian`, `noleap`/`365_day`, or `360_day`. |
+| `yearFirst` | Integer | First calendar year of data coverage in the file. Only consulted on the arithmetic fallback path (`daily`/`monthly` cadence with an undecodable time axis). |
+| `yearLast` | Integer | Last calendar year of data coverage in the file. Same applicability as `yearFirst`. |
+| `yearAlign` | Integer | Simulation year corresponding to the first file year. Default: `0` (no shift, simulation years map 1-to-1 onto file years). |
+| `taxmode` | String | Behavior when the simulation time falls outside the file's coverage: `cycle` (default, wrap), `extend` (clamp to the nearest end), or `limit` (fail). |
+| `tintalgo` | String | Temporal interpolation: `linear` or `nearest`. Default: `nearest`. Ignored by `hourly`/`weekly`/`stepwise` cadences. |
 | `mapalgo` | String | Spatial regridding: `consd`, `bilinear`, `consf`, `nn`, `redist`, or `passthrough`. `passthrough` requires identical dimensions and ordered source/target coordinates, then copies without AXIS regridding. |
 | `data_model` | String | (Optional) AMIO NetCDF data model for reads: `enhanced`, `classic`, or `auto`. Default behavior is auto (`enhanced` first, then `classic` fallback on backend open failure). |
 | `variables` | List | Variable mappings between file and model |
@@ -602,12 +605,11 @@ variables:
 cece_data:
   streams:
     - name: "MACCITY_CO"
-      file: "/data/inventories/MACCity_CO_2010.nc"
-      yearFirst: 2000
-      yearLast: 2010
-      yearAlign: 2020           # Use 2010 data for year 2020
-      taxmode: "cycle"          # Repeat yearly cycle
-      tintalgo: "linear"        # Linear time interpolation
+      file: "/data/inventories/MACCity_CO_2000-2010.nc"
+      # cadence omitted -> "series": the file's own time axis is decoded and the
+      # simulation time is bracketed against the actual record times.
+      taxmode: "cycle"          # Repeat the file's coverage outside 2000-2010
+      tintalgo: "linear"        # Linear interpolation between bracketing records
       mapalgo: "consd"          # Conservative regridding
       variables:
         - file: "MACCity_CO"    # Variable name in file
@@ -615,10 +617,8 @@ cece_data:
 
     - name: "HTAP_NOX"
       file: "/data/inventories/HTAPv3_NOx_*.nc"  # Wildcard for multiple files
-      yearFirst: 2018
-      yearLast: 2018
-      yearAlign: 2020
-      taxmode: "extend"         # Extend last value beyond data range
+      yearAlign: 2020           # Simulation year 2020 aligns to the first file year
+      taxmode: "extend"         # Clamp to the nearest end outside the covered range
       tintalgo: "linear"
       mapalgo: "consd"
       data_model: "classic"     # Force classic model for legacy files
@@ -628,7 +628,7 @@ cece_data:
 
     - name: "DIURNAL_PROFILE"
       file: "/data/profiles/diurnal_nox.nc"
-      cadence: "hourly"         # Select record by hour-of-day (0-23)
+      cadence: "hourly"         # Profile: select record by hour-of-day (0-23)
       mapalgo: "consd"
       variables:
         - file: "NOx_HOURLY"
@@ -636,12 +636,231 @@ cece_data:
 
     - name: "MONTHLY_CLIM"
       file: "/data/climatology/monthly_co.nc"
-      cadence: "monthly"        # Select record by month (0-11)
+      cadence: "monthly"        # Series with a monthly arithmetic fallback
       tintalgo: "linear"        # Mid-month linear interpolation
       mapalgo: "consd"
       variables:
         - file: "CO_MONTHLY"
           model: "co_monthly_clim"
+```
+
+### Record Selection (`cadence`)
+
+`cadence` selects *how* a stream's file records are addressed for a given simulation
+date-time. There are three kinds:
+
+| `cadence` | Kind | Behavior |
+| --- | --- | --- |
+| *(omitted)*, `series` | Series | Decode the file's CF time axis and bracket the simulation time against the actual record times. Honors `tintalgo`, `taxmode`, and `yearAlign`. |
+| `daily`, `monthly` | Series | Same as `series`, but if the time axis cannot be decoded, degrade to calendar arithmetic at the stated granularity (day-of-year / month-of-year) using `yearFirst`, `yearLast`, `yearAlign`, and `taxmode`. |
+| `hourly`, `weekly` | Profile | Climatological profile indexed directly by a calendar field: hour-of-day (records 0–23) or day-of-week (records 0–6, 0 = Monday). The time axis is not read. `tintalgo`, `taxmode`, `yearAlign`, `yearFirst`, and `yearLast` are ignored (a warning is logged if set). |
+| `stepwise` (alias `step`) | Stepwise | Opt-in step-index cycling: record `= step_index % n_records`. Time is ignored entirely. `tintalgo`, `taxmode`, and `yearAlign` are ignored (a warning is logged if set). |
+
+Any other value is a configuration error.
+
+> **Changed behavior:** omitting `cadence` used to mean step-index cycling. It now
+> means `series` (time-aware record selection), which is almost always what is
+> wanted. Set `cadence: stepwise` to opt back in to the old index-walking behavior.
+
+#### Decoding the time axis
+
+For `series` (and the `daily`/`monthly` variants) the driver reads the stream's time
+coordinate variable — `time_var`, defaulting to `time` with fallbacks to `Time`, `t`,
+and `valid_time` — together with its CF `units` (`"<unit> since <reference>"`) and
+`calendar` attributes. Only fixed-length units are decodable: seconds, minutes, hours,
+and days. Months and years are calendar-ambiguous and are treated as undecodable.
+
+Use `time_units` and `calendar` to supply these values for files whose attributes are
+missing or non-standard; the config values take precedence over the file's attributes.
+
+If the axis cannot be decoded and the cadence carries no granularity to fall back on
+(that is, plain `series` on a file with more than one record), the run fails with a
+message pointing at the three ways out: set `time_units`, use `cadence: daily`/`monthly`,
+or use `cadence: stepwise` to ignore time altogether. Files with a single record always
+resolve to record 0.
+
+#### Numeric types and packed data
+
+Variables and coordinates are read using the element type the file declares, so
+integer-valued time axes, coordinates, and data (all common in CF files) decode
+correctly. CF packing attributes are applied on read wherever they are present:
+
+$$\text{value} = \text{stored} \times \text{scale\_factor} + \text{add\_offset}$$
+
+This needs no configuration — `scale_factor` and `add_offset` are picked up from the
+file, and a variable without them is read unchanged.
+
+#### Interpolation
+
+`tintalgo: nearest` (the default) reads the single closest record. `tintalgo: linear`
+reads the two bracketing records and blends them on the source grid before regridding.
+On the arithmetic fallback path, `monthly` uses the mid-month convention and `daily`
+uses the mid-day convention, so e.g. January 1 blends the December and January records.
+
+### Temporal Alignment Semantics (`yearAlign`, `taxmode`)
+
+`yearAlign` shifts the simulation time onto the file's time axis: it names the
+simulation year that corresponds to the file's **first** year. `yearAlign: 0` (the
+default) means no shift — simulation years map 1-to-1 onto file years. On the
+arithmetic fallback path the dataset year is computed as:
+
+$$\text{effective\_year} = \text{yearFirst} + (\text{sim\_year} - \text{yearAlign})$$
+
+`taxmode` decides what happens when the simulation time falls outside the file's
+coverage:
+
+* **`cycle`** (default): wrap the simulation time back into the file's range, repeating
+  the file's coverage indefinitely. The repeat period runs one record interval past the
+  last record, so a 48-record hourly file repeats every 48 hours and simulation hour 53
+  reads record 5.
+* **`extend`**: clamp to the nearest end of the file's coverage. Useful for running past
+  the last year of an inventory.
+* **`limit`**: no record is resolved and the run fails.
+
+`yearFirst` and `yearLast` describe the file's year coverage. They are only consulted on
+the arithmetic fallback path; when the time axis is decodable the record times carry that
+information themselves, so setting them on a `series` stream logs a warning.
+
+### Practical Applications & Common Use Cases
+
+#### 1. Future Projections / Present-Day Runs with Historical Inventories
+**Scenario:** You are running a simulation for year 2026, but your emissions inventory (e.g., CEDS or HTAP) only extends through 2023. You want all simulation years $\ge 2023$ to use the 2023 emission rates.
+```yaml
+cece_data:
+  streams:
+    - name: "CEDS_ANTHRO_NOX"
+      file: "/data/emissions/CEDS_NOx_2000-2023.nc"
+      cadence: "monthly"
+      taxmode: "extend"         # Sim year 2026 clamps to the last file record
+      tintalgo: "linear"
+      # yearFirst/yearLast only matter if the time axis cannot be decoded:
+      yearFirst: 2000
+      yearLast: 2023
+```
+
+#### 2. Historical Reanalysis / Hindcast Runs
+**Scenario:** You are running a historical simulation (e.g., 2010–2015) using a multi-year dataset that covers 2000–2020. Each simulation year should strictly use the corresponding file year.
+```yaml
+cece_data:
+  streams:
+    - name: "HISTORICAL_EMISSIONS"
+      file: "/data/emissions/inventory_2000-2020.nc"
+      cadence: "monthly"
+      yearAlign: 0              # 1-to-1 mapping (sim year 2015 -> file year 2015)
+      taxmode: "limit"          # Fail if the simulation leaves 2000-2020
+      tintalgo: "linear"
+```
+
+#### 3. Repetitive Multi-Year Cycles
+**Scenario:** You have a 10-year dataset (2000–2010) and want to repeat this 10-year cycle continuously for long-term climate or air quality simulations (e.g., 2011–2030).
+```yaml
+cece_data:
+  streams:
+    - name: "CYCLING_INVENTORY"
+      file: "/data/emissions/inventory_2000-2010.nc"
+      cadence: "monthly"
+      taxmode: "cycle"          # Sim year 2011 wraps back to the start of the file
+      tintalgo: "linear"
+```
+
+#### 4. Applying a Single-Year Inventory to a Different Simulation Year
+**Scenario:** You have a single-year inventory for year 2010, but you are running a simulation for year 2020.
+```yaml
+cece_data:
+  streams:
+    - name: "SINGLE_YEAR_INVENTORY"
+      file: "/data/emissions/inventory_2010.nc"
+      cadence: "monthly"
+      yearAlign: 2020           # Sim year 2020 aligns to the first file year (2010)
+      taxmode: "extend"
+      tintalgo: "linear"
+```
+
+#### 5. Monthly Climatologies (12-Record Files)
+**Scenario:** You have a 12-month climatology file (Jan–Dec) that applies identically to every simulation year.
+```yaml
+cece_data:
+  streams:
+    - name: "MONTHLY_CLIMATOLOGY"
+      file: "/data/climatology/monthly_isoprene.nc"
+      cadence: "monthly"        # Falls back to month-of-year indexing if the
+                                # 12-record axis has no decodable units
+      tintalgo: "linear"        # Smooth mid-month interpolation
+      taxmode: "cycle"          # Reuse the same 12 records every year
+```
+
+#### 6. Daily Climatologies and Daily Emissions Files
+**Scenario:** Reading daily data files (e.g., 365/366-day daily climatology or multi-year daily emissions).
+```yaml
+cece_data:
+  streams:
+    - name: "DAILY_CLIMATOLOGY"
+      file: "/data/climatology/daily_emissions.nc"
+      cadence: "daily"          # Falls back to day-of-year indexing (records 0-364/365)
+      tintalgo: "linear"        # Smooth intra-day linear interpolation
+      taxmode: "cycle"
+
+    - name: "MULTIYEAR_DAILY_EMISSIONS"
+      file: "/data/emissions/daily_inventory_2000-2023.nc"
+      cadence: "daily"
+      taxmode: "extend"
+      tintalgo: "linear"
+      yearFirst: 2000           # Fallback-path coverage hints
+      yearLast: 2023
+```
+
+#### 7. Diurnal (Hourly) and Weekly Variation Profiles
+**Scenario:** Applying 24-hour diurnal scale factors or 7-day weekly scale factors. These
+are climatological profiles, not time series, so the file's time axis is not consulted and
+no other temporal keys apply.
+```yaml
+cece_data:
+  streams:
+    - name: "DIURNAL_SCALE"
+      file: "/data/profiles/diurnal_factors.nc"
+      cadence: "hourly"         # Selects record 0-23 by hour of day
+
+    - name: "WEEKLY_SCALE"
+      file: "/data/profiles/weekly_factors.nc"
+      cadence: "weekly"         # Selects record 0-6 by day of week (0=Mon ... 6=Sun)
+```
+
+#### 8. Sub-Daily Time Series (e.g. Hourly Emissions over a Date Range)
+**Scenario:** An hourly emissions file spanning several days. This is a *series*, not an
+hour-of-day profile — each record has its own date, so `cadence: hourly` would be wrong.
+```yaml
+cece_data:
+  streams:
+    - name: "HOURLY_FIRE_EMISSIONS"
+      file: "/data/emissions/fire_hourly_20240701-20240707.nc"
+      # cadence omitted -> series: bracket the simulation time on the decoded axis
+      tintalgo: "linear"
+      taxmode: "extend"         # Hold the last record once the run outlasts the file
+```
+
+#### 9. Ignoring Time Entirely (Legacy Step Cycling)
+**Scenario:** Reproducing the pre-`series` default, where record `n` is read on step `n`
+regardless of the simulation date.
+```yaml
+cece_data:
+  streams:
+    - name: "STEP_CYCLED_INPUT"
+      file: "/data/inventories/records.nc"
+      cadence: "stepwise"       # record = step_index % n_records; time is ignored
+```
+
+#### 10. Files with Missing or Non-Standard Time Metadata
+**Scenario:** A file whose time variable is named `valid_time` and carries no `units`
+attribute, so the axis cannot be decoded from the file alone.
+```yaml
+cece_data:
+  streams:
+    - name: "LEGACY_INVENTORY"
+      file: "/data/inventories/legacy_no_units.nc"
+      time_var: "valid_time"
+      time_units: "hours since 2020-01-01 00:00:00"
+      calendar: "noleap"
+      tintalgo: "linear"
 ```
 
 ---

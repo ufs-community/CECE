@@ -11,7 +11,9 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#include <stdexcept>
 
+#include "cece/cece_amio_utils.hpp"
 #include "cece/cece_logger.hpp"
 
 namespace cece::io {
@@ -42,13 +44,35 @@ static std::vector<double> read_coordinate_array(amio_dataset_handle dataset, co
     }
     num_elements = total_pts;
 
-    std::vector<double> values(total_pts);
-    bool is_float = (size == static_cast<size_t>(total_pts) * 4);
-    const float* float_data = static_cast<const float*>(data);
-    const double* double_data = static_cast<const double*>(data);
+    // Read through the view's declared element type: the payload size alone
+    // cannot tell an integer coordinate from a float one.
+    amio_dtype_t dtype = AMIO_DTYPE_F64;
+    if (amio_view_dtype(view, &dtype) != AMIO_OK) {
+        amio_release_view(view);
+        throw std::runtime_error("Failed to retrieve element type for coordinate variable: " + name);
+    }
+    const std::size_t elem_size = cece::detail::amio_dtype_size(dtype);
+    if (elem_size == 0 || size < static_cast<std::size_t>(total_pts) * elem_size) {
+        amio_release_view(view);
+        throw std::runtime_error("Unsupported or truncated payload for coordinate variable: " + name);
+    }
+
+    double scale = 1.0;
+    double offset = 0.0;
+    {
+        double attr = 0.0;
+        if (amio_get_var_attribute_double(dataset, name.c_str(), "scale_factor", &attr) == AMIO_OK) scale = attr;
+        if (amio_get_var_attribute_double(dataset, name.c_str(), "add_offset", &attr) == AMIO_OK) offset = attr;
+    }
+
+    std::vector<double> values;
+    if (!cece::detail::widen_amio_elements(data, dtype, static_cast<std::size_t>(total_pts), scale, offset, values)) {
+        amio_release_view(view);
+        throw std::runtime_error("Could not widen element type of coordinate variable: " + name);
+    }
 
     for (int i = 0; i < total_pts; ++i) {
-        double val = is_float ? static_cast<double>(float_data[i]) : double_data[i];
+        double val = values[i];
         if (is_radian) {
             val *= 180.0 / M_PI;
         }
@@ -462,18 +486,30 @@ bool build_regrid_plan(amio_dataset_handle read_dataset, int nx, int ny, const s
                     }
 
                     if (slice_len > 0) {
-                        out.resize(slice_len);
-                        bool is_float = (size == static_cast<size_t>(len) * 4);
-                        for (int i = 0; i < slice_len; ++i) {
-                            double val = is_float ? static_cast<double>(static_cast<const float*>(data)[i]) : static_cast<const double*>(data)[i];
-                            if (wrap_lon) {
-                                if (val >= 180.0) {
-                                    val -= 360.0;
-                                } else if (val < -180.0) {
-                                    val += 360.0;
+                        amio_dtype_t dtype = AMIO_DTYPE_F64;
+                        const std::size_t elem_size =
+                            (amio_view_dtype(view, &dtype) == AMIO_OK) ? cece::detail::amio_dtype_size(dtype) : static_cast<std::size_t>(0);
+                        double scale = 1.0;
+                        double offset = 0.0;
+                        double attr = 0.0;
+                        if (amio_get_var_attribute_double(read_dataset, name.c_str(), "scale_factor", &attr) == AMIO_OK) scale = attr;
+                        if (amio_get_var_attribute_double(read_dataset, name.c_str(), "add_offset", &attr) == AMIO_OK) offset = attr;
+
+                        std::vector<double> widened;
+                        if (elem_size > 0 && size >= static_cast<std::size_t>(slice_len) * elem_size &&
+                            cece::detail::widen_amio_elements(data, dtype, static_cast<std::size_t>(slice_len), scale, offset, widened)) {
+                            out.resize(slice_len);
+                            for (int i = 0; i < slice_len; ++i) {
+                                double val = widened[i];
+                                if (wrap_lon) {
+                                    if (val >= 180.0) {
+                                        val -= 360.0;
+                                    } else if (val < -180.0) {
+                                        val += 360.0;
+                                    }
                                 }
+                                out[i] = val;
                             }
-                            out[i] = val;
                         }
                     }
                 }

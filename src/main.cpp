@@ -15,6 +15,7 @@
 #include <unordered_map>
 #include <vector>
 
+#include "cece/cece_amio_utils.hpp"
 #include "cece/cece_config.hpp"
 #include "cece/cece_driver_facade.hpp"
 #include "cece/cece_fatal.hpp"
@@ -52,11 +53,6 @@ void cece_core_writer_initialize_with_coords(void* data_ptr, int nx, int ny, int
                                              int lat_len, const char* start_time_iso8601, int start_time_len, int mpi_comm_f, int* rc);
 void cece_core_write_step(void* data_ptr, double time_seconds, int step_index, int* rc);
 void cece_core_set_export_field(void* data_ptr, const char* name, int name_len, const double* field_data, int nx, int ny, int nz, int* rc);
-}
-
-extern "C" {
-void cece_driver_create(const char* yaml_path, int path_len, int nx, int ny, int nz, const double* lon_coords, int lon_len, const double* lat_coords,
-                        int lat_len, int mpi_comm_f, void** driver_ptr_out, int* rc);
 }
 
 int main(int argc, char* argv[]) {
@@ -283,10 +279,12 @@ int main(int argc, char* argv[]) {
                             "grid_lont", "grid_lon", "XLONG",   "lonCell", "geolon",      "clon",          "glamt",  "mesh2d_face_lon", "lon",
                             "longitude", "LON",      "lon_rho", "nav_lon", "mesh_node_x", "mesh2d_node_x", "node_x", "grid_xt",         "x"};
                         bool is_radian = false;
+                        std::string lon_var_name;
                         amio_status_t lon_status = static_cast<amio_status_t>(-1);
                         for (const auto& name : kLonNames) {
                             lon_status = amio_read(coord_dataset, name.c_str(), 0, nullptr, &lon_view);
                             if (lon_status == AMIO_OK) {
+                                lon_var_name = name;
                                 if (name == "lonCell" || name == "latCell" || name == "lonVertex" || name == "latVertex") {
                                     is_radian = true;
                                 }
@@ -309,16 +307,27 @@ int main(int argc, char* argv[]) {
                                     for (int r = 0; r < lon_shape.rank; ++r) {
                                         total_len *= static_cast<int>(lon_shape.extents[r]);
                                     }
-                                    bool is_float = (view_size == static_cast<size_t>(total_len) * 4);
-                                    const float* float_data = static_cast<const float*>(view_data);
-                                    const double* double_data = static_cast<const double*>(view_data);
-                                    file_lon_coords.resize(total_len);
-                                    for (int i = 0; i < total_len; ++i) {
-                                        double val = is_float ? static_cast<double>(float_data[i]) : double_data[i];
-                                        if (is_radian) {
-                                            val = radians_to_degrees(val);
+                                    amio_dtype_t dtype = AMIO_DTYPE_F64;
+                                    double lon_scale = 1.0;
+                                    double lon_offset = 0.0;
+                                    cece::detail::read_cf_packing(coord_dataset, lon_var_name, lon_scale, lon_offset);
+                                    std::vector<double> widened;
+                                    if (amio_view_dtype(lon_view, &dtype) == AMIO_OK &&
+                                        cece::detail::widen_amio_elements(view_data, dtype, static_cast<std::size_t>(total_len), lon_scale,
+                                                                          lon_offset, widened)) {
+                                        file_lon_coords.resize(total_len);
+                                        for (int i = 0; i < total_len; ++i) {
+                                            double val = widened[i];
+                                            if (is_radian) {
+                                                val = radians_to_degrees(val);
+                                            }
+                                            file_lon_coords[i] = wrap_longitude(val);
                                         }
-                                        file_lon_coords[i] = wrap_longitude(val);
+                                    } else {
+                                        // Leaving file_nx set here would let an empty
+                                        // coordinate array pass as a loaded gridspec.
+                                        CECE_LOG_ERROR("Could not decode gridspec longitude variable '" + lon_var_name + "'");
+                                        file_nx = 0;
                                     }
                                 }
                             }
@@ -329,9 +338,11 @@ int main(int argc, char* argv[]) {
                             "grid_latt", "grid_lat", "XLAT",    "latCell", "geolat",      "clat",          "gphit",  "mesh2d_face_lat", "lat",
                             "latitude",  "LAT",      "lat_rho", "nav_lat", "mesh_node_y", "mesh2d_node_y", "node_y", "grid_yt",         "y"};
                         amio_status_t lat_status = static_cast<amio_status_t>(-1);
+                        std::string lat_var_name;
                         for (const auto& name : kLatNames) {
                             lat_status = amio_read(coord_dataset, name.c_str(), 0, nullptr, &lat_view);
                             if (lat_status == AMIO_OK) {
+                                lat_var_name = name;
                                 break;
                             }
                         }
@@ -349,16 +360,25 @@ int main(int argc, char* argv[]) {
                                     for (int r = 0; r < lat_shape.rank; ++r) {
                                         total_len *= static_cast<int>(lat_shape.extents[r]);
                                     }
-                                    bool is_float = (view_size == static_cast<size_t>(total_len) * 4);
-                                    const float* float_data = static_cast<const float*>(view_data);
-                                    const double* double_data = static_cast<const double*>(view_data);
-                                    file_lat_coords.resize(total_len);
-                                    for (int j = 0; j < total_len; ++j) {
-                                        double val = is_float ? static_cast<double>(float_data[j]) : double_data[j];
-                                        if (is_radian) {
-                                            val = radians_to_degrees(val);
+                                    amio_dtype_t dtype = AMIO_DTYPE_F64;
+                                    double lat_scale = 1.0;
+                                    double lat_offset = 0.0;
+                                    cece::detail::read_cf_packing(coord_dataset, lat_var_name, lat_scale, lat_offset);
+                                    std::vector<double> widened;
+                                    if (amio_view_dtype(lat_view, &dtype) == AMIO_OK &&
+                                        cece::detail::widen_amio_elements(view_data, dtype, static_cast<std::size_t>(total_len), lat_scale,
+                                                                          lat_offset, widened)) {
+                                        file_lat_coords.resize(total_len);
+                                        for (int j = 0; j < total_len; ++j) {
+                                            double val = widened[j];
+                                            if (is_radian) {
+                                                val = radians_to_degrees(val);
+                                            }
+                                            file_lat_coords[j] = val;
                                         }
-                                        file_lat_coords[j] = val;
+                                    } else {
+                                        CECE_LOG_ERROR("Could not decode gridspec latitude variable '" + lat_var_name + "'");
+                                        file_ny = 0;
                                     }
                                 }
                             }

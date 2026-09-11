@@ -399,6 +399,9 @@ add_library(
   src/driver/cece_regridder_utils.cpp
   src/driver/cece_standalone_writer.cpp
   src/driver/cece_core_writer_init.cpp
+  src/driver/cece_amio_utils.cpp
+  src/driver/cece_calendar.cpp
+  src/driver/cece_time_indexing.cpp
   src/driver/cece_driver_facade.cpp
 )
 
@@ -560,6 +563,41 @@ add_executable(test_cece_clock_properties tests/test_cece_clock_properties.cpp)
 target_link_libraries(
   test_cece_clock_properties
   PRIVATE cece GTest::gtest_main rapidcheck rapidcheck_gtest
+)
+
+# Data Stream Time Indexing Unit Tests
+add_executable(test_cece_time_indexing tests/test_cece_time_indexing.cpp)
+target_link_libraries(test_cece_time_indexing PRIVATE cece GTest::gtest_main)
+if(UNIX AND NOT APPLE)
+  # This test only references cece_driver, so --as-needed drops libcece_core from DT_NEEDED;
+  # Kokkos statics are duplicated in both libraries and double-free at teardown when it does.
+  target_link_options(test_cece_time_indexing PRIVATE "LINKER:--no-as-needed")
+endif()
+
+# CF Time-Units Decoding Unit Tests
+add_executable(test_cece_calendar tests/test_cece_calendar.cpp)
+target_link_libraries(test_cece_calendar PRIVATE cece GTest::gtest_main)
+if(UNIX AND NOT APPLE)
+  target_link_options(test_cece_calendar PRIVATE "LINKER:--no-as-needed")
+endif()
+
+# AMIO View Widening Unit Tests
+add_executable(test_cece_amio_utils tests/test_cece_amio_utils.cpp)
+target_link_libraries(test_cece_amio_utils PRIVATE cece GTest::gtest_main)
+if(UNIX AND NOT APPLE)
+  target_link_options(test_cece_amio_utils PRIVATE "LINKER:--no-as-needed")
+endif()
+
+# Time Axis Integration Tests (real NetCDF fixtures read through AMIO).
+# Provides its own main() for MPI init, so it links GTest::gtest rather than gtest_main.
+add_executable(test_cece_time_axis_netcdf tests/test_cece_time_axis_netcdf.cpp)
+target_link_libraries(test_cece_time_axis_netcdf PRIVATE cece GTest::gtest)
+if(UNIX AND NOT APPLE)
+  target_link_options(test_cece_time_axis_netcdf PRIVATE "LINKER:--no-as-needed")
+endif()
+set_target_properties(
+  test_cece_time_axis_netcdf
+  PROPERTIES TEST_LAUNCHER "${MPIEXEC_EXECUTABLE};${MPIEXEC_NUMPROC_FLAG};1;${MPIEXEC_PREFLAGS}"
 )
 
 # CeceClock Run Loop Unit Tests
@@ -809,6 +847,13 @@ gtest_discover_tests(test_k14_properties PROPERTIES ENVIRONMENT "OMP_PROC_BIND=f
 gtest_discover_tests(test_speciation PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
 gtest_discover_tests(test_megan3 PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
 gtest_discover_tests(test_cece_clock_properties)
+gtest_discover_tests(test_cece_time_indexing)
+gtest_discover_tests(test_cece_calendar)
+gtest_discover_tests(test_cece_amio_utils)
+gtest_discover_tests(
+  test_cece_time_axis_netcdf
+  PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false" PROCESSORS 1
+)
 gtest_discover_tests(test_cece_clock_run_loop)
 gtest_discover_tests(test_bdsnp PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
 gtest_discover_tests(test_bdsnp_runtime PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
