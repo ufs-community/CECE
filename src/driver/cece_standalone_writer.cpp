@@ -420,9 +420,8 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
     if (step % config_.frequency_steps != 0) return 0;
 
     int rank = 0;
-    int mpi_initialized = 0;
-    MPI_Initialized(&mpi_initialized);
-    if (mpi_initialized && comm_ != MPI_COMM_NULL) {
+    const bool mpi_live = mpi_environment_ready();
+    if (mpi_live && comm_ != MPI_COMM_NULL) {
         MPI_Comm_rank(comm_, &rank);
     }
 
@@ -552,7 +551,7 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
         // multi-rank path only rank 0 goes on to open the dataset (independent-mode
         // writer, see Step 2); peers still receive the manifest so the failure mode
         // below is detected identically on every rank.
-        const bool multi_rank_writer = (mpi_initialized && comm_ != MPI_COMM_NULL);
+        const bool multi_rank_writer = (mpi_live && comm_ != MPI_COMM_NULL);
         if (multi_rank_writer) {
             int manifest_len = static_cast<int>(manifest_content.size());
             MPI_Bcast(&manifest_len, 1, MPI_INT, 0, comm_);
@@ -581,7 +580,7 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
         // The single-rank / no-MPI path keeps the original full open + write
         // here, byte-for-byte unchanged behavior.
         const bool rank0_writes = !multi_rank_writer || rank == 0;
-        if (mpi_initialized) {
+        if (mpi_live) {
             amio_set_parent_communicator(MPI_Comm_c2f(rank0_writes ? MPI_COMM_SELF : comm_));
         }
         // Rank 0's file work is guarded locally: an open/coordinate-write failure
@@ -647,7 +646,7 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
         // therefore issues exactly nz_ MPI_Gatherv calls per written field, in the
         // same field order, so the collective sequence is identical on all ranks.
         int mpi_size = 1;
-        const bool use_mpi = (mpi_initialized && comm_ != MPI_COMM_NULL);
+        const bool use_mpi = (mpi_live && comm_ != MPI_COMM_NULL);
         if (use_mpi) {
             MPI_Comm_size(comm_, &mpi_size);
         }
@@ -827,7 +826,7 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
         // (rank 0's writer open used MPI_COMM_SELF; the facade read path
         // sets/restores its own around opens, but other consumers inherit the
         // ambient value).
-        if (mpi_initialized && comm_ != MPI_COMM_NULL) {
+        if (mpi_live && comm_ != MPI_COMM_NULL) {
             amio_set_parent_communicator(MPI_Comm_c2f(comm_));
         }
 

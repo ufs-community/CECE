@@ -9,6 +9,7 @@
 #include <iostream>
 
 #include "cece/cece_internal.hpp"
+#include "cece/cece_mpi_env.hpp"
 #include "cece/cece_standalone_writer.hpp"
 
 namespace cece {
@@ -25,9 +26,7 @@ void EnsureStandaloneWriter(cece::CeceInternalData* internal_data, int mpi_comm_
             output_config.amio_worker_threads = internal_data->config.driver_config.amio_worker_threads;
         }
         MPI_Comm comm = MPI_COMM_SELF;
-        int mpi_initialized = 0;
-        MPI_Initialized(&mpi_initialized);
-        if (mpi_initialized) {
+        if (cece::mpi_environment_ready()) {
             MPI_Comm temp_comm = MPI_Comm_f2c(static_cast<MPI_Fint>(mpi_comm_f));
             if (temp_comm != MPI_COMM_NULL) {
                 comm = temp_comm;
