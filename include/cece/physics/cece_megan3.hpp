@@ -3,11 +3,11 @@
 
 /**
  * @file cece_megan3.hpp
- * @brief Full MEGAN3 multi-species, multi-class biogenic emission scheme.
+ * @brief MEGAN3-class biogenic emissions and chemical mechanism speciation.
  *
- * Implements the MEGAN3 algorithm with 19 emission classes, a 5-layer canopy
- * model, full vegetation emission activity factors, and chemical mechanism
- * speciation. Consumes soil NO from the export state (produced by BdsnpScheme
+ * Computes 19 emission classes using bulk activity factors and chemical
+ * mechanism speciation. Multilayer canopy helpers are not yet wired into this
+ * runtime calculation. Consumes soil NO from the export state (produced by BdsnpScheme
  * or another soil NO scheme) rather than computing it internally.
  *
  * Registered as "megan3" via PhysicsRegistration. The existing "megan" scheme
@@ -20,6 +20,7 @@
 
 #include "cece/physics/cece_canopy_model.hpp"
 #include "cece/physics/cece_emission_activity.hpp"
+#include "cece/physics/cece_megan.hpp"
 #include "cece/physics/cece_speciation_config.hpp"
 #include "cece/physics/cece_speciation_engine.hpp"
 #include "cece/physics_scheme.hpp"
@@ -28,7 +29,7 @@ namespace cece {
 
 /**
  * @class Megan3Scheme
- * @brief Native C++ implementation of the full MEGAN3 biogenic emission scheme.
+ * @brief Native C++ MEGAN3-class activity and speciation scheme.
  *
  * Orchestrates the CanopyModel, EmissionActivityCalculator, SpeciationEngine,
  * and SpeciationConfigLoader to compute emissions for 19 MEGAN3 emission
@@ -58,6 +59,7 @@ class Megan3Scheme : public BasePhysicsScheme {
     void Run(CeceImportState& import_state, CeceExportState& export_state) override;
 
    private:
+    MeganHistory history_;
     /// @name Sub-components
     /// @{
     CanopyModel canopy_model_;
@@ -82,10 +84,10 @@ class Megan3Scheme : public BasePhysicsScheme {
     /// @name Device-side data
     /// @{
 
-    /// Per-class default AEF values used when import fields are missing.
+    /// Per-class default AEF amount fluxes [kmol class m-2 s-1].
     Kokkos::View<double[19], Kokkos::DefaultExecutionSpace> default_aef_;
 
-    /// Intermediate storage for 19-class totals per grid cell (num_classes x nx*ny).
+    /// Intermediate 19-class amount fluxes [kmol class m-2 s-1].
     Kokkos::View<double**, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> class_totals_;
 
     /// @}
