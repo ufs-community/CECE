@@ -38,7 +38,9 @@ struct CeceInternalData {
     std::unique_ptr<CeceClock> clock;  ///< Clock for per-component refresh interval scheduling.
 
     // Cached metadata
-    int nx = 0, ny = 0, nz = 0;                     ///< Cached grid dimensions.
+    int nx = 0, ny = 0, nz = 0;                     ///< Cached grid dimensions (ny is the GLOBAL latitude count).
+    int ny_local = 0;                               ///< This rank's owned latitude band height (== ny on a single rank).
+    int j0 = 0;                                     ///< Global latitude index of the first row this rank owns (band start).
     std::vector<std::string> esmf_fields;           ///< Internal names of fields to ingest from ESMF.
     std::vector<std::string> external_esmf_fields;  ///< External names of fields to ingest.
     std::vector<std::string> realized_fields;       ///< Fields already added to export state (for multi-cycle support).

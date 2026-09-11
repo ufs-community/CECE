@@ -5,16 +5,17 @@
 #include <axis/topology/named_grid_registry.hpp>
 #include <cmath>
 #include <conf/conf.hpp>
-#include <fstream>
 #include <halo/communicator.hpp>
 #include <halo/environment.hpp>
 #include <iostream>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <tick/tick.hpp>
 #include <unordered_map>
 #include <vector>
 
+#include "cece/cece_band_decomposition.hpp"
 #include "cece/cece_config.hpp"
 #include "cece/cece_driver_facade.hpp"
 #include "cece/cece_fatal.hpp"
@@ -34,6 +35,27 @@ constexpr inline double wrap_longitude(double lon) {
 
 constexpr inline double radians_to_degrees(double rad) {
     return rad * 180.0 / M_PI;
+}
+
+// Build the in-memory AMIO coordinate-manifest YAML for reading lon/lat out
+// of `path`. Kept as a named helper so the manifest schema (backend, staging
+// pool, worker pool, prefetch tuning) lives in exactly one place; the call
+// site in main() only opens/reads with the returned string.
+std::string BuildCoordinateManifest(const std::string& path) {
+    std::ostringstream manifest;
+    manifest << "backend: netcdf4\n"
+             << "path: " << path << "\n"
+             << "data_model: enhanced\n"
+             << "staging_pool:\n"
+             << "  buffer_count: 16\n"
+             << "  buffer_capacity_bytes: 33554432\n"
+             << "worker_pool:\n"
+             << "  threads: 1\n"
+             << "prefetch:\n"
+             << "  depth: 4\n"
+             << "  read_timeout_s: 60\n"
+             << "staging_timeout_ms: 10000\n";
+    return manifest.str();
 }
 
 }  // namespace
@@ -191,10 +213,18 @@ int main(int argc, char* argv[]) {
         // also carries the writer-managed coordinate variables.
         std::unordered_map<std::string, std::vector<double>> export_fields_mem;
         const cece::CeceConfig parsed_config = cece::ParseConfig(config_file);
+
+        // Compute this rank's latitude band once. Export buffers are band-local
+        // (nx x ny_local x nz): the core writes back only the rank's band via
+        // SyncAndCopyState, and the writer assembles the global field at output
+        // time. On a single rank (or uninitialized MPI) ny_local == ny, so this
+        // is byte-identical to the replicated allocation.
+        const cece::BandDecomposition band = cece::BandDecomposition::compute(ny, MPI_COMM_WORLD);
+
         for (const cece::CeceOutputField& field : parsed_config.output_config.fields.GetDataFields()) {
-            export_fields_mem[field.name] = std::vector<double>(static_cast<std::size_t>(nx) * ny * nz, 0.0);
+            export_fields_mem[field.name] = std::vector<double>(static_cast<std::size_t>(nx) * band.ny_local * nz, 0.0);
             cece_core_set_export_field(cece_data_ptr, field.name.c_str(), static_cast<int>(field.name.length()), export_fields_mem[field.name].data(),
-                                       nx, ny, nz, &rc);
+                                       nx, band.ny_local, nz, &rc);
             if (rc < 0) {
                 cece::LogFatal("[DRIVER FATAL] (rank " + std::to_string(my_rank) + ") cece_core_set_export_field failed for '" + field.name +
                                "' with rc=" + std::to_string(rc));
@@ -245,34 +275,24 @@ int main(int argc, char* argv[]) {
             }
 
             if (!input_file_path.empty()) {
-                std::string read_manifest_path = "amio_coord_manifest.yaml";
-                std::ofstream m_file_coords(read_manifest_path);
-                m_file_coords << "backend: netcdf4\n"
-                              << "path: " << input_file_path << "\n"
-                              << "data_model: enhanced\n"
-                              << "staging_pool:\n"
-                              << "  buffer_count: 16\n"
-                              << "  buffer_capacity_bytes: 104857600\n"
-                              << "worker_pool:\n"
-                              << "  threads: 1\n"
-                              << "prefetch:\n"
-                              << "  depth: 4\n"
-                              << "  read_timeout_s: 60\n"
-                              << "staging_timeout_ms: 10000\n";
-                m_file_coords.close();
+                // Build the coordinate manifest in memory and pass it directly to AMIO.
+                // Writing it to a shared-disk file (e.g. Lustre) races when multiple MPI
+                // ranks per node truncate/rewrite the same path concurrently, which
+                // produces torn reads (empty/partial YAML) and spurious open failures.
+                const std::string coord_manifest_content = BuildCoordinateManifest(input_file_path);
 
                 amio_core_handle coord_core = nullptr;
                 amio_dataset_handle coord_dataset = nullptr;
                 amio_view_handle lon_view = nullptr;
                 amio_view_handle lat_view = nullptr;
 
-                amio_status_t amio_rc = amio_init(read_manifest_path.c_str(), &coord_core);
+                amio_status_t amio_rc = amio_init_from_string(coord_manifest_content.c_str(), "yaml", &coord_core);
                 if (amio_rc != AMIO_OK) {
-                    CECE_LOG_ERROR("amio_init failed for coordinate manifest '" + read_manifest_path + "': " + amio_strerror(amio_rc));
+                    CECE_LOG_ERROR(std::string("amio_init_from_string failed for coordinate manifest: ") + amio_strerror(amio_rc));
                 } else {
-                    amio_rc = amio_open_dataset(coord_core, read_manifest_path.c_str(), AMIO_MODE_READ, &coord_dataset);
+                    amio_rc = amio_open_dataset_from_string(coord_core, coord_manifest_content.c_str(), "yaml", AMIO_MODE_READ, &coord_dataset);
                     if (amio_rc != AMIO_OK) {
-                        CECE_LOG_ERROR("amio_open_dataset failed for dataset '" + input_file_path + "': " + amio_strerror(amio_rc));
+                        CECE_LOG_ERROR("amio_open_dataset_from_string failed for dataset '" + input_file_path + "': " + amio_strerror(amio_rc));
                     } else {
                         int file_nx = 0;
                         int file_ny = 0;
@@ -383,7 +403,6 @@ int main(int argc, char* argv[]) {
                     }
                     amio_finalize(coord_core);
                 }
-                std::remove(read_manifest_path.c_str());
             }
 
             if (is_explicit_gridspec && !loaded_from_file) {
@@ -509,7 +528,12 @@ int main(int argc, char* argv[]) {
             CECE_LOG_INFO("[DRIVER] Standalone execution completed. Cleaning up...");
         }
 
-        cece_driver_destroy(cece_driver_data);
+        int destroy_rc = 0;
+        cece_driver_destroy(cece_driver_data, &destroy_rc);
+        if (destroy_rc != 0) {
+            CECE_LOG_ERROR("[DRIVER] AMIO teardown reported failures during cece_driver_destroy (rc=" + std::to_string(destroy_rc) +
+                           "); output data was already flushed, but some resources may have leaked.");
+        }
         cece_core_finalize(cece_data_ptr, &rc);
         if (rc < 0) {
             cece::LogFatal("[DRIVER FATAL] (rank " + std::to_string(my_rank) + ") cece_core_finalize failed with rc=" + std::to_string(rc));
