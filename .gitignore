@@ -59,3 +59,5 @@ specify/
 .github/prompts/
 docs/superpowers/
 specs/
+gate-deps/
+gate-logs/

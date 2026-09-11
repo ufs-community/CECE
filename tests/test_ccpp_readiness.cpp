@@ -18,11 +18,11 @@ TEST(CCPPLinkTest, CompileIsolation) {
     void* data_ptr = nullptr;
     int rc = -1;
 
-    // Set config file path to a valid test configuration, checking relative paths
-    std::string config_file = "tests/cece_control_mock.yaml";
-    if (!std::filesystem::exists(config_file)) {
-        config_file = "../tests/cece_control_mock.yaml";
-    }
+    // Resolve the mock configuration against the source tree so the test works
+    // from any build directory (out-of-source builds put the ctest cwd where no
+    // cwd-relative guess can reach tests/).
+    std::string config_file = std::string(CECE_SOURCE_DIR) + "/tests/cece_control_mock.yaml";
+    ASSERT_TRUE(std::filesystem::exists(config_file)) << "missing " << config_file;
     cece_set_config_file_path(config_file.c_str(), static_cast<int>(config_file.length()));
 
     // Phase 1 Initialization
