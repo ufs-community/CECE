@@ -44,9 +44,13 @@ If you encounter `overlayfs` errors or other Docker-related environment issues w
 # Inside the JCSDA Docker container
 source /opt/spack-environment/activate.sh
 mkdir build && cd build
-cmake .. -DCMAKE_BUILD_TYPE=Release
+cmake ..
 make -j$(nproc)
 ```
+
+This relies on CECE's default `CMAKE_BUILD_TYPE` (`RelWithDebInfo`: optimized, with debug symbols).
+For a leaner production build without debug symbols, pass `-DCMAKE_BUILD_TYPE=Release` explicitly.
+For active development, `-DCMAKE_BUILD_TYPE=Debug` disables optimizations so tools like `gdb` and sanitizers behave predictably, at the cost of much slower runtime.
 
 ### Build Options
 
