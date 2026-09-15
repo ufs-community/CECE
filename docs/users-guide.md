@@ -58,7 +58,7 @@ For active development, `-DCMAKE_BUILD_TYPE=Debug` disables optimizations so too
 | --- | --- | --- |
 | `CMAKE_BUILD_TYPE` | Build type (RelWithDebInfo, Release, Debug) | `RelWithDebInfo` |
 | `Kokkos_ENABLE_SERIAL` | Enable Serial execution space | `ON` |
-| `Kokkos_ENABLE_OPENMP` | Enable OpenMP multi-core support | `ON` |
+| `Kokkos_ENABLE_OPENMP` | Enable OpenMP multi-core support | `ON` (if OpenMP detected) |
 | `Kokkos_ENABLE_CUDA` | Enable NVIDIA GPU support | `OFF` |
 | `Kokkos_ENABLE_HIP` | Enable AMD GPU support | `OFF` |
 
@@ -67,7 +67,7 @@ Example for targeting NVIDIA GPUs:
 cmake .. -DKokkos_ENABLE_CUDA=ON -DKokkos_ARCH_AMPERE80=ON
 ```
 
-Example for CPU-only with OpenMP:
+Example for CPU-only with OpenMP (same as defaults, assuming OpenMP support is detected at configure time, but explicit):
 ```bash
 cmake .. -DKokkos_ENABLE_SERIAL=ON -DKokkos_ENABLE_OPENMP=ON
 ```
