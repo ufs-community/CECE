@@ -18,6 +18,16 @@ else()
   message(WARNING "Fortran compiler not found. Fortran features will be disabled.")
 endif()
 
+# Set build type before any FetchContent dependencies configure,
+# since ArborX (via HELM AXIS) force-sets this cache variable itself if left unspecified.
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE "RelWithDebInfo" CACHE STRING "Choose the type of build." FORCE)
+  set_property(
+    CACHE CMAKE_BUILD_TYPE
+    PROPERTY STRINGS "Debug" "Release" "RelWithDebInfo" "MinSizeRel"
+  )
+endif()
+
 list(INSERT CMAKE_MODULE_PATH 0 "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 list(INSERT CMAKE_PREFIX_PATH 0 "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 

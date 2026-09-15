@@ -52,7 +52,7 @@ make -j$(nproc)
 
 | Option | Description | Default |
 | --- | --- | --- |
-| `CMAKE_BUILD_TYPE` | Build type (Release, Debug) | `Release` |
+| `CMAKE_BUILD_TYPE` | Build type (RelWithDebInfo, Release, Debug) | `RelWithDebInfo` |
 | `Kokkos_ENABLE_SERIAL` | Enable Serial execution space | `ON` |
 | `Kokkos_ENABLE_OPENMP` | Enable OpenMP multi-core support | `ON` |
 | `Kokkos_ENABLE_CUDA` | Enable NVIDIA GPU support | `OFF` |
