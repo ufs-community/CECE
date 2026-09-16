@@ -12,6 +12,8 @@
 #include <logs/logs.hpp>
 #include <string>
 
+#include "cece/cece_mpi_env.hpp"
+
 namespace cece {
 
 /**
@@ -159,9 +161,7 @@ class CeceLogger {
 
     void EnsureCommunicatorConfigured() {
         if (logger_.rank() == -1) {
-            int mpi_initialized = 0;
-            MPI_Initialized(&mpi_initialized);
-            if (mpi_initialized) {
+            if (mpi_environment_ready()) {
                 logger_.configure_communicator(MPI_COMM_WORLD);
             }
         }

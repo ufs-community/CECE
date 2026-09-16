@@ -1,0 +1,74 @@
+# =====================================================================
+# CECE CEDS OC end-to-end benchmark config
+# =====================================================================
+# Real-data end-to-end run against the public CEDS 2023 OC anthropogenic
+# emissions file (0.5 deg global, 720x360, 12 monthly records). Sums three
+# sectoral OC fields into a single `oc` species, regridded to an F360 target
+# grid (1440x720) with conservative remapping. Used to profile the real
+# per-step pipeline (read -> regrid -> assemble -> ingest -> stack -> write).
+# =====================================================================
+driver:
+  start_time: "2023-01-01T00:00:00"
+  end_time: "2023-04-01T00:00:00"
+  timestep_seconds: 2592000 # ~30 days; monthly cadence -> distinct records
+  grid:
+    nx: 1440
+    ny: 720
+    lon_min: -180.0
+    lon_max: 180.0
+    lat_min: -90.0
+    lat_max: 90.0
+
+species:
+  oc:
+    - field: "OC_ENE"
+      operation: "add"
+    - field: "OC_IND"
+      operation: "add"
+    - field: "OC_TRA"
+      operation: "add"
+
+cece_data:
+  streams:
+    - name: "OC_ENE"
+      file: "/work/data/OC-em-anthro_CMIP_CEDS_2023.nc"
+      taxmode: "cycle"
+      tintalgo: "linear"
+      mapalgo: "consd"
+      cadence: "monthly"
+      variables:
+        - file: "OC_ene"
+          model: "OC_ENE"
+    - name: "OC_IND"
+      file: "/work/data/OC-em-anthro_CMIP_CEDS_2023.nc"
+      taxmode: "cycle"
+      tintalgo: "linear"
+      mapalgo: "consd"
+      cadence: "monthly"
+      variables:
+        - file: "OC_ind"
+          model: "OC_IND"
+    - name: "OC_TRA"
+      file: "/work/data/OC-em-anthro_CMIP_CEDS_2023.nc"
+      taxmode: "cycle"
+      tintalgo: "linear"
+      mapalgo: "consd"
+      cadence: "monthly"
+      variables:
+        - file: "OC_tra"
+          model: "OC_TRA"
+
+diagnostics:
+  output_interval_seconds: 2592000
+  variables: ["oc"]
+
+output:
+  enabled: true
+  directory: ./cece_output_ceds
+  filename_pattern: "cece_ceds_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
+  frequency_steps: 1
+  fields:
+    - name: oc
+      attributes:
+        units: "kg m-2 s-1"
+        long_name: "organic_carbon_emission_flux"

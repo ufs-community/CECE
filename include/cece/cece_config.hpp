@@ -431,6 +431,15 @@ struct DriverConfig {
     int stacking_refresh_interval_seconds = 0;  ///< Stacking engine refresh interval in seconds (0 means use base timestep).
     int amio_worker_threads = 1;                ///< Number of AMIO background I/O worker threads (default: 1).
     int amio_staging_buffer_count = 8;          ///< Number of AMIO input staging buffers (default: 8).
+    /// Per-buffer capacity in bytes for AMIO input staging pools (default: 32 MiB).
+    /// AMIO commits buffer storage lazily and grows a buffer on demand when an
+    /// acquire exceeds this nominal size, so this is a steady-state hint rather
+    /// than a hard limit: resident memory is bounded by buffers-in-use x slab
+    /// size, not count x capacity. Lowering it is the primary lever on per-rank
+    /// IO memory (the historical 256 MiB default cost 8 x 256 MiB = 2 GiB per
+    /// input file per rank on the pre-lazy pool).
+    int amio_staging_buffer_capacity_bytes = 33554432;
+    int amio_prefetch_depth = 2;  ///< AMIO read look-ahead depth (default: 2). Lower = fewer in-flight slabs.
 };
 
 /**

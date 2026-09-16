@@ -1,0 +1,53 @@
+# CECE CEDS OC end-to-end benchmark — single combined stream, 48h hourly.
+# All three sectoral OC variables under ONE stream (one file, one grid, one
+# mapalgo) so they share one AMIO handle, one source-coordinate read, and one
+# regrid plan. CEDS file has only monthly records, so every hourly step
+# resolves the same monthly bracket -> slice cache serves every step after the
+# first read (profiles steady-state cached per-step cost).
+driver:
+  start_time: "2023-01-15T00:00:00"
+  end_time: "2023-01-17T00:00:00"
+  timestep_seconds: 3600
+  grid:
+    nx: 1440
+    ny: 720
+    lon_min: -180.0
+    lon_max: 180.0
+    lat_min: -90.0
+    lat_max: 90.0
+species:
+  oc:
+    - field: "OC_ENE"
+      operation: "add"
+    - field: "OC_IND"
+      operation: "add"
+    - field: "OC_TRA"
+      operation: "add"
+cece_data:
+  streams:
+    - name: "CEDS_OC"
+      file: "/work/data/OC-em-anthro_CMIP_CEDS_2023.nc"
+      taxmode: "cycle"
+      tintalgo: "linear"
+      mapalgo: "consd"
+      cadence: "monthly"
+      variables:
+        - file: "OC_ene"
+          model: "OC_ENE"
+        - file: "OC_ind"
+          model: "OC_IND"
+        - file: "OC_tra"
+          model: "OC_TRA"
+diagnostics:
+  output_interval_seconds: 3600
+  variables: ["oc"]
+output:
+  enabled: true
+  directory: ./cece_output_ceds_stream
+  filename_pattern: "cece_ceds_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
+  frequency_steps: 1
+  fields:
+    - name: oc
+      attributes:
+        units: "kg m-2 s-1"
+        long_name: "organic_carbon_emission_flux"

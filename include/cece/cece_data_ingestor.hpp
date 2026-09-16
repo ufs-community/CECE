@@ -38,11 +38,17 @@ class CeceDataIngestor {
     /**
      * @brief Stores field data in the cache.
      * Called from the C bridge once per time step per field.
+     * @param ny Latitude extent for the stored field: the rank-local band height
+     *           (ny_local) under distributed domain decomposition, equal to the
+     *           global latitude count on a single rank. Views are sized
+     *           (nx, ny, nz) and the 2D reshape is bounded by ny rows.
      */
     void SetField(const std::string& name, const double* data, int n_lev, int n_elem, int nx, int ny, int nz, int* rc);
 
     /**
      * @brief Ingests emissions from the cache into the import state.
+     * @param ny Latitude extent (rank-local band height / ny_local; == global ny
+     *           on a single rank). Import fields track the cached band-local extents.
      */
     void IngestEmissionsInline(const CeceDataConfig& config, CeceImportState& cece_state, int nx, int ny, int nz);
 
