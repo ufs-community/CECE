@@ -537,6 +537,7 @@ endif()
 add_executable(hemco_comparison_driver tests/hemco_comparison_driver.cpp)
 target_link_libraries(hemco_comparison_driver PRIVATE cece)
 add_test(NAME test_hemco_comparison COMMAND hemco_comparison_driver)
+set_tests_properties(test_hemco_comparison PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
 
 add_executable(benchmark_cece_hemco tests/benchmark_cece_hemco.cpp)
 target_link_libraries(benchmark_cece_hemco PRIVATE cece)
@@ -1077,7 +1078,7 @@ target_link_libraries(
 add_test(NAME test_halo_gather_equivalence_np1 COMMAND $<TARGET_FILE:test_halo_gather_equivalence>)
 set_tests_properties(
   test_halo_gather_equivalence_np1
-  PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm"
+  PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMP_PROC_BIND=false"
 )
 # Multi-rank registration under mpirun. --allow-run-as-root is required for the
 # root user in the cece-dev container; it is injected via MPIEXEC_PREFLAGS if not
@@ -1099,7 +1100,7 @@ set_tests_properties(
   test_halo_gather_equivalence_np2
   PROPERTIES
     ENVIRONMENT
-      "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1"
+      "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1;OMP_PROC_BIND=false"
 )
 add_test(
   NAME test_halo_gather_equivalence_np4
@@ -1111,7 +1112,7 @@ set_tests_properties(
   test_halo_gather_equivalence_np4
   PROPERTIES
     ENVIRONMENT
-      "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1"
+      "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1;OMP_PROC_BIND=false"
 )
 
 # Collective gate-equivalence property tests (cece-halo-collective-adoption,
@@ -1231,7 +1232,7 @@ add_test(
 )
 set_tests_properties(
   test_halo_multirank_integration_np1
-  PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm"
+  PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMP_PROC_BIND=false"
 )
 # Multi-rank registration under mpirun. --allow-run-as-root is required for the
 # root user in the cece-dev container; --oversubscribe lets the resource-
@@ -1253,7 +1254,7 @@ set_tests_properties(
   test_halo_multirank_integration_np2
   PROPERTIES
     ENVIRONMENT
-      "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1"
+      "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1;OMP_PROC_BIND=false"
 )
 add_test(
   NAME test_halo_multirank_integration_np4
@@ -1265,7 +1266,7 @@ set_tests_properties(
   test_halo_multirank_integration_np4
   PROPERTIES
     ENVIRONMENT
-      "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1"
+      "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1;OMP_PROC_BIND=false"
 )
 
 # MEGAN3 Canopy Model Property Tests
@@ -1517,7 +1518,7 @@ gtest_discover_tests(test_hemco_parity PROPERTIES ENVIRONMENT "OMP_PROC_BIND=fal
 gtest_discover_tests(test_kokkos_configuration PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
 gtest_discover_tests(test_properties PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
 gtest_discover_tests(test_suite_idempotence PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
-gtest_discover_tests(test_repro_failure)
+gtest_discover_tests(test_repro_failure PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
 gtest_discover_tests(test_ccpp_readiness)
 gtest_discover_tests(test_fengsha_properties PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
 gtest_discover_tests(test_ginoux_properties PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
@@ -1525,14 +1526,14 @@ gtest_discover_tests(test_k14_properties PROPERTIES ENVIRONMENT "OMP_PROC_BIND=f
 gtest_discover_tests(test_speciation PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
 gtest_discover_tests(test_megan3 PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
 gtest_discover_tests(test_cece_clock_properties)
-gtest_discover_tests(test_cece_time_indexing)
-gtest_discover_tests(test_cece_calendar)
-gtest_discover_tests(test_cece_amio_utils)
+gtest_discover_tests(test_cece_time_indexing PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
+gtest_discover_tests(test_cece_calendar PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
+gtest_discover_tests(test_cece_amio_utils PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
 gtest_discover_tests(
   test_cece_time_axis_netcdf
   PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false" PROCESSORS 1
 )
-gtest_discover_tests(test_cece_clock_run_loop)
+gtest_discover_tests(test_cece_clock_run_loop PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
 gtest_discover_tests(test_bracket_equal_properties)
 gtest_discover_tests(
   test_band_decomposition_partition
@@ -1540,7 +1541,7 @@ gtest_discover_tests(
 )
 gtest_discover_tests(
   test_band_regrid_equals_global_rows
-  PROPERTIES ENVIRONMENT "RC_PARAMS=max_success=100"
+  PROPERTIES ENVIRONMENT "RC_PARAMS=max_success=100;OMP_PROC_BIND=false"
 )
 gtest_discover_tests(test_band_single_rank_properties)
 gtest_discover_tests(test_stream_key_properties)
@@ -1552,18 +1553,24 @@ gtest_discover_tests(test_slice_cache_equivalence)
 gtest_discover_tests(test_slice_cache_independence)
 gtest_discover_tests(test_open_once_no_per_step_close)
 gtest_discover_tests(test_cache_hit_skips_work)
-gtest_discover_tests(test_endpoint_blend_equivalence)
+gtest_discover_tests(test_endpoint_blend_equivalence PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
 gtest_discover_tests(test_endpoint_work_reduction)
-gtest_discover_tests(test_endpoint_shared_plan)
+gtest_discover_tests(test_endpoint_shared_plan PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
 gtest_discover_tests(test_endpoint_tier_precedence)
-gtest_discover_tests(test_endpoint_sizing)
-gtest_discover_tests(test_endpoint_invalidation)
-gtest_discover_tests(test_regrid_conservation_properties)
-gtest_discover_tests(test_shared_plan_equivalence)
-gtest_discover_tests(test_ingest_no_stale_data)
-gtest_discover_tests(test_ingest_consolidation_equivalence)
+gtest_discover_tests(test_endpoint_sizing PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
+gtest_discover_tests(test_endpoint_invalidation PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
+gtest_discover_tests(
+  test_regrid_conservation_properties
+  PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false"
+)
+gtest_discover_tests(test_shared_plan_equivalence PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
+gtest_discover_tests(test_ingest_no_stale_data PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
+gtest_discover_tests(
+  test_ingest_consolidation_equivalence
+  PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false"
+)
 gtest_discover_tests(test_ingest_collective_gate_order)
-gtest_discover_tests(test_ingest_single_write)
+gtest_discover_tests(test_ingest_single_write PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
 gtest_discover_tests(test_bdsnp PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
 gtest_discover_tests(test_bdsnp_runtime PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
 gtest_discover_tests(
@@ -1756,11 +1763,11 @@ target_link_libraries(
 
 gtest_discover_tests(
   test_band_boundary_conservation
-  PROPERTIES ENVIRONMENT "RC_PARAMS=max_success=100"
+  PROPERTIES ENVIRONMENT "RC_PARAMS=max_success=100;OMP_PROC_BIND=false"
 )
 gtest_discover_tests(
   test_band_boundary_curvilinear
-  PROPERTIES ENVIRONMENT "RC_PARAMS=max_success=100"
+  PROPERTIES ENVIRONMENT "RC_PARAMS=max_success=100;OMP_PROC_BIND=false"
 )
 
 # ---------------------------------------------------------------------------
@@ -1814,7 +1821,7 @@ add_test(
 )
 set_tests_properties(
   test_column_local_band_invariance
-  PROPERTIES ENVIRONMENT "RC_PARAMS=max_success=100"
+  PROPERTIES ENVIRONMENT "RC_PARAMS=max_success=100;OMP_PROC_BIND=false"
 )
 
 # 10.4 Collective lock-step with a surplus rank (Property 8). Drives the exact
