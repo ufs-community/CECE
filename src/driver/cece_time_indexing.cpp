@@ -679,7 +679,8 @@ RecordBracket bracket_from_coords(const std::vector<double>& time_vals, const st
                     const bool first_of_month = stamp.day == 1 && stamp.hour == 0 && stamp.minute == 0 && stamp.second == 0;
                     const std::int64_t bound = label == "start" ? cal_add_months(cal, month_start, 1) : abs;
                     const std::int64_t lower = label == "start" ? abs : (first_of_month ? cal_add_months(cal, month_start, -1) : month_start);
-                    rec_days[k] = static_cast<double>((lower + bound) / 2 - label_ref) / static_cast<double>(tick::nanos_per_day);
+                    const std::int64_t mid = lower + (bound - lower) / 2;
+                    rec_days[k] = static_cast<double>(mid - label_ref) / static_cast<double>(tick::nanos_per_day);
                 }
             } else if (raw.size() > 1) {
                 // The opposite bound is the neighbouring stamp, mirrored at the
