@@ -18,6 +18,7 @@
 #include "cece/cece_band_decomposition.hpp"
 #include "cece/cece_io.hpp"
 #include "cece/cece_regridder_utils.hpp"
+#include "cece/cece_time_indexing.hpp"
 
 // Forward declaration only: the header never touches yaml-cpp; the member
 // taking a const YAML::Node& is defined in the .cpp, which includes yaml.h.
@@ -27,25 +28,7 @@ class Node;
 
 namespace cece {
 
-/**
- * @brief Resolved input-record selection for a given simulation time.
- *
- * @c i0 / @c i1 are the lower/upper record indices and @c weight is the
- * fraction toward @c i1: the interpolated field is
- * @f$ (1-w)\,\mathrm{rec}[i_0] + w\,\mathrm{rec}[i_1] @f$. When @c weight is 0
- * (or @c i0 == @c i1) a single read of @c i0 suffices. @c valid is false when
- * the caller should fall back to legacy step-index cycling.
- *
- * This struct is shared between the facade header (for use as
- * SliceCacheEntry::last_bracket) and the facade translation unit's temporal
- * cadence helpers.
- */
-struct RecordBracket {
-    int i0 = 0;
-    int i1 = 0;
-    double weight = 0.0;
-    bool valid = false;  ///< false -> caller falls back to legacy step-index cycling.
-};
+using detail::RecordBracket;
 
 /**
  * @brief Resolved per-stream-variable configuration.
@@ -54,11 +37,19 @@ struct RecordBracket {
  * configuration + file, never on simulation time.
  */
 struct StreamConfig {
-    std::string input_file_path;       ///< stream["file"]; "" => missing (Req 1.4)
-    std::string input_var_name;        ///< resolved file var name (falls back to model name)
-    std::string mapalgo = "consd";     ///< default matches current AdvanceTime
-    std::string cadence;               ///< "" => legacy step-index cycling
+    std::string input_file_path;    ///< stream["file"]; "" => missing (Req 1.4)
+    std::string input_var_name;     ///< resolved file var name (falls back to model name)
+    std::string mapalgo = "consd";  ///< default matches current AdvanceTime
+    std::string cadence;            ///< "" => series (time-aware default)
+    int yearFirst = 0;              ///< 0 = unknown/climatology
+    int yearLast = 0;
+    int yearAlign = 0;
+    std::string taxmode;               ///< "" defaults to cycle
     std::string tintalgo = "nearest";  ///< "linear" | "nearest"
+    std::string time_var = "time";     ///< time coordinate variable name
+    std::string time_units;            ///< override for a missing/non-standard "units" attribute
+    std::string calendar;              ///< "" -> file attribute, else gregorian
+    std::string time_label = "auto";   ///< auto|start|center|end; monthly start auto-detects month-start stamps
     std::string data_model = "enhanced";
     bool data_model_explicit = false;                   ///< true => open with only data_model
     int amio_worker_threads = 1;                        ///< driver-level, validated >= 1

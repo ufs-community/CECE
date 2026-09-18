@@ -7,21 +7,27 @@
 #include <algorithm>
 #include <axis/axis.hpp>
 #include <cmath>
+#include <conf/conf.hpp>
+#include <cstdint>
 #include <dagr/logging.hpp>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <sstream>
 #include <stdexcept>
 #include <string>
-#include <tick/tick.hpp>
 #include <vector>
 
+#include "cece/cece_amio_utils.hpp"
+#include "cece/cece_fatal.hpp"
 #include "cece/cece_helm_graph.hpp"
 #include "cece/cece_internal.hpp"
 #include "cece/cece_logger.hpp"
 #include "cece/cece_mpi_env.hpp"
 #include "cece/cece_regridder_utils.hpp"
 #include "cece/cece_standalone_writer.hpp"
+#include "cece/cece_string_utils.hpp"
+#include "cece/cece_time_indexing.hpp"
 
 namespace fs = std::filesystem;
 
@@ -32,126 +38,9 @@ void amio_set_parent_communicator(MPI_Fint comm);
 
 namespace cece {
 
+using namespace detail;
+
 namespace {
-
-/**
- * @brief Simulation datetime fields derived from an ISO-8601 timestamp.
- *
- * Used by the per-stream temporal-cadence mechanism to map the current
- * simulation time onto a record index within an input file.
- */
-struct SimDateTime {
-    int year = 0;
-    int month = 0;        ///< 1-12
-    int day = 0;          ///< 1-31
-    int hour = 0;         ///< 0-23
-    int day_of_week = 0;  ///< 0=Sunday .. 6=Saturday
-    bool valid = false;
-};
-
-/**
- * @brief Parse an ISO-8601 timestamp ("YYYY-MM-DDThh:mm:ss") into calendar fields.
- *
- * Parsing and calendar arithmetic use the HELM TICK library (tick::parse_iso8601
- * and tick::Gregorian_Calendar) rather than std::chrono, keeping time handling
- * consistent with the rest of CECE. The day-of-week is derived from TICK's
- * proleptic-Gregorian day count (TICK's epoch 2026-01-01 is a Thursday), so it
- * is correct for any date.
- */
-SimDateTime parse_sim_datetime(const std::string& iso8601) {
-    SimDateTime dt;
-    try {
-        const tick::Date_Time tdt = tick::parse_iso8601(iso8601);
-        dt.year = tdt.year;
-        dt.month = tdt.month;
-        dt.day = tdt.day;
-        dt.hour = tdt.hour;
-
-        // Whole days since TICK's epoch (2026-01-01T00:00:00), floored so dates
-        // before the epoch map correctly. 2026-01-01 is a Thursday, i.e. index 4
-        // in a 0=Sunday..6=Saturday week; offset by that to anchor the cycle.
-        const std::int64_t nanos = tick::Gregorian_Calendar::to_time_point(tdt).nanos();
-        std::int64_t days = nanos / tick::nanos_per_day;
-        if (nanos < 0 && nanos % tick::nanos_per_day != 0) --days;  // floor toward -inf
-        dt.day_of_week = static_cast<int>(((days + 4) % 7 + 7) % 7);
-        dt.valid = true;
-    } catch (const std::exception&) {
-        // Malformed timestamp: use explicit default values so callers fall back
-        // to legacy step-index cycling.
-        dt = SimDateTime{};
-    }
-    return dt;
-}
-
-// RecordBracket is defined in cece/cece_driver_facade.hpp so it can be used as
-// SliceCacheEntry::last_bracket; the temporal-cadence helpers below use that
-// shared definition (resolved as cece::RecordBracket).
-
-/**
- * @brief Map a simulation datetime onto a record bracket for a given cadence.
- *
- * @param cadence  One of "hourly", "weekly", "monthly" (case-insensitive).
- *                 Any other value (including empty) returns an invalid bracket,
- *                 signalling the caller to fall back to legacy step-index cycling.
- * @param tintalgo Time-interpolation algorithm: "linear" enables interpolation
- *                 for the (continuous) monthly cadence; anything else -> nearest.
- * @param dt       Parsed simulation datetime.
- * @param file_nt  Number of records available in the file (for clamping).
- *
- * Hourly and weekly cadences select discrete profile records (hour-of-day,
- * day-of-week) and are always nearest-neighbour: interpolating between, say,
- * two day-type weights is not physically meaningful. Only the monthly cadence
- * honours @c tintalgo, using the mid-month convention so that, e.g., Jan 1 is
- * interpolated between the December and January climatological records.
- */
-RecordBracket cadence_record_bracket(const std::string& cadence, const std::string& tintalgo, const SimDateTime& dt, int file_nt) {
-    RecordBracket br;
-    if (cadence.empty() || !dt.valid) return br;
-
-    std::string c = cadence;
-    std::transform(c.begin(), c.end(), c.begin(), [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
-    std::string algo = tintalgo;
-    std::transform(algo.begin(), algo.end(), algo.begin(), [](unsigned char ch) { return static_cast<char>(std::tolower(ch)); });
-    const bool linear = (algo == "linear");
-
-    auto clamp_idx = [&](int idx) {
-        if (file_nt > 0 && idx >= file_nt) idx = file_nt - 1;
-        if (idx < 0) idx = 0;
-        return idx;
-    };
-
-    if (c == "hourly") {
-        br.i0 = br.i1 = clamp_idx(dt.hour);  // 0-23, discrete of-day profile
-        br.valid = true;
-    } else if (c == "weekly") {
-        br.i0 = br.i1 = clamp_idx(dt.day_of_week);  // 0=Sunday..6=Saturday, discrete day-type
-        br.valid = true;
-    } else if (c == "monthly") {
-        const int m = dt.month - 1;  // 0-11
-        if (!linear) {
-            br.i0 = br.i1 = clamp_idx(m);
-            br.valid = true;
-            return br;
-        }
-        // Mid-month convention: each monthly record is valid at the midpoint of
-        // its month. Interpolate between the two records whose anchors bracket
-        // the current instant, cycling across the Dec<->Jan boundary.
-        const int dim = tick::Gregorian_Calendar::days_in_month(dt.year, dt.month);
-        const double frac = (static_cast<double>(dt.day - 1) + dt.hour / 24.0) / static_cast<double>(dim);  // [0,1)
-        const int nrec = (file_nt > 0) ? file_nt : 12;
-        if (frac >= 0.5) {
-            br.i0 = m % nrec;
-            br.i1 = (m + 1) % nrec;
-            br.weight = frac - 0.5;  // 0 at mid-month, ->0.5 approaching next anchor
-        } else {
-            br.i0 = (m - 1 + nrec) % nrec;
-            br.i1 = m % nrec;
-            br.weight = frac + 0.5;  // ->1 at mid-month, 0.5 just after previous anchor
-        }
-        br.valid = true;
-    }
-    return br;
-}
 
 // Reimplemented on halo::allreduce<int> (Decision C): the size>1 branch reduces
 // the single-element 0/1 readiness flag with MPI_MIN through the orchestrator's
@@ -276,9 +165,36 @@ StreamConfig CeceDriverOrchestrator::BuildStreamConfig(const YAML::Node& stream,
     if (stream["cadence"]) {
         cfg.cadence = stream["cadence"].as<std::string>();
     }
+    if (stream["yearFirst"]) {
+        cfg.yearFirst = stream["yearFirst"].as<int>();
+    }
+    if (stream["yearLast"]) {
+        cfg.yearLast = stream["yearLast"].as<int>();
+    }
+    if (stream["yearAlign"]) {
+        cfg.yearAlign = stream["yearAlign"].as<int>();
+    }
+    if (stream["taxmode"]) {
+        cfg.taxmode = stream["taxmode"].as<std::string>();
+    }
+    if (stream["time_label"]) {
+        cfg.time_label = stream["time_label"].as<std::string>();
+    }
     if (stream["tintalgo"]) {
         cfg.tintalgo = stream["tintalgo"].as<std::string>();
     }
+    if (stream["time_var"]) {
+        cfg.time_var = stream["time_var"].as<std::string>();
+    }
+    if (stream["time_units"]) {
+        cfg.time_units = stream["time_units"].as<std::string>();
+    }
+    if (stream["calendar"]) {
+        cfg.calendar = stream["calendar"].as<std::string>();
+    }
+    // Validate the cadence and warn on knobs that the chosen cadence ignores.
+    validate_stream_temporal_config(cfg.cadence, cfg.taxmode, cfg.tintalgo, cfg.yearFirst, cfg.yearLast, cfg.yearAlign,
+                                    " (stream file '" + cfg.input_file_path + "')", cfg.time_label);
     if (stream["data_model"]) {
         std::string requested_model = stream["data_model"].as<std::string>();
         std::transform(requested_model.begin(), requested_model.end(), requested_model.begin(),
@@ -1083,10 +999,8 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
     // consults the resolved StreamConfig via stream_configs_ and never re-reads
     // the YAML file from disk.
 
-    // Parse the current simulation datetime once. Streams that declare a
-    // temporal cadence (hourly/weekly/monthly) use these calendar fields to
-    // select the correct file record; streams without a cadence keep the
-    // legacy step-index cycling behaviour and ignore this.
+    // Parse the current simulation datetime once. Every cadence except
+    // 'stepwise' uses these calendar fields to select the correct file record.
     const SimDateTime sim_dt = parse_sim_datetime(time_iso8601);
 
     // B. Push CeceIO's newly computed emission views into CECE's data ingestor
@@ -1120,6 +1034,13 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
         const std::string& mapalgo = cfg.mapalgo;
         const std::string& cadence = cfg.cadence;
         const std::string& tintalgo = cfg.tintalgo;
+        const int yearFirst = cfg.yearFirst;
+        const int yearLast = cfg.yearLast;
+        const int yearAlign = cfg.yearAlign;
+        const std::string& taxmode = cfg.taxmode;
+        const std::string& time_var = cfg.time_var;
+        const std::string& time_units = cfg.time_units;
+        const std::string& calendar = cfg.calendar;
 
         // TWO-LEVEL keying for the shared caches:
         //   - handle_key (file/manifest-scoped) keys amio_handles_ and
@@ -1315,19 +1236,53 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
             //    identical to the reverse, but it costs a single regrid apply (not
             //    two) and keeps fill-value handling on the native grid.
             //
-            //    The record bracket comes from the stream's temporal cadence:
-            //      - no cadence declared  -> legacy step-index cycling (single read)
-            //      - hourly / weekly      -> nearest discrete profile record
-            //      - monthly + tintalgo=linear -> mid-month linear interpolation
-            //        between the two bracketing climatological records.
+            //    The record bracket comes from the stream's cadence kind:
+            //      - series (default) -> decode the file's time axis; degrade to
+            //        arithmetic for daily/monthly when it can't be decoded
+            //      - hourly / weekly  -> nearest discrete profile record
+            //      - stepwise         -> opt-in step-index cycling (ignores time)
             if (all_plans_ready) {
                 const cece::io::RegridPlan& plan = plan_it->second;
 
-                RecordBracket bracket = cadence_record_bracket(cadence, tintalgo, sim_dt, file_nt);
-                if (!bracket.valid) {
+                RecordBracket bracket;
+
+                // Dispatch on cadence kind: Series decodes the file's time axis
+                // (degrading to arithmetic only for daily/monthly), Profile indexes a
+                // calendar field, Stepwise walks the record index (ignores time).
+                const CadenceKind kind = classify_cadence(cadence);
+                const std::string c_lower = to_lower(cadence);
+                std::string bracket_note;
+
+                if (kind == CadenceKind::Stepwise) {
                     const int t_idx = (file_nt > 0) ? (step_index_ % file_nt) : 0;
                     bracket.i0 = bracket.i1 = t_idx;
                     bracket.weight = 0.0;
+                    bracket.valid = true;
+                    bracket_note = "stepwise (time ignored)";
+                } else if (kind == CadenceKind::Profile) {
+                    bracket = bracket_from_cadence(cadence, tintalgo, sim_dt, file_nt, yearFirst, yearLast, yearAlign, taxmode);
+                    bracket_note = "profile:" + c_lower;
+                } else {  // Series
+                    if (file_nt > 1) {
+                        bracket = bracket_from_dataset(read_dataset, time_var, sim_dt, file_nt, tintalgo, yearAlign, taxmode, time_units, calendar,
+                                                       cfg.time_label);
+                    }
+                    if (bracket.valid) {
+                        bracket_note = "decoded axis";
+                    } else if (bracket.out_of_range) {
+                        // The axis decoded; taxmode 'limit' rejected the time. Degrading
+                        // here would quietly hand back a climatology record instead.
+                        bracket_note = "decoded axis, out of range";
+                    } else if (c_lower == "daily" || c_lower == "monthly") {
+                        // Undecodable axis but the cadence carries a granularity: degrade.
+                        bracket = bracket_from_cadence(cadence, tintalgo, sim_dt, file_nt, yearFirst, yearLast, yearAlign, taxmode);
+                        bracket_note = "degraded arithmetic:" + c_lower;
+                    } else if (file_nt == 1) {
+                        bracket.i0 = bracket.i1 = 0;
+                        bracket.weight = 0.0;
+                        bracket.valid = true;
+                        bracket_note = "single record";
+                    }
                 }
                 const bool needs_upper_record = bracket.i1 != bracket.i0 && bracket.weight > 0.0;
                 // Run the record-index / interp-mode collectives EVERY step so
@@ -1338,6 +1293,32 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                     collective_int_matches(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, bracket.i1, "upper AMIO record index", failure_detail) &&
                     collective_int_matches(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, needs_upper_record ? 1 : 0, "AMIO interpolation mode",
                                            failure_detail);
+
+                if (!bracket.valid) {
+                    const std::string cadence_note = (cadence.empty() ? std::string("series (default)") : cadence);
+                    if (bracket.out_of_range) {
+                        LogFatal("[DRIVER FATAL] Simulation time " + time_iso8601 + " is outside the coverage of '" + input_file_path +
+                                 "' for field '" + var_name + "' (cadence='" + cadence_note +
+                                 "', taxmode='limit'). Use taxmode 'extend' to hold the nearest end or 'cycle' to clamp to the closest "
+                                 "available year.");
+                    } else {
+                        LogFatal("[DRIVER FATAL] Could not resolve a time record for field '" + var_name + "' in '" + input_file_path +
+                                 "' (cadence='" + cadence_note +
+                                 "'): the time axis is not usable (missing/non-fixed units, records out of ascending order, or a degenerate span) "
+                                 "and there is no cadence granularity to fall back on. "
+                                 "Set 'cadence: stepwise' to ignore time, use 'cadence: daily'/'monthly', or provide 'time_units'.");
+                    }
+                    return false;
+                }
+
+                // A weight of exactly 1.0 is the upper record, which happens on
+                // every step under taxmode "extend" once the run outlasts the
+                // file. Blending would read a second slab to return that record's
+                // own values.
+                if (bracket.weight >= 1.0) {
+                    bracket.i0 = bracket.i1;
+                    bracket.weight = 0.0;
+                }
 
                 // Cache decision (Req 3, 5, 9.4): if the previously computed
                 // result was for the same bracket, reuse its ingest buffer and
@@ -1413,18 +1394,21 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                     }
                 } else {
                     // ---- Tier 3: interpolation miss / rollover / single record ----
-                    // Diagnostic: report which time slice(s) are being read from the file.
+                    // Diagnostic: report which time slice(s) are being read and via which path.
                     if (bracket.i0 == bracket.i1 || bracket.weight == 0.0) {
-                        CECE_LOG_INFO("[DRIVER] Reading time slice " + std::to_string(bracket.i0) + "/" + std::to_string(file_nt - 1) + " from '" +
-                                      input_file_path + "' for field '" + var_name + "'" +
-                                      (cadence.empty() ? " (cycling, step=" + std::to_string(step_index_) + ")"
-                                                       : " (cadence=" + cadence + ", time=" + time_iso8601 + ")"));
+                        CECE_LOG_INFO("[DRIVER] Reading time slice " + std::to_string(bracket.i0 + 1) + "/" + std::to_string(file_nt) + " from '" +
+                                      input_file_path + "' for field '" + var_name + "' (" + bracket_note + ", time=" + time_iso8601 + ")");
                     } else {
-                        CECE_LOG_INFO("[DRIVER] Interpolating time slices " + std::to_string(bracket.i0) + " & " + std::to_string(bracket.i1) + "/" +
-                                      std::to_string(file_nt - 1) + " (w=" + std::to_string(bracket.weight) + ") from '" + input_file_path +
-                                      "' for field '" + var_name + "' (cadence=" + cadence + ", tintalgo=" + tintalgo + ", time=" + time_iso8601 +
-                                      ")");
+                        CECE_LOG_INFO("[DRIVER] Interpolating time slices " + std::to_string(bracket.i0 + 1) + " & " +
+                                      std::to_string(bracket.i1 + 1) + "/" + std::to_string(file_nt) + " (w=" + std::to_string(bracket.weight) +
+                                      ") from '" + input_file_path + "' for field '" + var_name + "' (" + bracket_note + ", tintalgo=" + tintalgo +
+                                      ", time=" + time_iso8601 + ")");
                     }
+
+                    // CF packing for this variable, read once per step.
+                    double var_scale = 1.0;
+                    double var_offset = 0.0;
+                    read_cf_packing(read_dataset, input_var_name, var_scale, var_offset);
 
                     // Read one time record into a double buffer on the source grid.
                     // AMIO removes the CF time dimension, but any remaining dimensions
@@ -1523,24 +1507,37 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                         }
                         const size_t view_offset = record_index * view_record_elements;
 
-                        const bool is_float = (view_size == total_elements * sizeof(float));
-                        const bool is_double = (view_size == total_elements * sizeof(double));
-                        if (!is_float && !is_double) {
-                            failure_detail = "AMIO returned an unsupported element size for '" + input_var_name + "'";
+                        amio_dtype_t slab_dtype = AMIO_DTYPE_F32;
+                        if (amio_view_dtype(slab_view, &slab_dtype) != AMIO_OK) {
+                            failure_detail = "amio_view_dtype failed";
+                            amio_release_view(slab_view);
+                            return false;
+                        }
+                        const std::size_t elem_size = amio_dtype_size(slab_dtype);
+                        if (elem_size == 0 || view_size < total_elements * elem_size) {
+                            failure_detail = "AMIO returned an unsupported or undersized element type for '" + input_var_name + "'";
                             amio_release_view(slab_view);
                             return false;
                         }
 
-                        // Scatter into global geometry. Full read: window covers
+                        // Widen the requested record (view-local, packed) once, then
+                        // scatter it into global geometry. Full read: window covers
                         // every row, so this reduces to a straight widened copy.
                         // Windowed read: place rows [src_j0, src_j0+src_rows) at
                         // their global positions; untouched rows stay zero (and are
                         // provably never referenced by the regrid).
+                        const void* record_start = static_cast<const char*>(view_data) + view_offset * elem_size;
+                        std::vector<double> widened_record;
+                        if (!widen_amio_elements(record_start, slab_dtype, view_record_elements, var_scale, var_offset, widened_record)) {
+                            failure_detail = "could not widen element type of variable '" + input_var_name + "'";
+                            amio_release_view(slab_view);
+                            return false;
+                        }
                         const int win_j0 = use_window ? plan.src_j0 : 0;
                         const int win_rows = use_window ? plan.src_rows : fny_view;
                         out.assign(global_record_elements, 0.0);
                         for (int level = 0; level < field_nlev; ++level) {
-                            const size_t view_level_base = view_offset + static_cast<size_t>(level) * view_spatial;
+                            const size_t view_level_base = static_cast<size_t>(level) * view_spatial;
                             const size_t global_level_base = static_cast<size_t>(level) * global_spatial;
                             for (int wr = 0; wr < win_rows; ++wr) {
                                 const int gr = win_j0 + wr;
@@ -1549,13 +1546,7 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                                 }
                                 const size_t src_row = view_level_base + static_cast<size_t>(wr) * fnx;
                                 const size_t dst_row = global_level_base + static_cast<size_t>(gr) * fnx;
-                                if (is_float) {
-                                    const float* p = static_cast<const float*>(view_data);
-                                    for (int i = 0; i < fnx; ++i) out[dst_row + i] = static_cast<double>(p[src_row + i]);
-                                } else {
-                                    const double* p = static_cast<const double*>(view_data);
-                                    for (int i = 0; i < fnx; ++i) out[dst_row + i] = p[src_row + i];
-                                }
+                                for (int i = 0; i < fnx; ++i) out[dst_row + i] = widened_record[src_row + i];
                             }
                         }
                         slab_nx = fnx;
@@ -1565,7 +1556,8 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                                        std::to_string(win_j0) + "," + std::to_string(win_j0 + win_rows) + ") of " + std::to_string(fny_global) + "x" +
                                        std::to_string(fnx) + "x" + std::to_string(field_nlev) + " (global buffer " +
                                        std::to_string(global_record_elements) + " elements, view " + std::to_string(view_record_elements) +
-                                       ", records_in_view=" + std::to_string(records_in_view) + ", " + (is_float ? "float32" : "float64") + ")");
+                                       ", records_in_view=" + std::to_string(records_in_view) + ", " + std::to_string(elem_size) + "-byte dtype " +
+                                       std::to_string(static_cast<int>(slab_dtype)) + ")");
                         return true;
                     };
 
