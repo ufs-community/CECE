@@ -100,10 +100,19 @@ inline bool StringToEmissionClass(const std::string& name, EmissionClass& ec) {
  * Parsed from MICM/OpenAtmos mechanism configuration files.
  * The molecular weight uses MICM convention (kg/mol) internally but
  * is stored as g/mol for consistency with CMAQ speciation factors.
+ *
+ * A species may additionally carry aerosol size-bin properties (density and
+ * dry-radius bounds) when it represents a size-resolved aerosol bin. These are
+ * optional and default to zero for gas-phase species.
  */
 struct MechanismSpecies {
-    std::string name;         ///< Species name (e.g., "ISOP", "TERP", "PAR")
-    double molecular_weight;  ///< Molecular weight in g/mol
+    std::string name;               ///< Species name (e.g., "ISOP", "TERP", "SS001")
+    double molecular_weight = 0.0;  ///< Molecular weight in g/mol
+    bool is_aerosol = false;        ///< True if the species defines aerosol bin properties
+    double density = 0.0;           ///< Aerosol dry particle density [kg/m^3]
+    double lower_radius = 0.0;      ///< Aerosol lower dry radius [um]
+    double upper_radius = 0.0;      ///< Aerosol upper dry radius [um]
+    double effective_radius = 0.0;  ///< Aerosol effective dry radius [um]
 };
 
 /**
