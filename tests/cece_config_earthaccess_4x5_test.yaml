@@ -1,0 +1,96 @@
+# =====================================================================
+# CECE earthaccess Test Config: BDSNP + MEGAN3 on global 4x5 grid
+# =====================================================================
+# Matches the exact HEMCO reference grid from PRs #85 (SoilNOx parity)
+# and #90 (MEGAN isoprene parity): 72 lon x 46 lat, 5-degree longitude
+# spacing, nominal 4-degree latitude spacing, +/-89 degree polar centres.
+#
+# Used by tests/test_earthaccess_stream_bdsnp_megan3.py.
+# All streams use source: earthaccess — no local NetCDF files required.
+# =====================================================================
+
+driver:
+  start_time: "2022-07-01T12:00:00"
+  end_time: "2022-07-01T13:00:00"
+  timestep_seconds: 3600
+  grid:
+    grid_name: "HEMCO_4x5"
+    lon_min: -180.0
+    lon_max: 175.0
+    lat_min: -89.0
+    lat_max: 89.0
+
+meteorology: {}
+
+species:
+  isoprene:
+    - field: "megan3_ISOP"
+      operation: "add"
+  soil_no:
+    - field: "soil_nox_emissions"
+      operation: "add"
+
+physics_schemes:
+  - name: megan3
+    language: cpp
+  - name: bdsnp
+    language: cpp
+    options:
+      soil_no_method: hemco_3_12_1 # matches PR #85 parity mode
+
+cece_data:
+  streams:
+    # ------------------------------------------------------------------
+    # MERRA-2 land diagnostics — Leaf Area Index (hourly NetCDF4)
+    # ------------------------------------------------------------------
+    - name: merra2_lai
+      source: earthaccess
+      short_name: M2T1NXLND
+      daac: GES_DISC
+      cloud_hosted: true
+      temporal_start: "2022-07-01"
+      temporal_end: "2022-07-02"
+      variables:
+        LAI:
+          model: leaf_area_index
+          fill_value: 0.0
+
+    # ------------------------------------------------------------------
+    # MERRA-2 land diagnostics — soil temperature and moisture (hourly)
+    # Regular-grid NetCDF4 fields feed both MEGAN3 and BDSNP
+    # ------------------------------------------------------------------
+    - name: merra2_soil
+      source: earthaccess
+      short_name: M2T1NXLND
+      version: "5.12.4"
+      daac: GES_DISC
+      cloud_hosted: true
+      temporal_start: "2022-07-01"
+      temporal_end: "2022-07-02"
+      variables:
+        TSOIL1:
+          model: soil_temperature
+          fill_value: 273.15
+        RZMC:
+          model: soil_moisture_root
+          fill_value: 0.0
+        SFMC:
+          model: soil_moisture
+          fill_value: 0.0
+
+    # ------------------------------------------------------------------
+    # MERRA-2 radiation diagnostics — direct/diffuse PAR and solar cosine
+    # ------------------------------------------------------------------
+    - name: merra2_par
+      source: earthaccess
+      short_name: M2T1NXLFO
+      version: "5.12.4"
+      daac: GES_DISC
+      cloud_hosted: true
+      temporal_start: "2022-07-01"
+      temporal_end: "2022-07-02"
+      variables:
+        PARDR: par_direct
+        PARDF: par_diffuse
+      derived_variables:
+        solar_cosine: solar_cosine

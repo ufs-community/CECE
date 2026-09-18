@@ -142,6 +142,9 @@ CeceConfig ParseConfig(const std::string& filename) {
         conf::Value streams = data["streams"];
         for (std::size_t i = 0; i < streams.size(); ++i) {
             conf::Value node = streams[i];
+            if (string_or(node, "source") == "earthaccess") {
+                continue;
+            }
             CeceDataStreamConfig stream;
             stream.name = string_or(node, "name");
             conf::Value files = node["file"];
@@ -200,6 +203,28 @@ CeceConfig ParseConfig(const std::string& filename) {
                 throw std::invalid_argument("output.amio_worker_threads must be >= 1; got " + std::to_string(threads) + ".");
             }
             config.output_config.amio_worker_threads = threads;
+        }
+        if (output["amio_staging_buffer_count"]) {
+            int count = output["amio_staging_buffer_count"].as_int();
+            if (count < 1 || count > 4096) {
+                throw std::invalid_argument("output.amio_staging_buffer_count must be in [1, 4096]; got " + std::to_string(count) + ".");
+            }
+            config.output_config.amio_staging_buffer_count = count;
+        }
+        if (output["amio_staging_buffer_capacity_bytes"]) {
+            int capacity = output["amio_staging_buffer_capacity_bytes"].as_int();
+            if (capacity < 1 || capacity > 1073741824) {
+                throw std::invalid_argument("output.amio_staging_buffer_capacity_bytes must be in [1, 1073741824]; got " + std::to_string(capacity) +
+                                            ".");
+            }
+            config.output_config.amio_staging_buffer_capacity_bytes = capacity;
+        }
+        if (output["amio_staging_timeout_ms"]) {
+            int timeout = output["amio_staging_timeout_ms"].as_int();
+            if (timeout < 1 || timeout > 60000) {
+                throw std::invalid_argument("output.amio_staging_timeout_ms must be in [1, 60000]; got " + std::to_string(timeout) + ".");
+            }
+            config.output_config.amio_staging_timeout_ms = timeout;
         }
     }
 

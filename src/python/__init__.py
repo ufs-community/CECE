@@ -47,6 +47,12 @@ __all__ = [
     "CeceComputationError",
     "CeceStateError",
     "CeceExecutionSpaceError",
+    "EarthAccessStreamConfig",
+    "EarthAccessStreamResolver",
+    "EarthAccessStreamBridge",
+    "parse_earthaccess_streams",
+    "validate_short_name",
+    "validate_short_names",
 ]
 
 from .exceptions import (
@@ -56,9 +62,21 @@ from .exceptions import (
     CeceStateError,
     CeceExecutionSpaceError,
 )
-from .config import CeceConfig, EmissionLayer, VerticalDistributionConfig
+from .config import (
+    CeceConfig,
+    EmissionLayer,
+    VerticalDistributionConfig,
+    parse_earthaccess_streams,
+)
 from .state import CeceState, CeceField
 from .utils import load_config
+from .earthaccess_resolver import (
+    EarthAccessStreamConfig,
+    EarthAccessStreamResolver,
+    validate_short_name,
+    validate_short_names,
+)
+from .stream_bridge import EarthAccessStreamBridge
 
 # Import the pybind11 C++ bindings module
 from . import _cece_core
