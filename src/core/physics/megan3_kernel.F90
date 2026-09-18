@@ -80,7 +80,7 @@ module megan3_kernel_mod
         0.0d0, 0.9d0, 0.9d0, 1.2d0, 0.9d0, 1.2d0, 0.9d0, &
         0.9d0, 0.9d0, 0.9d0, 0.9d0, 0.9d0 /)
 
-    ! Default AEF values matching cece_megan3.cpp kDefaultAef
+    ! Default AEF amount fluxes [kmol class m-2 s-1], matching C++
     real(c_double), parameter :: DEFAULT_AEF(NUM_CLASSES) = (/ &
         1.0d-9,  2.0d-10, 3.0d-10, 3.0d-10, 3.0d-10, 3.0d-10, 3.0d-10, &
         0.0d0,   1.0d-10, 1.0d-10, 5.0d-10, 2.0d-10, 2.0d-10, 1.0d-10, &
@@ -240,7 +240,7 @@ contains
     !> and species is 0-based mechanism species index.
     !> Total size: nx * ny * nz * num_output_species
     subroutine run_megan3_fortran(temp, lai, lai_prev, pardr, pardf, suncos, &
-                                  soil_moisture, wind_speed, soil_nox, &
+                                  soil_moisture, wind_speed, soil_no_amount_flux, &
                                   output, nx, ny, nz, num_output_species, &
                                   conversion_factors, class_indices, &
                                   mechanism_indices, molecular_weights, &
@@ -260,7 +260,9 @@ contains
         real(c_double), intent(in) :: suncos(nx, ny, nz)
         real(c_double), intent(in) :: soil_moisture(nx, ny, nz)
         real(c_double), intent(in) :: wind_speed(nx, ny, nz)
-        real(c_double), intent(in) :: soil_nox(nx, ny, nz)
+        ! Soil NO amount flux [kmol NO m-2 s-1], converted from the CECE
+        ! mass-flux contract by the C++ bridge before this call.
+        real(c_double), intent(in) :: soil_no_amount_flux(nx, ny, nz)
         real(c_double), intent(inout) :: output(nx * ny * nz * num_output_species)
         real(c_double), intent(in) :: conversion_factors(num_mappings)
         integer(c_int), intent(in) :: class_indices(num_mappings)
@@ -316,51 +318,52 @@ contains
                     gwet_val = soil_moisture(i, j, k)
                     ws_val = wind_speed(i, j, k)
 
-                    ! Skip cells with zero LAI (matching C++ early return)
-                    if (L_val <= 0.0d0) cycle
+                    ! Soil NO already has an independent source scheme. Keep it
+                    ! outside the LAI-gated vegetation calculation and on the
+                    ! amount basis expected by speciation.
+                    class_totals = 0.0d0
+                    class_totals(NO_CLASS_IDX + 1) = soil_no_amount_flux(i, j, k)
 
-                    ! Compute shared PAR gamma factor
-                    g_par_val = gamma_par_pceea(pdr_val, pdf_val, PAR_AVG, &
-                                                sc_val, doy)
+                    if (L_val > 0.0d0) then
+                        ! Compute shared PAR gamma factor
+                        g_par_val = gamma_par_pceea(pdr_val, pdf_val, PAR_AVG, &
+                                                    sc_val, doy)
 
-                    ! Compute 19 class totals
-                    do c = 1, NUM_CLASSES
-                        ldf_val = DEFAULT_LDF(c)
-                        ct1_val = DEFAULT_CT1(c)
-                        cleo_val = DEFAULT_CLEO(c)
-                        beta_val = DEFAULT_BETA(c)
-                        anew_val = DEFAULT_ANEW(c)
-                        agro_val = DEFAULT_AGRO(c)
-                        amat_val = DEFAULT_AMAT(c)
-                        aold_val = DEFAULT_AOLD(c)
-                        aef_val = DEFAULT_AEF(c)
+                        ! Compute vegetation class totals
+                        do c = 1, NUM_CLASSES
+                            if (c == NO_CLASS_IDX + 1) cycle
 
-                        ! Per-class gamma factors
-                        ! Note: bidirectional is false for all classes by default
-                        g_lai_c = gamma_lai(L_val, LAI_C1, LAI_C2, .false.)
-                        g_age_c = gamma_age(L_val, L_prev_val, dbtwn, T_val, &
-                                            anew_val, agro_val, amat_val, aold_val)
-                        g_sm_val = gamma_sm(gwet_val, .false.)
-                        g_t_li_val = gamma_t_li(T_val, beta_val, STD_TEMP)
-                        g_t_ld_val = gamma_t_ld(T_val, T_AVG_15, ct1_val, cleo_val)
+                            ldf_val = DEFAULT_LDF(c)
+                            ct1_val = DEFAULT_CT1(c)
+                            cleo_val = DEFAULT_CLEO(c)
+                            beta_val = DEFAULT_BETA(c)
+                            anew_val = DEFAULT_ANEW(c)
+                            agro_val = DEFAULT_AGRO(c)
+                            amat_val = DEFAULT_AMAT(c)
+                            aold_val = DEFAULT_AOLD(c)
+                            aef_val = DEFAULT_AEF(c)
 
-                        ! LDF partitioning:
-                        ! (1-LDF)*gamma_t_li + LDF*gamma_par*gamma_t_ld
-                        ldf_combined = (1.0d0 - ldf_val) * g_t_li_val + &
-                                       ldf_val * g_par_val * g_t_ld_val
+                            ! Per-class gamma factors
+                            ! Note: bidirectional is false for all classes by default
+                            g_lai_c = gamma_lai(L_val, LAI_C1, LAI_C2, .false.)
+                            g_age_c = gamma_age(L_val, L_prev_val, dbtwn, T_val, &
+                                                anew_val, agro_val, amat_val, aold_val)
+                            g_sm_val = gamma_sm(gwet_val, .false.)
+                            g_t_li_val = gamma_t_li(T_val, beta_val, STD_TEMP)
+                            g_t_ld_val = gamma_t_ld(T_val, T_AVG_15, ct1_val, &
+                                                   cleo_val)
 
-                        ! Combined emission for this class
-                        emission = NORM_FAC * aef_val * g_lai_c * g_age_c * &
-                                   g_sm_val * GAMMA_CO2_DEFAULT * ldf_combined
+                            ! LDF partitioning:
+                            ! (1-LDF)*gamma_t_li + LDF*gamma_par*gamma_t_ld
+                            ldf_combined = (1.0d0 - ldf_val) * g_t_li_val + &
+                                           ldf_val * g_par_val * g_t_ld_val
 
-                        ! Special handling for NO class (index 8 in Fortran,
-                        ! 0-based index 7 in C++)
-                        if (c == NO_CLASS_IDX + 1) then
-                            emission = soil_nox(i, j, k)
-                        end if
-
-                        class_totals(c) = emission
-                    end do
+                            ! Combined emission for this class
+                            emission = NORM_FAC * aef_val * g_lai_c * g_age_c * &
+                                       g_sm_val * GAMMA_CO2_DEFAULT * ldf_combined
+                            class_totals(c) = emission
+                        end do
+                    end if
 
                     ! --------------------------------------------------------
                     ! Speciation: disaggregate class totals to mechanism species
