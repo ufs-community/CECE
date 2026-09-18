@@ -177,6 +177,9 @@ StreamConfig CeceDriverOrchestrator::BuildStreamConfig(const YAML::Node& stream,
     if (stream["taxmode"]) {
         cfg.taxmode = stream["taxmode"].as<std::string>();
     }
+    if (stream["time_label"]) {
+        cfg.time_label = stream["time_label"].as<std::string>();
+    }
     if (stream["tintalgo"]) {
         cfg.tintalgo = stream["tintalgo"].as<std::string>();
     }
@@ -191,7 +194,7 @@ StreamConfig CeceDriverOrchestrator::BuildStreamConfig(const YAML::Node& stream,
     }
     // Validate the cadence and warn on knobs that the chosen cadence ignores.
     validate_stream_temporal_config(cfg.cadence, cfg.taxmode, cfg.tintalgo, cfg.yearFirst, cfg.yearLast, cfg.yearAlign,
-                                    " (stream file '" + cfg.input_file_path + "')");
+                                    " (stream file '" + cfg.input_file_path + "')", cfg.time_label);
     if (stream["data_model"]) {
         std::string requested_model = stream["data_model"].as<std::string>();
         std::transform(requested_model.begin(), requested_model.end(), requested_model.begin(),
@@ -1261,7 +1264,8 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                     bracket_note = "profile:" + c_lower;
                 } else {  // Series
                     if (file_nt > 1) {
-                        bracket = bracket_from_dataset(read_dataset, time_var, sim_dt, file_nt, tintalgo, yearAlign, taxmode, time_units, calendar);
+                        bracket = bracket_from_dataset(read_dataset, time_var, sim_dt, file_nt, tintalgo, yearAlign, taxmode, time_units, calendar,
+                                                       cfg.time_label);
                     }
                     if (bracket.valid) {
                         bracket_note = "decoded axis";
@@ -1295,7 +1299,8 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                     if (bracket.out_of_range) {
                         LogFatal("[DRIVER FATAL] Simulation time " + time_iso8601 + " is outside the coverage of '" + input_file_path +
                                  "' for field '" + var_name + "' (cadence='" + cadence_note +
-                                 "', taxmode='limit'). Use taxmode 'extend' to hold the nearest end or 'cycle' to repeat the file.");
+                                 "', taxmode='limit'). Use taxmode 'extend' to hold the nearest end or 'cycle' to clamp to the closest "
+                                 "available year.");
                     } else {
                         LogFatal("[DRIVER FATAL] Could not resolve a time record for field '" + var_name + "' in '" + input_file_path +
                                  "' (cadence='" + cadence_note +

@@ -59,10 +59,10 @@ SimDateTime parse_sim_datetime(const std::string& iso8601);
 
 /// Validate a stream's temporal options and warn about knobs the chosen cadence
 /// ignores. @p where is appended to messages to identify the offending stream.
-/// Throws std::invalid_argument for an unknown cadence/taxmode/tintalgo or an
-/// inverted yearFirst/yearLast range.
+/// Throws std::invalid_argument for an unknown cadence/taxmode/tintalgo,
+/// time_label, or an inverted yearFirst/yearLast range.
 void validate_stream_temporal_config(const std::string& cadence, const std::string& taxmode, const std::string& tintalgo, int yearFirst, int yearLast,
-                                     int yearAlign, const std::string& where);
+                                     int yearAlign, const std::string& where, const std::string& time_label = "auto");
 
 RecordBracket bracket_from_cadence(const std::string& cadence, const std::string& tintalgo, const SimDateTime& dt, int file_nt, int yearFirst = 0,
                                    int yearLast = 0, int yearAlign = 0, const std::string& taxmode = "");
@@ -71,12 +71,17 @@ RecordBracket bracket_from_cadence(const std::string& cadence, const std::string
 /// it from the axis, which is exact only for uniformly sampled records.
 RecordBracket find_bracket(const std::vector<double>& times, double target, bool linear, const std::string& taxmode = "", double period_days = 0.0);
 
+/// @p bounds is the CF bounds array for @p time_vals (2 values per record, in
+/// the same units). When present it states each record's interval directly, so
+/// @p time_label "auto" needs no inference. Pass empty when the file has none.
 RecordBracket bracket_from_coords(const std::vector<double>& time_vals, const std::string& units, const std::string& calendar, const SimDateTime& dt,
-                                  const std::string& tintalgo, int yearAlign = 0, const std::string& taxmode = "");
+                                  const std::string& tintalgo, int yearAlign = 0, const std::string& taxmode = "",
+                                  const std::string& time_label = "auto", const std::vector<double>& bounds = {});
 
 RecordBracket bracket_from_dataset(amio_dataset_handle dataset, const std::string& time_var, const SimDateTime& dt, int file_nt,
                                    const std::string& tintalgo, int yearAlign = 0, const std::string& taxmode = "",
-                                   const std::string& units_override = "", const std::string& calendar_override = "");
+                                   const std::string& units_override = "", const std::string& calendar_override = "",
+                                   const std::string& time_label = "auto");
 
 }  // namespace detail
 }  // namespace cece

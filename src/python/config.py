@@ -235,6 +235,10 @@ class DataStreamConfig:
         profile indexed by hour-of-day / day-of-week), or ``"stepwise"``
         (also spelled ``"step"``; ignore time and walk the record index).
         Default is ``"series"``.
+    time_label : str, optional
+        Position of each time coordinate relative to the implied valid interval
+        associated with the data. One of ``"auto"``, ``"start"``, ``"center"``,
+        or ``"end"``. Default is ``"auto"``.
 
     Examples
     --------
@@ -248,6 +252,7 @@ class DataStreamConfig:
     tintalgo: str = "nearest"
     mapalgo: str = "default"
     cadence: str = "series"
+    time_label: str = "auto"
 
     def validate(self) -> None:
         """
@@ -266,6 +271,8 @@ class DataStreamConfig:
             raise ValueError("file_paths cannot be empty")
         if self.taxmode not in ["cycle", "extend", "limit"]:
             raise ValueError(f"Invalid taxmode: {self.taxmode}")
+        if self.time_label not in ["auto", "start", "center", "end"]:
+            raise ValueError(f"Invalid time_label: {self.time_label}")
         if self.tintalgo not in ["linear", "nearest"]:
             raise ValueError(f"Invalid tintalgo: {self.tintalgo}")
         if self.cadence not in [
@@ -443,6 +450,7 @@ class CeceConfig:
         tintalgo: str = "nearest",
         mapalgo: str = "default",
         cadence: str = "series",
+        time_label: str = "auto",
     ) -> None:
         """
         Configure a TIDE data stream.
@@ -471,6 +479,10 @@ class CeceConfig:
             ``"monthly"``, ``"hourly"``, ``"weekly"``, or ``"stepwise"``
             (alias ``"step"``).
             Default is ``"series"``.
+        time_label : str, optional
+            Position of each time coordinate relative to the validity interval
+            associated with its data. One of ``"auto"``, ``"start"``,
+            ``"center"``, or ``"end"``. Default is ``"auto"``.
 
         Raises
         ------
@@ -478,7 +490,7 @@ class CeceConfig:
             If parameters fail validation.
         """
         stream = DataStreamConfig(
-            name, file_paths, variables, taxmode, tintalgo, mapalgo, cadence
+            name, file_paths, variables, taxmode, tintalgo, mapalgo, cadence, time_label
         )
         stream.validate()
         self._cece_data["streams"].append(stream)
@@ -628,6 +640,7 @@ class CeceConfig:
                         "file_paths": s.file_paths,
                         "variables": s.variables,
                         "taxmode": s.taxmode,
+                        "time_label": s.time_label,
                         "tintalgo": s.tintalgo,
                         "mapalgo": s.mapalgo,
                         "cadence": s.cadence,
@@ -747,6 +760,7 @@ class CeceConfig:
                 file_paths=stream_data.get("file_paths", []),
                 variables=stream_data.get("variables", {}),
                 taxmode=stream_data.get("taxmode", "cycle"),
+                time_label=stream_data.get("time_label", "auto"),
                 tintalgo=stream_data.get("tintalgo", "nearest"),
                 mapalgo=stream_data.get("mapalgo", "default"),
                 cadence=stream_data.get("cadence", "series"),

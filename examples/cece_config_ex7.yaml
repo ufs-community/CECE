@@ -131,9 +131,8 @@ cece_data:
     - name: "CAMS_HOURLY"
       file: "/gpfs/f6/bil-fire3/world-shared/Emissions/nexus/CAMS-TEMPO/v3.1-2021/CAMS-GLOB-TEMPO_Glb_0.1x0.1_tmp_weights_v3.1_hourly_fixtime.nc"
       # Discrete hour-of-day profile (24 records), not a time series: pick the
-      # record matching the current simulation hour. Interpolation is not
-      # meaningful for of-day weights, so nearest is always used, and
-      # taxmode/yearAlign/yearFirst/yearLast do not apply.
+      # record matching the current simulation hour. taxmode/yearAlign/yearFirst/
+      # yearLast do not apply.
       cadence: "hourly"
       mapalgo: "bilinear"
       data_model: "classic"

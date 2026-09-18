@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <set>
 #include <stdexcept>
 #include <string>
 #include <tick/tick.hpp>
@@ -52,7 +53,7 @@ static double day_fraction(const SimDateTime& dt) {
 }
 
 void validate_stream_temporal_config(const std::string& cadence, const std::string& taxmode, const std::string& tintalgo, int yearFirst, int yearLast,
-                                     int yearAlign, const std::string& where) {
+                                     int yearAlign, const std::string& where, const std::string& time_label) {
     const std::string cl = to_lower(cadence);
     const bool is_profile = (cl == "hourly" || cl == "weekly");
     const bool is_stepwise = (cl == "stepwise" || cl == "step");
@@ -71,14 +72,19 @@ void validate_stream_temporal_config(const std::string& cadence, const std::stri
         throw std::invalid_argument("Unknown stream tintalgo '" + tintalgo + "' (expected linear|nearest)" + where + ".");
     }
 
+    const std::string label = to_lower(time_label);
+    if (label != "auto" && label != "start" && label != "center" && label != "end") {
+        throw std::invalid_argument("Unknown stream time_label '" + time_label + "' (expected auto|start|center|end)" + where + ".");
+    }
+
     // An inverted range would make the cycle span zero years.
     if (yearFirst != 0 && yearLast != 0 && yearLast < yearFirst) {
         throw std::invalid_argument("Stream yearLast (" + std::to_string(yearLast) + ") is before yearFirst (" + std::to_string(yearFirst) + ")" +
                                     where + ".");
     }
 
-    if (is_profile && (yearAlign != 0 || yearFirst != 0 || yearLast != 0 || !taxmode.empty() || tl == "linear")) {
-        CECE_LOG_WARNING("[DRIVER] taxmode/yearAlign/yearFirst/yearLast/tintalgo are ignored for profile cadence '" + cl + "'" + where + ".");
+    if (is_profile && (yearAlign != 0 || yearFirst != 0 || yearLast != 0 || !taxmode.empty())) {
+        CECE_LOG_WARNING("[DRIVER] taxmode/yearAlign/yearFirst/yearLast are ignored for profile cadence '" + cl + "'" + where + ".");
     }
     if (is_stepwise && (yearAlign != 0 || !taxmode.empty() || tl == "linear")) {
         CECE_LOG_WARNING("[DRIVER] taxmode/yearAlign/tintalgo are ignored for stepwise cadence" + where + " (the time axis is not consulted).");
@@ -159,10 +165,71 @@ static YearMapping apply_year_taxmode(int& eff_year, int yearFirst, int yLast, c
         // 2026 against a 2000-2023 file would give August 2023, not December.
         return (eff_year < yearFirst) ? YearMapping::ClampFirst : YearMapping::ClampLast;
     }
-    int offset = (eff_year - yearFirst) % year_span;  // default: cycle
-    if (offset < 0) offset += year_span;
-    eff_year = yearFirst + offset;
+    const int min_year = yearFirst;
+    const int max_year = yLast;
+    if (eff_year < min_year) {
+        eff_year = min_year;
+    } else if (eff_year > max_year) {
+        eff_year = max_year;
+    }
     return YearMapping::Resolved;
+}
+
+struct MonthlyAxisInfo {
+    bool monthly = false;
+    bool start_labeled = false;
+    bool end_labeled = false;
+};
+
+static MonthlyAxisInfo inspect_monthly_axis(const std::vector<double>& time_vals, const std::string& units, const std::string& calendar) {
+    MonthlyAxisInfo info;
+    if (time_vals.size() < 2) return info;
+    try {
+        const CFTimeUnits cf = parse_cf_units(units);
+        const CalKind cal = parse_calendar(calendar);
+        if (!cf.valid || cal == CalKind::Unsupported) return info;
+        const std::int64_t ref_nanos =
+            cal_to_nanos(cal, cf.reference) - static_cast<std::int64_t>(std::llround(cf.offset_days * static_cast<double>(tick::nanos_per_day)));
+        int previous_month_index = 0;
+        bool consecutive_months = true;
+        bool all_month_starts = true;
+        bool all_month_ends = true;
+        for (size_t k = 0; k < time_vals.size(); ++k) {
+            const std::int64_t nanos =
+                ref_nanos + static_cast<std::int64_t>(std::llround(time_vals[k] * cf.unit_days * static_cast<double>(tick::nanos_per_day)));
+            const tick::Date_Time stamp = cal_to_dt(cal, nanos);
+            const int month_index = stamp.year * 12 + stamp.month;
+            if (k > 0 && month_index != previous_month_index + 1) consecutive_months = false;
+            if (stamp.day != 1 || stamp.hour != 0 || stamp.minute != 0 || stamp.second != 0) all_month_starts = false;
+            if (stamp.day != cal_days_in_month(cal, stamp.year, stamp.month)) all_month_ends = false;
+            previous_month_index = month_index;
+        }
+        info.monthly = consecutive_months;
+        info.start_labeled = consecutive_months && all_month_starts;
+        info.end_labeled = consecutive_months && all_month_ends;
+        return info;
+    } catch (const std::exception&) {
+        return info;
+    }
+}
+
+static std::string normalize_time_label(const std::string& time_label) {
+    const std::string tl = to_lower(time_label);
+    if (tl == "auto" || tl == "start" || tl == "center" || tl == "end") return tl;
+    return "auto";
+}
+
+// "auto" can only infer interval labels from a monthly axis or CF bounds. Warn
+// once per axis when it has neither, so a left-labelled sub-daily file is not
+// silently read as instantaneous.
+static void warn_unlabeled_axis_once(const std::string& key, const std::vector<double>& time_vals, const std::string& units,
+                                     const std::string& calendar) {
+    static std::set<std::string> warned;
+    if (!warned.insert(key).second) return;
+    if (inspect_monthly_axis(time_vals, units, calendar).monthly) return;
+    CECE_LOG_WARNING("[DRIVER] Time axis '" + key +
+                     "' is not monthly and has no CF bounds, so time_label 'auto' treats its records as instantaneous. Set time_label "
+                     "explicitly (start|center|end) if they label averaging intervals.");
 }
 
 /**
@@ -173,9 +240,8 @@ static YearMapping apply_year_taxmode(int& eff_year, int yearFirst, int yLast, c
  *                   the two bracketing records for monthly (mid-month
  *                   convention) and daily (mid-day convention) cadences;
  *                   any other @c tintalgo value selects the nearest record.
- *                   Hourly and weekly cadences ignore @c tintalgo
- *                   and always use nearest-neighbour
- *                   (there is no true sub-hourly interpolation).
+ *                   Hourly and weekly cadences also honor @c tintalgo for
+ *                   cyclic interpolation within the profile.
  * @param dt         Parsed simulation datetime.
  * @param file_nt    Number of records available in the file (for clamping).
  * @param yearFirst  First year covered by the file (0 = unknown/climatology).
@@ -184,7 +250,7 @@ static YearMapping apply_year_taxmode(int& eff_year, int yearFirst, int yLast, c
  *                   When yearAlign != 0, the effective sim year is remapped:
  *                   effective_year = yearFirst + (sim_year - yearAlign) mapped
  *                   into [yearFirst, yearLast] per taxmode.
- * @param taxmode    "cycle" (default): wrap sim year into file range.
+ * @param taxmode    "cycle" (default): clamp sim year to the closest file year.
  *                   "extend": hold the file's first/last record.
  *                   "limit": return invalid bracket if outside range.
  *
@@ -198,9 +264,9 @@ static YearMapping apply_year_taxmode(int& eff_year, int yearFirst, int yLast, c
  * record and shifts subsequent dates back one, and a 366-record file skips its
  * Feb 29 record in non-leap years.
  *
- * Hourly and weekly cadences select discrete profile records (hour-of-day,
- * day-of-week) and always use nearest-neighbour. Monthly and daily cadences
- * honor @c tintalgo for linear temporal interpolation.
+ * Hourly and weekly cadences select cyclic profile records (hour-of-day,
+ * day-of-week). Monthly and daily cadences honor @c tintalgo for linear
+ * temporal interpolation.
  */
 RecordBracket bracket_from_cadence(const std::string& cadence, const std::string& tintalgo, const SimDateTime& dt, int file_nt, int yearFirst,
                                    int yearLast, int yearAlign, const std::string& taxmode) {
@@ -218,8 +284,13 @@ RecordBracket bracket_from_cadence(const std::string& cadence, const std::string
     };
 
     if (c == "hourly") {
-        br.i0 = br.i1 = clamp_idx(dt.hour);
-        br.valid = true;
+        const int nrec = (file_nt > 0) ? file_nt : 24;
+        if (linear) {
+            br = midpoint_bracket(dt.hour, (dt.minute * 60.0 + dt.second) / 3600.0, nrec, EdgePolicy::Wrap);
+        } else {
+            br.i0 = br.i1 = clamp_idx(dt.hour);
+            br.valid = true;
+        }
     } else if (c == "daily") {
         const bool multi_year = (yearFirst > 0 && file_nt > 366);
         int eff_year = dt.year;
@@ -295,8 +366,13 @@ RecordBracket bracket_from_cadence(const std::string& cadence, const std::string
     } else if (c == "weekly") {
         // dt.day_of_week is ISO 8601 (1=Monday ... 7=Sunday).
         // Weekly profile records are 0-indexed (0=Monday ... 6=Sunday).
-        br.i0 = br.i1 = clamp_idx(dt.day_of_week - 1);
-        br.valid = true;
+        const int nrec = (file_nt > 0) ? file_nt : 7;
+        if (linear) {
+            br = midpoint_bracket(dt.day_of_week - 1, day_fraction(dt), nrec, EdgePolicy::Wrap);
+        } else {
+            br.i0 = br.i1 = clamp_idx(dt.day_of_week - 1);
+            br.valid = true;
+        }
     } else if (c == "monthly") {
         // Determine effective year for multi-year files.
         // If yearFirst is set and file has more than 12 records, compute
@@ -483,15 +559,15 @@ RecordBracket find_bracket(const std::vector<double>& times, double target, bool
  * the arithmetic bracket_from_cadence().
  *
  * For taxmode "cycle" on an axis covering a whole number of calendar years,
- * the simulation *year* is wrapped into the file's coverage. Wrapping the
- * instant by a fixed period instead drifts a day per leap year and keeps
- * accumulating. Coverage is inferred from the decoded records; the CF-exact
+ * the simulation *year* is clamped to the closest year in the file's
+ * coverage. Coverage is inferred from the decoded records; the CF-exact
  * source would be the time variable's `bounds` (time_bnds), whose first and
- * last cell edges delimit the cycle directly, but AMIO does not surface bounds
- * variables yet.
+ * last cell edges delimit the intervals directly, but AMIO does not surface
+ * bounds variables yet.
  */
 RecordBracket bracket_from_coords(const std::vector<double>& time_vals, const std::string& units, const std::string& calendar, const SimDateTime& dt,
-                                  const std::string& tintalgo, int yearAlign, const std::string& taxmode) {
+                                  const std::string& tintalgo, int yearAlign, const std::string& taxmode, const std::string& time_label,
+                                  const std::vector<double>& bounds) {
     RecordBracket br;
     if (!dt.valid || time_vals.empty()) return br;
 
@@ -564,9 +640,10 @@ RecordBracket bracket_from_coords(const std::vector<double>& time_vals, const st
         // a day per leap year and never stops accumulating.
         const std::string tax = to_lower(taxmode);
         if (annual_cycle && year_aligned && (tax.empty() || tax == "cycle")) {
-            int offset = (sim_year - first_year) % span_years;
-            if (offset < 0) offset += span_years;
-            sim_year = first_year + offset;
+            int clamp_min = first_year;
+            int clamp_max = first_year + span_years - 1;
+            if (sim_year < clamp_min) sim_year = clamp_min;
+            if (sim_year > clamp_max) sim_year = clamp_max;
         }
 
         // Feb 29 has no counterpart in a non-leap target year.
@@ -574,6 +651,50 @@ RecordBracket bracket_from_coords(const std::vector<double>& time_vals, const st
         const tick::Date_Time sim_dt{sim_year, dt.month, sim_day, dt.hour, dt.minute, dt.second, 0};
         const std::int64_t sim_nanos = cal_to_nanos(cal, sim_dt);
         const double target_days = static_cast<double>(sim_nanos - ref_nanos) / static_cast<double>(tick::nanos_per_day);
+
+        std::string label = normalize_time_label(time_label);
+        const MonthlyAxisInfo monthly_info = inspect_monthly_axis(time_vals, units, calendar);
+        if (label == "auto" && bounds.size() == rec_days.size() * 2) {
+            // CF bounds state each interval outright, so nothing is inferred.
+            // An explicit time_label still wins, as a manual override.
+            for (size_t k = 0; k < rec_days.size(); ++k) {
+                rec_days[k] = 0.5 * (bounds[2 * k] + bounds[2 * k + 1]) * cf.unit_days;
+            }
+            label = "center";
+        } else if (label == "auto") {
+            label = monthly_info.start_labeled ? "start" : (monthly_info.end_labeled ? "end" : "center");
+        }
+
+        // Only monthly axes are inferred automatically, but an explicit label
+        // applies to any axis: a stamp is a bound of the interval it labels,
+        // not the instant the record is valid at.
+        if (label == "start" || label == "end") {
+            const std::vector<double> raw = rec_days;
+            if (monthly_info.monthly) {
+                const std::int64_t label_ref = ref_nanos;
+                for (size_t k = 0; k < raw.size(); ++k) {
+                    const std::int64_t abs = label_ref + static_cast<std::int64_t>(std::llround(raw[k] * static_cast<double>(tick::nanos_per_day)));
+                    const tick::Date_Time stamp = cal_to_dt(cal, abs);
+                    const std::int64_t month_start = cal_to_nanos(cal, tick::Date_Time{stamp.year, stamp.month, 1, 0, 0, 0, 0});
+                    const bool first_of_month = stamp.day == 1 && stamp.hour == 0 && stamp.minute == 0 && stamp.second == 0;
+                    const std::int64_t bound = label == "start" ? cal_add_months(cal, month_start, 1) : abs;
+                    const std::int64_t lower = label == "start" ? abs : (first_of_month ? cal_add_months(cal, month_start, -1) : month_start);
+                    rec_days[k] = static_cast<double>((lower + bound) / 2 - label_ref) / static_cast<double>(tick::nanos_per_day);
+                }
+            } else if (raw.size() > 1) {
+                // The opposite bound is the neighbouring stamp, mirrored at the
+                // ends where there is no neighbour.
+                for (size_t k = 0; k < raw.size(); ++k) {
+                    if (label == "start") {
+                        const double next = (k + 1 < raw.size()) ? raw[k + 1] : raw[k] + (raw[k] - raw[k - 1]);
+                        rec_days[k] = 0.5 * (raw[k] + next);
+                    } else {
+                        const double prev = (k > 0) ? raw[k - 1] : raw[k] - (raw[k + 1] - raw[k]);
+                        rec_days[k] = 0.5 * (prev + raw[k]);
+                    }
+                }
+            }
+        }
 
         const std::string talgo = to_lower(tintalgo);
         return find_bracket(rec_days, target_days, talgo == "linear", taxmode, annual_cycle ? annual_days : 0.0);
@@ -593,7 +714,7 @@ RecordBracket bracket_from_coords(const std::vector<double>& time_vals, const st
  */
 RecordBracket bracket_from_dataset(amio_dataset_handle dataset, const std::string& time_var, const SimDateTime& dt, int file_nt,
                                    const std::string& tintalgo, int yearAlign, const std::string& taxmode, const std::string& units_override,
-                                   const std::string& calendar_override) {
+                                   const std::string& calendar_override, const std::string& time_label) {
     RecordBracket br;
     if (!dataset || !dt.valid || file_nt < 1) return br;
 
@@ -692,7 +813,39 @@ RecordBracket bracket_from_dataset(amio_dataset_handle dataset, const std::strin
     const std::string units = units_override.empty() ? read_text_attr("units") : units_override;
     const std::string calendar = calendar_override.empty() ? read_text_attr("calendar") : calendar_override;
 
-    return bracket_from_coords(time_vals, units, calendar, dt, tintalgo, yearAlign, taxmode);
+    // CF bounds, when the axis advertises them, define each record's interval.
+    // A bounds variable inherits its parent's units and packing, so the time
+    // variable's scale/offset apply here too.
+    std::vector<double> bounds_vals;
+    const std::string bounds_var = read_text_attr("bounds");
+    if (!bounds_var.empty()) {
+        amio_view_handle bview = nullptr;
+        if (amio_read(dataset, bounds_var.c_str(), 0, nullptr, &bview) == AMIO_OK) {
+            const void* bdata = nullptr;
+            size_t bsize = 0;
+            amio_shape_t bshape{};
+            amio_dtype_t bdtype = AMIO_DTYPE_F64;
+            if (amio_view_data(bview, &bdata, &bsize) == AMIO_OK && amio_view_shape(bview, &bshape) == AMIO_OK &&
+                amio_view_dtype(bview, &bdtype) == AMIO_OK) {
+                size_t n_bounds = 1;
+                for (int d = 0; d < bshape.rank; ++d) {
+                    n_bounds *= static_cast<size_t>(bshape.extents[d]);
+                }
+                const std::size_t want = n_axis * 2;
+                const std::size_t belem = amio_dtype_size(bdtype);
+                if (n_bounds >= want && belem > 0 && bsize >= want * belem) {
+                    if (!widen_amio_elements(bdata, bdtype, want, time_scale, time_offset, bounds_vals)) bounds_vals.clear();
+                }
+            }
+            amio_release_view(bview);
+        }
+    }
+
+    if (normalize_time_label(time_label) == "auto" && bounds_vals.empty()) {
+        warn_unlabeled_axis_once(tvar + "|" + units, time_vals, units, calendar);
+    }
+
+    return bracket_from_coords(time_vals, units, calendar, dt, tintalgo, yearAlign, taxmode, time_label, bounds_vals);
 }
 
 }  // namespace detail

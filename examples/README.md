@@ -77,8 +77,9 @@ Each stream chooses how its file records are matched to the simulation date-time
   `cadence: daily` and `cadence: monthly` behave the same way but add a calendar
   arithmetic fallback when the axis cannot be decoded.
 - **`hourly` / `weekly`** — climatological profiles indexed directly by hour-of-day
-  (24 records) or day-of-week (7 records, 0 = Monday). The time axis is not read, and
-  `taxmode`, `yearAlign`, `yearFirst`, `yearLast`, and `tintalgo` do not apply.
+  (24 records) or day-of-week (7 records, 0 = Monday). The time axis is not read, so
+  `taxmode`, `yearAlign`, `yearFirst`, and `yearLast` do not apply, but `tintalgo: linear`
+  interpolates cyclically within the profile.
   See the CAMS-TEMPO streams in `cece_config_ex1.yaml` and `cece_config_ex7.yaml`.
 - **`stepwise`** — ignore time entirely and walk the record index one step at a time.
 

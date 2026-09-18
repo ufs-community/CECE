@@ -49,6 +49,7 @@ struct StreamConfig {
     std::string time_var = "time";     ///< time coordinate variable name
     std::string time_units;            ///< override for a missing/non-standard "units" attribute
     std::string calendar;              ///< "" -> file attribute, else gregorian
+    std::string time_label = "auto";   ///< auto|start|center|end; monthly start auto-detects month-start stamps
     std::string data_model = "enhanced";
     bool data_model_explicit = false;                   ///< true => open with only data_model
     int amio_worker_threads = 1;                        ///< driver-level, validated >= 1

@@ -60,8 +60,8 @@ stream::<stream_name>
 - `time_var`: Name of the time coordinate variable (default: "time")
 
 > This parser covers the standalone streams-file format only. The driver's inline
-> `cece_data` section additionally supports `cadence`, `time_units`, and `calendar`;
-> see [Configuration](configuration.md#record-selection-cadence).
+> `cece_data` section additionally supports `cadence`, `time_units`, `calendar`, and
+> `time_label`; see [Configuration](configuration.md#record-selection-cadence).
 
 ## Usage
 

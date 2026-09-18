@@ -573,8 +573,9 @@ Configuration for data streams that read external emission inventories and auxil
 | `yearFirst` | Integer | First calendar year of data coverage in the file. Only consulted on the arithmetic fallback path (`daily`/`monthly` cadence with an undecodable time axis). |
 | `yearLast` | Integer | Last calendar year of data coverage in the file. Same applicability as `yearFirst`. |
 | `yearAlign` | Integer | Simulation year corresponding to the first file year. Default: `0` (no shift, simulation years map 1-to-1 onto file years). |
-| `taxmode` | String | Behavior when the simulation time falls outside the file's coverage: `cycle` (default, wrap), `extend` (clamp to the nearest end), or `limit` (fail). |
-| `tintalgo` | String | Temporal interpolation: `linear` or `nearest`. Default: `nearest`. Ignored by `hourly`/`weekly`/`stepwise` cadences. |
+| `taxmode` | String | Behavior when the simulation time falls outside the file's coverage: `cycle` (default, clamp to the closest covered year), `extend` (clamp to the nearest end), or `limit` (fail). |
+| `tintalgo` | String | Temporal interpolation: `linear` or `nearest`. Default: `nearest`. Ignored by the `stepwise` cadence. |
+| `time_label` | String | (Optional) Where each time coordinate sits in the interval its record describes: `auto` (default), `start`, `center`, or `end`. Applies to decoded time axes. See [Time Labels](#time-labels-time_label). |
 | `mapalgo` | String | Spatial regridding: `consd`, `bilinear`, `consf`, `nn`, `redist`, or `passthrough`. `passthrough` requires identical dimensions and ordered source/target coordinates, then copies without AXIS regridding. |
 | `data_model` | String | (Optional) AMIO NetCDF data model for reads: `enhanced`, `classic`, or `auto`. Default behavior is auto (`enhanced` first, then `classic` fallback on backend open failure). |
 | `variables` | List | Variable mappings between file and model |
@@ -608,7 +609,7 @@ cece_data:
       file: "/data/inventories/MACCity_CO_2000-2010.nc"
       # cadence omitted -> "series": the file's own time axis is decoded and the
       # simulation time is bracketed against the actual record times.
-      taxmode: "cycle"          # Repeat the file's coverage outside 2000-2010
+      taxmode: "cycle"          # Outside 2000-2010, read the closest covered year
       tintalgo: "linear"        # Linear interpolation between bracketing records
       mapalgo: "consd"          # Conservative regridding
       variables:
@@ -653,7 +654,7 @@ date-time. There are three kinds:
 | --- | --- | --- |
 | *(omitted)*, `series` | Series | Decode the file's CF time axis and bracket the simulation time against the actual record times. Honors `tintalgo`, `taxmode`, and `yearAlign`. |
 | `daily`, `monthly` | Series | Same as `series`, but if the time axis cannot be decoded, degrade to calendar arithmetic at the stated granularity (day-of-year / month-of-year) using `yearFirst`, `yearLast`, `yearAlign`, and `taxmode`. |
-| `hourly`, `weekly` | Profile | Climatological profile indexed directly by a calendar field: hour-of-day (records 0–23) or day-of-week (records 0–6, 0 = Monday). The time axis is not read. `tintalgo`, `taxmode`, `yearAlign`, `yearFirst`, and `yearLast` are ignored (a warning is logged if set). |
+| `hourly`, `weekly` | Profile | Climatological profile indexed directly by a calendar field: hour-of-day (records 0–23) or day-of-week (records 0–6, 0 = Monday). The time axis is not read. `tintalgo` is honored; `taxmode`, `yearAlign`, `yearFirst`, and `yearLast` are ignored (a warning is logged if set). |
 | `stepwise` (alias `step`) | Stepwise | Opt-in step-index cycling: record `= step_index % n_records`. Time is ignored entirely. `tintalgo`, `taxmode`, and `yearAlign` are ignored (a warning is logged if set). |
 
 Any other value is a configuration error.
@@ -697,6 +698,39 @@ reads the two bracketing records and blends them on the source grid before regri
 On the arithmetic fallback path, `monthly` uses the mid-month convention and `daily`
 uses the mid-day convention, so e.g. January 1 blends the December and January records.
 
+The `hourly` and `weekly` profiles interpolate cyclically about each record's midpoint,
+so Sunday 18:00 blends the Sunday and Monday records a quarter of the way across.
+
+#### Time Labels (`time_label`)
+
+A record's time coordinate may sit at the start, the middle, or the end of the interval it
+describes, and CF files rarely state which. `time_label` names the convention so the
+driver brackets against interval centers rather than the raw stamps:
+
+| `time_label` | Meaning |
+| --- | --- |
+| `auto` (default) | Use the axis's CF `bounds` when it has them; otherwise infer from a monthly axis, where stamps that all fall on the first day of a month at 00:00 are read as `start` and stamps that all fall on a month's last day as `end`. Every other axis is left as `center`, with a warning. |
+| `start` | Each stamp opens the interval it labels. |
+| `center` | Each stamp is used as written. |
+| `end` | Each stamp closes the interval it labels. A monthly stamp of `2020-02-01T00:00` is the exclusive end of January. |
+
+If the time variable advertises a CF `bounds` attribute, `auto` takes each record's
+interval straight from the bounds variable and infers nothing. An explicit `time_label`
+overrides the bounds as a manual escape hatch.
+
+Without bounds, `auto` only infers `start` or `end` from a monthly axis. On a daily or
+sub-daily axis a midnight stamp is equally consistent with an interval start and with
+instantaneous data, so those records are left as written and the driver logs a warning
+naming the axis — set `time_label` explicitly for averaged sub-daily data.
+
+`start` and `end` apply to any decoded axis. The opposite bound is the neighbouring
+record, so an hourly-mean file stamped on the hour brackets against half-hour centers.
+Monthly axes use calendar arithmetic instead, since month lengths vary.
+
+Labeling affects both nearest-record selection and `linear` weights. Without it, a file
+stamping December data `2020-12-01` would send a December 20 simulation time to the
+January record.
+
 ### Temporal Alignment Semantics (`yearAlign`, `taxmode`)
 
 `yearAlign` shifts the simulation time onto the file's time axis: it names the
@@ -709,10 +743,12 @@ $$\text{effective\_year} = \text{yearFirst} + (\text{sim\_year} - \text{yearAlig
 `taxmode` decides what happens when the simulation time falls outside the file's
 coverage:
 
-* **`cycle`** (default): wrap the simulation time back into the file's range, repeating
-  the file's coverage indefinitely. The repeat period runs one record interval past the
-  last record, so a 48-record hourly file repeats every 48 hours and simulation hour 53
-  reads record 5.
+* **`cycle`** (default): for a file whose records span whole calendar years, clamp the
+  simulation year to the closest year the file covers, keeping the month-by-month
+  seasonality of that year. A 2000–2023 inventory reads its 2023 records for simulation
+  year 2026, and a single-year climatology reads its one year every simulation year. A
+  sub-annual axis carries no year structure, so it wraps by the axis period instead: a
+  48-record hourly file repeats every 48 hours and simulation hour 53 reads record 5.
 * **`extend`**: clamp to the nearest end of the file's coverage. Useful for running past
   the last year of an inventory.
 * **`limit`**: no record is resolved and the run fails.
@@ -751,17 +787,19 @@ cece_data:
       tintalgo: "linear"
 ```
 
-#### 3. Repetitive Multi-Year Cycles
-**Scenario:** You have a 10-year dataset (2000–2010) and want to repeat this 10-year cycle continuously for long-term climate or air quality simulations (e.g., 2011–2030).
+#### 3. Holding a Multi-Year Inventory's Seasonal Cycle
+**Scenario:** You have a 10-year dataset (2000–2010) and are simulating 2011–2030. Later simulation years should keep the file's seasonal cycle rather than freezing on its final record.
 ```yaml
 cece_data:
   streams:
     - name: "CYCLING_INVENTORY"
       file: "/data/emissions/inventory_2000-2010.nc"
       cadence: "monthly"
-      taxmode: "cycle"          # Sim year 2011 wraps back to the start of the file
+      taxmode: "cycle"          # Sim years after 2010 read the 2010 records, month by month
       tintalgo: "linear"
 ```
+Where `extend` would hold the single last record (December 2010) for the rest of the run,
+`cycle` clamps only the year, so each simulation month still reads that month's record.
 
 #### 4. Applying a Single-Year Inventory to a Different Simulation Year
 **Scenario:** You have a single-year inventory for year 2010, but you are running a simulation for year 2020.
