@@ -1,0 +1,115 @@
+# =====================================================================
+# CECE CEDS OC end-to-end benchmark config — LOCAL TIME ON
+# =====================================================================
+# Identical to cece_config_ceds_oc_bench.yaml except:
+#   - top-level local_time section enabled (F1440 UTC-offset grid),
+#   - an hourly diurnal identity profile (hour_id),
+#   - the OC_ENE layer opts into local-time scaling.
+# Used for the SC-005 cost check: run this and the baseline back to back
+# and compare per-timestep wall clock. Target: single-digit % overhead —
+# the grid is decoded once at init (no per-step file I/O), and the only
+# per-step work is one (nx, ny_local) factor fill folded into the fused
+# stacking kernel via the existing scale-field channel.
+# =====================================================================
+driver:
+  start_time: "2023-01-01T00:00:00"
+  end_time: "2023-04-01T00:00:00"
+  timestep_seconds: 2592000 # ~30 days; monthly cadence -> distinct records
+  grid:
+    nx: 1440
+    ny: 720
+    lon_min: -180.0
+    lon_max: 180.0
+    lat_min: -90.0
+    lat_max: 90.0
+
+# --- Local-time service (the feature under benchmark) ---
+local_time:
+  enabled: true
+  grid_file: /work/data/utc_grid_f720r.rle
+
+# Identity diurnal profile so the applied factor equals the local hour.
+temporal_profiles:
+  hour_id:
+    [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+    ]
+
+species:
+  oc:
+    - field: "OC_ENE"
+      operation: "add"
+      diurnal_cycle: "hour_id"
+      use_local_time: true
+    - field: "OC_IND"
+      operation: "add"
+    - field: "OC_TRA"
+      operation: "add"
+
+cece_data:
+  streams:
+    - name: "OC_ENE"
+      file: "/work/data/OC-em-anthro_CMIP_CEDS_2023.nc"
+      taxmode: "cycle"
+      tintalgo: "linear"
+      mapalgo: "consd"
+      cadence: "monthly"
+      variables:
+        - file: "OC_ene"
+          model: "OC_ENE"
+    - name: "OC_IND"
+      file: "/work/data/OC-em-anthro_CMIP_CEDS_2023.nc"
+      taxmode: "cycle"
+      tintalgo: "linear"
+      mapalgo: "consd"
+      cadence: "monthly"
+      variables:
+        - file: "OC_ind"
+          model: "OC_IND"
+    - name: "OC_TRA"
+      file: "/work/data/OC-em-anthro_CMIP_CEDS_2023.nc"
+      taxmode: "cycle"
+      tintalgo: "linear"
+      mapalgo: "consd"
+      cadence: "monthly"
+      variables:
+        - file: "OC_tra"
+          model: "OC_TRA"
+
+diagnostics:
+  output_interval_seconds: 2592000
+  variables: ["oc"]
+
+output:
+  enabled: true
+  directory: ./cece_output_ceds_localtime
+  filename_pattern: "cece_ceds_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
+  frequency_steps: 1
+  fields:
+    - name: oc
+      attributes:
+        units: "kg m-2 s-1"
+        long_name: "organic_carbon_emission_flux"

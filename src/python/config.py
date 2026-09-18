@@ -142,6 +142,7 @@ class EmissionLayer:
     diurnal_cycle: Optional[str] = None
     weekly_cycle: Optional[str] = None
     seasonal_cycle: Optional[str] = None
+    use_local_time: bool = False
 
     def validate(self) -> None:
         """
@@ -160,6 +161,30 @@ class EmissionLayer:
         if self.scale < 0:
             raise ValueError("scale must be non-negative")
         self.vdist.validate()
+
+
+@dataclass
+class LocalTimeConfig:
+    """
+    Configuration for the local-time service (feature 001).
+
+    Opt-in: when disabled (the default) no UTC-offset grid is opened and
+    temporal scaling behaves exactly as the pre-feature UTC path.
+
+    Parameters
+    ----------
+    enabled : bool, optional
+        Master switch for local-time temporal scaling. Default is ``False``.
+    grid_file : str or None, optional
+        Path to the RLE UTC-offset grid (e.g. ``data/utc_grid_f720r.rle``).
+        ``None``/empty means the repository default. Default is ``None``.
+    """
+
+    enabled: bool = False
+    grid_file: Optional[str] = None
+
+    def validate(self) -> None:
+        """Validate local-time parameters (currently a no-op placeholder)."""
 
 
 @dataclass
@@ -355,6 +380,7 @@ class CeceConfig:
         self._cece_data: Dict[str, Any] = {"streams": []}
         self._vertical_config: VerticalDistributionConfig = VerticalDistributionConfig()
         self._temporal_cycles: Dict[str, List] = {}
+        self._local_time: LocalTimeConfig = LocalTimeConfig()
 
         if config_dict:
             self._from_dict(config_dict)
@@ -584,6 +610,7 @@ class CeceConfig:
                         "vdist_p_end": layer.vdist.p_end,
                         "vdist_h_start": layer.vdist.h_start,
                         "vdist_h_end": layer.vdist.h_end,
+                        "use_local_time": layer.use_local_time,
                     }
                     for layer in layers
                 ]
@@ -607,6 +634,10 @@ class CeceConfig:
                 ]
             },
             "temporal_cycles": self._temporal_cycles,
+            "local_time": {
+                "enabled": self._local_time.enabled,
+                "grid_file": self._local_time.grid_file,
+            },
         }
 
     @classmethod
@@ -698,6 +729,7 @@ class CeceConfig:
                     operation=layer_data.get("operation", "add"),
                     scale=layer_data.get("scale", 1.0),
                     vdist=vdist,
+                    use_local_time=layer_data.get("use_local_time", False),
                 )
                 layers.append(layer)
             if layers:
@@ -726,6 +758,14 @@ class CeceConfig:
         for name, factors in config_dict.get("temporal_cycles", {}).items():
             self.add_temporal_cycle(name, factors)
 
+        # Local-time service (feature 001)
+        lt = config_dict.get("local_time", {})
+        if lt:
+            self._local_time = LocalTimeConfig(
+                enabled=lt.get("enabled", False),
+                grid_file=lt.get("grid_file", None),
+            )
+
     @property
     def species(self) -> Dict[str, List[EmissionLayer]]:
         """dict : Mapping of species names to lists of ``EmissionLayer``."""
@@ -745,3 +785,8 @@ class CeceConfig:
     def vertical_config(self) -> VerticalDistributionConfig:
         """VerticalDistributionConfig : Default vertical distribution settings."""
         return self._vertical_config
+
+    @property
+    def local_time(self) -> LocalTimeConfig:
+        """LocalTimeConfig : Local-time service settings (feature 001)."""
+        return self._local_time

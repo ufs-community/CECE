@@ -76,6 +76,15 @@ class CeceClock {
      */
     int BaseTimestep() const;
 
+    /**
+     * @brief Returns the simulation start time as seconds since the Unix epoch.
+     * @details Exposed for the local-time service (feature 001), which needs the
+     *          absolute start instant to derive per-step UTC epoch seconds.
+     */
+    int64_t StartEpochSeconds() const {
+        return start_epoch_secs_;
+    }
+
    private:
     int64_t start_epoch_secs_;  ///< start_time as seconds since Unix epoch
     int64_t end_epoch_secs_;    ///< end_time as seconds since Unix epoch

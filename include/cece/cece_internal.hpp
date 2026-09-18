@@ -10,6 +10,7 @@
 #include "cece/cece_config.hpp"
 #include "cece/cece_data_ingestor.hpp"
 #include "cece/cece_diagnostics.hpp"
+#include "cece/cece_local_time.hpp"
 #include "cece/cece_provenance.hpp"
 #include "cece/cece_stacking_engine.hpp"
 #include "cece/cece_state.hpp"
@@ -36,6 +37,10 @@ struct CeceInternalData {
     int step_count = 0;                ///< Current time step counter for output frequency gating.
     std::string start_time_iso8601;    ///< Start time in ISO 8601 format for output.
     std::unique_ptr<CeceClock> clock;  ///< Clock for per-component refresh interval scheduling.
+
+    /// Local-time service (feature 001). Null when local_time is disabled —
+    /// temporal scaling then takes the exact pre-feature UTC scalar path.
+    std::unique_ptr<LocalTimeService> local_time;
 
     // Cached metadata
     int nx = 0, ny = 0, nz = 0;                     ///< Cached grid dimensions (ny is the GLOBAL latitude count).

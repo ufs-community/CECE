@@ -2,6 +2,7 @@
 #define CECE_STACKING_ENGINE_HPP
 
 #include <Kokkos_Core.hpp>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <string_view>
@@ -12,6 +13,8 @@
 #include "cece/cece_provenance.hpp"
 
 namespace cece {
+
+class LocalTimeService;  // feature 001: per-cell local-time factor source (defined in cece_local_time.hpp)
 
 /**
  * @brief Alias for an unmanaged 3D device View, safe for use in POD-like structures
@@ -77,10 +80,18 @@ class StackingEngine {
 
     /**
      * @brief Executes the emission stacking for all species.
+     *
+     * @param local_time       Optional local-time service (feature 001). When
+     *                         non-null and a layer opts in via use_local_time,
+     *                         its temporal cycles are evaluated at each cell's
+     *                         local time. Null => pure UTC scalar path (default).
+     * @param elapsed_seconds  Seconds since run start for this step; combined
+     *                         with the service's start instant to get the UTC
+     *                         epoch used for the local-time lookups.
      */
     void Execute(FieldResolver& resolver, int nx, int ny, int nz,
                  Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> default_mask, int hour, int day_of_week, int month = 0,
-                 ProvenanceTracker* provenance = nullptr);
+                 ProvenanceTracker* provenance = nullptr, const LocalTimeService* local_time = nullptr, std::int64_t elapsed_seconds = 0);
 
     /**
      * @brief Resets the bound field handles.
@@ -126,6 +137,10 @@ class StackingEngine {
 
         // Integer category id computed at precompile time and used by device code
         int category_id = 0;
+
+        // Feature 001: evaluate this layer's temporal cycles at each cell's LOCAL
+        // time instead of the UTC scalar hour/dow/month.
+        bool use_local_time = false;
     };
 
     struct CompiledSpecies {
@@ -148,6 +163,12 @@ class StackingEngine {
 
         /// Flag to track if field handles are already resolved.
         bool fields_bound = false;
+
+        // Feature 001: engine-owned band-local (nx, ny_local, 1) per-cell temporal
+        // factor fields, one per opted-in layer, deep-copied into DeviceLayer::scales[]
+        // each step. The engine owns this memory so the unmanaged scale handles stay
+        // valid for the whole fused-kernel lifetime.
+        std::vector<Kokkos::View<double***, Kokkos::LayoutLeft>> local_factor_fields;
     };
 
     CeceConfig m_config;
@@ -155,8 +176,12 @@ class StackingEngine {
     ProvenanceTracker m_provenance_tracker;
 
     void PreCompile();
-    void BindFields(CompiledSpecies& spec, FieldResolver& resolver, int nx, int ny, int nz) const;
-    void UpdateTemporalScales(CompiledSpecies& spec, int hour, int day_of_week, int month = 0);
+    void BindFields(CompiledSpecies& spec, FieldResolver& resolver, int nx, int ny, int nz, const LocalTimeService* local_time) const;
+    void UpdateTemporalScales(CompiledSpecies& spec, int hour, int day_of_week, int month, const LocalTimeService* local_time,
+                              std::int64_t utc_epoch_secs);
+    /// Feature 001: fill each opted-in layer's per-cell (nx, ny, 1) temporal
+    /// factor field from the local-time service at the step's UTC instant.
+    void FillLocalTimeFactors(CompiledSpecies& spec, const LocalTimeService* local_time, std::int64_t utc_epoch_secs);
 };
 
 }  // namespace cece

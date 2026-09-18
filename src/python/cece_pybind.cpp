@@ -146,6 +146,7 @@ PYBIND11_MODULE(_cece_core, m) {
         .def_readwrite("diurnal_cycle", &cece::EmissionLayer::diurnal_cycle)
         .def_readwrite("weekly_cycle", &cece::EmissionLayer::weekly_cycle)
         .def_readwrite("seasonal_cycle", &cece::EmissionLayer::seasonal_cycle)
+        .def_readwrite("use_local_time", &cece::EmissionLayer::use_local_time)
         .def_readwrite("vdist_method", &cece::EmissionLayer::vdist_method)
         .def_readwrite("vdist_layer_start", &cece::EmissionLayer::vdist_layer_start)
         .def_readwrite("vdist_layer_end", &cece::EmissionLayer::vdist_layer_end)
@@ -157,6 +158,13 @@ PYBIND11_MODULE(_cece_core, m) {
     // --- TemporalCycle Binding (needed for CeceConfig.temporal_cycles) ---
 
     py::class_<cece::TemporalCycle>(m, "TemporalCycle").def(py::init<>()).def_readwrite("factors", &cece::TemporalCycle::factors);
+
+    // --- LocalTimeConfig Binding (feature 001) ---
+
+    py::class_<cece::LocalTimeConfig>(m, "LocalTimeConfig")
+        .def(py::init<>())
+        .def_readwrite("enabled", &cece::LocalTimeConfig::enabled)
+        .def_readwrite("grid_file", &cece::LocalTimeConfig::grid_file);
 
     // --- PhysicsSchemeConfig Binding (needed for CeceConfig.physics_schemes) ---
 
@@ -174,6 +182,7 @@ PYBIND11_MODULE(_cece_core, m) {
         .def_readwrite("scale_factor_mapping", &cece::CeceConfig::scale_factor_mapping)
         .def_readwrite("mask_mapping", &cece::CeceConfig::mask_mapping)
         .def_readwrite("temporal_cycles", &cece::CeceConfig::temporal_cycles)
+        .def_readwrite("local_time", &cece::CeceConfig::local_time)
         .def_readwrite("physics_schemes", &cece::CeceConfig::physics_schemes);
 
     // --- Module-level functions ---

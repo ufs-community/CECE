@@ -1,0 +1,110 @@
+# =====================================================================
+# CECE Local-Time Example: diurnal scaling evaluated at LOCAL time
+# =====================================================================
+# Demonstrates the local-time temporal-scaling feature (feature 001).
+#
+# Key Features Tested:
+#   - Top-level `local_time` section (enabled + grid_file).
+#   - Per-layer `use_local_time: true` opt-in on a diurnal layer.
+#   - Identity diurnal profile hour_id (factor[i] = i) so the applied
+#     scale reveals which local hour was used per cell.
+#
+# Self-contained: uses the repo-local CEDS OC file (like
+# cece_config_ceds_oc_small.yaml) so it runs inside the cece-dev
+# container without gpfs mounts.
+#
+# Validation at 06:00 UTC (start_time below):
+#   - cell at offset -8h  -> applied factor 22  (06-8 mod 24, prev local day)
+#   - ocean cell (offset 0) -> factor 6         (UTC)
+#   - cell at offset +5:30 -> factor 11         (11:30 local -> hour 11)
+#   - cell at offset +12h  -> factor 18
+# =====================================================================
+driver:
+  start_time: "2023-01-01T06:00:00"
+  end_time: "2023-01-01T07:00:00"
+  timestep_seconds: 3600
+  grid:
+    nx: 72
+    ny: 36
+    lon_min: -180.0
+    lon_max: 180.0
+    lat_min: -90.0
+    lat_max: 90.0
+
+# --- Local-time service (opt-in; default off elsewhere) ---
+local_time:
+  enabled: true
+  grid_file: /work/data/utc_grid_f720r.rle
+
+# Identity diurnal profile: factor[i] = i. The applied scale on a local-time
+# layer therefore equals the local hour used for that cell.
+temporal_profiles:
+  hour_id:
+    [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+    ]
+
+species:
+  oc:
+    # Local-time layer: diurnal factor chosen by each cell's LOCAL hour.
+    - field: "OC_ENE"
+      operation: "add"
+      diurnal_cycle: "hour_id"
+      use_local_time: true
+    # UTC layer (no opt-in): identical behavior to a pre-feature run.
+    - field: "OC_IND"
+      operation: "add"
+    - field: "OC_TRA"
+      operation: "add"
+
+cece_data:
+  streams:
+    - name: "CEDS_OC"
+      file: "/work/data/OC-em-anthro_CMIP_CEDS_2023.nc"
+      taxmode: "cycle"
+      tintalgo: "linear"
+      mapalgo: "consd"
+      cadence: "monthly"
+      variables:
+        - file: "OC_ene"
+          model: "OC_ENE"
+        - file: "OC_ind"
+          model: "OC_IND"
+        - file: "OC_tra"
+          model: "OC_TRA"
+
+diagnostics:
+  output_interval_seconds: 3600
+  variables: ["oc"]
+
+output:
+  enabled: true
+  directory: "./cece_localtime_out"
+  frequency_steps: 1
+  fields:
+    - name: oc
+      attributes:
+        units: "kg m-2 s-1"

@@ -72,6 +72,8 @@ void cece_core_finalize(void* data_ptr, int* rc);
 void cece_core_writer_initialize(void* data_ptr, int nx, int ny, int nz, const char* start_time_iso8601, int start_time_len, int mpi_comm_f, int* rc);
 void cece_core_writer_initialize_with_coords(void* data_ptr, int nx, int ny, int nz, const double* lon_coords, int lon_len, const double* lat_coords,
                                              int lat_len, const char* start_time_iso8601, int start_time_len, int mpi_comm_f, int* rc);
+void cece_core_local_time_init(void* data_ptr, int nx, int ny, int nz, const double* lon_coords, int lon_len, const double* lat_coords, int lat_len,
+                               int mpi_comm_f, int* rc);
 void cece_core_write_step(void* data_ptr, double time_seconds, int step_index, int* rc);
 void cece_core_set_export_field(void* data_ptr, const char* name, int name_len, const double* field_data, int nx, int ny, int nz, int* rc);
 }
@@ -465,6 +467,16 @@ int main(int argc, char* argv[]) {
         }
         if (rc < 0) {
             cece::LogFatal("[DRIVER FATAL] (rank " + std::to_string(my_rank) + ") Writer initialization failed with rc=" + std::to_string(rc));
+            return rc;
+        }
+
+        // Local-time service: decode the UTC-offset grid once and attach it to the
+        // core (no-op when local_time.enabled is false). Coordinates are available
+        // here (file_lons/file_lats), same point as the writer init above.
+        cece_core_local_time_init(cece_data_ptr, nx, ny, nz, file_lons.data(), static_cast<int>(file_lons.size()), file_lats.data(),
+                                  static_cast<int>(file_lats.size()), writer_comm_f, &rc);
+        if (rc < 0) {
+            cece::LogFatal("[DRIVER FATAL] (rank " + std::to_string(my_rank) + ") Local-time initialization failed with rc=" + std::to_string(rc));
             return rc;
         }
 

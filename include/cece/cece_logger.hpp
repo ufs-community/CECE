@@ -93,6 +93,19 @@ class CeceLogger {
     }
 
     /**
+     * @brief Register an additional caller-owned output stream as a LOGS sink.
+     * @details Backed by helm/libs/logs logs::Sink, which wraps exactly one
+     *          std::ostream and never owns it. Intended for tests/diagnostics
+     *          that need to capture or redirect log records; the caller must
+     *          keep the stream alive for as long as records may be logged.
+     *          Records are written to every registered sink (including the
+     *          default stdout sink), so this captures rather than replaces.
+     */
+    void AddStreamSink(std::ostream& stream) {
+        logger_.add_sink(logs::Sink(stream));
+    }
+
+    /**
      * @brief Log an error message
      */
     void LogError(const std::string& message, const std::string& file = "", int line = 0) {

@@ -1,0 +1,83 @@
+# =====================================================================
+# Local-time fallback fixture: enabled, but grid_file does not exist.
+# =====================================================================
+# Used by tests/test_local_time_fallback.cpp and quickstart SC-004.
+# Expected: exactly ONE startup warning, run completes, and output is
+# byte-identical to the same config with local_time disabled (UTC mode).
+# =====================================================================
+driver:
+  start_time: "2023-01-01T06:00:00"
+  end_time: "2023-01-01T07:00:00"
+  timestep_seconds: 3600
+  grid:
+    nx: 72
+    ny: 36
+    lon_min: -180.0
+    lon_max: 180.0
+    lat_min: -90.0
+    lat_max: 90.0
+
+local_time:
+  enabled: true
+  grid_file: /work/data/does_not_exist_f720r.rle
+
+temporal_profiles:
+  hour_id:
+    [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+    ]
+
+species:
+  oc:
+    - field: "OC_ENE"
+      operation: "add"
+      diurnal_cycle: "hour_id"
+      use_local_time: true
+
+cece_data:
+  streams:
+    - name: "CEDS_OC"
+      file: "/work/data/OC-em-anthro_CMIP_CEDS_2023.nc"
+      taxmode: "cycle"
+      tintalgo: "linear"
+      mapalgo: "consd"
+      cadence: "monthly"
+      variables:
+        - file: "OC_ene"
+          model: "OC_ENE"
+
+diagnostics:
+  output_interval_seconds: 3600
+  variables: ["oc"]
+
+output:
+  enabled: true
+  directory: "./cece_localtime_fallback_out"
+  frequency_steps: 1
+  fields:
+    - name: oc
+      attributes:
+        units: "kg m-2 s-1"

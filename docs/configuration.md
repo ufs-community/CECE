@@ -22,6 +22,9 @@ masks:
 temporal_profiles:
   # ... periodic scaling factors (diurnal, weekly, etc.) ...
 
+local_time:
+  # ... opt-in per-cell UTC-to-local time conversion (default: disabled) ...
+
 species:
   # ... species definitions ...
 
@@ -221,6 +224,67 @@ temporal_profiles:
 
 ---
 
+## `local_time`
+
+Opt-in feature that converts UTC to **local solar time per grid cell** so that
+temporal cycles (`diurnal_cycle`, `weekly_cycle`, `seasonal_cycle`) can be
+evaluated at local time. It is **disabled by default**; with the feature off
+(or when a layer omits `use_local_time`) behavior is bit-identical to a
+pre-feature run.
+
+| Key | Type | Description |
+| --- | --- | --- |
+| `enabled` | Boolean | Master switch. When `false` (default) or the section is absent, the grid file is never opened and no memory is allocated. |
+| `grid_file` | String | Path to the RLE-compressed UTC-offset grid (e.g. `data/utc_grid_f720r.rle`). Defaults to `data/utc_grid_f720r.rle` when empty. |
+
+**Example:**
+```yaml
+local_time:
+  enabled: true
+  grid_file: data/utc_grid_f720r.rle
+
+temporal_profiles:
+  traffic_diurnal: [0.5, 0.3, 0.2, 0.3, 0.6, 1.2, 1.8, 1.5, 1.2, 1.0, 1.1, 1.2,
+                    1.3, 1.2, 1.3, 1.5, 1.8, 2.0, 1.8, 1.5, 1.2, 1.0, 0.8, 0.6]
+
+species:
+  co:
+    - field: "traffic_co"
+      diurnal_cycle: "traffic_diurnal"
+      use_local_time: true   # this layer scales at local time
+    - field: "background_co"
+      operation: "add"       # UTC scaling (unchanged behavior)
+```
+
+### How it works
+
+- The grid file is decoded **once** at initialization into a dense cosine-reduced
+  raster of signed UTC offsets (quarter-hour precision, produced by
+  `scripts/python/utcoffset_generator.py` from a timezone snapshot): 1440 uniform
+  0.125° latitude rows whose column count tapers toward the poles
+  (`ncol = max(4, 4·round(720·cos lat))`), giving ~14 km ground resolution
+  everywhere at 36% fewer cells than a full regular grid. Each rank
+  keeps only a read-only band-local device array of its own cells' offsets.
+- Each cell uses the **nearest grid cell** (no interpolation). Ocean and
+  unresolved points carry offset 0, i.e. UTC.
+- Local hour / day-of-week / month are derived with integer arithmetic and
+  correct date rollover (a −8 h offset at 02:00 UTC yields 18:00 the previous
+  local day, and the weekly cycle follows the local day).
+- **All outputs remain UTC**: NetCDF time axes, provenance records, and log
+  timestamps are untouched — local time is an internal computation input only.
+- **Graceful fallback**: if the grid file is missing or corrupt, exactly one
+  warning is logged at startup and the run continues in UTC mode (offset 0
+  everywhere) — a partial grid is never silently used.
+- The offset source sits behind a provider interface (`IUtcOffsetProvider`),
+  so a future DST-aware / time-varying source can replace the static grid
+  without any configuration-schema or consumer changes.
+
+See [examples/cece_config_localtime.yaml](https://github.com/ufs-community/CECE/blob/develop/examples/cece_config_localtime.yaml)
+for a self-contained runnable example (an identity diurnal profile reveals the
+local hour actually used per cell).
+
+---
+
 ## `species`
 
 The `species` block defines the emission targets and the layers that contribute to them. This is the core configuration section that determines how different emission sources are combined.
@@ -239,6 +303,7 @@ The `species` block defines the emission targets and the layers that contribute 
 | `diurnal_cycle` | String | (Optional) Reference to temporal profile for diurnal scaling |
 | `weekly_cycle` | String | (Optional) Reference to temporal profile for weekly scaling |
 | `seasonal_cycle` | String | (Optional) Reference to temporal profile for seasonal scaling |
+| `use_local_time` | Boolean | (Optional) Evaluate this layer's temporal cycles at each cell's **local** time instead of UTC (requires the global `local_time.enabled`; Default: `false`) |
 
 ### Vertical Distribution Properties
 

@@ -908,6 +908,101 @@ physics_schemes:
     EXPECT_EQ(config.driver_config.grid.ny, 4);
 }
 
+// ---------------------------------------------------------------------------
+// Feature 001 (local-time support) — T025 [US3]: opt-in config parsing.
+// Absent section / enabled:false must leave the defaults untouched so the
+// initialization short-circuit (no file open, no allocation) holds.
+// ---------------------------------------------------------------------------
+
+TEST_F(DriverConfigurationTest, LocalTimeDefaultsDisabledWhenSectionAbsent) {
+    WriteConfigFile(test_config_file, R"(
+species:
+  CO:
+    - operation: add
+      field: CO_anthro
+      hierarchy: 0
+      scale: 1.0
+
+physics_schemes:
+  - name: NativeExample
+    language: cpp
+)");
+
+    CeceConfig config = ParseConfig(test_config_file);
+    EXPECT_FALSE(config.local_time.enabled);
+    EXPECT_TRUE(config.local_time.grid_file.empty());
+    // Per-layer default: UTC scaling (pre-feature behavior).
+    EXPECT_FALSE(config.species_layers.at("CO").front().use_local_time);
+}
+
+TEST_F(DriverConfigurationTest, LocalTimeDisabledExplicitlyParses) {
+    WriteConfigFile(test_config_file, R"(
+local_time:
+  enabled: false
+  grid_file: "data/utc_grid_f720r.rle"
+
+species:
+  CO:
+    - operation: add
+      field: CO_anthro
+      hierarchy: 0
+      scale: 1.0
+      use_local_time: false
+)");
+
+    CeceConfig config = ParseConfig(test_config_file);
+    EXPECT_FALSE(config.local_time.enabled);  // disabled => init short-circuits
+    EXPECT_EQ(config.local_time.grid_file, "data/utc_grid_f720r.rle");
+    EXPECT_FALSE(config.species_layers.at("CO").front().use_local_time);
+}
+
+TEST_F(DriverConfigurationTest, LocalTimeEnabledAndLayerOptInParse) {
+    WriteConfigFile(test_config_file, R"(
+local_time:
+  enabled: true
+  grid_file: "data/utc_grid_f720r.rle"
+
+species:
+  CO:
+    - operation: add
+      field: CO_anthro
+      hierarchy: 0
+      scale: 1.0
+      use_local_time: true
+    - operation: add
+      field: CO_biomass
+      hierarchy: 1
+      scale: 1.0
+)");
+
+    CeceConfig config = ParseConfig(test_config_file);
+    EXPECT_TRUE(config.local_time.enabled);
+    EXPECT_EQ(config.local_time.grid_file, "data/utc_grid_f720r.rle");
+    // Per-layer opt-in is independent: only the flagged layer scales locally.
+    auto& layers = config.species_layers.at("CO");
+    EXPECT_TRUE(layers.front().use_local_time);
+    EXPECT_FALSE(layers.back().use_local_time);
+}
+
+TEST_F(DriverConfigurationTest, LocalTimeNonMapSectionIgnored) {
+    // A malformed (non-map) local_time value must not crash the parser and
+    // must leave the disabled default in place (safe opt-in contract).
+    WriteConfigFile(test_config_file, R"(
+local_time: true
+
+species:
+  CO:
+    - operation: add
+      field: CO_anthro
+      hierarchy: 0
+      scale: 1.0
+)");
+
+    CeceConfig config = ParseConfig(test_config_file);
+    EXPECT_FALSE(config.local_time.enabled);
+    EXPECT_TRUE(config.local_time.grid_file.empty());
+}
+
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     return RUN_ALL_TESTS();

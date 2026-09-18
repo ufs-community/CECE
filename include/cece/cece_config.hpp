@@ -117,6 +117,8 @@ struct EmissionLayer {
     std::string diurnal_cycle;              ///< Name of the diurnal cycle to apply (24 factors).
     std::string weekly_cycle;               ///< Name of the weekly cycle to apply (7 factors).
     std::string seasonal_cycle;             ///< Name of the seasonal cycle to apply (12 factors).
+    bool use_local_time = false;            ///< Evaluate this layer's temporal cycles at local
+                                            ///< time (requires local_time.enabled; default UTC).
 
     // Vertical distribution
     VerticalDistributionMethod vdist_method = VerticalDistributionMethod::SINGLE;  ///< Method for vertical distribution.
@@ -443,6 +445,18 @@ struct DriverConfig {
 };
 
 /**
+ * @struct LocalTimeConfig
+ * @brief Configuration for the local-time service (feature 001).
+ *
+ * Opt-in: when disabled (default) no grid file is opened, no allocation
+ * happens, and temporal scaling behaves exactly as the pre-feature UTC path.
+ */
+struct LocalTimeConfig {
+    bool enabled = false;   ///< Master switch for local-time temporal scaling.
+    std::string grid_file;  ///< Path to the RLE UTC-offset grid; empty => "data/utc_grid_f720r.rle".
+};
+
+/**
  * @struct CeceConfig
  * @brief Top-level configuration for CECE.
  */
@@ -472,6 +486,8 @@ struct CeceConfig {
     CeceOutputConfig output_config;
     /// Configuration for the standalone NUOPC driver (optional).
     DriverConfig driver_config;
+    /// Configuration for the local-time service (feature 001; default off).
+    LocalTimeConfig local_time;
     /// Registry of meteorology variable internal names to their external aliases.
     std::unordered_map<std::string, std::vector<std::string>> met_registry;
 };

@@ -144,6 +144,46 @@ species:
       operation: "add"
 ```
 
+### Local-Time Scaling
+
+By default every cycle uses the UTC hour / day-of-week / month of the step — a
+single scalar factor per layer. A layer can instead evaluate its cycles at
+each cell's **local time** by setting `use_local_time: true` (requires the
+top-level `local_time` section to be enabled; see
+[configuration.md](configuration.md)):
+
+```yaml
+local_time:
+  enabled: true
+  grid_file: data/utc_grid_f720r.rle
+
+species:
+  co:
+    - field: "traffic_co"
+      diurnal_cycle: "traffic_diurnal"
+      use_local_time: true
+```
+
+Implementation notes:
+
+- The UTC-offset grid (cosine-reduced 0.125° lattice, quarter-hour precision —
+  uniform latitude rows, column count tapering with cos(lat)) is decoded once at
+  initialization; each rank holds a read-only band-local device array of
+  per-cell offsets. Nearest-cell lookup, no interpolation.
+- Per opted-in layer the engine owns a `(nx, ny_local, 1)` factor field that
+  it refills every step with `D[hour_local] · W[dow_local] · S[month_local]`
+  (only the cycles the layer names). The field is registered as an additional
+  scale field in the layer's device handle, so the fused stacking kernel
+  multiplies it in without any kernel change — per-cell scaling rides the
+  existing `scale_fields` channel.
+- The scalar `dev.scale` keeps the layer's base scale; the per-cell product
+  never leaks into provenance, which continues to record UTC time and the
+  scalar base scale (all outputs stay UTC).
+- When `local_time` is disabled, a layer's factor field is never allocated and
+  the engine takes the exact pre-feature scalar path — bit-identical output.
+- The offset source is an interface (`IUtcOffsetProvider`); a future DST-aware
+  provider can vary the offset by instant with no engine changes.
+
 ## Performance Considerations
 
 ### Memory Layout

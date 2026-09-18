@@ -285,6 +285,8 @@ set(
   src/core/cece_clock.cpp
   src/core/cece_config_parser.cpp
   src/core/cece_compute.cpp
+  src/core/cece_local_time.cpp
+  src/core/cece_utc_grid.cpp
   src/core/cece_stacking_engine.cpp
   src/core/cece_physics_factory.cpp
   src/core/cece_provenance.cpp
@@ -414,6 +416,7 @@ add_library(
   src/driver/cece_regridder_utils.cpp
   src/driver/cece_standalone_writer.cpp
   src/driver/cece_core_writer_init.cpp
+  src/driver/cece_core_local_time_init.cpp
   src/driver/cece_driver_facade.cpp
 )
 
@@ -509,6 +512,32 @@ target_link_libraries(test_hemco_mimic PRIVATE cece GTest::gtest_main)
 
 add_executable(test_stacking_engine tests/test_stacking_engine.cpp)
 target_link_libraries(test_stacking_engine PRIVATE cece GTest::gtest_main)
+
+# Feature 001 (local-time support): RLE grid decoder, local-time service, and
+# per-cell temporal scaling through the stacking engine.
+add_executable(test_utc_grid tests/test_utc_grid.cpp)
+target_link_libraries(test_utc_grid PRIVATE cece GTest::gtest_main)
+target_compile_definitions(test_utc_grid PRIVATE CECE_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}")
+
+add_executable(test_local_time_service tests/test_local_time_service.cpp)
+target_link_libraries(test_local_time_service PRIVATE cece GTest::gtest_main)
+target_compile_definitions(
+  test_local_time_service
+  PRIVATE CECE_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+)
+
+add_executable(test_local_time_stacking tests/test_local_time_stacking.cpp)
+target_link_libraries(test_local_time_stacking PRIVATE cece GTest::gtest_main)
+
+add_executable(test_local_time_fallback tests/test_local_time_fallback.cpp)
+target_link_libraries(test_local_time_fallback PRIVATE cece GTest::gtest_main)
+target_compile_definitions(
+  test_local_time_fallback
+  PRIVATE CECE_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+)
+
+add_executable(test_local_time_utc_outputs tests/test_local_time_utc_outputs.cpp)
+target_link_libraries(test_local_time_utc_outputs PRIVATE cece GTest::gtest_main)
 
 add_executable(test_vertical_distribution_single tests/test_vertical_distribution_single.cpp)
 target_link_libraries(test_vertical_distribution_single PRIVATE cece GTest::gtest_main)
@@ -1461,6 +1490,11 @@ gtest_discover_tests(test_driver_clock_management)
 gtest_discover_tests(test_clock_operations_unit)
 gtest_discover_tests(test_driver_integration_end_to_end)
 gtest_discover_tests(test_stacking_engine PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
+gtest_discover_tests(test_utc_grid PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
+gtest_discover_tests(test_local_time_service PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
+gtest_discover_tests(test_local_time_stacking PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
+gtest_discover_tests(test_local_time_fallback PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
+gtest_discover_tests(test_local_time_utc_outputs PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
 gtest_discover_tests(test_vertical_distribution_single PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
 gtest_discover_tests(test_cece_utils PROPERTIES PROCESSORS 1 ENVIRONMENT "OMP_PROC_BIND=false")
 gtest_discover_tests(test_numerical_equivalence PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
