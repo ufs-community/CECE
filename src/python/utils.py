@@ -14,6 +14,7 @@ cece.initialize : Uses ``load_config`` internally.
 from __future__ import annotations
 
 import logging
+import types
 from pathlib import Path
 from typing import Union
 
@@ -21,6 +22,15 @@ import numpy as np
 
 from .config import CeceConfig
 from .exceptions import CeceConfigError
+
+
+def _try_import_yaml() -> types.ModuleType:
+    """Import yaml or raise an error with directions for install."""
+    try:
+        import yaml
+    except ImportError:
+        raise ImportError("PyYAML is required. Install with: pip install pyyaml")
+    return yaml
 
 
 def load_config(config: Union[str, dict, CeceConfig]) -> CeceConfig:
@@ -189,10 +199,7 @@ def dict_to_yaml(config_dict: dict) -> str:
     ImportError
         If PyYAML is not installed.
     """
-    try:
-        import yaml
-    except ImportError:
-        raise ImportError("PyYAML is required. Install with: pip install pyyaml")
+    yaml = _try_import_yaml()
 
     return yaml.dump(config_dict, default_flow_style=False, sort_keys=False)
 
@@ -218,10 +225,7 @@ def yaml_to_dict(yaml_str: str) -> dict:
     ValueError
         If the YAML string is malformed or does not represent a dictionary.
     """
-    try:
-        import yaml
-    except ImportError:
-        raise ImportError("PyYAML is required. Install with: pip install pyyaml")
+    yaml = _try_import_yaml()
 
     try:
         config_dict = yaml.safe_load(yaml_str)

@@ -17,6 +17,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Any
 
+from . import utils
+
 
 @dataclass
 class VerticalDistributionConfig:
@@ -655,17 +657,9 @@ class CeceConfig:
         ValueError
             If the YAML string is malformed or does not represent a dict.
         """
+        yaml = utils._try_import_yaml()
         try:
-            import yaml
-        except ImportError:
-            raise ImportError(
-                "PyYAML is required for YAML parsing. Install with: pip install pyyaml"
-            )
-
-        try:
-            config_dict = yaml.safe_load(yaml_str)
-            if not isinstance(config_dict, dict):
-                raise ValueError("YAML must represent a dictionary")
+            config_dict = utils.yaml_to_dict(yaml_str)
             return cls.from_dict(config_dict)
         except yaml.YAMLError as e:
             raise ValueError(f"Invalid YAML: {str(e)}")

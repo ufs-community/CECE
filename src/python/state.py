@@ -18,7 +18,7 @@ cece.compute : Execute computation using state fields.
 
 from __future__ import annotations
 
-from typing import Any, Dict, Iterator, List, Optional, Tuple, Union
+from typing import Dict, FrozenSet, Iterator, List, Optional, Tuple, Union
 
 import numpy as np
 
@@ -170,7 +170,7 @@ class FieldDict:
         """
         return iter(self._fields)
 
-    def keys(self) -> Any:
+    def keys(self) -> FrozenSet[str]:
         """
         Get all field names.
 
@@ -203,7 +203,9 @@ class FieldDict:
         """
         return [(name, f.array) for name, f in self._fields.items()]
 
-    def get(self, name: str, default: Any = None) -> Any:
+    def get(
+        self, name: str, default: Optional[np.ndarray] = None
+    ) -> Optional[np.ndarray]:
         """
         Get a field's array with a default fallback.
 
