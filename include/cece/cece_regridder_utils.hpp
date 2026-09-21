@@ -16,7 +16,7 @@ namespace cece::io {
 
 /// Build an AXIS UnstructuredMesh from rectilinear coordinate arrays.
 axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_axis_mesh(int ni, int nj, const std::vector<double>& lons, const std::vector<double>& lats,
-                                                                    const std::string& gridspec_file = "");
+                                                                    const std::string& gridspec_file = "", const std::string& map_algo = "");
 
 /// Build the destination sub-mesh for a rectilinear latitude band [j0, j1) with
 /// GLOBALLY-CONSISTENT cell corners. Unlike a plain build_axis_mesh over a
@@ -92,8 +92,8 @@ bool same_spherical_grid_coordinates(int nx, int ny, const std::vector<double>& 
 ///
 /// @return true on success; false if coordinates could not be read.
 bool build_regrid_plan(amio_dataset_handle read_dataset, int nx, int ny, const std::vector<double>& target_lons,
-                       const std::vector<double>& target_lats, const std::string& map_algo, int j0, int j1, const std::string& gridspec_file,
-                       RegridPlan& plan);
+                       const std::vector<double>& target_lats, const std::string& map_algo, int j0, int j1, const std::string& src_gridspec_file,
+                       const std::string& dst_gridspec_file, RegridPlan& plan);
 
 /// Apply a previously built plan to one source field snapshot, producing the
 /// rank-local destination slice `local_dst` of size nx * (j1 - j0), laid out

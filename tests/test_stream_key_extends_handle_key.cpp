@@ -74,8 +74,8 @@ namespace {
 // generator in tests/test_stream_key_properties.cpp.
 rc::Gen<StreamConfig> genStreamConfig() {
     return rc::gen::apply(
-        [](std::string input_file_path, std::string input_var_name, std::string mapalgo, std::string cadence, std::string tintalgo,
-           std::string data_model, bool data_model_explicit, int amio_worker_threads, int amio_staging_buffer_count,
+        [](std::string input_file_path, std::string input_var_name, std::string stream_gridspec_file, std::string mapalgo, std::string cadence,
+           std::string tintalgo, std::string data_model, bool data_model_explicit, int amio_worker_threads, int amio_staging_buffer_count,
            int amio_staging_buffer_capacity_bytes, int amio_prefetch_depth) {
             StreamConfig cfg;
             cfg.input_file_path = std::move(input_file_path);
@@ -92,8 +92,8 @@ rc::Gen<StreamConfig> genStreamConfig() {
             return cfg;
         },
         rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(),
-        rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<bool>(), rc::gen::inRange(1, 65),
-        rc::gen::inRange(1, 65), rc::gen::inRange(1, 65), rc::gen::inRange(1, 65));
+        rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<bool>(),
+        rc::gen::inRange(1, 65), rc::gen::inRange(1, 65), rc::gen::inRange(1, 65), rc::gen::inRange(1, 65));
 }
 
 }  // namespace
@@ -182,9 +182,9 @@ RC_GTEST_PROP(StreamKeyExtends, Property5_ManifestFieldDiffersBothKeysDiffer, ()
 // hold: everything is shared at the HandleKey level, and the plan splits only
 // when mapalgo differs.
 // ============================================================================
-RC_GTEST_PROP(StreamKeyExtends, Property5_StreamKeyIsHandleKeyPlusMapalgo, ()) {
+RC_GTEST_PROP(StreamKeyExtends, Property5_StreamKeyIsHandleKeyPlusMapalgoPlusStreamGridspecFile, ()) {
     const StreamConfig cfg = *genStreamConfig();
-    const std::string expected = StreamKeyExtendsAccess::HKey(cfg) + "|" + cfg.mapalgo;
+    const std::string expected = StreamKeyExtendsAccess::HKey(cfg) + "|" + cfg.mapalgo + "|" + cfg.stream_gridspec_file;
     RC_ASSERT(StreamKeyExtendsAccess::SKey(cfg) == expected);
 }
 

@@ -71,12 +71,13 @@ namespace {
 // path separators) to stress the concatenation formula.
 rc::Gen<StreamConfig> genStreamConfig() {
     return rc::gen::apply(
-        [](std::string input_file_path, std::string input_var_name, std::string mapalgo, std::string cadence, std::string tintalgo,
-           std::string data_model, bool data_model_explicit, int amio_worker_threads, int amio_staging_buffer_count,
+        [](std::string input_file_path, std::string input_var_name, std::string stream_gridspec_file, std::string mapalgo, std::string cadence,
+           std::string tintalgo, std::string data_model, bool data_model_explicit, int amio_worker_threads, int amio_staging_buffer_count,
            int amio_staging_buffer_capacity_bytes, int amio_prefetch_depth) {
             StreamConfig cfg;
             cfg.input_file_path = std::move(input_file_path);
             cfg.input_var_name = std::move(input_var_name);
+            cfg.stream_gridspec_file = std::move(stream_gridspec_file);
             cfg.mapalgo = std::move(mapalgo);
             cfg.cadence = std::move(cadence);
             cfg.tintalgo = std::move(tintalgo);
@@ -89,8 +90,8 @@ rc::Gen<StreamConfig> genStreamConfig() {
             return cfg;
         },
         rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(),
-        rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<bool>(), rc::gen::inRange(1, 65),
-        rc::gen::inRange(1, 65), rc::gen::inRange(1, 65), rc::gen::inRange(1, 65));
+        rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<bool>(),
+        rc::gen::inRange(1, 65), rc::gen::inRange(1, 65), rc::gen::inRange(1, 65), rc::gen::inRange(1, 65));
 }
 
 }  // namespace
@@ -112,7 +113,7 @@ RC_GTEST_PROP(StreamKeyProperty, Property1_Concatenation, ()) {
     const StreamConfig cfg = *genStreamConfig();
     const std::string expected = cfg.input_file_path + "|" + cfg.data_model + "|" + std::to_string(cfg.amio_worker_threads) + "|" +
                                  std::to_string(cfg.amio_staging_buffer_count) + "|" + std::to_string(cfg.amio_staging_buffer_capacity_bytes) + "|" +
-                                 std::to_string(cfg.amio_prefetch_depth) + "|" + cfg.mapalgo;
+                                 std::to_string(cfg.amio_prefetch_depth) + "|" + cfg.mapalgo + "|" + cfg.stream_gridspec_file;
     RC_ASSERT(StreamKeyTestAccess::Key(cfg) == expected);
 }
 
@@ -133,6 +134,7 @@ RC_GTEST_PROP(StreamKeyProperty, Property1_EqualWhenPathAndAlgoMatch, ()) {
     // b copies a's full key tuple but varies everything else arbitrarily.
     StreamConfig b = *genStreamConfig();
     b.input_file_path = a.input_file_path;
+    b.stream_gridspec_file = a.stream_gridspec_file;
     b.data_model = a.data_model;
     b.amio_worker_threads = a.amio_worker_threads;
     b.amio_staging_buffer_count = a.amio_staging_buffer_count;
