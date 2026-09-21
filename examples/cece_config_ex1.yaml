@@ -1,189 +1,66 @@
-# Basic single species example with small grid
 driver:
-  start_time: "2010-01-01T00:00:00"
-  end_time: "2010-01-01T23:00:00"
+  start_time: "2024-07-15T18:00:00"
+  end_time: "2024-07-15T19:00:00"
   timestep_seconds: 3600
-  # Optional: write run output to this log file instead of using `> cece.log`.
-  # Output is tee'd, so it also still appears on the console.
   log_file: "cece.log"
   grid:
-    grid_name: "F360"
-    lon_min: -180.0
-    lon_max: 180.0
-    lat_min: -90.0
-    lat_max: 90.0
+    nx: 256
+    ny: 128
+    lon_min: 260.0
+    lon_max: 290.0
+    lat_min: 20.0
+    lat_max: 35.0
 
 meteorology: {}
 
-temporal_profiles:
-  diurnal_traffic:
-    [
-      0.5,
-      0.3,
-      0.2,
-      0.3,
-      0.6,
-      1.2,
-      1.8,
-      1.5,
-      1.2,
-      1.0,
-      1.1,
-      1.2,
-      1.3,
-      1.2,
-      1.3,
-      1.5,
-      1.8,
-      2.0,
-      1.8,
-      1.5,
-      1.2,
-      1.0,
-      0.8,
-      0.6,
-    ]
+temporal_profiles: {}
 
 species:
-  nox:
-    - field: "HTAP_TRANSPORT_NO"
+  lightning_nox:
+    - name: "lightning_nox"       # Matches the requested output variable name exactly
+      field: "GFS_CLD_AMT"
       operation: "add"
       scale: 1.0
-      scale_fields: ["CAMS_HOURLY", "CAMS_WEEKLY", "CAMS_MONTHLY"]
-    - field: "HTAP_SHIPS_NO"
-      operation: "add"
-    - field: "HTAP_RESIDENTIAL_NO"
-      operation: "add"
-    - field: "HTAP_INDUSTRY_NO"
-      operation: "add"
-      # CAMS-TEMPO only provides a MONTHLY temporal profile for the industry
-      # sector (no hourly/weekly industry weights exist in the dataset).
-      scale_fields: ["CAMS_MONTHLY_ind"]
-    - field: "HTAP_ENERGY_NO"
-      operation: "add"
 
 cece_data:
   streams:
-    - name: "HTAP_NO_TRANSPORT"
-      file: "/gpfs/f6/bil-fire3/world-shared/Emissions/nexus/HTAP/v2015-03/NO/EDGAR_HTAP_NO_TRANSPORT.generic.01x01.nc"
-      yearFirst: 2000
-      yearLast: 2010
-      yearAlign: 2020
+    - name: "GFS_ATM_STREAM"
+      file: "/gpfs/f6/bil-fire3/scratch/Jonathan.Smith/cece/GFS_DATA/gfs_sub_atmf006.nc"
+      yearFirst: 2024
+      yearLast: 2024
+      yearAlign: 2024
       taxmode: "cycle"
-      tintalgo: "linear"
-      mapalgo: "consd"
+      tintalgo: "exact"
+      mapalgo: "none"
       data_model: "classic"
       variables:
-        - file: "emi_no"
-          model: "HTAP_TRANSPORT_NO"
-    - name: "HTAP_NO_SHIPS"
-      file: "/gpfs/f6/bil-fire3/world-shared/Emissions/nexus/HTAP/v2015-03/NO/EDGAR_HTAP_NO_SHIPS.generic.01x01.nc"
-      yearFirst: 2000
-      yearLast: 2010
-      yearAlign: 2020
+        - file: "cld_amt"
+          model: "GFS_CLD_AMT"
+
+    - name: "GFS_SFC_STREAM"
+      file: "/gpfs/f6/bil-fire3/scratch/Jonathan.Smith/cece/GFS_DATA/gfs_sub_sfcf006.nc"
+      yearFirst: 2024
+      yearLast: 2024
+      yearAlign: 2024
       taxmode: "cycle"
-      tintalgo: "linear"
-      mapalgo: "consd"
+      tintalgo: "exact"
+      mapalgo: "none"
       data_model: "classic"
       variables:
-        - file: "emi_no"
-          model: "HTAP_SHIPS_NO"
-    - name: "HTAP_NO_RESIDENTIAL"
-      file: "/gpfs/f6/bil-fire3/world-shared/Emissions/nexus/HTAP/v2015-03/NO/EDGAR_HTAP_NO_RESIDENTIAL.generic.01x01.nc"
-      yearFirst: 2000
-      yearLast: 2010
-      yearAlign: 2020
-      taxmode: "cycle"
-      tintalgo: "linear"
-      mapalgo: "consd"
-      data_model: "classic"
-      variables:
-        - file: "emi_no"
-          model: "HTAP_RESIDENTIAL_NO"
-    - name: "HTAP_NO_INDUSTRY"
-      file: "/gpfs/f6/bil-fire3/world-shared/Emissions/nexus/HTAP/v2015-03/NO/EDGAR_HTAP_NO_INDUSTRY.generic.01x01.nc"
-      yearFirst: 2000
-      yearLast: 2010
-      yearAlign: 2020
-      taxmode: "cycle"
-      tintalgo: "linear"
-      mapalgo: "consd"
-      data_model: "classic"
-      variables:
-        - file: "emi_no"
-          model: "HTAP_INDUSTRY_NO"
-    - name: "HTAP_NO_ENERGY"
-      file: "/gpfs/f6/bil-fire3/world-shared/Emissions/nexus/HTAP/v2015-03/NO/EDGAR_HTAP_NO_ENERGY.generic.01x01.nc"
-      yearFirst: 2000
-      yearLast: 2010
-      yearAlign: 2020
-      taxmode: "cycle"
-      tintalgo: "linear"
-      mapalgo: "consd"
-      data_model: "classic"
-      variables:
-        - file: "emi_no"
-          model: "HTAP_ENERGY_NO"
-    - name: "CAMS_HOURLY"
-      file: "/gpfs/f6/bil-fire3/world-shared/Emissions/nexus/CAMS-TEMPO/v3.1-2021/CAMS-GLOB-TEMPO_Glb_0.1x0.1_tmp_weights_v3.1_hourly_fixtime.nc"
-      yearFirst: 2021
-      yearLast: 2021
-      yearAlign: 2021
-      taxmode: "cycle"
-      tintalgo: "linear"
-      mapalgo: "bilinear"
-      data_model: "classic"
-      variables:
-        - file: "FH_weekday_tro"
-          model: "CAMS_HOURLY"
-    - name: "CAMS_WEEKLY"
-      file: "/gpfs/f6/bil-fire3/world-shared/Emissions/nexus/CAMS-TEMPO/v3.1-2021/CAMS-GLOB-TEMPO_Glb_0.1x0.1_tmp_weights_v3.1_weekly.nc"
-      yearFirst: 2021
-      yearLast: 2021
-      yearAlign: 2021
-      taxmode: "cycle"
-      tintalgo: "linear"
-      mapalgo: "bilinear"
-      data_model: "classic"
-      variables:
-        - file: "FW_tro"
-          model: "CAMS_WEEKLY"
-    - name: "CAMS_MONTHLY"
-      file: "/gpfs/f6/bil-fire3/world-shared/Emissions/nexus/CAMS-TEMPO/v3.1-2021/CAMS-GLOB-TEMPO_Glb_0.1x0.1_tmp_weights_v3.1_monthly.nc"
-      yearFirst: 2021
-      yearLast: 2021
-      yearAlign: 2021
-      taxmode: "cycle"
-      tintalgo: "linear"
-      mapalgo: "bilinear"
-      data_model: "classic"
-      variables:
-        - file: "FM_tro"
-          model: "CAMS_MONTHLY"
-    - name: "CAMS_MONTHLY_ind"
-      file: "/gpfs/f6/bil-fire3/world-shared/Emissions/nexus/CAMS-TEMPO/v3.1-2021/CAMS-GLOB-TEMPO_Glb_0.1x0.1_tmp_weights_v3.1_monthly.nc"
-      yearFirst: 2021
-      yearLast: 2021
-      yearAlign: 2021
-      taxmode: "cycle"
-      tintalgo: "linear"
-      mapalgo: "bilinear"
-      data_model: "classic"
-      variables:
-        - file: "FM_ind"
-          model: "CAMS_MONTHLY_ind"
+        - file: "land"
+          model: "GFS_LAND"
 
 diagnostics:
   output_interval_seconds: 3600
-  variables: ["nox"]
+  variables: ["lightning_nox"]
 
 output:
   enabled: true
-  directory: ./cece_output
-  filename_pattern: "cece_ex1_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
+  directory: "./cece_output"
+  filename_pattern: "cece_m1_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
   frequency_steps: 1
   fields:
-    - name: nox
+    - name: "lightning_nox"
       attributes:
-        units: "kg m-2 s-1"
-        long_name: "nitrogen_oxides_emission_flux"
+        units: "moles m-2 s-1"
+        long_name: "lightning_nox_emission_flux"
