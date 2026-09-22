@@ -1265,7 +1265,7 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                 } else {  // Series
                     if (file_nt > 1) {
                         bracket = bracket_from_dataset(read_dataset, time_var, sim_dt, file_nt, tintalgo, yearAlign, taxmode, time_units, calendar,
-                                                       cfg.time_label);
+                                                       cfg.time_label, "field '" + var_name + "' (file '" + input_file_path + "')");
                     }
                     if (bracket.valid) {
                         bracket_note = "decoded axis";
@@ -1275,6 +1275,7 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                         bracket_note = "decoded axis, out of range";
                     } else if (c_lower == "daily" || c_lower == "monthly") {
                         // Undecodable axis but the cadence carries a granularity: degrade.
+                        // Reachable only on decode failure; a `time_axis: ignore` opt-in could select it for untrustworthy axes.
                         bracket = bracket_from_cadence(cadence, tintalgo, sim_dt, file_nt, yearFirst, yearLast, yearAlign, taxmode);
                         bracket_note = "degraded arithmetic:" + c_lower;
                     } else if (file_nt == 1) {

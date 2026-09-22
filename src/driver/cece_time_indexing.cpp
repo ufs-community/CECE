@@ -222,14 +222,14 @@ static std::string normalize_time_label(const std::string& time_label) {
 // "auto" can only infer interval labels from a monthly axis or CF bounds. Warn
 // once per axis when it has neither, so a left-labelled sub-daily file is not
 // silently read as instantaneous.
-static void warn_unlabeled_axis_once(const std::string& key, const std::vector<double>& time_vals, const std::string& units,
+static void warn_unlabeled_axis_once(const std::string& subject, const std::vector<double>& time_vals, const std::string& units,
                                      const std::string& calendar) {
     static std::set<std::string> warned;
-    if (!warned.insert(key).second) return;
+    if (!warned.insert(subject).second) return;
     if (inspect_monthly_axis(time_vals, units, calendar).monthly) return;
-    CECE_LOG_WARNING("[DRIVER] Time axis '" + key +
-                     "' is not monthly and has no CF bounds, so time_label 'auto' treats its records as instantaneous. Set time_label "
-                     "explicitly (start|center|end) if they label averaging intervals.");
+    CECE_LOG_WARNING("[DRIVER] " + subject +
+                     " has no CF bounds and is not a recognisable monthly axis, so time_label 'auto' reads its records as instantaneous. Set "
+                     "time_label explicitly (start|center|end) if they label averaging intervals.");
 }
 
 /**
@@ -715,7 +715,7 @@ RecordBracket bracket_from_coords(const std::vector<double>& time_vals, const st
  */
 RecordBracket bracket_from_dataset(amio_dataset_handle dataset, const std::string& time_var, const SimDateTime& dt, int file_nt,
                                    const std::string& tintalgo, int yearAlign, const std::string& taxmode, const std::string& units_override,
-                                   const std::string& calendar_override, const std::string& time_label) {
+                                   const std::string& calendar_override, const std::string& time_label, const std::string& context) {
     RecordBracket br;
     if (!dataset || !dt.valid || file_nt < 1) return br;
 
@@ -843,7 +843,8 @@ RecordBracket bracket_from_dataset(amio_dataset_handle dataset, const std::strin
     }
 
     if (normalize_time_label(time_label) == "auto" && bounds_vals.empty()) {
-        warn_unlabeled_axis_once(tvar + "|" + units, time_vals, units, calendar);
+        const std::string subject = context.empty() ? ("Time axis '" + tvar + "' (units '" + units + "')") : ("Time axis for " + context);
+        warn_unlabeled_axis_once(subject, time_vals, units, calendar);
     }
 
     return bracket_from_coords(time_vals, units, calendar, dt, tintalgo, yearAlign, taxmode, time_label, bounds_vals);

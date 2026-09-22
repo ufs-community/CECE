@@ -78,10 +78,11 @@ RecordBracket bracket_from_coords(const std::vector<double>& time_vals, const st
                                   const std::string& tintalgo, int yearAlign = 0, const std::string& taxmode = "",
                                   const std::string& time_label = "auto", const std::vector<double>& bounds = {});
 
+/// @p context names the stream in diagnostics (e.g. "field 'BC_agr' (file ...)").
 RecordBracket bracket_from_dataset(amio_dataset_handle dataset, const std::string& time_var, const SimDateTime& dt, int file_nt,
                                    const std::string& tintalgo, int yearAlign = 0, const std::string& taxmode = "",
                                    const std::string& units_override = "", const std::string& calendar_override = "",
-                                   const std::string& time_label = "auto");
+                                   const std::string& time_label = "auto", const std::string& context = "");
 
 }  // namespace detail
 }  // namespace cece

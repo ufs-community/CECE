@@ -672,7 +672,44 @@ std::vector<double> monthly_end_axis(int year_first, int year_last) {
 
 constexpr const char* kEpochDays = "days since 2000-01-01 00:00:00";
 
+// A real CEDS 2021 monthly file. Every stamp is a month start except February,
+// which is written a day early (720 h = Jan 31, not 744 h = Feb 1).
+std::vector<double> ceds_2021_monthly_hours() {
+    return {0.0, 720.0, 1416.0, 2160.0, 2880.0, 3624.0, 4344.0, 5088.0, 5832.0, 6552.0, 7296.0, 8016.0};
+}
+
+constexpr const char* kCedsHours = "hours since 2021-01-01 00:00:00";
+
 }  // namespace
+
+TEST(CeceAxisDecode, NearlyMonthlyAxisNeedsAnExplicitStartLabel) {
+    using namespace cece::detail;
+
+    const std::vector<double> raw = ceds_2021_monthly_hours();
+    const SimDateTime dec20 = parse_sim_datetime("2021-12-20T11:00:00");
+
+    // One off-by-a-day stamp makes the month sequence non-consecutive, so the
+    // axis is not recognised as monthly and "auto" leaves it instantaneous.
+    // Dec 20 then sits nearer the next cycle's January than the Dec 1 stamp.
+    EXPECT_EQ(bracket_from_coords(raw, kCedsHours, "standard", dec20, "nearest", 2021, "cycle", "auto").i0, 0);
+
+    // An explicit "start" brackets against interval centres and picks December.
+    EXPECT_EQ(bracket_from_coords(raw, kCedsHours, "standard", dec20, "nearest", 2021, "cycle", "start").i0, 11);
+
+    // The label rehabilitates the whole axis, bad February stamp included:
+    // every month resolves to its own record.
+    for (int m = 1; m <= 12; ++m) {
+        char iso[32];
+        std::snprintf(iso, sizeof(iso), "2021-%02d-15T00:00:00", m);
+        const RecordBracket br = bracket_from_coords(raw, kCedsHours, "standard", parse_sim_datetime(iso), "nearest", 2021, "cycle", "start");
+        EXPECT_TRUE(br.valid) << iso;
+        EXPECT_EQ(br.i0, m - 1) << iso;
+    }
+
+    // The last day of the year is still December, not the next cycle's January.
+    const SimDateTime dec31 = parse_sim_datetime("2021-12-31T00:00:00");
+    EXPECT_EQ(bracket_from_coords(raw, kCedsHours, "standard", dec31, "nearest", 2021, "cycle", "start").i0, 11);
+}
 
 TEST(CeceCycleYearAlignment, MonthlyCyclingDoesNotDriftAcrossLeapYears) {
     using namespace cece::detail;
