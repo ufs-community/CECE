@@ -175,14 +175,18 @@ static YearMapping apply_year_taxmode(int& eff_year, int yearFirst, int yLast, c
     return YearMapping::Resolved;
 }
 
-struct MonthlyAxisInfo {
-    bool monthly = false;
+struct AxisLabelInfo {
+    bool monthly = false;        // consecutive calendar months, so bounds need month arithmetic
+    bool interpretable = false;  // "auto" recognises the axis shape, whatever it concludes
     bool start_labeled = false;
     bool end_labeled = false;
 };
 
-static MonthlyAxisInfo inspect_monthly_axis(const std::vector<double>& time_vals, const std::string& units, const std::string& calendar) {
-    MonthlyAxisInfo info;
+// Classify an axis well enough for "auto" to pick an interval label. Monthly
+// and daily are the two shapes where the stamps themselves give the convention
+// away; anything else is left to the caller's fallback.
+static AxisLabelInfo inspect_axis_labels(const std::vector<double>& time_vals, const std::string& units, const std::string& calendar) {
+    AxisLabelInfo info;
     if (time_vals.size() < 2) return info;
     try {
         const CFTimeUnits cf = parse_cf_units(units);
@@ -191,22 +195,37 @@ static MonthlyAxisInfo inspect_monthly_axis(const std::vector<double>& time_vals
         const std::int64_t ref_nanos =
             cal_to_nanos(cal, cf.reference) - static_cast<std::int64_t>(std::llround(cf.offset_days * static_cast<double>(tick::nanos_per_day)));
         int previous_month_index = 0;
+        std::int64_t previous_nanos = 0;
         bool consecutive_months = true;
         bool all_month_starts = true;
         bool all_month_ends = true;
+        bool daily_spacing = true;
+        bool all_midnight = true;
+        bool all_midday = true;
         for (size_t k = 0; k < time_vals.size(); ++k) {
             const std::int64_t nanos =
                 ref_nanos + static_cast<std::int64_t>(std::llround(time_vals[k] * cf.unit_days * static_cast<double>(tick::nanos_per_day)));
             const tick::Date_Time stamp = cal_to_dt(cal, nanos);
             const int month_index = stamp.year * 12 + stamp.month;
             if (k > 0 && month_index != previous_month_index + 1) consecutive_months = false;
+            if (k > 0 && nanos - previous_nanos != tick::nanos_per_day) daily_spacing = false;
             if (stamp.day != 1 || stamp.hour != 0 || stamp.minute != 0 || stamp.second != 0) all_month_starts = false;
             if (stamp.day != cal_days_in_month(cal, stamp.year, stamp.month)) all_month_ends = false;
+            if (stamp.hour != 0 || stamp.minute != 0 || stamp.second != 0) all_midnight = false;
+            if (stamp.hour != 12 || stamp.minute != 0 || stamp.second != 0) all_midday = false;
             previous_month_index = month_index;
+            previous_nanos = nanos;
         }
+        const bool daily = daily_spacing && !consecutive_months;
         info.monthly = consecutive_months;
-        info.start_labeled = consecutive_months && all_month_starts;
+        // Midnight is both the start of one day and the end of the previous, so
+        // a daily axis cannot distinguish the two the way a monthly axis does
+        // (day 1 vs. the month's last day). "start" is assumed because it is by
+        // far the more common convention for daily means and scale factors, and
+        // the assumption is announced so an "end"-labelled file can override it.
+        info.start_labeled = consecutive_months ? all_month_starts : (daily && all_midnight);
         info.end_labeled = consecutive_months && all_month_ends;
+        info.interpretable = consecutive_months || (daily && (all_midnight || all_midday));
         return info;
     } catch (const std::exception&) {
         return info;
@@ -219,17 +238,25 @@ static std::string normalize_time_label(const std::string& time_label) {
     return "auto";
 }
 
-// "auto" can only infer interval labels from a monthly axis or CF bounds. Warn
-// once per axis when it has neither, so a left-labelled sub-daily file is not
-// silently read as instantaneous.
-static void warn_unlabeled_axis_once(const std::string& subject, const std::vector<double>& time_vals, const std::string& units,
-                                     const std::string& calendar) {
+// Report once per axis what "auto" made of it: either that nothing could be
+// inferred, so a left-labelled sub-daily file is not silently read as
+// instantaneous, or that a daily axis was assumed to be start-labelled, which
+// is a guess a midnight stamp cannot confirm.
+static void warn_auto_label_once(const std::string& subject, const std::vector<double>& time_vals, const std::string& units,
+                                 const std::string& calendar) {
     static std::set<std::string> warned;
     if (!warned.insert(subject).second) return;
-    if (inspect_monthly_axis(time_vals, units, calendar).monthly) return;
-    CECE_LOG_WARNING("[DRIVER] " + subject +
-                     " has no CF bounds and is not a recognisable monthly axis, so time_label 'auto' reads its records as instantaneous. Set "
-                     "time_label explicitly (start|center|end) if they label averaging intervals.");
+    const AxisLabelInfo info = inspect_axis_labels(time_vals, units, calendar);
+    if (!info.interpretable) {
+        CECE_LOG_WARNING("[DRIVER] " + subject +
+                         " has no CF bounds and is neither a recognisable monthly nor daily axis, so time_label 'auto' reads its records as "
+                         "instantaneous. Set time_label explicitly (start|center|end) if they label averaging intervals.");
+    } else if (info.start_labeled && !info.monthly) {
+        CECE_LOG_WARNING("[DRIVER] " + subject +
+                         " is day-spaced with midnight stamps and has no CF bounds, so time_label 'auto' assumes each stamp opens the day it "
+                         "labels. Set time_label: end if the stamps close their intervals instead, or time_label: center if the records are "
+                         "instantaneous.");
+    }
 }
 
 /**
@@ -535,7 +562,11 @@ RecordBracket find_bracket(const std::vector<double>& times, double target, bool
         br.i1 = hi;
         br.weight = w;
     } else {
-        if (std::abs(times[hi] - target) < std::abs(times[lo] - target)) {
+        // Ties go to the later record: for a start/end/bounds-labelled axis the
+        // stamps are interval midpoints, so an exact tie is the shared bound
+        // between two intervals, and intervals are half-open [start, end) here
+        // as they are on the arithmetic cadence path.
+        if (std::abs(times[hi] - target) <= std::abs(times[lo] - target)) {
             br.i0 = br.i1 = hi;
         } else {
             br.i0 = br.i1 = lo;
@@ -653,7 +684,7 @@ RecordBracket bracket_from_coords(const std::vector<double>& time_vals, const st
         const double target_days = static_cast<double>(sim_nanos - ref_nanos) / static_cast<double>(tick::nanos_per_day);
 
         std::string label = normalize_time_label(time_label);
-        const MonthlyAxisInfo monthly_info = inspect_monthly_axis(time_vals, units, calendar);
+        const AxisLabelInfo axis_info = inspect_axis_labels(time_vals, units, calendar);
         if (label == "auto" && bounds.size() == rec_days.size() * 2) {
             // CF bounds state each interval outright, so nothing is inferred.
             // An explicit time_label still wins, as a manual override.
@@ -662,15 +693,15 @@ RecordBracket bracket_from_coords(const std::vector<double>& time_vals, const st
             }
             label = "center";
         } else if (label == "auto") {
-            label = monthly_info.start_labeled ? "start" : (monthly_info.end_labeled ? "end" : "center");
+            label = axis_info.start_labeled ? "start" : (axis_info.end_labeled ? "end" : "center");
         }
 
-        // Only monthly axes are inferred automatically, but an explicit label
-        // applies to any axis: a stamp is a bound of the interval it labels,
-        // not the instant the record is valid at.
+        // Only monthly and daily axes are inferred automatically, but an
+        // explicit label applies to any axis: a stamp is a bound of the interval
+        // it labels, not the instant the record is valid at.
         if (label == "start" || label == "end") {
             const std::vector<double> raw = rec_days;
-            if (monthly_info.monthly) {
+            if (axis_info.monthly) {
                 const std::int64_t label_ref = ref_nanos;
                 for (size_t k = 0; k < raw.size(); ++k) {
                     const std::int64_t abs = label_ref + static_cast<std::int64_t>(std::llround(raw[k] * static_cast<double>(tick::nanos_per_day)));
@@ -844,7 +875,7 @@ RecordBracket bracket_from_dataset(amio_dataset_handle dataset, const std::strin
 
     if (normalize_time_label(time_label) == "auto" && bounds_vals.empty()) {
         const std::string subject = context.empty() ? ("Time axis '" + tvar + "' (units '" + units + "')") : ("Time axis for " + context);
-        warn_unlabeled_axis_once(subject, time_vals, units, calendar);
+        warn_auto_label_once(subject, time_vals, units, calendar);
     }
 
     return bracket_from_coords(time_vals, units, calendar, dt, tintalgo, yearAlign, taxmode, time_label, bounds_vals);

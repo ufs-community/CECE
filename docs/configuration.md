@@ -709,7 +709,7 @@ driver brackets against interval centers rather than the raw stamps:
 
 | `time_label` | Meaning |
 | --- | --- |
-| `auto` (default) | Use the axis's CF `bounds` when it has them; otherwise infer from a monthly axis, where stamps that all fall on the first day of a month at 00:00 are read as `start` and stamps that all fall on a month's last day as `end`. Every other axis is left as `center`, with a warning. |
+| `auto` (default) | Use the axis's CF `bounds` when it has them; otherwise infer from a monthly axis, where stamps that all fall on the first day of a month at 00:00 are read as `start` and stamps that all fall on a month's last day as `end`, or from a day-spaced axis, where stamps that all fall at 00:00 are read as `start` and stamps that all fall at 12:00 are already centers. Every other axis is left as `center`, with a warning. |
 | `start` | Each stamp opens the interval it labels. |
 | `center` | Each stamp is used as written. |
 | `end` | Each stamp closes the interval it labels. A monthly stamp of `2020-02-01T00:00` is the exclusive end of January. |
@@ -718,10 +718,16 @@ If the time variable advertises a CF `bounds` attribute, `auto` takes each recor
 interval straight from the bounds variable and infers nothing. An explicit `time_label`
 overrides the bounds as a manual escape hatch.
 
-Without bounds, `auto` only infers `start` or `end` from a monthly axis. On a daily or
-sub-daily axis a midnight stamp is equally consistent with an interval start and with
-instantaneous data, so those records are left as written and the driver logs a warning
-naming the axis — set `time_label` explicitly for averaged sub-daily data.
+Without bounds, `auto` only infers from monthly and daily axes, where the stamps
+themselves give the convention away. A daily axis cannot tell `start` from `end` — both
+land at midnight — so midnight stamps are assumed to be `start`, the far more common
+convention for daily means and scale factors. The driver logs that assumption once per
+axis; set `time_label: end` for a right-labelled daily file, or `time_label: center` for
+daily instantaneous snapshots. Sub-daily axes are left as written, also with a warning.
+Nothing is inferred there because a stamp on the hour is equally consistent with an
+interval start and with instantaneous data, and because a run whose timestep matches the
+record spacing lands on the stamps themselves, where both readings select the same
+record.
 
 `start` and `end` apply to any decoded axis. The opposite bound is the neighbouring
 record, so an hourly-mean file stamped on the hour brackets against half-hour centers.

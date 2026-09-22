@@ -850,8 +850,79 @@ TEST(CeceAxisDecode, DailyTimeLabelStartShiftsToIntervalCenters) {
     EXPECT_EQ(bracket_from_coords(raw, kEpochDays, "gregorian", evening, "nearest", 0, "limit", "start").i0, 0);
     // The stamps are instants under "center", so 20:00 is nearer the Jan 2 record.
     EXPECT_EQ(bracket_from_coords(raw, kEpochDays, "gregorian", evening, "nearest", 0, "limit", "center").i0, 1);
-    // "auto" cannot tell a start-labelled daily mean from instantaneous data.
-    EXPECT_EQ(bracket_from_coords(raw, kEpochDays, "gregorian", evening, "nearest", 0, "limit", "auto").i0, 1);
+    // A day-spaced axis stamped at midnight is inferred as start-labeled, the
+    // same reading "auto" gives a monthly axis stamped on the first.
+    EXPECT_EQ(bracket_from_coords(raw, kEpochDays, "gregorian", evening, "nearest", 0, "limit", "auto").i0, 0);
+}
+
+TEST(CeceAxisDecode, DailyAutoOnlyInfersFromMidnightStamps) {
+    using namespace cece::detail;
+
+    const std::int64_t epoch = tick::Gregorian_Calendar::to_time_point(tick::Date_Time{2000, 1, 1, 0, 0, 0, 0}).nanos();
+    const std::int64_t jan1 = tick::Gregorian_Calendar::to_time_point(tick::Date_Time{2020, 1, 1, 0, 0, 0, 0}).nanos();
+    const double base = static_cast<double>(jan1 - epoch) / static_cast<double>(tick::nanos_per_day);
+    const SimDateTime evening = parse_sim_datetime("2020-01-01T20:00:00");
+
+    // Stamped at noon, the records already sit at their interval centers, so
+    // "auto" must leave them alone: 20:00 belongs to Jan 1, not Jan 2.
+    std::vector<double> midday(10);
+    for (int k = 0; k < 10; ++k) midday[k] = base + k + 0.5;
+    EXPECT_EQ(bracket_from_coords(midday, kEpochDays, "gregorian", evening, "nearest", 0, "limit", "auto").i0, 0);
+
+    // An off-convention time of day says nothing about the labeling, so "auto"
+    // falls back to reading the stamps as written.
+    std::vector<double> odd(10);
+    for (int k = 0; k < 10; ++k) odd[k] = base + k + 7.0 / 24.0;
+    EXPECT_EQ(bracket_from_coords(odd, kEpochDays, "gregorian", evening, "nearest", 0, "limit", "auto").i0, 1);
+
+    // Six-hourly spacing is not daily, so midnight stamps prove nothing.
+    std::vector<double> six_hourly(12);
+    for (int k = 0; k < 12; ++k) six_hourly[k] = base + k * 0.25;
+    const SimDateTime four_am = parse_sim_datetime("2020-01-01T04:00:00");
+    EXPECT_EQ(bracket_from_coords(six_hourly, kEpochDays, "gregorian", four_am, "nearest", 0, "limit", "auto").i0, 1);
+}
+
+TEST(CeceAxisDecode, HourlyAxisSteppedHourlyNeedsNoLabelInference) {
+    using namespace cece::detail;
+
+    // Why "auto" stops at daily: a run whose timestep matches the record
+    // spacing lands on the stamps themselves, where the sim time is either an
+    // exact match (center) or exactly between the two half-hour centers
+    // (start). Both resolve to the record that opens at that instant.
+    const std::vector<double> raw = two_day_hourly_axis();
+    for (int hour = 0; hour < 24; ++hour) {
+        char iso[32];
+        std::snprintf(iso, sizeof(iso), "2000-01-02T%02d:00:00", hour);
+        const SimDateTime dt = parse_sim_datetime(iso);
+        const int centered = bracket_from_coords(raw, kTwoDayHourlyUnits, "gregorian", dt, "nearest", 0, "limit", "center").i0;
+        const int started = bracket_from_coords(raw, kTwoDayHourlyUnits, "gregorian", dt, "nearest", 0, "limit", "start").i0;
+        EXPECT_EQ(centered, 24 + hour) << iso;
+        EXPECT_EQ(started, centered) << iso;
+    }
+}
+
+TEST(CeceAxisDecode, IntervalLabelBoundaryInstantOpensTheNextRecord) {
+    using namespace cece::detail;
+
+    // Same midnight-stamped daily axis as above.
+    std::vector<double> raw(10);
+    const std::int64_t epoch = tick::Gregorian_Calendar::to_time_point(tick::Date_Time{2000, 1, 1, 0, 0, 0, 0}).nanos();
+    const std::int64_t jan1 = tick::Gregorian_Calendar::to_time_point(tick::Date_Time{2020, 1, 1, 0, 0, 0, 0}).nanos();
+    const double base = static_cast<double>(jan1 - epoch) / static_cast<double>(tick::nanos_per_day);
+    for (int k = 0; k < 10; ++k) raw[k] = base + k;
+
+    // Under "start" the record centres sit at noon, so midnight is exactly
+    // equidistant from the two neighbours. Intervals are half-open
+    // [start, end), so the boundary instant belongs to the record it opens --
+    // an hourly run stepping over midnight must switch days at 00:00, not 01:00.
+    const SimDateTime midnight = parse_sim_datetime("2020-01-03T00:00:00");
+    EXPECT_EQ(bracket_from_coords(raw, kEpochDays, "gregorian", midnight, "nearest", 0, "limit", "start").i0, 2);
+    const SimDateTime before = parse_sim_datetime("2020-01-02T23:00:00");
+    EXPECT_EQ(bracket_from_coords(raw, kEpochDays, "gregorian", before, "nearest", 0, "limit", "start").i0, 1);
+
+    // Landing on a stamp under "center" is an exact match, not a tie, so the
+    // change of tie-break leaves instantaneous axes alone.
+    EXPECT_EQ(bracket_from_coords(raw, kEpochDays, "gregorian", midnight, "nearest", 0, "limit", "center").i0, 2);
 }
 
 TEST(CeceAxisDecode, CfBoundsDefineIntervalCentersForAuto) {
@@ -1526,10 +1597,12 @@ TEST(CeceAxisDecode, DecodePackedTimeAxis) {
     ASSERT_TRUE(widen_amio_elements(stored.data(), AMIO_DTYPE_I16, stored.size(), 0.5, 0.0, decoded));
     EXPECT_NEAR(decoded[29], 29.0, 1e-12);
 
-    const SimDateTime dt = parse_sim_datetime("2000-01-02T05:00:00");
+    // 04:00 rather than an odd hour so that neither axis leaves the stamp
+    // equidistant between two records, where the answer is a tie-break.
+    const SimDateTime dt = parse_sim_datetime("2000-01-02T04:00:00");
     const RecordBracket br = bracket_from_coords(decoded, kTwoDayHourlyUnits, "gregorian", dt, "nearest");
     ASSERT_TRUE(br.valid);
-    EXPECT_EQ(br.i0, 29);
+    EXPECT_EQ(br.i0, 28);
 
     // Ignoring the packing would put every record at twice its true hour, so
     // the same stamp would land on record 14 instead.
