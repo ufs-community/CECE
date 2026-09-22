@@ -73,7 +73,7 @@ void validate_stream_temporal_config(const std::string& cadence, const std::stri
     }
 
     const std::string label = to_lower(time_label);
-    if (label != "auto" && label != "start" && label != "center" && label != "end") {
+    if (!label.empty() && label != "auto" && label != "start" && label != "center" && label != "end") {
         throw std::invalid_argument("Unknown stream time_label '" + time_label + "' (expected auto|start|center|end)" + where + ".");
     }
 

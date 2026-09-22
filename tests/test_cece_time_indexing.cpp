@@ -65,13 +65,23 @@ TEST(CeceCadenceArithmetic, HourlyCadence) {
     EXPECT_EQ(br_23.i1, 23);
 
     // Hourly cadence supports cyclic linear interpolation within the day.
+    // Records are left-labelled, so 05:00 sits midway between the 04:00 and
+    // 05:00 record centres (04:30 and 05:30).
     RecordBracket br_lin = bracket_from_cadence("hourly", "linear", dt_05, 24);
     EXPECT_TRUE(br_lin.valid);
     EXPECT_EQ(br_lin.i0, 4);
     EXPECT_EQ(br_lin.i1, 5);
     EXPECT_DOUBLE_EQ(br_lin.weight, 0.5);
 
-    // Fewer records than 24 -> clamp to the last available record.
+    // Midnight brackets across the seam, pairing the last record with the first.
+    RecordBracket br_wrap = bracket_from_cadence("hourly", "linear", parse_sim_datetime("2026-01-01T00:00:00"), 24);
+    EXPECT_TRUE(br_wrap.valid);
+    EXPECT_EQ(br_wrap.i0, 23);
+    EXPECT_EQ(br_wrap.i1, 0);
+    EXPECT_DOUBLE_EQ(br_wrap.weight, 0.5);
+
+    // A 24-hour profile stored with fewer records is malformed. Nearest clamps
+    // to the last one; note the linear path wraps modulo nrec instead.
     RecordBracket br_clamp = bracket_from_cadence("hourly", "nearest", dt_23, 12);
     EXPECT_TRUE(br_clamp.valid);
     EXPECT_EQ(br_clamp.i0, 11);
@@ -479,8 +489,9 @@ TEST(CeceCadenceArithmetic, MonthlyTaxmodeCycleAndLimit) {
     // the end of the file range.
     SimDateTime dt_oob = parse_sim_datetime("2024-01-01T00:00:00");
 
-    // `cycle` clamps to the closest available year rather than modulo-wrapping
-    // the year. 2024-01 is therefore 2023-01 (record 276), not 2000-01.
+    // Default taxmode ("") is cycle, which clamps to the closest available year
+    // rather than modulo-wrapping it: 2024-01 reads 2023-01 (record 276), not
+    // 2000-01 as a 24-year modulo would give.
     RecordBracket br_cycle = bracket_from_cadence("monthly", "nearest", dt_oob, 288, 2000, 2023, 2000, "");
     EXPECT_TRUE(br_cycle.valid);
     EXPECT_EQ(br_cycle.i0, 276);
@@ -517,6 +528,9 @@ TEST(CeceStreamConfigValidation, RejectsUnknownTemporalValues) {
     }
     for (const char* cad : {"", "series", "daily", "monthly", "hourly", "weekly", "stepwise", "step", "MONTHLY"}) {
         EXPECT_NO_THROW(validate_stream_temporal_config(cad, "", "nearest", 0, 0, 0, "")) << cad;
+    }
+    for (const char* label : {"", "auto", "start", "center", "end", "END"}) {
+        EXPECT_NO_THROW(validate_stream_temporal_config("monthly", "cycle", "nearest", 0, 0, 0, "", label)) << label;
     }
 }
 
@@ -672,7 +686,9 @@ std::vector<double> monthly_end_axis(int year_first, int year_last) {
 
 constexpr const char* kEpochDays = "days since 2000-01-01 00:00:00";
 
-// A real CEDS 2021 monthly file. Every stamp is a month start except February,
+// A real CEDS 2021 monthly file.
+// CEDS/v2025-01/BC/BC-em-anthro_input4MIPs_emissions_CMIP_CEDS-CMIP-2024-11-25_gn_202101-202112_processed.nc
+// Every stamp is a month start except February,
 // which is written a day early (720 h = Jan 31, not 744 h = Feb 1).
 std::vector<double> ceds_2021_monthly_hours() {
     return {0.0, 720.0, 1416.0, 2160.0, 2880.0, 3624.0, 4344.0, 5088.0, 5832.0, 6552.0, 7296.0, 8016.0};
@@ -709,6 +725,32 @@ TEST(CeceAxisDecode, NearlyMonthlyAxisNeedsAnExplicitStartLabel) {
     // The last day of the year is still December, not the next cycle's January.
     const SimDateTime dec31 = parse_sim_datetime("2021-12-31T00:00:00");
     EXPECT_EQ(bracket_from_coords(raw, kCedsHours, "standard", dec31, "nearest", 2021, "cycle", "start").i0, 11);
+}
+
+TEST(CeceAxisDecode, NearlyMonthlyAxisFebruaryStampShiftsTheJanuaryBoundary) {
+    using namespace cece::detail;
+
+    // February carries the bad stamp, so it is worth checking on its own.
+    const std::vector<double> raw = ceds_2021_monthly_hours();
+    auto rec = [&](const char* iso) {
+        return bracket_from_coords(raw, kCedsHours, "standard", parse_sim_datetime(iso), "nearest", 2021, "cycle", "start").i0;
+    };
+
+    // February's own days are unharmed: its interval still runs from the early
+    // stamp to the (correct) March 1 stamp.
+    EXPECT_EQ(rec("2021-02-01T00:00:00"), 1);
+    EXPECT_EQ(rec("2021-02-14T00:00:00"), 1);
+    EXPECT_EQ(rec("2021-02-28T00:00:00"), 1);
+
+    // What the label cannot repair is the boundary. The day-early stamp centres
+    // January on Jan 16 00:00 and February on Feb 14 12:00 instead of Jan 16
+    // 12:00 and Feb 15 00:00, pulling the switchover back to Jan 30 18:00.
+    EXPECT_EQ(rec("2021-01-30T12:00:00"), 0);
+    EXPECT_EQ(rec("2021-01-31T00:00:00"), 1);  // a correctly stamped axis would say January
+
+    // March is stamped correctly and resolves either side of its own boundary.
+    EXPECT_EQ(rec("2021-03-02T00:00:00"), 2);
+    EXPECT_EQ(rec("2021-03-31T00:00:00"), 2);
 }
 
 TEST(CeceCycleYearAlignment, MonthlyCyclingDoesNotDriftAcrossLeapYears) {
