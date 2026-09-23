@@ -69,7 +69,7 @@ static PhysicsRegistration<Megan3FortranScheme> register_scheme("megan3_fortran"
 // Initialize
 // ============================================================================
 
-void Megan3FortranScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
+void Megan3FortranScheme::Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) {
     // Call base class to parse input_mapping, output_mapping, diagnostics
     BasePhysicsScheme::Initialize(config, diag_manager);
 
@@ -79,13 +79,13 @@ void Megan3FortranScheme::Initialize(const YAML::Node& config, CeceDiagnosticMan
     std::string speciation_dataset = "MEGAN";
 
     if (config["mechanism_file"]) {
-        mechanism_path = config["mechanism_file"].as<std::string>();
+        mechanism_path = config["mechanism_file"].as_string();
     }
     if (config["speciation_file"]) {
-        speciation_path = config["speciation_file"].as<std::string>();
+        speciation_path = config["speciation_file"].as_string();
     }
     if (config["speciation_dataset"]) {
-        speciation_dataset = config["speciation_dataset"].as<std::string>();
+        speciation_dataset = config["speciation_dataset"].as_string();
     }
 
     SpeciationConfig spec_config = config_loader_.Load(mechanism_path, speciation_path, speciation_dataset);

@@ -72,7 +72,7 @@ double get_lightning_yield(double rate, double mw_no, bool is_land, double yield
     return (rate * yield_molec) * (mw_no / 1000.0) / (AVOGADRO * 1.0e6);
 }
 
-void LightningScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
+void LightningScheme::Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
 
     yield_land_ = 3.011e26;
@@ -80,10 +80,10 @@ void LightningScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager
     flash_rate_coeff_ = 3.44e-5;
     flash_rate_pow_ = 4.9;
 
-    if (config["yield_land"]) yield_land_ = config["yield_land"].as<double>();
-    if (config["yield_ocean"]) yield_ocean_ = config["yield_ocean"].as<double>();
-    if (config["flash_rate_coeff"]) flash_rate_coeff_ = config["flash_rate_coeff"].as<double>();
-    if (config["flash_rate_power"]) flash_rate_pow_ = config["flash_rate_power"].as<double>();
+    if (config["yield_land"]) yield_land_ = config["yield_land"].as_double();
+    if (config["yield_ocean"]) yield_ocean_ = config["yield_ocean"].as_double();
+    if (config["flash_rate_coeff"]) flash_rate_coeff_ = config["flash_rate_coeff"].as_double();
+    if (config["flash_rate_power"]) flash_rate_pow_ = config["flash_rate_power"].as_double();
 
     std::cout << "LightningScheme: Initialized.\n";
 }

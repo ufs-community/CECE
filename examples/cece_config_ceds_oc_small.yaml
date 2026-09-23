@@ -1,0 +1,68 @@
+# =====================================================================
+# CECE CEDS OC SMALL end-to-end config (distributed-domain-decomposition,
+# Task 10.2 integration equivalence harness).
+# =====================================================================
+# A deliberately TINY variant of cece_config_ceds_oc_1step.yaml: the same
+# public CEDS 2023 OC anthropogenic emissions source file (0.5 deg global,
+# 720x360, 12 monthly records), summing three sectoral OC fields into a single
+# `oc` species, but regridded to a small 72x36 (nz=1) target grid over a single
+# monthly step. This keeps the full read -> regrid -> assemble -> ingest ->
+# stack -> gather -> write pipeline exercised end-to-end while staying tiny
+# enough to run at -np 1/2/3 inside the ~7 GB cece-dev container.
+#
+# The test harness (tests/test_distributed_output_equivalence.sh) uses this as
+# a TEMPLATE, rewriting only `output.directory` per rank count, so np1/np2/np3
+# write to distinct dirs that are then compared for bit-for-bit equality of the
+# written `oc` field (Property 5: distributed == replicated, Property 6:
+# single-rank == multi-rank).
+driver:
+  start_time: "2023-01-01T00:00:00"
+  end_time: "2023-02-01T00:00:00"
+  timestep_seconds: 2592000 # ~30 days; monthly cadence -> distinct records
+  grid:
+    nx: 72
+    ny: 36
+    lon_min: -180.0
+    lon_max: 180.0
+    lat_min: -90.0
+    lat_max: 90.0
+
+species:
+  oc:
+    - field: "OC_ENE"
+      operation: "add"
+    - field: "OC_IND"
+      operation: "add"
+    - field: "OC_TRA"
+      operation: "add"
+
+cece_data:
+  streams:
+    - name: "CEDS_OC"
+      file: "/work/data/OC-em-anthro_CMIP_CEDS_2023.nc"
+      taxmode: "cycle"
+      tintalgo: "linear"
+      mapalgo: "consd"
+      cadence: "monthly"
+      variables:
+        - file: "OC_ene"
+          model: "OC_ENE"
+        - file: "OC_ind"
+          model: "OC_IND"
+        - file: "OC_tra"
+          model: "OC_TRA"
+
+diagnostics:
+  output_interval_seconds: 2592000
+  variables: ["oc"]
+
+output:
+  enabled: true
+  directory: ./cece_output_ceds_small
+  filename_pattern: "cece_ceds_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
+  frequency_steps: 1
+  fields:
+    - name: oc
+      attributes:
+        units: "kg m-2 s-1"
+        long_name: "organic_carbon_emission_flux"

@@ -41,3 +41,12 @@ repos:
     hooks:
       - id: prettier
         types_or: [yaml]
+
+  - repo: local
+    hooks:
+      - id: codeowners-core-team
+        name: CODEOWNERS lines include the core team
+        description: Every non-comment line of .github/CODEOWNERS must list @ufs-community/chem-core-team.
+        language: pygrep
+        files: ^\.github/CODEOWNERS$
+        entry: ^(?!\s*(#|$))(?!.*@ufs-community/chem-core-team).*$

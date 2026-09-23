@@ -15,9 +15,8 @@
  * for coalesced access in Kokkos kernels.
  */
 
-#include <yaml-cpp/yaml.h>
-
 #include <Kokkos_Core.hpp>
+#include <conf/value.hpp>
 #include <string>
 
 #include "cece/physics/cece_speciation_config.hpp"
@@ -161,7 +160,7 @@ class EmissionActivityCalculator {
      *
      * @param config YAML node containing MEGAN3 scheme options.
      */
-    void Initialize(const YAML::Node& config);
+    void Initialize(const conf::Value& config);
 
     /// Per-class coefficients stored on device.
     EmissionClassCoefficients coefficients_;

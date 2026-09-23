@@ -22,7 +22,7 @@ FetchContent_MakeAvailable(pybind11)
 # Build the pybind11 extension module
 pybind11_add_module(_cece_core cece_pybind.cpp)
 
-target_link_libraries(_cece_core PRIVATE cece Kokkos::kokkos yaml-cpp)
+target_link_libraries(_cece_core PRIVATE cece Kokkos::kokkos)
 
 # Place the compiled .so in the cece package directory
 set_target_properties(

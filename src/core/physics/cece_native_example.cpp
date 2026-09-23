@@ -20,11 +20,11 @@ static PhysicsRegistration<NativePhysicsExample> register_scheme("native_example
  * @param config YAML node containing scheme-specific options.
  * @param diag_manager Pointer to the diagnostic manager.
  */
-void NativePhysicsExample::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
+void NativePhysicsExample::Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
 
     if (config["multiplier"]) {
-        multiplier_ = config["multiplier"].as<double>();
+        multiplier_ = config["multiplier"].as_double();
     }
 
     std::cout << "NativePhysicsExample: Initialized.\n";

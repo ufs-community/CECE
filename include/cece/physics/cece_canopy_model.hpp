@@ -14,9 +14,8 @@
  * pattern as the existing gamma functions in cece_megan.cpp.
  */
 
-#include <yaml-cpp/yaml.h>
-
 #include <Kokkos_Core.hpp>
+#include <conf/value.hpp>
 
 namespace cece {
 
@@ -181,7 +180,7 @@ class CanopyModel {
      *
      * @param config YAML node containing canopy model options.
      */
-    void Initialize(const YAML::Node& config);
+    void Initialize(const conf::Value& config);
 
     /// Number of Gaussian quadrature layers for canopy integration.
     static constexpr int NUM_LAYERS = 5;

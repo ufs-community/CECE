@@ -133,6 +133,7 @@ python3 scripts/generate_physics_scheme.py my_scheme_config.yaml
 ```
 
 This creates:
+
 - `include/cece/physics/cece_my_emission_scheme.hpp`
 - `src/physics/cece_my_emission_scheme.cpp`
 - Updated `CMakeLists.txt` entries

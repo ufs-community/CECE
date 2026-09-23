@@ -19,7 +19,7 @@ static PhysicsRegistration<{{ class_name }}> register_{{ scheme_name }}("{{ sche
 // ============================================================================
 // Initialize Phase
 // ============================================================================
-void {{ class_name }}::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
+void {{ class_name }}::Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) {
     // Call base class initialization to set up field name mappings and diagnostics
     BasePhysicsScheme::Initialize(config, diag_manager);
 
@@ -37,7 +37,7 @@ void {{ class_name }}::Initialize(const YAML::Node& config, CeceDiagnosticManage
 
     {% for option in options %}
     if (config["{{ option.name }}"]) {
-        {{ option.name }}_ = config["{{ option.name }}"].as<{{ option.type }}>();
+        {{ option.name }}_ = config["{{ option.name }}"].as_{{ option.type }}();
     }
     {% endfor %}
 

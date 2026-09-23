@@ -54,7 +54,7 @@ class Megan3Scheme : public BasePhysicsScheme {
     Megan3Scheme() = default;
     ~Megan3Scheme() override = default;
 
-    void Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) override;
+    void Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) override;
     void Run(CeceImportState& import_state, CeceExportState& export_state) override;
 
    private:

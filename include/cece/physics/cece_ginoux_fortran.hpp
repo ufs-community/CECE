@@ -21,7 +21,7 @@ class GinouxFortranScheme : public BasePhysicsScheme {
     GinouxFortranScheme() = default;
     ~GinouxFortranScheme() override = default;
 
-    void Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) override;
+    void Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) override;
     void Run(CeceImportState& import_state, CeceExportState& export_state) override;
 
    private:

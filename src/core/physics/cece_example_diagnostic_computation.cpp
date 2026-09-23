@@ -10,19 +10,19 @@ namespace cece {
 // Self-registration
 static PhysicsRegistration<ExampleDiagnosticComputation> register_example_diagnostic_computation("example_diagnostic_computation");
 
-void ExampleDiagnosticComputation::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
+void ExampleDiagnosticComputation::Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) {
     // Call base class initialization
     BasePhysicsScheme::Initialize(config, diag_manager);
 
     // Read configuration parameters
     if (config["reference_temperature"]) {
-        reference_temperature_ = config["reference_temperature"].as<double>();
+        reference_temperature_ = config["reference_temperature"].as_double();
     }
     if (config["compute_quality_flags"]) {
-        compute_quality_flags_ = config["compute_quality_flags"].as<bool>();
+        compute_quality_flags_ = config["compute_quality_flags"].as_bool();
     }
     if (config["quality_threshold"]) {
-        quality_threshold_ = config["quality_threshold"].as<double>();
+        quality_threshold_ = config["quality_threshold"].as_double();
     }
 
     // Register diagnostic fields

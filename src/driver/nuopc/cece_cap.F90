@@ -134,10 +134,11 @@ module cece_cap_mod
       integer(c_int), intent(out) :: rc
     end subroutine
 
-    subroutine cece_driver_destroy(driver_ptr) &
+    subroutine cece_driver_destroy(driver_ptr, rc) &
                                    bind(C, name="cece_driver_destroy")
-      import :: c_ptr
+      import :: c_ptr, c_int
       type(c_ptr), value, intent(in) :: driver_ptr
+      integer(c_int), intent(out) :: rc
     end subroutine
 
     subroutine cece_core_writer_initialize_with_coords(data_ptr, nx, ny, nz, &
@@ -475,7 +476,10 @@ contains
     write(*,'(A)') "INFO: [Cap] Finalizing CECE NUOPC Cap..."
 
     ! 1. Destroy C++ Driver Facade
-    call cece_driver_destroy(g_driver_ptr)
+    call cece_driver_destroy(g_driver_ptr, c_rc)
+    if (c_rc /= 0) then
+      write(*,'(A,I0)') 'WARNING: [Cap] CECE AMIO teardown reported failures (rc=', c_rc
+    end if
     g_driver_ptr = c_null_ptr
 
     ! 2. Finalize and delete C++ core data structures

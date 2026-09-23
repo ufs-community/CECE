@@ -21,7 +21,7 @@
 
 namespace cece {
 
-void CanopyModel::Initialize(const YAML::Node& config) {
+void CanopyModel::Initialize(const conf::Value& config) {
     // 5-point Gaussian-Legendre quadrature points on [0,1]
     // These represent fractional canopy depth from top (0) to bottom (1)
     constexpr double points[NUM_LAYERS] = {0.04691008, 0.23076534, 0.5, 0.76923466, 0.95308992};
@@ -49,7 +49,7 @@ void CanopyModel::Initialize(const YAML::Node& config) {
     // Read configurable extinction coefficient (Beer-Lambert k)
     extinction_coeff_ = 0.5;  // Default
     if (config && config["extinction_coefficient"]) {
-        extinction_coeff_ = config["extinction_coefficient"].as<double>();
+        extinction_coeff_ = config["extinction_coefficient"].as_double();
     }
 
     std::cout << "CanopyModel: Initialized with " << NUM_LAYERS << " Gaussian layers, extinction_coeff=" << extinction_coeff_ << "\n";

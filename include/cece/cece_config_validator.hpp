@@ -6,8 +6,7 @@
 #ifndef CECE_CONFIG_VALIDATOR_HPP
 #define CECE_CONFIG_VALIDATOR_HPP
 
-#include <yaml-cpp/yaml.h>
-
+#include <conf/value.hpp>
 #include <string>
 #include <vector>
 
@@ -68,38 +67,38 @@ class ConfigValidator {
      * @param config YAML configuration node
      * @return Validation result with errors and warnings
      */
-    static ValidationResult ValidateConfig(const YAML::Node& config);
+    static ValidationResult ValidateConfig(const conf::Value& config);
 
    private:
     /**
      * @brief Validate species definitions
      */
-    static void ValidateSpecies(const YAML::Node& config, ValidationResult& result);
+    static void ValidateSpecies(const conf::Value& config, ValidationResult& result);
 
     /**
      * @brief Validate layer configurations
      */
-    static void ValidateLayers(const YAML::Node& config, ValidationResult& result);
+    static void ValidateLayers(const conf::Value& config, ValidationResult& result);
 
     /**
      * @brief Validate vertical distribution settings
      */
-    static void ValidateVerticalDistribution(const YAML::Node& config, ValidationResult& result);
+    static void ValidateVerticalDistribution(const conf::Value& config, ValidationResult& result);
 
     /**
      * @brief Validate data stream (cece_data) configuration
      */
-    static void ValidateDataStreams(const YAML::Node& config, ValidationResult& result);
+    static void ValidateDataStreams(const conf::Value& config, ValidationResult& result);
 
     /**
      * @brief Validate physics scheme configurations
      */
-    static void ValidatePhysicsSchemes(const YAML::Node& config, ValidationResult& result);
+    static void ValidatePhysicsSchemes(const conf::Value& config, ValidationResult& result);
 
     /**
      * @brief Validate output configuration
      */
-    static void ValidateOutput(const YAML::Node& config, ValidationResult& result);
+    static void ValidateOutput(const conf::Value& config, ValidationResult& result);
 
     /**
      * @brief Check if file exists

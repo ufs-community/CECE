@@ -39,26 +39,20 @@
 
 namespace {
 
+// These helpers deliberately do not catch failures. Ingestion, physics, and
+// stacking exceptions must reach the cece_core_run C-ABI boundary below,
+// which reports them through rc=-1.
 void IngestEmissions(cece::CeceInternalData& d) {
     if (d.config.cece_data.streams.empty()) return;
-    try {
-        d.ingestor.IngestEmissionsInline(d.config.cece_data, d.import_state, d.nx, d.ny, d.nz);
-    } catch (const std::exception& e) {
-        std::cerr << "CECE_Run: ingest failed: " << e.what() << "\n";
-    } catch (...) {
-        std::cerr << "CECE_Run: ingest failed (unknown)\n";
-    }
+    // Latitude extent is the rank-local band height (ny_local == ny on a single rank).
+    d.ingestor.IngestEmissionsInline(d.config.cece_data, d.import_state, d.nx, d.ny_local, d.nz);
 }
 
 void RunPhysicsSchemeByName(cece::CeceInternalData& d, const std::string& scheme_name) {
     for (size_t i = 0; i < d.active_schemes.size(); ++i) {
         if (i < d.config.physics_schemes.size() && d.config.physics_schemes[i].name == scheme_name) {
             if (d.active_schemes[i]) {
-                try {
-                    d.active_schemes[i]->Run(d.import_state, d.export_state);
-                } catch (const std::exception& e) {
-                    std::cerr << "CECE_Run: scheme '" << scheme_name << "': " << e.what() << "\n";
-                }
+                d.active_schemes[i]->Run(d.import_state, d.export_state);
             }
             break;
         }
@@ -68,7 +62,8 @@ void RunPhysicsSchemeByName(cece::CeceInternalData& d, const std::string& scheme
 void ExecuteStackingEngine(cece::CeceInternalData& d, int hour, int day_of_week, int month = 0) {
     if (d.stacking_engine) {
         cece::CeceStateResolver resolver(d.import_state, d.export_state, d.config.met_mapping, d.config.scale_factor_mapping, d.config.mask_mapping);
-        d.stacking_engine->Execute(resolver, d.nx, d.ny, d.nz, d.default_mask, hour, day_of_week, month);
+        // Compute over this rank's latitude band only (ny_local == ny on a single rank).
+        d.stacking_engine->Execute(resolver, d.nx, d.ny_local, d.nz, d.default_mask, hour, day_of_week, month);
     }
 }
 
@@ -119,17 +114,14 @@ void ExecuteStepUnconditional(cece::CeceInternalData& d, int hour, int day_of_we
     std::cout << "CECE_Run: executing step (hour=" << hour << ", day_of_week=" << day_of_week << ")\n";
 
     IngestEmissions(d);
-    ExecuteStackingEngine(d, hour, day_of_week, 0);
 
     for (auto& scheme : d.active_schemes) {
         if (scheme) {
-            try {
-                scheme->Run(d.import_state, d.export_state);
-            } catch (const std::exception& e) {
-                std::cerr << "CECE_Run: scheme: " << e.what() << "\n";
-            }
+            scheme->Run(d.import_state, d.export_state);
         }
     }
+
+    ExecuteStackingEngine(d, hour, day_of_week, 0);
 }
 
 void SyncAndCopyState(cece::CeceInternalData& d) {
@@ -143,7 +135,9 @@ void SyncAndCopyState(cece::CeceInternalData& d) {
         auto it = d.persistent_export_ptrs.find(name);
         if (it != d.persistent_export_ptrs.end() && it->second != nullptr) {
             using UnmanagedHost = Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
-            UnmanagedHost h_view(it->second, d.nx, d.ny, d.nz);
+            // Export write-back views are band-local; persistent_export_ptrs buffers are
+            // sized nx*ny_local*nz (band extent; == nx*ny*nz on a single rank).
+            UnmanagedHost h_view(it->second, d.nx, d.ny_local, d.nz);
             Kokkos::deep_copy(h_view, field.view_host());
         }
     }

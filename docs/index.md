@@ -18,6 +18,7 @@ CECE supports two execution modes:
 ### Standalone Mode (HELM-based)
 
 The standalone driver (`src/main.cpp`) orchestrates the full simulation lifecycle using HELM libraries:
+
 - **TICK** — Gregorian calendar and simulation clock
 - **HALO** — MPI communicator management
 - **AXIS** — Named grid generation and coordinate handling

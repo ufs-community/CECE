@@ -28,6 +28,7 @@ Automates the creation of example CECE configuration files and generates downloa
 
 ### `hemco_to_cece.py`
 Converts legacy HEMCO `.rc` configuration files to the CECE YAML format. It handles:
+
 - Recursive includes (`>>>include`)
 - `$ROOT` token replacement
 - Mapping scale factors and masks to CECE layers

@@ -50,7 +50,11 @@ jobs:
           cd build
 
           # Configure CECE. CMake will detect if it's already configured.
-          cmake .. -DCMAKE_BUILD_TYPE=Release -DKokkos_ENABLE_SERIAL=ON -DENABLE_ESMF=ON
+          # Rely on the project defaults (RelWithDebInfo build type, Kokkos Serial ON)
+          # so CI validates the same config most users get.
+          # ENABLE_ESMF defaults OFF and must be set explicitly
+          # to exercise the ESMF-gated tests below.
+          cmake .. -DENABLE_ESMF=ON
 
           # Build. Make will only build what has changed.
           make -j$(nproc)

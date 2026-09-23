@@ -70,7 +70,7 @@ double gong_source_normalized(double r80) {
     return 1.373 * std::pow(r80, -a) * (1.0 + 0.057 * std::pow(r80, 3.45)) * std::pow(10.0, 1.607 * std::exp(-b * b));
 }
 
-void SeaSaltScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
+void SeaSaltScheme::Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
     // Pre-calculate the integral of the Gong source function (normalized to u10=1.0)
     double dr = 0.05;         // Integration step in um (dry)
@@ -78,24 +78,24 @@ void SeaSaltScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* 
     double ss_dens = 2200.0;  // kg/m3
     const double pi = std::numbers::pi;
 
-    if (config["integration_step"]) dr = config["integration_step"].as<double>();
-    if (config["r80_dry_ratio"]) betha = config["r80_dry_ratio"].as<double>();
-    if (config["sea_salt_density"]) ss_dens = config["sea_salt_density"].as<double>();
+    if (config["integration_step"]) dr = config["integration_step"].as_double();
+    if (config["r80_dry_ratio"]) betha = config["r80_dry_ratio"].as_double();
+    if (config["sea_salt_density"]) ss_dens = config["sea_salt_density"].as_double();
 
     double r_sala_min = 0.01, r_sala_max = 0.5;
     double r_salc_min = 0.5, r_salc_max = 8.0;
 
     if (config["r_sala_min"]) {
-        r_sala_min = config["r_sala_min"].as<double>();
+        r_sala_min = config["r_sala_min"].as_double();
     }
     if (config["r_sala_max"]) {
-        r_sala_max = config["r_sala_max"].as<double>();
+        r_sala_max = config["r_sala_max"].as_double();
     }
     if (config["r_salc_min"]) {
-        r_salc_min = config["r_salc_min"].as<double>();
+        r_salc_min = config["r_salc_min"].as_double();
     }
     if (config["r_salc_max"]) {
-        r_salc_max = config["r_salc_max"].as<double>();
+        r_salc_max = config["r_salc_max"].as_double();
     }
 
     // Default SST scaling coefficients
@@ -106,17 +106,17 @@ void SeaSaltScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* 
 
     if (config["sst_coeff"]) {
         auto sc = config["sst_coeff"];
-        if (sc.IsSequence() && sc.size() == 4) {
-            sst_c0_ = sc[0].as<double>();
-            sst_c1_ = sc[1].as<double>();
-            sst_c2_ = sc[2].as<double>();
-            sst_c3_ = sc[3].as<double>();
+        if (sc.kind() == conf::Node_Kind::Sequence && sc.size() == 4) {
+            sst_c0_ = sc[0].as_double();
+            sst_c1_ = sc[1].as_double();
+            sst_c2_ = sc[2].as_double();
+            sst_c3_ = sc[3].as_double();
         }
     }
 
     u_pow_ = 3.41;
     if (config["u_power"]) {
-        u_pow_ = config["u_power"].as<double>();
+        u_pow_ = config["u_power"].as_double();
     }
 
     if (dr <= 0.0) {

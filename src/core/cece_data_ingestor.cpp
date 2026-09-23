@@ -19,8 +19,6 @@
 
 #include "cece/cece_data_ingestor.hpp"
 
-#include <yaml-cpp/yaml.h>
-
 #include <Kokkos_Core.hpp>
 #include <cstring>
 #include <iostream>
@@ -65,11 +63,17 @@ CeceDataIngestor::~CeceDataIngestor() {}
  * @param n_lev Number of vertical levels in input
  * @param n_elem Number of elements per level in input
  * @param nx Grid dimension in x-direction
- * @param ny Grid dimension in y-direction
+ * @param ny Latitude extent for the stored field. Under distributed domain
+ *           decomposition this is the rank-local band height (ny_local); it
+ *           equals the global latitude count on a single rank. All view sizing
+ *           and the 2D reshape below are bounded by this value.
  * @param nz Grid dimension in z-direction
  * @param rc Return code pointer (0=success, <0=error)
  *
  * @note Data is assumed to be in Fortran (column-major) order from the data stream.
+ * @note The incoming data is band-local: n_lev * n_elem describes the band
+ *       (nx * ny for a 2D emission field, nx * ny * nz for a 3D field), so the
+ *       is_2d_emission heuristic compares against nx * ny (band extent).
  */
 void CeceDataIngestor::SetField(const std::string& name, const double* data, int n_lev, int n_elem, int nx, int ny, int nz, int* rc) {
     if (!data) {
@@ -96,7 +100,7 @@ void CeceDataIngestor::SetField(const std::string& name, const double* data, int
     }
 
     // Create a host mirror view with correct dimensions
-    using HostMirrorView = Kokkos::View<double***, Kokkos::LayoutLeft>;
+    using HostMirrorView = Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace>;
     HostMirrorView host_view("host_" + name, nx, ny, actual_nz);
 
     if (is_2d_emission) {
@@ -138,6 +142,9 @@ void CeceDataIngestor::SetField(const std::string& name, const double* data, int
     if (rc) *rc = 0;
 }
 
+// @param ny Latitude extent (rank-local band height, ny_local; == global ny on a single
+//           rank). Import fields are created/validated against the cached band-local
+//           view extents, which were sized (nx, ny, nz) by SetField.
 void CeceDataIngestor::IngestEmissionsInline(const CeceDataConfig& config, CeceImportState& cece_state, int nx, int ny, int nz) {
     for (const auto& stream : config.streams) {
         for (const auto& var : stream.variables) {
@@ -215,7 +222,8 @@ bool CeceDataIngestor::HasCachedField(const std::string& name) const {
 std::string CeceDataIngestor::SerializeStreamESMFConfig(const CeceDataConfig& config) {
     std::ostringstream oss;
 
-    // RC file header
+    // ESMF-compatible RC file header (format retained for backward compatibility
+    // with NUOPC/CDEPS stream readers that consume this key-value layout).
     oss << "file_id: \"streams\"\n";
     oss << "file_version: 1.0\n";
     oss << "stream_info: " << config.streams.size() << "\n";

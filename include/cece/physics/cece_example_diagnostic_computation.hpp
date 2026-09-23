@@ -27,9 +27,8 @@
 #ifndef CECE_EXAMPLE_DIAGNOSTIC_COMPUTATION_HPP
 #define CECE_EXAMPLE_DIAGNOSTIC_COMPUTATION_HPP
 
-#include <yaml-cpp/yaml.h>
-
 #include <Kokkos_Core.hpp>
+#include <conf/value.hpp>
 
 #include "cece/cece_diagnostics.hpp"
 #include "cece/cece_state.hpp"
@@ -54,7 +53,7 @@ class ExampleDiagnosticComputation : public BasePhysicsScheme {
     ExampleDiagnosticComputation() = default;
     ~ExampleDiagnosticComputation() override = default;
 
-    void Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) override;
+    void Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) override;
     void Run(CeceImportState& import_state, CeceExportState& export_state) override;
     void Finalize() override;
 

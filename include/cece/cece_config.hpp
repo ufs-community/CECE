@@ -6,10 +6,9 @@
  * @brief Configuration structures and parser for CECE.
  */
 
-#include <yaml-cpp/yaml.h>
-
 #include <algorithm>
 #include <array>
+#include <conf/value.hpp>
 #include <cstddef>
 #include <functional>
 #include <initializer_list>
@@ -24,14 +23,46 @@
 namespace cece {
 
 /**
+ * @enum SchemeLanguage
+ * @brief Implementation language for a physics scheme.
+ */
+enum class SchemeLanguage : std::uint8_t {
+    CPP,      ///< C++ implementation
+    FORTRAN,  ///< Fortran implementation
+    PYTHON,   ///< Python implementation
+    UNKNOWN   ///< Unspecified / unknown language
+};
+
+inline SchemeLanguage StringToSchemeLanguage(std::string_view lang) {
+    if (lang == "cpp" || lang == "c++" || lang == "cxx" || lang.empty()) return SchemeLanguage::CPP;
+    if (lang == "fortran" || lang == "f90" || lang == "f") return SchemeLanguage::FORTRAN;
+    if (lang == "python" || lang == "py") return SchemeLanguage::PYTHON;
+    return SchemeLanguage::UNKNOWN;
+}
+
+inline std::string_view SchemeLanguageToString(SchemeLanguage lang) {
+    switch (lang) {
+        case SchemeLanguage::CPP:
+            return "cpp";
+        case SchemeLanguage::FORTRAN:
+            return "fortran";
+        case SchemeLanguage::PYTHON:
+            return "python";
+        default:
+            return "unknown";
+    }
+}
+
+/**
  * @struct PhysicsSchemeConfig
  * @brief Configuration for a physics scheme.
  */
 struct PhysicsSchemeConfig {
-    std::string name;                  ///< Name of the physics scheme.
-    std::string language;              ///< Implementation language (e.g., "cpp", "fortran").
-    YAML::Node options;                ///< Scheme-specific options.
-    int refresh_interval_seconds = 0;  ///< Refresh interval in seconds (0 means use base timestep).
+    std::string name;                                      ///< Name of the physics scheme.
+    std::string language = "cpp";                          ///< Implementation language string (e.g., "cpp", "fortran").
+    SchemeLanguage language_type = SchemeLanguage::CPP;    ///< Implementation language enum.
+    conf::Value options = conf::Value::from_raw(nullptr);  ///< Scheme-specific options.
+    int refresh_interval_seconds = 0;                      ///< Refresh interval in seconds (0 means use base timestep).
 };
 
 /**
@@ -216,10 +247,10 @@ struct CeceOutputField {
 /// CeceOutputFieldCollection. time's units attribute is runtime-derived
 /// ("seconds since <start>") and patched by the writer at manifest time.
 inline const std::vector<CeceOutputField> kCoordinateFields{
-    {"lon", {{"units", "degrees_east"}, {"long_name", "longitude"}}},
-    {"lat", {{"units", "degrees_north"}, {"long_name", "latitude"}}},
-    {"lev", {{"units", "level"}, {"long_name", "vertical level"}}},
-    {"time", {{"long_name", "time"}}},
+    {"lon", {{"units", "degrees_east"}, {"long_name", "longitude"}, {"standard_name", "longitude"}, {"coverage_content_type", "coordinate"}}},
+    {"lat", {{"units", "degrees_north"}, {"long_name", "latitude"}, {"standard_name", "latitude"}, {"coverage_content_type", "coordinate"}}},
+    {"lev", {{"units", "1"}, {"long_name", "vertical level"}, {"standard_name", "model_level_number"}, {"coverage_content_type", "coordinate"}}},
+    {"time", {{"long_name", "time"}, {"standard_name", "time"}, {"coverage_content_type", "coordinate"}}},
 };
 
 /**
@@ -399,6 +430,16 @@ struct DriverConfig {
     DriverGridConfig grid;  ///< Grid configuration for generated Gaussian grid.
     int stacking_refresh_interval_seconds = 0;  ///< Stacking engine refresh interval in seconds (0 means use base timestep).
     int amio_worker_threads = 1;                ///< Number of AMIO background I/O worker threads (default: 1).
+    int amio_staging_buffer_count = 8;          ///< Number of AMIO input staging buffers (default: 8).
+    /// Per-buffer capacity in bytes for AMIO input staging pools (default: 32 MiB).
+    /// AMIO commits buffer storage lazily and grows a buffer on demand when an
+    /// acquire exceeds this nominal size, so this is a steady-state hint rather
+    /// than a hard limit: resident memory is bounded by buffers-in-use x slab
+    /// size, not count x capacity. Lowering it is the primary lever on per-rank
+    /// IO memory (the historical 256 MiB default cost 8 x 256 MiB = 2 GiB per
+    /// input file per rank on the pre-lazy pool).
+    int amio_staging_buffer_capacity_bytes = 33554432;
+    int amio_prefetch_depth = 2;  ///< AMIO read look-ahead depth (default: 2). Lower = fewer in-flight slabs.
 };
 
 /**
@@ -439,7 +480,7 @@ struct CeceConfig {
  * @brief Parses the CECE configuration from a YAML file.
  * @param filename Path to the YAML configuration file.
  * @return CeceConfig object containing the parsed species and schemes.
- * @throws YAML::Exception if the file is invalid or missing.
+ * @throws std::exception if the file is invalid or missing.
  */
 CeceConfig ParseConfig(const std::string& filename);
 

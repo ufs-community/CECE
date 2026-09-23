@@ -1,3 +1,4 @@
+#include <conf/value.hpp>
 /**
  * @file test_k14_properties.cpp
  * @brief Property-based tests for the K14 (Kok et al., 2014) dust emission scheme.
@@ -18,6 +19,7 @@
 
 #include <Kokkos_Core.hpp>
 #include <cmath>
+#include <conf/config.hpp>
 #include <random>
 
 #include "cece/cece_physics_factory.hpp"
@@ -307,14 +309,13 @@ TEST_F(K14PropertyTest, Property9_NumericalEquivalence) {
             int nbins = rand_int(1, 5);
 
             // Configure both schemes with the same opt_clay
-            YAML::Node config;
-            config["opt_clay"] = opt_clay;
+            conf::Config config = conf::Config::from_string("opt_clay: " + std::to_string(opt_clay));
 
             PhysicsSchemeConfig cfg_cpp, cfg_fort;
             cfg_cpp.name = "k14";
-            cfg_cpp.options = config;
+            cfg_cpp.options = config.root();
             cfg_fort.name = "k14_fortran";
-            cfg_fort.options = config;
+            cfg_fort.options = config.root();
 
             auto scheme_cpp = PhysicsFactory::CreateScheme(cfg_cpp);
             auto scheme_fort = PhysicsFactory::CreateScheme(cfg_fort);

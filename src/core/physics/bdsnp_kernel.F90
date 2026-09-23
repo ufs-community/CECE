@@ -108,6 +108,7 @@ contains
 
                     ! Both modes: zero emission below freezing
                     if (tc <= FREEZING_C) then
+                        soil_nox(i, j, k) = 0.0d0
                         cycle
                     end if
 
@@ -119,7 +120,7 @@ contains
                         t_term = soil_temp_term_yl95(tc)
                         w_term = soil_wet_term_yl95(gw)
                         emiss = A_BIOME_WET * UNITCONV * t_term * w_term
-                        soil_nox(i, j, k) = soil_nox(i, j, k) + emiss
+                        soil_nox(i, j, k) = emiss
                     else
                         ! ================================================
                         ! BDSNP mode: uses BDSNP moisture factor
@@ -144,7 +145,7 @@ contains
                         ! base_ef(1.0) * UNITCONV * t_response * sm_factor
                         !   * fert_factor(1.0) * canopy_red(1.0) * pulse(1.0)
                         emiss = BDSNP_BASE_EF * UNITCONV * t_response * sm_factor
-                        soil_nox(i, j, k) = soil_nox(i, j, k) + emiss
+                        soil_nox(i, j, k) = emiss
                     end if
                 end do
             end do
