@@ -14,9 +14,16 @@
 
 namespace cece::io {
 
-/// Build an AXIS UnstructuredMesh from rectilinear coordinate arrays.
-axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_axis_mesh(int ni, int nj, const std::vector<double>& lons, const std::vector<double>& lats,
-                                                                    const std::string& gridspec_file = "");
+/// Build an AXIS UnstructuredMesh from rectilinear coordinate arrays or a FV3 NetCDF grid specification file.
+/// The band starts at global row `j0` and spans `nband` rows.
+axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_axis_mesh(int nx, int nband, int j0, const std::vector<double>& lons,
+                                                                    const std::vector<double>& lats, const std::string& gridspec_file = "");
+
+/// Convenience overload that builds a whole-grid mesh (band offset `j0 = 0`).
+inline axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_axis_mesh(int nx, int ny, const std::vector<double>& lons,
+                                                                           const std::vector<double>& lats, const std::string& gridspec_file = "") {
+    return build_axis_mesh(nx, ny, 0, lons, lats, gridspec_file);
+}
 
 /// Build the destination sub-mesh for a rectilinear latitude band [j0, j1) with
 /// GLOBALLY-CONSISTENT cell corners. Unlike a plain build_axis_mesh over a

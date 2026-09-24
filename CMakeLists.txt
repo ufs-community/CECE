@@ -453,6 +453,35 @@ if(POLICY CMP0178)
   cmake_policy(SET CMP0178 OLD)
 endif()
 
+# Test data: the FV3/cubed-sphere regrid tests in tests/test_cece_utils.cpp need
+# the real C96 grid_spec and native-grid files for tile 1. These are NetCDF
+# fixtures that are not committed to the repo (*.nc is gitignored), so fetch them
+# into data/ at configure time when missing. This mirrors the NOAA download used
+# by tests/test_all_cubed_sphere_tiles.sh; if the fetch fails the tests still run
+# and report a clear "Missing test file" assertion rather than breaking configure.
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/data")
+set(CECE_C96_BASE_URL "https://ftp.emc.ncep.noaa.gov/static_files/public/UFS/GFS/fix/fix_fv3/C96")
+foreach(_c96_file C96_grid_spec.tile1.nc C96_grid.tile1.nc)
+  if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/data/${_c96_file}")
+    message(STATUS "Downloading ${_c96_file} for C96 regrid tests...")
+    file(
+      DOWNLOAD "${CECE_C96_BASE_URL}/${_c96_file}"
+      "${CMAKE_CURRENT_SOURCE_DIR}/data/${_c96_file}"
+      STATUS _c96_status
+      TIMEOUT 120
+    )
+    list(GET _c96_status 0 _c96_code)
+    if(NOT _c96_code EQUAL 0)
+      list(GET _c96_status 1 _c96_msg)
+      file(REMOVE "${CMAKE_CURRENT_SOURCE_DIR}/data/${_c96_file}")
+      message(
+        WARNING
+        "Failed to download ${_c96_file}: ${_c96_msg}. C96 regrid tests will report a missing-file failure."
+      )
+    endif()
+  endif()
+endforeach()
+
 add_executable(test_driver_configuration tests/test_driver_configuration.cpp)
 target_link_libraries(test_driver_configuration PRIVATE cece GTest::gtest_main)
 

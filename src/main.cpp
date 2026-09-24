@@ -82,13 +82,14 @@ int main(int argc, char* argv[]) {
     int provided = 0;
     int mpi_rc = MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
     if (mpi_rc != MPI_SUCCESS) {
-        std::cerr << "FATAL ERROR: MPI_Init_thread failed with error code " << mpi_rc << std::endl;
+        cece::LogFatal("[DRIVER FATAL] MPI_Init_thread failed with error code " + std::to_string(mpi_rc));
         return mpi_rc;
     }
 
     if (provided < MPI_THREAD_MULTIPLE) {
-        std::cerr << "WARNING: MPI implementation provided thread level " << provided << ", which is less than requested MPI_THREAD_MULTIPLE ("
-                  << MPI_THREAD_MULTIPLE << "). Threaded operations may be restricted." << std::endl;
+        CECE_LOG_WARNING("[DRIVER WARNING] MPI implementation provided thread level " + std::to_string(provided) +
+                         ", which is less than requested MPI_THREAD_MULTIPLE (" + std::to_string(MPI_THREAD_MULTIPLE) +
+                         "). Threaded operations may be restricted.");
     }
 
     // 2. Initialize Kokkos (allocates execution resources on GPU or CPU)
