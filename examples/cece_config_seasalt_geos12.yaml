@@ -1,0 +1,150 @@
+# GEOS-12 Sea Salt Emission Example Configuration
+#
+# Demonstrates the GEOS-12 (GEOS-Chem 2012) sea salt emission scheme via the
+# Fortran bridge. Emissions are size-resolved across 5 dry-radius bins. Each
+# bin is published as its OWN export field (seasalt_mass_<bin>,
+# seasalt_number_<bin>), so the grid vertical dimension `nz` keeps its normal
+# meaning (vertical levels; 1 here for a surface flux) and is not overloaded to
+# index size bins.
+#
+# Per-bin size properties (density, lower/upper/effective dry radius) and the
+# bin names live in the shared MICM mechanism file
+# (data/speciation/spc_cb6_gocart.yaml, gas + aerosol species in one file). The
+# aerosol map (data/speciation/map_cb6_gocart.yaml) selects which bins to emit
+# and their scale factor (identity = 1.0), mirroring the MEGAN3
+# mechanism_file + speciation_file pattern and reusing the same loader.
+
+driver:
+  start_time: "2021-12-19T23:00:00"
+  end_time: "2021-12-20T23:00:00"
+  timestep_seconds: 3600
+  log_file: "cece.log"
+  grid:
+    #grid_name: "F360"  1440 x 720
+    nx: 384
+    ny: 192
+    lon_min: -180.0
+    lon_max: 180.0
+    lat_min: -90.0
+    lat_max: 90.0
+
+physics_schemes:
+  - name: sea_salt_geos12_fortran
+    input_mapping:
+      frocean: FROCEAN
+      frseaice: FRSEAICE
+      lat: LAT
+      lon: LON
+      sst: SST
+      u10m: U10M
+      v10m: V10M
+      ustar: USTAR
+    output_mapping:
+      # scheme-internal name -> name written to the output file
+      seasalt_mass_seas1: SEAS1_MASS
+      seasalt_mass_seas2: SEAS2_MASS
+      seasalt_mass_seas3: SEAS3_MASS
+      seasalt_mass_seas4: SEAS4_MASS
+      seasalt_mass_seas5: SEAS5_MASS
+      seasalt_number_seas1: SEAS1_NUMB
+      seasalt_number_seas2: SEAS2_NUMB
+      seasalt_number_seas3: SEAS3_NUMB
+      seasalt_number_seas4: SEAS4_NUMB
+      seasalt_number_seas5: SEAS5_NUMB
+      seasalt_mass_total: SS_MASS_TOTAL
+      seasalt_number_total: SS_NUMB_TOTAL
+    options:
+      weibull_flag: false
+      scale_factor: 1.0
+      # Bin properties + names come from the shared mechanism file; the aerosol
+      # map selects the bins (seas1..seas5) and their scale. Bin names drive the
+      # per-bin export field names above.
+      mechanism_file: data/speciation/spc_cb6_gocart.yaml
+      speciation_file: data/speciation/map_cb6_gocart.yaml
+      speciation_dataset: SEASALT
+
+cece_data:
+  streams:
+    - name: OFFLINE_MET1
+      file: /scratch4/NAGAPE/arl/Wei.K.Li/Data/MERRA2/MERRA2.20150101.CN.05x0625.nc4
+      yearFirst: 2015
+      yearLast: 2015
+      yearAlign: 2015
+      taxmode: cycle # cycle | extend
+      tintalgo: nearest # linear | nearest
+      mapalgo: bilinear # bilinear | consd | nn | ...
+      variables:
+        - { file: FROCEAN, model: FROCEAN } # model must match input_mapping RHS
+    - name: OFFLINE_MET2
+      file: /scratch4/NAGAPE/arl/Wei.K.Li/Data/MERRA2/MERRA2.20211220.A1.05x0625.nc4
+      yearFirst: 2021
+      yearLast: 2021
+      yearAlign: 2021
+      taxmode: cycle # cycle | extend
+      tintalgo: linear # linear | nearest
+      mapalgo: bilinear # bilinear | consd | nn | ...
+      variables:
+        - { file: FRSEAICE, model: FRSEAICE } # model must match input_mapping RHS
+        # LAT/LON are supplied automatically by the driver from the F360 grid
+        # coordinates (no need to read them from files).
+        - { file: TS, model: SST } #surface temperature as sea surface temperature
+        - { file: U10M, model: U10M }
+        - { file: V10M, model: V10M }
+        - { file: USTAR, model: USTAR }
+
+# Enumerate the output fields to persist to NetCDF. The names here are the
+# external (mapped) names from output_mapping above.
+output:
+  enabled: true
+  directory: ./cece_output
+  filename_pattern: "cece_seasalt_geos12_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
+  frequency_steps: 1
+  fields:
+    - name: SEAS1_MASS
+      attributes:
+        units: "kg m-2 s-1"
+        long_name: "seasalt_bin1_mass_emission_flux"
+    - name: SEAS2_MASS
+      attributes:
+        units: "kg m-2 s-1"
+        long_name: "seasalt_bin2_mass_emission_flux"
+    - name: SEAS3_MASS
+      attributes:
+        units: "kg m-2 s-1"
+        long_name: "seasalt_bin3_mass_emission_flux"
+    - name: SEAS4_MASS
+      attributes:
+        units: "kg m-2 s-1"
+        long_name: "seasalt_bin4_mass_emission_flux"
+    - name: SEAS5_MASS
+      attributes:
+        units: "kg m-2 s-1"
+        long_name: "seasalt_bin5_mass_emission_flux"
+    - name: SEAS1_NUMB
+      attributes:
+        units: "# m-2 s-1"
+        long_name: "seasalt_bin1_number_emission_flux"
+    - name: SEAS2_NUMB
+      attributes:
+        units: "# m-2 s-1"
+        long_name: "seasalt_bin2_number_emission_flux"
+    - name: SEAS3_NUMB
+      attributes:
+        units: "# m-2 s-1"
+        long_name: "seasalt_bin3_number_emission_flux"
+    - name: SEAS4_NUMB
+      attributes:
+        units: "# m-2 s-1"
+        long_name: "seasalt_bin4_number_emission_flux"
+    - name: SEAS5_NUMB
+      attributes:
+        units: "# m-2 s-1"
+        long_name: "seasalt_bin5_number_emission_flux"
+    - name: SS_MASS_TOTAL
+      attributes:
+        units: "kg m-2 s-1"
+        long_name: "seasalt_total_mass_emission_flux"
+    - name: SS_NUMB_TOTAL
+      attributes:
+        units: "# m-2 s-1"
+        long_name: "seasalt_total_number_emission_flux"

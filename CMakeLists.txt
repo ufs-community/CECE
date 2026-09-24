@@ -352,6 +352,8 @@ if(CECE_HAS_FORTRAN)
     src/core/physics/megan3_kernel.F90
     src/core/physics/cece_bdsnp_fortran_bridge.cpp
     src/core/physics/bdsnp_kernel.F90
+    src/core/physics/cece_seasalt_geos12_fortran_bridge.cpp
+    src/core/physics/geos12_seasalt_kernel.F90
     src/core/cece_ingestor_bridge.cpp
   )
 endif()
@@ -1281,6 +1283,17 @@ target_link_libraries(test_bdsnp PRIVATE cece GTest::gtest rapidcheck rapidcheck
 add_executable(test_bdsnp_runtime tests/test_bdsnp_runtime.cpp)
 target_link_libraries(test_bdsnp_runtime PRIVATE cece GTest::gtest)
 
+# GEOS-12 Sea Salt Fortran-bridge tests (require the Fortran kernel)
+if(CECE_HAS_FORTRAN)
+  add_executable(test_seasalt_geos12 tests/test_seasalt_geos12.cpp)
+  target_link_libraries(test_seasalt_geos12 PRIVATE cece GTest::gtest)
+  target_compile_definitions(test_seasalt_geos12 PRIVATE CECE_HAS_FORTRAN)
+
+  add_executable(test_seasalt_geos12_runtime tests/test_seasalt_geos12_runtime.cpp)
+  target_link_libraries(test_seasalt_geos12_runtime PRIVATE cece GTest::gtest)
+  target_compile_definitions(test_seasalt_geos12_runtime PRIVATE CECE_HAS_FORTRAN)
+endif()
+
 if(ESMF_FOUND)
   add_executable(test_field_creation tests/test_field_creation.cpp)
   add_executable(test_field_creation_error_handling tests/test_field_creation_error_handling.cpp)
@@ -1549,6 +1562,10 @@ gtest_discover_tests(test_handle_key_properties)
 gtest_discover_tests(test_stream_key_extends_handle_key)
 gtest_discover_tests(test_stream_config_resolution)
 gtest_discover_tests(test_no_manifest_no_reparse)
+if(CECE_HAS_FORTRAN)
+  gtest_discover_tests(test_seasalt_geos12 PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
+  gtest_discover_tests(test_seasalt_geos12_runtime PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false")
+endif()
 gtest_discover_tests(test_slice_cache_equivalence)
 gtest_discover_tests(test_slice_cache_independence)
 gtest_discover_tests(test_open_once_no_per_step_close)

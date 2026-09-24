@@ -75,6 +75,7 @@ void cece_core_writer_initialize_with_coords(void* data_ptr, int nx, int ny, int
                                              int lat_len, const char* start_time_iso8601, int start_time_len, int mpi_comm_f, int* rc);
 void cece_core_write_step(void* data_ptr, double time_seconds, int step_index, int* rc);
 void cece_core_set_export_field(void* data_ptr, const char* name, int name_len, const double* field_data, int nx, int ny, int nz, int* rc);
+void cece_core_set_import_field(void* data_ptr, const char* name, int name_len, const double* field_data, int nx, int ny, int nz, int* rc);
 }
 
 int main(int argc, char* argv[]) {
@@ -462,6 +463,28 @@ int main(int argc, char* argv[]) {
         if (nx <= 0 || ny <= 0 || nz <= 0) {
             CECE_LOG_ERROR("Invalid grid dimensions nx=" + std::to_string(nx) + ", ny=" + std::to_string(ny) + ", nz=" + std::to_string(nz));
             return -1;
+        }
+
+        // Publish the destination grid's coordinates as 2-D LAT/LON import
+        // fields so physics schemes can consume them without reading
+        // coordinates from offline files. Uses the same coordinate arrays that
+        // define the compute grid.
+        if (has_file_coords) {
+            std::vector<double> lon2d(static_cast<std::size_t>(nx) * ny);
+            std::vector<double> lat2d(static_cast<std::size_t>(nx) * ny);
+            for (int j = 0; j < ny; ++j) {
+                for (int i = 0; i < nx; ++i) {
+                    const std::size_t idx = static_cast<std::size_t>(i) + static_cast<std::size_t>(nx) * j;
+                    lon2d[idx] = file_lons[i];
+                    lat2d[idx] = file_lats[j];
+                }
+            }
+            cece_core_set_import_field(cece_data_ptr, "LON", 3, lon2d.data(), nx, ny, 1, &rc);
+            if (rc >= 0) cece_core_set_import_field(cece_data_ptr, "LAT", 3, lat2d.data(), nx, ny, 1, &rc);
+            if (rc < 0) {
+                cece::LogFatal("[DRIVER FATAL] (rank " + std::to_string(my_rank) + ") failed to publish grid LAT/LON import fields");
+                return rc;
+            }
         }
         // 5. Initialize the cece_driver orchestrator facade
         void* cece_driver_data = nullptr;
