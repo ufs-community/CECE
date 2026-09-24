@@ -458,6 +458,46 @@ TEST_F(CeceUtilsTest, BuildAxisMeshFastFailOnInvalidGridspec) {
     }
 }
 
+// A projected-grid CF file names its horizontal coordinates "x" and "y" too, but
+// they are cartesian metres on an even-sized cell-centre lattice rather than the
+// odd (2*n + 1) geographic-degree corner lattice of an FV3 supergrid. The
+// supergrid branch must not claim such a file; it should fall through to the
+// unsupported-convention error.
+TEST_F(CeceUtilsTest, BuildAxisMeshRejectsProjectedXyAsSupergrid) {
+    const std::filesystem::path nc_path = std::filesystem::temp_directory_path() / "cece_projected_xy_tile.nc";
+    std::filesystem::remove(nc_path);
+
+    constexpr int nx = 96, ny = 96;
+    int ncid = -1;
+    ASSERT_EQ(nc_create(nc_path.c_str(), NC_CLOBBER | NC_NETCDF4, &ncid), NC_NOERR);
+    int x_dim = -1, y_dim = -1;
+    ASSERT_EQ(nc_def_dim(ncid, "x", nx, &x_dim), NC_NOERR);
+    ASSERT_EQ(nc_def_dim(ncid, "y", ny, &y_dim), NC_NOERR);
+    int x_var = -1, y_var = -1;
+    const int dims[2] = {y_dim, x_dim};
+    ASSERT_EQ(nc_def_var(ncid, "x", NC_DOUBLE, 2, dims, &x_var), NC_NOERR);
+    ASSERT_EQ(nc_def_var(ncid, "y", NC_DOUBLE, 2, dims, &y_var), NC_NOERR);
+    const char x_units[] = "m";
+    const char y_units[] = "m";
+    const char x_name[] = "projection_x_coordinate";
+    const char y_name[] = "projection_y_coordinate";
+    ASSERT_EQ(nc_put_att_text(ncid, x_var, "units", sizeof(x_units) - 1, x_units), NC_NOERR);
+    ASSERT_EQ(nc_put_att_text(ncid, y_var, "units", sizeof(y_units) - 1, y_units), NC_NOERR);
+    ASSERT_EQ(nc_put_att_text(ncid, x_var, "standard_name", sizeof(x_name) - 1, x_name), NC_NOERR);
+    ASSERT_EQ(nc_put_att_text(ncid, y_var, "standard_name", sizeof(y_name) - 1, y_name), NC_NOERR);
+    ASSERT_EQ(nc_enddef(ncid), NC_NOERR);
+    std::vector<double> coords(static_cast<size_t>(nx) * ny, 0.0);
+    ASSERT_EQ(nc_put_var_double(ncid, x_var, coords.data()), NC_NOERR);
+    ASSERT_EQ(nc_put_var_double(ncid, y_var, coords.data()), NC_NOERR);
+    ASSERT_EQ(nc_close(ncid), NC_NOERR);
+
+    std::vector<double> dummy_lons(nx, 0.0);
+    std::vector<double> dummy_lats(ny, 0.0);
+    EXPECT_THROW(cece::io::build_axis_mesh(nx, ny, 0, dummy_lons, dummy_lats, nc_path.string()), std::runtime_error);
+
+    std::filesystem::remove(nc_path);
+}
+
 }  // namespace cece::test
 
 // Custom GTest Environment to manage Kokkos & MPI lifecycle globally

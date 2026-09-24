@@ -65,6 +65,57 @@ static std::vector<double> read_coordinate_array(amio_dataset_handle dataset, co
     return values;
 }
 
+// Decide whether a dataset is an FV3/UFS native supergrid rather than some other
+// file that merely happens to define horizontal coordinates named "x" and "y"
+// (a projected-grid CF file, for instance, names its cartesian coordinates x/y
+// too). A native supergrid stores cell-corner longitude/latitude on a
+// double-resolution logically-rectangular lattice whose extents are odd
+// (2*n + 1), with CF metadata identifying the arrays as geographic degrees.
+// Requiring all of these keeps the heuristic from misfiring on projected grids,
+// whose coordinates carry metre units and projection standard names.
+static bool looks_like_fv3_supergrid(amio_dataset_handle dataset, int nx, int nband, int j0) {
+    amio_shape_t x_shape{};
+    amio_shape_t y_shape{};
+    int64_t timesteps = 0;
+    if (amio_describe(dataset, "x", &x_shape, &timesteps) != AMIO_OK || amio_describe(dataset, "y", &y_shape, &timesteps) != AMIO_OK) {
+        return false;
+    }
+    if (x_shape.rank != 2 || y_shape.rank != 2) {
+        return false;
+    }
+    if (x_shape.extents[0] != y_shape.extents[0] || x_shape.extents[1] != y_shape.extents[1]) {
+        return false;
+    }
+    // Corner lattice must be the double-resolution (2*n + 1) grid, so both extents
+    // are odd and the x extent is exactly 2*nx + 1 (e.g. 193 corners for nx = 96).
+    const int64_t nx_corners = 2 * static_cast<int64_t>(nx) + 1;
+    const int64_t min_j_corners = 2 * static_cast<int64_t>(j0 + nband) + 1;
+    if (x_shape.extents[1] != nx_corners || x_shape.extents[0] < min_j_corners) {
+        return false;
+    }
+    if (x_shape.extents[0] % 2 == 0 || x_shape.extents[1] % 2 == 0) {
+        return false;
+    }
+
+    // Finally, confirm the CF metadata describes geographic degrees.
+    auto read_attr = [&](const char* var, const char* attr, char* buf, size_t cap) {
+        size_t len = 0;
+        buf[0] = '\0';
+        return amio_get_var_attribute_text(dataset, var, attr, buf, cap, &len) == AMIO_OK;
+    };
+    constexpr size_t kAttrCap = 64;
+    char units[kAttrCap];
+    const bool units_are_degrees =
+        read_attr("x", "units", units, kAttrCap) && (std::string(units) == "degree_east" || std::string(units) == "degrees_east") &&
+        read_attr("y", "units", units, kAttrCap) && (std::string(units) == "degree_north" || std::string(units) == "degrees_north");
+    if (units_are_degrees) {
+        return true;
+    }
+    char std_name[kAttrCap];
+    return read_attr("x", "standard_name", std_name, kAttrCap) && std::string(std_name) == "geographic_longitude" &&
+           read_attr("y", "standard_name", std_name, kAttrCap) && std::string(std_name) == "geographic_latitude";
+}
+
 static axis::topology::UnstructuredMesh<Kokkos::HostSpace> load_mesh_from_file(int nx, int nband, int j0, const std::string& gridspec_file) {
     // Build the gridspec manifest in memory and pass it directly to AMIO. Writing a
     // per-rank manifest file to a shared-disk workdir (e.g. Lustre) is unnecessary and
@@ -315,10 +366,13 @@ static axis::topology::UnstructuredMesh<Kokkos::HostSpace> load_mesh_from_file(i
         }
     }
 
-    // D. Try UFS/FV3 direct grid convention (x, y on double-resolution supergrid)
-    amio_view_handle fv3_grid_peek = nullptr;
-    if (amio_read(dataset, "x", 0, nullptr, &fv3_grid_peek) == AMIO_OK) {
-        amio_release_view(fv3_grid_peek);
+    // D. Try UFS/FV3 direct grid convention (x, y on double-resolution supergrid).
+    // This convention is keyed on the bare coordinate names "x"/"y", which other
+    // grid descriptions also use, so it is deliberately tried last -- after SCRIP,
+    // MPAS, and grid_spec -- and additionally gated on the supergrid-specific
+    // shape and CF metadata so a projected-grid file with cartesian x/y is not
+    // mistaken for one.
+    if (looks_like_fv3_supergrid(dataset, nx, nband, j0)) {
         try {
             int total_x_pts = 0, total_y_pts = 0;
             std::vector<double> corner_lons = read_coordinate_array(dataset, "x", false, true, total_x_pts);
@@ -388,8 +442,9 @@ static axis::topology::UnstructuredMesh<Kokkos::HostSpace> load_mesh_from_file(i
 
     amio_close(dataset);
     amio_finalize(core);
-    throw std::runtime_error("Unsupported gridspec mesh topology convention in '" + gridspec_file +
-                             "' (expected SCRIP [grid_corner_lon], MPAS [latVertex], grid_spec [grid_lon/grid_lat], or supergrid [x/y])");
+    throw std::runtime_error(
+        "Unsupported gridspec mesh topology convention in '" + gridspec_file +
+        "' (expected SCRIP [grid_corner_lon], MPAS [latVertex], UFS/FV3 grid_spec [grid_lon/grid_lat], or UFS/FV3 supergrid [x/y])");
 }
 
 axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_axis_mesh(int nx, int nband, int j0, const std::vector<double>& lons,
