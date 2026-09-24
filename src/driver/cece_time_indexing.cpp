@@ -39,9 +39,11 @@ SimDateTime parse_sim_datetime(const std::string& iso8601) {
         dt.day_of_week = tick::Gregorian_Calendar::day_of_week(tdt);
         dt.day_of_year = tick::Gregorian_Calendar::day_of_year(tdt);
         dt.valid = true;
-    } catch (const std::exception&) {
+    } catch (const std::exception& e) {
         // Malformed timestamp: use explicit default values so callers report an
-        // invalid bracket rather than silently picking a record.
+        // invalid bracket rather than silently picking a record. Warn so the
+        // bad input is visible instead of degrading quietly.
+        CECE_LOG_WARNING("[DRIVER] unable to parse simulation timestamp '" + iso8601 + "' as ISO-8601 (" + e.what() + ").");
         dt = SimDateTime{};
     }
     return dt;
@@ -259,8 +261,181 @@ static void warn_auto_label_once(const std::string& subject, const std::vector<d
     }
 }
 
+// Clamp a record index into the file's record range. Shared by the profile and
+// nearest-record cadence paths.
+static int clamp_record_idx(int idx, int file_nt) {
+    if (file_nt > 0 && idx >= file_nt) idx = file_nt - 1;
+    if (idx < 0) idx = 0;
+    return idx;
+}
+
+// Hour-of-day climatology: record = dt.hour, cycling across the 24 records.
+// A "linear" blend interpolates within the profile, so tintalgo is honored but
+// the time axis, taxmode, and year alignment are not consulted.
+static RecordBracket bracket_hourly_profile(const SimDateTime& dt, int file_nt, bool linear) {
+    RecordBracket br;
+    const int nrec = (file_nt > 0) ? file_nt : 24;
+    if (linear) {
+        return midpoint_bracket(dt.hour, (dt.minute * 60.0 + dt.second) / 3600.0, nrec, EdgePolicy::Wrap);
+    }
+    br.i0 = br.i1 = clamp_record_idx(dt.hour, file_nt);
+    br.valid = true;
+    return br;
+}
+
+// Day-of-week climatology: records 0=Monday .. 6=Sunday (dt.day_of_week is
+// ISO 8601, 1=Monday .. 7=Sunday). Same profile semantics as hourly.
+static RecordBracket bracket_weekly_profile(const SimDateTime& dt, int file_nt, bool linear) {
+    RecordBracket br;
+    const int nrec = (file_nt > 0) ? file_nt : 7;
+    if (linear) {
+        return midpoint_bracket(dt.day_of_week - 1, day_fraction(dt), nrec, EdgePolicy::Wrap);
+    }
+    br.i0 = br.i1 = clamp_record_idx(dt.day_of_week - 1, file_nt);
+    br.valid = true;
+    return br;
+}
+
+// Map a simulation year into the file's [yearFirst, yLast] range per taxmode.
+// Returns true and fills @p out when the year mapping is terminal (reject or
+// clamp-to-end); returns false when the year resolved in place and the caller
+// should continue with the remapped @p eff_year.
+static bool resolve_year_taxmode(int& eff_year, int yearFirst, int yLast, const std::string& tax, int file_nt, RecordBracket& out) {
+    const YearMapping mapping = apply_year_taxmode(eff_year, yearFirst, yLast, tax, out.out_of_range);
+    if (mapping == YearMapping::Reject) return true;  // out stays invalid
+    if (mapping == YearMapping::Resolved) return false;
+    out.i0 = out.i1 = (mapping == YearMapping::ClampFirst) ? 0 : std::max(0, file_nt - 1);
+    out.valid = true;
+    return true;
+}
+
+// Monthly cadence. For a multi-year file (file_nt > 12 with yearFirst set), the
+// record index is (effective_year - yearFirst) * 12 + (month - 1), with
+// yearAlign/taxmode remapping the simulation year onto the file range. Single-
+// year/climatology files index month-of-year (0-11). "linear" honors the
+// mid-month convention, dividing by the effective year's month length.
+static RecordBracket bracket_monthly(const SimDateTime& dt, int file_nt, int yearFirst, int yearLast, int yearAlign, const std::string& tax,
+                                     bool linear) {
+    RecordBracket br;
+    const bool multi_year = (yearFirst > 0 && file_nt > 12);
+    int eff_year = dt.year;
+
+    if (multi_year) {
+        // yearAlign: simulation year `yearAlign` corresponds to file year
+        // `yearFirst`, so eff_year = yearFirst + (sim_year - yearAlign).
+        if (yearAlign > 0) {
+            eff_year = yearFirst + (dt.year - yearAlign);
+        }
+        int yLast = yearLast;
+        if (yLast <= 0) {
+            yLast = yearFirst + (file_nt / 12) - 1;
+        }
+        if (resolve_year_taxmode(eff_year, yearFirst, yLast, tax, file_nt, br)) return br;
+    }
+
+    const int abs_month = multi_year ? (eff_year - yearFirst) * 12 + (dt.month - 1) : dt.month - 1;  // 0-11 for climatology
+
+    if (!linear) {
+        br.i0 = br.i1 = clamp_record_idx(abs_month, file_nt);
+        br.valid = true;
+        return br;
+    }
+
+    // Mid-month linear interpolation convention. The month length comes from
+    // the effective year: remapping February 2024 onto non-leap 2021 must
+    // divide by 28, not 29.
+    const int dim = tick::Gregorian_Calendar::days_in_month(eff_year, dt.month);
+    const int eff_day = std::min(dt.day, dim);
+    const double frac = (static_cast<double>(eff_day - 1) + day_fraction(dt)) / static_cast<double>(dim);
+    const int nrec = (file_nt > 0) ? file_nt : 12;
+
+    const EdgePolicy edge = !multi_year         ? EdgePolicy::Wrap
+                            : (tax == "extend") ? EdgePolicy::Hold
+                            : (tax == "limit")  ? EdgePolicy::Reject
+                                                : EdgePolicy::Wrap;
+    return midpoint_bracket(abs_month, frac, nrec, edge);
+}
+
+// Daily cadence. For a multi-year file (file_nt > 366 with yearFirst set), the
+// record index is the cumulative day offset across years plus (day_of_year - 1),
+// with yearAlign/taxmode remapping the simulation year. For single-year files
+// the day-of-year is normalised against the record count so a record keeps
+// meaning the same calendar day in both leap and non-leap simulation years: a
+// 365-record file maps Feb 29 onto the Feb 28 record and shifts later dates back
+// one; a 366-record file skips its Feb 29 record in non-leap years. "linear"
+// honors the mid-day convention.
+static RecordBracket bracket_daily(const SimDateTime& dt, int file_nt, int yearFirst, int yearLast, int yearAlign, const std::string& tax,
+                                   bool linear) {
+    RecordBracket br;
+    const bool multi_year = (yearFirst > 0 && file_nt > 366);
+    int eff_year = dt.year;
+
+    if (multi_year) {
+        if (yearAlign > 0) {
+            eff_year = yearFirst + (dt.year - yearAlign);
+        }
+        int yLast = yearLast;
+        if (yLast <= 0) {
+            yLast = yearFirst + std::max(1, file_nt / 365) - 1;
+        }
+        if (resolve_year_taxmode(eff_year, yearFirst, yLast, tax, file_nt, br)) return br;
+    }
+
+    int abs_day;
+    if (multi_year) {
+        int days_offset = 0;
+        for (int y = yearFirst; y < eff_year; ++y) {
+            days_offset += tick::Gregorian_Calendar::days_in_year(y);
+        }
+        // Day-of-year must come from the effective year: remapping a leap
+        // simulation year onto a non-leap file year (or vice versa) shifts
+        // every date after February otherwise. Feb 29 maps onto Feb 28.
+        int eff_day = dt.day;
+        if (dt.month == 2 && dt.day == 29 && !tick::Gregorian_Calendar::is_leap_year(eff_year)) {
+            eff_day = 28;
+        }
+        const int eff_doy = tick::Gregorian_Calendar::day_of_year(tick::Date_Time{eff_year, dt.month, eff_day, 0, 0, 0, 0});
+        abs_day = days_offset + (eff_doy - 1);
+    } else {
+        abs_day = dt.day_of_year - 1;  // 0-364 or 0-365 for single-year / climatology files
+    }
+
+    const int nrec = (file_nt > 0) ? file_nt : 365;
+
+    // Reconcile the simulation calendar with a fixed-length climatology so that
+    // a record keeps meaning the same calendar day either side of the leap day.
+    // Day-of-year 60 is Feb 29 in a leap year and Mar 1 otherwise.
+    //   365-record file, leap sim year  -> Feb 29 reuses the Feb 28 record
+    //                                      and later dates shift back one.
+    //   366-record file, non-leap year  -> later dates skip the Feb 29 record.
+    if (!multi_year && dt.day_of_year >= 60) {
+        const bool leap = tick::Gregorian_Calendar::is_leap_year(dt.year);
+        if (nrec == 365 && leap) {
+            abs_day -= 1;
+        } else if (nrec == 366 && !leap) {
+            abs_day += 1;
+        }
+    }
+
+    if (!linear) {
+        br.i0 = br.i1 = clamp_record_idx(abs_day, file_nt);
+        br.valid = true;
+        return br;
+    }
+
+    const EdgePolicy edge = !multi_year         ? EdgePolicy::Wrap
+                            : (tax == "extend") ? EdgePolicy::Hold
+                            : (tax == "limit")  ? EdgePolicy::Reject
+                                                : EdgePolicy::Wrap;
+    return midpoint_bracket(abs_day, day_fraction(dt), nrec, edge);
+}
+
 /**
  * @brief Map a simulation datetime onto a record bracket for a given cadence.
+ *
+ * Dispatches to the per-cadence implementation (hourly/weekly profile,
+ * daily/monthly series-with-arithmetic-fallback). See those helpers for the
+ * record-index conventions each cadence uses.
  *
  * @param cadence    One of "hourly", "daily", "weekly", "monthly" (case-insensitive).
  * @param tintalgo   Time-interpolation algorithm. "linear" interpolates between
@@ -280,185 +455,20 @@ static void warn_auto_label_once(const std::string& subject, const std::vector<d
  * @param taxmode    "cycle" (default): clamp sim year to the closest file year.
  *                   "extend": hold the file's first/last record.
  *                   "limit": return invalid bracket if outside range.
- *
- * For monthly cadence with multi-year files (file_nt > 12), the record index
- * is computed as: (effective_year - yearFirst) * 12 + (month - 1).
- * For daily cadence with multi-year files (file_nt > 366), the record index
- * is computed from cumulative day offsets across years plus (day_of_year - 1).
- * For single-year daily files the day-of-year is normalised against the file's
- * record count so a record keeps meaning the same calendar day in both leap and
- * non-leap simulation years: a 365-record file maps Feb 29 onto the Feb 28
- * record and shifts subsequent dates back one, and a 366-record file skips its
- * Feb 29 record in non-leap years.
- *
- * Hourly and weekly cadences select cyclic profile records (hour-of-day,
- * day-of-week). Monthly and daily cadences honor @c tintalgo for linear
- * temporal interpolation.
  */
 RecordBracket bracket_from_cadence(const std::string& cadence, const std::string& tintalgo, const SimDateTime& dt, int file_nt, int yearFirst,
                                    int yearLast, int yearAlign, const std::string& taxmode) {
-    RecordBracket br;
-    if (cadence.empty() || !dt.valid) return br;
+    if (cadence.empty() || !dt.valid) return RecordBracket{};
 
     const std::string c = to_lower(cadence);
     const std::string tax = to_lower(taxmode);
     const bool linear = (to_lower(tintalgo) == "linear");
 
-    auto clamp_idx = [&](int idx) {
-        if (file_nt > 0 && idx >= file_nt) idx = file_nt - 1;
-        if (idx < 0) idx = 0;
-        return idx;
-    };
-
-    if (c == "hourly") {
-        const int nrec = (file_nt > 0) ? file_nt : 24;
-        if (linear) {
-            br = midpoint_bracket(dt.hour, (dt.minute * 60.0 + dt.second) / 3600.0, nrec, EdgePolicy::Wrap);
-        } else {
-            br.i0 = br.i1 = clamp_idx(dt.hour);
-            br.valid = true;
-        }
-    } else if (c == "daily") {
-        const bool multi_year = (yearFirst > 0 && file_nt > 366);
-        int eff_year = dt.year;
-
-        if (multi_year) {
-            if (yearAlign > 0) {
-                eff_year = yearFirst + (dt.year - yearAlign);
-            }
-
-            int yLast = yearLast;
-            if (yLast <= 0) {
-                yLast = yearFirst + std::max(1, file_nt / 365) - 1;
-            }
-
-            const YearMapping mapping = apply_year_taxmode(eff_year, yearFirst, yLast, tax, br.out_of_range);
-            if (mapping == YearMapping::Reject) return br;
-            if (mapping != YearMapping::Resolved) {
-                br.i0 = br.i1 = (mapping == YearMapping::ClampFirst) ? 0 : std::max(0, file_nt - 1);
-                br.valid = true;
-                return br;
-            }
-        }
-
-        int abs_day;
-        if (multi_year) {
-            int days_offset = 0;
-            for (int y = yearFirst; y < eff_year; ++y) {
-                days_offset += tick::Gregorian_Calendar::days_in_year(y);
-            }
-            // Day-of-year must come from the effective year: remapping a leap
-            // simulation year onto a non-leap file year (or vice versa) shifts
-            // every date after February otherwise. Feb 29 maps onto Feb 28.
-            int eff_day = dt.day;
-            if (dt.month == 2 && dt.day == 29 && !tick::Gregorian_Calendar::is_leap_year(eff_year)) {
-                eff_day = 28;
-            }
-            const int eff_doy = tick::Gregorian_Calendar::day_of_year(tick::Date_Time{eff_year, dt.month, eff_day, 0, 0, 0, 0});
-            abs_day = days_offset + (eff_doy - 1);
-        } else {
-            abs_day = dt.day_of_year - 1;  // 0-364 or 0-365 for single-year / climatology files
-        }
-
-        const int nrec = (file_nt > 0) ? file_nt : 365;
-
-        // Reconcile the simulation calendar with a fixed-length climatology so
-        // that a record keeps meaning the same calendar day either side of the
-        // leap day. Day-of-year 60 is Feb 29 in a leap year and Mar 1 otherwise.
-        //   365-record file, leap sim year  -> Feb 29 reuses the Feb 28 record
-        //                                      and later dates shift back one.
-        //   366-record file, non-leap year  -> later dates skip the Feb 29 record.
-        if (!multi_year && dt.day_of_year >= 60) {
-            const bool leap = tick::Gregorian_Calendar::is_leap_year(dt.year);
-            if (nrec == 365 && leap) {
-                abs_day -= 1;
-            } else if (nrec == 366 && !leap) {
-                abs_day += 1;
-            }
-        }
-
-        if (!linear) {
-            br.i0 = br.i1 = clamp_idx(abs_day);
-            br.valid = true;
-            return br;
-        }
-
-        const double frac = day_fraction(dt);
-
-        const EdgePolicy edge = !multi_year         ? EdgePolicy::Wrap
-                                : (tax == "extend") ? EdgePolicy::Hold
-                                : (tax == "limit")  ? EdgePolicy::Reject
-                                                    : EdgePolicy::Wrap;
-        br = midpoint_bracket(abs_day, frac, nrec, edge);
-    } else if (c == "weekly") {
-        // dt.day_of_week is ISO 8601 (1=Monday ... 7=Sunday).
-        // Weekly profile records are 0-indexed (0=Monday ... 6=Sunday).
-        const int nrec = (file_nt > 0) ? file_nt : 7;
-        if (linear) {
-            br = midpoint_bracket(dt.day_of_week - 1, day_fraction(dt), nrec, EdgePolicy::Wrap);
-        } else {
-            br.i0 = br.i1 = clamp_idx(dt.day_of_week - 1);
-            br.valid = true;
-        }
-    } else if (c == "monthly") {
-        // Determine effective year for multi-year files.
-        // If yearFirst is set and file has more than 12 records, compute
-        // the absolute month index within the file.
-        const bool multi_year = (yearFirst > 0 && file_nt > 12);
-        int eff_year = dt.year;
-
-        if (multi_year) {
-            // If yearAlign is specified, remap simulation year into file range.
-            // yearAlign means: simulation year `yearAlign` corresponds to file
-            // year `yearFirst`. So offset = sim_year - yearAlign + yearFirst.
-            if (yearAlign > 0) {
-                eff_year = yearFirst + (dt.year - yearAlign);
-            }
-
-            // Determine yearLast from file if not explicitly provided.
-            int yLast = yearLast;
-            if (yLast <= 0) {
-                yLast = yearFirst + (file_nt / 12) - 1;
-            }
-
-            const YearMapping mapping = apply_year_taxmode(eff_year, yearFirst, yLast, tax, br.out_of_range);
-            if (mapping == YearMapping::Reject) return br;
-            if (mapping != YearMapping::Resolved) {
-                br.i0 = br.i1 = (mapping == YearMapping::ClampFirst) ? 0 : std::max(0, file_nt - 1);
-                br.valid = true;
-                return br;
-            }
-        }
-
-        // Compute absolute month index within the file.
-        int abs_month;
-        if (multi_year) {
-            abs_month = (eff_year - yearFirst) * 12 + (dt.month - 1);
-        } else {
-            abs_month = dt.month - 1;  // 0-11 for climatology files
-        }
-
-        if (!linear) {
-            br.i0 = br.i1 = clamp_idx(abs_month);
-            br.valid = true;
-            return br;
-        }
-
-        // Mid-month linear interpolation convention. The month length comes
-        // from the effective year: remapping February 2024 onto non-leap 2021
-        // must divide by 28, not 29.
-        const int dim = tick::Gregorian_Calendar::days_in_month(eff_year, dt.month);
-        const int eff_day = std::min(dt.day, dim);
-        const double frac = (static_cast<double>(eff_day - 1) + day_fraction(dt)) / static_cast<double>(dim);
-        const int nrec = (file_nt > 0) ? file_nt : 12;
-
-        const EdgePolicy edge = !multi_year         ? EdgePolicy::Wrap
-                                : (tax == "extend") ? EdgePolicy::Hold
-                                : (tax == "limit")  ? EdgePolicy::Reject
-                                                    : EdgePolicy::Wrap;
-        br = midpoint_bracket(abs_month, frac, nrec, edge);
-    }
-    return br;
+    if (c == "hourly") return bracket_hourly_profile(dt, file_nt, linear);
+    if (c == "weekly") return bracket_weekly_profile(dt, file_nt, linear);
+    if (c == "daily") return bracket_daily(dt, file_nt, yearFirst, yearLast, yearAlign, tax, linear);
+    if (c == "monthly") return bracket_monthly(dt, file_nt, yearFirst, yearLast, yearAlign, tax, linear);
+    return RecordBracket{};
 }
 
 /**
