@@ -43,7 +43,7 @@ SimDateTime parse_sim_datetime(const std::string& iso8601) {
         // Malformed timestamp: use explicit default values so callers report an
         // invalid bracket rather than silently picking a record. Warn so the
         // bad input is visible instead of degrading quietly.
-        CECE_LOG_WARNING("[DRIVER] unable to parse simulation timestamp '" + iso8601 + "' as ISO-8601 (" + e.what() + ").");
+        CECE_LOG_ERROR("[DRIVER] unable to parse simulation timestamp '" + iso8601 + "' as ISO-8601 (" + e.what() + ").");
         dt = SimDateTime{};
     }
     return dt;
