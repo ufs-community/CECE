@@ -54,6 +54,11 @@ stream::<stream_name>
 - `yearFirst`: First calendar year in data (default: 1)
 - `yearLast`: Last calendar year in data (default: 1)
 - `yearAlign`: Simulation year corresponding to `yearFirst` (default: 1)
+  - The standalone streams parser defaults to `1`, which is the identity
+    mapping: simulation year `yearFirst` selects file year `yearFirst`. (The
+    driver's inline `cece_data` section instead defaults `yearAlign` to `0`,
+    meaning "no shift"; both are identity, just different sentinels. See
+    [Configuration](configuration.md#temporal-alignment-semantics-yearalign-taxmode).)
 - `offset`: Time offset in seconds (default: 0)
 - `meshfile`: Path to source mesh file (optional)
 - `lev_dimname`: Name of vertical dimension (default: "lev")
