@@ -20,6 +20,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <limits>
 #include <stdexcept>
 #include <string>
 #include <tick/tick.hpp>
@@ -901,6 +902,22 @@ TEST(CeceAxisDecode, HourlyAxisSteppedHourlyNeedsNoLabelInference) {
     }
 }
 
+TEST(CeceAxisDecode, StartLabelledCycleSeamOpensTheNextCycle) {
+    using namespace cece::detail;
+
+    // Cycling puts midnight of day 3 exactly halfway across the wrap gap between
+    // the last half-hour center and the first of the next cycle. Like the
+    // in-range ties, it resolves to the record that opens at that instant.
+    const std::vector<double> raw = two_day_hourly_axis();
+    for (int hour = 0; hour < 24; ++hour) {
+        char iso[32];
+        std::snprintf(iso, sizeof(iso), "2000-01-03T%02d:00:00", hour);
+        const RecordBracket br = bracket_from_coords(raw, kTwoDayHourlyUnits, "gregorian", parse_sim_datetime(iso), "nearest", 0, "cycle", "start");
+        ASSERT_TRUE(br.valid) << iso;
+        EXPECT_EQ(br.i0, hour) << iso;
+    }
+}
+
 TEST(CeceAxisDecode, IntervalLabelBoundaryInstantOpensTheNextRecord) {
     using namespace cece::detail;
 
@@ -1370,6 +1387,62 @@ TEST(CeceAxisDecode, DecodeRejectsDegenerateAxisSpan) {
 
     // A single-record file is still fine -- there is nothing to bracket.
     EXPECT_TRUE(bracket_from_coords({5.0}, "days since 2000-01-01", "gregorian", dt, "nearest").valid);
+}
+
+TEST(CeceAxisDecode, DecodeRejectsNonFiniteOrOverflowingAxis) {
+    using namespace cece::detail;
+
+    // Values with no nanosecond representation degrade to the arithmetic path
+    // rather than being rounded into an arbitrary record index.
+    const SimDateTime dt = parse_sim_datetime("2000-01-02T05:00:00");
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+
+    std::vector<double> interior_nan = two_day_hourly_axis();
+    interior_nan[10] = nan;
+    const RecordBracket a = bracket_from_coords(interior_nan, kTwoDayHourlyUnits, "gregorian", dt, "nearest");
+    EXPECT_FALSE(a.valid);
+    EXPECT_FALSE(a.out_of_range);
+
+    // netCDF's default double fill, as an unwritten trailing record reads back.
+    std::vector<double> filled = two_day_hourly_axis();
+    filled.back() = 9.969209968386869e36;
+    const RecordBracket b = bracket_from_coords(filled, kTwoDayHourlyUnits, "gregorian", dt, "nearest");
+    EXPECT_FALSE(b.valid);
+    EXPECT_FALSE(b.out_of_range);
+
+    // CF bounds go through the same conversion.
+    std::vector<double> bounds;
+    for (int k = 0; k < 48; ++k) {
+        bounds.push_back(k);
+        bounds.push_back(k + 1);
+    }
+    bounds[20] = nan;
+    EXPECT_FALSE(bracket_from_coords(two_day_hourly_axis(), kTwoDayHourlyUnits, "gregorian", dt, "nearest", 0, "", "auto", bounds).valid);
+}
+
+TEST(CeceAxisDecode, DecodeAcceptsRecordsFarFromTheReference) {
+    using namespace cece::detail;
+
+    // int64 nanoseconds cover about 292 years. The limit applies to the file's
+    // span, not to how far its records sit from the units reference: this 2041
+    // axis crosses 1750 + 292 years mid-July and must still decode.
+    const auto day_number = [](int y, int m, int d) {
+        return tick::Gregorian_Calendar::to_time_point(tick::Date_Time{y, m, d, 0, 0, 0, 0}).nanos() / tick::nanos_per_day;
+    };
+    const double first = static_cast<double>(day_number(2041, 1, 1) - day_number(1750, 1, 1));
+    std::vector<double> raw(365);
+    for (int k = 0; k < 365; ++k) raw[k] = first + k;
+
+    const char* units = "days since 1750-01-01 00:00:00";
+    const SimDateTime march = parse_sim_datetime("2041-03-01T00:00:00");
+    const RecordBracket before = bracket_from_coords(raw, units, "gregorian", march, "nearest", 0, "limit", "center");
+    ASSERT_TRUE(before.valid);
+    EXPECT_EQ(before.i0, 59);
+
+    const SimDateTime october = parse_sim_datetime("2041-10-01T00:00:00");
+    const RecordBracket after = bracket_from_coords(raw, units, "gregorian", october, "nearest", 0, "limit", "center");
+    ASSERT_TRUE(after.valid);
+    EXPECT_EQ(after.i0, 273);
 }
 
 // ============================================================================

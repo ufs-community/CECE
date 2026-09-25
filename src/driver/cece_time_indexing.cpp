@@ -9,6 +9,7 @@
 #include <stdexcept>
 #include <string>
 #include <tick/tick.hpp>
+#include <type_traits>
 #include <vector>
 
 #include "cece/cece_amio_utils.hpp"
@@ -471,6 +472,19 @@ RecordBracket bracket_from_cadence(const std::string& cadence, const std::string
     return RecordBracket{};
 }
 
+template <typename T>
+static T wrap_offset(T value, T period) {
+    if constexpr (std::is_integral_v<T>) {
+        T offset = value % period;
+        if (offset < 0) offset += period;
+        return offset;
+    } else {
+        T offset = std::fmod(value, period);
+        if (offset < 0.0) offset += period;
+        return offset;
+    }
+}
+
 /**
  * @brief Bracket a target time within a sorted array of record times.
  *
@@ -479,7 +493,11 @@ RecordBracket bracket_from_cadence(const std::string& cadence, const std::string
  * the nearest record or (when @p linear) the two bracketing records with a
  * blend weight. @p times and @p target must share the same units.
  *
- * "cycle" repeats the file with period @p period_days. Pass 0 to infer it as
+ * Instantiated for @c double (days, the public find_bracket()) and for
+ * @c std::int64_t (nanoseconds, the CF-decoded axis), where exact integer
+ * arithmetic keeps a tie independent of the floating-point model.
+ *
+ * "cycle" repeats the file with period @p period. Pass 0 to infer it as
  * span + the final record interval, which is exact for a uniformly sampled
  * axis: a 48-record hourly file then has period 48 h, so hour 53 resolves to
  * record 5. No fixed period is exact for year-aligned data, where a cycle is
@@ -491,7 +509,8 @@ RecordBracket bracket_from_cadence(const std::string& cadence, const std::string
  * Returns an invalid bracket for an out-of-order @p times, which the binary
  * search cannot answer meaningfully.
  */
-RecordBracket find_bracket(const std::vector<double>& times, double target, bool linear, const std::string& taxmode, double period_days) {
+template <typename T>
+static RecordBracket find_bracket_impl(const std::vector<T>& times, T target, bool linear, const std::string& taxmode, T period) {
     RecordBracket br;
     const size_t n = times.size();
     if (n == 0) return br;
@@ -509,15 +528,14 @@ RecordBracket find_bracket(const std::vector<double>& times, double target, bool
 
     const std::string tax = to_lower(taxmode);
 
-    const double file_start = times[0];
-    const double file_end = times[n - 1];
-    const double file_span = file_end - file_start;
-    double period = period_days;
-    if (period <= 0.0) {
+    const T file_start = times[0];
+    const T file_end = times[n - 1];
+    const T file_span = file_end - file_start;
+    if (period <= T{}) {
         // The last interval stands in for the (unrecorded) step from the final
         // record back to the start of the next cycle.
-        const double last_interval = times[n - 1] - times[n - 2];
-        period = (last_interval > 0.0) ? file_span + last_interval : file_span;
+        const T last_interval = times[n - 1] - times[n - 2];
+        period = (last_interval > T{}) ? file_span + last_interval : file_span;
     }
     bool in_wrap_gap = false;
 
@@ -529,9 +547,8 @@ RecordBracket find_bracket(const std::vector<double>& times, double target, bool
             target = std::max(file_start, std::min(target, file_end));
         } else {
             // cycle
-            if (period > 0.0) {
-                double offset_from_start = std::fmod(target - file_start, period);
-                if (offset_from_start < 0.0) offset_from_start += period;
+            if (period > T{}) {
+                const T offset_from_start = wrap_offset(target - file_start, period);
                 target = file_start + offset_from_start;
                 in_wrap_gap = (target > file_end);
             }
@@ -539,15 +556,21 @@ RecordBracket find_bracket(const std::vector<double>& times, double target, bool
     }
 
     if (in_wrap_gap) {
-        const double gap = period - file_span;
-        double w = (gap > 0.0) ? (target - file_end) / gap : 0.0;
+        const T gap = period - file_span;
+        double w = (gap > T{}) ? static_cast<double>(target - file_end) / static_cast<double>(gap) : 0.0;
         w = std::max(0.0, std::min(1.0, w));
         if (linear) {
             br.i0 = static_cast<int>(n) - 1;
             br.i1 = 0;
             br.weight = w;
         } else {
-            br.i0 = br.i1 = (w < 0.5) ? static_cast<int>(n) - 1 : 0;
+            bool next_cycle;
+            if constexpr (std::is_integral_v<T>) {
+                next_cycle = target - file_end >= gap - (target - file_end);
+            } else {
+                next_cycle = w >= 0.5;
+            }
+            br.i0 = br.i1 = next_cycle ? 0 : static_cast<int>(n) - 1;
             br.weight = 0.0;
         }
         br.valid = true;
@@ -565,8 +588,8 @@ RecordBracket find_bracket(const std::vector<double>& times, double target, bool
     }
 
     if (linear && lo != hi) {
-        const double span = times[hi] - times[lo];
-        double w = (span > 0.0) ? (target - times[lo]) / span : 0.0;
+        const T span = times[hi] - times[lo];
+        double w = (span > T{}) ? static_cast<double>(target - times[lo]) / static_cast<double>(span) : 0.0;
         w = std::max(0.0, std::min(1.0, w));
         br.i0 = lo;
         br.i1 = hi;
@@ -576,7 +599,14 @@ RecordBracket find_bracket(const std::vector<double>& times, double target, bool
         // stamps are interval midpoints, so an exact tie is the shared bound
         // between two intervals, and intervals are half-open [start, end) here
         // as they are on the arithmetic cadence path.
-        if (std::abs(times[hi] - target) <= std::abs(times[lo] - target)) {
+        bool choose_hi;
+        if constexpr (std::is_integral_v<T>) {
+            // Out-of-range targets were clamped or wrapped above, so times[lo] <= target <= times[hi].
+            choose_hi = times[hi] - target <= target - times[lo];
+        } else {
+            choose_hi = std::abs(times[hi] - target) <= std::abs(times[lo] - target);
+        }
+        if (choose_hi) {
             br.i0 = br.i1 = hi;
         } else {
             br.i0 = br.i1 = lo;
@@ -587,17 +617,26 @@ RecordBracket find_bracket(const std::vector<double>& times, double target, bool
     return br;
 }
 
+RecordBracket find_bracket(const std::vector<double>& times, double target, bool linear, const std::string& taxmode, double period_days) {
+    return find_bracket_impl(times, target, linear, taxmode, period_days);
+}
+
+static RecordBracket find_bracket_nanos(const std::vector<std::int64_t>& times, std::int64_t target, bool linear, const std::string& taxmode,
+                                        std::int64_t period_nanos) {
+    return find_bracket_impl(times, target, linear, taxmode, period_nanos);
+}
+
 /**
  * @brief Decode a CF time axis and bracket the simulation time against it.
  *
  * Parses @p units ("<fixed-unit> since <ref>") and @p calendar, converts each
- * raw record value to an absolute time (as days since the file's reference),
- * maps the simulation datetime into the same frame (with an optional
- * @p yearAlign remap onto the file's first record year), and delegates to
- * find_bracket(). Returns an invalid bracket when the axis is not decodable
- * (non-fixed unit, missing/garbled units, an out-of-range calendar date, or a
- * multi-record axis that spans less than a second) so the caller falls back to
- * the arithmetic bracket_from_cadence().
+ * raw record value to nanoseconds since the file's first record, maps the
+ * simulation datetime into the same frame (with an optional
+ * @p yearAlign remap onto the file's first record year), and brackets it with
+ * the find_bracket() core. Returns an invalid bracket when the axis is not decodable
+ * (non-fixed unit, missing/garbled units, an out-of-range calendar date, a
+ * non-finite value, or a multi-record axis that spans less than a second) so
+ * the caller falls back to the arithmetic bracket_from_cadence().
  *
  * For taxmode "cycle" on an axis covering a whole number of calendar years,
  * the simulation *year* is clamped to the closest year in the file's
@@ -644,8 +683,24 @@ RecordBracket bracket_from_coords(const std::vector<double>& time_vals, const st
             return br;
         }
 
-        auto abs_nanos = [&](double d) { return ref_nanos + static_cast<std::int64_t>(std::llround(d * static_cast<double>(tick::nanos_per_day))); };
-        const std::int64_t first_nanos = abs_nanos(rec_days.front());
+        const double nanos_per_unit = cf.unit_days * static_cast<double>(tick::nanos_per_day);
+        auto to_nanos = [&](double value, std::int64_t& out) {
+            const double ns = value * nanos_per_unit;
+            // llround outside the int64 range is undefined; the negated test also rejects NaN.
+            if (!(std::abs(ns) < 9.2e18)) return false;
+            out = static_cast<std::int64_t>(std::llround(ns));
+            return true;
+        };
+
+        // Offsets from the first record bound the file's span, not its distance from the reference.
+        std::int64_t first_offset = 0;
+        if (!to_nanos(time_vals.front(), first_offset)) return br;
+        const std::int64_t first_nanos = ref_nanos + first_offset;
+        std::vector<std::int64_t> rec_nanos(time_vals.size());
+        for (size_t k = 0; k < time_vals.size(); ++k) {
+            if (!to_nanos(time_vals[k] - time_vals.front(), rec_nanos[k])) return br;
+        }
+
         const int first_year = cal_to_dt(cal, first_nanos).year;
 
         // yearAlign is the simulation year that aligns to the file's first
@@ -667,8 +722,8 @@ RecordBracket bracket_from_coords(const std::vector<double>& time_vals, const st
             max_interval = std::max(max_interval, rec_days[k] - rec_days[k - 1]);
         }
         const int span_years = std::max(1, static_cast<int>(std::llround(span_days / 365.25)));
-        const double annual_days =
-            static_cast<double>(cal_add_months(cal, first_nanos, span_years * 12) - first_nanos) / static_cast<double>(tick::nanos_per_day);
+        const std::int64_t annual_nanos = cal_add_months(cal, first_nanos, span_years * 12) - first_nanos;
+        const double annual_days = static_cast<double>(annual_nanos) / static_cast<double>(tick::nanos_per_day);
         const bool annual_cycle = (rec_days.size() > 1 && annual_days > span_days && (annual_days - span_days) <= 1.5 * max_interval);
 
         // Year remapping assumes the coverage starts on a January boundary. A
@@ -691,7 +746,7 @@ RecordBracket bracket_from_coords(const std::vector<double>& time_vals, const st
         const int sim_day = std::min(dt.day, cal_days_in_month(cal, sim_year, dt.month));
         const tick::Date_Time sim_dt{sim_year, dt.month, sim_day, dt.hour, dt.minute, dt.second, 0};
         const std::int64_t sim_nanos = cal_to_nanos(cal, sim_dt);
-        const double target_days = static_cast<double>(sim_nanos - ref_nanos) / static_cast<double>(tick::nanos_per_day);
+        const std::int64_t target_nanos = sim_nanos - first_nanos;
 
         std::string label = normalize_time_label(time_label);
         const AxisLabelInfo axis_info = inspect_axis_labels(time_vals, units, calendar);
@@ -699,7 +754,9 @@ RecordBracket bracket_from_coords(const std::vector<double>& time_vals, const st
             // CF bounds state each interval outright, so nothing is inferred.
             // An explicit time_label still wins, as a manual override.
             for (size_t k = 0; k < rec_days.size(); ++k) {
-                rec_days[k] = 0.5 * (bounds[2 * k] + bounds[2 * k + 1]) * cf.unit_days;
+                std::int64_t lower = 0, upper = 0;
+                if (!to_nanos(bounds[2 * k] - time_vals.front(), lower) || !to_nanos(bounds[2 * k + 1] - time_vals.front(), upper)) return br;
+                rec_nanos[k] = lower + (upper - lower) / 2;
             }
             label = "center";
         } else if (label == "auto") {
@@ -710,36 +767,35 @@ RecordBracket bracket_from_coords(const std::vector<double>& time_vals, const st
         // explicit label applies to any axis: a stamp is a bound of the interval
         // it labels, not the instant the record is valid at.
         if (label == "start" || label == "end") {
-            const std::vector<double> raw = rec_days;
+            const std::vector<std::int64_t> raw = rec_nanos;
             if (axis_info.monthly) {
-                const std::int64_t label_ref = ref_nanos;
                 for (size_t k = 0; k < raw.size(); ++k) {
-                    const std::int64_t abs = label_ref + static_cast<std::int64_t>(std::llround(raw[k] * static_cast<double>(tick::nanos_per_day)));
+                    const std::int64_t abs = first_nanos + raw[k];
                     const tick::Date_Time stamp = cal_to_dt(cal, abs);
                     const std::int64_t month_start = cal_to_nanos(cal, tick::Date_Time{stamp.year, stamp.month, 1, 0, 0, 0, 0});
                     const bool first_of_month = stamp.day == 1 && stamp.hour == 0 && stamp.minute == 0 && stamp.second == 0;
                     const std::int64_t bound = label == "start" ? cal_add_months(cal, month_start, 1) : abs;
                     const std::int64_t lower = label == "start" ? abs : (first_of_month ? cal_add_months(cal, month_start, -1) : month_start);
                     const std::int64_t mid = lower + (bound - lower) / 2;
-                    rec_days[k] = static_cast<double>(mid - label_ref) / static_cast<double>(tick::nanos_per_day);
+                    rec_nanos[k] = mid - first_nanos;
                 }
             } else if (raw.size() > 1) {
                 // The opposite bound is the neighbouring stamp, mirrored at the
                 // ends where there is no neighbour.
                 for (size_t k = 0; k < raw.size(); ++k) {
                     if (label == "start") {
-                        const double next = (k + 1 < raw.size()) ? raw[k + 1] : raw[k] + (raw[k] - raw[k - 1]);
-                        rec_days[k] = 0.5 * (raw[k] + next);
+                        const std::int64_t next = (k + 1 < raw.size()) ? raw[k + 1] : raw[k] + (raw[k] - raw[k - 1]);
+                        rec_nanos[k] = raw[k] + (next - raw[k]) / 2;
                     } else {
-                        const double prev = (k > 0) ? raw[k - 1] : raw[k] - (raw[k + 1] - raw[k]);
-                        rec_days[k] = 0.5 * (prev + raw[k]);
+                        const std::int64_t prev = (k > 0) ? raw[k - 1] : raw[k] - (raw[k + 1] - raw[k]);
+                        rec_nanos[k] = prev + (raw[k] - prev) / 2;
                     }
                 }
             }
         }
 
         const std::string talgo = to_lower(tintalgo);
-        return find_bracket(rec_days, target_days, talgo == "linear", taxmode, annual_cycle ? annual_days : 0.0);
+        return find_bracket_nanos(rec_nanos, target_nanos, talgo == "linear", taxmode, annual_cycle ? annual_nanos : 0);
     } catch (const std::exception&) {
         return br;  // any calendar/parse error -> degrade
     }
