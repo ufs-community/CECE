@@ -1298,9 +1298,9 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                 if (!bracket.valid) {
                     const std::string cadence_note = (cadence.empty() ? std::string("series (default)") : cadence);
                     if (!sim_dt.valid) {
-                        // Host-clock stamp, so no configuration change can fix it.
+                        // The simulation-time input is malformed, so the data axis cannot fix it.
                         LogFatal("[DRIVER FATAL] Unparseable simulation time '" + time_iso8601 + "' for field '" + var_name +
-                                 "'; the host clock, not the time axis of '" + input_file_path + "', is at fault.");
+                                 "'; the simulation-time input, not the time axis of '" + input_file_path + "', is invalid.");
                     } else if (bracket.out_of_range) {
                         LogFatal("[DRIVER FATAL] Simulation time " + time_iso8601 + " is outside the coverage of '" + input_file_path +
                                  "' for field '" + var_name + "' (cadence='" + cadence_note +
