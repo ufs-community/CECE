@@ -22,8 +22,10 @@ namespace detail {
 // These diagnostics sit on the per-timestep path, so they report once per
 // distinct subject rather than once per step. @p tag keeps subjects from
 // different call sites apart, since an absent units and an absent calendar
-// attribute both arrive here as an empty string.
-static bool report_once(const char* tag, const std::string& subject) {
+// attribute both arrive here as an empty string. A subject must come from a
+// bounded domain such as configuration or file metadata; omit it to report a
+// condition once per process rather than retaining per-step values.
+static bool report_once(const char* tag, const std::string& subject = {}) {
     static std::set<std::string> reported;
     return reported.insert(std::string(tag) + '|' + subject).second;
 }
@@ -51,8 +53,9 @@ SimDateTime parse_sim_datetime(const std::string& iso8601) {
     } catch (const std::exception& e) {
         // Malformed timestamp: use explicit default values so callers report an
         // invalid bracket rather than silently picking a record. Warn so the
-        // bad input is visible instead of degrading quietly.
-        if (report_once("sim-time", iso8601)) {
+        // bad input is visible instead of degrading quietly. Not keyed on the
+        // stamp itself, which arrives from the host on every step.
+        if (report_once("sim-time")) {
             CECE_LOG_ERROR("[DRIVER] unable to parse simulation timestamp '" + iso8601 + "' as ISO-8601 (" + e.what() + ").");
         }
         dt = SimDateTime{};
