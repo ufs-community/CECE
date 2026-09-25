@@ -1,0 +1,43 @@
+name: Submodule Verification
+on:
+  pull_request:
+    branches: [main, develop]
+  push:
+    branches: [main, develop]
+  workflow_dispatch:
+    inputs:
+      target_branch:
+        description: "Branch to verify against (default: develop)"
+        required: false
+        default: "develop"
+
+concurrency:
+  group: submodule-verify-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    name: Verify Submodule Commits
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          submodules: recursive
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Run Submodule Verification
+        env:
+          GITHUB_BASE_REF: ${{ github.base_ref }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+        run: |
+          TARGET_BRANCH="${{ inputs.target_branch || github.base_ref || github.ref_name || 'develop' }}"
+          python3 scripts/verify_submodules.py --target-branch "${TARGET_BRANCH}" --step-summary
