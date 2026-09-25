@@ -54,7 +54,9 @@ jobs:
           # so CI validates the same config most users get.
           # ENABLE_ESMF defaults OFF and must be set explicitly
           # to exercise the ESMF-gated tests below.
-          cmake .. -DENABLE_ESMF=ON
+          # CECE_MPIEXEC_CONTAINER_FLAGS: CI runs tests as root in a
+          # container, so mpiexec needs the container-only preflags.
+          cmake .. -DENABLE_ESMF=ON -DCECE_MPIEXEC_CONTAINER_FLAGS=ON
 
           # Build. Make will only build what has changed.
           make -j$(nproc)

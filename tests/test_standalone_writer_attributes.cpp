@@ -5,6 +5,7 @@
 #include <netcdf.h>
 
 #include <Kokkos_Core.hpp>
+#include <cstdlib>
 #include <filesystem>
 #include <map>
 #include <optional>
@@ -155,15 +156,3 @@ TEST_F(StandaloneWriterAttributesTest, ConfiguredFieldAttributesReachTheOutput) 
 }
 
 }  // namespace
-
-// Custom main: AMIO requires an initialized MPI environment, and the writer
-// uses Kokkos views — both are process-wide lifecycles owned here.
-int main(int argc, char** argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    MPI_Init(&argc, &argv);
-    Kokkos::initialize(argc, argv);
-    const int rc = RUN_ALL_TESTS();
-    Kokkos::finalize();
-    MPI_Finalize();
-    return rc;
-}

@@ -14,9 +14,22 @@ The recommended way to develop CECE is using the provided Docker container:
 Inside the container:
 ```bash
 mkdir build && cd build
-cmake ..
+cmake .. -DCECE_MPIEXEC_CONTAINER_FLAGS=ON
 make -j4
 ```
+
+`CECE_MPIEXEC_CONTAINER_FLAGS` (default `OFF`) appends
+`--allow-run-as-root`/`--oversubscribe` to the `mpiexec` test launches.
+The container needs both (tests run as root with oversubscribed CPUs);
+HPC systems need neither, and Intel MPI's `mpiexec` rejects
+`--allow-run-as-root` outright — so leave it `OFF` outside containers.
+The maintained container workflows (`scripts/build-and-test-container.py`,
+CI) pass it automatically; only manual in-container configures like the
+one above need it spelled out.
+
+To run the test suite on an HPC Slurm system (srun-launched ranks
+instead of the container's mpiexec), see
+[scripts/run-tests-slurm.README.md](scripts/run-tests-slurm.README.md).
 
 ### 3. Run Examples
 CECE provides several example configurations to demonstrate different capabilities:

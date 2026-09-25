@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: Apache-2.0
-// CECE — Chemical Emissions Coupling Engine
 // Copyright (c) HELM Project Contributors
 //
 // Feature: distributed-domain-decomposition
@@ -28,6 +27,7 @@
 #include <algorithm>
 #include <axis/solver/weight_generator.hpp>
 #include <cmath>
+#include <string>
 #include <vector>
 
 #include "cece/cece_regridder_utils.hpp"
@@ -189,13 +189,3 @@ TEST(BandBoundaryConservation, NonUniformFixedCase) {
 }
 
 }  // namespace cece::io
-
-int main(int argc, char** argv) {
-    MPI_Init(&argc, &argv);
-    Kokkos::initialize(argc, argv);
-    ::testing::InitGoogleTest(&argc, argv);
-    int rc = RUN_ALL_TESTS();
-    Kokkos::finalize();
-    MPI_Finalize();
-    return rc;
-}

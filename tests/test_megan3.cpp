@@ -1225,16 +1225,3 @@ TEST_F(Megan3SchemeTest, BdsnpToMegan3Pipeline) {
 }
 
 }  // namespace cece
-
-int main(int argc, char** argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    // Initialize Kokkos (needed for canopy model device views if used).
-    if (!Kokkos::is_initialized()) {
-        Kokkos::initialize(argc, argv);
-    }
-    int result = RUN_ALL_TESTS();
-    if (Kokkos::is_initialized()) {
-        Kokkos::finalize();
-    }
-    return result;
-}

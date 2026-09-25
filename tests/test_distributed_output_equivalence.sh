@@ -1,6 +1,5 @@
 #!/bin/bash
 # SPDX-License-Identifier: Apache-2.0
-# CECE - Chemical Emissions Coupling Engine
 # Copyright (c) HELM Project Contributors
 #
 # =====================================================================
@@ -124,7 +123,12 @@ echo "--- Compiling comparator: $CC_BIN $COMPARATOR_SRC $NC_CFLAGS -o $COMPARATO
 # ------------------------------------------------------------------------
 # mpirun preflags: run-as-root + oversubscribe are required in the
 # resource-constrained container (fewer physical slots than 3 ranks).
+# The launcher and its numproc flag come from the ctest registration
+# (MPIEXEC_EXECUTABLE / MPIEXEC_NUMPROC_FLAG, e.g. srun/-n on Slurm);
+# the preflags stay container-shaped because this test is registered
+# only when the CEDS data file exists — container runs in practice.
 MPIRUN="${MPIEXEC_EXECUTABLE:-mpirun}"
+NPFLAG="${MPIEXEC_NUMPROC_FLAG:--np}"
 MPI_PREFLAGS=(--allow-run-as-root --oversubscribe)
 
 run_one() {
@@ -164,7 +168,7 @@ run_one() {
             OMP_NUM_THREADS=1 OMP_PROC_BIND=false "$DRIVER" "$cfg" > "$log" 2>&1
         else
             OMP_NUM_THREADS=1 OMP_PROC_BIND=false \
-                "$MPIRUN" "${MPI_PREFLAGS[@]}" -np "$np" "$DRIVER" "$cfg" > "$log" 2>&1
+                "$MPIRUN" "${MPI_PREFLAGS[@]}" "$NPFLAG" "$np" "$DRIVER" "$cfg" > "$log" 2>&1
         fi
         rc=$?
         if [ "$rc" -eq 0 ]; then break; fi

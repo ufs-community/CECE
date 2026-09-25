@@ -248,21 +248,3 @@ TEST_F(KokkosConfigurationTest, JCSDADockerConfiguration) {
                            space_name == "Hip" || space_name == "SYCL" || space_name == "Sycl");
     EXPECT_TRUE(is_valid_space) << "Expected valid execution space, got: " << space_name;
 }
-
-int main(int argc, char** argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-
-    // Initialize Kokkos for tests
-    if (!Kokkos::is_initialized()) {
-        Kokkos::initialize(argc, argv);
-    }
-
-    int result = RUN_ALL_TESTS();
-
-    // Finalize Kokkos
-    if (Kokkos::is_initialized()) {
-        Kokkos::finalize();
-    }
-
-    return result;
-}
