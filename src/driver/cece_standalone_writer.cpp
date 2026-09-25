@@ -13,10 +13,10 @@ void amio_set_parent_communicator(MPI_Fint comm);
 #include <cstring>
 #include <ctime>
 #include <filesystem>
-#include <fstream>
 #include <iomanip>
 #include <set>
 #include <sstream>
+#include <stdexcept>
 #include <vector>
 
 #include "cece/cece_logger.hpp"
@@ -99,6 +99,13 @@ void check_amio_rc(amio_status_t status, const std::string& context) {
     }
 }
 
+void write_and_wait(amio_dataset_handle dataset, const char* variable, const void* data, amio_dtype_t dtype, const amio_shape_t* shape,
+                    int timeout_ms) {
+    amio_io_handle io = nullptr;
+    check_amio_rc(amio_write(dataset, variable, data, dtype, shape, &io), "amio_write(" + std::string(variable) + ")");
+    check_amio_rc(amio_wait(io, timeout_ms), "amio_wait(" + std::string(variable) + ")");
+}
+
 }  // namespace
 
 CeceStandaloneWriter::CeceStandaloneWriter(const CeceOutputConfig& config, MPI_Comm comm)
@@ -106,6 +113,17 @@ CeceStandaloneWriter::CeceStandaloneWriter(const CeceOutputConfig& config, MPI_C
 
 CeceStandaloneWriter::~CeceStandaloneWriter() {
     Finalize();
+}
+
+size_t CeceStandaloneWriter::ResolveStagingBufferCapacity(const CeceOutputConfig& config, int nx, int ny, int nz) {
+    const size_t field_payload_bytes = static_cast<size_t>(nx) * ny * nz * sizeof(double);
+    const size_t configured_capacity = static_cast<size_t>(config.amio_staging_buffer_capacity_bytes);
+    const size_t staging_capacity = std::max(configured_capacity, field_payload_bytes);
+    if (staging_capacity > 1073741824ULL) {
+        throw std::runtime_error("largest output field requires " + std::to_string(staging_capacity) +
+                                 " bytes, exceeding AMIO's 1 GiB per-buffer limit");
+    }
+    return staging_capacity;
 }
 
 int CeceStandaloneWriter::Initialize(const std::string& start_time_iso8601, int nx, int ny, int nz) {
@@ -225,8 +243,7 @@ void CeceStandaloneWriter::WriteCoordinateVariables(amio_dataset_handle_t datase
         lon_shape.rank = 1;
         lon_shape.extents[0] = nx_;
     }
-    amio_io_handle lon_io = nullptr;
-    check_amio_rc(amio_write(dataset, "lon", lon_values.data(), AMIO_DTYPE_F64, &lon_shape, &lon_io), "amio_write(lon)");
+    write_and_wait(dataset, "lon", lon_values.data(), AMIO_DTYPE_F64, &lon_shape, config_.amio_staging_timeout_ms);
 
     // Step 5: Write lat coordinate variable
     std::vector<double> lat_values;
@@ -248,8 +265,7 @@ void CeceStandaloneWriter::WriteCoordinateVariables(amio_dataset_handle_t datase
         lat_shape.rank = 1;
         lat_shape.extents[0] = (ny_ == 1) ? nx_ : ny_;
     }
-    amio_io_handle lat_io = nullptr;
-    check_amio_rc(amio_write(dataset, "lat", lat_values.data(), AMIO_DTYPE_F64, &lat_shape, &lat_io), "amio_write(lat)");
+    write_and_wait(dataset, "lat", lat_values.data(), AMIO_DTYPE_F64, &lat_shape, config_.amio_staging_timeout_ms);
 
     // Step 5b: Compute and write cell boundary coordinate variables (bounds) using the AXIS mesh directly!
     std::vector<double> lon_bnds_values;
@@ -375,11 +391,8 @@ void CeceStandaloneWriter::WriteCoordinateVariables(amio_dataset_handle_t datase
         if (lat_bnds_values[i] > 90.0) lat_bnds_values[i] = 90.0;
     }
 
-    amio_io_handle lon_bnds_io = nullptr;
-    check_amio_rc(amio_write(dataset, "lon_bnds", lon_bnds_values.data(), AMIO_DTYPE_F64, &lon_bnds_shape, &lon_bnds_io), "amio_write(lon_bnds)");
-
-    amio_io_handle lat_bnds_io = nullptr;
-    check_amio_rc(amio_write(dataset, "lat_bnds", lat_bnds_values.data(), AMIO_DTYPE_F64, &lat_bnds_shape, &lat_bnds_io), "amio_write(lat_bnds)");
+    write_and_wait(dataset, "lon_bnds", lon_bnds_values.data(), AMIO_DTYPE_F64, &lon_bnds_shape, config_.amio_staging_timeout_ms);
+    write_and_wait(dataset, "lat_bnds", lat_bnds_values.data(), AMIO_DTYPE_F64, &lat_bnds_shape, config_.amio_staging_timeout_ms);
 
     // Step 5c: Write mesh topology variable for unstructured UGRID mesh
     if (ny_ == 1) {
@@ -388,8 +401,7 @@ void CeceStandaloneWriter::WriteCoordinateVariables(amio_dataset_handle_t datase
         std::memset(&mesh_shape, 0, sizeof(mesh_shape));
         mesh_shape.rank = 1;
         mesh_shape.extents[0] = 1;
-        amio_io_handle mesh_io = nullptr;
-        check_amio_rc(amio_write(dataset, "mesh", &mesh_val, AMIO_DTYPE_I32, &mesh_shape, &mesh_io), "amio_write(mesh)");
+        write_and_wait(dataset, "mesh", &mesh_val, AMIO_DTYPE_I32, &mesh_shape, config_.amio_staging_timeout_ms);
     }
 
     // Step 6: Write lev coordinate variable
@@ -401,8 +413,7 @@ void CeceStandaloneWriter::WriteCoordinateVariables(amio_dataset_handle_t datase
     std::memset(&lev_shape, 0, sizeof(lev_shape));
     lev_shape.rank = 1;
     lev_shape.extents[0] = nz_;
-    amio_io_handle lev_io = nullptr;
-    check_amio_rc(amio_write(dataset, "lev", lev_values.data(), AMIO_DTYPE_F64, &lev_shape, &lev_io), "amio_write(lev)");
+    write_and_wait(dataset, "lev", lev_values.data(), AMIO_DTYPE_F64, &lev_shape, config_.amio_staging_timeout_ms);
 
     // Step 7: Write time coordinate variable
     double time_val = time_seconds;
@@ -410,8 +421,7 @@ void CeceStandaloneWriter::WriteCoordinateVariables(amio_dataset_handle_t datase
     std::memset(&time_shape, 0, sizeof(time_shape));
     time_shape.rank = 1;
     time_shape.extents[0] = 1;
-    amio_io_handle time_io = nullptr;
-    check_amio_rc(amio_write(dataset, "time", &time_val, AMIO_DTYPE_F64, &time_shape, &time_io), "amio_write(time)");
+    write_and_wait(dataset, "time", &time_val, AMIO_DTYPE_F64, &time_shape, config_.amio_staging_timeout_ms);
 }
 
 int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, DualView3D>& fields, double time_seconds, int step) {
@@ -449,18 +459,22 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
             // then broadcast so every rank opens with byte-identical content).
             std::ostringstream m_file;
 
+            const size_t staging_capacity = ResolveStagingBufferCapacity(config_, nx_, ny_, nz_);
+            const int output_threads = std::max(1, config_.amio_worker_threads);
+
             m_file << "backend: netcdf4\n"
                    << "path: " << filename << "\n"
                    << "data_model: enhanced\n"
                    << "staging_pool:\n"
-                   << "  buffer_count: 1\n"
-                   << "  buffer_capacity_bytes: 33554432\n"
+                   << "  buffer_count: " << config_.amio_staging_buffer_count << "\n"
+                   << "  buffer_capacity_bytes: " << staging_capacity << "\n"
+                   << "  max_buffer_count: " << config_.amio_staging_buffer_count << "\n"
                    << "worker_pool:\n"
-                   << "  threads: 1\n"
+                   << "  threads: " << output_threads << "\n"
                    << "prefetch:\n"
                    << "  depth: 1\n"
                    << "  read_timeout_s: 60\n"
-                   << "staging_timeout_ms: 10000\n";
+                   << "staging_timeout_ms: " << config_.amio_staging_timeout_ms << "\n";
 
             std::map<std::string, std::string> final_attrs;
             final_attrs["title"] = "CECE Standalone Emissions Simulation Output";
@@ -798,9 +812,7 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
                             field_shape.extents[3] = nx_;
                         }
 
-                        amio_io_handle field_io = nullptr;
-                        check_amio_rc(amio_write(dataset, name.c_str(), global_field.data(), AMIO_DTYPE_F64, &field_shape, &field_io),
-                                      "amio_write(" + name + ")");
+                        write_and_wait(dataset, name.c_str(), global_field.data(), AMIO_DTYPE_F64, &field_shape, config_.amio_staging_timeout_ms);
                     } catch (const std::exception& e) {
                         CECE_LOG_ERROR(std::string("[CECE] Writer field write failed for '") + name + "': " + e.what());
                         skip_file_work = true;

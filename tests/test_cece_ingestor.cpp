@@ -110,6 +110,43 @@ TEST_F(IngestorTest, CeceIoAllocatesConfiguredPerVariableLevels) {
     EXPECT_FALSE(ec) << ec.message();
 }
 
+TEST_F(IngestorTest, CeceIoSkipsEarthAccessStreams) {
+    namespace fs = std::filesystem;
+    const auto stamp = std::chrono::steady_clock::now().time_since_epoch().count();
+    const fs::path config_path = fs::temp_directory_path() / ("cece_io_earthaccess_" + std::to_string(stamp) + ".yaml");
+
+    {
+        std::ofstream config(config_path);
+        ASSERT_TRUE(config.good());
+        config << "cece_data:\n"
+               << "  streams:\n"
+               << "    - name: modis_lai\n"
+               << "      source: earthaccess\n"
+               << "      short_name: MCD15A2H\n"
+               << "      temporal_start: '2022-07-01'\n"
+               << "      temporal_end: '2022-07-03'\n"
+               << "      variables:\n"
+               << "        Lai_500m: leaf_area_index\n"
+               << "    - name: local_stream\n"
+               << "      file: local.nc\n"
+               << "      variables:\n"
+               << "        - file: LOCAL_FILE\n"
+               << "          model: local_model\n";
+    }
+
+    cece::io::CeceIO io;
+    ASSERT_NO_THROW(io.Initialize(config_path.string(), 3, 2, 1));
+
+    const auto names = io.GetOutputVarNames();
+    EXPECT_EQ(names.size(), 1u);
+    EXPECT_EQ(names[0], "local_model");
+
+    io.Finalize();
+    std::error_code ec;
+    fs::remove(config_path, ec);
+    EXPECT_FALSE(ec) << ec.message();
+}
+
 TEST_F(IngestorTest, PreservesTwentyFourLayersInCacheAndImportState) {
     constexpr int nx = 3;
     constexpr int ny = 2;

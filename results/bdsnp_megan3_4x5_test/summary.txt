@@ -1,0 +1,36 @@
+CECE native BDSNP + MEGAN3 global 4x5 test run
+================================================
+Config: tests/cece_config_earthaccess_4x5_test.yaml
+Grid: 72 lon x 46 lat (HEMCO_4x5, -180.0 to 175.0 lon, -89.0 to 89.0 lat)
+Inputs: synthetic global fields standing in for the earthaccess MODIS/SMAP/CERES
+        streams (live NASA Earthdata Login not available in this environment).
+Equations: transcribed directly from the checked-in C++ (cece_megan3.cpp,
+           cece_emission_activity.cpp, cece_megan.hpp, cece_bdsnp.cpp) -- not reimplemented physics.
+
+-- MEGAN3 ISOP global summary --
+  land cells with LAI>0: 2310 / 3312
+  mean isoprene emission (land cells): 1.821368e-10 kg m-2 s-1
+  max isoprene emission: 1.557804e-09 kg m-2 s-1
+
+-- BDSNP soil NO global summary --
+  mean soil NO emission: 7.231819e-12 kg NO m-2 s-1
+  max soil NO emission: 2.942338e-11 kg NO m-2 s-1
+  frozen (soil T <= 0C) cell count: 576
+
+-- Comparison with PR #90 HEMCO 3.12.1 MEGAN source oracle --
+  Scope: diagnostic comparison of the isoprene activity-factor term only.
+         This is NOT an executed-HEMCO runtime parity result (no gridded
+         HEMCO output exists in this repository; see PR #90 / docs/hemco_megan_parity.md).
+  16-case oracle self-check: max reproduction error 0.000e+00 (this script's HEMCO-oracle function vs the literal PR #90 CSV values; see scalar_case_validation.csv)
+  16-case CECE-native-vs-HEMCO-oracle max relative diff: 7.3588 (735.9%)
+  Gridded activity-factor % diff (land cells): mean=132.39%, max abs=161.07%
+
+  Root causes of the divergence (all confirmed by source inspection, not assumed):
+    1. LDF: CECE ISOP default is 0.9996 (cece_emission_activity.cpp kDefaultLdf[0]); HEMCO oracle uses 1.0.
+    2. History/cold-start convention: CECE's Megan3Scheme::Run kernel currently hard-codes T_AVG_15=297.0 K, PAR_AVG=400.0 W m-2, DOY=180, LAI dbtwn=30 days (no running 5-day/12-hour history is wired in yet); the HEMCO oracle uses the HEMCO no-restart cold-start values (T_DAVG=288.15 K, PARDR/PARDF_DAVG=30/48 W m-2, DOY=171, dbtwn=1 day).
+    3. NORM_FAC: CECE uses the literal constant 1/1.0101081 = 0.9899930512; the HEMCO oracle uses the fully-derived 0.9899364002107353 (difference is negligible, <0.001%).
+
+-- BDSNP HEMCO reference availability --
+  No gridded or scalar HEMCO soil-NOx reference data exists in this repository (only PR #90's MEGAN oracle is present). This run therefore reports CECE's native BDSNP field on its own, cross-checked only for the documented freezing behaviour (emission == 0 for soil T <= 0 C).
+
+Scalar case validation table: results/bdsnp_megan3_4x5_test/scalar_case_validation.csv

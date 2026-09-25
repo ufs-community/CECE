@@ -376,6 +376,7 @@ CECE includes a suite of process-based physics schemes for computing emissions f
 | --- | --- | --- |
 | DMS | Dimethyl sulfide sea-air exchange fluxes | [DMS](dms.md) |
 | Sea Salt | Size-resolved sea salt aerosol emissions (Gong 2003) | [Sea Salt](sea_salt.md) |
+| Pollen | Phenology, RF production, and meteorological pollen mobilization | [Pollen](pollen.md) |
 | Dust (Ginoux Legacy) | Single-bin mineral dust emissions (Ginoux 2001) | [Dust](dust.md) |
 | Ginoux (GOCART2G) | Multi-bin dust emissions with Marticorena threshold | [Ginoux](ginoux.md) |
 | FENGSHA | Physically-based saltation dust model with Fécan correction | [FENGSHA](fengsha.md) |

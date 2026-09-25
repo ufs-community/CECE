@@ -40,6 +40,8 @@ class CeceStandaloneWriter {
 
     void Finalize();
 
+    static size_t ResolveStagingBufferCapacity(const CeceOutputConfig& config, int nx, int ny, int nz);
+
     bool IsInitialized() const {
         return initialized_;
     }
