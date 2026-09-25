@@ -19,6 +19,15 @@
 namespace cece {
 namespace detail {
 
+// These diagnostics sit on the per-timestep path, so they report once per
+// distinct subject rather than once per step. @p tag keeps subjects from
+// different call sites apart, since an absent units and an absent calendar
+// attribute both arrive here as an empty string.
+static bool report_once(const char* tag, const std::string& subject) {
+    static std::set<std::string> reported;
+    return reported.insert(std::string(tag) + '|' + subject).second;
+}
+
 /**
  * @brief Parse an ISO-8601 timestamp ("YYYY-MM-DDThh:mm:ss") into calendar fields.
  *
@@ -43,7 +52,9 @@ SimDateTime parse_sim_datetime(const std::string& iso8601) {
         // Malformed timestamp: use explicit default values so callers report an
         // invalid bracket rather than silently picking a record. Warn so the
         // bad input is visible instead of degrading quietly.
-        CECE_LOG_ERROR("[DRIVER] unable to parse simulation timestamp '" + iso8601 + "' as ISO-8601 (" + e.what() + ").");
+        if (report_once("sim-time", iso8601)) {
+            CECE_LOG_ERROR("[DRIVER] unable to parse simulation timestamp '" + iso8601 + "' as ISO-8601 (" + e.what() + ").");
+        }
         dt = SimDateTime{};
     }
     return dt;
@@ -246,8 +257,7 @@ static std::string normalize_time_label(const std::string& time_label) {
 // is a guess a midnight stamp cannot confirm.
 static void warn_auto_label_once(const std::string& subject, const std::vector<double>& time_vals, const std::string& units,
                                  const std::string& calendar) {
-    static std::set<std::string> warned;
-    if (!warned.insert(subject).second) return;
+    if (!report_once("auto-label", subject)) return;
     const AxisLabelInfo info = inspect_axis_labels(time_vals, units, calendar);
     if (!info.interpretable) {
         CECE_LOG_WARNING("[DRIVER] " + subject +
@@ -618,7 +628,9 @@ RecordBracket bracket_from_coords(const std::vector<double>& time_vals, const st
 
         const CalKind cal = parse_calendar(calendar);
         if (cal == CalKind::Unsupported) {
-            CECE_LOG_WARNING("[DRIVER] Unsupported stream calendar '" + calendar + "'; the time axis cannot be decoded.");
+            if (report_once("calendar", calendar)) {
+                CECE_LOG_WARNING("[DRIVER] Unsupported stream calendar '" + calendar + "'; the time axis cannot be decoded.");
+            }
             return br;
         }
         // Normalise the reference to UTC. Shifting in the time-point domain is
