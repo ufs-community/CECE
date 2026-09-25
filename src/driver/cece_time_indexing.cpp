@@ -611,10 +611,9 @@ RecordBracket find_bracket(const std::vector<double>& times, double target, bool
  *
  * For taxmode "cycle" on an axis covering a whole number of calendar years,
  * the simulation *year* is clamped to the closest year in the file's
- * coverage. Coverage is inferred from the decoded records; the CF-exact
- * source would be the time variable's `bounds` (time_bnds), whose first and
- * last cell edges delimit the intervals directly, but AMIO does not surface
- * bounds variables yet.
+ * coverage. Coverage is inferred from the decoded records rather than from
+ * @p bounds, which states each record's interval exactly but is only present
+ * when the file declares a CF `bounds` attribute pointing at it.
  */
 RecordBracket bracket_from_coords(const std::vector<double>& time_vals, const std::string& units, const std::string& calendar, const SimDateTime& dt,
                                   const std::string& tintalgo, int yearAlign, const std::string& taxmode, const std::string& time_label,
