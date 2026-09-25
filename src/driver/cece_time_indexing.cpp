@@ -624,7 +624,17 @@ RecordBracket bracket_from_coords(const std::vector<double>& time_vals, const st
 
     try {
         const CFTimeUnits cf = parse_cf_units(units);
-        if (!cf.valid) return br;  // not decodable -> degrade
+        if (!cf.valid) {
+            // "months since"/"years since" are legal CF but calendar-ambiguous,
+            // so this is a degrade rather than an error.
+            if (report_once("units", units)) {
+                CECE_LOG_WARNING("[DRIVER] Stream time units '" + units +
+                                 "' are not decodable (a fixed-length '<seconds|minutes|hours|days> since <reference>' is required); the time "
+                                 "axis cannot be decoded. Set 'time_units' if the file's attribute is missing or non-standard, or use "
+                                 "cadence 'daily'/'monthly' to select records arithmetically.");
+            }
+            return br;
+        }
 
         const CalKind cal = parse_calendar(calendar);
         if (cal == CalKind::Unsupported) {
