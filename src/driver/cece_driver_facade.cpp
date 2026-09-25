@@ -1297,7 +1297,11 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
 
                 if (!bracket.valid) {
                     const std::string cadence_note = (cadence.empty() ? std::string("series (default)") : cadence);
-                    if (bracket.out_of_range) {
+                    if (!sim_dt.valid) {
+                        // The simulation-time input is malformed, so the data axis cannot fix it.
+                        LogFatal("[DRIVER FATAL] Unparseable simulation time '" + time_iso8601 + "' for field '" + var_name +
+                                 "'; the simulation-time input, not the time axis of '" + input_file_path + "', is invalid.");
+                    } else if (bracket.out_of_range) {
                         LogFatal("[DRIVER FATAL] Simulation time " + time_iso8601 + " is outside the coverage of '" + input_file_path +
                                  "' for field '" + var_name + "' (cadence='" + cadence_note +
                                  "', taxmode='limit'). Use taxmode 'extend' to hold the nearest end or 'cycle' to clamp to the closest "
