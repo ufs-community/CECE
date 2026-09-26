@@ -1420,29 +1420,30 @@ TEST(CeceAxisDecode, DecodeRejectsNonFiniteOrOverflowingAxis) {
     EXPECT_FALSE(bracket_from_coords(two_day_hourly_axis(), kTwoDayHourlyUnits, "gregorian", dt, "nearest", 0, "", "auto", bounds).valid);
 }
 
-TEST(CeceAxisDecode, DecodeAcceptsRecordsFarFromTheReference) {
+TEST(CeceAxisDecode, DecodeAcceptsFirstRecordBeyondTheDurationRange) {
     using namespace cece::detail;
 
-    // int64 nanoseconds cover about 292 years. The limit applies to the file's
-    // span, not to how far its records sit from the units reference: this 2041
-    // axis crosses 1750 + 292 years mid-July and must still decode.
+    // 1750 and 2043 are both TICK dates, but 293 years apart is more than an
+    // int64 nanosecond duration holds. Only the absolute timestamps must fit.
     const auto day_number = [](int y, int m, int d) {
         return tick::Gregorian_Calendar::to_time_point(tick::Date_Time{y, m, d, 0, 0, 0, 0}).nanos() / tick::nanos_per_day;
     };
-    const double first = static_cast<double>(day_number(2041, 1, 1) - day_number(1750, 1, 1));
+    const double first = static_cast<double>(day_number(2043, 1, 1) - day_number(1750, 1, 1));
     std::vector<double> raw(365);
     for (int k = 0; k < 365; ++k) raw[k] = first + k;
 
     const char* units = "days since 1750-01-01 00:00:00";
-    const SimDateTime march = parse_sim_datetime("2041-03-01T00:00:00");
-    const RecordBracket before = bracket_from_coords(raw, units, "gregorian", march, "nearest", 0, "limit", "center");
-    ASSERT_TRUE(before.valid);
-    EXPECT_EQ(before.i0, 59);
+    const SimDateTime march = parse_sim_datetime("2043-03-01T00:00:00");
+    const RecordBracket centered = bracket_from_coords(raw, units, "gregorian", march, "nearest", 0, "limit", "center");
+    ASSERT_TRUE(centered.valid);
+    EXPECT_EQ(centered.i0, 59);
 
-    const SimDateTime october = parse_sim_datetime("2041-10-01T00:00:00");
-    const RecordBracket after = bracket_from_coords(raw, units, "gregorian", october, "nearest", 0, "limit", "center");
-    ASSERT_TRUE(after.valid);
-    EXPECT_EQ(after.i0, 273);
+    // "auto" must still read the midnight stamps as interval starts: 18:00 then
+    // falls in the Mar 1 record, where an instantaneous reading picks Mar 2.
+    const SimDateTime evening = parse_sim_datetime("2043-03-01T18:00:00");
+    const RecordBracket inferred = bracket_from_coords(raw, units, "gregorian", evening, "nearest", 0, "limit", "auto");
+    ASSERT_TRUE(inferred.valid);
+    EXPECT_EQ(inferred.i0, 59);
 }
 
 // ============================================================================

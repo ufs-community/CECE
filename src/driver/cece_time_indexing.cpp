@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
+#include <limits>
 #include <set>
 #include <stdexcept>
 #include <string>
@@ -185,6 +186,35 @@ struct AxisLabelInfo {
     bool end_labeled = false;
 };
 
+// Absolute TICK nanoseconds for a CF axis value. Whole days and the sub-day
+// remainder are combined separately, so only the result must fit int64, not
+// the value's distance from the reference. False when not representable.
+static bool cf_value_to_nanos(double value, const CFTimeUnits& cf, std::int64_t ref_nanos, std::int64_t& out) {
+    constexpr std::int64_t npd = tick::nanos_per_day;
+    // Every supported unit (s, min, h, d) divides a day evenly.
+    const std::int64_t units_per_day = std::llround(1.0 / cf.unit_days);
+    if (units_per_day <= 0 || npd % units_per_day != 0) return false;
+    const std::int64_t nanos_per_unit = npd / units_per_day;
+
+    // TICK spans about 2 x 106751 days, so nothing farther can land in range; the negated test also rejects NaN.
+    if (!(std::abs(value) < 4.0e5 * static_cast<double>(units_per_day))) return false;
+    const double whole = std::floor(value);
+    const auto whole_units = static_cast<std::int64_t>(whole);
+    const std::int64_t frac_nanos = std::llround((value - whole) * static_cast<double>(nanos_per_unit));
+
+    const auto floor_div = [](std::int64_t a, std::int64_t b) { return a / b - ((a % b != 0) && ((a < 0) != (b < 0))); };
+    const std::int64_t value_days = floor_div(whole_units, units_per_day);
+    const std::int64_t ref_days = floor_div(ref_nanos, npd);
+    // Each term is in [0, npd], so the sum stays under three days.
+    const std::int64_t sub_day = (ref_nanos - ref_days * npd) + (whole_units - value_days * units_per_day) * nanos_per_unit + frac_nanos;
+    const std::int64_t days = ref_days + value_days;
+    constexpr std::int64_t max_days = std::numeric_limits<std::int64_t>::max() / npd - 3;
+    constexpr std::int64_t min_days = std::numeric_limits<std::int64_t>::min() / npd + 1;
+    if (days > max_days || days < min_days) return false;
+    out = days * npd + sub_day;
+    return true;
+}
+
 // Classify an axis well enough for "auto" to pick an interval label. Monthly
 // and daily are the two shapes where the stamps themselves give the convention
 // away; anything else is left to the caller's fallback.
@@ -206,8 +236,8 @@ static AxisLabelInfo inspect_axis_labels(const std::vector<double>& time_vals, c
         bool all_midnight = true;
         bool all_midday = true;
         for (size_t k = 0; k < time_vals.size(); ++k) {
-            const std::int64_t nanos =
-                ref_nanos + static_cast<std::int64_t>(std::llround(time_vals[k] * cf.unit_days * static_cast<double>(tick::nanos_per_day)));
+            std::int64_t nanos = 0;
+            if (!cf_value_to_nanos(time_vals[k], cf, ref_nanos, nanos)) return info;
             const tick::Date_Time stamp = cal_to_dt(cal, nanos);
             const int month_index = stamp.year * 12 + stamp.month;
             if (k > 0 && month_index != previous_month_index + 1) consecutive_months = false;
@@ -693,9 +723,8 @@ RecordBracket bracket_from_coords(const std::vector<double>& time_vals, const st
         };
 
         // Offsets from the first record bound the file's span, not its distance from the reference.
-        std::int64_t first_offset = 0;
-        if (!to_nanos(time_vals.front(), first_offset)) return br;
-        const std::int64_t first_nanos = ref_nanos + first_offset;
+        std::int64_t first_nanos = 0;
+        if (!cf_value_to_nanos(time_vals.front(), cf, ref_nanos, first_nanos)) return br;
         std::vector<std::int64_t> rec_nanos(time_vals.size());
         for (size_t k = 0; k < time_vals.size(); ++k) {
             if (!to_nanos(time_vals[k] - time_vals.front(), rec_nanos[k])) return br;
