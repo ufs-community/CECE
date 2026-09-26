@@ -1446,6 +1446,35 @@ TEST(CeceAxisDecode, DecodeAcceptsFirstRecordBeyondTheDurationRange) {
     EXPECT_EQ(inferred.i0, 59);
 }
 
+TEST(CeceAxisDecode, DecodeSimTimeFartherFromTheFileThanAnInt64Duration) {
+    using namespace cece::detail;
+
+    // A 1750 file driving a 2043 run: both are TICK dates, but they are further
+    // apart than an int64 nanosecond duration holds.
+    const std::vector<double> raw = two_day_hourly_axis();
+    const char* units = "hours since 1750-01-01 00:00:00";
+    const SimDateTime later = parse_sim_datetime("2043-01-02T05:00:00");
+
+    const RecordBracket ext = bracket_from_coords(raw, units, "gregorian", later, "nearest", 0, "extend", "center");
+    ASSERT_TRUE(ext.valid);
+    EXPECT_EQ(ext.i0, 47);
+
+    const RecordBracket lim = bracket_from_coords(raw, units, "gregorian", later, "nearest", 0, "limit", "center");
+    EXPECT_FALSE(lim.valid);
+    EXPECT_TRUE(lim.out_of_range);
+
+    // 107017 days separate the two midnights, an odd count, so the 48-hour cycle is on its second day.
+    const RecordBracket cyc = bracket_from_coords(raw, units, "gregorian", later, "nearest", 0, "cycle", "center");
+    ASSERT_TRUE(cyc.valid);
+    EXPECT_EQ(cyc.i0, 29);
+
+    // The mirror case: a file near the top of TICK's range and a run near the bottom.
+    const SimDateTime earlier = parse_sim_datetime("1750-06-01T00:00:00");
+    const RecordBracket held = bracket_from_coords(raw, "hours since 2300-01-01 00:00:00", "gregorian", earlier, "nearest", 0, "extend", "center");
+    ASSERT_TRUE(held.valid);
+    EXPECT_EQ(held.i0, 0);
+}
+
 // ============================================================================
 // Dated hourly meteorology: a file holding 48 hourly records (two full days)
 // driving a two-day run must resolve each simulation hour to the record for
