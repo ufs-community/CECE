@@ -10,6 +10,7 @@
 #include <gtest/gtest.h>
 
 #include <cstdint>
+#include <limits>
 #include <stdexcept>
 #include <tick/tick.hpp>
 
@@ -183,6 +184,8 @@ TEST(CeceCalendarKind, ConversionsRejectYearsTickCannotRepresent) {
         const std::int64_t late = cal_to_nanos(kind, tick::Date_Time{2300, 1, 1, 0, 0, 0, 0});
         EXPECT_NO_THROW(cal_add_months(kind, late, 12));
         EXPECT_THROW(cal_add_months(kind, late, 12 * 30), std::out_of_range);
+        EXPECT_THROW(cal_add_months(kind, late, std::numeric_limits<int>::max()), std::out_of_range);
+        EXPECT_THROW(cal_add_months(kind, late, std::numeric_limits<int>::min()), std::out_of_range);
 
         const std::int64_t early = cal_to_nanos(kind, tick::Date_Time{1750, 1, 1, 0, 0, 0, 0});
         EXPECT_NO_THROW(cal_add_months(kind, early, -12));

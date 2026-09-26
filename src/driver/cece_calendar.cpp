@@ -17,7 +17,7 @@ namespace {
 
 // TICK converts dates to nanoseconds without overflow checks, so an out-of-range
 // year wraps silently. Every supported calendar holds whole years 1734-2317.
-void require_representable_year(int year) {
+void require_representable_year(std::int64_t year) {
     if (year < 1734 || year > 2317) {
         throw std::out_of_range("Year " + std::to_string(year) + " is outside the range TICK can represent (1734-2317).");
     }
@@ -62,7 +62,7 @@ tick::Date_Time cal_to_dt(CalKind kind, std::int64_t nanos) {
 
 std::int64_t cal_add_months(CalKind kind, std::int64_t nanos, int months) {
     const tick::Date_Time dt = cal_to_dt(kind, nanos);
-    const int month_index = dt.month - 1 + months;
+    const std::int64_t month_index = static_cast<std::int64_t>(dt.month) - 1 + months;
     require_representable_year(dt.year + (month_index >= 0 ? month_index / 12 : -((11 - month_index) / 12)));
     const tick::Time_Point tp{nanos};
     switch (kind) {
