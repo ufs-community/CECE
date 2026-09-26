@@ -239,6 +239,7 @@ static AxisLabelInfo inspect_axis_labels(const std::vector<double>& time_vals, c
         for (size_t k = 0; k < time_vals.size(); ++k) {
             std::int64_t nanos = 0;
             if (!cf_value_to_nanos(time_vals[k], cf, ref_nanos, nanos)) return info;
+            if (k > 0 && nanos < previous_nanos) return info;
             const tick::Date_Time stamp = cal_to_dt(cal, nanos);
             const int month_index = stamp.year * 12 + stamp.month;
             if (k > 0 && month_index != previous_month_index + 1) consecutive_months = false;
@@ -562,11 +563,19 @@ static RecordBracket find_bracket_impl(const std::vector<T>& times, T target, bo
     const T file_start = times[0];
     const T file_end = times[n - 1];
     const T file_span = file_end - file_start;
+    // Integer time points must also keep the cycle period, and the end of one cycle, representable.
+    bool period_fits = true;
     if (period <= T{}) {
         // The last interval stands in for the (unrecorded) step from the final
         // record back to the start of the next cycle.
         const T last_interval = times[n - 1] - times[n - 2];
-        period = (last_interval > T{}) ? file_span + last_interval : file_span;
+        if constexpr (std::is_integral_v<T>) {
+            period_fits = last_interval <= std::numeric_limits<T>::max() - file_span;
+        }
+        if (period_fits) period = (last_interval > T{}) ? file_span + last_interval : file_span;
+    }
+    if constexpr (std::is_integral_v<T>) {
+        if (file_start > T{} && period > std::numeric_limits<T>::max() - file_start) period_fits = false;
     }
     bool in_wrap_gap = false;
 
@@ -578,6 +587,7 @@ static RecordBracket find_bracket_impl(const std::vector<T>& times, T target, bo
             target = std::max(file_start, std::min(target, file_end));
         } else {
             // cycle
+            if (!period_fits) return br;
             if (period > T{}) {
                 T offset_from_start;
                 if constexpr (std::is_integral_v<T>) {
@@ -726,6 +736,8 @@ RecordBracket bracket_from_coords(const std::vector<double>& time_vals, const st
         for (size_t k = 0; k < time_vals.size(); ++k) {
             if (!cf_value_to_nanos(time_vals[k], cf, ref_nanos, rec_nanos[k])) return br;
         }
+        // Ordered records keep every neighbour difference within the checked span.
+        if (!std::is_sorted(rec_nanos.begin(), rec_nanos.end())) return br;
         const std::int64_t first_nanos = rec_nanos.front();
 
         const int first_year = cal_to_dt(cal, first_nanos).year;
@@ -807,13 +819,19 @@ RecordBracket bracket_from_coords(const std::vector<double>& time_vals, const st
             } else if (raw.size() > 1) {
                 // The opposite bound is the neighbouring stamp, mirrored at the
                 // ends where there is no neighbour.
+                constexpr std::int64_t max_nanos = std::numeric_limits<std::int64_t>::max();
+                constexpr std::int64_t min_nanos = std::numeric_limits<std::int64_t>::min();
                 for (size_t k = 0; k < raw.size(); ++k) {
+                    // A mirrored centre can fall past the end of TICK's range.
                     if (label == "start") {
-                        const std::int64_t next = (k + 1 < raw.size()) ? raw[k + 1] : raw[k] + (raw[k] - raw[k - 1]);
-                        rec_nanos[k] = raw[k] + (next - raw[k]) / 2;
+                        const std::int64_t interval = (k + 1 < raw.size()) ? raw[k + 1] - raw[k] : raw[k] - raw[k - 1];
+                        if (raw[k] > max_nanos - interval / 2) return br;
+                        rec_nanos[k] = raw[k] + interval / 2;
                     } else {
-                        const std::int64_t prev = (k > 0) ? raw[k - 1] : raw[k] - (raw[k + 1] - raw[k]);
-                        rec_nanos[k] = prev + (raw[k] - prev) / 2;
+                        const std::int64_t interval = (k > 0) ? raw[k] - raw[k - 1] : raw[k + 1] - raw[k];
+                        const std::int64_t half = interval - interval / 2;
+                        if (raw[k] < min_nanos + half) return br;
+                        rec_nanos[k] = raw[k] - half;
                     }
                 }
             }

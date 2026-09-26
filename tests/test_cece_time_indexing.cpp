@@ -1475,6 +1475,42 @@ TEST(CeceAxisDecode, DecodeSimTimeFartherFromTheFileThanAnInt64Duration) {
     EXPECT_EQ(held.i0, 0);
 }
 
+TEST(CeceAxisDecode, CycleRejectsAPeriodBeyondAnInt64Duration) {
+    using namespace cece::detail;
+
+    // Two records 200 years apart infer a 400-year cycle, which no int64
+    // duration holds. Only "cycle" needs the period.
+    const char* units = "days since 1800-01-01 00:00:00";
+    const std::vector<double> raw = {0.0, 73148.0};  // 1800-01-01 and 2000-04-10
+    const SimDateTime dt = parse_sim_datetime("2100-01-01T00:00:00");
+
+    const RecordBracket cyc = bracket_from_coords(raw, units, "gregorian", dt, "nearest", 0, "cycle", "center");
+    EXPECT_FALSE(cyc.valid);
+    EXPECT_FALSE(cyc.out_of_range);
+
+    const RecordBracket ext = bracket_from_coords(raw, units, "gregorian", dt, "nearest", 0, "extend", "center");
+    ASSERT_TRUE(ext.valid);
+    EXPECT_EQ(ext.i0, 1);
+}
+
+TEST(CeceAxisDecode, IntervalLabelRejectsACentreBeyondTickRange) {
+    using namespace cece::detail;
+
+    // TICK's epoch is 2026-01-01, so its range ends 106751 days later. A start
+    // label mirrors the final 40-day spacing past the last stamp, beyond that.
+    const char* units = "days since 2026-01-01 00:00:00";
+    const std::vector<double> raw = {106380.0, 106700.0, 106740.0};
+    const SimDateTime dt = parse_sim_datetime("2300-01-01T00:00:00");
+
+    const RecordBracket started = bracket_from_coords(raw, units, "gregorian", dt, "nearest", 0, "extend", "start");
+    EXPECT_FALSE(started.valid);
+    EXPECT_FALSE(started.out_of_range);
+
+    const RecordBracket centered = bracket_from_coords(raw, units, "gregorian", dt, "nearest", 0, "extend", "center");
+    ASSERT_TRUE(centered.valid);
+    EXPECT_EQ(centered.i0, 0);
+}
+
 // ============================================================================
 // Dated hourly meteorology: a file holding 48 hourly records (two full days)
 // driving a two-day run must resolve each simulation hour to the record for
