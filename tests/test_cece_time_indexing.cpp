@@ -1450,8 +1450,9 @@ TEST(CeceAxisDecode, DecodeAcceptsFirstRecordBeyondTheDurationRange) {
     ASSERT_TRUE(centered.valid);
     EXPECT_EQ(centered.i0, 59);
 
-    // "auto" must still read the midnight stamps as interval starts: 18:00 then
-    // falls in the Mar 1 record, where an instantaneous reading picks Mar 2.
+    // "auto" must still read the midnight stamps as interval starts, centring
+    // each record at noon: 18:00 is 6 h past Mar 1's centre and 18 h short of
+    // Mar 2's, where an instantaneous reading would pick Mar 2.
     const SimDateTime evening = parse_sim_datetime("2043-03-01T18:00:00");
     const RecordBracket inferred = bracket_from_coords(raw, units, "gregorian", evening, "nearest", 0, "limit", "auto");
     ASSERT_TRUE(inferred.valid);
