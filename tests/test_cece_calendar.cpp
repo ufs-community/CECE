@@ -2,13 +2,15 @@
  * @file test_cece_calendar.cpp
  * @brief Tests for CF time-units decoding (cece/cece_calendar.hpp).
  *
- * The runtime calendar dispatchers are covered indirectly by the decode tests
+ * The runtime calendar dispatchers are otherwise covered indirectly by the decode tests
  * in test_cece_time_indexing.cpp, which drive them through bracket_from_coords
  * for gregorian, noleap and 360_day axes.
  */
 
 #include <gtest/gtest.h>
 
+#include <cstdint>
+#include <stdexcept>
 #include <tick/tick.hpp>
 
 #include "cece/cece_calendar.hpp"
@@ -166,6 +168,26 @@ TEST(CeceCalendarKind, MapsSupportedNamesAndRejectsTheRest) {
     EXPECT_EQ(parse_calendar("all_leap"), CalKind::Unsupported);
     EXPECT_EQ(parse_calendar("366_day"), CalKind::Unsupported);
     EXPECT_EQ(parse_calendar("not_a_calendar"), CalKind::Unsupported);
+}
+
+TEST(CeceCalendarKind, ConversionsRejectYearsTickCannotRepresent) {
+    using namespace cece::detail;
+
+    // TICK's own conversions would wrap these silently instead of failing.
+    for (const CalKind kind : {CalKind::Gregorian, CalKind::NoLeap, CalKind::Cal360}) {
+        EXPECT_THROW(cal_to_nanos(kind, tick::Date_Time{1, 1, 1, 0, 0, 0, 0}), std::out_of_range);
+        EXPECT_THROW(cal_to_nanos(kind, tick::Date_Time{2400, 1, 1, 0, 0, 0, 0}), std::out_of_range);
+        EXPECT_NO_THROW(cal_to_nanos(kind, tick::Date_Time{1734, 1, 1, 0, 0, 0, 0}));
+        EXPECT_NO_THROW(cal_to_nanos(kind, tick::Date_Time{2317, 12, 30, 23, 59, 59, 0}));
+
+        const std::int64_t late = cal_to_nanos(kind, tick::Date_Time{2300, 1, 1, 0, 0, 0, 0});
+        EXPECT_NO_THROW(cal_add_months(kind, late, 12));
+        EXPECT_THROW(cal_add_months(kind, late, 12 * 30), std::out_of_range);
+
+        const std::int64_t early = cal_to_nanos(kind, tick::Date_Time{1750, 1, 1, 0, 0, 0, 0});
+        EXPECT_NO_THROW(cal_add_months(kind, early, -12));
+        EXPECT_THROW(cal_add_months(kind, early, -12 * 30), std::out_of_range);
+    }
 }
 
 }  // namespace cece

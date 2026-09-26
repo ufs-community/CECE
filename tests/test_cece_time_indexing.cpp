@@ -1420,6 +1420,18 @@ TEST(CeceAxisDecode, DecodeRejectsNonFiniteOrOverflowingAxis) {
     EXPECT_FALSE(bracket_from_coords(two_day_hourly_axis(), kTwoDayHourlyUnits, "gregorian", dt, "nearest", 0, "", "auto", bounds).valid);
 }
 
+TEST(CeceAxisDecode, DecodeRejectsAReferenceTickCannotRepresent) {
+    using namespace cece::detail;
+
+    // The records are 1750-01-01..03, but TICK cannot place a 1700 reference.
+    // Degrading beats decoding every record from a silently wrapped epoch.
+    const std::vector<double> raw = {18262.0, 18263.0, 18264.0};
+    const SimDateTime dt = parse_sim_datetime("1750-01-02T00:00:00");
+    const RecordBracket br = bracket_from_coords(raw, "days since 1700-01-01", "gregorian", dt, "nearest");
+    EXPECT_FALSE(br.valid);
+    EXPECT_FALSE(br.out_of_range);
+}
+
 TEST(CeceAxisDecode, DecodeAcceptsFirstRecordBeyondTheDurationRange) {
     using namespace cece::detail;
 
@@ -1496,10 +1508,14 @@ TEST(CeceAxisDecode, CycleRejectsAPeriodBeyondAnInt64Duration) {
 TEST(CeceAxisDecode, IntervalLabelRejectsACentreBeyondTickRange) {
     using namespace cece::detail;
 
-    // TICK's epoch is 2026-01-01, so its range ends 106751 days later. A start
-    // label mirrors the final 40-day spacing past the last stamp, beyond that.
+    // TICK's range ends in April 2318. A start label mirrors the final 7.5-year
+    // spacing half past the last stamp, to 2321; the records themselves, and
+    // the annual-cycle probe one span on from 2310, stay inside it.
+    const auto day_number = [](int y, int m, int d) {
+        return tick::Gregorian_Calendar::to_time_point(tick::Date_Time{y, m, d, 0, 0, 0, 0}).nanos() / tick::nanos_per_day;
+    };
     const char* units = "days since 2026-01-01 00:00:00";
-    const std::vector<double> raw = {106380.0, 106700.0, 106740.0};
+    const std::vector<double> raw = {static_cast<double>(day_number(2310, 1, 1)), static_cast<double>(day_number(2317, 7, 1))};
     const SimDateTime dt = parse_sim_datetime("2300-01-01T00:00:00");
 
     const RecordBracket started = bracket_from_coords(raw, units, "gregorian", dt, "nearest", 0, "extend", "start");

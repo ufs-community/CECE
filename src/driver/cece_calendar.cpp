@@ -4,6 +4,7 @@
 #include <cerrno>
 #include <cstdlib>
 #include <limits>
+#include <stdexcept>
 #include <string>
 #include <tick/tick.hpp>
 
@@ -11,6 +12,18 @@
 
 namespace cece {
 namespace detail {
+
+namespace {
+
+// TICK converts dates to nanoseconds without overflow checks, so an out-of-range
+// year wraps silently. Every supported calendar holds whole years 1734-2317.
+void require_representable_year(int year) {
+    if (year < 1734 || year > 2317) {
+        throw std::out_of_range("Year " + std::to_string(year) + " is outside the range TICK can represent (1734-2317).");
+    }
+}
+
+}  // namespace
 
 CalKind parse_calendar(const std::string& calendar) {
     const std::string c = to_lower(calendar);
@@ -22,6 +35,7 @@ CalKind parse_calendar(const std::string& calendar) {
 }
 
 std::int64_t cal_to_nanos(CalKind kind, const tick::Date_Time& dt) {
+    require_representable_year(dt.year);
     switch (kind) {
         case CalKind::NoLeap:
             return tick::NoLeap_Calendar::to_time_point(dt).nanos();
@@ -47,6 +61,9 @@ tick::Date_Time cal_to_dt(CalKind kind, std::int64_t nanos) {
 }
 
 std::int64_t cal_add_months(CalKind kind, std::int64_t nanos, int months) {
+    const tick::Date_Time dt = cal_to_dt(kind, nanos);
+    const int month_index = dt.month - 1 + months;
+    require_representable_year(dt.year + (month_index >= 0 ? month_index / 12 : -((11 - month_index) / 12)));
     const tick::Time_Point tp{nanos};
     switch (kind) {
         case CalKind::NoLeap:
