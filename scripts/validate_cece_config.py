@@ -1,0 +1,388 @@
+#!/usr/bin/env python3
+"""Validate CECE YAML configurations and YAML examples in Markdown."""
+
+from __future__ import annotations
+
+import argparse
+import importlib.util
+import re
+import sys
+import textwrap
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Iterable, Optional
+
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+CONFIG_PATH = REPO_ROOT / "src" / "python" / "config.py"
+SKIP_MARKER = "<!-- cece-validate: skip -->"
+DEFAULT_PATTERNS = (
+    "examples/*.yaml",
+    "scripts/examples/*.yaml",
+    "tests/*.yaml",
+    "tests/data/*.yaml",
+    "README.md",
+    "docs/**/*.md",
+)
+FENCE_OPEN_RE = re.compile(r"^(?P<indent>[ \t]*)(?P<fence>`{3,}|~{3,})(?P<info>.*)$")
+PATH_TOKEN_RE = re.compile(r"(?:^|\.)([^.\[\]]+)|\[(\d+)\]")
+SCHEME_REGISTRATION_RE = re.compile(
+    r'\bPhysicsRegistration\s*<[^>]+>\s+\w+\s*\(\s*"([^"]+)"\s*\)'
+)
+DIRECT_SCHEME_RE = re.compile(r'\bregister_scheme\s*\(\s*"([^"]+)"')
+
+
+@dataclass
+class MarkdownYamlBlock:
+    start_line: int
+    content: str
+    skipped: bool
+
+
+def load_config_module() -> Any:
+    spec = importlib.util.spec_from_file_location("cece_config_schema", CONFIG_PATH)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Could not load config schema from {CONFIG_PATH}")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def discover_default_files() -> list[Path]:
+    files = set()
+    for pattern in DEFAULT_PATTERNS:
+        files.update(REPO_ROOT.glob(pattern))
+    return sorted(path for path in files if path.is_file())
+
+
+def discover_registered_schemes() -> set[str]:
+    schemes = set()
+    for source in (REPO_ROOT / "src" / "core" / "physics").glob("*.cpp"):
+        text = source.read_text(encoding="utf-8")
+        schemes.update(SCHEME_REGISTRATION_RE.findall(text))
+        schemes.update(DIRECT_SCHEME_RE.findall(text))
+    return schemes
+
+
+def _is_closing_fence(line: str, fence: str) -> bool:
+    marker = re.escape(fence[0])
+    return re.fullmatch(rf"[ \t]*{marker}{{{len(fence)},}}[ \t]*", line) is not None
+
+
+def _skip_marker_is_near(lines: list[str], opening_line_index: int) -> bool:
+    previous = opening_line_index - 1
+    while previous >= 0 and not lines[previous].strip():
+        previous -= 1
+    return previous >= 0 and lines[previous].strip() == SKIP_MARKER
+
+
+def extract_markdown_yaml_blocks(markdown: str) -> Iterable[MarkdownYamlBlock]:
+    lines = markdown.splitlines()
+    index = 0
+    while index < len(lines):
+        match = FENCE_OPEN_RE.match(lines[index])
+        if match is None:
+            index += 1
+            continue
+
+        fence = match.group("fence")
+        info = match.group("info").strip().split(maxsplit=1)
+        is_yaml = bool(info) and info[0].lower() in {"yaml", "yml"}
+        body = []
+        closing_index = len(lines)
+        cursor = index + 1
+        while cursor < len(lines):
+            if _is_closing_fence(lines[cursor], fence):
+                closing_index = cursor
+                break
+            body.append(lines[cursor])
+            cursor += 1
+
+        if is_yaml:
+            indent = match.group("indent")
+            dedented = [
+                line[len(indent) :] if indent and line.startswith(indent) else line
+                for line in body
+            ]
+            yield MarkdownYamlBlock(
+                start_line=index + 1,
+                content=textwrap.dedent("\n".join(dedented)),
+                skipped=_skip_marker_is_near(lines, index),
+            )
+
+        index = closing_index + 1 if closing_index < len(lines) else len(lines)
+
+
+def _yaml_line_for_path(yaml_text: str, path: str) -> int:
+    try:
+        import yaml
+
+        node = yaml.compose(yaml_text, Loader=yaml.SafeLoader)
+    except Exception:
+        return 1
+    if node is None:
+        return 1
+
+    for token_match in PATH_TOKEN_RE.finditer(path):
+        key, sequence_index = token_match.groups()
+        if key is not None:
+            if key == "configuration":
+                continue
+            if not isinstance(node, yaml.MappingNode):
+                break
+            match = next(
+                (
+                    (key_node, value_node)
+                    for key_node, value_node in node.value
+                    if isinstance(key_node, yaml.ScalarNode) and key_node.value == key
+                ),
+                None,
+            )
+            if match is None:
+                return node.start_mark.line + 1
+            node = match[1]
+        else:
+            if not isinstance(node, yaml.SequenceNode):
+                break
+            item_index = int(sequence_index)
+            if item_index >= len(node.value):
+                return node.start_mark.line + 1
+            node = node.value[item_index]
+    return node.start_mark.line + 1
+
+
+def _species_boolean_key_sources(yaml_text: str) -> dict[bool, tuple[str, int]]:
+    import yaml
+
+    try:
+        root = yaml.compose(yaml_text, Loader=yaml.SafeLoader)
+    except yaml.YAMLError:
+        return {}
+    if not isinstance(root, yaml.MappingNode):
+        return {}
+
+    species_node = next(
+        (
+            value_node
+            for key_node, value_node in root.value
+            if isinstance(key_node, yaml.ScalarNode) and key_node.value == "species"
+        ),
+        None,
+    )
+    if not isinstance(species_node, yaml.MappingNode):
+        return {}
+
+    bool_values = {
+        "yes": True,
+        "no": False,
+        "on": True,
+        "off": False,
+        "true": True,
+        "false": False,
+    }
+    ambiguous_keys = {}
+    for key_node, _ in species_node.value:
+        if (
+            isinstance(key_node, yaml.ScalarNode)
+            and key_node.tag == "tag:yaml.org,2002:bool"
+            and key_node.value.lower() in bool_values
+        ):
+            bool_value = bool_values[key_node.value.lower()]
+            ambiguous_keys[bool_value] = (
+                key_node.value,
+                key_node.start_mark.line + 1,
+            )
+    return ambiguous_keys
+
+
+def _schema_error_path(error_line: str) -> Optional[str]:
+    match = re.match(r"\s*-\s*([^:]+):\s*(.*)$", error_line)
+    if match is None:
+        return None
+    path, message = match.groups()
+    unknown_key = re.search(r"unknown key '([^']+)'", message)
+    if unknown_key:
+        path = f"{path}.{unknown_key.group(1)}"
+    return path
+
+
+def _format_schema_error(error_line: str) -> str:
+    message = error_line.strip().removeprefix("- ")
+    match = re.match(r"([^:]+):\s*(.*)$", message)
+    if match is None:
+        return message
+    path, detail = match.groups()
+    repeated_prefix = f"{path}: "
+    if detail.startswith(repeated_prefix):
+        detail = detail[len(repeated_prefix) :]
+    return f"{path}: {detail}"
+
+
+def _is_speciation_yaml(data: dict) -> bool:
+    keys = set(data)
+    return {"mechanism", "datasets"}.issubset(keys) or (
+        "name" in data and isinstance(data.get("species"), list)
+    )
+
+
+def validate_yaml_text(
+    yaml_text: str,
+    source: str,
+    line_offset: int,
+    config_module: Any,
+    registered_schemes: set[str],
+) -> tuple[list[tuple[int, str]], Optional[str]]:
+    import yaml
+
+    try:
+        data = yaml.safe_load(yaml_text)
+    except yaml.YAMLError as error:
+        mark = getattr(error, "problem_mark", None)
+        line = mark.line + 1 if mark is not None else 1
+        return [(line_offset + line, str(error).splitlines()[0])], None
+
+    if isinstance(data, dict) and _is_speciation_yaml(data):
+        return [], "speciation YAML"
+    if isinstance(data, list):
+        return [
+            (
+                line_offset + 1,
+                "expected a CECE configuration mapping, not a YAML list; "
+                "put this fragment under its full configuration path or mark it "
+                "with the CECE validation skip comment",
+            )
+        ], None
+    if not isinstance(data, dict):
+        return [(line_offset + 1, "expected a CECE configuration mapping")], None
+
+    ambiguous_species_keys = {}
+    species = data.get("species")
+    if isinstance(species, dict) and any(type(name) is bool for name in species):
+        ambiguous_species_keys = _species_boolean_key_sources(yaml_text)
+
+    try:
+        config_module.CeceConfig.from_dict(data)
+    except (TypeError, ValueError) as error:
+        errors = []
+        for message in str(error).splitlines():
+            if message.strip() == "Invalid configuration:":
+                continue
+            path = _schema_error_path(message)
+            line = _yaml_line_for_path(yaml_text, path) if path else 1
+            formatted_message = _format_schema_error(message)
+            species_match = re.match(r"^species\.(True|False)$", path or "")
+            if (
+                species_match
+                and "species name must be a non-empty string" in message
+                and (
+                    source_key := ambiguous_species_keys.get(species_match[1] == "True")
+                )
+            ):
+                token, line = source_key
+                bool_value = species_match[1].lower()
+                formatted_message = (
+                    f"species.{token}: PyYAML interpreted unquoted species key "
+                    f'{token!r} as boolean {bool_value}; quote it as "{token}" '
+                    "to keep it a string"
+                )
+            errors.append((line_offset + line, formatted_message))
+        return errors or [(line_offset + 1, str(error))], None
+
+    errors = []
+    for index, scheme in enumerate(data.get("physics_schemes", [])):
+        name = scheme.get("name")
+        if name not in registered_schemes:
+            line = _yaml_line_for_path(yaml_text, f"physics_schemes[{index}].name")
+            errors.append((line_offset + line, f"unregistered physics scheme {name!r}"))
+    return errors, None
+
+
+def validate_file(
+    path: Path,
+    display_path: str,
+    config_module: Any,
+    registered_schemes: set[str],
+    verbose: bool = False,
+) -> list[tuple[str, int, str]]:
+    try:
+        content = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as error:
+        return [(display_path, 1, str(error))]
+
+    errors = []
+    if path.suffix.lower() in {".md", ".markdown"}:
+        for block in extract_markdown_yaml_blocks(content):
+            if block.skipped:
+                if verbose:
+                    print(f"{display_path}:{block.start_line}: skipped by marker")
+                continue
+            block_errors, skipped_reason = validate_yaml_text(
+                block.content,
+                display_path,
+                block.start_line,
+                config_module,
+                registered_schemes,
+            )
+            if skipped_reason and verbose:
+                print(f"{display_path}:{block.start_line}: skipped {skipped_reason}")
+            errors.extend(
+                (display_path, line, message) for line, message in block_errors
+            )
+            if verbose and not skipped_reason and not block_errors:
+                print(f"{display_path}:{block.start_line}: valid YAML block")
+    else:
+        file_errors, skipped_reason = validate_yaml_text(
+            content, display_path, 0, config_module, registered_schemes
+        )
+        if skipped_reason and verbose:
+            print(f"{display_path}: skipped {skipped_reason}")
+        errors.extend((display_path, line, message) for line, message in file_errors)
+        if verbose and not skipped_reason and not file_errors:
+            print(f"{display_path}: valid CECE configuration")
+    return errors
+
+
+def main(argv: Optional[list[str]] = None) -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("paths", nargs="*", help="YAML or Markdown files to validate")
+    parser.add_argument(
+        "--verbose", "-v", action="store_true", help="report skipped and valid inputs"
+    )
+    args = parser.parse_args(argv)
+
+    if args.paths:
+        inputs = [(Path(value), value) for value in args.paths]
+    else:
+        inputs = [
+            (path, path.relative_to(REPO_ROOT).as_posix())
+            for path in discover_default_files()
+        ]
+    if not inputs:
+        print("No default CECE YAML or Markdown files were found", file=sys.stderr)
+        return 1
+
+    config_module = load_config_module()
+    registered_schemes = discover_registered_schemes()
+    all_errors = []
+    for path, display_path in inputs:
+        if not path.is_file():
+            all_errors.append((display_path, 1, "file does not exist"))
+            continue
+        all_errors.extend(
+            validate_file(
+                path,
+                display_path,
+                config_module,
+                registered_schemes,
+                verbose=args.verbose,
+            )
+        )
+
+    for path, line, message in all_errors:
+        print(f"{path}:{line}: {message}", file=sys.stderr)
+    return 1 if all_errors else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
