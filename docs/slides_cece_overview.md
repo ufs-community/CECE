@@ -215,6 +215,7 @@ All methods guarantee strict mass conservation: `∑(emissions_3d[i,j,:]) = emis
 
 CECE records the complete scientific history of every emission calculation:
 
+<!-- cece-validate: skip -->
 ```yaml
 # Provenance report excerpt
 species: CO

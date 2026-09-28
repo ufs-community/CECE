@@ -12,13 +12,12 @@ Edit your `cece_config.yaml` and add the new species to the `species` section:
 
 ```yaml
 species:
-  - name: CO
-    units: kg/m2/s
-    long_name: "Carbon Monoxide"
-
-  - name: PM25
-    units: kg/m2/s
-    long_name: "Fine Particulate Matter"
+  CO:
+    - field: CO_emissions
+      operation: add
+  PM25:
+    - field: PM25_emissions
+      operation: add
 ```
 
 ### Step 2: Add Emission Layers
@@ -26,33 +25,19 @@ species:
 Add layers that contribute to the new species:
 
 ```yaml
-layers:
-  - name: anthropogenic_pm25
-    species: PM25
-    hierarchy: 1
-    operation: add
-    file: /data/emissions/CEDS_PM25_2020.nc
-    variable: PM25_emis
-    vertical_distribution:
-      method: SINGLE
-      layer: 0
-    scale_factors:
-      - name: temporal_scale
-        file: /data/scales/diurnal_pm25.nc
-        variable: DIURNAL_SCALE
-
-  - name: biomass_burning_pm25
-    species: PM25
-    hierarchy: 2
-    operation: add
-    file: /data/emissions/GFED4_PM25_2020.nc
-    variable: PM25_emis
-    vertical_distribution:
-      method: PBL
-    scale_factors:
-      - name: seasonal_scale
-        file: /data/scales/seasonal_pm25.nc
-        variable: SEASONAL_SCALE
+species:
+  PM25:
+    - field: CEDS_PM25
+      operation: add
+      hierarchy: 1
+      vdist:
+        method: single
+        layer_start: 0
+    - field: GFED4_PM25
+      operation: add
+      hierarchy: 2
+      vdist:
+        method: pbl
 ```
 
 ### Step 3: Configure Output
@@ -193,13 +178,13 @@ void MyEmissionScheme::Run(CeceImportState& import_state, CeceExportState& expor
 
 Add the scheme to your `cece_config.yaml`:
 
+<!-- cece-validate: context physics_schemes -->
 ```yaml
 physics_schemes:
-  - name: MyEmissionScheme
-    enabled: true
-    options:
-      emission_factor: 1.5e-6
-      temperature_threshold: 280.0
+- name: MyEmissionScheme
+  options:
+    emission_factor: 1.5e-6
+    temperature_threshold: 280.0
 ```
 
 ### Step 4: Build and Run

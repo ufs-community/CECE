@@ -16,7 +16,7 @@ species:
       mask: "mask_europe"
       scale_fields: ["hourly_scalfact"]
 
-cdeps_inline_config:
+cece_data:
   streams:
     - name: "MACCITY_CO"
       file: "data/MACCity_4x5.nc"

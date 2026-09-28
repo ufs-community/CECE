@@ -31,9 +31,9 @@ physics_schemes:
   - name: bdsnp
     options:
       soil_no_method: yl95
-    input_mapping:
-      soil_temperature: TSOIL
-      soil_moisture: GWETTOP
+      input_mapping:
+        soil_temperature: TSOIL
+        soil_moisture: GWETTOP
 
   # --- MEGAN3 Multi-Species Biogenic Emissions (runs second) ---
   - name: megan3
@@ -237,18 +237,18 @@ physics_schemes:
           amat: 1.0
           aold: 1.0
           default_aef: 3.0e-10
-    input_mapping:
-      temperature: T2M
-      leaf_area_index: LAI
-      leaf_area_index_prev: LAI_PREV
-      par_direct: PARDR
-      par_diffuse: PARDF
-      solar_cosine: COSZS
-      soil_moisture_root: GWETROOT
-      wind_speed: U10M
-    output_mapping:
-      MEGAN_ISOP: ISOP_BIOG
-      MEGAN_TERP: TERP_BIOG
-      MEGAN_PAR: PAR_BIOG
-      MEGAN_NO: NO_BIOG
-      MEGAN_CO: CO_BIOG
+      input_mapping:
+        temperature: T2M
+        leaf_area_index: LAI
+        leaf_area_index_prev: LAI_PREV
+        par_direct: PARDR
+        par_diffuse: PARDF
+        solar_cosine: COSZS
+        soil_moisture_root: GWETROOT
+        wind_speed: U10M
+      output_mapping:
+        MEGAN_ISOP: ISOP_BIOG
+        MEGAN_TERP: TERP_BIOG
+        MEGAN_PAR: PAR_BIOG
+        MEGAN_NO: NO_BIOG
+        MEGAN_CO: CO_BIOG

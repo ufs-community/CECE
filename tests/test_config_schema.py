@@ -129,6 +129,38 @@ def test_empty_config_round_trips():
     assert config.CeceConfig.from_dict(dumped).to_dict() == dumped
 
 
+def test_runtime_driver_grid_name_and_log_file_round_trip():
+    parsed = config.CeceConfig.from_dict(
+        {
+            "driver": {
+                "log_file": "cece.log",
+                "grid": {"grid_name": "F360", "nz": 72},
+            }
+        }
+    )
+
+    dumped = parsed.to_dict()["driver"]
+    assert dumped["log_file"] == "cece.log"
+    assert dumped["grid"]["grid_name"] == "F360"
+    assert config.CeceConfig.from_dict({"driver": dumped}).to_dict()["driver"] == dumped
+
+
+def test_output_diagnostics_and_global_attributes_round_trip():
+    parsed = config.CeceConfig.from_dict(
+        {
+            "output": {
+                "diagnostics": True,
+                "global_attributes": {"title": "Example run"},
+            }
+        }
+    )
+
+    output = parsed.to_dict()["output"]
+    assert output["diagnostics"] is True
+    assert output["global_attributes"] == {"title": "Example run"}
+    assert config.CeceConfig.from_dict({"output": output}).to_dict()["output"] == output
+
+
 def test_unknown_and_legacy_flat_vertical_keys_are_rejected():
     invalid = {
         "species": {"CO": [{"field": "CO", "operation": "add", "vdist_method": "pbl"}]},

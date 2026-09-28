@@ -157,6 +157,7 @@ The CECE scheme generator automates the creation of physics scheme scaffolding f
 
 Create a YAML file describing your scheme (e.g., `my_scheme_config.yaml`):
 
+<!-- cece-validate: skip -->
 ```yaml
 scheme:
   name: MyEmissionScheme
@@ -233,13 +234,10 @@ target_link_libraries(cece_core PUBLIC cece_physics_my_emission_scheme)
 
 Add the scheme to your CECE configuration file:
 
+<!-- cece-validate: context physics_schemes -->
 ```yaml
 physics_schemes:
-  - name: my_emission_scheme
-    options:
-      base_emission_factor: 1.0e-6
-      temperature_ref: 298.15
-      q10: 2.0
+- {name: "my_emission_scheme", options: {base_emission_factor: 1.0e-6, temperature_ref: 298.15, q10: 2.0}}
 ```
 
 ### Step 6: Build and Test
@@ -521,19 +519,10 @@ void MyScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_
 
 ### YAML Configuration Example
 
+<!-- cece-validate: context physics_schemes -->
 ```yaml
 physics_schemes:
-  - name: my_scheme
-    options:
-      emission_factor: 1.0e-6
-      temperature_ref: 298.15
-      q10: 2.0
-      apply_mask: true
-      diurnal_cycle:
-        - 0.5
-        - 0.6
-        - 0.7
-        # ... 24 values total
+- {name: my_scheme, options: {emission_factor: 1.0e-6, temperature_ref: 298.15, q10: 2.0, apply_mask: true, diurnal_cycle: [0.5, 0.6, 0.7]}}
 ```
 
 ### Parameter Validation
@@ -602,14 +591,11 @@ auto base_emissions = ResolveInput("emissions", import_state, export_state);
 
 Map internal names to external field names via YAML:
 
+<!-- cece-validate: context physics_schemes -->
 ```yaml
 physics_schemes:
-  - name: my_scheme
-    input_mapping:
-      temp: temperature
-      solar: solar_radiation
-    output_mapping:
-      emis: emissions
+- name: my_scheme
+  options: {input_mapping: {temp: temperature, solar: solar_radiation}, output_mapping: {emis: emissions}}
 ```
 
 Then use internal names in code:

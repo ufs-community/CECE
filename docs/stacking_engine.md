@@ -76,6 +76,9 @@ species:
       scale_fields: ["temperature", "lai"] # Scale with temp and leaf area
       diurnal_cycle: "biogenic_diurnal"    # Apply diurnal variation
       operation: "add"
+temporal_profiles:
+  biogenic_diurnal: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                     1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 ```
 
 ## Vertical Distribution
@@ -106,13 +109,15 @@ All vertical distribution methods ensure strict mass conservation:
 species:
   nox:
     - field: "aircraft_nox"
-      vdist_method: "HEIGHT"
-      vdist_h_start: 8000.0    # 8 km altitude
-      vdist_h_end: 12000.0     # 12 km altitude
       operation: "add"
+      vdist:
+        method: height
+        h_start: 8000.0         # 8 km altitude
+        h_end: 12000.0          # 12 km altitude
     - field: "surface_nox"
-      vdist_method: "PBL"      # Distribute in boundary layer
       operation: "add"
+      vdist:
+        method: pbl             # Distribute in boundary layer
 ```
 
 ## Temporal Scaling
@@ -179,6 +184,7 @@ The Stacking Engine provides complete scientific traceability through its proven
 
 ### Provenance Output
 
+<!-- cece-validate: skip -->
 ```yaml
 # Example provenance report excerpt
 species: CO
@@ -209,7 +215,7 @@ species:
     - field: "base_biogenic"
       scale: 2.0                           # Literature adjustment factor
       scale_fields: ["temperature", "par", "lai"]  # Environmental dependencies
-      masks: ["vegetation_mask", "growing_season"] # Geographic/temporal masks
+      mask: ["vegetation_mask", "growing_season"] # Geographic/temporal masks
       operation: "add"
 ```
 
@@ -222,20 +228,25 @@ species:
   nox:
     # Transportation category
     - field: "road_transport"
+      operation: add
       category: "transportation"
       hierarchy: 1
     - field: "aviation"
+      operation: add
       category: "transportation"
       hierarchy: 2
     - field: "shipping"
+      operation: add
       category: "transportation"
       hierarchy: 3
 
     # Industrial category
     - field: "power_plants"
+      operation: add
       category: "industrial"
       hierarchy: 1
     - field: "cement_production"
+      operation: add
       category: "industrial"
       hierarchy: 2
 ```

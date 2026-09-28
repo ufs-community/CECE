@@ -4,6 +4,9 @@ CECE is configured using a YAML file, typically named `cece_config.yaml`. This f
 
 ## Top-Level Structure
 
+This outline shows where each kind of configuration belongs. Sections are optional; include only the ones your run uses.
+
+<!-- cece-validate: overview -->
 ```yaml
 driver:
   # ... driver timing and execution configuration ...
@@ -242,15 +245,17 @@ The `species` block defines the emission targets and the layers that contribute 
 
 ### Vertical Distribution Properties
 
+`vdist` is an optional map nested under a species layer. Set the keys that apply to the selected method.
+
 | Key | Type | Description |
 | --- | --- | --- |
-| `vdist_method` | String | Vertical distribution algorithm: `SINGLE`, `RANGE`, `PRESSURE`, `HEIGHT`, `PBL` |
-| `vdist_layer_start` | Integer | Starting layer index for `SINGLE`/`RANGE` methods |
-| `vdist_layer_end` | Integer | Ending layer index for `RANGE` method |
-| `vdist_p_start` | Float | Starting pressure [Pa] for `PRESSURE` method |
-| `vdist_p_end` | Float | Ending pressure [Pa] for `PRESSURE` method |
-| `vdist_h_start` | Float | Starting height [m] for `HEIGHT` method |
-| `vdist_h_end` | Float | Ending height [m] for `HEIGHT` method |
+| `method` | String | Distribution method: `single` (default), `range`, `pressure`, `height`, or `pbl`. |
+| `layer_start` | Integer | Zero-based layer index for `single`, or inclusive first index for `range`. Default: `0`. |
+| `layer_end` | Integer | Inclusive last zero-based layer index for `range`. Default: `0`. |
+| `p_start` | Float | Lower pressure bound in Pa for `pressure`. Default: `0.0`. |
+| `p_end` | Float | Upper pressure bound in Pa for `pressure`. Default: `0.0`. |
+| `h_start` | Float | Lower altitude bound in meters for `height`. Default: `0.0`. |
+| `h_end` | Float | Upper altitude bound in meters for `height`. Default: `0.0`. |
 
 ### Complete Example
 
@@ -273,6 +278,8 @@ species:
       category: "anthropogenic"
       hierarchy: 10                  # Higher priority
       mask: "regional_mask"
+      vdist:
+        method: pbl
 
   # Aircraft NOx with vertical distribution
   nox:
@@ -280,15 +287,17 @@ species:
       operation: "add"
       category: "anthropogenic"
       hierarchy: 1
-      vdist_method: "PBL"           # Distribute in boundary layer
+      vdist:
+        method: pbl                 # Distribute in boundary layer
 
     - field: "aircraft_nox"
       operation: "add"
       category: "transportation"
       hierarchy: 1
-      vdist_method: "HEIGHT"        # Distribute by altitude
-      vdist_h_start: 8000.0         # 8 km
-      vdist_h_end: 12000.0          # 12 km
+      vdist:
+        method: height             # Distribute by altitude
+        h_start: 8000.0            # 8 km
+        h_end: 12000.0             # 12 km
 
   # Biogenic emissions with environmental scaling
   isoprene:
@@ -300,6 +309,13 @@ species:
       mask: "vegetation_mask"
       diurnal_cycle: "biogenic_diurnal"
       seasonal_cycle: "growing_season"
+
+temporal_profiles:
+  traffic_diurnal: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+  biogenic_diurnal: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                     1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+  growing_season: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 ```
 
 ---
@@ -502,9 +518,9 @@ physics_schemes:
           beta: 0.10
           default_aef: 3.0e-10
         # ... remaining 17 classes
-    output_mapping:
-      MEGAN_ISOP: ISOP_BIOG
-      MEGAN_TERP: TERP_BIOG
+      output_mapping:
+        MEGAN_ISOP: ISOP_BIOG
+        MEGAN_TERP: TERP_BIOG
 ```
 
 The speciation engine computes each output species as:
@@ -536,15 +552,13 @@ Controls diagnostic output and intermediate variable capture for analysis and va
 
 | Key | Type | Description |
 | --- | --- | --- |
-| `output_interval_seconds` | Integer | Frequency of diagnostic output in seconds |
+| `output_interval` | Integer | Frequency of diagnostic output in seconds |
 | `variables` | List | List of field names to include in diagnostic output |
-| `enabled` | Boolean | Enable/disable diagnostic output (default: true) |
 
 **Example:**
 ```yaml
 diagnostics:
-  output_interval_seconds: 3600     # Hourly output
-  enabled: true
+  output_interval: 3600             # Hourly output
   variables:
     - "co"
     - "nox"
@@ -588,17 +602,20 @@ Configuration for data streams that read external emission inventories and auxil
 | `model` | String | Internal field name in CECE |
 | `levels` | Integer | (Optional) Number of nonspatial layers for this variable. Defaults to the global model `nz`; values must be positive. |
 
-For canonical BDSNP, the two biome-dependent fields use 24 layers while
-scalar fields omit `levels`:
+For canonical BDSNP, add a stream under `cece_data.streams`. The two
+biome-dependent fields use 24 layers, while scalar fields omit `levels`:
 
+<!-- cece-validate: context cece_data.streams -->
 ```yaml
-variables:
-  - file: SOILNOX_LAND_FRACTIONS
-    model: soilnox_land_fractions
-    levels: 24
-  - file: SOILNOX_CANOPY_NOX
-    model: soilnox_canopy_nox
-    levels: 24
+- name: soilnox_inputs
+  file: soilnox.nc
+  variables:
+    - file: SOILNOX_LAND_FRACTIONS
+      model: soilnox_land_fractions
+      levels: 24
+    - file: SOILNOX_CANOPY_NOX
+      model: soilnox_canopy_nox
+      levels: 24
 ```
 
 **Example:**

@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import json
 import re
 import sys
 import textwrap
@@ -16,6 +17,10 @@ from typing import Any, Iterable, Optional
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = REPO_ROOT / "src" / "python" / "config.py"
 SKIP_MARKER = "<!-- cece-validate: skip -->"
+OVERVIEW_MARKER = "<!-- cece-validate: overview -->"
+CONTEXT_MARKER_RE = re.compile(
+    r"<!--\s*cece-validate:\s*context\s+([A-Za-z_][A-Za-z0-9_-]*(?:\.[A-Za-z_][A-Za-z0-9_-]*)*)\s*-->"
+)
 DEFAULT_PATTERNS = (
     "examples/*.yaml",
     "scripts/examples/*.yaml",
@@ -37,6 +42,8 @@ class MarkdownYamlBlock:
     start_line: int
     content: str
     skipped: bool
+    context_path: Optional[str]
+    overview: bool
 
 
 def load_config_module() -> Any:
@@ -77,6 +84,23 @@ def _skip_marker_is_near(lines: list[str], opening_line_index: int) -> bool:
     return previous >= 0 and lines[previous].strip() == SKIP_MARKER
 
 
+def _context_path_is_near(lines: list[str], opening_line_index: int) -> Optional[str]:
+    previous = opening_line_index - 1
+    while previous >= 0 and not lines[previous].strip():
+        previous -= 1
+    if previous < 0:
+        return None
+    match = CONTEXT_MARKER_RE.fullmatch(lines[previous].strip())
+    return match.group(1) if match else None
+
+
+def _overview_marker_is_near(lines: list[str], opening_line_index: int) -> bool:
+    previous = opening_line_index - 1
+    while previous >= 0 and not lines[previous].strip():
+        previous -= 1
+    return previous >= 0 and lines[previous].strip() == OVERVIEW_MARKER
+
+
 def extract_markdown_yaml_blocks(markdown: str) -> Iterable[MarkdownYamlBlock]:
     lines = markdown.splitlines()
     index = 0
@@ -109,6 +133,8 @@ def extract_markdown_yaml_blocks(markdown: str) -> Iterable[MarkdownYamlBlock]:
                 start_line=index + 1,
                 content=textwrap.dedent("\n".join(dedented)),
                 skipped=_skip_marker_is_near(lines, index),
+                context_path=_context_path_is_near(lines, index),
+                overview=_overview_marker_is_near(lines, index),
             )
 
         index = closing_index + 1 if closing_index < len(lines) else len(lines)
@@ -226,35 +252,110 @@ def _is_speciation_yaml(data: dict) -> bool:
     )
 
 
+def _normalize_overview_empty_sections(data: dict) -> None:
+    empty_sections = {
+        "driver": {"grid": {}},
+        "meteorology": {},
+        "scale_factors": {},
+        "masks": {},
+        "temporal_profiles": {},
+        "species": {},
+        "physics_schemes": [],
+        "diagnostics": {},
+        "cece_data": {"streams": []},
+        "output": {},
+    }
+    for key, empty_value in empty_sections.items():
+        if key in data and data[key] is None:
+            data[key] = empty_value
+
+    driver = data.get("driver")
+    if isinstance(driver, dict) and "grid" in driver and driver["grid"] is None:
+        driver["grid"] = {}
+
+    cece_data = data.get("cece_data")
+    if (
+        isinstance(cece_data, dict)
+        and "streams" in cece_data
+        and cece_data["streams"] is None
+    ):
+        cece_data["streams"] = []
+
+
+def _wrap_yaml_fragment(yaml_text: str, context_path: str) -> tuple[str, int]:
+    import yaml
+
+    try:
+        node = yaml.compose(yaml_text, Loader=yaml.SafeLoader)
+    except yaml.YAMLError:
+        node = None
+    for part in context_path.split("."):
+        if not isinstance(node, yaml.MappingNode):
+            break
+        match = next(
+            (
+                value_node
+                for key_node, value_node in node.value
+                if isinstance(key_node, yaml.ScalarNode) and key_node.value == part
+            ),
+            None,
+        )
+        if match is None:
+            break
+        node = match
+    else:
+        return yaml_text, 0
+
+    parts = context_path.split(".")
+    prefix = [f"{'  ' * depth}{json.dumps(part)}:" for depth, part in enumerate(parts)]
+    indent = "  " * len(parts)
+    fragment = "\n".join(
+        f"{indent}{line}" if line.strip() else line for line in yaml_text.splitlines()
+    )
+    return "\n".join([*prefix, fragment]), len(prefix)
+
+
 def validate_yaml_text(
     yaml_text: str,
     source: str,
     line_offset: int,
     config_module: Any,
     registered_schemes: set[str],
+    context_path: Optional[str] = None,
+    overview: bool = False,
 ) -> tuple[list[tuple[int, str]], Optional[str]]:
     import yaml
+
+    context_prefix_lines = 0
+    if context_path:
+        yaml_text, context_prefix_lines = _wrap_yaml_fragment(yaml_text, context_path)
+
+    def source_line(line: int) -> int:
+        return line_offset + max(1, line - context_prefix_lines)
 
     try:
         data = yaml.safe_load(yaml_text)
     except yaml.YAMLError as error:
         mark = getattr(error, "problem_mark", None)
         line = mark.line + 1 if mark is not None else 1
-        return [(line_offset + line, str(error).splitlines()[0])], None
+        return [(source_line(line), str(error).splitlines()[0])], None
+
+    if overview and isinstance(data, dict):
+        _normalize_overview_empty_sections(data)
 
     if isinstance(data, dict) and _is_speciation_yaml(data):
         return [], "speciation YAML"
     if isinstance(data, list):
         return [
             (
-                line_offset + 1,
+                source_line(1),
                 "expected a CECE configuration mapping, not a YAML list; "
                 "put this fragment under its full configuration path or mark it "
                 "with the CECE validation skip comment",
             )
         ], None
     if not isinstance(data, dict):
-        return [(line_offset + 1, "expected a CECE configuration mapping")], None
+        return [(source_line(1), "expected a CECE configuration mapping")], None
 
     ambiguous_species_keys = {}
     species = data.get("species")
@@ -286,15 +387,18 @@ def validate_yaml_text(
                     f'{token!r} as boolean {bool_value}; quote it as "{token}" '
                     "to keep it a string"
                 )
-            errors.append((line_offset + line, formatted_message))
-        return errors or [(line_offset + 1, str(error))], None
+            errors.append((source_line(line), formatted_message))
+        return errors or [(source_line(1), str(error))], None
 
     errors = []
-    for index, scheme in enumerate(data.get("physics_schemes", [])):
-        name = scheme.get("name")
-        if name not in registered_schemes:
-            line = _yaml_line_for_path(yaml_text, f"physics_schemes[{index}].name")
-            errors.append((line_offset + line, f"unregistered physics scheme {name!r}"))
+    if context_path is None:
+        for index, scheme in enumerate(data.get("physics_schemes", [])):
+            name = scheme.get("name")
+            if name not in registered_schemes:
+                line = _yaml_line_for_path(yaml_text, f"physics_schemes[{index}].name")
+                errors.append(
+                    (source_line(line), f"unregistered physics scheme {name!r}")
+                )
     return errors, None
 
 
@@ -323,6 +427,8 @@ def validate_file(
                 block.start_line,
                 config_module,
                 registered_schemes,
+                context_path=block.context_path,
+                overview=block.overview,
             )
             if skipped_reason and verbose:
                 print(f"{display_path}:{block.start_line}: skipped {skipped_reason}")

@@ -701,6 +701,7 @@ class DataStreamConfig:
 
 @dataclass
 class GridConfig:
+    grid_name: str = ""
     nx: int = 4
     ny: int = 4
     nz: int = 1
@@ -710,6 +711,7 @@ class GridConfig:
     lat_max: float = 67.5
 
     def validate(self) -> None:
+        _validate_string(self.grid_name, "driver.grid.grid_name", allow_empty=True)
         for key in ("nx", "ny", "nz"):
             _validate_integer(getattr(self, key), f"driver.grid.{key}")
             if getattr(self, key) < 1:
@@ -730,7 +732,16 @@ class GridConfig:
         values = _require_mapping(data, where)
         _reject_unknown_keys(
             values,
-            {"nx", "ny", "nz", "lon_min", "lon_max", "lat_min", "lat_max"},
+            {
+                "grid_name",
+                "nx",
+                "ny",
+                "nz",
+                "lon_min",
+                "lon_max",
+                "lat_min",
+                "lat_max",
+            },
             where,
         )
         result = cls(**values)
@@ -743,6 +754,7 @@ class DriverConfig:
     start_time: str = "2020-01-01T00:00:00"
     end_time: str = "2020-01-02T00:00:00"
     timestep_seconds: int = 3600
+    log_file: Optional[str] = None
     gridspec_file: Optional[str] = None
     grid: GridConfig = field(default_factory=GridConfig)
     stacking_refresh_interval_seconds: int = 0
@@ -771,6 +783,8 @@ class DriverConfig:
         _validate_integer(self.timestep_seconds, "driver.timestep_seconds")
         if self.timestep_seconds < 1:
             raise ValueError("driver.timestep_seconds must be >= 1")
+        if self.log_file is not None:
+            _validate_string(self.log_file, "driver.log_file")
         if self.gridspec_file is not None:
             _validate_string(self.gridspec_file, "driver.gridspec_file")
         self.grid.validate()
@@ -809,6 +823,7 @@ class DriverConfig:
                 "start_time",
                 "end_time",
                 "timestep_seconds",
+                "log_file",
                 "gridspec_file",
                 "grid",
                 "stacking_refresh_interval_seconds",
@@ -863,12 +878,17 @@ class OutputConfig:
     frequency_steps: int = 1
     fields: List[OutputFieldConfig] = field(default_factory=list)
     amio_worker_threads: Optional[int] = None
+    diagnostics: bool = False
+    global_attributes: Dict[str, str] = field(default_factory=dict)
 
     def validate(self) -> None:
         if not isinstance(self.enabled, bool):
             raise ValueError("output.enabled must be a boolean")
+        if not isinstance(self.diagnostics, bool):
+            raise ValueError("output.diagnostics must be a boolean")
         _validate_string(self.directory, "output.directory")
         _validate_string(self.filename_pattern, "output.filename_pattern")
+        _validate_string_mapping(self.global_attributes, "output.global_attributes")
         _validate_integer(self.frequency_steps, "output.frequency_steps")
         if self.frequency_steps < 1:
             raise ValueError("output.frequency_steps must be >= 1")
@@ -895,6 +915,8 @@ class OutputConfig:
                 "frequency_steps",
                 "fields",
                 "amio_worker_threads",
+                "diagnostics",
+                "global_attributes",
             },
             where,
         )
@@ -913,6 +935,10 @@ class OutputConfig:
                 for index, item in enumerate(raw_fields)
             ],
             amio_worker_threads=values.get("amio_worker_threads"),
+            diagnostics=values.get("diagnostics", False),
+            global_attributes=_validate_string_mapping(
+                values.get("global_attributes", {}), f"{where}.global_attributes"
+            ),
         )
         result.validate()
         return result
@@ -1571,6 +1597,8 @@ class CeceConfig:
                 "directory": output.directory,
                 "filename_pattern": output.filename_pattern,
                 "frequency_steps": output.frequency_steps,
+                "diagnostics": output.diagnostics,
+                "global_attributes": output.global_attributes,
                 "fields": [
                     {"name": item.name, "attributes": item.attributes}
                     for item in output.fields
@@ -1584,8 +1612,10 @@ class CeceConfig:
                 "start_time": driver.start_time,
                 "end_time": driver.end_time,
                 "timestep_seconds": driver.timestep_seconds,
+                "log_file": driver.log_file,
                 "gridspec_file": driver.gridspec_file,
                 "grid": {
+                    "grid_name": driver.grid.grid_name,
                     "nx": driver.grid.nx,
                     "ny": driver.grid.ny,
                     "nz": driver.grid.nz,

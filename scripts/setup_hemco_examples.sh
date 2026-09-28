@@ -34,7 +34,7 @@ species:
       scale: 1.0
       scale_fields: ["hourly_scalfact"]
 
-cdeps_inline_config:
+cece_data:
   streams:
     - name: "MACCITY"
       file: "data/MACCity_4x5.nc"
@@ -63,7 +63,7 @@ species:
       mask: "mask_europe"
       scale_fields: ["hourly_scalfact"]
 
-cdeps_inline_config:
+cece_data:
   streams:
     - name: "MACCITY_CO"
       file: "data/MACCity_4x5.nc"
@@ -89,7 +89,7 @@ species:
       hierarchy: 1
       operation: "add"
 
-cdeps_inline_config:
+cece_data:
   streams:
     - name: "MACCITY_CO"
       file: "data/MACCity_4x5.nc"
@@ -100,12 +100,6 @@ generate_download_script 3 "HEMCO/MACCITY/v2014-07/MACCity_4x5.nc" "HEMCO/AEIC/v
 
 # Example 4: Add biomass burning emissions
 cat <<EOF > examples/cece_config_ex4.yaml
-physics_schemes:
-  - name: "GFED"
-    language: "cpp"
-    options:
-      version: "GFED4"
-
 species:
   co:
     - field: "MACCITY_CO"
@@ -113,7 +107,7 @@ species:
       hierarchy: 1
       operation: "add"
 
-cdeps_inline_config:
+cece_data:
   streams:
     - name: "MACCITY_CO"
       file: "data/MACCity_4x5.nc"
@@ -128,14 +122,14 @@ species:
   co:
     - field: "MACCITY_CO"
       operation: "add"
-  no:
+  "no":
     - field: "MACCITY_NO"
       operation: "add"
   so2:
     - field: "MACCITY_SO2"
       operation: "add"
 
-cdeps_inline_config:
+cece_data:
   streams:
     - name: "MACCITY_CO"
       file: "data/MACCity_4x5.nc"
@@ -149,7 +143,7 @@ generate_download_script 5 "HEMCO/MACCITY/v2014-07/MACCity_4x5.nc" "HEMCO/MACCIT
 # Example 6: Non-separated inventories
 cat <<EOF > examples/cece_config_ex6.yaml
 species:
-  no:
+  "no":
     - field: "EDGAR_NO_POW"
       category: "anthropogenic"
       operation: "add"
@@ -157,7 +151,7 @@ species:
       category: "anthropogenic"
       operation: "add"
 
-cdeps_inline_config:
+cece_data:
   streams:
     - name: "EDGAR_NO_POW"
       file: "data/EDGAR_v43.NOx.POW.nc"

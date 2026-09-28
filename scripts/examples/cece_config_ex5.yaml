@@ -2,14 +2,14 @@ species:
   co:
     - field: "MACCITY_CO"
       operation: "add"
-  no:
+  "no":
     - field: "MACCITY_NO"
       operation: "add"
   so2:
     - field: "MACCITY_SO2"
       operation: "add"
 
-cdeps_inline_config:
+cece_data:
   streams:
     - name: "MACCITY_CO"
       file: "data/MACCity_4x5.nc"

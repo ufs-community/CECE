@@ -59,20 +59,11 @@ For each grid cell on land:
 ## YAML Configuration Example
 
 ```yaml
-physics:
-  - name: ginoux
-    config:
-      ch_du: 0.8e-9
-      grav: 9.81
-      num_bins: 5
-      particle_radii: [0.73e-6, 1.4e-6, 2.4e-6, 4.5e-6, 8.0e-6]
+physics_schemes:
+- name: ginoux
+  options:
+    ch_du: 0.8e-9
+    grav: 9.81
+    num_bins: 5
+    particle_radii: [0.73e-6, 1.4e-6, 2.4e-6, 4.5e-6, 8.0e-6]
 ```
-
-## Implementation Notes
-
-- Available as both native C++ (Kokkos) and Fortran bridge implementations
-- Produces multi-bin (3D) output; the third dimension is the size bin index
-- Uses `Kokkos::pow`, `Kokkos::sqrt`, `Kokkos::log10`, `Kokkos::max`, and `Kokkos::round` for GPU portability
-- Particle radii can be provided via config or read from the `particle_radius` import field
-- The `particle_radius` import field is indexed as `(0, 0, n)` — it stores per-bin values in the third dimension
-- Physical constants: soil density = 2650 kg/m³, air density = 1.25 kg/m³ (hard-coded in kernel)
