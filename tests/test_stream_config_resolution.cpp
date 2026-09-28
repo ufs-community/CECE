@@ -366,6 +366,24 @@ TEST(StreamConfigResolution, HandWrittenFixtureMatchesLegacyParse) {
     EXPECT_EQ(actual["VAR_NOFILE"].input_var_name, "VAR_NOFILE");  // map w/o file => model
 }
 
+TEST(StreamConfigResolution, MapalgoIsNormalizedToLowercase) {
+    TempFile fixture(
+        "cece_data:\n"
+        "  streams:\n"
+        "    - name: CO\n"
+        "      file: emissions.nc\n"
+        "      mapalgo: BILINEAR\n"
+        "      variables:\n"
+        "        - CO\n");
+
+    std::unordered_map<std::string, StreamConfig> actual;
+    std::string gridspec;
+    StreamConfigTestAccess::Resolve(fixture.path, actual, gridspec);
+
+    ASSERT_TRUE(actual.count("CO"));
+    EXPECT_EQ(actual["CO"].mapalgo, "bilinear");
+}
+
 // ============================================================================
 // Part 2: RapidCheck property over generated stream configurations.
 // Feature: driver-io-regrid-perf, Property 4: StreamConfig resolution matches

@@ -107,6 +107,21 @@ physics_schemes:
     EXPECT_EQ(config.driver_config.grid.ny, 4);
 }
 
+TEST_F(DriverConfigurationTest, MapalgoIsNormalizedToLowercase) {
+    WriteConfigFile(test_config_file, R"(
+cece_data:
+  streams:
+    - name: CO
+      file: emissions.nc
+      mapalgo: BILINEAR
+)");
+
+    const CeceConfig config = ParseConfig(test_config_file);
+
+    ASSERT_EQ(config.cece_data.streams.size(), 1);
+    EXPECT_EQ(config.cece_data.streams.front().mapalgo, "bilinear");
+}
+
 TEST_F(DriverConfigurationTest, CustomDriverConfiguration) {
     // Write config with custom driver section
     WriteConfigFile(test_config_file, R"(

@@ -6,6 +6,7 @@
 #include <string>
 
 #include "cece/cece_config.hpp"
+#include "cece/cece_string_utils.hpp"
 #include "conf/config.hpp"
 
 namespace cece {
@@ -162,7 +163,7 @@ CeceConfig ParseConfig(const std::string& filename) {
             if (variables.size() == 0 && !stream.name.empty()) stream.variables.push_back({stream.name, stream.name});
             stream.taxmode = string_or(node, "taxmode", stream.taxmode);
             stream.tintalgo = string_or(node, "tintalgo", string_or(node, "interpolation", stream.tintalgo));
-            stream.mapalgo = string_or(node, "mapalgo", stream.mapalgo);
+            stream.mapalgo = to_lower(string_or(node, "mapalgo", stream.mapalgo));
             stream.dtlimit = node["dtlimit"].int_or(stream.dtlimit);
             stream.yearFirst = node["yearFirst"].int_or(stream.yearFirst);
             stream.yearLast = node["yearLast"].int_or(stream.yearLast);

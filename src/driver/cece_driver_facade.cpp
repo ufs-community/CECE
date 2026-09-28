@@ -160,7 +160,7 @@ StreamConfig CeceDriverOrchestrator::BuildStreamConfig(const YAML::Node& stream,
     }
     cfg.input_var_name = file_name;
     if (stream["mapalgo"]) {
-        cfg.mapalgo = stream["mapalgo"].as<std::string>();
+        cfg.mapalgo = cece::to_lower(stream["mapalgo"].as<std::string>());
     }
     if (stream["cadence"]) {
         cfg.cadence = stream["cadence"].as<std::string>();
