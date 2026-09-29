@@ -43,10 +43,12 @@ enum class CalKind { Gregorian, NoLeap, Cal360, Unsupported };
 /// yields @c Unsupported rather than a wrong-but-plausible Gregorian date.
 CalKind parse_calendar(const std::string& calendar);
 
+/// Throws std::out_of_range for a year outside 1734-2317, which TICK's int64 nanoseconds cannot hold.
 std::int64_t cal_to_nanos(CalKind kind, const tick::Date_Time& dt);
 
 tick::Date_Time cal_to_dt(CalKind kind, std::int64_t nanos);
 
+/// Throws std::out_of_range when the result's year is outside 1734-2317.
 std::int64_t cal_add_months(CalKind kind, std::int64_t nanos, int months);
 
 int cal_days_in_month(CalKind kind, int year, int month);

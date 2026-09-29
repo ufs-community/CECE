@@ -68,6 +68,18 @@ if(CECE_HAS_FORTRAN AND CMAKE_Fortran_COMPILER_ID STREQUAL "IntelLLVM")
   set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -diag-disable=10440")
 endif()
 
+# IntelLLVM may use value-unsafe FP transformations by default; pin precise for reproducibility.
+# GCC is value-safe by default.
+if(CMAKE_CXX_COMPILER_ID STREQUAL "IntelLLVM")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fp-model=precise")
+endif()
+if(CMAKE_C_COMPILER_ID STREQUAL "IntelLLVM")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fp-model=precise")
+endif()
+if(CECE_HAS_FORTRAN AND CMAKE_Fortran_COMPILER_ID STREQUAL "IntelLLVM")
+  set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fp-model=precise")
+endif()
+
 # --- Dependencies ---
 
 include(FetchContent)
