@@ -1420,6 +1420,24 @@ if(Python3_Interpreter_FOUND)
       FIXTURES_REQUIRED "python_deps_installed"
   )
 
+  add_test(
+    NAME test_config_schema_python
+    COMMAND ${VENV_PYTHON} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_config_schema.py
+  )
+  set_tests_properties(
+    test_config_schema_python
+    PROPERTIES FIXTURES_REQUIRED "python_deps_installed"
+  )
+
+  add_test(
+    NAME test_validate_cece_config_python
+    COMMAND ${VENV_PYTHON} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_validate_cece_config.py
+  )
+  set_tests_properties(
+    test_validate_cece_config_python
+    PROPERTIES FIXTURES_REQUIRED "python_deps_installed"
+  )
+
   if(BUILD_PYTHON_BINDINGS)
     add_test(
       NAME test_enum_config_bindings
