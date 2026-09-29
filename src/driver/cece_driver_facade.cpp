@@ -156,11 +156,21 @@ StreamConfig CeceDriverOrchestrator::BuildStreamConfig(const YAML::Node& stream,
     // Missing file path is recorded as empty (not thrown); the existing
     // collective gate in AdvanceTime surfaces it later (Req 1.4).
     if (stream["file"]) {
-        cfg.input_file_path = stream["file"].as<std::string>();
+        const YAML::Node file = stream["file"];
+        if (file.IsSequence()) {
+            if (file.size() != 1) {
+                throw std::invalid_argument("cece_data stream '" + stream["name"].as<std::string>("") +
+                                            "': the standalone driver reads one file per stream; got a list of " + std::to_string(file.size()) +
+                                            " files");
+            }
+            cfg.input_file_path = file[0].as<std::string>();
+        } else {
+            cfg.input_file_path = file.as<std::string>();
+        }
     }
     cfg.input_var_name = file_name;
     if (stream["mapalgo"]) {
-        cfg.mapalgo = stream["mapalgo"].as<std::string>();
+        cfg.mapalgo = cece::to_lower(stream["mapalgo"].as<std::string>());
     }
     if (stream["cadence"]) {
         cfg.cadence = stream["cadence"].as<std::string>();
@@ -286,10 +296,28 @@ void CeceDriverOrchestrator::ResolveStreamConfigsFromFile(const std::string& con
     }
 
     // Walk every stream and populate a StreamConfig for each model variable,
-    // keyed by model name. Field resolution + defaults mirror the legacy inline
-    // AdvanceTime parse exactly.
+    // keyed by model name. Unlike the legacy inline parse, streams without
+    // variables map their name to itself and malformed entries throw.
     for (const auto& stream : config["cece_data"]["streams"]) {
-        for (const auto& var : stream["variables"]) {
+        if (stream["interpolation"]) {
+            throw std::invalid_argument("cece_data stream '" + stream["name"].as<std::string>("") + "': unknown key 'interpolation'; use 'tintalgo'");
+        }
+        const YAML::Node variables = stream["variables"];
+        if (!variables || variables.IsNull() || (variables.IsSequence() && variables.size() == 0)) {
+            const std::string stream_name = stream["name"].as<std::string>("");
+            if (stream_name.empty()) {
+                throw std::invalid_argument("cece_data stream requires a name for automatic variable mapping");
+            }
+            CECE_LOG_WARNING("[DRIVER] cece_data stream '" + stream_name + "' has no variables; mapping file variable '" + stream_name +
+                             "' to model field '" + stream_name + "'. Add an explicit 'variables' entry to silence this warning.");
+            out_configs.emplace(stream_name, BuildStreamConfig(stream, stream_name, stream_name, amio_worker_threads, amio_staging_buffer_count,
+                                                               amio_staging_buffer_capacity_bytes, amio_prefetch_depth));
+            continue;
+        }
+        if (!variables.IsSequence()) {
+            throw std::invalid_argument("cece_data stream variables must be a list");
+        }
+        for (const auto& var : variables) {
             std::string model_name;
             std::string file_name;
             if (var.IsScalar()) {
@@ -299,7 +327,10 @@ void CeceDriverOrchestrator::ResolveStreamConfigsFromFile(const std::string& con
                 model_name = var["model"].as<std::string>();
                 file_name = var["file"] ? var["file"].as<std::string>() : model_name;
             } else {
-                continue;
+                throw std::invalid_argument("cece_data variable mappings require a non-empty 'model'");
+            }
+            if (model_name.empty() || file_name.empty()) {
+                throw std::invalid_argument("cece_data variable mappings require non-empty file and model names");
             }
 
             // Match the legacy inline parse's first-match-wins behavior: it

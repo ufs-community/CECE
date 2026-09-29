@@ -47,13 +47,13 @@ References:
 ## YAML Configuration Example
 
 ```yaml
-physics:
-  - name: lightning
-    config:
-      yield_land: 3.011e26
-      yield_ocean: 1.566e26
-      flash_rate_coeff: 3.44e-5
-      flash_rate_power: 4.9
+physics_schemes:
+- name: lightning
+  options:
+    yield_land: 3.011e26
+    yield_ocean: 1.566e26
+    flash_rate_coeff: 3.44e-5
+    flash_rate_power: 4.9
 ```
 
 ## Implementation Notes

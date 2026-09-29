@@ -264,7 +264,14 @@ int main(int argc, char* argv[]) {
                 if (streams.size() > 0) {
                     auto first_stream = streams[static_cast<std::size_t>(0)];
                     auto file_val = first_stream["file"];
-                    if (file_val.is_defined()) {
+                    if (file_val.kind() == conf::Node_Kind::Sequence) {
+                        if (file_val.size() != 1) {
+                            CECE_LOG_ERROR("cece_data.streams[0].file: the standalone driver reads one file per stream; got a list of " +
+                                           std::to_string(file_val.size()) + " files");
+                            return -1;
+                        }
+                        input_file_path = file_val[static_cast<std::size_t>(0)].as_string();
+                    } else if (file_val.is_defined()) {
                         input_file_path = file_val.as_string();
                     }
                 }

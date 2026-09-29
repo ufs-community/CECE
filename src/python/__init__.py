@@ -42,6 +42,15 @@ __all__ = [
     "CeceField",
     "EmissionLayer",
     "VerticalDistributionConfig",
+    "VerticalGridConfig",
+    "DataVariableConfig",
+    "DataStreamConfig",
+    "PhysicsSchemeConfig",
+    "GridConfig",
+    "DriverConfig",
+    "OutputFieldConfig",
+    "OutputConfig",
+    "DiagnosticsConfig",
     "CeceException",
     "CeceConfigError",
     "CeceComputationError",
@@ -56,7 +65,20 @@ from .exceptions import (
     CeceStateError,
     CeceExecutionSpaceError,
 )
-from .config import CeceConfig, EmissionLayer, VerticalDistributionConfig
+from .config import (
+    CeceConfig,
+    DataStreamConfig,
+    DataVariableConfig,
+    DiagnosticsConfig,
+    DriverConfig,
+    EmissionLayer,
+    GridConfig,
+    OutputConfig,
+    OutputFieldConfig,
+    PhysicsSchemeConfig,
+    VerticalDistributionConfig,
+    VerticalGridConfig,
+)
 from .state import CeceState, CeceField
 from .utils import load_config
 
@@ -154,6 +176,8 @@ def _build_cpp_config(config_obj: CeceConfig) -> object:
     _cece_core.CeceConfig
         C++ configuration object populated from ``config_obj``.
     """
+    # TODO: copy the remaining layer fields (masks, hierarchy, category, scale_fields,
+    # temporal cycles) plus met/scale/mask mappings and temporal profiles.
     cpp_config = _cece_core.CeceConfig()
 
     # Add species

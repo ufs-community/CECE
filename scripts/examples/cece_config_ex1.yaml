@@ -8,9 +8,12 @@ species:
       scale: 1.0
       scale_fields: ["hourly_scalfact"]
 
-cdeps_inline_config:
+cece_data:
   streams:
     - name: "MACCITY"
       file: "data/MACCity_4x5.nc"
+      variables:
+        - file: "MACCity"
+          model: "MACCITY"
     - name: "HOURLY_SCALFACT"
       file: "data/hourly.nc"

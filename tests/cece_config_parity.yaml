@@ -1,8 +1,6 @@
 # Config for parity test using TIDE and Physics
 driver:
-  nx: 4
-  ny: 4
-  nz: 1
+  grid: { nx: 4, ny: 4, nz: 1 }
 
 # Meteorolgy mapping for ESMF fields
 meteorology:

@@ -90,13 +90,13 @@ driver:
   timestep_seconds: 3600
 
 # Computational grid specification
-grid:
-  nx: 144
-  ny: 91
-  lon_min: -180.0
-  lon_max: 177.5
-  lat_min: -90.0
-  lat_max: 90.0
+  grid:
+    nx: 144
+    ny: 91
+    lon_min: -180.0
+    lon_max: 177.5
+    lat_min: -90.0
+    lat_max: 90.0
 
 # Species with hierarchical emission layers
 species:
@@ -112,15 +112,17 @@ species:
       operation: "add"
       category: "anthropogenic"
       hierarchy: 1
-      vdist_method: "PBL"        # Distribute in boundary layer
+      vdist:
+        method: pbl               # Distribute in boundary layer
 
     - field: "aircraft_nox"
       operation: "add"
       category: "transportation"
       hierarchy: 1
-      vdist_method: "HEIGHT"     # Distribute by altitude
-      vdist_h_start: 9000.0      # 9-12 km cruise altitude
-      vdist_h_end: 12000.0
+      vdist:
+        method: height            # Distribute by altitude
+        h_start: 9000.0           # 9-12 km cruise altitude
+        h_end: 12000.0
 
 # Physics schemes for process-based emissions
 physics_schemes:
@@ -142,7 +144,7 @@ cece_data:
 
 # Diagnostic and output configuration
 diagnostics:
-  output_interval_seconds: 3600
+  output_interval: 3600
   variables: ["co", "nox"]
 
 output:

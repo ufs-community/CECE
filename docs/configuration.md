@@ -4,6 +4,9 @@ CECE is configured using a YAML file, typically named `cece_config.yaml`. This f
 
 ## Top-Level Structure
 
+This outline shows where each kind of configuration belongs. Sections are optional; include only the ones your run uses.
+
+<!-- cece-validate: overview -->
 ```yaml
 driver:
   # ... driver timing and execution configuration ...
@@ -242,15 +245,17 @@ The `species` block defines the emission targets and the layers that contribute 
 
 ### Vertical Distribution Properties
 
+`vdist` is an optional map nested under a species layer. Set the keys that apply to the selected method.
+
 | Key | Type | Description |
 | --- | --- | --- |
-| `vdist_method` | String | Vertical distribution algorithm: `SINGLE`, `RANGE`, `PRESSURE`, `HEIGHT`, `PBL` |
-| `vdist_layer_start` | Integer | Starting layer index for `SINGLE`/`RANGE` methods |
-| `vdist_layer_end` | Integer | Ending layer index for `RANGE` method |
-| `vdist_p_start` | Float | Starting pressure [Pa] for `PRESSURE` method |
-| `vdist_p_end` | Float | Ending pressure [Pa] for `PRESSURE` method |
-| `vdist_h_start` | Float | Starting height [m] for `HEIGHT` method |
-| `vdist_h_end` | Float | Ending height [m] for `HEIGHT` method |
+| `method` | String | Distribution method: `single` (default), `range`, `pressure`, `height`, or `pbl`. |
+| `layer_start` | Integer | Zero-based layer index for `single`, or inclusive first index for `range`. Default: `0`. |
+| `layer_end` | Integer | Inclusive last zero-based layer index for `range`. Default: `0`. |
+| `p_start` | Float | Lower pressure bound in Pa for `pressure`. Default: `0.0`. |
+| `p_end` | Float | Upper pressure bound in Pa for `pressure`. Default: `0.0`. |
+| `h_start` | Float | Lower altitude bound in meters for `height`. Default: `0.0`. |
+| `h_end` | Float | Upper altitude bound in meters for `height`. Default: `0.0`. |
 
 ### Complete Example
 
@@ -273,6 +278,8 @@ species:
       category: "anthropogenic"
       hierarchy: 10                  # Higher priority
       mask: "regional_mask"
+      vdist:
+        method: pbl
 
   # Aircraft NOx with vertical distribution
   nox:
@@ -280,15 +287,17 @@ species:
       operation: "add"
       category: "anthropogenic"
       hierarchy: 1
-      vdist_method: "PBL"           # Distribute in boundary layer
+      vdist:
+        method: pbl                 # Distribute in boundary layer
 
     - field: "aircraft_nox"
       operation: "add"
       category: "transportation"
       hierarchy: 1
-      vdist_method: "HEIGHT"        # Distribute by altitude
-      vdist_h_start: 8000.0         # 8 km
-      vdist_h_end: 12000.0          # 12 km
+      vdist:
+        method: height             # Distribute by altitude
+        h_start: 8000.0            # 8 km
+        h_end: 12000.0             # 12 km
 
   # Biogenic emissions with environmental scaling
   isoprene:
@@ -300,6 +309,13 @@ species:
       mask: "vegetation_mask"
       diurnal_cycle: "biogenic_diurnal"
       seasonal_cycle: "growing_season"
+
+temporal_profiles:
+  traffic_diurnal: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+  biogenic_diurnal: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                     1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+  growing_season: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 ```
 
 ---
@@ -502,9 +518,9 @@ physics_schemes:
           beta: 0.10
           default_aef: 3.0e-10
         # ... remaining 17 classes
-    output_mapping:
-      MEGAN_ISOP: ISOP_BIOG
-      MEGAN_TERP: TERP_BIOG
+      output_mapping:
+        MEGAN_ISOP: ISOP_BIOG
+        MEGAN_TERP: TERP_BIOG
 ```
 
 The speciation engine computes each output species as:
@@ -536,15 +552,13 @@ Controls diagnostic output and intermediate variable capture for analysis and va
 
 | Key | Type | Description |
 | --- | --- | --- |
-| `output_interval_seconds` | Integer | Frequency of diagnostic output in seconds |
+| `output_interval` | Integer | Frequency of diagnostic output in seconds |
 | `variables` | List | List of field names to include in diagnostic output |
-| `enabled` | Boolean | Enable/disable diagnostic output (default: true) |
 
 **Example:**
 ```yaml
 diagnostics:
-  output_interval_seconds: 3600     # Hourly output
-  enabled: true
+  output_interval: 3600             # Hourly output
   variables:
     - "co"
     - "nox"
@@ -570,15 +584,15 @@ Configuration for data streams that read external emission inventories and auxil
 | `time_var` | String | (Optional) Name of the time coordinate variable. Default: `time` (falls back to `Time`, `t`, `valid_time`). |
 | `time_units` | String | (Optional) Override for the time variable's CF `units` attribute (e.g. `"hours since 2020-01-01 00:00:00"`). Use when the file's attribute is missing or non-standard. |
 | `calendar` | String | (Optional) Override for the time variable's CF `calendar` attribute: `gregorian`/`standard`/`proleptic_gregorian`, `noleap`/`365_day`, or `360_day`. |
-| `yearFirst` | Integer | First calendar year of data coverage in the file. Only consulted on the arithmetic fallback path (`daily`/`monthly` cadence with an undecodable time axis). |
-| `yearLast` | Integer | Last calendar year of data coverage in the file. Same applicability as `yearFirst`. |
+| `yearFirst` | Integer | First calendar year of data coverage in the file. Default: `0`. Only consulted on the arithmetic fallback path (`daily`/`monthly` cadence with an undecodable time axis). |
+| `yearLast` | Integer | Last calendar year of data coverage in the file. Default: `0`. Same applicability as `yearFirst`. |
 | `yearAlign` | Integer | Simulation year corresponding to the first file year. Default: `0` (no shift, simulation years map 1-to-1 onto file years). |
 | `taxmode` | String | Behavior when the simulation time falls outside the file's coverage: `cycle` (default, clamp to the closest covered year), `extend` (clamp to the nearest end), or `limit` (fail). |
 | `tintalgo` | String | Temporal interpolation: `linear` or `nearest`. Default: `nearest`. Ignored by the `stepwise` cadence. |
 | `time_label` | String | (Optional) Where each time coordinate sits in the interval its record describes: `auto` (default), `start`, `center`, or `end`. Applies to decoded time axes. See [Time Labels](#time-labels-time_label). |
-| `mapalgo` | String | Spatial regridding: `consd`, `bilinear`, `consf`, `nn`, `redist`, or `passthrough`. `passthrough` requires identical dimensions and ordered source/target coordinates, then copies without AXIS regridding. |
+| `mapalgo` | String | Spatial regridding: `consd` (default), `bilinear`, `consf`, `nn`, `redist`, or `passthrough`. `passthrough` requires identical dimensions and ordered source/target coordinates, then copies without AXIS regridding. |
 | `data_model` | String | (Optional) AMIO NetCDF data model for reads: `enhanced`, `classic`, or `auto`. Default behavior is auto (`enhanced` first, then `classic` fallback on backend open failure). |
-| `variables` | List | Variable mappings between file and model |
+| `variables` | List | (Optional) Variable mappings between file and model. If omitted, null, or empty, the stream `name` is used for both names and the standalone driver logs a warning. A mapping may be a string shorthand or a map with a required `model` name and optional `file` name; omitted `file` defaults to `model`. |
 
 ### Variable Mapping
 
@@ -588,17 +602,20 @@ Configuration for data streams that read external emission inventories and auxil
 | `model` | String | Internal field name in CECE |
 | `levels` | Integer | (Optional) Number of nonspatial layers for this variable. Defaults to the global model `nz`; values must be positive. |
 
-For canonical BDSNP, the two biome-dependent fields use 24 layers while
-scalar fields omit `levels`:
+For canonical BDSNP, add a stream under `cece_data.streams`. The two
+biome-dependent fields use 24 layers, while scalar fields omit `levels`:
 
+<!-- cece-validate: context cece_data.streams -->
 ```yaml
-variables:
-  - file: SOILNOX_LAND_FRACTIONS
-    model: soilnox_land_fractions
-    levels: 24
-  - file: SOILNOX_CANOPY_NOX
-    model: soilnox_canopy_nox
-    levels: 24
+- name: soilnox_inputs
+  file: soilnox.nc
+  variables:
+    - file: SOILNOX_LAND_FRACTIONS
+      model: soilnox_land_fractions
+      levels: 24
+    - file: SOILNOX_CANOPY_NOX
+      model: soilnox_canopy_nox
+      levels: 24
 ```
 
 **Example:**
@@ -911,7 +928,7 @@ cece_data:
 
 ## `output`
 
-Configuration for NetCDF output file generation with emission fields and diagnostics.
+Configuration for NetCDF output file generation with emission fields.
 
 | Key | Type | Description |
 | --- | --- | --- |
@@ -920,9 +937,8 @@ Configuration for NetCDF output file generation with emission fields and diagnos
 | `filename_pattern` | String | Filename template with time substitution |
 | `frequency_steps` | Integer | Output frequency in timesteps |
 | `fields` | List | Fields to write; each entry is either a field name string or a map with `name` and optional `attributes` |
-| `diagnostics` | Boolean | Also write diagnostic fields (default: false) |
 | `amio_worker_threads` | Integer | (Optional) Number of AMIO background I/O worker threads for output. Must be ≥ 1 when explicitly set; nonpositive values are rejected. When omitted, falls back to `driver.amio_worker_threads`. |
-| `global_attributes` | Map | (Optional) Map of custom NetCDF global attributes to write verbatim on the output file, overriding any defaults. |
+| `global_attributes` | Map | (Optional) Map of NetCDF global attribute names to string, number, or boolean values, overriding any defaults. |
 
 ### Fields and Attributes
 
@@ -963,7 +979,7 @@ Semantics:
 
 ### Custom Global Attributes
 
-The optional `global_attributes` map allows you to specify custom global NetCDF attributes to write verbatim on the output files, overriding any default attributes:
+The optional `global_attributes` map allows you to override recognized global NetCDF attributes on the output files:
 
 ```yaml
 output:
@@ -973,7 +989,7 @@ output:
     references: "Custom project publication URL (2026)"
 ```
 
-The standalone writer automatically populates a standard set of geoscientific default attributes (`title`, `Conventions`, `institution`, `source`, `history`, `references`, `comment`, and `gridspec_file`). Any key-value pair specified under `global_attributes` overrides these defaults, while other omitted keys retain their professional defaults.
+The standalone writer automatically populates a standard set of geoscientific default attributes (`title`, `Conventions`, `institution`, `source`, `history`, `references`, `comment`, and `gridspec_file`). Values supplied for attributes recognized by AMIO override these defaults; unrecognized keys are ignored by AMIO, and the writer logs a warning for each one. AMIO writes any value that parses as a number, quoted or not, as a numeric NetCDF attribute.
 
 ### Filename Pattern Substitutions
 

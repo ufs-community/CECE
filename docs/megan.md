@@ -172,17 +172,17 @@ physics_schemes:
           aold: 1.05
           default_aef: 3.0e-10
         # ... remaining classes
-    input_mapping:
-      temperature: T2M
-      leaf_area_index: LAI
-      par_direct: PARDR
-      par_diffuse: PARDF
-      solar_cosine: COSZS
-      soil_moisture_root: GWETROOT
-      wind_speed: U10M
-    output_mapping:
-      MEGAN_ISOP: ISOP_BIOG
-      MEGAN_TERP: TERP_BIOG
+      input_mapping:
+        temperature: T2M
+        leaf_area_index: LAI
+        par_direct: PARDR
+        par_diffuse: PARDF
+        solar_cosine: COSZS
+        soil_moisture_root: GWETROOT
+        wind_speed: U10M
+      output_mapping:
+        MEGAN_ISOP: ISOP_BIOG
+        MEGAN_TERP: TERP_BIOG
 ```
 
 ### Import Fields

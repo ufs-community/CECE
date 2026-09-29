@@ -154,15 +154,14 @@ struct CeceDataStreamConfig {
     std::vector<std::string> file_paths;            ///< Paths to the NetCDF files.
     std::vector<CeceDataVariableConfig> variables;  ///< Variables to read from this stream.
     std::string taxmode = "cycle";                  ///< Time axis mode (cycle, extend, etc.).
-    std::string tintalgo = "linear";                ///< Time interpolation algorithm.
-    std::string mapalgo =
-        "bilinear";            ///< Spatial mapping algorithm: bilinear, consd, consf, nn, redist, passthrough (skip regridding, same-grid data).
-    int dtlimit = 1500000000;  ///< Delta time limit in seconds.
-    int yearFirst = 1;         ///< First year in data.
-    int yearLast = 1;          ///< Last year in data.
-    int yearAlign = 1;         ///< Year to align with model time.
-    int offset = 0;            ///< Time offset in seconds.
-    std::string meshfile;      ///< Path to source mesh file.
+    std::string tintalgo = "nearest";               ///< Time interpolation algorithm.
+    std::string mapalgo = "consd";  ///< Spatial mapping algorithm: bilinear, consd, consf, nn, redist, passthrough (skip regridding, same-grid data).
+    int dtlimit = 1500000000;       ///< Delta time limit in seconds.
+    int yearFirst = 0;              ///< First year in data; zero selects climatological indexing.
+    int yearLast = 0;               ///< Last year in data; zero selects climatological indexing.
+    int yearAlign = 0;              ///< Year to align with model time; zero applies no year shift.
+    int offset = 0;                 ///< Time offset in seconds.
+    std::string meshfile;           ///< Path to source mesh file.
     std::string lev_dimname = "lev";   ///< Name of vertical dimension.
     std::string time_var = "time";     ///< Name of time coordinate variable.
     std::string lon_var = "lon";       ///< Name of longitude coordinate variable.
@@ -383,10 +382,9 @@ struct CeceOutputConfig {
     std::string filename_pattern = "cece_output_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc";  ///< Filename pattern with time tokens.
     int frequency_steps = 1;                                                      ///< Write every N time steps.
     CeceOutputFieldCollection fields;  ///< Coordinate variables + configured data fields; no data fields means write all export fields.
-    bool include_diagnostics = false;  ///< Also write diagnostic fields when true.
     bool enabled = false;              ///< True when an output block is present in the YAML.
     int amio_worker_threads = -1;      ///< Number of AMIO background I/O worker threads (default: -1, meaning use fallback).
-    std::unordered_map<std::string, std::string> global_attributes;  ///< Custom global attributes to write verbatim on the output file.
+    std::unordered_map<std::string, std::string> global_attributes;  ///< Global attributes passed to AMIO's recognized-key manifest parser.
 };
 
 /**
