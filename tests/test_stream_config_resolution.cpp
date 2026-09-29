@@ -402,6 +402,14 @@ TEST(StreamConfigResolution, FileListsNeedExactlyOneEntry) {
     EXPECT_THROW(StreamConfigTestAccess::Resolve(multiple.path, configs, gridspec), std::invalid_argument);
 }
 
+TEST(StreamConfigResolution, RejectsInterpolationAlias) {
+    TempFile fixture("cece_data:\n  streams:\n    - name: CO\n      file: co.nc\n      interpolation: linear\n");
+    std::unordered_map<std::string, StreamConfig> configs;
+    std::string gridspec;
+
+    EXPECT_THROW(StreamConfigTestAccess::Resolve(fixture.path, configs, gridspec), std::invalid_argument);
+}
+
 TEST(StreamConfigResolution, MapalgoIsNormalizedToLowercase) {
     TempFile fixture(
         "cece_data:\n"

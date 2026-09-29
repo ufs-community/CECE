@@ -299,6 +299,9 @@ void CeceDriverOrchestrator::ResolveStreamConfigsFromFile(const std::string& con
     // keyed by model name. Unlike the legacy inline parse, streams without
     // variables map their name to itself and malformed entries throw.
     for (const auto& stream : config["cece_data"]["streams"]) {
+        if (stream["interpolation"]) {
+            throw std::invalid_argument("cece_data stream '" + stream["name"].as<std::string>("") + "': unknown key 'interpolation'; use 'tintalgo'");
+        }
         const YAML::Node variables = stream["variables"];
         if (!variables || variables.IsNull() || (variables.IsSequence() && variables.size() == 0)) {
             const std::string stream_name = stream["name"].as<std::string>("");

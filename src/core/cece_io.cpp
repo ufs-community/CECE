@@ -47,6 +47,9 @@ void CeceIO::Initialize(const std::string& config_file, int nx, int ny, int nz) 
                 } else {
                     throw std::runtime_error("cece_data variable must be a scalar name or a map containing 'model'");
                 }
+                if (var_name.empty()) {
+                    throw std::runtime_error("cece_data variable requires a non-empty name");
+                }
                 if (field_levels < 1) {
                     throw std::runtime_error("cece_data variable '" + var_name + "' has invalid levels=" + std::to_string(field_levels));
                 }
