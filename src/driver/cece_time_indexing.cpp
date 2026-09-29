@@ -189,16 +189,16 @@ struct AxisLabelInfo {
 
 // Absolute TICK nanoseconds for a CF axis value. Whole days and the sub-day
 // remainder are combined separately, so only the result must fit int64, not
-// the value's distance from the reference. False when not representable.
-static bool cf_value_to_nanos(double value, const CFTimeUnits& cf, std::int64_t ref_nanos, std::int64_t& out) {
+// the value's distance from the reference. Throws std::out_of_range otherwise.
+static std::int64_t cf_value_to_nanos(double value, const CFTimeUnits& cf, std::int64_t ref_nanos) {
     constexpr std::int64_t npd = tick::nanos_per_day;
     // Every supported unit (s, min, h, d) divides a day evenly.
     const std::int64_t units_per_day = std::llround(1.0 / cf.unit_days);
-    if (units_per_day <= 0 || npd % units_per_day != 0) return false;
+    if (units_per_day <= 0 || npd % units_per_day != 0) throw std::out_of_range("CF time unit does not divide a day evenly.");
     const std::int64_t nanos_per_unit = npd / units_per_day;
 
     // TICK spans about 2 x 106751 days, so nothing farther can land in range; the negated test also rejects NaN.
-    if (!(std::abs(value) < 4.0e5 * static_cast<double>(units_per_day))) return false;
+    if (!(std::abs(value) < 4.0e5 * static_cast<double>(units_per_day))) throw std::out_of_range("CF time value is outside TICK's range.");
     const double whole = std::floor(value);
     const auto whole_units = static_cast<std::int64_t>(whole);
     const std::int64_t frac_nanos = std::llround((value - whole) * static_cast<double>(nanos_per_unit));
@@ -211,9 +211,8 @@ static bool cf_value_to_nanos(double value, const CFTimeUnits& cf, std::int64_t 
     const std::int64_t days = ref_days + value_days;
     constexpr std::int64_t max_days = std::numeric_limits<std::int64_t>::max() / npd - 3;
     constexpr std::int64_t min_days = std::numeric_limits<std::int64_t>::min() / npd + 1;
-    if (days > max_days || days < min_days) return false;
-    out = days * npd + sub_day;
-    return true;
+    if (days > max_days || days < min_days) throw std::out_of_range("CF time value is outside TICK's range.");
+    return days * npd + sub_day;
 }
 
 // Classify an axis well enough for "auto" to pick an interval label. Monthly
@@ -237,8 +236,7 @@ static AxisLabelInfo inspect_axis_labels(const std::vector<double>& time_vals, c
         bool all_midnight = true;
         bool all_midday = true;
         for (size_t k = 0; k < time_vals.size(); ++k) {
-            std::int64_t nanos = 0;
-            if (!cf_value_to_nanos(time_vals[k], cf, ref_nanos, nanos)) return info;
+            const std::int64_t nanos = cf_value_to_nanos(time_vals[k], cf, ref_nanos);
             if (k > 0 && nanos < previous_nanos) return info;
             const tick::Date_Time stamp = cal_to_dt(cal, nanos);
             const int month_index = stamp.year * 12 + stamp.month;
@@ -504,14 +502,17 @@ RecordBracket bracket_from_cadence(const std::string& cadence, const std::string
     return RecordBracket{};
 }
 
+// (value - origin) mod period, in [0, period). Integers reduce each side first,
+// since two valid timestamps can differ by more than an int64 holds.
 template <typename T>
-static T wrap_offset(T value, T period) {
+static T wrap_offset(T value, T origin, T period) {
     if constexpr (std::is_integral_v<T>) {
+        if (origin != T{}) return wrap_offset(wrap_offset(value, T{}, period) - wrap_offset(origin, T{}, period), T{}, period);
         T offset = value % period;
         if (offset < 0) offset += period;
         return offset;
     } else {
-        T offset = std::fmod(value, period);
+        T offset = std::fmod(value - origin, period);
         if (offset < 0.0) offset += period;
         return offset;
     }
@@ -589,14 +590,7 @@ static RecordBracket find_bracket_impl(const std::vector<T>& times, T target, bo
             // cycle
             if (!period_fits) return br;
             if (period > T{}) {
-                T offset_from_start;
-                if constexpr (std::is_integral_v<T>) {
-                    // Absolute timestamps can be further apart than an int64 duration holds.
-                    offset_from_start = wrap_offset(wrap_offset(target, period) - wrap_offset(file_start, period), period);
-                } else {
-                    offset_from_start = wrap_offset(target - file_start, period);
-                }
-                target = file_start + offset_from_start;
+                target = file_start + wrap_offset(target, file_start, period);
                 in_wrap_gap = (target > file_end);
             }
         }
@@ -734,7 +728,7 @@ RecordBracket bracket_from_coords(const std::vector<double>& time_vals, const st
 
         std::vector<std::int64_t> rec_nanos(time_vals.size());
         for (size_t k = 0; k < time_vals.size(); ++k) {
-            if (!cf_value_to_nanos(time_vals[k], cf, ref_nanos, rec_nanos[k])) return br;
+            rec_nanos[k] = cf_value_to_nanos(time_vals[k], cf, ref_nanos);
         }
         // Ordered records keep every neighbour difference within the checked span.
         if (!std::is_sorted(rec_nanos.begin(), rec_nanos.end())) return br;
@@ -792,9 +786,7 @@ RecordBracket bracket_from_coords(const std::vector<double>& time_vals, const st
             // CF bounds state each interval outright, so nothing is inferred.
             // An explicit time_label still wins, as a manual override.
             for (size_t k = 0; k < rec_days.size(); ++k) {
-                std::int64_t lower = 0, upper = 0;
-                if (!cf_value_to_nanos(bounds[2 * k], cf, ref_nanos, lower) || !cf_value_to_nanos(bounds[2 * k + 1], cf, ref_nanos, upper)) return br;
-                rec_nanos[k] = std::midpoint(lower, upper);
+                rec_nanos[k] = std::midpoint(cf_value_to_nanos(bounds[2 * k], cf, ref_nanos), cf_value_to_nanos(bounds[2 * k + 1], cf, ref_nanos));
             }
             label = "center";
         } else if (label == "auto") {
