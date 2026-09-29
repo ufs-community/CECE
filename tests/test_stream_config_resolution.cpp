@@ -366,6 +366,42 @@ TEST(StreamConfigResolution, HandWrittenFixtureMatchesLegacyParse) {
     EXPECT_EQ(actual["VAR_NOFILE"].input_var_name, "VAR_NOFILE");  // map w/o file => model
 }
 
+TEST(StreamConfigResolution, MissingVariablesDefaultToStreamName) {
+    for (const std::string& variables : {std::string{}, std::string("      variables:\n"), std::string("      variables: []\n")}) {
+        TempFile fixture("cece_data:\n  streams:\n    - name: CO\n      file: co.nc\n" + variables);
+        std::unordered_map<std::string, StreamConfig> configs;
+        std::string gridspec;
+
+        StreamConfigTestAccess::Resolve(fixture.path, configs, gridspec);
+
+        ASSERT_TRUE(configs.count("CO"));
+        EXPECT_EQ(configs.at("CO").input_var_name, "CO");
+        EXPECT_EQ(configs.at("CO").input_file_path, "co.nc");
+    }
+}
+
+TEST(StreamConfigResolution, RejectsVariableMappingsWithoutModelNames) {
+    TempFile fixture("cece_data:\n  streams:\n    - name: CO\n      file: co.nc\n      variables:\n        - file: CO_FILE\n");
+    std::unordered_map<std::string, StreamConfig> configs;
+    std::string gridspec;
+
+    EXPECT_THROW(StreamConfigTestAccess::Resolve(fixture.path, configs, gridspec), std::invalid_argument);
+}
+
+TEST(StreamConfigResolution, FileListsNeedExactlyOneEntry) {
+    std::unordered_map<std::string, StreamConfig> configs;
+    std::string gridspec;
+
+    TempFile single("cece_data:\n  streams:\n    - name: CO\n      file: [co.nc]\n");
+    StreamConfigTestAccess::Resolve(single.path, configs, gridspec);
+    ASSERT_TRUE(configs.count("CO"));
+    EXPECT_EQ(configs.at("CO").input_file_path, "co.nc");
+
+    configs.clear();
+    TempFile multiple("cece_data:\n  streams:\n    - name: CO\n      file: [a.nc, b.nc]\n");
+    EXPECT_THROW(StreamConfigTestAccess::Resolve(multiple.path, configs, gridspec), std::invalid_argument);
+}
+
 TEST(StreamConfigResolution, MapalgoIsNormalizedToLowercase) {
     TempFile fixture(
         "cece_data:\n"

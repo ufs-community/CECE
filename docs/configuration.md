@@ -584,15 +584,15 @@ Configuration for data streams that read external emission inventories and auxil
 | `time_var` | String | (Optional) Name of the time coordinate variable. Default: `time` (falls back to `Time`, `t`, `valid_time`). |
 | `time_units` | String | (Optional) Override for the time variable's CF `units` attribute (e.g. `"hours since 2020-01-01 00:00:00"`). Use when the file's attribute is missing or non-standard. |
 | `calendar` | String | (Optional) Override for the time variable's CF `calendar` attribute: `gregorian`/`standard`/`proleptic_gregorian`, `noleap`/`365_day`, or `360_day`. |
-| `yearFirst` | Integer | First calendar year of data coverage in the file. Only consulted on the arithmetic fallback path (`daily`/`monthly` cadence with an undecodable time axis). |
-| `yearLast` | Integer | Last calendar year of data coverage in the file. Same applicability as `yearFirst`. |
+| `yearFirst` | Integer | First calendar year of data coverage in the file. Default: `0`. Only consulted on the arithmetic fallback path (`daily`/`monthly` cadence with an undecodable time axis). |
+| `yearLast` | Integer | Last calendar year of data coverage in the file. Default: `0`. Same applicability as `yearFirst`. |
 | `yearAlign` | Integer | Simulation year corresponding to the first file year. Default: `0` (no shift, simulation years map 1-to-1 onto file years). |
 | `taxmode` | String | Behavior when the simulation time falls outside the file's coverage: `cycle` (default, clamp to the closest covered year), `extend` (clamp to the nearest end), or `limit` (fail). |
 | `tintalgo` | String | Temporal interpolation: `linear` or `nearest`. Default: `nearest`. Ignored by the `stepwise` cadence. |
 | `time_label` | String | (Optional) Where each time coordinate sits in the interval its record describes: `auto` (default), `start`, `center`, or `end`. Applies to decoded time axes. See [Time Labels](#time-labels-time_label). |
-| `mapalgo` | String | Spatial regridding: `consd`, `bilinear`, `consf`, `nn`, `redist`, or `passthrough`. `passthrough` requires identical dimensions and ordered source/target coordinates, then copies without AXIS regridding. |
+| `mapalgo` | String | Spatial regridding: `consd` (default), `bilinear`, `consf`, `nn`, `redist`, or `passthrough`. `passthrough` requires identical dimensions and ordered source/target coordinates, then copies without AXIS regridding. |
 | `data_model` | String | (Optional) AMIO NetCDF data model for reads: `enhanced`, `classic`, or `auto`. Default behavior is auto (`enhanced` first, then `classic` fallback on backend open failure). |
-| `variables` | List | Variable mappings between file and model |
+| `variables` | List | (Optional) Variable mappings between file and model. If omitted, null, or empty, the stream `name` is used for both names and the standalone driver logs a warning. A mapping may be a string shorthand or a map with a required `model` name and optional `file` name; omitted `file` defaults to `model`. |
 
 ### Variable Mapping
 
@@ -928,7 +928,7 @@ cece_data:
 
 ## `output`
 
-Configuration for NetCDF output file generation with emission fields and diagnostics.
+Configuration for NetCDF output file generation with emission fields.
 
 | Key | Type | Description |
 | --- | --- | --- |
@@ -937,9 +937,8 @@ Configuration for NetCDF output file generation with emission fields and diagnos
 | `filename_pattern` | String | Filename template with time substitution |
 | `frequency_steps` | Integer | Output frequency in timesteps |
 | `fields` | List | Fields to write; each entry is either a field name string or a map with `name` and optional `attributes` |
-| `diagnostics` | Boolean | Also write diagnostic fields (default: false) |
 | `amio_worker_threads` | Integer | (Optional) Number of AMIO background I/O worker threads for output. Must be ≥ 1 when explicitly set; nonpositive values are rejected. When omitted, falls back to `driver.amio_worker_threads`. |
-| `global_attributes` | Map | (Optional) Map of custom NetCDF global attributes to write verbatim on the output file, overriding any defaults. |
+| `global_attributes` | Map | (Optional) Map of NetCDF global attribute names to string, number, or boolean values, overriding any defaults. |
 
 ### Fields and Attributes
 
@@ -980,7 +979,7 @@ Semantics:
 
 ### Custom Global Attributes
 
-The optional `global_attributes` map allows you to specify custom global NetCDF attributes to write verbatim on the output files, overriding any default attributes:
+The optional `global_attributes` map allows you to override recognized global NetCDF attributes on the output files:
 
 ```yaml
 output:
@@ -990,7 +989,7 @@ output:
     references: "Custom project publication URL (2026)"
 ```
 
-The standalone writer automatically populates a standard set of geoscientific default attributes (`title`, `Conventions`, `institution`, `source`, `history`, `references`, `comment`, and `gridspec_file`). Any key-value pair specified under `global_attributes` overrides these defaults, while other omitted keys retain their professional defaults.
+The standalone writer automatically populates a standard set of geoscientific default attributes (`title`, `Conventions`, `institution`, `source`, `history`, `references`, `comment`, and `gridspec_file`). Values supplied for attributes recognized by AMIO override these defaults; unrecognized keys are ignored by AMIO, and the writer logs a warning for each one. AMIO writes any value that parses as a number, quoted or not, as a numeric NetCDF attribute.
 
 ### Filename Pattern Substitutions
 

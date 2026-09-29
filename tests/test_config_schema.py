@@ -145,20 +145,127 @@ def test_runtime_driver_grid_name_and_log_file_round_trip():
     assert config.CeceConfig.from_dict({"driver": dumped}).to_dict()["driver"] == dumped
 
 
-def test_output_diagnostics_and_global_attributes_round_trip():
+def test_output_global_attributes_round_trip():
     parsed = config.CeceConfig.from_dict(
         {
             "output": {
-                "diagnostics": True,
                 "global_attributes": {"title": "Example run"},
             }
         }
     )
 
     output = parsed.to_dict()["output"]
-    assert output["diagnostics"] is True
     assert output["global_attributes"] == {"title": "Example run"}
     assert config.CeceConfig.from_dict({"output": output}).to_dict()["output"] == output
+
+
+def test_output_diagnostics_is_rejected_as_unsupported():
+    with pytest.raises(ValueError, match="output: unknown key 'diagnostics'"):
+        config.CeceConfig.from_dict({"output": {"diagnostics": True}})
+
+
+def test_stream_defaults_match_runtime_and_are_omitted_when_serialized():
+    parsed = config.CeceConfig.from_dict(
+        {
+            "cece_data": {
+                "streams": [
+                    {
+                        "name": "CO",
+                        "file": "co.nc",
+                        "variables": [{"file": "CO_FILE", "model": "CO"}],
+                    }
+                ]
+            }
+        }
+    )
+
+    stream = parsed.cece_data["streams"][0]
+    assert (stream.mapalgo, stream.tintalgo) == ("consd", "nearest")
+    assert (stream.yearFirst, stream.yearLast, stream.yearAlign) == (0, 0, 0)
+    serialized = parsed.to_dict()["cece_data"]["streams"][0]
+    assert serialized == {
+        "name": "CO",
+        "file": "co.nc",
+        "variables": [{"file": "CO_FILE", "model": "CO"}],
+    }
+    assert config.CeceConfig.from_dict(parsed.to_dict()).to_dict() == parsed.to_dict()
+
+
+def test_stream_variables_default_to_the_stream_name():
+    for variables in (None, []):
+        stream = {"name": "CO", "file": "co.nc"}
+        if variables is not None:
+            stream["variables"] = variables
+        parsed = config.CeceConfig.from_dict({"cece_data": {"streams": [stream]}})
+        mapping = parsed.cece_data["streams"][0].variables[0]
+        assert (mapping.file, mapping.model) == ("CO", "CO")
+
+    programmatic = config.CeceConfig()
+    programmatic.add_data_stream("CO", "co.nc")
+    mapping = programmatic.cece_data["streams"][0].variables[0]
+    assert (mapping.file, mapping.model) == ("CO", "CO")
+
+
+def test_variable_mapping_requires_model_name():
+    with pytest.raises(ValueError, match="missing required key 'model'"):
+        config.CeceConfig.from_dict(
+            {
+                "cece_data": {
+                    "streams": [
+                        {
+                            "name": "CO",
+                            "file": "co.nc",
+                            "variables": [{"file": "CO_FILE"}],
+                        }
+                    ]
+                }
+            }
+        )
+
+
+def test_variable_mapping_defaults_file_name_to_model_name():
+    parsed = config.DataVariableConfig.from_dict({"model": "CO"})
+
+    assert parsed.file == "CO"
+    assert parsed.model == "CO"
+
+
+def test_interpolation_alias_is_rejected():
+    with pytest.raises(ValueError, match="unknown key 'interpolation'"):
+        config.CeceConfig.from_dict(
+            {
+                "cece_data": {
+                    "streams": [
+                        {
+                            "name": "CO",
+                            "file": "co.nc",
+                            "variables": ["CO"],
+                            "interpolation": "linear",
+                        }
+                    ]
+                }
+            }
+        )
+
+
+def test_global_attribute_values_reject_control_characters():
+    with pytest.raises(ValueError, match="must not contain control characters"):
+        config.CeceConfig.from_dict(
+            {"output": {"global_attributes": {"title": "bad\nvalue"}}}
+        )
+
+
+def test_global_attributes_accept_scalars_and_preserve_types():
+    attributes = {"id": 42, "geospatial_lat_min": -90.5, "summary": True}
+    parsed = config.CeceConfig.from_dict({"output": {"global_attributes": attributes}})
+
+    assert parsed.to_dict()["output"]["global_attributes"] == attributes
+
+
+@pytest.mark.parametrize("value", [None, ["a"], {"a": "b"}, float("nan")])
+def test_global_attributes_reject_non_scalar_or_non_finite_values(value):
+    with pytest.raises(ValueError, match=r"global_attributes\.title must be"):
+        config.CeceConfig.from_dict({"output": {"global_attributes": {"title": value}}})
 
 
 def test_unknown_and_legacy_flat_vertical_keys_are_rejected():
@@ -201,7 +308,11 @@ def test_temporal_cycle_references_and_lengths_are_validated():
 
 def test_stream_enum_types_fail_as_configuration_errors():
     invalid = {
-        "cece_data": {"streams": [{"name": "CO", "file": "co.nc", "cadence": []}]}
+        "cece_data": {
+            "streams": [
+                {"name": "CO", "file": "co.nc", "variables": ["CO"], "cadence": []}
+            ]
+        }
     }
 
     with pytest.raises(
@@ -214,7 +325,14 @@ def test_mapalgo_is_normalized_to_lowercase():
     parsed = config.CeceConfig.from_dict(
         {
             "cece_data": {
-                "streams": [{"name": "CO", "file": "co.nc", "mapalgo": "BILINEAR"}]
+                "streams": [
+                    {
+                        "name": "CO",
+                        "file": "co.nc",
+                        "variables": ["CO"],
+                        "mapalgo": "BILINEAR",
+                    }
+                ]
             }
         }
     )

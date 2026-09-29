@@ -52,7 +52,6 @@ output:
   fields:
     - CO
     - PM25
-  diagnostics: false
 ```
 
 ### Step 4: Run CECE

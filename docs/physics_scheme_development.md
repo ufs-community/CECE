@@ -643,11 +643,10 @@ void MyScheme::Run(CeceImportState& import_state, CeceExportState& export_state)
 
 ### Diagnostic Output
 
-Diagnostic fields are automatically written to NetCDF output if enabled in configuration:
+To include a diagnostic field in NetCDF output, list it explicitly under `output.fields`:
 
 ```yaml
 output:
-  diagnostics: true
   fields:
     - emissions
     - temperature_factor

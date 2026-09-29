@@ -77,6 +77,24 @@ def _validate_string_mapping(value: Any, where: str) -> Dict[str, str]:
     return result
 
 
+def _validate_global_attributes(
+    value: Any, where: str
+) -> Dict[str, Union[str, int, float, bool]]:
+    attributes = dict(_require_mapping(value, where))
+    for key, item in attributes.items():
+        if not isinstance(key, str) or not key.strip():
+            raise ValueError(f"{where} keys must be non-empty strings")
+        if not isinstance(item, (str, int, float, bool)):
+            raise ValueError(f"{where}.{key} must be a string, number, or boolean")
+        if isinstance(item, float) and not math.isfinite(item):
+            raise ValueError(f"{where}.{key} must be finite")
+        if any(ord(char) < 32 or ord(char) == 127 for char in key + str(item)):
+            raise ValueError(
+                f"{where} keys and values must not contain control characters"
+            )
+    return attributes
+
+
 def _validate_temporal_factors(factors: Any) -> None:
     if not isinstance(factors, list) or not factors:
         raise ValueError("factors must be a non-empty list")
@@ -365,6 +383,7 @@ class PhysicsSchemeConfig:
             If ``name`` is empty or ``language`` is not recognized.
         """
         _validate_string(self.name, "scheme name")
+        _validate_string(self.language, "language")
         if self.language not in [
             "cpp",
             "c++",
@@ -376,7 +395,6 @@ class PhysicsSchemeConfig:
             "py",
         ]:
             raise ValueError(f"Invalid language: {self.language}")
-        _validate_string(self.language, "language")
         _require_mapping(self.options, "scheme options")
         _validate_integer(self.refresh_interval_seconds, "refresh_interval_seconds")
         if self.refresh_interval_seconds < 0:
@@ -428,10 +446,12 @@ class DataVariableConfig:
         else:
             values = _require_mapping(data, where)
             _reject_unknown_keys(values, {"file", "model", "levels"}, where)
-            file_name = values.get("file", "")
+            if "model" not in values:
+                raise ValueError(f"{where}: missing required key 'model'")
+            model_name = values["model"]
             result = cls(
-                file=file_name,
-                model=values.get("model", file_name),
+                file=values.get("file", model_name),
+                model=model_name,
                 levels=values.get("levels"),
             )
         try:
@@ -453,19 +473,20 @@ class DataStreamConfig:
     file_paths : list of str, optional
         Paths to data files. Default is an empty list.
     variables : list of DataVariableConfig, optional
-        File-to-model variable mappings. Default is an empty list.
+        File-to-model variable mappings. When omitted or empty, the stream
+        name is mapped to itself.
     taxmode : str, optional
         Behavior when the simulation time falls outside the file's coverage.
         One of ``"cycle"`` (wrap), ``"extend"`` (clamp to the nearest end),
         or ``"limit"`` (fail). Default is ``"cycle"``.
     tintalgo : str, optional
         Time interpolation algorithm. One of ``"linear"``, ``"nearest"``.
-        Default is ``"linear"``, matching the C++ config parser.
+        Default is ``"nearest"``.
     mapalgo : str, optional
         Spatial mapping algorithm. One of ``"bilinear"``, ``"consd"``,
         ``"consf"``, ``"nn"``, ``"redist"``, or ``"passthrough"``
         (skip regridding when data is already on the model grid).
-        Default is ``"bilinear"``.
+        Default is ``"consd"``.
     cadence : str, optional
         How file records are addressed. One of ``"series"`` (decode the
         file's time axis), ``"daily"``/``"monthly"`` (series with a calendar
@@ -480,21 +501,25 @@ class DataStreamConfig:
 
     Examples
     --------
-    >>> stream = DataStreamConfig(name="anthro_co", file_paths=["co.nc"])
+    >>> stream = DataStreamConfig(
+    ...     name="anthro_co",
+    ...     file_paths=["co.nc"],
+    ...     variables=[DataVariableConfig(file="CO_FILE", model="CO")],
+    ... )
     """
 
     name: str
     file_paths: List[str] = field(default_factory=list)
     variables: List[DataVariableConfig] = field(default_factory=list)
     taxmode: str = "cycle"
-    tintalgo: str = "linear"
-    mapalgo: str = "bilinear"
+    tintalgo: str = "nearest"
+    mapalgo: str = "consd"
     cadence: str = "series"
     time_label: str = "auto"
     dtlimit: int = 1500000000
-    yearFirst: int = 1
-    yearLast: int = 1
-    yearAlign: int = 1
+    yearFirst: int = 0
+    yearLast: int = 0
+    yearAlign: int = 0
     offset: int = 0
     meshfile: str = ""
     lev_dimname: str = "lev"
@@ -513,9 +538,8 @@ class DataStreamConfig:
         Raises
         ------
         ValueError
-            If ``name`` is empty, ``file_paths`` is empty, ``taxmode`` is
-            not recognized, ``tintalgo`` is not recognized, or ``cadence``
-            is not recognized.
+            If ``name`` or ``file_paths`` is empty, no variables are configured,
+            or a stream option is invalid.
         """
         _validate_string(self.name, "stream name")
         if not self.file_paths:
@@ -527,6 +551,8 @@ class DataStreamConfig:
             not isinstance(variable, DataVariableConfig) for variable in self.variables
         ):
             raise ValueError("variables must contain DataVariableConfig objects")
+        if not self.variables:
+            raise ValueError("variables must be a non-empty list")
         for variable in self.variables:
             variable.validate()
         for key in (
@@ -620,7 +646,6 @@ class DataStreamConfig:
             "variables",
             "taxmode",
             "tintalgo",
-            "interpolation",
             "mapalgo",
             "cadence",
             "time_label",
@@ -640,10 +665,6 @@ class DataStreamConfig:
             "refresh_interval_seconds",
         }
         _reject_unknown_keys(values, allowed, where)
-        if "tintalgo" in values and "interpolation" in values:
-            raise ValueError(
-                f"{where}: use either 'tintalgo' or 'interpolation', not both"
-            )
         files = values.get("file", [])
         if isinstance(files, str):
             files = [files]
@@ -652,6 +673,8 @@ class DataStreamConfig:
         ):
             raise ValueError(f"{where}.file must be a string or list of strings")
         raw_variables = values.get("variables", [])
+        if raw_variables is None:
+            raw_variables = []
         if not isinstance(raw_variables, list):
             raise ValueError(f"{where}.variables must be a list")
         variables = [
@@ -659,28 +682,27 @@ class DataStreamConfig:
             for index, item in enumerate(raw_variables)
         ]
         name = _validate_string(values.get("name", ""), f"{where}.name")
-        if not variables and name:
+        if not variables:
             variables = [DataVariableConfig(file=name, model=name)]
 
-        def normalized(key: str, default: str, alias: Optional[str] = None) -> str:
-            raw = values.get(key, values.get(alias, default) if alias else default)
-            return _validate_string(raw, f"{where}.{key}").lower()
+        def normalized(key: str, default: str) -> str:
+            return _validate_string(values.get(key, default), f"{where}.{key}").lower()
 
         result = cls(
             name=name,
             file_paths=files,
             variables=variables,
             taxmode=normalized("taxmode", "cycle"),
-            tintalgo=normalized("tintalgo", "linear", "interpolation"),
+            tintalgo=normalized("tintalgo", "nearest"),
             mapalgo=_validate_string(
-                values.get("mapalgo", "bilinear"), f"{where}.mapalgo"
+                values.get("mapalgo", "consd"), f"{where}.mapalgo"
             ).lower(),
             cadence=normalized("cadence", "series"),
             time_label=normalized("time_label", "auto"),
             dtlimit=values.get("dtlimit", 1500000000),
-            yearFirst=values.get("yearFirst", 1),
-            yearLast=values.get("yearLast", 1),
-            yearAlign=values.get("yearAlign", 1),
+            yearFirst=values.get("yearFirst", 0),
+            yearLast=values.get("yearLast", 0),
+            yearAlign=values.get("yearAlign", 0),
             offset=values.get("offset", 0),
             meshfile=values.get("meshfile", ""),
             lev_dimname=values.get("lev_dimname", "lev"),
@@ -696,6 +718,52 @@ class DataStreamConfig:
             result.validate()
         except ValueError as error:
             raise ValueError(f"{where}: {error}") from error
+        return result
+
+    def to_dict(self) -> dict:
+        result = {
+            "name": self.name,
+            "file": self.file_paths[0]
+            if len(self.file_paths) == 1
+            else self.file_paths,
+            "variables": [
+                {
+                    "file": variable.file,
+                    "model": variable.model,
+                    **(
+                        {"levels": variable.levels}
+                        if variable.levels is not None
+                        else {}
+                    ),
+                }
+                for variable in self.variables
+            ],
+        }
+        defaults = {
+            "taxmode": "cycle",
+            "tintalgo": "nearest",
+            "mapalgo": "consd",
+            "cadence": "series",
+            "time_label": "auto",
+            "dtlimit": 1500000000,
+            "yearFirst": 0,
+            "yearLast": 0,
+            "yearAlign": 0,
+            "offset": 0,
+            "meshfile": "",
+            "lev_dimname": "lev",
+            "time_var": "time",
+            "lon_var": "lon",
+            "lat_var": "lat",
+            "time_units": "",
+            "calendar": "",
+            "data_model": "auto",
+            "refresh_interval_seconds": 0,
+        }
+        for key, default in defaults.items():
+            value = getattr(self, key)
+            if value != default:
+                result[key] = value
         return result
 
 
@@ -878,17 +946,16 @@ class OutputConfig:
     frequency_steps: int = 1
     fields: List[OutputFieldConfig] = field(default_factory=list)
     amio_worker_threads: Optional[int] = None
-    diagnostics: bool = False
-    global_attributes: Dict[str, str] = field(default_factory=dict)
+    global_attributes: Dict[str, Union[str, int, float, bool]] = field(
+        default_factory=dict
+    )
 
     def validate(self) -> None:
         if not isinstance(self.enabled, bool):
             raise ValueError("output.enabled must be a boolean")
-        if not isinstance(self.diagnostics, bool):
-            raise ValueError("output.diagnostics must be a boolean")
         _validate_string(self.directory, "output.directory")
         _validate_string(self.filename_pattern, "output.filename_pattern")
-        _validate_string_mapping(self.global_attributes, "output.global_attributes")
+        _validate_global_attributes(self.global_attributes, "output.global_attributes")
         _validate_integer(self.frequency_steps, "output.frequency_steps")
         if self.frequency_steps < 1:
             raise ValueError("output.frequency_steps must be >= 1")
@@ -915,7 +982,6 @@ class OutputConfig:
                 "frequency_steps",
                 "fields",
                 "amio_worker_threads",
-                "diagnostics",
                 "global_attributes",
             },
             where,
@@ -935,8 +1001,7 @@ class OutputConfig:
                 for index, item in enumerate(raw_fields)
             ],
             amio_worker_threads=values.get("amio_worker_threads"),
-            diagnostics=values.get("diagnostics", False),
-            global_attributes=_validate_string_mapping(
+            global_attributes=_validate_global_attributes(
                 values.get("global_attributes", {}), f"{where}.global_attributes"
             ),
         )
@@ -1199,8 +1264,8 @@ class CeceConfig:
         file_paths: Union[str, List[str]],
         variables: Optional[Union[Dict[str, str], List[DataVariableConfig]]] = None,
         taxmode: str = "cycle",
-        tintalgo: str = "linear",
-        mapalgo: str = "bilinear",
+        tintalgo: str = "nearest",
+        mapalgo: str = "consd",
         cadence: str = "series",
         time_label: str = "auto",
         **stream_options: Any,
@@ -1216,18 +1281,19 @@ class CeceConfig:
             Paths to data files.
         variables : dict or list, optional
             Mapping of file variable names to model variable names, or a list
-            of ``DataVariableConfig`` objects.
+            of ``DataVariableConfig`` objects. If omitted or empty, the stream
+            name is mapped to itself.
         taxmode : str, optional
             Behavior outside the file's coverage. One of ``"cycle"``,
             ``"extend"``, or ``"limit"``. Default is ``"cycle"``.
         tintalgo : str, optional
             Time interpolation algorithm. One of ``"linear"`` or
-            ``"nearest"``. Default is ``"linear"``, matching the parser.
+            ``"nearest"``. Default is ``"nearest"``.
         mapalgo : str, optional
             Spatial mapping algorithm. One of ``"bilinear"``, ``"consd"``,
             ``"consf"``, ``"nn"``, ``"redist"``, or ``"passthrough"``
             (skip regridding when data is already on the model grid).
-            Default is ``"bilinear"``.
+            Default is ``"consd"``.
         cadence : str, optional
             How file records are addressed: ``"series"``, ``"daily"``,
             ``"monthly"``, ``"hourly"``, ``"weekly"``, or ``"stepwise"``
@@ -1252,10 +1318,10 @@ class CeceConfig:
             ]
         elif variables is None:
             variables = []
-        if not variables and name:
-            variables = [DataVariableConfig(file=name, model=name)]
         if any(not isinstance(item, DataVariableConfig) for item in variables):
             raise ValueError("variables must contain DataVariableConfig objects")
+        if not variables:
+            variables = [DataVariableConfig(file=name, model=name)]
         allowed_options = {
             "dtlimit",
             "yearFirst",
@@ -1513,44 +1579,7 @@ class CeceConfig:
             ],
             "cece_data": {
                 "streams": [
-                    {
-                        "name": stream.name,
-                        "file": stream.file_paths[0]
-                        if len(stream.file_paths) == 1
-                        else stream.file_paths,
-                        "variables": [
-                            {
-                                "file": variable.file,
-                                "model": variable.model,
-                                **(
-                                    {"levels": variable.levels}
-                                    if variable.levels is not None
-                                    else {}
-                                ),
-                            }
-                            for variable in stream.variables
-                        ],
-                        "taxmode": stream.taxmode,
-                        "tintalgo": stream.tintalgo,
-                        "mapalgo": stream.mapalgo,
-                        "cadence": stream.cadence,
-                        "time_label": stream.time_label,
-                        "dtlimit": stream.dtlimit,
-                        "yearFirst": stream.yearFirst,
-                        "yearLast": stream.yearLast,
-                        "yearAlign": stream.yearAlign,
-                        "offset": stream.offset,
-                        "meshfile": stream.meshfile,
-                        "lev_dimname": stream.lev_dimname,
-                        "time_var": stream.time_var,
-                        "lon_var": stream.lon_var,
-                        "lat_var": stream.lat_var,
-                        "time_units": stream.time_units,
-                        "calendar": stream.calendar,
-                        "data_model": stream.data_model,
-                        "refresh_interval_seconds": stream.refresh_interval_seconds,
-                    }
-                    for stream in self._cece_data.get("streams", [])
+                    stream.to_dict() for stream in self._cece_data.get("streams", [])
                 ]
             },
             "temporal_cycles": self._temporal_cycles,
@@ -1597,13 +1626,13 @@ class CeceConfig:
                 "directory": output.directory,
                 "filename_pattern": output.filename_pattern,
                 "frequency_steps": output.frequency_steps,
-                "diagnostics": output.diagnostics,
-                "global_attributes": output.global_attributes,
                 "fields": [
                     {"name": item.name, "attributes": item.attributes}
                     for item in output.fields
                 ],
             }
+            if output.global_attributes:
+                result["output"]["global_attributes"] = output.global_attributes
             if output.amio_worker_threads is not None:
                 result["output"]["amio_worker_threads"] = output.amio_worker_threads
         if self._driver_config is not None:

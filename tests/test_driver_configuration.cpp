@@ -122,6 +122,68 @@ cece_data:
     EXPECT_EQ(config.cece_data.streams.front().mapalgo, "bilinear");
 }
 
+TEST_F(DriverConfigurationTest, StreamDefaultsMatchStandaloneDriver) {
+    WriteConfigFile(test_config_file, R"(
+cece_data:
+  streams:
+    - name: CO
+      file: emissions.nc
+      variables: [CO]
+)");
+
+    const CeceConfig config = ParseConfig(test_config_file);
+
+    ASSERT_EQ(config.cece_data.streams.size(), 1);
+    const auto& stream = config.cece_data.streams.front();
+    EXPECT_EQ(stream.mapalgo, "consd");
+    EXPECT_EQ(stream.tintalgo, "nearest");
+    EXPECT_EQ(stream.yearFirst, 0);
+    EXPECT_EQ(stream.yearLast, 0);
+    EXPECT_EQ(stream.yearAlign, 0);
+}
+
+TEST_F(DriverConfigurationTest, MissingOrEmptyVariablesDefaultToStreamName) {
+    for (const std::string& variables : {std::string{}, std::string("      variables:\n"), std::string("      variables: []\n")}) {
+        WriteConfigFile(test_config_file, "cece_data:\n  streams:\n    - name: CO\n      file: emissions.nc\n" + variables);
+
+        const CeceConfig config = ParseConfig(test_config_file);
+        ASSERT_EQ(config.cece_data.streams.size(), 1);
+        ASSERT_EQ(config.cece_data.streams.front().variables.size(), 1);
+        EXPECT_EQ(config.cece_data.streams.front().variables.front().name_in_file, "CO");
+        EXPECT_EQ(config.cece_data.streams.front().variables.front().name_in_model, "CO");
+    }
+}
+
+TEST_F(DriverConfigurationTest, StreamVariableMappingRequiresModelName) {
+    ExpectConfigInvalidArgument(test_config_file,
+                                "cece_data:\n  streams:\n    - name: CO\n      file: emissions.nc\n      variables:\n        - file: CO_FILE\n",
+                                "cece_data.streams[0].variables[0] requires a non-empty 'model'");
+}
+
+TEST_F(DriverConfigurationTest, StreamVariableMappingDefaultsFileNameToModelName) {
+    WriteConfigFile(test_config_file, R"(
+cece_data:
+  streams:
+    - name: CO
+      file: emissions.nc
+      variables:
+        - model: CO_MODEL
+)");
+
+    const CeceConfig config = ParseConfig(test_config_file);
+
+    ASSERT_EQ(config.cece_data.streams.size(), 1);
+    ASSERT_EQ(config.cece_data.streams.front().variables.size(), 1);
+    EXPECT_EQ(config.cece_data.streams.front().variables.front().name_in_file, "CO_MODEL");
+    EXPECT_EQ(config.cece_data.streams.front().variables.front().name_in_model, "CO_MODEL");
+}
+
+TEST_F(DriverConfigurationTest, StreamInterpolationAliasIsRejected) {
+    ExpectConfigInvalidArgument(
+        test_config_file, "cece_data:\n  streams:\n    - name: CO\n      file: emissions.nc\n      variables: [CO]\n      interpolation: linear\n",
+        "cece_data.streams[0]: unknown key 'interpolation'; use 'tintalgo'");
+}
+
 TEST_F(DriverConfigurationTest, CustomDriverConfiguration) {
     // Write config with custom driver section
     WriteConfigFile(test_config_file, R"(
@@ -427,6 +489,42 @@ physics_schemes:
 
     // The seeded coordinate variables tag along in every collection.
     EXPECT_EQ(config.output_config.fields.GetCoordinateFields().size(), 4u);
+}
+
+TEST_F(DriverConfigurationTest, ParseOutputGlobalAttributes) {
+    WriteConfigFile(test_config_file, R"(
+output:
+  global_attributes:
+    title: "Example \"quoted\" title"
+    institution: "Example institute"
+)");
+
+    const CeceConfig config = ParseConfig(test_config_file);
+
+    EXPECT_EQ(config.output_config.global_attributes.at("title"), "Example \"quoted\" title");
+    EXPECT_EQ(config.output_config.global_attributes.at("institution"), "Example institute");
+}
+
+TEST_F(DriverConfigurationTest, RejectOutputGlobalAttributeControlCharacters) {
+    ExpectConfigInvalidArgument(test_config_file, "output:\n  global_attributes:\n    title: \"bad\\nvalue\"\n",
+                                "output.global_attributes keys must be non-empty and keys/values must not contain control characters");
+}
+
+TEST_F(DriverConfigurationTest, OutputGlobalAttributesKeepScalarSourceText) {
+    WriteConfigFile(test_config_file, "output:\n  global_attributes:\n    geospatial_lat_min: -90.5\n    id: 42\n    summary: true\n");
+
+    const CeceConfig config = ParseConfig(test_config_file);
+
+    EXPECT_EQ(config.output_config.global_attributes.at("geospatial_lat_min"), "-90.5");
+    EXPECT_EQ(config.output_config.global_attributes.at("id"), "42");
+    EXPECT_EQ(config.output_config.global_attributes.at("summary"), "true");
+}
+
+TEST_F(DriverConfigurationTest, RejectNonScalarOutputGlobalAttributes) {
+    ExpectConfigInvalidArgument(test_config_file, "output:\n  global_attributes:\n    title: [a, b]\n",
+                                "output.global_attributes.title must be a string, number, or boolean");
+    ExpectConfigInvalidArgument(test_config_file, "output:\n  global_attributes:\n    title:\n",
+                                "output.global_attributes.title must be a string, number, or boolean");
 }
 
 TEST_F(DriverConfigurationTest, ParseOutputFieldsScalarShorthandStillWorks) {
