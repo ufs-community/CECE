@@ -38,6 +38,9 @@ cece_data:
   streams:
     - name: "MACCITY"
       file: "data/MACCity_4x5.nc"
+      variables:
+        - file: "MACCity"
+          model: "MACCITY"
     - name: "HOURLY_SCALFACT"
       file: "data/hourly.nc"
 EOF
@@ -67,6 +70,9 @@ cece_data:
   streams:
     - name: "MACCITY_CO"
       file: "data/MACCity_4x5.nc"
+      variables:
+        - file: "MACCity"
+          model: "MACCITY_CO"
     - name: "EMEP_CO"
       file: "data/EMEP_2000.nc"
     - name: "HOURLY_SCALFACT"
@@ -93,6 +99,9 @@ cece_data:
   streams:
     - name: "MACCITY_CO"
       file: "data/MACCity_4x5.nc"
+      variables:
+        - file: "MACCity"
+          model: "MACCITY_CO"
     - name: "AEIC_CO"
       file: "data/AEIC.nc"
 EOF
@@ -111,6 +120,9 @@ cece_data:
   streams:
     - name: "MACCITY_CO"
       file: "data/MACCity_4x5.nc"
+      variables:
+        - file: "MACCity"
+          model: "MACCITY_CO"
     - name: "GFED_WDL"
       file: "data/GFED4_gen.025x025.199701.nc"
 EOF
@@ -133,6 +145,9 @@ cece_data:
   streams:
     - name: "MACCITY_CO"
       file: "data/MACCity_4x5.nc"
+      variables:
+        - file: "MACCity"
+          model: "MACCITY_CO"
     - name: "MACCITY_NO"
       file: "data/MACCity_anthro_NOx_2000-2010_16080.nc"
     - name: "MACCITY_SO2"

@@ -13,5 +13,8 @@ cece_data:
   streams:
     - name: "MACCITY_CO"
       file: "data/MACCity_4x5.nc"
+      variables:
+        - file: "MACCity"
+          model: "MACCITY_CO"
     - name: "AEIC_CO"
       file: "data/AEIC.nc"

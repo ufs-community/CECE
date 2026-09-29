@@ -13,6 +13,9 @@ cece_data:
   streams:
     - name: "MACCITY_CO"
       file: "data/MACCity_4x5.nc"
+      variables:
+        - file: "MACCity"
+          model: "MACCITY_CO"
     - name: "MACCITY_NO"
       file: "data/MACCity_anthro_NOx_2000-2010_16080.nc"
     - name: "MACCITY_SO2"
