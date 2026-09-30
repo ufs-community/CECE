@@ -32,9 +32,9 @@ cece_data:
   streams:
     - name: "MACCITY_CO"
       file: "/work/data/MACCity_4x5.nc"
-      yearFirst: 2000
-      yearLast: 2010
-      yearAlign: 2020
+      # cadence omitted -> "series" (the default): the file's own time axis is
+      # decoded and the simulation time is bracketed against the record times.
+      yearAlign: 2020 # Simulation year 2020 aligns to the first file year
       taxmode: "cycle"
       tintalgo: "linear"
       mapalgo: "consd"

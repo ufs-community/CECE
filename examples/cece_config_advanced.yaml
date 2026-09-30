@@ -225,9 +225,8 @@ cece_data:
     - name: "GLOBAL_ANTHROPOGENIC"
       file: "/data/inventories/CEDS_global_2020.nc"
       refresh_interval_seconds: 3600 # Anthropogenic data changes slowly — ingest hourly
-      yearFirst: 2020
-      yearLast: 2020
-      yearAlign: 2020
+      # Series; degrades to month-of-year if the axis carries no decodable CF units
+      cadence: "monthly"
       taxmode: "cycle"
       tintalgo: "linear"
       mapalgo: "consd"
@@ -239,10 +238,8 @@ cece_data:
 
     - name: "EUROPE_INVENTORY"
       file: "/data/inventories/TNO_Europe_2020.nc"
-      yearFirst: 2020
-      yearLast: 2020
-      yearAlign: 2020
-      taxmode: "extend"
+      cadence: "monthly"
+      taxmode: "extend" # Hold the file's end values outside its coverage
       tintalgo: "linear"
       mapalgo: "consd"
       variables:
@@ -251,9 +248,7 @@ cece_data:
 
     - name: "BIOMASS_BURNING"
       file: "/data/inventories/GFED4_daily_*.nc"
-      yearFirst: 2020
-      yearLast: 2020
-      yearAlign: 2020
+      cadence: "daily" # Daily records; degrades to day-of-year indexing
       taxmode: "cycle"
       tintalgo: "linear"
       mapalgo: "consd"
@@ -263,9 +258,7 @@ cece_data:
 
     - name: "AIRCRAFT_EMISSIONS"
       file: "/data/inventories/AEIC_aircraft_2020.nc"
-      yearFirst: 2020
-      yearLast: 2020
-      yearAlign: 2020
+      cadence: "monthly"
       taxmode: "extend"
       tintalgo: "nearest"
       mapalgo: "consd"

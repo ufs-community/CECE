@@ -35,9 +35,8 @@ cece_data:
   streams:
     - name: "EDGAR_NO_POW"
       file: "/work/data/EDGAR_v43.NOx.POW.nc"
-      yearFirst: 2000
-      yearLast: 2010
-      yearAlign: 2020
+      cadence: "monthly"
+      yearAlign: 2020 # Simulation year 2020 aligns to the first file year
       taxmode: "cycle"
       tintalgo: "linear"
       mapalgo: "consd"
@@ -46,10 +45,9 @@ cece_data:
           model: "EDGAR_NO_POW"
     - name: "CEDS_NO_AGR"
       file: "/work/data/ALK4_butanes-em-total-anthro_CEDS_1970.nc"
-      yearFirst: 1970
-      yearLast: 1970
-      yearAlign: 2020
-      taxmode: "extend"
+      cadence: "monthly"
+      yearAlign: 2020 # Simulation year 2020 aligns to the 1970 file year
+      taxmode: "extend" # Hold the file's end values outside its coverage
       tintalgo: "linear"
       mapalgo: "consd"
       variables:

@@ -36,6 +36,7 @@ cece_data:
       file: "data/MACCity_4x5.nc"
     - name: "HOURLY_SCALFACT"
       file: "data/hourly.nc"
+      cadence: "hourly"   # 24-record hour-of-day profile, not a time series
 ```
 
 ---

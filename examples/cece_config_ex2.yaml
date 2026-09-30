@@ -70,10 +70,9 @@ cece_data:
   streams:
     - name: "MACCITY_CO"
       file: "/work/data/MACCity_4x5.nc"
-      yearFirst: 2000
-      yearLast: 2010
-      yearAlign: 2020
-      taxmode: "cycle"
+      cadence: "monthly"
+      yearAlign: 2020 # Simulation year 2020 aligns to the first file year
+      taxmode: "cycle" # Reuse the file's coverage outside its range
       tintalgo: "linear"
       mapalgo: "consd"
       variables:
@@ -81,8 +80,7 @@ cece_data:
           model: "MACCITY_CO"
     - name: "EMEP_CO"
       file: "/work/data/EMEP.2000.co.nc"
-      yearFirst: 2000
-      yearLast: 2010
+      cadence: "monthly"
       yearAlign: 2020
       taxmode: "cycle"
       tintalgo: "linear"
@@ -92,11 +90,8 @@ cece_data:
           model: "EMEP_CO"
     - name: "MASK_EUROPE"
       file: "/work/data/Canada_mask.gen.1x1.nc"
-      yearFirst: 2000
-      yearLast: 2010
-      yearAlign: 2020
-      taxmode: "cycle"
-      tintalgo: "linear"
+      # Static single-record mask: no temporal keys are needed, the driver
+      # always resolves to record 0.
       mapalgo: "consd"
       variables:
         - file: "MASK"

@@ -51,12 +51,22 @@ stream::<stream_name>
   - `upper`: Use upper bound
 - `mapalgo`: Spatial mapping algorithm (default: "bilinear")
 - `dtlimit`: Delta time limit in seconds (default: 1500000000)
-- `yearFirst`: First year in data (default: 1)
-- `yearLast`: Last year in data (default: 1)
-- `yearAlign`: Year to align with model time (default: 1)
+- `yearFirst`: First calendar year in data (default: 1)
+- `yearLast`: Last calendar year in data (default: 1)
+- `yearAlign`: Simulation year corresponding to `yearFirst` (default: 1)
+  - The standalone streams parser defaults to `1`, which is the identity
+    mapping: simulation year `yearFirst` selects file year `yearFirst`. (The
+    driver's inline `cece_data` section instead defaults `yearAlign` to `0`,
+    meaning "no shift"; both are identity, just different sentinels. See
+    [Configuration](configuration.md#temporal-alignment-semantics-yearalign-taxmode).)
 - `offset`: Time offset in seconds (default: 0)
 - `meshfile`: Path to source mesh file (optional)
 - `lev_dimname`: Name of vertical dimension (default: "lev")
+- `time_var`: Name of the time coordinate variable (default: "time")
+
+> This parser covers the standalone streams-file format only. The driver's inline
+> `cece_data` section additionally supports `cadence`, `time_units`, `calendar`, and
+> `time_label`; see [Configuration](configuration.md#record-selection-cadence).
 
 ## Usage
 
