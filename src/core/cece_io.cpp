@@ -22,6 +22,9 @@ void CeceIO::Initialize(const std::string& config_file, int nx, int ny, int nz) 
         conf::Value streams = config.at("cece_data.streams");
         for (std::size_t si = 0; si < streams.size(); ++si) {
             conf::Value stream = streams[si];
+            if (stream["source"].string_or("") == "earthaccess") {
+                continue;
+            }
             conf::Value variables = stream["variables"];
             for (std::size_t vi = 0; vi < variables.size(); ++vi) {
                 conf::Value var = variables[vi];

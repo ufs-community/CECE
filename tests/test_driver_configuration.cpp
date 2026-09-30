@@ -361,6 +361,51 @@ TEST_F(DriverConfigurationTest, RejectNonpositiveOutputAmioWorkerThreads) {
     }
 }
 
+TEST_F(DriverConfigurationTest, ParseOutputAmioStagingSettings) {
+    WriteConfigFile(test_config_file, R"(
+  output:
+    enabled: true
+    amio_worker_threads: 2
+    amio_staging_buffer_count: 3
+    amio_staging_buffer_capacity_bytes: 67108864
+    amio_staging_timeout_ms: 45000
+  physics_schemes: []
+  )");
+
+    const CeceConfig config = ParseConfig(test_config_file);
+    EXPECT_EQ(config.output_config.amio_worker_threads, 2);
+    EXPECT_EQ(config.output_config.amio_staging_buffer_count, 3);
+    EXPECT_EQ(config.output_config.amio_staging_buffer_capacity_bytes, 67108864);
+    EXPECT_EQ(config.output_config.amio_staging_timeout_ms, 45000);
+}
+
+TEST_F(DriverConfigurationTest, OutputAmioStagingDefaultsAreHighResolutionSafe) {
+    WriteConfigFile(test_config_file, "output:\n  enabled: true\nphysics_schemes: []\n");
+
+    const CeceConfig config = ParseConfig(test_config_file);
+    EXPECT_EQ(config.output_config.amio_staging_buffer_count, 2);
+    EXPECT_EQ(config.output_config.amio_staging_buffer_capacity_bytes, 67108864);
+    EXPECT_EQ(config.output_config.amio_staging_timeout_ms, 60000);
+}
+
+TEST_F(DriverConfigurationTest, RejectInvalidOutputAmioStagingSettings) {
+    for (const int count : {0, 4097}) {
+        const std::string yaml = "output:\n  amio_staging_buffer_count: " + std::to_string(count) + "\nphysics_schemes: []\n";
+        ExpectConfigInvalidArgument(test_config_file, yaml,
+                                    "output.amio_staging_buffer_count must be in [1, 4096]; got " + std::to_string(count) + ".");
+    }
+    for (const int capacity : {0, 1073741825}) {
+        const std::string yaml = "output:\n  amio_staging_buffer_capacity_bytes: " + std::to_string(capacity) + "\nphysics_schemes: []\n";
+        ExpectConfigInvalidArgument(test_config_file, yaml,
+                                    "output.amio_staging_buffer_capacity_bytes must be in [1, 1073741824]; got " + std::to_string(capacity) + ".");
+    }
+    for (const int timeout : {0, 60001}) {
+        const std::string yaml = "output:\n  amio_staging_timeout_ms: " + std::to_string(timeout) + "\nphysics_schemes: []\n";
+        ExpectConfigInvalidArgument(test_config_file, yaml,
+                                    "output.amio_staging_timeout_ms must be in [1, 60000]; got " + std::to_string(timeout) + ".");
+    }
+}
+
 TEST_F(DriverConfigurationTest, ParseOutputFieldsWithInlineAttributes) {
     // output.fields entries may be maps carrying per-field NetCDF attributes;
     // scalar entries remain valid shorthand for a field with no attributes.

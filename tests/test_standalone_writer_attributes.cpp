@@ -102,6 +102,25 @@ TEST_F(StandaloneWriterAttributesTest, DisabledConfigWritesNothing) {
     EXPECT_TRUE(fs::is_empty(out_dir_)) << "disabled writer left files in the output directory";
 }
 
+TEST_F(StandaloneWriterAttributesTest, HighResolutionFieldRaisesStagingCapacityWithoutAllocation) {
+    cece::CeceOutputConfig config = BaseConfig();
+    config.amio_staging_buffer_capacity_bytes = 33554432;
+
+    EXPECT_EQ(cece::CeceStandaloneWriter::ResolveStagingBufferCapacity(config, 3600, 1800, 1), 51840000U);
+    EXPECT_THROW(cece::CeceStandaloneWriter::ResolveStagingBufferCapacity(config, 20000, 10000, 1), std::runtime_error);
+}
+
+TEST_F(StandaloneWriterAttributesTest, ConfiguredOutputAmioSettingsProduceOutput) {
+    cece::CeceOutputConfig config = BaseConfig();
+    config.amio_worker_threads = 2;
+    config.amio_staging_buffer_count = 2;
+    config.amio_staging_buffer_capacity_bytes = 1;
+    config.amio_staging_timeout_ms = 30000;
+
+    const fs::path nc_path = WriteOneStep(config);
+    EXPECT_TRUE(fs::exists(nc_path));
+}
+
 // RED before the units fix: the writer fabricated units ("mol mol-1") and a
 // mole-fraction long_name for every field. A field with no configured
 // attributes must have none — absence over fabrication.
