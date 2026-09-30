@@ -290,6 +290,7 @@ set(
   src/core/cece_provenance.cpp
   src/core/physics/cece_native_example.cpp
   src/core/physics/cece_sea_salt.cpp
+  src/core/physics/cece_pollen.cpp
   src/core/physics/cece_megan.cpp
   src/core/physics/cece_dms.cpp
   src/core/physics/cece_lightning.cpp

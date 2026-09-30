@@ -1,8 +1,10 @@
 #include <gtest/gtest.h>
 
 #include <Kokkos_Core.hpp>
+#include <cmath>
 #include <conf/config.hpp>
 #include <conf/value.hpp>
+#include <numbers>
 
 #include "cece/cece_physics_factory.hpp"
 #include "cece/cece_state.hpp"
@@ -53,6 +55,20 @@ class PhysicsTest : public ::testing::Test {
         export_state.fields["MEGAN_ISOP"] = create_dv("megan_isop", 0.0);
         import_state.fields["base_anthropogenic_nox"] = create_dv("base_nox", 1.0);
         import_state.fields["soil_temperature"] = create_dv("soil_temp", 300.0);
+        import_state.fields["day_of_year"] = create_dv("doy", 247.5);
+        import_state.fields["vegetation_fraction"] = create_dv("pollen_veg", 0.25);
+        import_state.fields["annual_pollen_production"] = create_dv("pollen_annual", 1.0e6);
+        import_state.fields["convective_velocity"] = create_dv("pollen_uconv", 0.0);
+        import_state.fields["precipitation"] = create_dv("pollen_rain", 0.0);
+        import_state.fields["relative_humidity"] = create_dv("pollen_rh", 40.0);
+        import_state.fields["sunshine_hours"] = create_dv("pollen_sun", 8.0);
+        import_state.fields["autumn_accumulated_forcing"] = create_dv("pollen_autumn_sum", 2.0);
+
+        export_state.fields["pollen_number_emissions"] = create_dv("pollen_number", 0.0);
+        export_state.fields["pollen_mass_emissions"] = create_dv("pollen_mass", 0.0);
+        export_state.fields["pollen_diameter"] = create_dv("pollen_diameter", 0.0);
+        export_state.fields["pollen_density"] = create_dv("pollen_density", 0.0);
+        export_state.fields["pollen_phenology_forcing"] = create_dv("pollen_forcing", 0.0);
 
         // Compatibility aliases for tests that expect hardcoded framework names
         import_state.fields["wind_speed_10m"] = import_state.fields["wind_speed"];
@@ -222,6 +238,145 @@ TEST_F(PhysicsTest, SeaSaltSensitivity) {
     double em_20c = export_state.fields["secondary_input"].view_host()(0, 0, 0);
 
     EXPECT_GT(em_20c, em_0c);
+}
+
+TEST_F(PhysicsTest, PollenPeakFluxRegression) {
+    PhysicsSchemeConfig cfg;
+    cfg.name = "pollen";
+    conf::Config options = conf::Config::from_string(R"(
+season_start_doy: 215.0
+season_end_doy: 280.0
+gaussian_width: 4.0
+particle_diameter_um: 30.0
+particle_density_kg_m3: 1000.0
+temperature_threshold_c: 10.0
+temperature_slope: 0.35
+)");
+    cfg.options = options.root();
+    auto scheme = PhysicsFactory::CreateScheme(cfg);
+    ASSERT_NE(scheme, nullptr);
+    scheme->Initialize(cfg.options, nullptr);
+
+    SetFieldValue("wind_speed", 10.0);
+    SetFieldValue("temperature", 303.15);
+    scheme->Run(import_state, export_state);
+
+    auto& number_dv = export_state.fields["pollen_number_emissions"];
+    auto& mass_dv = export_state.fields["pollen_mass_emissions"];
+    number_dv.sync<Kokkos::HostSpace>();
+    mass_dv.sync<Kokkos::HostSpace>();
+    export_state.fields["pollen_diameter"].sync<Kokkos::HostSpace>();
+    export_state.fields["pollen_density"].sync<Kokkos::HostSpace>();
+
+    const double wind_factor = 1.5 - std::exp(-2.0);
+    const double temperature_factor = 1.0 / (1.0 + std::exp(-0.35 * 20.0));
+    const double expected_number = 0.25 * 1.0e6 * wind_factor * temperature_factor / 86400.0;
+    const double grain_mass = std::numbers::pi / 6.0 * std::pow(30.0e-6, 3) * 1000.0;
+
+    EXPECT_NEAR(number_dv.view_host()(0, 0, 0), expected_number, expected_number * 1.0e-12);
+    EXPECT_NEAR(mass_dv.view_host()(0, 0, 0), expected_number * grain_mass, expected_number * grain_mass * 1.0e-12);
+    EXPECT_DOUBLE_EQ(number_dv.view_host()(0, 0, 1), 0.0);
+    EXPECT_DOUBLE_EQ(export_state.fields["pollen_diameter"].view_host()(0, 0, 0), 30.0e-6);
+    EXPECT_DOUBLE_EQ(export_state.fields["pollen_density"].view_host()(0, 0, 0), 1000.0);
+}
+
+TEST_F(PhysicsTest, PollenGaussianSeasonAndMeteorologicalControls) {
+    PhysicsSchemeConfig cfg;
+    cfg.name = "pollen";
+    auto scheme = PhysicsFactory::CreateScheme(cfg);
+    scheme->Initialize(cfg.options, nullptr);
+
+    auto run_number_flux = [&]() {
+        SetFieldValue("pollen_number_emissions", 0.0, false);
+        scheme->Run(import_state, export_state);
+        auto& output = export_state.fields["pollen_number_emissions"];
+        output.sync<Kokkos::HostSpace>();
+        return output.view_host()(0, 0, 0);
+    };
+
+    SetFieldValue("temperature", 293.15);
+    SetFieldValue("wind_speed", 5.0);
+    const double peak_flux = run_number_flux();
+    SetFieldValue("day_of_year", 215.0);
+    EXPECT_LT(run_number_flux(), peak_flux);
+    SetFieldValue("day_of_year", 200.0);
+    EXPECT_DOUBLE_EQ(run_number_flux(), 0.0);
+
+    SetFieldValue("day_of_year", 247.5);
+    SetFieldValue("temperature", 278.15);
+    const double cold_flux = run_number_flux();
+    SetFieldValue("temperature", 298.15);
+    const double warm_flux = run_number_flux();
+    EXPECT_GT(warm_flux, cold_flux);
+
+    SetFieldValue("wind_speed", 1.0);
+    const double low_wind_flux = run_number_flux();
+    SetFieldValue("wind_speed", 10.0);
+    EXPECT_GT(run_number_flux(), low_wind_flux);
+
+    SetFieldValue("precipitation", 1.0);
+    EXPECT_DOUBLE_EQ(run_number_flux(), 0.0);
+    SetFieldValue("precipitation", 0.0);
+    SetFieldValue("relative_humidity", 90.0);
+    EXPECT_DOUBLE_EQ(run_number_flux(), 0.0);
+}
+
+TEST_F(PhysicsTest, PollenAutumnPhenologyTriggerAndForcing) {
+    PhysicsSchemeConfig cfg;
+    cfg.name = "pollen";
+    conf::Config options = conf::Config::from_string(R"(
+phenology_method: rs2
+use_autumn_trigger: true
+autumn_threshold: 10.0
+autumn_temperature_base_c: 20.0
+autumn_sunshine_base_hours: 12.0
+)");
+    cfg.options = options.root();
+    auto scheme = PhysicsFactory::CreateScheme(cfg);
+    scheme->Initialize(cfg.options, nullptr);
+
+    SetFieldValue("temperature", 283.15);
+    SetFieldValue("sunshine_hours", 6.0);
+    SetFieldValue("autumn_accumulated_forcing", 9.0);
+    scheme->Run(import_state, export_state);
+    export_state.fields["pollen_number_emissions"].sync<Kokkos::HostSpace>();
+    export_state.fields["pollen_phenology_forcing"].sync<Kokkos::HostSpace>();
+    EXPECT_DOUBLE_EQ(export_state.fields["pollen_number_emissions"].view_host()(0, 0, 0), 0.0);
+    EXPECT_DOUBLE_EQ(export_state.fields["pollen_phenology_forcing"].view_host()(0, 0, 0), 5.0);
+
+    SetFieldValue("autumn_accumulated_forcing", 10.0);
+    scheme->Run(import_state, export_state);
+    export_state.fields["pollen_number_emissions"].sync<Kokkos::HostSpace>();
+    EXPECT_GT(export_state.fields["pollen_number_emissions"].view_host()(0, 0, 0), 0.0);
+}
+
+TEST_F(PhysicsTest, PollenUsesConfiguredVegetationFractionForPremaskedClimatology) {
+    PhysicsSchemeConfig cfg;
+    cfg.name = "pollen";
+    conf::Config options = conf::Config::from_string("vegetation_fraction_default: 0.4");
+    cfg.options = options.root();
+    auto scheme = PhysicsFactory::CreateScheme(cfg);
+    scheme->Initialize(cfg.options, nullptr);
+    import_state.fields.erase("vegetation_fraction");
+
+    scheme->Run(import_state, export_state);
+    export_state.fields["pollen_number_emissions"].sync<Kokkos::HostSpace>();
+
+    EXPECT_GT(export_state.fields["pollen_number_emissions"].view_host()(0, 0, 0), 0.0);
+}
+
+TEST_F(PhysicsTest, PollenTaxonAliasesAreRegistered) {
+    const std::vector<std::string> aliases = {
+        "pollen",       "pollen_artemisia", "pollen_mugwort",    "pollen_chenopod", "pollen_ragweed", "pollen_grass",  "pollen_alder",
+        "pollen_ash",   "pollen_birch",     "pollen_cottonwood", "pollen_cypress",  "pollen_elm",     "pollen_hazel",  "pollen_juniper",
+        "pollen_maple", "pollen_oak",       "pollen_olive",      "pollen_pine",     "pollen_plane",   "pollen_nettle", "pollen_total",
+    };
+
+    for (const auto& alias : aliases) {
+        PhysicsSchemeConfig cfg;
+        cfg.name = alias;
+        EXPECT_NE(PhysicsFactory::CreateScheme(cfg), nullptr) << alias;
+    }
 }
 
 TEST_F(PhysicsTest, MeganSensitivity) {

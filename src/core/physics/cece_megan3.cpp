@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <vector>
 
 #include "cece/cece_physics_factory.hpp"
 #include "cece/physics/cece_canopy_model.hpp"
@@ -141,9 +142,19 @@ void Megan3Scheme::Run(CeceImportState& import_state, CeceExportState& export_st
     auto soil_moisture = ResolveImport("soil_moisture_root", import_state);
     auto wind_speed = ResolveImport("wind_speed", import_state);
 
-    // Early return if required fields are null
-    if (temp.data() == nullptr || lai.data() == nullptr || par_direct.data() == nullptr || par_diffuse.data() == nullptr ||
-        suncos.data() == nullptr) {
+    std::vector<std::string> missing_required_fields;
+    if (temp.data() == nullptr) missing_required_fields.push_back("temperature");
+    if (lai.data() == nullptr) missing_required_fields.push_back("leaf_area_index");
+    if (par_direct.data() == nullptr) missing_required_fields.push_back("par_direct");
+    if (par_diffuse.data() == nullptr) missing_required_fields.push_back("par_diffuse");
+    if (suncos.data() == nullptr) missing_required_fields.push_back("solar_cosine");
+    if (!missing_required_fields.empty()) {
+        std::cerr << "Megan3Scheme: missing required import field(s): ";
+        for (std::size_t idx = 0; idx < missing_required_fields.size(); ++idx) {
+            if (idx > 0) std::cerr << ", ";
+            std::cerr << missing_required_fields[idx];
+        }
+        std::cerr << "; skipping MEGAN3 emission update for this timestep.\n";
         return;
     }
 

@@ -382,10 +382,13 @@ struct CeceOutputConfig {
     std::string directory = ".";                                                  ///< Output directory (created if absent).
     std::string filename_pattern = "cece_output_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc";  ///< Filename pattern with time tokens.
     int frequency_steps = 1;                                                      ///< Write every N time steps.
-    CeceOutputFieldCollection fields;  ///< Coordinate variables + configured data fields; no data fields means write all export fields.
-    bool include_diagnostics = false;  ///< Also write diagnostic fields when true.
-    bool enabled = false;              ///< True when an output block is present in the YAML.
-    int amio_worker_threads = -1;      ///< Number of AMIO background I/O worker threads (default: -1, meaning use fallback).
+    CeceOutputFieldCollection fields;   ///< Coordinate variables + configured data fields; no data fields means write all export fields.
+    bool include_diagnostics = false;   ///< Also write diagnostic fields when true.
+    bool enabled = false;               ///< True when an output block is present in the YAML.
+    int amio_worker_threads = -1;       ///< Number of AMIO background I/O worker threads (default: -1, meaning use fallback).
+    int amio_staging_buffer_count = 2;  ///< Number of output staging buffers.
+    int amio_staging_buffer_capacity_bytes = 67108864;               ///< Minimum bytes per output staging buffer (64 MiB).
+    int amio_staging_timeout_ms = 60000;                             ///< Output staging acquisition/write wait timeout.
     std::unordered_map<std::string, std::string> global_attributes;  ///< Custom global attributes to write verbatim on the output file.
 };
 
