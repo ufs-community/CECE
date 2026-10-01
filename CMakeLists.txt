@@ -449,6 +449,26 @@ if(POLICY CMP0178)
   cmake_policy(SET CMP0178 OLD)
 endif()
 
+option(ALLOW_MPI_RUN_AS_ROOT "Pass --allow-run-as-root to mpiexec" OFF)
+option(MPI_OVERSUBSCRIBE "Pass --oversubscribe to mpiexec" OFF)
+
+if(${ALLOW_MPI_RUN_AS_ROOT})
+  # Multi-rank registration under mpirun. MPIEXEC_* come from find_package(MPI)
+  # (called earlier in this file). --allow-run-as-root is required for the root
+  # user in the cece-dev container; it is injected via MPIEXEC_PREFLAGS if not
+  # already present.
+  if(NOT "${MPIEXEC_PREFLAGS}" MATCHES "allow-run-as-root")
+    list(APPEND MPIEXEC_PREFLAGS "--allow-run-as-root")
+  endif()
+endif()
+if(${MPI_OVERSUBSCRIBE})
+  # --oversubscribe lets the
+  # resource-constrained container run -np 2 with limited slots.
+  if(NOT "${MPIEXEC_PREFLAGS}" MATCHES "oversubscribe")
+    list(APPEND MPIEXEC_PREFLAGS "--oversubscribe")
+  endif()
+endif()
+
 # Test data: the FV3/cubed-sphere regrid tests in tests/test_cece_utils.cpp need
 # the real C96 grid_spec and native-grid files for tile 1. These are NetCDF
 # fixtures that are not committed to the repo (*.nc is gitignored), so fetch them
@@ -529,6 +549,7 @@ set_target_properties(
   test_standalone_writer_attributes
   test_rectilinear_gridspec
   test_cece_utils
+  test_numerical_equivalence
   PROPERTIES TEST_LAUNCHER "${MPIEXEC_EXECUTABLE};${MPIEXEC_NUMPROC_FLAG};1;${MPIEXEC_PREFLAGS}"
 )
 
@@ -603,12 +624,6 @@ add_executable(
   tools/pmpi_allgatherv_timer.cpp
 )
 target_link_libraries(benchmark_mpi_pipeline PRIVATE cece HELM::HALO MPI::MPI_CXX Kokkos::kokkos)
-if(NOT "${MPIEXEC_PREFLAGS}" MATCHES "allow-run-as-root")
-  list(APPEND MPIEXEC_PREFLAGS "--allow-run-as-root")
-endif()
-if(NOT "${MPIEXEC_PREFLAGS}" MATCHES "oversubscribe")
-  list(APPEND MPIEXEC_PREFLAGS "--oversubscribe")
-endif()
 
 add_executable(test_hemco_parity tests/test_hemco_parity.cpp)
 target_link_libraries(test_hemco_parity PRIVATE cece GTest::gtest_main)
@@ -627,7 +642,7 @@ target_link_libraries(test_suite_idempotence PRIVATE cece GTest::gtest_main)
 
 # Temporary Reproduction Test
 add_executable(test_repro_failure tests/repro_failure.cpp)
-target_link_libraries(test_repro_failure PRIVATE cece GTest::gtest_main)
+target_link_libraries(test_repro_failure PRIVATE cece Kokkos::kokkos GTest::gtest_main)
 
 # CCPP Readiness and Core Link Isolation Test
 add_executable(test_ccpp_readiness tests/test_ccpp_readiness.cpp)
@@ -724,6 +739,11 @@ add_executable(test_band_regrid_equals_global_rows tests/test_band_regrid_equals
 target_link_libraries(
   test_band_regrid_equals_global_rows
   PRIVATE cece GTest::gtest_main rapidcheck rapidcheck_gtest
+)
+set_target_properties(
+  test_band_single_rank_properties
+  test_band_regrid_equals_global_rows
+  PROPERTIES TEST_LAUNCHER "${MPIEXEC_EXECUTABLE};${MPIEXEC_NUMPROC_FLAG};1;${MPIEXEC_PREFLAGS}"
 )
 
 # StreamKey Property Tests (regrid-per-stream, Property 1)
@@ -875,14 +895,23 @@ target_link_libraries(
 add_executable(test_regrid_conservation_properties tests/test_regrid_conservation_properties.cpp)
 target_link_libraries(
   test_regrid_conservation_properties
-  PRIVATE cece GTest::gtest_main rapidcheck rapidcheck_gtest
+  PRIVATE cece MPI::MPI_CXX Kokkos::kokkos GTest::gtest_main rapidcheck rapidcheck_gtest
 )
 
 # Shared-plan Equivalence Property Tests (regrid-per-stream, Property 2)
 add_executable(test_shared_plan_equivalence tests/test_shared_plan_equivalence.cpp)
 target_link_libraries(
   test_shared_plan_equivalence
-  PRIVATE cece GTest::gtest_main rapidcheck rapidcheck_gtest
+  PRIVATE cece MPI::MPI_CXX Kokkos::kokkos GTest::gtest_main rapidcheck rapidcheck_gtest
+)
+set_target_properties(
+  test_shared_plan_equivalence
+  test_regrid_conservation_properties
+  test_endpoint_invalidation
+  test_endpoint_sizing
+  test_endpoint_shared_plan
+  test_endpoint_blend_equivalence
+  PROPERTIES TEST_LAUNCHER "${MPIEXEC_EXECUTABLE};${MPIEXEC_NUMPROC_FLAG};1;${MPIEXEC_PREFLAGS}"
 )
 
 # No-stale-data Property Tests (ingest-copy-consolidation, Property 4)
@@ -916,7 +945,12 @@ target_link_libraries(
 add_executable(test_ingest_single_write tests/test_ingest_single_write.cpp)
 target_link_libraries(
   test_ingest_single_write
-  PRIVATE cece GTest::gtest_main rapidcheck rapidcheck_gtest
+  PRIVATE cece MPI::MPI_CXX Kokkos::kokkos GTest::gtest_main rapidcheck rapidcheck_gtest
+)
+set_target_properties(
+  test_ingest_single_write
+  test_ingest_consolidation_equivalence
+  PROPERTIES TEST_LAUNCHER "${MPIEXEC_EXECUTABLE};${MPIEXEC_NUMPROC_FLAG};1;${MPIEXEC_PREFLAGS}"
 )
 
 # MPI cross-rank reuse-decision integration test (driver-io-regrid-perf,
@@ -926,18 +960,16 @@ add_executable(test_mpi_reuse_decision tests/test_mpi_reuse_decision.cpp)
 target_link_libraries(test_mpi_reuse_decision PRIVATE cece GTest::gtest MPI::MPI_CXX)
 # Single-process registration (ctest default): runs the binary directly so the
 # rank-invariance property is validated structurally even without a launcher.
-add_test(NAME test_mpi_reuse_decision_np1 COMMAND $<TARGET_FILE:test_mpi_reuse_decision>)
+add_test(
+  NAME test_mpi_reuse_decision_np1
+  COMMAND
+    ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 1 ${MPIEXEC_PREFLAGS}
+    $<TARGET_FILE:test_mpi_reuse_decision>
+)
 set_tests_properties(
   test_mpi_reuse_decision_np1
   PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm"
 )
-# Multi-rank registration under mpirun. MPIEXEC_* come from find_package(MPI)
-# (called earlier in this file). --allow-run-as-root is required for the root
-# user in the cece-dev container; it is injected via MPIEXEC_PREFLAGS if not
-# already present.
-if(NOT "${MPIEXEC_PREFLAGS}" MATCHES "allow-run-as-root")
-  list(APPEND MPIEXEC_PREFLAGS "--allow-run-as-root")
-endif()
 add_test(
   NAME test_mpi_reuse_decision_np2
   COMMAND
@@ -949,6 +981,7 @@ set_tests_properties(
   PROPERTIES
     ENVIRONMENT
       "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1"
+    PROCESSORS 2
 )
 
 # Endpoint reuse-decision rank-invariance property test
@@ -964,17 +997,16 @@ target_link_libraries(
 )
 # Single-process registration (ctest default): runs the binary directly so the
 # rank-invariance property is validated structurally even without a launcher.
-add_test(NAME test_endpoint_reuse_decision_np1 COMMAND $<TARGET_FILE:test_endpoint_reuse_decision>)
+add_test(
+  NAME test_endpoint_reuse_decision_np1
+  COMMAND
+    ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 1 ${MPIEXEC_PREFLAGS}
+    $<TARGET_FILE:test_endpoint_reuse_decision>
+)
 set_tests_properties(
   test_endpoint_reuse_decision_np1
   PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm"
 )
-# Multi-rank registration under mpirun. --allow-run-as-root is required for the
-# root user in the cece-dev container; it is injected via MPIEXEC_PREFLAGS if not
-# already present (the guard above may have added it for the reuse-decision test).
-if(NOT "${MPIEXEC_PREFLAGS}" MATCHES "allow-run-as-root")
-  list(APPEND MPIEXEC_PREFLAGS "--allow-run-as-root")
-endif()
 add_test(
   NAME test_endpoint_reuse_decision_np2
   COMMAND
@@ -986,6 +1018,7 @@ set_tests_properties(
   PROPERTIES
     ENVIRONMENT
       "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1"
+    PROCESSORS 2
 )
 
 # Fused front-half gate-equivalence property test
@@ -1007,22 +1040,16 @@ target_link_libraries(
 # Single-process registration (ctest default): runs the binary directly so the
 # pure-decision properties and the (identity-reduction) packing case validate
 # structurally even without a launcher.
-add_test(NAME test_fused_gate_equivalence_np1 COMMAND $<TARGET_FILE:test_fused_gate_equivalence>)
+add_test(
+  NAME test_fused_gate_equivalence_np1
+  COMMAND
+    ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 1 ${MPIEXEC_PREFLAGS}
+    $<TARGET_FILE:test_fused_gate_equivalence>
+)
 set_tests_properties(
   test_fused_gate_equivalence_np1
   PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm"
 )
-# Multi-rank registration under mpirun. --allow-run-as-root is required for the
-# root user in the cece-dev container; it is injected via MPIEXEC_PREFLAGS if not
-# already present (earlier guards may have added it).
-if(NOT "${MPIEXEC_PREFLAGS}" MATCHES "allow-run-as-root")
-  list(APPEND MPIEXEC_PREFLAGS "--allow-run-as-root")
-endif()
-# --oversubscribe lets the container (fewer physical slots than 4) launch the
-# -np 4 case without failing slot allocation, matching the baseline harness.
-if(NOT "${MPIEXEC_PREFLAGS}" MATCHES "oversubscribe")
-  list(APPEND MPIEXEC_PREFLAGS "--oversubscribe")
-endif()
 add_test(
   NAME test_fused_gate_equivalence_np2
   COMMAND
@@ -1034,6 +1061,7 @@ set_tests_properties(
   PROPERTIES
     ENVIRONMENT
       "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1"
+    PROCESSORS 2
 )
 add_test(
   NAME test_fused_gate_equivalence_np4
@@ -1046,6 +1074,7 @@ set_tests_properties(
   PROPERTIES
     ENVIRONMENT
       "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1"
+    PROCESSORS 4
 )
 
 # Collective-count independence Property Test (cece-halo-collective-adoption,
@@ -1062,21 +1091,16 @@ target_link_libraries(
 )
 # Single-process registration (ctest default): runs the binary directly so the
 # level-independence property is validated structurally even without a launcher.
-add_test(NAME test_collective_count_np1 COMMAND $<TARGET_FILE:test_collective_count>)
+add_test(
+  NAME test_collective_count_np1
+  COMMAND
+    ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 1 ${MPIEXEC_PREFLAGS}
+    $<TARGET_FILE:test_collective_count>
+)
 set_tests_properties(
   test_collective_count_np1
   PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm"
 )
-# Multi-rank registration under mpirun. --allow-run-as-root is required for the
-# root user in the cece-dev container; it is injected via MPIEXEC_PREFLAGS if not
-# already present (earlier guards may have added it). --oversubscribe lets the
-# container run -np 2 with limited slots.
-if(NOT "${MPIEXEC_PREFLAGS}" MATCHES "allow-run-as-root")
-  list(APPEND MPIEXEC_PREFLAGS "--allow-run-as-root")
-endif()
-if(NOT "${MPIEXEC_PREFLAGS}" MATCHES "oversubscribe")
-  list(APPEND MPIEXEC_PREFLAGS "--oversubscribe")
-endif()
 add_test(
   NAME test_collective_count_np2
   COMMAND
@@ -1088,6 +1112,7 @@ set_tests_properties(
   PROPERTIES
     ENVIRONMENT
       "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1"
+    PROCESSORS 2
 )
 
 # HALO single-gather assembly equivalence Property Test
@@ -1107,21 +1132,16 @@ target_link_libraries(
 # Single-process registration (ctest default): runs the binary directly so the
 # mpi_size == 1 boundary (Decision A std::copy fast path) is validated even
 # without a launcher.
-add_test(NAME test_halo_gather_equivalence_np1 COMMAND $<TARGET_FILE:test_halo_gather_equivalence>)
+add_test(
+  NAME test_halo_gather_equivalence_np1
+  COMMAND
+    ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 1 ${MPIEXEC_PREFLAGS}
+    $<TARGET_FILE:test_halo_gather_equivalence>
+)
 set_tests_properties(
   test_halo_gather_equivalence_np1
   PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMP_PROC_BIND=false"
 )
-# Multi-rank registration under mpirun. --allow-run-as-root is required for the
-# root user in the cece-dev container; it is injected via MPIEXEC_PREFLAGS if not
-# already present (earlier guards may have added it). --oversubscribe lets the
-# container run -np 2/4 with limited slots.
-if(NOT "${MPIEXEC_PREFLAGS}" MATCHES "allow-run-as-root")
-  list(APPEND MPIEXEC_PREFLAGS "--allow-run-as-root")
-endif()
-if(NOT "${MPIEXEC_PREFLAGS}" MATCHES "oversubscribe")
-  list(APPEND MPIEXEC_PREFLAGS "--oversubscribe")
-endif()
 add_test(
   NAME test_halo_gather_equivalence_np2
   COMMAND
@@ -1133,6 +1153,7 @@ set_tests_properties(
   PROPERTIES
     ENVIRONMENT
       "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1;OMP_PROC_BIND=false"
+    PROCESSORS 2
 )
 add_test(
   NAME test_halo_gather_equivalence_np4
@@ -1145,6 +1166,7 @@ set_tests_properties(
   PROPERTIES
     ENVIRONMENT
       "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1;OMP_PROC_BIND=false"
+    PROCESSORS 4
 )
 
 # Collective gate-equivalence property tests (cece-halo-collective-adoption,
@@ -1167,22 +1189,14 @@ target_link_libraries(
 # launcher.
 add_test(
   NAME test_collective_gate_equivalence_np1
-  COMMAND $<TARGET_FILE:test_collective_gate_equivalence>
+  COMMAND
+    ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 1 ${MPIEXEC_PREFLAGS}
+    $<TARGET_FILE:test_collective_gate_equivalence>
 )
 set_tests_properties(
   test_collective_gate_equivalence_np1
   PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm"
 )
-# Multi-rank registration under mpirun. --allow-run-as-root is required for the
-# root user in the cece-dev container; it is injected via MPIEXEC_PREFLAGS if not
-# already present (earlier guards may have added it). --oversubscribe lets the
-# resource-constrained container run -np 2 with limited slots.
-if(NOT "${MPIEXEC_PREFLAGS}" MATCHES "allow-run-as-root")
-  list(APPEND MPIEXEC_PREFLAGS "--allow-run-as-root")
-endif()
-if(NOT "${MPIEXEC_PREFLAGS}" MATCHES "oversubscribe")
-  list(APPEND MPIEXEC_PREFLAGS "--oversubscribe")
-endif()
 add_test(
   NAME test_collective_gate_equivalence_np2
   COMMAND
@@ -1194,6 +1208,7 @@ set_tests_properties(
   PROPERTIES
     ENVIRONMENT
       "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1"
+    PROCESSORS 2
 )
 
 # HALO-adoption unit / example / edge-case tests (cece-halo-collective-adoption,
@@ -1207,14 +1222,16 @@ set_tests_properties(
 # decision-predicate tests even without a launcher.
 add_executable(test_halo_adoption_units tests/test_halo_adoption_units.cpp)
 target_link_libraries(test_halo_adoption_units PRIVATE cece GTest::gtest MPI::MPI_CXX HELM::HALO)
-add_test(NAME test_halo_adoption_units_np1 COMMAND $<TARGET_FILE:test_halo_adoption_units>)
+add_test(
+  NAME test_halo_adoption_units_np1
+  COMMAND
+    ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 1 ${MPIEXEC_PREFLAGS}
+    $<TARGET_FILE:test_halo_adoption_units>
+)
 set_tests_properties(
   test_halo_adoption_units_np1
   PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm"
 )
-if(NOT "--oversubscribe" IN_LIST MPIEXEC_PREFLAGS)
-  list(APPEND MPIEXEC_PREFLAGS "--oversubscribe")
-endif()
 add_test(
   NAME test_halo_adoption_units_np2
   COMMAND
@@ -1226,6 +1243,7 @@ set_tests_properties(
   PROPERTIES
     ENVIRONMENT
       "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1"
+    PROCESSORS 2
 )
 add_test(
   NAME test_halo_adoption_units_np4
@@ -1238,6 +1256,7 @@ set_tests_properties(
   PROPERTIES
     ENVIRONMENT
       "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1"
+    PROCESSORS 4
 )
 
 # HALO-adoption multi-rank integration test (cece-halo-collective-adoption,
@@ -1260,22 +1279,14 @@ target_link_libraries(
 # launcher.
 add_test(
   NAME test_halo_multirank_integration_np1
-  COMMAND $<TARGET_FILE:test_halo_multirank_integration>
+  COMMAND
+    ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 1 ${MPIEXEC_PREFLAGS}
+    $<TARGET_FILE:test_halo_multirank_integration>
 )
 set_tests_properties(
   test_halo_multirank_integration_np1
   PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMP_PROC_BIND=false"
 )
-# Multi-rank registration under mpirun. --allow-run-as-root is required for the
-# root user in the cece-dev container; --oversubscribe lets the resource-
-# constrained container run -np 2/4 with limited slots. Injected only if an
-# earlier guard has not already added them.
-if(NOT "${MPIEXEC_PREFLAGS}" MATCHES "allow-run-as-root")
-  list(APPEND MPIEXEC_PREFLAGS "--allow-run-as-root")
-endif()
-if(NOT "${MPIEXEC_PREFLAGS}" MATCHES "oversubscribe")
-  list(APPEND MPIEXEC_PREFLAGS "--oversubscribe")
-endif()
 add_test(
   NAME test_halo_multirank_integration_np2
   COMMAND
@@ -1287,18 +1298,20 @@ set_tests_properties(
   PROPERTIES
     ENVIRONMENT
       "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1;OMP_PROC_BIND=false"
+    PROCESSORS 2
 )
 add_test(
   NAME test_halo_multirank_integration_np4
   COMMAND
     ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 4 ${MPIEXEC_PREFLAGS}
-    $<TARGET_FILE:test_halo_multirank_integration> ${MPIEXEC_POSTFLAGS}
+    $<TARGET_FILE:test_halo_multirank_integration> ${MPIEXEC_POSTFLAGS} PROCESSORS 1
 )
 set_tests_properties(
   test_halo_multirank_integration_np4
   PROPERTIES
     ENVIRONMENT
       "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1;OMP_PROC_BIND=false"
+    PROCESSORS 4
 )
 
 # MEGAN3 Canopy Model Property Tests
@@ -1646,22 +1659,31 @@ if(ESMF_FOUND)
     test_driver_config_validation
     PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm" PROCESSORS 1
   )
-  gtest_discover_tests(test_cece_cap PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm")
+  gtest_discover_tests(
+    test_cece_cap
+    PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm" RESOURCE_LOCK cece_config_yaml
+  )
   gtest_discover_tests(
     test_diagnostics
     PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMP_PROC_BIND=false"
   )
   gtest_discover_tests(
     test_field_creation
-    PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMP_PROC_BIND=false" PROCESSORS 1
+    PROPERTIES
+      ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMP_PROC_BIND=false"
+      PROCESSORS 1
+      RESOURCE_LOCK cece_config_yaml
   )
   gtest_discover_tests(
     test_field_creation_error_handling
-    PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false" PROCESSORS 1
+    PROPERTIES ENVIRONMENT "OMP_PROC_BIND=false" PROCESSORS 1 RESOURCE_LOCK cece_config_yaml
   )
   gtest_discover_tests(
     test_field_pointer_passing
-    PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMP_PROC_BIND=false" PROCESSORS 1
+    PROPERTIES
+      ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMP_PROC_BIND=false"
+      PROCESSORS 1
+      RESOURCE_LOCK cece_config_yaml
   )
 endif()
 
@@ -1824,6 +1846,12 @@ target_link_libraries(
   PRIVATE cece GTest::gtest MPI::MPI_CXX Kokkos::kokkos HELM::AXIS rapidcheck rapidcheck_gtest
 )
 
+set_target_properties(
+  test_band_boundary_conservation
+  test_band_boundary_curvilinear
+  PROPERTIES TEST_LAUNCHER "${MPIEXEC_EXECUTABLE};${MPIEXEC_NUMPROC_FLAG};1;${MPIEXEC_PREFLAGS}"
+)
+
 gtest_discover_tests(
   test_band_boundary_conservation
   PROPERTIES ENVIRONMENT "RC_PARAMS=max_success=100;OMP_PROC_BIND=false"
@@ -1849,7 +1877,9 @@ target_link_libraries(
 )
 add_test(
   NAME test_output_gather_reconstruction_np1
-  COMMAND $<TARGET_FILE:test_output_gather_reconstruction>
+  COMMAND
+    ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 1 ${MPIEXEC_PREFLAGS}
+    $<TARGET_FILE:test_output_gather_reconstruction>
 )
 set_tests_properties(
   test_output_gather_reconstruction_np1
@@ -1867,6 +1897,7 @@ foreach(np 2 4)
     PROPERTIES
       ENVIRONMENT
         "RC_PARAMS=max_success=100;FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1"
+      PROCESSORS ${np}
   )
 endforeach()
 
@@ -1894,7 +1925,16 @@ set_tests_properties(
 # at np1 (structural, single-rank == whole-grid path) and np4 (surplus path).
 add_executable(test_surplus_rank_lockstep tests/test_surplus_rank_lockstep.cpp)
 target_link_libraries(test_surplus_rank_lockstep PRIVATE cece GTest::gtest MPI::MPI_CXX)
-add_test(NAME test_surplus_rank_lockstep_np1 COMMAND $<TARGET_FILE:test_surplus_rank_lockstep>)
+set_target_properties(
+  test_surplus_rank_lockstep
+  PROPERTIES TEST_LAUNCHER "${MPIEXEC_EXECUTABLE};${MPIEXEC_NUMPROC_FLAG};1;${MPIEXEC_PREFLAGS}"
+)
+add_test(
+  NAME test_surplus_rank_lockstep_np1
+  COMMAND
+    ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 1 ${MPIEXEC_PREFLAGS}
+    $<TARGET_FILE:test_surplus_rank_lockstep>
+)
 set_tests_properties(
   test_surplus_rank_lockstep_np1
   PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp;I_MPI_FABRICS=shm"
@@ -1910,6 +1950,7 @@ set_tests_properties(
   PROPERTIES
     ENVIRONMENT
       "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1"
+    PROCESSORS 4
 )
 
 # 10.2 Distributed output equivalence (Property 5 & 6). End-to-end: runs the
