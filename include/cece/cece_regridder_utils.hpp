@@ -17,11 +17,13 @@ namespace cece::io {
 /// Build an AXIS UnstructuredMesh from rectilinear coordinate arrays or a FV3 NetCDF grid specification file.
 /// The band starts at global row `j0` and spans `nband` rows.
 axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_axis_mesh(int nx, int nband, int j0, const std::vector<double>& lons,
-                                                                    const std::vector<double>& lats, const std::string& gridspec_file = "");
+                                                                    const std::vector<double>& lats, const std::string& gridspec_file = "",
+                                                                    const std::string& map_algo = "");
 
 /// Convenience overload that builds a whole-grid mesh (band offset `j0 = 0`).
 inline axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_axis_mesh(int nx, int ny, const std::vector<double>& lons,
-                                                                           const std::vector<double>& lats, const std::string& gridspec_file = "") {
+                                                                           const std::vector<double>& lats, const std::string& gridspec_file = "",
+                                                                           const std::string& map_algo = "") {
     return build_axis_mesh(nx, ny, 0, lons, lats, gridspec_file);
 }
 
@@ -99,8 +101,8 @@ bool same_spherical_grid_coordinates(int nx, int ny, const std::vector<double>& 
 ///
 /// @return true on success; false if coordinates could not be read.
 bool build_regrid_plan(amio_dataset_handle read_dataset, int nx, int ny, const std::vector<double>& target_lons,
-                       const std::vector<double>& target_lats, const std::string& map_algo, int j0, int j1, const std::string& gridspec_file,
-                       RegridPlan& plan);
+                       const std::vector<double>& target_lats, const std::string& map_algo, int j0, int j1, const std::string& src_gridspec_file,
+                       const std::string& dst_gridspec_file, RegridPlan& plan);
 
 /// Apply a previously built plan to one source field snapshot, producing the
 /// rank-local destination slice `local_dst` of size nx * (j1 - j0), laid out
