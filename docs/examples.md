@@ -13,6 +13,9 @@ The `examples/` directory contains several YAML configuration files:
 -   `cece_config_ex5.yaml`: Multi-species (CO and NO) emissions with multi-timestep execution
 -   `cece_config_ex6.yaml`: Handling non-separated inventories
 -   `cece_config_advanced.yaml`: **NEW** - Comprehensive example demonstrating advanced Stacking Engine features
+-   `cece_config_localtime.yaml`: **NEW** - Local-time temporal scaling: a diurnal
+    cycle evaluated at each cell's local time (identity profile `hour_id` makes
+    the applied factor reveal the local hour used)
 
 ### Advanced Example Highlights
 
