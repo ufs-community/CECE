@@ -2,7 +2,7 @@ import yaml
 import matplotlib.pyplot as plt
 
 
-def visualize_stacking_plan(config_path):
+def visualize_stacking_plan(config_path: str) -> None:
     """
     Simulates and visualizes the emission stacking plan defined in the CECE config.
     This serves as a Python-side orchestration and visualization tool for the

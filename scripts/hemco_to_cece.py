@@ -83,7 +83,7 @@ class HemcoParser:
             return line[: line.find("#")].strip()
         return line.strip()
 
-    def load_lines(self, filepath, current_base_dir):
+    def load_lines(self, filepath, current_base_dir) -> list[str]:
         """
         Load lines from a file, handling includes.
         Args:
@@ -109,37 +109,39 @@ class HemcoParser:
                     all_lines.append(line)
         return all_lines
 
-    def parse(self):
+    @staticmethod
+    def _section_name(line_upper: str) -> str:
+        if "BEGIN SECTION SETTINGS" in line_upper:
+            current_section = "SETTINGS"
+        elif "BEGIN SECTION EXTENSION SWITCHES" in line_upper:
+            current_section = "EXTENSIONS"
+        elif "BEGIN SECTION BASE EMISSIONS" in line_upper:
+            current_section = "BASE_EMISSIONS"
+        elif "BEGIN SECTION SCALE FACTORS" in line_upper:
+            current_section = "SCALE_FACTORS"
+        elif "BEGIN SECTION MASKS" in line_upper:
+            current_section = "MASKS"
+        return current_section
+
+    def parse(self):  # noqa: C901, PLR0915
         lines = self.load_lines(self.config_path, self.base_dir)
-        if not lines:
-            return
 
         current_section = None
+        # Empty lines does no trips through the loop
         for line in lines:
             raw_line = line.strip()
-            stripped = self.strip_comments(raw_line)
 
             # Section detection (works on raw line including comments)
             upper = raw_line.upper()
-            if "BEGIN SECTION SETTINGS" in upper:
-                current_section = "SETTINGS"
-                continue
-            elif "BEGIN SECTION EXTENSION SWITCHES" in upper:
-                current_section = "EXTENSIONS"
-                continue
-            elif "BEGIN SECTION BASE EMISSIONS" in upper:
-                current_section = "BASE_EMISSIONS"
-                continue
-            elif "BEGIN SECTION SCALE FACTORS" in upper:
-                current_section = "SCALE_FACTORS"
-                continue
-            elif "BEGIN SECTION MASKS" in upper:
-                current_section = "MASKS"
-                continue
+            if "BEGIN SECTION " in upper:
+                current_section = self._section_name(upper)
+                if current_section is not None:
+                    continue
             elif "END SECTION" in upper:
                 current_section = None
                 continue
 
+            stripped = self.strip_comments(raw_line)
             if not stripped:
                 continue
 
@@ -160,10 +162,9 @@ class HemcoParser:
                         parts[1].strip().split()[0] if parts[1].strip() else "off"
                     )
                     status = status_raw.lower().rstrip(":")
-                    nr = name_part[0] if len(name_part) > 1 else None
                     entry = {"status": status}
-                    if nr and nr.isdigit():
-                        entry["nr"] = nr
+                    if len(name_part) > 1 and name_part[0].isdigit():
+                        entry["nr"] = name_part[0]
                     self.extensions[ext_name] = entry
                 else:
                     parts = stripped.split()
@@ -407,7 +408,126 @@ def _infer_vdist(be_entry):
     return None
 
 
-def convert_hemco_to_cece(hemco_config_path, output_path, diagn_path=None):
+def _parse_base_emissions_layer(  # noqa: C901, PLR0915
+    be: dict,
+    parser: HemcoParser,
+    enabled_ext_nrs: set[str],
+    cece_config: dict,
+    streams: dict,
+):
+    """Parse a single layer of the base emissions
+
+    Parameters
+    ----------
+    be : dict
+        Input variable
+    root_val : str
+        Prefix for output variable names?
+    cece_config : dict
+        Output variable
+    streams : dict
+        Output variable
+    """
+    root_val = parser.settings.get("ROOT", "data")
+
+    ext_nr = be["ext_nr"]
+    if ext_nr != "0" and ext_nr not in enabled_ext_nrs:
+        # Check if any extension with this nr is enabled
+        is_enabled = any(
+            info.get("nr") == ext_nr
+            and info.get("status") in ("on", "true", "yes", "1")
+            for info in parser.extensions.values()
+        )
+        if not is_enabled:
+            return
+
+    species_name = be["species"].lower()
+    if species_name == "*":
+        return
+
+    if species_name not in cece_config["species"]:
+        cece_config["species"][species_name] = []
+
+    # Map HEMCO operation: 1=replace, 2=add (HEMCO default is add for hier=1)
+    hier = int(be["hier"])
+    # HEMCO convention: hierarchy > 1 with replace operation overrides lower
+    operation = "replace" if hier > 1 else "add"
+
+    # Map category
+    cat_str = HEMCO_CATEGORY_MAP.get(be["cat"], be["cat"])
+
+    layer = {
+        "field": be["name"],
+        "operation": operation,
+        "scale": 1.0,
+        "category": cat_str,
+        "hierarchy": hier,
+    }
+
+    # ------------------------------------------------------------------
+    # Vertical distribution
+    # ------------------------------------------------------------------
+    vdist = _infer_vdist(be)
+    if vdist:
+        layer["vdist"] = vdist
+
+    # ------------------------------------------------------------------
+    # Scale IDs -> masks, scale_fields, temporal profiles
+    # ------------------------------------------------------------------
+    scal_ids = be["scal_ids"].split("/")
+    layer_masks = []
+    layer_scale_fields = []
+
+    for sid in scal_ids:
+        if sid in ("-", ""):
+            continue
+
+        if sid in parser.masks:
+            mask_entry = parser.masks[sid]
+            mask_name = mask_entry["name"].lower()
+            layer_masks.append(mask_name)
+            cece_config["masks"][mask_name] = mask_entry["name"]
+            if mask_entry["file"] not in ("-", ""):
+                streams[mask_name] = _resolve_path(mask_entry["file"], root_val)
+
+        elif sid in parser.scale_factors:
+            sf_entry = parser.scale_factors[sid]
+            sf_name = sf_entry["name"]
+
+            # Detect inline temporal profiles (slash-separated floats)
+            factors, cycle_type = _parse_temporal_factors(
+                sf_entry["file"], sf_entry["var"]
+            )
+            if factors is not None:
+                cycle_key = sf_name.lower()
+                cece_config["temporal_profiles"][cycle_key] = factors
+                if cycle_type == "diurnal":
+                    layer["diurnal_cycle"] = cycle_key
+                elif cycle_type == "weekly":
+                    layer["weekly_cycle"] = cycle_key
+                elif cycle_type == "seasonal":
+                    layer["seasonal_cycle"] = cycle_key
+                # custom length profiles stored but not auto-assigned
+            else:
+                sf_key = sf_name.lower()
+                layer_scale_fields.append(sf_key)
+                cece_config["scale_factors"][sf_key] = sf_name
+                if sf_entry["file"] not in ("-", ""):
+                    streams[sf_key] = _resolve_path(sf_entry["file"], root_val)
+
+    if layer_masks:
+        layer["mask"] = layer_masks if len(layer_masks) > 1 else layer_masks[0]
+    if layer_scale_fields:
+        layer["scale_fields"] = layer_scale_fields
+
+    cece_config["species"][species_name].append(layer)
+
+    # Register base emission file as a TIDE stream
+    if be["file"] not in ("-", ""):
+        streams[be["name"]] = _resolve_path(be["file"], root_val)
+
+
+def convert_hemco_to_cece(hemco_config_path, output_path, diagn_path=None):  # noqa: C901
     """
     Convert a HEMCO_Config.rc (and optionally HEMCO_Diagn.rc) to an CECE YAML config.
 
@@ -418,7 +538,6 @@ def convert_hemco_to_cece(hemco_config_path, output_path, diagn_path=None):
     """
     parser = HemcoParser(hemco_config_path)
     base_dir = parser.base_dir
-    root_val = parser.settings.get("ROOT", "data")
 
     cece_config = {
         "meteorology": {},
@@ -444,101 +563,7 @@ def convert_hemco_to_cece(hemco_config_path, output_path, diagn_path=None):
     streams = {}  # name -> resolved file path
 
     for be in parser.base_emissions:
-        ext_nr = be["ext_nr"]
-        if ext_nr != "0" and ext_nr not in enabled_ext_nrs:
-            # Check if any extension with this nr is enabled
-            is_enabled = any(
-                info.get("nr") == ext_nr
-                and info.get("status") in ("on", "true", "yes", "1")
-                for info in parser.extensions.values()
-            )
-            if not is_enabled:
-                continue
-
-        species_name = be["species"].lower()
-        if species_name == "*":
-            continue
-
-        if species_name not in cece_config["species"]:
-            cece_config["species"][species_name] = []
-
-        # Map HEMCO operation: 1=replace, 2=add (HEMCO default is add for hier=1)
-        hier = int(be["hier"])
-        # HEMCO convention: hierarchy > 1 with replace operation overrides lower
-        operation = "replace" if hier > 1 else "add"
-
-        # Map category
-        cat_str = HEMCO_CATEGORY_MAP.get(be["cat"], be["cat"])
-
-        layer = {
-            "field": be["name"],
-            "operation": operation,
-            "scale": 1.0,
-            "category": cat_str,
-            "hierarchy": hier,
-        }
-
-        # ------------------------------------------------------------------
-        # Vertical distribution
-        # ------------------------------------------------------------------
-        vdist = _infer_vdist(be)
-        if vdist:
-            layer["vdist"] = vdist
-
-        # ------------------------------------------------------------------
-        # Scale IDs -> masks, scale_fields, temporal profiles
-        # ------------------------------------------------------------------
-        scal_ids = be["scal_ids"].split("/")
-        layer_masks = []
-        layer_scale_fields = []
-
-        for sid in scal_ids:
-            if sid in ("-", ""):
-                continue
-
-            if sid in parser.masks:
-                mask_entry = parser.masks[sid]
-                mask_name = mask_entry["name"].lower()
-                layer_masks.append(mask_name)
-                cece_config["masks"][mask_name] = mask_entry["name"]
-                if mask_entry["file"] not in ("-", ""):
-                    streams[mask_name] = _resolve_path(mask_entry["file"], root_val)
-
-            elif sid in parser.scale_factors:
-                sf_entry = parser.scale_factors[sid]
-                sf_name = sf_entry["name"]
-
-                # Detect inline temporal profiles (slash-separated floats)
-                factors, cycle_type = _parse_temporal_factors(
-                    sf_entry["file"], sf_entry["var"]
-                )
-                if factors is not None:
-                    cycle_key = sf_name.lower()
-                    cece_config["temporal_profiles"][cycle_key] = factors
-                    if cycle_type == "diurnal":
-                        layer["diurnal_cycle"] = cycle_key
-                    elif cycle_type == "weekly":
-                        layer["weekly_cycle"] = cycle_key
-                    elif cycle_type == "seasonal":
-                        layer["seasonal_cycle"] = cycle_key
-                    # custom length profiles stored but not auto-assigned
-                else:
-                    sf_key = sf_name.lower()
-                    layer_scale_fields.append(sf_key)
-                    cece_config["scale_factors"][sf_key] = sf_name
-                    if sf_entry["file"] not in ("-", ""):
-                        streams[sf_key] = _resolve_path(sf_entry["file"], root_val)
-
-        if layer_masks:
-            layer["mask"] = layer_masks if len(layer_masks) > 1 else layer_masks[0]
-        if layer_scale_fields:
-            layer["scale_fields"] = layer_scale_fields
-
-        cece_config["species"][species_name].append(layer)
-
-        # Register base emission file as a TIDE stream
-        if be["file"] not in ("-", ""):
-            streams[be["name"]] = _resolve_path(be["file"], root_val)
+        _parse_base_emissions_layer(be, parser, enabled_ext_nrs, cece_config, streams)
 
     # ------------------------------------------------------------------
     # Build TIDE streams list
