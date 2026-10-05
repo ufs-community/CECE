@@ -698,7 +698,7 @@ Variables and coordinates are read using the element type the file declares, so
 integer-valued time axes, coordinates, and data (all common in CF files) decode
 correctly. CF packing attributes are applied on read wherever they are present:
 
-$$\text{value} = \text{stored} \times \text{scale\_factor} + \text{add\_offset}$$
+$$\mathrm{value} = \mathrm{stored} \times \mathrm{scale\\_factor} + \mathrm{add\\_offset}$$
 
 This needs no configuration — `scale_factor` and `add_offset` are picked up from the
 file, and a variable without them is read unchanged.
@@ -756,7 +756,7 @@ simulation year that corresponds to the file's **first** year. `yearAlign: 0` (t
 default) means no shift — simulation years map 1-to-1 onto file years. On the
 arithmetic fallback path the dataset year is computed as:
 
-$$\text{effective\_year} = \text{yearFirst} + (\text{sim\_year} - \text{yearAlign})$$
+$$\mathrm{effective\\_year} = \mathrm{yearFirst} + (\mathrm{sim\\_year} - \mathrm{yearAlign})$$
 
 `taxmode` decides what happens when the simulation time falls outside the file's
 coverage:
