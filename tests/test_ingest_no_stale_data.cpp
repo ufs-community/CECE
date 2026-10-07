@@ -301,36 +301,3 @@ RC_GTEST_PROP(IngestNoStaleDataProperty, Property4_NoStaleDataAcrossSteps, ()) {
 }
 
 }  // namespace cece
-
-// ============================================================================
-// Kokkos lifecycle. The transpose/write path uses Kokkos HostSpace + DualView
-// views, so Kokkos must be initialized. Mirrors the lifecycle used by
-// tests/test_regrid_conservation_properties.cpp, minus the MPI dependence (this
-// property touches no collectives).
-// ============================================================================
-class KokkosEnvironment : public ::testing::Environment {
-   private:
-    int argc_;
-    char** argv_;
-
-   public:
-    KokkosEnvironment(int argc, char** argv) : argc_(argc), argv_(argv) {}
-
-    void SetUp() override {
-        if (!Kokkos::is_initialized()) {
-            Kokkos::initialize(argc_, argv_);
-        }
-    }
-
-    void TearDown() override {
-        if (Kokkos::is_initialized()) {
-            Kokkos::finalize();
-        }
-    }
-};
-
-int main(int argc, char** argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    ::testing::AddGlobalTestEnvironment(new KokkosEnvironment(argc, argv));
-    return RUN_ALL_TESTS();
-}

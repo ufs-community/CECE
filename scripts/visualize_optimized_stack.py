@@ -1,7 +1,8 @@
-import yaml
-import matplotlib.pyplot as plt
-import sys
 import os
+import sys
+
+import matplotlib.pyplot as plt
+import yaml
 
 
 def visualize_optimized_stack(config_path):
@@ -52,7 +53,7 @@ def visualize_optimized_stack(config_path):
             ha="center",
             fontweight="bold",
             color="red",
-            bbox=dict(facecolor="white", alpha=0.5, edgecolor="red"),
+            bbox={"facecolor": "white", "alpha": 0.5, "edgecolor": "red"},
         )
 
         plt.xlabel("Layer Execution Order")

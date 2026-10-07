@@ -14,7 +14,7 @@ To build CECE, you need the following dependencies:
 - **HELM CONF** (included)
 - **AMIO** (Asynchronous Multidimensional I/O, via HELM)
 - **NetCDF** (C and Fortran interfaces)
-- **Python 3.8+** (for scripts and testing)
+- **Python 3.10+** (for scripts and testing)
 
 ### Docker Environment (Recommended)
 
@@ -370,7 +370,7 @@ ncdump -h cece_20240101_000000.nc
 
 ## Physics Schemes
 
-CECE includes a suite of process-based physics schemes for computing emissions from natural and anthropogenic sources. Each scheme is available as both a native C++ (Kokkos) implementation and a Fortran bridge variant. Schemes are enabled and configured through the `physics_schemes` block in your YAML configuration.
+CECE includes a suite of process-based physics schemes for computing emissions from natural and anthropogenic sources. Implementations are available in C++ (Kokkos) or through a Fortran bridge, depending on the scheme. MEGAN (`megan` and `megan3`) is supported only through its C++ implementation. Schemes are enabled and configured through the `physics_schemes` block in your YAML configuration.
 
 | Scheme | Description | Documentation |
 | --- | --- | --- |

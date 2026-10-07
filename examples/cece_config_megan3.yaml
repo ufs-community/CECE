@@ -1,42 +1,32 @@
-# MEGAN3 + BDSNP Example Configuration
+# MEGAN standalone configuration template
 #
-# Demonstrates the full MEGAN3 biogenic emission system with:
-#   - Soil NO module using the compact YL95 fallback (runs first and writes
-#     soil_nox_emissions)
-#   - MEGAN3 multi-species scheme (runs second, reads soil_nox_emissions)
-#   - CB6 chemical mechanism speciation
-#   - Per-class emission coefficients
-#   - Input/output field mappings
+# Selects CECE's C++ 19-class MEGAN3 scheme with CB6 speciation. Its bulk
+# activity factors do not yet use the multilayer canopy helpers; this is not
+# an independent HEMCO or upstream MEGAN3 parity experiment.
 #
-# The stacking engine executes BDSNP before MEGAN3 so that soil NO
-# is available in the export state when MEGAN3 reads it for the NO class.
+# Replace all /path/to values. Input data and gridspec are not bundled.
+# Run where data/speciation paths resolve. All streams must match the ordered
+# gridspec exactly: lon=-180,-175,...,175; lat=-89,-86,-82,...,86,89.
+# Coefficients and default AEFs are illustrative, not a vegetation inventory.
+# Every default_aef below is an amount flux in kmol class m-2 s-1.
+# See docs/megan.md for megan21 and hemco_3_12_1 replacements for the scheme
+# and output sections, and for adding BDSNP before MEGAN3 when soil NO is needed.
+# With no preceding soil-NO scheme, MEGAN3 warns and leaves its NO class zero.
 
 driver:
-  start_time: "2020-07-01T00:00:00"
-  end_time: "2020-07-01T06:00:00"
+  start_time: "2021-06-20T12:00:00"
+  end_time: "2021-06-20T13:00:00"
   timestep_seconds: 3600
+  amio_staging_buffer_count: 8
+  gridspec_file: "/path/to/hemco_4x5_gridspec.nc"
   grid:
-    nx: 10
-    ny: 10
-    lon_min: -100.0
-    lon_max: -80.0
-    lat_min: 30.0
-    lat_max: 45.0
+    nx: 72
+    ny: 46
+    nz: 1
 
 physics_schemes:
-  # --- Soil NO Module (runs first) ---
-  # This compact coupling example selects YL95. Canonical BDSNP is the default,
-  # but requires the complete scalar + two 24-layer effective-input contract
-  # documented in docs/soil_nox.md.
-  - name: bdsnp
-    options:
-      soil_no_method: yl95
-    input_mapping:
-      soil_temperature: TSOIL
-      soil_moisture: GWETTOP
-
-  # --- MEGAN3 Multi-Species Biogenic Emissions (runs second) ---
   - name: megan3
+    language: cpp
     options:
       mechanism_file: data/speciation/spc_cb6.yaml
       speciation_file: data/speciation/map_cb6.yaml
@@ -46,6 +36,7 @@ physics_schemes:
       enable_wind_stress: false
       enable_temp_stress: false
       enable_aq_stress: false
+      day_of_year: 171 # Scalar effective setting; not inferred from driver time
       emission_classes:
         ISOP:
           ldf: 0.9996
@@ -117,7 +108,7 @@ physics_schemes:
           amat: 1.0
           aold: 1.05
           default_aef: 3.0e-10
-        NO:
+        "NO":
           ldf: 0.00
           ct1: 80.0
           cleo: 1.83
@@ -237,18 +228,41 @@ physics_schemes:
           amat: 1.0
           aold: 1.0
           default_aef: 3.0e-10
-    input_mapping:
-      temperature: T2M
-      leaf_area_index: LAI
-      leaf_area_index_prev: LAI_PREV
-      par_direct: PARDR
-      par_diffuse: PARDF
-      solar_cosine: COSZS
-      soil_moisture_root: GWETROOT
-      wind_speed: U10M
-    output_mapping:
-      MEGAN_ISOP: ISOP_BIOG
-      MEGAN_TERP: TERP_BIOG
-      MEGAN_PAR: PAR_BIOG
-      MEGAN_NO: NO_BIOG
-      MEGAN_CO: CO_BIOG
+
+cece_data:
+  streams:
+    - name: MEGAN_MET
+      file: "/path/to/megan_met_4x5_20210620.nc"
+      mapalgo: passthrough
+      data_model: auto
+      variables:
+        - { file: T2M, model: temperature }
+        - { file: PARDR, model: par_direct }
+        - { file: PARDF, model: par_diffuse }
+        - { file: COSZS, model: solar_cosine }
+        - { file: GWETROOT, model: soil_moisture_root }
+        - { file: U10M, model: wind_speed }
+    - name: MEGAN_LAI
+      file: "/path/to/megan_lai_4x5_20210620.nc"
+      mapalgo: passthrough
+      data_model: auto
+      variables:
+        - { file: LAI, model: leaf_area_index }
+        - { file: LAI_PREV, model: leaf_area_index_prev }
+
+output:
+  enabled: true
+  directory: "./output/megan3"
+  filename_pattern: "cece_megan3_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
+  frequency_steps: 1
+  fields:
+    - name: MEGAN_ISOP
+      attributes:
+        units: "kg m-2 s-1"
+        long_name: "CECE MEGAN3-class isoprene emission flux"
+    - name: MEGAN_TERP
+      attributes:
+        units: "kg m-2 s-1"
+    - name: MEGAN_NO
+      attributes:
+        units: "kg NO m-2 s-1"

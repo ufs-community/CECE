@@ -4,9 +4,10 @@ Tests for Python module import and basic functionality.
 Tests that the cece module can be imported and basic classes are available.
 """
 
-import pytest
 import sys
 from pathlib import Path
+
+import pytest
 
 # Add src/python to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src" / "python"))
@@ -48,11 +49,11 @@ class TestModuleImport:
     def test_import_exceptions(self):
         """Test that exception classes can be imported."""
         from cece import (
-            CeceException,
-            CeceConfigError,
             CeceComputationError,
-            CeceStateError,
+            CeceConfigError,
+            CeceException,
             CeceExecutionSpaceError,
+            CeceStateError,
         )
 
         assert CeceException is not None
@@ -64,18 +65,18 @@ class TestModuleImport:
     def test_import_functions(self):
         """Test that module-level functions can be imported."""
         from cece import (
-            initialize,
-            finalize,
-            is_initialized,
             compute,
-            load_config,
-            set_execution_space,
-            get_execution_space,
+            finalize,
             get_available_execution_spaces,
-            set_log_level,
             get_diagnostics,
-            reset_diagnostics,
+            get_execution_space,
             get_last_error,
+            initialize,
+            is_initialized,
+            load_config,
+            reset_diagnostics,
+            set_execution_space,
+            set_log_level,
         )
 
         assert initialize is not None

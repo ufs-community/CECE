@@ -162,8 +162,3 @@ TEST_F(IngestorTest, PreservesTwentyFourLayersInCacheAndImportState) {
 }
 
 }  // namespace cece::test
-
-int main(int argc, char** argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
-}

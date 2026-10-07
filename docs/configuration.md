@@ -22,6 +22,9 @@ masks:
 temporal_profiles:
   # ... periodic scaling factors (diurnal, weekly, etc.) ...
 
+local_time:
+  # ... opt-in per-cell UTC-to-local time conversion (default: disabled) ...
+
 species:
   # ... species definitions ...
 
@@ -221,6 +224,71 @@ temporal_profiles:
 
 ---
 
+## `local_time`
+
+Opt-in feature that converts UTC to **local standard time per grid cell** so that
+temporal cycles (`diurnal_cycle`, `weekly_cycle`, `seasonal_cycle`) can be
+evaluated at local time. Note this is civil clock time per time zone, not local
+solar time (which is based on Sun position). It is **disabled by default**; with
+the feature off (or when a layer omits `use_local_time`) behavior is
+bit-identical to a pre-feature run.
+
+| Key | Type | Description |
+| --- | --- | --- |
+| `enabled` | Boolean | Master switch. When `false` (default) or the section is absent, the grid file is never opened and no memory is allocated. |
+| `grid_file` | String | Path to the RLE-compressed UTC-offset grid (e.g. `data/utc_grid_720r.rle`). Defaults to `data/utc_grid_720r.rle` when empty. |
+
+**Example:**
+```yaml
+local_time:
+  enabled: true
+  grid_file: data/utc_grid_720r.rle
+
+temporal_profiles:
+  traffic_diurnal: [0.5, 0.3, 0.2, 0.3, 0.6, 1.2, 1.8, 1.5, 1.2, 1.0, 1.1, 1.2,
+                    1.3, 1.2, 1.3, 1.5, 1.8, 2.0, 1.8, 1.5, 1.2, 1.0, 0.8, 0.6]
+
+species:
+  co:
+    - field: "traffic_co"
+      diurnal_cycle: "traffic_diurnal"
+      use_local_time: true   # this layer scales at local time
+    - field: "background_co"
+      operation: "add"       # UTC scaling (unchanged behavior)
+```
+
+### How it works
+
+- The grid file is decoded **once** at initialization into a dense cosine-reduced
+  raster of signed UTC offsets (quarter-hour precision, produced by
+  `scripts/python/utcoffset_generator.py` from a timezone snapshot): 1440 uniform
+  0.125° latitude rows whose column count tapers toward the poles
+  (`ncol = max(4, 4·round(720·cos lat))`), giving ~14 km ground resolution
+  everywhere at 36% fewer cells than a full regular grid. Each rank
+  keeps only a read-only band-local device array of its own cells' offsets.
+- Each cell uses the **nearest grid cell** (no interpolation). Every point on
+  Earth carries a UTC offset, including the oceans (the offset of the time zone
+  covering the point, e.g. an `Etc/GMT±n` ocean zone); only genuinely unresolved
+  points fall back to offset 0, i.e. UTC.
+- Local hour / day-of-week / month are derived with integer arithmetic and
+  correct date rollover (a −8 h offset at 02:00 UTC yields 18:00 the previous
+  local day, and the weekly cycle follows the local day).
+- **All outputs remain UTC**: NetCDF time axes, provenance records, and log
+  timestamps are untouched — local time is an internal computation input only.
+- **Fail fast when enabled**: if the feature is enabled but the grid file is
+  missing or corrupt, initialization fails with an error — a partial or absent
+  grid is never silently used. (Layers that set `use_local_time` while the
+  feature is disabled are also rejected at parse time.)
+- The offset source sits behind a provider interface (`IUtcOffsetProvider`),
+  so a future DST-aware / time-varying source can replace the static grid
+  without any configuration-schema or consumer changes.
+
+See [examples/cece_config_localtime.yaml](../examples/cece_config_localtime.yaml)
+for a self-contained runnable example (an identity diurnal profile reveals the
+local hour actually used per cell).
+
+---
+
 ## `species`
 
 The `species` block defines the emission targets and the layers that contribute to them. This is the core configuration section that determines how different emission sources are combined.
@@ -239,6 +307,7 @@ The `species` block defines the emission targets and the layers that contribute 
 | `diurnal_cycle` | String | (Optional) Reference to temporal profile for diurnal scaling |
 | `weekly_cycle` | String | (Optional) Reference to temporal profile for weekly scaling |
 | `seasonal_cycle` | String | (Optional) Reference to temporal profile for seasonal scaling |
+| `use_local_time` | Boolean | (Optional) Evaluate this layer's temporal cycles at each cell's **local** time instead of UTC (requires the global `local_time.enabled`; configuring it while the feature is disabled is a parse error; Default: `false`) |
 
 ### Vertical Distribution Properties
 
@@ -320,8 +389,8 @@ List of physics schemes to instantiate and execute during the Run phase. Physics
 | Scheme Name | Description | Key Parameters |
 | ----------- | ----------- | -------------- |
 | `sea_salt` | Marine aerosol emissions | `r_sala_min`, `r_salc_max`, `sea_salt_density` |
-| `megan` | Biogenic isoprene emissions (single-species) | `beta`, `ldf`, `aef`, `co2_concentration` |
-| `megan3` | Full MEGAN3 multi-species biogenic emissions | `mechanism_file`, `speciation_file`, `emission_classes` |
+| `megan` | [Biogenic isoprene emissions](megan.md), with `megan21` (legacy alias `native`) and `hemco_3_12_1` methods | `megan_method`, `aef`, `hemco_co2_inhibition`, history settings |
+| `megan3` | [19-class C++ biogenic emissions and chemical speciation](megan.md#megan3-multi-species-multi-class); bulk runtime activity factors, not complete upstream MEGAN3 parity | `mechanism_file`, `speciation_file`, `emission_classes` |
 | `bdsnp` | [Berkeley-Dalhousie Soil NOx Parameterization (BDSNP) or YL95 soil NO emissions](soil_nox.md) | `soil_no_method`, `use_soil_temperature` |
 | `dust` | Mineral dust emissions | `particle_density`, `tuning_factor` |
 | `lightning` | Lightning NOx production | `yield_land`, `yield_ocean` |
@@ -474,6 +543,17 @@ datasets:
 
 Reference the speciation files in the MEGAN3 scheme configuration:
 
+The [MEGAN example](../examples/cece_config_megan3.yaml) supplies a standalone
+template. See [MEGAN method selection](megan.md#standalone-driver-setup) for
+the alternative single-species configurations; do not schedule two `megan`
+instances to select different methods in one run.
+
+MEGAN3 class AEFs, including `default_aef` and imported `AEF_<CLASS>`
+fields, are amount fluxes in kmol class m⁻² s⁻¹. The speciation engine applies
+the target-species molecular weight in kg kmol⁻¹ to produce output mass fluxes
+in kg m⁻² s⁻¹. Convert a mass-basis AEF to an amount-basis AEF before supplying
+it to MEGAN3.
+
 ```yaml
 physics_schemes:
   - name: bdsnp
@@ -494,18 +574,19 @@ physics_schemes:
           ct1: 95.0
           cleo: 2.0
           beta: 0.13
-          default_aef: 1.0e-9
+          default_aef: 1.0e-9  # kmol ISOP m-2 s-1
         MT_PINE:
           ldf: 0.10
           ct1: 80.0
           cleo: 1.83
           beta: 0.10
-          default_aef: 3.0e-10
+          default_aef: 3.0e-10  # kmol MT_PINE m-2 s-1
         # ... remaining 17 classes
-    output_mapping:
-      MEGAN_ISOP: ISOP_BIOG
-      MEGAN_TERP: TERP_BIOG
 ```
+
+The current C++ MEGAN3 speciation engine writes `MEGAN_ISOP`, `MEGAN_TERP`,
+and the other `MEGAN_`-prefixed species names directly. Select these names in
+`output.fields`; `output_mapping` does not rename the engine's species outputs.
 
 The speciation engine computes each output species as:
 
