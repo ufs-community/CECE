@@ -82,7 +82,7 @@ def load_config(config: str | dict | CeceConfig) -> CeceConfig:
                 with open(path, "r") as f:
                     yaml_str = f.read()
                 return _load_config_from_yaml(yaml_str)
-            except (OSError, TypeError, ValueError) as e:
+            except (OSError, TypeError, ValueError, AttributeError) as e:
                 raise CeceConfigError(
                     f"Failed to load config from file '{config}': {e!s}"
                 )
