@@ -15,7 +15,7 @@ cece.initialize : Initialize CECE with a configuration.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Any
+from typing import Any
 
 from . import utils
 
@@ -135,15 +135,15 @@ class EmissionLayer:
 
     field_name: str
     operation: str = "add"
-    masks: List[str] = field(default_factory=list)
+    masks: list[str] = field(default_factory=list)
     scale: float = 1.0
     hierarchy: int = 0
     vdist: VerticalDistributionConfig = field(
         default_factory=VerticalDistributionConfig
     )
-    diurnal_cycle: Optional[str] = None
-    weekly_cycle: Optional[str] = None
-    seasonal_cycle: Optional[str] = None
+    diurnal_cycle: str | None = None
+    weekly_cycle: str | None = None
+    seasonal_cycle: str | None = None
     use_local_time: bool = False
 
     def validate(self) -> None:
@@ -183,7 +183,7 @@ class LocalTimeConfig:
     """
 
     enabled: bool = False
-    grid_file: Optional[str] = None
+    grid_file: str | None = None
 
     def validate(self) -> None:
         """Validate local-time parameters (currently a no-op placeholder)."""
@@ -212,7 +212,7 @@ class PhysicsSchemeConfig:
 
     name: str
     language: str = "cpp"
-    options: Dict[str, Any] = field(default_factory=dict)
+    options: dict[str, Any] = field(default_factory=dict)
 
     def validate(self) -> None:
         """
@@ -273,8 +273,8 @@ class DataStreamConfig:
     """
 
     name: str
-    file_paths: List[str] = field(default_factory=list)
-    variables: Dict[str, str] = field(default_factory=dict)
+    file_paths: list[str] = field(default_factory=list)
+    variables: dict[str, str] = field(default_factory=dict)
     taxmode: str = "cycle"
     tintalgo: str = "nearest"
     mapalgo: str = "default"
@@ -333,9 +333,7 @@ class ValidationResult:
     ...         print(err)
     """
 
-    def __init__(
-        self, is_valid: bool = True, errors: Optional[List[str]] = None
-    ) -> None:
+    def __init__(self, is_valid: bool = True, errors: list[str] | None = None) -> None:
         """
         Initialize validation result.
 
@@ -394,7 +392,7 @@ class CeceConfig:
     Validation passed
     """
 
-    def __init__(self, config_dict: Optional[dict] = None) -> None:
+    def __init__(self, config_dict: dict | None = None) -> None:
         """
         Initialize configuration.
 
@@ -404,17 +402,17 @@ class CeceConfig:
             Dictionary with configuration data to populate from.
             Default is ``None``.
         """
-        self._species: Dict[str, List[EmissionLayer]] = {}
-        self._physics_schemes: List[PhysicsSchemeConfig] = []
-        self._cece_data: Dict[str, Any] = {"streams": []}
+        self._species: dict[str, list[EmissionLayer]] = {}
+        self._physics_schemes: list[PhysicsSchemeConfig] = []
+        self._cece_data: dict[str, Any] = {"streams": []}
         self._vertical_config: VerticalDistributionConfig = VerticalDistributionConfig()
-        self._temporal_cycles: Dict[str, List] = {}
+        self._temporal_cycles: dict[str, list] = {}
         self._local_time: LocalTimeConfig = LocalTimeConfig()
 
         if config_dict:
             self._from_dict(config_dict)
 
-    def add_species(self, name: str, layers: List[EmissionLayer]) -> None:
+    def add_species(self, name: str, layers: list[EmissionLayer]) -> None:
         """
         Add a species with its emission layers.
 
@@ -428,16 +426,17 @@ class CeceConfig:
         Raises
         ------
         ValueError
-            If ``name`` is empty, ``layers`` is not a list, or any layer
-            fails validation.
+            If ``name`` is empty or any layer fails validation.
+        TypeError
+            If ``layers`` is not a list or contains a non-EmissionLayer item.
         """
         if not name:
             raise ValueError("Species name cannot be empty")
         if not isinstance(layers, list):
-            raise ValueError("layers must be a list")
+            raise TypeError("layers must be a list")
         for layer in layers:
             if not isinstance(layer, EmissionLayer):
-                raise ValueError("All layers must be EmissionLayer objects")
+                raise TypeError("All layers must be EmissionLayer objects")
             layer.validate()
         self._species[name] = layers
 
@@ -445,7 +444,7 @@ class CeceConfig:
         self,
         name: str,
         language: str = "cpp",
-        options: Optional[Dict[str, Any]] = None,
+        options: dict[str, Any] | None = None,
     ) -> None:
         """
         Register a physics scheme.
@@ -472,8 +471,8 @@ class CeceConfig:
     def add_data_stream(
         self,
         name: str,
-        file_paths: List[str],
-        variables: Dict[str, str],
+        file_paths: list[str],
+        variables: dict[str, str],
         taxmode: str = "cycle",
         tintalgo: str = "nearest",
         mapalgo: str = "default",
@@ -523,7 +522,7 @@ class CeceConfig:
         stream.validate()
         self._cece_data["streams"].append(stream)
 
-    def add_temporal_cycle(self, name: str, factors: List) -> None:
+    def add_temporal_cycle(self, name: str, factors: list) -> None:
         """
         Add a temporal cycle (diurnal, weekly, or seasonal).
 
@@ -537,13 +536,15 @@ class CeceConfig:
         Raises
         ------
         ValueError
-            If ``name`` is empty, ``factors`` is not a list, ``factors`` is
-            empty, or any factor is negative.
+            If ``name`` is empty, ``factors`` is empty, or any factor is
+            negative.
+        TypeError
+            If ``factors`` is not a list.
         """
         if not name:
             raise ValueError("Cycle name cannot be empty")
         if not isinstance(factors, list):
-            raise ValueError("factors must be a list")
+            raise TypeError("factors must be a list")
         if not factors:
             raise ValueError("factors cannot be empty")
         for f in factors:
@@ -569,7 +570,7 @@ class CeceConfig:
         >>> if not result:
         ...     print(result)
         """
-        errors: List[str] = []
+        errors: list[str] = []
 
         # Validate species
         for name, layers in self._species.items():
@@ -579,21 +580,21 @@ class CeceConfig:
                 try:
                     layer.validate()
                 except ValueError as e:
-                    errors.append(f"Species '{name}': {str(e)}")
+                    errors.append(f"Species '{name}': {e!s}")
 
         # Validate physics schemes
         for scheme in self._physics_schemes:
             try:
                 scheme.validate()
             except ValueError as e:
-                errors.append(f"Physics scheme: {str(e)}")
+                errors.append(f"Physics scheme: {e!s}")
 
         # Validate data streams
         for stream in self._cece_data.get("streams", []):
             try:
                 stream.validate()
             except ValueError as e:
-                errors.append(f"Data stream: {str(e)}")
+                errors.append(f"Data stream: {e!s}")
 
         # Validate temporal cycles
         for name, factors in self._temporal_cycles.items():
@@ -735,7 +736,7 @@ class CeceConfig:
             config_dict = utils.yaml_to_dict(yaml_str)
             return cls.from_dict(config_dict)
         except yaml.YAMLError as e:
-            raise ValueError(f"Invalid YAML: {str(e)}")
+            raise ValueError(f"Invalid YAML: {e!s}")
 
     def _from_dict(self, config_dict: dict) -> None:
         """
@@ -819,17 +820,17 @@ class CeceConfig:
                         )
 
     @property
-    def species(self) -> Dict[str, List[EmissionLayer]]:
+    def species(self) -> dict[str, list[EmissionLayer]]:
         """dict : Mapping of species names to lists of ``EmissionLayer``."""
         return self._species
 
     @property
-    def physics_schemes(self) -> List[PhysicsSchemeConfig]:
+    def physics_schemes(self) -> list[PhysicsSchemeConfig]:
         """list of PhysicsSchemeConfig : Registered physics schemes."""
         return self._physics_schemes
 
     @property
-    def cece_data(self) -> Dict[str, Any]:
+    def cece_data(self) -> dict[str, Any]:
         """dict : Data stream configuration."""
         return self._cece_data
 

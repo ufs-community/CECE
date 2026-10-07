@@ -21,57 +21,54 @@ Examples
 
 from __future__ import annotations
 
-from typing import Optional, Union
-
 __version__ = "0.1.0"
 __all__ = [
-    "initialize",
-    "finalize",
-    "is_initialized",
-    "compute",
-    "load_config",
-    "set_execution_space",
-    "get_execution_space",
-    "get_available_execution_spaces",
-    "set_log_level",
-    "get_diagnostics",
-    "reset_diagnostics",
-    "get_last_error",
+    "CeceComputationError",
     "CeceConfig",
-    "CeceState",
+    "CeceConfigError",
+    "CeceException",
+    "CeceExecutionSpaceError",
     "CeceField",
+    "CeceState",
+    "CeceStateError",
     "EmissionLayer",
     "VerticalDistributionConfig",
-    "CeceException",
-    "CeceConfigError",
-    "CeceComputationError",
-    "CeceStateError",
-    "CeceExecutionSpaceError",
+    "compute",
+    "finalize",
+    "get_available_execution_spaces",
+    "get_diagnostics",
+    "get_execution_space",
+    "get_last_error",
+    "initialize",
+    "is_initialized",
+    "load_config",
+    "reset_diagnostics",
+    "set_execution_space",
+    "set_log_level",
 ]
 
 import numpy as np
 
-from .exceptions import (
-    CeceException,
-    CeceConfigError,
-    CeceComputationError,
-    CeceStateError,
-    CeceExecutionSpaceError,
-)
-from .config import CeceConfig, EmissionLayer, VerticalDistributionConfig
-from .state import CeceState, CeceField
-from .utils import load_config
-
 # Import the pybind11 C++ bindings module
 from . import _cece_core
+from .config import CeceConfig, EmissionLayer, VerticalDistributionConfig
+from .exceptions import (
+    CeceComputationError,
+    CeceConfigError,
+    CeceException,
+    CeceExecutionSpaceError,
+    CeceStateError,
+)
+from .state import CeceField, CeceState
+from .utils import load_config
 
 # Module-level state
-_cpp_config: Optional[_cece_core.CeceConfig] = None
+_cpp_config: _cece_core.CeceConfig | None = None
 _initialized: bool = False
-_last_error: Optional[str] = None
+_last_error: str | None = None
 
 
-def initialize(config: Union[str, dict, CeceConfig]) -> None:
+def initialize(config: str | dict | CeceConfig) -> None:
     """
     Initialize CECE with a configuration.
 
@@ -106,8 +103,9 @@ def initialize(config: Union[str, dict, CeceConfig]) -> None:
     if _initialized:
         raise RuntimeError("CECE is already initialized. Call finalize() first.")
 
-    from .utils import load_config as _load_config
     from pathlib import Path
+
+    from .utils import load_config as _load_config
 
     # Ensure Kokkos is initialized
     if not _cece_core.is_kokkos_initialized():
@@ -126,7 +124,7 @@ def initialize(config: Union[str, dict, CeceConfig]) -> None:
         if path.exists() and path.is_file():
             try:
                 _cpp_config = _cece_core.ParseConfig(str(path))
-            except Exception as e:
+            except (RuntimeError, ValueError) as e:
                 raise CeceConfigError(f"Failed to parse config file: {e}")
         else:
             # YAML string — serialize to temp file or build config from dict
@@ -230,7 +228,7 @@ def is_initialized() -> bool:
 
 def compute(
     state: CeceState,
-    config: Optional[Union[str, dict, CeceConfig]] = None,
+    config: str | dict | CeceConfig | None = None,
     hour: int = 0,
     day_of_week: int = 0,
     month: int = 0,
@@ -473,10 +471,9 @@ def reset_diagnostics() -> None:
     Currently a no-op as diagnostics are not yet exposed via pybind11.
     """
     # No-op: diagnostics are not yet exposed via pybind11.
-    pass
 
 
-def get_last_error() -> Optional[str]:
+def get_last_error() -> str | None:
     """
     Get the last error message, if any.
 

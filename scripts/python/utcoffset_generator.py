@@ -91,7 +91,8 @@ def _expand_rle(blob: bytes, offset: int, total_cells: int) -> list:
 
 def decode_grid(path: str):
     """Return (ncols_per_row, flat int8 cells) for a v1 or v2 file."""
-    blob = open(path, "rb").read()
+    with open(path, "rb") as source:
+        blob = source.read()
     if blob[:4] == MAGIC:
         nrows = struct.unpack_from("<H", blob, 4)[0]
         ncols = list(struct.unpack_from(f"<{nrows}H", blob, 6))
@@ -123,7 +124,7 @@ def rebin(src_ncols, src_cells) -> bytearray:
             # Reduced-cell center longitude.
             lon = -180.0 + (col + 0.5) * (360.0 / dnc)
             # Source column containing that center (floor, clamped).
-            scol = int(math.floor((lon + 180.0) / 360.0 * snc))
+            scol = math.floor((lon + 180.0) / 360.0 * snc)
             scol = max(0, min(snc - 1, scol))
             out.append(src_cells[src_row_off + scol] & 0xFF)
         src_row_off += snc
@@ -134,8 +135,8 @@ def rebin(src_ncols, src_cells) -> bytearray:
 # Timezone rasterization (lazy import; only --from-timezones needs it)
 # ---------------------------------------------------------------------------
 def rasterize_from_timezones(ref_date: datetime) -> bytearray:
-    from timezonefinder import TimezoneFinder  # lazy: --rebin needs no third-party deps
     import zoneinfo
+    from timezonefinder import TimezoneFinder  # lazy: --rebin needs no third-party deps
 
     tf = TimezoneFinder(in_memory=True)
 
@@ -146,8 +147,8 @@ def rasterize_from_timezones(ref_date: datetime) -> bytearray:
         try:
             tz = zoneinfo.ZoneInfo(tz_name)
             secs = ref_date.astimezone(tz).utcoffset().total_seconds()
-            return max(-128, min(127, int(round(secs / 900.0))))
-        except Exception:
+            return max(-128, min(127, round(secs / 900.0)))
+        except (zoneinfo.ZoneInfoNotFoundError, OverflowError, ValueError):
             return 0
 
     out = bytearray()

@@ -1,5 +1,5 @@
-import yaml
 import matplotlib.pyplot as plt
+import yaml
 
 
 def visualize_stacking_plan(config_path: str) -> None:

@@ -2,9 +2,10 @@
 # SPDX-License-Identifier: Apache-2.0
 # Convert MACCity NetCDF files from [-180, 180] to [0, 360] longitude range
 
+import os
+
 import netCDF4 as nc
 import numpy as np
-import os
 
 
 def convert_file(input_path, output_path):

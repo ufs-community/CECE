@@ -12,10 +12,13 @@ Supports all HEMCO features:
   - HEMCO_Diagn.rc diagnostic conversion
 """
 
-import yaml
+from __future__ import annotations
+
 import argparse
 import os
 import re
+
+import yaml
 
 # ---------------------------------------------------------------------------
 # HEMCO category integer -> CECE string label
@@ -527,7 +530,7 @@ def _parse_base_emissions_layer(  # noqa: C901, PLR0915
         streams[be["name"]] = _resolve_path(be["file"], root_val)
 
 
-def convert_hemco_to_cece(hemco_config_path, output_path, diagn_path=None):  # noqa: C901
+def convert_hemco_to_cece(hemco_config_path, output_path, diagn_path=None):
     """
     Convert a HEMCO_Config.rc (and optionally HEMCO_Diagn.rc) to an CECE YAML config.
 
@@ -553,9 +556,8 @@ def convert_hemco_to_cece(hemco_config_path, output_path, diagn_path=None):  # n
     # ------------------------------------------------------------------
     enabled_ext_nrs = {"0"}
     for name, info in parser.extensions.items():
-        if info.get("status") in ("on", "true", "yes", "1"):
-            if "nr" in info:
-                enabled_ext_nrs.add(info["nr"])
+        if info.get("status") in ("on", "true", "yes", "1") and "nr" in info:
+            enabled_ext_nrs.add(info["nr"])
 
     # ------------------------------------------------------------------
     # Process base emissions
@@ -574,7 +576,7 @@ def convert_hemco_to_cece(hemco_config_path, output_path, diagn_path=None):  # n
     # ------------------------------------------------------------------
     # Separate met fields from scale factors
     # ------------------------------------------------------------------
-    for sf_id, sf in parser.scale_factors.items():
+    for sf in parser.scale_factors.values():
         sf_key = sf["name"].lower()
         if "met" in sf_key or sf["file"] == "-":
             cece_config["meteorology"][sf_key] = sf["name"]
@@ -613,7 +615,7 @@ def convert_hemco_to_cece(hemco_config_path, output_path, diagn_path=None):  # n
             diagnostics["output_interval"] = h * 3600 + m * 60 + s
         else:
             diagnostics["output_interval"] = 3600
-    except Exception:
+    except (AttributeError, TypeError, ValueError):
         diagnostics["output_interval"] = 3600
 
     # Parse HEMCO_Diagn.rc if provided or auto-discovered

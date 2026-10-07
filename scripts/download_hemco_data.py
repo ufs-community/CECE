@@ -42,7 +42,7 @@ def main():
     )
     parser.add_argument("-o", "--output", help="The local output file path.")
     args = parser.parse_args()
-    output_path = args.output if args.output else os.path.basename(args.path)
+    output_path = args.output or os.path.basename(args.path)
     download_s3(args.path, output_path)
 
 

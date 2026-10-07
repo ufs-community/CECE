@@ -12,15 +12,15 @@ library logging exclusively.
 from __future__ import annotations
 
 import argparse
-from dataclasses import asdict, dataclass, field
-from enum import StrEnum, unique
 import json
 import logging
 import os
-from pathlib import Path
 import re
 import subprocess
 import sys
+from dataclasses import asdict, dataclass, field
+from enum import StrEnum, unique
+from pathlib import Path
 from typing import Sequence
 
 
@@ -338,21 +338,24 @@ def _verify_single_submodule(
             return status_obj
 
     gitmodules_branch = get_gitmodules_configured_branch(repo_root, sub_path)
-    if gitmodules_branch and sub_path not in branch_map:
-        if gitmodules_branch != target_branch:
-            status_obj.status = VerificationStatus.ERROR
-            status_obj.target_branch = gitmodules_branch
-            status_obj.detail = (
-                f".gitmodules branch '{gitmodules_branch}' "
-                f"differs from parent target branch '{target_branch}'"
-            )
-            logger.error(
-                "Submodule '%s' .gitmodules branch '%s' differs from parent target branch '%s'",
-                sub_path,
-                gitmodules_branch,
-                target_branch,
-            )
-            return status_obj
+    if (
+        gitmodules_branch
+        and sub_path not in branch_map
+        and gitmodules_branch != target_branch
+    ):
+        status_obj.status = VerificationStatus.ERROR
+        status_obj.target_branch = gitmodules_branch
+        status_obj.detail = (
+            f".gitmodules branch '{gitmodules_branch}' "
+            f"differs from parent target branch '{target_branch}'"
+        )
+        logger.error(
+            "Submodule '%s' .gitmodules branch '%s' differs from parent target branch '%s'",
+            sub_path,
+            gitmodules_branch,
+            target_branch,
+        )
+        return status_obj
 
     sub_branch = resolve_submodule_target_branch(
         repo_root=repo_root,
@@ -542,7 +545,7 @@ def get_web_url_from_remote(remote_url: str) -> str | None:
     if not remote_url:
         return None
     url = remote_url.strip().removesuffix(".git")
-    if url.startswith("http://") or url.startswith("https://"):
+    if url.startswith(("http://", "https://")):
         return url
 
     # Strip ssh:// and git@ prefixes
@@ -671,17 +674,17 @@ def generate_step_summary(
 
     if excluded:
         excluded_display = ", ".join(f"`{p}`" for p in excluded)
-        lines.append(
-            f"**Excluded from verification ({len(excluded)}):** {excluded_display}"
-        )
-        lines.append("")
+        lines.extend((
+            f"**Excluded from verification ({len(excluded)}):** {excluded_display}",
+            "",
+        ))
 
     has_errors = any(s.status != VerificationStatus.OK for s in statuses)
     if has_errors:
-        lines.append("> [!WARNING]")
-        lines.append(
-            "> One or more submodules are out of sync with their upstream tracking branches."
-        )
+        lines.extend((
+            "> [!WARNING]",
+            "> One or more submodules are out of sync with their upstream tracking branches.",
+        ))
 
     summary_file.write_text("\n".join(lines) + "\n", encoding="utf-8")
     logger.info("GitHub Step Summary written to %s", summary_file)
@@ -797,9 +800,9 @@ def main(argv: Sequence[str] | None = None) -> int:
 
         return 0 if all_ok else 1
 
-    except Exception as ex:
+    except Exception:
         logger.exception(
-            "Submodule verification terminated with an unhandled exception: %s", ex
+            "Submodule verification terminated with an unhandled exception"
         )
         return 1
 
