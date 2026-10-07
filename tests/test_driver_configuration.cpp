@@ -907,8 +907,3 @@ physics_schemes:
     EXPECT_EQ(config.driver_config.grid.nx, 4);
     EXPECT_EQ(config.driver_config.grid.ny, 4);
 }
-
-int main(int argc, char** argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
-}

@@ -28,6 +28,9 @@ __pycache__/
 venv*/
 .venv*/
 
+# Local Poetry dependency resolution
+/poetry.lock
+
 # Temporary files
 *.tmp
 *.temp

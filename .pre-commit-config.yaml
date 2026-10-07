@@ -33,7 +33,21 @@ repos:
     rev: "0.27.2"
     hooks:
       - id: gersemi
-        args: [--in-place, --indent=2, --line-length=100]
+        # --definitions teaches gersemi the project's own CMake functions
+        # (cece_add_gtest, cece_register_dep, ...) so it formats their keyword
+        # arguments and stops warning about unknown commands. It takes a list of
+        # paths, so it must precede another option: pre-commit appends the files
+        # to format after the last argument.
+        args:
+          [
+            --definitions,
+            cmake,
+            CMakeLists.txt,
+            tests/CMakeLists.txt,
+            --in-place,
+            --indent=2,
+            --line-length=100,
+          ]
 
   # YAML formatting
   - repo: https://github.com/rbubley/mirrors-prettier

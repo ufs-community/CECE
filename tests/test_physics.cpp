@@ -50,7 +50,6 @@ class PhysicsTest : public ::testing::Test {
         export_state.fields["dust_emissions"] = create_dv("dust", 0.0);
         export_state.fields["volcanic_so2"] = create_dv("so2", 0.0);
         export_state.fields["nox"] = create_dv("nox", 0.0);
-        export_state.fields["MEGAN_ISOP"] = create_dv("megan_isop", 0.0);
         import_state.fields["base_anthropogenic_nox"] = create_dv("base_nox", 1.0);
         import_state.fields["soil_temperature"] = create_dv("soil_temp", 300.0);
 
@@ -138,10 +137,6 @@ TEST_F(PhysicsTest, SeaSaltParity) {
     TestParity(this, "sea_salt", "sea_salt_fortran", "SALA");
 }
 
-TEST_F(PhysicsTest, MeganParity) {
-    TestParity(this, "megan", "megan_fortran", "isoprene");
-}
-
 TEST_F(PhysicsTest, DMSParity) {
     TestParity(this, "dms", "dms_fortran", "dms");
 }
@@ -160,10 +155,6 @@ TEST_F(PhysicsTest, DustParity) {
 
 TEST_F(PhysicsTest, VolcanoParity) {
     TestParity(this, "volcano", "volcano_fortran", "so2");
-}
-
-TEST_F(PhysicsTest, Megan3CppFortranParity) {
-    TestParity(this, "megan3", "megan3_fortran", "MEGAN_ISOP");
 }
 
 // Vertical Distribution Verification
@@ -381,8 +372,3 @@ TEST_F(PhysicsTest, ConfigurableParameters) {
 }
 
 }  // namespace cece
-
-int main(int argc, char** argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
-}

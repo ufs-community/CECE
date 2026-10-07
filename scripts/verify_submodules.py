@@ -52,7 +52,13 @@ class UpstreamRemoteConfig:
             "extern/helm/libs/amio": "https://github.com/bbakernoaa/amio",
         }
     )
-    excluded_submodules: set[str] = field(default_factory=set)
+    # Third-party submodules pinned to an upstream release rather than tracked
+    # against a CECE-governed branch; they have no "develop" to verify against.
+    excluded_submodules: set[str] = field(
+        default_factory=lambda: {
+            "extern/yaml-cpp",
+        }
+    )
 
 
 def is_submodule_excluded(path: str, exclude_set: set[str]) -> bool:
@@ -278,6 +284,12 @@ def verify_submodules(
         repo_root,
         target_branch,
     )
+    if upstream_config.excluded_submodules:
+        logger.info(
+            "Excluding %d submodule(s) from verification: %s",
+            len(upstream_config.excluded_submodules),
+            ", ".join(sorted(upstream_config.excluded_submodules)),
+        )
 
     declared_paths = {
         p
@@ -445,9 +457,11 @@ def verify_submodules(
 
 
 def log_verification_report(
-    statuses: list[SubmoduleStatus], target_branch: str
+    statuses: list[SubmoduleStatus],
+    target_branch: str,
+    excluded: Sequence[str] = (),
 ) -> bool:
-    """Log formatted report table. Returns True if all passed."""
+    """Log formatted report table (and the excluded submodules). Returns True if all passed."""
     sep = "=" * 88
     dash_sep = "-" * 88
 
@@ -489,6 +503,11 @@ def log_verification_report(
             status_display,
         )
 
+    if excluded:
+        log_func(dash_sep)
+        log_func(
+            "Excluded from verification (%d): %s", len(excluded), ", ".join(excluded)
+        )
     log_func(sep)
 
     if not has_errors:
@@ -591,8 +610,9 @@ def generate_step_summary(
     target_branch: str,
     summary_file: Path,
     repo_root: Path | None = None,
+    excluded: Sequence[str] = (),
 ) -> None:
-    """Write GitHub Actions step summary markdown table to summary_file."""
+    """Write GitHub Actions step summary markdown table (and the excluded submodules) to summary_file."""
     parent_web_url = None
     if repo_root:
         code, out, _ = run_git_cmd(["config", "remote.origin.url"], cwd=repo_root)
@@ -635,6 +655,13 @@ def generate_step_summary(
         )
 
     lines.append("")
+
+    if excluded:
+        excluded_display = ", ".join(f"`{p}`" for p in excluded)
+        lines.append(
+            f"**Excluded from verification ({len(excluded)}):** {excluded_display}"
+        )
+        lines.append("")
 
     has_errors = any(s.status != VerificationStatus.OK for s in statuses)
     if has_errors:
@@ -724,13 +751,16 @@ def main(argv: Sequence[str] | None = None) -> int:
         branch_map = parse_branch_map_args(opts.branch_map)
         repo_root = get_repo_root(opts.repo_root)
 
+        upstream_config = UpstreamRemoteConfig()
+        excluded = sorted(upstream_config.excluded_submodules)
         statuses = verify_submodules(
             repo_root=repo_root,
             target_branch=opts.target_branch,
             branch_map=branch_map,
+            upstream_config=upstream_config,
         )
 
-        all_ok = log_verification_report(statuses, opts.target_branch)
+        all_ok = log_verification_report(statuses, opts.target_branch, excluded)
 
         # Output JSON if requested
         if opts.json:
@@ -745,7 +775,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         if opts.step_summary:
             summary_path = Path(opts.step_summary)
             generate_step_summary(
-                statuses, opts.target_branch, summary_path, repo_root=repo_root
+                statuses,
+                opts.target_branch,
+                summary_path,
+                repo_root=repo_root,
+                excluded=excluded,
             )
 
         return 0 if all_ok else 1

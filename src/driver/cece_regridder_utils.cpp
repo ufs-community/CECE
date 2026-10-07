@@ -10,6 +10,7 @@
 #include <cmath>
 #include <fstream>
 #include <iostream>
+#include <limits>
 #include <sstream>
 #include <stdexcept>
 
@@ -138,6 +139,88 @@ static bool looks_like_fv3_supergrid(amio_dataset_handle dataset, int nx, int nb
     char std_name[kAttrCap];
     return read_attr("x", "standard_name", std_name, kAttrCap) && std::string(std_name) == "geographic_longitude" &&
            read_attr("y", "standard_name", std_name, kAttrCap) && std::string(std_name) == "geographic_latitude";
+}
+
+// Read a CF rectilinear axis and its explicitly named cell bounds. Do not infer
+// polar edges from centres or wrap longitudes: either operation changes the
+// supplied grid. Unsupported/malformed bounds must fail, not silently regrid.
+static std::vector<double> read_rectilinear_bounds(amio_dataset_handle dataset, const char* axis_name, int count, bool latitude) {
+    auto text_attribute = [&](const char* attribute) {
+        char value[1024]{};
+        size_t length = 0;
+        if (amio_get_var_attribute_text(dataset, axis_name, attribute, value, sizeof(value), &length) != AMIO_OK || length == 0 ||
+            length >= sizeof(value)) {
+            throw std::runtime_error(std::string("CF rectilinear axis lacks valid ") + attribute + ": " + axis_name);
+        }
+        return std::string(value);
+    };
+    const auto units = text_attribute("units");
+    if (latitude ? (units != "degrees_north" && units != "degree_north") : (units != "degrees_east" && units != "degree_east")) {
+        throw std::runtime_error(std::string("CF rectilinear axis must use geographic degree units: ") + axis_name);
+    }
+    const auto bounds_name = text_attribute("bounds");
+    amio_shape_t shape{};
+    int64_t timesteps = 0;
+    if (amio_describe(dataset, bounds_name.c_str(), &shape, &timesteps) != AMIO_OK || shape.rank != 2 || shape.extents[0] != count ||
+        shape.extents[1] != 2) {
+        throw std::runtime_error("CF rectilinear bounds must have shape [axis, 2]: " + bounds_name);
+    }
+    int points = 0;
+    const auto centres = read_coordinate_array(dataset, axis_name, false, false, points);
+    if (points != count) throw std::runtime_error("CF rectilinear centre count mismatch");
+    const auto bounds = read_coordinate_array(dataset, bounds_name, false, false, points);
+    if (static_cast<size_t>(points) != 2 * static_cast<size_t>(count)) throw std::runtime_error("CF rectilinear bounds count mismatch");
+    for (int i = 0; i < count; ++i) {
+        const size_t offset = 2 * static_cast<size_t>(i);
+        const double lo = bounds[offset], hi = bounds[offset + 1], centre = centres[i];
+        if (!std::isfinite(lo) || !std::isfinite(hi) || !std::isfinite(centre) || !(lo < hi) || centre < lo || centre > hi ||
+            (latitude ? (lo < -90.0 || hi > 90.0) : (hi - lo > 180.0))) {
+            throw std::runtime_error("Invalid CF rectilinear cell bounds: " + bounds_name);
+        }
+        if (i > 0 && (centres[i] == centres[i - 1] || (i > 1 && ((centres[i] > centres[i - 1]) != (centres[1] > centres[0]))))) {
+            throw std::runtime_error(std::string("Nonmonotonic CF rectilinear axis: ") + axis_name);
+        }
+    }
+    return bounds;
+}
+
+static axis::topology::UnstructuredMesh<Kokkos::HostSpace> load_rectilinear_mesh(amio_dataset_handle dataset, int nx, int nband, int j0) {
+    amio_shape_t lon_shape{}, lat_shape{};
+    int64_t timesteps = 0;
+    if (nx <= 0 || nband < 0 || j0 < 0 || amio_describe(dataset, "lon", &lon_shape, &timesteps) != AMIO_OK ||
+        amio_describe(dataset, "lat", &lat_shape, &timesteps) != AMIO_OK || lon_shape.rank != 1 || lat_shape.rank != 1 ||
+        lon_shape.extents[0] != nx || nx > std::numeric_limits<int>::max() / 2 || lat_shape.extents[0] <= 0 ||
+        lat_shape.extents[0] > std::numeric_limits<int>::max() / 2 || static_cast<int64_t>(j0) + nband > lat_shape.extents[0]) {
+        throw std::runtime_error("CF rectilinear gridspec dimensions do not match the requested band");
+    }
+    const auto lon_bounds = read_rectilinear_bounds(dataset, "lon", nx, false);
+    const auto lat_bounds = read_rectilinear_bounds(dataset, "lat", static_cast<int>(lat_shape.extents[0]), true);
+    const size_t cells = static_cast<size_t>(nx) * nband;
+    if (cells > static_cast<size_t>(std::numeric_limits<axis::index_t>::max()) / 4) throw std::runtime_error("CF rectilinear mesh too large");
+    Kokkos::View<double**, Kokkos::LayoutLeft, Kokkos::HostSpace> nodes("cf_rectilinear_nodes", cells * 4, 2);
+    Kokkos::View<axis::index_t*, Kokkos::HostSpace> offsets("cf_rectilinear_offsets", cells + 1);
+    Kokkos::View<axis::index_t*, Kokkos::HostSpace> indices("cf_rectilinear_indices", cells * 4);
+    for (int j = 0; j < nband; ++j) {
+        for (int i = 0; i < nx; ++i) {
+            const size_t cell = static_cast<size_t>(j) * nx + i, first = cell * 4;
+            const size_t longitude_offset = 2 * static_cast<size_t>(i);
+            const size_t latitude_offset = 2 * (static_cast<size_t>(j0) + static_cast<size_t>(j));
+            const double west = lon_bounds[longitude_offset], east = lon_bounds[longitude_offset + 1];
+            const double south = lat_bounds[latitude_offset], north = lat_bounds[latitude_offset + 1];
+            nodes(first, 0) = west;
+            nodes(first, 1) = south;
+            nodes(first + 1, 0) = east;
+            nodes(first + 1, 1) = south;
+            nodes(first + 2, 0) = east;
+            nodes(first + 2, 1) = north;
+            nodes(first + 3, 0) = west;
+            nodes(first + 3, 1) = north;
+            offsets(cell) = static_cast<axis::index_t>(first);
+            for (size_t v = 0; v < 4; ++v) indices(first + v) = static_cast<axis::index_t>(first + v);
+        }
+    }
+    offsets(cells) = static_cast<axis::index_t>(cells * 4);
+    return axis::topology::UnstructuredMesh<Kokkos::HostSpace>(nodes, offsets, indices, axis::topology::CoordinateSystem::SphericalDeg);
 }
 
 static axis::topology::UnstructuredMesh<Kokkos::HostSpace> load_mesh_from_file(int nx, int nband, int j0, const std::string& gridspec_file) {
@@ -464,11 +547,27 @@ static axis::topology::UnstructuredMesh<Kokkos::HostSpace> load_mesh_from_file(i
         }
     }
 
+    // E. CF rectilinear grids with explicit bounds, including HEMCO polar caps.
+    amio_shape_t cf_lon{}, cf_lat{};
+    int64_t cf_times = 0;
+    if (amio_describe(dataset, "lon", &cf_lon, &cf_times) == AMIO_OK && amio_describe(dataset, "lat", &cf_lat, &cf_times) == AMIO_OK &&
+        cf_lon.rank == 1 && cf_lat.rank == 1) {
+        try {
+            auto mesh = load_rectilinear_mesh(dataset, nx, nband, j0);
+            amio_close(dataset);
+            amio_finalize(core);
+            return mesh;
+        } catch (...) {
+            amio_close(dataset);
+            amio_finalize(core);
+            throw;
+        }
+    }
     amio_close(dataset);
     amio_finalize(core);
-    throw std::runtime_error(
-        "Unsupported gridspec mesh topology convention in '" + gridspec_file +
-        "' (expected SCRIP [grid_corner_lon], MPAS [latVertex], UFS/FV3 grid_spec [grid_lon/grid_lat], or UFS/FV3 supergrid [x/y])");
+    throw std::runtime_error("Unsupported gridspec mesh topology convention in '" + gridspec_file +
+                             "' (expected SCRIP [grid_corner_lon], MPAS [latVertex], UFS/FV3 grid_spec [grid_lon/grid_lat], UFS/FV3 supergrid [x/y], "
+                             "or CF rectilinear [lon/lat with explicit bounds])");
 }
 
 axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_axis_mesh(int nx, int nband, int j0, const std::vector<double>& lons,

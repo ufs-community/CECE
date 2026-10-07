@@ -173,7 +173,7 @@ config = cece.CeceConfig.from_dict({
 config = cece.CeceConfig()
 layer = cece.EmissionLayer(field_name="CO_ANTHRO", operation="add", scale=1.5)
 config.add_species("CO", [layer])
-config.add_physics_scheme("megan", language="fortran")
+config.add_physics_scheme("megan", language="cpp")
 
 # Validate
 result = config.validate()
