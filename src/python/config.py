@@ -504,6 +504,36 @@ class DataVariableConfig:
         return result
 
 
+_STREAM_ENUM_VALUES = {
+    "taxmode": {"cycle", "extend", "limit"},
+    "tintalgo": {"linear", "nearest"},
+    "mapalgo": {
+        "passthrough",
+        "nearest",
+        "near",
+        "nn",
+        "bilinear",
+        "bilin",
+        "bi",
+        "cubic",
+        "bicubic",
+        "cu",
+        "conss",
+        "conservative2nd",
+        "cons2nd",
+        "consd",
+        "conservative",
+        "cons",
+        "conservative1st",
+        "consf",
+        "redist",
+    },
+    "cadence": {"series", "daily", "monthly", "hourly", "weekly", "stepwise", "step"},
+    "time_label": {"auto", "start", "center", "end"},
+    "data_model": {"classic", "enhanced", "auto"},
+}
+
+
 @dataclass
 class DataStreamConfig:
     """
@@ -598,56 +628,10 @@ class DataStreamConfig:
             raise ValueError("variables must be a non-empty list")
         for variable in self.variables:
             variable.validate()
-        for key in (
-            "taxmode",
-            "tintalgo",
-            "mapalgo",
-            "cadence",
-            "time_label",
-            "data_model",
-        ):
-            _validate_string(getattr(self, key), key)
-        if self.taxmode not in ["cycle", "extend", "limit"]:
-            raise ValueError(f"Invalid taxmode: {self.taxmode}")
-        if self.time_label not in ["auto", "start", "center", "end"]:
-            raise ValueError(f"Invalid time_label: {self.time_label}")
-        if self.tintalgo not in ["linear", "nearest"]:
-            raise ValueError(f"Invalid tintalgo: {self.tintalgo}")
-        if self.cadence not in [
-            "series",
-            "daily",
-            "monthly",
-            "hourly",
-            "weekly",
-            "stepwise",
-            "step",
-        ]:
-            raise ValueError(f"Invalid cadence: {self.cadence}")
-        valid_mapalgos = {
-            "passthrough",
-            "nearest",
-            "near",
-            "nn",
-            "bilinear",
-            "bilin",
-            "bi",
-            "cubic",
-            "bicubic",
-            "cu",
-            "conss",
-            "conservative2nd",
-            "cons2nd",
-            "consd",
-            "conservative",
-            "cons",
-            "conservative1st",
-            "consf",
-            "redist",
-        }
-        if self.mapalgo not in valid_mapalgos:
-            raise ValueError(f"Invalid mapalgo: {self.mapalgo}")
-        if self.data_model not in ["classic", "enhanced", "auto"]:
-            raise ValueError(f"Invalid data_model: {self.data_model}")
+        for key, allowed in _STREAM_ENUM_VALUES.items():
+            value = _validate_string(getattr(self, key), key)
+            if value not in allowed:
+                raise ValueError(f"Invalid {key}: {value}")
         for key in (
             "dtlimit",
             "yearFirst",
@@ -1381,9 +1365,7 @@ class CeceConfig:
         }
         unknown_options = set(stream_options) - allowed_options
         if unknown_options:
-            raise ValueError(
-                f"Unknown data stream option: {sorted(unknown_options)[0]}"
-            )
+            raise ValueError(f"Unknown data stream option: {min(unknown_options)}")
         stream = DataStreamConfig(
             name,
             file_paths,
@@ -1426,7 +1408,7 @@ class CeceConfig:
         _validate_temporal_factors(factors)
         self._temporal_profiles[name] = factors
 
-    def validate(self) -> ValidationResult:
+    def validate(self) -> ValidationResult:  # noqa: C901
         """
         Validate the entire configuration.
 
@@ -1779,7 +1761,7 @@ class CeceConfig:
             raise ValueError("YAML must represent a mapping")
         return cls.from_dict(config_dict)
 
-    def _from_dict(self, config_dict: dict) -> None:
+    def _from_dict(self, config_dict: dict) -> None:  # noqa: C901, PLR0915
         """
         Populate configuration from a dictionary.
 

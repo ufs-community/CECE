@@ -282,7 +282,7 @@ def test_temporal_cycle_references_and_lengths_are_validated():
     invalid = valid_config()
     invalid["temporal_profiles"]["traffic"] = [1.0] * 23
 
-    with pytest.raises(ValueError, match="diurnal_cycle.*must have 24 factors"):
+    with pytest.raises(ValueError, match=r"diurnal_cycle.*must have 24 factors"):
         config.CeceConfig.from_dict(invalid)
 
     programmatic = config.CeceConfig()
@@ -327,7 +327,7 @@ def test_local_time_defaults_are_omitted():
 
 
 def test_use_local_time_requires_enabled_local_time():
-    with pytest.raises(ValueError, match="local_time.enabled is false"):
+    with pytest.raises(ValueError, match=r"local_time\.enabled is false"):
         config.CeceConfig.from_dict(_local_time_config(False))
 
 

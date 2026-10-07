@@ -4,7 +4,6 @@ from pathlib import Path
 
 import pytest
 
-
 SCRIPT_PATH = Path(__file__).parents[1] / "scripts" / "validate_cece_config.py"
 SPEC = importlib.util.spec_from_file_location("cece_config_validator", SCRIPT_PATH)
 validator = importlib.util.module_from_spec(SPEC)

@@ -141,11 +141,11 @@ def extract_markdown_yaml_blocks(markdown: str) -> Iterable[MarkdownYamlBlock]:
 
 
 def _yaml_line_for_path(yaml_text: str, path: str) -> int:
-    try:
-        import yaml
+    import yaml
 
+    try:
         node = yaml.compose(yaml_text, Loader=yaml.SafeLoader)
-    except Exception:
+    except yaml.YAMLError:
         return 1
     if node is None:
         return 1
@@ -315,7 +315,7 @@ def _wrap_yaml_fragment(yaml_text: str, context_path: str) -> tuple[str, int]:
     return "\n".join([*prefix, fragment]), len(prefix)
 
 
-def validate_yaml_text(
+def validate_yaml_text(  # noqa: C901
     yaml_text: str,
     source: str,
     line_offset: int,
@@ -349,9 +349,11 @@ def validate_yaml_text(
         return [
             (
                 source_line(1),
-                "expected a CECE configuration mapping, not a YAML list; "
-                "put this fragment under its full configuration path or mark it "
-                "with the CECE validation skip comment",
+                (
+                    "expected a CECE configuration mapping, not a YAML list; "
+                    "put this fragment under its full configuration path or mark it "
+                    "with the CECE validation skip comment"
+                ),
             )
         ], None
     if not isinstance(data, dict):
