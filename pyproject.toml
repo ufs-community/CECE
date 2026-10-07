@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "cece-tools"
 version = "0.1.0"
 description = "Tools and scripts for the CECE (Atmospheric Chemistry Emissions Stacker) component."
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 dependencies = [
     "pyyaml",
 ]

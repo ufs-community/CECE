@@ -13,8 +13,7 @@ def download_s3(s3_path, local_path):
     base_url = f"https://{bucket}.s3.amazonaws.com"
 
     clean_path = s3_path
-    if clean_path.startswith("s3://"):
-        clean_path = clean_path[5:]
+    clean_path = clean_path.removeprefix("s3://")
 
     if clean_path.startswith(f"{bucket}/"):
         clean_path = clean_path[len(bucket) + 1 :]

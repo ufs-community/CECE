@@ -18,10 +18,10 @@ import os
 import re
 import subprocess
 import sys
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
 from enum import StrEnum, unique
 from pathlib import Path
-from typing import Sequence
 
 
 @unique
@@ -551,8 +551,7 @@ def get_web_url_from_remote(remote_url: str) -> str | None:
         return url
 
     # Strip ssh:// and git@ prefixes
-    if url.startswith("ssh://"):
-        url = url[6:]
+    url = url.removeprefix("ssh://")
     if "@" in url:
         url = url.split("@", 1)[1]
 

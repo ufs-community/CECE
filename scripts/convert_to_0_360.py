@@ -14,9 +14,10 @@ def convert_file(input_path, output_path):
         print(f"Error: {input_path} does not exist.")
         return False
 
-    with nc.Dataset(input_path, "r") as src, nc.Dataset(
-        output_path, "w", format="NETCDF4"
-    ) as dst:
+    with (
+        nc.Dataset(input_path, "r") as src,
+        nc.Dataset(output_path, "w", format="NETCDF4") as dst,
+    ):
         # Copy global attributes
         for name in src.ncattrs():
             dst.setncattr(name, src.getncattr(name))

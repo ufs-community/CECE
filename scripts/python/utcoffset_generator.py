@@ -136,6 +136,7 @@ def rebin(src_ncols, src_cells) -> bytearray:
 # ---------------------------------------------------------------------------
 def rasterize_from_timezones(ref_date: datetime) -> bytearray:
     import zoneinfo
+
     from timezonefinder import TimezoneFinder  # lazy: --rebin needs no third-party deps
 
     tf = TimezoneFinder(in_memory=True)
