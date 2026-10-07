@@ -1,8 +1,10 @@
 #include <gtest/gtest.h>
 
 #include <Kokkos_Core.hpp>
+#include <cmath>
 #include <conf/config.hpp>
 #include <conf/value.hpp>
+#include <limits>
 
 #include "cece/cece_physics_factory.hpp"
 #include "cece/cece_state.hpp"
@@ -141,8 +143,140 @@ TEST_F(PhysicsTest, DMSParity) {
     TestParity(this, "dms", "dms_fortran", "dms");
 }
 
-TEST_F(PhysicsTest, LightningParity) {
-    TestParity(this, "lightning", "lightning_fortran", "lightning_nox");
+TEST_F(PhysicsTest, LightningMolecularYieldAndTimeUnits) {
+    PhysicsSchemeConfig cfg;
+    cfg.name = "lightning";
+    auto scheme = PhysicsFactory::CreateScheme(cfg);
+    ASSERT_NE(scheme, nullptr);
+    scheme->Initialize(cfg.options, nullptr);
+    scheme->Run(import_state, export_state);
+    auto& output = export_state.fields["lightning_nox_emissions"];
+    output.sync_host();
+    const double flash_rate = 3.44e-5 * std::pow(5.0, 4.9) / 60.0;
+    const double expected = flash_rate * 500.0 * 0.030 / nz;
+    EXPECT_NEAR(output.view_host()(0, 0, 0), expected, expected * 1.0e-12);
+
+    auto options = conf::Config::from_string("flash_rate_time_unit: seconds");
+    scheme->Initialize(options.root(), nullptr);
+    ClearExports();
+    scheme->Run(import_state, export_state);
+    output.sync_host();
+    EXPECT_NEAR(output.view_host()(0, 0, 0), expected * 60.0, expected * 60.0 * 1.0e-12);
+}
+
+TEST_F(PhysicsTest, LightningColumnDiagnosticsAndConservation) {
+    PhysicsSchemeConfig cfg;
+    cfg.name = "lightning";
+    import_state.fields["cell_area"] = create_dv("area", 1.0e8);
+    for (const auto& name : {"lightning_flash_rate", "lightning_flash_density", "lightning_nox_efficiency", "lightning_nox_production"}) {
+        export_state.fields[name] = create_dv(name, -1.0);
+    }
+    auto& mask = import_state.fields["land_mask"];
+    mask.view_host()(1, 0, 0) = 0.0;
+    mask.modify_host();
+    mask.sync_device();
+    auto scheme = PhysicsFactory::CreateScheme(cfg);
+    ASSERT_NE(scheme, nullptr);
+    scheme->Initialize(cfg.options, nullptr);
+    scheme->Run(import_state, export_state);
+    for (auto& [name, field] : export_state.fields) field.sync_host();
+    const double expected_rate = 3.44e-5 * std::pow(5.0, 4.9) / 60.0;
+    for (int column = 0; column < 2; ++column) {
+        const double expected_efficiency = (column == 0 ? 3.011e26 : 1.566e26) / 6.022e23;
+        const double production = expected_rate * expected_efficiency * 0.030;
+        EXPECT_NEAR(export_state.fields["lightning_flash_rate"].view_host()(column, 0, 0), expected_rate, expected_rate * 1.0e-12);
+        EXPECT_NEAR(export_state.fields["lightning_flash_density"].view_host()(column, 0, 0), expected_rate * 36.0, expected_rate * 36.0 * 1.0e-12);
+        EXPECT_NEAR(export_state.fields["lightning_nox_efficiency"].view_host()(column, 0, 0), expected_efficiency, expected_efficiency * 1.0e-12);
+        EXPECT_NEAR(export_state.fields["lightning_nox_production"].view_host()(column, 0, 0), production, production * 1.0e-12);
+        double column_total = 0.0;
+        for (int level = 0; level < nz; ++level) column_total += export_state.fields["lightning_nox_emissions"].view_host()(column, 0, level);
+        EXPECT_NEAR(column_total, production, production * 1.0e-12);
+        EXPECT_DOUBLE_EQ(export_state.fields["lightning_flash_rate"].view_host()(column, 0, 1), 0.0);
+        EXPECT_TRUE(std::isnan(export_state.fields["lightning_nox_efficiency"].view_host()(column, 0, 1)));
+    }
+    scheme->Run(import_state, export_state);
+    export_state.fields["lightning_flash_rate"].sync_host();
+    export_state.fields["lightning_nox_emissions"].sync_host();
+    EXPECT_NEAR(export_state.fields["lightning_flash_rate"].view_host()(0, 0, 0), expected_rate, expected_rate * 1.0e-12);
+    EXPECT_NEAR(export_state.fields["lightning_nox_emissions"].view_host()(0, 0, 0), expected_rate * 500.0 * 0.030 / nz,
+                expected_rate * 500.0 * 0.030 / nz * 1.0e-12);
+    SetFieldValue("cloud_top_height", 0.0);
+    scheme->Run(import_state, export_state);
+    for (auto& [name, field] : export_state.fields) field.sync_host();
+    EXPECT_DOUBLE_EQ(export_state.fields["lightning_flash_rate"].view_host()(0, 0, 0), 0.0);
+    EXPECT_DOUBLE_EQ(export_state.fields["lightning_flash_density"].view_host()(0, 0, 0), 0.0);
+    EXPECT_DOUBLE_EQ(export_state.fields["lightning_nox_production"].view_host()(0, 0, 0), 0.0);
+    EXPECT_DOUBLE_EQ(export_state.fields["lightning_nox_emissions"].view_host()(0, 0, 0), 0.0);
+    EXPECT_TRUE(std::isnan(export_state.fields["lightning_nox_efficiency"].view_host()(0, 0, 0)));
+}
+
+TEST_F(PhysicsTest, LightningRejectsMissingOrInvalidArea) {
+    PhysicsSchemeConfig cfg;
+    cfg.name = "lightning";
+    export_state.fields["lightning_flash_density"] = create_dv("density", 0.0);
+    auto scheme = PhysicsFactory::CreateScheme(cfg);
+    ASSERT_NE(scheme, nullptr);
+    scheme->Initialize(cfg.options, nullptr);
+    EXPECT_THROW(scheme->Run(import_state, export_state), std::runtime_error);
+    import_state.fields["cell_area"] = create_dv("area", 0.0);
+    EXPECT_THROW(scheme->Run(import_state, export_state), std::invalid_argument);
+    SetFieldValue("cell_area", std::numeric_limits<double>::quiet_NaN());
+    EXPECT_THROW(scheme->Run(import_state, export_state), std::invalid_argument);
+}
+
+TEST_F(PhysicsTest, LightningMappedSingleLevelDiagnostics) {
+    PhysicsSchemeConfig cfg;
+    cfg.name = "lightning";
+    auto options = conf::Config::from_string(R"(
+input_mapping:
+  cloud_top_height: HEIGHT
+  cell_area: AREA
+output_mapping:
+  lightning_nox_emissions: NO
+  lightning_flash_rate: RATE
+  lightning_flash_density: DENSITY
+  lightning_nox_efficiency: EFFICIENCY
+)");
+    import_state.fields["HEIGHT"] = create_dv("height", 10000.0);
+    import_state.fields["AREA"] = create_dv("area", 1.0e6);
+    import_state.fields.erase("land_mask");
+    export_state.fields["NO"] = create_dv("no", 0.0);
+    for (const auto& name : {"RATE", "DENSITY", "EFFICIENCY"}) {
+        export_state.fields[name] = DualView3D(name, nx, ny, 1);
+    }
+    auto scheme = PhysicsFactory::CreateScheme(cfg);
+    ASSERT_NE(scheme, nullptr);
+    scheme->Initialize(options.root(), nullptr);
+    scheme->Run(import_state, export_state);
+    for (auto& [name, field] : export_state.fields) field.sync_host();
+    const double expected_rate = 3.44e-5 * std::pow(10.0, 4.9) / 60.0;
+    EXPECT_NEAR(export_state.fields["RATE"].view_host()(0, 0, 0), expected_rate, expected_rate * 1.0e-12);
+    EXPECT_NEAR(export_state.fields["DENSITY"].view_host()(0, 0, 0), expected_rate * 3600.0, expected_rate * 3600.0 * 1.0e-12);
+    EXPECT_NEAR(export_state.fields["EFFICIENCY"].view_host()(0, 0, 0), 500.0, 5.0e-10);
+}
+
+TEST_F(PhysicsTest, LightningRejectsInvalidOptionsAndShapes) {
+    PhysicsSchemeConfig cfg;
+    cfg.name = "lightning";
+    auto scheme = PhysicsFactory::CreateScheme(cfg);
+    ASSERT_NE(scheme, nullptr);
+    for (const auto& yaml : {"flash_rate_time_unit: hours", "yield_land: -1", "yield_ocean: .nan", "flash_rate_coeff: -1", "flash_rate_power: 0"}) {
+        auto options = conf::Config::from_string(yaml);
+        EXPECT_THROW(scheme->Initialize(options.root(), nullptr), std::invalid_argument);
+    }
+    scheme->Initialize(cfg.options, nullptr);
+    export_state.fields["lightning_flash_rate"] = DualView3D("bad_shape", nx + 1, ny, 1);
+    EXPECT_THROW(scheme->Run(import_state, export_state), std::invalid_argument);
+}
+
+TEST_F(PhysicsTest, LightningEmptyLatitudeBand) {
+    PhysicsSchemeConfig cfg;
+    cfg.name = "lightning";
+    auto scheme = PhysicsFactory::CreateScheme(cfg);
+    ASSERT_NE(scheme, nullptr);
+    scheme->Initialize(cfg.options, nullptr);
+    export_state.fields["lightning_nox_emissions"] = DualView3D("empty_band", nx, 0, nz);
+    EXPECT_NO_THROW(scheme->Run(import_state, export_state));
 }
 
 TEST_F(PhysicsTest, SoilNoxParity) {

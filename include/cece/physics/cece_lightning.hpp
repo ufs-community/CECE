@@ -22,6 +22,7 @@ class LightningScheme : public BasePhysicsScheme {
     double yield_ocean_ = 1.566e26;
     double flash_rate_coeff_ = 3.44e-5;
     double flash_rate_pow_ = 4.9;
+    double flash_rate_time_seconds_ = 60.0;
 };
 
 }  // namespace cece

@@ -52,6 +52,15 @@ This directory contains example YAML configuration files demonstrating various C
 - Different data source temporal configurations
 - Regional grid matching ex5
 
+### cece_config_lightning_diagnostics.yaml
+**Native Lightning Diagnostic Check**
+- Synthetic land/ocean rows, four cloud heights, and a clear-sky second timestep
+- Flash rate, flash density, mol NO per flash, column NO production, and vertically distributed NO
+- Generate input with `python tools/lightning_diagnostics_example.py generate`
+- Run `./build/cece_standalone_driver examples/cece_config_lightning_diagnostics.yaml`
+- Verify output with `python tools/lightning_diagnostics_example.py check`
+- See [the lightning guide](../docs/lightning_nox.md) for units, build commands, and reference values
+
 ## Configuration Sections
 
 All examples include these configurable sections:
