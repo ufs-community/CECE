@@ -229,7 +229,7 @@ def yaml_to_dict(yaml_str: str) -> dict:
     try:
         config_dict = yaml.safe_load(yaml_str)
         if not isinstance(config_dict, dict):
-            raise TypeError("YAML must represent a dictionary")
+            raise ValueError("YAML must represent a dictionary")  # noqa: TRY004
         return config_dict
     except yaml.YAMLError as e:
         raise ValueError(f"Invalid YAML: {e!s}")
