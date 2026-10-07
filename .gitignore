@@ -7,8 +7,7 @@ output/
 *.nc
 
 # Log files
-PET*.log
-PET*.ESMF_LogFile
+*.ESMF_LogFile
 *.log
 
 # Generated configuration files
@@ -20,8 +19,7 @@ cece_data_streams.yaml
 
 # Python cache
 __pycache__/
-*.pyc
-*.pyo
+*.py[cod]
 .pytest_cache/
 *.egg-info/
 
@@ -38,16 +36,11 @@ venv*/
 *~
 site/
 bin/
-*.ESMF_LogFile
 data/*.nc
 cece_config.yaml
 cece_emissions.streams
 cdeps_in.nml
 hemco_mimic_config.yaml
-__pycache__/
-*.pyc
-.kiro/
-.pytest_cache/
 
 # ---------- CECE runtime-generated AMIO manifests ----------
 amio_read_manifest_facade_*.yaml
@@ -64,4 +57,5 @@ specs/
 .gemini/
 .github/agents/
 .github/prompts/
+.kiro/
 .vscode/
