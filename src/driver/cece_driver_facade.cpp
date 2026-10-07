@@ -156,7 +156,11 @@ StreamConfig CeceDriverOrchestrator::BuildStreamConfig(const YAML::Node& stream,
     // Missing file path is recorded as empty (not thrown); the existing
     // collective gate in AdvanceTime surfaces it later (Req 1.4).
     if (stream["file"]) {
-        cfg.input_file_path = stream["file"].as<std::string>();
+        if (!stream["file"].IsSequence()) {
+            cfg.input_file_path = stream["file"].as<std::string>();
+        } else {
+            cfg.input_file_path = stream["file"][0].as<std::string>();
+        }
     }
     cfg.input_var_name = file_name;
     if (stream["mapalgo"]) {
