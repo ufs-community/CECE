@@ -196,7 +196,7 @@ def test_exact_geos_four_by_five_coordinate_layout():
 
 
 def test_source_constants_and_cold_start_contract():
-    assert math.isclose(LDF, 1.0)
+    assert LDF == 1.0  # noqa: RUF069
     assert (PTOA_C1, PTOA_C2, PTOA_OFFSET) == (3000.0, 99.0, 10.0)
     assert (PARDR_HISTORY_WM2, PARDF_HISTORY_WM2) == (30.0, 48.0)
     assert TEMPERATURE_HISTORY_K == struct.unpack("f", struct.pack("f", 288.15))[0]
