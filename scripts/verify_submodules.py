@@ -151,7 +151,9 @@ def _get_gitmodules_property(repo_root: Path, sub_path: str, prop: str) -> str |
         if parent_dir != repo_root and not gitmodules_file.exists():
             continue
 
-        rel_path = str(sub_path_obj.relative_to(parent_dir.relative_to(repo_root)))
+        rel_path = sub_path_obj.relative_to(
+            parent_dir.relative_to(repo_root)
+        ).as_posix()
 
         # 1. Direct lookup by rel_path
         code, out, _ = run_git_cmd(
