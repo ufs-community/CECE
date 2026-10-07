@@ -27,6 +27,7 @@ repos:
       - id: ruff-check
         args: [--fix, --preview]
       - id: ruff-format
+        args: [--preview]
 
   # CMake formatting
   - repo: https://github.com/BlankSpruce/gersemi-pre-commit
