@@ -57,7 +57,7 @@ class Cece(CMakePackage):
     # On macOS with Apple Clang, OpenMP requires llvm-openmp
     depends_on("llvm-openmp", when="+openmp platform=darwin", type=("build", "link"))
 
-    depends_on("python@3.8:", when="+python", type=("build", "run"))
+    depends_on("python@3.10:", when="+python", type=("build", "run"))
 
     # Compiler requirements — C++20 support needed
     conflicts("%gcc@:10", msg="CECE requires C++20 support (GCC 11+)")
