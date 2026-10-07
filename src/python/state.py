@@ -18,7 +18,7 @@ cece.compute : Execute computation using state fields.
 
 from __future__ import annotations
 
-from collections.abc import Iterator
+from collections.abc import Iterator, KeysView
 
 import numpy as np
 
@@ -170,7 +170,7 @@ class FieldDict:
         """
         return iter(self._fields)
 
-    def keys(self) -> frozenset[str]:
+    def keys(self) -> KeysView[str]:
         """
         Get all field names.
 
