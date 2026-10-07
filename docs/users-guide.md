@@ -14,7 +14,7 @@ To build CECE, you need the following dependencies:
 - **HELM CONF** (included)
 - **AMIO** (Asynchronous Multidimensional I/O, via HELM)
 - **NetCDF** (C and Fortran interfaces)
-- **Python 3.8+** (for scripts and testing)
+- **Python 3.10+** (for scripts and testing)
 
 ### Docker Environment (Recommended)
 

@@ -429,7 +429,7 @@ logger.info("Starting CECE computation")
 
 - CMake 3.20+
 - C++20 compiler
-- Python 3.8+ with development headers
+- Python 3.10+ with development headers
 - Kokkos (fetched automatically via CMake FetchContent)
 - pybind11 v2.12.0 (fetched automatically via CMake FetchContent)
 

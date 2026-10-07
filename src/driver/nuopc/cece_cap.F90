@@ -170,6 +170,19 @@ module cece_cap_mod
       integer(c_int), intent(out) :: rc
     end subroutine
 
+    subroutine cece_core_local_time_init(data_ptr, nx, ny, nz, &
+                                         lon_coords, lon_len, lat_coords, lat_len, &
+                                         mpi_comm_f, rc) &
+                                         bind(C, name="cece_core_local_time_init")
+      import :: c_ptr, c_int, c_double
+      type(c_ptr), value :: data_ptr
+      integer(c_int), value :: nx, ny, nz
+      real(c_double), intent(in) :: lon_coords(*), lat_coords(*)
+      integer(c_int), value :: lon_len, lat_len
+      integer(c_int), value :: mpi_comm_f
+      integer(c_int), intent(out) :: rc
+    end subroutine
+
     subroutine cece_core_write_step(data_ptr, time_seconds, step_index, rc) &
                                     bind(C, name="cece_core_write_step")
       import :: c_ptr, c_int, c_double
@@ -397,6 +410,19 @@ contains
                                                  int(mpi_comm_val, c_int), c_rc)
     if (c_rc /= 0) then
       write(*,'(A)') "ERROR: [Cap] Failed to initialize Core Output Writer"
+      rc = ESMF_FAILURE
+      return
+    end if
+
+    ! 7. Initialize the local-time service (no-op unless local_time.enabled;
+    !    decodes the UTC-offset grid once and attaches it to the core).
+    call cece_core_local_time_init(g_cece_data_ptr, &
+                                   int(g_nx, c_int), int(g_ny, c_int), int(g_nz, c_int), &
+                                   lon_coords, int(g_nx, c_int), &
+                                   lat_coords, int(g_ny, c_int), &
+                                   int(mpi_comm_val, c_int), c_rc)
+    if (c_rc /= 0) then
+      write(*,'(A)') "ERROR: [Cap] Failed to initialize local-time service"
       rc = ESMF_FAILURE
       return
     end if

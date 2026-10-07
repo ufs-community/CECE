@@ -41,6 +41,7 @@ CeceConfig ParseConfig(const std::string& filename) {
                 layer.diurnal_cycle = string_or(node, "diurnal_cycle");
                 layer.weekly_cycle = string_or(node, "weekly_cycle");
                 layer.seasonal_cycle = string_or(node, "seasonal_cycle");
+                layer.use_local_time = node["use_local_time"].bool_or(layer.use_local_time);
                 conf::Value vdist = node["vdist"];
                 if (vdist && vdist.is_defined()) {
                     std::string method = string_or(vdist, "method");
@@ -89,6 +90,26 @@ CeceConfig ParseConfig(const std::string& filename) {
     };
     read_cycles(root["temporal_cycles"], config.temporal_cycles);
     read_cycles(root["temporal_profiles"], config.temporal_profiles);
+
+    conf::Value local_time = root["local_time"];
+    if (local_time && local_time.kind() == conf::Node_Kind::Map) {
+        config.local_time.enabled = local_time["enabled"].bool_or(config.local_time.enabled);
+        config.local_time.grid_file = string_or(local_time, "grid_file", config.local_time.grid_file);
+    }
+
+    // A layer that explicitly opts into local-time scaling while the feature is
+    // disabled would silently fall back to UTC scaling; reject it instead.
+    if (!config.local_time.enabled) {
+        for (const auto& [species_name, layers] : config.species_layers) {
+            for (const auto& layer : layers) {
+                if (layer.use_local_time) {
+                    throw std::invalid_argument("Species '" + species_name + "' layer '" + layer.field_name +
+                                                "' sets use_local_time but local_time.enabled is false. Enable the local_time section or remove "
+                                                "use_local_time from the layer.");
+                }
+            }
+        }
+    }
 
     conf::Value schemes = root["physics_schemes"];
     for (std::size_t i = 0; schemes && i < schemes.size(); ++i) {

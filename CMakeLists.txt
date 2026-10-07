@@ -443,6 +443,8 @@ set(
   src/core/cece_clock.cpp
   src/core/cece_config_parser.cpp
   src/core/cece_compute.cpp
+  src/core/cece_local_time.cpp
+  src/core/cece_utc_grid.cpp
   src/core/cece_stacking_engine.cpp
   src/core/cece_physics_factory.cpp
   src/core/cece_provenance.cpp
@@ -567,6 +569,7 @@ add_library(
   src/driver/cece_helm_graph.cpp
   src/driver/cece_regridder_utils.cpp
   src/driver/cece_standalone_writer.cpp
+  src/driver/cece_core_local_time_init.cpp
   src/driver/cece_core_writer_init.cpp
   src/driver/cece_amio_utils.cpp
   src/driver/cece_calendar.cpp
