@@ -12,6 +12,7 @@ sys.modules[SPEC.name] = config
 SPEC.loader.exec_module(config)
 
 
+@pytest.fixture
 def valid_config():
     return {
         "species": {
@@ -82,8 +83,8 @@ def valid_config():
     }
 
 
-def test_full_schema_round_trips_with_canonical_yaml_keys():
-    parsed = config.CeceConfig.from_dict(valid_config())
+def test_full_schema_round_trips_with_canonical_yaml_keys(valid_config):
+    parsed = config.CeceConfig.from_dict(valid_config)
 
     assert parsed.validate().is_valid
     dumped = parsed.to_dict()
@@ -278,8 +279,8 @@ def test_scheme_mappings_must_be_nested_under_options():
         })
 
 
-def test_temporal_cycle_references_and_lengths_are_validated():
-    invalid = valid_config()
+def test_temporal_cycle_references_and_lengths_are_validated(valid_config):
+    invalid = valid_config
     invalid["temporal_profiles"]["traffic"] = [1.0] * 23
 
     with pytest.raises(ValueError, match=r"diurnal_cycle.*must have 24 factors"):

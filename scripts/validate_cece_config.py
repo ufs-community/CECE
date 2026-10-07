@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import logging
 import re
 import sys
 import textwrap
@@ -13,6 +14,8 @@ from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger("validate_cece_config")
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = REPO_ROOT / "src" / "python" / "config.py"
@@ -410,7 +413,6 @@ def validate_file(
     display_path: str,
     config_module: Any,
     registered_schemes: set[str],
-    verbose: bool = False,
 ) -> list[tuple[str, int, str]]:
     try:
         content = path.read_text(encoding="utf-8")
@@ -421,8 +423,7 @@ def validate_file(
     if path.suffix.lower() in {".md", ".markdown"}:
         for block in extract_markdown_yaml_blocks(content):
             if block.skipped:
-                if verbose:
-                    print(f"{display_path}:{block.start_line}: skipped by marker")
+                logger.info("%s:%d: skipped by marker", display_path, block.start_line)
                 continue
             block_errors, skipped_reason = validate_yaml_text(
                 block.content,
@@ -433,22 +434,24 @@ def validate_file(
                 context_path=block.context_path,
                 overview=block.overview,
             )
-            if skipped_reason and verbose:
-                print(f"{display_path}:{block.start_line}: skipped {skipped_reason}")
+            if skipped_reason:
+                logger.info(
+                    "%s:%d: skipped %s", display_path, block.start_line, skipped_reason
+                )
             errors.extend(
                 (display_path, line, message) for line, message in block_errors
             )
-            if verbose and not skipped_reason and not block_errors:
-                print(f"{display_path}:{block.start_line}: valid YAML block")
+            if not skipped_reason and not block_errors:
+                logger.info("%s:%d: valid YAML block", display_path, block.start_line)
     else:
         file_errors, skipped_reason = validate_yaml_text(
             content, display_path, 0, config_module, registered_schemes
         )
-        if skipped_reason and verbose:
-            print(f"{display_path}: skipped {skipped_reason}")
+        if skipped_reason:
+            logger.info("%s: skipped %s", display_path, skipped_reason)
         errors.extend((display_path, line, message) for line, message in file_errors)
-        if verbose and not skipped_reason and not file_errors:
-            print(f"{display_path}: valid CECE configuration")
+        if not skipped_reason and not file_errors:
+            logger.info("%s: valid CECE configuration", display_path)
     return errors
 
 
@@ -460,6 +463,13 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
+    # Bound to the current stderr per call; messages stay "path:line: message" for editors.
+    handler = logging.StreamHandler(sys.stderr)
+    handler.setFormatter(logging.Formatter("%(message)s"))
+    logger.handlers[:] = [handler]
+    logger.propagate = False
+    logger.setLevel(logging.INFO if args.verbose else logging.WARNING)
+
     if args.paths:
         inputs = [(Path(value), value) for value in args.paths]
     else:
@@ -468,7 +478,7 @@ def main(argv: list[str] | None = None) -> int:
             for path in discover_default_files()
         ]
     if not inputs:
-        print("No default CECE YAML or Markdown files were found", file=sys.stderr)
+        logger.error("No default CECE YAML or Markdown files were found")
         return 1
 
     config_module = load_config_module()
@@ -479,17 +489,11 @@ def main(argv: list[str] | None = None) -> int:
             all_errors.append((display_path, 1, "file does not exist"))
             continue
         all_errors.extend(
-            validate_file(
-                path,
-                display_path,
-                config_module,
-                registered_schemes,
-                verbose=args.verbose,
-            )
+            validate_file(path, display_path, config_module, registered_schemes)
         )
 
     for path, line, message in all_errors:
-        print(f"{path}:{line}: {message}", file=sys.stderr)
+        logger.error("%s:%d: %s", path, line, message)
     return 1 if all_errors else 0
 
 

@@ -34,7 +34,7 @@ def test_skip_marker_skips_the_nearest_yaml_fence(tmp_path, capsys):
     result = validator.main([str(markdown), "--verbose"])
 
     assert result == 0
-    assert "skipped by marker" in capsys.readouterr().out
+    assert "skipped by marker" in capsys.readouterr().err
 
 
 def test_context_directive_validates_fragment_under_declared_path(tmp_path, capsys):
