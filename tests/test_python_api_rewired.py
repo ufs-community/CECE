@@ -8,8 +8,8 @@ with _cece_core pybind11 module.
 import os
 import sys
 
-import pytest
 import numpy as np
+import pytest
 
 # Add the build output directory so the cece package (with _cece_core.so) is importable
 sys.path.insert(

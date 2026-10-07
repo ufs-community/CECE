@@ -18,7 +18,7 @@ import math
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+from typing import Any
 
 
 def _require_mapping(value: Any, where: str) -> Mapping:
@@ -61,15 +61,15 @@ def _validate_finite_number(value: Any, where: str) -> float:
     return number
 
 
-def _validate_string_list(value: Any, where: str) -> List[str]:
+def _validate_string_list(value: Any, where: str) -> list[str]:
     if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
         raise ValueError(f"{where} must be a list of strings")
     return value
 
 
-def _validate_string_mapping(value: Any, where: str) -> Dict[str, str]:
+def _validate_string_mapping(value: Any, where: str) -> dict[str, str]:
     data = _require_mapping(value, where)
-    result: Dict[str, str] = {}
+    result: dict[str, str] = {}
     for key, item in data.items():
         if not isinstance(key, str) or not isinstance(item, str):
             raise ValueError(f"{where} must map strings to strings")
@@ -79,7 +79,7 @@ def _validate_string_mapping(value: Any, where: str) -> Dict[str, str]:
 
 def _validate_global_attributes(
     value: Any, where: str
-) -> Dict[str, Union[str, int, float, bool]]:
+) -> dict[str, str | int | float | bool]:
     attributes = dict(_require_mapping(value, where))
     for key, item in attributes.items():
         if not isinstance(key, str) or not key.strip():
@@ -105,7 +105,7 @@ def _validate_temporal_factors(factors: Any) -> None:
             raise ValueError("factors must be finite and non-negative")
 
 
-def _parse_temporal_factors(factors: Any) -> List[float]:
+def _parse_temporal_factors(factors: Any) -> list[float]:
     _validate_temporal_factors(factors)
     return factors
 
@@ -180,17 +180,14 @@ class VerticalDistributionConfig:
         if min(self.p_start, self.p_end, self.h_start, self.h_end) < 0:
             raise ValueError("vdist pressure and height values must be non-negative")
 
-        if self.method == "range":
-            if self.layer_start > self.layer_end:
-                raise ValueError("layer_start must be <= layer_end")
+        if self.method == "range" and self.layer_start > self.layer_end:
+            raise ValueError("layer_start must be <= layer_end")
 
-        if self.method == "pressure":
-            if self.p_start > self.p_end:
-                raise ValueError("p_start must be <= p_end")
+        if self.method == "pressure" and self.p_start > self.p_end:
+            raise ValueError("p_start must be <= p_end")
 
-        if self.method == "height":
-            if self.h_start > self.h_end:
-                raise ValueError("h_start must be <= h_end")
+        if self.method == "height" and self.h_start > self.h_end:
+            raise ValueError("h_start must be <= h_end")
 
     @classmethod
     def from_dict(
@@ -254,17 +251,18 @@ class EmissionLayer:
 
     field_name: str
     operation: str = "add"
-    masks: List[str] = field(default_factory=list)
+    masks: list[str] = field(default_factory=list)
     scale: float = 1.0
     hierarchy: int = 0
     category: str = "1"
-    scale_fields: List[str] = field(default_factory=list)
+    scale_fields: list[str] = field(default_factory=list)
     vdist: VerticalDistributionConfig = field(
         default_factory=VerticalDistributionConfig
     )
-    diurnal_cycle: Optional[str] = None
-    weekly_cycle: Optional[str] = None
-    seasonal_cycle: Optional[str] = None
+    diurnal_cycle: str | None = None
+    weekly_cycle: str | None = None
+    seasonal_cycle: str | None = None
+    use_local_time: bool = False
 
     def validate(self) -> None:
         """
@@ -291,6 +289,8 @@ class EmissionLayer:
             value = getattr(self, key)
             if value is not None:
                 _validate_string(value, key)
+        if not isinstance(self.use_local_time, bool):
+            raise ValueError("use_local_time must be a boolean")
         if self.scale < 0:
             raise ValueError("scale must be non-negative")
         self.vdist.validate()
@@ -312,6 +312,7 @@ class EmissionLayer:
                 "weekly_cycle",
                 "seasonal_cycle",
                 "vdist",
+                "use_local_time",
             },
             where,
         )
@@ -339,11 +340,53 @@ class EmissionLayer:
             diurnal_cycle=values.get("diurnal_cycle"),
             weekly_cycle=values.get("weekly_cycle"),
             seasonal_cycle=values.get("seasonal_cycle"),
+            use_local_time=values.get("use_local_time", False),
         )
         try:
             result.validate()
         except ValueError as error:
             raise ValueError(f"{where}: {error}") from error
+        return result
+
+
+@dataclass
+class LocalTimeConfig:
+    """
+    Configuration for the local-time service.
+
+    Opt-in: when disabled (the default) no UTC-offset grid is opened and
+    temporal scaling behaves exactly as the pre-feature UTC path.
+
+    Parameters
+    ----------
+    enabled : bool, optional
+        Master switch for local-time temporal scaling. Default is ``False``.
+    grid_file : str or None, optional
+        Path to the RLE UTC-offset grid (e.g. ``data/utc_grid_720r.rle``).
+        ``None``/empty means the repository default. Default is ``None``.
+    """
+
+    enabled: bool = False
+    grid_file: str | None = None
+
+    def validate(self) -> None:
+        """Validate local-time parameters."""
+        if not isinstance(self.enabled, bool):
+            raise ValueError("local_time.enabled must be a boolean")
+        if self.grid_file is not None:
+            _validate_string(self.grid_file, "local_time.grid_file")
+
+    @classmethod
+    def from_dict(
+        cls, data: Mapping[str, Any], where: str = "local_time"
+    ) -> LocalTimeConfig:
+        values = _require_mapping(data, where)
+        _reject_unknown_keys(values, {"enabled", "grid_file"}, where)
+        result = cls(
+            enabled=values.get("enabled", False),
+            grid_file=values.get("grid_file"),
+        )
+        result.validate()
         return result
 
 
@@ -364,13 +407,13 @@ class PhysicsSchemeConfig:
 
     Examples
     --------
-    >>> scheme = PhysicsSchemeConfig(name="megan", language="fortran")
+    >>> scheme = PhysicsSchemeConfig(name="megan", language="cpp")
     >>> scheme.validate()
     """
 
     name: str
     language: str = "cpp"
-    options: Dict[str, Any] = field(default_factory=dict)
+    options: dict[str, Any] = field(default_factory=dict)
     refresh_interval_seconds: int = 0
 
     def validate(self) -> None:
@@ -429,7 +472,7 @@ class DataVariableConfig:
 
     file: str
     model: str
-    levels: Optional[int] = None
+    levels: int | None = None
 
     def validate(self) -> None:
         _validate_string(self.file, "variable file")
@@ -509,8 +552,8 @@ class DataStreamConfig:
     """
 
     name: str
-    file_paths: List[str] = field(default_factory=list)
-    variables: List[DataVariableConfig] = field(default_factory=list)
+    file_paths: list[str] = field(default_factory=list)
+    variables: list[DataVariableConfig] = field(default_factory=list)
     taxmode: str = "cycle"
     tintalgo: str = "nearest"
     mapalgo: str = "consd"
@@ -822,8 +865,8 @@ class DriverConfig:
     start_time: str = "2020-01-01T00:00:00"
     end_time: str = "2020-01-02T00:00:00"
     timestep_seconds: int = 3600
-    log_file: Optional[str] = None
-    gridspec_file: Optional[str] = None
+    log_file: str | None = None
+    gridspec_file: str | None = None
     grid: GridConfig = field(default_factory=GridConfig)
     stacking_refresh_interval_seconds: int = 0
     amio_worker_threads: int = 1
@@ -912,7 +955,7 @@ class DriverConfig:
 @dataclass
 class OutputFieldConfig:
     name: str
-    attributes: Dict[str, str] = field(default_factory=dict)
+    attributes: dict[str, str] = field(default_factory=dict)
 
     def validate(self) -> None:
         _validate_string(self.name, "output field name")
@@ -944,11 +987,9 @@ class OutputConfig:
     directory: str = "."
     filename_pattern: str = "cece_output_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
     frequency_steps: int = 1
-    fields: List[OutputFieldConfig] = field(default_factory=list)
-    amio_worker_threads: Optional[int] = None
-    global_attributes: Dict[str, Union[str, int, float, bool]] = field(
-        default_factory=dict
-    )
+    fields: list[OutputFieldConfig] = field(default_factory=list)
+    amio_worker_threads: int | None = None
+    global_attributes: dict[str, str | int | float | bool] = field(default_factory=dict)
 
     def validate(self) -> None:
         if not isinstance(self.enabled, bool):
@@ -1016,7 +1057,7 @@ class DiagnosticsConfig:
     grid_file: str = ""
     nx: int = 0
     ny: int = 0
-    variables: List[str] = field(default_factory=list)
+    variables: list[str] = field(default_factory=list)
     sequence_form: bool = False
 
     def validate(self) -> None:
@@ -1114,9 +1155,7 @@ class ValidationResult:
     ...         print(err)
     """
 
-    def __init__(
-        self, is_valid: bool = True, errors: Optional[List[str]] = None
-    ) -> None:
+    def __init__(self, is_valid: bool = True, errors: list[str] | None = None) -> None:
         """
         Initialize validation result.
 
@@ -1175,7 +1214,7 @@ class CeceConfig:
     Validation passed
     """
 
-    def __init__(self, config_dict: Optional[dict] = None) -> None:
+    def __init__(self, config_dict: dict | None = None) -> None:
         """
         Initialize configuration.
 
@@ -1185,26 +1224,27 @@ class CeceConfig:
             Dictionary with configuration data to populate from.
             Default is ``None``.
         """
-        self._species: Dict[str, List[EmissionLayer]] = {}
-        self._physics_schemes: List[PhysicsSchemeConfig] = []
-        self._cece_data: Dict[str, Any] = {"streams": [], "debug_level": 0}
+        self._species: dict[str, list[EmissionLayer]] = {}
+        self._physics_schemes: list[PhysicsSchemeConfig] = []
+        self._cece_data: dict[str, Any] = {"streams": [], "debug_level": 0}
         self._vertical_config = VerticalDistributionConfig()
         self._vertical_grid_config = VerticalGridConfig()
         self._vertical_grid_defined = False
-        self._driver_config: Optional[DriverConfig] = None
-        self._output_config: Optional[OutputConfig] = None
-        self._diagnostics_config: Optional[DiagnosticsConfig] = None
-        self._meteorology: Dict[str, str] = {}
-        self._scale_factors: Dict[str, str] = {}
-        self._masks: Dict[str, str] = {}
-        self._met_registry: Dict[str, List[str]] = {}
-        self._temporal_cycles: Dict[str, List] = {}
-        self._temporal_profiles: Dict[str, List] = {}
+        self._driver_config: DriverConfig | None = None
+        self._output_config: OutputConfig | None = None
+        self._diagnostics_config: DiagnosticsConfig | None = None
+        self._meteorology: dict[str, str] = {}
+        self._scale_factors: dict[str, str] = {}
+        self._masks: dict[str, str] = {}
+        self._met_registry: dict[str, list[str]] = {}
+        self._temporal_cycles: dict[str, list] = {}
+        self._temporal_profiles: dict[str, list] = {}
+        self._local_time = LocalTimeConfig()
 
         if config_dict is not None:
             self._from_dict(config_dict)
 
-    def add_species(self, name: str, layers: List[EmissionLayer]) -> None:
+    def add_species(self, name: str, layers: list[EmissionLayer]) -> None:
         """
         Add a species with its emission layers.
 
@@ -1218,15 +1258,16 @@ class CeceConfig:
         Raises
         ------
         ValueError
-            If ``name`` is empty, ``layers`` is not a list, or any layer
-            fails validation.
+            If ``name`` is empty or any layer fails validation.
+        TypeError
+            If ``layers`` is not a list or contains a non-EmissionLayer item.
         """
         _validate_string(name, "species name")
         if not isinstance(layers, list):
-            raise ValueError("layers must be a list")
+            raise TypeError("layers must be a list")
         for layer in layers:
             if not isinstance(layer, EmissionLayer):
-                raise ValueError("All layers must be EmissionLayer objects")
+                raise TypeError("All layers must be EmissionLayer objects")
             layer.validate()
         self._species[name] = layers
 
@@ -1234,7 +1275,7 @@ class CeceConfig:
         self,
         name: str,
         language: str = "cpp",
-        options: Optional[Dict[str, Any]] = None,
+        options: dict[str, Any] | None = None,
     ) -> None:
         """
         Register a physics scheme.
@@ -1261,8 +1302,8 @@ class CeceConfig:
     def add_data_stream(
         self,
         name: str,
-        file_paths: Union[str, List[str]],
-        variables: Optional[Union[Dict[str, str], List[DataVariableConfig]]] = None,
+        file_paths: str | list[str],
+        variables: dict[str, str] | list[DataVariableConfig] | None = None,
         taxmode: str = "cycle",
         tintalgo: str = "nearest",
         mapalgo: str = "consd",
@@ -1357,7 +1398,7 @@ class CeceConfig:
         stream.validate()
         self._cece_data["streams"].append(stream)
 
-    def add_temporal_cycle(self, name: str, factors: List) -> None:
+    def add_temporal_cycle(self, name: str, factors: list) -> None:
         """
         Add a temporal cycle (diurnal, weekly, or seasonal).
 
@@ -1371,14 +1412,16 @@ class CeceConfig:
         Raises
         ------
         ValueError
-            If ``name`` is empty, ``factors`` is not a list, ``factors`` is
-            empty, or any factor is negative.
+            If ``name`` is empty, ``factors`` is empty, or any factor is
+            negative.
+        TypeError
+            If ``factors`` is not a list.
         """
         _validate_string(name, "cycle name")
         _validate_temporal_factors(factors)
         self._temporal_cycles[name] = factors
 
-    def add_temporal_profile(self, name: str, factors: List[float]) -> None:
+    def add_temporal_profile(self, name: str, factors: list[float]) -> None:
         _validate_string(name, "temporal profile name")
         _validate_temporal_factors(factors)
         self._temporal_profiles[name] = factors
@@ -1401,7 +1444,7 @@ class CeceConfig:
         >>> if not result:
         ...     print(result)
         """
-        errors: List[str] = []
+        errors: list[str] = []
 
         def capture(where: str, validator: Any) -> None:
             try:
@@ -1460,6 +1503,16 @@ class CeceConfig:
             capture("diagnostics", self._diagnostics_config.validate)
         if self._vertical_grid_defined:
             capture("vertical_grid", self._vertical_grid_config.validate)
+        capture("local_time", self._local_time.validate)
+        if self._local_time.enabled is not True:
+            for species_name, layers in self._species.items():
+                for index, layer in enumerate(layers):
+                    if layer.use_local_time is True:
+                        errors.append(
+                            f"species.{species_name}[{index}]: use_local_time is set "
+                            "but local_time.enabled is false; enable the local_time "
+                            "section or remove use_local_time from the layer"
+                        )
 
         # Validate temporal cycles
         for section, cycles in (
@@ -1540,7 +1593,7 @@ class CeceConfig:
             Dictionary representation of the full configuration, suitable
             for YAML serialization or ``from_dict`` round-tripping.
         """
-        result: Dict[str, Any] = {
+        result: dict[str, Any] = {
             "species": {
                 name: [
                     {
@@ -1563,6 +1616,7 @@ class CeceConfig:
                             "h_start": layer.vdist.h_start,
                             "h_end": layer.vdist.h_end,
                         },
+                        **({"use_local_time": True} if layer.use_local_time else {}),
                     }
                     for layer in layers
                 ]
@@ -1584,6 +1638,10 @@ class CeceConfig:
             },
             "temporal_cycles": self._temporal_cycles,
         }
+        if self._local_time.enabled or self._local_time.grid_file is not None:
+            result["local_time"] = {"enabled": self._local_time.enabled}
+            if self._local_time.grid_file is not None:
+                result["local_time"]["grid_file"] = self._local_time.grid_file
         if self._cece_data.get("debug_level", 0):
             result["cece_data"]["debug_level"] = self._cece_data["debug_level"]
         if self._temporal_profiles:
@@ -1713,14 +1771,13 @@ class CeceConfig:
             raise ImportError(
                 "PyYAML is required for YAML parsing. Install with: pip install pyyaml"
             )
-
         try:
             config_dict = yaml.safe_load(yaml_str)
-            if not isinstance(config_dict, dict):
-                raise ValueError("YAML must represent a dictionary")
-            return cls.from_dict(config_dict)
         except yaml.YAMLError as e:
-            raise ValueError(f"Invalid YAML: {str(e)}")
+            raise ValueError(f"Invalid YAML: {e!s}")
+        if not isinstance(config_dict, dict):
+            raise ValueError("YAML must represent a mapping")
+        return cls.from_dict(config_dict)
 
     def _from_dict(self, config_dict: dict) -> None:
         """
@@ -1733,7 +1790,7 @@ class CeceConfig:
             temporal_cycles keys.
         """
         values = _require_mapping(config_dict, "configuration")
-        errors: List[str] = []
+        errors: list[str] = []
         allowed = {
             "species",
             "meteorology",
@@ -1748,6 +1805,7 @@ class CeceConfig:
             "cece_data",
             "output",
             "driver",
+            "local_time",
         }
         try:
             _reject_unknown_keys(values, allowed, "configuration")
@@ -1776,7 +1834,7 @@ class CeceConfig:
                     if not isinstance(layers_data, list):
                         errors.append(f"species.{name} must be a list of layers")
                         continue
-                    layers: List[EmissionLayer] = []
+                    layers: list[EmissionLayer] = []
                     for index, layer_data in enumerate(layers_data):
                         layer = capture(
                             f"species.{name}[{index}]",
@@ -1916,6 +1974,12 @@ class CeceConfig:
             self._driver_config = capture(
                 "driver", lambda: DriverConfig.from_dict(values["driver"])
             )
+        if "local_time" in values:
+            local_time = capture(
+                "local_time", lambda: LocalTimeConfig.from_dict(values["local_time"])
+            )
+            if local_time is not None:
+                self._local_time = local_time
 
         validation = self.validate()
         if not validation:
@@ -1927,17 +1991,17 @@ class CeceConfig:
             )
 
     @property
-    def species(self) -> Dict[str, List[EmissionLayer]]:
+    def species(self) -> dict[str, list[EmissionLayer]]:
         """dict : Mapping of species names to lists of ``EmissionLayer``."""
         return self._species
 
     @property
-    def physics_schemes(self) -> List[PhysicsSchemeConfig]:
+    def physics_schemes(self) -> list[PhysicsSchemeConfig]:
         """list of PhysicsSchemeConfig : Registered physics schemes."""
         return self._physics_schemes
 
     @property
-    def cece_data(self) -> Dict[str, Any]:
+    def cece_data(self) -> dict[str, Any]:
         """dict : Data stream configuration."""
         return self._cece_data
 
@@ -1951,37 +2015,42 @@ class CeceConfig:
         return self._vertical_grid_config
 
     @property
-    def driver(self) -> Optional[DriverConfig]:
+    def driver(self) -> DriverConfig | None:
         return self._driver_config
 
     @property
-    def output(self) -> Optional[OutputConfig]:
+    def output(self) -> OutputConfig | None:
         return self._output_config
 
     @property
-    def diagnostics(self) -> Optional[DiagnosticsConfig]:
+    def diagnostics(self) -> DiagnosticsConfig | None:
         return self._diagnostics_config
 
     @property
-    def meteorology(self) -> Dict[str, str]:
+    def meteorology(self) -> dict[str, str]:
         return self._meteorology
 
     @property
-    def scale_factors(self) -> Dict[str, str]:
+    def scale_factors(self) -> dict[str, str]:
         return self._scale_factors
 
     @property
-    def masks(self) -> Dict[str, str]:
+    def masks(self) -> dict[str, str]:
         return self._masks
 
     @property
-    def met_registry(self) -> Dict[str, List[str]]:
+    def met_registry(self) -> dict[str, list[str]]:
         return self._met_registry
 
     @property
-    def temporal_cycles(self) -> Dict[str, List[float]]:
+    def temporal_cycles(self) -> dict[str, list[float]]:
         return self._temporal_cycles
 
     @property
-    def temporal_profiles(self) -> Dict[str, List[float]]:
+    def temporal_profiles(self) -> dict[str, list[float]]:
         return self._temporal_profiles
+
+    @property
+    def local_time(self) -> LocalTimeConfig:
+        """LocalTimeConfig : Local-time service settings."""
+        return self._local_time

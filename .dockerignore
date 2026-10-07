@@ -1,0 +1,56 @@
+# Docker build context ignore list for CECE.
+# The repo is normally mounted at runtime (setup.sh -> /work), but when the
+# context is sent to the daemon, keep it small and free of local build state.
+
+# Git
+.git/
+.gitignore
+.gitattributes
+.gitmodules
+
+# Build outputs
+build*/
+cmake-build*/
+out/
+bin/
+site/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.venv*/
+venv*/
+*.egg-info/
+
+# Generated / large runtime artifacts
+*.nc
+*.log
+*.tmp
+*.temp
+core.*
+cece_output/
+output/
+PET*.log
+*.ESMF_LogFile
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# Spec-kit / AI working files
+.specify/
+specs/
+.kiro/
+.github/agents/
+.github/prompts/
+docs/superpowers/
+
+# Docker itself
+Dockerfile
+.dockerignore

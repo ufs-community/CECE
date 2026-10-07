@@ -290,8 +290,3 @@ TEST_F(StopTimeDetectionLogicTest, Property8_StopTimeDetectionAcrossVariousRange
         EXPECT_TRUE(clock.IsAtStopTime()) << "Clock should be at stop time after " << expected_steps << " steps";
     }
 }
-
-int main(int argc, char** argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    return RUN_ALL_TESTS();
-}

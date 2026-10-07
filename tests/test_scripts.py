@@ -1,6 +1,6 @@
 import os
-import sys
 import subprocess
+import sys
 
 # Add scripts directory to path to test functions directly if needed
 sys.path.insert(
@@ -36,7 +36,7 @@ def test_download_hemco_data_cli():
 
     # Test help message
     result = subprocess.run(
-        [sys.executable, script, "--help"], capture_output=True, text=True
+        [sys.executable, script, "--help"], capture_output=True, text=True, check=False
     )
     assert result.returncode == 0
     assert "Download HEMCO data" in result.stdout
@@ -48,7 +48,9 @@ def test_hemco_to_cece_cli_error():
     )
 
     # Test missing argument
-    result = subprocess.run([sys.executable, script], capture_output=True, text=True)
+    result = subprocess.run(
+        [sys.executable, script], capture_output=True, text=True, check=False
+    )
     assert result.returncode != 0
     assert "the following arguments are required" in result.stderr
 
@@ -68,7 +70,10 @@ def test_visualize_stack_cli(tmp_path):
     # Note: we might want to mock matplotlib to avoid GUI/window issues if it was a real environment,
     # but here it's likely headless. We'll just check if it runs without error.
     result = subprocess.run(
-        [sys.executable, script, str(config)], capture_output=True, text=True
+        [sys.executable, script, str(config)],
+        capture_output=True,
+        text=True,
+        check=False,
     )
     assert result.returncode == 0
     assert "--- Stacking Plan for NO2 ---" in result.stdout

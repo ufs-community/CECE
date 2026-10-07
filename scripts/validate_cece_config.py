@@ -9,10 +9,10 @@ import json
 import re
 import sys
 import textwrap
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Iterable, Optional
-
+from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CONFIG_PATH = REPO_ROOT / "src" / "python" / "config.py"
@@ -42,7 +42,7 @@ class MarkdownYamlBlock:
     start_line: int
     content: str
     skipped: bool
-    context_path: Optional[str]
+    context_path: str | None
     overview: bool
 
 
@@ -84,7 +84,7 @@ def _skip_marker_is_near(lines: list[str], opening_line_index: int) -> bool:
     return previous >= 0 and lines[previous].strip() == SKIP_MARKER
 
 
-def _context_path_is_near(lines: list[str], opening_line_index: int) -> Optional[str]:
+def _context_path_is_near(lines: list[str], opening_line_index: int) -> str | None:
     previous = opening_line_index - 1
     while previous >= 0 and not lines[previous].strip():
         previous -= 1
@@ -222,7 +222,7 @@ def _species_boolean_key_sources(yaml_text: str) -> dict[bool, tuple[str, int]]:
     return ambiguous_keys
 
 
-def _schema_error_path(error_line: str) -> Optional[str]:
+def _schema_error_path(error_line: str) -> str | None:
     match = re.match(r"\s*-\s*([^:]+):\s*(.*)$", error_line)
     if match is None:
         return None
@@ -240,8 +240,7 @@ def _format_schema_error(error_line: str) -> str:
         return message
     path, detail = match.groups()
     repeated_prefix = f"{path}: "
-    if detail.startswith(repeated_prefix):
-        detail = detail[len(repeated_prefix) :]
+    detail = detail.removeprefix(repeated_prefix)
     return f"{path}: {detail}"
 
 
@@ -259,6 +258,7 @@ def _normalize_overview_empty_sections(data: dict) -> None:
         "scale_factors": {},
         "masks": {},
         "temporal_profiles": {},
+        "local_time": {},
         "species": {},
         "physics_schemes": [],
         "diagnostics": {},
@@ -321,9 +321,9 @@ def validate_yaml_text(
     line_offset: int,
     config_module: Any,
     registered_schemes: set[str],
-    context_path: Optional[str] = None,
+    context_path: str | None = None,
     overview: bool = False,
-) -> tuple[list[tuple[int, str]], Optional[str]]:
+) -> tuple[list[tuple[int, str]], str | None]:
     import yaml
 
     context_prefix_lines = 0
@@ -396,9 +396,10 @@ def validate_yaml_text(
             name = scheme.get("name")
             if name not in registered_schemes:
                 line = _yaml_line_for_path(yaml_text, f"physics_schemes[{index}].name")
-                errors.append(
-                    (source_line(line), f"unregistered physics scheme {name!r}")
-                )
+                errors.append((
+                    source_line(line),
+                    f"unregistered physics scheme {name!r}",
+                ))
     return errors, None
 
 
@@ -449,7 +450,7 @@ def validate_file(
     return errors
 
 
-def main(argv: Optional[list[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("paths", nargs="*", help="YAML or Markdown files to validate")
     parser.add_argument(

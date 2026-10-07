@@ -5,7 +5,6 @@ from textwrap import dedent
 
 import pytest
 
-
 CONFIG_PATH = Path(__file__).parents[1] / "src" / "python" / "config.py"
 SPEC = importlib.util.spec_from_file_location("cece_config_schema", CONFIG_PATH)
 config = importlib.util.module_from_spec(SPEC)
@@ -130,14 +129,12 @@ def test_empty_config_round_trips():
 
 
 def test_runtime_driver_grid_name_and_log_file_round_trip():
-    parsed = config.CeceConfig.from_dict(
-        {
-            "driver": {
-                "log_file": "cece.log",
-                "grid": {"grid_name": "F360", "nz": 72},
-            }
+    parsed = config.CeceConfig.from_dict({
+        "driver": {
+            "log_file": "cece.log",
+            "grid": {"grid_name": "F360", "nz": 72},
         }
-    )
+    })
 
     dumped = parsed.to_dict()["driver"]
     assert dumped["log_file"] == "cece.log"
@@ -146,13 +143,11 @@ def test_runtime_driver_grid_name_and_log_file_round_trip():
 
 
 def test_output_global_attributes_round_trip():
-    parsed = config.CeceConfig.from_dict(
-        {
-            "output": {
-                "global_attributes": {"title": "Example run"},
-            }
+    parsed = config.CeceConfig.from_dict({
+        "output": {
+            "global_attributes": {"title": "Example run"},
         }
-    )
+    })
 
     output = parsed.to_dict()["output"]
     assert output["global_attributes"] == {"title": "Example run"}
@@ -165,19 +160,17 @@ def test_output_diagnostics_is_rejected_as_unsupported():
 
 
 def test_stream_defaults_match_runtime_and_are_omitted_when_serialized():
-    parsed = config.CeceConfig.from_dict(
-        {
-            "cece_data": {
-                "streams": [
-                    {
-                        "name": "CO",
-                        "file": "co.nc",
-                        "variables": [{"file": "CO_FILE", "model": "CO"}],
-                    }
-                ]
-            }
+    parsed = config.CeceConfig.from_dict({
+        "cece_data": {
+            "streams": [
+                {
+                    "name": "CO",
+                    "file": "co.nc",
+                    "variables": [{"file": "CO_FILE", "model": "CO"}],
+                }
+            ]
         }
-    )
+    })
 
     stream = parsed.cece_data["streams"][0]
     assert (stream.mapalgo, stream.tintalgo) == ("consd", "nearest")
@@ -208,19 +201,17 @@ def test_stream_variables_default_to_the_stream_name():
 
 def test_variable_mapping_requires_model_name():
     with pytest.raises(ValueError, match="missing required key 'model'"):
-        config.CeceConfig.from_dict(
-            {
-                "cece_data": {
-                    "streams": [
-                        {
-                            "name": "CO",
-                            "file": "co.nc",
-                            "variables": [{"file": "CO_FILE"}],
-                        }
-                    ]
-                }
+        config.CeceConfig.from_dict({
+            "cece_data": {
+                "streams": [
+                    {
+                        "name": "CO",
+                        "file": "co.nc",
+                        "variables": [{"file": "CO_FILE"}],
+                    }
+                ]
             }
-        )
+        })
 
 
 def test_variable_mapping_defaults_file_name_to_model_name():
@@ -232,27 +223,25 @@ def test_variable_mapping_defaults_file_name_to_model_name():
 
 def test_interpolation_alias_is_rejected():
     with pytest.raises(ValueError, match="unknown key 'interpolation'"):
-        config.CeceConfig.from_dict(
-            {
-                "cece_data": {
-                    "streams": [
-                        {
-                            "name": "CO",
-                            "file": "co.nc",
-                            "variables": ["CO"],
-                            "interpolation": "linear",
-                        }
-                    ]
-                }
+        config.CeceConfig.from_dict({
+            "cece_data": {
+                "streams": [
+                    {
+                        "name": "CO",
+                        "file": "co.nc",
+                        "variables": ["CO"],
+                        "interpolation": "linear",
+                    }
+                ]
             }
-        )
+        })
 
 
 def test_global_attribute_values_reject_control_characters():
     with pytest.raises(ValueError, match="must not contain control characters"):
-        config.CeceConfig.from_dict(
-            {"output": {"global_attributes": {"title": "bad\nvalue"}}}
-        )
+        config.CeceConfig.from_dict({
+            "output": {"global_attributes": {"title": "bad\nvalue"}}
+        })
 
 
 def test_global_attributes_accept_scalars_and_preserve_types():
@@ -284,9 +273,9 @@ def test_unknown_and_legacy_flat_vertical_keys_are_rejected():
 
 def test_scheme_mappings_must_be_nested_under_options():
     with pytest.raises(ValueError, match="put 'input_mapping' under 'options'"):
-        config.CeceConfig.from_dict(
-            {"physics_schemes": [{"name": "megan", "input_mapping": {}}]}
-        )
+        config.CeceConfig.from_dict({
+            "physics_schemes": [{"name": "megan", "input_mapping": {}}]
+        })
 
 
 def test_temporal_cycle_references_and_lengths_are_validated():
@@ -306,6 +295,47 @@ def test_temporal_cycle_references_and_lengths_are_validated():
     assert "undefined cycle 'missing'" in str(result)
 
 
+def _local_time_config(enabled):
+    return {
+        "local_time": {"enabled": enabled, "grid_file": "data/utc_grid_720r.rle"},
+        "species": {
+            "CO": [{"field": "CO", "operation": "add", "use_local_time": True}]
+        },
+    }
+
+
+def test_local_time_round_trips():
+    parsed = config.CeceConfig.from_dict(_local_time_config(True))
+
+    assert parsed.local_time.enabled
+    assert parsed.species["CO"][0].use_local_time
+    dumped = parsed.to_dict()
+    assert dumped["local_time"] == {
+        "enabled": True,
+        "grid_file": "data/utc_grid_720r.rle",
+    }
+    assert config.CeceConfig.from_dict(dumped).to_dict() == dumped
+
+
+def test_local_time_defaults_are_omitted():
+    dumped = config.CeceConfig.from_dict({
+        "species": {"CO": [{"field": "CO", "operation": "add"}]}
+    }).to_dict()
+
+    assert "local_time" not in dumped
+    assert "use_local_time" not in dumped["species"]["CO"][0]
+
+
+def test_use_local_time_requires_enabled_local_time():
+    with pytest.raises(ValueError, match="local_time.enabled is false"):
+        config.CeceConfig.from_dict(_local_time_config(False))
+
+
+def test_local_time_rejects_unknown_keys():
+    with pytest.raises(ValueError, match="local_time: unknown key 'grid'"):
+        config.CeceConfig.from_dict({"local_time": {"grid": "x.rle"}})
+
+
 def test_stream_enum_types_fail_as_configuration_errors():
     invalid = {
         "cece_data": {
@@ -322,19 +352,17 @@ def test_stream_enum_types_fail_as_configuration_errors():
 
 
 def test_mapalgo_is_normalized_to_lowercase():
-    parsed = config.CeceConfig.from_dict(
-        {
-            "cece_data": {
-                "streams": [
-                    {
-                        "name": "CO",
-                        "file": "co.nc",
-                        "variables": ["CO"],
-                        "mapalgo": "BILINEAR",
-                    }
-                ]
-            }
+    parsed = config.CeceConfig.from_dict({
+        "cece_data": {
+            "streams": [
+                {
+                    "name": "CO",
+                    "file": "co.nc",
+                    "variables": ["CO"],
+                    "mapalgo": "BILINEAR",
+                }
+            ]
         }
-    )
+    })
 
     assert parsed.cece_data["streams"][0].mapalgo == "bilinear"

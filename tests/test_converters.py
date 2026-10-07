@@ -1,7 +1,8 @@
 import os
 import subprocess
-import yaml
 import sys
+
+import yaml
 
 
 def test_hemco_to_cece_conversion(tmp_path):
@@ -16,6 +17,7 @@ def test_hemco_to_cece_conversion(tmp_path):
         [sys.executable, script, hemco_rc, "-o", str(cece_yaml)],
         capture_output=True,
         text=True,
+        check=False,
     )
 
     if result.returncode != 0:

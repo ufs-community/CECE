@@ -19,6 +19,17 @@
 namespace cece {
 namespace detail {
 
+// These diagnostics sit on the per-timestep path, so they report once per
+// distinct subject rather than once per step. @p tag keeps subjects from
+// different call sites apart, since an absent units and an absent calendar
+// attribute both arrive here as an empty string. A subject must come from a
+// bounded domain such as configuration or file metadata; omit it to report a
+// condition once per process rather than retaining per-step values.
+static bool report_once(const char* tag, const std::string& subject = {}) {
+    static std::set<std::string> reported;
+    return reported.insert(std::string(tag) + '|' + subject).second;
+}
+
 /**
  * @brief Parse an ISO-8601 timestamp ("YYYY-MM-DDThh:mm:ss") into calendar fields.
  *
@@ -42,8 +53,11 @@ SimDateTime parse_sim_datetime(const std::string& iso8601) {
     } catch (const std::exception& e) {
         // Malformed timestamp: use explicit default values so callers report an
         // invalid bracket rather than silently picking a record. Warn so the
-        // bad input is visible instead of degrading quietly.
-        CECE_LOG_ERROR("[DRIVER] unable to parse simulation timestamp '" + iso8601 + "' as ISO-8601 (" + e.what() + ").");
+        // bad input is visible instead of degrading quietly. Not keyed on the
+        // stamp itself, which arrives from the host on every step.
+        if (report_once("sim-time")) {
+            CECE_LOG_ERROR("[DRIVER] unable to parse simulation timestamp '" + iso8601 + "' as ISO-8601 (" + e.what() + ").");
+        }
         dt = SimDateTime{};
     }
     return dt;
@@ -246,8 +260,7 @@ static std::string normalize_time_label(const std::string& time_label) {
 // is a guess a midnight stamp cannot confirm.
 static void warn_auto_label_once(const std::string& subject, const std::vector<double>& time_vals, const std::string& units,
                                  const std::string& calendar) {
-    static std::set<std::string> warned;
-    if (!warned.insert(subject).second) return;
+    if (!report_once("auto-label", subject)) return;
     const AxisLabelInfo info = inspect_axis_labels(time_vals, units, calendar);
     if (!info.interpretable) {
         CECE_LOG_WARNING("[DRIVER] " + subject +
@@ -601,10 +614,9 @@ RecordBracket find_bracket(const std::vector<double>& times, double target, bool
  *
  * For taxmode "cycle" on an axis covering a whole number of calendar years,
  * the simulation *year* is clamped to the closest year in the file's
- * coverage. Coverage is inferred from the decoded records; the CF-exact
- * source would be the time variable's `bounds` (time_bnds), whose first and
- * last cell edges delimit the intervals directly, but AMIO does not surface
- * bounds variables yet.
+ * coverage. Coverage is inferred from the decoded records rather than from
+ * @p bounds, which states each record's interval exactly but is only present
+ * when the file declares a CF `bounds` attribute pointing at it.
  */
 RecordBracket bracket_from_coords(const std::vector<double>& time_vals, const std::string& units, const std::string& calendar, const SimDateTime& dt,
                                   const std::string& tintalgo, int yearAlign, const std::string& taxmode, const std::string& time_label,
@@ -614,11 +626,23 @@ RecordBracket bracket_from_coords(const std::vector<double>& time_vals, const st
 
     try {
         const CFTimeUnits cf = parse_cf_units(units);
-        if (!cf.valid) return br;  // not decodable -> degrade
+        if (!cf.valid) {
+            // "months since"/"years since" are legal CF but calendar-ambiguous,
+            // so this is a degrade rather than an error.
+            if (report_once("units", units)) {
+                CECE_LOG_WARNING("[DRIVER] Stream time units '" + units +
+                                 "' are not decodable (a fixed-length '<seconds|minutes|hours|days> since <reference>' is required); the time "
+                                 "axis cannot be decoded. Set 'time_units' if the file's attribute is missing or non-standard, or use "
+                                 "cadence 'daily'/'monthly' to select records arithmetically.");
+            }
+            return br;
+        }
 
         const CalKind cal = parse_calendar(calendar);
         if (cal == CalKind::Unsupported) {
-            CECE_LOG_WARNING("[DRIVER] Unsupported stream calendar '" + calendar + "'; the time axis cannot be decoded.");
+            if (report_once("calendar", calendar)) {
+                CECE_LOG_WARNING("[DRIVER] Unsupported stream calendar '" + calendar + "'; the time axis cannot be decoded.");
+            }
             return br;
         }
         // Normalise the reference to UTC. Shifting in the time-point domain is
