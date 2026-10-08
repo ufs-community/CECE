@@ -1,6 +1,5 @@
 #include <gtest/gtest.h>
 
-#include <Kokkos_Core.hpp>
 #include <cstring>  // for memset
 #include <fstream>
 #include <iostream>
@@ -43,7 +42,6 @@ TEST(CECECapTest, Lifecycle) {
 }
 
 int main(int argc, char** argv) {
-    Kokkos::initialize(argc, argv);
     ::testing::InitGoogleTest(&argc, argv);
 
     // Process remaining arguments for config file
@@ -56,7 +54,5 @@ int main(int argc, char** argv) {
         }
     }
 
-    int rc = RUN_ALL_TESTS();
-    Kokkos::finalize();
-    return rc;
+    return RUN_ALL_TESTS();
 }
