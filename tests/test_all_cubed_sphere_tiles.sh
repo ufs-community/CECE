@@ -5,36 +5,9 @@
 
 set -e
 
-# ========================================================================
-# Download real C96 grid and gridspec files if they are missing
-# ========================================================================
-mkdir -p data
-
-download_file_if_missing() {
-    local filename=$1
-    local filepath="data/${filename}"
-    local url="https://ftp.emc.ncep.noaa.gov/static_files/public/UFS/GFS/fix/fix_fv3/C96/${filename}"
-
-    if [ ! -f "$filepath" ] || [ ! -s "$filepath" ]; then
-        echo "Downloading ${filename} from NOAA..."
-        if command -v curl >/dev/null 2>&1; then
-            curl -s -S -L -o "$filepath" "$url"
-        elif command -v wget >/dev/null 2>&1; then
-            wget -q -O "$filepath" "$url"
-        else
-            echo "Error: Neither curl nor wget found. Cannot download ${filename}." >&2
-            exit 1
-        fi
-    fi
-}
-
-for tile in 1 2 3 4 5 6; do
-    download_file_if_missing "C96_grid.tile${tile}.nc"
-    download_file_if_missing "C96_grid_spec.tile${tile}.nc"
-done
-
 # Ensure output directory exists
 mkdir -p cece_output
+lon_range_tag=""
 
 # ========================================================================
 # Run the C96 simulation for all 6 tiles sequentially
@@ -48,7 +21,8 @@ for tile in 1 2 3 4 5 6; do
     echo "------------------------------------------------------------------------"
 
     # Generate temporary config file for this specific tile
-    cat <<EOF > examples/cece_config_ex9_tile${tile}.yaml
+    tile_yaml_name="examples/cece_config_ex9_tile${tile}${lon_range_tag}.yaml"
+    cat <<EOF > "${tile_yaml_name}"
 # =====================================================================
 # CECE Example 9 - Tile ${tile} Temporary Test Configuration
 # =====================================================================
@@ -62,17 +36,17 @@ driver:
     ny: 96
 
 species:
-  co:
+  "co":
     - field: "MACCITY_CO"
       operation: "add"
-  no:
+  "no":
     - field: "MACCITY_NO"
       operation: "add"
 
 cece_data:
   streams:
     - name: "MACCITY_CO"
-      file: "/work/data/MACCity_4x5.nc"
+      file: "/work/data/MACCity_4x5${lon_range_tag}.nc"
       yearFirst: 2000
       yearLast: 2010
       yearAlign: 2020
@@ -83,7 +57,7 @@ cece_data:
         - file: "MACCity"
           model: "MACCITY_CO"
     - name: "MACCITY_NO"
-      file: "/work/data/MACCity_anthro_NOx_2000-2010_16080.nc"
+      file: "/work/data/MACCity_anthro_NOx_2000-2010_16080${lon_range_tag}.nc"
       yearFirst: 2000
       yearLast: 2010
       yearAlign: 2020
@@ -101,7 +75,7 @@ diagnostics:
 output:
   enabled: true
   directory: ./cece_output
-  filename_pattern: "cece_c96_tile${tile}_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
+  filename_pattern: "cece_c96_tile${tile}${lon_range_tag}_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
   frequency_steps: 1
   global_attributes:
     title: "My Custom C96 Tile ${tile} Simulation"
@@ -118,10 +92,10 @@ output:
 EOF
 
     # Run simulation inside the container
-    ./setup.sh -c "OMP_NUM_THREADS=1 OMP_PROC_BIND=false mpirun --allow-run-as-root -np 2 ./build/cece_standalone_driver examples/cece_config_ex9_tile${tile}.yaml"
+    ./setup.sh -c "OMP_NUM_THREADS=1 OMP_PROC_BIND=false mpirun --allow-run-as-root -np 2 ./build/cece_standalone_driver ${tile_yaml_name}"
 
     # Clean up temporary config file
-    rm examples/cece_config_ex9_tile${tile}.yaml
+    rm "${tile_yaml_name}"
 done
 
 # ========================================================================
@@ -137,7 +111,7 @@ import numpy as np
 
 total_co_mass_rate = 0.0
 for tile in range(1, 7):
-    f_out = nc.Dataset(f'cece_output/cece_c96_tile{tile}_20200101_010000.nc')
+    f_out = nc.Dataset(f'cece_output/cece_c96_tile{tile}${lon_range_tag}_20200101_010000.nc')
     f_grid = nc.Dataset(f'data/C96_grid_spec.tile{tile}.nc')
     lon_shape = f_out.variables['lon'].shape
     lat_shape = f_out.variables['lat'].shape

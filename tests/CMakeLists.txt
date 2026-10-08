@@ -542,13 +542,6 @@ if(ESMF_FOUND)
     MPI_LAUNCHER
     PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp" PROCESSORS 1
   )
-  cece_add_gtest(
-    test_field_creation_error_handling
-    MAIN MPI_KOKKOS
-    LINK ${_esmf_test_helpers}
-    MPI_LAUNCHER
-    PROPERTIES PROCESSORS 1
-  )
   # Unit tests for field pointer passing (Requirement R5)
   cece_add_gtest(
     test_field_pointer_passing

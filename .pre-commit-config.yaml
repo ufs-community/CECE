@@ -73,3 +73,59 @@ repos:
         language: python
         additional_dependencies: [PyYAML]
         files: ^(examples/.*\.ya?ml|scripts/examples/.*\.ya?ml|tests/(data/)?[^/]*\.ya?ml|README\.md|docs/.*\.md)$
+
+      - id: symilar-yaml
+        name: symilar-yaml
+        description: Check for code duplication in yaml
+        verbose: true
+        language: python
+        additional_dependencies: ["pylint"]
+        entry: symilar
+        types_or: ["yaml"]
+        require_serial: true
+        args: ["--duplicates", "55", "--ignore-comments"]
+        stages: [manual]
+      - id: symilar-bash
+        name: symilar-bash
+        description: Check for code duplication in bash
+        verbose: true
+        language: python
+        additional_dependencies: ["pylint"]
+        entry: symilar
+        types_or: ["shell"]
+        require_serial: true
+        args: ["--duplicates", "5", "--ignore-comments"]
+        stages: [manual]
+      - id: symilar-python
+        name: symilar-python
+        description: Check for code duplication in python
+        verbose: true
+        language: python
+        additional_dependencies: ["pylint"]
+        entry: symilar
+        types: ["python"]
+        require_serial: true
+        args: ["--duplicates", "10", "--ignore-comments", "--ignore-signatures"]
+        stages: [manual]
+      - id: symilar-cpp
+        name: symilar-cpp
+        description: Check for code duplication in C/C++
+        verbose: true
+        language: python
+        additional_dependencies: ["pylint"]
+        entry: symilar
+        types_or: ["c", "c++"]
+        require_serial: true
+        args: ["--duplicates", "20", "--ignore-comments"]
+        stages: [manual]
+      - id: symilar-fortran
+        name: symilar-fortran
+        description: Check for code duplication in Fortran
+        verbose: true
+        language: python
+        additional_dependencies: ["pylint"]
+        entry: symilar
+        types_or: ["fortran"]
+        require_serial: true
+        args: ["--duplicates", "10", "--ignore-comments"]
+        stages: [manual]
