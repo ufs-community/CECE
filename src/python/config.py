@@ -110,6 +110,52 @@ def _parse_temporal_factors(factors: Any) -> list[float]:
     return factors
 
 
+# Support both package (relative) and direct-module import
+try:
+    from .earthaccess_resolver import EarthAccessStreamConfig, validate_short_names
+except ImportError:
+    try:
+        from earthaccess_resolver import EarthAccessStreamConfig, validate_short_names  # type: ignore[no-redef]
+    except ImportError:
+        import importlib.util
+        import sys
+        from pathlib import Path
+
+        module = sys.modules.get("earthaccess_resolver")
+        if module is None:
+            resolver_path = Path(__file__).with_name("earthaccess_resolver.py")
+            spec = importlib.util.spec_from_file_location(
+                "earthaccess_resolver", resolver_path
+            )
+            if spec is None or spec.loader is None:
+                raise ImportError(
+                    f"Cannot load EarthAccess resolver from {resolver_path}"
+                )
+            module = importlib.util.module_from_spec(spec)
+            sys.modules[spec.name] = module
+            spec.loader.exec_module(module)
+        EarthAccessStreamConfig = module.EarthAccessStreamConfig
+        validate_short_names = module.validate_short_names
+
+
+def _bounding_box_from_grid(
+    grid: dict,
+) -> tuple[float, float, float, float] | None:
+    """Derive an earthaccess ``(west, south, east, north)`` bounding box from a
+    CECE ``driver.grid`` block, or ``None`` if the extents are not present."""
+    if not grid:
+        return None
+    required = ("lon_min", "lon_max", "lat_min", "lat_max")
+    if not all(key in grid for key in required):
+        return None
+    return (
+        float(grid["lon_min"]),
+        float(grid["lat_min"]),
+        float(grid["lon_max"]),
+        float(grid["lat_max"]),
+    )
+
+
 @dataclass
 class VerticalDistributionConfig:
     """
@@ -851,6 +897,7 @@ class DriverConfig:
     timestep_seconds: int = 3600
     log_file: str | None = None
     gridspec_file: str | None = None
+    earthaccess_helper: str | None = None
     grid: GridConfig = field(default_factory=GridConfig)
     stacking_refresh_interval_seconds: int = 0
     amio_worker_threads: int = 1
@@ -882,6 +929,8 @@ class DriverConfig:
             _validate_string(self.log_file, "driver.log_file")
         if self.gridspec_file is not None:
             _validate_string(self.gridspec_file, "driver.gridspec_file")
+        if self.earthaccess_helper is not None:
+            _validate_string(self.earthaccess_helper, "driver.earthaccess_helper")
         self.grid.validate()
         _validate_integer(
             self.stacking_refresh_interval_seconds,
@@ -920,6 +969,7 @@ class DriverConfig:
                 "timestep_seconds",
                 "log_file",
                 "gridspec_file",
+                "earthaccess_helper",
                 "grid",
                 "stacking_refresh_interval_seconds",
                 "amio_worker_threads",
@@ -973,6 +1023,9 @@ class OutputConfig:
     frequency_steps: int = 1
     fields: list[OutputFieldConfig] = field(default_factory=list)
     amio_worker_threads: int | None = None
+    amio_staging_buffer_count: int = 2
+    amio_staging_buffer_capacity_bytes: int = 67108864
+    amio_staging_timeout_ms: int = 60000
     global_attributes: dict[str, str | int | float | bool] = field(default_factory=dict)
 
     def validate(self) -> None:
@@ -994,6 +1047,24 @@ class OutputConfig:
             _validate_integer(self.amio_worker_threads, "output.amio_worker_threads")
             if self.amio_worker_threads < 1:
                 raise ValueError("output.amio_worker_threads must be >= 1")
+        _validate_integer(
+            self.amio_staging_buffer_count, "output.amio_staging_buffer_count"
+        )
+        if not 1 <= self.amio_staging_buffer_count <= 4096:
+            raise ValueError("output.amio_staging_buffer_count must be in [1, 4096]")
+        _validate_integer(
+            self.amio_staging_buffer_capacity_bytes,
+            "output.amio_staging_buffer_capacity_bytes",
+        )
+        if not 1 <= self.amio_staging_buffer_capacity_bytes <= 1073741824:
+            raise ValueError(
+                "output.amio_staging_buffer_capacity_bytes must be in [1, 1073741824]"
+            )
+        _validate_integer(
+            self.amio_staging_timeout_ms, "output.amio_staging_timeout_ms"
+        )
+        if not 1 <= self.amio_staging_timeout_ms <= 60000:
+            raise ValueError("output.amio_staging_timeout_ms must be in [1, 60000]")
 
     @classmethod
     def from_dict(cls, data: Mapping[str, Any], where: str = "output") -> OutputConfig:
@@ -1007,6 +1078,9 @@ class OutputConfig:
                 "frequency_steps",
                 "fields",
                 "amio_worker_threads",
+                "amio_staging_buffer_count",
+                "amio_staging_buffer_capacity_bytes",
+                "amio_staging_timeout_ms",
                 "global_attributes",
             },
             where,
@@ -1026,6 +1100,11 @@ class OutputConfig:
                 for index, item in enumerate(raw_fields)
             ],
             amio_worker_threads=values.get("amio_worker_threads"),
+            amio_staging_buffer_count=values.get("amio_staging_buffer_count", 2),
+            amio_staging_buffer_capacity_bytes=values.get(
+                "amio_staging_buffer_capacity_bytes", 67108864
+            ),
+            amio_staging_timeout_ms=values.get("amio_staging_timeout_ms", 60000),
             global_attributes=_validate_global_attributes(
                 values.get("global_attributes", {}), f"{where}.global_attributes"
             ),
@@ -1222,6 +1301,7 @@ class CeceConfig:
         self._masks: dict[str, str] = {}
         self._met_registry: dict[str, list[str]] = {}
         self._temporal_cycles: dict[str, list] = {}
+        self._grid: dict[str, Any] = {}
         self._temporal_profiles: dict[str, list] = {}
         self._local_time = LocalTimeConfig()
 
@@ -1675,6 +1755,13 @@ class CeceConfig:
                 result["output"]["global_attributes"] = output.global_attributes
             if output.amio_worker_threads is not None:
                 result["output"]["amio_worker_threads"] = output.amio_worker_threads
+            result["output"]["amio_staging_buffer_count"] = (
+                output.amio_staging_buffer_count
+            )
+            result["output"]["amio_staging_buffer_capacity_bytes"] = (
+                output.amio_staging_buffer_capacity_bytes
+            )
+            result["output"]["amio_staging_timeout_ms"] = output.amio_staging_timeout_ms
         if self._driver_config is not None:
             driver = self._driver_config
             result["driver"] = {
@@ -1683,6 +1770,7 @@ class CeceConfig:
                 "timestep_seconds": driver.timestep_seconds,
                 "log_file": driver.log_file,
                 "gridspec_file": driver.gridspec_file,
+                "earthaccess_helper": driver.earthaccess_helper,
                 "grid": {
                     "grid_name": driver.grid.grid_name,
                     "nx": driver.grid.nx,
@@ -1761,6 +1849,50 @@ class CeceConfig:
             raise ValueError("YAML must represent a mapping")
         return cls.from_dict(config_dict)
 
+    def _add_stream_from_dict(self, stream_data: Mapping[str, Any]) -> None:
+        name = _validate_string(stream_data.get("name", ""), "earthaccess stream.name")
+        short_name = _validate_string(
+            stream_data.get("short_name", ""), "earthaccess stream.short_name"
+        )
+        temporal_start = _validate_string(
+            stream_data.get("temporal_start", ""),
+            "earthaccess stream.temporal_start",
+        )
+        temporal_end = _validate_string(
+            stream_data.get("temporal_end", ""), "earthaccess stream.temporal_end"
+        )
+        variable_map = stream_data.get("variables", {})
+        if not isinstance(variable_map, Mapping):
+            raise ValueError("earthaccess stream.variables must be a mapping")
+        bounding_box = stream_data.get("bounding_box")
+        if bounding_box is None:
+            bounding_box = _bounding_box_from_grid(self._grid)
+        elif not isinstance(bounding_box, (list, tuple)) or len(bounding_box) != 4:
+            raise ValueError(
+                "earthaccess stream.bounding_box must contain west, south, east, north"
+            )
+        cloud_hosted = stream_data.get("cloud_hosted", True)
+        use_virtual = stream_data.get("virtual", False)
+        if not isinstance(cloud_hosted, bool) or not isinstance(use_virtual, bool):
+            raise ValueError(
+                "earthaccess stream cloud_hosted and virtual values must be booleans"
+            )
+        stream_config = EarthAccessStreamConfig(
+            name=name,
+            short_name=short_name,
+            temporal_start=temporal_start,
+            temporal_end=temporal_end,
+            variable_map=dict(variable_map),
+            bounding_box=bounding_box,
+            version=stream_data.get("version"),
+            cloud_hosted=cloud_hosted,
+            daac=stream_data.get("daac"),
+            block_size=stream_data.get("block_size"),
+            cache_type=stream_data.get("cache_type"),
+            use_virtual=use_virtual,
+        )
+        self._cece_data.setdefault("earthaccess_streams", []).append(stream_config)
+
     def _from_dict(self, config_dict: dict) -> None:  # noqa: C901, PLR0915
         """
         Populate configuration from a dictionary.
@@ -1793,6 +1925,12 @@ class CeceConfig:
             _reject_unknown_keys(values, allowed, "configuration")
         except ValueError as error:
             errors.append(str(error))
+
+        driver_values = values.get("driver", {})
+        grid_values = (
+            driver_values.get("grid", {}) if isinstance(driver_values, Mapping) else {}
+        )
+        self._grid = dict(grid_values) if isinstance(grid_values, Mapping) else {}
 
         def capture(where: str, callback: Any) -> Any:
             try:
@@ -1922,7 +2060,11 @@ class CeceConfig:
             )
             if data is not None:
                 try:
-                    _reject_unknown_keys(data, {"debug_level", "streams"}, "cece_data")
+                    _reject_unknown_keys(
+                        data,
+                        {"debug_level", "streams", "validate_earthaccess_short_names"},
+                        "cece_data",
+                    )
                 except ValueError as error:
                     errors.append(str(error))
                 self._cece_data["debug_level"] = data.get("debug_level", 0)
@@ -1937,16 +2079,57 @@ class CeceConfig:
                     errors.append("cece_data.streams must be a list")
                 else:
                     for index, stream_data in enumerate(streams):
-                        stream = capture(
+                        stream_values = capture(
                             f"cece_data.streams[{index}]",
                             lambda stream_data=stream_data, index=index: (
-                                DataStreamConfig.from_dict(
+                                _require_mapping(
                                     stream_data, f"cece_data.streams[{index}]"
+                                )
+                            ),
+                        )
+                        if stream_values is None:
+                            continue
+                        if stream_values.get("source") == "earthaccess":
+                            capture(
+                                f"cece_data.streams[{index}]",
+                                lambda stream_values=stream_values: (
+                                    self._add_stream_from_dict(stream_values)
+                                ),
+                            )
+                            continue
+                        normalized_stream = dict(stream_values)
+                        if (
+                            "file_paths" in normalized_stream
+                            and "file" not in normalized_stream
+                        ):
+                            normalized_stream["file"] = normalized_stream.pop(
+                                "file_paths"
+                            )
+                        stream_variables = normalized_stream.get("variables")
+                        if isinstance(stream_variables, Mapping):
+                            normalized_stream["variables"] = [
+                                {"file": file_name, "model": model_name}
+                                for file_name, model_name in stream_variables.items()
+                            ]
+                        stream = capture(
+                            f"cece_data.streams[{index}]",
+                            lambda normalized_stream=normalized_stream, index=index: (
+                                DataStreamConfig.from_dict(
+                                    normalized_stream, f"cece_data.streams[{index}]"
                                 )
                             ),
                         )
                         if stream is not None:
                             self._cece_data["streams"].append(stream)
+                validate_names = data.get("validate_earthaccess_short_names", False)
+                if not isinstance(validate_names, bool):
+                    errors.append(
+                        "cece_data.validate_earthaccess_short_names must be a boolean"
+                    )
+                elif validate_names:
+                    earthaccess_streams = self._cece_data.get("earthaccess_streams", [])
+                    if earthaccess_streams:
+                        validate_short_names(earthaccess_streams)
 
         if "output" in values:
             self._output_config = capture(
@@ -1993,6 +2176,16 @@ class CeceConfig:
         return self._vertical_config
 
     @property
+    def grid(self) -> dict[str, Any]:
+        """dict : Parsed ``driver.grid`` block (lon/lat extents), if present."""
+        return self._grid
+
+    @property
+    def earthaccess_streams(self) -> list[EarthAccessStreamConfig]:
+        """list of EarthAccessStreamConfig : Cloud-streamed NASA Earthdata sources."""
+        return self._cece_data.get("earthaccess_streams", [])
+
+    @property
     def vertical_grid(self) -> VerticalGridConfig:
         return self._vertical_grid_config
 
@@ -2036,3 +2229,48 @@ class CeceConfig:
     def local_time(self) -> LocalTimeConfig:
         """LocalTimeConfig : Local-time service settings."""
         return self._local_time
+
+
+def parse_earthaccess_streams(cece_cfg: dict) -> list[EarthAccessStreamConfig]:
+    """Extract ``source: earthaccess`` stream entries from a raw config dict.
+
+    Suitable for use before a full ``CeceConfig`` parse, e.g. to pre-open
+    remote datasets while the C++ core is initializing. A stream's
+    ``bounding_box`` is auto-derived from ``driver.grid`` extents when the
+    stream does not set one explicitly.
+
+    Parameters
+    ----------
+    cece_cfg : dict
+        Top-level CECE configuration dictionary (e.g. from ``yaml.safe_load``).
+
+    Returns
+    -------
+    list of EarthAccessStreamConfig
+        One entry per stream that declares ``source: earthaccess``.
+    """
+    grid = cece_cfg.get("driver", {}).get("grid", {})
+    results: list[EarthAccessStreamConfig] = []
+    for stream in cece_cfg.get("cece_data", {}).get("streams", []):
+        if stream.get("source") != "earthaccess":
+            continue
+        bounding_box = stream.get("bounding_box")
+        if bounding_box is None:
+            bounding_box = _bounding_box_from_grid(grid)
+        results.append(
+            EarthAccessStreamConfig(
+                name=stream.get("name", ""),
+                short_name=stream["short_name"],
+                temporal_start=stream["temporal_start"],
+                temporal_end=stream["temporal_end"],
+                variable_map=stream.get("variables", {}),
+                bounding_box=bounding_box,
+                version=stream.get("version"),
+                cloud_hosted=stream.get("cloud_hosted", True),
+                daac=stream.get("daac"),
+                block_size=stream.get("block_size"),
+                cache_type=stream.get("cache_type"),
+                use_virtual=stream.get("virtual", False),
+            )
+        )
+    return results

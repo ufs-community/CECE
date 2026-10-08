@@ -133,12 +133,16 @@ def test_runtime_driver_grid_name_and_log_file_round_trip():
     parsed = config.CeceConfig.from_dict({
         "driver": {
             "log_file": "cece.log",
+            "earthaccess_helper": "scripts/cece_earthaccess_standalone_ingest.py",
             "grid": {"grid_name": "F360", "nz": 72},
         }
     })
 
     dumped = parsed.to_dict()["driver"]
     assert dumped["log_file"] == "cece.log"
+    assert dumped["earthaccess_helper"] == (
+        "scripts/cece_earthaccess_standalone_ingest.py"
+    )
     assert dumped["grid"]["grid_name"] == "F360"
     assert config.CeceConfig.from_dict({"driver": dumped}).to_dict()["driver"] == dumped
 
@@ -147,11 +151,17 @@ def test_output_global_attributes_round_trip():
     parsed = config.CeceConfig.from_dict({
         "output": {
             "global_attributes": {"title": "Example run"},
+            "amio_staging_buffer_count": 3,
+            "amio_staging_buffer_capacity_bytes": 134217728,
+            "amio_staging_timeout_ms": 30000,
         }
     })
 
     output = parsed.to_dict()["output"]
     assert output["global_attributes"] == {"title": "Example run"}
+    assert output["amio_staging_buffer_count"] == 3
+    assert output["amio_staging_buffer_capacity_bytes"] == 134217728
+    assert output["amio_staging_timeout_ms"] == 30000
     assert config.CeceConfig.from_dict({"output": output}).to_dict()["output"] == output
 
 

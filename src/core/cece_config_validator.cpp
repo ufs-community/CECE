@@ -220,6 +220,30 @@ void ConfigValidator::ValidateOutput(const conf::Value& config, ValidationResult
             result.errors.push_back({"output.frequency_steps", "Output frequency must be positive", "Set frequency_steps to a positive integer"});
         }
     }
+
+    if (output["amio_staging_buffer_count"]) {
+        int count = output["amio_staging_buffer_count"].as_int();
+        if (count < 1 || count > 4096) {
+            result.errors.push_back({"output.amio_staging_buffer_count", "Output staging buffer count must be in [1, 4096]",
+                                     "Set amio_staging_buffer_count between 1 and 4096"});
+        }
+    }
+
+    if (output["amio_staging_buffer_capacity_bytes"]) {
+        int capacity = output["amio_staging_buffer_capacity_bytes"].as_int();
+        if (capacity < 1 || capacity > 1073741824) {
+            result.errors.push_back({"output.amio_staging_buffer_capacity_bytes", "Output staging buffer capacity must be in [1, 1073741824]",
+                                     "Set capacity to at least the largest output field and no more than 1 GiB"});
+        }
+    }
+
+    if (output["amio_staging_timeout_ms"]) {
+        int timeout = output["amio_staging_timeout_ms"].as_int();
+        if (timeout < 1 || timeout > 60000) {
+            result.errors.push_back({"output.amio_staging_timeout_ms", "Output staging timeout must be in [1, 60000] milliseconds",
+                                     "Set amio_staging_timeout_ms between 1 and 60000"});
+        }
+    }
 }
 
 bool ConfigValidator::FileExists(const std::string& path) {
