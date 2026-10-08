@@ -77,6 +77,7 @@ void cece_core_local_time_init(void* data_ptr, int nx, int ny, int nz, const dou
                                int mpi_comm_f, int* rc);
 void cece_core_write_step(void* data_ptr, double time_seconds, int step_index, int* rc);
 void cece_core_set_export_field(void* data_ptr, const char* name, int name_len, const double* field_data, int nx, int ny, int nz, int* rc);
+void cece_core_set_import_field(void* data_ptr, const char* name, int name_len, const double* field_data, int nx, int ny, int nz, int* rc);
 }
 
 int main(int argc, char* argv[]) {
@@ -472,6 +473,43 @@ int main(int argc, char* argv[]) {
         if (nx <= 0 || ny <= 0 || nz <= 0) {
             CECE_LOG_ERROR("Invalid grid dimensions nx=" + std::to_string(nx) + ", ny=" + std::to_string(ny) + ", nz=" + std::to_string(nz));
             return -1;
+        }
+
+        // Publish the destination grid's coordinates as 2-D LAT/LON import
+        // fields so physics schemes can consume them without reading
+        // coordinates from offline files. These are band-local (nx x ny_local)
+        // using this rank's latitude band, matching the met import and export
+        // field geometry so per-cell lat/lon line up with the compute band.
+        if (has_file_coords && band.ny_local > 0) {
+            const std::size_t band_cells = static_cast<std::size_t>(nx) * band.ny_local;
+            std::vector<double> lon2d(band_cells);
+            std::vector<double> lat2d(band_cells);
+            if (ny == 1) {
+                // Single-row / unstructured (UGRID) mesh: the whole mesh is one
+                // band row owned by a single rank, and each of the nx cells
+                // carries its own lon AND lat (both length-nx, varying along i).
+                for (int i = 0; i < nx; ++i) {
+                    lon2d[i] = file_lons[i];
+                    lat2d[i] = file_lats[i];
+                }
+            } else {
+                // Structured lat-lon grid: lon varies along i, lat is constant
+                // along a row and indexed by this rank's latitude band [j0, j1).
+                for (int jrel = 0; jrel < band.ny_local; ++jrel) {
+                    const int jglob = band.j0 + jrel;
+                    for (int i = 0; i < nx; ++i) {
+                        const std::size_t idx = static_cast<std::size_t>(i) + static_cast<std::size_t>(nx) * jrel;
+                        lon2d[idx] = file_lons[i];
+                        lat2d[idx] = file_lats[jglob];
+                    }
+                }
+            }
+            cece_core_set_import_field(cece_data_ptr, "LON", 3, lon2d.data(), nx, band.ny_local, 1, &rc);
+            if (rc >= 0) cece_core_set_import_field(cece_data_ptr, "LAT", 3, lat2d.data(), nx, band.ny_local, 1, &rc);
+            if (rc < 0) {
+                cece::LogFatal("[DRIVER FATAL] (rank " + std::to_string(my_rank) + ") failed to publish grid LAT/LON import fields");
+                return rc;
+            }
         }
         // 5. Initialize the cece_driver orchestrator facade
         void* cece_driver_data = nullptr;

@@ -469,6 +469,7 @@ set(
   src/core/physics/cece_dust.cpp
   src/core/physics/cece_fengsha.cpp
   src/core/physics/cece_ginoux.cpp
+  src/core/physics/cece_seasalt_geos12.cpp
   src/core/physics/cece_k14.cpp
   src/core/physics/cece_volcano.cpp
   src/core/physics/cece_speciation_config.cpp

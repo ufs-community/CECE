@@ -598,6 +598,65 @@ void cece_core_set_export_field(void* data_ptr, const char* name, int name_len, 
 }
 
 /**
+ * @brief Register/populate an import field from a host array (deep-copied).
+ *
+ * Unlike export fields, import fields are not written back to disk, so no
+ * persistent pointer is retained — the data is copied into a managed DualView
+ * that owns its memory for the simulation lifetime. Used by the driver to
+ * publish grid-derived fields (e.g. LAT/LON) that schemes consume via imports.
+ *
+ * @param data_ptr   Pointer to CeceInternalData.
+ * @param name       Field name (not null-terminated; use name_len).
+ * @param name_len   Length of the name string.
+ * @param field_data Raw pointer to the host field data (LayoutLeft nx*ny*nz).
+ * @param nx, ny, nz Grid dimensions.
+ * @param rc         Return code (0 = success, -1 = error).
+ */
+void cece_core_set_import_field(void* data_ptr, const char* name, int name_len, const double* field_data, int nx, int ny, int nz, int* rc) {
+    if (rc != nullptr) {
+        *rc = 0;
+    }
+
+    if (data_ptr == nullptr) {
+        std::cerr << "ERROR: cece_core_set_import_field - data_ptr is null" << std::endl;
+        if (rc != nullptr) *rc = -1;
+        return;
+    }
+
+    if (name == nullptr || name_len <= 0) {
+        std::cerr << "ERROR: cece_core_set_import_field - invalid name argument" << std::endl;
+        if (rc != nullptr) *rc = -1;
+        return;
+    }
+
+    if (field_data == nullptr) {
+        std::cerr << "ERROR: cece_core_set_import_field - field_data is null" << std::endl;
+        if (rc != nullptr) *rc = -1;
+        return;
+    }
+
+    auto* internal_data = static_cast<cece::CeceInternalData*>(data_ptr);
+    std::string name_str(name, static_cast<size_t>(name_len));
+
+    using UnmanagedHostConst = Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+    UnmanagedHostConst h_view(field_data, nx, ny, nz);
+
+    cece::DualView3D dv(name_str, nx, ny, nz);
+    Kokkos::deep_copy(dv.view_host(), h_view);
+    dv.modify_host();
+    dv.sync_device();
+
+    internal_data->import_state.fields[name_str] = dv;
+
+    std::cout << "INFO: cece_core_set_import_field - registered import field '" << name_str << "' (" << nx << "x" << ny << "x" << nz << ")"
+              << std::endl;
+
+    if (rc != nullptr) {
+        *rc = 0;
+    }
+}
+
+/**
  * @brief Get the number of unique input fields required by the configuration.
  *
  * @param data_ptr Pointer to CeceInternalData

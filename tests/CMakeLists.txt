@@ -196,6 +196,9 @@ cece_add_gtest(test_megan3 MAIN KOKKOS LINK ${RAPIDCHECK})
 cece_add_gtest(test_bdsnp MAIN KOKKOS LINK ${RAPIDCHECK})
 # Canonical BDSNP production-kernel regression tests
 cece_add_gtest(test_bdsnp_runtime MAIN KOKKOS)
+# GEOS-12 Sea Salt native Kokkos scheme tests (own main with Kokkos init)
+cece_add_gtest(test_seasalt_geos12 MAIN OWN)
+cece_add_gtest(test_seasalt_geos12_runtime MAIN OWN)
 # HEMCO 3.12.1 MEGAN isoprene stateless source-conformance tests
 cece_add_gtest(test_hemco_megan_runtime MAIN KOKKOS SOURCE_DIR_DEFINE)
 # HEMCO 3.12.1 MEGAN synthetic global 4°×5° invariant tests
