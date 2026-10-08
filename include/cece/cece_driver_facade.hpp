@@ -174,6 +174,18 @@ class CeceDriverOrchestrator {
     bool WriteBandToImport(const std::string& var_name, const std::vector<double>& dest_buffer, int field_nlev, void* cece_core_data_ptr,
                            std::string& failure_detail);
 
+    /** Return whether the YAML config contains streams handled by EarthAccess. */
+    static bool HasEarthAccessStreams(const std::string& config_file);
+
+    /**
+     * Ingest `source: earthaccess` streams for the current timestep.
+     *
+     * Rank zero invokes the Python helper unless input is already staged. Each
+     * rank reads the manifest, slices fields to its latitude band, and writes
+     * through the same import-state path used by AMIO-backed streams.
+     */
+    bool IngestEarthAccessStreams(const std::string& time_iso8601, void* cece_core_data_ptr);
+
     // Build or rebuild halo_comm_ to wrap the current comm_c_. Duplicates a
     // non-predefined handle (comm != WORLD/SELF/NULL) mirroring
     // src/driver/cece_helm_graph.cpp's convention, and wraps MPI_COMM_WORLD /
@@ -344,6 +356,7 @@ class CeceDriverOrchestrator {
     // data_model + worker_threads + staging_buffer_count). The record-count
     // search runs at most once per file/manifest.
     std::unordered_map<std::string, int> file_nt_cache_;
+    bool has_earthaccess_streams_{false};
 
     // Per-variable source shape (rank + per-timestep extents, CF time
     // stripped) keyed by Handle_Identity_Key + "|" + var_name. Populated once

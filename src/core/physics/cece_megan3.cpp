@@ -18,8 +18,10 @@
 #include <Kokkos_Core.hpp>
 #include <algorithm>
 #include <cmath>
-#include <iostream>
+#include <string>
+#include <vector>
 
+#include "cece/cece_logger.hpp"
 #include "cece/cece_physics_factory.hpp"
 #include "cece/physics/cece_canopy_model.hpp"
 #include "cece/physics/cece_emission_activity.hpp"
@@ -123,8 +125,8 @@ void Megan3Scheme::Initialize(const conf::Value& config, CeceDiagnosticManager* 
         export_field_names_.push_back("MEGAN_" + sp_name);
     }
 
-    std::cout << "Megan3Scheme: Initialized with " << NUM_CLASSES << " emission classes, " << export_field_names_.size()
-              << " mechanism species output fields\n";
+    CECE_LOG_INFO("Megan3Scheme: Initialized with " + std::to_string(NUM_CLASSES) + " emission classes, " +
+                  std::to_string(export_field_names_.size()) + " mechanism species output fields");
 }
 
 // ============================================================================
@@ -142,9 +144,19 @@ void Megan3Scheme::Run(CeceImportState& import_state, CeceExportState& export_st
     auto soil_moisture = ResolveImport("soil_moisture_root", import_state);
     auto wind_speed = ResolveImport("wind_speed", import_state);
 
-    // Early return if required fields are null
-    if (temp.data() == nullptr || lai.data() == nullptr || par_direct.data() == nullptr || par_diffuse.data() == nullptr ||
-        suncos.data() == nullptr) {
+    std::vector<std::string> missing_required_fields;
+    if (temp.data() == nullptr) missing_required_fields.push_back("temperature");
+    if (lai.data() == nullptr) missing_required_fields.push_back("leaf_area_index");
+    if (par_direct.data() == nullptr) missing_required_fields.push_back("par_direct");
+    if (par_diffuse.data() == nullptr) missing_required_fields.push_back("par_diffuse");
+    if (suncos.data() == nullptr) missing_required_fields.push_back("solar_cosine");
+    if (!missing_required_fields.empty()) {
+        std::string message = "Megan3Scheme: missing required import field(s): ";
+        for (std::size_t idx = 0; idx < missing_required_fields.size(); ++idx) {
+            if (idx > 0) message += ", ";
+            message += missing_required_fields[idx];
+        }
+        CECE_LOG_ERROR(message + "; skipping MEGAN3 emission update for this timestep.");
         return;
     }
 
@@ -206,8 +218,9 @@ void Megan3Scheme::Run(CeceImportState& import_state, CeceExportState& export_st
     auto soil_nox_view = ResolveExport("soil_nox_emissions", export_state);
     bool has_soil_nox = (soil_nox_view.data() != nullptr);
     if (!has_soil_nox) {
-        std::cerr << "Megan3Scheme: WARNING - soil_nox_emissions not found in export state, "
-                     "setting soil NO contribution to zero\n";
+        CECE_LOG_WARNING(
+            "Megan3Scheme: soil_nox_emissions not found in export state, "
+            "setting soil NO contribution to zero");
     }
 
     // ---- Allocate class_totals_ (19 x num_cells) ----

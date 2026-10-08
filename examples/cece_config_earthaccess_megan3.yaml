@@ -1,0 +1,176 @@
+# =====================================================================
+# CECE earthaccess Example: Cloud-Native NASA Earthdata Streaming
+# =====================================================================
+# Demonstrates sourcing CECE input data directly from NASA Earthdata
+# Cloud via earthaccess, bypassing local file staging entirely.
+#
+# Required setup (one-time):
+#   export EARTHDATA_USERNAME=<your-EDL-username>
+#   export EARTHDATA_TOKEN=<your-EDL-token>
+#   # Or: store credentials in ~/.netrc (see earthaccess docs)
+#
+# Install cloud extras before running:
+#   pip install 'cece-tools[cloud]'
+#
+# Physics schemes demonstrated:
+#   - megan3  : biogenic VOC emissions (needs LAI, PAR, soil moisture)
+#   - bdsnp   : soil NO emissions (needs soil temperature + moisture)
+#   - fengsha : wind-blown dust (needs soil properties, friction velocity)
+#
+# All input streams use source: earthaccess — no local NetCDF files needed.
+# =====================================================================
+
+driver:
+  start_time: "2022-07-01T00:00:00"
+  end_time: "2022-07-03T23:00:00"
+  timestep_seconds: 3600
+  log_file: "./logs/cece_earthaccess_megan3.log"
+  # Optional. Relative paths are resolved from this YAML file's directory.
+  earthaccess_helper: "../scripts/cece_earthaccess_standalone_ingest.py"
+  amio_worker_threads: 1
+  amio_staging_buffer_count: 8
+  grid:
+    nx: 72
+    ny: 46
+    nz: 1
+    lon_min: -180.0
+    lon_max: 180.0
+    lat_min: -90.0
+    lat_max: 90.0
+
+physics_schemes:
+  - name: megan3
+    options:
+      mechanism_file: ../data/speciation/spc_cb6.yaml
+      speciation_file: ../data/speciation/map_cb6.yaml
+      speciation_dataset: MEGAN
+      co2_concentration: 415.0
+      co2_method: possell # "possell" or "wilkinson"
+      enable_wind_stress: false
+      enable_temp_stress: false
+      enable_aq_stress: false
+      emission_classes:
+        ISOP:
+          ldf: 0.9996
+          ct1: 95.0
+          cleo: 2.0
+          beta: 0.13
+          anew: 0.05
+          agro: 0.6
+          amat: 1.0
+          aold: 0.9
+          default_aef: 1.0e-9
+
+cece_data:
+  streams:
+    # ------------------------------------------------------------------
+    # Leaf Area Index — MERRA-2 land diagnostics (GES DISC, hourly NetCDF4)
+    # Provides: leaf_area_index, leaf_area_index_prev (from prior cycle)
+    # ------------------------------------------------------------------
+    - name: merra2_lai
+      source: earthaccess
+      short_name: M2T1NXLND
+      daac: GES_DISC
+      cloud_hosted: true
+      temporal_start: "2022-07-01"
+      temporal_end: "2022-07-04"
+      variables:
+        LAI:
+          model: leaf_area_index
+          fill_value: 0.0
+
+    # ------------------------------------------------------------------
+    # Previous Leaf Area Index — same MERRA-2 collection, prior window
+    # Provides: leaf_area_index_prev (MEGAN3 leaf-age response)
+    # ------------------------------------------------------------------
+    - name: merra2_lai_previous
+      source: earthaccess
+      short_name: M2T1NXLND
+      daac: GES_DISC
+      cloud_hosted: true
+      temporal_start: "2022-06-24"
+      temporal_end: "2022-07-01"
+      variables:
+        LAI:
+          model: leaf_area_index_prev
+          fill_value: 0.0
+
+    # ------------------------------------------------------------------
+    # 2-meter air temperature — MERRA-2 single-level diagnostics (GES DISC)
+    # Provides: temperature (MEGAN3 air temperature, K)
+    # ------------------------------------------------------------------
+    - name: merra2_temperature_2m
+      source: earthaccess
+      short_name: M2T1NXSLV
+      daac: GES_DISC
+      cloud_hosted: true
+      temporal_start: "2022-07-01"
+      temporal_end: "2022-07-04"
+      variables:
+        T2M: temperature
+
+    # ------------------------------------------------------------------
+    # Root-zone soil moisture — MERRA-2 land diagnostics (hourly NetCDF4)
+    # Provides: soil_moisture_root (volumetric water content)
+    # ------------------------------------------------------------------
+    - name: merra2_soil
+      source: earthaccess
+      short_name: M2T1NXLND
+      version: "5.12.4"
+      daac: GES_DISC
+      cloud_hosted: true
+      temporal_start: "2022-07-01"
+      temporal_end: "2022-07-04"
+      variables:
+        RZMC:
+          model: soil_moisture_root
+          fill_value: 0.0
+
+    # ------------------------------------------------------------------
+    # Photosynthetically active radiation — MERRA-2 radiation diagnostics
+    # Provides: par_direct, par_diffuse, solar_cosine (MEGAN3 inputs)
+    # ------------------------------------------------------------------
+    - name: merra2_par
+      source: earthaccess
+      short_name: M2T1NXLFO
+      version: "5.12.4"
+      daac: GES_DISC
+      cloud_hosted: true
+      temporal_start: "2022-07-01"
+      temporal_end: "2022-07-04"
+      variables:
+        PARDR: par_direct
+        PARDF: par_diffuse
+      derived_variables:
+        solar_cosine: solar_cosine
+
+    # ------------------------------------------------------------------
+    # Surface wind speed — MERRA-2 surface flux diagnostics (GES DISC)
+    # Provides: wind_speed (optional MEGAN3 wind stress; also used by dust-like schemes)
+    # ------------------------------------------------------------------
+    - name: merra2_surface_wind
+      source: earthaccess
+      short_name: M2T1NXFLX
+      daac: GES_DISC
+      cloud_hosted: true
+      temporal_start: "2022-07-01"
+      temporal_end: "2022-07-04"
+      variables:
+        SPEED: wind_speed
+
+output:
+  enabled: true
+  directory: "./output/earthaccess_megan3"
+  filename_pattern: "cece_earthaccess_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
+  # Output writer tuning for high-resolution grids (e.g., global 0.1 degree).
+  amio_worker_threads: 2
+  amio_staging_buffer_count: 2
+  amio_staging_buffer_capacity_bytes: 67108864 # 64 MiB
+  amio_staging_timeout_ms: 60000
+  fields:
+    - name: MEGAN_ISOP
+      attributes:
+        units: "kg m-2 s-1"
+        long_name: "CECE simplified MEGAN3 ISOP emission flux"
+  global_attributes:
+    title: "CECE EarthAccess standalone test"

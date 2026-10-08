@@ -1,0 +1,188 @@
+# =====================================================================
+# CECE earthaccess Example: Cloud-Native NASA Earthdata Streaming
+# =====================================================================
+# Demonstrates sourcing CECE input data directly from NASA Earthdata
+# Cloud via earthaccess, bypassing local file staging entirely.
+#
+# Required setup (one-time):
+#   export EARTHDATA_USERNAME=<your-EDL-username>
+#   export EARTHDATA_TOKEN=<your-EDL-token>
+#   # Or: store credentials in ~/.netrc (see earthaccess docs)
+#
+# Install cloud extras before running:
+#   pip install 'cece-tools[cloud]'
+#
+# Physics schemes demonstrated:
+#   - megan3  : biogenic VOC emissions (needs 2 m temperature, LAI, PAR, solar angle, soil moisture)
+#   - bdsnp   : soil NO emissions (needs soil temperature + moisture)
+#   - fengsha : wind-blown dust (needs soil properties, friction velocity)
+#
+# All input streams use source: earthaccess — no local NetCDF files needed.
+# =====================================================================
+
+driver:
+  start_time: "2022-07-01T00:00:00"
+  end_time: "2022-07-03T23:00:00"
+  timestep_seconds: 3600
+  # Optional. Relative paths are resolved from this YAML file's directory.
+  earthaccess_helper: "../scripts/cece_earthaccess_standalone_ingest.py"
+  # HEMCO reference 4x5 grid — matches PR #85 (SoilNOx) and PR #90 (MEGAN) parity grids
+  grid:
+    grid_name: "HEMCO_4x5"
+    lon_min: -180.0
+    lon_max: 175.0
+    lat_min: -89.0
+    lat_max: 89.0
+
+meteorology: {}
+
+species:
+  isoprene:
+    - field: "megan3_ISOP"
+      operation: "add"
+  soil_no:
+    - field: "soil_nox_emissions"
+      operation: "add"
+  dust_fine:
+    - field: "fengsha_dust_emissions"
+      operation: "add"
+
+physics_schemes:
+  - name: megan3
+    language: cpp
+  - name: bdsnp
+    language: cpp
+  - name: fengsha
+    language: cpp
+
+cece_data:
+  streams:
+    # ------------------------------------------------------------------
+    # Leaf Area Index — MERRA-2 land diagnostics (GES DISC, hourly NetCDF4)
+    # Provides: leaf_area_index (current cycle)
+    # ------------------------------------------------------------------
+    - name: merra2_lai
+      source: earthaccess
+      short_name: M2T1NXLND
+      daac: GES_DISC
+      cloud_hosted: true
+      temporal_start: "2022-07-01"
+      temporal_end: "2022-07-04"
+      variables:
+        LAI:
+          model: leaf_area_index
+          fill_value: 0.0
+
+    # ------------------------------------------------------------------
+    # Previous Leaf Area Index — same MERRA-2 collection, prior window
+    # Provides: leaf_area_index_prev (MEGAN3 leaf-age response)
+    # ------------------------------------------------------------------
+    - name: merra2_lai_previous
+      source: earthaccess
+      short_name: M2T1NXLND
+      daac: GES_DISC
+      cloud_hosted: true
+      temporal_start: "2022-06-24"
+      temporal_end: "2022-07-01"
+      variables:
+        LAI:
+          model: leaf_area_index_prev
+          fill_value: 0.0
+
+    # ------------------------------------------------------------------
+    # 2-meter air temperature — MERRA-2 single-level diagnostics (GES DISC)
+    # Provides: temperature (MEGAN3 air temperature, K)
+    # ------------------------------------------------------------------
+    - name: merra2_temperature_2m
+      source: earthaccess
+      short_name: M2T1NXSLV
+      daac: GES_DISC
+      cloud_hosted: true
+      temporal_start: "2022-07-01"
+      temporal_end: "2022-07-04"
+      variables:
+        T2M: temperature
+
+    # ------------------------------------------------------------------
+    # Root-zone and surface soil moisture — MERRA-2 land diagnostics
+    # Provides volumetric water content on the regular MERRA-2 grid
+    # ------------------------------------------------------------------
+    - name: merra2_soil
+      source: earthaccess
+      short_name: M2T1NXLND
+      version: "5.12.4"
+      daac: GES_DISC
+      cloud_hosted: true
+      temporal_start: "2022-07-01"
+      temporal_end: "2022-07-04"
+      variables:
+        RZMC:
+          model: soil_moisture_root
+          fill_value: 0.0
+        SFMC:
+          model: soil_moisture
+          fill_value: 0.0
+
+    # ------------------------------------------------------------------
+    # Soil temperature — MERRA-2 land diagnostics layer 1
+    # Provides: soil_temperature (used by BDSNP)
+    # ------------------------------------------------------------------
+    - name: merra2_soiltemp
+      source: earthaccess
+      short_name: M2T1NXLND
+      version: "5.12.4"
+      daac: GES_DISC
+      cloud_hosted: true
+      temporal_start: "2022-07-01"
+      temporal_end: "2022-07-04"
+      variables:
+        TSOIL1:
+          model: soil_temperature
+          fill_value: 273.15
+
+    # ------------------------------------------------------------------
+    # Photosynthetically active radiation — MERRA-2 radiation diagnostics
+    # Provides: par_direct, par_diffuse, solar_cosine (MEGAN3 inputs)
+    # ------------------------------------------------------------------
+    - name: merra2_par
+      source: earthaccess
+      short_name: M2T1NXLFO
+      version: "5.12.4"
+      daac: GES_DISC
+      cloud_hosted: true
+      temporal_start: "2022-07-01"
+      temporal_end: "2022-07-04"
+      variables:
+        PARDR: par_direct
+        PARDF: par_diffuse
+      derived_variables:
+        solar_cosine: solar_cosine
+
+    # ------------------------------------------------------------------
+    # Surface wind speed — MERRA-2 surface flux diagnostics (GES DISC)
+    # Provides: wind_speed (optional MEGAN3 wind stress; also used by dust-like schemes)
+    # ------------------------------------------------------------------
+    - name: merra2_surface_wind
+      source: earthaccess
+      short_name: M2T1NXFLX
+      daac: GES_DISC
+      cloud_hosted: true
+      temporal_start: "2022-07-01"
+      temporal_end: "2022-07-04"
+      variables:
+        SPEED: wind_speed
+
+    # ------------------------------------------------------------------
+    # Soil texture fractions — STATSGO/FAO (static, LP DAAC)
+    # Provides: clay_fraction, sand_fraction, silt_fraction (Fengsha)
+    # ------------------------------------------------------------------
+    - name: soil_texture
+      source: earthaccess
+      short_name: MCD12Q1
+      version: "061"
+      daac: LPCLOUD
+      cloud_hosted: true
+      temporal_start: "2022-01-01"
+      temporal_end: "2022-12-31"
+      variables:
+        LC_Type1: land_use_type

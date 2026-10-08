@@ -12,7 +12,6 @@
 #include <dagr/logging.hpp>
 #include <filesystem>
 #include <fstream>
-#include <iostream>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -295,10 +294,17 @@ void CeceDriverOrchestrator::ResolveStreamConfigsFromFile(const std::string& con
         return;
     }
 
-    // Walk every stream and populate a StreamConfig for each model variable,
-    // keyed by model name. Unlike the legacy inline parse, streams without
-    // variables map their name to itself and malformed entries throw.
+    // Filter EarthAccess streams before resolving local AMIO mappings.
+    std::vector<YAML::Node> local_streams;
     for (const auto& stream : config["cece_data"]["streams"]) {
+        if (!stream["source"] || stream["source"].as<std::string>() != "earthaccess") {
+            local_streams.push_back(stream);
+        }
+    }
+
+    // Walk each local stream and populate a StreamConfig for every model
+    // variable. Streams without variables map their name to itself.
+    for (const auto& stream : local_streams) {
         if (stream["interpolation"]) {
             throw std::invalid_argument("cece_data stream '" + stream["name"].as<std::string>("") + "': unknown key 'interpolation'; use 'tintalgo'");
         }
@@ -588,6 +594,10 @@ CeceDriverOrchestrator::CeceDriverOrchestrator(const std::string& config_file, i
     // amio_worker_threads / amio_staging_buffer_count throws) and its
     // YAML::Exception robustness (gridspec_file_ = "" on a bad/missing file).
     ResolveStreamConfigs();
+    has_earthaccess_streams_ = HasEarthAccessStreams(config_file_);
+    if (has_earthaccess_streams_) {
+        CECE_LOG_INFO("[DRIVER] Earthaccess streams detected; standalone helper ingestion will run before local AMIO ingestion each timestep.");
+    }
 
     cece_io_ = std::make_unique<io::CeceIO>();
     cece_io_->Initialize(config_file_, nx_, ny_, nz_);
@@ -1033,6 +1043,11 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
     // Parse the current simulation datetime once. Every cadence except
     // 'stepwise' uses these calendar fields to select the correct file record.
     const SimDateTime sim_dt = parse_sim_datetime(time_iso8601);
+
+    if (!IngestEarthAccessStreams(time_iso8601, cece_core_data_ptr)) {
+        CECE_LOG_ERROR("[DRIVER FATAL] Earthaccess stream ingestion failed for timestep '" + time_iso8601 + "'");
+        return false;
+    }
 
     // B. Push CeceIO's newly computed emission views into CECE's data ingestor
     for (const auto& var_name : cece_io_->GetOutputVarNames()) {

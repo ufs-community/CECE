@@ -12,6 +12,8 @@ output/
 
 # Generated configuration files
 cece_data_streams.yaml
+.cece_earthaccess_cache/
+earthaccess_stage/
 
 # OS and IDE files
 .DS_Store

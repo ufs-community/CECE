@@ -1020,6 +1020,9 @@ Configuration for NetCDF output file generation with emission fields.
 | `frequency_steps` | Integer | Output frequency in timesteps |
 | `fields` | List | Fields to write; each entry is either a field name string or a map with `name` and optional `attributes` |
 | `amio_worker_threads` | Integer | (Optional) Number of AMIO background I/O worker threads for output. Must be ≥ 1 when explicitly set; nonpositive values are rejected. When omitted, falls back to `driver.amio_worker_threads`. |
+| `amio_staging_buffer_count` | Integer | Number of output staging buffers, in `[1, 4096]`. Default: `2`. The writer waits for each asynchronous write and bounds the pool at this count. |
+| `amio_staging_buffer_capacity_bytes` | Integer | Minimum capacity of each output staging buffer, in `[1, 1073741824]`. Default: `67108864` (64 MiB). The writer automatically raises this to fit one complete `float64` output field. |
+| `amio_staging_timeout_ms` | Integer | Output staging acquisition and write-completion timeout, in `[1, 60000]` milliseconds. Default: `60000`. |
 | `global_attributes` | Map | (Optional) Map of NetCDF global attribute names to string, number, or boolean values, overriding any defaults. |
 
 ### Fields and Attributes
@@ -1091,6 +1094,10 @@ output:
   directory: "./output"
   filename_pattern: "cece_emissions_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
   frequency_steps: 1            # Output every timestep
+  amio_worker_threads: 2
+  amio_staging_buffer_count: 2
+  amio_staging_buffer_capacity_bytes: 67108864
+  amio_staging_timeout_ms: 60000
   fields:
     - name: "co"
       attributes:

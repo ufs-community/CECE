@@ -586,6 +586,7 @@ add_library(
   src/driver/cece_amio_utils.cpp
   src/driver/cece_calendar.cpp
   src/driver/cece_time_indexing.cpp
+  src/driver/cece_driver_earthaccess.cpp
   src/driver/cece_driver_facade.cpp
 )
 

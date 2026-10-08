@@ -22,6 +22,9 @@ void CeceIO::Initialize(const std::string& config_file, int nx, int ny, int nz) 
         conf::Value streams = config.at("cece_data.streams");
         for (std::size_t si = 0; si < streams.size(); ++si) {
             conf::Value stream = streams[si];
+            if (stream["source"].string_or("") == "earthaccess") {
+                continue;
+            }
             conf::Value variables = stream["variables"];
             const bool implicit_variable =
                 !variables || variables.kind() == conf::Node_Kind::Null || (variables.kind() == conf::Node_Kind::Sequence && variables.size() == 0);
