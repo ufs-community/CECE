@@ -50,15 +50,15 @@ References:
 ## YAML Configuration Example
 
 ```yaml
-physics:
-  - name: sea_salt
-    config:
-      r_sala_min: 0.01
-      r_sala_max: 0.5
-      r_salc_min: 0.5
-      r_salc_max: 8.0
-      u_power: 3.41
-      sst_coeff: [0.329, 0.0904, -0.00717, 0.000207]
+physics_schemes:
+- name: sea_salt
+  options:
+    r_sala_min: 0.01
+    r_sala_max: 0.5
+    r_salc_min: 0.5
+    r_salc_max: 8.0
+    u_power: 3.41
+    sst_coeff: [0.329, 0.0904, -0.00717, 0.000207]
 ```
 
 ## Implementation Notes

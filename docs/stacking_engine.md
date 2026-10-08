@@ -76,6 +76,9 @@ species:
       scale_fields: ["temperature", "lai"] # Scale with temp and leaf area
       diurnal_cycle: "biogenic_diurnal"    # Apply diurnal variation
       operation: "add"
+temporal_profiles:
+  biogenic_diurnal: [1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                     1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
 ```
 
 ## Vertical Distribution
@@ -106,13 +109,15 @@ All vertical distribution methods ensure strict mass conservation:
 species:
   nox:
     - field: "aircraft_nox"
-      vdist_method: "HEIGHT"
-      vdist_h_start: 8000.0    # 8 km altitude
-      vdist_h_end: 12000.0     # 12 km altitude
       operation: "add"
+      vdist:
+        method: height
+        h_start: 8000.0         # 8 km altitude
+        h_end: 12000.0          # 12 km altitude
     - field: "surface_nox"
-      vdist_method: "PBL"      # Distribute in boundary layer
       operation: "add"
+      vdist:
+        method: pbl             # Distribute in boundary layer
 ```
 
 ## Temporal Scaling
@@ -143,6 +148,51 @@ species:
       weekly_cycle: "weekday_pattern"
       operation: "add"
 ```
+
+### Local-Time Scaling
+
+By default every cycle uses the UTC hour / day-of-week / month of the step — a
+single scalar factor per layer. A layer can instead evaluate its cycles at
+each cell's **local time** by setting `use_local_time: true` (requires the
+top-level `local_time` section to be enabled; see
+[configuration.md](configuration.md)):
+
+```yaml
+local_time:
+  enabled: true
+  grid_file: data/utc_grid_720r.rle
+
+temporal_profiles:
+  traffic_diurnal: [0.5, 0.3, 0.2, 0.3, 0.6, 1.2, 1.8, 1.5, 1.2, 1.0, 1.1, 1.2,
+                    1.3, 1.2, 1.3, 1.5, 1.8, 2.0, 1.8, 1.5, 1.2, 1.0, 0.8, 0.6]
+
+species:
+  co:
+    - field: "traffic_co"
+      operation: "add"
+      diurnal_cycle: "traffic_diurnal"
+      use_local_time: true
+```
+
+Implementation notes:
+
+- The UTC-offset grid (cosine-reduced 0.125° lattice, quarter-hour precision —
+  uniform latitude rows, column count tapering with cos(lat)) is decoded once at
+  initialization; each rank holds a read-only band-local device array of
+  per-cell offsets. Nearest-cell lookup, no interpolation.
+- Per opted-in layer the engine owns a `(nx, ny_local, 1)` factor field that
+  it refills every step with `D[hour_local] · W[dow_local] · S[month_local]`
+  (only the cycles the layer names). The field is registered as an additional
+  scale field in the layer's device handle, so the fused stacking kernel
+  multiplies it in without any kernel change — per-cell scaling rides the
+  existing `scale_fields` channel.
+- The scalar `dev.scale` keeps the layer's base scale; the per-cell product
+  never leaks into provenance, which continues to record UTC time and the
+  scalar base scale (all outputs stay UTC).
+- When `local_time` is disabled, a layer's factor field is never allocated and
+  the engine takes the exact pre-feature scalar path — bit-identical output.
+- The offset source is an interface (`IUtcOffsetProvider`); a future DST-aware
+  provider can vary the offset by instant with no engine changes.
 
 ## Performance Considerations
 
@@ -179,6 +229,7 @@ The Stacking Engine provides complete scientific traceability through its proven
 
 ### Provenance Output
 
+<!-- cece-validate: skip -->
 ```yaml
 # Example provenance report excerpt
 species: CO
@@ -209,7 +260,7 @@ species:
     - field: "base_biogenic"
       scale: 2.0                           # Literature adjustment factor
       scale_fields: ["temperature", "par", "lai"]  # Environmental dependencies
-      masks: ["vegetation_mask", "growing_season"] # Geographic/temporal masks
+      mask: ["vegetation_mask", "growing_season"] # Geographic/temporal masks
       operation: "add"
 ```
 
@@ -222,20 +273,25 @@ species:
   nox:
     # Transportation category
     - field: "road_transport"
+      operation: add
       category: "transportation"
       hierarchy: 1
     - field: "aviation"
+      operation: add
       category: "transportation"
       hierarchy: 2
     - field: "shipping"
+      operation: add
       category: "transportation"
       hierarchy: 3
 
     # Industrial category
     - field: "power_plants"
+      operation: add
       category: "industrial"
       hierarchy: 1
     - field: "cement_production"
+      operation: add
       category: "industrial"
       hierarchy: 2
 ```

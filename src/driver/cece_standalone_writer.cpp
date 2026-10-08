@@ -35,6 +35,90 @@ std::string GetCurrentTimestamp() {
     return std::string(buf);
 }
 
+std::string EscapeYamlDoubleQuoted(const std::string& value) {
+    std::ostringstream escaped;
+    for (const unsigned char character : value) {
+        switch (character) {
+            case '\\':
+                escaped << "\\\\";
+                break;
+            case '"':
+                escaped << "\\\"";
+                break;
+            case '\n':
+                escaped << "\\n";
+                break;
+            case '\r':
+                escaped << "\\r";
+                break;
+            case '\t':
+                escaped << "\\t";
+                break;
+            default:
+                if (character < 0x20 || character == 0x7f) {
+                    escaped << "\\x" << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(character) << std::dec;
+                } else {
+                    escaped << static_cast<char>(character);
+                }
+        }
+    }
+    return escaped.str();
+}
+
+void WarnUnconsumedGlobalAttributes(const CeceOutputConfig& config) {
+    // Mirrors AMIO's known_global_keys in amio/src/drivers/common/var_attributes.cpp.
+    static const std::set<std::string> kAmioGlobalKeys = {"title",
+                                                          "institution",
+                                                          "source",
+                                                          "history",
+                                                          "references",
+                                                          "comment",
+                                                          "Conventions",
+                                                          "contact",
+                                                          "project",
+                                                          "keywords",
+                                                          "summary",
+                                                          "acknowledgement",
+                                                          "id",
+                                                          "license",
+                                                          "creator_name",
+                                                          "creator_url",
+                                                          "creator_email",
+                                                          "publisher_name",
+                                                          "publisher_url",
+                                                          "publisher_email",
+                                                          "geospatial_bounds",
+                                                          "geospatial_lat_min",
+                                                          "geospatial_lat_max",
+                                                          "geospatial_lon_min",
+                                                          "geospatial_lon_max",
+                                                          "geospatial_vertical_min",
+                                                          "geospatial_vertical_max",
+                                                          "geospatial_vertical_positive",
+                                                          "geospatial_bounds_crs",
+                                                          "geospatial_bounds_vertical_crs",
+                                                          "naming_authority",
+                                                          "processing_level",
+                                                          "standard_name_vocabulary",
+                                                          "time_coverage_start",
+                                                          "time_coverage_end",
+                                                          "time_coverage_duration",
+                                                          "time_coverage_resolution",
+                                                          "date_created",
+                                                          "date_modified",
+                                                          "date_metadata_modified",
+                                                          "cdm_data_type",
+                                                          "featureType",
+                                                          "ncei_template_version",
+                                                          "uuid",
+                                                          "gridspec_file"};
+    for (const auto& [key, value] : config.global_attributes) {
+        if (kAmioGlobalKeys.count(key) == 0) {
+            CECE_LOG_WARNING("[CECE] output.global_attributes." + key + " is not a global attribute AMIO recognizes and will not be written.");
+        }
+    }
+}
+
 std::tm ParseISO8601(const std::string& iso_time) {
     std::tm tm = {};
     std::istringstream ss(iso_time);
@@ -122,6 +206,7 @@ int CeceStandaloneWriter::Initialize(const std::string& start_time_iso8601, int 
     band_ = cece::BandDecomposition::compute(ny_, comm_);
 
     CECE_LOG_INFO("[CECE] Initializing AMIO standalone writer with start time: " + start_time_iso8601);
+    WarnUnconsumedGlobalAttributes(config_);
 
     if (!fs::exists(config_.directory)) {
         try {
@@ -174,6 +259,7 @@ int CeceStandaloneWriter::InitializeWithCoords(const std::string& start_time_iso
     band_ = cece::BandDecomposition::compute(ny_, comm_);
 
     CECE_LOG_INFO("[CECE] Initializing AMIO standalone writer with coordinates: " + start_time_iso8601);
+    WarnUnconsumedGlobalAttributes(config_);
 
     if (!fs::exists(config_.directory)) {
         try {
@@ -481,7 +567,7 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
 
             m_file << "global_attributes:\n";
             for (const auto& [key, value] : final_attrs) {
-                m_file << "  " << key << ": \"" << value << "\"\n";
+                m_file << "  \"" << EscapeYamlDoubleQuoted(key) << "\": \"" << EscapeYamlDoubleQuoted(value) << "\"\n";
             }
             // The collection is seeded with the coordinate variables and
             // carries time's units from config initialization (SetTimeUnits),

@@ -11,7 +11,7 @@ Driver configuration is specified in the CECE YAML configuration file under the 
 ```yaml
 driver:
   start_time: "2020-01-01T00:00:00"      # ISO8601 format (optional, default: 2020-01-01T00:00:00)
-  end_time: "2020-01-02T00:00:00"        # ISO8601 format (optional, default: 2020-01-02T00:00:00)
+  end_time: "2020-06-16T12:00:00"        # ISO8601 format (must be after start_time)
   timestep_seconds: 3600                 # Positive integer (optional, default: 3600)
   stacking_refresh_interval_seconds: 0   # Positive multiple of timestep_seconds (optional, default: 0 = use timestep_seconds)
   gridspec_file: null                    # Path to ESMF GRIDSPEC NetCDF file (optional, default: null - generate grid)
@@ -33,6 +33,7 @@ driver:
 ```yaml
 driver:
   start_time: "2020-06-15T12:00:00"
+  end_time: "2020-06-16T12:00:00"
 ```
 
 ### end_time
@@ -45,6 +46,7 @@ driver:
 **Example:**
 ```yaml
 driver:
+  start_time: "2020-06-15T12:00:00"
   end_time: "2020-06-16T12:00:00"
 ```
 

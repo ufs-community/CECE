@@ -63,14 +63,14 @@ References:
 ## YAML Configuration Example
 
 ```yaml
-physics:
-  - name: fengsha
-    config:
-      alpha: 1.0
-      gamma: 1.0
-      kvhmax: 2.45e-4
-      drylimit_factor: 1.0
-      num_bins: 5
+physics_schemes:
+- name: fengsha
+  options:
+    alpha: 1.0
+    gamma: 1.0
+    kvhmax: 2.45e-4
+    drylimit_factor: 1.0
+    num_bins: 5
 ```
 
 ## Implementation Notes

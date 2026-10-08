@@ -6,6 +6,7 @@
 #include <string>
 
 #include "cece/cece_config.hpp"
+#include "cece/cece_string_utils.hpp"
 #include "conf/config.hpp"
 
 namespace cece {
@@ -41,6 +42,7 @@ CeceConfig ParseConfig(const std::string& filename) {
                 layer.diurnal_cycle = string_or(node, "diurnal_cycle");
                 layer.weekly_cycle = string_or(node, "weekly_cycle");
                 layer.seasonal_cycle = string_or(node, "seasonal_cycle");
+                layer.use_local_time = node["use_local_time"].bool_or(layer.use_local_time);
                 conf::Value vdist = node["vdist"];
                 if (vdist && vdist.is_defined()) {
                     std::string method = string_or(vdist, "method");
@@ -89,6 +91,26 @@ CeceConfig ParseConfig(const std::string& filename) {
     };
     read_cycles(root["temporal_cycles"], config.temporal_cycles);
     read_cycles(root["temporal_profiles"], config.temporal_profiles);
+
+    conf::Value local_time = root["local_time"];
+    if (local_time && local_time.kind() == conf::Node_Kind::Map) {
+        config.local_time.enabled = local_time["enabled"].bool_or(config.local_time.enabled);
+        config.local_time.grid_file = string_or(local_time, "grid_file", config.local_time.grid_file);
+    }
+
+    // A layer that explicitly opts into local-time scaling while the feature is
+    // disabled would silently fall back to UTC scaling; reject it instead.
+    if (!config.local_time.enabled) {
+        for (const auto& [species_name, layers] : config.species_layers) {
+            for (const auto& layer : layers) {
+                if (layer.use_local_time) {
+                    throw std::invalid_argument("Species '" + species_name + "' layer '" + layer.field_name +
+                                                "' sets use_local_time but local_time.enabled is false. Enable the local_time section or remove "
+                                                "use_local_time from the layer.");
+                }
+            }
+        }
+    }
 
     conf::Value schemes = root["physics_schemes"];
     for (std::size_t i = 0; schemes && i < schemes.size(); ++i) {
@@ -148,21 +170,42 @@ CeceConfig ParseConfig(const std::string& filename) {
             if (files)
                 stream.file_paths = files.kind() == conf::Node_Kind::Sequence ? files.as_string_list() : std::vector<std::string>{files.as_string()};
             conf::Value variables = node["variables"];
-            for (std::size_t j = 0; j < variables.size(); ++j) {
+            if (!variables || variables.kind() == conf::Node_Kind::Null || (variables.kind() == conf::Node_Kind::Sequence && variables.size() == 0)) {
+                if (stream.name.empty()) {
+                    throw std::invalid_argument("cece_data.streams[" + std::to_string(i) + "] requires a name for automatic variable mapping");
+                }
+                stream.variables.push_back({stream.name, stream.name});
+            } else if (variables.kind() != conf::Node_Kind::Sequence) {
+                throw std::invalid_argument("cece_data.streams[" + std::to_string(i) + "].variables must be a list");
+            }
+            if (node["interpolation"]) {
+                throw std::invalid_argument("cece_data.streams[" + std::to_string(i) + "]: unknown key 'interpolation'; use 'tintalgo'");
+            }
+            for (std::size_t j = 0; variables && j < variables.size(); ++j) {
                 conf::Value value = variables[j];
                 CeceDataVariableConfig variable;
-                if (value.kind() == conf::Node_Kind::Scalar)
+                if (value.kind() == conf::Node_Kind::Scalar) {
                     variable.name_in_file = variable.name_in_model = value.as_string();
-                else {
-                    variable.name_in_file = string_or(value, "file");
+                } else if (value.kind() == conf::Node_Kind::Map) {
                     variable.name_in_model = string_or(value, "model");
+                    if (variable.name_in_model.empty()) {
+                        throw std::invalid_argument("cece_data.streams[" + std::to_string(i) + "].variables[" + std::to_string(j) +
+                                                    "] requires a non-empty 'model'");
+                    }
+                    variable.name_in_file = string_or(value, "file", variable.name_in_model);
+                } else {
+                    throw std::invalid_argument("cece_data.streams[" + std::to_string(i) + "].variables[" + std::to_string(j) +
+                                                "] must be a string or mapping");
+                }
+                if (variable.name_in_file.empty() || variable.name_in_model.empty()) {
+                    throw std::invalid_argument("cece_data.streams[" + std::to_string(i) + "].variables[" + std::to_string(j) +
+                                                "] requires non-empty file and model names");
                 }
                 stream.variables.push_back(std::move(variable));
             }
-            if (variables.size() == 0 && !stream.name.empty()) stream.variables.push_back({stream.name, stream.name});
             stream.taxmode = string_or(node, "taxmode", stream.taxmode);
-            stream.tintalgo = string_or(node, "tintalgo", string_or(node, "interpolation", stream.tintalgo));
-            stream.mapalgo = string_or(node, "mapalgo", stream.mapalgo);
+            stream.tintalgo = string_or(node, "tintalgo", stream.tintalgo);
+            stream.mapalgo = to_lower(string_or(node, "mapalgo", stream.mapalgo));
             stream.dtlimit = node["dtlimit"].int_or(stream.dtlimit);
             stream.yearFirst = node["yearFirst"].int_or(stream.yearFirst);
             stream.yearLast = node["yearLast"].int_or(stream.yearLast);
@@ -184,6 +227,26 @@ CeceConfig ParseConfig(const std::string& filename) {
         config.output_config.directory = string_or(output, "directory", config.output_config.directory);
         config.output_config.filename_pattern = string_or(output, "filename_pattern", config.output_config.filename_pattern);
         config.output_config.frequency_steps = output["frequency_steps"].int_or(config.output_config.frequency_steps);
+        conf::Value global_attributes = output["global_attributes"];
+        if (global_attributes && global_attributes.kind() != conf::Node_Kind::Map) {
+            throw std::invalid_argument("output.global_attributes must be a mapping");
+        }
+        if (global_attributes) {
+            for (const auto& key : global_attributes.keys()) {
+                if (global_attributes[key].kind() != conf::Node_Kind::Scalar) {
+                    throw std::invalid_argument("output.global_attributes." + key + " must be a string, number, or boolean");
+                }
+                const std::string value = global_attributes[key].as_string();
+                const auto has_control = [](const std::string& text) {
+                    return std::any_of(text.begin(), text.end(), [](unsigned char character) { return character < 0x20 || character == 0x7f; });
+                };
+                if (key.find_first_not_of(" \t\r\n") == std::string::npos || has_control(key) || has_control(value)) {
+                    throw std::invalid_argument(
+                        "output.global_attributes keys must be non-empty and keys/values must not contain control characters");
+                }
+                config.output_config.global_attributes[key] = value;
+            }
+        }
         conf::Value fields = output["fields"];
         for (std::size_t i = 0; i < fields.size(); ++i) {
             conf::Value value = fields[i];

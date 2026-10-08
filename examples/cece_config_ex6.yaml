@@ -23,7 +23,7 @@ driver:
     lat_max: 67.5
 
 species:
-  no:
+  "no":
     - field: "EDGAR_NO_POW"
       category: "anthropogenic"
       operation: "add"
@@ -55,7 +55,7 @@ cece_data:
           model: "CEDS_NO_AGR"
 
 diagnostics:
-  output_interval_seconds: 3600
+  output_interval: 3600
   variables: ["no"]
 
 output:

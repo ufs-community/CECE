@@ -47,25 +47,23 @@ def parse_args() -> argparse.Namespace:
 
 def run_in_container(image: str, mount: str, command: str) -> None:
     """One docker run --rm per step: spun up and removed per execution."""
-    subprocess.check_call(
-        [
-            "docker",
-            "run",
-            "--rm",
-            "-v",
-            f"{REPO_ROOT}:{mount}",
-            "-w",
-            mount,
-            "-e",
-            "OMPI_ALLOW_RUN_AS_ROOT=1",
-            "-e",
-            "OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1",
-            image,
-            "/bin/bash",
-            "-c",
-            command,
-        ]
-    )
+    subprocess.check_call([
+        "docker",
+        "run",
+        "--rm",
+        "-v",
+        f"{REPO_ROOT}:{mount}",
+        "-w",
+        mount,
+        "-e",
+        "OMPI_ALLOW_RUN_AS_ROOT=1",
+        "-e",
+        "OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1",
+        image,
+        "/bin/bash",
+        "-c",
+        command,
+    ])
 
 
 def clean() -> None:

@@ -1,2 +1,15 @@
 [lint.per-file-ignores]
-"spack/**" = ["F403", "F405"]
+"spack/**" = ["F403", "F405", "ANN"]
+"tests/**" = ["ANN001", "ANN201", "ANN202"]
+# Config-schema errors are ValueError by API contract (load_config wraps ValueError).
+"src/python/config.py" = ["TRY004"]
+
+[lint]
+extend-select = ["C90", "PLR0915", "PLR1702", "RUF100"]
+extend-ignore = ["ANN204"]
+
+[lint.mccabe]
+max-complexity = 15
+
+[lint.pylint]
+max-statements = 50

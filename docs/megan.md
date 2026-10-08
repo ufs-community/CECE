@@ -273,14 +273,14 @@ physics_schemes:
           aold: 1.05
           default_aef: 3.0e-10  # kmol MT_PINE m-2 s-1
         # ... remaining classes
-    input_mapping:
-      temperature: T2M
-      leaf_area_index: LAI
-      par_direct: PARDR
-      par_diffuse: PARDF
-      solar_cosine: COSZS
-      soil_moisture_root: GWETROOT
-      wind_speed: U10M
+      input_mapping:
+        temperature: T2M
+        leaf_area_index: LAI
+        par_direct: PARDR
+        par_diffuse: PARDF
+        solar_cosine: COSZS
+        soil_moisture_root: GWETROOT
+        wind_speed: U10M
 ```
 
 ### Import Fields
@@ -420,6 +420,7 @@ the source-pinned method, use the
 Both alternatives use the same canonical stream field names. For either
 single-species method, replace `output.fields` with:
 
+<!-- cece-validate: context output -->
 ```yaml
 fields:
   - name: isoprene_emissions

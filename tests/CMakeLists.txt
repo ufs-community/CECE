@@ -153,6 +153,13 @@ cece_add_gtest(test_rectilinear_gridspec MAIN MPI_KOKKOS MPI_LAUNCHER PROPERTIES
 cece_add_gtest(test_physics)
 cece_add_gtest(test_hemco_mimic)
 cece_add_gtest(test_stacking_engine)
+# Local-time support: RLE grid decoder, local-time service, and per-cell
+# temporal scaling through the stacking engine.
+cece_add_gtest(test_utc_grid SOURCE_DIR_DEFINE)
+cece_add_gtest(test_local_time_service SOURCE_DIR_DEFINE)
+cece_add_gtest(test_local_time_stacking)
+cece_add_gtest(test_local_time_fallback SOURCE_DIR_DEFINE)
+cece_add_gtest(test_local_time_utc_outputs)
 cece_add_gtest(test_vertical_distribution_single)
 cece_add_gtest(test_field_resolution_priority)
 cece_add_gtest(test_ingest_setfield_bypass)
@@ -741,6 +748,12 @@ if(Python3_Interpreter_FOUND)
 
   cece_add_pytest(test_hemco_to_cece_python test_converters.py "${PROJECT_SOURCE_DIR}/scripts")
   cece_add_pytest(test_scripts_python test_scripts.py "${PROJECT_SOURCE_DIR}/scripts")
+  cece_add_pytest(test_config_schema_python test_config_schema.py "${PROJECT_SOURCE_DIR}/scripts")
+  cece_add_pytest(
+    test_validate_cece_config_python
+    test_validate_cece_config.py
+    "${PROJECT_SOURCE_DIR}/scripts"
+  )
   cece_add_pytest(test_megan_global_source_conformance_python test_megan_global_parity.py "")
 
   if(BUILD_PYTHON_BINDINGS)

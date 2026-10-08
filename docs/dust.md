@@ -48,12 +48,12 @@ References:
 ## YAML Configuration Example
 
 ```yaml
-physics:
-  - name: dust
-    config:
-      tuning_factor: 9.375e-10
-      particle_density: 2500.0
-      particle_diameter: 1.46e-6
+physics_schemes:
+- name: dust
+  options:
+    tuning_factor: 9.375e-10
+    particle_density: 2500.0
+    particle_diameter: 1.46e-6
 ```
 
 ## Implementation Notes

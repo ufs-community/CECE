@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""
+r"""
 generate_hemco_megan_oracle.py
 ──────────────────────────────
 Regenerates tests/data/hemco_megan/hemco_3_12_1_megan_reference.csv

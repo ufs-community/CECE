@@ -69,7 +69,7 @@ setup(
     package_data={
         'cece': ['*.so', '*.dylib', '*.dll', 'py.typed'],
     },
-    python_requires='>=3.8',
+    python_requires='>=3.10',
     install_requires=[
         'numpy>=1.20',
         'pyyaml>=5.4',

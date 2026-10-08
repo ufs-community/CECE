@@ -45,11 +45,11 @@ References:
 ## YAML Configuration Example
 
 ```yaml
-physics:
-  - name: dms
-    config:
-      schmidt_coeff: [2674.0, -147.12, 3.726, -0.038]
-      kw_coeff: [0.222, 0.333]
+physics_schemes:
+- name: dms
+  options:
+    schmidt_coeff: [2674.0, -147.12, 3.726, -0.038]
+    kw_coeff: [0.222, 0.333]
 ```
 
 ## Implementation Notes

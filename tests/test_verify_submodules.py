@@ -2,18 +2,18 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 # Add scripts directory to sys.path
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
 
-from verify_submodules import (  # noqa: E402
+from verify_submodules import (
     SubmoduleStatus,
     UpstreamRemoteConfig,
     VerificationStatus,

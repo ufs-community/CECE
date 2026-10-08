@@ -15,9 +15,9 @@ Usage:
 """
 
 import argparse
+import os
 import subprocess
 import time
-import os
 
 
 def run_benchmark_binary(binary_path, args_list, timeout=300):
@@ -27,7 +27,9 @@ def run_benchmark_binary(binary_path, args_list, timeout=300):
     cmd = [binary_path] + args_list
     t0 = time.perf_counter()
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+        result = subprocess.run(
+            cmd, capture_output=True, text=True, timeout=timeout, check=False
+        )
         elapsed = time.perf_counter() - t0
         if result.returncode != 0:
             print(f"  WARNING: {binary_path} exited with code {result.returncode}")

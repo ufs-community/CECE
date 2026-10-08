@@ -21,55 +21,78 @@ Examples
 
 from __future__ import annotations
 
-from typing import Optional, Union
-
 __version__ = "0.1.0"
 __all__ = [
-    "initialize",
-    "finalize",
-    "is_initialized",
-    "compute",
-    "load_config",
-    "set_execution_space",
-    "get_execution_space",
-    "get_available_execution_spaces",
-    "set_log_level",
-    "get_diagnostics",
-    "reset_diagnostics",
-    "get_last_error",
-    "CeceConfig",
-    "CeceState",
-    "CeceField",
-    "EmissionLayer",
-    "VerticalDistributionConfig",
-    "CeceException",
-    "CeceConfigError",
     "CeceComputationError",
-    "CeceStateError",
+    "CeceConfig",
+    "CeceConfigError",
+    "CeceException",
     "CeceExecutionSpaceError",
+    "CeceField",
+    "CeceState",
+    "CeceStateError",
+    "DataStreamConfig",
+    "DataVariableConfig",
+    "DiagnosticsConfig",
+    "DriverConfig",
+    "EmissionLayer",
+    "GridConfig",
+    "LocalTimeConfig",
+    "OutputConfig",
+    "OutputFieldConfig",
+    "PhysicsSchemeConfig",
+    "VerticalDistributionConfig",
+    "VerticalGridConfig",
+    "compute",
+    "finalize",
+    "get_available_execution_spaces",
+    "get_diagnostics",
+    "get_execution_space",
+    "get_last_error",
+    "initialize",
+    "is_initialized",
+    "load_config",
+    "reset_diagnostics",
+    "set_execution_space",
+    "set_log_level",
 ]
 
-from .exceptions import (
-    CeceException,
-    CeceConfigError,
-    CeceComputationError,
-    CeceStateError,
-    CeceExecutionSpaceError,
-)
-from .config import CeceConfig, EmissionLayer, VerticalDistributionConfig
-from .state import CeceState, CeceField
-from .utils import load_config
+import numpy as np
 
 # Import the pybind11 C++ bindings module
 from . import _cece_core
+from .config import (
+    CeceConfig,
+    DataStreamConfig,
+    DataVariableConfig,
+    DiagnosticsConfig,
+    DriverConfig,
+    EmissionLayer,
+    GridConfig,
+    LocalTimeConfig,
+    OutputConfig,
+    OutputFieldConfig,
+    PhysicsSchemeConfig,
+    VerticalDistributionConfig,
+    VerticalGridConfig,
+)
+from .exceptions import (
+    CeceComputationError,
+    CeceConfigError,
+    CeceException,
+    CeceExecutionSpaceError,
+    CeceStateError,
+)
+from .state import CeceField, CeceState
+from .utils import load_config
 
 # Module-level state
-_cpp_config: Optional[object] = None
+_cpp_config: _cece_core.CeceConfig | None = None
 _initialized: bool = False
-_last_error: Optional[str] = None
+_last_error: str | None = None
 
 
-def initialize(config: Union[str, dict, CeceConfig]) -> None:
+def initialize(config: str | dict | CeceConfig) -> None:
     """
     Initialize CECE with a configuration.
 
@@ -104,8 +127,9 @@ def initialize(config: Union[str, dict, CeceConfig]) -> None:
     if _initialized:
         raise RuntimeError("CECE is already initialized. Call finalize() first.")
 
-    from .utils import load_config as _load_config
     from pathlib import Path
+
+    from .utils import load_config as _load_config
 
     # Ensure Kokkos is initialized
     if not _cece_core.is_kokkos_initialized():
@@ -124,7 +148,7 @@ def initialize(config: Union[str, dict, CeceConfig]) -> None:
         if path.exists() and path.is_file():
             try:
                 _cpp_config = _cece_core.ParseConfig(str(path))
-            except Exception as e:
+            except (RuntimeError, ValueError) as e:
                 raise CeceConfigError(f"Failed to parse config file: {e}")
         else:
             # YAML string — serialize to temp file or build config from dict
@@ -136,7 +160,7 @@ def initialize(config: Union[str, dict, CeceConfig]) -> None:
     _last_error = None
 
 
-def _build_cpp_config(config_obj: CeceConfig) -> object:
+def _build_cpp_config(config_obj: CeceConfig) -> _cece_core.CeceConfig:
     """
     Build a C++ CeceConfig from a Python CeceConfig object.
 
@@ -154,6 +178,15 @@ def _build_cpp_config(config_obj: CeceConfig) -> object:
     _cece_core.CeceConfig
         C++ configuration object populated from ``config_obj``.
     """
+    # TODO: copy the remaining layer fields (masks, hierarchy, category, scale_fields,
+    # temporal cycles) plus met/scale/mask mappings and temporal profiles.
+    method_map = {
+        "single": _cece_core.VerticalDistributionMethod.SINGLE,
+        "range": _cece_core.VerticalDistributionMethod.RANGE,
+        "pressure": _cece_core.VerticalDistributionMethod.PRESSURE,
+        "height": _cece_core.VerticalDistributionMethod.HEIGHT,
+        "pbl": _cece_core.VerticalDistributionMethod.PBL,
+    }
     cpp_config = _cece_core.CeceConfig()
 
     # Add species
@@ -166,13 +199,6 @@ def _build_cpp_config(config_obj: CeceConfig) -> object:
             cpp_layer.scale = layer.scale
             cpp_layer.vdist_method = _cece_core.VerticalDistributionMethod.SINGLE
             if hasattr(layer, "vdist") and layer.vdist:
-                method_map = {
-                    "single": _cece_core.VerticalDistributionMethod.SINGLE,
-                    "range": _cece_core.VerticalDistributionMethod.RANGE,
-                    "pressure": _cece_core.VerticalDistributionMethod.PRESSURE,
-                    "height": _cece_core.VerticalDistributionMethod.HEIGHT,
-                    "pbl": _cece_core.VerticalDistributionMethod.PBL,
-                }
                 cpp_layer.vdist_method = method_map.get(
                     layer.vdist.method, _cece_core.VerticalDistributionMethod.SINGLE
                 )
@@ -228,7 +254,7 @@ def is_initialized() -> bool:
 
 def compute(
     state: CeceState,
-    config: Optional[Union[str, dict, CeceConfig]] = None,
+    config: str | dict | CeceConfig | None = None,
     hour: int = 0,
     day_of_week: int = 0,
     month: int = 0,
@@ -274,11 +300,8 @@ def compute(
     >>> cece.compute(state, hour=12, month=7)
     >>> co_emis = state.get_export_field("CO_EMIS")
     """
-    global _last_error
     if not _initialized:
         raise RuntimeError("CECE is not initialized. Call initialize() first.")
-
-    import numpy as np
 
     # Validate state
     if not isinstance(state, CeceState):
@@ -339,6 +362,7 @@ def compute(
             month,
         )
     except Exception as e:
+        global _last_error
         _last_error = str(e)
         raise
 
@@ -473,10 +497,9 @@ def reset_diagnostics() -> None:
     Currently a no-op as diagnostics are not yet exposed via pybind11.
     """
     # No-op: diagnostics are not yet exposed via pybind11.
-    pass
 
 
-def get_last_error() -> Optional[str]:
+def get_last_error() -> str | None:
     """
     Get the last error message, if any.
 
