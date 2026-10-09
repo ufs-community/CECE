@@ -306,7 +306,15 @@ void cece_read_timing_config(const char* config_path, int path_len, char* start_
         }
         std::string start_default = *start_opt;
         std::string end_default = *end_opt;
-        int timestep_default = cfg.get_or("driver.timestep_seconds", 3600);
+        // 'driver.timestep_seconds' is required so both launch paths treat the
+        // timing keys the same way: the standalone driver reads it with a
+        // throwing accessor and aborts on a missing key, so defaulting here
+        // would let one config produce different clocks on the two drivers.
+        auto step_opt = cfg.try_int("driver.timestep_seconds");
+        if (!step_opt.has_value()) {
+            throw std::invalid_argument("Configuration missing required 'driver.timestep_seconds'");
+        }
+        int timestep_default = *step_opt;
 
         // Copy strings safely
         strncpy(start_time, start_default.c_str(), max_len - 1);
@@ -875,11 +883,139 @@ void cece_core_get_external_field_name(void* data_ptr, int* index, char* name, i
 
     // Safe copy with bounds check
     std::strncpy(name, field_name.c_str(), 256);
-    name[255] = '\0';  // Ensure null termination
+    name[255] = '\0';  // Ensure null terminator
     *name_len = std::min(static_cast<int>(field_name.length()), 255);
 
     if (rc != nullptr) {
         *rc = 0;
+    }
+}
+
+}  // extern "C"
+
+// -----------------------------------------------------------------------------
+// NUOPC field-coupling config queries (path-based, callable before the
+// simulation exists). These read the optional `nuopc:` section directly from
+// the config file, mirroring cece_read_timing_config above. The Fortran cap
+// calls them during Advertise (to declare fields) and again during Realize/Run
+// (to map species/input keys to state item names). The parsed lists are already
+// sorted alphabetically by key, so the advertisement order is identical on every
+// rank regardless of YAML document order.
+// -----------------------------------------------------------------------------
+
+namespace {
+
+// Copy a string into a caller-owned fixed buffer. Returns false (without
+// writing) when the buffer cannot hold the string plus its null terminator, so
+// the caller surfaces an error instead of silently truncating. On success the
+// null-terminated value is written and *out_len receives the string length
+// (zero for an unset optional attribute, which the cap reads as "omit").
+bool nuopc_copy_str(const std::string& value, char* buf, int cap, int* out_len) {
+    if (buf == nullptr || out_len == nullptr || cap <= 0) return false;
+    if (static_cast<int>(value.size()) >= cap) return false;
+    std::memcpy(buf, value.data(), value.size());
+    buf[value.size()] = '\0';
+    *out_len = static_cast<int>(value.size());
+    return true;
+}
+
+// Populate one field spec from a parsed config's (already-sorted) list. Shared
+// by the export and import spec entry points; only the error label differs.
+void nuopc_fill_spec(const std::vector<std::pair<std::string, cece::NuopcFieldSpec>>& fields, int index, const std::string& label, char* key,
+                     int key_cap, int* key_len, char* std_name, int std_cap, int* std_len, char* units, int units_cap, int* units_len, char* name,
+                     int name_cap, int* name_len, int* rc) {
+    if (rc != nullptr) *rc = 0;
+    if (index < 0 || static_cast<size_t>(index) >= fields.size()) {
+        std::cerr << "ERROR: cece_nuopc_" << label << "_spec - index out of range: " << index << " (size: " << fields.size() << ")" << std::endl;
+        if (rc != nullptr) *rc = -1;
+        return;
+    }
+    const std::string& cfg_key = fields[index].first;
+    const cece::NuopcFieldSpec& spec = fields[index].second;
+    // Validate every buffer fits before writing any, so a failure leaves all
+    // buffers untouched.
+    if (static_cast<int>(cfg_key.size()) >= key_cap || static_cast<int>(spec.standard_name.size()) >= std_cap ||
+        static_cast<int>(spec.units.size()) >= units_cap || static_cast<int>(spec.name.size()) >= name_cap) {
+        std::cerr << "ERROR: cece_nuopc_" << label << "_spec - output buffer too small for field '" << cfg_key << "'" << std::endl;
+        if (rc != nullptr) *rc = -1;
+        return;
+    }
+    bool ok = nuopc_copy_str(cfg_key, key, key_cap, key_len) && nuopc_copy_str(spec.standard_name, std_name, std_cap, std_len) &&
+              nuopc_copy_str(spec.units, units, units_cap, units_len) && nuopc_copy_str(spec.name, name, name_cap, name_len);
+    if (!ok) {
+        if (rc != nullptr) *rc = -1;
+        return;
+    }
+    if (rc != nullptr) *rc = 0;
+}
+
+// Count the entries of one nuopc list parsed from a config path. A missing or
+// empty section yields zero (success), so the cap advertises nothing. `label`
+// names the direction only for error messages.
+void nuopc_count(const char* config_path, int path_len, const char* label, bool is_export, int* count, int* rc) {
+    if (rc != nullptr) *rc = 0;
+    if (count == nullptr) {
+        if (rc != nullptr) *rc = -1;
+        return;
+    }
+    *count = 0;
+    try {
+        std::string yaml_path(config_path, path_len);
+        cece::CeceConfig config = cece::ParseConfig(yaml_path);
+        *count = is_export ? static_cast<int>(config.nuopc.export_fields.size()) : static_cast<int>(config.nuopc.import_fields.size());
+    } catch (const std::exception& e) {
+        std::cerr << "ERROR: cece_nuopc_" << label << "_count - failed to parse config: " << e.what() << std::endl;
+        if (rc != nullptr) *rc = -1;
+    }
+}
+
+}  // namespace
+
+extern "C" {
+
+/**
+ * @brief Count configured NUOPC export fields (0 when the section is absent).
+ */
+void cece_nuopc_export_count(const char* config_path, int path_len, int* count, int* rc) {
+    nuopc_count(config_path, path_len, "export", true, count, rc);
+}
+
+/**
+ * @brief Copy the index-th NUOPC export field spec (sorted by species key).
+ */
+void cece_nuopc_export_spec(const char* config_path, int path_len, int index, char* species, int species_cap, int* species_len, char* std_name,
+                            int std_cap, int* std_len, char* units, int units_cap, int* units_len, char* name, int name_cap, int* name_len, int* rc) {
+    try {
+        std::string yaml_path(config_path, path_len);
+        cece::CeceConfig config = cece::ParseConfig(yaml_path);
+        nuopc_fill_spec(config.nuopc.export_fields, index, "export", species, species_cap, species_len, std_name, std_cap, std_len, units, units_cap,
+                        units_len, name, name_cap, name_len, rc);
+    } catch (const std::exception& e) {
+        std::cerr << "ERROR: cece_nuopc_export_spec - failed to parse config: " << e.what() << std::endl;
+        if (rc != nullptr) *rc = -1;
+    }
+}
+
+/**
+ * @brief Count configured NUOPC import fields (0 when the section is absent).
+ */
+void cece_nuopc_import_count(const char* config_path, int path_len, int* count, int* rc) {
+    nuopc_count(config_path, path_len, "import", false, count, rc);
+}
+
+/**
+ * @brief Copy the index-th NUOPC import field spec (sorted by input key).
+ */
+void cece_nuopc_import_spec(const char* config_path, int path_len, int index, char* field, int field_cap, int* field_len, char* std_name, int std_cap,
+                            int* std_len, char* units, int units_cap, int* units_len, char* name, int name_cap, int* name_len, int* rc) {
+    try {
+        std::string yaml_path(config_path, path_len);
+        cece::CeceConfig config = cece::ParseConfig(yaml_path);
+        nuopc_fill_spec(config.nuopc.import_fields, index, "import", field, field_cap, field_len, std_name, std_cap, std_len, units, units_cap,
+                        units_len, name, name_cap, name_len, rc);
+    } catch (const std::exception& e) {
+        std::cerr << "ERROR: cece_nuopc_import_spec - failed to parse config: " << e.what() << std::endl;
+        if (rc != nullptr) *rc = -1;
     }
 }
 

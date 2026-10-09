@@ -8,13 +8,18 @@ program mainApp
 
   use ESMF
   use NUOPC
-  use driver, only: driver_SS => SetServices, set_driver_config_file, set_cece_config_file
+  use NUOPC_FieldDictionaryAPI, only: NUOPC_FieldDictionarySetup
+  use mpi
+  use driver, only: driver_SS => SetServices, set_cece_config_file
 
   implicit none
 
-  integer :: rc, userRc
+  integer :: rc, userRc, mpierr
   type(ESMF_GridComp) :: drvComp
-  character(len=512) :: driver_cfg_file, cece_yaml_file
+  character(len=512) :: cece_yaml_file
+  character(len=512) :: arg, nextarg, dict_file
+  character(len=512) :: positional(2)
+  integer :: nargs, i, npos
 
   ! Initialize ESMF with minimal logging to avoid string conversion issues
   call ESMF_Initialize(defaultCalKind=ESMF_CALKIND_GREGORIAN, &
@@ -30,21 +35,39 @@ program mainApp
     file=__FILE__)) &
     call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
-  ! Check if we have 1 or 2 arguments
-  call get_command_argument(1, cece_yaml_file)
-  call get_command_argument(2, driver_cfg_file)
+  ! Parse the command line. The CECE YAML is supplied positionally (the last
+  ! positional argument), exactly as before: one positional is the config; the
+  ! legacy two-argument form (ignored.cfg config.yaml) takes the second. An
+  ! optional --field-dictionary <path> flag may appear anywhere and makes this
+  ! host install a field dictionary before any component advertises; without
+  ! it the preloaded ESMF dictionary is used, so behavior is unchanged.
+  dict_file = ""
+  npos = 0
+  nargs = command_argument_count()
+  i = 1
+  do while (i <= nargs)
+    call get_command_argument(i, arg)
+    if (trim(arg) == "--field-dictionary") then
+      call get_command_argument(i + 1, nextarg)
+      dict_file = trim(nextarg)
+      i = i + 2
+    else
+      if (npos < 2) then
+        npos = npos + 1
+        positional(npos) = trim(arg)
+      end if
+      i = i + 1
+    end if
+  end do
 
-  ! If 2 args: old format (driver.cfg, config.yaml)
-  if (len_trim(driver_cfg_file) > 0) then
-    ! Swap so cece_yaml_file gets the second argument
-    driver_cfg_file = cece_yaml_file
-    call get_command_argument(2, cece_yaml_file)
+  ! Last positional wins (legacy two-argument form), matching the prior logic.
+  if (npos >= 1) then
+    cece_yaml_file = positional(npos)
   else
-    ! If 1 arg: new simplified format (config.yaml only)
-    driver_cfg_file = "cece_driver.cfg"  ! unused placeholder
+    cece_yaml_file = ""
   end if
 
-  ! Fallback if no arguments
+  ! Fallback if no config argument was supplied
   if (len_trim(cece_yaml_file) == 0) then
     call get_environment_variable("CECE_CONFIG", cece_yaml_file)
     if (len_trim(cece_yaml_file) == 0) then
@@ -52,44 +75,53 @@ program mainApp
     end if
   end if
 
-  ! Set config files in driver module
-  call set_driver_config_file(trim(driver_cfg_file))
+  ! Set the CECE YAML config path in the driver module
   call set_cece_config_file(trim(cece_yaml_file))
 
-  write(*,'(A,A)') "INFO: [mainApp] Driver config file: ", trim(driver_cfg_file)
   write(*,'(A,A)') "INFO: [mainApp] CECE config file:   ", trim(cece_yaml_file)
+
+  ! When the host provides a field dictionary, install it before creating any
+  ! component so Advertise can resolve standard names absent from the preloaded
+  ! ESMF dictionary (e.g. emission names). Absent the flag, skip this entirely
+  ! and keep the preloaded-dictionary behavior.
+  if (len_trim(dict_file) > 0) then
+    call NUOPC_FieldDictionarySetup(trim(dict_file), rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) &
+      call ESMF_Finalize(endflag=ESMF_END_ABORT)
+    write(*,'(A,A)') "INFO: [mainApp] field dictionary:   ", trim(dict_file)
+  end if
 
   ! Create driver component
   drvComp = ESMF_GridCompCreate(name="driver", rc=rc)
-  if (rc /= ESMF_SUCCESS) then
-    write(*,'(A,I0)') "ERROR: ESMF_GridCompCreate failed rc=", rc
+  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+    line=__LINE__, &
+    file=__FILE__)) &
     call ESMF_Finalize(endflag=ESMF_END_ABORT)
-  end if
 
   ! Set driver services
   call ESMF_GridCompSetServices(drvComp, driver_SS, userRc=userRc, rc=rc)
-  if (rc /= ESMF_SUCCESS) then
-    write(*,'(A,I0)') "ERROR: ESMF_GridCompSetServices failed rc=", rc
+  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+    line=__LINE__, &
+    file=__FILE__)) &
     call ESMF_Finalize(endflag=ESMF_END_ABORT)
-  end if
-  if (userRc /= ESMF_SUCCESS) then
-    write(*,'(A,I0)') "ERROR: ESMF_GridCompSetServices userRc=", userRc
+  if (ESMF_LogFoundError(rcToCheck=userRc, msg=ESMF_LOGERR_PASSTHRU, &
+    line=__LINE__, &
+    file=__FILE__)) &
     call ESMF_Finalize(endflag=ESMF_END_ABORT)
-  end if
 
   ! Initialize driver
-  write(*,'(A)') "INFO: [mainApp] Calling ESMF_GridCompInitialize..."
+  call ESMF_LogWrite("[mainApp] Calling ESMF_GridCompInitialize...", &
+    ESMF_LOGMSG_INFO, rc=rc)
   call ESMF_GridCompInitialize(drvComp, userRc=userRc, rc=rc)
-  write(*,'(A,I0,A,I0)') "INFO: [mainApp] ESMF_GridCompInitialize returned: rc=", rc, " userRc=", userRc
-
-  if (rc /= ESMF_SUCCESS) then
-    write(*,'(A,I0)') "ERROR: ESMF_GridCompInitialize failed rc=", rc
+  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+    line=__LINE__, &
+    file=__FILE__)) &
     call ESMF_Finalize(endflag=ESMF_END_ABORT)
-  end if
-  if (userRc /= ESMF_SUCCESS) then
-    write(*,'(A,I0)') "ERROR: ESMF_GridCompInitialize userRc=", userRc
+  if (ESMF_LogFoundError(rcToCheck=userRc, msg=ESMF_LOGERR_PASSTHRU, &
+    line=__LINE__, &
+    file=__FILE__)) &
     call ESMF_Finalize(endflag=ESMF_END_ABORT)
-  end if
 
   ! RUN THE DRIVER
   call ESMF_GridCompRun(drvComp, userRc=userRc, rc=rc)
@@ -103,14 +135,39 @@ program mainApp
     call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   ! FINALIZE THE DRIVER
-  ! Skip ESMF_GridCompFinalize to avoid segfault issues
-  write(*,'(A)') "INFO: [mainApp] Skipping driver finalization to avoid segfault"
+  ! Run the component finalization phase so the CECE cap tears down the
+  ! shared simulation through its model_label_Finalize specialization
+  ! (flushing and closing the output writer) before the framework exits.
+  write(*,'(A)') "INFO: [mainApp] Calling ESMF_GridCompFinalize..."
+  call ESMF_GridCompFinalize(drvComp, userRc=userRc, rc=rc)
+  if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+    line=__LINE__, &
+    file=__FILE__)) &
+    call ESMF_Finalize(endflag=ESMF_END_ABORT)
+  if (ESMF_LogFoundError(rcToCheck=userRc, msg=ESMF_LOGERR_PASSTHRU, &
+    line=__LINE__, &
+    file=__FILE__)) &
+    call ESMF_Finalize(endflag=ESMF_END_ABORT)
 
   !-----------------------------------------------------------------------------
 
   call ESMF_LogWrite("mainApp FINISHED", ESMF_LOGMSG_INFO, rc=rc)
 
   write(*,'(A)') "INFO: [mainApp] CECE execution completed successfully"
-  write(*,'(A)') "INFO: [mainApp] Skipping ESMF_Finalize to avoid framework cleanup conflicts"
+
+  ! Tear down the ESMF framework while keeping MPI alive, then finalize MPI
+  ! explicitly. ESMF_Finalize must be called once on each PET before the
+  ! application exits; ESMF_END_KEEPMPI is the supported endflag for hosts
+  ! (like this standalone app) that own the MPI lifecycle and call
+  ! MPI_Finalize themselves afterwards.
+  call ESMF_Finalize(endflag=ESMF_END_KEEPMPI, rc=rc)
+  if (rc /= ESMF_SUCCESS) then
+    write(*,'(A,I0)') "WARN: [mainApp] ESMF_Finalize reported rc=", rc
+  end if
+
+  call MPI_Finalize(mpierr)
+  if (mpierr /= MPI_SUCCESS) then
+    write(*,'(A,I0)') "WARN: [mainApp] MPI_Finalize returned error code ", mpierr
+  end if
 
 end program mainApp

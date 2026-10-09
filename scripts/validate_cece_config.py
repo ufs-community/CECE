@@ -267,6 +267,7 @@ def _normalize_overview_empty_sections(data: dict) -> None:
         "diagnostics": {},
         "cece_data": {"streams": []},
         "output": {},
+        "nuopc": {},
     }
     for key, empty_value in empty_sections.items():
         if key in data and data[key] is None:

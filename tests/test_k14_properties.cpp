@@ -11,7 +11,7 @@
  * 6. MacKinnon drag partition computation
  * 7. Smooth roughness lookup from soil texture
  * 8. Laurent erodibility computation
- * 9. Numerical equivalence between C++ and Fortran across opt_clay values
+ * 9. Zero-emission invariant for non-emitting cells
  * 10. Zero-emission invariant for non-emitting cells
  */
 
@@ -19,7 +19,6 @@
 
 #include <Kokkos_Core.hpp>
 #include <cmath>
-#include <conf/config.hpp>
 #include <random>
 
 #include "cece/cece_physics_factory.hpp"
@@ -289,116 +288,25 @@ TEST_F(K14PropertyTest, Property8_LaurentErodibility) {
 }
 
 // ============================================================================
-// Property 9: K14 numerical equivalence across all opt_clay values
-// **Validates: Requirements 8.1, 8.5**
-// ============================================================================
-
-TEST_F(K14PropertyTest, Property9_NumericalEquivalence) {
-    // Check at runtime if the Fortran scheme is available
-    PhysicsSchemeConfig cfg_fort_check;
-    cfg_fort_check.name = "k14_fortran";
-    auto fort_check = PhysicsFactory::CreateScheme(cfg_fort_check);
-    if (fort_check == nullptr) {
-        GTEST_SKIP() << "k14_fortran scheme not available, skipping equivalence test";
-    }
-
-    for (int opt_clay = 0; opt_clay <= 2; ++opt_clay) {
-        for (int iter = 0; iter < 20; ++iter) {
-            int nx = rand_int(1, 8);
-            int ny = rand_int(1, 8);
-            int nbins = rand_int(1, 5);
-
-            // Configure both schemes with the same opt_clay
-            conf::Config config = conf::Config::from_string("opt_clay: " + std::to_string(opt_clay));
-
-            PhysicsSchemeConfig cfg_cpp, cfg_fort;
-            cfg_cpp.name = "k14";
-            cfg_cpp.options = config.root();
-            cfg_fort.name = "k14_fortran";
-            cfg_fort.options = config.root();
-
-            auto scheme_cpp = PhysicsFactory::CreateScheme(cfg_cpp);
-            auto scheme_fort = PhysicsFactory::CreateScheme(cfg_fort);
-            ASSERT_NE(scheme_cpp, nullptr);
-            ASSERT_NE(scheme_fort, nullptr);
-
-            scheme_cpp->Initialize(cfg_cpp.options, nullptr);
-            scheme_fort->Initialize(cfg_fort.options, nullptr);
-
-            // Create import state with random physically valid values
-            CeceImportState import_state;
-            CeceExportState export_cpp, export_fort;
-
-            fill_k14_import_state(import_state, nx, ny);
-
-            export_cpp.fields["k14_dust_emissions"] = create_dv("emis_cpp", nx, ny, nbins, 0.0);
-            export_fort.fields["k14_dust_emissions"] = create_dv("emis_fort", nx, ny, nbins, 0.0);
-
-            // Run both schemes
-            auto* base_cpp = dynamic_cast<BasePhysicsScheme*>(scheme_cpp.get());
-            if (base_cpp) base_cpp->ClearPhysicsCache();
-            scheme_cpp->Run(import_state, export_cpp);
-
-            auto* base_fort = dynamic_cast<BasePhysicsScheme*>(scheme_fort.get());
-            if (base_fort) base_fort->ClearPhysicsCache();
-            scheme_fort->Run(import_state, export_fort);
-
-            // Compare results
-            auto& dv_cpp = export_cpp.fields["k14_dust_emissions"];
-            auto& dv_fort = export_fort.fields["k14_dust_emissions"];
-            dv_cpp.sync<Kokkos::HostSpace>();
-            dv_fort.sync<Kokkos::HostSpace>();
-            auto h_cpp = dv_cpp.view_host();
-            auto h_fort = dv_fort.view_host();
-
-            for (int n = 0; n < nbins; ++n) {
-                for (int j = 0; j < ny; ++j) {
-                    for (int i = 0; i < nx; ++i) {
-                        double cpp_val = h_cpp(i, j, n);
-                        double fort_val = h_fort(i, j, n);
-                        double tol = std::max(std::abs(cpp_val), std::abs(fort_val)) * 1e-12 + 1e-20;
-                        EXPECT_NEAR(cpp_val, fort_val, tol)
-                            << "Mismatch at (" << i << "," << j << "," << n << ") opt_clay=" << opt_clay << " iter=" << iter;
-                    }
-                }
-            }
-        }
-    }
-}
-
-// ============================================================================
 // Property 10: K14 zero-emission invariant
 // **Validates: Requirements 8.2, 8.3, 8.4**
 // ============================================================================
 
 TEST_F(K14PropertyTest, Property10_ZeroEmissionInvariant) {
     // Test that cells with zero land fraction, roughness above z0_max,
-    // or non-emitting vegetation produce zero emissions in both C++ and Fortran.
+    // or non-emitting vegetation produce zero emissions.
     int nx = 8, ny = 6, nbins = 3;
 
-    // Check if Fortran scheme is available
-    PhysicsSchemeConfig cfg_fort_check;
-    cfg_fort_check.name = "k14_fortran";
-    auto fort_check = PhysicsFactory::CreateScheme(cfg_fort_check);
-    bool has_fortran = (fort_check != nullptr);
-
     for (int iter = 0; iter < 50; ++iter) {
-        PhysicsSchemeConfig cfg_cpp, cfg_fort;
+        PhysicsSchemeConfig cfg_cpp;
         cfg_cpp.name = "k14";
-        cfg_fort.name = "k14_fortran";
 
         auto scheme_cpp = PhysicsFactory::CreateScheme(cfg_cpp);
         ASSERT_NE(scheme_cpp, nullptr);
         scheme_cpp->Initialize(cfg_cpp.options, nullptr);
 
-        std::unique_ptr<PhysicsScheme> scheme_fort;
-        if (has_fortran) {
-            scheme_fort = PhysicsFactory::CreateScheme(cfg_fort);
-            scheme_fort->Initialize(cfg_fort.options, nullptr);
-        }
-
         CeceImportState import_state;
-        CeceExportState export_cpp, export_fort;
+        CeceExportState export_cpp;
 
         // Fill with random physically valid values (emitting cells)
         fill_k14_import_state(import_state, nx, ny);
@@ -450,58 +358,23 @@ TEST_F(K14PropertyTest, Property10_ZeroEmissionInvariant) {
         dv_cpp.sync<Kokkos::HostSpace>();
         auto emis_cpp_h = dv_cpp.view_host();
 
-        // Verify zero emissions for non-emitting cells (C++)
+        // Verify zero emissions for non-emitting cells
         for (int j = 0; j < ny; ++j) {
             for (int n = 0; n < nbins; ++n) {
                 // Zero land fraction (rows 0-1)
                 for (int i = 0; i < 2; ++i) {
                     EXPECT_DOUBLE_EQ(emis_cpp_h(i, j, n), 0.0)
-                        << "C++ zero-land cell (" << i << "," << j << "," << n << ") should have zero emissions, iter=" << iter;
+                        << "Zero-land cell (" << i << "," << j << "," << n << ") should have zero emissions, iter=" << iter;
                 }
                 // Roughness above z0_max (rows 2-3)
                 for (int i = 2; i < 4; ++i) {
                     EXPECT_DOUBLE_EQ(emis_cpp_h(i, j, n), 0.0)
-                        << "C++ high-roughness cell (" << i << "," << j << "," << n << ") should have zero emissions, iter=" << iter;
+                        << "High-roughness cell (" << i << "," << j << "," << n << ") should have zero emissions, iter=" << iter;
                 }
                 // Bedrock + non-emitting veg (rows 6-7)
                 for (int i = 6; i < 8; ++i) {
                     EXPECT_DOUBLE_EQ(emis_cpp_h(i, j, n), 0.0)
-                        << "C++ bedrock/non-emitting-veg cell (" << i << "," << j << "," << n << ") should have zero emissions, iter=" << iter;
-                }
-            }
-        }
-
-        // Also verify Fortran scheme if available
-        if (has_fortran) {
-            export_fort.fields["k14_dust_emissions"] = create_dv("emis_fort", nx, ny, nbins, 0.0);
-
-            auto* base_fort = dynamic_cast<BasePhysicsScheme*>(scheme_fort.get());
-            if (base_fort) base_fort->ClearPhysicsCache();
-            scheme_fort->Run(import_state, export_fort);
-
-            auto& dv_fort = export_fort.fields["k14_dust_emissions"];
-            dv_fort.sync<Kokkos::HostSpace>();
-            auto emis_fort_h = dv_fort.view_host();
-
-            for (int j = 0; j < ny; ++j) {
-                for (int n = 0; n < nbins; ++n) {
-                    // Zero land fraction (rows 0-1) — strict zero
-                    for (int i = 0; i < 2; ++i) {
-                        EXPECT_DOUBLE_EQ(emis_fort_h(i, j, n), 0.0)
-                            << "Fortran zero-land cell (" << i << "," << j << "," << n << ") should have zero emissions, iter=" << iter;
-                    }
-                    // High roughness (rows 2-3) — Fortran WHERE clauses don't
-                    // short-circuit all steps, so tiny near-zero values can leak
-                    // through. Use a tolerance consistent with machine noise.
-                    for (int i = 2; i < 4; ++i) {
-                        EXPECT_NEAR(emis_fort_h(i, j, n), 0.0, 1e-12)
-                            << "Fortran high-roughness cell (" << i << "," << j << "," << n << ") should have near-zero emissions, iter=" << iter;
-                    }
-                    // Bedrock + non-emitting veg (rows 6-7) — strict zero
-                    for (int i = 6; i < 8; ++i) {
-                        EXPECT_DOUBLE_EQ(emis_fort_h(i, j, n), 0.0) << "Fortran bedrock/non-emitting-veg cell (" << i << "," << j << "," << n
-                                                                    << ") should have zero emissions, iter=" << iter;
-                    }
+                        << "Bedrock/non-emitting-veg cell (" << i << "," << j << "," << n << ") should have zero emissions, iter=" << iter;
                 }
             }
         }

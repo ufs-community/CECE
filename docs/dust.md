@@ -12,7 +12,6 @@ References:
 ## Registration Names
 
 - Native C++: `"dust"`
-- Fortran bridge: `"dust_fortran"`
 
 ## Configuration Parameters
 
@@ -58,7 +57,7 @@ physics_schemes:
 
 ## Implementation Notes
 
-- Available as both native C++ (Kokkos) and Fortran bridge implementations
+- Implemented natively in C++ (Kokkos)
 - This is the legacy single-bin Ginoux scheme; for multi-bin GOCART2G Ginoux, see the `ginoux` scheme
 - Threshold velocity is computed once during `Initialize` and reused each timestep
 - The scheme operates on 2D (surface) fields only

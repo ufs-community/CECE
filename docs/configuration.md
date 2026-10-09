@@ -42,6 +42,9 @@ cece_data:
 
 output:
   # ... NetCDF output configuration ...
+
+nuopc:
+  # ... field-coupling export/import declarations (optional) ...
 ```
 
 ---
@@ -1103,3 +1106,108 @@ output:
     - "isoprene"
     - "sea_salt_total"
 ```
+
+---
+
+## `nuopc`
+
+The optional top-level `nuopc:` section declares which fields CECE exchanges
+with a coupling framework when it runs through the NUOPC cap
+(`cece_nuopc_app`). It has no effect on the standalone C++ driver, and when
+the section is absent (or empty) the cap advertises no fields at all — the
+standalone behavior of the cap is then byte-for-byte unchanged.
+
+```yaml
+species:                  # the export key 'oc' must be a species here
+  oc:
+    - field: OC_ANTHRO
+      operation: add
+meteorology:              # the import key 'temperature' must be an input here
+  temperature: air_temperature
+nuopc:
+  export_fields:          # optional; keys must be species in `species:`
+    oc:
+      standard_name: "agent_count_emission_flux_of_particulate_organic_matter"
+      units: "kg m-2 s-1"    # optional; must match the dictionary's canonical units
+      name: "oc_flux"        # optional state item name; defaults to the species key
+  import_fields:          # optional; keys must be input names in
+                         # `meteorology:`, `scale_factors:`, or `masks:`
+    temperature:
+      standard_name: "air_temperature"
+      units: "K"
+      name: "tmp"           # optional; defaults to the input key
+```
+
+### Entry properties
+
+| Key | Required | Notes |
+| --- | -------- | ----- |
+| `export_fields.<species>` | — | one entry per emission species to expose to a coupled host; the exported field is the species' aggregated emission flux |
+| `import_fields.<input>` | — | one entry per host-provided forcing input; the key must exist in `meteorology:`, `scale_factors:`, or `masks:` so the delivered values can be resolved to a model input name |
+| `standard_name` | yes | the NUOPC community standard name for the field; validated against the active NUOPC Field Dictionary when the cap advertises |
+| `units` | no | must equal the dictionary's canonical units for that standard name; omitted means the dictionary's canonical units apply |
+| `name` | no | the name of the field in the coupling state; defaults to the species key (exports) or input key (imports). Must not contain `/` |
+
+### Field geometry
+
+The exchange geometry is fixed and not user-configurable:
+
+- **Exports** are rank-3 fields: the two horizontal grid dimensions plus a
+  vertical dimension spanning `1:nz`, where `nz` comes from
+  `driver.grid.nz`.
+- **Imports** are rank-2 surface fields (the two horizontal grid dimensions,
+  no vertical).
+
+### Dictionary membership is a host responsibility
+
+The `standard_name` values are checked against the NUOPC Field Dictionary at
+runtime, when the cap advertises its fields — not when the configuration is
+parsed. The ESMF library ships with a small preloaded dictionary covering
+common ocean and land-surface names only; emission and other specialized names
+must be provided by the **host application** that drives the coupling, which
+installs its dictionary before any component initializes. If a name is not in
+the active dictionary, the run fails loudly at advertise time and the error
+message names the offending standard name.
+
+When running the NUOPC cap standalone for testing, the app accepts a
+`--field-dictionary <path.yaml>` flag to emulate a host that provides a
+community dictionary:
+
+```bash
+./bin/cece_nuopc_app --field-dictionary tests/nuopc_coupling/test_field_dictionary.yaml \
+    examples/cece_config_ceds_oc_small_coupled.yaml
+```
+
+Without the flag, the preloaded dictionary is used, so a config advertising
+names outside it fails at advertise — the expected behavior for a host that
+has not supplied the needed entries.
+
+### Validation at parse time
+
+The configuration parser rejects, with an error naming the offending key:
+
+- an export key that is not a configured emission species;
+- an import key that appears in none of `meteorology:`, `scale_factors:`, or
+  `masks:`;
+- an entry with a missing or empty `standard_name`;
+- a `standard_name` or `name` containing `/`;
+- unknown sub-keys under an entry.
+
+### Coupled behavior in one paragraph
+
+At initialization the cap advertises every configured export and import, and
+the coupling framework connects matching pairs between components. Connected
+exports are reference-shared: a host that realizes on CECE's grid reads
+CECE's computed emission storage directly, with no per-step copy. Connected
+imports are realized on the geometry the host provides, and each step the cap
+copies the delivered values into the simulation's input fields before the
+compute step. Fields that are configured but never connected are removed at
+realization, allocate nothing, and produce no error — which is what keeps a
+`nuopc:`-bearing config byte-for-byte identical to the same run without
+peers. See [NUOPC Cap Parity](nuopc_cap_parity.md) for the data-flow walk and
+the coupling integration tests.
+
+A complete example lives in
+`examples/cece_config_ceds_oc_small_coupled.yaml` (the small CEDS ocean
+fixture plus a `nuopc:` block exporting `oc` and importing one temperature
+field).

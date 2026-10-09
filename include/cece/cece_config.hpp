@@ -443,6 +443,38 @@ struct DriverConfig {
 };
 
 /**
+ * @struct NuopcFieldSpec
+ * @brief One field CECE advertises to a NUOPC host component.
+ *
+ * Carries only what a config author can legitimately choose: the coupling
+ * framework's standard name, optional units (when omitted the framework's
+ * canonical units are used), and an optional state-item name (when omitted the
+ * species or input key itself names the field). Rank, vertical extent, and the
+ * geometry transfer offer are derived from the field's role, never configured.
+ */
+struct NuopcFieldSpec {
+    std::string standard_name;  ///< Coupling-framework standard name (required; must not contain '/').
+    std::string units;          ///< Units string; empty means "use the dictionary canonical units".
+    std::string name;           ///< State item name; empty means "use the species/input key".
+};
+
+/**
+ * @struct NuopcConfig
+ * @brief Parsed contents of the optional top-level `nuopc:` config section.
+ *
+ * Both lists are kept sorted alphabetically by key so every rank advertises
+ * fields in the identical order regardless of YAML document order. An absent
+ * or empty section leaves both lists empty, which means zero advertised
+ * fields and unchanged standalone behavior.
+ */
+struct NuopcConfig {
+    /// Export fields: (species key, spec) pairs sorted by species key.
+    std::vector<std::pair<std::string, NuopcFieldSpec>> export_fields;
+    /// Import fields: (input name, spec) pairs sorted by input name.
+    std::vector<std::pair<std::string, NuopcFieldSpec>> import_fields;
+};
+
+/**
  * @struct LocalTimeConfig
  * @brief Configuration for the local-time service.
  *
@@ -488,6 +520,10 @@ struct CeceConfig {
     LocalTimeConfig local_time;
     /// Registry of meteorology variable internal names to their external aliases.
     std::unordered_map<std::string, std::vector<std::string>> met_registry;
+    /// Fields advertised to a NUOPC host (from the optional `nuopc:` section).
+    /// Empty when the section is absent: CECE then advertises nothing and runs
+    /// exactly as before coupling support.
+    NuopcConfig nuopc;
 };
 
 /**

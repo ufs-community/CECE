@@ -481,7 +481,6 @@ set(
   src/core/cece_diagnostic_manager.cpp
   src/core/cece_io.cpp
   src/core/cece_core_driver_config.cpp
-  src/core/cece_core_advertise.cpp
   src/core/cece_core_realize.cpp
   src/core/cece_core_realize_wrapper.cpp
   src/core/cece_core_initialize_p1.cpp
@@ -508,14 +507,6 @@ if(CECE_HAS_FORTRAN)
     src/core/physics/lightning_kernel.F90
     src/core/physics/cece_soil_nox_fortran_bridge.cpp
     src/core/physics/soil_nox_kernel.F90
-    src/core/physics/cece_dust_fortran_bridge.cpp
-    src/core/physics/dust_kernel.F90
-    src/core/physics/cece_fengsha_fortran_bridge.cpp
-    src/core/physics/fengsha_kernel.F90
-    src/core/physics/cece_ginoux_fortran_bridge.cpp
-    src/core/physics/ginoux_kernel.F90
-    src/core/physics/cece_k14_fortran_bridge.cpp
-    src/core/physics/k14_kernel.F90
     src/core/physics/cece_volcano_fortran_bridge.cpp
     src/core/physics/volcano_kernel.F90
     src/core/physics/cece_bdsnp_fortran_bridge.cpp
@@ -587,6 +578,10 @@ add_library(
   src/driver/cece_calendar.cpp
   src/driver/cece_time_indexing.cpp
   src/driver/cece_driver_facade.cpp
+  src/driver/cece_grid_spec_yaml.cpp
+  src/driver/cece_grid_spec_esmf.cpp
+  src/driver/cece_simulation.cpp
+  src/driver/cece_sim_c_abi.cpp
 )
 
 target_include_directories(

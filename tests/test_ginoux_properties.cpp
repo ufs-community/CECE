@@ -9,7 +9,7 @@
  * Properties tested:
  * 1. Marticorena dry-soil threshold computation
  * 2. Ginoux moisture threshold behavior
- * 3. Numerical equivalence between C++ and Fortran implementations
+ * 3. Zero-emission invariant for non-emitting cells
  * 4. Zero-emission invariant for non-emitting cells
  */
 
@@ -131,138 +131,25 @@ TEST_F(GinouxPropertyTest, Property2_MoistureThreshold) {
 }
 
 // ============================================================================
-// Property 3: Ginoux numerical equivalence between C++ and Fortran
-// **Validates: Requirements 7.1, 1.7**
-// ============================================================================
-
-TEST_F(GinouxPropertyTest, Property3_NumericalEquivalence) {
-    // Check at runtime if the Fortran scheme is available
-    PhysicsSchemeConfig cfg_fort_check;
-    cfg_fort_check.name = "ginoux_fortran";
-    auto fort_check = PhysicsFactory::CreateScheme(cfg_fort_check);
-    if (fort_check == nullptr) {
-        GTEST_SKIP() << "ginoux_fortran scheme not available, skipping equivalence test";
-    }
-
-    for (int iter = 0; iter < 50; ++iter) {
-        int nx = rand_int(1, 10);
-        int ny = rand_int(1, 10);
-        int nbins = rand_int(1, 5);
-
-        PhysicsSchemeConfig cfg_cpp, cfg_fort;
-        cfg_cpp.name = "ginoux";
-        cfg_fort.name = "ginoux_fortran";
-
-        auto scheme_cpp = PhysicsFactory::CreateScheme(cfg_cpp);
-        auto scheme_fort = PhysicsFactory::CreateScheme(cfg_fort);
-        ASSERT_NE(scheme_cpp, nullptr);
-        ASSERT_NE(scheme_fort, nullptr);
-
-        scheme_cpp->Initialize(cfg_cpp.options, nullptr);
-        scheme_fort->Initialize(cfg_fort.options, nullptr);
-
-        // Create import state with random physically valid values
-        CeceImportState import_state;
-        CeceExportState export_cpp, export_fort;
-
-        import_state.fields["u10m"] = create_dv("u10m", nx, ny, 1, 0.0);
-        import_state.fields["v10m"] = create_dv("v10m", nx, ny, 1, 0.0);
-        import_state.fields["surface_soil_wetness"] = create_dv("gwettop", nx, ny, 1, 0.0);
-        import_state.fields["land_mask"] = create_dv("oro", nx, ny, 1, 1.0);
-        import_state.fields["lake_fraction"] = create_dv("fraclake", nx, ny, 1, 0.0);
-        import_state.fields["dust_source"] = create_dv("du_src", nx, ny, 1, 0.0);
-        // particle_radius stored as (1, 1, nbins) — the Fortran bridge reads .data() as 1D
-        import_state.fields["particle_radius"] = create_dv("radius", 1, 1, nbins, 0.0);
-
-        // Fill 2D fields with random values
-        auto fill_random_2d = [&](const std::string& name, double lo, double hi) {
-            auto h = import_state.fields[name].view_host();
-            for (int j = 0; j < ny; ++j)
-                for (int i = 0; i < nx; ++i) h(i, j, 0) = rand_uniform(lo, hi);
-            import_state.fields[name].modify<Kokkos::HostSpace>();
-            import_state.fields[name].sync<Kokkos::DefaultExecutionSpace>();
-        };
-
-        fill_random_2d("u10m", -15.0, 15.0);
-        fill_random_2d("v10m", -15.0, 15.0);
-        fill_random_2d("surface_soil_wetness", 0.0, 0.6);
-        fill_random_2d("lake_fraction", 0.0, 0.3);
-        fill_random_2d("dust_source", 0.1, 2.0);
-
-        // Fill particle radii
-        {
-            auto h = import_state.fields["particle_radius"].view_host();
-            for (int n = 0; n < nbins; ++n) h(0, 0, n) = rand_uniform(0.1e-6, 25.0e-6);
-            import_state.fields["particle_radius"].modify<Kokkos::HostSpace>();
-            import_state.fields["particle_radius"].sync<Kokkos::DefaultExecutionSpace>();
-        }
-
-        export_cpp.fields["ginoux_dust_emissions"] = create_dv("emis_cpp", nx, ny, nbins, 0.0);
-        export_fort.fields["ginoux_dust_emissions"] = create_dv("emis_fort", nx, ny, nbins, 0.0);
-
-        // Run both schemes
-        auto* base_cpp = dynamic_cast<BasePhysicsScheme*>(scheme_cpp.get());
-        if (base_cpp) base_cpp->ClearPhysicsCache();
-        scheme_cpp->Run(import_state, export_cpp);
-
-        auto* base_fort = dynamic_cast<BasePhysicsScheme*>(scheme_fort.get());
-        if (base_fort) base_fort->ClearPhysicsCache();
-        scheme_fort->Run(import_state, export_fort);
-
-        // Compare results
-        auto& dv_cpp = export_cpp.fields["ginoux_dust_emissions"];
-        auto& dv_fort = export_fort.fields["ginoux_dust_emissions"];
-        dv_cpp.sync<Kokkos::HostSpace>();
-        dv_fort.sync<Kokkos::HostSpace>();
-        auto h_cpp = dv_cpp.view_host();
-        auto h_fort = dv_fort.view_host();
-
-        for (int n = 0; n < nbins; ++n) {
-            for (int j = 0; j < ny; ++j) {
-                for (int i = 0; i < nx; ++i) {
-                    double cpp_val = h_cpp(i, j, n);
-                    double fort_val = h_fort(i, j, n);
-                    double tol = std::max(std::abs(cpp_val), std::abs(fort_val)) * 1e-12 + 1e-20;
-                    EXPECT_NEAR(cpp_val, fort_val, tol) << "Mismatch at (" << i << "," << j << "," << n << ") iter=" << iter;
-                }
-            }
-        }
-    }
-}
-
-// ============================================================================
 // Property 4: Ginoux zero-emission invariant
 // **Validates: Requirements 7.2, 7.3, 7.4**
 // ============================================================================
 
 TEST_F(GinouxPropertyTest, Property4_ZeroEmissionInvariant) {
     // Test that ocean cells, high-wetness cells, and below-threshold wind cells
-    // produce zero emissions in both C++ and Fortran schemes.
+    // produce zero emissions.
     int nx = 6, ny = 6, nbins = 3;
 
-    // Check if Fortran scheme is available
-    PhysicsSchemeConfig cfg_fort_check;
-    cfg_fort_check.name = "ginoux_fortran";
-    auto fort_check = PhysicsFactory::CreateScheme(cfg_fort_check);
-    bool has_fortran = (fort_check != nullptr);
-
     for (int iter = 0; iter < 50; ++iter) {
-        PhysicsSchemeConfig cfg_cpp, cfg_fort;
+        PhysicsSchemeConfig cfg_cpp;
         cfg_cpp.name = "ginoux";
-        cfg_fort.name = "ginoux_fortran";
 
         auto scheme_cpp = PhysicsFactory::CreateScheme(cfg_cpp);
         ASSERT_NE(scheme_cpp, nullptr);
         scheme_cpp->Initialize(cfg_cpp.options, nullptr);
 
-        std::unique_ptr<PhysicsScheme> scheme_fort;
-        if (has_fortran) {
-            scheme_fort = PhysicsFactory::CreateScheme(cfg_fort);
-            scheme_fort->Initialize(cfg_fort.options, nullptr);
-        }
-
         CeceImportState import_state;
-        CeceExportState export_cpp, export_fort;
+        CeceExportState export_cpp;
 
         // Create fields with random valid values
         import_state.fields["u10m"] = create_dv("u10m", nx, ny, 1, 0.0);
@@ -345,53 +232,23 @@ TEST_F(GinouxPropertyTest, Property4_ZeroEmissionInvariant) {
         dv_cpp.sync<Kokkos::HostSpace>();
         auto emis_cpp_h = dv_cpp.view_host();
 
-        // Verify zero emissions for non-emitting cells (C++)
+        // Verify zero emissions for non-emitting cells
         for (int j = 0; j < ny; ++j) {
             for (int n = 0; n < nbins; ++n) {
                 // Ocean cells (rows 0-1)
                 for (int i = 0; i < 2; ++i) {
                     EXPECT_DOUBLE_EQ(emis_cpp_h(i, j, n), 0.0)
-                        << "C++ ocean cell (" << i << "," << j << "," << n << ") should have zero emissions, iter=" << iter;
+                        << "Ocean cell (" << i << "," << j << "," << n << ") should have zero emissions, iter=" << iter;
                 }
                 // High wetness cells (rows 2-3)
                 for (int i = 2; i < 4; ++i) {
                     EXPECT_DOUBLE_EQ(emis_cpp_h(i, j, n), 0.0)
-                        << "C++ high-wetness cell (" << i << "," << j << "," << n << ") should have zero emissions, iter=" << iter;
+                        << "High-wetness cell (" << i << "," << j << "," << n << ") should have zero emissions, iter=" << iter;
                 }
                 // Below-threshold wind cells (rows 4-5)
                 for (int i = 4; i < 6; ++i) {
                     EXPECT_DOUBLE_EQ(emis_cpp_h(i, j, n), 0.0)
-                        << "C++ below-threshold cell (" << i << "," << j << "," << n << ") should have zero emissions, iter=" << iter;
-                }
-            }
-        }
-
-        // Also verify Fortran scheme if available
-        if (has_fortran) {
-            export_fort.fields["ginoux_dust_emissions"] = create_dv("emis_fort", nx, ny, nbins, 0.0);
-
-            auto* base_fort = dynamic_cast<BasePhysicsScheme*>(scheme_fort.get());
-            if (base_fort) base_fort->ClearPhysicsCache();
-            scheme_fort->Run(import_state, export_fort);
-
-            auto& dv_fort = export_fort.fields["ginoux_dust_emissions"];
-            dv_fort.sync<Kokkos::HostSpace>();
-            auto emis_fort_h = dv_fort.view_host();
-
-            for (int j = 0; j < ny; ++j) {
-                for (int n = 0; n < nbins; ++n) {
-                    for (int i = 0; i < 2; ++i) {
-                        EXPECT_DOUBLE_EQ(emis_fort_h(i, j, n), 0.0)
-                            << "Fortran ocean cell (" << i << "," << j << "," << n << ") should have zero emissions, iter=" << iter;
-                    }
-                    for (int i = 2; i < 4; ++i) {
-                        EXPECT_DOUBLE_EQ(emis_fort_h(i, j, n), 0.0)
-                            << "Fortran high-wetness cell (" << i << "," << j << "," << n << ") should have zero emissions, iter=" << iter;
-                    }
-                    for (int i = 4; i < 6; ++i) {
-                        EXPECT_DOUBLE_EQ(emis_fort_h(i, j, n), 0.0)
-                            << "Fortran below-threshold cell (" << i << "," << j << "," << n << ") should have zero emissions, iter=" << iter;
-                    }
+                        << "Below-threshold cell (" << i << "," << j << "," << n << ") should have zero emissions, iter=" << iter;
                 }
             }
         }

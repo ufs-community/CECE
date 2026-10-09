@@ -10,7 +10,7 @@
  * 1. Volumetric-to-gravimetric soil moisture conversion
  * 2. Fécan moisture correction computation
  * 3. MB95 vertical-to-horizontal flux ratio
- * 4. Numerical equivalence between C++ and Fortran implementations
+ * 4. Configuration initialization with defaults
  * 5. Zero-emission invariant for non-emitting cells
  * 6. Configuration initialization with defaults
  */
@@ -240,108 +240,6 @@ TEST_F(FengshaPropertyTest, Property5_ZeroEmissionInvariant) {
                         EXPECT_DOUBLE_EQ(emis_h(i, j, n), 0.0)
                             << "Non-emitting cell (" << i << "," << j << "," << n << ") should have zero emissions, iter=" << iter;
                     }
-                }
-            }
-        }
-    }
-}
-
-// ============================================================================
-// Property 4: Numerical equivalence between C++ and Fortran implementations
-// Feature: fengsha-dust-scheme, Property 4: Numerical equivalence between C++ and Fortran
-// ============================================================================
-
-TEST_F(FengshaPropertyTest, Property4_NumericalEquivalence) {
-    // Check at runtime if the Fortran scheme is available
-    PhysicsSchemeConfig cfg_fort_check;
-    cfg_fort_check.name = "fengsha_fortran";
-    auto fort_check = PhysicsFactory::CreateScheme(cfg_fort_check);
-    if (fort_check == nullptr) {
-        GTEST_SKIP() << "fengsha_fortran scheme not available, skipping equivalence test";
-    }
-
-    for (int iter = 0; iter < 50; ++iter) {
-        int nx = rand_int(1, 10);
-        int ny = rand_int(1, 10);
-        int nbins = rand_int(1, 5);
-
-        PhysicsSchemeConfig cfg_cpp, cfg_fort;
-        cfg_cpp.name = "fengsha";
-        cfg_fort.name = "fengsha_fortran";
-
-        auto scheme_cpp = PhysicsFactory::CreateScheme(cfg_cpp);
-        auto scheme_fort = PhysicsFactory::CreateScheme(cfg_fort);
-        ASSERT_NE(scheme_cpp, nullptr);
-        ASSERT_NE(scheme_fort, nullptr);
-
-        scheme_cpp->Initialize(cfg_cpp.options, nullptr);
-        scheme_fort->Initialize(cfg_fort.options, nullptr);
-
-        // Create import state with random physically valid values
-        CeceImportState import_state;
-        CeceExportState export_cpp, export_fort;
-
-        import_state.fields["friction_velocity"] = create_dv("ustar", nx, ny, 1, 0.0);
-        import_state.fields["threshold_velocity"] = create_dv("uthrs", nx, ny, 1, 0.0);
-        import_state.fields["soil_moisture"] = create_dv("slc", nx, ny, 1, 0.0);
-        import_state.fields["clay_fraction"] = create_dv("clay", nx, ny, 1, 0.0);
-        import_state.fields["sand_fraction"] = create_dv("sand", nx, ny, 1, 0.0);
-        import_state.fields["silt_fraction"] = create_dv("silt", nx, ny, 1, 0.0);
-        import_state.fields["erodibility"] = create_dv("ssm", nx, ny, 1, 0.0);
-        import_state.fields["drag_partition"] = create_dv("rdrag", nx, ny, 1, 0.0);
-        import_state.fields["air_density"] = create_dv("airdens", nx, ny, 1, 0.0);
-        import_state.fields["lake_fraction"] = create_dv("fraclake", nx, ny, 1, 0.0);
-        import_state.fields["snow_fraction"] = create_dv("fracsnow", nx, ny, 1, 0.0);
-        import_state.fields["land_mask"] = create_dv("oro", nx, ny, 1, 1.0);
-
-        // Fill with random values
-        auto fill_random = [&](const std::string& name, double lo, double hi) {
-            auto h = import_state.fields[name].view_host();
-            for (int j = 0; j < ny; ++j)
-                for (int i = 0; i < nx; ++i) h(i, j, 0) = rand_uniform(lo, hi);
-            import_state.fields[name].modify<Kokkos::HostSpace>();
-            import_state.fields[name].sync<Kokkos::DefaultExecutionSpace>();
-        };
-
-        fill_random("friction_velocity", 0.1, 2.0);
-        fill_random("threshold_velocity", 0.05, 0.5);
-        fill_random("soil_moisture", 0.0, 0.5);
-        fill_random("clay_fraction", 0.01, 0.5);
-        fill_random("sand_fraction", 0.1, 0.8);
-        fill_random("silt_fraction", 0.1, 0.5);
-        fill_random("erodibility", 0.1, 1.0);
-        fill_random("drag_partition", 0.5, 1.0);
-        fill_random("air_density", 1.0, 1.5);
-        fill_random("lake_fraction", 0.0, 0.3);
-        fill_random("snow_fraction", 0.0, 0.3);
-
-        export_cpp.fields["fengsha_dust_emissions"] = create_dv("emis_cpp", nx, ny, nbins, 0.0);
-        export_fort.fields["fengsha_dust_emissions"] = create_dv("emis_fort", nx, ny, nbins, 0.0);
-
-        // Run both schemes
-        auto* base_cpp = dynamic_cast<BasePhysicsScheme*>(scheme_cpp.get());
-        if (base_cpp) base_cpp->ClearPhysicsCache();
-        scheme_cpp->Run(import_state, export_cpp);
-
-        auto* base_fort = dynamic_cast<BasePhysicsScheme*>(scheme_fort.get());
-        if (base_fort) base_fort->ClearPhysicsCache();
-        scheme_fort->Run(import_state, export_fort);
-
-        // Compare results
-        auto& dv_cpp = export_cpp.fields["fengsha_dust_emissions"];
-        auto& dv_fort = export_fort.fields["fengsha_dust_emissions"];
-        dv_cpp.sync<Kokkos::HostSpace>();
-        dv_fort.sync<Kokkos::HostSpace>();
-        auto h_cpp = dv_cpp.view_host();
-        auto h_fort = dv_fort.view_host();
-
-        for (int n = 0; n < nbins; ++n) {
-            for (int j = 0; j < ny; ++j) {
-                for (int i = 0; i < nx; ++i) {
-                    double cpp_val = h_cpp(i, j, n);
-                    double fort_val = h_fort(i, j, n);
-                    double tol = std::max(std::abs(cpp_val), std::abs(fort_val)) * 1e-12 + 1e-20;
-                    EXPECT_NEAR(cpp_val, fort_val, tol) << "Mismatch at (" << i << "," << j << "," << n << ") iter=" << iter;
                 }
             }
         }

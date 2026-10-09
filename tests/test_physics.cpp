@@ -149,10 +149,6 @@ TEST_F(PhysicsTest, SoilNoxParity) {
     TestParity(this, "soil_nox", "soil_nox_fortran", "soil_nox");
 }
 
-TEST_F(PhysicsTest, DustParity) {
-    TestParity(this, "dust", "dust_fortran", "dust");
-}
-
 TEST_F(PhysicsTest, VolcanoParity) {
     TestParity(this, "volcano", "volcano_fortran", "so2");
 }

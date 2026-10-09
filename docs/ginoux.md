@@ -11,7 +11,6 @@ References:
 ## Registration Names
 
 - Native C++: `"ginoux"`
-- Fortran bridge: `"ginoux_fortran"`
 
 ## Configuration Parameters
 

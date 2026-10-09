@@ -367,3 +367,111 @@ def test_mapalgo_is_normalized_to_lowercase():
     })
 
     assert parsed.cece_data["streams"][0].mapalgo == "bilinear"
+
+
+def _nuopc_config():
+    return {
+        "species": {"oc": [{"field": "OC_ANTHRO", "operation": "add"}]},
+        "meteorology": {"temperature": "air_temperature"},
+        "nuopc": {
+            "export_fields": {
+                "oc": {
+                    "standard_name": "agent_count_emission_flux_of_particulate_organic_matter",
+                    "units": "kg m-2 s-1",
+                }
+            },
+            "import_fields": {
+                "temperature": {"standard_name": "air_temperature", "units": "K"}
+            },
+        },
+    }
+
+
+def test_nuopc_round_trips():
+    parsed = config.CeceConfig.from_dict(_nuopc_config())
+
+    assert parsed.nuopc.export_fields["oc"].standard_name == (
+        "agent_count_emission_flux_of_particulate_organic_matter"
+    )
+    assert parsed.nuopc.import_fields["temperature"].name == ""
+    dumped = parsed.to_dict()
+    assert dumped["nuopc"] == _nuopc_config()["nuopc"]
+    assert config.CeceConfig.from_dict(dumped).to_dict() == dumped
+
+
+def test_nuopc_absent_or_empty_advertises_nothing():
+    for extra in ({}, {"nuopc": {}}):
+        base = _nuopc_config()
+        base.pop("nuopc", None)
+        base.update(extra)
+        dumped = config.CeceConfig.from_dict(base).to_dict()
+
+        assert "nuopc" not in dumped
+
+
+def test_nuopc_entries_sort_alphabetically():
+    parsed = config.CeceConfig.from_dict({
+        "species": {
+            "nox": [{"field": "NOX", "operation": "add"}],
+            "oc": [{"field": "OC", "operation": "add"}],
+        },
+        "nuopc": {
+            "export_fields": {
+                "nox": {"standard_name": "nox_flux"},
+                "oc": {"standard_name": "oc_flux"},
+            }
+        },
+    })
+
+    assert list(parsed.nuopc.export_fields) == ["nox", "oc"]
+
+
+def test_nuopc_rejects_unknown_section_key():
+    with pytest.raises(ValueError, match=r"nuopc: unknown key 'bogus'"):
+        config.CeceConfig.from_dict({"nuopc": {"bogus": {}}})
+
+
+def test_nuopc_export_key_must_be_configured_species():
+    with pytest.raises(
+        ValueError,
+        match=r"nuopc\.export_fields: 'dust' is not a configured emission species",
+    ):
+        config.CeceConfig.from_dict({
+            "species": {"oc": [{"field": "OC", "operation": "add"}]},
+            "nuopc": {"export_fields": {"dust": {"standard_name": "x"}}},
+        })
+
+
+def test_nuopc_import_key_must_be_configured_input():
+    with pytest.raises(
+        ValueError,
+        match=r"nuopc\.import_fields: 'pressure' is not a configured meteorology/scale-factor/mask input",
+    ):
+        config.CeceConfig.from_dict({
+            "meteorology": {"temperature": "T"},
+            "nuopc": {"import_fields": {"pressure": {"standard_name": "x"}}},
+        })
+
+
+def test_nuopc_requires_non_empty_standard_name():
+    with pytest.raises(ValueError, match="standard_name must be a non-empty string"):
+        config.CeceConfig.from_dict({
+            "species": {"oc": [{"field": "OC", "operation": "add"}]},
+            "nuopc": {"export_fields": {"oc": {"units": "kg"}}},
+        })
+
+
+def test_nuopc_rejects_slash_in_names():
+    with pytest.raises(ValueError, match="must not contain '/'"):
+        config.CeceConfig.from_dict({
+            "species": {"oc": [{"field": "OC", "operation": "add"}]},
+            "nuopc": {"export_fields": {"oc": {"standard_name": "a/b"}}},
+        })
+
+
+def test_nuopc_rejects_unknown_attribute():
+    with pytest.raises(ValueError, match="unknown attribute 'rank'"):
+        config.CeceConfig.from_dict({
+            "species": {"oc": [{"field": "OC", "operation": "add"}]},
+            "nuopc": {"export_fields": {"oc": {"standard_name": "x", "rank": 2}}},
+        })

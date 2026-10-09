@@ -26,7 +26,6 @@
 #include "support/cece_test_environment.hpp"
 
 extern "C" {
-void cece_core_advertise(void* importState, void* exportState, int* rc);
 void cece_core_realize(void* data_ptr, void* importState, void* exportState, void* grid, int* rc);
 void cece_core_initialize_p1(void** data_ptr_ptr, int* rc);
 void cece_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc);

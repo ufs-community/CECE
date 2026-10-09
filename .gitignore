@@ -23,6 +23,10 @@ __pycache__/
 .pytest_cache/
 *.egg-info/
 
+# Python packaging
+dist/
+*.egg-info/
+
 # Python venv
 venv*/
 .venv*/
@@ -59,3 +63,5 @@ specs/
 .github/prompts/
 .kiro/
 .vscode/
+
+.scratch/

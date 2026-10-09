@@ -4,6 +4,42 @@
 
 The CECE standalone NUOPC driver (`cece_nuopc_single_driver`) supports configurable execution modes for both single-process and MPI multi-process simulations. This guide documents all configuration options and usage patterns.
 
+### Shared Orchestration Contract
+
+CECE exposes two entry points — the C++ standalone driver (`cece_standalone_driver`,
+built from `src/main.cpp`) and the Fortran NUOPC cap (`cece_nuopc_app`, built from
+`src/driver/nuopc/`) — but they are **not two implementations**. Both drive a single
+shared C++ orchestration core, `CeceSimulation` (declared in `include/cece/cece_simulation.hpp`),
+through a small C ABI (`include/cece/cece_sim_c_abi.h`, implemented in
+`src/driver/cece_sim_c_abi.cpp` and exported from the `cece_driver` library):
+
+- `cece_sim_create_from_yaml` / `cece_sim_create_from_esmf` — resolve the grid and build
+  the simulation (core init, export-field registration, driver orchestrator, output writer).
+- `cece_sim_step` — advance one timestep (ingest, regrid, physics, stack, write).
+- `cece_sim_finalize` — release resources.
+
+Because grid resolution, the run loop, and NetCDF export all live in that shared core,
+the two drivers produce **byte-for-byte identical output** for the same configuration,
+and every feature of the C++ driver is available through the NUOPC cap. The cap adds
+only the ESMF/NUOPC lifecycle glue (clock, state import/export, parent-grid extraction).
+See [NUOPC Cap Parity](nuopc_cap_parity.md) for how to run the parity checks.
+
+### Time Convention
+
+Both drivers use the same converged time convention, so a given config yields the same
+ingest instants and output stamps regardless of which driver runs it:
+
+- **Ingest at step-start.** The data stream is read/regridded at the *start* instant of
+  the step (the time the step represents).
+- **Stamp at step-end.** The output record is timestamped at the *end* of the step — the
+  elapsed seconds are measured from `start_time`, matching the historical standalone
+  driver. For a step from `T` to `T + dt`, ingest happens at `T` and the file is stamped
+  `T + dt`.
+
+The core clock owns the derived calendar quantities (hour, day-of-week, month); the
+drivers supply only the ingest instant and the stamp elapsed. `start_time`, `end_time`,
+and `timestep_seconds` below are interpreted under this convention on both paths.
+
 ## Configuration File Format
 
 Driver configuration is specified in the CECE YAML configuration file under the optional `driver` section:
@@ -171,16 +207,31 @@ mpirun -np 4 ./cece_nuopc_single_driver
 
 ### Coupled Mode Execution
 
-When the driver is used in coupled mode (invoked by NUOPC_Driver framework):
+When the cap is invoked by a NUOPC_Driver framework (coupled mode), the grid can come
+from two sources, resolved in this order at `InitializeRealize`:
 
-- Clock is provided by the framework (driver skips clock creation)
-- Grid is provided by the framework (driver skips grid creation)
-- Driver configuration is ignored (graceful degradation)
-- Driver operates normally without driver configuration section
+1. **Parent-provided grid (wins).** If the host associates an `ESMF_Grid` or `ESMF_Mesh`
+   with the component before realization, the cap extracts its global coordinates across
+   PETs and builds the simulation on that grid. Supported parent topologies:
+   - 1-D `lon[nx]` x `lat[ny]` center coordinates -> rectilinear
+   - 2-D (GRIDSPEC) coordinates flattened to `nx*ny` -> curvilinear
+   - an unstructured `ESMF_Mesh` node list -> unstructured (`ny = 1`)
+   Radian coordinate systems are converted to degrees and longitudes wrapped to
+   `[-180, 180)` in the shared C++ code. An unsupported parent shape fails loudly
+   with a named diagnostic — there is **no fallback to a uniform grid**.
+2. **Config-built grid (fallback).** With no parent grid, the cap resolves the grid from
+   the CECE YAML through the exact same code path as the C++ driver (named grid,
+   `gridspec_file`, stream-inferred coordinates, or uniform `driver.grid` extents).
+
+**Precedence:** when both a parent grid and a YAML grid are present, the parent wins and
+a single warning names the ignored YAML grid. The two sources are never merged.
+
+**Vertical layers:** `nz` is always taken from `driver.grid.nz` in the config — never
+inferred from the flat 2-D parent grid, which carries no vertical dimension.
 
 **Behavior:**
-- If `driver` section is absent, driver uses documented defaults
-- If `driver` section is present but incomplete, missing values use defaults
+- If the `driver` section is absent, driver uses documented defaults
+- If the `driver` section is present but incomplete, missing values use defaults
 - No errors are raised for missing configuration in coupled mode
 
 ## Default Configuration
@@ -213,21 +264,38 @@ The driver validates configuration parameters and exits with error if:
 
 ## Grid/Mesh Selection Logic
 
-The driver uses the following logic to select spatial discretization:
+Grid resolution is performed by the shared C++ core (`GridSpec::from_yaml`), so both
+drivers follow identical rules. In the standalone driver and in the cap's config-built
+branch, the target grid is selected as:
 
-1. **If gridspec_file is specified and valid:**
-   - Load ESMF Grid from GRIDSPEC NetCDF file
-   - Skip grid generation
-   - Log gridspec file source
+1. **If `grid_name` is specified** (e.g. `F360`, `R360`):
+   - Generate the mesh via AXIS and extract 1-D center coordinates -> rectilinear
+   - `nx`/`ny` must match the named grid's expected dimensions (or be omitted)
 
-2. **If gridspec_file is null or absent:**
-   - Generate structured grid based on grid.nx and grid.ny
-   - Create mesh from grid params for AXIS regridding
-   - Log grid configuration to stdout
+2. **If `gridspec_file` is specified:**
+   - Load coordinates from the GRIDSPEC/UGRID NetCDF file (CF-packed values unpacked,
+     radians converted to degrees when the source is a cell-centered cubed-sphere name,
+     longitudes wrapped)
+   - Classify topology from the coordinate shapes: 1-D `lon[nx]`/`lat[ny]` ->
+     rectilinear; 2-D flattened `nx*ny` -> curvilinear; `ny = 1` node arrays ->
+     unstructured
+   - If the file cannot be loaded, the run fails loudly (no silent substitution)
 
-3. **In coupled mode:**
-   - Skip grid/mesh creation
-   - Use framework-provided grid/mesh
+3. **If neither is specified:**
+   - Generate a uniform grid from `driver.grid.nx`/`ny`/`nz` and the `lon_min`/`lon_max`/
+     `lat_min`/`lat_max` extents
+   - `ny = 1` yields a flattened 1-D node row (unstructured topology)
+
+4. **In coupled mode (cap only):** a parent-provided ESMF Grid/Mesh takes precedence
+   over all of the above (see Coupled Mode Execution); the YAML grid is used only when
+   no parent grid is associated. This is the use case of a host model (NUOPC driver or
+   mediator) that owns the discretization: CECE must emit on the host's grid so the
+   exchanged fields are geographically consistent without regridding, and the YAML
+   grid section then only supplies the vertical layer count.
+
+**Validation:** `nx`, `ny`, and `nz` must all be positive, and the coordinate array
+lengths must match the declared topology. A configured `nz` that contradicts the input
+data's layer requirement is rejected at simulation creation.
 
 ## Large Grid Synchronization
 

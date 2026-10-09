@@ -27,7 +27,7 @@ The standalone driver (`src/main.cpp`) orchestrates the full simulation lifecycl
 
 ### Coupled Mode (NUOPC/ESMF)
 
-A Fortran NUOPC cap (`src/driver/nuopc/cece_cap.F90`) wraps CECE as an ESMF Grid Component for use in coupled Earth system models. In this mode, the host model provides the clock, grid, and meteorological import fields.
+A Fortran NUOPC cap (`src/driver/nuopc/cece_cap.F90`) wraps CECE as an ESMF Grid Component for use in coupled Earth system models. In this mode, the host model provides the clock, grid, and meteorological import fields. The cap and the standalone driver run the same C++ orchestration core, so both drivers produce identical output for the same configuration (a property enforced by the driver-parity integration test), and both support rectilinear, curvilinear (GRIDSPEC), and unstructured (mesh) grids — see [NUOPC Cap Parity](nuopc_cap_parity.md).
 
 ### Lifecycle
 

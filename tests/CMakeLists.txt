@@ -130,6 +130,14 @@ set(RAPIDCHECK rapidcheck rapidcheck_gtest)
 
 # --- Driver / configuration --------------------------------------------------
 cece_add_gtest(test_driver_configuration)
+# NUOPC field-coupling config section (`nuopc:`) parsing and the path-based
+# C queries the Fortran cap uses during Advertise.
+cece_add_gtest(test_coupling_config)
+# Time-convention unit test for the shared simulation core (CeceSimulation).
+# Exercises the REAL Step() sequence with link-time-interposed spies for the
+# three C entry points it calls (see the file header for why interposition is
+# sound here: no LTO, no -Bsymbolic, default visibility).
+cece_add_gtest(test_driver_time_convention NO_AS_NEEDED)
 cece_add_gtest(test_driver_clock_management NO_CECE)
 cece_add_gtest(test_clock_operations_unit NO_CECE)
 cece_add_gtest(test_driver_integration_end_to_end NO_CECE)
@@ -561,6 +569,150 @@ if(ESMF_FOUND)
     MPI_LAUNCHER
     PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp" PROCESSORS 1 RESOURCE_LOCK cece_config_yaml
   )
+
+  # Driver parity. Runs BOTH
+  # drivers (cece_standalone_driver and cece_nuopc_app) on the small CEDS OC
+  # config at -np 1 and asserts bit-for-bit equality of every configured data
+  # field plus an identical output variable set. Gated on
+  # ESMF (the cap app) AND the CEDS fixture data, mirroring the
+  # distributed-equivalence registration pattern.
+  if(EXISTS "${PROJECT_SOURCE_DIR}/data/OC-em-anthro_CMIP_CEDS_2023.nc")
+    add_test(
+      NAME test_driver_nuopc_parity
+      COMMAND
+        ${CMAKE_COMMAND} -E env "MPIEXEC_EXECUTABLE=${MPIEXEC_EXECUTABLE}"
+        "MPIEXEC_NUMPROC_FLAG=${MPIEXEC_NUMPROC_FLAG}" bash
+        ${CMAKE_CURRENT_SOURCE_DIR}/test_driver_nuopc_parity.sh --cxx-driver
+        $<TARGET_FILE:cece_standalone_driver> --nuopc-app $<TARGET_FILE:cece_nuopc_app> --config
+        ${PROJECT_SOURCE_DIR}/examples/cece_config_ceds_oc_small.yaml --comparator
+        ${CMAKE_CURRENT_SOURCE_DIR}/nccmp_var.c --varlist
+        ${CMAKE_CURRENT_SOURCE_DIR}/helpers/nclist_vars.c --fields oc --workdir
+        ${CMAKE_BINARY_DIR}/_parity_workdir
+      WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+    )
+    set_tests_properties(
+      test_driver_nuopc_parity
+      PROPERTIES
+        DEPENDS "cece_standalone_driver;cece_nuopc_app"
+        ENVIRONMENT
+          "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1"
+        TIMEOUT 600
+        LABELS np1
+        PROCESSORS 1
+    )
+  endif()
+
+  # Curvilinear (GRIDSPEC) topology e2e. Runs both drivers on the 2-D-coordinate
+  # CEDS config at -np 1 and asserts
+  # the cap's output carries 2-D curvilinear coordinates plus
+  # bit-for-bit parity of coordinates, fields, time, and variable set.
+  if(
+    EXISTS "${PROJECT_SOURCE_DIR}/data/OC-em-anthro_CMIP_CEDS_2023.nc"
+    AND EXISTS "${PROJECT_SOURCE_DIR}/data/C96_grid_spec.tile1.nc"
+  )
+    add_test(
+      NAME test_driver_nuopc_gridspec
+      COMMAND
+        ${CMAKE_COMMAND} -E env "MPIEXEC_EXECUTABLE=${MPIEXEC_EXECUTABLE}"
+        "MPIEXEC_NUMPROC_FLAG=${MPIEXEC_NUMPROC_FLAG}" bash
+        ${CMAKE_CURRENT_SOURCE_DIR}/test_driver_nuopc_gridspec.sh --cxx-driver
+        $<TARGET_FILE:cece_standalone_driver> --nuopc-app $<TARGET_FILE:cece_nuopc_app> --config
+        ${PROJECT_SOURCE_DIR}/examples/cece_config_ceds_oc_gridspec.yaml --comparator
+        ${CMAKE_CURRENT_SOURCE_DIR}/nccmp_var.c --varlist
+        ${CMAKE_CURRENT_SOURCE_DIR}/helpers/nclist_vars.c --shaper
+        ${CMAKE_CURRENT_SOURCE_DIR}/helpers/ncvar_shape.c --fields oc --workdir
+        ${CMAKE_BINARY_DIR}/_gridspec_workdir
+      WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+    )
+    set_tests_properties(
+      test_driver_nuopc_gridspec
+      PROPERTIES
+        DEPENDS "cece_standalone_driver;cece_nuopc_app"
+        ENVIRONMENT
+          "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1"
+        TIMEOUT 600
+        LABELS np1
+        PROCESSORS 1
+    )
+  endif()
+
+  # NUOPC cap distributed output equivalence. Runs cece_nuopc_app at -np 1/2/3 on the tiny CEDS OC
+  # config, asserts the written `oc` field is bit-for-bit identical across rank
+  # counts AND that the cap's np1 matches the C++ driver's np1, and asserts
+  # every configured output field is present at each rank count with an
+  # identical variable set. Gated on ESMF (the cap app) AND the CEDS fixture,
+  # mirroring the C++ distributed-equivalence registration above.
+  if(EXISTS "${PROJECT_SOURCE_DIR}/data/OC-em-anthro_CMIP_CEDS_2023.nc")
+    add_test(
+      NAME test_nuopc_distributed_output_equivalence
+      COMMAND
+        ${CMAKE_COMMAND} -E env "MPIEXEC_EXECUTABLE=${MPIEXEC_EXECUTABLE}"
+        "MPIEXEC_NUMPROC_FLAG=${MPIEXEC_NUMPROC_FLAG}" bash
+        ${CMAKE_CURRENT_SOURCE_DIR}/test_nuopc_distributed_output_equivalence.sh --cxx-driver
+        $<TARGET_FILE:cece_standalone_driver> --nuopc-app $<TARGET_FILE:cece_nuopc_app> --config
+        ${PROJECT_SOURCE_DIR}/examples/cece_config_ceds_oc_small.yaml --comparator
+        ${CMAKE_CURRENT_SOURCE_DIR}/nccmp_var.c --varlist
+        ${CMAKE_CURRENT_SOURCE_DIR}/helpers/nclist_vars.c --workdir
+        ${CMAKE_BINARY_DIR}/_nuopc_equiv_workdir
+      WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+    )
+    set_tests_properties(
+      test_nuopc_distributed_output_equivalence
+      PROPERTIES
+        DEPENDS "cece_standalone_driver;cece_nuopc_app"
+        ENVIRONMENT
+          "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1"
+        TIMEOUT 600
+        LABELS np3
+        PROCESSORS 3
+    )
+  endif()
+
+  # Unit test for the shared grid contract's parent-grid entry point
+  # (cece_sim_grid_from_esmf): synthetic ESMF-style coordinate arrays through
+  # the C ABI, asserting topology classification, unit conversion, wrapping,
+  # and loud rejection of unsupported shapes. Plain MPI Fortran; links the
+  # driver library for the C ABI, mirroring the standalone cap app's link
+  # pattern (Fortran linker, ESMF libs for the MPI runtime, shared-lib
+  # undefined allowed).
+  if(CECE_HAS_FORTRAN)
+    add_executable(test_grid_spec_esmf test_grid_spec_esmf.F90)
+    set_target_properties(test_grid_spec_esmf PROPERTIES LINKER_LANGUAGE Fortran)
+    target_include_directories(
+      test_grid_spec_esmf
+      PRIVATE ${ESMF_INCLUDE_DIRS} ${CMAKE_BINARY_DIR}/modules
+    )
+    target_link_libraries(test_grid_spec_esmf PRIVATE cece ESMF::ESMF ${ESMF_LIBRARIES})
+    if(TARGET MPI::MPI_Fortran)
+      target_link_libraries(test_grid_spec_esmf PRIVATE MPI::MPI_Fortran)
+    endif()
+    if(APPLE)
+      target_link_options(test_grid_spec_esmf PRIVATE "LINKER:-undefined,dynamic_lookup")
+    else()
+      target_link_options(test_grid_spec_esmf PRIVATE "LINKER:--allow-shlib-undefined")
+    endif()
+    add_test(
+      NAME test_grid_spec_esmf
+      COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 1 $<TARGET_FILE:test_grid_spec_esmf>
+      WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+    )
+    set_tests_properties(
+      test_grid_spec_esmf
+      PROPERTIES
+        ENVIRONMENT
+          "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1"
+        TIMEOUT 120
+        LABELS np1
+        PROCESSORS 1
+    )
+  endif()
+
+  # NUOPC field-coupling integration harness (CECE cap + sink peer + connector).
+  # Fortran-only; the executable links the production cap library, so it is
+  # gated on the Fortran language being enabled like the cap itself.
+  if(CECE_HAS_FORTRAN)
+    add_subdirectory(nuopc_coupling)
+  endif()
 endif()
 
 # --- Drivers and benchmarks (not gtest) --------------------------------------

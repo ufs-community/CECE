@@ -204,17 +204,16 @@ void FengshaScheme::Run(CeceImportState& import_state, CeceExportState& export_s
             double clay_val = clay(i, j, 0);
             double sand_val = sand(i, j, 0);
             double rdrag_val = rdrag(i, j, 0);
-            if (clay_val < 0.0 || sand_val < 0.0 || rdrag_val < 0.0) return;
+            if (clay_val < 0.0 || sand_val < 0.0 || rdrag_val < 0.0 || uthrs(i, j, 0) <= 0.0) return;
 
-            double fracland =
-                Kokkos::max(0.0, Kokkos::min(1.0, 1.0 - fraclake(i, j, 0))) * Kokkos::max(0.0, Kokkos::min(1.0, 1.0 - fracsnow(i, j, 0)));
+            double fracland = Kokkos::max(0.0, 1.0 - fraclake(i, j, 0) - fracsnow(i, j, 0));
 
             // Vertical-to-horizontal mass flux ratio
             double kvh = fengsha_flux_v2h_ratio_mb95(clay_val, kvhmax);
 
             // Total emissions scaling
-            double alpha_grav = alpha / grav;
-            double total_emissions = alpha_grav * fracland * Kokkos::pow(ssm_val, gamma_param) * airdens(i, j, 0) * kvh;
+            double rho_g = airdens(i, j, 0) / grav;
+            double alpha_rho_g_fracland = alpha * Kokkos::pow(ssm_val, gamma_param) * rho_g * fracland;
 
             // Drag-partition-adjusted friction velocity
             double rustar = rdrag_val * ustar(i, j, 0);
@@ -222,18 +221,31 @@ void FengshaScheme::Run(CeceImportState& import_state, CeceExportState& export_s
             // Fécan moisture correction
             double smois = slc(i, j, 0);
             double h = fengsha_moisture_correction_fecan(smois, sand_val, clay_val, drylimit_factor);
+            // double h = Kokkos::exp(22.7 * smois) // shao
+            // or
+            // if (smois <= 0.03) { // shao 2007
+            //    double h = Kokkos::exp(22.7 * smois)
+            // } else {
+            //    double h = Kokkos::exp(95.3 * smois - 2.029)}
+            // }
 
             // Adjusted threshold
-            double u_thresh = uthrs(i, j, 0) * h;
-            double u_sum = rustar + u_thresh;
+            double u_thresh = uthrs(i, j, 0) * h / rdrag_val;
 
             // Horizontal saltation flux (Webb et al. 2020, Eq. 9)
-            double q = Kokkos::max(0.0, rustar - u_thresh) * u_sum * u_sum;
+            double q = Kokkos::max(
+                0.0, Kokkos::pow(rustar, 3) * (1.0 - Kokkos::pow(u_thresh, 2) / Kokkos::pow(ustar(i, j, 0), 2)) * (1.0 + u_thresh / ustar(i, j, 0)));
 
             // Distribute to bins using pre-computed Kok distribution
             int bins_to_use = has_custom ? nbins : (nbins < dist_size ? nbins : dist_size);
             for (int n = 0; n < bins_to_use; ++n) {
-                emissions(i, j, n) += bin_dist(n) * total_emissions * q;
+                emissions(i, j, n) += bin_dist(n) * alpha_rho_g_fracland * kvh * q;
+
+                // Brittle impaction option
+                // double qval = alpha_rho_g_fracland * clay_val * u_thresh ( (Kokkos::pow(ustar, 2) - Kokkos::pow(u_thresh, 2)) /
+                // Kokkos::pow(u_thresh, 2) ) double q = Kokkos::max(0.0, qval) Distribute to bins using pre-computed Kok distribution int bins_to_use
+                // = has_custom ? nbins : (nbins < dist_size ? nbins : dist_size); for (int n = 0; n < bins_to_use; ++n) { emissions(i, j, n) +=
+                // bin_dist(n) * q;
             }
         });
 

@@ -12,7 +12,6 @@ References:
 ## Registration Names
 
 - Native C++: `"fengsha"`
-- Fortran bridge: `"fengsha_fortran"`
 
 ## Configuration Parameters
 
@@ -56,8 +55,8 @@ References:
 4. Compute total emission scaling: `(alpha/grav) * fracland * SSM^gamma * air_density * kvh`.
 5. Adjust friction velocity by drag partition: `rustar = rdrag * u*`.
 6. Convert volumetric to gravimetric soil moisture, then compute Fécan moisture correction factor `H` from clay content and dry limit.
-7. Adjust threshold: `u_thresh = threshold_velocity * H`.
-8. Compute horizontal saltation flux (Webb et al. 2020, Eq. 9): `q = max(0, rustar − u_thresh) * (rustar + u_thresh)²`.
+7. Adjust threshold: `u_thresh = threshold_velocity * H / rdrag`.
+8. Compute horizontal saltation flux (Webb et al. 2020, Eq. 9): `q = max(0, rustar³ * (1 − u_thresh²/u*²) * (1 + u_thresh/u*))`.
 9. Distribute across bins using hard-coded Kok distribution: [0.1, 0.25, 0.25, 0.25, 0.15].
 
 ## YAML Configuration Example
@@ -75,7 +74,7 @@ physics_schemes:
 
 ## Implementation Notes
 
-- Available as both native C++ (Kokkos) and Fortran bridge implementations
+- Implemented natively in C++ (Kokkos)
 - Produces multi-bin (3D) output; the third dimension is the size bin index
 - The Kok bin distribution is hard-coded for up to 5 bins
 - Requires 12 import fields — the most input-intensive scheme alongside K14

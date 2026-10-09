@@ -135,6 +135,17 @@ void cece_run_log_setup(const char* config_path, int path_len) {
         return;
     }
 
+    // The banner is a process-wide, once-only artifact: both the driver entry
+    // point and the shared-core initialization (CeceSimulation::create) may
+    // call this function, and the log-redirect state above is already
+    // idempotent. Re-rendering the table on the second call would duplicate
+    // it in the run log, so print it only the first time.
+    static bool banner_printed = false;
+    if (banner_printed) {
+        return;
+    }
+    banner_printed = true;
+
     // Gather thread / execution-space info.
     std::string omp_threads = "(all available)";
     if (const char* env = std::getenv("OMP_NUM_THREADS")) {

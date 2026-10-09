@@ -24,6 +24,20 @@ EOF
 
 # Example 1: Add global anthropogenic emissions (MACCity CO)
 cat <<EOF > examples/cece_config_ex1.yaml
+driver:
+  start_time: "2014-07-01T00:00:00"
+  end_time: "2014-07-01T05:00:00"
+  timestep_seconds: 3600
+  grid:
+    # Global rectilinear target; the driver regrids the 4x5 MACCity
+    # source onto it. lon/lat_min/max are cell edges.
+    nx: 72
+    ny: 46
+    lon_min: -180.0
+    lon_max: 180.0
+    lat_min: -90.0
+    lat_max: 90.0
+
 meteorology:
   hourly_scalfact: HOURLY_SCALFACT
 
