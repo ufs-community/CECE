@@ -10,37 +10,7 @@
 #include "cece/cece_logger.hpp"
 #include "cece/cece_physics_factory.hpp"
 #include "cece/physics/cece_fengsha_fortran.hpp"
-
-namespace {
-
-/// @brief Compute Kok (2011) normalized dust aerosol size distribution.
-inline std::vector<double> compute_kok_distribution(const std::vector<double>& radii, const std::vector<double>& lower_edges,
-                                                    const std::vector<double>& upper_edges) {
-    constexpr double mmd = 3.4;
-    constexpr double stddev = 3.0;
-    constexpr double lambda = 12.0;
-    const double factor = 1.0 / (std::sqrt(2.0) * std::log(stddev));
-
-    int nbins = static_cast<int>(radii.size());
-    std::vector<double> dist(nbins, 0.0);
-    double total = 0.0;
-
-    for (int n = 0; n < nbins; ++n) {
-        double diameter = 2.0 * radii[n] * 1e6;
-        double rLow = lower_edges[n] * 1e6;
-        double rUp = upper_edges[n] * 1e6;
-        double dlam = diameter / lambda;
-        dist[n] = diameter * (1.0 + std::erf(factor * std::log(diameter / mmd))) * std::exp(-dlam * dlam * dlam) * std::log(rUp / rLow);
-        total += dist[n];
-    }
-
-    if (total > 0.0) {
-        for (int n = 0; n < nbins; ++n) dist[n] /= total;
-    }
-    return dist;
-}
-
-}  // anonymous namespace
+#include "cece/physics/cece_kok_distribution.hpp"
 
 extern "C" {
 void run_fengsha_fortran(double* ustar, double* uthrs, double* slc, double* clay, double* sand, double* silt, double* ssm, double* rdrag,

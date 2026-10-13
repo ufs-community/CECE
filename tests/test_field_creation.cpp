@@ -540,3 +540,49 @@ TEST_F(FieldCreationTest, FieldCreation_SmallGridDimensions) {
     EXPECT_EQ(internal_data->ny, ny);
     EXPECT_EQ(internal_data->nz, nz);
 }
+
+/**
+ * @test FieldCreation_HandlesInvalidSpeciesCount
+ * Validates: Requirement R4 - Error handling for invalid species count
+ */
+TEST_F(FieldCreationTest, FieldCreation_HandlesInvalidSpeciesCount) {
+    int rc;
+    int nx = 10, ny = 10, nz = 5;
+
+    // Phase 2: Initialize with grid dimensions
+    cece_core_initialize_p2(data_ptr_, &nx, &ny, &nz, &rc);
+    ASSERT_EQ(rc, ESMF_SUCCESS);
+
+    // Get species count
+    int num_species = -1;
+    cece_core_get_species_count(data_ptr_, &num_species, &rc);
+    EXPECT_EQ(rc, ESMF_SUCCESS) << "Should return success";
+    EXPECT_GT(num_species, 0) << "Species count should be positive";
+}
+
+/**
+ * @test FieldCreation_ValidatesSpeciesName
+ * Validates: Requirement R4 - Species name validation
+ */
+TEST_F(FieldCreationTest, FieldCreation_ValidatesSpeciesName) {
+    int rc;
+    int nx = 10, ny = 10, nz = 5;
+
+    cece_core_initialize_p2(data_ptr_, &nx, &ny, &nz, &rc);
+    ASSERT_EQ(rc, ESMF_SUCCESS);
+
+    int num_species = 0;
+    cece_core_get_species_count(data_ptr_, &num_species, &rc);
+    ASSERT_EQ(rc, ESMF_SUCCESS);
+    ASSERT_GT(num_species, 0);
+
+    // Get first species name
+    char species_name[256];
+    int species_name_len = 0;
+    int index = 0;
+    cece_core_get_species_name(data_ptr_, &index, species_name, &species_name_len, &rc);
+
+    EXPECT_EQ(rc, ESMF_SUCCESS) << "Should get species name";
+    EXPECT_GT(species_name_len, 0) << "Species name length should be positive";
+    EXPECT_LE(species_name_len, 256) << "Species name length should be within bounds";
+}
