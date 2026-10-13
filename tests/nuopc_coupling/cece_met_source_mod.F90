@@ -136,7 +136,9 @@ contains
 
     msg = '[MetSource] Advertised export "' // trim(g_item_name) // &
       '" (' // trim(g_std_name) // ')'
-    call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO)
+    call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
   end subroutine Advertise
 
   !> @brief Build the uniform grid and realize the export field on it.
@@ -198,7 +200,9 @@ contains
 
     write(msg, '(A,A,A,I0,A,I0,A)') '[MetSource] Realized export "', &
       trim(g_item_name), '" on a ', g_nx, 'x', g_ny, ' uniform grid'
-    call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO)
+    call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
   end subroutine RealizeProvided
 
   !> @brief Fill the export field with the constant forcing value.
@@ -233,7 +237,9 @@ contains
     g_step = g_step + 1
     write(msg, '(A,F8.1,A,I0,A)') '[MetSource] Advance set export to ', &
       g_value, ' K (step ', g_step, ')'
-    call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO)
+    call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
   end subroutine Advance
 
   !> @brief Finalize: nothing to release (the grid stays with the component).
@@ -241,7 +247,9 @@ contains
     type(ESMF_GridComp) :: gcomp
     integer, intent(out) :: rc
     rc = ESMF_SUCCESS
-    call ESMF_LogWrite('[MetSource] Finalized', ESMF_LOGMSG_INFO)
+    call ESMF_LogWrite('[MetSource] Finalized', ESMF_LOGMSG_INFO, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
   end subroutine Finalize
 
   !> @brief Fill the corner-stagger coordinates of the uniform grid.
