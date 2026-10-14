@@ -1,0 +1,14 @@
+# GOCART biogenic precursors requested for NOAA UFS GCAFS version 1.
+# Molecular weights use the MICM/OpenAtmos kg/mol convention.
+# MTPA and MTPO use representative C10 monoterpene molecular weights;
+# all mapped class amount fluxes are converted using target molecular weights.
+name: GOCART
+species:
+  - name: ISOP
+    molecular weight [kg mol-1]: 0.06812
+  - name: LIMO
+    molecular weight [kg mol-1]: 0.13623
+  - name: MTPA
+    molecular weight [kg mol-1]: 0.13623
+  - name: MTPO
+    molecular weight [kg mol-1]: 0.13623

@@ -1,0 +1,34 @@
+# GOCART biogenic precursor approximation from CECE's 19 MEGAN3 classes.
+# MTPA reuses API and LIMO reuses LIM from map_racm2.yaml/map_cracmm.yaml.
+# LIM includes myrcene, ocimene, limonene, and terpinolene, not pure limonene.
+# MTPO receives the remaining fraction of each monoterpene class:
+# MTPO[c] = 1 - MTPA[c] - LIMO[c]. This residual allocation is a new assumption.
+# Monoterpene fractions sum to one per source class, not per output species.
+# MTPO also reuses their SESQ profile as a broad farnesene proxy;
+# SQT_HR/SQT_LR include other sesquiterpenes and are not farnesene-specific.
+# All sources are amount fluxes (kmol class m-2 s-1); the engine applies
+# target molecular weights. MTPO uses a representative C10 MW even for SQT
+# contributions, so this is not a true C15 sesquiterpene mass sum.
+# This is not a validated NOAA UFS GCAFS v1 individual-compound profile.
+# Outputs: MEGAN_ISOP, MEGAN_LIMO, MEGAN_MTPA, MEGAN_MTPO (kg m-2 s-1).
+mechanism: GOCART
+datasets:
+  MEGAN:
+    ISOP:
+      ISOP: 1.0
+    LIMO:
+      MT_ACYC: 0.70
+      MT_SABI: 0.15
+      MT_AROM: 0.15
+    MTPA:
+      MT_PINE: 0.65
+      MT_CAMP: 0.20
+      MT_SABI: 0.15
+    MTPO:
+      MT_PINE: 0.35
+      MT_ACYC: 0.30
+      MT_CAMP: 0.80
+      MT_SABI: 0.70
+      MT_AROM: 0.85
+      SQT_HR: 0.70
+      SQT_LR: 0.30

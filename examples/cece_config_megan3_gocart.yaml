@@ -1,0 +1,115 @@
+# Standalone MEGAN3 configuration for the four GOCART biogenic precursors.
+# Replace /path/to values and run from the repository root.
+# All input files must match the ordered 72 x 46 gridspec exactly:
+# lon=-180,-175,...,175; lat=-89,-86,-82,...,86,89.
+# Input data are not bundled. Provide records covering the simulation times.
+# All four outputs are computed from CECE's 19 MEGAN3 emission classes.
+# AEF_ISOP must be in kmol ISOP m-2 s-1; default_aef is an illustrative
+# fallback, not a vegetation inventory, if the gridded AEF is unavailable.
+# All default_aef values below use kmol class m-2 s-1. For production,
+# supply class-specific gridded AEF_<CLASS> fields or calibrated defaults.
+# No individual-species emission inputs are required.
+# LIMO/MTPA reuse RACM2/CRACMM LIM/API profiles; MTPO receives residual
+# monoterpene fractions plus a broad SESQ proxy, not resolved farnesene.
+# These lumped profiles are not independently validated GCAFS v1 speciation.
+# With no soil-NO scheme, MEGAN3 warns and leaves its unused NO class zero.
+
+driver:
+  start_time: "2021-06-20T12:00:00"
+  end_time: "2021-06-20T13:00:00"
+  timestep_seconds: 3600
+  amio_staging_buffer_count: 8
+  gridspec_file: "/path/to/hemco_4x5_gridspec.nc"
+  grid:
+    nx: 72
+    ny: 46
+    nz: 1
+
+physics_schemes:
+  - name: megan3
+    language: cpp
+    options:
+      mechanism_file: data/speciation/spc_gocart.yaml
+      speciation_file: data/speciation/map_gocart.yaml
+      speciation_dataset: MEGAN
+      co2_concentration: 415.0
+      co2_method: possell
+      enable_wind_stress: false
+      enable_temp_stress: false
+      enable_aq_stress: false
+      day_of_year: 171
+      emission_classes:
+        ISOP:
+          ldf: 0.9996
+          ct1: 95.0
+          cleo: 2.0
+          beta: 0.13
+          anew: 0.05
+          agro: 0.6
+          amat: 1.0
+          aold: 0.9
+          default_aef: 1.0e-9
+        MT_PINE:
+          default_aef: 3.0e-10
+        MT_ACYC:
+          default_aef: 3.0e-10
+        MT_CAMP:
+          default_aef: 3.0e-10
+        MT_SABI:
+          default_aef: 3.0e-10
+        MT_AROM:
+          default_aef: 3.0e-10
+        SQT_HR:
+          default_aef: 1.0e-10
+        SQT_LR:
+          default_aef: 1.0e-10
+
+cece_data:
+  streams:
+    - name: MEGAN_MET
+      file: "/path/to/megan_met_4x5_20210620.nc"
+      mapalgo: passthrough
+      data_model: auto
+      variables:
+        - { file: T2M, model: temperature }
+        - { file: PARDR, model: par_direct }
+        - { file: PARDF, model: par_diffuse }
+        - { file: COSZS, model: solar_cosine }
+        - { file: GWETROOT, model: soil_moisture_root }
+        - { file: U10M, model: wind_speed }
+    - name: MEGAN_LAI
+      file: "/path/to/megan_lai_4x5_20210620.nc"
+      mapalgo: passthrough
+      data_model: auto
+      variables:
+        - { file: LAI, model: leaf_area_index }
+        - { file: LAI_PREV, model: leaf_area_index_prev }
+    - name: MEGAN_ISOP_AEF
+      file: "/path/to/megan_isop_aef_4x5_20210620.nc"
+      mapalgo: passthrough
+      data_model: auto
+      variables:
+        - { file: AEF_ISOP, model: AEF_ISOP }
+
+output:
+  enabled: true
+  directory: "./output/megan3_gocart"
+  filename_pattern: "cece_megan3_gocart_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
+  frequency_steps: 1
+  fields:
+    - name: MEGAN_ISOP
+      attributes:
+        units: "kg m-2 s-1"
+        long_name: "GOCART isoprene emission flux"
+    - name: MEGAN_LIMO
+      attributes:
+        units: "kg m-2 s-1"
+        long_name: "GOCART limonene-type emission flux (RACM2/CRACMM LIM proxy)"
+    - name: MEGAN_MTPA
+      attributes:
+        units: "kg m-2 s-1"
+        long_name: "GOCART pinene-type emission flux (RACM2/CRACMM API proxy)"
+    - name: MEGAN_MTPO
+      attributes:
+        units: "kg m-2 s-1"
+        long_name: "GOCART other-terpene emission flux (residual monoterpenes and SESQ proxy)"
