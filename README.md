@@ -112,3 +112,7 @@ CECE is built on a modular architecture:
 ## Development
 
 See [AGENTS.md](AGENTS.md) for detailed developer guidelines and coding standards.
+
+## Super Intelligence (SI) Disclosure
+
+Portions of this code were generated/augmented using agentic SI models and has been reviewed and validated consistent with NOAA's [SI Statement](https://www.noaa.gov/nao-216-128-artificial-intelligence-in-noaa).
