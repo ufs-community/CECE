@@ -14,6 +14,9 @@ The `examples/` directory contains several YAML configuration files:
 -   `cece_config_ex6.yaml`: Handling non-separated inventories
 -   `cece_config_advanced.yaml`: **NEW** - Comprehensive example demonstrating advanced Stacking Engine features
 -   `cece_config_earthaccess.yaml`: Cloud-native NASA Earthdata streaming with `earthaccess`
+-   `cece_config_earthaccess_pollen.yaml`: RF pollen climatology with online Earthaccess MERRA-2 meteorology
+-   `cece_config_earthaccess_pollen_total.yaml`: Total (aggregate) pollen only, summed from Ambee's grass/tree/weed group counts
+-   `cece_config_earthaccess_pollen_all_taxa.yaml`: All built-in pollen taxon aliases with shared Earthaccess MERRA-2 meteorology
 -   `cece_config_localtime.yaml`: **NEW** - Local-time temporal scaling: a diurnal
     cycle evaluated at each cell's local time (identity profile `hour_id` makes
     the applied factor reveal the local hour used)
@@ -46,6 +49,11 @@ For complete technical details about how these features work, see the [Stacking 
 | ex6 | (varies) | Multiple | Non-separated inventory handling |
 | **advanced** | **144×91** | **CO, NOx, Isoprene** | **All advanced features demonstrated** |
 | earthaccess | HEMCO 4×5 | Isoprene, soil NO, dust | NASA Earthdata cloud streams via `earthaccess` |
+| earthaccess pollen | MERRA-2 0.625°×0.5° | Mugwort pollen | Annual RF source climatology plus online MERRA-2 release meteorology |
+| earthaccess pollen total | MERRA-2 0.625°×0.5° | Total (aggregate) pollen | Aggregate RF climatology summed from provider group counts, plus shared online meteorology |
+| earthaccess pollen all taxa | MERRA-2 0.625°×0.5° | 18 taxa + total pollen | Consolidated taxon RF/phenology file plus shared online meteorology |
+
+Ambee-derived pollen inputs are not bundled or automatically licensed by these examples. Before retrieving or using Ambee data, confirm that your account-specific terms authorize the planned requests, storage, model training, and any sharing of outputs; see the usage authorization note in [Pollen Emissions](pollen.md).
 
 ---
 

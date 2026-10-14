@@ -805,6 +805,14 @@ if(Python3_Interpreter_FOUND)
     matplotlib
     netCDF4
     numpy
+    # Cloud extras from pyproject.toml, needed even for mocked EarthAccess tests.
+    "earthaccess>=0.12"
+    "xarray>=2024.1"
+    "h5netcdf>=1.3"
+    "h5py>=3.8"
+    "fsspec>=2024.3"
+    "s3fs>=2024.3"
+    "dask>=2024.3"
   )
 
   # Prefetch the venv + packages at configure time: configure typically runs
@@ -896,10 +904,13 @@ if(Python3_Interpreter_FOUND)
       COMMAND ${VENV_PYTHON} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/${script} ${ARGN}
       WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
     )
-    set_tests_properties(${name} PROPERTIES FIXTURES_REQUIRED "python_deps_installed")
-    if(pythonpath)
-      set_tests_properties(${name} PROPERTIES ENVIRONMENT "PYTHONPATH=${pythonpath}")
-    endif()
+    # Do not inherit Spack/system Python packages into the test virtual environment.
+    set_tests_properties(
+      ${name}
+      PROPERTIES
+        FIXTURES_REQUIRED "python_deps_installed"
+        ENVIRONMENT "PYTHONPATH=${pythonpath};PYTHONNOUSERSITE=1"
+    )
   endfunction()
 
   cece_add_pytest(test_hemco_to_cece_python test_converters.py "${PROJECT_SOURCE_DIR}/scripts")

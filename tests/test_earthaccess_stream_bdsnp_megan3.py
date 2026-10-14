@@ -1,11 +1,80 @@
-"""Tests for EarthAccess configuration, mocked streaming, and field injection.
+"""
+Integration tests for earthaccess cloud-native NASA Earthdata streaming into
+CECE BDSNP (soil NO) and MEGAN3 (biogenic isoprene) physics on a global
+4°×5° grid (72 lon × 46 lat), matching the HEMCO parity grids from PRs #85
+and #90.
 
-Most tests use mocks or local NetCDF fixtures and require no Earthdata
-credentials. The ``live_earthdata`` marker opts into a real EDL smoke test.
+Test classes
+------------
+TestEarthAccessStreamConfig
+    Unit tests for EarthAccessStreamConfig dataclass construction and defaults.
 
-Run the fast suite with ``pytest tests/test_earthaccess_stream_bdsnp_megan3.py``;
-run the live test with ``pytest tests/test_earthaccess_stream_bdsnp_megan3.py
--m live_earthdata``.
+TestParseEarthAccessStreams
+    Unit tests for parse_earthaccess_streams() config-dict helper.
+
+TestCeceConfigEarthAccessRouting
+    Verifies that CeceConfig._from_dict routes source:earthaccess streams to
+    earthaccess_streams and leaves AMIO streams on their original path.
+
+TestEarthAccessStreamResolverMocked
+    Tests EarthAccessStreamResolver.open_as_xarray() with earthaccess fully
+    mocked — no EDL credentials required, runs in CI.
+
+TestEarthAccessStreamBridgeMocked
+    Tests EarthAccessStreamBridge.inject_at_time() end-to-end using a mocked
+    xr.Dataset and a real _cece_core.CeceImportState if the pybind11 module
+    is available, or a lightweight stub if not.
+
+TestBDSNPFieldInjectionOnHemcoGrid
+    Constructs synthetic SMAP-like soil temperature and moisture on the exact
+    HEMCO 4°×5° 72×46 grid and asserts that inject_at_time delivers finite,
+    physically plausible arrays in the import state.  Mirrors the scope of PR
+    #85 (HEMCO 3.12.1 SoilNOx parity on the 4°×5° reference grid).
+
+TestMEGAN3FieldInjectionOnHemcoGrid
+    Constructs synthetic MODIS LAI, SMAP soil moisture, and CERES PAR on the
+    same 72×46 grid and asserts that inject_at_time delivers all six MEGAN3
+    import fields.  Mirrors the scope of PR #90 (HEMCO 3.12.1 MEGAN isoprene
+    parity on the 4°×5° reference grid).
+
+TestEarthAccessImportError
+    Verifies that a helpful ImportError is raised when the cloud extras are
+    absent, rather than a bare AttributeError at import time.
+
+TestLiveEarthDataIntegration  (mark: live_earthdata)
+    Skipped in CI — requires real EDL credentials stored in env vars or
+    ~/.netrc.  Performs a small real CMR search and fsspec open against the
+    SMAP SPL4SMGP collection as a smoke test.
+
+TestShortNameValidation
+    Config-parse-time CMR ``short_name`` validation (PR #92 follow-up):
+    warns instead of raising, and never blocks config parsing.
+
+TestGridDerivedBoundingBox
+    Auto-derives ``bounding_box`` from ``driver.grid`` extents when a stream
+    does not set one explicitly (PR #92 follow-up).
+
+TestVirtualizeEvaluation
+    Exercises the opt-in ``use_virtual`` / ``open_virtual_mfdataset`` path and
+    its fallback to ``open_mfdataset`` (PR #92 follow-up).
+
+TestFsspecTuningKnobs
+    ``block_size`` / ``cache_type`` forwarded to ``earthaccess.open`` (PR #92
+    follow-up), with graceful fallback on older earthaccess versions.
+
+TestEarthAccessOpenWithLocalFixtureFiles
+    Mocks only ``earthaccess.login`` / ``search_data`` / ``open`` and lets the
+    real ``xr.open_mfdataset(engine="h5netcdf")`` path read genuine local
+    NetCDF4 fixture files, so CI can exercise the real file-reading code
+    without live EDL credentials (PR #92 follow-up).
+
+Running
+-------
+# Fast (no credentials): all tests except live_earthdata
+pytest tests/test_earthaccess_stream_bdsnp_megan3.py -v
+
+# Include live credential test (requires EARTHDATA_USERNAME / EARTHDATA_TOKEN)
+pytest tests/test_earthaccess_stream_bdsnp_megan3.py -v -m live_earthdata
 """
 
 from __future__ import annotations
@@ -120,22 +189,6 @@ requires_h5netcdf = pytest.mark.skipif(
     not (_XARRAY_AVAILABLE and _H5NETCDF_AVAILABLE),
     reason="xarray+h5netcdf not installed — run: pip install 'cece-tools[cloud]'",
 )
-
-
-class _FakeEulaNotAccepted(Exception):
-    pass
-
-
-class _FakeEarthAccessExceptions(ModuleType):
-    EulaNotAccepted = _FakeEulaNotAccepted
-
-
-def _mock_earthaccess_exceptions(mock_earthaccess: MagicMock) -> ModuleType:
-    mock_earthaccess.__path__ = []
-    exceptions = _FakeEarthAccessExceptions("earthaccess.exceptions")
-    mock_earthaccess.exceptions = exceptions
-    return exceptions
-
 
 requires_xarray = pytest.mark.skipif(
     not _XARRAY_AVAILABLE,
@@ -737,6 +790,14 @@ class TestStandaloneEarthAccessIngestHelper:
 
         assert np.array_equal(filled, [[1.0, 0.0], [0.0, 2.0]])
 
+    def test_helper_reads_variable_scale(self):
+        assert _standalone_ingest_mod._mapping_scale({
+            "scale": 3600.0
+        }) == pytest.approx(3600.0)
+        assert _standalone_ingest_mod._mapping_scale("temperature") == pytest.approx(
+            1.0
+        )
+
     def test_helper_without_fill_value_remains_strict(self):
         values = np.array([[1.0, np.nan]], dtype=np.float64)
         unchanged = _standalone_ingest_mod._apply_fill_value(
@@ -771,6 +832,34 @@ class TestStandaloneEarthAccessIngestHelper:
 
         assert values.shape == (NY, NX)
         assert np.all((values >= 0.0) & (values <= 1.0))
+
+    def test_helper_derives_fractional_day_of_year(self):
+        values = _standalone_ingest_mod._fractional_day_of_year(
+            datetime(2025, 8, 25, 12, 0, 0), 3, 2
+        )
+
+        assert values.shape == (2, 3)
+        assert np.all(values == pytest.approx(237.5))
+
+    def test_helper_derives_daily_sunshine_duration(self):
+        values = _standalone_ingest_mod._sunshine_hours(
+            datetime(2025, 3, 20, 12, 0, 0), np.array([-45.0, 0.0, 45.0]), 2
+        )
+
+        assert values.shape == (3, 2)
+        assert np.allclose(values, 12.0, atol=0.15)
+
+    def test_helper_derives_relative_humidity(self):
+        temperature = np.full((2, 2), 293.15)
+        specific_humidity = np.full((2, 2), 0.0073)
+        pressure = np.full((2, 2), 101325.0)
+
+        values = _standalone_ingest_mod._relative_humidity_percent(
+            temperature, specific_humidity, pressure
+        )
+
+        assert values.shape == (2, 2)
+        assert np.allclose(values, 50.0, atol=2.0)
 
     def test_helper_maps_lpdaac_cloud_provider(self):
         stream = {"cloud_hosted": True, "daac": "LPDAAC_ECS"}
@@ -825,7 +914,19 @@ class TestStandaloneEarthAccessIngestHelper:
 
         _standalone_ingest_mod._raise_if_unsupported_granule_format(stream, granules)
 
-    def test_helper_downloads_before_opening_when_download_dir_is_set(self, tmp_path):
+    @pytest.fixture
+    def earthaccess_exceptions(self, monkeypatch):
+        class EulaNotAccepted(Exception):
+            pass
+
+        exceptions = ModuleType("earthaccess.exceptions")
+        exceptions.EulaNotAccepted = EulaNotAccepted
+        monkeypatch.setitem(sys.modules, "earthaccess.exceptions", exceptions)
+        return exceptions
+
+    def test_helper_downloads_before_opening_when_download_dir_is_set(
+        self, tmp_path, earthaccess_exceptions
+    ):
         mock_ea = MagicMock()
         mock_ea.login.return_value = MagicMock()
         mock_ea.search_data.return_value = [
@@ -838,16 +939,8 @@ class TestStandaloneEarthAccessIngestHelper:
 
         mock_xr = MagicMock()
         mock_xr.open_mfdataset.return_value = MagicMock()
-        fake_exceptions = _mock_earthaccess_exceptions(mock_ea)
 
-        with patch.dict(
-            sys.modules,
-            {
-                "earthaccess": mock_ea,
-                "earthaccess.exceptions": fake_exceptions,
-                "xarray": mock_xr,
-            },
-        ):
+        with patch.dict(sys.modules, {"earthaccess": mock_ea, "xarray": mock_xr}):
             result = _standalone_ingest_mod._open_dataset(
                 {
                     "name": "merra2_lai",
@@ -924,21 +1017,84 @@ class TestStandaloneEarthAccessIngestHelper:
 
         dataset.close.assert_called_once_with()
 
-    def test_helper_reports_eula_authorization_failure(self, tmp_path):
+    def test_helper_builds_pollen_meteorology_fields(self, tmp_path):
+        timestamp = np.datetime64("2025-08-25T12:00:00")
+        coordinates = {"time": [timestamp], "lat": LAT, "lon": LON}
+        shape = (1, NY, NX)
+        dataset = xr.Dataset(
+            {
+                "T2M": (("time", "lat", "lon"), np.full(shape, 293.15)),
+                "QV2M": (("time", "lat", "lon"), np.full(shape, 0.0073)),
+                "PS": (("time", "lat", "lon"), np.full(shape, 101325.0)),
+                "PRECTOTCORR": (("time", "lat", "lon"), np.full(shape, 1.0e-4)),
+            },
+            coords=coordinates,
+        )
+        written = {}
+
+        def capture(_output_dir, field_name, values, _nx, _ny):
+            written[field_name] = values
+            return field_name
+
+        stream = {
+            "name": "merra2_pollen",
+            "variables": {
+                "T2M": "MERRA2_T2M",
+                "PRECTOTCORR": {
+                    "model": "MERRA2_PRECIP_MM_INTERVAL",
+                    "scale": 3600.0,
+                },
+            },
+            "derived_variables": {
+                "DAY_OF_YEAR": "day_of_year",
+                "SUNSHINE_HOURS": "sunshine_hours",
+                "MERRA2_RH2M": {
+                    "method": "relative_humidity",
+                    "temperature": "T2M",
+                    "specific_humidity": "QV2M",
+                    "pressure": "PS",
+                },
+            },
+        }
+
+        with (
+            patch.object(_standalone_ingest_mod, "_open_dataset", return_value=dataset),
+            patch.object(_standalone_ingest_mod, "_write_field", side_effect=capture),
+        ):
+            fields = _standalone_ingest_mod._read_stream(
+                stream,
+                None,
+                timestamp,
+                datetime(2025, 8, 25, 12, 0, 0),
+                LON,
+                LAT,
+                tmp_path,
+            )
+
+        assert set(fields) == {
+            "MERRA2_T2M",
+            "MERRA2_PRECIP_MM_INTERVAL",
+            "DAY_OF_YEAR",
+            "SUNSHINE_HOURS",
+            "MERRA2_RH2M",
+        }
+        assert np.allclose(written["MERRA2_PRECIP_MM_INTERVAL"], 0.36)
+        assert np.allclose(written["DAY_OF_YEAR"], 237.5)
+        assert np.all(
+            (written["SUNSHINE_HOURS"] >= 0.0) & (written["SUNSHINE_HOURS"] <= 24.0)
+        )
+        assert np.allclose(written["MERRA2_RH2M"], 50.0, atol=2.0)
+
+    def test_helper_reports_eula_authorization_failure(
+        self, tmp_path, earthaccess_exceptions
+    ):
         mock_ea = MagicMock()
-        fake_exceptions = _mock_earthaccess_exceptions(mock_ea)
-        mock_ea.download.side_effect = fake_exceptions.EulaNotAccepted(
+        mock_ea.download.side_effect = earthaccess_exceptions.EulaNotAccepted(
             "Eula Acceptance Failure for https://example.test/file.nc4"
         )
 
         with (
-            patch.dict(
-                sys.modules,
-                {
-                    "earthaccess": mock_ea,
-                    "earthaccess.exceptions": fake_exceptions,
-                },
-            ),
+            patch.dict(sys.modules, {"earthaccess": mock_ea}),
             pytest.raises(RuntimeError, match=r"urs\.earthdata\.nasa\.gov/profile"),
         ):
             _standalone_ingest_mod._download_granules(

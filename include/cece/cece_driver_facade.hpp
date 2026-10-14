@@ -174,15 +174,15 @@ class CeceDriverOrchestrator {
     bool WriteBandToImport(const std::string& var_name, const std::vector<double>& dest_buffer, int field_nlev, void* cece_core_data_ptr,
                            std::string& failure_detail);
 
-    /** Return whether the YAML config contains streams handled by EarthAccess. */
+    /// Detect whether a config declares any `source: earthaccess` streams.
     static bool HasEarthAccessStreams(const std::string& config_file);
 
     /**
-     * Ingest `source: earthaccess` streams for the current timestep.
-     *
-     * Rank zero invokes the Python helper unless input is already staged. Each
-     * rank reads the manifest, slices fields to its latitude band, and writes
-     * through the same import-state path used by AMIO-backed streams.
+     * Ingest `source: earthaccess` streams for the current timestep by invoking
+     * the Python EarthAccess helper on rank 0, reading its manifest on every
+     * rank, slicing the global helper output to this rank's latitude band, and
+     * writing each field through WriteBandToImport. This keeps remote NASA
+     * streams on the same band-local import-state path as retained AMIO reads.
      */
     bool IngestEarthAccessStreams(const std::string& time_iso8601, void* cece_core_data_ptr);
 

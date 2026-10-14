@@ -5,17 +5,15 @@ from __future__ import annotations
 import warnings
 from dataclasses import dataclass, field
 
-# This module is imported by the general config API even when a user only uses
-# local AMIO streams; keep cloud extras optional until the EarthAccess path is used.
-_EARTHACCESS_IMPORT_ERROR: ImportError | None = None
+# Keep cloud dependencies optional for users of local CECE streams. Import
+# failures are deferred to resolver use, where the install extra is actionable.
 try:
     import earthaccess
     import xarray as xr
 
     _EARTHACCESS_AVAILABLE = True
-except ImportError as import_error:
+except ImportError:
     _EARTHACCESS_AVAILABLE = False
-    _EARTHACCESS_IMPORT_ERROR = import_error
 
 
 def _require_earthaccess() -> None:
@@ -23,7 +21,7 @@ def _require_earthaccess() -> None:
         raise ImportError(
             "earthaccess cloud streaming requires the 'cloud' extras. "
             "Install with: pip install 'cece-tools[cloud]'"
-        ) from _EARTHACCESS_IMPORT_ERROR
+        )
 
 
 def _effective_provider(daac: str | None, cloud_hosted: bool) -> str | None:

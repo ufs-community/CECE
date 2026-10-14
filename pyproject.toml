@@ -24,3 +24,14 @@ cloud = [
     "s3fs>=2024.3",
     "dask>=2024.3",
 ]
+pollen = [
+    "dask[array]",
+    "earthaccess>=0.12",
+    "joblib",
+    "netcdf4",
+    "numpy",
+    "pandas",
+    "requests",
+    "scikit-learn",
+    "xarray",
+]

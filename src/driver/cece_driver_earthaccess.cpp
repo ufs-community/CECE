@@ -1,3 +1,8 @@
+/**
+ * @file cece_driver_earthaccess.cpp
+ * @brief EarthAccess stream discovery and per-timestep ingestion for the standalone driver.
+ */
+
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>

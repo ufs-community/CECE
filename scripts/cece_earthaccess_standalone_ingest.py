@@ -75,6 +75,15 @@ def _mapping_fill_value(mapping: Any) -> float | None:
     return fill_value
 
 
+def _mapping_scale(mapping: Any) -> float:
+    if not isinstance(mapping, dict) or mapping.get("scale") is None:
+        return 1.0
+    scale = float(mapping["scale"])
+    if not np.isfinite(scale):
+        raise ValueError("earthaccess variable scale must be finite")
+    return scale
+
+
 def _apply_transform(values: np.ndarray, transform: str | None) -> np.ndarray:
     if transform is None or transform == "none":
         return values
@@ -131,6 +140,37 @@ def _solar_cosine(
         + np.cos(latitude) * np.cos(declination) * np.cos(hour_angle)[np.newaxis, :]
     )
     return np.clip(cosine, 0.0, 1.0)
+
+
+def _fractional_day_of_year(timestamp: datetime, nx: int, ny: int) -> np.ndarray:
+    fraction = (
+        timestamp.hour * 3600.0 + timestamp.minute * 60.0 + timestamp.second
+    ) / 86400.0
+    return np.full((ny, nx), timestamp.timetuple().tm_yday + fraction)
+
+
+def _sunshine_hours(
+    timestamp: datetime, target_lats: np.ndarray, nx: int
+) -> np.ndarray:
+    day_angle = 2.0 * np.pi * (timestamp.timetuple().tm_yday - 1) / 365.0
+    declination = 0.006918 - 0.399912 * np.cos(day_angle) + 0.070257 * np.sin(day_angle)
+    latitude = np.deg2rad(target_lats)
+    sunset_argument = np.clip(-np.tan(latitude) * np.tan(declination), -1.0, 1.0)
+    daylight = 24.0 * np.arccos(sunset_argument) / np.pi
+    return np.broadcast_to(daylight[:, np.newaxis], (target_lats.size, nx)).copy()
+
+
+def _relative_humidity_percent(
+    temperature_k: np.ndarray, specific_humidity: np.ndarray, pressure_pa: np.ndarray
+) -> np.ndarray:
+    temperature_c = temperature_k - 273.15
+    vapor_pressure = (
+        specific_humidity * pressure_pa / (0.622 + 0.378 * specific_humidity)
+    )
+    saturation_pressure = 611.2 * np.exp(
+        17.67 * temperature_c / (temperature_c + 243.5)
+    )
+    return np.clip(100.0 * vapor_pressure / saturation_pressure, 0.0, 100.0)
 
 
 def _validate_field(field_name: str, values: np.ndarray) -> None:
@@ -348,6 +388,8 @@ def _download_granules(
 
 
 def _open_dataset(stream: dict, download_dir: Path | None = None) -> Any:
+    # Keep EarthAccess readers lazy so config and staging metadata paths work
+    # without installing the optional cloud extras.
     import earthaccess
     import xarray as xr
 
@@ -435,13 +477,14 @@ def _read_stream(
         for nasa_var, mapping in (stream.get("variables") or {}).items():
             field_name, transform = _mapping_target_and_transform(mapping)
             fill_value = _mapping_fill_value(mapping)
+            scale = _mapping_scale(mapping)
             if nasa_var not in dataset:
                 raise KeyError(
                     f"Variable {nasa_var!r} not found in earthaccess stream {stream.get('name', '<unnamed>')!r}"
                 )
             selected = _select_time(dataset[nasa_var], timestamp)
             values = _interp_to_target(selected, target_lons, target_lats)
-            values = _apply_transform(values, transform)
+            values = _apply_transform(values, transform) * scale
             values = _apply_fill_value(values, fill_value, field_name)
             manifest_lines.append(
                 _write_field(
@@ -453,12 +496,53 @@ def _read_stream(
                 )
             )
 
-        for field_name, method in (stream.get("derived_variables") or {}).items():
-            if method != "solar_cosine":
+        for field_name, specification in (
+            stream.get("derived_variables") or {}
+        ).items():
+            method = (
+                specification.get("method")
+                if isinstance(specification, dict)
+                else specification
+            )
+            if method == "solar_cosine":
+                values = _solar_cosine(timestamp_datetime, target_lons, target_lats)
+            elif method == "day_of_year":
+                values = _fractional_day_of_year(
+                    timestamp_datetime, target_lons.size, target_lats.size
+                )
+            elif method == "sunshine_hours":
+                values = _sunshine_hours(
+                    timestamp_datetime, target_lats, target_lons.size
+                )
+            elif method == "relative_humidity":
+                if not isinstance(specification, dict):
+                    raise ValueError(
+                        "relative_humidity derived variable requires a mapping"
+                    )
+                source_names = {
+                    "temperature": specification.get("temperature", "T2M"),
+                    "specific_humidity": specification.get("specific_humidity", "QV2M"),
+                    "pressure": specification.get("pressure", "PS"),
+                }
+                source_values = {}
+                for source, nasa_var in source_names.items():
+                    if nasa_var not in dataset:
+                        raise KeyError(
+                            f"Variable {nasa_var!r} required for relative_humidity is missing"
+                        )
+                    selected = _select_time(dataset[nasa_var], timestamp)
+                    source_values[source] = _interp_to_target(
+                        selected, target_lons, target_lats
+                    )
+                values = _relative_humidity_percent(
+                    source_values["temperature"],
+                    source_values["specific_humidity"],
+                    source_values["pressure"],
+                )
+            else:
                 raise ValueError(
                     f"Unsupported earthaccess derived variable method: {method}"
                 )
-            values = _solar_cosine(timestamp_datetime, target_lons, target_lats)
             manifest_lines.append(
                 _write_field(
                     output_dir,

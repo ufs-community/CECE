@@ -409,6 +409,7 @@ List of physics schemes to instantiate and execute during the Run phase. Physics
 | Scheme Name | Description | Key Parameters |
 | ----------- | ----------- | -------------- |
 | `sea_salt` | Marine aerosol emissions | `r_sala_min`, `r_salc_max`, `sea_salt_density` |
+| `pollen` | Phenology- and meteorology-driven pollen number and mass fluxes | `phenology_method`, `season_start_doy`, `particle_diameter_um` |
 | `megan` | [Biogenic isoprene emissions](megan.md), with `megan21` (legacy alias `native`) and `hemco_3_12_1` methods | `megan_method`, `aef`, `hemco_co2_inhibition`, history settings |
 | `megan3` | [19-class C++ biogenic emissions and chemical speciation](megan.md#megan3-multi-species-multi-class); bulk runtime activity factors, not complete upstream MEGAN3 parity | `mechanism_file`, `speciation_file`, `emission_classes` |
 | `bdsnp` | [Berkeley-Dalhousie Soil NOx Parameterization (BDSNP) or YL95 soil NO emissions](soil_nox.md) | `soil_no_method`, `use_soil_temperature` |

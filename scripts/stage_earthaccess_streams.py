@@ -155,8 +155,6 @@ def _prepare_auth_environment(strategy: str) -> None:
 def _search_granules(
     earthaccess: Any, stream: dict[str, Any], provider: Any
 ) -> list[Any]:
-    # Keep data-reader imports lazy: a CMR-only preflight does not download or
-    # open a local NetCDF file and should not require these cloud extras.
     try:
         return earthaccess.search_data(
             short_name=stream["short_name"],
@@ -296,8 +294,10 @@ def _preflight_streams(
                     f"protected_url={protected_url!r}, provider={provider!r}, error={exc}"
                 ) from exc
         LOGGER.info(
-            f"preflight ok: {stream.get('name', '<unnamed>')} "
-            f"({len(granules)} sample granule, download_access={check_download_access})"
+            "Preflight ok: %s (%d sample granule, download_access=%s)",
+            stream.get("name", "<unnamed>"),
+            len(granules),
+            check_download_access,
         )
 
 
@@ -359,7 +359,7 @@ def _build_parser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     args = _build_parser().parse_args()
 
     repo_root = Path(__file__).resolve().parents[1]

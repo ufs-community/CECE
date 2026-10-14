@@ -155,6 +155,52 @@ def _parse_temporal_factors(factors: Any) -> list[float]:
     return factors
 
 
+# Support both package (relative) and direct-module import
+try:
+    from .earthaccess_resolver import EarthAccessStreamConfig, validate_short_names
+except ImportError:
+    try:
+        from earthaccess_resolver import EarthAccessStreamConfig, validate_short_names  # type: ignore[no-redef]
+    except ImportError:
+        import importlib.util
+        import sys
+        from pathlib import Path
+
+        module = sys.modules.get("earthaccess_resolver")
+        if module is None:
+            resolver_path = Path(__file__).with_name("earthaccess_resolver.py")
+            spec = importlib.util.spec_from_file_location(
+                "earthaccess_resolver", resolver_path
+            )
+            if spec is None or spec.loader is None:
+                raise ImportError(
+                    f"Cannot load EarthAccess resolver from {resolver_path}"
+                )
+            module = importlib.util.module_from_spec(spec)
+            sys.modules[spec.name] = module
+            spec.loader.exec_module(module)
+        EarthAccessStreamConfig = module.EarthAccessStreamConfig
+        validate_short_names = module.validate_short_names
+
+
+def _bounding_box_from_grid(
+    grid: dict,
+) -> tuple[float, float, float, float] | None:
+    """Derive an earthaccess ``(west, south, east, north)`` bounding box from a
+    CECE ``driver.grid`` block, or ``None`` if the extents are not present."""
+    if not grid:
+        return None
+    required = ("lon_min", "lon_max", "lat_min", "lat_max")
+    if not all(key in grid for key in required):
+        return None
+    return (
+        float(grid["lon_min"]),
+        float(grid["lat_min"]),
+        float(grid["lon_max"]),
+        float(grid["lat_max"]),
+    )
+
+
 @dataclass
 class VerticalDistributionConfig:
     """
@@ -2028,7 +2074,7 @@ class CeceConfig:
             raise ValueError(
                 "earthaccess stream cloud_hosted and virtual values must be booleans"
             )
-        ea_cfg = EarthAccessStreamConfig(
+        stream_config = EarthAccessStreamConfig(
             name=name,
             short_name=short_name,
             temporal_start=temporal_start,
@@ -2042,7 +2088,7 @@ class CeceConfig:
             cache_type=stream_data.get("cache_type"),
             use_virtual=use_virtual,
         )
-        self._cece_data.setdefault("earthaccess_streams", []).append(ea_cfg)
+        self._cece_data.setdefault("earthaccess_streams", []).append(stream_config)
 
     def _from_dict(self, config_dict: dict) -> None:  # noqa: C901, PLR0915
         """

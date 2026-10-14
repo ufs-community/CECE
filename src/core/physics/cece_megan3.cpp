@@ -18,7 +18,6 @@
 #include <Kokkos_Core.hpp>
 #include <algorithm>
 #include <cmath>
-#include <string>
 #include <vector>
 
 #include "cece/cece_logger.hpp"
@@ -156,7 +155,8 @@ void Megan3Scheme::Run(CeceImportState& import_state, CeceExportState& export_st
             if (idx > 0) message += ", ";
             message += missing_required_fields[idx];
         }
-        CECE_LOG_ERROR(message + "; skipping MEGAN3 emission update for this timestep.");
+        message += "; skipping MEGAN3 emission update for this timestep.";
+        CECE_LOG_WARNING(message);
         return;
     }
 

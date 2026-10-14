@@ -46,11 +46,26 @@ For `--auth-strategy netrc`, store the Earthdata username and account password i
 
 With `--check-download-access`, preflight also opens each downloaded sample and verifies that its configured variable names exist. An `EulaNotAccepted` failure includes a protected data URL. Open that URL in a browser while signed in with the same account as `~/.netrc`, authorize the GES DISC application, accept any displayed terms, and verify the application under Authorized Apps at <https://urs.earthdata.nasa.gov/profile> before rerunning preflight.
 
+### `run_bdsnp_megan3_4x5_global_test.py`
+Runs a NumPy diagnostic using synthetic global fields and equations transcribed
+from CECE's BDSNP and MEGAN3 implementations. It does not execute the compiled
+CECE physics. The run writes plots, `scalar_case_validation.csv`, and
+`summary.txt` to the selected output directory; these are generated results,
+not checked-in source data.
+```bash
+python scripts/run_bdsnp_megan3_4x5_global_test.py
+```
+
 ### `ursa_earthaccess_staged_run.slurm`
 Example Ursa workflow that prepares the EarthAccess Python environment and stages remote streams on a login node, then submits a Slurm job that consumes the staged cache without network access from compute nodes.
 ```bash
 bash scripts/ursa_earthaccess_staged_run.slurm
 ```
+
+### `ursa_earthaccess_tests.slurm`
+Manual, site-specific workflow for the credential-free EarthAccess pytest
+suite. Before use, configure the account, partition, and module names for the
+target Ursa allocation. Live Earthdata tests remain opt-in.
 
 ### `ursa_earthaccess_live_run.slurm`
 Example direct-streaming job for Ursa's externally connected `u1-service`

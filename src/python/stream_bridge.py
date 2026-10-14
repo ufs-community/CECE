@@ -14,7 +14,8 @@ except ImportError:
     from earthaccess_resolver import EarthAccessStreamConfig, EarthAccessStreamResolver  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
-    # Avoid hard dependency on the pybind11 module at import time
+    # Keep data-reader/type imports lazy so importing the Python API does not
+    # require the compiled bindings unless the bridge is actually used.
     from ._cece_core import CeceImportState  # type: ignore[import]
 
 

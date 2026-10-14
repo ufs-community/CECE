@@ -11,7 +11,6 @@
 #include <cstdint>
 #include <dagr/logging.hpp>
 #include <filesystem>
-#include <fstream>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -297,14 +296,9 @@ void CeceDriverOrchestrator::ResolveStreamConfigsFromFile(const std::string& con
     // Filter EarthAccess streams before resolving local AMIO mappings.
     std::vector<YAML::Node> local_streams;
     for (const auto& stream : config["cece_data"]["streams"]) {
-        if (!stream["source"] || stream["source"].as<std::string>() != "earthaccess") {
-            local_streams.push_back(stream);
+        if (stream["source"] && stream["source"].as<std::string>() == "earthaccess") {
+            continue;
         }
-    }
-
-    // Walk each local stream and populate a StreamConfig for every model
-    // variable. Streams without variables map their name to itself.
-    for (const auto& stream : local_streams) {
         if (stream["interpolation"]) {
             throw std::invalid_argument("cece_data stream '" + stream["name"].as<std::string>("") + "': unknown key 'interpolation'; use 'tintalgo'");
         }
