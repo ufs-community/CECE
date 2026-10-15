@@ -55,6 +55,8 @@ struct CeceInternalData {
     std::vector<void*> field_pointers;                                ///< Data pointers for ESMF fields (one per species).
     std::vector<std::string> field_names;                             ///< Names of fields corresponding to field_pointers.
     std::unordered_map<std::string, double*> persistent_export_ptrs;  ///< Map of variable names to their raw unmanaged persistent host pointers.
+    std::unordered_map<std::string, double*>
+        persistent_diagnostic_ptrs;  ///< Diagnostic names to caller-owned (ESMF) host buffers synced every advance.
 };
 
 }  // namespace cece

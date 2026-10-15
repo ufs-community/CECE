@@ -145,6 +145,33 @@ void SyncAndCopyState(cece::CeceInternalData& d) {
         }
     }
 
+    // Diagnostics: the registry holds full-grid DualViews (SetGrid used the
+    // global ny), but each rank only computes its own latitude band, and the
+    // ESMF fields the cap bound are band-shaped (nx, ny_local, nz). Sync the
+    // device writes (schemes compute on-device and mark modify_device), then
+    // deep-copy this rank's band subview into the caller-owned buffer. On a
+    // single rank the band is the whole grid, so this reduces to a full copy.
+    // No-ops in standalone: persistent_diagnostic_ptrs is empty there.
+    if (!d.persistent_diagnostic_ptrs.empty() && d.diagnostic_manager) {
+        for (auto& [name, ptr] : d.persistent_diagnostic_ptrs) {
+            if (ptr == nullptr) {
+                continue;
+            }
+            const auto& fields = d.diagnostic_manager->Fields();
+            auto fit = fields.find(name);
+            if (fit == fields.end()) {
+                continue;  // Advertised but never allocated on this grid.
+            }
+            cece::DualView3D& diag = const_cast<cece::DualView3D&>(fit->second.data);
+            diag.modify<Kokkos::DefaultExecutionSpace>();
+            diag.sync_host();
+            using UnmanagedHost = Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+            UnmanagedHost h_view(ptr, d.nx, d.ny_local, d.nz);
+            auto host = diag.view_host();
+            Kokkos::deep_copy(h_view, Kokkos::subview(host, Kokkos::ALL, std::make_pair(d.j0, d.j0 + d.ny_local), Kokkos::ALL));
+        }
+    }
+
     // Also sync import state fields to ensure the host framework can access them
     for (auto& [name, field] : d.import_state.fields) {
         field.sync_host();

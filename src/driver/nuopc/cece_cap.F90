@@ -21,12 +21,16 @@ module cece_cap_mod
     label_TimestampExport, &
     model_label_Advance => label_Advance, &
     model_label_Finalize => label_Finalize
+  use NUOPC_FieldDictionaryAPI, only: &
+    NUOPC_FieldDictionaryHasEntry, &
+    NUOPC_FieldDictionaryAddEntry
   use cece_cap_grid_mod
   implicit none
 
   private
 
   public :: CECE_SetServices, CECE_SetConfigPath
+  public :: CECE_GetSimPtr, CECE_GetExportState
 
   !> @brief Shared simulation handle (opaque cece::CeceSimulation*).
   type(c_ptr), save :: g_sim_ptr = c_null_ptr
@@ -57,6 +61,22 @@ module cece_cap_mod
   !> re-walking the config list (which also names unconnected imports that
   !> were pruned and must not be touched). Absent when no import is connected.
   character(len=ESMF_MAXSTR), allocatable, save :: g_import_names(:)
+
+  !> @brief State-item names of the diagnostics advertised during
+  !> InitializeAdvertise (path-derived from the config). Cached so
+  !> InitializeRealize realizes exactly the advertised set — the advertise
+  !> set must equal the realize set, so a name selected in config but never
+  !> registered by a scheme aborts realization (rather than being silently
+  !> dropped), and no advertised channel is left unrealized. Empty when
+  !> include_diagnostics is off or nothing is selected.
+  character(len=ESMF_MAXSTR), allocatable, save :: g_diag_names(:)
+
+  !> @brief Cached handle to the component's export state (set during
+  !> InitializeAdvertise). Integration tests inspect the advertised/realized
+  !> channels through CECE_GetExportState instead of digging them out of the
+  !> driver. ESMF_State is a reference-counted handle; caching it keeps the
+  !> same state object the framework drives.
+  type(ESMF_State), save :: g_export_state
 
   ! C interfaces to the shared simulation facade (cece_driver library).
   ! These mirror include/cece/cece_sim_c_abi.h exactly.
@@ -237,6 +257,79 @@ module cece_cap_mod
       integer(c_int), intent(out) :: field_len, std_len, units_len, name_len
       integer(c_int), intent(out) :: rc
     end subroutine
+
+    ! Path-based diagnostic advertisement queries (cece_core library). They
+    ! read the config's diagnostics straight from the YAML, so the cap can
+    ! advertise diagnostics before the simulation exists (the registry is
+    ! created inside InitializeRealize). The writers apply the same gate +
+    ! selection rules as the file channel, so coupled channels never diverge
+    ! from the published names. Each writer null-terminates and reports the
+    ! string length; truncation is an error, never silent.
+    subroutine cece_nuopc_diagnostic_count(config_path, path_len, count, rc) &
+                                        bind(C, name="cece_nuopc_diagnostic_count")
+      import :: c_char, c_int
+      character(kind=c_char), intent(in) :: config_path(*)
+      integer(c_int), value :: path_len
+      integer(c_int), intent(out) :: count
+      integer(c_int), intent(out) :: rc
+    end subroutine
+
+    subroutine cece_nuopc_diagnostic_name(config_path, path_len, index, &
+                                          name, name_cap, name_len, rc) &
+                                          bind(C, name="cece_nuopc_diagnostic_name")
+      import :: c_char, c_int
+      character(kind=c_char), intent(in) :: config_path(*)
+      integer(c_int), value :: path_len, index
+      character(kind=c_char), intent(out) :: name(*)
+      integer(c_int), value :: name_cap
+      integer(c_int), intent(out) :: name_len
+      integer(c_int), intent(out) :: rc
+    end subroutine
+
+    ! Registry-metadata readers and the diagnostic binder (cece_driver
+    ! facade). The metadata is stamped onto the field before NUOPC_Realize
+    ! (FR-016: metadata passed to NUOPC_Advertise is not observable on the
+    ! state item in ESMF 8.9.1); the binder hands the field's own storage to
+    ! the core so each advance copies the band subview of the registry view
+    ! into it. A config name no scheme registered fails the binder with the
+    ! name in the message (realization-abort edge case).
+    subroutine cece_sim_diagnostic_units(sim, name, name_len, units, units_cap, &
+                                         units_len, rc) &
+                                         bind(C, name="cece_sim_diagnostic_units")
+      import :: c_char, c_int, c_ptr
+      type(c_ptr), value :: sim
+      character(kind=c_char), intent(in) :: name(*)
+      integer(c_int), value :: name_len
+      character(kind=c_char), intent(out) :: units(*)
+      integer(c_int), value :: units_cap
+      integer(c_int), intent(out) :: units_len
+      integer(c_int), intent(out) :: rc
+    end subroutine
+
+    subroutine cece_sim_diagnostic_long_name(sim, name, name_len, long_name, &
+                                             long_name_cap, long_name_len, rc) &
+                                             bind(C, name="cece_sim_diagnostic_long_name")
+      import :: c_char, c_int, c_ptr
+      type(c_ptr), value :: sim
+      character(kind=c_char), intent(in) :: name(*)
+      integer(c_int), value :: name_len
+      character(kind=c_char), intent(out) :: long_name(*)
+      integer(c_int), value :: long_name_cap
+      integer(c_int), intent(out) :: long_name_len
+      integer(c_int), intent(out) :: rc
+    end subroutine
+
+    subroutine cece_sim_bind_diagnostic_field(sim, name, name_len, data_ptr, &
+                                              nx, ny_local, nz, rc) &
+                                              bind(C, name="cece_sim_bind_diagnostic_field")
+      import :: c_char, c_int, c_ptr
+      type(c_ptr), value :: sim
+      character(kind=c_char), intent(in) :: name(*)
+      integer(c_int), value :: name_len
+      type(c_ptr), value :: data_ptr
+      integer(c_int), value :: nx, ny_local, nz
+      integer(c_int), intent(out) :: rc
+    end subroutine
   end interface
 
 contains
@@ -248,6 +341,20 @@ contains
     g_config_file_path = config_path
     rc = ESMF_SUCCESS
   end subroutine CECE_SetConfigPath
+
+  !> @brief Return the shared simulation handle (opaque cece::CeceSimulation*,
+  !> null before InitializeRealize created it). Integration-test accessor.
+  function CECE_GetSimPtr() result(sim)
+    type(c_ptr) :: sim
+    sim = g_sim_ptr
+  end function CECE_GetSimPtr
+
+  !> @brief Return the component's export state cached during Advertise.
+  !> Integration-test accessor for asserting advertised/realized channels.
+  function CECE_GetExportState() result(state)
+    type(ESMF_State) :: state
+    state = g_export_state
+  end function CECE_GetExportState
 
   !> @brief SetServices routine for the production CECE component
   subroutine CECE_SetServices(gcomp, rc)
@@ -327,10 +434,11 @@ contains
     type(ESMF_State) :: exportState
     type(ESMF_State) :: importState
     integer(c_int) :: count_c, c_rc
-    integer :: i, nexp, nimp
+    integer :: i, nexp, nimp, ndiag
     character(kind=c_char), dimension(ESMF_MAXSTR) :: c_species, c_std, c_units, c_name
-    integer(c_int) :: species_len, std_len, units_len, name_len
-    character(len=ESMF_MAXSTR) :: key, std_name, units, item_name
+    character(kind=c_char), dimension(ESMF_MAXSTR) :: c_diag
+    integer(c_int) :: species_len, std_len, units_len, name_len, diag_len
+    character(len=ESMF_MAXSTR) :: key, std_name, units, item_name, diag_name
     character(len=700) :: msg
 
     rc = ESMF_SUCCESS
@@ -357,6 +465,9 @@ contains
     call NUOPC_ModelGet(comp, exportState=exportState, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
       line=__LINE__, file=__FILE__)) return  ! bail out
+
+    ! Cache for integration-test inspection (see CECE_GetExportState).
+    g_export_state = exportState
 
     call cece_nuopc_export_count(trim(g_config_file_path)//c_null_char, &
                                  int(len_trim(g_config_file_path), c_int), &
@@ -501,9 +612,118 @@ contains
       ' NUOPC import field(s) from the config'
     call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO)
 
+    ! Advertise the selected diagnostics as exports. The names come from the
+    ! path-based config query (the registry does not exist yet), which applies
+    ! the same gate + selection rules as the file channel, so the coupled
+    ! channels and the published file values never diverge in which names are
+    ! offered. When include_diagnostics is off or nothing is selected the count
+    ! is zero and nothing is advertised (FR-010), keeping a species-only run
+    ! byte-for-byte identical to before this feature.
+    !
+    ! Diagnostics carry no dictionary standard name of their own, so they are
+    ! offered as 'generic_tracer'. That entry is not in the preloaded ESMF
+    ! field dictionary, so the cap self-ensures it first (see
+    ! ensure_tracer_entry) — otherwise NUOPC_Advertise rejects an unknown
+    ! StandardName. Units/LongName are NOT passed here: metadata supplied to
+    ! NUOPC_Advertise is not observable on the state item (verified against
+    ! ESMF 8.9.1); the realized field carries them, stamped in
+    ! realize_diagnostic_fields (FR-016). CECE provides its own geometry, so it
+    ! offers the geometry object and requests both share policies, exactly like
+    ! its emission exports.
+    call ensure_tracer_entry(rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    call cece_nuopc_diagnostic_count(trim(g_config_file_path)//c_null_char, &
+                                     int(len_trim(g_config_file_path), c_int), &
+                                     count_c, c_rc)
+    if (c_rc /= 0) then
+      call ESMF_LogSetError(rcToCheck=ESMF_FAILURE, &
+        msg='[Cap] Failed to count configured diagnostics', &
+        line=__LINE__, file=__FILE__, rcToReturn=rc)
+      return  ! bail out
+    end if
+    ndiag = int(count_c)
+
+    ! Reset any cached names from a prior advertise so a re-initialize with
+    ! a smaller (or empty) selection cannot leave stale channels behind.
+    if (allocated(g_diag_names)) deallocate(g_diag_names)
+
+    if (ndiag > 0) then
+      allocate(g_diag_names(ndiag))
+      do i = 1, ndiag
+        call cece_nuopc_diagnostic_name(trim(g_config_file_path)//c_null_char, &
+          int(len_trim(g_config_file_path), c_int), int(i - 1, c_int), &
+          c_diag, int(ESMF_MAXSTR, c_int), diag_len, c_rc)
+        if (c_rc /= 0) then
+          write(msg, '(A,I0)') '[Cap] Failed to read diagnostic name at index ', i - 1
+          call ESMF_LogSetError(rcToCheck=ESMF_FAILURE, msg=trim(msg), &
+            line=__LINE__, file=__FILE__, rcToReturn=rc)
+          return  ! bail out
+        end if
+        diag_name = nuopc_cbuf_to_string(c_diag, int(diag_len))
+        g_diag_names(i) = trim(diag_name)
+
+        call NUOPC_Advertise(exportState, StandardName='generic_tracer', &
+          name=trim(diag_name), &
+          TransferOfferGeomObject='will provide', &
+          SharePolicyField='share', SharePolicyGeomObject='share', rc=rc)
+        if (rc /= ESMF_SUCCESS) then
+          write(msg, '(A,A,A)') '[Cap] Failed to advertise diagnostic "', &
+            trim(diag_name), '"'
+          call ESMF_LogSetError(rcToCheck=rc, msg=trim(msg), &
+            line=__LINE__, file=__FILE__, rcToReturn=rc)
+          return  ! bail out
+        end if
+      end do
+    end if
+
+    write(msg, '(A,I0,A)') '[Cap] Advertised ', ndiag, &
+      ' diagnostic export field(s) from the config'
+    call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO)
+
     call ESMF_LogWrite('[Cap] InitializeAdvertise completed successfully', &
       ESMF_LOGMSG_INFO)
   end subroutine InitializeAdvertise
+
+  !> @brief Ensure the 'generic_tracer' entry exists in the field dictionary.
+  !>
+  !> Diagnostics have no dedicated dictionary standard name and are advertised
+  !> as 'generic_tracer', but the preloaded ESMF 8.9.1 dictionary does not
+  !> contain that entry, so NUOPC_Advertise would reject it. The NUOPC Layer
+  !> sanctions extending the dictionary at runtime through the public
+  !> NUOPC_FieldDictionaryAddEntry API. This is guarded by a HasEntry check so
+  !> a host application that already loaded a dictionary containing the entry
+  !> (e.g. a community dictionary) is left untouched — the cap only adds the
+  !> entry when it is genuinely absent. Canonical units are dimensionless ('1'),
+  !> which is correct for a generic tracer; per-field Units are stamped later on
+  !> the realized field.
+  subroutine ensure_tracer_entry(rc)
+    integer, intent(out) :: rc
+
+    logical :: has
+    integer :: dict_rc
+
+    rc = ESMF_SUCCESS
+    has = NUOPC_FieldDictionaryHasEntry('generic_tracer', rc=dict_rc)
+    if (dict_rc /= ESMF_SUCCESS) then
+      call ESMF_LogSetError(rcToCheck=dict_rc, &
+        msg='[Cap] NUOPC_FieldDictionaryHasEntry(generic_tracer) failed', &
+        line=__LINE__, file=__FILE__, rcToReturn=rc)
+      return  ! bail out
+    end if
+    if (has) return
+
+    call NUOPC_FieldDictionaryAddEntry('generic_tracer', '1', rc=dict_rc)
+    if (dict_rc /= ESMF_SUCCESS) then
+      call ESMF_LogSetError(rcToCheck=dict_rc, &
+        msg='[Cap] Failed to add generic_tracer to the field dictionary', &
+        line=__LINE__, file=__FILE__, rcToReturn=rc)
+      return  ! bail out
+    end if
+    call ESMF_LogWrite('[Cap] Added generic_tracer entry to the field dictionary', &
+      ESMF_LOGMSG_INFO)
+  end subroutine ensure_tracer_entry
 
   !> @brief Convert a null-terminated C character buffer of reported length
   !> into a Fortran string. The config-query C-ABI writers always
@@ -720,6 +940,8 @@ contains
       ! geometry fails rather than silently mis-coupling).
       call realize_export_fields(comp, parent_grid, grid_is_present, int(nz_cfg), rc)
       if (rc /= ESMF_SUCCESS) return  ! bail out
+      call realize_diagnostic_fields(comp, parent_grid, grid_is_present, int(nz_cfg), rc)
+      if (rc /= ESMF_SUCCESS) return  ! bail out
       call ESMF_LogWrite('[Cap] InitializeRealize completed successfully', &
         ESMF_LOGMSG_INFO)
       return
@@ -796,6 +1018,8 @@ contains
     ! Consistent with the NUOPC model templates, the grid handle is released
     ! with the component at ESMF_Finalize rather than manually.
     call realize_export_fields(comp, grid, .true., nz_c, rc)
+    if (rc /= ESMF_SUCCESS) return  ! bail out
+    call realize_diagnostic_fields(comp, grid, .true., nz_c, rc)
     if (rc /= ESMF_SUCCESS) return  ! bail out
 
     call ESMF_LogWrite('[Cap] InitializeRealize completed successfully', &
@@ -962,6 +1186,172 @@ contains
       call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO)
     end do
   end subroutine realize_export_fields
+
+  !> @brief Realize the advertised diagnostics on the component grid.
+  !>
+  !> Runs over exactly the names cached during InitializeAdvertise — the
+  !> advertise set must equal the realize set, so every advertised channel
+  !> either realizes or the run aborts naming the offender. Unlike the
+  !> species exports, an unconnected diagnostic is NOT pruned: the shared
+  !> field is still realized (and bound), which keeps the coupled channels
+  !> value-identical to the file channel whether or not a peer consumed
+  !> them, and lets a standalone NUOPC host inspect the export state.
+  !>
+  !> FR-016 metadata: NUOPC_Advertise does not attach Units/LongName to the
+  !> state item (verified against ESMF 8.9.1), so the registry's units and
+  !> long name are read through the facade and stamped onto the field with
+  !> ESMF_AttributeSet BEFORE NUOPC_Realize — the probe confirmed the
+  !> attributes survive into the realized state item where consumers see
+  !> them. A name the config selected but no scheme registered fails the
+  !> metadata read with the name in the message (quickstart US3 #4).
+  subroutine realize_diagnostic_fields(comp, grid, has_grid, nz, rc)
+    type(ESMF_GridComp)      :: comp
+    type(ESMF_Grid)          :: grid
+    logical,    intent(in)   :: has_grid
+    integer(c_int), intent(in) :: nz
+    integer,    intent(out)  :: rc
+
+    type(ESMF_State) :: exportState
+    integer :: i, ndiag
+    integer(c_int) :: c_rc, units_len, long_name_len
+    character(kind=c_char), dimension(ESMF_MAXSTR) :: c_units, c_long_name
+    character(len=ESMF_MAXSTR) :: units, long_name
+    character(len=700) :: msg
+    type(ESMF_Field) :: field
+    real(c_double), pointer :: fptr(:, :, :)
+    integer :: al(3), au(3)
+    integer :: fnx, fny, fnz
+    type(c_ptr) :: farray_ptr
+
+    rc = ESMF_SUCCESS
+    ndiag = 0
+    if (allocated(g_diag_names)) ndiag = size(g_diag_names)
+    if (ndiag == 0) return
+
+    call NUOPC_ModelGet(comp, exportState=exportState, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+      line=__LINE__, file=__FILE__)) return  ! bail out
+
+    do i = 1, ndiag
+      if (.not. has_grid) then
+        ! A mesh-backed component cannot host grid fields; fail loudly rather
+        ! than leaving an advertised channel unrealized.
+        write(msg, '(A,A,A)') '[Cap] Cannot realize diagnostic "', &
+          trim(g_diag_names(i)), '" on a mesh-backed component'
+        call ESMF_LogSetError(rcToCheck=ESMF_FAILURE, msg=trim(msg), &
+          line=__LINE__, file=__FILE__, rcToReturn=rc)
+        return  ! bail out
+      end if
+
+      ! Registry metadata first: an advertised-but-unregistered name aborts
+      ! here with the name in the message (the realization-abort edge case),
+      ! before any storage is allocated.
+      units = ' '
+      units_len = 0
+      call cece_sim_diagnostic_units(g_sim_ptr, trim(g_diag_names(i))//c_null_char, &
+        int(len_trim(g_diag_names(i)), c_int), c_units, int(ESMF_MAXSTR, c_int), &
+        units_len, c_rc)
+      if (c_rc /= 0) then
+        write(msg, '(A,A,A,I0)') '[Cap] Failed to realize diagnostic "', &
+          trim(g_diag_names(i)), '" (not registered by any scheme?) rc=', int(c_rc)
+        call ESMF_LogSetError(rcToCheck=ESMF_FAILURE, msg=trim(msg), &
+          line=__LINE__, file=__FILE__, rcToReturn=rc)
+        return  ! bail out
+      end if
+      units = nuopc_cbuf_to_string(c_units, int(units_len))
+
+      long_name = ' '
+      long_name_len = 0
+      call cece_sim_diagnostic_long_name(g_sim_ptr, trim(g_diag_names(i))//c_null_char, &
+        int(len_trim(g_diag_names(i)), c_int), c_long_name, int(ESMF_MAXSTR, c_int), &
+        long_name_len, c_rc)
+      if (c_rc /= 0) then
+        write(msg, '(A,A,A,I0)') '[Cap] Failed to realize diagnostic "', &
+          trim(g_diag_names(i)), '" (long name read failed) rc=', int(c_rc)
+        call ESMF_LogSetError(rcToCheck=ESMF_FAILURE, msg=trim(msg), &
+          line=__LINE__, file=__FILE__, rcToReturn=rc)
+        return  ! bail out
+      end if
+      long_name = nuopc_cbuf_to_string(c_long_name, int(long_name_len))
+
+      ! Allocate the band-shaped field on the component grid: two grid
+      ! dimensions plus the ungridded vertical 1:nz, matching the species
+      ! exports so a peer realizes the same shape.
+      field = ESMF_FieldCreate(grid, typekind=ESMF_TYPEKIND_R8, &
+        staggerloc=ESMF_STAGGERLOC_CENTER, &
+        gridToFieldMap=(/1, 2/), &
+        ungriddedLBound=(/1/), ungriddedUBound=(/int(nz)/), &
+        name=trim(g_diag_names(i)), rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+
+      ! Stamp FR-016 metadata BEFORE realize: Advertise does not carry it, and
+      ! attributes set here survive into the realized state item (probe-
+      ! verified). Empty registry metadata is omitted, leaving the item
+      ! attribute unset rather than writing a blank.
+      if (units_len > 0) then
+        call ESMF_AttributeSet(field, name='Units', value=trim(units), rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+      end if
+      if (long_name_len > 0) then
+        call ESMF_AttributeSet(field, name='LongName', value=trim(long_name), rc=rc)
+        if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+          line=__LINE__, file=__FILE__)) return  ! bail out
+      end if
+
+      call NUOPC_Realize(exportState, field=field, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) then
+        write(msg, '(A,A,A)') '[Cap] NUOPC_Realize failed for diagnostic "', &
+          trim(g_diag_names(i)), '"'
+        call ESMF_LogSetError(rcToCheck=rc, msg=trim(msg), &
+          line=__LINE__, file=__FILE__, rcToReturn=rc)
+        return  ! bail out
+      end if
+
+      ! Hand the field's own memory to the simulation: each advance the core
+      ! syncs the registry field and deep-copies this rank's band subview
+      ! into it. The extents read back here are what the facade verifies
+      ! against its band before rebinding the write-back.
+      nullify(fptr)
+      call ESMF_FieldGet(field, farrayPtr=fptr, rc=rc)
+      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
+        line=__LINE__, file=__FILE__)) return  ! bail out
+      al = lbound(fptr)
+      au = ubound(fptr)
+      fnx = au(1) - al(1) + 1
+      fny = au(2) - al(2) + 1
+      fnz = au(3) - al(3) + 1
+
+      if (fnx <= 0 .or. fny <= 0 .or. fnz <= 0) then
+        ! This PET owns no rows of the field; there is nothing to write back
+        ! and nothing to bind. Skip rather than hand the core a null target.
+        write(msg, '(A,A,A,I0,A,I0,A,I0,A)') '[Cap] Diagnostic "', &
+          trim(g_diag_names(i)), '" has empty storage on this PET (', &
+          fnx, 'x', fny, 'x', fnz, '); bind skipped'
+        call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO)
+        cycle
+      end if
+
+      farray_ptr = C_LOC(fptr)
+      call cece_sim_bind_diagnostic_field(g_sim_ptr, &
+        trim(g_diag_names(i))//c_null_char, &
+        int(len_trim(g_diag_names(i)), c_int), farray_ptr, &
+        int(fnx, c_int), int(fny, c_int), int(fnz, c_int), c_rc)
+      if (c_rc /= 0) then
+        write(msg, '(A,A,A,I0)') '[Cap] Failed to bind diagnostic "', &
+          trim(g_diag_names(i)), '" to simulation storage rc=', int(c_rc)
+        call ESMF_LogSetError(rcToCheck=ESMF_FAILURE, msg=trim(msg), &
+          line=__LINE__, file=__FILE__, rcToReturn=rc)
+        return  ! bail out
+      end if
+
+      write(msg, '(A,A,A,I0,A,I0,A,I0,A)') '[Cap] Realized diagnostic "', &
+        trim(g_diag_names(i)), '" (', fnx, 'x', fny, 'x', fnz, ') bound to simulation'
+      call ESMF_LogWrite(trim(msg), ESMF_LOGMSG_INFO)
+    end do
+  end subroutine realize_diagnostic_fields
 
   !> @brief Realize the accepted host-provided imports on the transferred grid.
   !>
@@ -1287,6 +1677,8 @@ contains
       call ESMF_LogWrite(trim(wmsg), ESMF_LOGMSG_WARNING)
     end if
     g_sim_ptr = c_null_ptr
+
+    if (allocated(g_diag_names)) deallocate(g_diag_names)
 
     call ESMF_LogWrite('[Cap] CECE NUOPC Cap finalized successfully', &
       ESMF_LOGMSG_INFO)

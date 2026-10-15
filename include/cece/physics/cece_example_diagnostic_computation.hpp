@@ -63,6 +63,13 @@ class ExampleDiagnosticComputation : public BasePhysicsScheme {
     DualView3D emission_efficiency_;  ///< Emission per unit temperature anomaly
     DualView3D quality_flag_;         ///< Data quality flag (0=good, 1=suspect, 2=bad)
 
+    // Zero-filled constant views substituted when a live input field is
+    // absent (the standalone driver has no meteorology ingest path, so a
+    // run configured with only this scheme would otherwise compute nothing).
+    // When a live field of the same shape exists, the live field wins.
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> zero_temperature_;
+    Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> zero_emissions_;
+
     // Configuration parameters
     double reference_temperature_ = 298.15;  ///< Reference temperature for anomaly [K]
     bool compute_quality_flags_ = true;      ///< Whether to compute quality flags

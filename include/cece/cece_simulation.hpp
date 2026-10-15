@@ -181,6 +181,52 @@ class CeceSimulation {
     ///         on unknown species, null/invalid extents, or a mismatch.
     bool bind_export_field(const std::string& species, double* data_ptr, int nx, int ny_local, int nz, int* rc);
 
+    /// Read the registry metadata (units, long_name) for an advertised
+    /// diagnostic by name. The cap calls this during Realize to stamp the
+    /// ESMF field's Units/LongName attributes before NUOPC_Realize (FR-016):
+    /// NUOPC_Advertise metadata is NOT observable on the state item (verified
+    /// against ESMF 8.9.1), so the realized field is the first place a
+    /// consumer can read them.
+    ///
+    /// The name must exist in the registry (allocated field or pending
+    /// declaration). A name the config selected but no scheme ever registered
+    /// fails with *rc < 0 and a logged diagnostic that names it — this is the
+    /// realization-abort edge case (quickstart US3 #4): the advertise set is
+    /// path-derived, so an unregistered selection reaches realize and must
+    /// abort rather than silently drop the channel.
+    ///
+    /// @return true on success; false with *rc < 0 on an unknown name.
+    bool diagnostic_metadata(const std::string& name, std::string& units, std::string& long_name, int* rc);
+
+    /// Bind a realized diagnostic field's ESMF-owned memory as the persistent
+    /// write-back target for `name`. Mirrors bind_export_field, but the
+    /// registry view is full-grid while the ESMF field is band-shaped: the
+    /// per-advance sync (SyncAndCopyState) copies the rank's band subview of
+    /// the registry host view into this buffer.
+    ///
+    /// The name MUST already be a registered or pending diagnostic (same typo
+    /// guard as the c-api set_diagnostic_field), and (nx, ny_local, nz) MUST
+    /// equal this rank's band geometry — the facade owns the decomposition, so
+    /// a mismatch between the ESMF field extents and the core band fails
+    /// loudly instead of writing back out of bounds. `data_ptr` is borrowed:
+    /// ESMF owns the memory and the core never frees or reallocates it.
+    ///
+    /// @return true on success; false with *rc < 0 and a logged diagnostic on
+    ///         unknown name, null/invalid extents, or a band mismatch.
+    bool bind_diagnostic_field(const std::string& name, double* data_ptr, int nx, int ny_local, int nz, int* rc);
+
+    /// Sync the registry field for `name` and copy its FULL-GRID host values
+    /// into @p out (LayoutLeft order, nx*ny*nz doubles). Used by the coupled
+    /// integration test to compare the realized ESMF export buffer against the
+    /// registry's own host view for the same step (FR-015 / SC-006). On a
+    /// single rank the ESMF field is the whole grid, so the two buffers must
+    /// be element-for-element identical once the per-advance sync has run.
+    ///
+    /// @return true on success; false with *rc < 0 on unknown name, a null
+    ///         out buffer, or insufficient capacity (*count_out still reports
+    ///         the required element count).
+    bool diagnostic_host_copy(const std::string& name, double* out, int out_max, int* count_out, int* rc);
+
     /// Copy a connected import field's ESMF-owned host memory into the core's
     /// import state for the current step (the NUOPC import binder). The
     /// configured input name is resolved through the meteorology/scale-factor/

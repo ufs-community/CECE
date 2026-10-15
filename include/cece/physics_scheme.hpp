@@ -95,6 +95,18 @@ class BasePhysicsScheme : public PhysicsScheme {
                     registered_diagnostics_.push_back(diag_name);
                 }
             }
+        } else {
+            // No manager bound (Phase 1): record the config-declared diagnostics
+            // as pending declarations so they survive to Phase 2 binding and cap
+            // advertisement instead of being silently dropped.
+            conf::Value diags = config["diagnostics"];
+            if (diags.is_defined()) {
+                for (std::size_t i = 0; i < diags.size(); ++i) {
+                    std::string diag_name = diags[i].as_string();
+                    RecordPendingDeclaration(diag_name, "", "");
+                    registered_diagnostics_.push_back(diag_name);
+                }
+            }
         }
     }
 
@@ -223,12 +235,24 @@ class BasePhysicsScheme : public PhysicsScheme {
         export_cache_.clear();
     }
 
+    /// @brief Diagnostics declared while no manager was bound (Phase 1).
+    const std::vector<DiagnosticDeclaration>& PendingDeclarations() const {
+        return pending_declarations_;
+    }
+
    protected:
     /**
      * @brief Helper to resolve a diagnostic field.
+     *
+     * With a manager bound, delegates to RegisterDiagnostic (which returns the
+     * shared field, or records a pending declaration until the grid is set).
+     * Without a manager (Phase 1), records a pending declaration locally so the
+     * name/metadata survive to Phase 2 binding and cap advertisement rather
+     * than being silently dropped (research R1).
      */
     DualView3D ResolveDiagnostic(const std::string& name, int nx, int ny, int nz, const std::string& units = "", const std::string& long_name = "") {
         if (diag_manager_ == nullptr) {
+            RecordPendingDeclaration(name, units, long_name);
             return {};
         }
         // Use RegisterDiagnostic which also acts as a getter if already registered
@@ -249,6 +273,23 @@ class BasePhysicsScheme : public PhysicsScheme {
     }
 
    private:
+    // Records a diagnostic declaration locally (no manager bound yet), keeping
+    // first-seen order and first-non-empty-wins metadata.
+    void RecordPendingDeclaration(const std::string& name, const std::string& units, const std::string& long_name) {
+        for (auto& decl : pending_declarations_) {
+            if (decl.name == name) {
+                if (decl.units.empty() && !units.empty()) {
+                    decl.units = units;
+                }
+                if (decl.long_name.empty() && !long_name.empty()) {
+                    decl.long_name = long_name;
+                }
+                return;
+            }
+        }
+        pending_declarations_.push_back(DiagnosticDeclaration{name, units, long_name});
+    }
+
     std::unordered_map<std::string, Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>> import_cache_;
     std::unordered_map<std::string, Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>> export_cache_;
 
@@ -257,6 +298,7 @@ class BasePhysicsScheme : public PhysicsScheme {
 
     CeceDiagnosticManager* diag_manager_ = nullptr;
     std::vector<std::string> registered_diagnostics_;
+    std::vector<DiagnosticDeclaration> pending_declarations_;
 };
 
 }  // namespace cece

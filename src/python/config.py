@@ -1020,6 +1020,7 @@ class OutputConfig:
     directory: str = "."
     filename_pattern: str = "cece_output_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
     frequency_steps: int = 1
+    include_diagnostics: bool = False
     fields: list[OutputFieldConfig] = field(default_factory=list)
     amio_worker_threads: int | None = None
     amio_staging_buffer_count: int = 2
@@ -1030,6 +1031,8 @@ class OutputConfig:
     def validate(self) -> None:
         if not isinstance(self.enabled, bool):
             raise ValueError("output.enabled must be a boolean")
+        if not isinstance(self.include_diagnostics, bool):
+            raise ValueError("output.include_diagnostics must be a boolean")
         _validate_string(self.directory, "output.directory")
         _validate_string(self.filename_pattern, "output.filename_pattern")
         _validate_global_attributes(self.global_attributes, "output.global_attributes")
@@ -1075,6 +1078,7 @@ class OutputConfig:
                 "directory",
                 "filename_pattern",
                 "frequency_steps",
+                "include_diagnostics",
                 "fields",
                 "amio_worker_threads",
                 "amio_staging_buffer_count",
@@ -1094,6 +1098,7 @@ class OutputConfig:
                 "filename_pattern", "cece_output_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
             ),
             frequency_steps=values.get("frequency_steps", 1),
+            include_diagnostics=values.get("include_diagnostics", False),
             fields=[
                 OutputFieldConfig.from_dict(item, f"{where}.fields[{index}]")
                 for index, item in enumerate(raw_fields)
@@ -1114,7 +1119,12 @@ class OutputConfig:
 
 @dataclass
 class DiagnosticsConfig:
-    output_interval: int = 0
+    output_interval_seconds: int = 0
+    # Deprecated alias for output_interval_seconds, kept so configs written
+    # before the rename still validate. None means the alias was absent.
+    # When both keys are present the canonical one wins, matching the C++
+    # parser.
+    output_interval: int | None = None
     grid_type: str = "native"
     grid_file: str = ""
     nx: int = 0
@@ -1124,9 +1134,15 @@ class DiagnosticsConfig:
 
     def validate(self) -> None:
         _validate_string(self.grid_type, "diagnostics.grid_type")
-        _validate_integer(self.output_interval, "diagnostics.output_interval")
-        if self.output_interval < 0:
-            raise ValueError("diagnostics.output_interval must be non-negative")
+        _validate_integer(
+            self.output_interval_seconds, "diagnostics.output_interval_seconds"
+        )
+        if self.output_interval_seconds < 0:
+            raise ValueError("diagnostics.output_interval_seconds must be non-negative")
+        if self.output_interval is not None:
+            _validate_integer(self.output_interval, "diagnostics.output_interval")
+            if self.output_interval < 0:
+                raise ValueError("diagnostics.output_interval must be non-negative")
         if self.grid_type not in {"native", "gaussian", "mesh"}:
             raise ValueError(f"Invalid diagnostics.grid_type: {self.grid_type}")
         _validate_string(self.grid_file, "diagnostics.grid_file", allow_empty=True)
@@ -1150,11 +1166,24 @@ class DiagnosticsConfig:
             values = _require_mapping(data, where)
             _reject_unknown_keys(
                 values,
-                {"output_interval", "grid_type", "grid_file", "nx", "ny", "variables"},
+                {
+                    "output_interval",
+                    "output_interval_seconds",
+                    "grid_type",
+                    "grid_file",
+                    "nx",
+                    "ny",
+                    "variables",
+                },
                 where,
             )
+            alias = values.get("output_interval")
+            canonical = values.get("output_interval_seconds")
+            if canonical is None:
+                canonical = alias if alias is not None else 0
             result = cls(
-                output_interval=values.get("output_interval", 0),
+                output_interval_seconds=canonical,
+                output_interval=alias,
                 grid_type=values.get("grid_type", "native"),
                 grid_file=values.get("grid_file", ""),
                 nx=values.get("nx", 0),
@@ -1876,7 +1905,12 @@ class CeceConfig:
                 diagnostics.variables
                 if diagnostics.sequence_form
                 else {
-                    "output_interval": diagnostics.output_interval,
+                    "output_interval_seconds": diagnostics.output_interval_seconds,
+                    **(
+                        {"output_interval": diagnostics.output_interval}
+                        if diagnostics.output_interval is not None
+                        else {}
+                    ),
                     "grid_type": diagnostics.grid_type,
                     "grid_file": diagnostics.grid_file,
                     "nx": diagnostics.nx,
@@ -1891,6 +1925,7 @@ class CeceConfig:
                 "directory": output.directory,
                 "filename_pattern": output.filename_pattern,
                 "frequency_steps": output.frequency_steps,
+                "include_diagnostics": output.include_diagnostics,
                 "fields": [
                     {"name": item.name, "attributes": item.attributes}
                     for item in output.fields

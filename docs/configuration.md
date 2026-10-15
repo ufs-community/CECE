@@ -633,24 +633,111 @@ output[TERP] = (class_total[MT_PINE] × 0.5 + class_total[MT_ACYC] × 0.3 + ...)
 
 ## `diagnostics`
 
-Controls diagnostic output and intermediate variable capture for analysis and validation.
+Selects which diagnostics registered by physics schemes are published, and how
+often. Schemes declare the fields (see
+[Diagnostic Fields](physics_scheme_development.md#diagnostic-fields)); this
+section chooses which of them leave the model.
+
+Nothing in this section takes effect until `output.include_diagnostics` is
+`true`. With the opt-in absent or `false`, the block is dormant configuration
+and output is identical to a run that has no `diagnostics:` section at all.
+When it is on, one selection drives both channels: the standalone NetCDF file
+and the NUOPC coupled export state.
 
 | Key | Type | Description |
 | --- | --- | --- |
-| `output_interval` | Integer | Frequency of diagnostic output in seconds |
-| `variables` | List | List of field names to include in diagnostic output |
+| `variables` | List | (Optional) Selection filter over the diagnostic names registered by schemes — not species names. Non-empty: publish exactly these names, in the order the schemes registered them. Empty or absent: publish every registered diagnostic. A name no scheme registered is not fatal: the run logs a warning naming it at the first publication attempt and skips it. |
+| `output_interval_seconds` | Integer | (Optional) Publication cadence in seconds. Default `0`: publish at every output-file write. `> 0`: publish only once at least this many seconds have elapsed since the previous publish; the first write always publishes. Must be an integer multiple of `driver.timestep_seconds`. |
+| `output_interval` | Integer | (Optional) Deprecated alias for `output_interval_seconds`. When both are present, `output_interval_seconds` wins. |
+| `grid_type` | String | (Optional) Default `"native"`. Parsed but not implemented — see [Diagnostic Grid Keys](#diagnostic-grid-keys). |
+| `grid_file` | String | (Optional) Path to an ESMF mesh file. Parsed but not implemented. |
+| `nx` | Integer | (Optional) Default `0`. Parsed but not implemented. |
+| `ny` | Integer | (Optional) Default `0`. Parsed but not implemented. |
+
+### Enablement and Precedence
+
+`output.enabled` decides whether files are written at all,
+`output.include_diagnostics` decides whether diagnostics are published, and
+`diagnostics:variables` decides which names. The two channels combine them as
+follows.
+
+| `output.enabled` | `output.include_diagnostics` | `diagnostics:variables` | File channel | Coupled channel (NUOPC cap) |
+| --- | --- | --- | --- | --- |
+| `false` | `false` | any | off | off |
+| `true` | `false` | any | off — species and configured fields only | off |
+| `false` | `true` | any | off — no files are written at all | **on** — every registered diagnostic, or the selected ones |
+| `true` | `true` | empty or absent | on — every registered diagnostic | on — every registered diagnostic |
+| `true` | `true` | non-empty | on — selected names only | on — selected names only |
+
+The channels are independent. Coupled export without file output is a valid
+configuration that writes no file, and a standalone run never exercises the
+coupled column.
+
+### Validation
+
+These checks run while the configuration is parsed and abort the run before any
+compute. They fire only when `output.include_diagnostics` is `true`: a dormant
+block is never validated, so a config that carries a `diagnostics:` section but
+leaves the opt-in off keeps loading exactly as it does today.
+
+| Rule | Condition | The error message contains |
+| --- | --- | --- |
+| The interval is not negative | `output_interval_seconds < 0` | the key and the value: `diagnostics.output_interval_seconds must be >= 0; got -100.` |
+| The interval divides the clock | `output_interval_seconds > 0` and not an integer multiple of `driver.timestep_seconds` | both values: `diagnostics.output_interval_seconds (5400) must be a multiple of driver.timestep_seconds (3600).` |
+| No collision with a coordinate | a `variables` entry is one of `lon`, `lat`, `lev`, `time`, `lon_bnds`, `lat_bnds`, `mesh` | the offending name: `diagnostics:variables entry 'lat' collides with a reserved coordinate variable name.` |
+| No collision with a species | a `variables` entry is a species declared in `species:` | the offending name: `diagnostics:variables entry 'co' collides with a declared species name.` |
+| Nothing to publish | `output.include_diagnostics` is `true` but no scheme registers a diagnostic | not an error: a valid no-op, reported by the initialization line counting registered fields (`Diagnostic manager bound; 0 diagnostic field(s) registered`) |
+
+### Diagnostic Grid Keys
+
+`grid_type`, `grid_file`, `nx`, and `ny` are accepted and stored by the parser,
+but v1 implements no regridding behind them. Diagnostics are always published on
+the grid the run already has: `driver.grid` for the standalone driver, the grid
+provided by the parent component for the NUOPC cap. Setting these keys is
+silently ignored, so do not rely on them to change resolution.
 
 **Example:**
+
+The complete runnable configuration is
+[examples/cece_config_diagnostics.yaml](../examples/cece_config_diagnostics.yaml):
+
 ```yaml
+driver:
+  start_time: "2020-06-01T00:00:00"
+  end_time: "2020-06-01T06:00:00"
+  timestep_seconds: 3600
+  grid:
+    nx: 4
+    ny: 4
+    nz: 1
+
+# No species/emissions streams: this example isolates the diagnostic channel.
+species: {}
+cece_data:
+  streams: []
+
+physics_schemes:
+  - name: example_diagnostic_computation
+    options:
+      diagnostics: [temperature_anomaly, emission_efficiency] # scheme declares these
+      reference_temperature: 298.15
+      compute_quality_flags: false
+
 diagnostics:
-  output_interval: 3600             # Hourly output
-  variables:
-    - "co"
-    - "nox"
-    - "isoprene"
-    - "sea_salt_accumulation"
-    - "sea_salt_coarse"
+  output_interval_seconds: 7200 # publish every 2h (multiple of 3600)
+  variables: [temperature_anomaly] # only this one; emission_efficiency dropped
+
+output:
+  enabled: true
+  include_diagnostics: true # honored opt-in for the file channel
+  directory: ./cece_output
+  filename_pattern: "diag_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
+  frequency_steps: 1
 ```
+
+`temperature_anomaly` is written with the units and long name its scheme
+registered; `emission_efficiency` stays registered but unpublished; species and
+emission output is unchanged.
 
 ---
 
@@ -1021,6 +1108,7 @@ Configuration for NetCDF output file generation with emission fields.
 | `directory` | String | Output directory path |
 | `filename_pattern` | String | Filename template with time substitution |
 | `frequency_steps` | Integer | Output frequency in timesteps |
+| `include_diagnostics` | Boolean | (Optional) Master opt-in for publishing scheme diagnostics, on both channels: the NetCDF file channel (which additionally requires `enabled: true`) and the NUOPC coupled export channel. Default `false`, which leaves the `diagnostics:` block dormant and the output unchanged. See [`diagnostics`](#diagnostics). |
 | `fields` | List | Fields to write; each entry is either a field name string or a map with `name` and optional `attributes` |
 | `amio_worker_threads` | Integer | (Optional) Number of AMIO background I/O worker threads for output. Must be ≥ 1 when explicitly set; nonpositive values are rejected. When omitted, falls back to `driver.amio_worker_threads`. |
 | `amio_staging_buffer_count` | Integer | Number of output staging buffers, in `[1, 4096]`. Default: `2`. The writer waits for each asynchronous write and bounds the pool at this count. |
