@@ -125,7 +125,8 @@ void validate_stream_local_time(const std::string& cadence, const std::string& t
 }
 
 std::int64_t sim_datetime_epoch_secs(const SimDateTime& dt) {
-    return DaysFromCivil(dt.year, dt.month, dt.day) * kSecsPerDay + static_cast<std::int64_t>(dt.hour) * 3600 + dt.minute * 60 + dt.second;
+    return DaysFromCivil(dt.year, dt.month, dt.day) * kSecsPerDay + static_cast<std::int64_t>(dt.hour) * 3600 +
+           static_cast<std::int64_t>(dt.minute) * 60 + dt.second;
 }
 
 int weekly_record_from_local_secs(std::int64_t local_secs) {
