@@ -5,6 +5,7 @@ build*/
 cece_output/
 output/
 *.nc
+utc_offset_map.png
 
 # Log files
 *.ESMF_LogFile
