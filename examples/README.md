@@ -52,6 +52,30 @@ This directory contains example YAML configuration files demonstrating various C
 - Different data source temporal configurations
 - Regional grid matching ex5
 
+### MEGAN3 GOCART Speciation
+
+[cece_config_megan3_gocart.yaml](cece_config_megan3_gocart.yaml) selects the
+GOCART mechanism and mapping files and writes `MEGAN_ISOP`, `MEGAN_LIMO`,
+`MEGAN_MTPA`, and `MEGAN_MTPO` in kg m-2 s-1.
+
+Replace its `/path/to` inputs with files on the specified grid. ISOP uses
+meteorology, LAI, and an `AEF_ISOP` field in kmol ISOP m-2 s-1. All four
+outputs use CECE's aggregate classes; no individual-species emissions are
+required. The example supplies illustrative scalar AEFs for the monoterpene
+and sesquiterpene classes. Replace these with calibrated defaults or gridded
+`AEF_<CLASS>` inputs, in kmol class m-2 s-1, for production.
+
+LIMO and MTPA reuse the RACM2/CRACMM LIM and API profiles; MTPO receives
+residual monoterpenes plus the broad SESQ profile as a farnesene proxy.
+These are not exact compound sums or independently validated GCAFS v1
+profiles. See [the mapping assumptions](../docs/megan.md#gocart-biogenic-precursors-ufs-gcafs-v1).
+
+With the standalone driver built, run from the repository root:
+
+```bash
+./build/bin/cece_nuopc_app examples/cece_config_megan3_gocart.yaml
+```
+
 ## Configuration Sections
 
 All examples include these configurable sections:

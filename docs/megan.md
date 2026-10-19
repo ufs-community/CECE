@@ -217,6 +217,54 @@ before supplying it to MEGAN3.
 
 See [Speciation Configuration](#speciation-configuration) below for the YAML format.
 
+### GOCART Biogenic Precursors (UFS GCAFS v1)
+
+Select the four requested GOCART precursor outputs with:
+
+```yaml
+physics_schemes:
+  - name: megan3
+    language: cpp
+    options:
+      mechanism_file: data/speciation/spc_gocart.yaml
+      speciation_file: data/speciation/map_gocart.yaml
+      speciation_dataset: MEGAN
+```
+
+| Output | Contributions |
+| --- | --- |
+| `MEGAN_ISOP` | CECE ISOP class |
+| `MEGAN_LIMO` | 0.70 MT_ACYC + 0.15 MT_SABI + 0.15 MT_AROM |
+| `MEGAN_MTPA` | 0.65 MT_PINE + 0.20 MT_CAMP + 0.15 MT_SABI |
+| `MEGAN_MTPO` | 0.35 MT_PINE + 0.30 MT_ACYC + 0.80 MT_CAMP + 0.70 MT_SABI + 0.85 MT_AROM + 0.70 SQT_HR + 0.30 SQT_LR |
+
+No individual-species emissions are required. The mapping reuses `API` for
+MTPA and `LIM` for LIMO from the existing RACM2 and CRACMM mapping files.
+These are **proxies**, not exact individual-compound sums: API includes
+camphene, and LIM includes myrcene, ocimene, and terpinolene as well as limonene.
+
+MTPO receives the residual monoterpene fraction for each source class,
+`1 - MTPA[class] - LIMO[class]`, so the five monoterpene classes are neither
+duplicated nor discarded across these outputs. This residual allocation is
+a new assumption, not an existing GOCART profile. MTPO also reuses the
+RACM2/CRACMM `SESQ` profile (0.70 SQT_HR + 0.30 SQT_LR) as a broad
+farnesene proxy. These classes include other sesquiterpenes; the profile does
+not isolate farnesene. Other MEGAN classes do not contribute.
+
+The engine applies the SPC target molecular weight to each mapped amount
+flux. LIMO, MTPA, and MTPO use the representative C10 value, 136.23 kg kmol-1,
+including MTPO's sesquiterpene contribution. Thus that contribution is a
+C10-equivalent lumped mass flux, not a true C15 sesquiterpene mass sum.
+Per-class AEF inputs remain in kmol class m-2 s-1; gridded `AEF_<CLASS>`
+fields override configured scalar `default_aef` values.
+
+Select `MEGAN_ISOP`, `MEGAN_LIMO`, `MEGAN_MTPA`, and `MEGAN_MTPO` in
+`output.fields`. The target species names are `ISOP`, `LIMO`, `MTPA`, and
+`MTPO`, but CECE writes the prefixed export names. Use the
+[standalone GOCART example](../examples/cece_config_megan3_gocart.yaml).
+The coefficients are a documented aggregate-class approximation, not
+independently verified GCAFS v1 scientific conformance.
+
 ### Soil NO Handling
 
 The NO emission class reads `soil_nox_emissions` from the export state
