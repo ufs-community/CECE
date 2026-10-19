@@ -53,8 +53,17 @@ def test_standard_offset_is_the_non_dst_offset(zone, expected):
     assert generator.standard_offset_units(zone) == expected
 
 
-def test_unknown_zone_falls_back_to_utc():
-    assert generator.standard_offset_units("Not/AZone") == 0
+def test_unknown_zone_raises():
+    with pytest.raises(zoneinfo.ZoneInfoNotFoundError):
+        generator.standard_offset_units("Not/AZone")
+
+
+def test_offset_outside_int8_raises(monkeypatch):
+    # Real zones stay within +-24 h, so force an out-of-range quarter-hour count.
+    monkeypatch.setattr(generator, "round", lambda _: 200, raising=False)
+
+    with pytest.raises(ValueError, match="does not fit in int8"):
+        generator.standard_offset_units("UTC")
 
 
 def test_reference_dates_cover_both_hemispheres_winters():
