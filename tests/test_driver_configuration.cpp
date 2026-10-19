@@ -1227,4 +1227,8 @@ TEST_F(DriverConfigurationTest, StreamLocalTimeRejectsInvalidCombinations) {
     // Only nearest record selection is supported.
     WriteConfigFile(test_config_file, config_with_stream("true", "      cadence: weekly\n      tintalgo: linear\n      use_local_time: true\n"));
     EXPECT_THROW(ParseConfig(test_config_file), std::invalid_argument);
+
+    // EarthAccess streams never reach the local-time path, so the flag must not be silently ignored.
+    WriteConfigFile(test_config_file, config_with_stream("true", "      source: earthaccess\n      cadence: weekly\n      use_local_time: true\n"));
+    EXPECT_THROW(ParseConfig(test_config_file), std::invalid_argument);
 }

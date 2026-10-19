@@ -1038,30 +1038,16 @@ bool CeceDriverOrchestrator::ComposeLocalWeeklyField(const std::string& var_name
     }
 
     // Per cell: the record of the local weekday at this UTC instant.
-    const size_t band_spatial = static_cast<size_t>(nx_) * band_.ny_local;
     std::array<const double*, 7> record_data{};
     for (const auto& [record, band] : cache.records) {
         record_data[static_cast<size_t>(record)] = band.data();
     }
-    const std::int64_t epoch = sim_datetime_epoch_secs(sim_dt);
-    ingest_buffer.assign(static_cast<size_t>(field_nlev) * band_spatial, 0.0);
-    bool local_compose_ok = true;
-    for (int jrel = 0; jrel < band_.ny_local && local_compose_ok; ++jrel) {
-        for (int i = 0; i < nx_; ++i) {
-            const double* record_band = record_data[static_cast<size_t>(weekly_record_from_local_secs(epoch + cache.offsets(i, jrel)))];
-            if (record_band == nullptr) {
-                // A UTC offset beyond the -12h..+14h range the 3-record window covers.
-                failure_detail = "UTC offset " + std::to_string(cache.offsets(i, jrel)) + " s at band cell (" + std::to_string(i) + ", " +
-                                 std::to_string(jrel) + ") is outside the supported range for '" + var_name + "'";
-                local_compose_ok = false;
-                break;
-            }
-            const size_t spatial_index = static_cast<size_t>(jrel) * nx_ + i;
-            for (int level = 0; level < field_nlev; ++level) {
-                const size_t index = static_cast<size_t>(level) * band_spatial + spatial_index;
-                ingest_buffer[index] = record_band[index];
-            }
-        }
+    std::string compose_error;
+    const bool local_compose_ok = compose_local_weekly_band(
+        record_data, [&cache](int i, int j) { return cache.offsets(i, j); }, sim_datetime_epoch_secs(sim_dt), nx_, band_.ny_local, field_nlev,
+        ingest_buffer, compose_error);
+    if (!local_compose_ok) {
+        failure_detail = compose_error + " for '" + var_name + "'";
     }
     if (!collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, local_compose_ok, "local-weekday composition for '" + var_name + "'",
                               failure_detail)) {

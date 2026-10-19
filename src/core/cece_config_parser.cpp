@@ -166,6 +166,10 @@ CeceConfig ParseConfig(const std::string& filename) {
         for (std::size_t i = 0; i < streams.size(); ++i) {
             conf::Value node = streams[i];
             if (string_or(node, "source") == "earthaccess") {
+                if (node["use_local_time"].bool_or(false)) {
+                    throw std::invalid_argument("cece_data.streams[" + std::to_string(i) +
+                                                "]: use_local_time is not supported for earthaccess streams.");
+                }
                 continue;
             }
             CeceDataStreamConfig stream;

@@ -13,6 +13,7 @@
 #include <amio/amio.h>
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -81,6 +82,34 @@ int weekly_record_from_local_secs(std::int64_t local_secs);
 /// neighbours, since UTC offsets (-12h..+14h) shift a local date by at most one
 /// day. Rank-invariant, so every rank reads the same records.
 std::array<int, 3> weekly_record_window(const SimDateTime& dt);
+
+/// Fill @p out ([level][j][i], nlev * nx * ny_local) with each cell's value from the
+/// weekly record of its local weekday. records[r] is record r's band buffer in the
+/// same layout, or nullptr when it is not loaded; offset_at(i, j) is the cell's UTC
+/// offset in seconds. Returns false and sets @p error if a cell needs a missing record.
+template <class OffsetAt>
+bool compose_local_weekly_band(const std::array<const double*, 7>& records, OffsetAt&& offset_at, std::int64_t utc_epoch_secs, int nx, int ny_local,
+                               int nlev, std::vector<double>& out, std::string& error) {
+    const std::size_t band_spatial = static_cast<std::size_t>(nx) * static_cast<std::size_t>(ny_local);
+    out.assign(static_cast<std::size_t>(nlev) * band_spatial, 0.0);
+    for (int j = 0; j < ny_local; ++j) {
+        for (int i = 0; i < nx; ++i) {
+            const std::int64_t offset = offset_at(i, j);
+            const double* record_band = records[static_cast<std::size_t>(weekly_record_from_local_secs(utc_epoch_secs + offset))];
+            if (record_band == nullptr) {
+                error = "UTC offset " + std::to_string(offset) + " s at band cell (" + std::to_string(i) + ", " + std::to_string(j) +
+                        ") needs a weekly record outside the loaded window";
+                return false;
+            }
+            const std::size_t spatial_index = static_cast<std::size_t>(j) * nx + i;
+            for (int level = 0; level < nlev; ++level) {
+                const std::size_t index = static_cast<std::size_t>(level) * band_spatial + spatial_index;
+                out[index] = record_band[index];
+            }
+        }
+    }
+    return true;
+}
 
 RecordBracket bracket_from_cadence(const std::string& cadence, const std::string& tintalgo, const SimDateTime& dt, int file_nt, int yearFirst = 0,
                                    int yearLast = 0, int yearAlign = 0, const std::string& taxmode = "");
