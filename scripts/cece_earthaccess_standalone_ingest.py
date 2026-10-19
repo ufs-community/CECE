@@ -189,6 +189,39 @@ def _interp_to_target(
             f"Cannot identify latitude/longitude coordinates for variable {data_array.name!r}"
         )
 
+    if lon_name in data_array.coords and lat_name in data_array.coords:
+        lon_coord = data_array[lon_name]
+        lat_coord = data_array[lat_name]
+        if lon_coord.ndim == lat_coord.ndim == 1 and lon_coord.dims == lat_coord.dims:
+            values = np.asarray(data_array.values, dtype=np.float64).squeeze()
+            lons = np.asarray(lon_coord.values, dtype=np.float64).reshape(-1)
+            lats = np.asarray(lat_coord.values, dtype=np.float64).reshape(-1)
+            if values.ndim == 1 and values.size == lons.size == lats.size:
+                valid = np.isfinite(lons) & np.isfinite(lats)
+                if not valid.any():
+                    raise ValueError(
+                        f"Cannot interpolate {data_array.name!r}: no finite swath coordinates"
+                    )
+                lon_radians = np.deg2rad(_normalize_longitudes(lons[valid]))
+                lat_radians = np.deg2rad(lats[valid])
+                points = np.column_stack((
+                    np.cos(lat_radians) * np.cos(lon_radians),
+                    np.cos(lat_radians) * np.sin(lon_radians),
+                    np.sin(lat_radians),
+                ))
+                target_lon_radians, target_lat_radians = np.meshgrid(
+                    np.deg2rad(_normalize_longitudes(target_lons)),
+                    np.deg2rad(target_lats),
+                )
+                targets = np.column_stack((
+                    (np.cos(target_lat_radians) * np.cos(target_lon_radians)).ravel(),
+                    (np.cos(target_lat_radians) * np.sin(target_lon_radians)).ravel(),
+                    np.sin(target_lat_radians).ravel(),
+                ))
+                nearest = np.argmax(targets @ points.T, axis=1)
+                swath_values = values[valid]
+                return swath_values[nearest].reshape(target_lats.size, target_lons.size)
+
     if lon_name in data_array.coords:
         lon_values = np.asarray(data_array[lon_name].values, dtype=np.float64)
         if lon_values.ndim == 1:
@@ -216,6 +249,70 @@ def _interp_to_target(
     raise ValueError(
         f"Interpolated field {data_array.name!r} has shape {values.shape}, expected {expected}"
     )
+
+
+def _grid_cell_area(target_lons: np.ndarray, target_lats: np.ndarray) -> np.ndarray:
+    """Compute spherical areas for a uniformly spaced grid of cell centers."""
+    if target_lons.size < 2 or target_lats.size < 2:
+        raise ValueError(
+            "grid_cell_area requires at least two longitude and latitude centers"
+        )
+    lon_steps = np.diff(target_lons)
+    lat_steps = np.diff(target_lats)
+    lon_step = float(np.median(np.abs(lon_steps)))
+    lat_step = float(np.median(np.abs(lat_steps)))
+    if (
+        lon_step <= 0.0
+        or lat_step <= 0.0
+        or not np.allclose(np.abs(lon_steps), lon_step)
+        or not np.allclose(np.abs(lat_steps), lat_step)
+    ):
+        raise ValueError("grid_cell_area requires uniformly spaced grid centers")
+
+    latitude_edges = np.deg2rad(
+        np.clip(
+            np.concatenate((
+                [target_lats[0] - np.sign(lat_steps[0]) * lat_step / 2.0],
+                (target_lats[:-1] + target_lats[1:]) / 2.0,
+                [target_lats[-1] + np.sign(lat_steps[-1]) * lat_step / 2.0],
+            )),
+            -90.0,
+            90.0,
+        )
+    )
+    row_areas = (
+        6371000.0**2 * np.deg2rad(lon_step) * np.abs(np.diff(np.sin(latitude_edges)))
+    )
+    return np.broadcast_to(
+        row_areas[:, np.newaxis], (target_lats.size, target_lons.size)
+    ).copy()
+
+
+def _hypsometric_cloud_top_height(
+    cloud_top_pressure: np.ndarray,
+    cloud_top_temperature: np.ndarray,
+    surface_pressure: np.ndarray,
+) -> np.ndarray:
+    """Approximate height above ground using cloud-top temperature as layer mean."""
+    cloud_top_pressure, cloud_top_temperature, surface_pressure = np.broadcast_arrays(
+        cloud_top_pressure, cloud_top_temperature, surface_pressure
+    )
+    valid = (
+        np.isfinite(cloud_top_pressure)
+        & np.isfinite(cloud_top_temperature)
+        & np.isfinite(surface_pressure)
+        & (cloud_top_pressure > 0.0)
+        & (cloud_top_temperature > 0.0)
+        & (surface_pressure > cloud_top_pressure)
+    )
+    height = np.zeros_like(cloud_top_pressure)
+    height[valid] = (
+        287.05
+        * cloud_top_temperature[valid]
+        / 9.80665
+        * np.log(surface_pressure[valid] / cloud_top_pressure[valid])
+    )
+    return height
 
 
 def _safe_name(name: str) -> str:
@@ -432,6 +529,10 @@ def _read_stream(
     dataset = _open_dataset(stream, download_dir)
     manifest_lines = []
     try:
+        for name in ("lon", "longitude", "LON", "LAT", "lat", "latitude"):
+            if name in dataset.data_vars and name not in dataset.coords:
+                dataset = dataset.set_coords(name)
+
         for nasa_var, mapping in (stream.get("variables") or {}).items():
             field_name, transform = _mapping_target_and_transform(mapping)
             fill_value = _mapping_fill_value(mapping)
@@ -453,12 +554,47 @@ def _read_stream(
                 )
             )
 
-        for field_name, method in (stream.get("derived_variables") or {}).items():
-            if method != "solar_cosine":
-                raise ValueError(
-                    f"Unsupported earthaccess derived variable method: {method}"
+        for field_name, specification in (
+            stream.get("derived_variables") or {}
+        ).items():
+            if specification == "solar_cosine":
+                values = _solar_cosine(timestamp_datetime, target_lons, target_lats)
+            elif specification == "grid_cell_area":
+                values = _grid_cell_area(target_lons, target_lats)
+            elif (
+                isinstance(specification, dict)
+                and specification.get("method") == "hypsometric_cloud_top_height"
+            ):
+                required = (
+                    "cloud_top_pressure",
+                    "cloud_top_temperature",
+                    "surface_pressure",
                 )
-            values = _solar_cosine(timestamp_datetime, target_lons, target_lats)
+                missing = [name for name in required if name not in specification]
+                if missing:
+                    raise ValueError(
+                        f"earthaccess derived variable {field_name!r} is missing "
+                        f"configuration keys: {', '.join(missing)}"
+                    )
+                interpolated = []
+                for key in required:
+                    nasa_var = specification[key]
+                    if nasa_var not in dataset:
+                        raise KeyError(
+                            f"Variable {nasa_var!r} required for derived earthaccess "
+                            f"field {field_name!r} is missing from stream "
+                            f"{stream.get('name', '<unnamed>')!r}"
+                        )
+                    selected = _select_time(dataset[nasa_var], timestamp)
+                    interpolated.append(
+                        _interp_to_target(selected, target_lons, target_lats)
+                    )
+                values = _hypsometric_cloud_top_height(*interpolated)
+            else:
+                raise ValueError(
+                    f"Unsupported earthaccess derived variable specification "
+                    f"for {field_name!r}: {specification!r}"
+                )
             manifest_lines.append(
                 _write_field(
                     output_dir,

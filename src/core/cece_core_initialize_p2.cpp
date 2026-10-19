@@ -29,6 +29,7 @@
 
 #include "cece/cece_data_ingestor.hpp"
 #include "cece/cece_internal.hpp"
+#include "cece/cece_logger.hpp"
 
 extern "C" {
 
@@ -168,6 +169,43 @@ void cece_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc)
     }
 
     std::cout << "INFO: Cached " << internal_data->esmf_fields.size() << " import field mappings" << std::endl;
+
+    // 6. Bind the diagnostic manager into every scheme at the realized grid.
+    // Phase 1 created schemes with a null manager (the grid was unknown); this
+    // is the re-initialization that comment promised (research R1). SetGrid
+    // makes the registry authoritative on field size (FR-008), SetReservedNames
+    // arms species-name collision checks (FR-009), and re-running Initialize
+    // re-registers each scheme's diagnostics into the now-bound manager so the
+    // scheme members hold grid-sized views instead of the empty P1 handles.
+    if (internal_data->diagnostic_manager != nullptr) {
+        CECE_LOG_INFO("[CECE] Binding diagnostic manager into " + std::to_string(internal_data->active_schemes.size()) + " schemes at grid " +
+                      std::to_string(internal_data->nx) + "x" + std::to_string(internal_data->ny) + "x" + std::to_string(internal_data->nz));
+
+        internal_data->diagnostic_manager->SetGrid(internal_data->nx, internal_data->ny, internal_data->nz);
+
+        std::vector<std::string> species_names;
+        species_names.reserve(internal_data->config.species_layers.size());
+        for (const auto& [species_name, layers] : internal_data->config.species_layers) {
+            species_names.push_back(species_name);
+        }
+        internal_data->diagnostic_manager->SetReservedNames(std::move(species_names));
+
+        for (std::size_t i = 0; i < internal_data->active_schemes.size() && i < internal_data->config.physics_schemes.size(); ++i) {
+            try {
+                internal_data->active_schemes[i]->Initialize(internal_data->config.physics_schemes[i].options,
+                                                             internal_data->diagnostic_manager.get());
+            } catch (const std::exception& e) {
+                CECE_LOG_ERROR("[CECE] cece_core_initialize_p2: Failed to re-initialize scheme '" + internal_data->config.physics_schemes[i].name +
+                               "' with the diagnostic manager: " + e.what());
+                if (rc != nullptr) {
+                    *rc = -1;
+                }
+                return;
+            }
+        }
+        CECE_LOG_INFO("[CECE] Diagnostic manager bound; " + std::to_string(internal_data->diagnostic_manager->Fields().size()) +
+                      " diagnostic field(s) registered");
+    }
 
     std::cout << "INFO: CECE Initialize Phase 2 completed successfully" << std::endl;
 

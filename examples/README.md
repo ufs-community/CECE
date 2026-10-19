@@ -52,6 +52,39 @@ This directory contains example YAML configuration files demonstrating various C
 - Different data source temporal configurations
 - Regional grid matching ex5
 
+### cece_config_lightning_diagnostics.yaml
+**Native Lightning Diagnostic Check**
+- Synthetic land/ocean rows, four cloud heights, and a clear-sky second timestep
+- Flash rate, flash density, mol NO per flash, column NO production, and vertically distributed NO
+- Generate input with `python tools/lightning_diagnostics_example.py generate`
+- Run `./build/cece_standalone_driver examples/cece_config_lightning_diagnostics.yaml`
+- Verify output with `python tools/lightning_diagnostics_example.py check`
+- See [the lightning guide](../docs/lightning_nox.md) for units, build commands, and reference values
+
+### cece_config_lightning_earthaccess_satellite.yaml
+**Direct NASA Satellite Cloud-Top-Height Example**
+- Reads daily CALIOP-CERES cloud-top heights and MERRA-2 land fractions through EarthAccess
+- Uses NASA's static MERRA-2 land-fraction granule and derives grid-cell area from the configured grid
+- The satellite product is limited to non-polar ocean observations and liquid cloud tops below 3 km; it is not representative of lightning convection
+- Requires Earthdata credentials and the `cloud` extra
+
+### cece_config_lightning_earthaccess_merra2.yaml
+**MERRA-2 Cloud-Top-Height Approximation Example**
+- Reads cloud-top pressure, cloud-top temperature, and surface pressure from hourly MERRA-2
+- Estimates height above ground with the hypsometric equation, using cloud-top temperature as the layer-mean temperature
+- Uses MERRA-2 land fraction and derives grid-cell area from the configured grid
+- The derived height is an approximation, not a retrieved geometric cloud-top height
+- Requires Earthdata credentials and the `cloud` extra
+
+### cece_config_diagnostics.yaml
+**Scheme Diagnostics Example**
+- Uses the `example_diagnostic_computation` scheme, which declares the diagnostics `temperature_anomaly` and `emission_efficiency`
+- `diagnostics:variables` selects only `temperature_anomaly` for publication
+- `output_interval_seconds: 7200` publishes every 2 hours on the 3600-second timestep
+- `output.include_diagnostics: true` enables the file channel (and the coupled channel under the NUOPC app)
+- The species list is empty, so the run isolates the diagnostic channel
+- Runs with either `cece_standalone_driver` or `cece_nuopc_app`
+
 ## Configuration Sections
 
 All examples include these configurable sections:

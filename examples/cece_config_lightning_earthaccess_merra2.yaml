@@ -1,0 +1,115 @@
+# NASA MERRA-2 cloud-top pressure/temperature example for the native lightning scheme.
+#
+# cloud_top_height is an approximation from the hypsometric equation. It uses
+# cloud-top temperature as the layer-mean temperature between cloud-top and
+# surface pressure; this is a convenient reanalysis proxy, not a retrieved
+# geometric cloud-top height. cell_area is computed from the configured
+# regular-grid cell boundaries. The static FRLAND stream is the 1980 MERRA-2
+# constants granule and is reused for all simulation times.
+#
+# Earthdata Login and cloud dependencies are required; see
+# docs/scripts.md#stage_earthaccess_streamspy.
+driver:
+  start_time: "2022-07-01T00:00:00"
+  end_time: "2022-07-01T02:00:00"
+  timestep_seconds: 3600
+  earthaccess_helper: "../scripts/cece_earthaccess_standalone_ingest.py"
+  grid:
+    nx: 4
+    ny: 2
+    nz: 3
+    lon_min: -101.5
+    lon_max: -98.5
+    lat_min: 39.5
+    lat_max: 40.5
+
+species:
+  LIGHTNING_NO: []
+  FLASH_RATE: []
+  FLASH_DENSITY: []
+  NO_PER_FLASH: []
+  NO_PRODUCTION: []
+
+physics_schemes:
+  - name: lightning
+    language: cpp
+    refresh_interval_seconds: 3600
+    options:
+      yield_land: 3.011e26
+      yield_ocean: 1.566e26
+      flash_rate_coeff: 3.44e-5
+      flash_rate_power: 4.9
+      flash_rate_time_unit: minutes
+      input_mapping:
+        cloud_top_height: CLOUD_TOP_HEIGHT
+        land_mask: LAND_MASK
+        cell_area: CELL_AREA
+      output_mapping:
+        lightning_nox_emissions: LIGHTNING_NO
+        lightning_flash_rate: FLASH_RATE
+        lightning_flash_density: FLASH_DENSITY
+        lightning_nox_efficiency: NO_PER_FLASH
+        lightning_nox_production: NO_PRODUCTION
+
+cece_data:
+  streams:
+    - name: merra2_cloud_top_pressure_temperature
+      source: earthaccess
+      short_name: M2T1NXSLV
+      version: "5.12.4"
+      daac: GES_DISC
+      cloud_hosted: true
+      temporal_start: "2022-07-01"
+      temporal_end: "2022-07-02"
+      variables:
+        CLDPRS: cloud_top_pressure
+        CLDTMP: cloud_top_temperature
+        PS: surface_pressure
+      derived_variables:
+        cloud_top_height:
+          method: hypsometric_cloud_top_height
+          cloud_top_pressure: CLDPRS
+          cloud_top_temperature: CLDTMP
+          surface_pressure: PS
+
+    - name: merra2_land_fraction_and_grid_area
+      source: earthaccess
+      short_name: M2C0NXASM
+      version: "5.12.4"
+      daac: GES_DISC
+      cloud_hosted: true
+      temporal_start: "1980-01-01"
+      temporal_end: "1980-01-02"
+      variables:
+        FRLAND:
+          model: LAND_MASK
+          fill_value: 0.0
+      derived_variables:
+        cell_area: grid_cell_area
+
+output:
+  enabled: true
+  directory: ./cece_output/lightning_earthaccess_merra2
+  filename_pattern: "lightning_merra2_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
+  frequency_steps: 1
+  fields:
+    - name: LIGHTNING_NO
+      attributes:
+        units: "kg s-1 cell-1"
+        long_name: "lightning NO production distributed across model levels"
+    - name: FLASH_RATE
+      attributes:
+        units: "flashes s-1 cell-1"
+        long_name: "column flash rate at level 0; zero at other levels"
+    - name: FLASH_DENSITY
+      attributes:
+        units: "flashes km-2 h-1"
+        long_name: "column flash density at level 0; zero at other levels"
+    - name: NO_PER_FLASH
+      attributes:
+        units: "mol flash-1"
+        long_name: "mol NO per flash at level 0; NaN without flashes or at other levels"
+    - name: NO_PRODUCTION
+      attributes:
+        units: "kg s-1 cell-1"
+        long_name: "column lightning NO production at level 0; zero at other levels"

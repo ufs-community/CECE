@@ -170,6 +170,32 @@ def test_output_diagnostics_is_rejected_as_unsupported():
         config.CeceConfig.from_dict({"output": {"diagnostics": True}})
 
 
+def test_diagnostics_publication_keys_round_trip():
+    parsed = config.CeceConfig.from_dict({
+        "diagnostics": {
+            "output_interval_seconds": 7200,
+            "variables": ["temperature_anomaly"],
+        },
+        "output": {"enabled": True, "include_diagnostics": True},
+    })
+
+    diagnostics = parsed.to_dict()["diagnostics"]
+    output = parsed.to_dict()["output"]
+    assert diagnostics["output_interval_seconds"] == 7200
+    assert output["include_diagnostics"] is True
+    assert config.CeceConfig.from_dict(parsed.to_dict()).to_dict() == parsed.to_dict()
+
+
+def test_deprecated_output_interval_alias_still_parses_and_canonical_wins():
+    parsed = config.CeceConfig.from_dict({
+        "diagnostics": {"output_interval": 3600, "output_interval_seconds": 7200}
+    })
+    assert parsed.diagnostics.output_interval_seconds == 7200
+
+    alias_only = config.CeceConfig.from_dict({"diagnostics": {"output_interval": 3600}})
+    assert alias_only.diagnostics.output_interval_seconds == 3600
+
+
 def test_stream_defaults_match_runtime_and_are_omitted_when_serialized():
     parsed = config.CeceConfig.from_dict({
         "cece_data": {

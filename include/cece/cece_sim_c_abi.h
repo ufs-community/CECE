@@ -258,6 +258,64 @@ void cece_sim_create_from_esmf(const char* config_path, int path_len, int nx, in
 void cece_sim_bind_export_field(CeceSimulation* sim, const char* species, int species_len, double* data_ptr, int nx, int ny_local, int nz, int* rc);
 
 /**
+ * @brief Read the registry units for an advertised diagnostic (NUOPC cap
+ * InitializeRealize).
+ *
+ * The cap calls this to stamp the ESMF field's Units attribute before
+ * NUOPC_Realize: metadata passed to NUOPC_Advertise is not observable on the
+ * state item (verified against ESMF 8.9.1), so the realized field is the
+ * first place a consumer can read it (FR-016). `units` receives the
+ * NUL-terminated value; *units_len_out reports its length excluding the
+ * terminator. Truncation is an error (rc < 0), never silent. A name the
+ * config advertised but no scheme registered fails with rc < 0 and a logged
+ * diagnostic naming it — the realization-abort edge case.
+ */
+void cece_sim_diagnostic_units(CeceSimulation* sim, const char* name, int name_len, char* units, int units_max, int* units_len_out, int* rc);
+
+/** @brief Read the registry long name for an advertised diagnostic. Same
+ * semantics as cece_sim_diagnostic_units. */
+void cece_sim_diagnostic_long_name(CeceSimulation* sim, const char* name, int name_len, char* long_name, int long_name_max, int* long_name_len_out,
+                                   int* rc);
+
+/**
+ * @brief Bind a realized diagnostic field's ESMF-owned memory as the
+ * persistent write-back target (the NUOPC diagnostic binder).
+ *
+ * Mirrors cece_sim_bind_export_field for diagnostics. The registry view is
+ * full-grid while the ESMF field is band-shaped: each advance the core
+ * syncs the registry field and deep-copies this rank's band subview into
+ * `data_ptr`. The name MUST already be a registered or pending diagnostic,
+ * and (nx, ny_local, nz) MUST match this rank's band geometry — the facade
+ * owns the decomposition and verifies it, so a mismatch fails loudly.
+ * `data_ptr` is borrowed: ESMF owns the memory and the core MUST NOT free
+ * or reallocate it.
+ *
+ * @param sim          Handle from cece_sim_create*.
+ * @param name         Diagnostic name as advertised (state item name).
+ * @param name_len     Length of name (existing cece_core_* convention).
+ * @param data_ptr     The field's farrayPtr (ESMF-owned, band-shaped).
+ * @param nx           Field longitude extent (must match the core grid).
+ * @param ny_local     Field latitude extent (must match this rank's band).
+ * @param nz           Field vertical extent (must match the core grid).
+ * @param rc           0 on success, < 0 on failure.
+ */
+void cece_sim_bind_diagnostic_field(CeceSimulation* sim, const char* name, int name_len, double* data_ptr, int nx, int ny_local, int nz, int* rc);
+
+/**
+ * @brief Copy the registry's full-grid host values for a diagnostic into
+ * @p out (LayoutLeft flat order, nx*ny_global*nz doubles).
+ *
+ * Test-support entry point: the coupled integration test compares the
+ * realized ESMF export buffer against the registry's own host view for the
+ * same step (FR-015 / SC-006). On a single rank the ESMF field spans the
+ * whole grid, so the two buffers must be element-for-element identical once
+ * the per-advance sync has run. *count_out reports the required element
+ * count even on failure. rc < 0 on an unallocated name or a too-small
+ * buffer.
+ */
+void cece_sim_diagnostic_host_copy(CeceSimulation* sim, const char* name, int name_len, double* out, int out_max, int* count_out, int* rc);
+
+/**
  * @brief Copy a connected import field's ESMF-owned host memory into the
  * core's import state for the current step (the NUOPC import binder).
  *

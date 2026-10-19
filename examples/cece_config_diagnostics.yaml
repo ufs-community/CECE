@@ -1,0 +1,50 @@
+# =====================================================================
+# CECE Example: Scheme Diagnostics Creation and Export
+# =====================================================================
+# Demonstrates the diagnostics publication path (feature 003):
+#   - A physics scheme declares diagnostic fields.
+#   - The `diagnostics:` block selects which are published and how often.
+#   - `output.include_diagnostics` opts the file channel in.
+#
+# The `example_diagnostic_computation` scheme registers three diagnostics
+# (temperature_anomaly, emission_efficiency, quality_flag). Here only
+# `temperature_anomaly` is selected, published every 2 hours (7200 s, a
+# multiple of the 3600 s timestep). `emission_efficiency` is registered but
+# intentionally dropped by the selection list.
+#
+# Run (standalone):
+#   ./build/bin/cece_standalone_driver examples/cece_config_diagnostics.yaml
+# The newest diag_*.nc in ./cece_output contains `temperature_anomaly` with
+# its registered units/long_name; species/emission variables are unchanged.
+# =====================================================================
+driver:
+  start_time: "2020-06-01T00:00:00"
+  end_time: "2020-06-01T06:00:00"
+  timestep_seconds: 3600
+  grid:
+    nx: 4
+    ny: 4
+    nz: 1
+
+# No species/emissions streams: this example isolates the diagnostic channel.
+species: {}
+cece_data:
+  streams: []
+
+physics_schemes:
+  - name: example_diagnostic_computation
+    options:
+      diagnostics: [temperature_anomaly, emission_efficiency] # scheme declares these
+      reference_temperature: 298.15
+      compute_quality_flags: false
+
+diagnostics:
+  output_interval_seconds: 7200 # publish every 2h (multiple of 3600)
+  variables: [temperature_anomaly] # only this one; emission_efficiency dropped
+
+output:
+  enabled: true
+  include_diagnostics: true # honored opt-in for the file channel
+  directory: ./cece_output
+  filename_pattern: "diag_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
+  frequency_steps: 1

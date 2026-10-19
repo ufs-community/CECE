@@ -100,7 +100,7 @@ namespace cece {
 
 class MyScheme : public BasePhysicsScheme {
 public:
-    void Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) override;
+    void Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) override;
     void Run(CeceImportState& import_state, CeceExportState& export_state) override;
 };
 
@@ -117,7 +117,7 @@ namespace cece {
 
 static PhysicsRegistration<MyScheme> register_my_scheme("my_scheme");
 
-void MyScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
+void MyScheme::Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
     // Read parameters from config
 }
@@ -499,24 +499,24 @@ All physics parameters must be configurable via YAML. Never hardcode physical co
 ### Reading Parameters
 
 ```cpp
-void MyScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
+void MyScheme::Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
 
     // Read scalar parameters
     if (config["emission_factor"]) {
-        emission_factor_ = config["emission_factor"].as<double>();
+        emission_factor_ = config["emission_factor"].as_double();
     }
 
     // Read array parameters
     if (config["diurnal_cycle"]) {
         for (int hour = 0; hour < 24; ++hour) {
-            diurnal_cycle_[hour] = config["diurnal_cycle"][hour].as<double>();
+            diurnal_cycle_[hour] = config["diurnal_cycle"][hour].as_double();
         }
     }
 
     // Read boolean flags
     if (config["apply_mask"]) {
-        apply_mask_ = config["apply_mask"].as<bool>();
+        apply_mask_ = config["apply_mask"].as_bool();
     }
 }
 ```
@@ -542,18 +542,18 @@ physics_schemes:
 ### Parameter Validation
 
 ```cpp
-void MyScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
+void MyScheme::Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
 
     if (config["emission_factor"]) {
-        emission_factor_ = config["emission_factor"].as<double>();
+        emission_factor_ = config["emission_factor"].as_double();
         if (emission_factor_ < 0.0) {
             throw std::invalid_argument("emission_factor must be non-negative");
         }
     }
 
     if (config["temperature_ref"]) {
-        temperature_ref_ = config["temperature_ref"].as<double>();
+        temperature_ref_ = config["temperature_ref"].as_double();
         if (temperature_ref_ < 200.0 || temperature_ref_ > 330.0) {
             throw std::out_of_range("temperature_ref must be between 200 and 330 K");
         }
@@ -632,44 +632,98 @@ Diagnostic fields are optional intermediate variables useful for validation and 
 
 ### Registering Diagnostic Fields
 
+The simplest way to register diagnostics is to declare their names in the
+scheme's YAML options. `BasePhysicsScheme::Initialize` reads the `diagnostics:`
+list and registers each name with the diagnostic manager once the manager and
+simulation grid are available, so a scheme needs no registration code:
+
+<!-- cece-validate: context physics_schemes -->
+```yaml
+physics_schemes:
+  - name: my_scheme
+    options:
+      diagnostics: [temperature_factor, solar_factor]
+```
+
+A scheme that needs units or a long name for a field — or that derives its
+diagnostic names at runtime instead of listing them in config — can register
+them directly in `Initialize` with `ResolveDiagnostic`:
+
 ```cpp
-void MyScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_manager) {
+void MyScheme::Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
 
-    if (diag_manager != nullptr) {
-        temperature_factor_ = ResolveDiagnostic("temperature_factor", nx, ny, nz,
-                                                "dimensionless",
-                                                "Temperature scaling factor");
-    }
+    temperature_factor_ = ResolveDiagnostic("temperature_factor", nx, ny, nz,
+                                            "dimensionless",
+                                            "Temperature scaling factor");
 }
 ```
 
+`ResolveDiagnostic` returns the registry's shared `DualView3D` handle for the
+name, registering it if it is not already present. Listing a name in both the
+options and `ResolveDiagnostic` is harmless — the second call returns the same
+field.
+
 ### Writing to Diagnostic Fields
+
+Resolve the field once in `Initialize` (as above), take its device view in
+`Run`, write inside the Kokkos kernel, and mark the data modified on the device
+so the framework syncs the host copy before output:
 
 ```cpp
 void MyScheme::Run(CeceImportState& import_state, CeceExportState& export_state) {
-    // ... resolve fields ...
+    // ... resolve input fields ...
+
+    auto factor_device = temperature_factor_.view_device();
 
     Kokkos::parallel_for(..., KOKKOS_LAMBDA(int i, int j, int k) {
         double temp_factor = compute_temperature_factor(temperature(i, j, k));
         emissions(i, j, k) = base_emission * temp_factor;
 
-        // Store diagnostic value
-        temperature_factor_(i, j, k) = temp_factor;
+        // Store the diagnostic value in the device view
+        factor_device(i, j, k) = temp_factor;
     });
+
+    Kokkos::fence();
+    temperature_factor_.modify_device();
 }
 ```
 
+See `include/cece/physics/cece_example_diagnostic_computation.hpp` and
+`src/core/physics/cece_example_diagnostic_computation.cpp` for the full pattern.
+
 ### Diagnostic Output
 
-To include a diagnostic field in NetCDF output, list it explicitly under `output.fields`:
+Diagnostics are written to the NetCDF output automatically when
+`output.include_diagnostics` is set to `true` (the file channel additionally
+requires `output.enabled: true`). Which diagnostics appear is controlled by
+`diagnostics:variables`: a non-empty list publishes exactly those names, while
+an empty or absent list publishes every registered diagnostic. Publication
+cadence is set by `diagnostics:output_interval_seconds` (`0` publishes on every
+file write; a positive value must be a multiple of `driver.timestep_seconds`).
 
 ```yaml
+physics_schemes:
+  - name: example_diagnostic_computation
+    options:
+      diagnostics: [temperature_anomaly, emission_efficiency]
+
+diagnostics:
+  output_interval_seconds: 7200      # publish every 2h (multiple of 3600)
+  variables: [temperature_anomaly]   # only this one; emission_efficiency dropped
+
 output:
-  fields:
-    - emissions
-    - temperature_factor
+  enabled: true
+  include_diagnostics: true          # opt the file channel in
+  directory: ./cece_output
+  filename_pattern: "diag_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
+  frequency_steps: 1
 ```
+
+The same `output.include_diagnostics` flag also advertises the selected
+diagnostics as NUOPC export fields when running under the cap; see
+[the NUOPC cap parity guide](nuopc_cap_parity.md#diagnostic-export-channel) for
+details. A complete runnable config is `examples/cece_config_diagnostics.yaml`.
 
 ---
 
@@ -754,17 +808,18 @@ Create unit tests for your scheme:
 ```cpp
 // tests/test_my_scheme.cpp
 #include <gtest/gtest.h>
+#include <conf/config.hpp>
 #include "cece/physics/cece_my_scheme.hpp"
 
 class MySchemeTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        // Initialize scheme
-        scheme_.Initialize(config_, nullptr);
+        // Initialize scheme with the options the YAML would hand it
+        conf::Config cfg = conf::Config::from_string("emission_factor: 1.0e-6");
+        scheme_.Initialize(cfg.root(), nullptr);
     }
 
     MyScheme scheme_;
-    YAML::Node config_;
 };
 
 TEST_F(MySchemeTest, EmissionComputation) {

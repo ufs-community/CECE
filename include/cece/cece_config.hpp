@@ -191,6 +191,16 @@ inline bool IsCoordinateName(std::string_view name) {
     return std::ranges::find(kCoordinateNames, name) != kCoordinateNames.end();
 }
 
+/// Every variable name the standalone writer manages itself: the four
+/// coordinates plus the bounds and mesh variables it always emits. A
+/// diagnostic may never reuse one (FR-009) — shared by the registry
+/// (registration-time check) and the config parser (selection-time check).
+inline constexpr std::array<std::string_view, 7> kWriterManagedNames{"lon", "lat", "lev", "time", "lon_bnds", "lat_bnds", "mesh"};
+
+inline bool IsWriterManagedName(std::string_view name) {
+    return std::ranges::find(kWriterManagedNames, name) != kWriterManagedNames.end();
+}
+
 /// Default CF coordinates attribute for data fields: the coordinate names
 /// joined in written-shape order. Structural, so every data field gets it
 /// unless the entry configures its own coordinates value.

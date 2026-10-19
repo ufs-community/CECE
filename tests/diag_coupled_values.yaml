@@ -1,0 +1,33 @@
+# Fixture for tests/test_diagnostics_coupled.F90 (mode: values).
+# One 4x4x1 grid, one scheme declaring temperature_anomaly + emission_efficiency,
+# selection = temperature_anomaly, include_diagnostics ON => the coupled channel
+# is advertised/realized. File output is disabled (the coupled path is gated by
+# include_diagnostics alone, not output.enabled), so the test writes no files.
+driver:
+  start_time: "2020-06-01T00:00:00"
+  end_time: "2020-06-01T01:00:00"
+  timestep_seconds: 3600
+  grid:
+    nx: 4
+    ny: 4
+    nz: 1
+
+species: {}
+cece_data:
+  streams: []
+
+physics_schemes:
+  - name: example_diagnostic_computation
+    options:
+      diagnostics: [temperature_anomaly]
+      reference_temperature: 298.15
+      compute_quality_flags: false
+
+diagnostics:
+  output_interval_seconds: 3600
+  variables: [temperature_anomaly]
+
+output:
+  enabled: false
+  include_diagnostics: true
+  directory: ./cece_output

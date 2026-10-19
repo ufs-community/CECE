@@ -37,37 +37,73 @@ void ExampleDiagnosticComputation::Initialize(const conf::Value& config, CeceDia
 }
 
 void ExampleDiagnosticComputation::Run(CeceImportState& import_state, CeceExportState& export_state) {
-    // Resolve input fields
-    auto temperature = ResolveImport("temperature", import_state);
-
-    // Resolve emissions field (from export state, computed by previous scheme)
-    auto emissions = ResolveInput("emissions", import_state, export_state);
-
-    // Validate field resolution
-    if (temperature.data() == nullptr || emissions.data() == nullptr) {
+    // Nothing to fill when no diagnostic manager was bound (the views are
+    // null in that case).
+    if (temperature_anomaly_.view_host().data() == nullptr && emission_efficiency_.view_host().data() == nullptr &&
+        quality_flag_.view_host().data() == nullptr) {
         return;
     }
 
-    // Get grid dimensions
-    int nx = emissions.extent(0);
-    int ny = emissions.extent(1);
-    int nz = emissions.extent(2);
+    // Resolve input fields.
+    Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> temperature = ResolveImport("temperature", import_state);
+    // Emissions may come from a previous scheme through the export state.
+    Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> emissions =
+        ResolveInput("emissions", import_state, export_state);
+
+    // Determine the field shape: prefer a live input, else the registered
+    // diagnostic extent (grid-sized after Phase 2 binding).
+    int nx = 0, ny = 0, nz = 0;
+    if (emissions.data() != nullptr) {
+        nx = static_cast<int>(emissions.extent(0));
+        ny = static_cast<int>(emissions.extent(1));
+        nz = static_cast<int>(emissions.extent(2));
+    } else if (temperature.data() != nullptr) {
+        nx = static_cast<int>(temperature.extent(0));
+        ny = static_cast<int>(temperature.extent(1));
+        nz = static_cast<int>(temperature.extent(2));
+    } else if (temperature_anomaly_.view_host().data() != nullptr) {
+        nx = static_cast<int>(temperature_anomaly_.view_host().extent(0));
+        ny = static_cast<int>(temperature_anomaly_.view_host().extent(1));
+        nz = static_cast<int>(temperature_anomaly_.view_host().extent(2));
+    } else {
+        nx = static_cast<int>(emission_efficiency_.view_host().extent(0));
+        ny = static_cast<int>(emission_efficiency_.view_host().extent(1));
+        nz = static_cast<int>(emission_efficiency_.view_host().extent(2));
+    }
+
+    // The standalone driver has no meteorology ingest path, so a run with
+    // only this scheme has neither input. Substitute zero-filled constant
+    // views of the right shape: the diagnostics then hold deterministic
+    // values (anomaly = -reference, efficiency = 0) instead of the run
+    // silently computing nothing. When a live field exists, it wins.
+    if (temperature.data() == nullptr) {
+        if (zero_temperature_.data() == nullptr || static_cast<int>(zero_temperature_.extent(0)) != nx ||
+            static_cast<int>(zero_temperature_.extent(1)) != ny || static_cast<int>(zero_temperature_.extent(2)) != nz) {
+            zero_temperature_ = Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>("zero_temperature", nx, ny, nz);
+            Kokkos::deep_copy(zero_temperature_, 0.0);
+        }
+        temperature = Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>(zero_temperature_);
+    }
+    if (emissions.data() == nullptr) {
+        if (zero_emissions_.data() == nullptr || static_cast<int>(zero_emissions_.extent(0)) != nx ||
+            static_cast<int>(zero_emissions_.extent(1)) != ny || static_cast<int>(zero_emissions_.extent(2)) != nz) {
+            zero_emissions_ = Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>("zero_emissions", nx, ny, nz);
+            Kokkos::deep_copy(zero_emissions_, 0.0);
+        }
+        emissions = Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>(zero_emissions_);
+    }
+
+    // Device-side writable handles for the registered diagnostic fields.
+    auto anomaly_device = temperature_anomaly_.view_device();
+    auto efficiency_device = emission_efficiency_.view_device();
+    auto quality_device = quality_flag_.view_device();
 
     // ========================================================================
-    // Kokkos Parallel Kernel: Compute Diagnostic Fields
+    // Kokkos Parallel Kernel: Compute and STORE diagnostic fields
     // ========================================================================
-    // This kernel demonstrates the diagnostic computation pattern:
-    // 1. Read input fields (meteorology, base emissions, etc.)
+    // 1. Read input fields (meteorology, base emissions, or zero fallbacks)
     // 2. Compute intermediate diagnostic variables
-    // 3. Store results in diagnostic fields
-    //
-    // Key points:
-    // - Diagnostic fields are optional and don't affect main computation
-    // - They are useful for validation and debugging
-    // - They can be written to NetCDF output for post-processing
-    // - Multiple diagnostic schemes can be chained together
-    // - Diagnostic computation should be efficient (avoid expensive operations)
-
+    // 3. Store results in the diagnostic fields registered in Initialize()
     Kokkos::parallel_for(
         "ExampleDiagnosticComputationKernel", Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<3>>({0, 0, 0}, {nx, ny, nz}),
         KOKKOS_LAMBDA(int i, int j, int k) {
@@ -84,27 +120,33 @@ void ExampleDiagnosticComputation::Run(CeceImportState& import_state, CeceExport
             // Compute quality flag
             int quality = ComputeQualityFlag(emis, temp, quality_threshold_);
 
-            // Store diagnostic results
-            // Note: In a real implementation, these would be stored in the
-            // diagnostic fields registered in Initialize()
-            // For this example, we just compute them
-            // temperature_anomaly_(i, j, k) = temp_anom;
-            // emission_efficiency_(i, j, k) = emis_eff;
-            // quality_flag_(i, j, k) = quality;
-
-            // Example diagnostic computations:
-            // - Validate that emissions are physically reasonable
-            // - Check for data quality issues
-            // - Compute intermediate variables for analysis
-            // - Flag suspicious or invalid data
+            // Store diagnostic results in the registered fields
+            if (anomaly_device.data() != nullptr) {
+                anomaly_device(i, j, k) = temp_anom;
+            }
+            if (efficiency_device.data() != nullptr) {
+                efficiency_device(i, j, k) = emis_eff;
+            }
+            if (quality_device.data() != nullptr) {
+                quality_device(i, j, k) = static_cast<double>(quality);
+            }
         });
 
     Kokkos::fence();
 
-    // Note: Unlike emission schemes, diagnostic schemes typically don't
-    // modify export fields, so we don't call MarkModified() here.
-    // However, if we were storing results in diagnostic fields, we would
-    // need to mark those as modified.
+    // The host side of each diagnostic is stale after the device writes;
+    // mark them modified-on-device so the writer's sync_host() picks up
+    // the computed values (the export state itself is untouched — this is
+    // a diagnostics-only scheme).
+    if (temperature_anomaly_.view_host().data() != nullptr) {
+        temperature_anomaly_.modify_device();
+    }
+    if (emission_efficiency_.view_host().data() != nullptr) {
+        emission_efficiency_.modify_device();
+    }
+    if (quality_flag_.view_host().data() != nullptr) {
+        quality_flag_.modify_device();
+    }
 }
 
 void ExampleDiagnosticComputation::Finalize() {
