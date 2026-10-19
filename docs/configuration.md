@@ -268,7 +268,7 @@ species:
 
 - The grid file is decoded **once** at initialization into a dense cosine-reduced
   raster of signed UTC offsets (quarter-hour precision, produced by
-  `scripts/python/utcoffset_generator.py` from each time zone's standard offset):
+  `scripts/utcoffset_generator.py` from each time zone's standard offset):
   1440 uniform
   0.125° latitude rows whose column count tapers toward the poles
   (`ncol = max(4, 4·round(720·cos lat))`), giving ~14 km ground resolution

@@ -29,7 +29,7 @@ std::string GridPath() {
 }
 
 /// Reference offsets (quarter-hours) at named probe points, verified against
-/// the shipped file produced by scripts/python/utcoffset_generator.py.
+/// the shipped file produced by scripts/utcoffset_generator.py.
 struct Probe {
     double lat;
     double lon;

@@ -1,19 +1,13 @@
-import importlib.util
+import sys
 import zoneinfo
 from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
 
-GENERATOR_PATH = (
-    Path(__file__).resolve().parents[1]
-    / "scripts"
-    / "python"
-    / "utcoffset_generator.py"
-)
-SPEC = importlib.util.spec_from_file_location("utcoffset_generator", GENERATOR_PATH)
-generator = importlib.util.module_from_spec(SPEC)
-SPEC.loader.exec_module(generator)
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+
+import utcoffset_generator as generator
 
 
 def _require_zone(name):
