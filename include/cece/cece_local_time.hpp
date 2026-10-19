@@ -135,7 +135,7 @@ struct LocalTimeParts {
  * @brief Pluggable UTC-offset source — the seam that isolates consumers from the
  *        concrete offset data.
  *
- * v1: StaticGridOffsetProvider (static 2026-01-15 snapshot grid). A future
+ * v1: StaticGridOffsetProvider (static standard-time grid, no DST). A future
  * DST-aware / time-varying source implements the same method and uses the
  * utc_epoch_secs argument; no consumer changes are required to swap it in.
  */

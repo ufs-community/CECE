@@ -13,14 +13,14 @@ from netCDF4 import Dataset
 
 NX, NY = 72, 36
 
-# (name, lat, lon, UTC offset in hours from the static civil-zone snapshot)
+# (name, lat, lon, standard-time UTC offset in hours)
 POINTS = [
     ("US Pacific (-8)", 37.0, -120.0, -8.0),
     ("London (0)", 51.0, 0.0, 0.0),
     ("Moscow (+3)", 55.0, 37.5, 3.0),
     ("India (+5:30)", 27.5, 77.5, 5.5),
     ("Tokyo (+9)", 35.0, 140.0, 9.0),
-    ("Auckland (+13)", -37.5, 175.0, 13.0),
+    ("Auckland (+12)", -37.5, 175.0, 12.0),
 ]
 
 

@@ -268,7 +268,8 @@ species:
 
 - The grid file is decoded **once** at initialization into a dense cosine-reduced
   raster of signed UTC offsets (quarter-hour precision, produced by
-  `scripts/python/utcoffset_generator.py` from a timezone snapshot): 1440 uniform
+  `scripts/python/utcoffset_generator.py` from each time zone's standard offset):
+  1440 uniform
   0.125° latitude rows whose column count tapers toward the poles
   (`ncol = max(4, 4·round(720·cos lat))`), giving ~14 km ground resolution
   everywhere at 36% fewer cells than a full regular grid. Each rank
@@ -277,6 +278,11 @@ species:
   Earth carries a UTC offset, including the oceans (the offset of the time zone
   covering the point, e.g. an `Etc/GMT±n` ocean zone); only genuinely unresolved
   points fall back to offset 0, i.e. UTC.
+- Offsets are **standard (non-DST) time all year round**: a zone that observes
+  daylight saving time is not shifted in its summer. Each zone's standard offset
+  is the smaller of its offsets in mid-January and mid-July, which gives the
+  non-DST offset in both hemispheres (for example Sydney +10, Auckland +12,
+  Santiago −4, Dublin +0, Casablanca +1).
 - Local hour / day-of-week / month are derived with integer arithmetic and
   correct date rollover (a −8 h offset at 02:00 UTC yields 18:00 the previous
   local day, and the weekly cycle follows the local day).
