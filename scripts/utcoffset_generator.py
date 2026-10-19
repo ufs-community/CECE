@@ -153,15 +153,15 @@ def standard_offset_units(tz_name: str) -> int:
     gives GMT for Ireland, which tzdata models as +01 with a negative DST in
     winter, and leaves Morocco at +01 because neither instant is in Ramadan.
     """
-    try:
-        tz = zoneinfo.ZoneInfo(tz_name)
-        secs = min(
-            ref.astimezone(tz).utcoffset().total_seconds()
-            for ref in STANDARD_TIME_REF_DATES
-        )
-    except (zoneinfo.ZoneInfoNotFoundError, OverflowError, ValueError):
-        return 0
-    return max(-128, min(127, round(secs / 900.0)))
+    tz = zoneinfo.ZoneInfo(tz_name)
+    secs = min(
+        ref.astimezone(tz).utcoffset().total_seconds()
+        for ref in STANDARD_TIME_REF_DATES
+    )
+    units = round(secs / 900.0)
+    if not -128 <= units <= 127:
+        raise ValueError(f"{tz_name} offset {secs / 3600:+g} h does not fit in int8")
+    return units
 
 
 def rasterize_from_timezones() -> bytearray:
@@ -172,8 +172,9 @@ def rasterize_from_timezones() -> bytearray:
 
     def offset_units(lat: float, lon: float) -> int:
         tz_name = tf.timezone_at(lat=lat, lng=lon)
-        if not tz_name:
-            return 0  # ocean / unresolved -> UTC
+        if tz_name is None:
+            # timezone_at covers oceans (Etc/GMT*), so None means a lookup failure.
+            raise ValueError(f"No timezone found for lat={lat}, lon={lon}")
         if tz_name not in zone_offsets:
             zone_offsets[tz_name] = standard_offset_units(tz_name)
         return zone_offsets[tz_name]
