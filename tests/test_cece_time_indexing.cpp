@@ -1769,4 +1769,59 @@ TEST(CeceAxisDecode, DecodePackedTimeAxis) {
     EXPECT_EQ(wrong.i0, 14);
 }
 
+TEST(CeceLocalWeekly, EpochSecondsMatchKnownInstant) {
+    using namespace cece::detail;
+    EXPECT_EQ(sim_datetime_epoch_secs(parse_sim_datetime("2026-01-15T06:00:00")), 1768456800);
+    EXPECT_EQ(sim_datetime_epoch_secs(parse_sim_datetime("1970-01-01T00:00:01")), 1);
+}
+
+TEST(CeceLocalWeekly, RecordIsMondayZeroAndFollowsLocalDate) {
+    using namespace cece::detail;
+    constexpr std::int64_t kHour = 3600;
+    const std::int64_t monday_0200 = sim_datetime_epoch_secs(parse_sim_datetime("2026-01-12T02:00:00"));
+    EXPECT_EQ(weekly_record_from_local_secs(monday_0200), 0);
+    // UTC-8 is still Sunday evening when it is Monday 02:00Z.
+    EXPECT_EQ(weekly_record_from_local_secs(monday_0200 - 8 * kHour), 6);
+    // UTC+12 is already Monday 14:00; UTC+22h would be Tuesday.
+    EXPECT_EQ(weekly_record_from_local_secs(monday_0200 + 12 * kHour), 0);
+    EXPECT_EQ(weekly_record_from_local_secs(monday_0200 + 22 * kHour), 1);
+    // Sunday UTC is the last record.
+    EXPECT_EQ(weekly_record_from_local_secs(sim_datetime_epoch_secs(parse_sim_datetime("2026-01-18T12:00:00"))), 6);
+}
+
+TEST(CeceLocalWeekly, WindowIsUtcDayAndNeighbours) {
+    using namespace cece::detail;
+    // 2026-01-15 is a Thursday (record 3).
+    EXPECT_EQ(weekly_record_window(parse_sim_datetime("2026-01-15T06:00:00")), (std::array<int, 3>{2, 3, 4}));
+    // Monday wraps back to Sunday, Sunday wraps forward to Monday.
+    EXPECT_EQ(weekly_record_window(parse_sim_datetime("2026-01-12T00:00:00")), (std::array<int, 3>{6, 0, 1}));
+    EXPECT_EQ(weekly_record_window(parse_sim_datetime("2026-01-18T00:00:00")), (std::array<int, 3>{5, 6, 0}));
+}
+
+TEST(CeceLocalWeekly, WindowCoversEveryOffsetAtEveryInstant) {
+    using namespace cece::detail;
+    // Every quarter-hour of a week against every quarter-hour offset in [-12h, +14h].
+    const std::int64_t week_start = sim_datetime_epoch_secs(parse_sim_datetime("2026-01-12T00:00:00"));
+    constexpr std::int64_t kQuarter = 900;
+    for (std::int64_t utc = week_start; utc < week_start + 7 * 86400; utc += kQuarter) {
+        const int day_index = static_cast<int>((utc - week_start) / 86400);
+        SimDateTime dt;
+        dt.day_of_week = day_index % 7 + 1;  // week_start is a Monday
+        const std::array<int, 3> window = weekly_record_window(dt);
+        for (std::int64_t offset = -12 * 3600; offset <= 14 * 3600; offset += kQuarter) {
+            const int record = weekly_record_from_local_secs(utc + offset);
+            EXPECT_NE(std::find(window.begin(), window.end(), record), window.end()) << "utc=" << utc << " offset=" << offset << " record=" << record;
+        }
+    }
+}
+
+TEST(CeceStreamConfigValidation, LocalTimeRequiresWeeklyNearest) {
+    using namespace cece::detail;
+    EXPECT_NO_THROW(validate_stream_local_time("weekly", "nearest", ""));
+    EXPECT_NO_THROW(validate_stream_local_time("Weekly", "", ""));
+    EXPECT_THROW(validate_stream_local_time("hourly", "nearest", ""), std::invalid_argument);
+    EXPECT_THROW(validate_stream_local_time("", "nearest", ""), std::invalid_argument);
+    EXPECT_THROW(validate_stream_local_time("weekly", "linear", ""), std::invalid_argument);
+}
+
 }  // namespace cece

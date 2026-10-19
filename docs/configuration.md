@@ -294,6 +294,10 @@ See [examples/cece_config_localtime.yaml](../examples/cece_config_localtime.yaml
 for a self-contained runnable example (an identity diurnal profile reveals the
 local hour actually used per cell).
 
+For gridded weekly factors read from a data stream (for example CAMS-TEMPO), the
+layer option does not apply; set `use_local_time` on the stream instead. See
+[Local-weekday weekly profiles](#local-weekday-weekly-profiles-use_local_time).
+
 ---
 
 ## `species`
@@ -677,6 +681,7 @@ Configuration for data streams that read external emission inventories and auxil
 | `time_label` | String | (Optional) Where each time coordinate sits in the interval its record describes: `auto` (default), `start`, `center`, or `end`. Applies to decoded time axes. See [Time Labels](#time-labels-time_label). |
 | `mapalgo` | String | Spatial regridding: `consd` (default), `bilinear`, `consf`, `nn`, `redist`, or `passthrough`. `passthrough` requires identical dimensions and ordered source/target coordinates, then copies without AXIS regridding. |
 | `data_model` | String | (Optional) AMIO NetCDF data model for reads: `enhanced`, `classic`, or `auto`. Default behavior is auto (`enhanced` first, then `classic` fallback on backend open failure). |
+| `use_local_time` | Boolean | (Optional) With `cadence: weekly` and `tintalgo: nearest` only: each cell reads the weekly record of its **local** weekday instead of the UTC weekday. Requires `local_time.enabled` and a 7-record file. Default: `false`. See [Local-weekday weekly profiles](#local-weekday-weekly-profiles-use_local_time). |
 | `variables` | List | (Optional) Variable mappings between file and model. If omitted, null, or empty, the stream `name` is used for both names and the standalone driver logs a warning. A mapping may be a string shorthand or a map with a required `model` name and optional `file` name; omitted `file` defaults to `model`. |
 
 ### Variable Mapping
@@ -764,6 +769,37 @@ Any other value is a configuration error.
 > **Changed behavior:** omitting `cadence` used to mean step-index cycling. It now
 > means `series` (time-aware record selection), which is almost always what is
 > wanted. Set `cadence: stepwise` to opt back in to the old index-walking behavior.
+
+#### Local-weekday weekly profiles (`use_local_time`)
+
+A `weekly` stream normally reads one record for the whole globe, chosen by the UTC
+weekday. For gridded day-of-week factors such as CAMS-TEMPO, each cell should instead use
+the factor of its own local weekday. Set `use_local_time: true` on the stream:
+
+```yaml
+local_time:
+  enabled: true
+
+cece_data:
+  streams:
+    - name: "CAMS_WEEKLY"
+      file: "/data/profiles/weekly_factors.nc"   # exactly 7 records, 0=Monday
+      cadence: "weekly"
+      use_local_time: true
+```
+
+- It is supported only with `cadence: weekly` and `tintalgo: nearest` (the default), and
+  the file must have exactly 7 records. Other combinations are configuration errors, as is
+  enabling it while `local_time.enabled` is false.
+- UTC offsets span -12 h to +14 h, so a cell's local date is the UTC date or the day before
+  or after it. Every rank reads and regrids those three records, and each cell takes the
+  one for its local weekday. A record is read once per week, as in the UTC case.
+- The composed field changes whenever a cell's local date changes, so it is recomputed
+  every time the stream is ingested. Keep `refresh_interval_seconds` at one hour or less
+  (quarter-hour zones such as Nepal flip up to one refresh interval late).
+- Only the day of week is localized. An `hourly` stream is still indexed by the UTC hour.
+- The same offset grid and caveats apply as for the layer option; see
+  [`local_time`](#local_time).
 
 #### Decoding the time axis
 

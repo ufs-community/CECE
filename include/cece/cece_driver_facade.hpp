@@ -4,8 +4,10 @@
 #include <amio/amio.h>
 #include <mpi.h>
 
+#include <Kokkos_Core.hpp>
 #include <cstddef>
 #include <dagr/dagr.hpp>
+#include <functional>
 #include <halo/collectives.hpp>
 #include <halo/communicator.hpp>
 #include <halo/environment.hpp>
@@ -29,6 +31,7 @@ class Node;
 namespace cece {
 
 using detail::RecordBracket;
+using detail::SimDateTime;
 
 /**
  * @brief Resolved per-stream-variable configuration.
@@ -50,6 +53,7 @@ struct StreamConfig {
     std::string time_units;            ///< override for a missing/non-standard "units" attribute
     std::string calendar;              ///< "" -> file attribute, else gregorian
     std::string time_label = "auto";   ///< auto|start|center|end; monthly start auto-detects month-start stamps
+    bool use_local_time = false;       ///< weekly cadence only: pick each cell's record by its local weekday
     std::string data_model = "enhanced";
     bool data_model_explicit = false;                   ///< true => open with only data_model
     int amio_worker_threads = 1;                        ///< driver-level, validated >= 1
@@ -98,6 +102,18 @@ struct EndpointCacheEntry {
     int built_field_nlev = 0;         ///< shape at build time (shape-change invalidation)
     int built_nx = 0;
     int built_ny = 0;  ///< stores ny_local (this rank's band rows), compared against band_.ny_local
+};
+
+/**
+ * @brief Regridded weekly records held for a use_local_time stream variable.
+ *
+ * Holds at most the 3-record window around the UTC weekday. Each entry is a band
+ * buffer (field_nlev * nx_ * ny_local, [level][jrel][i]) keyed by weekly record
+ * index (0=Monday).
+ */
+struct LocalWeeklyCacheEntry {
+    std::unordered_map<int, std::vector<double>> records;
+    Kokkos::View<std::int32_t**, Kokkos::LayoutLeft, Kokkos::HostSpace> offsets;  ///< band-local UTC offsets (s)
 };
 
 class CeceDriverOrchestrator {
@@ -173,6 +189,15 @@ class CeceDriverOrchestrator {
     // global field. Local work plus the single core-import-shape collective gate.
     bool WriteBandToImport(const std::string& var_name, const std::vector<double>& dest_buffer, int field_nlev, void* cece_core_data_ptr,
                            std::string& failure_detail);
+
+    // use_local_time weekly streams: regrid the 3-record window around the UTC
+    // weekday (identical on every rank, so the collectives inside
+    // RegridToBandBuffer stay in lock-step), then fill each band cell from the
+    // record of its LOCAL weekday and write the result to the core import field.
+    // read_record reads source record t_idx into a global-geometry buffer.
+    bool ComposeLocalWeeklyField(const std::string& var_name, const io::RegridPlan& plan, int field_nlev, int file_nt, const SimDateTime& sim_dt,
+                                 const std::function<bool(int, std::vector<double>&, int&, int&)>& read_record, void* cece_core_data_ptr,
+                                 std::vector<double>& ingest_buffer, std::string& failure_detail);
 
     /** Return whether the YAML config contains streams handled by EarthAccess. */
     static bool HasEarthAccessStreams(const std::string& config_file);
@@ -389,6 +414,9 @@ class CeceDriverOrchestrator {
     // variables sharing one Regrid_Plan still get distinct endpoint pairs
     // (Req 1, 7). Cleared in TeardownHandles (Req 6.3).
     std::unordered_map<std::string, EndpointCacheEntry> endpoint_caches_;
+
+    // Regridded weekly records for use_local_time streams, keyed by model variable name.
+    std::unordered_map<std::string, LocalWeeklyCacheEntry> local_weekly_caches_;
 
     // HELM Orchestration and pipeline components
     std::unique_ptr<dagr::GraphOrchestrator> dagr_;

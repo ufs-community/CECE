@@ -12,6 +12,8 @@
 
 #include <amio/amio.h>
 
+#include <array>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -63,6 +65,22 @@ SimDateTime parse_sim_datetime(const std::string& iso8601);
 /// time_label, or an inverted yearFirst/yearLast range.
 void validate_stream_temporal_config(const std::string& cadence, const std::string& taxmode, const std::string& tintalgo, int yearFirst, int yearLast,
                                      int yearAlign, const std::string& where, const std::string& time_label = "auto");
+
+/// Throws std::invalid_argument unless a stream that sets use_local_time uses
+/// cadence weekly with tintalgo nearest. @p where identifies the stream.
+void validate_stream_local_time(const std::string& cadence, const std::string& tintalgo, const std::string& where);
+
+/// Seconds since 1970-01-01T00:00:00Z for @p dt (proleptic Gregorian, UTC).
+std::int64_t sim_datetime_epoch_secs(const SimDateTime& dt);
+
+/// Weekly-profile record (0=Monday .. 6=Sunday) for a local civil-seconds
+/// timestamp, i.e. UTC epoch seconds plus the cell's UTC offset.
+int weekly_record_from_local_secs(std::int64_t local_secs);
+
+/// Weekly records that any cell can need at @p dt: the UTC date's record and its
+/// neighbours, since UTC offsets (-12h..+14h) shift a local date by at most one
+/// day. Rank-invariant, so every rank reads the same records.
+std::array<int, 3> weekly_record_window(const SimDateTime& dt);
 
 RecordBracket bracket_from_cadence(const std::string& cadence, const std::string& tintalgo, const SimDateTime& dt, int file_nt, int yearFirst = 0,
                                    int yearLast = 0, int yearAlign = 0, const std::string& taxmode = "");

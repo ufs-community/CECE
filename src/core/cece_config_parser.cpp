@@ -221,6 +221,21 @@ CeceConfig ParseConfig(const std::string& filename) {
             stream.lon_var = string_or(node, "lon_var", stream.lon_var);
             stream.lat_var = string_or(node, "lat_var", stream.lat_var);
             stream.refresh_interval_seconds = node["refresh_interval_seconds"].int_or(0);
+            stream.use_local_time = node["use_local_time"].bool_or(false);
+            if (stream.use_local_time) {
+                const std::string where = "cece_data.streams[" + std::to_string(i) + "] ('" + stream.name + "')";
+                if (!config.local_time.enabled) {
+                    throw std::invalid_argument(where +
+                                                " sets use_local_time but local_time.enabled is false. Enable the local_time section or "
+                                                "remove use_local_time from the stream.");
+                }
+                if (to_lower(string_or(node, "cadence")) != "weekly") {
+                    throw std::invalid_argument(where + ": use_local_time is only supported with cadence: weekly.");
+                }
+                if (to_lower(stream.tintalgo) != "nearest") {
+                    throw std::invalid_argument(where + ": use_local_time requires tintalgo: nearest.");
+                }
+            }
             config.cece_data.streams.push_back(std::move(stream));
         }
     }

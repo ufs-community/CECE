@@ -257,6 +257,11 @@ class LocalTimeService {
         return offsets_;
     }
 
+    /// @brief Host copy of the band-local offsets in seconds, for host-side composition.
+    Kokkos::View<std::int32_t**, Kokkos::LayoutLeft, Kokkos::HostSpace> HostOffsets() const {
+        return Kokkos::create_mirror_view_and_copy(Kokkos::HostSpace(), offsets_);
+    }
+
     /// @brief True when the grid failed to load and every lookup yields UTC.
     bool UtcFallback() const {
         return utc_fallback_;
