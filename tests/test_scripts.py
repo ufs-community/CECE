@@ -175,3 +175,51 @@ def test_build_passes_command_to_container(monkeypatch):
     assert f"{btc.REPO_ROOT}:/work" in argv
     assert argv[-4:-1] == ["img:tag", "/bin/bash", "-c"]
     assert argv[-1] == btc.build_command("/work", ["cece_standalone_driver"], 4)
+
+
+def test_plot_utc_grid_polygons_tile_the_globe():
+    import numpy as np
+    import plot_utc_grid
+    import pytest
+
+    def area(poly):
+        x, y = poly[:, 0], poly[:, 1]
+        return 0.5 * abs(np.dot(x, np.roll(y, -1)) - np.dot(y, np.roll(x, -1)))
+
+    # A 1 deg run is the narrowest case (it once came out as a triangle).
+    for west, east in [(0.0, 1.0), (0.0, 10.0), (-180.0, 180.0)]:
+        poly = plot_utc_grid.densified_run(west, east, 0.0, 1.0)
+        assert area(poly) == pytest.approx(east - west)
+
+    # Two 90 deg rows: three equal-offset runs that must cover the whole 360x180 map.
+    ncols = np.array([4, 4])
+    cells = np.array([0, 0, 4, 4, 8, 8, 8, 8], dtype=np.int8)
+    polygons, hours = plot_utc_grid.build_merged_polygons(ncols, cells)
+    assert hours.tolist() == [0.0, 1.0, 2.0]
+    assert sum(area(p) for p in polygons) == pytest.approx(360.0 * 180.0)
+
+
+def test_local_weekday_checker_rejects_nan_and_masked_output(tmp_path):
+    import numpy as np
+    import pytest
+
+    pytest.importorskip("netCDF4")
+    import stream_local_weekday_helper as helper
+
+    def check_with(name, values):
+        out_dir = tmp_path / name
+        out_dir.mkdir()
+        with helper.Dataset(out_dir / "wk_20260112_210000.nc", "w") as ds:
+            ds.createDimension("lat", helper.NY)
+            ds.createDimension("lon", helper.NX)
+            lat = ds.createVariable("lat", "f8", ("lat",))
+            lon = ds.createVariable("lon", "f8", ("lon",))
+            lat[:] = -90.0 + (np.arange(helper.NY) + 0.5) * 180.0 / helper.NY
+            lon[:] = -180.0 + (np.arange(helper.NX) + 0.5) * 360.0 / helper.NX
+            ds.createVariable("wk", "f8", ("lat", "lon"), fill_value=-999.0)[:] = values
+        return helper.check(str(out_dir), "utc")
+
+    shape = (helper.NY, helper.NX)
+    assert check_with("good", np.full(shape, 1.0)) == 0
+    assert check_with("nan", np.full(shape, np.nan)) == 1
+    assert check_with("masked", np.ma.masked_all(shape)) == 1

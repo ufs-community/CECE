@@ -58,7 +58,12 @@ def check(out_dir, mode):
             ]
             # Monday record 0 -> 1.0; Tuesday record 1 -> 2.0 once the local clock passes midnight.
             want = (2.0 if hour + offset >= 24 else 1.0) if mode == "local" else 1.0
-            if abs(value - want) > 1e-6:
+            # NaN and masked fill values compare False against any tolerance, so reject them first.
+            if (
+                np.ma.is_masked(value)
+                or not np.isfinite(value)
+                or abs(value - want) > 1e-6
+            ):
                 failures += 1
                 print(f"MISMATCH {path} {name}: got {value}, expected {want}")
     return 1 if failures else 0

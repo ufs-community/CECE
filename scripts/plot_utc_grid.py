@@ -64,8 +64,8 @@ def densified_run(west: float, east: float, south: float, north: float) -> np.nd
     segments = max(1, math.ceil((east - west) / 2.0))
     longitudes = np.linspace(west, east, segments + 1)
     return np.column_stack((
-        np.concatenate((longitudes, longitudes[-2::-1])),
-        np.concatenate((np.full(segments + 1, north), np.full(segments, south))),
+        np.concatenate((longitudes, longitudes[::-1])),
+        np.concatenate((np.full(segments + 1, north), np.full(segments + 1, south))),
     ))
 
 
