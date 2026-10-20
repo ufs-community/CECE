@@ -644,6 +644,20 @@ and output is identical to a run that has no `diagnostics:` section at all.
 When it is on, one selection drives both channels: the standalone NetCDF file
 and the NUOPC coupled export state.
 
+> **Changed behavior:** `diagnostics:variables` used to hold species names —
+> the old example listed `co`, `nox`, and similar, and many existing configs
+> still do. It is now a filter over the diagnostic names that schemes
+> register. With the opt-in on, a species name is rejected by the collision
+> check below; with the opt-in off, the Python config validator reports it as
+> a warning so a pre-migration block is surfaced before it becomes an error.
+
+> **What selection filters:** the `variables` selection and the publication
+> cadence filter only what leaves the model. A scheme still registers — and
+> computes — every diagnostic it declares on every step, whether or not the
+> name is selected. Nothing is skipped for an unselected diagnostic; skipping
+> the computation behind the selection is a possible future optimization, not
+> current behavior.
+
 | Key | Type | Description |
 | --- | --- | --- |
 | `variables` | List | (Optional) Selection filter over the diagnostic names registered by schemes — not species names. Non-empty: publish exactly these names, in the order the schemes registered them. Empty or absent: publish every registered diagnostic. A name no scheme registered is not fatal: the run logs a warning naming it at the first publication attempt and skips it. |
@@ -672,6 +686,14 @@ follows.
 The channels are independent. Coupled export without file output is a valid
 configuration that writes no file, and a standalone run never exercises the
 coupled column.
+
+The opt-in lives under `output` for historical reasons: it gated the
+diagnostic variables in the written files before the coupled export channel
+existed. Placing a switch for a coupled-only feature under `output` reads
+oddly, but `output.enabled: false` with `include_diagnostics: true` is
+deliberate — it turns the coupled channel on while writing no files, because
+the coupled export never writes anything; only `output.enabled` controls file
+writes.
 
 ### Validation
 
