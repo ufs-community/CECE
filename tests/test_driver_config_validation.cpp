@@ -270,7 +270,7 @@ TEST_F(DriverConfigValidationTest, PositiveTimestepValid) {
     }
 }
 
-// Test 9: Zero timestep should be detected as invalid
+// Test 9: Zero timestep is rejected at parse time.
 // Requirements: 3.3
 TEST_F(DriverConfigValidationTest, ZeroTimestepInvalid) {
     WriteTestConfig(test_config_file, R"(
@@ -282,14 +282,12 @@ species:
       operation: "add"
 )");
 
-    cece::CeceConfig config = cece::ParseConfig(test_config_file);
-
-    // Zero timestep is invalid
-    EXPECT_EQ(config.driver_config.timestep_seconds, 0);
-    EXPECT_LE(config.driver_config.timestep_seconds, 0) << "Zero timestep is invalid";
+    // A non-positive base timestep is rejected by the parser: it would make
+    // every refresh-interval / output-cadence modulo a division by zero.
+    EXPECT_THROW(cece::ParseConfig(test_config_file), std::invalid_argument);
 }
 
-// Test 10: Negative timestep should be detected as invalid
+// Test 10: Negative timestep is rejected at parse time.
 // Requirements: 3.3
 TEST_F(DriverConfigValidationTest, NegativeTimestepInvalid) {
     WriteTestConfig(test_config_file, R"(
@@ -301,11 +299,7 @@ species:
       operation: "add"
 )");
 
-    cece::CeceConfig config = cece::ParseConfig(test_config_file);
-
-    // Negative timestep is invalid
-    EXPECT_EQ(config.driver_config.timestep_seconds, -3600);
-    EXPECT_LT(config.driver_config.timestep_seconds, 0) << "Negative timestep is invalid";
+    EXPECT_THROW(cece::ParseConfig(test_config_file), std::invalid_argument);
 }
 
 // ============================================================================

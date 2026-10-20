@@ -549,6 +549,19 @@ class DataVariableConfig:
         return result
 
 
+# Names the NetCDF writer always owns. A ``diagnostics:variables`` entry may
+# never reuse one; kept in sync with ``IsWriterManagedName`` in
+# ``include/cece/cece_config.hpp``.
+_WRITER_MANAGED_NAMES = frozenset({
+    "lon",
+    "lat",
+    "lev",
+    "time",
+    "lon_bnds",
+    "lat_bnds",
+    "mesh",
+})
+
 _STREAM_ENUM_VALUES = {
     "taxmode": {"cycle", "extend", "limit"},
     "tintalgo": {"linear", "nearest"},
@@ -1390,7 +1403,12 @@ class ValidationResult:
     ...         print(err)
     """
 
-    def __init__(self, is_valid: bool = True, errors: list[str] | None = None) -> None:
+    def __init__(
+        self,
+        is_valid: bool = True,
+        errors: list[str] | None = None,
+        warnings: list[str] | None = None,
+    ) -> None:
         """
         Initialize validation result.
 
@@ -1400,9 +1418,14 @@ class ValidationResult:
             Whether validation passed. Default is ``True``.
         errors : list of str or None, optional
             List of error messages. Default is ``None`` (empty list).
+        warnings : list of str or None, optional
+            List of non-fatal advisories. They never flip ``is_valid`` and
+            never fail ``from_dict``; they surface likely-stale config for a
+            human to look at. Default is ``None`` (empty list).
         """
         self.is_valid = is_valid
         self.errors = errors or []
+        self.warnings = warnings or []
 
     def __bool__(self) -> bool:
         """Return ``True`` if validation passed."""
@@ -1410,9 +1433,16 @@ class ValidationResult:
 
     def __str__(self) -> str:
         """Return a human-readable summary of the validation result."""
+        parts: list[str] = []
         if self.is_valid:
-            return "Validation passed"
-        return "Validation failed:\n" + "\n".join(f"  - {e}" for e in self.errors)
+            parts.append("Validation passed")
+        else:
+            parts.append(
+                "Validation failed:\n" + "\n".join(f"  - {e}" for e in self.errors)
+            )
+        if self.warnings:
+            parts.append("Warnings:\n" + "\n".join(f"  - {w}" for w in self.warnings))
+        return "\n".join(parts)
 
 
 class CeceConfig:
@@ -1763,6 +1793,22 @@ class CeceConfig:
                     lambda factors=factors: _validate_temporal_factors(factors),
                 )
 
+        errors.extend(self._temporal_cycle_reference_errors())
+
+        diag_errors, diag_warnings = self._diagnostics_surface_checks()
+        errors.extend(diag_errors)
+
+        return ValidationResult(
+            is_valid=len(errors) == 0, errors=errors, warnings=diag_warnings
+        )
+
+    def _temporal_cycle_reference_errors(self) -> list[str]:
+        """Species-layer temporal cycle references against defined cycles.
+
+        Returns the error strings; they are appended to the aggregate list by
+        ``validate`` so the per-section ``capture`` helper stays local there.
+        """
+        errors: list[str] = []
         available_cycles = set(self._temporal_cycles) | set(self._temporal_profiles)
         expected_lengths = {
             "diurnal_cycle": 24,
@@ -1792,8 +1838,55 @@ class CeceConfig:
                             f"{expected_length} factors; "
                             f"got {len(factors)}"
                         )
+        return errors
 
-        return ValidationResult(is_valid=len(errors) == 0, errors=errors)
+    def _diagnostics_surface_checks(self) -> tuple[list[str], list[str]]:
+        """Cross-section rules for the diagnostics publication surface.
+
+        Mirrors the C++ parser: the checks only run when the channel is live
+        (``output.include_diagnostics`` true), so a dormant block stays inert
+        and existing configs keep loading unchanged. Returns ``(errors,
+        warnings)``; warnings never fail validation.
+        """
+        errors: list[str] = []
+        warnings: list[str] = []
+        diagnostics = self._diagnostics_config
+        output = self._output_config
+        driver = self._driver_config
+        if diagnostics is None or output is None:
+            return errors, warnings
+        if not output.include_diagnostics:
+            # Dormant block: advisory only. Species names here were valid
+            # before the diagnostics surface existed and would be rejected
+            # the moment the channel is enabled.
+            for name in diagnostics.variables:
+                if name in self._species:
+                    warnings.append(
+                        f"diagnostics:variables entry '{name}' names a declared "
+                        "species; enabling output.include_diagnostics would "
+                        "reject it (the list filters scheme diagnostics, not "
+                        "species emissions)."
+                    )
+            return errors, warnings
+        interval = diagnostics.output_interval_seconds
+        timestep = driver.timestep_seconds if driver is not None else 0
+        if interval > 0 and timestep >= 1 and interval % timestep != 0:
+            errors.append(
+                f"diagnostics.output_interval_seconds ({interval}) must be a "
+                f"multiple of driver.timestep_seconds ({timestep})."
+            )
+        for name in diagnostics.variables:
+            if name in _WRITER_MANAGED_NAMES:
+                errors.append(
+                    f"diagnostics:variables entry '{name}' collides with a "
+                    "reserved coordinate variable name."
+                )
+            elif name in self._species:
+                errors.append(
+                    f"diagnostics:variables entry '{name}' collides with a "
+                    "declared species name."
+                )
+        return errors, warnings
 
     def to_yaml(self) -> str:
         """

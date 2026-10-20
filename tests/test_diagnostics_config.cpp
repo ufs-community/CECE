@@ -186,6 +186,20 @@ TEST_F(DiagnosticsConfigTest, V2ValidMultipleOfCustomTimestepAccepted) {
     EXPECT_EQ(config.diagnostics.output_interval_seconds, 10800);
 }
 
+// The cadence modulo divides by driver.timestep_seconds, so an explicit
+// non-positive base timestep is rejected at parse time (not just when the
+// diagnostics channel is live) — otherwise `interval % 0` is undefined.
+TEST_F(DiagnosticsConfigTest, NonPositiveTimestepRejected) {
+    ExpectRejected("driver:\n  timestep_seconds: 0\noutput:\n  enabled: true\n", {"timestep_seconds", "0"});
+    ExpectRejected("driver:\n  timestep_seconds: -3600\noutput:\n  enabled: true\n", {"timestep_seconds", "-3600"});
+}
+
+// An explicit positive timestep is preserved (the rejection is only for <= 0).
+TEST_F(DiagnosticsConfigTest, PositiveTimestepPreserved) {
+    const CeceConfig config = Parse("driver:\n  timestep_seconds: 1800\noutput:\n  enabled: true\n");
+    EXPECT_EQ(config.driver_config.timestep_seconds, 1800);
+}
+
 TEST_F(DiagnosticsConfigTest, V3CoordinateNameInSelectionThrowsNamingOffender) {
     // Every writer-managed coordinate/bounds/mesh name is reserved.
     for (const std::string& name : {"lon", "lat", "lev", "time", "lon_bnds", "lat_bnds", "mesh"}) {

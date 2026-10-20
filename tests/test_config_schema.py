@@ -511,3 +511,84 @@ def test_nuopc_rejects_unknown_attribute():
             "species": {"oc": [{"field": "OC", "operation": "add"}]},
             "nuopc": {"export_fields": {"oc": {"standard_name": "x", "rank": 2}}},
         })
+
+
+def _live_diagnostics(**diagnostics):
+    return {
+        "driver": {"timestep_seconds": 3600},
+        "diagnostics": diagnostics,
+        "output": {"enabled": True, "include_diagnostics": True},
+    }
+
+
+def test_diagnostics_interval_must_be_multiple_of_timestep():
+    with pytest.raises(
+        ValueError,
+        match=r"diagnostics\.output_interval_seconds \(5400\) must be a multiple "
+        r"of driver\.timestep_seconds \(3600\)",
+    ):
+        config.CeceConfig.from_dict(_live_diagnostics(output_interval_seconds=5400))
+
+
+def test_diagnostics_valid_interval_is_accepted():
+    parsed = config.CeceConfig.from_dict(
+        _live_diagnostics(output_interval_seconds=10800)
+    )
+    assert parsed.validate().is_valid
+
+
+def test_diagnostics_rejects_reserved_coordinate_name():
+    with pytest.raises(
+        ValueError,
+        match=r"diagnostics:variables entry 'lat' collides with a reserved "
+        r"coordinate variable name",
+    ):
+        config.CeceConfig.from_dict(
+            _live_diagnostics(output_interval_seconds=3600, variables=["lat"])
+        )
+
+
+def test_diagnostics_rejects_declared_species_name():
+    with pytest.raises(
+        ValueError,
+        match=r"diagnostics:variables entry 'NOx' collides with a declared "
+        r"species name",
+    ):
+        config.CeceConfig.from_dict({
+            "species": {"NOx": [{"field": "NOx", "operation": "add"}]},
+            **_live_diagnostics(output_interval_seconds=3600, variables=["NOx"]),
+        })
+
+
+def test_diagnostics_collision_rules_are_dormant_without_opt_in():
+    # Same colliding content, but include_diagnostics is off: the block stays
+    # inert so existing configs keep loading unchanged.
+    parsed = config.CeceConfig.from_dict({
+        "species": {"NOx": [{"field": "NOx", "operation": "add"}]},
+        "driver": {"timestep_seconds": 3600},
+        "diagnostics": {"output_interval_seconds": 5400, "variables": ["NOx", "lat"]},
+        "output": {"enabled": True, "include_diagnostics": False},
+    })
+    result = parsed.validate()
+    assert result.is_valid
+    assert not result.errors
+
+
+def test_dormant_species_selection_warns_without_failing():
+    # A pre-migration config that still lists species names in
+    # diagnostics:variables is only advisory while the channel is off.
+    parsed = config.CeceConfig.from_dict({
+        "species": {"NOx": [{"field": "NOx", "operation": "add"}]},
+        "driver": {"timestep_seconds": 3600},
+        "diagnostics": {"output_interval_seconds": 3600, "variables": ["NOx"]},
+        "output": {"enabled": True, "include_diagnostics": False},
+    })
+    result = parsed.validate()
+    assert result.is_valid
+    assert any("NOx" in warning and "species" in warning for warning in result.warnings)
+
+    # Enabling the channel turns the same entry into an error.
+    enabled = parsed.to_dict()
+    enabled["output"]["include_diagnostics"] = True
+    with pytest.raises(ValueError, match="collides with a declared species name"):
+        config.CeceConfig.from_dict(enabled)

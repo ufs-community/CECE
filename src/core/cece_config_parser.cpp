@@ -306,7 +306,13 @@ CeceConfig ParseConfig(const std::string& filename) {
     if (driver) {
         config.driver_config.start_time = string_or(driver, "start_time", config.driver_config.start_time);
         config.driver_config.end_time = string_or(driver, "end_time", config.driver_config.end_time);
-        config.driver_config.timestep_seconds = driver["timestep_seconds"].int_or(config.driver_config.timestep_seconds);
+        if (driver["timestep_seconds"]) {
+            int timestep = driver["timestep_seconds"].as_int();
+            if (timestep < 1) {
+                throw std::invalid_argument("driver.timestep_seconds must be >= 1; got " + std::to_string(timestep) + ".");
+            }
+            config.driver_config.timestep_seconds = timestep;
+        }
         config.driver_config.gridspec_file = string_or(driver, "gridspec_file");
         conf::Value grid = driver["grid"];
         config.driver_config.grid.nx = grid["nx"].int_or(config.driver_config.grid.nx);
