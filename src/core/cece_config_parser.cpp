@@ -400,7 +400,7 @@ CeceConfig ParseConfig(const std::string& filename) {
         read_field_map(nuopc["import_fields"], "import_fields", input_keys, "meteorology/scale-factor/mask input", config.nuopc.import_fields);
     }
 
-    // Validation of the diagnostics surface (V1-V4). Only runs when the channel
+    // Validation of the diagnostics surface. Only runs when the channel
     // is live: a dormant block stays inert so existing example configs keep
     // loading unchanged. Placed after both the output and driver blocks so
     // driver.timestep_seconds is always known regardless of document order.

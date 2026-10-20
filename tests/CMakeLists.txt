@@ -130,7 +130,7 @@ set(RAPIDCHECK rapidcheck rapidcheck_gtest)
 
 # --- Driver / configuration --------------------------------------------------
 cece_add_gtest(test_driver_configuration)
-# Diagnostics configuration surface (feature 003): gated V1-V4 validation,
+# Diagnostics configuration surface: gated validation,
 # selection semantics, and cadence-key parsing. Framework-free parser tests,
 # same pattern as test_driver_configuration.
 cece_add_gtest(test_diagnostics_config)
@@ -165,7 +165,7 @@ cece_add_gtest(
   MPI_LAUNCHER
   PROPERTIES PROCESSORS 1
 )
-# Diagnostic publication through the AMIO writer (feature 003): real NetCDF
+# Diagnostic publication through the AMIO writer: real NetCDF
 # output, no ESMF required. Own main() initializes MPI + Kokkos.
 cece_add_gtest(test_diagnostics_writer MAIN OWN PROPERTIES PROCESSORS 1)
 cece_add_gtest(test_rectilinear_gridspec MAIN MPI_KOKKOS MPI_LAUNCHER PROPERTIES PROCESSORS 1)
@@ -725,7 +725,7 @@ if(ESMF_FOUND)
     add_subdirectory(nuopc_coupling)
   endif()
 
-  # Diagnostics-through-the-cap integration test (feature 003, US3 / T023).
+  # Diagnostics-through-the-cap integration test.
   # Hosts the production CECE cap under a minimal NUOPC_Driver, runs
   # Initialize + one Advance against real ESMF, and asserts the advertised
   # channel's Units/LongName and that the ESMF buffer equals the registry's

@@ -1,7 +1,7 @@
 # Fixture for tests/test_diagnostics_coupled.F90 (mode: optout).
 # Identical to the values fixture EXCEPT include_diagnostics is removed:
 # the path query advertises zero names and exportState holds no diagnostic
-# channel (FR-010). The scheme still declares the diagnostic; only the
+# channel. The scheme still declares the diagnostic; only the
 # publication gate differs.
 driver:
   start_time: "2020-06-01T00:00:00"

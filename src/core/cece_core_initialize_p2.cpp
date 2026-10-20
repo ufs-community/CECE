@@ -172,9 +172,9 @@ void cece_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc)
 
     // 6. Bind the diagnostic manager into every scheme at the realized grid.
     // Phase 1 created schemes with a null manager (the grid was unknown); this
-    // is the re-initialization that comment promised (research R1). SetGrid
-    // makes the registry authoritative on field size (FR-008), SetReservedNames
-    // arms species-name collision checks (FR-009), and re-running Initialize
+    // is the re-initialization that comment promised. SetGrid
+    // makes the registry authoritative on field size, SetReservedNames
+    // arms species-name collision checks, and re-running Initialize
     // re-registers each scheme's diagnostics into the now-bound manager so the
     // scheme members hold grid-sized views instead of the empty P1 handles.
     if (internal_data->diagnostic_manager != nullptr) {

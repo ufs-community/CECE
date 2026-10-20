@@ -1,7 +1,7 @@
 # =====================================================================
 # CECE Example: Scheme Diagnostics Creation and Export
 # =====================================================================
-# Demonstrates the diagnostics publication path (feature 003):
+# Demonstrates the diagnostics publication path:
 #   - A physics scheme declares diagnostic fields.
 #   - The `diagnostics:` block selects which are published and how often.
 #   - `output.include_diagnostics` opts the file channel in.

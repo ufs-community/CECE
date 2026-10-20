@@ -1,6 +1,6 @@
 !> @file test_diagnostics_coupled.F90
-!> @brief Real-ESMF integration test for diagnostics through the NUOPC cap
-!> (feature 003, US3 / T023). Constitution II: no mocking — all ESMF/NUOPC.
+!> @brief Real-ESMF integration test for diagnostics through the NUOPC cap.
+!> Constitution II: no mocking — all ESMF/NUOPC.
 !>
 !> Hosts the PRODUCTION CECE cap under a minimal NUOPC_Driver (the same
 !> single-model pattern as src/driver/nuopc/standalone), runs Initialize +
@@ -12,7 +12,7 @@
 !> (Kokkos core wiki, is_initialized_or_finalized Notes), each scenario runs
 !> as its own process, selected by argv(1):
 !>
-!>   values  (quickstart US3 #1 + #2, FR-016 + FR-015/SC-006):
+!>   values:
 !>     - exportState carries the selected diagnostic by name;
 !>     - its realized Units/LongName equal the registry (metadata is stamped
 !>       on the field before NUOPC_Realize — Advertise args are not observable
@@ -20,11 +20,11 @@
 !>     - the ESMF field buffer equals the registry host view for the same step
 !>       (single rank: band == full grid, element-wise compare), and equals the
 !>       analytic anomaly (0 - 298.15), so an all-zeros buffer cannot pass;
-!>     - the realization-abort guard (US3 #4) fires with the name in the
+!>     - the realization-abort guard fires with the name in the
 !>       message: cece_sim_diagnostic_units / cece_sim_bind_diagnostic_field
 !>       return rc<0 for a name no scheme registered.
 !>
-!>   optout  (quickstart US3 #3, FR-010):
+!>   optout:
 !>     - include_diagnostics removed => the path query advertises zero names
 !>       and exportState holds no diagnostic channel.
 !>
@@ -232,7 +232,7 @@ program test_diagnostics_coupled
 
 contains
 
-  !> @brief US3 #1 + #2 + #4 (guard): metadata, values, and the abort guard.
+  !> @brief Values scenario: metadata, values, and the abort guard.
   subroutine check_values()
     type(ESMF_State) :: exportState
     type(ESMF_Field) :: field
@@ -254,7 +254,7 @@ contains
     call ESMF_StateGet(exportState, 'temperature_anomaly', field, rc=rc)
     if (rc /= ESMF_SUCCESS) call die('temperature_anomaly absent from exportState', rc)
 
-    ! FR-016: realized Units/LongName equal the registry.
+    ! Realized Units/LongName equal the registry.
     call ESMF_AttributeGet(field, name='Units', value=units, rc=rc)
     if (rc /= ESMF_SUCCESS) call die('Units attribute missing', rc)
     if (trim(units) /= 'K') call fail('Units != K')
@@ -319,7 +319,7 @@ contains
     deallocate(reg)
   end subroutine check_values
 
-  !> @brief US3 #3 (FR-010): include_diagnostics removed => no channel.
+  !> @brief Opt-out scenario: include_diagnostics removed => no channel.
   subroutine check_optout()
     type(ESMF_State) :: exportState
     type(ESMF_Field) :: field

@@ -264,7 +264,7 @@ void cece_sim_bind_export_field(CeceSimulation* sim, const char* species, int sp
  * The cap calls this to stamp the ESMF field's Units attribute before
  * NUOPC_Realize: metadata passed to NUOPC_Advertise is not observable on the
  * state item (verified against ESMF 8.9.1), so the realized field is the
- * first place a consumer can read it (FR-016). `units` receives the
+ * first place a consumer can read it. `units` receives the
  * NUL-terminated value; *units_len_out reports its length excluding the
  * terminator. Truncation is an error (rc < 0), never silent. A name the
  * config advertised but no scheme registered fails with rc < 0 and a logged
@@ -307,7 +307,7 @@ void cece_sim_bind_diagnostic_field(CeceSimulation* sim, const char* name, int n
  *
  * Test-support entry point: the coupled integration test compares the
  * realized ESMF export buffer against the registry's own host view for the
- * same step (FR-015 / SC-006). On a single rank the ESMF field spans the
+ * same step. On a single rank the ESMF field spans the
  * whole grid, so the two buffers must be element-for-element identical once
  * the per-advance sync has run. *count_out reports the required element
  * count even on failure. rc < 0 on an unallocated name or a too-small

@@ -518,10 +518,9 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
 
     // A diagnostic may never reuse a coordinate variable name, a bounds/mesh
     // name, or the name of a field already written as species. Reject before
-    // anything is opened so a refused write leaves no partial file (FR-009).
-    static const std::set<std::string> kWriterManagedNames{"lon", "lat", "lev", "time", "lon_bnds", "lat_bnds", "mesh"};
+    // anything is opened so a refused write leaves no partial file.
     for (const auto& [name, diagnostic] : diagnostics) {
-        if (kWriterManagedNames.count(name) != 0 || config_.fields.Contains(name)) {
+        if (IsWriterManagedName(name) || config_.fields.Contains(name)) {
             CECE_LOG_ERROR("Diagnostic '" + name + "' collides with a coordinate variable or an existing output field — refusing to write");
             return -1;
         }
@@ -1094,13 +1093,13 @@ void cece_core_write_step(void* data_ptr, double time_seconds, int step_index, i
     Kokkos::fence();
 
     // Diagnostics reach the file only when the output block opts them in
-    // (FR-010: absent opt-in means the payload stays empty and the file is
+    // (absent opt-in means the payload stays empty and the file is
     // unchanged). Two publication rules apply on top of the opt-in:
     //   - selection: a non-empty diagnostics:variables publishes exactly
-    //     those names; empty/absent publishes all registered (Q2=A).
+    //     those names; empty/absent publishes all registered.
     //   - cadence: diagnostics ride file writes but publish only when due,
     //     i.e. interval 0 (every file write) or the elapsed time since the
-    //     last publication reached output_interval_seconds (research R5).
+    //     last publication reached output_interval_seconds.
     // Values are always read fresh from the registry, so a diagnostic that
     // became due between file writes is carried, never dropped or
     // duplicated.
@@ -1123,7 +1122,7 @@ void cece_core_write_step(void* data_ptr, double time_seconds, int step_index, i
                 continue;  // still pending (no grid) — nothing to publish
             }
             if (!selection.empty() && std::find(selection.begin(), selection.end(), name) == selection.end()) {
-                continue;  // not selected (FR-006)
+                continue;  // not selected
             }
             auto& view_rw = const_cast<cece::DualView3D&>(it->second.data);
             view_rw.sync<Kokkos::HostSpace>();

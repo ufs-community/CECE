@@ -1,14 +1,14 @@
 /**
  * @file cece_diagnostic_api.cpp
- * @brief C-ABI surface for the diagnostic registry (feature 003, US3).
+ * @brief C-ABI surface for the diagnostic registry.
  *
  * The NUOPC cap consumes these entry points to advertise diagnostics during
  * initialization and to hand ESMF-owned field storage to the core at realize
- * time. Semantics follow contracts/diagnostics-c-api.md:
- *   - Enumeration (§1) walks the registry's stable first-seen order over the
+ * time. The semantics are:
+ *   - Enumeration walks the registry's stable first-seen order over the
  *     union of pending declarations and allocated fields; strings are
  *     NUL-terminated and truncation is an error, never silent.
- *   - Persistent-pointer registration (§2) validates the grid extents and the
+ *   - Persistent-pointer registration validates the grid extents and the
  *     name against the registry before storing the caller-owned buffer; the
  *     core never frees it (ESMF owns the memory), mirroring
  *     cece_core_set_export_field in cece_core_field_helpers.cpp.
@@ -30,7 +30,7 @@ namespace {
 /// Copy a string into a caller-owned fixed buffer, NUL-terminating it.
 /// Returns false WITHOUT writing when the buffer cannot hold the string plus
 /// its terminator, so the entry point surfaces an error instead of silently
-/// truncating (contract §1). On success *out_len receives the string length.
+/// truncating. On success *out_len receives the string length.
 bool diag_copy_str(const std::string& value, char* buf, int max_len, int* out_len) {
     if (buf == nullptr || max_len <= 0) {
         return false;
@@ -275,7 +275,7 @@ void cece_core_set_diagnostic_field(void* data_ptr, const char* name, int name_l
         name_str.resize(nul);
     }
 
-    // Grid check (contract §2): the buffer must span the registry's grid, or
+    // Grid check: the buffer must span the registry's grid, or
     // the per-advance sync would write out of bounds. Name both triples.
     if (nx != internal_data->nx || ny != internal_data->ny || nz != internal_data->nz) {
         CECE_LOG_ERROR("[CECE] cece_core_set_diagnostic_field - grid mismatch for '" + name_str + "': (" + std::to_string(nx) + "," +
@@ -287,7 +287,7 @@ void cece_core_set_diagnostic_field(void* data_ptr, const char* name, int name_l
         return;
     }
 
-    // Typo guard (contract §2): the name must be a registered or pending
+    // Typo guard: the name must be a registered or pending
     // diagnostic.
     const bool known = manager->Fields().contains(name_str) || manager->PendingDeclarations().contains(name_str);
     if (!known) {

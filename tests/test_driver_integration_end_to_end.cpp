@@ -462,7 +462,7 @@ TEST_F(FullIntegrationTestSuite, ComprehensiveScenarioTesting) {
 }
 
 // ===========================================================================
-// Real-driver end-to-end tests for scheme diagnostics (feature 003, US1).
+// Real-driver end-to-end tests for scheme diagnostics.
 //
 // These spawn the actual cece_standalone_driver on the canonical
 // examples/cece_config_diagnostics.yaml and inspect the NetCDF output
@@ -692,10 +692,10 @@ class RealDriverDiagnosticsTest : public ::testing::Test {
     std::filesystem::path scratch_;
 };
 
-// US1 acceptance 1 + 2 with the US2 selection filter active: the canonical
+// With the selection filter active: the canonical
 // config selects only temperature_anomaly, so that variable appears with the
 // values the scheme computed and the metadata it registered, while the
-// registered-but-unselected emission_efficiency is dropped (FR-006).
+// registered-but-unselected emission_efficiency is dropped.
 TEST_F(RealDriverDiagnosticsTest, DiagnosticsReachFileOutputWithMetadata) {
     const auto nc_path = RunOnce(true, "enabled");
     ASSERT_FALSE(nc_path.empty()) << "driver produced no NetCDF output after retries";
@@ -723,7 +723,7 @@ TEST_F(RealDriverDiagnosticsTest, DiagnosticsReachFileOutputWithMetadata) {
     EXPECT_EQ(*long_name, "Temperature deviation from reference");
 }
 
-// US1 acceptance 3 + FR-010: with diagnostics output disabled the run is
+// With diagnostics output disabled the run is
 // unchanged — no diagnostic variables appear, and the file carries exactly
 // the same (emissions-only) variable set the diagnostics-off baseline has.
 TEST_F(RealDriverDiagnosticsTest, DiagnosticsAbsentWhenDisabled) {
@@ -740,7 +740,7 @@ TEST_F(RealDriverDiagnosticsTest, DiagnosticsAbsentWhenDisabled) {
     EXPECT_EQ(names, expected);
 }
 
-// US2 acceptance 4 (Q2=A): with no variables: selection, every registered
+// With no variables: selection, every registered
 // diagnostic is published (write-all mode).
 TEST_F(RealDriverDiagnosticsTest, WriteAllWhenSelectionAbsent) {
     const auto nc_path = RunOnce(true, "writeall", SelectionMode::Drop);
@@ -755,7 +755,7 @@ TEST_F(RealDriverDiagnosticsTest, WriteAllWhenSelectionAbsent) {
     EXPECT_EQ(*eff_units, "kg/m2/s/K");
 }
 
-// US2 acceptance 2 (FR-007, R5): the canonical interval is 7200 s while the
+// The canonical interval is 7200 s while the
 // file cadence is 3600 s — diagnostics publish on every other file, riding
 // the file write they became due on (never dropped, never duplicated).
 TEST_F(RealDriverDiagnosticsTest, CadenceHonoredAcrossFiles) {

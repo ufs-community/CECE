@@ -164,7 +164,7 @@ class DiagnosticsWriterTest : public ::testing::Test {
 };
 
 // (a) A non-empty diagnostics payload lands in the NetCDF as a variable with
-// the manifest-supplied units/long_name/coordinates (FR-004).
+// the manifest-supplied units/long_name/coordinates.
 TEST_F(DiagnosticsWriterTest, DiagnosticVariableReachesOutputWithMetadata) {
     const cece::CeceOutputConfig config = BaseConfig();
     const cece::DualView3D anomaly = FilledField("temperature_anomaly", kNx, kNy, kNz);
@@ -188,15 +188,15 @@ TEST_F(DiagnosticsWriterTest, DiagnosticVariableReachesOutputWithMetadata) {
     ASSERT_TRUE(coordinates.has_value());
     EXPECT_EQ(*coordinates, "time lev lat lon");
 
-    // Shape must be the grid, not the 1x1x1 placeholder (FR-008).
+    // Shape must be the grid, not the 1x1x1 placeholder.
     EXPECT_EQ(ReadAllValues(nc_path, "temperature_anomaly").size(), static_cast<size_t>(kNx) * kNy * kNz);
 }
 
 // (b) An empty diagnostics payload changes nothing: the variable inventory is
-// exactly the coordinates plus the configured species (FR-010). File-level
+// exactly the coordinates plus the configured species. File-level
 // byte equality is not a usable signal here — NetCDF-4/HDF5 embeds a
 // nondeterministic superblock UUID — so the regression proof is the per-
-// variable content checksum in scripts/diagnostics_baseline.sh (T002/T027).
+// variable content checksum in scripts/diagnostics_baseline.sh.
 TEST_F(DiagnosticsWriterTest, EmptyDiagnosticsPayloadChangesNothing) {
     const cece::CeceOutputConfig config = BaseConfig();
 
@@ -209,7 +209,7 @@ TEST_F(DiagnosticsWriterTest, EmptyDiagnosticsPayloadChangesNothing) {
 }
 
 // (c) A diagnostic named like a coordinate, or duplicating a species field, is
-// refused with -1 BEFORE the dataset is opened — no partial file (FR-009).
+// refused with -1 BEFORE the dataset is opened — no partial file.
 TEST_F(DiagnosticsWriterTest, CollisionRejectedBeforeDatasetOpens) {
     const cece::CeceOutputConfig config = BaseConfig();
     const cece::DualView3D view = FilledField("lon", kNx, kNy, kNz);

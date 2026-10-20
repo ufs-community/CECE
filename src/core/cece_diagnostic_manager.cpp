@@ -23,29 +23,15 @@
  */
 
 #include <algorithm>
-#include <array>
-#include <iostream>
-#include <string_view>
 #include <utility>
 
 #include "cece/cece_diagnostics.hpp"
 #include "cece/cece_logger.hpp"
 
 namespace cece {
-namespace {
-
-// Names the standalone writer always emits as coordinate/bounds/mesh variables.
-// A diagnostic may never reuse one (FR-009); mirrors the writer's manifest.
-constexpr std::array<std::string_view, 7> kReservedCoordinateNames{"lon", "lat", "lev", "time", "lon_bnds", "lat_bnds", "mesh"};
-
-bool IsReservedCoordinate(std::string_view name) {
-    return std::ranges::find(kReservedCoordinateNames, name) != kReservedCoordinateNames.end();
-}
-
-}  // namespace
 
 void CeceDiagnosticManager::ValidateName(const std::string& name) const {
-    if (IsReservedCoordinate(name)) {
+    if (IsWriterManagedName(name)) {
         throw std::invalid_argument("diagnostic name '" + name + "' collides with a reserved coordinate variable name");
     }
     if (std::ranges::find(reserved_names_, name) != reserved_names_.end()) {
@@ -54,7 +40,7 @@ void CeceDiagnosticManager::ValidateName(const std::string& name) const {
 }
 
 void CeceDiagnosticManager::WarnUnregisteredSelection(const std::vector<std::string>& requested) const {
-    // FR-013: a selected name no scheme ever registered is a non-fatal
+    // A selected name no scheme ever registered is a non-fatal
     // configuration gap — warn once per offender, then stay quiet.
     for (const auto& name : requested) {
         if (fields_.contains(name) || pending_.contains(name)) {
@@ -113,8 +99,8 @@ void CeceDiagnosticManager::SetReservedNames(std::vector<std::string> names) {
 /**
  * @brief Register a diagnostic, returning the shared grid-sized field.
  *
- * Duplicate names return the existing field (FR-003). Coordinate/reserved names
- * throw naming the offender (FR-009). Metadata is first-non-empty-wins. Before
+ * Duplicate names return the existing field. Coordinate/reserved names
+ * throw naming the offender. Metadata is first-non-empty-wins. Before
  * SetGrid the declaration is held pending and an empty handle is returned.
  */
 DualView3D CeceDiagnosticManager::RegisterDiagnostic(const std::string& name, int /*nx*/, int /*ny*/, int /*nz*/, const std::string& units,
@@ -124,7 +110,7 @@ DualView3D CeceDiagnosticManager::RegisterDiagnostic(const std::string& name, in
     if (grid_set_) {
         auto it = fields_.find(name);
         if (it != fields_.end()) {
-            // Shared field exists: fill unset metadata, never clobber (FR-004).
+            // Shared field exists: fill unset metadata, never clobber.
             if (it->second.units.empty() && !units.empty()) {
                 it->second.units = units;
             }

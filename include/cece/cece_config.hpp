@@ -193,7 +193,7 @@ inline bool IsCoordinateName(std::string_view name) {
 
 /// Every variable name the standalone writer manages itself: the four
 /// coordinates plus the bounds and mesh variables it always emits. A
-/// diagnostic may never reuse one (FR-009) — shared by the registry
+/// diagnostic may never reuse one — shared by the registry
 /// (registration-time check) and the config parser (selection-time check).
 inline constexpr std::array<std::string_view, 7> kWriterManagedNames{"lon", "lat", "lev", "time", "lon_bnds", "lat_bnds", "mesh"};
 

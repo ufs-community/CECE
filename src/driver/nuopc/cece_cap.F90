@@ -288,7 +288,7 @@ module cece_cap_mod
 
     ! Registry-metadata readers and the diagnostic binder (cece_driver
     ! facade). The metadata is stamped onto the field before NUOPC_Realize
-    ! (FR-016: metadata passed to NUOPC_Advertise is not observable on the
+    ! (metadata passed to NUOPC_Advertise is not observable on the
     ! state item in ESMF 8.9.1); the binder hands the field's own storage to
     ! the core so each advance copies the band subview of the registry view
     ! into it. A config name no scheme registered fails the binder with the
@@ -617,7 +617,7 @@ contains
     ! the same gate + selection rules as the file channel, so the coupled
     ! channels and the published file values never diverge in which names are
     ! offered. When include_diagnostics is off or nothing is selected the count
-    ! is zero and nothing is advertised (FR-010), keeping a species-only run
+    ! is zero and nothing is advertised, keeping a species-only run
     ! byte-for-byte identical to before this feature.
     !
     ! Diagnostics carry no dictionary standard name of their own, so they are
@@ -627,7 +627,7 @@ contains
     ! StandardName. Units/LongName are NOT passed here: metadata supplied to
     ! NUOPC_Advertise is not observable on the state item (verified against
     ! ESMF 8.9.1); the realized field carries them, stamped in
-    ! realize_diagnostic_fields (FR-016). CECE provides its own geometry, so it
+    ! realize_diagnostic_fields. CECE provides its own geometry, so it
     ! offers the geometry object and requests both share policies, exactly like
     ! its emission exports.
     call ensure_tracer_entry(rc)
@@ -1197,13 +1197,13 @@ contains
   !> value-identical to the file channel whether or not a peer consumed
   !> them, and lets a standalone NUOPC host inspect the export state.
   !>
-  !> FR-016 metadata: NUOPC_Advertise does not attach Units/LongName to the
+  !> Metadata: NUOPC_Advertise does not attach Units/LongName to the
   !> state item (verified against ESMF 8.9.1), so the registry's units and
   !> long name are read through the facade and stamped onto the field with
   !> ESMF_AttributeSet BEFORE NUOPC_Realize — the probe confirmed the
   !> attributes survive into the realized state item where consumers see
   !> them. A name the config selected but no scheme registered fails the
-  !> metadata read with the name in the message (quickstart US3 #4).
+  !> metadata read with the name in the message.
   subroutine realize_diagnostic_fields(comp, grid, has_grid, nz, rc)
     type(ESMF_GridComp)      :: comp
     type(ESMF_Grid)          :: grid
@@ -1285,7 +1285,7 @@ contains
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, &
         line=__LINE__, file=__FILE__)) return  ! bail out
 
-      ! Stamp FR-016 metadata BEFORE realize: Advertise does not carry it, and
+      ! Stamp metadata BEFORE realize: Advertise does not carry it, and
       ! attributes set here survive into the realized state item (probe-
       ! verified). Empty registry metadata is omitted, leaving the item
       ! attribute unset rather than writing a blank.

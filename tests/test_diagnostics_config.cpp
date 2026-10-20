@@ -3,8 +3,7 @@
  * @brief Table-driven tests for the diagnostics configuration surface (feature
  * 003, user story 2).
  *
- * Covers the full validation matrix and precedence table of
- * contracts/diagnostics-config.md:
+ * Covers the full validation matrix and precedence table:
  *   - output.include_diagnostics parsed (bool, default false)
  *   - diagnostics:variables non-empty -> selection; empty/absent -> write-all
  *   - output_interval_seconds honored, with the deprecated output_interval
@@ -111,7 +110,7 @@ TEST_F(DiagnosticsConfigTest, NoOutputBlockKeepsDefaults) {
 }
 
 // ---------------------------------------------------------------------------
-// diagnostics:variables — selection vs write-all (Q2=A precedence)
+// diagnostics:variables — selection vs write-all precedence
 // ---------------------------------------------------------------------------
 
 TEST_F(DiagnosticsConfigTest, NonEmptyVariablesIsSelection) {
@@ -160,7 +159,7 @@ TEST_F(DiagnosticsConfigTest, ZeroIntervalIsValidMeaningEveryFileWrite) {
 }
 
 // ---------------------------------------------------------------------------
-// Validation matrix V1-V5
+// Validation matrix V1-V5 (the TEST names below carry the same numbering)
 // ---------------------------------------------------------------------------
 
 TEST_F(DiagnosticsConfigTest, V1NegativeIntervalThrowsNamingKeyAndValue) {
@@ -202,7 +201,7 @@ TEST_F(DiagnosticsConfigTest, V4SpeciesNameInSelectionThrowsNamingOffender) {
 
 // Backward compatibility: a diagnostics block that would be invalid when
 // live stays inert (and parseable) while include_diagnostics is false —
-// existing example configs keep running unchanged (SC-005).
+// existing example configs keep running unchanged.
 TEST_F(DiagnosticsConfigTest, DormantBlockIsNotValidated) {
     const std::string content =
         "species:\n  co: []\ndriver:\n  timestep_seconds: 3600\ndiagnostics:\n  output_interval_seconds: 5400\n"
@@ -257,7 +256,7 @@ TEST_F(DiagnosticsConfigTest, GridHintKeysParsedNotRejected) {
 }
 
 // ---------------------------------------------------------------------------
-// Precedence table rows (§2): the parsed fields must be able to express every
+// Precedence table rows: the parsed fields must be able to express every
 // row — the channel gating itself is the writer's job.
 // ---------------------------------------------------------------------------
 

@@ -248,7 +248,7 @@ class BasePhysicsScheme : public PhysicsScheme {
      * shared field, or records a pending declaration until the grid is set).
      * Without a manager (Phase 1), records a pending declaration locally so the
      * name/metadata survive to Phase 2 binding and cap advertisement rather
-     * than being silently dropped (research R1).
+     * than being silently dropped.
      */
     DualView3D ResolveDiagnostic(const std::string& name, int nx, int ny, int nz, const std::string& units = "", const std::string& long_name = "") {
         if (diag_manager_ == nullptr) {

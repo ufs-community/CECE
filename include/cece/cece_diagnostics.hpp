@@ -16,7 +16,7 @@ namespace cece {
  *
  * Schemes take this path during Phase 1 (no grid known yet, or no manager
  * bound). Only metadata is retained; the requested placeholder dimensions are
- * intentionally ignored once the manager grid is set (FR-008).
+ * intentionally ignored once the manager grid is set.
  */
 struct DiagnosticDeclaration {
     std::string name;       ///< Unique diagnostic name.
@@ -28,7 +28,7 @@ struct DiagnosticDeclaration {
  * @struct DiagnosticFieldInfo
  * @brief A registered diagnostic: a grid-sized field plus its metadata.
  *
- * The DualView3D is shared process-wide for a given name (FR-003): every
+ * The DualView3D is shared process-wide for a given name: every
  * scheme that registers the same name receives a handle aliasing this storage.
  */
 struct DiagnosticFieldInfo {
@@ -41,11 +41,11 @@ struct DiagnosticFieldInfo {
  * @class CeceDiagnosticManager
  * @brief Registry of diagnostic fields, sized to the realized grid.
  *
- * Lifecycle (data-model E3): diagnostics declared before the grid is known are
+ * Lifecycle: diagnostics declared before the grid is known are
  * held as pending declarations; SetGrid promotes them (allocating at the real
  * grid extent) and makes all later registrations allocate immediately. The
  * registry is framework-free — no AMIO/ESMF assumptions — so its semantics are
- * unit-testable without a coupled framework (research R8 tier-1).
+ * unit-testable without a coupled framework.
  */
 class CeceDiagnosticManager {
    public:
@@ -55,7 +55,7 @@ class CeceDiagnosticManager {
      * @brief Sets the authoritative grid dimensions and promotes pending fields.
      *
      * After this call every diagnostic allocates at (nx, ny, nz) regardless of
-     * the placeholder dims requested at declaration time (FR-008). May be
+     * the placeholder dims requested at declaration time. May be
      * called only once with a given extent; a conflicting re-set throws.
      *
      * @param nx Grid dimension in x.
@@ -73,10 +73,10 @@ class CeceDiagnosticManager {
     /**
      * @brief Registers a diagnostic, returning the shared grid-sized field.
      *
-     * Duplicate names return the existing field (FR-003). Coordinate names and
-     * reserved species names throw, naming the offender (FR-009). Metadata is
+     * Duplicate names return the existing field. Coordinate names and
+     * reserved species names throw, naming the offender. Metadata is
      * first-non-empty-wins: a later non-empty units/long_name fills an unset
-     * value but never clobbers an established one (FR-004, FR-016).
+     * value but never clobbers an established one.
      *
      * Before SetGrid the declaration is recorded as pending and an empty handle
      * is returned; the field is allocated when the grid is set.
@@ -107,7 +107,7 @@ class CeceDiagnosticManager {
      * @brief Warns, once per name, about selected diagnostics never registered.
      *
      * A `diagnostics:variables` entry that no scheme ever registered is a
-     * non-fatal configuration gap (FR-013): publication simply omits it. The
+     * non-fatal configuration gap: publication simply omits it. The
      * warning is emitted the first time each offender is seen so repeated
      * publish steps don't spam the log.
      */
@@ -143,12 +143,12 @@ class CeceDiagnosticManager {
     std::unordered_map<std::string, DiagnosticDeclaration> pending_;
     std::unordered_map<std::string, DiagnosticFieldInfo> fields_;
     std::vector<std::string> order_;                           // first-seen order over pending_ then fields_
-    mutable std::vector<std::string> warned_selection_names_;  // FR-013 warn-once state
+    mutable std::vector<std::string> warned_selection_names_;  // warn-once state
 };
 
 }  // namespace cece
 
-/* C-ABI surface consumed by the NUOPC cap (feature 003, contracts/diagnostics-c-api.md).
+/* C-ABI surface consumed by the NUOPC cap.
  * All entry points take the opaque cece_core_* data handle (a cece::CeceInternalData*)
  * and report through int* rc (0 = success, -1 = error with a logged message),
  * matching the existing cece_core_* convention. Strings are written

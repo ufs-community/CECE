@@ -429,7 +429,7 @@ bool CeceSimulation::bind_diagnostic_field(const std::string& name, double* data
         return fail("diagnostic registry is absent (core phase 1/2 did not create it)");
     }
 
-    // Typo guard (c-api §2): the name must be a registered or pending
+    // Typo guard: the name must be a registered or pending
     // diagnostic. The advertise list is path-derived, so a config name no
     // scheme declared fails here with the name in the message.
     if (!manager->Fields().contains(name) && !manager->PendingDeclarations().contains(name)) {

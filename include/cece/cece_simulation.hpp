@@ -183,7 +183,7 @@ class CeceSimulation {
 
     /// Read the registry metadata (units, long_name) for an advertised
     /// diagnostic by name. The cap calls this during Realize to stamp the
-    /// ESMF field's Units/LongName attributes before NUOPC_Realize (FR-016):
+    /// ESMF field's Units/LongName attributes before NUOPC_Realize:
     /// NUOPC_Advertise metadata is NOT observable on the state item (verified
     /// against ESMF 8.9.1), so the realized field is the first place a
     /// consumer can read them.
@@ -191,7 +191,7 @@ class CeceSimulation {
     /// The name must exist in the registry (allocated field or pending
     /// declaration). A name the config selected but no scheme ever registered
     /// fails with *rc < 0 and a logged diagnostic that names it — this is the
-    /// realization-abort edge case (quickstart US3 #4): the advertise set is
+    /// realization-abort edge case: the advertise set is
     /// path-derived, so an unregistered selection reaches realize and must
     /// abort rather than silently drop the channel.
     ///
@@ -218,7 +218,7 @@ class CeceSimulation {
     /// Sync the registry field for `name` and copy its FULL-GRID host values
     /// into @p out (LayoutLeft order, nx*ny*nz doubles). Used by the coupled
     /// integration test to compare the realized ESMF export buffer against the
-    /// registry's own host view for the same step (FR-015 / SC-006). On a
+    /// registry's own host view for the same step. On a
     /// single rank the ESMF field is the whole grid, so the two buffers must
     /// be element-for-element identical once the per-advance sync has run.
     ///

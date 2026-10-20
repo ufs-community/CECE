@@ -3,8 +3,8 @@
 ##############################################################################
 # Script: diagnostics_baseline.sh
 #
-# Purpose: Capture the SC-005 regression baseline for feature 003 (scheme
-#          diagnostics export). Runs the standalone driver on an
+# Purpose: Capture the regression baseline for scheme
+#          diagnostics export. Runs the standalone driver on an
 #          emissions-only configuration (no `output.include_diagnostics`)
 #          and records a SHA-256 of the *content of every NetCDF variable*
 #          into specs/003-scheme-diagnostics-export/baseline/checksums.txt.
@@ -12,7 +12,7 @@
 #          After the diagnostics feature lands, re-running this script and
 #          diffing against the committed baseline must show NO change to the
 #          emission variables — proving that turning diagnostics off leaves
-#          output behavior identical (FR-010, SC-005).
+#          output behavior identical.
 #
 # Why per-variable hashing instead of whole-file hashing:
 #          NetCDF-4/HDF5 files embed a nondeterministic superblock (root

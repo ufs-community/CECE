@@ -1,21 +1,21 @@
 /**
  * @file test_diagnostics.cpp
- * @brief Unit tests for the diagnostic registry semantics (feature 003).
+ * @brief Unit tests for the diagnostic registry semantics.
  *
  * These tests are framework-free: they exercise only CeceDiagnosticManager and
- * BasePhysicsScheme (both in cece_core), never ESMF or AMIO. That is deliberate
- * (research R8 tier-1) — the registry contract must be verifiable without a
+ * BasePhysicsScheme (both in cece_core), never ESMF or AMIO. That is deliberate:
+ * the registry contract must be verifiable without a
  * coupled framework present.
  *
- * Coverage (tasks.md T003 a-f):
+ * Coverage (a-f):
  *   (a) BasePhysicsScheme with a null manager records pending declarations
  *       (name/units/long_name) instead of silently dropping them.
  *   (b) CeceDiagnosticManager::SetGrid allocates pending + new fields at the
- *       grid extent regardless of the requested placeholder dims (FR-008).
+ *       grid extent regardless of the requested placeholder dims.
  *   (c) Duplicate RegisterDiagnostic returns the shared existing field (one
- *       map entry) (FR-003).
+ *       map entry).
  *   (d) RegisterDiagnostic throws naming the offender for coordinate names and
- *       for species names supplied via SetReservedNames (FR-009).
+ *       for species names supplied via SetReservedNames.
  *   (e) units/long_name are first-non-empty-wins (later registration cannot
  *       clobber a set value; an empty value adopts the later non-empty one).
  *   (f) Fields are zero-initialized on allocation (edge case: unfilled regions
