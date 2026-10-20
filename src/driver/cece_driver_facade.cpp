@@ -1709,7 +1709,7 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                     std::vector<double> src;
                     int file_nx = 0;
                     int file_ny = 0;
-                    const bool local_lower_ready = local_weekly || (bracket_ready && read_slab(bracket.i0, src, file_nx, file_ny));
+                    const bool local_lower_ready = bracket_ready && (local_weekly || read_slab(bracket.i0, src, file_nx, file_ny));
                     bool have_data = collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, local_lower_ready,
                                                           "lower AMIO slab readiness for '" + var_name + "'", failure_detail);
 
