@@ -1,5 +1,7 @@
 # Fixture for tests/test_diagnostics_coupled.F90 (mode: values).
 # One 4x4x1 grid, one scheme declaring temperature_anomaly + emission_efficiency,
+# with required temperature/emissions inputs absent to verify computation skips
+# instead of fabricating an anomaly from substitute zeros.
 # selection = temperature_anomaly, include_diagnostics ON => the coupled channel
 # is advertised/realized. File output is disabled (the coupled path is gated by
 # include_diagnostics alone, not output.enabled), so the test writes no files.

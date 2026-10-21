@@ -54,7 +54,7 @@ void CeceDiagnosticManager::WarnUnregisteredSelection(const std::vector<std::str
 }
 
 DiagnosticFieldInfo& CeceDiagnosticManager::Allocate(const DiagnosticDeclaration& declaration) {
-    // Grid-sized field, zero-initialized so unfilled regions are well-defined.
+    // Rank-local field, zero-initialized so unfilled regions are well-defined.
     DualView3D view(declaration.name, nx_, ny_, nz_);
     Kokkos::deep_copy(view.view_host(), 0.0);
     view.modify_host();

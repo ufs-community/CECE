@@ -18,8 +18,9 @@
 !>       on the field before NUOPC_Realize — Advertise args are not observable
 !>       on the state item in ESMF 8.9.1);
 !>     - the ESMF field buffer equals the registry host view for the same step
-!>       (single rank: band == full grid, element-wise compare), and equals the
-!>       analytic anomaly (0 - 298.15), so an all-zeros buffer cannot pass;
+!>       (single rank: band == full grid, element-wise compare); because this
+!>       fixture has no required temperature/emissions inputs, the example
+!>       scheme skips computation and does not fabricate a temperature anomaly;
 !>     - the realization-abort guard fires with the name in the
 !>       message: cece_sim_diagnostic_units / cece_sim_bind_diagnostic_field
 !>       return rc<0 for a name no scheme registered.
@@ -294,9 +295,10 @@ contains
       end if
     end do
 
-    ! Pin the analytic value (no temperature input => 0 - 298.15 everywhere),
-    ! so a vacuous all-equal-but-zero comparison cannot pass.
-    if (reg(1) /= -298.15_c_double) call fail('registry value is not -298.15')
+    ! The fixture intentionally has no temperature or emissions imports.
+    ! The example scheme must skip computation instead of substituting zeros
+    ! and manufacturing a plausible-looking temperature anomaly.
+    if (reg(1) /= 0.0_c_double) call fail('diagnostic changed despite missing required inputs')
 
     ! #4 (guard): a name no scheme registered must fail the metadata read and
     ! the binder, each with rc<0. (The config path structurally prevents an
