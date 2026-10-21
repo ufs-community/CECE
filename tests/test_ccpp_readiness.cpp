@@ -6,11 +6,7 @@
 #include "cece/cece_logger.hpp"
 
 // Forward declare standard C++ core C-linkage APIs
-extern "C" {
-void cece_set_config_file_path(const char* config_path, int path_len);
-void cece_core_initialize_p1(void** data_ptr_ptr, int* rc);
-void cece_core_finalize(void* data_ptr, int* rc);
-}
+#include "cece/cece_c_api.h"
 
 TEST(CCPPLinkTest, CompileIsolation) {
     // Assert that we can call core initialize and finalize APIs with absolutely

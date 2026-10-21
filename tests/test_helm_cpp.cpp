@@ -4,15 +4,9 @@
 #include <Kokkos_Core.hpp>
 #include <dagr/dagr.hpp>
 
+#include "cece/cece_c_api.h"
 #include "cece/cece_helm_graph.hpp"
 #include "cece/cece_io.hpp"
-
-// Forward declare CECE C-Linkage APIs
-extern "C" {
-void cece_set_config_file_path(const char* config_path, int path_len);
-void cece_core_initialize_p1(void** data_ptr_ptr, int* rc);
-void cece_core_finalize(void* data_ptr, int* rc);
-}
 
 std::string GetConfigPath() {
 #ifdef CECE_SOURCE_DIR

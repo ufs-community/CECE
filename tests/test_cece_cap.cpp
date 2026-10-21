@@ -5,12 +5,8 @@
 #include <iostream>
 #include <string>
 
+#include "cece/cece_c_api.h"
 // Declare the functions we want to test (decoupled architecture - no ESMF)
-extern "C" {
-void cece_core_initialize_p1(void** data_ptr_ptr, int* rc);
-void cece_core_finalize(void* data_ptr, int* rc);
-void cece_set_config_file_path(const char* config_path, int path_len);
-}
 
 static std::string g_config_file = "cece_config.yaml";
 

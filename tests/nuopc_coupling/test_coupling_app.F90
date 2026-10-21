@@ -21,10 +21,11 @@ module coupling_driver_mod
   use ESMF
   use NUOPC
   use NUOPC_Driver, driverSS => SetServices
-  use NUOPC_Driver, only: driver_label_SetModelServices => label_SetModelServices
-  use NUOPC_Driver, only: driver_label_SetRunSequence => label_SetRunSequence
+  use NUOPC_Driver, driver_label_SetModelServices => label_SetModelServices
+  use NUOPC_Driver, driver_label_SetRunSequence => label_SetRunSequence
   use NUOPC_Connector, connectorSS => SetServices
-  use cece_cap_mod, ceceSS => CECE_SetServices
+  use cece_cap_mod, only: ceceSS => CECE_SetServices
+  use cece_cap_mod, only: cece_nuopc_export_spec_c => cece_nuopc_export_spec
   use cece_cap_mod, only: CECE_SetConfigPath
   use cece_sink_mod
   use cece_met_source_mod
@@ -72,21 +73,6 @@ module coupling_driver_mod
       character(kind=c_char), intent(in) :: config_path(*)
       integer(c_int), value :: path_len
       integer(c_int), intent(out) :: count
-      integer(c_int), intent(out) :: rc
-    end subroutine
-
-    subroutine cece_nuopc_export_spec_c(config_path, path_len, index, &
-                                        species, species_cap, species_len, &
-                                        std_name, std_cap, std_len, &
-                                        units, units_cap, units_len, &
-                                        name, name_cap, name_len, rc) &
-                                        bind(C, name="cece_nuopc_export_spec")
-      import :: c_char, c_int
-      character(kind=c_char), intent(in) :: config_path(*)
-      integer(c_int), value :: path_len, index
-      character(kind=c_char), intent(out) :: species(*), std_name(*), units(*), name(*)
-      integer(c_int), value :: species_cap, std_cap, units_cap, name_cap
-      integer(c_int), intent(out) :: species_len, std_len, units_len, name_len
       integer(c_int), intent(out) :: rc
     end subroutine
 

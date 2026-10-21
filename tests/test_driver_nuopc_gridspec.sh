@@ -45,9 +45,9 @@ set -u
 CXX_DRIVER=""
 NUOPC_APP=""
 CONFIG_TEMPLATE=""
-COMPARATOR_SRC=""
-VARLIST_SRC=""
-SHAPER_SRC=""
+COMPARATOR_BIN=""
+VARLIST_BIN=""
+SHAPER_BIN=""
 FIELDS=""
 WORKDIR=""
 
@@ -56,9 +56,9 @@ while [ $# -gt 0 ]; do
         --cxx-driver) CXX_DRIVER="$2"; shift 2 ;;
         --nuopc-app)  NUOPC_APP="$2"; shift 2 ;;
         --config)     CONFIG_TEMPLATE="$2"; shift 2 ;;
-        --comparator) COMPARATOR_SRC="$2"; shift 2 ;;
-        --varlist)    VARLIST_SRC="$2"; shift 2 ;;
-        --shaper)     SHAPER_SRC="$2"; shift 2 ;;
+        --comparator) COMPARATOR_BIN="$2"; shift 2 ;;
+        --varlist)    VARLIST_BIN="$2"; shift 2 ;;
+        --shaper)     SHAPER_BIN="$2"; shift 2 ;;
         --fields)     FIELDS="$2"; shift 2 ;;
         --workdir)    WORKDIR="$2"; shift 2 ;;
         *) echo "ERROR: unrecognized argument: $1" >&2; exit 2 ;;
@@ -70,18 +70,18 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 [ -n "$CXX_DRIVER" ]     || fail "--cxx-driver is required"
 [ -n "$NUOPC_APP" ]      || fail "--nuopc-app is required"
 [ -n "$CONFIG_TEMPLATE" ] || fail "--config is required"
-[ -n "$COMPARATOR_SRC" ] || fail "--comparator is required"
-[ -n "$VARLIST_SRC" ]    || fail "--varlist is required"
-[ -n "$SHAPER_SRC" ]     || fail "--shaper is required"
+[ -n "$COMPARATOR_BIN" ] || fail "--comparator is required"
+[ -n "$VARLIST_BIN" ]    || fail "--varlist is required"
+[ -n "$SHAPER_BIN" ]     || fail "--shaper is required"
 [ -n "$FIELDS" ]         || fail "--fields is required"
 [ -n "$WORKDIR" ]        || fail "--workdir is required"
 
 [ -x "$CXX_DRIVER" ]     || fail "C++ driver not found or not executable: $CXX_DRIVER"
 [ -x "$NUOPC_APP" ]      || fail "NUOPC app not found or not executable: $NUOPC_APP"
 [ -f "$CONFIG_TEMPLATE" ] || fail "config template not found: $CONFIG_TEMPLATE"
-[ -f "$COMPARATOR_SRC" ] || fail "comparator source not found: $COMPARATOR_SRC"
-[ -f "$VARLIST_SRC" ]    || fail "varlist source not found: $VARLIST_SRC"
-[ -f "$SHAPER_SRC" ]     || fail "shaper source not found: $SHAPER_SRC"
+[ -f "$COMPARATOR_BIN" ] || fail "comparator source not found: $COMPARATOR_BIN"
+[ -f "$VARLIST_BIN" ]    || fail "varlist source not found: $VARLIST_BIN"
+[ -f "$SHAPER_BIN" ]     || fail "shaper source not found: $SHAPER_BIN"
 
 echo "========================================================================"
 echo " Curvilinear (GRIDSPEC) topology e2e:"
@@ -101,30 +101,6 @@ cleanup() {
     fi
 }
 trap cleanup EXIT
-
-# ------------------------------------------------------------------------
-# 1. Build the NetCDF helpers against the container NetCDF-C.
-# ------------------------------------------------------------------------
-COMPARATOR_BIN="$WORKDIR/nccmp_var"
-VARLIST_BIN="$WORKDIR/nclist_vars"
-SHAPER_BIN="$WORKDIR/ncvar_shape"
-CC_BIN="${CC:-cc}"
-NC_CONFIG="${NC_CONFIG:-nc-config}"
-NC_CFLAGS="$($NC_CONFIG --cflags 2>/dev/null)"
-NC_LIBS="$($NC_CONFIG --libs 2>/dev/null)"
-if [ -z "$NC_LIBS" ]; then
-    NC_LIBS="-lnetcdf"
-fi
-
-# shellcheck disable=SC2086
-"$CC_BIN" "$COMPARATOR_SRC" $NC_CFLAGS -O2 -o "$COMPARATOR_BIN" $NC_LIBS -lm \
-    || fail "failed to compile NetCDF comparator"
-# shellcheck disable=SC2086
-"$CC_BIN" "$VARLIST_SRC" $NC_CFLAGS -O2 -o "$VARLIST_BIN" $NC_LIBS \
-    || fail "failed to compile NetCDF variable lister"
-# shellcheck disable=SC2086
-"$CC_BIN" "$SHAPER_SRC" $NC_CFLAGS -O2 -o "$SHAPER_BIN" $NC_LIBS \
-    || fail "failed to compile NetCDF variable shaper"
 
 # ------------------------------------------------------------------------
 # 2. Run each driver at -np 1 into its own output dir.

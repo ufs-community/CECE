@@ -44,6 +44,23 @@ size_t cece_get_met_registry_alias_count(size_t idx);
  */
 const char* cece_get_met_registry_alias(size_t idx, size_t alias_idx);
 
+/** The C API Functions that we expect libraries using cece_core to call */
+
+/** Part one of cece_core initialization */
+void cece_core_initialize_p1(void** data_ptr_ptr, int* rc);
+void cece_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc);
+void cece_core_get_species_count(void* data_ptr, int* count, int* rc);
+void cece_core_get_species_name(void* data_ptr, int* index, char* name, int* name_len, int* rc);
+void cece_core_bind_fields(void* data_ptr, void** field_ptrs, int* num_fields, int* rc);
+void cece_core_finalize(void* data_ptr, int* rc);
+
+void cece_core_realize(void* data_ptr, int* rc);
+
+void cece_set_config_file_path(const char* config_path, int path_len);
+
+void cece_run_log_setup(const char* config_path, int path_len);
+void cece_core_run(void* data_ptr, int hour, int day_of_week, int* rc);
+
 #ifdef __cplusplus
 }
 #endif
