@@ -388,7 +388,6 @@ void StackingEngine::FillLocalTimeFactors(CompiledSpecies& spec, const LocalTime
                 }
                 factor(ii, jj, 0) = f;
             });
-        resolver.MarkModified(spec.export_name);
     }
     Kokkos::fence();
 }
@@ -756,6 +755,7 @@ void StackingEngine::Execute(FieldResolver& resolver, int nx, int ny, int nz,
 
                 total_view(i, j, k) = total_accumulated;
             });
+        resolver.MarkModified(spec.export_name);
     }
     Kokkos::fence();
 }
