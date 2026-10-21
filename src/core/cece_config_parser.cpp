@@ -127,10 +127,17 @@ CeceConfig ParseConfig(const std::string& filename) {
 
     conf::Value diagnostics = root["diagnostics"];
     if (diagnostics) {
-        if (diagnostics.kind() == conf::Node_Kind::Sequence)
+        if (diagnostics.kind() == conf::Node_Kind::Sequence) {
             config.diagnostics.variables = diagnostics.as_string_list();
-        else {
-            config.diagnostics.output_interval_seconds = diagnostics["output_interval"].int_or(0);
+        } else {
+            // Primary key plus the deprecated alias; when both are present
+            // output_interval_seconds wins.
+            const bool has_seconds_key = diagnostics["output_interval_seconds"].is_defined();
+            if (has_seconds_key) {
+                config.diagnostics.output_interval_seconds = diagnostics["output_interval_seconds"].as_int();
+            } else {
+                config.diagnostics.output_interval_seconds = diagnostics["output_interval"].int_or(0);
+            }
             config.diagnostics.grid_type = string_or(diagnostics, "grid_type", config.diagnostics.grid_type);
             config.diagnostics.grid_file = string_or(diagnostics, "grid_file");
             config.diagnostics.nx = diagnostics["nx"].int_or(0);
@@ -247,6 +254,9 @@ CeceConfig ParseConfig(const std::string& filename) {
     conf::Value output = root["output"];
     if (output) {
         config.output_config.enabled = output["enabled"] ? output["enabled"].as_bool() : true;
+        // Master opt-in for writing scheme diagnostics into the output file.
+        // Default false keeps emissions-only output byte-identical.
+        config.output_config.include_diagnostics = output["include_diagnostics"].bool_or(false);
         config.output_config.directory = string_or(output, "directory", config.output_config.directory);
         config.output_config.filename_pattern = string_or(output, "filename_pattern", config.output_config.filename_pattern);
         config.output_config.frequency_steps = output["frequency_steps"].int_or(config.output_config.frequency_steps);
@@ -315,7 +325,13 @@ CeceConfig ParseConfig(const std::string& filename) {
     if (driver) {
         config.driver_config.start_time = string_or(driver, "start_time", config.driver_config.start_time);
         config.driver_config.end_time = string_or(driver, "end_time", config.driver_config.end_time);
-        config.driver_config.timestep_seconds = driver["timestep_seconds"].int_or(config.driver_config.timestep_seconds);
+        if (driver["timestep_seconds"]) {
+            int timestep = driver["timestep_seconds"].as_int();
+            if (timestep < 1) {
+                throw std::invalid_argument("driver.timestep_seconds must be >= 1; got " + std::to_string(timestep) + ".");
+            }
+            config.driver_config.timestep_seconds = timestep;
+        }
         config.driver_config.gridspec_file = string_or(driver, "gridspec_file");
         conf::Value grid = driver["grid"];
         config.driver_config.grid.nx = grid["nx"].int_or(config.driver_config.grid.nx);
@@ -407,6 +423,30 @@ CeceConfig ParseConfig(const std::string& filename) {
         for (const auto& [species_name, layers] : config.species_layers) species_keys.insert(species_name);
         read_field_map(nuopc["export_fields"], "export_fields", species_keys, "emission species", config.nuopc.export_fields);
         read_field_map(nuopc["import_fields"], "import_fields", input_keys, "meteorology/scale-factor/mask input", config.nuopc.import_fields);
+    }
+
+    // Validation of the diagnostics surface. Only runs when the channel
+    // is live: a dormant block stays inert so existing example configs keep
+    // loading unchanged. Placed after both the output and driver blocks so
+    // driver.timestep_seconds is always known regardless of document order.
+    if (config.output_config.include_diagnostics) {
+        const int interval = config.diagnostics.output_interval_seconds;
+        if (interval < 0) {
+            throw std::invalid_argument("diagnostics.output_interval_seconds must be >= 0; got " + std::to_string(interval) + ".");
+        }
+        const int timestep = config.driver_config.timestep_seconds;
+        if (interval > 0 && interval % timestep != 0) {
+            throw std::invalid_argument("diagnostics.output_interval_seconds (" + std::to_string(interval) +
+                                        ") must be a multiple of driver.timestep_seconds (" + std::to_string(timestep) + ").");
+        }
+        for (const auto& name : config.diagnostics.variables) {
+            if (IsWriterManagedName(name)) {
+                throw std::invalid_argument("diagnostics:variables entry '" + name + "' collides with a reserved coordinate variable name.");
+            }
+            if (config.species_layers.contains(name)) {
+                throw std::invalid_argument("diagnostics:variables entry '" + name + "' collides with a declared species name.");
+            }
+        }
     }
 
     config.output_config.fields.SetTimeUnits(config.driver_config.start_time);

@@ -252,13 +252,17 @@ class TestDiagnosticsAndErrors:
     """Tests for get_diagnostics, reset_diagnostics, get_last_error."""
 
     def test_get_diagnostics_returns_dict(self):
-        """Test that get_diagnostics returns a dict."""
+        """Test that get_diagnostics exposes timing and memory records."""
         diag = cece.get_diagnostics()
         assert isinstance(diag, dict)
+        assert set(diag) == {"timings", "memory"}
+        assert isinstance(diag["timings"], dict)
+        assert isinstance(diag["memory"], dict)
 
-    def test_reset_diagnostics_no_error(self):
-        """Test that reset_diagnostics doesn't raise."""
+    def test_reset_diagnostics_clears_records(self):
+        """Test that reset_diagnostics clears timing and memory records."""
         cece.reset_diagnostics()
+        assert cece.get_diagnostics() == {"timings": {}, "memory": {}}
 
     def test_get_last_error_initially_none(self):
         """Test that get_last_error returns None initially."""

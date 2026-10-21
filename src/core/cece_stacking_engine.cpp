@@ -755,6 +755,7 @@ void StackingEngine::Execute(FieldResolver& resolver, int nx, int ny, int nz,
 
                 total_view(i, j, k) = total_accumulated;
             });
+        resolver.MarkModified(spec.export_name);
     }
     Kokkos::fence();
 }

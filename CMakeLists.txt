@@ -461,6 +461,7 @@ set(
   src/core/cece_physics_factory.cpp
   src/core/cece_provenance.cpp
   src/core/physics/cece_native_example.cpp
+  src/core/physics/cece_example_diagnostic_computation.cpp
   src/core/physics/cece_sea_salt.cpp
   src/core/physics/cece_megan.cpp
   src/core/physics/cece_dms.cpp
@@ -479,6 +480,7 @@ set(
   src/core/physics/cece_bdsnp.cpp
   src/core/cece_data_ingestor.cpp
   src/core/cece_diagnostic_manager.cpp
+  src/core/cece_diagnostic_api.cpp
   src/core/cece_io.cpp
   src/core/cece_core_driver_config.cpp
   src/core/cece_core_realize.cpp

@@ -33,7 +33,7 @@ When implementing or modifying physics schemes:
     *   `ResolveImport(name, state)`: Retrieve input fields.
     *   `ResolveExport(name, state)`: Retrieve output fields.
     *   `MarkModified(name, state)`: Signal that an export field has been updated.
-    *   `ResolveDiagnostic(name, nx, ny, nz)`: Register/retrieve diagnostic fields.
+    *   `ResolveDiagnostic(name, units, long_name)`: Register/retrieve diagnostic fields.
 3.  **Optimization:** Use Horner's Method for evaluating polynomials (e.g., Schmidt numbers, SST scaling) to minimize floating-point operations.
 
 ## Vertical Distribution

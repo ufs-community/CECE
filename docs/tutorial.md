@@ -137,7 +137,7 @@ void MyEmissionScheme::Run(CeceImportState& import_state, CeceExportState& expor
     auto emissions = ResolveExport("my_emissions", export_state);
 
     // Resolve diagnostic fields
-    auto intermediate = ResolveDiagnostic("intermediate_value", nx, ny, nz);
+    auto intermediate = ResolveDiagnostic("intermediate_value");
 
     // Get grid dimensions
     int nx = emissions.extent(0);
