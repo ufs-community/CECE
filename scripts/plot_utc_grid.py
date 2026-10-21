@@ -1,4 +1,4 @@
-"""Plot the UTC-offset grid (data/utc_grid_720r.rle) on a Mollweide map.
+"""Plot the UTC-offset grid (data/utc_grid_720r.rle) on an Equal Earth map.
 
 Usage:
     python scripts/plot_utc_grid.py [GRID] [-o utc_offset_map.png] [--no-merge]
@@ -223,7 +223,7 @@ def main() -> int:
     norm = Normalize(vmin=UTC_OFFSET_MIN_HOURS, vmax=UTC_OFFSET_MAX_HOURS, clip=True)
     cmap = plt.get_cmap(args.cmap)
     figure = plt.figure(figsize=(14, 7.5))
-    target_crs = ccrs.Mollweide()
+    target_crs = ccrs.EqualEarth()
     ax = figure.add_subplot(1, 1, 1, projection=target_crs)
     ax.set_global()
 

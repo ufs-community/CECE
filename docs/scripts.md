@@ -118,7 +118,7 @@ python scripts/visualize_optimized_stack.py --config cece_config.yaml --output o
 ```
 
 ### `plot_utc_grid.py`
-Plots the UTC-offset grid used by `local_time` (`data/utc_grid_720r.rle`) as a Mollweide map of decimal-hour offsets, with coastlines and country borders. It prints the data's offset range and fails if any offset falls outside the plotted -12 to +14 hour range. Requires `numpy`, `matplotlib` and `cartopy`; Natural Earth data is downloaded on first run.
+Plots the UTC-offset grid used by `local_time` (`data/utc_grid_720r.rle`) as an Equal Earth map of decimal-hour offsets, with coastlines and country borders. It prints the data's offset range and fails if any offset falls outside the plotted -12 to +14 hour range. Requires `numpy`, `matplotlib` and `cartopy`; Natural Earth data is downloaded on first run.
 ```bash
 python scripts/plot_utc_grid.py -o utc_offset_map.png
 ```
