@@ -36,6 +36,9 @@ class PhysicsScheme {
      */
     virtual void Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) = 0;
 
+    /// Bind diagnostics after initialization once the realized grid is known.
+    virtual void BindDiagnostics(CeceDiagnosticManager* /*diag_manager*/) {}
+
     /**
      * @brief Finalizes the physics scheme.
      */
@@ -58,6 +61,17 @@ class PhysicsScheme {
  */
 class BasePhysicsScheme : public PhysicsScheme {
    public:
+    void BindDiagnostics(CeceDiagnosticManager* diag_manager) override {
+        diag_manager_ = diag_manager;
+        ClearPhysicsCache();
+        if (diag_manager_ == nullptr) {
+            return;
+        }
+        for (const auto& declaration : pending_declarations_) {
+            diag_manager_->RegisterDiagnostic(declaration.name, declaration.units, declaration.long_name);
+        }
+    }
+
     /**
      * @brief Default implementation of Initialize.
      * Can be overridden by subclasses if they need specific setup.
@@ -84,14 +98,9 @@ class BasePhysicsScheme : public PhysicsScheme {
         if (diag_manager_ != nullptr) {
             conf::Value diags = config["diagnostics"];
             if (diags.is_defined()) {
-                // Read dimensions if available in options, otherwise use defaults
-                int nx = config["nx"].int_or(1);
-                int ny = config["ny"].int_or(1);
-                int nz = config["nz"].int_or(1);
-
                 for (std::size_t i = 0; i < diags.size(); ++i) {
                     std::string diag_name = diags[i].as_string();
-                    diag_manager_->RegisterDiagnostic(diag_name, nx, ny, nz);
+                    diag_manager_->RegisterDiagnostic(diag_name);
                     registered_diagnostics_.push_back(diag_name);
                 }
             }
@@ -250,13 +259,13 @@ class BasePhysicsScheme : public PhysicsScheme {
      * name/metadata survive to Phase 2 binding and cap advertisement rather
      * than being silently dropped.
      */
-    DualView3D ResolveDiagnostic(const std::string& name, int nx, int ny, int nz, const std::string& units = "", const std::string& long_name = "") {
+    DualView3D ResolveDiagnostic(const std::string& name, const std::string& units = "", const std::string& long_name = "") {
         if (diag_manager_ == nullptr) {
             RecordPendingDeclaration(name, units, long_name);
             return {};
         }
         // Use RegisterDiagnostic which also acts as a getter if already registered
-        return diag_manager_->RegisterDiagnostic(name, nx, ny, nz, units, long_name);
+        return diag_manager_->RegisterDiagnostic(name, units, long_name);
     }
 
     /**

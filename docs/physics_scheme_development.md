@@ -653,8 +653,7 @@ them directly in `Initialize` with `ResolveDiagnostic`:
 void MyScheme::Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
 
-    temperature_factor_ = ResolveDiagnostic("temperature_factor", nx, ny, nz,
-                                            "dimensionless",
+    temperature_factor_ = ResolveDiagnostic("temperature_factor", "dimensionless",
                                             "Temperature scaling factor");
 }
 ```

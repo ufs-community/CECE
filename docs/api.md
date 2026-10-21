@@ -51,8 +51,8 @@ For full documentation, see the [Python Bindings](python_bindings.md) page.
 | `cece.get_execution_space()` | Get current Kokkos execution space name |
 | `cece.get_available_execution_spaces()` | List compiled-in execution spaces |
 | `cece.set_log_level(level)` | Set C++ logging level |
-| `cece.get_diagnostics()` | Get performance diagnostics |
-| `cece.reset_diagnostics()` | Clear diagnostic data |
+| `cece.get_diagnostics()` | Get timing and memory diagnostics |
+| `cece.reset_diagnostics()` | Clear timing and memory diagnostics |
 | `cece.get_last_error()` | Get last error message |
 
 ### Configuration Classes

@@ -388,6 +388,7 @@ void StackingEngine::FillLocalTimeFactors(CompiledSpecies& spec, const LocalTime
                 }
                 factor(ii, jj, 0) = f;
             });
+        resolver.MarkModified(spec.export_name);
     }
     Kokkos::fence();
 }

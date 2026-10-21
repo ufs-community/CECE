@@ -434,12 +434,13 @@ contains
     type(ESMF_State) :: exportState
     type(ESMF_State) :: importState
     integer(c_int) :: count_c, c_rc
-    integer :: i, nexp, nimp, ndiag
+    integer :: i, nexp, nimp, ndiag, alloc_stat
     character(kind=c_char), dimension(ESMF_MAXSTR) :: c_species, c_std, c_units, c_name
     character(kind=c_char), dimension(ESMF_MAXSTR) :: c_diag
     integer(c_int) :: species_len, std_len, units_len, name_len, diag_len
     character(len=ESMF_MAXSTR) :: key, std_name, units, item_name, diag_name
     character(len=700) :: msg
+    character(len=512) :: alloc_err
 
     rc = ESMF_SUCCESS
     call ESMF_LogWrite('[Cap] InitializeAdvertise entered', ESMF_LOGMSG_INFO)
@@ -650,7 +651,14 @@ contains
     if (allocated(g_diag_names)) deallocate(g_diag_names)
 
     if (ndiag > 0) then
-      allocate(g_diag_names(ndiag))
+      allocate(g_diag_names(ndiag), stat=alloc_stat, errmsg=alloc_err)
+      if (alloc_stat /= 0) then
+        write(msg, '(A,I0,A,A)') '[Cap] Failed to allocate ', ndiag, &
+          ' diagnostic names: ', trim(alloc_err)
+        call ESMF_LogSetError(rcToCheck=ESMF_FAILURE, msg=trim(msg), &
+          line=__LINE__, file=__FILE__, rcToReturn=rc)
+        return  ! bail out
+      end if
       do i = 1, ndiag
         call cece_nuopc_diagnostic_name(trim(g_config_file_path)//c_null_char, &
           int(len_trim(g_config_file_path), c_int), int(i - 1, c_int), &

@@ -49,12 +49,9 @@ void {{ class_name }}::Initialize(const conf::Value& config, CeceDiagnosticManag
     // diagnostics are enabled in the output configuration.
 
     {% for diagnostic in diagnostics %}
-    if (diag_manager != nullptr) {
-        {{ diagnostic.name }}_ = ResolveDiagnostic("{{ diagnostic.name }}",
-                                                   1, 1, 1,  // TODO: Set actual dimensions
-                                                   "{{ diagnostic.units }}",
-                                                   "{{ diagnostic.description }}");
-    }
+    {{ diagnostic.name }}_ = ResolveDiagnostic("{{ diagnostic.name }}",
+                                               "{{ diagnostic.units }}",
+                                               "{{ diagnostic.description }}");
     {% endfor %}
 
     // ========================================================================
@@ -64,6 +61,15 @@ void {{ class_name }}::Initialize(const conf::Value& config, CeceDiagnosticManag
     // if (param_name_ < 0.0) {
     //     throw std::invalid_argument("param_name must be non-negative");
     // }
+}
+
+void {{ class_name }}::BindDiagnostics(CeceDiagnosticManager* diag_manager) {
+    BasePhysicsScheme::BindDiagnostics(diag_manager);
+    {% for diagnostic in diagnostics %}
+    {{ diagnostic.name }}_ = ResolveDiagnostic("{{ diagnostic.name }}",
+                                               "{{ diagnostic.units }}",
+                                               "{{ diagnostic.description }}");
+    {% endfor %}
 }
 
 // ============================================================================

@@ -17,7 +17,10 @@
 #include <algorithm>
 #include <conf/conf.hpp>
 #include <cstring>
+#include <filesystem>
+#include <mutex>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 #include "cece/cece_diagnostics.hpp"
@@ -119,6 +122,31 @@ bool lookup_metadata(const cece::CeceDiagnosticManager& manager, int index, std:
  *     names; empty/absent selects all declared names.
  */
 std::vector<std::string> advertise_names(const std::string& yaml_path) {
+    struct CacheEntry {
+        std::filesystem::file_time_type modified;
+        std::uintmax_t size;
+        std::vector<std::string> names;
+    };
+    static std::mutex cache_mutex;
+    static std::unordered_map<std::string, CacheEntry> cache;
+
+    std::error_code ec;
+    const auto modified = std::filesystem::last_write_time(yaml_path, ec);
+    if (ec) {
+        throw std::runtime_error("cannot inspect diagnostics config '" + yaml_path + "': " + ec.message());
+    }
+    const auto size = std::filesystem::file_size(yaml_path, ec);
+    if (ec) {
+        throw std::runtime_error("cannot inspect diagnostics config '" + yaml_path + "': " + ec.message());
+    }
+    {
+        std::lock_guard<std::mutex> lock(cache_mutex);
+        const auto it = cache.find(yaml_path);
+        if (it != cache.end() && it->second.modified == modified && it->second.size == size) {
+            return it->second.names;
+        }
+    }
+
     cece::CeceConfig config = cece::ParseConfig(yaml_path);
     std::vector<std::string> names;
     if (!config.output_config.include_diagnostics) {
@@ -142,6 +170,10 @@ std::vector<std::string> advertise_names(const std::string& yaml_path) {
             std::remove_if(names.begin(), names.end(),
                            [&selection](const std::string& n) { return std::find(selection.begin(), selection.end(), n) == selection.end(); }),
             names.end());
+    }
+    {
+        std::lock_guard<std::mutex> lock(cache_mutex);
+        cache[yaml_path] = CacheEntry{modified, size, names};
     }
     return names;
 }
@@ -251,7 +283,7 @@ void cece_core_set_diagnostic_field(void* data_ptr, const char* name, int name_l
         }
         return;
     }
-    if (field_data == nullptr) {
+    if (field_data == nullptr && ny != 0) {
         CECE_LOG_ERROR("[CECE] cece_core_set_diagnostic_field - field_data is null");
         if (rc != nullptr) {
             *rc = -1;
@@ -277,10 +309,10 @@ void cece_core_set_diagnostic_field(void* data_ptr, const char* name, int name_l
 
     // Grid check: the buffer must span the registry's grid, or
     // the per-advance sync would write out of bounds. Name both triples.
-    if (nx != internal_data->nx || ny != internal_data->ny || nz != internal_data->nz) {
+    if (nx != internal_data->nx || ny != internal_data->ny_local || nz != internal_data->nz) {
         CECE_LOG_ERROR("[CECE] cece_core_set_diagnostic_field - grid mismatch for '" + name_str + "': (" + std::to_string(nx) + "," +
-                       std::to_string(ny) + "," + std::to_string(nz) + ") != core grid (" + std::to_string(internal_data->nx) + "," +
-                       std::to_string(internal_data->ny) + "," + std::to_string(internal_data->nz) + ")");
+                       std::to_string(ny) + "," + std::to_string(nz) + ") != core band (" + std::to_string(internal_data->nx) + "," +
+                       std::to_string(internal_data->ny_local) + "," + std::to_string(internal_data->nz) + ")");
         if (rc != nullptr) {
             *rc = -1;
         }

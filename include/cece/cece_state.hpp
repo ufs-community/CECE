@@ -41,7 +41,7 @@ struct CeceExportState {
  */
 class CeceStateResolver : public FieldResolver {
     const CeceImportState& import_state;
-    const CeceExportState& export_state;
+    CeceExportState& export_state;
     const std::unordered_map<std::string, std::string>& met_mapping;
     const std::unordered_map<std::string, std::string>& sf_mapping;
     const std::unordered_map<std::string, std::string>& mask_mapping;
@@ -68,7 +68,7 @@ class CeceStateResolver : public FieldResolver {
     }
 
    public:
-    CeceStateResolver(const CeceImportState& imp, const CeceExportState& exp, const std::unordered_map<std::string, std::string>& met_map,
+    CeceStateResolver(const CeceImportState& imp, CeceExportState& exp, const std::unordered_map<std::string, std::string>& met_map,
                       const std::unordered_map<std::string, std::string>& sf_map = EmptyMap(),
                       const std::unordered_map<std::string, std::string>& mask_map = EmptyMap())
         : import_state(imp), export_state(exp), met_mapping(met_map), sf_mapping(sf_map), mask_mapping(mask_map) {}
@@ -162,9 +162,8 @@ class CeceStateResolver : public FieldResolver {
     }
 
     void MarkModified(const std::string& name) override {
-        auto& fields_rw = const_cast<std::unordered_map<std::string, DualView3D>&>(export_state.fields);
-        auto it = fields_rw.find(name);
-        if (it != fields_rw.end()) {
+        auto it = export_state.fields.find(name);
+        if (it != export_state.fields.end()) {
             it->second.modify_device();
         }
     }

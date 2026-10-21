@@ -142,11 +142,14 @@ Set the C++ logging level. Accepts `"DEBUG"`, `"INFO"`, `"WARNING"`, or `"ERROR"
 
 #### `cece.get_diagnostics()`
 
-Returns a dict with performance and timing diagnostics.
+Returns `{"timings": ..., "memory": ...}`. Both mappings are keyed by
+component name. Timing entries include total, average, minimum, and maximum
+milliseconds plus call count; memory entries include current and peak bytes.
+Mappings are empty until their corresponding metrics have been recorded.
 
 #### `cece.reset_diagnostics()`
 
-Clear accumulated diagnostic data.
+Clear accumulated timing and memory diagnostics.
 
 #### `cece.get_last_error()`
 

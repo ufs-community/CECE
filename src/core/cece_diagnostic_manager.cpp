@@ -85,7 +85,7 @@ void CeceDiagnosticManager::SetGrid(int nx, int ny, int nz) {
     ny_ = ny;
     nz_ = nz;
 
-    // Promote every pending declaration to a grid-sized field.
+    // Promote every pending declaration to a rank-local field.
     for (auto& [name, declaration] : pending_) {
         Allocate(declaration);
     }
@@ -97,14 +97,13 @@ void CeceDiagnosticManager::SetReservedNames(std::vector<std::string> names) {
 }
 
 /**
- * @brief Register a diagnostic, returning the shared grid-sized field.
+ * @brief Register a diagnostic, returning the shared rank-local field.
  *
  * Duplicate names return the existing field. Coordinate/reserved names
  * throw naming the offender. Metadata is first-non-empty-wins. Before
  * SetGrid the declaration is held pending and an empty handle is returned.
  */
-DualView3D CeceDiagnosticManager::RegisterDiagnostic(const std::string& name, int /*nx*/, int /*ny*/, int /*nz*/, const std::string& units,
-                                                     const std::string& long_name) {
+DualView3D CeceDiagnosticManager::RegisterDiagnostic(const std::string& name, const std::string& units, const std::string& long_name) {
     ValidateName(name);
 
     if (grid_set_) {
@@ -139,6 +138,15 @@ DualView3D CeceDiagnosticManager::RegisterDiagnostic(const std::string& name, in
         }
     }
     return {};
+}
+
+Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::HostSpace> CeceDiagnosticManager::SyncHost(const std::string& name) {
+    auto it = fields_.find(name);
+    if (it == fields_.end()) {
+        return {};
+    }
+    it->second.data.sync_host();
+    return Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::HostSpace>(it->second.data.view_host());
 }
 
 }  // namespace cece

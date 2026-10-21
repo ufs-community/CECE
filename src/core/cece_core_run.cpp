@@ -128,11 +128,10 @@ void ExecuteStepUnconditional(cece::CeceInternalData& d, int hour, int day_of_we
 }
 
 void SyncAndCopyState(cece::CeceInternalData& d) {
-    // Mark all export fields as modified on the device since they are computed on the device
-    // by the Stacking Engine and physics schemes, ensuring Kokkos copies device updates to host.
-    // Also copy the synced host values of managed views back to the persistent unmanaged export pointers!
+    // Each writer marks its own export fields as modified. Sync only fields
+    // already marked by the stacking engine or a physics scheme, then copy
+    // persistent host values back to the coupled model.
     for (auto& [name, field] : d.export_state.fields) {
-        field.modify<Kokkos::DefaultExecutionSpace>();
         field.sync_host();
 
         auto it = d.persistent_export_ptrs.find(name);
@@ -145,30 +144,21 @@ void SyncAndCopyState(cece::CeceInternalData& d) {
         }
     }
 
-    // Diagnostics: the registry holds full-grid DualViews (SetGrid used the
-    // global ny), but each rank only computes its own latitude band, and the
-    // ESMF fields the cap bound are band-shaped (nx, ny_local, nz). Sync the
-    // device writes (schemes compute on-device and mark modify_device), then
-    // deep-copy this rank's band subview into the caller-owned buffer. On a
-    // single rank the band is the whole grid, so this reduces to a full copy.
+    // Diagnostic registry fields are rank-local (nx, ny_local, nz); sync and
+    // copy directly into the coupled model's rank-local buffers.
     // No-ops in standalone: persistent_diagnostic_ptrs is empty there.
     if (!d.persistent_diagnostic_ptrs.empty() && d.diagnostic_manager) {
         for (auto& [name, ptr] : d.persistent_diagnostic_ptrs) {
             if (ptr == nullptr) {
                 continue;
             }
-            const auto& fields = d.diagnostic_manager->Fields();
-            auto fit = fields.find(name);
-            if (fit == fields.end()) {
+            auto host = d.diagnostic_manager->SyncHost(name);
+            if (!d.diagnostic_manager->Fields().contains(name)) {
                 continue;  // Advertised but never allocated on this grid.
             }
-            cece::DualView3D& diag = const_cast<cece::DualView3D&>(fit->second.data);
-            diag.modify<Kokkos::DefaultExecutionSpace>();
-            diag.sync_host();
             using UnmanagedHost = Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
             UnmanagedHost h_view(ptr, d.nx, d.ny_local, d.nz);
-            auto host = diag.view_host();
-            Kokkos::deep_copy(h_view, Kokkos::subview(host, Kokkos::ALL, std::make_pair(d.j0, d.j0 + d.ny_local), Kokkos::ALL));
+            Kokkos::deep_copy(h_view, host);
         }
     }
 

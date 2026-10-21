@@ -10,10 +10,12 @@ void amio_set_parent_communicator(MPI_Fint comm);
 }
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <ctime>
 #include <filesystem>
 #include <iomanip>
+#include <limits>
 #include <set>
 #include <sstream>
 #include <stdexcept>
@@ -858,9 +860,8 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
                 for (int k = 0; k < nz_; ++k) {
                     for (int jrel = 0; jrel < ny_local; ++jrel) {
                         for (int i = 0; i < nx_; ++i) {
-                            size_t kokkos_idx = static_cast<size_t>(i) + static_cast<size_t>(jrel) * nx_ + static_cast<size_t>(k) * nx_ * ny_local;
                             size_t send_idx = static_cast<size_t>(k) * band_level_elems + static_cast<size_t>(jrel) * nx_ + i;
-                            send_buf[send_idx] = h_view.data()[kokkos_idx];
+                            send_buf[send_idx] = h_view(i, jrel, k);
                         }
                     }
                 }
@@ -941,37 +942,67 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
             }
         }
 
-        // Step 8b: Write diagnostics. The registry fields are grid-sized
-        // (nx_ x ny_ x nz_); the LayoutLeft -> CF index transform is the one
-        // above, applied verbatim, so a diagnostic and a species field written
-        // from the same values land in the same element order. Only the file
-        // owner writes, and a failure degrades to skip_file_work (never a
-        // throw past the trailing barrier or an early return that would strand
-        // peers in MPI_Gatherv).
-        if (!skip_file_work && rank0_writes) {
-            try {
-                for (const auto& [diag_name, diagnostic] : diagnostics) {
-                    const auto& h_view = diagnostic.host;
+        // Diagnostic fields are rank-local just like export fields. Keep every
+        // rank in the same sorted diagnostic order and gather one level at a
+        // time to the file owner before writing the global field.
+        for (const auto& [diag_name, diagnostic] : diagnostics) {
+            const auto& h_view = diagnostic.host;
+            const size_t band_total = static_cast<size_t>(nx_) * ny_local * nz_;
+            const bool local_shape_ok = h_view.size() == band_total;
+            if (!local_shape_ok) {
+                CECE_LOG_ERROR("Size mismatch in diagnostic '" + diag_name + "': h_view.size()=" + std::to_string(h_view.size()) +
+                               " expected band-local=" + std::to_string(band_total));
+            }
+            int all_shape_ok = local_shape_ok ? 1 : 0;
+            if (do_gather) {
+                int global_shape_ok = 0;
+                const int shape_rc = MPI_Allreduce(&all_shape_ok, &global_shape_ok, 1, MPI_INT, MPI_MIN, comm_);
+                if (shape_rc != MPI_SUCCESS) {
+                    CECE_LOG_ERROR("MPI_Allreduce failed while validating diagnostic '" + diag_name + "' (rc=" + std::to_string(shape_rc) + ")");
+                    skip_file_work = true;
+                } else {
+                    all_shape_ok = global_shape_ok;
+                }
+            }
+            if (!all_shape_ok) {
+                skip_file_work = true;
+            }
 
-                    size_t total_elements = static_cast<size_t>(nx_) * ny_ * nz_;
-                    if (h_view.size() != total_elements) {
-                        CECE_LOG_ERROR("Size mismatch in diagnostic '" + diag_name + "': h_view.size()=" + std::to_string(h_view.size()) +
-                                       " expected=" + std::to_string(total_elements));
-                        skip_file_work = true;
-                        break;
-                    }
-
-                    std::vector<double> netcdf_buffer(total_elements);
-                    for (int k = 0; k < nz_; k++) {
-                        for (int j = 0; j < ny_; j++) {
-                            for (int i = 0; i < nx_; i++) {
-                                size_t kokkos_idx = static_cast<size_t>(i) + static_cast<size_t>(j) * nx_ + k * static_cast<size_t>(nx_) * ny_;
-                                size_t netcdf_idx = k * static_cast<size_t>(ny_) * nx_ + static_cast<size_t>(j) * nx_ + i;
-                                netcdf_buffer[netcdf_idx] = h_view.data()[kokkos_idx];
-                            }
+            std::vector<double> send_buf(band_total, 0.0);
+            if (local_shape_ok) {
+                for (int k = 0; k < nz_; ++k) {
+                    for (int jrel = 0; jrel < ny_local; ++jrel) {
+                        for (int i = 0; i < nx_; ++i) {
+                            const size_t send_idx = static_cast<size_t>(k) * band_level_elems + static_cast<size_t>(jrel) * nx_ + i;
+                            send_buf[send_idx] = h_view(i, jrel, k);
                         }
                     }
+                }
+            }
 
+            std::vector<double> global_field;
+            if (!do_gather) {
+                global_field = std::move(send_buf);
+            } else {
+                if (rank == 0) {
+                    global_field.assign(static_cast<size_t>(nz_) * global_level_elems, 0.0);
+                }
+                const int sendcount = static_cast<int>(band_level_elems);
+                for (int k = 0; k < nz_; ++k) {
+                    const double* level_send = sendcount == 0 ? nullptr : send_buf.data() + static_cast<size_t>(k) * band_level_elems;
+                    double* level_recv = (rank == 0) ? global_field.data() + static_cast<size_t>(k) * global_level_elems : nullptr;
+                    const int gather_rc = MPI_Gatherv(level_send, sendcount, MPI_DOUBLE, level_recv, (rank == 0) ? recvcounts.data() : nullptr,
+                                                      (rank == 0) ? recvdispls.data() : nullptr, MPI_DOUBLE, 0, comm_);
+                    if (gather_rc != MPI_SUCCESS) {
+                        CECE_LOG_ERROR("Output_Gather MPI_Gatherv failed for diagnostic '" + diag_name + "' (level " + std::to_string(k) +
+                                       ", rc=" + std::to_string(gather_rc) + ")");
+                        skip_file_work = true;
+                    }
+                }
+            }
+
+            if (!skip_file_work && rank0_writes) {
+                try {
                     amio_shape_t field_shape;
                     std::memset(&field_shape, 0, sizeof(field_shape));
                     if (ny_ == 1) {
@@ -986,14 +1017,13 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
                         field_shape.extents[2] = ny_;
                         field_shape.extents[3] = nx_;
                     }
-
-                    write_and_wait(dataset, diag_name.c_str(), netcdf_buffer.data(), AMIO_DTYPE_F64, &field_shape, config_.amio_staging_timeout_ms);
+                    write_and_wait(dataset, diag_name.c_str(), global_field.data(), AMIO_DTYPE_F64, &field_shape, config_.amio_staging_timeout_ms);
+                } catch (const std::exception& e) {
+                    CECE_LOG_ERROR(std::string("[CECE] Writer diagnostic write failed: ") + e.what());
+                    skip_file_work = true;
                 }
-            } catch (const std::exception& e) {
-                CECE_LOG_ERROR(std::string("[CECE] Writer diagnostic write failed: ") + e.what());
-                skip_file_work = true;
             }
-        }  // diagnostic writes (file owner only)
+        }
 
         // Step 9: Flush, Close, and Finalize (file owner only), then a trailing
         // barrier so every rank leaves WriteTimeStep in lock-step (Req 6.6).
@@ -1106,8 +1136,12 @@ void cece_core_write_step(void* data_ptr, double time_seconds, int step_index, i
     std::map<std::string, cece::DiagnosticOut> diagnostics;
     const bool channel_open = d->config.output_config.include_diagnostics && d->diagnostic_manager;
     const int interval = d->config.diagnostics.output_interval_seconds;
-    const bool due = g_standalone_writer->LastDiagnosticPublishTime() < 0.0 || static_cast<double>(interval) == 0.0 ||
-                     time_seconds - g_standalone_writer->LastDiagnosticPublishTime() >= static_cast<double>(interval);
+    const double last_publish = g_standalone_writer->LastDiagnosticPublishTime();
+    const double elapsed = time_seconds - last_publish;
+    const double cadence = static_cast<double>(interval);
+    const double cadence_tolerance =
+        8.0 * std::numeric_limits<double>::epsilon() * std::max({1.0, std::abs(time_seconds), std::abs(last_publish), cadence});
+    const bool due = last_publish < 0.0 || interval == 0 || elapsed + cadence_tolerance >= cadence;
     if (channel_open && due) {
         const auto& selection = d->config.diagnostics.variables;
         if (!selection.empty()) {
@@ -1124,10 +1158,8 @@ void cece_core_write_step(void* data_ptr, double time_seconds, int step_index, i
             if (!selection.empty() && std::find(selection.begin(), selection.end(), name) == selection.end()) {
                 continue;  // not selected
             }
-            auto& view_rw = const_cast<cece::DualView3D&>(it->second.data);
-            view_rw.sync<Kokkos::HostSpace>();
             cece::DiagnosticOut out;
-            out.host = Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::HostSpace>(view_rw.view_host());
+            out.host = d->diagnostic_manager->SyncHost(name);
             out.units = it->second.units;
             out.long_name = it->second.long_name;
             diagnostics.emplace(name, std::move(out));

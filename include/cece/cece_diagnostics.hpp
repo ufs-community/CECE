@@ -26,7 +26,7 @@ struct DiagnosticDeclaration {
 
 /**
  * @struct DiagnosticFieldInfo
- * @brief A registered diagnostic: a grid-sized field plus its metadata.
+ * @brief A registered diagnostic: a rank-local field plus its metadata.
  *
  * The DualView3D is shared process-wide for a given name: every
  * scheme that registers the same name receives a handle aliasing this storage.
@@ -42,8 +42,8 @@ struct DiagnosticFieldInfo {
  * @brief Registry of diagnostic fields, sized to the realized grid.
  *
  * Lifecycle: diagnostics declared before the grid is known are
- * held as pending declarations; SetGrid promotes them (allocating at the real
- * grid extent) and makes all later registrations allocate immediately. The
+ * held as pending declarations; SetGrid promotes them (allocating at the
+ * rank-local grid extent) and makes all later registrations allocate immediately. The
  * registry is framework-free — no AMIO/ESMF assumptions — so its semantics are
  * unit-testable without a coupled framework.
  */
@@ -52,11 +52,10 @@ class CeceDiagnosticManager {
     CeceDiagnosticManager() = default;
 
     /**
-     * @brief Sets the authoritative grid dimensions and promotes pending fields.
+     * @brief Sets this rank's authoritative field dimensions and promotes pending fields.
      *
-     * After this call every diagnostic allocates at (nx, ny, nz) regardless of
-     * the placeholder dims requested at declaration time. May be
-     * called only once with a given extent; a conflicting re-set throws.
+     * After this call every declared diagnostic allocates at (nx, ny, nz).
+     * May be called only once with a given extent; a conflicting re-set throws.
      *
      * @param nx Grid dimension in x.
      * @param ny Grid dimension in y.
@@ -71,7 +70,7 @@ class CeceDiagnosticManager {
     void SetReservedNames(std::vector<std::string> names);
 
     /**
-     * @brief Registers a diagnostic, returning the shared grid-sized field.
+     * @brief Registers a diagnostic, returning the shared rank-local field.
      *
      * Duplicate names return the existing field. Coordinate names and
      * reserved species names throw, naming the offender. Metadata is
@@ -81,10 +80,13 @@ class CeceDiagnosticManager {
      * Before SetGrid the declaration is recorded as pending and an empty handle
      * is returned; the field is allocated when the grid is set.
      *
-     * @return DualView3D the shared field (grid-sized once the grid is set), or
+     * @return DualView3D the shared field (rank-local once the grid is set), or
      *         an empty handle while the declaration is still pending.
      */
-    DualView3D RegisterDiagnostic(const std::string& name, int nx, int ny, int nz, const std::string& units = "", const std::string& long_name = "");
+    DualView3D RegisterDiagnostic(const std::string& name, const std::string& units = "", const std::string& long_name = "");
+
+    /** Synchronize one registered field to host and return a read-only view. */
+    Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::HostSpace> SyncHost(const std::string& name);
 
     /// @brief Read-only view of allocated fields (name -> field + metadata).
     const std::unordered_map<std::string, DiagnosticFieldInfo>& Fields() const {
@@ -131,7 +133,7 @@ class CeceDiagnosticManager {
    private:
     // Rejects coordinate/bounds/mesh names and reserved species names.
     void ValidateName(const std::string& name) const;
-    // Allocates a grid-sized, zero-initialized field and records its name.
+    // Allocates a rank-local, zero-initialized field and records its name.
     DiagnosticFieldInfo& Allocate(const DiagnosticDeclaration& declaration);
 
     bool grid_set_ = false;

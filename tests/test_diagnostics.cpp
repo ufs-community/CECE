@@ -11,7 +11,7 @@
  *   (a) BasePhysicsScheme with a null manager records pending declarations
  *       (name/units/long_name) instead of silently dropping them.
  *   (b) CeceDiagnosticManager::SetGrid allocates pending + new fields at the
- *       grid extent regardless of the requested placeholder dims.
+ *       the authoritative realized grid extent.
  *   (c) Duplicate RegisterDiagnostic returns the shared existing field (one
  *       map entry).
  *   (d) RegisterDiagnostic throws naming the offender for coordinate names and
@@ -43,8 +43,8 @@ class DeclaringScheme : public BasePhysicsScheme {
    public:
     void Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) override {
         BasePhysicsScheme::Initialize(config, diag_manager);
-        temperature_anomaly_ = ResolveDiagnostic("temperature_anomaly", 1, 1, 1, "K", "Temperature deviation from reference");
-        emission_efficiency_ = ResolveDiagnostic("emission_efficiency", 1, 1, 1, "kg m-2 s-1 K-1", "Emission per unit temperature anomaly");
+        temperature_anomaly_ = ResolveDiagnostic("temperature_anomaly", "K", "Temperature deviation from reference");
+        emission_efficiency_ = ResolveDiagnostic("emission_efficiency", "kg m-2 s-1 K-1", "Emission per unit temperature anomaly");
     }
     void Run(CeceImportState&, CeceExportState&) override {}
 
@@ -87,15 +87,15 @@ TEST(DiagnosticsRegistryTest, NullManagerRecordsPendingDeclarations) {
     EXPECT_TRUE(found_anomaly) << "temperature_anomaly pending declaration missing";
 }
 
-// (b) SetGrid allocates pending + new fields at grid extent, ignoring placeholder dims.
+// (b) SetGrid allocates pending + new fields at the authoritative grid extent.
 TEST(DiagnosticsRegistryTest, SetGridAllocatesAtGridExtent) {
     CeceDiagnosticManager manager;
 
     // Register before the grid is known (pending path).
-    manager.RegisterDiagnostic("pending_diag", 1, 1, 1, "K", "declared early");
+    manager.RegisterDiagnostic("pending_diag", "K", "declared early");
     manager.SetGrid(3, 4, 5);
     // Register after the grid is known (immediate allocation).
-    manager.RegisterDiagnostic("late_diag", 1, 1, 1, "m", "declared late");
+    manager.RegisterDiagnostic("late_diag", "m", "declared late");
 
     const auto& fields = manager.Fields();
     ASSERT_EQ(fields.count("pending_diag"), 1u);
@@ -114,8 +114,8 @@ TEST(DiagnosticsRegistryTest, DuplicateReturnsSharedField) {
     CeceDiagnosticManager manager;
     manager.SetGrid(2, 2, 2);
 
-    DualView3D first = manager.RegisterDiagnostic("shared", 2, 2, 2, "K", "shared diag");
-    manager.RegisterDiagnostic("shared", 2, 2, 2, "K", "ignored duplicate");
+    DualView3D first = manager.RegisterDiagnostic("shared", "K", "shared diag");
+    manager.RegisterDiagnostic("shared", "K", "ignored duplicate");
 
     EXPECT_EQ(manager.Fields().count("shared"), 1u);
 
@@ -136,10 +136,10 @@ TEST(DiagnosticsRegistryTest, RejectsCoordinateAndSpeciesNames) {
     manager.SetReservedNames({"co", "nox"});
 
     for (const std::string& coord : {"lon", "lat", "lev", "time", "lon_bnds", "lat_bnds", "mesh"}) {
-        ExpectThrowNaming([&] { manager.RegisterDiagnostic(coord, 2, 2, 1, "x", "y"); }, coord);
+        ExpectThrowNaming([&] { manager.RegisterDiagnostic(coord, "x", "y"); }, coord);
     }
     for (const std::string& species : {"co", "nox"}) {
-        ExpectThrowNaming([&] { manager.RegisterDiagnostic(species, 2, 2, 1, "x", "y"); }, species);
+        ExpectThrowNaming([&] { manager.RegisterDiagnostic(species, "x", "y"); }, species);
     }
 }
 
@@ -149,13 +149,13 @@ TEST(DiagnosticsRegistryTest, MetadataFirstNonEmptyWins) {
     manager.SetGrid(2, 2, 1);
 
     // Register with empty metadata first, then supply it: the non-empty wins.
-    manager.RegisterDiagnostic("meta", 2, 2, 1, "", "");
-    manager.RegisterDiagnostic("meta", 2, 2, 1, "K", "temperature anomaly");
+    manager.RegisterDiagnostic("meta", "", "");
+    manager.RegisterDiagnostic("meta", "K", "temperature anomaly");
     EXPECT_EQ(manager.Fields().at("meta").units, "K");
     EXPECT_EQ(manager.Fields().at("meta").long_name, "temperature anomaly");
 
     // A later conflicting value must NOT clobber the established one.
-    manager.RegisterDiagnostic("meta", 2, 2, 1, "C", "conflicting long name");
+    manager.RegisterDiagnostic("meta", "C", "conflicting long name");
     EXPECT_EQ(manager.Fields().at("meta").units, "K");
     EXPECT_EQ(manager.Fields().at("meta").long_name, "temperature anomaly");
 }
@@ -164,7 +164,7 @@ TEST(DiagnosticsRegistryTest, MetadataFirstNonEmptyWins) {
 TEST(DiagnosticsRegistryTest, FieldsZeroInitialized) {
     CeceDiagnosticManager manager;
     manager.SetGrid(2, 3, 4);
-    manager.RegisterDiagnostic("fresh", 2, 3, 4, "K", "brand new");
+    manager.RegisterDiagnostic("fresh", "K", "brand new");
 
     const auto host = manager.Fields().at("fresh").data.view_host();
     for (int i = 0; i < 2; ++i)

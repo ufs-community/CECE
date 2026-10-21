@@ -33,6 +33,22 @@
 
 extern "C" {
 
+/** Set the rank-local band before Phase 2 allocates diagnostic fields. */
+void cece_core_set_band_geometry(void* data_ptr, int ny_local, int j0, int* rc) {
+    if (rc != nullptr) {
+        *rc = 0;
+    }
+    if (data_ptr == nullptr || ny_local < 0 || j0 < 0) {
+        CECE_LOG_ERROR("[CECE] cece_core_set_band_geometry - invalid data pointer or band geometry");
+        if (rc != nullptr) *rc = -1;
+        return;
+    }
+    auto* data = static_cast<cece::CeceInternalData*>(data_ptr);
+    data->ny_local = ny_local;
+    data->j0 = j0;
+    data->band_geometry_set = true;
+}
+
 /**
  * @brief Initialize Phase 2 (IPDv00p2) implementation for CECE.
  *
@@ -102,6 +118,15 @@ void cece_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc)
     internal_data->nx = *nx;
     internal_data->ny = *ny;
     internal_data->nz = *nz;
+    if (!internal_data->band_geometry_set) {
+        internal_data->ny_local = internal_data->ny;
+        internal_data->j0 = 0;
+    } else if (internal_data->ny_local > internal_data->ny || internal_data->j0 > internal_data->ny - internal_data->ny_local) {
+        std::cerr << "ERROR in cece_core_initialize_p2: Invalid local band (j0=" << internal_data->j0 << ", ny_local=" << internal_data->ny_local
+                  << ") for ny=" << internal_data->ny << std::endl;
+        if (rc != nullptr) *rc = -1;
+        return;
+    }
 
     std::cout << "INFO: Grid dimensions received: nx=" << internal_data->nx << ", ny=" << internal_data->ny << ", nz=" << internal_data->nz
               << std::endl;
@@ -171,17 +196,15 @@ void cece_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc)
     std::cout << "INFO: Cached " << internal_data->esmf_fields.size() << " import field mappings" << std::endl;
 
     // 6. Bind the diagnostic manager into every scheme at the realized grid.
-    // Phase 1 created schemes with a null manager (the grid was unknown); this
-    // is the re-initialization that comment promised. SetGrid
-    // makes the registry authoritative on field size, SetReservedNames
-    // arms species-name collision checks, and re-running Initialize
-    // re-registers each scheme's diagnostics into the now-bound manager so the
-    // scheme members hold grid-sized views instead of the empty P1 handles.
+    // Phase 1 created schemes with a null manager (the grid was unknown), so
+    // SetGrid allocates rank-local fields and BindDiagnostics refreshes scheme
+    // handles without repeating configuration or other initialization work.
     if (internal_data->diagnostic_manager != nullptr) {
         CECE_LOG_INFO("[CECE] Binding diagnostic manager into " + std::to_string(internal_data->active_schemes.size()) + " schemes at grid " +
-                      std::to_string(internal_data->nx) + "x" + std::to_string(internal_data->ny) + "x" + std::to_string(internal_data->nz));
+                      std::to_string(internal_data->nx) + "x" + std::to_string(internal_data->ny_local) + "x" + std::to_string(internal_data->nz) +
+                      " (local band; global ny=" + std::to_string(internal_data->ny) + ")");
 
-        internal_data->diagnostic_manager->SetGrid(internal_data->nx, internal_data->ny, internal_data->nz);
+        internal_data->diagnostic_manager->SetGrid(internal_data->nx, internal_data->ny_local, internal_data->nz);
 
         std::vector<std::string> species_names;
         species_names.reserve(internal_data->config.species_layers.size());
@@ -192,11 +215,10 @@ void cece_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc)
 
         for (std::size_t i = 0; i < internal_data->active_schemes.size() && i < internal_data->config.physics_schemes.size(); ++i) {
             try {
-                internal_data->active_schemes[i]->Initialize(internal_data->config.physics_schemes[i].options,
-                                                             internal_data->diagnostic_manager.get());
+                internal_data->active_schemes[i]->BindDiagnostics(internal_data->diagnostic_manager.get());
             } catch (const std::exception& e) {
-                CECE_LOG_ERROR("[CECE] cece_core_initialize_p2: Failed to re-initialize scheme '" + internal_data->config.physics_schemes[i].name +
-                               "' with the diagnostic manager: " + e.what());
+                CECE_LOG_ERROR("[CECE] cece_core_initialize_p2: Failed to bind diagnostics for scheme '" +
+                               internal_data->config.physics_schemes[i].name + "': " + e.what());
                 if (rc != nullptr) {
                     *rc = -1;
                 }

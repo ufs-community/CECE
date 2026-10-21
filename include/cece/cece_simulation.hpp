@@ -129,6 +129,11 @@ struct StepOutcome {
  * The two drivers differ ONLY in how they produce the GridSpec passed to
  * create().
  */
+/**
+ * C++ operations return bool when callers need direct success branching;
+ * accompanying rc out-parameters carry the same outcome across the C ABI,
+ * where exceptions and C++ return conventions cannot be exposed.
+ */
 class CeceSimulation {
    public:
     /// Build the simulation. On success returns a non-null handle and sets
@@ -200,9 +205,9 @@ class CeceSimulation {
 
     /// Bind a realized diagnostic field's ESMF-owned memory as the persistent
     /// write-back target for `name`. Mirrors bind_export_field, but the
-    /// registry view is full-grid while the ESMF field is band-shaped: the
-    /// per-advance sync (SyncAndCopyState) copies the rank's band subview of
-    /// the registry host view into this buffer.
+    /// registry view and the ESMF field both use this rank's band shape; the
+    /// per-advance sync (SyncAndCopyState) copies the registry host values into
+    /// this buffer.
     ///
     /// The name MUST already be a registered or pending diagnostic (same typo
     /// guard as the c-api set_diagnostic_field), and (nx, ny_local, nz) MUST
@@ -215,8 +220,8 @@ class CeceSimulation {
     ///         unknown name, null/invalid extents, or a band mismatch.
     bool bind_diagnostic_field(const std::string& name, double* data_ptr, int nx, int ny_local, int nz, int* rc);
 
-    /// Sync the registry field for `name` and copy its FULL-GRID host values
-    /// into @p out (LayoutLeft order, nx*ny*nz doubles). Used by the coupled
+    /// Sync the registry field for `name` and copy its rank-local host values
+    /// into @p out (LayoutLeft order, nx*ny_local*nz doubles). Used by the coupled
     /// integration test to compare the realized ESMF export buffer against the
     /// registry's own host view for the same step. On a
     /// single rank the ESMF field is the whole grid, so the two buffers must

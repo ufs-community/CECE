@@ -40,6 +40,7 @@ void cece_run_log_setup(const char* config_path, int path_len);
 void cece_core_initialize_p1(void** data_ptr_ptr, int* rc);
 void cece_core_realize(void* data_ptr, int* rc);
 void cece_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc);
+void cece_core_set_band_geometry(void* data_ptr, int ny_local, int j0, int* rc);
 void cece_core_run(void* data_ptr, int hour, int day_of_week, int* rc);
 void cece_core_finalize(void* data_ptr, int* rc);
 void cece_core_writer_initialize_with_coords(void* data_ptr, int nx, int ny, int nz, const double* lon_coords, int lon_len, const double* lat_coords,
@@ -158,6 +159,12 @@ std::unique_ptr<CeceSimulation> CeceSimulation::create_internal(const std::strin
         return fail(rc, "cece_core_realize failed with rc=" + std::to_string(rc));
     }
 
+    sim->band_ = BandDecomposition::compute(ny, comm);
+    cece_core_set_band_geometry(sim->core_data_ptr_, sim->band_.ny_local, sim->band_.j0, &rc);
+    if (rc < 0) {
+        return fail(rc, "cece_core_set_band_geometry failed with rc=" + std::to_string(rc));
+    }
+
     // 4. Phase 2: complete grid binding (dynamically sized).
     cece_core_initialize_p2(sim->core_data_ptr_, &nx, &ny, &nz, &rc);
     if (rc < 0) {
@@ -175,7 +182,6 @@ std::unique_ptr<CeceSimulation> CeceSimulation::create_internal(const std::strin
     //    only the rank's band via SyncAndCopyState, and the writer assembles
     //    the global field at output time. On a single rank ny_local == ny,
     //    byte-identical to the replicated allocation.
-    sim->band_ = BandDecomposition::compute(ny, comm);
     for (const cece::CeceOutputField& field : parsed_config.output_config.fields.GetDataFields()) {
         std::vector<double>& buffer = sim->export_buffers_[field.name] =
             std::vector<double>(static_cast<std::size_t>(nx) * sim->band_.ny_local * nz, 0.0);
@@ -415,10 +421,10 @@ bool CeceSimulation::bind_diagnostic_field(const std::string& name, double* data
     if (core_data_ptr_ == nullptr) {
         return fail("simulation has no core data (not created, or already finalized)");
     }
-    if (data_ptr == nullptr) {
+    if (data_ptr == nullptr && ny_local != 0) {
         return fail("null data pointer for diagnostic '" + name + "'");
     }
-    if (nx <= 0 || ny_local <= 0 || nz <= 0) {
+    if (nx <= 0 || ny_local < 0 || nz <= 0) {
         return fail("invalid extents (" + std::to_string(nx) + ", " + std::to_string(ny_local) + ", " + std::to_string(nz) + ") for diagnostic '" +
                     name + "'");
     }
@@ -436,34 +442,18 @@ bool CeceSimulation::bind_diagnostic_field(const std::string& name, double* data
         return fail("'" + name + "' is not a registered diagnostic");
     }
 
-    // Shape contract: the ESMF field carries this rank's band (the registry
-    // view is full-grid; SyncAndCopyState deep-copies the band subview of the
-    // synced host view into the bound buffer). The facade — not the cap — owns
-    // the decomposition, so a mismatch with the band fails loudly instead of
-    // writing out of bounds.
-    if (nx != data->nx || nz != data->nz) {
+    // The ESMF field and diagnostic registry both carry this rank's band.
+    if (nx != data->nx || ny_local != manager->ny() || nz != data->nz) {
         return fail("extent mismatch for diagnostic '" + name + "': field (" + std::to_string(nx) + ", " + std::to_string(ny_local) + ", " +
                     std::to_string(nz) + ") != core grid (" + std::to_string(data->nx) + ", *, " + std::to_string(data->nz) + ")");
     }
-    if (ny_local != band_.ny_local) {
+    if (ny_local != band_.ny_local || ny_local != data->ny_local) {
         return fail("band mismatch for diagnostic '" + name + "': field ny_local=" + std::to_string(ny_local) +
                     " != facade band ny_local=" + std::to_string(band_.ny_local));
     }
 
-    // Publish the band geometry the write-back subview needs. The usual
-    // publisher is the orchestrator's import path (WriteBandToImport), which
-    // never runs in an import-free run — without this, d.ny_local stays 0 and
-    // the per-advance band subview of the full-grid registry view is a
-    // vacuous zero-size copy that silently leaves the buffer stale. band_ is
-    // fixed for the simulation's life, so this is idempotent with (and equal
-    // to) whatever the import path writes.
-    data->ny_local = band_.ny_local;
-    data->j0 = band_.j0;
-
-    // Pointer-map update only. ESMF owns the memory; the core never frees or
-    // reallocates it, and each step SyncAndCopyState deep-copies the band
-    // subview of the synced registry host view into whatever this map points
-    // at. Overwrite allowed (re-realize).
+    // ESMF owns this band-local memory; the core only copies into it. A null
+    // pointer is valid for surplus ranks that own zero rows.
     data->persistent_diagnostic_ptrs[name] = data_ptr;
     CECE_LOG_INFO("[SIM] Bound diagnostic '" + name + "' to coupled storage (" + std::to_string(nx) + "x" + std::to_string(ny_local) + "x" +
                   std::to_string(nz) + ")");
@@ -489,26 +479,22 @@ bool CeceSimulation::diagnostic_host_copy(const std::string& name, double* out, 
     if (core_data_ptr_ == nullptr) {
         return fail("simulation has no core data (not created, or already finalized)");
     }
-    if (out == nullptr) {
+    if (out == nullptr && out_max != 0) {
         return fail("null destination buffer for diagnostic '" + name + "'");
     }
     auto* data = static_cast<cece::CeceInternalData*>(core_data_ptr_);
-    const auto* manager = data->diagnostic_manager.get();
+    auto* manager = data->diagnostic_manager.get();
     if (manager == nullptr) {
         return fail("diagnostic registry is absent (core phase 1/2 did not create it)");
     }
 
-    const auto& fields = manager->Fields();
-    auto it = fields.find(name);
-    if (it == fields.end()) {
+    if (!manager->Fields().contains(name)) {
         return fail("'" + name + "' is not an allocated diagnostic");
     }
+    auto host = manager->SyncHost(name);
 
     // Sync the registry view to host exactly like the standalone writer does
     // (fresh values each call), then hand back the flat LayoutLeft buffer.
-    auto& view_rw = const_cast<cece::DualView3D&>(it->second.data);
-    view_rw.sync<Kokkos::HostSpace>();
-    const auto host = view_rw.view_host();
     const int total = static_cast<int>(host.size());
     if (count_out != nullptr) {
         *count_out = total;
@@ -517,7 +503,9 @@ bool CeceSimulation::diagnostic_host_copy(const std::string& name, double* out, 
         return fail("destination buffer too small for diagnostic '" + name + "': capacity " + std::to_string(out_max) + " < " +
                     std::to_string(total));
     }
-    std::memcpy(out, host.data(), static_cast<size_t>(total) * sizeof(double));
+    if (total > 0) {
+        std::memcpy(out, host.data(), static_cast<size_t>(total) * sizeof(double));
+    }
     return true;
 }
 

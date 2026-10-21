@@ -27,12 +27,19 @@ void ExampleDiagnosticComputation::Initialize(const conf::Value& config, CeceDia
 
     // Register diagnostic fields
     // These fields will be written to NetCDF output if diagnostics are enabled
-    if (diag_manager != nullptr) {
-        temperature_anomaly_ = ResolveDiagnostic("temperature_anomaly", 1, 1, 1, "K", "Temperature deviation from reference");
-        emission_efficiency_ = ResolveDiagnostic("emission_efficiency", 1, 1, 1, "kg/m2/s/K", "Emission per unit temperature anomaly");
-        if (compute_quality_flags_) {
-            quality_flag_ = ResolveDiagnostic("quality_flag", 1, 1, 1, "dimensionless", "Data quality flag (0=good, 1=suspect, 2=bad)");
-        }
+    temperature_anomaly_ = ResolveDiagnostic("temperature_anomaly", "K", "Temperature deviation from reference");
+    emission_efficiency_ = ResolveDiagnostic("emission_efficiency", "kg/m2/s/K", "Emission per unit temperature anomaly");
+    if (compute_quality_flags_) {
+        quality_flag_ = ResolveDiagnostic("quality_flag", "dimensionless", "Data quality flag (0=good, 1=suspect, 2=bad)");
+    }
+}
+
+void ExampleDiagnosticComputation::BindDiagnostics(CeceDiagnosticManager* diag_manager) {
+    BasePhysicsScheme::BindDiagnostics(diag_manager);
+    temperature_anomaly_ = ResolveDiagnostic("temperature_anomaly", "K", "Temperature deviation from reference");
+    emission_efficiency_ = ResolveDiagnostic("emission_efficiency", "kg/m2/s/K", "Emission per unit temperature anomaly");
+    if (compute_quality_flags_) {
+        quality_flag_ = ResolveDiagnostic("quality_flag", "dimensionless", "Data quality flag (0=good, 1=suspect, 2=bad)");
     }
 }
 
@@ -50,48 +57,15 @@ void ExampleDiagnosticComputation::Run(CeceImportState& import_state, CeceExport
     Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> emissions =
         ResolveInput("emissions", import_state, export_state);
 
-    // Determine the field shape: prefer a live input, else the registered
-    // diagnostic extent (grid-sized after Phase 2 binding).
-    int nx = 0, ny = 0, nz = 0;
-    if (emissions.data() != nullptr) {
-        nx = static_cast<int>(emissions.extent(0));
-        ny = static_cast<int>(emissions.extent(1));
-        nz = static_cast<int>(emissions.extent(2));
-    } else if (temperature.data() != nullptr) {
-        nx = static_cast<int>(temperature.extent(0));
-        ny = static_cast<int>(temperature.extent(1));
-        nz = static_cast<int>(temperature.extent(2));
-    } else if (temperature_anomaly_.view_host().data() != nullptr) {
-        nx = static_cast<int>(temperature_anomaly_.view_host().extent(0));
-        ny = static_cast<int>(temperature_anomaly_.view_host().extent(1));
-        nz = static_cast<int>(temperature_anomaly_.view_host().extent(2));
-    } else {
-        nx = static_cast<int>(emission_efficiency_.view_host().extent(0));
-        ny = static_cast<int>(emission_efficiency_.view_host().extent(1));
-        nz = static_cast<int>(emission_efficiency_.view_host().extent(2));
+    // This example's diagnostics require both live inputs. Do not manufacture
+    // plausible-looking values from zero-filled substitutes when either is
+    // unavailable.
+    if (temperature.data() == nullptr || emissions.data() == nullptr) {
+        return;
     }
-
-    // The standalone driver has no meteorology ingest path, so a run with
-    // only this scheme has neither input. Substitute zero-filled constant
-    // views of the right shape: the diagnostics then hold deterministic
-    // values (anomaly = -reference, efficiency = 0) instead of the run
-    // silently computing nothing. When a live field exists, it wins.
-    if (temperature.data() == nullptr) {
-        if (zero_temperature_.data() == nullptr || static_cast<int>(zero_temperature_.extent(0)) != nx ||
-            static_cast<int>(zero_temperature_.extent(1)) != ny || static_cast<int>(zero_temperature_.extent(2)) != nz) {
-            zero_temperature_ = Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>("zero_temperature", nx, ny, nz);
-            Kokkos::deep_copy(zero_temperature_, 0.0);
-        }
-        temperature = Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>(zero_temperature_);
-    }
-    if (emissions.data() == nullptr) {
-        if (zero_emissions_.data() == nullptr || static_cast<int>(zero_emissions_.extent(0)) != nx ||
-            static_cast<int>(zero_emissions_.extent(1)) != ny || static_cast<int>(zero_emissions_.extent(2)) != nz) {
-            zero_emissions_ = Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>("zero_emissions", nx, ny, nz);
-            Kokkos::deep_copy(zero_emissions_, 0.0);
-        }
-        emissions = Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>(zero_emissions_);
-    }
+    const int nx = static_cast<int>(emissions.extent(0));
+    const int ny = static_cast<int>(emissions.extent(1));
+    const int nz = static_cast<int>(emissions.extent(2));
 
     // Device-side writable handles for the registered diagnostic fields.
     auto anomaly_device = temperature_anomaly_.view_device();

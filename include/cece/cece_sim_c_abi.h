@@ -282,8 +282,8 @@ void cece_sim_diagnostic_long_name(CeceSimulation* sim, const char* name, int na
  * persistent write-back target (the NUOPC diagnostic binder).
  *
  * Mirrors cece_sim_bind_export_field for diagnostics. The registry view is
- * full-grid while the ESMF field is band-shaped: each advance the core
- * syncs the registry field and deep-copies this rank's band subview into
+ * rank-local while the ESMF field is band-shaped: each advance the core
+ * syncs the registry field and copies this rank's band-local values into
  * `data_ptr`. The name MUST already be a registered or pending diagnostic,
  * and (nx, ny_local, nz) MUST match this rank's band geometry — the facade
  * owns the decomposition and verifies it, so a mismatch fails loudly.
@@ -302,14 +302,14 @@ void cece_sim_diagnostic_long_name(CeceSimulation* sim, const char* name, int na
 void cece_sim_bind_diagnostic_field(CeceSimulation* sim, const char* name, int name_len, double* data_ptr, int nx, int ny_local, int nz, int* rc);
 
 /**
- * @brief Copy the registry's full-grid host values for a diagnostic into
- * @p out (LayoutLeft flat order, nx*ny_global*nz doubles).
+ * @brief Copy the registry's rank-local host values for a diagnostic into
+ * @p out (LayoutLeft flat order, nx*ny_local*nz doubles).
  *
  * Test-support entry point: the coupled integration test compares the
  * realized ESMF export buffer against the registry's own host view for the
- * same step. On a single rank the ESMF field spans the
- * whole grid, so the two buffers must be element-for-element identical once
- * the per-advance sync has run. *count_out reports the required element
+ * same step. On a single rank the ESMF field spans the whole grid; with band
+ * decomposition it spans this rank's latitude band. The buffers must be
+ * element-for-element identical once the per-advance sync has run. *count_out reports the required element
  * count even on failure. rc < 0 on an unallocated name or a too-small
  * buffer.
  */
