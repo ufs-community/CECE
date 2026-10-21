@@ -89,6 +89,20 @@ jobs:
             echo "Coverage report generated"
           fi
 
+      - name: Run all checked-in examples
+        run: |
+          source /opt/spack-environment/activate.sh
+          set -euo pipefail
+          for i in $(seq 6);
+          do
+              ./scripts/data_download/download_ex${i}.sh
+          done
+          for config_yaml in examples/*.yaml;
+          do
+              build/bin/cece_nuopc_app -y "${config_yaml}"
+              build/cece_standalone_driver "${config_yaml}"
+          done
+
       - name: Run HEMCO parity examples
         run: |
           source /opt/spack-environment/activate.sh
@@ -99,7 +113,10 @@ jobs:
           cmake --build build --target cece_nuopc_app -j$(nproc)
 
           ./scripts/setup_hemco_examples.sh
-          ./scripts/data_download/download_ex1.sh
+          for i in $(seq 6);
+          do
+              ./scripts/data_download/download_ex${i}.sh
+          done
 
           # Mock scale factor for CI: a time-invariant HOURLY_SCALFACT on the
           # MACCity grid, with lon/lat coordinates so the driver can regrid it.
@@ -119,3 +136,9 @@ jobs:
           cp examples/cece_config_ex1.yaml cece_config.yaml
           export LD_LIBRARY_PATH="$(pwd)/build/lib:$(pwd)/build${LD_LIBRARY_PATH:+:${LD_LIBRARY_PATH}}"
           build/bin/cece_nuopc_app
+
+          for i in $(seq 6);
+          do
+              build/bin/cece_nuopc_app -y examples/cece_config_ex${i}.yaml
+              build/cece_standalone_driver examples/cece_config_ex${i}.yaml
+          done
