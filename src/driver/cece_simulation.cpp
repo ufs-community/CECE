@@ -45,6 +45,7 @@ void cece_core_writer_initialize_with_coords(void* data_ptr, int nx, int ny, int
                                              int lat_len, const char* start_time_iso8601, int start_time_len, int mpi_comm_f, int* rc);
 void cece_core_write_step(void* data_ptr, double time_seconds, int step_index, int* rc);
 void cece_core_set_export_field(void* data_ptr, const char* name, int name_len, const double* field_data, int nx, int ny, int nz, int* rc);
+void cece_core_set_import_field(void* data_ptr, const char* name, int name_len, const double* field_data, int nx, int ny, int nz, int* rc);
 void cece_core_local_time_init(void* data_ptr, int nx, int ny, int nz, const double* lon_coords, int lon_len, const double* lat_coords, int lat_len,
                                int mpi_comm_f, int* rc);
 }
@@ -182,6 +183,54 @@ std::unique_ptr<CeceSimulation> CeceSimulation::create_internal(const std::strin
                                    sim->band_.ny_local, nz, &rc);
         if (rc < 0) {
             return fail(rc, "cece_core_set_export_field failed for '" + field.name + "' with rc=" + std::to_string(rc));
+        }
+    }
+
+    // 5b. Publish the destination grid coordinates as band-local LAT/LON import
+    //     fields so physics schemes (e.g. the GEOS-12 sea salt deep-lake mask)
+    //     consume per-cell lat/lon aligned with this rank's compute band. The
+    //     publication lives in the shared facade so the standalone driver and
+    //     the NUOPC cap behave identically.
+    if (sim->band_.ny_local > 0) {
+        const std::size_t band_cells = static_cast<std::size_t>(nx) * sim->band_.ny_local;
+        std::vector<double> lon2d(band_cells);
+        std::vector<double> lat2d(band_cells);
+        const double* lon = grid.lon_coords.data();
+        const double* lat = grid.lat_coords.data();
+        if (ny == 1) {
+            // Unstructured / single-row mesh: each of the nx cells carries its own lon and lat.
+            for (int i = 0; i < nx; ++i) {
+                lon2d[i] = lon[i];
+                lat2d[i] = lat[i];
+            }
+        } else if (grid.topology == GridTopology::Curvilinear) {
+            // 2-D per-cell coordinates flattened row-major (index i + j*nx).
+            for (int jrel = 0; jrel < sim->band_.ny_local; ++jrel) {
+                const std::size_t jglob = static_cast<std::size_t>(sim->band_.j0) + static_cast<std::size_t>(jrel);
+                for (int i = 0; i < nx; ++i) {
+                    const std::size_t idx = static_cast<std::size_t>(i) + static_cast<std::size_t>(nx) * jrel;
+                    const std::size_t src = static_cast<std::size_t>(i) + static_cast<std::size_t>(nx) * jglob;
+                    lon2d[idx] = lon[src];
+                    lat2d[idx] = lat[src];
+                }
+            }
+        } else {
+            // Rectilinear: lon varies along i (length nx), lat along the band (length ny).
+            for (int jrel = 0; jrel < sim->band_.ny_local; ++jrel) {
+                const int jglob = sim->band_.j0 + jrel;
+                for (int i = 0; i < nx; ++i) {
+                    const std::size_t idx = static_cast<std::size_t>(i) + static_cast<std::size_t>(nx) * jrel;
+                    lon2d[idx] = lon[i];
+                    lat2d[idx] = lat[jglob];
+                }
+            }
+        }
+        cece_core_set_import_field(sim->core_data_ptr_, "LON", 3, lon2d.data(), nx, sim->band_.ny_local, 1, &rc);
+        if (rc >= 0) {
+            cece_core_set_import_field(sim->core_data_ptr_, "LAT", 3, lat2d.data(), nx, sim->band_.ny_local, 1, &rc);
+        }
+        if (rc < 0) {
+            return fail(rc, "failed to publish grid LAT/LON import fields with rc=" + std::to_string(rc));
         }
     }
 

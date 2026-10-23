@@ -206,15 +206,30 @@ physics_schemes:
       c1_lai: 0.49
       c2_lai: 0.0016
 
-  - name: "sea_salt"
+  - name: "sea_salt_geos12"
     language: "cpp"
     refresh_interval_seconds: 1800 # Sea salt updates every 30 min
     options:
-      r_sala_min: 0.01
-      r_sala_max: 0.5
-      r_salc_min: 0.5
-      r_salc_max: 8.0
-      sea_salt_density: 2200.0
+      # Per-bin size properties come from the shared MICM mechanism file; the
+      # aerosol map selects the GOCART bins (seas1..seas5) and their scale.
+      # Requires FROCEAN/FRSEAICE/SST/U10M/V10M/USTAR met inputs (LAT/LON are
+      # supplied by the driver grid) delivered via cece_data streams.
+      mechanism_file: data/speciation/spc_cb6_gocart.yaml
+      speciation_file: data/speciation/map_cb6_gocart.yaml
+      speciation_dataset: SEASALT
+      weibull_flag: false
+      scale_factor: 1.0
+      input_mapping:
+        frocean: FROCEAN
+        frseaice: FRSEAICE
+        lat: LAT
+        lon: LON
+        sst: SST
+        u10m: U10M
+        v10m: V10M
+        ustar: USTAR
+      output_mapping:
+        seasalt_mass_total: sea_salt_total
 
   - name: "dust"
     language: "cpp"
@@ -278,8 +293,7 @@ diagnostics:
     - "co"
     - "nox"
     - "isoprene"
-    - "sea_salt_accumulation"
-    - "sea_salt_coarse"
+    - "sea_salt_total"
     - "dust_total"
 
 # NetCDF output configuration

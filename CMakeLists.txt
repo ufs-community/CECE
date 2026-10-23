@@ -461,7 +461,6 @@ set(
   src/core/cece_physics_factory.cpp
   src/core/cece_provenance.cpp
   src/core/physics/cece_native_example.cpp
-  src/core/physics/cece_sea_salt.cpp
   src/core/physics/cece_megan.cpp
   src/core/physics/cece_dms.cpp
   src/core/physics/cece_lightning.cpp
@@ -469,6 +468,7 @@ set(
   src/core/physics/cece_dust.cpp
   src/core/physics/cece_fengsha.cpp
   src/core/physics/cece_ginoux.cpp
+  src/core/physics/cece_seasalt_geos12.cpp
   src/core/physics/cece_k14.cpp
   src/core/physics/cece_volcano.cpp
   src/core/physics/cece_speciation_config.cpp
@@ -499,8 +499,6 @@ if(CECE_HAS_FORTRAN)
     APPEND CECE_CORE_SRCS
     src/core/physics/cece_fortran_bridge.cpp
     src/core/physics/legacy_fortran.F90
-    src/core/physics/cece_sea_salt_fortran_bridge.cpp
-    src/core/physics/sea_salt_kernel.F90
     src/core/physics/cece_dms_fortran_bridge.cpp
     src/core/physics/dms_kernel.F90
     src/core/physics/cece_lightning_fortran_bridge.cpp

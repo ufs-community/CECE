@@ -126,11 +126,11 @@ species:
 
 # Physics schemes for process-based emissions
 physics_schemes:
-  - name: "sea_salt"
+  - name: "sea_salt_geos12"
     language: "cpp"
     options:
-      r_sala_min: 0.01
-      r_sala_max: 0.5
+      mechanism_file: data/speciation/spc_cb6_gocart.yaml
+      speciation_dataset: SEASALT
 
 # Data streams for external inventories
 cece_data:
@@ -377,7 +377,7 @@ CECE includes a suite of process-based physics schemes for computing emissions f
 | Scheme | Description | Documentation |
 | --- | --- | --- |
 | DMS | Dimethyl sulfide sea-air exchange fluxes | [DMS](dms.md) |
-| Sea Salt | Size-resolved sea salt aerosol emissions (Gong 2003) | [Sea Salt](sea_salt.md) |
+| Sea Salt (GEOS-12) | Size-resolved sea salt aerosol emissions (Gong 2003 + Jaeglé 2011 SST) | [Sea Salt](sea_salt.md) |
 | Dust (Ginoux Legacy) | Single-bin mineral dust emissions (Ginoux 2001) | [Dust](dust.md) |
 | Ginoux (GOCART2G) | Multi-bin dust emissions with Marticorena threshold | [Ginoux](ginoux.md) |
 | FENGSHA | Physically-based saltation dust model with Fécan correction | [FENGSHA](fengsha.md) |

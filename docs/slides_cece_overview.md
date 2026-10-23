@@ -286,7 +286,7 @@ CECE supports modular physics schemes in both C++ and Fortran:
 physics_schemes:
   - name: "megan"
     refresh_interval_seconds: 300     # Every 5 min (fast-responding)
-  - name: "sea_salt"
+  - name: "sea_salt_geos12"
     refresh_interval_seconds: 1800    # Every 30 min
 ```
 
