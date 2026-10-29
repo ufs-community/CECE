@@ -225,13 +225,6 @@ class CeceDriverOrchestrator {
     // (re)assigned so the wrapper never lags the communicator (Req 7.3).
     void RefreshHaloCommunicator();
 
-    // Parse config_file_ once at construction and populate stream_configs_ for
-    // every model variable, resolving the same fields and defaults the legacy
-    // inline AdvanceTime parse produced. Also resolves the driver-level
-    // amio_worker_threads / amio_staging_buffer_count (validated >= 1) and
-    // gridspec_file_ (Req 1.1-1.5, 4.3).
-    void ResolveStreamConfigs();
-
     // Pure YAML->StreamConfig resolution shared by ResolveStreamConfigs() and
     // the Property 4 test. Parses config_file, fills out_configs (keyed by model
     // variable name) and out_gridspec_file using the exact same field resolution
