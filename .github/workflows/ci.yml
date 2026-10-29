@@ -64,6 +64,12 @@ jobs:
           # Build. Make will only build what has changed.
           make -j$(nproc)
 
+      - name: Build CECE Doxygen docs
+        run: |
+          source /opt/spack-environment/activate.sh
+          cd build
+          cmake --build . --target cece_docs
+
       # This needs to run after build, because it uses build/compile_commands.json
       # and any generated headers
       - name: Run static analysis (clang-tidy)
