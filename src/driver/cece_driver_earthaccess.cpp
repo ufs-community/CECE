@@ -54,6 +54,9 @@ int run_process(const std::vector<std::string>& args) {
 
     int status = 0;
     pid_t waited = 0;
+    // errno is a global: if you want the value as set by a specific
+    // function, you need to set it beforehand
+    errno = EINTR;
     do {
         waited = waitpid(child, &status, 0);
     } while (waited < 0 && errno == EINTR);

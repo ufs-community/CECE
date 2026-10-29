@@ -53,7 +53,7 @@ namespace {
 
 // Absolute path to the production driver facade translation unit.
 std::string FacadeSourcePath() {
-    return std::string(CECE_SOURCE_DIR) + "/src/driver/cece_driver_facade.cpp";
+    return fs::path(CECE_SOURCE_DIR) / fs::path("src/driver/cece_driver_facade.cpp");
 }
 
 // Read a whole text file into a string.

@@ -30,9 +30,7 @@ namespace cece::test {
 
 class CeceUtilsTest : public ::testing::Test {
    protected:
-    void SetUp() override {
-        // Kokkos and MPI are managed by the shared cece_test_main environment
-    }
+    // Kokkos and MPI are managed by the shared cece_test_main environment
 };
 
 TEST_F(CeceUtilsTest, WrapESMCFieldUpdatesRawData) {
