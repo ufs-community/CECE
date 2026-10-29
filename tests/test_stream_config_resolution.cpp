@@ -73,7 +73,8 @@ namespace cece {
 // ============================================================================
 struct StreamConfigTestAccess {
     static void Resolve(const std::string& config_file, std::unordered_map<std::string, StreamConfig>& out_configs, std::string& out_gridspec_file) {
-        CeceDriverOrchestrator::ResolveStreamConfigsFromFile(config_file, out_configs, out_gridspec_file);
+        CeceConfig config = ParseConfig(config_file);
+        CeceDriverOrchestrator::ResolveStreamConfigsFromConfig(config, out_configs, out_gridspec_file);
     }
 };
 

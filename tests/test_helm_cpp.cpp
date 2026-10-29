@@ -18,7 +18,9 @@ std::string GetConfigPath() {
 
 TEST(HelmTest, TestBMIPointerAllocation) {
     cece::io::CeceIO cece_io;
-    EXPECT_ANY_THROW(cece_io.Initialize("non_existent_file.yaml", 72, 46, 1));
+    cece::CeceConfig config;
+    EXPECT_ANY_THROW(config = cece::ParseConfig("non_existent_file.yaml"));
+    // EXPECT_ANY_THROW(cece_io.Initialize(config, 72, 46, 1));
 }
 
 TEST(HelmTest, TestDynamicGraphCompilation) {
@@ -26,8 +28,9 @@ TEST(HelmTest, TestDynamicGraphCompilation) {
     cece::io::CeceIO cece_io;
 
     std::string mock_config = GetConfigPath();
-    cece_io.Initialize(mock_config, 72, 46, 1);
-    CompileHelmGraph(mock_config, dagr, cece_io);
+    cece::CeceConfig config = cece::ParseConfig(mock_config);
+    cece_io.Initialize(config, 72, 46, 1);
+    CompileHelmGraph(dagr, cece_io);
 
     EXPECT_TRUE(true);
 }
@@ -37,8 +40,9 @@ TEST(HelmTest, TestShutdownNoTimeout) {
     cece::io::CeceIO cece_io;
 
     std::string mock_config = GetConfigPath();
-    cece_io.Initialize(mock_config, 72, 46, 1);
-    CompileHelmGraph(mock_config, dagr, cece_io);
+    cece::CeceConfig config = cece::ParseConfig(mock_config);
+    cece_io.Initialize(config, 72, 46, 1);
+    CompileHelmGraph(dagr, cece_io);
 
     // Call advance_step to dispatch the task(s)
     dagr->advance_step();

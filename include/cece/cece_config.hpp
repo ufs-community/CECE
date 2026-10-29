@@ -10,6 +10,7 @@
 #include <array>
 #include <conf/value.hpp>
 #include <cstddef>
+#include <filesystem>
 #include <functional>
 #include <initializer_list>
 #include <map>
@@ -19,6 +20,8 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+
+namespace fs = std::filesystem;
 
 namespace cece {
 
@@ -145,6 +148,7 @@ struct TemporalCycle {
 struct CeceDataVariableConfig {
     std::string name_in_file;   ///< Variable name in the NetCDF file.
     std::string name_in_model;  ///< Internal name used by CECE.
+    int field_levels = -1;
 };
 
 /**
@@ -174,6 +178,12 @@ struct CeceDataStreamConfig {
     std::string latitude_variable;                 ///< Explicit source latitude center variable, when configured.
     int refresh_interval_seconds = 0;              ///< Refresh interval in seconds (0 means use base timestep).
     bool use_local_time = false;                   ///< Select weekly profile records by each cell's local weekday (requires local_time.enabled).
+    std::string source = "";
+    std::string cadence = "";
+    std::string time_label;
+    std::string time_units = "";
+    std::string calendar = "gregorian";
+    std::string data_model = "auto";
 };
 
 /**
@@ -424,6 +434,7 @@ struct DriverGridConfig {
     double lon_max = 135.0;   ///< Maximum longitude (default: 135.0).
     double lat_min = -67.5;   ///< Minimum latitude (default: -67.5).
     double lat_max = 67.5;    ///< Maximum latitude (default: 67.5).
+    std::string grid_name = "";
 };
 
 /**
@@ -452,6 +463,7 @@ struct DriverConfig {
     /// input file per rank on the pre-lazy pool).
     int amio_staging_buffer_capacity_bytes = 33554432;
     int amio_prefetch_depth = 2;  ///< AMIO read look-ahead depth (default: 2). Lower = fewer in-flight slabs.
+    fs::path earthaccess_helper;  ///< Absolute path to earthacess standalone ingest helper script
 };
 
 /**

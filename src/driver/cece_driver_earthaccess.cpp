@@ -65,34 +65,37 @@ int run_process(const std::vector<std::string>& args) {
 }
 
 /** Resolve the configured EarthAccess helper or a repository-relative default. */
-fs::path resolve_earthaccess_helper(const std::string& config_file) {
+fs::path resolve_earthaccess_helper(const CeceConfig& config, fs::path config_path) {
     if (const char* configured = std::getenv("CECE_EARTHACCESS_HELPER")) {
         if (*configured != '\0') return fs::path(configured);
     }
 
-    const fs::path config_path = fs::absolute(fs::path(config_file));
-    try {
-        conf::Config config = conf::Config::from_file(config_file);
-        const conf::Value configured = config.at("driver.earthaccess_helper");
-        if (configured && configured.kind() == conf::Node_Kind::Scalar) {
-            fs::path helper_path(configured.as_string());
-            if (helper_path.is_relative()) {
-                helper_path = config_path.parent_path() / helper_path;
-            }
-            return helper_path;
+    const fs::path configured = config.driver_config.earthaccess_helper;
+    if (!configured.empty()) {
+        fs::path helper_path(configured);
+        if (helper_path.is_relative()) {
+            helper_path = config_path.parent_path() / helper_path;
         }
-    } catch (const conf::Conf_Error& ex) {
-        // The main driver parse reports malformed configuration elsewhere.
-        // Continue to conventional helper locations for a useful diagnostic.
-        CECE_LOG_DEBUG(std::string("[DRIVER] Could not read earthaccess_helper override: ") + ex.what());
+        return helper_path;
     }
+    // // The main driver parse reports malformed configuration elsewhere.
+    // // Continue to conventional helper locations for a useful diagnostic.
+    // CECE_LOG_DEBUG(std::string("[DRIVER] Could not read earthaccess_helper override: ") + );
 
     const fs::path cwd_helper = fs::current_path() / "scripts" / "cece_earthaccess_standalone_ingest.py";
-    if (fs::exists(cwd_helper)) return cwd_helper;
+    if (fs::exists(cwd_helper)) {
+        // // Cache helper location
+        // config.driver_config.earthaccess_helper = cwd_helper;
+        return cwd_helper;
+    }
 
     for (fs::path dir = config_path.parent_path(); !dir.empty(); dir = dir.parent_path()) {
         const fs::path candidate = dir / "scripts" / "cece_earthaccess_standalone_ingest.py";
-        if (fs::exists(candidate)) return candidate;
+        if (fs::exists(candidate)) {
+            //   // Cache helper location
+            // config.driver_config.earthaccess_helper{candidate};
+            return candidate;
+        }
         if (dir == dir.root_path()) break;
     }
 
@@ -102,19 +105,11 @@ fs::path resolve_earthaccess_helper(const std::string& config_file) {
 }  // namespace
 
 /** Return whether the config includes any streams handled by EarthAccess. */
-bool CeceDriverOrchestrator::HasEarthAccessStreams(const std::string& config_file) {
-    try {
-        conf::Config config = conf::Config::from_file(config_file);
-        if (!config.has("cece_data.streams")) return false;
-        conf::Value streams_list = config.at("cece_data.streams");
-        for (std::size_t i = 0; i < streams_list.size(); ++i) {
-            const auto& stream = streams_list[i];
-            if (stream["source"] && stream["source"].as_string() == "earthaccess") {
-                return true;
-            }
+bool CeceDriverOrchestrator::HasEarthAccessStreams(const CeceConfig& config) {
+    for (const auto& stream : config.cece_data.streams) {
+        if (stream.source == "earthaccess") {
+            return true;
         }
-    } catch (const conf::Conf_Error&) {
-        return false;
     }
     return false;
 }
@@ -165,7 +160,7 @@ bool CeceDriverOrchestrator::IngestEarthAccessStreams(const std::string& time_is
         } else if (!use_staged_earthaccess) {
             const char* python_env = std::getenv("CECE_PYTHON");
             const std::string python = (python_env && *python_env != '\0') ? python_env : "python3";
-            const fs::path helper = resolve_earthaccess_helper(config_file_);
+            const fs::path helper = resolve_earthaccess_helper(config_, config_file_);
             if (!fs::exists(helper)) {
                 CECE_LOG_ERROR("[DRIVER] Earthaccess helper not found at '" + helper.string() +
                                "'. Set CECE_EARTHACCESS_HELPER or run from the CECE repository root.");

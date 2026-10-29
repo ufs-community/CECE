@@ -1,6 +1,7 @@
 #include <sys/stat.h>
 
 #include <algorithm>
+#include <filesystem>
 #include <iostream>
 #include <set>
 #include <stdexcept>
@@ -10,6 +11,8 @@
 #include "cece/cece_geometry_config.hpp"
 #include "cece/cece_string_utils.hpp"
 #include "conf/config.hpp"
+
+namespace fs = std::filesystem;
 
 namespace cece {
 
@@ -205,15 +208,17 @@ CeceConfig ParseConfig(const std::string& filename) {
         conf::Value streams = data["streams"];
         for (std::size_t i = 0; i < streams.size(); ++i) {
             conf::Value node = streams[i];
+            CeceDataStreamConfig stream;
+            stream.name = string_or(node, "name");
             if (string_or(node, "source") == "earthaccess") {
                 if (node["use_local_time"].bool_or(false)) {
                     throw std::invalid_argument("cece_data.streams[" + std::to_string(i) +
                                                 "]: use_local_time is not supported for earthaccess streams.");
                 }
+                stream.source = "earthaccess";
+                config.cece_data.streams.push_back(std::move(stream));
                 continue;
             }
-            CeceDataStreamConfig stream;
-            stream.name = string_or(node, "name");
             conf::Value files = node["file"];
             if (files)
                 stream.file_paths = files.kind() == conf::Node_Kind::Sequence ? files.as_string_list() : std::vector<std::string>{files.as_string()};
@@ -241,6 +246,7 @@ CeceConfig ParseConfig(const std::string& filename) {
                                                     "] requires a non-empty 'model'");
                     }
                     variable.name_in_file = string_or(value, "file", variable.name_in_model);
+                    variable.field_levels = value["levels"].int_or(-1);
                 } else {
                     throw std::invalid_argument("cece_data.streams[" + std::to_string(i) + "].variables[" + std::to_string(j) +
                                                 "] must be a string or mapping");
@@ -296,6 +302,14 @@ CeceConfig ParseConfig(const std::string& filename) {
                     throw std::invalid_argument(where + ": use_local_time requires tintalgo: nearest.");
                 }
             }
+            stream.cadence = string_or(node, "cadence");
+            stream.time_label = string_or(node, "time_label");
+            stream.time_units = string_or(node, "time_units");
+            stream.calendar = string_or(node, "calendar", "gregorian");
+            stream.data_model = to_lower(string_or(node, "data_model", "auto"));
+            // if (stream.data_model != "auto" && stream.data_model != "classic" && stream.data_model != "enhanced") {
+            //     throw std::invalid_argument("data_model must be \"auto\", \"classic\", or \"enhanced\"");
+            // }
             config.cece_data.streams.push_back(std::move(stream));
         }
     }
@@ -419,6 +433,16 @@ CeceConfig ParseConfig(const std::string& filename) {
                 throw std::invalid_argument("driver.amio_prefetch_depth must be >= 1; got " + std::to_string(depth) + ".");
             }
             config.driver_config.amio_prefetch_depth = depth;
+        }
+        if (driver["earthaccess_helper"]) {
+            fs::path helper_path = string_or(driver, "earthaccess_helper");
+            if (!fs::exists(helper_path)) {
+                throw std::runtime_error("Earthaccess standalone ingest helper script not found");
+            }
+            if (helper_path.is_relative()) {
+                helper_path = fs::path(filename).parent_path() / helper_path;
+            }
+            config.driver_config.earthaccess_helper = helper_path;
         }
     }
 

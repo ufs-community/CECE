@@ -202,7 +202,7 @@ class CeceDriverOrchestrator {
                                  std::vector<double>& ingest_buffer, std::string& failure_detail);
 
     /** Return whether the YAML config contains streams handled by EarthAccess. */
-    static bool HasEarthAccessStreams(const std::string& config_file);
+    static bool HasEarthAccessStreams(const CeceConfig& config);
 
     /**
      * Ingest `source: earthaccess` streams for the current timestep.
@@ -239,8 +239,8 @@ class CeceDriverOrchestrator {
     // exercised in isolation without constructing a full orchestrator (which
     // requires MPI/DAGR/CeceIO). This is the SAME code path production uses; it
     // is not a copy (Req 1.1-1.5, 4.3).
-    static void ResolveStreamConfigsFromFile(const std::string& config_file, std::unordered_map<std::string, StreamConfig>& out_configs,
-                                             std::string& out_gridspec_file);
+    static void ResolveStreamConfigsFromConfig(const CeceConfig& config, std::unordered_map<std::string, StreamConfig>& out_configs,
+                                               std::string& out_gridspec_file);
 
     // Resolve one stream variable's YAML node into a StreamConfig: field
     // resolution + defaults for file/mapalgo/cadence/tintalgo/data_model plus
@@ -248,7 +248,7 @@ class CeceDriverOrchestrator {
     // ResolveStreamConfigsFromFile stream loop, which had grown to ~40 lines
     // of per-field if/else logic; the loop now keeps only the iteration and
     // first-match-wins bookkeeping. Behavior is unchanged.
-    static StreamConfig BuildStreamConfig(const conf::Value& stream, const std::string& model_name, const std::string& file_name,
+    static StreamConfig BuildStreamConfig(const CeceDataStreamConfig& stream, const std::string& model_name, const std::string& file_name,
                                           int amio_worker_threads, int amio_staging_buffer_count, int amio_staging_buffer_capacity_bytes,
                                           int amio_prefetch_depth);
 
@@ -360,6 +360,7 @@ class CeceDriverOrchestrator {
     std::vector<double> target_lats_;
     int step_index_{0};
     MPI_Comm comm_c_{MPI_COMM_NULL};
+    CeceConfig config_;
 
     // Long-lived HALO wrapper over comm_c_. Built once when comm_c_ is set to a
     // valid, size>1 communicator (duplicating a non-predefined handle exactly as
