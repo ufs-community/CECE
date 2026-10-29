@@ -262,7 +262,7 @@ FileGridLoad load_gridspec_coords(amio_dataset_handle dataset, int nx, int ny) {
 
 }  // namespace
 
-GridSpec GridSpec::from_yaml(const std::string& config_file, conf::Config& config) {
+GridSpec GridSpec::from_yaml(conf::Config& config) {
     GridSpec spec;
 
     // --- A. Grid dimensions ------------------------------------------------
