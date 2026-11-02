@@ -70,6 +70,8 @@ class DatasetSource:
                 raise ValueError(f'Explicit {dimension} selection is required')
         if selection:
             data = data.sel(selection)
+        if any(name in data.coords for name in ('step', 'lead_time', 'forecast_period')):
+            raise ValueError('Forecast lead coordinates require explicit valid time preparation before source selection')
         return select_time(data, time, tolerance=self.tolerance)
 
     def close(self):

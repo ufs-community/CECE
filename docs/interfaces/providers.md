@@ -24,6 +24,9 @@ reconstruct its model and forcing explicitly.
 
 Time selection is nearest with an explicit tolerance. Ensemble members and
 recognized forecast cycle and lead dimensions require explicit selection.
+Forecast lead coordinates must be resolved into a valid-time axis and removed
+before using `DatasetSource`: the pinned MONETIO NCEP reader can discard a
+separate `valid_time` coordinate when a `time` coordinate is present.
 Inputs must already have the model's dimensions, coordinates, and units; there
 is no implicit regridding or retrieval-to-emission conversion. For two-dimensional
 rectilinear fields, `cece.preparation.regrid_rectilinear` explicitly uses the

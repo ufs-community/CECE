@@ -31,6 +31,13 @@ def test_forecast_cycle_requires_explicit_selection():
     assert source.read('2020-01-01T05', selection={'member': 0, 'cycle': 1}).base.item() == 3
 
 
+def test_forecast_lead_coordinate_requires_explicit_valid_time_preparation():
+    data = dataset().assign_coords(step=np.timedelta64(6, 'h'))
+    source = DatasetSource(data, variables=['base'], tolerance='2h')
+    with pytest.raises(ValueError, match='valid time'):
+        source.read('2020-01-01T05', selection={'member': 0})
+
+
 def test_monetio_adapter_uses_public_load_and_closes(monkeypatch):
     calls = []
     monkeypatch.setitem(sys.modules, 'monetio', types.SimpleNamespace(load=lambda source, files=None, **kwargs: (calls.append((source, files, kwargs)) or dataset())))
