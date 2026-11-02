@@ -25,8 +25,15 @@ reconstruct its model and forcing explicitly.
 Time selection is nearest with an explicit tolerance. Ensemble members and
 recognized forecast cycle and lead dimensions require explicit selection.
 Inputs must already have the model's dimensions, coordinates, and units; there
-is no implicit regridding or retrieval-to-emission conversion. GFS, GEFS and
+is no implicit regridding or retrieval-to-emission conversion. For two-dimensional
+rectilinear fields, `cece.preparation.regrid_rectilinear` explicitly uses the
+same AXIS regridding path as the native driver; it currently supports only
+passthrough and nearest-neighbor methods, with finite unmasked fields and full
+target coverage. GFS, GEFS and
 satellite readers can be requested through MONETIO, but their individual file
 formats, forecast conventions, swath geometry, quality screening and coverage
 have not yet been validated by this adapter. Prepare such data explicitly and
 check geometry and provenance before supplying it to a model.
+
+The optional regridding extension links the CECE driver and can be disabled at
+build time with `-DCECE_PYTHON_REGRID=OFF` for physics-only Python builds.

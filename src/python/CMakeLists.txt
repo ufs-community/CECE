@@ -40,6 +40,15 @@ pybind11_add_module(_cece_core cece_pybind.cpp cece_scheme_pybind.cpp)
 
 target_link_libraries(_cece_core PRIVATE cece_core Kokkos::kokkos)
 
+# Keep driver/AXIS dependencies out of the physics-only extension.
+set(_cece_python_targets _cece_core)
+if(CECE_PYTHON_REGRID)
+  pybind11_add_module(_cece_regrid cece_regrid_pybind.cpp)
+  target_link_libraries(_cece_regrid PRIVATE cece_driver)
+  set_target_properties(_cece_regrid PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/cece")
+  list(APPEND _cece_python_targets _cece_regrid)
+endif()
+
 # Place the compiled .so in the cece package directory
 set_target_properties(
   _cece_core
@@ -94,7 +103,7 @@ install(
 add_custom_target(
   python_package
   ALL
-  DEPENDS _cece_core
+  DEPENDS ${_cece_python_targets}
   COMMENT "Python CECE package ready in ${CMAKE_CURRENT_BINARY_DIR}/cece"
 )
 
