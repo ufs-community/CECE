@@ -19,7 +19,8 @@ A custom provider can implement `open()`, `read(time, selection)` returning a
 mapping of labeled fields, and `close()`. A model owns attached providers and
 closes them. Each destination field has one owner; an attached source cannot
 replace an explicitly set input. Restart serialization with attached providers
-is currently unsupported. Recreate providers and manage their position explicitly.
+is currently unsupported. Restarting a source-driven run requires the caller to
+reconstruct its model and forcing explicitly.
 
 Time selection is nearest with an explicit tolerance. Ensemble members and
 recognized forecast cycle and lead dimensions require explicit selection.

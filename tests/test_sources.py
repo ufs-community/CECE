@@ -85,3 +85,24 @@ def test_source_cannot_take_over_existing_input():
         with pytest.raises(ValueError, match='explicit inputs'):
             model.add_source(DatasetSource(dataset(), variables=['base'], tolerance='2h'),
                              mapping={'base':'base_anthropogenic_nox'})
+
+
+def test_custom_provider_needs_no_optional_reader():
+    class Provider:
+        closed = False
+
+        def open(self):
+            return self
+
+        def read(self, time, selection=None):
+            assert time == np.datetime64('2020-01-01T00:00:00')
+            return {'forcing': np.array([3.])}
+
+        def close(self):
+            self.closed = True
+
+    source = Provider()
+    with cece.Model(['native_example'], grid=cece.Grid.point(0, 0)) as model:
+        model.add_source(source, mapping={'forcing': 'base_anthropogenic_nox'})
+        assert model.step(time='2020-01-01T00:00:00Z', dt=3600).nox.item() == 6
+    assert source.closed
