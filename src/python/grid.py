@@ -9,7 +9,19 @@ import numpy as np
 
 @dataclass(frozen=True)
 class Grid:
-    """A fixed domain. Structured cells flatten in C order (longitude fastest)."""
+    """A fixed domain with structured cells flattened longitude-fastest.
+
+    Parameters
+    ----------
+    shape : tuple of int
+        Horizontal dimension sizes.
+    dims : tuple of str
+        Horizontal dimension names.
+    longitude, latitude : tuple of float
+        Geographic coordinates in degrees, per column or structured axis.
+    levels : tuple of float, optional
+        Explicit level coordinates; defaults to a single level at zero.
+    """
 
     shape: tuple[int, ...]
     dims: tuple[str, ...]
@@ -47,18 +59,48 @@ class Grid:
 
     @property
     def ncol(self):
+        """int: Number of horizontal columns."""
         return int(np.prod(self.shape))
 
     @property
     def nlev(self):
+        """int: Number of levels per column."""
         return len(self.levels)
 
     @classmethod
     def point(cls, longitude, latitude, levels=None):
+        """Construct a single column.
+
+        Parameters
+        ----------
+        longitude, latitude : float
+            Point coordinates in degrees.
+        levels : sequence of float, optional
+            Level coordinates; defaults to one level.
+
+        Returns
+        -------
+        Grid
+            Single-column geometry.
+        """
         return cls.columns([longitude], [latitude], levels=levels)
 
     @classmethod
     def columns(cls, longitude, latitude, levels=None):
+        """Construct independent columns from paired coordinates.
+
+        Parameters
+        ----------
+        longitude, latitude : array_like
+            Matching one-dimensional coordinates in degrees.
+        levels : sequence of float, optional
+            Level coordinates shared by all columns.
+
+        Returns
+        -------
+        Grid
+            Column geometry.
+        """
         lon = np.asarray(longitude, dtype=float)
         lat = np.asarray(latitude, dtype=float)
         if lon.ndim != 1 or lat.shape != lon.shape:
@@ -73,6 +115,20 @@ class Grid:
 
     @classmethod
     def structured(cls, *, longitude, latitude, levels=None):
+        """Construct a rectilinear latitude-longitude grid.
+
+        Parameters
+        ----------
+        longitude, latitude : array_like
+            One-dimensional longitude and latitude axes in degrees.
+        levels : sequence of float, optional
+            Level coordinates shared by all cells.
+
+        Returns
+        -------
+        Grid
+            Structured geometry, ordered latitude then longitude.
+        """
         lon = np.asarray(longitude, dtype=float)
         lat = np.asarray(latitude, dtype=float)
         if lon.ndim != 1 or lat.ndim != 1:
@@ -86,6 +142,13 @@ class Grid:
         )
 
     def coordinates(self):
+        """Return xarray-compatible coordinates for the horizontal geometry.
+
+        Returns
+        -------
+        dict
+            Coordinate names and values or ``(dimension, values)`` pairs.
+        """
         if self.dims == ("latitude", "longitude"):
             return {"latitude": list(self.latitude), "longitude": list(self.longitude)}
         return {
@@ -95,6 +158,13 @@ class Grid:
         }
 
     def to_dict(self):
+        """Return JSON-serializable geometry.
+
+        Returns
+        -------
+        dict
+            Shape, dimensions, coordinates, and levels.
+        """
         return {
             "shape": [int(n) for n in self.shape],
             "dims": list(self.dims),

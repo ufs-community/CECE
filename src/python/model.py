@@ -48,6 +48,17 @@ def _validated_call(function, *args):
 class Model:
     """Run explicitly selected, reviewed native physics schemes.
 
+    Parameters
+    ----------
+    schemes : str or sequence of str
+        Scheme names in execution order; producers must precede consumers.
+    grid : Grid
+        Fixed geometry for the lifetime of the model.
+    options : mapping, optional
+        Scheme-specific configuration, keyed by scheme name.
+
+    Notes
+    -----
     ``step(time, dt)`` describes [time, time+dt), with UTC epoch seconds or an
     ISO timestamp. NumPy inputs are canonical-unit values; xarray fields carry
     explicit units/dimensions. Results are independent snapshots. No remote
@@ -114,7 +125,13 @@ class Model:
             raise RuntimeError("CECE Model is closed")
 
     def required_inputs(self):
-        """Return canonical requirements not supplied by an earlier scheme."""
+        """Return required fields not supplied by a scheme.
+
+        Returns
+        -------
+        dict
+            Field names mapped to their units, axis and extent.
+        """
         self._open()
         return {
             name: {"units": spec.units, "axis": spec.axis, "extent": spec.extent}
@@ -141,7 +158,25 @@ class Model:
         return prepared
 
     def validate_inputs(self, data, mapping=None):
-        """Validate a prospective complete input set without changing the model."""
+        """Validate a prospective complete input set without changing the model.
+
+        Parameters
+        ----------
+        data : mapping or xarray.Dataset
+            Input fields in canonical units, or labeled fields with units.
+        mapping : mapping, optional
+            Input field names mapped to canonical scheme field names.
+
+        Returns
+        -------
+        bool
+            True if all required fields are present and valid.
+
+        Raises
+        ------
+        ValueError
+            If fields are missing, unknown, or have incompatible values.
+        """
         self._open()
         prepared = self._prepare(data, mapping)
         missing = set(self.required_inputs()) - set(prepared)
@@ -150,7 +185,21 @@ class Model:
         return True
 
     def set_inputs(self, data, mapping=None):
-        """Update forcing; validate the whole update before copying any fields."""
+        """Update forcing after validating the whole update.
+
+        Parameters
+        ----------
+        data : mapping or xarray.Dataset
+            Field values; NumPy values use canonical units and labeled values
+            must declare units and match the model grid.
+        mapping : mapping, optional
+            Input field names mapped to canonical scheme field names.
+
+        Raises
+        ------
+        ValueError
+            If a field is invalid, scheme-owned, or owned by a source.
+        """
         self._open()
         prepared = self._prepare(data, mapping)
         owned = {target for _, source_mapping, _ in self._sources for target in source_mapping.values()}
@@ -169,7 +218,23 @@ class Model:
                 self._input_units[target] = getattr(value, "attrs", {}).get("units", "unknown")
 
     def add_source(self, source, *, mapping, selection=None):
-        """Attach a provider; the model closes it when the model closes."""
+        """Attach a provider that refreshes fields before each step.
+
+        Parameters
+        ----------
+        source : object
+            Provider implementing ``open()``, ``read(time, selection)`` and
+            ``close()``. The model closes it on model close.
+        mapping : mapping
+            Provider variable names mapped to distinct scheme input names.
+        selection : mapping, optional
+            Explicit selections passed to the provider on each read.
+
+        Raises
+        ------
+        ValueError
+            If destinations are invalid or already have an input owner.
+        """
         self._open()
         if not mapping or len(set(mapping.values())) != len(mapping):
             raise ValueError("Source mapping must name distinct destination fields")
@@ -187,7 +252,26 @@ class Model:
         self._sources.append((source, dict(mapping), dict(selection or {})))
 
     def step(self, *, time, dt):
-        """Compute fluxes for a contiguous interval; retain prior results safely."""
+        """Compute fields for a contiguous interval.
+
+        Parameters
+        ----------
+        time : float, str, datetime.datetime or numpy.datetime64
+            Interval start as UTC epoch seconds or a UTC-compatible timestamp.
+        dt : float
+            Positive interval length in seconds.
+
+        Returns
+        -------
+        xarray.Dataset or dict
+            Independent output snapshots; a mapping is returned if xarray is
+            unavailable.
+
+        Raises
+        ------
+        ValueError
+            If the interval is invalid or required forcing is unavailable.
+        """
         self._open()
         start, duration = _seconds(time), float(dt)
         if not math.isfinite(duration) or duration <= 0:
@@ -238,7 +322,18 @@ class Model:
         return result
 
     def state_dict(self):
-        """JSON-serializable restart for reviewed stateless/effective-history kernels."""
+        """Return JSON-serializable restart data for supported kernels.
+
+        Returns
+        -------
+        dict
+            Scheme configuration, geometry, forcing, and next interval time.
+
+        Raises
+        ------
+        ValueError
+            If sources are attached; provider state is not serialized.
+        """
         self._open()
         if self._sources:
             raise ValueError("Restart with attached sources is not supported; detach and reconstruct forcing explicitly")
@@ -253,7 +348,19 @@ class Model:
         }
 
     def load_state_dict(self, state):
-        """Restore validated forcing/configuration/time by replacing the executor."""
+        """Restore a compatible restart by replacing the executor.
+
+        Parameters
+        ----------
+        state : mapping
+            Data previously returned by ``state_dict`` for the same schemes,
+            options and grid.
+
+        Raises
+        ------
+        ValueError
+            If the restart is incompatible or sources are attached.
+        """
         self._open()
         if self._sources:
             raise ValueError("Cannot restore a restart while sources are attached")
