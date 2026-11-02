@@ -192,3 +192,64 @@ def forecast_valid_time(dataset, *, lead='step'):
         raise ValueError('Forecast valid times must be finite and unique')
     result = dataset.drop_vars(lead).assign_coords(forecast_reference_time=(reference, times))
     return result.assign_coords({reference: valid})
+
+
+def sample_point(field, *, longitude, latitude, max_distance_km):
+    """Sample the nearest rectilinear grid center for a single column.
+
+    Parameters
+    ----------
+    field : xarray.DataArray
+        Two-dimensional field with ``latitude`` and ``longitude`` axes in degrees.
+    longitude, latitude : float
+        Requested geographic coordinates in degrees.
+    max_distance_km : float
+        Maximum great-circle distance from the requested point to a source center.
+
+    Returns
+    -------
+    xarray.DataArray
+        One-column field with the requested coordinates and metadata. Source
+        center coordinates and distance are recorded in its attributes.
+
+    Raises
+    ------
+    ValueError
+        If geometry, point, distance, or the selected value is invalid.
+
+    Notes
+    -----
+    This is nearest-center sampling, not conservative regridding or swath
+    processing. It uses a spherical Earth radius of 6371 km.
+    """
+    import numpy as np
+    import xarray as xr
+
+    if not isinstance(field, xr.DataArray) or len(field.dims) != 2 or set(field.dims) != {'latitude', 'longitude'}:
+        raise ValueError('Point sampling requires a two-dimensional rectilinear field')
+    if any(name not in field.coords or field[name].dims != (name,) for name in ('latitude', 'longitude')):
+        raise ValueError('Point sampling requires one-dimensional latitude and longitude coordinates')
+    lat = np.asarray(field.latitude.values, dtype=float)
+    lon = np.asarray(field.longitude.values, dtype=float)
+    latitude, longitude, max_distance_km = float(latitude), float(longitude), float(max_distance_km)
+    if (not np.isfinite(latitude) or abs(latitude) > 90 or not np.isfinite(longitude) or
+            not np.isfinite(max_distance_km) or max_distance_km < 0 or
+            not lat.size or not lon.size or not np.isfinite(lat).all() or
+            not np.isfinite(lon).all() or np.any(np.abs(lat) > 90)):
+        raise ValueError('Point sampling requires finite valid coordinates and nonnegative distance')
+    delta_lon = np.deg2rad((lon - longitude + 180.) % 360. - 180.)
+    lat_rad = np.deg2rad(lat)
+    target_lat = np.deg2rad(latitude)
+    hav = np.sin((lat_rad[:, None] - target_lat) / 2.) ** 2 + np.cos(lat_rad[:, None]) * np.cos(target_lat) * np.sin(delta_lon[None, :] / 2.) ** 2
+    distances = 2. * 6371. * np.arcsin(np.sqrt(np.clip(hav, 0., 1.)))
+    iy, ix = np.unravel_index(np.argmin(distances), distances.shape)
+    distance = float(distances[iy, ix])
+    if distance > max_distance_km:
+        raise ValueError(f'Nearest source center exceeds maximum distance {max_distance_km} km')
+    value = float(field.transpose('latitude', 'longitude').values[iy, ix])
+    if not np.isfinite(value):
+        raise ValueError('Selected field value is non-finite')
+    attrs = dict(field.attrs)
+    attrs.update(source_longitude=float(lon[ix]), source_latitude=float(lat[iy]), source_distance_km=distance)
+    return xr.DataArray([value], dims=('column',), coords={'column': [0], 'longitude': ('column', [longitude]),
+                        'latitude': ('column', [latitude])}, name=field.name, attrs=attrs)

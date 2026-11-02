@@ -50,6 +50,11 @@ Install the optional AXIS Python package from the pinned HELM checkout with
 `python -m pip install ./extern/helm/libs/axis`. The package and its compiled
 engine have their own build dependencies.
 
+For a single column, `cece.preparation.sample_point` selects the nearest
+rectilinear source center on a sphere. Supply an explicit maximum distance in
+kilometers; the returned field records the selected center and distance. This
+operation does not perform conservative interpolation or swath processing.
+
 When a dataset's `time` coordinate is known to represent forecast initialization
 and `step` is a selected scalar timedelta, construct valid times explicitly:
 
