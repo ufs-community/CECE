@@ -30,6 +30,7 @@ RUN apt-get update && apt-get install -y \
     libxml2-dev \
     libgtest-dev \
     python3 \
+    python3-dev \
     python3-venv \
     vim \
     less \
