@@ -40,6 +40,12 @@ pybind11_add_module(_cece_core cece_pybind.cpp cece_scheme_pybind.cpp)
 
 target_link_libraries(_cece_core PRIVATE cece_core Kokkos::kokkos)
 
+if(CECE_PYTHON_SIMULATION)
+  pybind11_add_module(_cece_simulation cece_simulation_pybind.cpp)
+  target_link_libraries(_cece_simulation PRIVATE cece_driver MPI::MPI_CXX)
+  set_target_properties(_cece_simulation PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/cece")
+endif()
+
 # Place the compiled .so in the cece package directory
 set_target_properties(
   _cece_core
@@ -52,7 +58,7 @@ file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/cece")
 # Copy Python source files to build directory (excluding old binding files)
 file(
   COPY __init__.py config.py state.py exceptions.py utils.py py.typed
-    earthaccess_resolver.py stream_bridge.py model.py grid.py field_adapter.py preparation.py
+    earthaccess_resolver.py stream_bridge.py model.py grid.py field_adapter.py preparation.py simulation.py
   DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/cece"
 )
 
@@ -97,6 +103,9 @@ add_custom_target(
   DEPENDS _cece_core
   COMMENT "Python CECE package ready in ${CMAKE_CURRENT_BINARY_DIR}/cece"
 )
+if(CECE_PYTHON_SIMULATION)
+  add_dependencies(python_package _cece_simulation)
+endif()
 
 message(STATUS "Python bindings configuration:")
 message(STATUS "  Binding method: pybind11 ${pybind11_VERSION}")

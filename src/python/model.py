@@ -65,6 +65,27 @@ class Model:
     readers, regridding, stacking, or simulation writer runs implicitly.
     """
 
+    @classmethod
+    def from_config(cls, config, *, execution='simulation'):
+        """Create a model using the shared configured simulation lifecycle.
+
+        Parameters
+        ----------
+        config : str or pathlib.Path
+            CECE driver configuration file.
+        execution : {'simulation'}, optional
+            Use the standalone/NUOPC simulation facade.
+
+        Returns
+        -------
+        Simulation
+            Configured single-rank simulation.
+        """
+        if execution != 'simulation':
+            raise ValueError("from_config supports execution='simulation' only")
+        from .simulation import Simulation
+        return Simulation(config)
+
     def __init__(self, schemes, *, grid: Grid, options=None):
         if isinstance(schemes, str):
             schemes = [schemes]

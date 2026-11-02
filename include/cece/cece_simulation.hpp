@@ -158,6 +158,12 @@ class CeceSimulation {
      */
     std::vector<double> snapshot_export(const std::string& name) const;
 
+    /// Return names of configured output fields.
+    std::vector<std::string> output_names() const;
+
+    /// Return the rank-local destination row band.
+    const BandDecomposition& band() const { return band_; }
+
     /// The resolved target grid the simulation was created with. Exposed for
     /// the C-ABI facade's grid-info entry so the NUOPC cap can set a matching
     /// ESMF grid on its component without re-deriving coordinates.

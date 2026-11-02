@@ -105,3 +105,26 @@ Run the new `test_python_model`, configuration, lifetime and extension-identity
 pytest suites. Preserve old `cece.initialize/compute/finalize`: that API performs
 stacking, while `Model` performs selected physics. All configuration forms now use
 the same native parser; computed results retain their allocation safely.
+
+## Full configured simulation
+
+`Model.from_config(path, execution='simulation')` uses the same `CeceSimulation`
+facade as the standalone and NUOPC drivers. The configured driver handles file
+injection, scheduling, and output writing. `step(time=..., dt=...)` must follow
+the configured clock and returns independent snapshots of configured output
+fields; `complete` reports the driver's completion signal.
+
+```python
+import cece
+
+with cece.Model.from_config('cece_control.yaml', execution='simulation') as run:
+    fields = run.step(time='2020-01-01T00:00:00Z', dt=3600)
+```
+
+This initial interface supports one MPI rank, rectilinear grids, and one active
+full simulation per process. The runtime is initialized when needed and is not
+finalized when the simulation closes. External Python field injection,
+distributed Python execution, and restart are not yet supported by this path.
+The optional native extension can be disabled with `-DCECE_PYTHON_SIMULATION=OFF`.
+The independent `Model([...], grid=...)` column/physics interface remains
+available without it.

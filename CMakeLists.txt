@@ -641,6 +641,7 @@ install(DIRECTORY include/cece DESTINATION include)
 # --- Tests ---
 
 enable_testing()
+option(CECE_PYTHON_SIMULATION "Build the shared simulation Python extension" ON)
 
 if(POLICY CMP0178)
   # New behavior ignores TEST_LAUNCHER documentation about

@@ -19,6 +19,7 @@
 #include <mpi.h>
 
 #include <Kokkos_Core.hpp>
+#include <algorithm>
 #include <ctime>
 #include <memory>
 #include <stdexcept>
@@ -171,6 +172,12 @@ std::unique_ptr<CeceSimulation> CeceSimulation::create_internal(const std::strin
     //    the global field at output time. On a single rank ny_local == ny,
     //    byte-identical to the replicated allocation.
     sim->band_ = BandDecomposition::compute(ny, comm);
+    // The core needs its local band even when no input stream is ingested.
+    // File ingestion also records this information, but it is not guaranteed
+    // to run for host-only or stream-free simulations.
+    auto* core_data = static_cast<cece::CeceInternalData*>(sim->core_data_ptr_);
+    core_data->ny_local = sim->band_.ny_local;
+    core_data->j0 = sim->band_.j0;
     for (const cece::CeceOutputField& field : parsed_config.output_config.fields.GetDataFields()) {
         std::vector<double>& buffer = sim->export_buffers_[field.name] =
             std::vector<double>(static_cast<std::size_t>(nx) * sim->band_.ny_local * nz, 0.0);
@@ -291,6 +298,14 @@ std::vector<double> CeceSimulation::snapshot_export(const std::string& name) con
     if (it == export_buffers_.end()) throw std::invalid_argument("Unknown simulation output: " + name);
     if (externally_bound_exports_.count(name)) throw std::logic_error("Simulation output is bound to external host storage: " + name);
     return it->second;
+}
+
+std::vector<std::string> CeceSimulation::output_names() const {
+    std::vector<std::string> names;
+    names.reserve(export_buffers_.size());
+    for (const auto& item : export_buffers_) names.push_back(item.first);
+    std::sort(names.begin(), names.end());
+    return names;
 }
 
 bool CeceSimulation::bind_export_field(const std::string& species, double* data_ptr, int nx, int ny_local, int nz, int* rc) {
