@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suite name="cece_suite" version="2.0">
+ <group name="native"><scheme>cece_native_example_driver</scheme></group>
+ <group name="production"><scheme>cece_bdsnp_yl95_driver</scheme><scheme>cece_megan3_driver</scheme></group>
+</suite>

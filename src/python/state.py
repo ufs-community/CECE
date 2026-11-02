@@ -163,6 +163,10 @@ class FieldDict:
         """
         return name in self._fields
 
+    def __len__(self) -> int:
+        """Number of stored fields, consistent with dictionary-like access."""
+        return len(self._fields)
+
     def __iter__(self) -> Iterator[str]:
         """
         Iterate over field names.

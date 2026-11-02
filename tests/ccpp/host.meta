@@ -1,0 +1,216 @@
+[ccpp-table-properties]
+ name = cece_test_host
+ type = host
+ dependencies =
+
+[ccpp-arg-table]
+ name = cece_test_host
+ type = host
+[horizontal_dimension]
+ standard_name = horizontal_dimension
+ units = count
+ dimensions = ()
+ type = integer
+[cece_interval_start_seconds_since_unix_epoch]
+ standard_name = cece_interval_start_seconds_since_unix_epoch
+ units = s
+ dimensions = ()
+ type = real
+ kind = kind_phys
+[time_step_for_physics]
+ standard_name = time_step_for_physics
+ units = s
+ dimensions = ()
+ type = real
+ kind = kind_phys
+[vertical_layer_dimension]
+ standard_name = vertical_layer_dimension
+ units = count
+ dimensions = ()
+ type = integer
+[cece_base_anthropogenic_nox]
+ standard_name = cece_base_anthropogenic_nox
+ units = 1
+ dimensions = (horizontal_dimension,vertical_layer_dimension)
+ type = real
+ kind = kind_phys
+[cece_example_multiplier]
+ standard_name = cece_example_multiplier
+ units = 1
+ dimensions = ()
+ type = real
+ kind = kind_phys
+[cece_example_nox]
+ standard_name = cece_example_nox
+ units = 1
+ dimensions = (horizontal_dimension,vertical_layer_dimension)
+ type = real
+ kind = kind_phys
+[soil_temperature_for_cece_yl95]
+ standard_name = soil_temperature_for_cece_yl95
+ units = K
+ dimensions = (horizontal_dimension)
+ type = real
+ kind = kind_phys
+[water_filled_pore_space_fraction_for_cece_yl95]
+ standard_name = water_filled_pore_space_fraction_for_cece_yl95
+ units = 1
+ dimensions = (horizontal_dimension)
+ type = real
+ kind = kind_phys
+[surface_soil_no_mass_flux]
+ standard_name = surface_soil_no_mass_flux
+ units = kg m-2 s-1
+ dimensions = (horizontal_dimension)
+ type = real
+ kind = kind_phys
+[cece_cb6_species_dimension]
+ standard_name = cece_cb6_species_dimension
+ units = count
+ dimensions = ()
+ type = integer
+[surface_air_temperature]
+ standard_name = surface_air_temperature
+ units = K
+ dimensions = (horizontal_dimension)
+ type = real
+ kind = kind_phys
+[leaf_area_index]
+ standard_name = leaf_area_index
+ units = 1
+ dimensions = (horizontal_dimension)
+ type = real
+ kind = kind_phys
+[previous_leaf_area_index_for_cece]
+ standard_name = previous_leaf_area_index_for_cece
+ units = 1
+ dimensions = (horizontal_dimension)
+ type = real
+ kind = kind_phys
+[surface_downwelling_direct_par_flux]
+ standard_name = surface_downwelling_direct_par_flux
+ units = W m-2
+ dimensions = (horizontal_dimension)
+ type = real
+ kind = kind_phys
+[surface_downwelling_diffuse_par_flux]
+ standard_name = surface_downwelling_diffuse_par_flux
+ units = W m-2
+ dimensions = (horizontal_dimension)
+ type = real
+ kind = kind_phys
+[cosine_of_solar_zenith_angle]
+ standard_name = cosine_of_solar_zenith_angle
+ units = 1
+ dimensions = (horizontal_dimension)
+ type = real
+ kind = kind_phys
+[root_zone_soil_water_fraction_for_cece]
+ standard_name = root_zone_soil_water_fraction_for_cece
+ units = 1
+ dimensions = (horizontal_dimension)
+ type = real
+ kind = kind_phys
+[surface_wind_speed]
+ standard_name = surface_wind_speed
+ units = m s-1
+ dimensions = (horizontal_dimension)
+ type = real
+ kind = kind_phys
+[cece_mechanism_file]
+ standard_name = cece_mechanism_file
+ units = none
+ dimensions = ()
+ type = character
+ kind = len=512
+[cece_speciation_file]
+ standard_name = cece_speciation_file
+ units = none
+ dimensions = ()
+ type = character
+ kind = len=512
+[cece_effective_temperature_history]
+ standard_name = cece_effective_temperature_history
+ units = K
+ dimensions = ()
+ type = real
+ kind = kind_phys
+[cece_effective_par_history]
+ standard_name = cece_effective_par_history
+ units = W m-2
+ dimensions = ()
+ type = real
+ kind = kind_phys
+[cece_days_between_lai]
+ standard_name = cece_days_between_lai
+ units = day
+ dimensions = ()
+ type = real
+ kind = kind_phys
+[day_of_year]
+ standard_name = day_of_year
+ units = 1
+ dimensions = ()
+ type = integer
+[cece_cb6_surface_species_mass_flux]
+ standard_name = cece_cb6_surface_species_mass_flux
+ units = kg m-2 s-1
+ dimensions = (horizontal_dimension,cece_cb6_species_dimension)
+ type = real
+ kind = kind_phys
+
+[ccpp-table-properties]
+ name = controls
+ type = control
+
+[ccpp-arg-table]
+ name = controls
+ type = control
+[ccpp_error_message]
+ standard_name = ccpp_error_message
+ units = none
+ dimensions = ()
+ type = character
+ kind = len=512
+[ccpp_error_code]
+ standard_name = ccpp_error_code
+ units = 1
+ dimensions = ()
+ type = integer
+[suite_name]
+ standard_name = suite_name
+ type = character
+ units = none
+ dimensions = ()
+ kind = len=256
+[group_name]
+ standard_name = group_name
+ type = character
+ units = none
+ dimensions = ()
+ kind = len=256
+[horizontal_loop_begin]
+ standard_name = horizontal_loop_begin
+ type = integer
+ units = index
+ dimensions = ()
+[horizontal_loop_end]
+ standard_name = horizontal_loop_end
+ type = integer
+ units = index
+ dimensions = ()
+[thread_number]
+ standard_name = thread_number
+ type = integer
+ units = index
+ dimensions = ()
+[number_of_threads]
+ standard_name = number_of_threads
+ type = integer
+ units = count
+ dimensions = ()
+[number_of_physics_threads]
+ standard_name = number_of_physics_threads
+ type = integer
+ units = count
+ dimensions = ()

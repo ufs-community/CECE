@@ -459,6 +459,8 @@ set(
   src/core/cece_utc_grid.cpp
   src/core/cece_stacking_engine.cpp
   src/core/cece_physics_factory.cpp
+  src/core/cece_scheme_runtime.cpp
+  src/core/cece_scheme_c_abi.cpp
   src/core/cece_provenance.cpp
   src/core/physics/cece_native_example.cpp
   src/core/physics/cece_sea_salt.cpp
@@ -517,6 +519,20 @@ endif()
 
 add_library(cece_core SHARED ${CECE_CORE_SRCS})
 
+if(CECE_BUILD_TESTING)
+  add_executable(test_scheme_runtime_standalone tests/test_scheme_runtime_standalone.cpp)
+  target_link_libraries(test_scheme_runtime_standalone PRIVATE cece_core)
+  add_executable(test_scheme_c_abi tests/test_scheme_c_abi.c)
+  target_link_libraries(test_scheme_c_abi PRIVATE cece_core)
+  if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(test_scheme_runtime_standalone PRIVATE -UNDEBUG)
+    target_compile_options(test_scheme_c_abi PRIVATE -UNDEBUG)
+  endif()
+  add_test(NAME scheme_runtime_standalone COMMAND test_scheme_runtime_standalone)
+  add_test(NAME scheme_c_abi COMMAND test_scheme_c_abi)
+  set_tests_properties(scheme_runtime_standalone scheme_c_abi PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
+endif()
+
 if(CECE_HAS_FORTRAN)
   set_target_properties(
     cece_core
@@ -563,6 +579,19 @@ endif()
 
 # Suppress conflicting C++ MPI bindings pulled in via ESMF's ESMC.h -> mpi.h -> mpicxx.h
 target_compile_definitions(cece_core PUBLIC MPICH_SKIP_MPICXX OMPI_SKIP_MPICXX)
+
+# Enable before descending into optional CCPP test subdirectories.
+enable_testing()
+
+# Optional per-scheme UFS CCPP adapters; no standalone driver linkage.
+option(CECE_BUILD_CCPP "Build per-scheme CCPP flux interfaces" OFF)
+option(CECE_CCPP_TEST_STUBS "Use only the test-host machine precision module" OFF)
+set(CECE_CCPP_HOST_MODULE_DIR "" CACHE PATH "UFS host Fortran module directory")
+set(CECE_CCPP_HOST_TARGET "" CACHE STRING "UFS host target exporting Fortran modules")
+set(CECE_CCPP_FRAMEWORK_DIR "" CACHE PATH "Pinned CCPP framework for generated-suite tests")
+if(CECE_BUILD_CCPP)
+  add_subdirectory(src/driver/ccpp)
+endif()
 
 # --- cece_driver Library ---
 

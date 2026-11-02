@@ -14,6 +14,7 @@
 #include "conf/error.hpp"
 
 namespace py = pybind11;
+void BindSchemeRuntime(py::module_& module);
 
 /**
  * @brief Pybind11 trampoline class for cece::FieldResolver.
@@ -94,6 +95,7 @@ static void cece_exception_translator(std::exception_ptr p) {
 }
 
 PYBIND11_MODULE(_cece_core, m) {
+    BindSchemeRuntime(m);
     m.doc() = "CECE C++ core bindings via pybind11";
 
     // --- Exception Translation ---
@@ -187,6 +189,8 @@ PYBIND11_MODULE(_cece_core, m) {
         .def_readwrite("physics_schemes", &cece::CeceConfig::physics_schemes);
 
     // --- Module-level functions ---
+
+    m.def("ParseConfigText", &cece::ParseConfigText, py::arg("yaml"));
 
     m.def("ParseConfig", &cece::ParseConfig, py::arg("filename"), "Parse an CECE YAML configuration file and return an CeceConfig object.");
 
@@ -334,14 +338,12 @@ PYBIND11_MODULE(_cece_core, m) {
                 int ny = static_cast<int>(host_view.extent(1));
                 int nz = static_cast<int>(host_view.extent(2));
 
-                // Create a capsule that prevents deallocation while the NumPy array is alive.
-                // The capsule captures a pointer to the DualView3D in the fields map.
-                // The fields map entry stays alive as long as the CeceExportState is alive,
-                // and the capsule prevents Python from freeing the data pointer.
-                py::capsule capsule(host_view.data(), [](void*) {
-                    // No-op destructor: the data is owned by the DualView3D in the
-                    // CeceExportState.fields map. The capsule just prevents NumPy
-                    // from trying to free this pointer.
+                // Retain a Kokkos view reference, not just the raw pointer. This
+                // keeps the allocation alive even after the state/map is destroyed.
+                using HostView = decltype(host_view);
+                auto* owner = new HostView(host_view);
+                py::capsule capsule(owner, [](void* pointer) {
+                    delete static_cast<HostView*>(pointer);
                 });
 
                 // Return py::array_t with shape/strides pointing to host view data

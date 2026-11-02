@@ -1,0 +1,119 @@
+[ccpp-table-properties]
+ name = cece_native_example_driver
+ type = scheme
+ dependencies = cece_scheme_bindings.F90
+
+[ccpp-arg-table]
+ name = cece_native_example_driver_register
+ type = scheme
+[errmsg]
+ standard_name = ccpp_error_message
+ units = none
+ dimensions = ()
+ type = character
+ kind = len=*
+ intent = out
+[errflg]
+ standard_name = ccpp_error_code
+ units = 1
+ dimensions = ()
+ type = integer
+ intent = out
+
+[ccpp-arg-table]
+ name = cece_native_example_driver_init
+ type = scheme
+[errmsg]
+ standard_name = ccpp_error_message
+ units = none
+ dimensions = ()
+ type = character
+ kind = len=*
+ intent = out
+[errflg]
+ standard_name = ccpp_error_code
+ units = 1
+ dimensions = ()
+ type = integer
+ intent = out
+
+[ccpp-arg-table]
+ name = cece_native_example_driver_run
+ type = scheme
+[ncol]
+ standard_name = horizontal_dimension
+ units = count
+ dimensions = ()
+ type = integer
+ intent = in
+[time]
+ standard_name = cece_interval_start_seconds_since_unix_epoch
+ units = s
+ dimensions = ()
+ type = real
+ kind = kind_phys
+ intent = in
+[dt]
+ standard_name = time_step_for_physics
+ units = s
+ dimensions = ()
+ type = real
+ kind = kind_phys
+ intent = in
+[nlev]
+ standard_name = vertical_layer_dimension
+ units = count
+ dimensions = ()
+ type = integer
+ intent = in
+[base_nox]
+ standard_name = cece_base_anthropogenic_nox
+ units = 1
+ dimensions = (horizontal_dimension,vertical_layer_dimension)
+ type = real
+ kind = kind_phys
+ intent = in
+[multiplier]
+ standard_name = cece_example_multiplier
+ units = 1
+ dimensions = ()
+ type = real
+ kind = kind_phys
+ intent = in
+[emissions]
+ standard_name = cece_example_nox
+ units = 1
+ dimensions = (horizontal_dimension,vertical_layer_dimension)
+ type = real
+ kind = kind_phys
+ intent = inout
+[errmsg]
+ standard_name = ccpp_error_message
+ units = none
+ dimensions = ()
+ type = character
+ kind = len=*
+ intent = out
+[errflg]
+ standard_name = ccpp_error_code
+ units = 1
+ dimensions = ()
+ type = integer
+ intent = out
+
+[ccpp-arg-table]
+ name = cece_native_example_driver_final
+ type = scheme
+[errmsg]
+ standard_name = ccpp_error_message
+ units = none
+ dimensions = ()
+ type = character
+ kind = len=*
+ intent = out
+[errflg]
+ standard_name = ccpp_error_code
+ units = 1
+ dimensions = ()
+ type = integer
+ intent = out

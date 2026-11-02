@@ -23,6 +23,8 @@ from __future__ import annotations
 
 __version__ = "0.1.0"
 __all__ = [
+    "Grid",
+    "Model",
     "CeceComputationError",
     "CeceConfig",
     "CeceConfigError",
@@ -67,8 +69,15 @@ __all__ = [
 
 import numpy as np
 
-# Import the pybind11 C++ bindings module
-from . import _cece_core
+# Both historical import paths must share one native type registry. The
+# low-level extension may be partially initialized while it imports exceptions.
+import sys as _sys
+if "_cece_core" in _sys.modules:
+    _cece_core = _sys.modules["_cece_core"]
+    _sys.modules[__name__ + "._cece_core"] = _cece_core
+else:
+    from . import _cece_core
+    _sys.modules["_cece_core"] = _cece_core
 from .config import (
     CeceConfig,
     DataStreamConfig,
@@ -103,6 +112,8 @@ from .exceptions import (
 from .state import CeceField, CeceState
 from .stream_bridge import EarthAccessStreamBridge
 from .utils import load_config
+from .grid import Grid
+from .model import Model
 
 # Module-level state
 _cpp_config: _cece_core.CeceConfig | None = None
@@ -145,15 +156,14 @@ def initialize(config: str | dict | CeceConfig) -> None:
     if _initialized:
         raise RuntimeError("CECE is already initialized. Call finalize() first.")
 
-    from pathlib import Path
-
-    from .utils import load_config as _load_config
+    from .utils import _config_file_path, load_config as _load_config
 
     # Ensure Kokkos is initialized
     if not _cece_core.is_kokkos_initialized():
         _cece_core.initialize_kokkos()
 
-    if isinstance(config, str) and (path := Path(config)).exists() and path.is_file():
+    path = _config_file_path(config) if isinstance(config, str) else None
+    if path is not None:
         _cpp_config = _cece_core.ParseConfig(str(path))
     else:
         # Load and validate configuration
@@ -185,40 +195,7 @@ def _build_cpp_config(config_obj: CeceConfig) -> _cece_core.CeceConfig:
     _cece_core.CeceConfig
         C++ configuration object populated from ``config_obj``.
     """
-    # TODO: copy the remaining layer fields (masks, hierarchy, category, scale_fields,
-    # temporal cycles) plus met/scale/mask mappings and temporal profiles.
-    method_map = {
-        "single": _cece_core.VerticalDistributionMethod.SINGLE,
-        "range": _cece_core.VerticalDistributionMethod.RANGE,
-        "pressure": _cece_core.VerticalDistributionMethod.PRESSURE,
-        "height": _cece_core.VerticalDistributionMethod.HEIGHT,
-        "pbl": _cece_core.VerticalDistributionMethod.PBL,
-    }
-    cpp_config = _cece_core.CeceConfig()
-
-    # Add species
-    for species_name, layers in config_obj.species.items():
-        cpp_layers = []
-        for layer in layers:
-            cpp_layer = _cece_core.EmissionLayer()
-            cpp_layer.operation = layer.operation
-            cpp_layer.field_name = layer.field_name
-            cpp_layer.scale = layer.scale
-            cpp_layer.vdist_method = _cece_core.VerticalDistributionMethod.SINGLE
-            if hasattr(layer, "vdist") and layer.vdist:
-                cpp_layer.vdist_method = method_map.get(
-                    layer.vdist.method, _cece_core.VerticalDistributionMethod.SINGLE
-                )
-                cpp_layer.vdist_layer_start = layer.vdist.layer_start
-                cpp_layer.vdist_layer_end = layer.vdist.layer_end
-                cpp_layer.vdist_p_start = layer.vdist.p_start
-                cpp_layer.vdist_p_end = layer.vdist.p_end
-                cpp_layer.vdist_h_start = layer.vdist.h_start
-                cpp_layer.vdist_h_end = layer.vdist.h_end
-            cpp_layers.append(cpp_layer)
-        _cece_core.AddSpecies(cpp_config, species_name, cpp_layers)
-
-    return cpp_config
+    return _cece_core.ParseConfigText(config_obj.to_yaml())
 
 
 def finalize() -> None:
@@ -269,7 +246,8 @@ def compute(
     """
     Execute CECE emission computation.
 
-    Runs the CECE stacking engine and physics schemes on the provided state.
+    Runs the CECE stacking engine on the provided state. For physics execution,
+    use Model; this legacy entry point does not run the scheme lifecycle.
     The GIL is released automatically during the C++ computation, allowing
     other Python threads to run concurrently.
 
@@ -375,7 +353,7 @@ def compute(
 
     # Retrieve export fields back into the Python state
     for field_name in export_state.get_field_names():
-        export_array = export_state.get_field(field_name)
+        export_array = np.array(export_state.get_field(field_name), dtype=np.float64, order="F", copy=True)
         state._export_fields[field_name] = CeceField(field_name, export_array)
 
 

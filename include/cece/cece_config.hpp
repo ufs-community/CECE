@@ -546,6 +546,9 @@ struct CeceConfig {
  */
 CeceConfig ParseConfig(const std::string& filename);
 
+/// Parse an in-memory document using the same interpretation as ParseConfig.
+CeceConfig ParseConfigText(const std::string& yaml);
+
 /**
  * @brief Adds a new emission species with its layers to an existing config at runtime.
  * @details Allows dynamic addition of species without recompilation. The

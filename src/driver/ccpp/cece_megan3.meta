@@ -1,0 +1,209 @@
+[ccpp-table-properties]
+ name = cece_megan3_driver
+ type = scheme
+ dependencies = cece_scheme_bindings.F90
+
+[ccpp-arg-table]
+ name = cece_megan3_driver_register
+ type = scheme
+[errmsg]
+ standard_name = ccpp_error_message
+ units = none
+ dimensions = ()
+ type = character
+ kind = len=*
+ intent = out
+[errflg]
+ standard_name = ccpp_error_code
+ units = 1
+ dimensions = ()
+ type = integer
+ intent = out
+
+[ccpp-arg-table]
+ name = cece_megan3_driver_init
+ type = scheme
+[errmsg]
+ standard_name = ccpp_error_message
+ units = none
+ dimensions = ()
+ type = character
+ kind = len=*
+ intent = out
+[errflg]
+ standard_name = ccpp_error_code
+ units = 1
+ dimensions = ()
+ type = integer
+ intent = out
+
+[ccpp-arg-table]
+ name = cece_megan3_driver_run
+ type = scheme
+[ncol]
+ standard_name = horizontal_dimension
+ units = count
+ dimensions = ()
+ type = integer
+ intent = in
+[time]
+ standard_name = cece_interval_start_seconds_since_unix_epoch
+ units = s
+ dimensions = ()
+ type = real
+ kind = kind_phys
+ intent = in
+[dt]
+ standard_name = time_step_for_physics
+ units = s
+ dimensions = ()
+ type = real
+ kind = kind_phys
+ intent = in
+[nspecies]
+ standard_name = cece_cb6_species_dimension
+ units = count
+ dimensions = ()
+ type = integer
+ intent = in
+[temperature]
+ standard_name = surface_air_temperature
+ units = K
+ dimensions = (horizontal_dimension)
+ type = real
+ kind = kind_phys
+ intent = in
+[lai]
+ standard_name = leaf_area_index
+ units = 1
+ dimensions = (horizontal_dimension)
+ type = real
+ kind = kind_phys
+ intent = in
+[lai_prev]
+ standard_name = previous_leaf_area_index_for_cece
+ units = 1
+ dimensions = (horizontal_dimension)
+ type = real
+ kind = kind_phys
+ intent = in
+[pardr]
+ standard_name = surface_downwelling_direct_par_flux
+ units = W m-2
+ dimensions = (horizontal_dimension)
+ type = real
+ kind = kind_phys
+ intent = in
+[pardf]
+ standard_name = surface_downwelling_diffuse_par_flux
+ units = W m-2
+ dimensions = (horizontal_dimension)
+ type = real
+ kind = kind_phys
+ intent = in
+[suncos]
+ standard_name = cosine_of_solar_zenith_angle
+ units = 1
+ dimensions = (horizontal_dimension)
+ type = real
+ kind = kind_phys
+ intent = in
+[soil_moisture_root]
+ standard_name = root_zone_soil_water_fraction_for_cece
+ units = 1
+ dimensions = (horizontal_dimension)
+ type = real
+ kind = kind_phys
+ intent = in
+[wind_speed]
+ standard_name = surface_wind_speed
+ units = m s-1
+ dimensions = (horizontal_dimension)
+ type = real
+ kind = kind_phys
+ intent = in
+[soil_nox]
+ standard_name = surface_soil_no_mass_flux
+ units = kg m-2 s-1
+ dimensions = (horizontal_dimension)
+ type = real
+ kind = kind_phys
+ intent = in
+[mechanism_file]
+ standard_name = cece_mechanism_file
+ units = none
+ dimensions = ()
+ type = character
+ kind = len=512
+ intent = in
+[speciation_file]
+ standard_name = cece_speciation_file
+ units = none
+ dimensions = ()
+ type = character
+ kind = len=512
+ intent = in
+[temperature_history_k]
+ standard_name = cece_effective_temperature_history
+ units = K
+ dimensions = ()
+ type = real
+ kind = kind_phys
+ intent = in
+[par_history_wm2]
+ standard_name = cece_effective_par_history
+ units = W m-2
+ dimensions = ()
+ type = real
+ kind = kind_phys
+ intent = in
+[days_between_lai]
+ standard_name = cece_days_between_lai
+ units = day
+ dimensions = ()
+ type = real
+ kind = kind_phys
+ intent = in
+[day_of_year]
+ standard_name = day_of_year
+ units = 1
+ dimensions = ()
+ type = integer
+ intent = in
+[emissions]
+ standard_name = cece_cb6_surface_species_mass_flux
+ units = kg m-2 s-1
+ dimensions = (horizontal_dimension,cece_cb6_species_dimension)
+ type = real
+ kind = kind_phys
+ intent = inout
+[errmsg]
+ standard_name = ccpp_error_message
+ units = none
+ dimensions = ()
+ type = character
+ kind = len=*
+ intent = out
+[errflg]
+ standard_name = ccpp_error_code
+ units = 1
+ dimensions = ()
+ type = integer
+ intent = out
+
+[ccpp-arg-table]
+ name = cece_megan3_driver_final
+ type = scheme
+[errmsg]
+ standard_name = ccpp_error_message
+ units = none
+ dimensions = ()
+ type = character
+ kind = len=*
+ intent = out
+[errflg]
+ standard_name = ccpp_error_code
+ units = 1
+ dimensions = ()
+ type = integer
+ intent = out

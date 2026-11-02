@@ -36,9 +36,9 @@ else()
 endif()
 
 # Build the pybind11 extension module
-pybind11_add_module(_cece_core cece_pybind.cpp)
+pybind11_add_module(_cece_core cece_pybind.cpp cece_scheme_pybind.cpp)
 
-target_link_libraries(_cece_core PRIVATE cece Kokkos::kokkos)
+target_link_libraries(_cece_core PRIVATE cece_core Kokkos::kokkos)
 
 # Place the compiled .so in the cece package directory
 set_target_properties(
@@ -52,8 +52,11 @@ file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/cece")
 # Copy Python source files to build directory (excluding old binding files)
 file(
   COPY __init__.py config.py state.py exceptions.py utils.py py.typed
+    earthaccess_resolver.py stream_bridge.py model.py grid.py field_adapter.py
   DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/cece"
 )
+
+file(COPY "${PROJECT_SOURCE_DIR}/data/speciation" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/cece/data")
 
 # Create setup.py for installation
 file(
@@ -67,7 +70,7 @@ setup(
     author='CECE Development Team',
     packages=find_packages(),
     package_data={
-        'cece': ['*.so', '*.dylib', '*.dll', 'py.typed'],
+        'cece': ['*.so', '*.dylib', '*.dll', 'py.typed', 'data/speciation/*.yaml'],
     },
     python_requires='>=3.10',
     install_requires=[
