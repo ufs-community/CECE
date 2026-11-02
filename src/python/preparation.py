@@ -109,3 +109,51 @@ def regrid_rectilinear(field, target_grid, *, method):
         raise ValueError(str(exc)) from exc
     return xr.DataArray(np.asarray(result).reshape(target_grid.shape), dims=target_grid.dims,
                         coords=target_grid.coordinates(), name=field.name, attrs=dict(field.attrs))
+
+
+def forecast_valid_time(dataset, *, lead='step'):
+    """Convert explicitly identified forecast reference times to valid times.
+
+    Parameters
+    ----------
+    dataset : xarray.Dataset
+        Dataset with a one-dimensional datetime reference coordinate and a
+        scalar timedelta lead coordinate.
+    lead : str, optional
+        Name of the scalar forecast lead coordinate.
+
+    Returns
+    -------
+    xarray.Dataset
+        Dataset indexed by valid time, with the original reference times saved
+        in the ``forecast_reference_time`` coordinate.
+
+    Raises
+    ------
+    ValueError
+        If the coordinates are ambiguous, missing, or invalid.
+
+    Notes
+    -----
+    Call this only when the named reference coordinate is known to represent
+    forecast initialization time. Select ensemble and lead dimensions first.
+    """
+    import numpy as np
+
+    reference = 'time'
+    if (reference not in dataset.coords or
+            dataset[reference].dims != (reference,) or lead not in dataset.coords or
+            dataset[lead].ndim != 0 or 'forecast_reference_time' in dataset.variables or
+            'valid_time' in dataset.variables):
+        raise ValueError('Expected an unambiguous time reference axis and scalar lead')
+    times = np.asarray(dataset[reference].values)
+    offset = np.asarray(dataset[lead].values)
+    if (not np.issubdtype(times.dtype, np.datetime64) or
+            not np.issubdtype(offset.dtype, np.timedelta64) or
+            np.any(np.isnat(times)) or np.isnat(offset)):
+        raise ValueError('Forecast reference times and lead must be finite datetime and timedelta values')
+    valid = times + offset
+    if np.any(np.isnat(valid)) or len(np.unique(valid)) != len(valid):
+        raise ValueError('Forecast valid times must be finite and unique')
+    result = dataset.drop_vars(lead).assign_coords(forecast_reference_time=(reference, times))
+    return result.assign_coords({reference: valid})
