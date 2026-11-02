@@ -28,12 +28,12 @@ def test_regrid_uses_axis_for_nearest_neighbor():
 
 def test_nearest_regrids_to_different_rectilinear_geometry():
     pytest.importorskip("axis")
-    source = xr.DataArray(np.full((3, 4), 7.), dims=('latitude', 'longitude'),
+    source = xr.DataArray(np.arange(12.).reshape(3, 4), dims=('latitude', 'longitude'),
                           coords={'latitude': [-45., 0., 45.], 'longitude': [0., 90., 180., 270.]})
     grid = Grid.structured(longitude=[20., 100., 200., 280.], latitude=[-30., 30.])
     result = regrid_rectilinear(source, grid, method='nearest')
     assert result.shape == (2, 4)
-    np.testing.assert_allclose(result.values, 7.)
+    np.testing.assert_allclose(result.values, [[0., 1., 2., 3.], [8., 9., 10., 11.]])
     np.testing.assert_array_equal(result.latitude, [-30., 30.])
 
 
@@ -52,3 +52,35 @@ def test_regrid_rejects_missing_values():
     grid = Grid.structured(longitude=[0., 180.], latitude=[-45., 45.])
     with pytest.raises(ValueError, match='non-finite'):
         regrid_rectilinear(source, grid, method='nearest')
+
+
+@pytest.mark.parametrize('axis_first', [True, False])
+def test_axis_and_model_share_runtime_across_initialization_orders(axis_first):
+    pytest.importorskip('axis')
+    import os
+    import subprocess
+    import sys
+    import textwrap
+
+    script = textwrap.dedent('''
+        import numpy as np
+        import xarray as xr
+        import cece
+        from cece.preparation import regrid_rectilinear
+        def regrid():
+            data = xr.DataArray(np.arange(12.).reshape(3, 4), dims=('latitude', 'longitude'),
+                coords={'latitude': [-45., 0., 45.], 'longitude': [0., 90., 180., 270.]})
+            grid = cece.Grid.structured(longitude=[0., 90., 180., 270.], latitude=[-45., 0., 45.])
+            np.testing.assert_allclose(regrid_rectilinear(data, grid, method='nearest'), data)
+        if FIRST:
+            regrid()
+        with cece.Model(['native_example'], grid=cece.Grid.point(0, 0)) as model:
+            model.set_inputs({'base_anthropogenic_nox': 2.})
+            assert model.step(time='2020-01-01T00:00:00Z', dt=60).nox.item() == 4.
+            if not FIRST:
+                regrid()
+        regrid()
+    ''').replace('FIRST', repr(axis_first))
+    result = subprocess.run([sys.executable, '-c', script], env=os.environ.copy(),
+                            capture_output=True, text=True, timeout=60)
+    assert result.returncode == 0, result.stdout + result.stderr

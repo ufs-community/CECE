@@ -169,6 +169,20 @@ TEST_F(CeceUtilsTest, CoordinatePlanInterpolatesConstantFieldWithAxis) {
     for (double value : output) EXPECT_NEAR(value, 2.5, 1.e-12);
 }
 
+TEST_F(CeceUtilsTest, CoordinatePlanNearestMatchesPythonForDifferentGrids) {
+    const std::vector<double> lon = {0., 90., 180., 270.};
+    const std::vector<double> lat = {-45., 0., 45.};
+    const std::vector<double> target_lon = {20., 100., 200., 280.};
+    const std::vector<double> target_lat = {-30., 30.};
+    const std::vector<double> input = {0., 1., 2., 3., 4., 5., 6., 7., 8., 9., 10., 11.};
+    io::RegridPlan plan;
+    ASSERT_TRUE(io::build_regrid_plan_from_coordinates(4, 3, lon, lat, 4, 2, target_lon, target_lat,
+                                                       "nearest", 0, 2, "", plan));
+    std::vector<double> output;
+    ASSERT_TRUE(io::apply_regrid_plan(plan, 0, false, input.data(), 4, 3, 4, output));
+    EXPECT_EQ(output, (std::vector<double>{0., 1., 2., 3., 8., 9., 10., 11.}));
+}
+
 TEST_F(CeceUtilsTest, IdentityRegridPlanRejectsDimensionsDifferentFromVerifiedGrid) {
     io::RegridPlan plan;
     plan.file_nx = 3;
