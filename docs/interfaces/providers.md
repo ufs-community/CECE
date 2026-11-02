@@ -40,3 +40,18 @@ check geometry and provenance before supplying it to a model.
 
 The optional regridding extension links the CECE driver and can be disabled at
 build time with `-DCECE_PYTHON_REGRID=OFF` for physics-only Python builds.
+
+When a dataset's `time` coordinate is known to represent forecast initialization
+and `step` is a selected scalar timedelta, construct valid times explicitly:
+
+```python
+from cece.preparation import forecast_valid_time
+from cece.sources import DatasetSource
+
+prepared = forecast_valid_time(forecast)
+source = DatasetSource(prepared, variables=['forcing'], tolerance='30min')
+```
+
+The helper retains initialization times as `forecast_reference_time`. Do not use
+it if the reader's `time` already represents valid time or if the meaning of the
+coordinate is uncertain. Multiple leads must be selected and prepared separately.

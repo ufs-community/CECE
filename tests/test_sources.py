@@ -113,3 +113,15 @@ def test_custom_provider_needs_no_optional_reader():
         model.add_source(source, mapping={'forcing': 'base_anthropogenic_nox'})
         assert model.step(time='2020-01-01T00:00:00Z', dt=3600).nox.item() == 6
     assert source.closed
+
+
+def test_prepared_forecast_drives_model_at_valid_time():
+    from cece.preparation import forecast_valid_time
+
+    data = dataset().assign_coords(step=np.timedelta64(6, 'h'))
+    prepared = forecast_valid_time(data)
+    source = DatasetSource(prepared, variables=['base'], tolerance='0h')
+    with cece.Model(['native_example'], grid=cece.Grid.point(0, 0)) as model:
+        model.add_source(source, mapping={'base': 'base_anthropogenic_nox'}, selection={'member': 1})
+        result = model.step(time='2020-01-01T06:00:00Z', dt=3600)
+        assert result.nox.item() == 4.
