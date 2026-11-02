@@ -40,6 +40,12 @@ product files, other reader formats, forecast conventions, swath regridding,
 and coverage have not yet been validated by this adapter. Prepare such data explicitly and
 check geometry and provenance before supplying it to a model.
 
+The GFS and GEFS readers are also exercised offline using MONETIO's NCEP GRIB
+sample. Its scalar `validDate` is checked against the requested time and
+tolerance; `leadTime` without a valid date is rejected. This fixture is not an
+ensemble-member product, so GEFS member selection still needs real-product
+validation.
+
 Install the optional AXIS Python package from the pinned HELM checkout with
 `python -m pip install ./extern/helm/libs/axis`. The package and its compiled
 engine have their own build dependencies.

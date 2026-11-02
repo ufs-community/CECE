@@ -12,7 +12,8 @@ def select_time(dataset, time, *, tolerance):
     Parameters
     ----------
     dataset : xarray.Dataset
-        Dataset with a selectable ``time`` coordinate, or a static dataset.
+        Dataset with a selectable ``time`` coordinate, scalar MONETIO
+        ``validDate``, or a static dataset.
     time : datetime-like
         Requested time.
     tolerance : str, datetime.timedelta or pandas.Timedelta
@@ -29,6 +30,29 @@ def select_time(dataset, time, *, tolerance):
         If the tolerance is invalid or no time falls within it.
     """
     if 'time' not in dataset.dims and 'time' not in dataset.coords:
+        if 'validDate' not in dataset.coords:
+            return dataset
+        import pandas as pd
+        import numpy as np
+
+        valid = dataset.coords['validDate']
+        if valid.ndim != 0:
+            raise ValueError('Forecast validDate must be a scalar or prepared as a time axis')
+        if tolerance is None:
+            raise ValueError('An explicit nearest-time tolerance is required')
+        limit = pd.Timedelta(tolerance)
+        if pd.isna(limit) or limit < pd.Timedelta(0):
+            raise ValueError('Time tolerance must be finite and nonnegative')
+        observed = pd.Timestamp(np.asarray(valid.values).item())
+        requested = pd.Timestamp(time)
+        if pd.isna(observed) or pd.isna(requested):
+            raise ValueError('Forecast valid time and requested time must be finite')
+        if observed.tzinfo is not None:
+            observed = observed.tz_convert('UTC').tz_localize(None)
+        if requested.tzinfo is not None:
+            requested = requested.tz_convert('UTC').tz_localize(None)
+        if abs(observed - requested) > limit:
+            raise ValueError(f'No time within tolerance {limit} of {time}')
         return dataset
     if tolerance is None:
         raise ValueError('An explicit nearest-time tolerance is required')

@@ -72,6 +72,8 @@ class DatasetSource:
             data = data.sel(selection)
         if any(name in data.coords for name in ('step', 'lead_time', 'forecast_period')):
             raise ValueError('Forecast lead coordinates require explicit valid time preparation before source selection')
+        if 'leadTime' in data.coords and 'validDate' not in data.coords:
+            raise ValueError('Forecast leadTime requires an explicit valid time coordinate')
         return select_time(data, time, tolerance=self.tolerance)
 
     def close(self):
