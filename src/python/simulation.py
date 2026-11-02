@@ -13,6 +13,84 @@ from . import _cece_core
 from .grid import Grid
 from .model import _seconds
 
+_UNIT_ALIASES = {
+    'dimensionless': '1',
+    'none': '1',
+    'm/s': 'm s-1',
+    'W/m2': 'W m-2',
+    'kg/m2/s': 'kg m-2 s-1',
+}
+
+
+def _configured_import_contract(config, levels):
+    """Collect field names and known units consumed by the CECE execution."""
+    fields = set()
+    units = {}
+
+    for layers in config.get('species', {}).values():
+        for layer in layers or []:
+            if not isinstance(layer, Mapping):
+                continue
+            if layer.get('field'):
+                fields.add(layer['field'])
+            fields.update(layer.get('scale_fields') or [])
+            fields.update(layer.get('masks') or [])
+
+    for section in ('meteorology', 'scale_factors', 'masks'):
+        mapping = config.get(section, {}) or {}
+        if isinstance(mapping, Mapping):
+            for source, target in mapping.items():
+                fields.add(source)
+                fields.add(target)
+
+    for stream in (config.get('cece_data', {}) or {}).get('streams', []):
+        variables = stream.get('variables')
+        if isinstance(variables, Mapping):
+            fields.update(variables.values())
+        elif variables:
+            for variable in variables:
+                fields.add(variable if isinstance(variable, str) else variable.get('model', ''))
+        elif stream.get('name'):
+            fields.add(stream['name'])
+
+    for scheme in config.get('physics_schemes', []) or []:
+        name = scheme.get('name')
+        if not name:
+            continue
+        options = dict(scheme.get('options') or {})
+        if name == 'megan3':
+            data = Path(__file__).parent / 'data' / 'speciation'
+            options.setdefault('mechanism_file', str(data / 'spc_cb6.yaml'))
+            options.setdefault('speciation_file', str(data / 'map_cb6.yaml'))
+        try:
+            descriptor = _cece_core.describe_scheme(name, yaml.safe_dump(options), levels)
+        except (ValueError, RuntimeError):
+            # Registered schemes without a reviewed generic field descriptor
+            # remain usable by the native simulation, but cannot be inferred
+            # as external Python imports here.
+            continue
+        for spec in descriptor.fields:
+            if not spec.output:
+                fields.add(spec.name)
+                units[spec.name] = spec.units
+
+    import_fields = (config.get('nuopc', {}) or {}).get('import_fields', {}) or {}
+    for name, definition in import_fields.items():
+        fields.add(name)
+        if isinstance(definition, Mapping) and definition.get('units'):
+            units[name] = definition['units']
+
+    for section in ('meteorology', 'scale_factors', 'masks'):
+        mapping = config.get(section, {}) or {}
+        if isinstance(mapping, Mapping):
+            for source, target in mapping.items():
+                if target in units:
+                    units[source] = units[target]
+                elif source in units:
+                    units[target] = units[source]
+
+    return {name for name in fields if isinstance(name, str) and name}, units
+
 
 class Simulation:
     """Run a configured, single-rank CECE simulation through the shared facade.
@@ -53,6 +131,9 @@ class Simulation:
                 raise ValueError('Python simulation currently requires a rectilinear grid')
             self._grid = Grid.structured(longitude=geo['longitude'], latitude=geo['latitude'], levels=levels)
             self._shape = (geo['nx'], geo['j1'] - geo['j0'], geo['nz'])
+            self._configured_import_fields, self._configured_import_units = _configured_import_contract(
+                config_data, geo['nz']
+            )
         except Exception:
             self._native.close()
             raise
@@ -125,9 +206,10 @@ class Simulation:
         data : mapping or xarray.Dataset
             Fields in canonical CECE units. NumPy fields use
             ``(longitude, latitude)`` for surfaces or
-            ``(longitude, latitude, level)`` for profiles. Labeled fields may
-            reorder these named dimensions, with coordinates matching this
-            simulation grid.
+            ``(longitude, latitude, level)`` for profiles. Labeled fields must
+            declare units, may reorder these named dimensions, and must carry
+            coordinates matching this simulation grid. Units are checked when
+            the configured scheme declares a canonical field unit.
         mapping : mapping, optional
             Rename input data variables to CECE import field names.
 
@@ -135,7 +217,8 @@ class Simulation:
         ------
         ValueError
             If a field has invalid dimensions or coordinates, maps to a
-            duplicate producer, or is also produced by a configured stream.
+            duplicate producer, is not consumed by the configured run, or is
+            also produced by a configured stream.
         TypeError
             If ``data`` is not a mapping or xarray Dataset.
 
@@ -164,17 +247,45 @@ class Simulation:
             name = mapping.get(source_name, source_name)
             if not isinstance(name, str) or not name:
                 raise ValueError('Input mappings must resolve to non-empty field names')
+            if name not in self._configured_import_fields:
+                raise ValueError(f"unknown configured input {name!r}")
             if name in prepared:
                 raise ValueError(f'Multiple external inputs map to {name!r}')
             if hasattr(data, 'data_vars'):
                 value = data[source_name]
+                units = value.attrs.get('units')
+                if not isinstance(units, str) or not units.strip():
+                    raise ValueError(f"External field {source_name!r} units are required")
+                expected_units = self._configured_import_units.get(name)
+                if (
+                    expected_units
+                    and expected_units != 'caller'
+                    and _UNIT_ALIASES.get(units, units) != expected_units
+                ):
+                    raise ValueError(
+                        f"External field {source_name!r} has units {units!r}; expected {expected_units!r}"
+                    )
                 if set(value.dims) not in ({'longitude', 'latitude'}, {'longitude', 'latitude', 'level'}):
-                    raise ValueError(f"External field {source_name!r} must have longitude, latitude, and optional level dimensions")
+                    raise ValueError(
+                        f"External field {source_name!r} must have longitude, latitude, and optional level dimensions"
+                    )
+                for coordinate in ('longitude', 'latitude'):
+                    if coordinate not in value.coords:
+                        raise ValueError(
+                            f"External field {source_name!r}: {coordinate} coordinates are required"
+                        )
                 if not np.array_equal(np.asarray(value['longitude']), lon) or not np.array_equal(np.asarray(value['latitude']), lat):
-                    raise ValueError(f"External field {source_name!r} coordinates do not match the simulation grid")
+                    raise ValueError(
+                        f"External field {source_name!r} coordinates do not match the simulation grid"
+                    )
                 dims = ('longitude', 'latitude', 'level') if 'level' in value.dims else ('longitude', 'latitude')
-                if 'level' in value.dims and not np.array_equal(np.asarray(value['level']), np.asarray(self._grid.levels)):
-                    raise ValueError(f"External field {source_name!r} level coordinates do not match the simulation grid")
+                if 'level' in value.dims:
+                    if 'level' not in value.coords:
+                        raise ValueError(f"External field {source_name!r}: level coordinates are required")
+                    if not np.array_equal(np.asarray(value['level']), np.asarray(self._grid.levels)):
+                        raise ValueError(
+                            f"External field {source_name!r} level coordinates do not match the simulation grid"
+                        )
                 array = np.asarray(value.transpose(*dims).values, dtype=float)
             else:
                 array = np.asarray(data[source_name], dtype=float)

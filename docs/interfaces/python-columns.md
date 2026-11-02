@@ -126,11 +126,17 @@ with cece.Model.from_config('cece_control.yaml', execution='simulation') as run:
 This interface supports one MPI rank, rectilinear grids, and one active full
 simulation per process. `run.set_inputs()` accepts canonical-unit surface
 arrays shaped `(longitude, latitude)` or profiles shaped
-`(longitude, latitude, level)`, plus labeled xarray fields on the exact
-simulation coordinates. Values are copied and applied after each file-ingestion
-step, so explicit Python values take precedence. A field already produced by a
-configured stream is rejected to prevent ambiguous ownership. Distributed
-Python execution and restart are not yet supported by this path.
+`(longitude, latitude, level)`, plus labeled xarray fields with unit metadata and
+the exact simulation coordinates. Units are checked for fields with a reviewed
+scheme descriptor; other configured import fields are assumed to already use
+the canonical units expected by that configuration. Values are copied and
+applied after each file-ingestion step, so explicit Python values take precedence.
+A field already produced by a
+configured stream is rejected to prevent ambiguous ownership. Names must be
+consumed by the configured species stack, a configured stream/mapping, or a
+scheme with a reviewed field descriptor; unknown names fail before any staged
+input changes. Distributed Python execution and restart are not yet supported
+by this path.
 The optional native extension can be disabled with `-DCECE_PYTHON_SIMULATION=OFF`.
 The independent `Model([...], grid=...)` column/physics interface remains
 available without it.
