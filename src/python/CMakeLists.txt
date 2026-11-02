@@ -52,7 +52,7 @@ file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/cece")
 # Copy Python source files to build directory (excluding old binding files)
 file(
   COPY __init__.py config.py state.py exceptions.py utils.py py.typed
-    earthaccess_resolver.py stream_bridge.py model.py grid.py field_adapter.py
+    earthaccess_resolver.py stream_bridge.py model.py grid.py field_adapter.py preparation.py
   DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/cece"
 )
 
