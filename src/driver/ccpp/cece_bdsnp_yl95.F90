@@ -1,5 +1,6 @@
 ! Thin CCPP cap: scientific calculations remain in the existing CECE kernel.
 module cece_bdsnp_yl95_driver
+  use iso_c_binding, only: c_double
   use machine, only: kind_phys
   use cece_scheme_bindings, only: evaluate_scheme
   implicit none
@@ -40,7 +41,8 @@ contains
     real(kind_phys), intent(inout) :: emissions(:)
     character(len=*), intent(out) :: errmsg
     integer, intent(out) :: errflg
-    real(kind_phys) :: inputs(ncol,2),outputs(ncol,1)
+    real(kind_phys) :: inputs(ncol,2)
+    real(c_double) :: inputs_c(ncol,2),outputs_c(ncol,1)
     if (size(soil_temperature)/=ncol .or. size(soil_moisture)/=ncol .or. size(emissions)/=ncol) then
       errmsg='CECE BDSNP YL95 shape mismatch'
       errflg=1
@@ -48,10 +50,11 @@ contains
     end if
     inputs(:,1)=soil_temperature
     inputs(:,2)=soil_moisture
-    outputs=0
+    inputs_c=real(inputs,c_double)
+    outputs_c=0.0_c_double
     call evaluate_scheme('bdsnp','soil_no_method: yl95',ncol,1,1, &
-        [character(len=32)::'soil_temperature','soil_moisture'],inputs, &
-        ['soil_nox_emissions'],outputs,time,dt,errmsg,errflg)
-    if (errflg==0) emissions=outputs(:,1)
+        [character(len=32)::'soil_temperature','soil_moisture'],inputs_c, &
+        ['soil_nox_emissions'],outputs_c,real(time,c_double),real(dt,c_double),errmsg,errflg)
+    if (errflg==0) emissions=real(outputs_c(:,1),kind_phys)
   end subroutine
 end module

@@ -45,7 +45,9 @@ def canonical_field(value, spec, grid):
             )
         for axis, coords in grid.coordinates().items():
             if axis not in value.coords:
-                continue
+                raise ValueError(
+                    f"{spec.name}: {axis} coordinates are required for labeled inputs"
+                )
             target = np.asarray(coords[1] if isinstance(coords, tuple) else coords)
             actual = np.asarray(value.coords[axis].values)
             if actual.shape != target.shape or not np.allclose(
@@ -54,6 +56,8 @@ def canonical_field(value, spec, grid):
                 raise ValueError(
                     f"{spec.name}: {axis} coordinates differ; explicitly prepare/regrid inputs first"
                 )
+        if spec.axis == "level" and spec.extent > 1 and "level" not in value.coords:
+            raise ValueError(f"{spec.name}: level coordinates are required for labeled inputs")
         if spec.axis == "level" and "level" in value.coords:
             if not np.array_equal(value.level.values, grid.levels):
                 raise ValueError(

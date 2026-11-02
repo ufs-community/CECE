@@ -1,5 +1,6 @@
 ! Thin CCPP cap: scientific calculations remain in the existing CECE kernel.
 module cece_megan3_driver
+  use iso_c_binding, only: c_double
   use machine, only: kind_phys
   use cece_scheme_bindings, only: evaluate_scheme
   implicit none
@@ -47,7 +48,7 @@ contains
     integer, intent(out) :: errflg
     character(len=2048) :: options
     character(len=80) :: history_temp,history_par,history_days,doy
-    real(kind_phys) :: inputs(ncol,9),outputs(ncol,nspecies)
+    real(kind_phys) :: inputs(ncol,9)
     integer, parameter :: manifest_species_count=36
     character(len=32), parameter :: species(manifest_species_count) = [character(len=32):: &
       'MEGAN_ISOP', &
@@ -86,6 +87,7 @@ contains
       'MEGAN_CH3COOH', &
       'MEGAN_ISPD', &
       'MEGAN_UNREAC']
+    real(c_double) :: inputs_c(ncol,9), outputs_c(ncol,nspecies)
     if (nspecies/=manifest_species_count .or. size(emissions,1)/=ncol .or. size(emissions,2)/=nspecies) then
       errmsg='CECE MEGAN3 CB6 species manifest/shape mismatch'
       errflg=1
@@ -131,11 +133,12 @@ contains
     inputs(:,7)=soil_moisture_root
     inputs(:,8)=wind_speed
     inputs(:,9)=soil_nox
-    outputs=0
+    inputs_c=real(inputs,c_double)
+    outputs_c=0.0_c_double
     call evaluate_scheme('megan3',trim(options),ncol,1,1, &
         [character(len=32)::'temperature','leaf_area_index','leaf_area_index_prev', &
         'par_direct','par_diffuse','solar_cosine','soil_moisture_root','wind_speed','soil_nox_emissions'], &
-        inputs,species,outputs,time,dt,errmsg,errflg)
-    if (errflg==0) emissions=outputs
+        inputs_c,species,outputs_c,real(time,c_double),real(dt,c_double),errmsg,errflg)
+    if (errflg==0) emissions=real(outputs_c,kind_phys)
   end subroutine
 end module

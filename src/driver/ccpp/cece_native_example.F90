@@ -1,5 +1,6 @@
 ! Thin CCPP cap: scientific calculations remain in the existing CECE kernel.
 module cece_native_example_driver
+  use iso_c_binding, only: c_double
   use machine, only: kind_phys
   use cece_scheme_bindings, only: evaluate_scheme
   implicit none
@@ -41,7 +42,8 @@ contains
     character(len=*), intent(out) :: errmsg
     integer, intent(out) :: errflg
     character(len=128) :: options
-    real(kind_phys) :: inputs(ncol*nlev,1), outputs(ncol*nlev,1)
+    real(kind_phys) :: inputs(ncol*nlev,1)
+    real(c_double) :: inputs_c(ncol*nlev,1), outputs_c(ncol*nlev,1)
     if (size(base_nox,1)/=ncol .or. size(base_nox,2)/=nlev .or. &
         size(emissions,1)/=ncol .or. size(emissions,2)/=nlev) then
       errmsg='CECE native example shape mismatch'
@@ -50,9 +52,11 @@ contains
     end if
     write(options,'(a,es24.16)') 'multiplier: ',multiplier
     inputs(:,1)=reshape(base_nox,[ncol*nlev])
-    outputs=0
+    inputs_c=real(inputs,c_double)
+    outputs_c=0.0_c_double
     call evaluate_scheme('native_example',trim(options),ncol,nlev,nlev, &
-        ['base_anthropogenic_nox'],inputs,['nox'],outputs,time,dt,errmsg,errflg)
-    if (errflg==0) emissions=reshape(outputs(:,1),[ncol,nlev])
+        ['base_anthropogenic_nox'],inputs_c,['nox'],outputs_c, &
+        real(time,c_double),real(dt,c_double),errmsg,errflg)
+    if (errflg==0) emissions=reshape(real(outputs_c(:,1),kind_phys),[ncol,nlev])
   end subroutine
 end module

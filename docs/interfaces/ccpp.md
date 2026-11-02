@@ -39,8 +39,11 @@ Future evolving schemes need explicit host-owned restart transfer before support
 Opaque C ABI handles are monotonically allocated and never reused; destroyed handles
 are rejected. C ABI calls are serialized for safe registry/runtime ownership. There
 is no claim of concurrent native CCPP execution. Internally, Kokkos kernels retain
-normal parallelism. Initial interop uses double-precision host buffers and documented
-column/axis Fortran order; device-pointer interop is not implemented.
+normal parallelism. Caps convert host `kind_phys` fields to double-precision staging
+buffers at the C ABI boundary, then convert results back to host precision. The
+generated-suite fixture uses `kind_phys=REAL32` to exercise this boundary. Buffer
+layout follows the documented column/axis Fortran order; device-pointer interop is
+not implemented.
 
 No output buffer is changed on validation or computation failure within a scheme.
 Earlier successfully completed schemes in a suite group are not rolled back.

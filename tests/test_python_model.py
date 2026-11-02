@@ -33,7 +33,7 @@ def test_xarray_dimension_order_and_units_on_nonsquare_grid():
             np.arange(6.0).reshape(3, 2),
             {"units": "1"},
         )
-    })
+    }, coords={"longitude": [0, 1, 2], "latitude": [30, 31]})
     with cece.Model(["native_example"], grid=grid) as model:
         model.set_inputs(source, mapping={"source": "base_anthropogenic_nox"})
         result = model.step(time=0, dt=1)
@@ -42,6 +42,17 @@ def test_xarray_dimension_order_and_units_on_nonsquare_grid():
             result.nox.values[:, :, 0],
             source.source.transpose("latitude", "longitude").values * 2,
         )
+
+def test_labeled_structured_input_requires_matching_grid_coordinates():
+    grid = cece.Grid.structured(longitude=[0, 1], latitude=[30, 31])
+    source = xr.DataArray(
+        np.ones((2, 2)),
+        dims=("latitude", "longitude"),
+        attrs={"units": "1"},
+    )
+    with cece.Model(["native_example"], grid=grid) as model:
+        with pytest.raises(ValueError, match="coordinates are required"):
+            model.set_inputs({"base_anthropogenic_nox": source})
 
 
 def test_invalid_field_does_not_advance_time_and_reports_scheme_requirement():
@@ -155,7 +166,12 @@ def test_profile_axis_is_preserved():
     forcing = xr.DataArray(
         np.arange(6.0).reshape(3, 2),
         dims=("level", "column"),
-        coords={"level": [1000.0, 500.0, 100.0]},
+        coords={
+            "level": [1000.0, 500.0, 100.0],
+            "column": [0, 1],
+            "longitude": ("column", [0, 1]),
+            "latitude": ("column", [30, 31]),
+        },
         attrs={"units": "kg m-2 s-1"},
     )
     with cece.Model(["native_example"], grid=grid) as model:
@@ -207,7 +223,12 @@ def test_numpy_coordinates_make_json_restart_and_options_are_snapshots():
 
 def test_caller_units_survive_physics_and_restart():
     grid = cece.Grid.point(0, 0)
-    source = xr.DataArray([3.0], dims=['column'], attrs={'units': 'kg m-2 s-1'})
+    source = xr.DataArray(
+        [3.0],
+        dims=["column"],
+        coords={"column": [0], "longitude": ("column", [0]), "latitude": ("column", [0])},
+        attrs={"units": "kg m-2 s-1"},
+    )
     with cece.Model(['native_example'], grid=grid) as model:
         model.set_inputs({'base_anthropogenic_nox': source})
         assert model.step(time=0, dt=1).nox.attrs['units'] == 'kg m-2 s-1'

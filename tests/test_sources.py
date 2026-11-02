@@ -10,7 +10,9 @@ from cece.sources import DatasetSource, MonetioSource
 
 def dataset():
     return xr.Dataset({'base': (('time', 'member', 'column'), [[[1.], [2.]], [[3.], [4.]]], {'units': '1'})},
-                      coords={'time': np.array(['2020-01-01T00', '2020-01-01T06'], dtype='datetime64[h]'), 'member': [0, 1], 'column': [0]})
+                      coords={'time': np.array(['2020-01-01T00', '2020-01-01T06'], dtype='datetime64[h]'),
+                              'member': [0, 1], 'column': [0],
+                              'longitude': ('column', [0.]), 'latitude': ('column', [0.])})
 
 
 def test_dataset_source_requires_explicit_ensemble_and_bounded_time():
@@ -67,7 +69,10 @@ def test_source_updates_model_and_preserves_units():
 
 def test_source_refresh_validates_all_inputs_before_mutating_model():
     first = DatasetSource(dataset(), variables=['base'], tolerance='2h')
-    second = DatasetSource(xr.Dataset({'mult': ('column', [float('nan')], {'units':'1'})}), variables=['mult'], tolerance='2h')
+    second = DatasetSource(xr.Dataset({'mult': ('column', [float('nan')], {'units':'1'})},
+                                      coords={'column': [0], 'longitude': ('column', [0.]),
+                                              'latitude': ('column', [0.])}),
+                           variables=['mult'], tolerance='2h')
     with cece.Model(['native_example'], grid=cece.Grid.point(0, 0)) as model:
         model.add_source(first, mapping={'base':'base_anthropogenic_nox'}, selection={'member':0})
         model.add_source(second, mapping={'mult':'multiplier_input'})
