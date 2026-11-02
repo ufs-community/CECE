@@ -17,6 +17,7 @@ def test_passthrough_retains_values_units_and_target_coordinates():
 
 
 def test_regrid_uses_axis_for_nearest_neighbor():
+    pytest.importorskip("axis")
     source = xr.DataArray(np.arange(12.).reshape(3, 4), dims=('latitude', 'longitude'),
                           coords={'latitude': [-45., 0., 45.], 'longitude': [0., 90., 180., 270.]},
                           attrs={'units': 'K'})
@@ -26,6 +27,7 @@ def test_regrid_uses_axis_for_nearest_neighbor():
 
 
 def test_nearest_regrids_to_different_rectilinear_geometry():
+    pytest.importorskip("axis")
     source = xr.DataArray(np.full((3, 4), 7.), dims=('latitude', 'longitude'),
                           coords={'latitude': [-45., 0., 45.], 'longitude': [0., 90., 180., 270.]})
     grid = Grid.structured(longitude=[20., 100., 200., 280.], latitude=[-30., 30.])

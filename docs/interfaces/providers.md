@@ -30,7 +30,7 @@ separate `valid_time` coordinate when a `time` coordinate is present.
 Inputs must already have the model's dimensions, coordinates, and units; there
 is no implicit regridding or retrieval-to-emission conversion. For two-dimensional
 rectilinear fields, `cece.preparation.regrid_rectilinear` explicitly uses the
-same AXIS regridding path as the native driver; it currently supports only
+AXIS Python package from HELM; it currently supports only
 passthrough and nearest-neighbor methods, with finite unmasked fields and full
 target coverage. GFS, GEFS and
 satellite readers can be requested through MONETIO, but their individual file
@@ -38,8 +38,9 @@ formats, forecast conventions, swath geometry, quality screening and coverage
 have not yet been validated by this adapter. Prepare such data explicitly and
 check geometry and provenance before supplying it to a model.
 
-The optional regridding extension links the CECE driver and can be disabled at
-build time with `-DCECE_PYTHON_REGRID=OFF` for physics-only Python builds.
+Install the optional AXIS Python package from the pinned HELM checkout with
+`python -m pip install ./extern/helm/libs/axis`. The package and its compiled
+engine have their own build dependencies.
 
 When a dataset's `time` coordinate is known to represent forecast initialization
 and `step` is a selected scalar timedelta, construct valid times explicitly:

@@ -44,7 +44,7 @@ def select_time(dataset, time, *, tolerance):
 
 
 def regrid_rectilinear(field, target_grid, *, method):
-    """Explicitly regrid a two-dimensional field using CECE's AXIS driver.
+    """Explicitly regrid a two-dimensional field using the AXIS package.
 
     Parameters
     ----------
@@ -66,7 +66,7 @@ def regrid_rectilinear(field, target_grid, *, method):
     ValueError
         If geometry, method, values, or target coverage are unsupported.
     ImportError
-        If the optional CECE driver regridding extension is unavailable.
+        If the optional AXIS Python package is unavailable.
 
     Notes
     -----
@@ -76,9 +76,7 @@ def regrid_rectilinear(field, target_grid, *, method):
     """
     import numpy as np
     import xarray as xr
-    from .exceptions import CeceConfigError
     from .grid import Grid
-    from . import _cece_core
 
     if not isinstance(field, xr.DataArray) or set(field.dims) != {'latitude', 'longitude'} or len(field.dims) != 2:
         raise ValueError('Field must have latitude and longitude dimensions')
@@ -97,18 +95,31 @@ def regrid_rectilinear(field, target_grid, *, method):
             raise ValueError('Coordinate axes must be finite and strictly monotonic with at least two values')
     if any(np.any(np.abs(axis) > 90) for axis in (coordinates[1], coordinates[3])):
         raise ValueError('Latitude must be in [-90, 90] degrees')
-    try:
-        from . import _cece_regrid
-    except ImportError as exc:
-        raise ImportError('Regridding requires the CECE driver regridding extension') from exc
-    _cece_core.initialize_kokkos()
     values = np.asarray(source.values, dtype=float)
-    try:
-        result = _cece_regrid.regrid_rectilinear(values.ravel(order='C').tolist(), *(axis.tolist() for axis in coordinates), method)
-    except CeceConfigError as exc:
-        raise ValueError(str(exc)) from exc
-    return xr.DataArray(np.asarray(result).reshape(target_grid.shape), dims=target_grid.dims,
+    if not np.all(np.isfinite(values)):
+        raise ValueError('Masked or non-finite source values are not supported')
+    if method == 'passthrough':
+        source_lon, source_lat, target_lon, target_lat = coordinates
+        if (source_lon.shape != target_lon.shape or source_lat.shape != target_lat.shape or
+                not np.allclose((source_lon - target_lon + 180) % 360 - 180, 0, rtol=0, atol=1e-10) or
+                not np.allclose(source_lat, target_lat, rtol=0, atol=1e-10)):
+            raise ValueError('Passthrough requires identical source and target coordinates')
+        result = values.copy()
+    else:
+        try:
+            import axis
+        except ImportError as exc:
+            raise ImportError('Regridding requires the AXIS Python package from HELM') from exc
+        target = xr.Dataset(coords=target_grid.coordinates())
+        regridder = axis.Regridder(source.to_dataset(name='_cece_field'), target,
+                                   method='nearest', unmapped='error', norm_type='dstarea')
+        try:
+            result = np.asarray(regridder(source).values).copy()
+        finally:
+            regridder.close()
+    return xr.DataArray(result.reshape(target_grid.shape), dims=target_grid.dims,
                         coords=target_grid.coordinates(), name=field.name, attrs=dict(field.attrs))
+
 
 
 def forecast_valid_time(dataset, *, lead='step'):
