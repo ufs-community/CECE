@@ -78,7 +78,14 @@ class EarthAccessStreamBridge:
         time_tolerance: Any = None,
     ) -> None:
         resolver = EarthAccessStreamResolver(auth_strategy=auth_strategy)
-        self._datasets = [resolver.open_as_xarray(c) for c in configs]
+        self._datasets = []
+        self._closed = False
+        try:
+            for config in configs:
+                self._datasets.append(resolver.open_as_xarray(config))
+        except Exception:
+            self.close()
+            raise
         self._configs = configs
         self._time_tolerance = time_tolerance
 
@@ -96,6 +103,8 @@ class EarthAccessStreamBridge:
         t : datetime
             Model wall-clock time; granules are selected by nearest match.
         """
+        if getattr(self, '_closed', False):
+            raise RuntimeError('EarthAccess stream bridge is closed')
         for ds, cfg in zip(self._datasets, self._configs):
             tolerance = getattr(self, '_time_tolerance', None)
             ds_t = (select_time(ds, t, tolerance=tolerance) if tolerance is not None
@@ -116,3 +125,26 @@ class EarthAccessStreamBridge:
                 arr = np.asfortranarray(values, dtype=np.float64)
                 _validate_injected_field(cece_field, arr)
                 import_state.set_field(cece_field, arr)
+
+    def close(self) -> None:
+        """Close all opened datasets; repeated calls have no effect."""
+        if getattr(self, '_closed', False):
+            return
+        self._closed = True
+        error = None
+        for dataset in self._datasets:
+            try:
+                dataset.close()
+            except Exception as exc:
+                if error is None:
+                    error = exc
+        if error is not None:
+            raise error
+
+    def __enter__(self):
+        if getattr(self, '_closed', False):
+            raise RuntimeError('EarthAccess stream bridge is closed')
+        return self
+
+    def __exit__(self, *args):
+        self.close()

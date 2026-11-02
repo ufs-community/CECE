@@ -38,3 +38,14 @@ def test_bridge_prepares_xy_surface_array_and_populates_native_state():
 def test_bridge_rejects_stale_data_with_explicit_tolerance():
     with pytest.raises(ValueError, match='tolerance'):
         make_bridge().inject_at_time(object(), datetime(2020, 1, 2))
+
+
+def test_bridge_context_closes_all_datasets():
+    bridge = make_bridge()
+    events = []
+    bridge._datasets[0].set_close(lambda: events.append('closed'))
+    with bridge:
+        assert not events
+    assert events == ['closed']
+    bridge.close()
+    assert events == ['closed']
