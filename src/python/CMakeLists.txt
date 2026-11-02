@@ -56,6 +56,7 @@ file(
   DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/cece"
 )
 
+file(COPY sources DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/cece")
 file(COPY "${PROJECT_SOURCE_DIR}/data/speciation" DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/cece/data")
 
 # Create setup.py for installation

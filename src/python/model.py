@@ -94,6 +94,7 @@ class Model:
         self._inputs = {}
         self._input_units = {}
         self._closed = False
+        self._sources = []
 
     @property
     def options(self):
@@ -152,6 +153,13 @@ class Model:
         """Update forcing; validate the whole update before copying any fields."""
         self._open()
         prepared = self._prepare(data, mapping)
+        owned = {target for _, source_mapping, _ in self._sources for target in source_mapping.values()}
+        conflict = owned.intersection(prepared)
+        if conflict:
+            raise ValueError(f"Cannot update source-owned fields: {sorted(conflict)}")
+        self._apply_inputs(prepared, data, mapping)
+
+    def _apply_inputs(self, prepared, data, mapping=None):
         for name, values in prepared.items():
             self._runtime.set_field(name, values)
         self._inputs.update(prepared)
@@ -160,12 +168,42 @@ class Model:
             if target in prepared and self._specs[target].units == "caller":
                 self._input_units[target] = getattr(value, "attrs", {}).get("units", "unknown")
 
+    def add_source(self, source, *, mapping, selection=None):
+        """Attach a provider; the model closes it when the model closes."""
+        self._open()
+        if not mapping or len(set(mapping.values())) != len(mapping):
+            raise ValueError("Source mapping must name distinct destination fields")
+        owned = {target for _, old_mapping, _ in self._sources for target in old_mapping.values()}
+        duplicates = owned.intersection(mapping.values())
+        if duplicates:
+            raise ValueError(f"Multiple sources own fields: {sorted(duplicates)}")
+        conflict = self._inputs.keys() & mapping.values()
+        if conflict:
+            raise ValueError(f"Fields already have explicit inputs: {sorted(conflict)}")
+        unknown = set(mapping.values()) - self._specs.keys()
+        if unknown or set(mapping.values()) & self._outputs.keys():
+            raise ValueError(f"Invalid source destination fields: {sorted(unknown)}")
+        source.open()
+        self._sources.append((source, dict(mapping), dict(selection or {})))
+
     def step(self, *, time, dt):
         """Compute fluxes for a contiguous interval; retain prior results safely."""
         self._open()
         start, duration = _seconds(time), float(dt)
         if not math.isfinite(duration) or duration <= 0:
             raise ValueError("dt must be finite and positive")
+        next_time = self._runtime.next_time
+        if next_time is not None and abs(start - next_time) > 1.e-6:
+            raise ValueError("Timesteps must be contiguous")
+        updates = {}
+        for source, mapping, selection in self._sources:
+            data = source.read(np.datetime64(int(start * 1e6), "us"), selection=selection)
+            for name, target in mapping.items():
+                if name not in data:
+                    raise ValueError(f"Source is missing variable: {name}")
+                updates[target] = data[name]
+        if updates:
+            self._apply_inputs(self._prepare(updates), updates)
         missing = set(self.required_inputs()) - self._inputs.keys()
         if missing:
             raise ValueError(f"Missing required inputs: {sorted(missing)}")
@@ -202,6 +240,8 @@ class Model:
     def state_dict(self):
         """JSON-serializable restart for reviewed stateless/effective-history kernels."""
         self._open()
+        if self._sources:
+            raise ValueError("Restart with attached sources is not supported; detach and reconstruct forcing explicitly")
         return {
             "version": 1,
             "schemes": list(self._schemes),
@@ -215,6 +255,8 @@ class Model:
     def load_state_dict(self, state):
         """Restore validated forcing/configuration/time by replacing the executor."""
         self._open()
+        if self._sources:
+            raise ValueError("Cannot restore a restart while sources are attached")
         if (
             state.get("version") != 1
             or state.get("schemes") != list(self._schemes)
@@ -243,8 +285,19 @@ class Model:
     def close(self):
         """Release this model's schemes/fields; leave embedding runtimes alone."""
         if not self._closed:
-            self._runtime.close()
-            self._closed = True
+            error = None
+            try:
+                for source, _, _ in self._sources:
+                    try:
+                        source.close()
+                    except Exception as exc:
+                        if error is None:
+                            error = exc
+            finally:
+                self._runtime.close()
+                self._closed = True
+            if error is not None:
+                raise error
 
     def __enter__(self):
         self._open()
