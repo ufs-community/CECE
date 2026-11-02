@@ -1139,6 +1139,36 @@ bool build_regrid_plan(amio_dataset_handle read_dataset, int nx, int ny, const s
     const std::vector<double>& src_lons = loaded_source.center_lon;
     const std::vector<double>& src_lats = loaded_source.center_lat;
 
+    return build_regrid_plan_from_coordinates(plan.file_nx, plan.file_ny, src_lons, src_lats, nx, ny, target_lons,
+                                              target_lats, map_algo, j0, j1, gridspec_file, plan);
+}
+
+bool build_regrid_plan_from_coordinates(int source_nx, int source_ny, const std::vector<double>& src_lons,
+                                        const std::vector<double>& src_lats, int nx, int ny,
+                                        const std::vector<double>& target_lons, const std::vector<double>& target_lats,
+                                        const std::string& map_algo, int j0, int j1, const std::string& gridspec_file,
+                                        RegridPlan& plan) {
+    auto valid_grid = [](int width, int height, const std::vector<double>& lons, const std::vector<double>& lats) {
+        if (width <= 0 || height <= 0) return false;
+        const auto total = static_cast<std::size_t>(width) * static_cast<std::size_t>(height);
+        if ((lons.size() != static_cast<std::size_t>(width) && lons.size() != total) ||
+            (lats.size() != static_cast<std::size_t>(height) && lats.size() != total)) return false;
+        if (width > 1 && height > 1 && ((lons.size() == total) != (lats.size() == total))) return false;
+        auto finite = [](double value) { return std::isfinite(value); };
+        return std::all_of(lons.begin(), lons.end(), finite) && std::all_of(lats.begin(), lats.end(), finite);
+    };
+    if (!valid_grid(source_nx, source_ny, src_lons, src_lats) || !valid_grid(nx, ny, target_lons, target_lats) ||
+        j0 < 0 || j1 < j0 || j1 > ny ||
+        (map_algo != "passthrough" && source_ny == 1 && source_nx > 1 && src_lats.size() == 1)) {
+        throw std::invalid_argument("Invalid regrid coordinates, dimensions, or target row bounds");
+    }
+    plan.file_nx = source_nx;
+    plan.file_ny = source_ny;
+    plan.identity = false;
+    plan.built = false;
+    plan.src_j0 = 0;
+    plan.src_rows = 0;
+
     {
         double min_lon = *std::min_element(src_lons.begin(), src_lons.end());
         double max_lon = *std::max_element(src_lons.begin(), src_lons.end());

@@ -122,6 +122,33 @@ bool build_regrid_plan(amio_dataset_handle read_dataset, int nx, int ny, const s
                        const std::string& dst_gridspec_file, RegridPlan& plan, const GeometrySettings& source_settings = {},
                        const GeometrySettings& destination_settings = {});
 
+/** Build a plan from geographic coordinates without opening a dataset.
+ * Coordinates must describe either two rectilinear axes or two flattened
+ * curvilinear arrays. A multi-column, single-row source with one latitude
+ * is supported only for passthrough; it lacks the geometry needed by the
+ * existing interpolation mesh builder. Kokkos must already be initialized.
+ * @param source_nx Number of source columns.
+ * @param source_ny Number of source rows.
+ * @param source_lons Source longitudes in degrees, as an axis or flattened grid.
+ * @param source_lats Source latitudes in degrees, as an axis or flattened grid.
+ * @param nx Number of target columns.
+ * @param ny Number of target rows.
+ * @param target_lons Target longitudes in degrees, as an axis or flattened grid.
+ * @param target_lats Target latitudes in degrees, as an axis or flattened grid.
+ * @param map_algo Existing CECE interpolation method name.
+ * @param j0 First target row in this plan.
+ * @param j1 One past the last target row in this plan.
+ * @param gridspec_file Optional target grid specification file.
+ * @param[out] plan Plan populated by the shared AXIS implementation.
+ * @return True on success.
+ * @throws std::invalid_argument if dimensions, coordinates, or row bounds are invalid.
+ */
+bool build_regrid_plan_from_coordinates(int source_nx, int source_ny, const std::vector<double>& source_lons,
+                                        const std::vector<double>& source_lats, int nx, int ny,
+                                        const std::vector<double>& target_lons, const std::vector<double>& target_lats,
+                                        const std::string& map_algo, int j0, int j1, const std::string& gridspec_file,
+                                        RegridPlan& plan);
+
 /// Apply a previously built plan to one source field snapshot, producing the
 /// rank-local destination slice `local_dst` of size nx * (j1 - j0), laid out
 /// row-major within the band (matching the global j-major layout).
