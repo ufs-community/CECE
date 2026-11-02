@@ -33,9 +33,11 @@ rectilinear fields, `cece.preparation.regrid_rectilinear` explicitly uses the
 AXIS Python package from HELM; it currently supports only
 passthrough and nearest-neighbor methods, with finite unmasked fields and full
 target coverage. GFS, GEFS and
-satellite readers can be requested through MONETIO, but their individual file
-formats, forecast conventions, swath geometry, quality screening and coverage
-have not yet been validated by this adapter. Prepare such data explicitly and
+satellite readers can be requested through MONETIO. An offline synthetic
+grouped TEMPO fixture exercises MONETIO's quality screening, bounded time
+selection, and rejection of its swath by CECE's rectilinear regridder. Real
+product files, other reader formats, forecast conventions, swath regridding,
+and coverage have not yet been validated by this adapter. Prepare such data explicitly and
 check geometry and provenance before supplying it to a model.
 
 Install the optional AXIS Python package from the pinned HELM checkout with
