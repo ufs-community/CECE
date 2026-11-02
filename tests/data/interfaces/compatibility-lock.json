@@ -6,8 +6,8 @@
   "ccpp_framework_commit": "c4b7d9aed935e8985309e2d974ed43cb46324e50",
   "ccpp_physics_commit": "b7cb19b1266a8d325d5313507917e2a6c9992230",
   "monetio_v1_commit": "67b1071e30bbcbf2f8853b1c6ecc432c430a8df3",
-  "docker_image": "cece/cece-python-dev",
-  "docker_image_id": "sha256:c493d4744e68d226efec831ca2062116b67e25d53fc4b663bc7ad27c070ee40f",
+  "docker_image": "cece/cece-python-ccpp-dev",
+  "docker_image_id": "sha256:ca2d0ae7675109a5ee4c6f930a52a5acb623bbcc78cafb926319cbcf35223b87",
   "catchem_style_pr": "https://github.com/bbakernoaa/CATChem/pull/67",
   "catchem_style_commit": "d57c66a4da90525f7e393492276456c1cecede00"
 }

@@ -50,8 +50,10 @@ complete set, including missing required fields. Unknown fields, duplicate
 mapped producers, incompatible units or coordinates and non-finite values fail.
 There is no automatic regridding, vertical interpolation, unit guessing, data
 acquisition, or implicit emission stacking in this increment. Prepare source
-fields explicitly before calling the model. MONETIO and earthaccess providers,
-shared regridding and full `CeceSimulation` bindings are subsequent plan increments.
+fields explicitly before calling the model. `cece.sources` provides optional
+MONETIO and caller-supplied dataset readers; `cece.preparation` provides explicit
+time selection, point sampling and the currently supported AXIS regridding
+operations. The configured full-simulation interface is documented below.
 
 ## Supported execution contracts
 
@@ -121,10 +123,19 @@ with cece.Model.from_config('cece_control.yaml', execution='simulation') as run:
     fields = run.step(time='2020-01-01T00:00:00Z', dt=3600)
 ```
 
-This initial interface supports one MPI rank, rectilinear grids, and one active
-full simulation per process. The runtime is initialized when needed and is not
-finalized when the simulation closes. External Python field injection,
-distributed Python execution, and restart are not yet supported by this path.
+This interface supports one MPI rank, rectilinear grids, and one active full
+simulation per process. `run.set_inputs()` accepts canonical-unit surface
+arrays shaped `(longitude, latitude)` or profiles shaped
+`(longitude, latitude, level)`, plus labeled xarray fields on the exact
+simulation coordinates. Values are copied and applied after each file-ingestion
+step, so explicit Python values take precedence. A field already produced by a
+configured stream is rejected to prevent ambiguous ownership. Distributed
+Python execution and restart are not yet supported by this path.
 The optional native extension can be disabled with `-DCECE_PYTHON_SIMULATION=OFF`.
 The independent `Model([...], grid=...)` column/physics interface remains
 available without it.
+
+The simulation extension requires Kokkos built as shared libraries
+(`-DBUILD_SHARED_LIBS=ON`). Linking static Kokkos into multiple extensions can
+create separate process runtimes and cause native allocation failures. The CECE
+Dockerfile builds shared Kokkos for this reason.

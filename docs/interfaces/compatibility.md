@@ -5,7 +5,11 @@ UFS target is the pinned modern develop revision, selected rather than the old p
 
 CCPP framework: NCAR/ccpp-framework at the UFSATM-pinned revision. Physics: ufs-community/ccpp-physics at the corresponding revision. Inspect these sources rather than assuming a standalone SCM version is interchangeable.
 
-Container: build CECE's Dockerfile as cece/cece-dev; the tag is a local build name and is not available from public Docker Hub. Configure BUILD_PYTHON_BINDINGS=ON explicitly. The baseline CMake package-copy list omits earthaccess_resolver.py and stream_bridge.py even though __init__.py imports both.
+Container: verification ran in the existing `cece/cece-python-ccpp-dev` image
+with digest `sha256:ca2d0ae7675109a5ee4c6f930a52a5acb623bbcc78cafb926319cbcf35223b87`.
+Configure `BUILD_PYTHON_BINDINGS=ON` explicitly. The baseline CMake package-copy
+list omits earthaccess_resolver.py and stream_bridge.py even though `__init__.py`
+imports both.
 
 Reference checkout commands:
 

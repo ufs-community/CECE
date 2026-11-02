@@ -1,6 +1,7 @@
 """Python lifecycle for the shared standalone and NUOPC simulation facade."""
 from __future__ import annotations
 
+from collections.abc import Mapping
 from datetime import datetime, timezone
 import math
 from pathlib import Path
@@ -25,8 +26,8 @@ class Simulation:
     Notes
     -----
     Only one full simulation may be active per process. Python simulation
-    currently supports rectilinear grids and one MPI rank. External Python
-    input injection is not yet supported.
+    currently supports rectilinear grids and one MPI rank. External imports
+    accept surface fields and profiles matching the configured vertical grid.
     """
 
     def __init__(self, config):
@@ -42,6 +43,8 @@ class Simulation:
         if not math.isfinite(self._dt) or self._dt <= 0 or self._end <= self._next:
             raise ValueError('Simulation requires a positive timestep and end time after start')
         _cece_core.initialize_kokkos()
+        if not _cece_simulation.kokkos_initialized():
+            raise RuntimeError('CECE simulation and physics extensions require the same shared Kokkos runtime')
         self._native = _cece_simulation.Simulation(str(path))
         try:
             geo = self._native.geometry()
@@ -57,6 +60,7 @@ class Simulation:
         self._complete = False
         self._closed = False
         self._failed = False
+        self._config_data = config_data
 
     @property
     def grid(self):
@@ -112,6 +116,97 @@ class Simulation:
         return xr.Dataset(output, coords={'longitude': list(self._grid.longitude),
                                           'latitude': list(self._grid.latitude),
                                           'level': list(self._grid.levels)})
+
+    def set_inputs(self, data, mapping=None):
+        """Stage external surface or profile fields for the next and later steps.
+
+        Parameters
+        ----------
+        data : mapping or xarray.Dataset
+            Fields in canonical CECE units. NumPy fields use
+            ``(longitude, latitude)`` for surfaces or
+            ``(longitude, latitude, level)`` for profiles. Labeled fields may
+            reorder these named dimensions, with coordinates matching this
+            simulation grid.
+        mapping : mapping, optional
+            Rename input data variables to CECE import field names.
+
+        Raises
+        ------
+        ValueError
+            If a field has invalid dimensions or coordinates, maps to a
+            duplicate producer, or is also produced by a configured stream.
+        TypeError
+            If ``data`` is not a mapping or xarray Dataset.
+
+        Notes
+        -----
+        Updates are copied into native-owned storage and applied after file
+        ingestion, immediately before the physics step. A repeated call
+        replaces only the named fields; other staged values persist.
+        """
+        if self._closed or self._failed:
+            raise RuntimeError('CECE simulation is closed or failed')
+        if not isinstance(data, Mapping) and not hasattr(data, 'data_vars'):
+            raise TypeError('Inputs must be a mapping or xarray Dataset')
+        if mapping is None:
+            mapping = {}
+        elif not isinstance(mapping, Mapping):
+            raise TypeError('mapping must be a mapping of source names to CECE field names')
+        else:
+            mapping = dict(mapping)
+        variables = list(data.data_vars) if hasattr(data, 'data_vars') else list(data)
+        prepared = {}
+        nx, ny, grid_nz = self._shape
+        lon = np.asarray(self._grid.longitude, dtype=float)
+        lat = np.asarray(self._grid.latitude, dtype=float)
+        for source_name in variables:
+            name = mapping.get(source_name, source_name)
+            if not isinstance(name, str) or not name:
+                raise ValueError('Input mappings must resolve to non-empty field names')
+            if name in prepared:
+                raise ValueError(f'Multiple external inputs map to {name!r}')
+            if hasattr(data, 'data_vars'):
+                value = data[source_name]
+                if set(value.dims) not in ({'longitude', 'latitude'}, {'longitude', 'latitude', 'level'}):
+                    raise ValueError(f"External field {source_name!r} must have longitude, latitude, and optional level dimensions")
+                if not np.array_equal(np.asarray(value['longitude']), lon) or not np.array_equal(np.asarray(value['latitude']), lat):
+                    raise ValueError(f"External field {source_name!r} coordinates do not match the simulation grid")
+                dims = ('longitude', 'latitude', 'level') if 'level' in value.dims else ('longitude', 'latitude')
+                if 'level' in value.dims and not np.array_equal(np.asarray(value['level']), np.asarray(self._grid.levels)):
+                    raise ValueError(f"External field {source_name!r} level coordinates do not match the simulation grid")
+                array = np.asarray(value.transpose(*dims).values, dtype=float)
+            else:
+                array = np.asarray(data[source_name], dtype=float)
+            if array.shape not in ((nx, ny), (nx, ny, grid_nz)):
+                raise ValueError(f"External field {name!r} has shape {array.shape}; expected {(nx, ny)} or {(nx, ny, grid_nz)}")
+            if not np.isfinite(array).all():
+                raise ValueError(f"External field {name!r} contains non-finite values")
+            prepared[name] = np.asfortranarray(array)
+
+        file_targets = set()
+        stream_config = self._config_data.get('cece_data', {})
+        for stream in stream_config.get('streams', []):
+            variables_config = stream.get('variables')
+            if not variables_config:
+                variables_config = [stream.get('name', '')]
+            if isinstance(variables_config, Mapping):
+                targets = variables_config.values()
+            else:
+                targets = [item if isinstance(item, str) else item.get('model', '') for item in variables_config]
+            file_targets.update(targets)
+        config_mapping = {}
+        for key in ('meteorology', 'scale_factors', 'masks'):
+            config_mapping.update(self._config_data.get(key, {}) or {})
+        normalized_files = {config_mapping.get(name, name) for name in file_targets}
+        conflicts = normalized_files.intersection(config_mapping.get(name, name) for name in prepared)
+        if conflicts:
+            raise ValueError(f'External inputs conflict with configured file streams: {sorted(conflicts)}')
+
+        # Validate the entire update above before changing the native model.
+        for name, array in prepared.items():
+            nz = array.shape[2] if array.ndim == 3 else 1
+            self._native.set_input(name, array.ravel(order='F').tolist(), nx, ny, nz)
 
     def close(self):
         """Release simulation resources without finalizing the host runtime."""

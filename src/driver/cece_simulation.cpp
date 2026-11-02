@@ -250,6 +250,19 @@ StepOutcome CeceSimulation::step(const std::string& step_start_iso, const std::s
             return result;
         }
 
+        // Python-owned inputs persist across steps and take precedence over
+        // freshly ingested file values for the same field. Apply them only
+        // after ingestion, immediately before the compute core reads state.
+        for (const auto& [field, staged] : staged_import_fields_) {
+            rc = 0;
+            if (!set_import_profile(field, staged.values.data(), grid_.nx, band_.ny_local, staged.nz, &rc) || rc < 0) {
+                result.rc = rc < 0 ? rc : -1;
+                result.error = true;
+                LogFatal("[SIM] Could not apply staged external input '" + field + "'");
+                return result;
+            }
+        }
+
         // B. Execute the compute core. The core's own clock derives hour /
         //    day-of-week / month for physics; the arguments below feed the
         //    framework-free path and diagnostics with the real calendar values
@@ -379,6 +392,10 @@ bool CeceSimulation::bind_export_field(const std::string& species, double* data_
 }
 
 bool CeceSimulation::set_import_field(const std::string& field, const double* data_ptr, int nx, int ny_local, int* rc) {
+    return set_import_profile(field, data_ptr, nx, ny_local, 1, rc);
+}
+
+bool CeceSimulation::set_import_profile(const std::string& field, const double* data_ptr, int nx, int ny_local, int nz, int* rc) {
     if (rc != nullptr) {
         *rc = 0;
     }
@@ -397,8 +414,9 @@ bool CeceSimulation::set_import_field(const std::string& field, const double* da
     if (data_ptr == nullptr) {
         return fail("null data pointer for import field '" + field + "'");
     }
-    if (nx <= 0 || ny_local <= 0) {
-        return fail("invalid extents (" + std::to_string(nx) + ", " + std::to_string(ny_local) + ") for import field '" + field + "'");
+    if (nx <= 0 || ny_local <= 0 || nz <= 0) {
+        return fail("invalid extents (" + std::to_string(nx) + ", " + std::to_string(ny_local) + ", " + std::to_string(nz) +
+                    ") for import field '" + field + "'");
     }
 
     auto* data = static_cast<cece::CeceInternalData*>(core_data_ptr_);
@@ -432,40 +450,59 @@ bool CeceSimulation::set_import_field(const std::string& field, const double* da
         return fail("band mismatch for import field '" + field + "': field ny_local=" + std::to_string(ny_local) +
                     " != facade band ny_local=" + std::to_string(band_.ny_local));
     }
+    if (nz != 1 && nz != data->nz) {
+        return fail("vertical extent mismatch for import field '" + field + "': field nz=" + std::to_string(nz) +
+                    " must be one surface layer or the configured grid nz=" + std::to_string(data->nz));
+    }
 
     // Create the managed DualView on first use (a host-only field with no file
-    // stream). Same single-layer shape the resolver reads a 2-D surface field
-    // in: (nx, ny_local, 1).
+    // stream), preserving its explicit surface or profile extent.
     auto field_it = data->import_state.fields.find(key);
     if (field_it == data->import_state.fields.end()) {
-        DualView3D new_field(key, static_cast<size_t>(nx), static_cast<size_t>(ny_local), 1);
+        DualView3D new_field(key, static_cast<size_t>(nx), static_cast<size_t>(ny_local), static_cast<size_t>(nz));
         field_it = data->import_state.fields.emplace(key, std::move(new_field)).first;
     }
 
     auto& dual_view = field_it->second;
     auto host_view = dual_view.view_host();
 
-    // The view may already exist from file ingest at a different vertical
-    // extent; a coupled import supplies one surface layer, so require the
-    // horizontal shape to match the band and reject an incompatible view
-    // rather than silently mis-copying.
-    if (static_cast<int>(host_view.extent(0)) != nx || static_cast<int>(host_view.extent(1)) != ny_local) {
+    // A file stream may already have created this field. Require the complete
+    // shape to match; never reinterpret a surface field as a profile.
+    if (static_cast<int>(host_view.extent(0)) != nx || static_cast<int>(host_view.extent(1)) != ny_local ||
+        static_cast<int>(host_view.extent(2)) != nz) {
         return fail("shape mismatch for import field '" + field + "' (key '" + key + "'): managed view (" + std::to_string(host_view.extent(0)) +
                     ", " + std::to_string(host_view.extent(1)) + ", " + std::to_string(host_view.extent(2)) + ") != field (" + std::to_string(nx) +
-                    ", " + std::to_string(ny_local) + ", 1)");
+                    ", " + std::to_string(ny_local) + ", " + std::to_string(nz) + ")");
     }
 
     // Wrap the borrowed ESMF storage as an unmanaged LayoutLeft host view and
     // copy into the managed host mirror, then sync to device so this step's
     // compute reads the host values. The layer count of the borrowed field is
-    // one; the unmanaged view spans the same (nx, ny_local, 1) shape.
-    UnmanagedHostView3D src(const_cast<double*>(data_ptr), static_cast<size_t>(nx), static_cast<size_t>(ny_local), 1);
+    // configured number of layers; the unmanaged view uses that same shape.
+    UnmanagedHostView3D src(const_cast<double*>(data_ptr), static_cast<size_t>(nx), static_cast<size_t>(ny_local), static_cast<size_t>(nz));
     Kokkos::deep_copy(host_view, src);
     dual_view.modify_host();
     dual_view.sync_device();
 
     CECE_LOG_INFO("[SIM] Set import field '" + field + "' (key '" + key + "') from coupled storage (" + std::to_string(nx) + "x" +
-                  std::to_string(ny_local) + "x1)");
+                  std::to_string(ny_local) + "x" + std::to_string(nz) + ")");
+    return true;
+}
+
+bool CeceSimulation::stage_import_field(const std::string& field, const std::vector<double>& values, int nx, int ny_local, int nz, int* rc) {
+    if (rc != nullptr) {
+        *rc = 0;
+    }
+    if (finalized_ || core_data_ptr_ == nullptr) {
+        if (rc != nullptr) *rc = -1;
+        return false;
+    }
+    if (field.empty() || nx != grid_.nx || ny_local != band_.ny_local || nz <= 0 || (nz != 1 && nz != grid_.nz) ||
+        values.size() != static_cast<std::size_t>(nx) * ny_local * nz) {
+        if (rc != nullptr) *rc = -1;
+        return false;
+    }
+    staged_import_fields_[field] = StagedImportField{values, nz};
     return true;
 }
 

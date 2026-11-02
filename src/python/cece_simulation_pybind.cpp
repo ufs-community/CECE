@@ -3,6 +3,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <mpi.h>
+#include <Kokkos_Core.hpp>
 #include <cstdlib>
 #include <stdexcept>
 #include <string>
@@ -64,6 +65,11 @@ class PythonSimulation {
         if (rc != 0) throw std::runtime_error("CECE simulation step failed; see native log");
         return complete != 0;
     }
+    void set_input(const std::string& name, const std::vector<double>& values, int nx, int ny_local, int nz) {
+        int rc = 0;
+        if (!impl().stage_import_field(name, values, nx, ny_local, nz, &rc) || rc != 0)
+            throw std::invalid_argument("Could not stage external import '" + name + "' (shape or lifecycle mismatch)");
+    }
     py::dict geometry() const {
         auto& sim = impl();
         auto& grid = sim.grid();
@@ -79,9 +85,11 @@ class PythonSimulation {
 };
 }
 PYBIND11_MODULE(_cece_simulation, module) {
+    module.def("kokkos_initialized", [] { return Kokkos::is_initialized(); });
     py::class_<PythonSimulation>(module, "Simulation")
         .def(py::init<const std::string&>())
         .def("step", &PythonSimulation::step)
+        .def("set_input", &PythonSimulation::set_input)
         .def("geometry", &PythonSimulation::geometry)
         .def("output_names", [](const PythonSimulation& self) { return self.impl().output_names(); })
         .def("snapshot", [](const PythonSimulation& self, const std::string& name) { return self.impl().snapshot_export(name); })
