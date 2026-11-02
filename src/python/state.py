@@ -18,7 +18,7 @@ cece.compute : Execute computation using state fields.
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterator, KeysView
+from collections.abc import Callable, Iterator, KeysView, Mapping
 
 import numpy as np
 
@@ -80,7 +80,7 @@ class CeceField:
         return self._kokkos_view
 
 
-class FieldDict:
+class FieldDict(Mapping[str, np.ndarray]):
     """
     Dictionary-like access to a collection of ``CeceField`` objects.
 

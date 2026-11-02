@@ -441,7 +441,7 @@ PYBIND11_MODULE(_cece_core, m) {
                     conf::Config parsed = conf::Config::from_string(yaml_str);
                     return cece::ConfigValidator::ValidateConfig(parsed.root());
                 } catch (const conf::Conf_Error& e) {
-                    throw py::value_error(std::string("Configuration parse error: ") + e.what());
+                    throw py::value_error(std::string("YAML parse error: ") + e.what());
                 }
             },
             py::arg("yaml_string"), "Validate an CECE YAML configuration string. Raises ValueError on parse failure.");

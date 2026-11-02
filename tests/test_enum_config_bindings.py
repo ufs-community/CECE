@@ -142,11 +142,11 @@ class TestParseConfig:
         config = _cece_core.ParseConfig(config_path)
         assert config is not None
         assert isinstance(config, _cece_core.CeceConfig)
-        # ex1 has a "co" species
-        assert "co" in config.species_layers
+        # ex1 defines its emissions under the NOx species.
+        assert "nox" in config.species_layers
 
     def test_parse_invalid_path_raises(self):
-        from exceptions import CeceException
+        from cece.exceptions import CeceException
 
         with pytest.raises(CeceException):
             _cece_core.ParseConfig("/nonexistent/path/config.yaml")

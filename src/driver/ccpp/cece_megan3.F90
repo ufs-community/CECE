@@ -23,7 +23,7 @@ contains
     errmsg = ''
     errflg = 0
   end subroutine
-  !> rief Register this fixed emission-flux interface (no prognostic constituents).
+  !> @brief Register this fixed emission-flux interface (no prognostic constituents).
   !> \section arg_table_cece_megan3_driver_register Argument Table
   !! \htmlinclude arg_table_cece_megan3_driver_register.html
   subroutine cece_megan3_driver_register(errmsg,errflg)
