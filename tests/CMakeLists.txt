@@ -888,7 +888,7 @@ if(Python3_Interpreter_FOUND)
   cece_add_pytest(test_megan_global_source_conformance_python test_megan_global_parity.py "")
 
   if(BUILD_PYTHON_BINDINGS)
-    foreach(_script test_python_config_parity test_python_result_lifetime test_python_model test_python_field_validation test_source_time_selection test_sources test_monetio_tempo test_monetio_ncep)
+    foreach(_script test_python_config_parity test_python_result_lifetime test_python_model test_python_field_validation test_source_time_selection test_sources test_monetio_tempo test_monetio_ncep test_earthaccess_preparation)
       cece_add_pytest(${_script} ${_script}.py "${CMAKE_BINARY_DIR}/src/python")
     endforeach()
     cece_add_pytest(test_python_regrid test_python_regrid.py "${CMAKE_BINARY_DIR}/src/python")
