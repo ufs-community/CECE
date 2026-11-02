@@ -11,6 +11,7 @@
 #include <string>
 #include <tick/tick.hpp>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "cece/cece_band_decomposition.hpp"
@@ -148,6 +149,15 @@ class CeceSimulation {
     /// already flushed). The handle must not be used afterwards.
     void finalize(int& rc_out);
 
+    /** Return an owned copy of one configured, band-local output field.
+     * @param name Configured output field name.
+     * @return Values in LayoutLeft (x, local y, level) order.
+     * @throws std::logic_error before a successful step, after finalization,
+     *         or if output ownership was redirected to a coupled host.
+     * @throws std::invalid_argument for an unknown output field.
+     */
+    std::vector<double> snapshot_export(const std::string& name) const;
+
     /// The resolved target grid the simulation was created with. Exposed for
     /// the C-ABI facade's grid-info entry so the NUOPC cap can set a matching
     /// ESMF grid on its component without re-deriving coordinates.
@@ -253,6 +263,8 @@ class CeceSimulation {
     /// field name. Kept alive for the simulation lifetime; the core writes
     /// results back through these pointers (SyncAndCopyState).
     std::unordered_map<std::string, std::vector<double>> export_buffers_;
+    std::unordered_set<std::string> externally_bound_exports_;
+    bool step_completed_ = false;
     /// Driver-side clock anchors: the configured start time (elapsed output
     /// stamps are measured from it) and the base timestep in seconds.
     tick::Time_Point start_time_{};

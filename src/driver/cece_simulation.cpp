@@ -21,6 +21,7 @@
 #include <Kokkos_Core.hpp>
 #include <ctime>
 #include <memory>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -225,6 +226,7 @@ std::unique_ptr<CeceSimulation> CeceSimulation::create_internal(const std::strin
 StepOutcome CeceSimulation::step(const std::string& step_start_iso, const std::string& step_end_iso, int step_index) {
     StepOutcome result;
     int rc = 0;
+    step_completed_ = false;
 
     // The whole sequence is exception-guarded: Step backs the C ABI
     // cece_sim_step and reports failures through StepOutcome instead.
@@ -273,6 +275,7 @@ StepOutcome CeceSimulation::step(const std::string& step_start_iso, const std::s
         }
 
         result.rc = 0;
+        step_completed_ = true;
         return result;
     } catch (const std::exception& e) {
         result.rc = -1;
@@ -280,6 +283,14 @@ StepOutcome CeceSimulation::step(const std::string& step_start_iso, const std::s
         LogFatal(std::string{"[SIM FATAL] Step threw: "} + e.what());
         return result;
     }
+}
+
+std::vector<double> CeceSimulation::snapshot_export(const std::string& name) const {
+    if (finalized_ || !step_completed_) throw std::logic_error("A successful live simulation step is required before reading outputs");
+    auto it = export_buffers_.find(name);
+    if (it == export_buffers_.end()) throw std::invalid_argument("Unknown simulation output: " + name);
+    if (externally_bound_exports_.count(name)) throw std::logic_error("Simulation output is bound to external host storage: " + name);
+    return it->second;
 }
 
 bool CeceSimulation::bind_export_field(const std::string& species, double* data_ptr, int nx, int ny_local, int nz, int* rc) {
@@ -346,6 +357,7 @@ bool CeceSimulation::bind_export_field(const std::string& species, double* data_
     // reallocates it, and each step SyncAndCopyState deep-copies the managed
     // host view into whatever this map points at.
     data->persistent_export_ptrs[species] = data_ptr;
+    externally_bound_exports_.insert(species);
     CECE_LOG_INFO("[SIM] Bound export field '" + species + "' to coupled storage (" + std::to_string(nx) + "x" + std::to_string(ny_local) + "x" +
                   std::to_string(nz) + ")");
     return true;
