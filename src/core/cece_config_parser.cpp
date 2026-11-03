@@ -175,8 +175,15 @@ CeceConfig ParseConfig(const std::string& filename) {
             CeceDataStreamConfig stream;
             stream.name = string_or(node, "name");
             conf::Value files = node["file"];
-            if (files)
-                stream.file_paths = files.kind() == conf::Node_Kind::Sequence ? files.as_string_list() : std::vector<std::string>{files.as_string()};
+            if (files) {
+                std::vector<std::string> tmp_paths;
+                if (files.kind() == conf::Node_Kind::Sequence) {
+                    tmp_paths = files.as_string_list();
+                } else {
+                    tmp_paths = std::vector<std::string>{files.as_string()};
+                }
+                stream.file_paths = std::vector<fs::path>(tmp_paths.begin(), tmp_paths.end());
+            }
             conf::Value variables = node["variables"];
             if (!variables || variables.kind() == conf::Node_Kind::Null || (variables.kind() == conf::Node_Kind::Sequence && variables.size() == 0)) {
                 if (stream.name.empty()) {

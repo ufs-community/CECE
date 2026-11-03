@@ -10,6 +10,7 @@
 #include <array>
 #include <conf/value.hpp>
 #include <cstddef>
+#include <filesystem>
 #include <functional>
 #include <initializer_list>
 #include <map>
@@ -19,6 +20,8 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+
+namespace fs = std::filesystem;
 
 namespace cece {
 
@@ -153,7 +156,7 @@ struct CeceDataVariableConfig {
  */
 struct CeceDataStreamConfig {
     std::string name;                               ///< Name of the stream.
-    std::vector<std::string> file_paths;            ///< Paths to the NetCDF files.
+    std::vector<fs::path> file_paths;               ///< Paths to the NetCDF files.
     std::vector<CeceDataVariableConfig> variables;  ///< Variables to read from this stream.
     std::string taxmode = "cycle";                  ///< Time axis mode (cycle, extend, etc.).
     std::string tintalgo = "nearest";               ///< Time interpolation algorithm.

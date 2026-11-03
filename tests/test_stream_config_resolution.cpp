@@ -47,12 +47,15 @@
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
+#include <filesystem>
 #include <fstream>
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 #include "cece/cece_driver_facade.hpp"
+
+namespace fs = std::filesystem;
 
 namespace cece {
 
@@ -231,8 +234,8 @@ void CompareResolutionAgainstLegacy(const std::string& config_path) {
 
 // The example configs shipped in examples/ (all contain a cece_data.streams
 // block, per the checked-in files).
-const std::vector<std::string>& ExampleConfigNames() {
-    static const std::vector<std::string> kNames = {
+const std::vector<fs::path>& ExampleConfigNames() {
+    static const std::vector<fs::path> kNames = {
         "cece_config_ex1.yaml", "cece_config_ex2.yaml", "cece_config_ex3.yaml", "cece_config_ex4.yaml", "cece_config_ex5.yaml",
         "cece_config_ex6.yaml", "cece_config_ex7.yaml", "cece_config_ex8.yaml", "cece_config_ex9.yaml",
     };
@@ -248,11 +251,11 @@ const std::vector<std::string>& ExampleConfigNames() {
 // **Validates: Requirements 1.1, 1.5, 4.3**
 // ============================================================================
 TEST(StreamConfigResolution, ExampleConfigsMatchLegacyParse) {
-    const std::string src_dir = CECE_SOURCE_DIR;
+    const fs::path src_dir = CECE_SOURCE_DIR;
     int examples_with_streams = 0;
 
     for (const auto& name : ExampleConfigNames()) {
-        const std::string path = src_dir + "/examples/" + name;
+        const fs::path path = src_dir / fs::path("examples") / fs::path(name);
         std::ifstream probe(path);
         if (!probe.good()) {
             // Example file not present in this checkout; skip rather than fail.
@@ -265,7 +268,7 @@ TEST(StreamConfigResolution, ExampleConfigsMatchLegacyParse) {
             ++examples_with_streams;
         }
 
-        SCOPED_TRACE("example config: " + name);
+        SCOPED_TRACE("example config: " + std::string(name));
         CompareResolutionAgainstLegacy(path);
     }
 
