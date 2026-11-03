@@ -73,3 +73,11 @@ repos:
         language: python
         additional_dependencies: [PyYAML]
         files: ^(examples/.*\.ya?ml|scripts/examples/.*\.ya?ml|tests/(data/)?[^/]*\.ya?ml|README\.md|docs/.*\.md)$
+
+      - id: no-yaml-load-file
+        name: Avoid YAML::LoadFile
+        description: Avoid YAML::LoadFile calls in code
+        language: pygrep
+        types_or: ["c", "c++"]
+        exclude: "tests/test_.*\\.cpp"
+        entry: "^[^/]*YAML::LoadFile"
