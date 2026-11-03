@@ -31,17 +31,6 @@ enable MACCity reconstruction from this fixture. Configure authoritative
 geometry only after verifying the input version and checksum, bounds, domain
 and seam, ordering, and independent area evidence.
 
-CECE currently pins HELM/AXIS to the head of the
-[`feature/unstructured_mesh_generation`](https://github.com/NOAA-EMC/HELM/tree/feature/unstructured_mesh_generation)
-branch, the branch under review in [HELM PR #38](https://github.com/NOAA-EMC/HELM/pull/38).
-That branch provides the host sample-position interface used for center-only
-interpolation and the grid geometry metadata (`GeometryMetadata`, corner
-policies, and strip areas) that CECE's reconstruction and conservative regridding
-paths rely on. Once HELM PR #38 merges, the submodule is repinned to HELM
-`develop` and the temporary `.gitmodules` `branch` key and
-`--branch-map` override in `verify_submodules.yml` are removed; this PR must
-not merge before HELM PR #38 does.
-
 CECE is configured using a YAML file, typically named `cece_config.yaml`. This file defines the species to be processed, the source of data, and the active physics schemes.
 
 ## Top-Level Structure
