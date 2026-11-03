@@ -117,15 +117,17 @@ The following scalar options apply to `megan_method: megan21` (including its
 | Option | Default | Meaning |
 |---|---|---|
 | `temperature_history_k` | 297 | Finite positive effective historical temperature, K |
-| `par_history_wm2` | 400 | Finite nonnegative effective total historical PAR, W/m² |
+| `par_history_wm2` | 84 | Finite nonnegative effective total historical PAR, W/m² (about 400 µmol m⁻² s⁻¹ after conversion) |
 | `days_between_lai` | 30 | Finite positive interval for leaf-age calculation, days |
 | `day_of_year` | 180 | Integer in 1-366 |
 | `leaf_age_uses_temperature_history` | false | Use history temperature for leaf age instead of current temperature |
 
-Defaults preserve the existing calculations. These settings are supplied, not
-time-evolving histories, and are not automatically inferred from the driver
-clock. The HEMCO method uses its separate `hemco_*` settings. Changing the
-method name from `native` to `megan21` does not alter defaults or calculations.
+These settings are supplied, not time-evolving histories, and are not
+automatically inferred from the driver clock. The PAR default of 84 W/m²
+corresponds approximately to the 400 µmol m⁻² s⁻¹ reference used by the PAR
+activity calculation. The HEMCO method uses its separate `hemco_*` settings.
+Changing the method name from `native` to `megan21` does not alter defaults or
+calculations.
 
 ### Export Fields
 

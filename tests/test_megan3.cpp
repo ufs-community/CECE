@@ -811,7 +811,7 @@ TEST(MeganHistoryTest, DefaultsAndOverrides) {
     auto defaults = conf::Config::from_string("{}");
     const auto a = MeganHistory::FromConfig(defaults.root());
     EXPECT_DOUBLE_EQ(a.temperature_k, 297.0);
-    EXPECT_DOUBLE_EQ(a.par_wm2, 400.0);
+    EXPECT_DOUBLE_EQ(a.par_wm2, 84.0);
     EXPECT_DOUBLE_EQ(a.days_between_lai, 30.0);
     EXPECT_EQ(a.day_of_year, 180);
     EXPECT_FALSE(a.leaf_age_uses_history);
@@ -850,7 +850,7 @@ TEST_F(Megan3SchemeTest, EffectiveHistoryOptionsReachRuntime) {
     };
     const double original = run("");
     ASSERT_GT(original, 0.0);
-    EXPECT_DOUBLE_EQ(original, run("temperature_history_k: 297\npar_history_wm2: 400\ndays_between_lai: 30\nday_of_year: 180\n"));
+    EXPECT_DOUBLE_EQ(original, run("temperature_history_k: 297\npar_history_wm2: 84\ndays_between_lai: 30\nday_of_year: 180\n"));
     EXPECT_NE(original, run("temperature_history_k: 288.15\n"));
     EXPECT_NE(original, run("par_history_wm2: 78\n"));
     EXPECT_NE(original, run("day_of_year: 1\n"));
