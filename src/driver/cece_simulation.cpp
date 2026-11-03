@@ -415,8 +415,8 @@ bool CeceSimulation::set_import_profile(const std::string& field, const double* 
         return fail("null data pointer for import field '" + field + "'");
     }
     if (nx <= 0 || ny_local <= 0 || nz <= 0) {
-        return fail("invalid extents (" + std::to_string(nx) + ", " + std::to_string(ny_local) + ", " + std::to_string(nz) +
-                    ") for import field '" + field + "'");
+        return fail("invalid extents (" + std::to_string(nx) + ", " + std::to_string(ny_local) + ", " + std::to_string(nz) + ") for import field '" +
+                    field + "'");
     }
 
     auto* data = static_cast<cece::CeceInternalData*>(core_data_ptr_);

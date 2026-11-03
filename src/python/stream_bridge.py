@@ -103,23 +103,34 @@ class EarthAccessStreamBridge:
         t : datetime
             Model wall-clock time; granules are selected by nearest match.
         """
-        if getattr(self, '_closed', False):
-            raise RuntimeError('EarthAccess stream bridge is closed')
+        if getattr(self, "_closed", False):
+            raise RuntimeError("EarthAccess stream bridge is closed")
         for ds, cfg in zip(self._datasets, self._configs):
-            tolerance = getattr(self, '_time_tolerance', None)
-            ds_t = (select_time(ds, t, tolerance=tolerance) if tolerance is not None
-                    else ds.sel(time=t, method="nearest"))
+            tolerance = getattr(self, "_time_tolerance", None)
+            ds_t = (
+                select_time(ds, t, tolerance=tolerance)
+                if tolerance is not None
+                else ds.sel(time=t, method="nearest")
+            )
             for nasa_var, mapping in cfg.variable_map.items():
                 cece_field, transform = _variable_target_and_transform(mapping)
                 field = ds_t[nasa_var]
-                x = [d for d in field.dims if d.lower() in ('x', 'lon', 'longitude')]
-                y = [d for d in field.dims if d.lower() in ('y', 'lat', 'latitude')]
+                x = [d for d in field.dims if d.lower() in ("x", "lon", "longitude")]
+                y = [d for d in field.dims if d.lower() in ("y", "lat", "latitude")]
                 if len(x) != 1 or len(y) != 1:
-                    raise ValueError(f"earthaccess field {nasa_var!r} requires named longitude and latitude dimensions")
+                    raise ValueError(
+                        f"earthaccess field {nasa_var!r} requires named longitude and latitude dimensions"
+                    )
                 extra = [d for d in field.dims if d not in (x[0], y[0])]
-                if len(extra) > 1 or (extra and extra[0].lower() not in ('level', 'lev', 'z')):
-                    raise ValueError(f"earthaccess field {nasa_var!r} has unsupported extra dimensions: {extra}")
-                values = _apply_transform(field.transpose(x[0], y[0], *extra).values, transform)
+                if len(extra) > 1 or (
+                    extra and extra[0].lower() not in ("level", "lev", "z")
+                ):
+                    raise ValueError(
+                        f"earthaccess field {nasa_var!r} has unsupported extra dimensions: {extra}"
+                    )
+                values = _apply_transform(
+                    field.transpose(x[0], y[0], *extra).values, transform
+                )
                 if not extra:
                     values = values[..., np.newaxis]
                 arr = np.asfortranarray(values, dtype=np.float64)
@@ -128,22 +139,23 @@ class EarthAccessStreamBridge:
 
     def close(self) -> None:
         """Close all opened datasets; repeated calls have no effect."""
-        if getattr(self, '_closed', False):
+        if getattr(self, "_closed", False):
             return
         self._closed = True
         error = None
         for dataset in self._datasets:
             try:
                 dataset.close()
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001
+                # Continue closing remaining datasets after any backend error.
                 if error is None:
                     error = exc
         if error is not None:
             raise error
 
     def __enter__(self):
-        if getattr(self, '_closed', False):
-            raise RuntimeError('EarthAccess stream bridge is closed')
+        if getattr(self, "_closed", False):
+            raise RuntimeError("EarthAccess stream bridge is closed")
         return self
 
     def __exit__(self, *args):

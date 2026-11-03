@@ -1,7 +1,8 @@
-#include "cece/cece_scheme_c_abi.h"
 #include <assert.h>
 #include <math.h>
 #include <stdio.h>
+
+#include "cece/cece_scheme_c_abi.h"
 int main(void) {
     char error[512];
     cece_scheme_handle handle = 0;

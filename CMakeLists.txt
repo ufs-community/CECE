@@ -530,7 +530,11 @@ if(CECE_BUILD_TESTING)
   endif()
   add_test(NAME scheme_runtime_standalone COMMAND test_scheme_runtime_standalone)
   add_test(NAME scheme_c_abi COMMAND test_scheme_c_abi)
-  set_tests_properties(scheme_runtime_standalone scheme_c_abi PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}")
+  set_tests_properties(
+    scheme_runtime_standalone
+    scheme_c_abi
+    PROPERTIES WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+  )
 endif()
 
 if(CECE_HAS_FORTRAN)

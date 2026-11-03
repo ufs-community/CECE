@@ -26,8 +26,7 @@ typedef uint64_t cece_scheme_handle;
  * @param error_capacity Diagnostic buffer size in bytes.
  * @return Zero on success, -1 on failure.
  */
-int cece_scheme_create(const char* name, const char* options_yaml, int ncol, int nlev,
-                       cece_scheme_handle* handle, char* error, int error_capacity);
+int cece_scheme_create(const char* name, const char* options_yaml, int ncol, int nlev, cece_scheme_handle* handle, char* error, int error_capacity);
 /** Copy an input field to a scheme.
  * @param handle Scheme instance.
  * @param name Canonical input field name.
@@ -38,8 +37,7 @@ int cece_scheme_create(const char* name, const char* options_yaml, int ncol, int
  * @param error_capacity Diagnostic buffer size in bytes.
  * @return Zero on success, -1 on failure.
  */
-int cece_scheme_set_field(cece_scheme_handle handle, const char* name, const double* data,
-                          size_t count, int extent, char* error, int error_capacity);
+int cece_scheme_set_field(cece_scheme_handle handle, const char* name, const double* data, size_t count, int extent, char* error, int error_capacity);
 /** Run a contiguous interval.
  * @param handle Scheme instance.
  * @param start_seconds Interval start time in seconds.
@@ -48,8 +46,7 @@ int cece_scheme_set_field(cece_scheme_handle handle, const char* name, const dou
  * @param error_capacity Diagnostic buffer size in bytes.
  * @return Zero on success, -1 on failure.
  */
-int cece_scheme_step(cece_scheme_handle handle, double start_seconds, double dt_seconds,
-                     char* error, int error_capacity);
+int cece_scheme_step(cece_scheme_handle handle, double start_seconds, double dt_seconds, char* error, int error_capacity);
 /** Copy an output field to a host array.
  * A bad name or size leaves the destination unchanged.
  * @param handle Scheme instance.
@@ -60,8 +57,7 @@ int cece_scheme_step(cece_scheme_handle handle, double start_seconds, double dt_
  * @param error_capacity Diagnostic buffer size in bytes.
  * @return Zero on success, -1 on failure.
  */
-int cece_scheme_get_field(cece_scheme_handle handle, const char* name, double* data,
-                          size_t count, char* error, int error_capacity);
+int cece_scheme_get_field(cece_scheme_handle handle, const char* name, double* data, size_t count, char* error, int error_capacity);
 /** Count output fields. @param handle Scheme instance. @param[out] count Output count.
  * @param[out] error Optional diagnostic buffer. @param error_capacity Buffer size in bytes.
  * @return Zero on success, -1 on failure. */
@@ -72,8 +68,7 @@ int cece_scheme_output_count(cece_scheme_handle handle, int* count, char* error,
  * @param name_capacity Destination size in bytes, including the terminator.
  * @param[out] error Optional diagnostic buffer. @param error_capacity Buffer size in bytes.
  * @return Zero on success, -1 on failure. */
-int cece_scheme_output_name(cece_scheme_handle handle, int index, char* name, int name_capacity,
-                            char* error, int error_capacity);
+int cece_scheme_output_name(cece_scheme_handle handle, int index, char* name, int name_capacity, char* error, int error_capacity);
 /** Destroy an instance and invalidate its handle. @param handle Scheme instance.
  * @param[out] error Optional diagnostic buffer. @param error_capacity Buffer size in bytes.
  * @return Zero on success, -1 on failure. */

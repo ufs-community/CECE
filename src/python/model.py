@@ -66,7 +66,7 @@ class Model:
     """
 
     @classmethod
-    def from_config(cls, config, *, execution='simulation'):
+    def from_config(cls, config, *, execution="simulation"):
         """Create a model using the shared configured simulation lifecycle.
 
         Parameters
@@ -81,9 +81,10 @@ class Model:
         Simulation
             Configured single-rank simulation.
         """
-        if execution != 'simulation':
+        if execution != "simulation":
             raise ValueError("from_config supports execution='simulation' only")
         from .simulation import Simulation
+
         return Simulation(config)
 
     def __init__(self, schemes, *, grid: Grid, options=None):
@@ -223,7 +224,11 @@ class Model:
         """
         self._open()
         prepared = self._prepare(data, mapping)
-        owned = {target for _, source_mapping, _ in self._sources for target in source_mapping.values()}
+        owned = {
+            target
+            for _, source_mapping, _ in self._sources
+            for target in source_mapping.values()
+        }
         conflict = owned.intersection(prepared)
         if conflict:
             raise ValueError(f"Cannot update source-owned fields: {sorted(conflict)}")
@@ -236,7 +241,9 @@ class Model:
         for source, value in data.items():
             target = (mapping or {}).get(source, source)
             if target in prepared and self._specs[target].units == "caller":
-                self._input_units[target] = getattr(value, "attrs", {}).get("units", "unknown")
+                self._input_units[target] = getattr(value, "attrs", {}).get(
+                    "units", "unknown"
+                )
 
     def add_source(self, source, *, mapping, selection=None):
         """Attach a provider that refreshes fields before each step.
@@ -259,7 +266,11 @@ class Model:
         self._open()
         if not mapping or len(set(mapping.values())) != len(mapping):
             raise ValueError("Source mapping must name distinct destination fields")
-        owned = {target for _, old_mapping, _ in self._sources for target in old_mapping.values()}
+        owned = {
+            target
+            for _, old_mapping, _ in self._sources
+            for target in old_mapping.values()
+        }
         duplicates = owned.intersection(mapping.values())
         if duplicates:
             raise ValueError(f"Multiple sources own fields: {sorted(duplicates)}")
@@ -298,11 +309,13 @@ class Model:
         if not math.isfinite(duration) or duration <= 0:
             raise ValueError("dt must be finite and positive")
         next_time = self._runtime.next_time
-        if next_time is not None and abs(start - next_time) > 1.e-6:
+        if next_time is not None and abs(start - next_time) > 1.0e-6:
             raise ValueError("Timesteps must be contiguous")
         updates = {}
         for source, mapping, selection in self._sources:
-            data = source.read(np.datetime64(int(start * 1e6), "us"), selection=selection)
+            data = source.read(
+                np.datetime64(int(start * 1e6), "us"), selection=selection
+            )
             for name, target in mapping.items():
                 if name not in data:
                     raise ValueError(f"Source is missing variable: {name}")
@@ -327,7 +340,11 @@ class Model:
             name: (
                 self._grid.dims + (() if spec.axis == "surface" else (spec.axis,)),
                 values[name],
-                {"units": self._input_units.get("base_anthropogenic_nox", "unknown") if spec.units == "caller" else spec.units},
+                {
+                    "units": self._input_units.get("base_anthropogenic_nox", "unknown")
+                    if spec.units == "caller"
+                    else spec.units
+                },
             )
             for name, spec in self._outputs.items()
         }
@@ -357,7 +374,9 @@ class Model:
         """
         self._open()
         if self._sources:
-            raise ValueError("Restart with attached sources is not supported; detach and reconstruct forcing explicitly")
+            raise ValueError(
+                "Restart with attached sources is not supported; detach and reconstruct forcing explicitly"
+            )
         return {
             "version": 1,
             "schemes": list(self._schemes),
@@ -418,7 +437,8 @@ class Model:
                 for source, _, _ in self._sources:
                     try:
                         source.close()
-                    except Exception as exc:
+                    except Exception as exc:  # noqa: BLE001
+                        # Provider close errors must not skip native teardown.
                         if error is None:
                             error = exc
             finally:

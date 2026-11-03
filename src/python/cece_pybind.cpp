@@ -342,9 +342,7 @@ PYBIND11_MODULE(_cece_core, m) {
                 // keeps the allocation alive even after the state/map is destroyed.
                 using HostView = decltype(host_view);
                 auto* owner = new HostView(host_view);
-                py::capsule capsule(owner, [](void* pointer) {
-                    delete static_cast<HostView*>(pointer);
-                });
+                py::capsule capsule(owner, [](void* pointer) { delete static_cast<HostView*>(pointer); });
 
                 // Return py::array_t with shape/strides pointing to host view data
                 // Kokkos LayoutLeft = Fortran column-major order
@@ -470,6 +468,8 @@ PYBIND11_MODULE(_cece_core, m) {
         "get_log_level",
         []() {
             auto& logger = cece::CeceLogger::GetInstance();
+            // Each enum value must retain its distinct public string spelling.
+            // NOLINTNEXTLINE(bugprone-branch-clone)
             switch (logger.GetLogLevel()) {
                 case cece::LogLevel::DEBUG:
                     return std::string("DEBUG");

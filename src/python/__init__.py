@@ -23,8 +23,6 @@ from __future__ import annotations
 
 __version__ = "0.1.0"
 __all__ = [
-    "Grid",
-    "Model",
     "CeceComputationError",
     "CeceConfig",
     "CeceConfigError",
@@ -41,8 +39,10 @@ __all__ = [
     "EarthAccessStreamConfig",
     "EarthAccessStreamResolver",
     "EmissionLayer",
+    "Grid",
     "GridConfig",
     "LocalTimeConfig",
+    "Model",
     "NuopcConfig",
     "NuopcFieldSpec",
     "OutputConfig",
@@ -67,16 +67,18 @@ __all__ = [
     "validate_short_names",
 ]
 
-import numpy as np
-
 # Both historical import paths must share one native type registry. The
 # low-level extension may be partially initialized while it imports exceptions.
 import sys as _sys
+
+import numpy as np
+
 if "_cece_core" in _sys.modules:
     _cece_core = _sys.modules["_cece_core"]
     _sys.modules[__name__ + "._cece_core"] = _cece_core
 else:
     from . import _cece_core
+
     _sys.modules["_cece_core"] = _cece_core
 from .config import (
     CeceConfig,
@@ -109,11 +111,11 @@ from .exceptions import (
     CeceExecutionSpaceError,
     CeceStateError,
 )
+from .grid import Grid
+from .model import Model
 from .state import CeceField, CeceState
 from .stream_bridge import EarthAccessStreamBridge
 from .utils import load_config
-from .grid import Grid
-from .model import Model
 
 # Module-level state
 _cpp_config: _cece_core.CeceConfig | None = None
@@ -156,7 +158,8 @@ def initialize(config: str | dict | CeceConfig) -> None:
     if _initialized:
         raise RuntimeError("CECE is already initialized. Call finalize() first.")
 
-    from .utils import _config_file_path, load_config as _load_config
+    from .utils import _config_file_path
+    from .utils import load_config as _load_config
 
     # Ensure Kokkos is initialized
     if not _cece_core.is_kokkos_initialized():
@@ -353,7 +356,9 @@ def compute(
 
     # Retrieve export fields back into the Python state
     for field_name in export_state.get_field_names():
-        export_array = np.array(export_state.get_field(field_name), dtype=np.float64, order="F", copy=True)
+        export_array = np.array(
+            export_state.get_field(field_name), dtype=np.float64, order="F", copy=True
+        )
         state._export_fields[field_name] = CeceField(field_name, export_array)
 
 

@@ -888,12 +888,28 @@ if(Python3_Interpreter_FOUND)
   cece_add_pytest(test_megan_global_source_conformance_python test_megan_global_parity.py "")
 
   if(BUILD_PYTHON_BINDINGS)
-    foreach(_script test_python_config_parity test_python_result_lifetime test_python_model test_python_field_validation test_source_time_selection test_sources test_monetio_tempo test_monetio_ncep test_earthaccess_preparation test_point_sampling)
+    foreach(
+      _script
+      test_python_config_parity
+      test_python_result_lifetime
+      test_python_model
+      test_python_field_validation
+      test_source_time_selection
+      test_sources
+      test_monetio_tempo
+      test_monetio_ncep
+      test_earthaccess_preparation
+      test_point_sampling
+    )
       cece_add_pytest(${_script} ${_script}.py "${CMAKE_BINARY_DIR}/src/python")
     endforeach()
     cece_add_pytest(test_python_regrid test_python_regrid.py "${CMAKE_BINARY_DIR}/src/python")
     if(CECE_PYTHON_SIMULATION)
-      cece_add_pytest(test_python_simulation test_python_simulation.py "${CMAKE_BINARY_DIR}/src/python")
+      cece_add_pytest(
+        test_python_simulation
+        test_python_simulation.py
+        "${CMAKE_BINARY_DIR}/src/python"
+      )
     endif()
     set(_bindings_pkg "${CMAKE_BINARY_DIR}/src/python/cece")
     cece_add_pytest(test_enum_config_bindings test_enum_config_bindings.py "${_bindings_pkg}" -v)

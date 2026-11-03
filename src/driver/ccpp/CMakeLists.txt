@@ -4,14 +4,30 @@ if(NOT CECE_HAS_FORTRAN)
 endif()
 if(CECE_CCPP_TEST_STUBS)
   add_library(cece_ccpp_host_kinds STATIC "${PROJECT_SOURCE_DIR}/tests/ccpp/machine.F90")
-  set_target_properties(cece_ccpp_host_kinds PROPERTIES Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/host-modules")
+  set_target_properties(
+    cece_ccpp_host_kinds
+    PROPERTIES Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/host-modules"
+  )
   target_include_directories(cece_ccpp_host_kinds PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/host-modules")
 elseif(NOT CECE_CCPP_HOST_MODULE_DIR AND NOT CECE_CCPP_HOST_TARGET)
-  message(FATAL_ERROR "Supply CECE_CCPP_HOST_MODULE_DIR or CECE_CCPP_HOST_TARGET for UFS modules, or explicitly enable CECE_CCPP_TEST_STUBS")
+  message(
+    FATAL_ERROR
+    "Supply CECE_CCPP_HOST_MODULE_DIR or CECE_CCPP_HOST_TARGET for UFS modules, or explicitly enable CECE_CCPP_TEST_STUBS"
+  )
 endif()
-add_library(cece_ccpp SHARED cece_scheme_bindings.F90 cece_native_example.F90 cece_megan3.F90 cece_bdsnp_yl95.F90)
+add_library(
+  cece_ccpp
+  SHARED
+  cece_scheme_bindings.F90
+  cece_native_example.F90
+  cece_megan3.F90
+  cece_bdsnp_yl95.F90
+)
 target_link_libraries(cece_ccpp PUBLIC cece_core)
-set_target_properties(cece_ccpp PROPERTIES Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/modules")
+set_target_properties(
+  cece_ccpp
+  PROPERTIES Fortran_MODULE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/modules"
+)
 target_include_directories(cece_ccpp PUBLIC "${CMAKE_CURRENT_BINARY_DIR}/modules")
 if(CECE_CCPP_TEST_STUBS)
   target_link_libraries(cece_ccpp PUBLIC cece_ccpp_host_kinds)

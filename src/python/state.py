@@ -95,7 +95,9 @@ class FieldDict(Mapping[str, np.ndarray]):
         shared with the owning ``CeceState`` and mutated in place.
     """
 
-    def __init__(self, fields_dict: dict[str, CeceField], setter: Callable | None = None) -> None:
+    def __init__(
+        self, fields_dict: dict[str, CeceField], setter: Callable | None = None
+    ) -> None:
         self._fields = fields_dict
         self._setter = setter
 
@@ -280,7 +282,9 @@ class CeceState:
         self.nz: int = nz
         self._import_fields: dict[str, CeceField] = {}
         self._export_fields: dict[str, CeceField] = {}
-        self._import_fields_dict: FieldDict = FieldDict(self._import_fields, self.add_import_field)
+        self._import_fields_dict: FieldDict = FieldDict(
+            self._import_fields, self.add_import_field
+        )
         self._export_fields_dict: FieldDict = FieldDict(self._export_fields)
 
     def add_import_field(self, name: str, array: np.ndarray | list | tuple) -> None:

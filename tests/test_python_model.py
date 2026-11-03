@@ -27,13 +27,16 @@ def test_columns_run_physics_and_do_not_accumulate_previous_outputs():
 
 def test_xarray_dimension_order_and_units_on_nonsquare_grid():
     grid = cece.Grid.structured(longitude=[0, 1, 2], latitude=[30, 31])
-    source = xr.Dataset({
-        "source": (
-            ("longitude", "latitude"),
-            np.arange(6.0).reshape(3, 2),
-            {"units": "1"},
-        )
-    }, coords={"longitude": [0, 1, 2], "latitude": [30, 31]})
+    source = xr.Dataset(
+        {
+            "source": (
+                ("longitude", "latitude"),
+                np.arange(6.0).reshape(3, 2),
+                {"units": "1"},
+            )
+        },
+        coords={"longitude": [0, 1, 2], "latitude": [30, 31]},
+    )
     with cece.Model(["native_example"], grid=grid) as model:
         model.set_inputs(source, mapping={"source": "base_anthropogenic_nox"})
         result = model.step(time=0, dt=1)
@@ -43,6 +46,7 @@ def test_xarray_dimension_order_and_units_on_nonsquare_grid():
             source.source.transpose("latitude", "longitude").values * 2,
         )
 
+
 def test_labeled_structured_input_requires_matching_grid_coordinates():
     grid = cece.Grid.structured(longitude=[0, 1], latitude=[30, 31])
     source = xr.DataArray(
@@ -50,9 +54,11 @@ def test_labeled_structured_input_requires_matching_grid_coordinates():
         dims=("latitude", "longitude"),
         attrs={"units": "1"},
     )
-    with cece.Model(["native_example"], grid=grid) as model:
-        with pytest.raises(ValueError, match="coordinates are required"):
-            model.set_inputs({"base_anthropogenic_nox": source})
+    with (
+        cece.Model(["native_example"], grid=grid) as model,
+        pytest.raises(ValueError, match="coordinates are required"),
+    ):
+        model.set_inputs({"base_anthropogenic_nox": source})
 
 
 def test_invalid_field_does_not_advance_time_and_reports_scheme_requirement():
@@ -222,7 +228,7 @@ def test_invalid_update_preserves_previous_forcing():
                 "base_anthropogenic_nox": 4.0,
                 "multiplier_input": np.nan,
             })
-        assert model.step(time=0, dt=1).nox.item() == 6.0
+        assert model.step(time=0, dt=1).nox.item() == pytest.approx(6.0)
 
 
 def test_kernel_failure_poisoning_prevents_invalid_publication():
@@ -232,7 +238,7 @@ def test_kernel_failure_poisoning_prevents_invalid_publication():
         options={"native_example": {"multiplier": 1.0e308}},
     ) as model:
         model.set_inputs({"base_anthropogenic_nox": 1.0e308})
-        with pytest.raises(cece.CeceException, match="Non-finite.*output"):
+        with pytest.raises(cece.CeceException, match=r"Non-finite.*output"):
             model.step(time=0, dt=1)
         with pytest.raises(cece.CeceException, match="failed"):
             model.step(time=0, dt=1)
@@ -249,8 +255,8 @@ def test_numpy_coordinates_make_json_restart_and_options_are_snapshots():
         exposed = model.options
         exposed["native_example"]["multiplier"] = 99.0
         snapshot = json.loads(json.dumps(model.state_dict()))
-        assert snapshot["options"]["native_example"]["multiplier"] == 3.0
-        assert model.step(time=0, dt=1).nox.values[0, 0] == 3.0
+        assert snapshot["options"]["native_example"]["multiplier"] == pytest.approx(3.0)
+        assert model.step(time=0, dt=1).nox.values[0, 0] == pytest.approx(3.0)
 
 
 def test_caller_units_survive_physics_and_restart():
@@ -258,13 +264,17 @@ def test_caller_units_survive_physics_and_restart():
     source = xr.DataArray(
         [3.0],
         dims=["column"],
-        coords={"column": [0], "longitude": ("column", [0]), "latitude": ("column", [0])},
+        coords={
+            "column": [0],
+            "longitude": ("column", [0]),
+            "latitude": ("column", [0]),
+        },
         attrs={"units": "kg m-2 s-1"},
     )
-    with cece.Model(['native_example'], grid=grid) as model:
-        model.set_inputs({'base_anthropogenic_nox': source})
-        assert model.step(time=0, dt=1).nox.attrs['units'] == 'kg m-2 s-1'
+    with cece.Model(["native_example"], grid=grid) as model:
+        model.set_inputs({"base_anthropogenic_nox": source})
+        assert model.step(time=0, dt=1).nox.attrs["units"] == "kg m-2 s-1"
         state = model.state_dict()
-        with cece.Model(['native_example'], grid=grid) as restored:
+        with cece.Model(["native_example"], grid=grid) as restored:
             restored.load_state_dict(state)
-            assert restored.step(time=1, dt=1).nox.attrs['units'] == 'kg m-2 s-1'
+            assert restored.step(time=1, dt=1).nox.attrs["units"] == "kg m-2 s-1"

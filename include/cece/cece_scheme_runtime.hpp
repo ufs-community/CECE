@@ -7,24 +7,25 @@
 #include <optional>
 #include <string>
 #include <vector>
+
 #include "cece/cece_physics_factory.hpp"
 
 namespace cece {
 
 /// A physics scheme and its scheme-specific YAML configuration.
 struct SchemeRequest {
-    std::string name;             ///< Registered scheme name.
+    std::string name;                 ///< Registered scheme name.
     std::string options_yaml = "{}";  ///< YAML mapping of scheme options.
 };
 
 /// The third internal axis is explicitly typed; categories are not vertical levels.
 struct SchemeFieldSpec {
-    std::string name;                 ///< Canonical field name.
-    std::string units;                ///< Canonical units or contract marker.
-    std::string axis = "surface";    ///< Surface, level, or category axis.
-    int extent = 1;                    ///< Number of elements along the axis.
-    bool required = true;             ///< Whether an input must be supplied.
-    bool output = false;              ///< Whether a scheme produces the field.
+    std::string name;              ///< Canonical field name.
+    std::string units;             ///< Canonical units or contract marker.
+    std::string axis = "surface";  ///< Surface, level, or category axis.
+    int extent = 1;                ///< Number of elements along the axis.
+    bool required = true;          ///< Whether an input must be supplied.
+    bool output = false;           ///< Whether a scheme produces the field.
 };
 
 /// Reviewed field and history contract for one scheme.
@@ -48,7 +49,7 @@ SchemeDescriptor DescribeScheme(const SchemeRequest& request, int nlev = 1);
  * the instance and requires a new runtime.
  */
 class SchemeRuntime {
- public:
+   public:
     /** Construct ordered schemes for fixed geometry.
      * @param requests Schemes in producer-before-consumer order.
      * @param ncol Number of horizontal columns.
@@ -75,17 +76,23 @@ class SchemeRuntime {
     /// Release scheme resources; does not finalize Kokkos.
     void close();
     /// Return the scheme contracts retained by this runtime.
-    const std::vector<SchemeDescriptor>& descriptors() const { return descriptors_; }
+    const std::vector<SchemeDescriptor>& descriptors() const {
+        return descriptors_;
+    }
     /// Return the required start time for the next interval, if one is set.
     std::optional<double> next_time();
     /// Restore the next interval start time; this does not restore scheme history.
     void restore_time(std::optional<double> next_time);
     /// Return the fixed number of horizontal columns.
-    int ncol() const { return ncol_; }
+    int ncol() const {
+        return ncol_;
+    }
     /// Return the fixed number of levels.
-    int nlev() const { return nlev_; }
+    int nlev() const {
+        return nlev_;
+    }
 
- private:
+   private:
     void require_open() const;
     int ncol_, nlev_;
     bool closed_ = false, failed_ = false;

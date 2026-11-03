@@ -1,14 +1,16 @@
 #include "cece/cece_scheme_runtime.hpp"
-#include "cece/physics/cece_speciation_config.hpp"
+
 #include <algorithm>
 #include <cmath>
 #include <limits>
 #include <stdexcept>
 
+#include "cece/physics/cece_speciation_config.hpp"
+
 namespace cece {
 namespace {
-SchemeFieldSpec field(const std::string& name, const std::string& units, bool required = true,
-                      int extent = 1, const std::string& axis = "surface", bool output = false) {
+SchemeFieldSpec field(const std::string& name, const std::string& units, bool required = true, int extent = 1, const std::string& axis = "surface",
+                      bool output = false) {
     return {name, units, axis, extent, required, output};
 }
 std::unique_lock<std::mutex> exclusive(std::mutex& mutex) {
@@ -35,46 +37,55 @@ SchemeDescriptor DescribeScheme(const SchemeRequest& request, int nlev) {
     result.name = request.name;
     auto& f = result.fields;
     if (request.name == "native_example") {
-        f = {field("base_anthropogenic_nox", "caller", true, nlev, "level"),
-             field("multiplier_input", "1", false, nlev, "level"),
+        f = {field("base_anthropogenic_nox", "caller", true, nlev, "level"), field("multiplier_input", "1", false, nlev, "level"),
              field("nox", "caller", true, nlev, "level", true)};
     } else if (request.name == "megan3") {
-        f = {field("temperature", "K"), field("leaf_area_index", "1"),
-             field("par_direct", "W m-2"), field("par_diffuse", "W m-2"), field("solar_cosine", "1"),
-             field("leaf_area_index_prev", "1", false), field("soil_moisture_root", "1", false),
+        f = {field("temperature", "K"),
+             field("leaf_area_index", "1"),
+             field("par_direct", "W m-2"),
+             field("par_diffuse", "W m-2"),
+             field("solar_cosine", "1"),
+             field("leaf_area_index_prev", "1", false),
+             field("soil_moisture_root", "1", false),
              field("wind_speed", "m s-1", false)};
         for (int i = 0; i < static_cast<int>(EmissionClass::COUNT); ++i)
             f.push_back(field("AEF_" + EmissionClassToString(static_cast<EmissionClass>(i)), "kmol m-2 s-1", false));
-        auto speciation = SpeciationConfigLoader().Load(
-            options["mechanism_file"].string_or("data/speciation/spc_cb6.yaml"),
-            options["speciation_file"].string_or("data/speciation/map_cb6.yaml"),
-            options["speciation_dataset"].string_or("MEGAN"));
-        for (const auto& species : speciation.species)
-            f.push_back(field("MEGAN_" + species.name, "kg m-2 s-1", true, 1, "surface", true));
+        auto speciation = SpeciationConfigLoader().Load(options["mechanism_file"].string_or("data/speciation/spc_cb6.yaml"),
+                                                        options["speciation_file"].string_or("data/speciation/map_cb6.yaml"),
+                                                        options["speciation_dataset"].string_or("MEGAN"));
+        for (const auto& species : speciation.species) f.push_back(field("MEGAN_" + species.name, "kg m-2 s-1", true, 1, "surface", true));
         // This kernel reads soil NO from export state. The adapter must explicitly
         // supply zero/external NO or order a preceding BDSNP producer.
         f.push_back(field("soil_nox_emissions", "kg m-2 s-1"));
     } else if (request.name == "bdsnp") {
         const auto mode = options["soil_no_method"].string_or("bdsnp");
+        // The two input contracts are intentionally different by mode.
+        // NOLINTNEXTLINE(bugprone-branch-clone)
         if (mode == "yl95") {
             f = {field("soil_temperature", "K"), field("soil_moisture", "1")};
         } else if (mode == "bdsnp") {
             f = {field(options["use_soil_temperature"].bool_or(false) ? "soil_temperature" : "surface_temperature", "K"),
-                 field("soil_moisture", "1"), field("soilnox_land_fractions", "1", true, 24, "biome"),
-                 field("soilnox_arid_fraction", "1"), field("soilnox_nonarid_fraction", "1"),
-                 field("leaf_area_index", "1"), field("soilnox_canopy_nox", "source_contract", true, 24, "biome"),
-                 field("wind_speed_squared", "m2 s-2"), field("solar_zenith_cosine", "1"),
-                 field("soil_fertilizer", "source_contract"), field("deposited_nitrogen", "source_contract"),
+                 field("soil_moisture", "1"),
+                 field("soilnox_land_fractions", "1", true, 24, "biome"),
+                 field("soilnox_arid_fraction", "1"),
+                 field("soilnox_nonarid_fraction", "1"),
+                 field("leaf_area_index", "1"),
+                 field("soilnox_canopy_nox", "source_contract", true, 24, "biome"),
+                 field("wind_speed_squared", "m2 s-2"),
+                 field("solar_zenith_cosine", "1"),
+                 field("soil_fertilizer", "source_contract"),
+                 field("deposited_nitrogen", "source_contract"),
                  field("soilnox_pulse_factor", "1")};
             f.push_back(field("soil_nox_fertilizer_emissions", "kg m-2 s-1", true, 1, "surface", true));
-        } else throw std::invalid_argument("Unknown BDSNP soil_no_method: " + mode);
+        } else
+            throw std::invalid_argument("Unknown BDSNP soil_no_method: " + mode);
         f.push_back(field("soil_nox_emissions", "kg m-2 s-1", true, 1, "surface", true));
-    } else throw std::invalid_argument("Scheme has no reviewed column contract: " + request.name);
+    } else
+        throw std::invalid_argument("Scheme has no reviewed column contract: " + request.name);
     return result;
 }
 
-SchemeRuntime::SchemeRuntime(const std::vector<SchemeRequest>& requests, int ncol, int nlev)
-    : ncol_(ncol), nlev_(nlev) {
+SchemeRuntime::SchemeRuntime(const std::vector<SchemeRequest>& requests, int ncol, int nlev) : ncol_(ncol), nlev_(nlev) {
     if (!Kokkos::is_initialized() || Kokkos::is_finalized()) throw std::runtime_error("Initialize Kokkos before creating a scheme runtime");
     if (ncol <= 0 || nlev <= 0 || requests.empty()) throw std::invalid_argument("Positive geometry and at least one scheme are required");
     configs_.reserve(requests.size());
@@ -88,7 +99,8 @@ SchemeRuntime::SchemeRuntime(const std::vector<SchemeRequest>& requests, int nco
                 if (it->second.extent != f.extent || it->second.units != f.units)
                     throw std::invalid_argument("Incompatible shared field contract: " + f.name);
                 it->second.required = it->second.required || f.required;
-            } else specs_.emplace(f.name, f);
+            } else
+                specs_.emplace(f.name, f);
         }
         descriptors_.push_back(std::move(descriptor));
     }
@@ -173,11 +185,13 @@ void SchemeRuntime::step(double start_seconds, double dt_seconds) {
             const auto host = value.view_host();
             for (std::size_t k = 0; k < host.extent(2); ++k)
                 for (int i = 0; i < ncol_; ++i)
-                    if (!std::isfinite(host(i, 0, k)))
-                        throw std::runtime_error("Non-finite scheme output: " + name);
+                    if (!std::isfinite(host(i, 0, k))) throw std::runtime_error("Non-finite scheme output: " + name);
         }
         next_time_ = start_seconds + dt_seconds;
-    } catch (...) { failed_ = true; throw; }
+    } catch (...) {
+        failed_ = true;
+        throw;
+    }
 }
 
 std::vector<double> SchemeRuntime::get_field(const std::string& name) {
@@ -216,5 +230,11 @@ void SchemeRuntime::close() {
     diagnostics_ = CeceDiagnosticManager{};
     closed_ = true;
 }
-SchemeRuntime::~SchemeRuntime() { try { close(); } catch (...) {} }
+SchemeRuntime::~SchemeRuntime() {
+    // Destructors must not throw; explicit close() remains available to report errors.
+    try {
+        close();
+    } catch (...) {  // NOLINT(bugprone-empty-catch)
+    }
+}
 }  // namespace cece

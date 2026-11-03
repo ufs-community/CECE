@@ -1,5 +1,7 @@
 """Provider-neutral access to a caller-supplied labeled dataset."""
+
 from __future__ import annotations
+
 from ..preparation import select_time
 
 
@@ -18,11 +20,12 @@ class DatasetSource:
     tolerance : str, datetime.timedelta or pandas.Timedelta
         Maximum distance for nearest-time selection of timed data.
     """
+
     def __init__(self, dataset, *, variables, tolerance):
         self._dataset = dataset
         self.variables = tuple(variables)
         if not self.variables:
-            raise ValueError('At least one source variable is required')
+            raise ValueError("At least one source variable is required")
         self.tolerance = tolerance
         self._closed = False
 
@@ -35,7 +38,7 @@ class DatasetSource:
             The open source.
         """
         if self._closed:
-            raise RuntimeError('Source is closed')
+            raise RuntimeError("Source is closed")
         return self
 
     def read(self, time, selection=None):
@@ -62,18 +65,32 @@ class DatasetSource:
         self.open()
         data = self._dataset[list(self.variables)]
         selection = dict(selection or {})
-        if 'time' in selection:
-            raise ValueError('Select time using the model time and tolerance')
-        for dimension in ('member', 'ensemble', 'number', 'realization',
-                          'forecast_reference_time', 'cycle', 'step', 'lead_time'):
+        if "time" in selection:
+            raise ValueError("Select time using the model time and tolerance")
+        for dimension in (
+            "member",
+            "ensemble",
+            "number",
+            "realization",
+            "forecast_reference_time",
+            "cycle",
+            "step",
+            "lead_time",
+        ):
             if dimension in data.dims and dimension not in selection:
-                raise ValueError(f'Explicit {dimension} selection is required')
+                raise ValueError(f"Explicit {dimension} selection is required")
         if selection:
             data = data.sel(selection)
-        if any(name in data.coords for name in ('step', 'lead_time', 'forecast_period')):
-            raise ValueError('Forecast lead coordinates require explicit valid time preparation before source selection')
-        if 'leadTime' in data.coords and 'validDate' not in data.coords:
-            raise ValueError('Forecast leadTime requires an explicit valid time coordinate')
+        if any(
+            name in data.coords for name in ("step", "lead_time", "forecast_period")
+        ):
+            raise ValueError(
+                "Forecast lead coordinates require explicit valid time preparation before source selection"
+            )
+        if "leadTime" in data.coords and "validDate" not in data.coords:
+            raise ValueError(
+                "Forecast leadTime requires an explicit valid time coordinate"
+            )
         return select_time(data, time, tolerance=self.tolerance)
 
     def close(self):

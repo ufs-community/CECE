@@ -1,7 +1,9 @@
 """High-level results are snapshots; low-level views retain their allocation."""
+
 import gc
-import numpy as np
+
 import cece
+import numpy as np
 from cece import _cece_core
 
 
@@ -12,7 +14,7 @@ def test_export_view_retains_allocation_after_state_destruction():
     result = state.get_field("field")
     del state
     gc.collect()
-    allocations = [np.full(result.shape, -99.0, order="F") for _ in range(100)]
+    _allocations = [np.full(result.shape, -99.0, order="F") for _ in range(100)]
     np.testing.assert_array_equal(result, 17.0)
 
 

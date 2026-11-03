@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: Apache-2.0
 // Python lifecycle adapter for the shared standalone/NUOPC simulation facade.
+#include <mpi.h>
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
-#include <mpi.h>
+
 #include <Kokkos_Core.hpp>
 #include <cstdlib>
 #include <stdexcept>
 #include <string>
+
 #include "cece/cece_sim_c_abi.h"
 #include "cece/cece_simulation.hpp"
 
@@ -20,7 +22,7 @@ void finish_mpi() {
     if (owns_mpi && !finalized) MPI_Finalize();
 }
 class PythonSimulation {
- public:
+   public:
     explicit PythonSimulation(const std::string& path) {
         if (active) throw std::runtime_error("Only one full CECE simulation may be active in a process");
         int initialized = 0, finalized = 0;
@@ -42,7 +44,9 @@ class PythonSimulation {
         if (rc != 0 || !sim_) throw std::runtime_error("Could not initialize CECE simulation; see native log");
         active = true;
     }
-    ~PythonSimulation() { (void)close(); }
+    ~PythonSimulation() {
+        (void)close();
+    }
     PythonSimulation(const PythonSimulation&) = delete;
     int close() {
         if (sim_) {
@@ -74,16 +78,21 @@ class PythonSimulation {
         auto& sim = impl();
         auto& grid = sim.grid();
         py::dict result;
-        result["nx"] = grid.nx; result["ny"] = grid.ny; result["nz"] = grid.nz;
-        result["longitude"] = grid.lon_coords; result["latitude"] = grid.lat_coords;
+        result["nx"] = grid.nx;
+        result["ny"] = grid.ny;
+        result["nz"] = grid.nz;
+        result["longitude"] = grid.lon_coords;
+        result["latitude"] = grid.lat_coords;
         result["topology"] = static_cast<int>(grid.topology);
-        result["j0"] = sim.band().j0; result["j1"] = sim.band().j1;
+        result["j0"] = sim.band().j0;
+        result["j1"] = sim.band().j1;
         return result;
     }
- private:
+
+   private:
     ::CeceSimulation* sim_ = nullptr;
 };
-}
+}  // namespace
 PYBIND11_MODULE(_cece_simulation, module) {
     module.def("kokkos_initialized", [] { return Kokkos::is_initialized(); });
     py::class_<PythonSimulation>(module, "Simulation")
