@@ -68,7 +68,7 @@ jobs:
         run: |
           source /opt/spack-environment/activate.sh
           cd build
-          cmake --build . --target cece_docs
+          make cece_docs
 
       # This needs to run after build, because it uses build/compile_commands.json
       # and any generated headers
