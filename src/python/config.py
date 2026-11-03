@@ -570,8 +570,6 @@ _STREAM_ENUM_VALUES = {
         "conservative",
         "cons",
         "conservative1st",
-        "consf",
-        "redist",
     },
     "cadence": {"series", "daily", "monthly", "hourly", "weekly", "stepwise", "step"},
     "time_label": {"auto", "start", "center", "end"},
@@ -602,7 +600,7 @@ class DataStreamConfig:
         Default is ``"nearest"``.
     mapalgo : str, optional
         Spatial mapping algorithm. One of ``"bilinear"``, ``"consd"``,
-        ``"consf"``, ``"nn"``, ``"redist"``, or ``"passthrough"``
+        ``"nn"``, or ``"passthrough"``
         (skip regridding when data is already on the model grid).
         Default is ``"consd"``.
     cadence : str, optional
@@ -1615,7 +1613,7 @@ class CeceConfig:
             ``"nearest"``. Default is ``"nearest"``.
         mapalgo : str, optional
             Spatial mapping algorithm. One of ``"bilinear"``, ``"consd"``,
-            ``"consf"``, ``"nn"``, ``"redist"``, or ``"passthrough"``
+            ``"nn"``, or ``"passthrough"``
             (skip regridding when data is already on the model grid).
             Default is ``"consd"``.
         cadence : str, optional

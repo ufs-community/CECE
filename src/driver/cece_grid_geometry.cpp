@@ -422,12 +422,26 @@ RegridMethodSettings resolve_regrid_method(const std::string& method_name) {
     } else if (name == "conss" || name == "conservative2nd" || name == "cons2nd") {
         result.method = RegridMethod::Conservative2;
         result.canonical_name = "conservative2nd";
-    } else if (name == "consd" || name == "conservative" || name == "cons" || name == "consf" || name == "redist" || name == "conservative1st") {
+    } else if (name == "consd" || name == "conservative" || name == "cons" || name == "conservative1st") {
         result.method = RegridMethod::Conservative1;
         result.canonical_name = "conservative1st";
     } else if (name == "passthrough") {
         result.method = RegridMethod::Passthrough;
         result.canonical_name = "passthrough";
+    } else if (name == "consf") {
+        // consf implies source-area (source-fraction) normalization, which the host AXIS path does not
+        // implement; the destination-normalized behavior would silently be consd. Reject until distinct
+        // semantics exist (see ufs-community/CECE#124 review discussion).
+        throw RegridError(RegridStage::PrerequisiteValidation, GridRole::None, method_name,
+                          "consf is not implemented; its source-area normalization differs from consd",
+                          "Use consd (destination-normalized first-order conservative)");
+    } else if (name == "redist") {
+        // ESMF's redistribute maps fields between grids with the same cell geometry under different
+        // decompositions; CECE has no decomposition-communication path, so the alias to conservative
+        // regridding is removed outright.
+        throw RegridError(RegridStage::PrerequisiteValidation, GridRole::None, method_name,
+                          "redist is not supported: it implies decomposition redistribution, which CECE does not provide",
+                          "Use consd for conservative remapping or passthrough for same-grid copies");
     } else {
         throw RegridError(RegridStage::PrerequisiteValidation, GridRole::None, method_name, "unknown regridding method",
                           "Use nearest, bilinear, bicubic, consd, conss, or passthrough");

@@ -157,13 +157,13 @@ struct CeceDataStreamConfig {
     std::vector<CeceDataVariableConfig> variables;  ///< Variables to read from this stream.
     std::string taxmode = "cycle";                  ///< Time axis mode (cycle, extend, etc.).
     std::string tintalgo = "nearest";               ///< Time interpolation algorithm.
-    std::string mapalgo = "consd";  ///< Spatial mapping algorithm: bilinear, consd, consf, nn, redist, passthrough (skip regridding, same-grid data).
-    int dtlimit = 1500000000;       ///< Delta time limit in seconds.
-    int yearFirst = 0;              ///< First year in data; zero selects climatological indexing.
-    int yearLast = 0;               ///< Last year in data; zero selects climatological indexing.
-    int yearAlign = 0;              ///< Year to align with model time; zero applies no year shift.
-    int offset = 0;                 ///< Time offset in seconds.
-    std::string meshfile;           ///< Path to source mesh file.
+    std::string mapalgo = "consd";                 ///< Spatial mapping algorithm: bilinear, consd, nn, passthrough (skip regridding, same-grid data).
+    int dtlimit = 1500000000;                      ///< Delta time limit in seconds.
+    int yearFirst = 0;                             ///< First year in data; zero selects climatological indexing.
+    int yearLast = 0;                              ///< Last year in data; zero selects climatological indexing.
+    int yearAlign = 0;                             ///< Year to align with model time; zero applies no year shift.
+    int offset = 0;                                ///< Time offset in seconds.
+    std::string meshfile;                          ///< Path to source mesh file.
     std::string input_gridspec_file;               ///< Optional source grid geometry; independent of driver destination gridspec.
     std::string geometry_reconstruction = "none";  ///< Explicit geometry reconstruction policy.
     std::string lev_dimname = "lev";               ///< Name of vertical dimension.

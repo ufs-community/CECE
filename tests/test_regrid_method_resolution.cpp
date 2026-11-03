@@ -19,9 +19,26 @@ TEST(RegridMethodResolutionTest, ResolvesAliasesToCanonicalMethods) {
     EXPECT_EQ(cece::io::resolve_regrid_method("conservative1st").method, RegridMethod::Conservative1);
     EXPECT_EQ(cece::io::resolve_regrid_method("cons2nd").method, RegridMethod::Conservative2);
     EXPECT_EQ(cece::io::resolve_regrid_method("conservative2nd").method, RegridMethod::Conservative2);
-    EXPECT_EQ(cece::io::resolve_regrid_method("consf").method, RegridMethod::Conservative1);
-    EXPECT_EQ(cece::io::resolve_regrid_method("redist").method, RegridMethod::Conservative1);
     EXPECT_EQ(cece::io::resolve_regrid_method("passthrough").method, RegridMethod::Passthrough);
+}
+
+TEST(RegridMethodResolutionTest, RejectsUnimplementedConservativeAliases) {
+    try {
+        (void)cece::io::resolve_regrid_method("consf");
+        FAIL() << "expected consf to be rejected";
+    } catch (const cece::io::RegridError& error) {
+        EXPECT_EQ(error.stage(), cece::io::RegridStage::PrerequisiteValidation);
+        EXPECT_EQ(error.role(), cece::io::GridRole::None);
+        EXPECT_NE(std::string(error.what()).find("consf is not implemented"), std::string::npos);
+        EXPECT_NE(std::string(error.what()).find("Use consd"), std::string::npos);
+    }
+    try {
+        (void)cece::io::resolve_regrid_method("redist");
+        FAIL() << "expected redist to be rejected";
+    } catch (const cece::io::RegridError& error) {
+        EXPECT_EQ(error.stage(), cece::io::RegridStage::PrerequisiteValidation);
+        EXPECT_NE(std::string(error.what()).find("redist is not supported"), std::string::npos);
+    }
 }
 
 TEST(RegridMethodResolutionTest, RejectsUnknownMethodsWithStageContext) {
