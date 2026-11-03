@@ -471,6 +471,7 @@ set(
   src/core/physics/cece_ginoux.cpp
   src/core/physics/cece_k14.cpp
   src/core/physics/cece_volcano.cpp
+  src/core/physics/cece_briggs.cpp
   src/core/physics/cece_speciation_config.cpp
   src/core/physics/cece_speciation_engine.cpp
   src/core/physics/cece_canopy_model.cpp

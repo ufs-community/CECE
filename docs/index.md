@@ -7,6 +7,7 @@
 - **Performance Portability**: Write once, run anywhere. CECE uses Kokkos to target NVIDIA GPUs, multi-core CPUs (OpenMP), and more without changing the source code.
 - **Hybrid Data Ingestion**: Read static emission inventories from NetCDF via AMIO with AXIS regridding, while also accepting live meteorological fields from a coupled model or configuration-driven inputs.
 - **Modular Physics Engine**: Easily extend CECE with new physics schemes. Supports both native C++ (Kokkos) and legacy Fortran plugins.
+- **Point-Source Plume Rise**: Native [Briggs (1969)](briggs.md) column physics provides plume centerline heights and layer fractions.
 - **Flexible Stacking Engine**: Combine multiple emission layers using prioritized categories and hierarchy levels. Apply geographical masks and multiple scale factors per layer.
 - **Built-in Diagnostics**: Integrated diagnostic manager for registering and writing intermediate variables to NetCDF files.
 - **Python Bindings**: High-level Python API via pybind11 with zero-copy NumPy data transfer, automatic GIL release during computation, and a clean exception hierarchy.
