@@ -158,7 +158,7 @@ std::unique_ptr<CeceSimulation> CeceSimulation::create_internal(const std::strin
         return fail(rc, "cece_core_initialize_p2 failed with rc=" + std::to_string(rc));
     }
 
-    const cece::CeceConfig parsed_config = cece::ParseConfig(config_path);
+    const cece::CeceConfig parsed_config = static_cast<CeceInternalData*>(sim->core_data_ptr_)->config;
 
     // 5. Register the export fields configured for output with persistent
     //    memory buffers, via the parsed config — the single authoritative
