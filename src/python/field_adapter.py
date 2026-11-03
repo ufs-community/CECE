@@ -22,10 +22,18 @@ def canonical_field(value, spec, grid):
     if hasattr(value, "dims") and hasattr(value, "attrs"):
         units = value.attrs.get("units")
         if units is None:
-            raise ValueError(
-                f"{spec.name}: units are required for labeled inputs (expected {spec.units})"
+            expectation = (
+                f" (expected {spec.units})"
+                if spec.units not in ("caller", "source_contract")
+                else ""
             )
-        if spec.units != "caller" and _ALIASES.get(units, units) != spec.units:
+            raise ValueError(
+                f"{spec.name}: units are required for labeled inputs{expectation}"
+            )
+        if (
+            spec.units not in ("caller", "source_contract")
+            and _ALIASES.get(units, units) != spec.units
+        ):
             raise ValueError(
                 f"{spec.name}: incompatible units {units!r}; expected {spec.units!r}"
             )

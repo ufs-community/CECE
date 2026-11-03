@@ -152,6 +152,38 @@ def test_bdsnp_dependency_order_and_external_collision():
         assert result.soil_nox_emissions.item() > 0
 
 
+def test_bdsnp_source_contract_accepts_declared_source_units():
+    grid = cece.Grid.columns([0], [30])
+    with cece.Model(
+        ["bdsnp"], grid=grid, options={"bdsnp": {"soil_no_method": "bdsnp"}}
+    ) as model:
+        values = {
+            "surface_temperature": np.array([290.0]),
+            "soil_moisture": np.array([0.2]),
+            "soilnox_land_fractions": np.zeros((1, 24)),
+            "soilnox_arid_fraction": np.zeros(1),
+            "soilnox_nonarid_fraction": np.ones(1),
+            "leaf_area_index": np.ones(1),
+            "soilnox_canopy_nox": xr.DataArray(
+                np.ones((1, 24)),
+                dims=("column", "biome"),
+                coords={
+                    "column": [0],
+                    "longitude": ("column", [0.0]),
+                    "latitude": ("column", [30.0]),
+                    "biome": np.arange(24),
+                },
+                attrs={"units": "ng N m-2 s-1"},
+            ),
+            "wind_speed_squared": np.ones(1),
+            "solar_zenith_cosine": np.ones(1),
+            "soil_fertilizer": np.ones(1),
+            "deposited_nitrogen": np.ones(1),
+            "soilnox_pulse_factor": np.ones(1),
+        }
+        model.set_inputs(values)
+
+
 def test_unsupported_scheme_and_bad_units_are_explicit():
     with pytest.raises(ValueError, match="reviewed column contract"):
         cece.Model(["volcano"], grid=cece.Grid.point(0, 30))

@@ -209,7 +209,8 @@ class Simulation:
             ``(longitude, latitude, level)`` for profiles. Labeled fields must
             declare units, may reorder these named dimensions, and must carry
             coordinates matching this simulation grid. Units are checked when
-            the configured scheme declares a canonical field unit.
+            the configured scheme declares a concrete field unit; source-contract
+            fields require unit metadata but leave its interpretation to the source.
         mapping : mapping, optional
             Rename input data variables to CECE import field names.
 
@@ -259,7 +260,7 @@ class Simulation:
                 expected_units = self._configured_import_units.get(name)
                 if (
                     expected_units
-                    and expected_units != 'caller'
+                    and expected_units not in ('caller', 'source_contract')
                     and _UNIT_ALIASES.get(units, units) != expected_units
                 ):
                     raise ValueError(

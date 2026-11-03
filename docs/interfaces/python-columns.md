@@ -61,7 +61,9 @@ operations. The configured full-simulation interface is documented below.
 - `megan3`: native bulk surface MEGAN3 with configurable existing speciation files.
 - `bdsnp`: native YL95 or effective-input BDSNP. The canonical mode requires its
   24-biome arrays and effective canopy/fertilizer/deposition inputs; these are not
-  interchangeable with raw observed fields. See `soil_nox.md` for source-contract units.
+  interchangeable with raw observed fields. Fields tagged `source_contract` require
+  declared xarray units but defer unit interpretation to the selected source
+  contract. See `soil_nox.md` for source-contract details.
 - Other registered schemes are explicitly rejected until their column contracts
   are reviewed; kernel registration alone is not proof of independent-column support.
 
@@ -128,8 +130,9 @@ simulation per process. `run.set_inputs()` accepts canonical-unit surface
 arrays shaped `(longitude, latitude)` or profiles shaped
 `(longitude, latitude, level)`, plus labeled xarray fields with unit metadata and
 the exact simulation coordinates. Units are checked for fields with a reviewed
-scheme descriptor; other configured import fields are assumed to already use
-the canonical units expected by that configuration. Values are copied and
+scheme descriptor with a concrete unit; `source_contract` fields only require
+declared units. Other configured import fields are assumed to already use the
+canonical units expected by that configuration. Values are copied and
 applied after each file-ingestion step, so explicit Python values take precedence.
 A field already produced by a
 configured stream is rejected to prevent ambiguous ownership. Names must be
