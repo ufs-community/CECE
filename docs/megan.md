@@ -272,19 +272,18 @@ physics_schemes:
 | `MEGAN_ISOP` | ISOP |
 | `MEGAN_LIMO` | LIMO (limonene) |
 | `MEGAN_MTPA` | APIN + BPIN + SABI + CARE (α-pinene, β-pinene, sabinene, 3-carene) |
-| `MEGAN_MTPO` | MYRC + OCIM + OMON + 1.50011 FARN (myrcene, t-β-ocimene, other monoterpenes, α-farnesene) |
+| `MEGAN_MTPO` | MYRC + OCIM + OMON (myrcene, t-β-ocimene, other monoterpenes) |
 
-The mapping follows the offline HEMCO MEGANv2.1 GOCART lumping and uses
+The mapping uses
 explicit MEGANv2.1 compound classes, each with its own Guenther et al. (2012)
 Table 4 activity parameters and Table 2-derived default emission factor (see
 [Emission Classes](#emission-classes)). The lumped MEGAN3 classes (`MT_*`,
-`SQT_*`) do not contribute, and NO is not mapped, so no soil-NO scheme is
-needed.
+`SQT_*`) and FARN do not contribute, and NO is not mapped, so no soil-NO
+scheme is needed.
 
 The engine applies the SPC target molecular weight (136.23 kg kmol⁻¹ for LIMO,
 MTPA, and MTPO) to each mapped amount flux, so monoterpene contributions are
-exact mass sums. The FARN factor, 204.36 / 136.23 = 1.50011, preserves the
-α-farnesene (C15H24) mass flux in MTPO. Per-class AEF inputs are in kmol
+exact mass sums. Per-class AEF inputs are in kmol
 compound m⁻² s⁻¹; gridded `AEF_<CLASS>` fields (for example `AEF_APIN`,
 `AEF_LIMO`) override configured scalar `default_aef` values.
 

@@ -181,4 +181,4 @@ output:
     - name: MEGAN_MTPO
       attributes:
         units: "kg m-2 s-1"
-        long_name: "GOCART MTPO emission flux (myrcene + t-beta-ocimene + alpha-farnesene + other monoterpenes)"
+        long_name: "GOCART MTPO emission flux (myrcene + t-beta-ocimene + other monoterpenes)"

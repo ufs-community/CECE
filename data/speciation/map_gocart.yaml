@@ -1,13 +1,11 @@
 # GOCART biogenic precursors from explicit MEGANv2.1 compound classes.
-# Follows the offline HEMCO MEGANv2.1 GOCART lumping:
+# Uses explicit MEGANv2.1 classes for GOCART, excluding alpha-farnesene:
 #   LIMO = limonene (explicit)
 #   MTPA = alpha-pinene + beta-pinene + sabinene + 3-carene
-#   MTPO = myrcene + t-beta-ocimene + alpha-farnesene + other monoterpenes
+#   MTPO = myrcene + t-beta-ocimene + other monoterpenes
 # Sources are amount fluxes (kmol compound m-2 s-1); the engine multiplies by
 # the target molecular weight, so each C10 contribution is an exact mass sum.
-# FARN (C15H24, 204.36 kg kmol-1) is scaled by 204.36 / 136.23 = 1.50011 so
-# MTPO (C10 MW, 136.23 kg kmol-1) preserves the farnesene mass flux.
-# Lumped MEGAN3 classes (MT_*, SQT_*) are not used by this mapping.
+# FARN and lumped MEGAN3 classes (MT_*, SQT_*) are not used by this mapping.
 # Outputs: MEGAN_ISOP, MEGAN_LIMO, MEGAN_MTPA, MEGAN_MTPO (kg m-2 s-1).
 mechanism: GOCART
 datasets:

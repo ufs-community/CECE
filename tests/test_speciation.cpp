@@ -814,7 +814,7 @@ TEST_F(CB6ConfigLoadingTest, LoadGocartSpeciationConfig) {
     EXPECT_EQ(config.mechanism_name, "GOCART");
     EXPECT_EQ(config.dataset_name, "MEGAN");
     ASSERT_EQ(config.species.size(), 4u);
-    ASSERT_EQ(config.mappings.size(), 10u);
+    ASSERT_EQ(config.mappings.size(), 9u);
     const std::vector<std::string> expected_names = {"ISOP", "LIMO", "MTPA", "MTPO"};
     for (std::size_t index = 0; index < expected_names.size(); ++index) {
         EXPECT_EQ(config.species[index].name, expected_names[index]);
@@ -824,13 +824,11 @@ TEST_F(CB6ConfigLoadingTest, LoadGocartSpeciationConfig) {
     for (const auto& mapping : config.mappings) {
         profiles[mapping.mechanism_species][EmissionClassToString(mapping.emission_class)] = mapping.scale_factor;
     }
-    // HEMCO MEGANv2.1 GOCART lumping from explicit compound classes.
+    // GOCART lumping from explicit compound classes, excluding FARN.
     EXPECT_EQ(profiles["ISOP"], (std::map<std::string, double>{{"ISOP", 1.0}}));
     EXPECT_EQ(profiles["LIMO"], (std::map<std::string, double>{{"LIMO", 1.0}}));
     EXPECT_EQ(profiles["MTPA"], (std::map<std::string, double>{{"APIN", 1.0}, {"BPIN", 1.0}, {"SABI", 1.0}, {"CARE", 1.0}}));
-    EXPECT_EQ(profiles["MTPO"], (std::map<std::string, double>{{"MYRC", 1.0}, {"OCIM", 1.0}, {"OMON", 1.0}, {"FARN", 1.50011}}));
-    // FARN factor preserves alpha-farnesene mass in the C10-weighted MTPO output.
-    EXPECT_NEAR(profiles["MTPO"].at("FARN") * 136.23, 204.36, 1.0e-3);
+    EXPECT_EQ(profiles["MTPO"], (std::map<std::string, double>{{"MYRC", 1.0}, {"OCIM", 1.0}, {"OMON", 1.0}}));
     TempFile serialized(SpeciationConfigLoader::ToYaml(config), "_gocart.yaml");
     auto restored = loader.Load(serialized.path, serialized.path);
     EXPECT_EQ(restored.mappings.size(), config.mappings.size());
@@ -852,9 +850,16 @@ TEST_F(CB6ConfigLoadingTest, GocartExplicitClassOutputs) {
     auto host_totals = Kokkos::create_mirror_view(class_totals);
     // Unmapped classes (lumped MT_*/SQT_* etc.) must not leak into outputs.
     Kokkos::deep_copy(host_totals, 99.0);
-    const std::map<EmissionClass, double> fluxes = {{EmissionClass::ISOP, 1.0e-9}, {EmissionClass::APIN, 2.0e-9}, {EmissionClass::BPIN, 3.0e-9},
-                                                    {EmissionClass::SABI, 4.0e-9}, {EmissionClass::CARE, 5.0e-9}, {EmissionClass::LIMO, 6.0e-9},
-                                                    {EmissionClass::MYRC, 7.0e-9}, {EmissionClass::OCIM, 8.0e-9}, {EmissionClass::OMON, 9.0e-9},
+    const std::map<EmissionClass, double> fluxes = {{EmissionClass::ISOP, 1.0e-9},
+                                                    {EmissionClass::APIN, 2.0e-9},
+                                                    {EmissionClass::BPIN, 3.0e-9},
+                                                    {EmissionClass::SABI, 4.0e-9},
+                                                    {EmissionClass::CARE, 5.0e-9},
+                                                    {EmissionClass::LIMO, 6.0e-9},
+                                                    {EmissionClass::MYRC, 7.0e-9},
+                                                    {EmissionClass::OCIM, 8.0e-9},
+                                                    {EmissionClass::OMON, 9.0e-9},
+                                                    // FARN remains supported as a class but is not mapped to GOCART.
                                                     {EmissionClass::FARN, 1.0e-8}};
     for (const auto& [source, flux] : fluxes)
         for (int cell = 0; cell < nx * ny; ++cell) host_totals(static_cast<int>(source), cell) = flux;
@@ -863,7 +868,7 @@ TEST_F(CB6ConfigLoadingTest, GocartExplicitClassOutputs) {
     EXPECT_NEAR(results.at("ISOP"), nx * ny * 68.12e-9, 1.0e-20);
     EXPECT_NEAR(results.at("LIMO"), nx * ny * 136.23 * 6.0e-9, 1.0e-18);
     EXPECT_NEAR(results.at("MTPA"), nx * ny * 136.23 * 14.0e-9, 1.0e-18);
-    EXPECT_NEAR(results.at("MTPO"), nx * ny * (136.23 * 24.0e-9 + 136.23 * 1.50011 * 1.0e-8), 1.0e-18);
+    EXPECT_NEAR(results.at("MTPO"), nx * ny * 136.23 * 24.0e-9, 1.0e-18);
     for (const auto& [source, flux] : fluxes) {
         Kokkos::deep_copy(class_totals, 0.0);
         Kokkos::deep_copy(Kokkos::subview(class_totals, static_cast<int>(source), Kokkos::ALL()), flux);

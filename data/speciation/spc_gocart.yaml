@@ -1,7 +1,6 @@
 # GOCART biogenic precursors requested for NOAA UFS GCAFS version 1.
 # Molecular weights use the MICM/OpenAtmos kg/mol convention.
-# LIMO, MTPA, and MTPO use the C10H16 monoterpene molecular weight; the
-# alpha-farnesene contribution to MTPO is mass-preserved in map_gocart.yaml.
+# LIMO, MTPA, and MTPO use the C10H16 monoterpene molecular weight.
 name: GOCART
 species:
   - name: ISOP
