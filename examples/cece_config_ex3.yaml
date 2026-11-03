@@ -13,6 +13,7 @@ driver:
   start_time: "2020-01-01T00:00:00"
   end_time: "2020-01-01T01:00:00"
   timestep_seconds: 3600
+  geometry_reconstruction: "rectilinear_midpoint"
   grid:
     nx: 2
     ny: 2
@@ -32,6 +33,7 @@ cece_data:
   streams:
     - name: "MACCITY_CO"
       file: "/work/data/MACCity_4x5.nc"
+      geometry_reconstruction: "rectilinear_midpoint"
       # cadence omitted -> "series" (the default): the file's own time axis is
       # decoded and the simulation time is bracketed against the record times.
       yearAlign: 2020 # Simulation year 2020 aligns to the first file year

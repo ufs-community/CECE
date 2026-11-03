@@ -249,6 +249,10 @@ std::string CeceDataIngestor::SerializeStreamESMFConfig(const CeceDataConfig& co
         oss << "time_var" << idx << ": " << stream.time_var << "\n";
         oss << "lon_var" << idx << ": " << stream.lon_var << "\n";
         oss << "lat_var" << idx << ": " << stream.lat_var << "\n";
+        oss << "input_gridspec_file" << idx << ": " << (stream.input_gridspec_file.empty() ? "none" : stream.input_gridspec_file) << "\n";
+        oss << "longitude_variable" << idx << ": " << stream.longitude_variable << "\n";
+        oss << "latitude_variable" << idx << ": " << stream.latitude_variable << "\n";
+        oss << "geometry_reconstruction" << idx << ": " << stream.geometry_reconstruction << "\n";
 
         // Required stream_mesh_file parameter (dummy value for grid-based data)
         oss << "stream_mesh_file" << idx << ": " << (stream.meshfile.empty() ? "none" : stream.meshfile) << "\n";
@@ -295,6 +299,10 @@ std::string CeceDataIngestor::SerializeStreamYaml(const CeceDataConfig& config) 
         } else {
             oss << "    mesh_file: \"none\"\n";
         }
+        if (!stream.input_gridspec_file.empty()) oss << "    input_gridspec_file: \"" << stream.input_gridspec_file << "\"\n";
+        if (!stream.longitude_variable.empty()) oss << "    longitude_variable: \"" << stream.longitude_variable << "\"\n";
+        if (!stream.latitude_variable.empty()) oss << "    latitude_variable: \"" << stream.latitude_variable << "\"\n";
+        if (stream.geometry_reconstruction != "none") oss << "    geometry_reconstruction: \"" << stream.geometry_reconstruction << "\"\n";
 
         // Match TIDE test config field order
         oss << "    tax_mode: \"" << stream.taxmode << "\"\n";

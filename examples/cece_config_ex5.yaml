@@ -13,6 +13,7 @@ driver:
   start_time: "2020-01-01T00:00:00"
   end_time: "2020-01-01T06:00:00"
   timestep_seconds: 3600
+  geometry_reconstruction: "rectilinear_midpoint"
   grid:
     nx: 270
     ny: 135
@@ -33,6 +34,7 @@ cece_data:
   streams:
     - name: "MACCITY_CO"
       file: "/work/data/MACCity_4x5.nc"
+      geometry_reconstruction: "rectilinear_midpoint"
       cadence: "monthly"
       yearAlign: 2020 # Simulation year 2020 aligns to the first file year
       taxmode: "cycle"
@@ -43,6 +45,7 @@ cece_data:
           model: "MACCITY_CO"
     - name: "MACCITY_NO"
       file: "/work/data/MACCity_anthro_NOx_2000-2010_16080.nc"
+      geometry_reconstruction: "rectilinear_midpoint"
       cadence: "monthly"
       yearAlign: 2020
       taxmode: "cycle"

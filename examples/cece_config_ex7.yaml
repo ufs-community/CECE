@@ -5,7 +5,9 @@
 # capabilities using AXIS NamedGridRegistry.
 #
 # Key Features Tested:
-#   - Ingestion and remapping on F360 named grids dynamically.
+#   - Ingestion and remapping on the AXIS-generated F360 destination mesh.
+#   - The destination mesh supplies authoritative Gaussian cell boundaries;
+#     geometry_reconstruction is not needed for this named target.
 #   - Core-driven single species CO emissions processing.
 #   - Log file output writing and parallel threading validation.
 # =====================================================================

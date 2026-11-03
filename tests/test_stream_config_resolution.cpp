@@ -428,6 +428,25 @@ TEST(StreamConfigResolution, MapalgoIsNormalizedToLowercase) {
     EXPECT_EQ(actual["CO"].mapalgo, "bilinear");
 }
 
+TEST(StreamConfigResolution, GridSpecAliasAcceptsEqualValuesAndRejectsConflicts) {
+    const auto resolve_yaml = [](const std::string& fields) {
+        const std::string path = "/tmp/cece_stream_gridspec_alias_test.yaml";
+        std::ofstream out(path);
+        out << "cece_data:\n  streams:\n    - name: X\n      file: /tmp/x.nc\n      " << fields << "      variables: [X]\n";
+        out.close();
+        std::unordered_map<std::string, StreamConfig> configs;
+        std::string driver_gridspec;
+        StreamConfigTestAccess::Resolve(path, configs, driver_gridspec);
+        std::remove(path.c_str());
+        return configs.at("X").input_gridspec_file;
+    };
+
+    EXPECT_EQ(resolve_yaml("input_gridspec_file: /tmp/grid.nc\n"), "/tmp/grid.nc");
+    EXPECT_EQ(resolve_yaml("gridspec_file: /tmp/grid.nc\n"), "/tmp/grid.nc");
+    EXPECT_EQ(resolve_yaml("input_gridspec_file: /tmp/grid.nc\n      gridspec_file: /tmp/grid.nc\n"), "/tmp/grid.nc");
+    EXPECT_THROW(resolve_yaml("input_gridspec_file: /tmp/a.nc\n      gridspec_file: /tmp/b.nc\n"), std::invalid_argument);
+}
+
 // ============================================================================
 // Part 2: RapidCheck property over generated stream configurations.
 // Feature: driver-io-regrid-perf, Property 4: StreamConfig resolution matches

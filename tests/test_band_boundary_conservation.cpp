@@ -93,6 +93,8 @@ void check_band_equals_global(int src_nx, int src_ny, int dst_nx, int dst_ny, co
     // Global reference: whole-grid band with globally-correct corners == whole grid.
     auto src_mesh_g = build_axis_mesh(src_nx, src_ny, src_lons, src_lats);
     auto dst_mesh_g = build_band_mesh_with_global_corners(dst_nx, 0, dst_ny, dst_lons, dst_lats);
+    RC_ASSERT(src_mesh_g.geometry_metadata().provenance == axis::topology::GeometryProvenance::Reconstructed);
+    RC_ASSERT(dst_mesh_g.geometry_metadata().provenance == axis::topology::GeometryProvenance::Reconstructed);
     RegridPlan gplan = MakePlanFromMeshes(src_nx, src_ny, std::move(src_mesh_g), std::move(dst_mesh_g), 0, dst_ny);
     std::vector<double> global;
     RC_ASSERT(apply_regrid_plan(gplan, 0, false, src.data(), src_nx, src_ny, dst_nx, global));

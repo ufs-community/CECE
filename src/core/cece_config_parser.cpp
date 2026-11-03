@@ -220,10 +220,23 @@ CeceConfig ParseConfig(const std::string& filename) {
             stream.yearAlign = node["yearAlign"].int_or(stream.yearAlign);
             stream.offset = node["offset"].int_or(stream.offset);
             stream.meshfile = string_or(node, "meshfile");
+            const std::string input_gridspec = string_or(node, "input_gridspec_file");
+            const std::string gridspec_alias = string_or(node, "gridspec_file");
+            if (!input_gridspec.empty() && !gridspec_alias.empty() && input_gridspec != gridspec_alias)
+                throw std::invalid_argument("cece_data.streams[" + std::to_string(i) +
+                                            "]: input_gridspec_file and gridspec_file specify different paths");
+            stream.input_gridspec_file = input_gridspec.empty() ? gridspec_alias : input_gridspec;
+            stream.geometry_reconstruction = string_or(node, "geometry_reconstruction", stream.geometry_reconstruction);
+            if (stream.geometry_reconstruction != "none" && stream.geometry_reconstruction != "rectilinear_midpoint" &&
+                stream.geometry_reconstruction != "gaussian_latlon" && stream.geometry_reconstruction != "curvilinear_approximate")
+                throw std::invalid_argument("cece_data.streams[" + std::to_string(i) + "]: unsupported geometry_reconstruction '" +
+                                            stream.geometry_reconstruction + "'");
             stream.lev_dimname = string_or(node, "lev_dimname", stream.lev_dimname);
             stream.time_var = string_or(node, "time_var", stream.time_var);
             stream.lon_var = string_or(node, "lon_var", stream.lon_var);
             stream.lat_var = string_or(node, "lat_var", stream.lat_var);
+            stream.longitude_variable = string_or(node, "longitude_variable");
+            stream.latitude_variable = string_or(node, "latitude_variable");
             stream.refresh_interval_seconds = node["refresh_interval_seconds"].int_or(0);
             stream.use_local_time = node["use_local_time"].bool_or(false);
             if (stream.use_local_time) {
@@ -317,6 +330,14 @@ CeceConfig ParseConfig(const std::string& filename) {
         config.driver_config.end_time = string_or(driver, "end_time", config.driver_config.end_time);
         config.driver_config.timestep_seconds = driver["timestep_seconds"].int_or(config.driver_config.timestep_seconds);
         config.driver_config.gridspec_file = string_or(driver, "gridspec_file");
+        config.driver_config.longitude_variable = string_or(driver, "longitude_variable");
+        config.driver_config.latitude_variable = string_or(driver, "latitude_variable");
+        config.driver_config.geometry_reconstruction = string_or(driver, "geometry_reconstruction", "none");
+        if (config.driver_config.geometry_reconstruction != "none" && config.driver_config.geometry_reconstruction != "rectilinear_midpoint" &&
+            config.driver_config.geometry_reconstruction != "gaussian_latlon" &&
+            config.driver_config.geometry_reconstruction != "curvilinear_approximate")
+            throw std::invalid_argument("driver.geometry_reconstruction has unsupported value '" + config.driver_config.geometry_reconstruction +
+                                        "'");
         conf::Value grid = driver["grid"];
         config.driver_config.grid.nx = grid["nx"].int_or(config.driver_config.grid.nx);
         config.driver_config.grid.ny = grid["ny"].int_or(config.driver_config.grid.ny);

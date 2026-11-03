@@ -157,19 +157,23 @@ struct CeceDataStreamConfig {
     std::vector<CeceDataVariableConfig> variables;  ///< Variables to read from this stream.
     std::string taxmode = "cycle";                  ///< Time axis mode (cycle, extend, etc.).
     std::string tintalgo = "nearest";               ///< Time interpolation algorithm.
-    std::string mapalgo = "consd";  ///< Spatial mapping algorithm: bilinear, consd, consf, nn, redist, passthrough (skip regridding, same-grid data).
-    int dtlimit = 1500000000;       ///< Delta time limit in seconds.
-    int yearFirst = 0;              ///< First year in data; zero selects climatological indexing.
-    int yearLast = 0;               ///< Last year in data; zero selects climatological indexing.
-    int yearAlign = 0;              ///< Year to align with model time; zero applies no year shift.
-    int offset = 0;                 ///< Time offset in seconds.
-    std::string meshfile;           ///< Path to source mesh file.
-    std::string lev_dimname = "lev";   ///< Name of vertical dimension.
-    std::string time_var = "time";     ///< Name of time coordinate variable.
-    std::string lon_var = "lon";       ///< Name of longitude coordinate variable.
-    std::string lat_var = "lat";       ///< Name of latitude coordinate variable.
-    int refresh_interval_seconds = 0;  ///< Refresh interval in seconds (0 means use base timestep).
-    bool use_local_time = false;       ///< Select weekly profile records by each cell's local weekday (requires local_time.enabled).
+    std::string mapalgo = "consd";                 ///< Spatial mapping algorithm: bilinear, consd, nn, passthrough (skip regridding, same-grid data).
+    int dtlimit = 1500000000;                      ///< Delta time limit in seconds.
+    int yearFirst = 0;                             ///< First year in data; zero selects climatological indexing.
+    int yearLast = 0;                              ///< Last year in data; zero selects climatological indexing.
+    int yearAlign = 0;                             ///< Year to align with model time; zero applies no year shift.
+    int offset = 0;                                ///< Time offset in seconds.
+    std::string meshfile;                          ///< Path to source mesh file.
+    std::string input_gridspec_file;               ///< Optional source grid geometry; independent of driver destination gridspec.
+    std::string geometry_reconstruction = "none";  ///< Explicit geometry reconstruction policy.
+    std::string lev_dimname = "lev";               ///< Name of vertical dimension.
+    std::string time_var = "time";                 ///< Name of time coordinate variable.
+    std::string lon_var = "lon";                   ///< Name of longitude coordinate variable.
+    std::string lat_var = "lat";                   ///< Name of latitude coordinate variable.
+    std::string longitude_variable;                ///< Explicit source longitude center variable, when configured.
+    std::string latitude_variable;                 ///< Explicit source latitude center variable, when configured.
+    int refresh_interval_seconds = 0;              ///< Refresh interval in seconds (0 means use base timestep).
+    bool use_local_time = false;                   ///< Select weekly profile records by each cell's local weekday (requires local_time.enabled).
 };
 
 /**
@@ -431,11 +435,14 @@ struct DriverConfig {
     std::string end_time = "2020-01-02T00:00:00";    ///< ISO8601 end time (default: 2020-01-02T00:00:00).
     int timestep_seconds = 3600;                     ///< Timestep in seconds (default: 3600).
     std::string
-        gridspec_file;      ///< Path to ESMF GRIDSPEC NetCDF file (optional). If set, loaded instead of generating a grid from driver.grid params.
-    DriverGridConfig grid;  ///< Grid configuration for generated Gaussian grid.
-    int stacking_refresh_interval_seconds = 0;  ///< Stacking engine refresh interval in seconds (0 means use base timestep).
-    int amio_worker_threads = 1;                ///< Number of AMIO background I/O worker threads (default: 1).
-    int amio_staging_buffer_count = 8;          ///< Number of AMIO input staging buffers (default: 8).
+        gridspec_file;  ///< Path to ESMF GRIDSPEC NetCDF file (optional). If set, loaded instead of generating a grid from driver.grid params.
+    std::string longitude_variable;                ///< Optional destination longitude center variable override.
+    std::string latitude_variable;                 ///< Optional destination latitude center variable override.
+    std::string geometry_reconstruction = "none";  ///< Explicit destination boundary reconstruction policy.
+    DriverGridConfig grid;                         ///< Grid configuration for generated Gaussian grid.
+    int stacking_refresh_interval_seconds = 0;     ///< Stacking engine refresh interval in seconds (0 means use base timestep).
+    int amio_worker_threads = 1;                   ///< Number of AMIO background I/O worker threads (default: 1).
+    int amio_staging_buffer_count = 8;             ///< Number of AMIO input staging buffers (default: 8).
     /// Per-buffer capacity in bytes for AMIO input staging pools (default: 32 MiB).
     /// AMIO commits buffer storage lazily and grows a buffer on demand when an
     /// acquire exceeds this nominal size, so this is a steady-state hint rather

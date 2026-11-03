@@ -1,3 +1,4 @@
+#include <amio/amio.h>
 #include <gtest/gtest.h>
 #include <mpi.h>
 #include <netcdf.h>
@@ -5,16 +6,20 @@
 
 #include <Kokkos_Core.hpp>
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <vector>
 
 #include "cece/cece_config.hpp"
+#include "cece/cece_grid_geometry.hpp"
 #include "cece/cece_internal.hpp"
 #include "cece/cece_regridder_utils.hpp"
 #include "cece/cece_standalone_writer.hpp"
 #include "cece/cece_utils.hpp"
+
+extern "C" void amio_set_parent_communicator(MPI_Fint comm);
 
 extern "C" {
 void cece_core_write_step(void* data_ptr, double time_seconds, int step_index, int* rc);
@@ -507,6 +512,314 @@ TEST_F(CeceUtilsTest, BuildAxisMeshRejectsProjectedXyAsSupergrid) {
     EXPECT_THROW(cece::io::build_axis_mesh(nx, ny, 0, dummy_lons, dummy_lats, nc_path.string()), std::runtime_error);
 
     std::filesystem::remove(nc_path);
+}
+
+// The grid_spec fixture stores its centers with the FV3 unit spellings
+// ("degrees_E"/"degrees_N"), which the CF geographic check in
+// load_grid_geometry rejects. Production therefore pairs a CF-unit field
+// dataset with the gridspec file; this helper writes that field file by
+// mirroring the spec's own grid_lont/grid_latt centers.
+static std::filesystem::path write_c96_center_field_file(const std::string& spec_file) {
+    constexpr int n = 96;
+    int spec_id = -1;
+    if (nc_open(spec_file.c_str(), NC_NOWRITE, &spec_id) != NC_NOERR) return {};
+    int lon_id = -1, lat_id = -1;
+    bool ok = nc_inq_varid(spec_id, "grid_lont", &lon_id) == NC_NOERR && nc_inq_varid(spec_id, "grid_latt", &lat_id) == NC_NOERR;
+    std::vector<float> lon(static_cast<size_t>(n) * n), lat(static_cast<size_t>(n) * n);
+    if (ok) {
+        ok = nc_get_var_float(spec_id, lon_id, lon.data()) == NC_NOERR && nc_get_var_float(spec_id, lat_id, lat.data()) == NC_NOERR;
+    }
+    nc_close(spec_id);
+    if (!ok) return {};
+
+    // PID-unique path: ctest runs each discovered case as its own process of
+    // this binary, and a shared file name would race between TearDowns.
+    const auto path = std::filesystem::temp_directory_path() / ("cece_C96_tile1_centers_field_" + std::to_string(getpid()) + ".nc");
+    int field_id = -1;
+    ok = nc_create(path.c_str(), NC_CLOBBER | NC_NETCDF4, &field_id) == NC_NOERR;
+    int lat_dim = -1, lon_dim = -1;
+    if (ok) ok = nc_def_dim(field_id, "lat", n, &lat_dim) == NC_NOERR && nc_def_dim(field_id, "lon", n, &lon_dim) == NC_NOERR;
+    int lon_var = -1, lat_var = -1;
+    const int dims[2] = {lat_dim, lon_dim};
+    if (ok)
+        ok = nc_def_var(field_id, "lon", NC_DOUBLE, 2, dims, &lon_var) == NC_NOERR &&
+             nc_def_var(field_id, "lat", NC_DOUBLE, 2, dims, &lat_var) == NC_NOERR;
+    if (ok) {
+        ok = nc_put_att_text(field_id, lon_var, "units", sizeof("degrees_east") - 1, "degrees_east") == NC_NOERR &&
+             nc_put_att_text(field_id, lat_var, "units", sizeof("degrees_north") - 1, "degrees_north") == NC_NOERR && nc_enddef(field_id) == NC_NOERR;
+    }
+    if (ok) {
+        const std::vector<double> lon_values(lon.begin(), lon.end()), lat_values(lat.begin(), lat.end());
+        ok = nc_put_var_double(field_id, lon_var, lon_values.data()) == NC_NOERR &&
+             nc_put_var_double(field_id, lat_var, lat_values.data()) == NC_NOERR;
+    }
+    if (field_id >= 0 && nc_close(field_id) != NC_NOERR) ok = false;
+    if (!ok) {
+        std::filesystem::remove(path);
+        return {};
+    }
+    return path;
+}
+
+// Writes a MACCity-4x5-style global rectilinear inventory file: 1-D longitude
+// (72 x 5 deg) and latitude (45 x 4 deg) axes with CF `bounds` attributes, the
+// layout ufs-chem emissions inventories ship in. No field variable is needed —
+// load_grid_geometry consumes only the coordinates.
+static std::filesystem::path write_rectilinear_inventory_file() {
+    constexpr int nx = 72;  // 5-degree longitude cells
+    constexpr int ny = 45;  // 4-degree latitude cells
+    const auto path = std::filesystem::temp_directory_path() / ("cece_maccity_style_inventory_" + std::to_string(getpid()) + ".nc");
+    int file_id = -1;
+    bool ok = nc_create(path.c_str(), NC_CLOBBER | NC_NETCDF4, &file_id) == NC_NOERR;
+    int lon_dim = -1, lat_dim = -1, bnd_dim = -1;
+    if (ok) {
+        ok = nc_def_dim(file_id, "lon", nx, &lon_dim) == NC_NOERR && nc_def_dim(file_id, "lat", ny, &lat_dim) == NC_NOERR &&
+             nc_def_dim(file_id, "bnds", 2, &bnd_dim) == NC_NOERR;
+    }
+    int lon_var = -1, lat_var = -1, lon_bnd_var = -1, lat_bnd_var = -1;
+    const int lon_dims[2] = {lon_dim, bnd_dim};
+    const int lat_dims[2] = {lat_dim, bnd_dim};
+    if (ok) {
+        ok = nc_def_var(file_id, "lon", NC_DOUBLE, 1, &lon_dim, &lon_var) == NC_NOERR &&
+             nc_def_var(file_id, "lat", NC_DOUBLE, 1, &lat_dim, &lat_var) == NC_NOERR &&
+             nc_def_var(file_id, "lon_bnds", NC_DOUBLE, 2, lon_dims, &lon_bnd_var) == NC_NOERR &&
+             nc_def_var(file_id, "lat_bnds", NC_DOUBLE, 2, lat_dims, &lat_bnd_var) == NC_NOERR;
+    }
+    if (ok) {
+        ok = nc_put_att_text(file_id, lon_var, "units", sizeof("degrees_east") - 1, "degrees_east") == NC_NOERR &&
+             nc_put_att_text(file_id, lat_var, "units", sizeof("degrees_north") - 1, "degrees_north") == NC_NOERR &&
+             nc_put_att_text(file_id, lon_var, "bounds", sizeof("lon_bnds") - 1, "lon_bnds") == NC_NOERR &&
+             nc_put_att_text(file_id, lat_var, "bounds", sizeof("lat_bnds") - 1, "lat_bnds") == NC_NOERR && nc_enddef(file_id) == NC_NOERR;
+    }
+    if (ok) {
+        std::vector<double> lon(nx), lat(ny), lon_bnds(2 * nx), lat_bnds(2 * ny);
+        for (int i = 0; i < nx; ++i) {
+            lon[i] = (i + 0.5) * (360.0 / nx);
+            lon_bnds[2 * i] = i * (360.0 / nx);
+            lon_bnds[2 * i + 1] = (i + 1) * (360.0 / nx);
+        }
+        for (int j = 0; j < ny; ++j) {
+            lat[j] = -90.0 + (j + 0.5) * (180.0 / ny);
+            lat_bnds[2 * j] = -90.0 + j * (180.0 / ny);
+            lat_bnds[2 * j + 1] = -90.0 + (j + 1) * (180.0 / ny);
+        }
+        ok = nc_put_var_double(file_id, lon_var, lon.data()) == NC_NOERR && nc_put_var_double(file_id, lat_var, lat.data()) == NC_NOERR &&
+             nc_put_var_double(file_id, lon_bnd_var, lon_bnds.data()) == NC_NOERR &&
+             nc_put_var_double(file_id, lat_bnd_var, lat_bnds.data()) == NC_NOERR;
+    }
+    if (file_id >= 0 && nc_close(file_id) != NC_NOERR) ok = false;
+    if (!ok) {
+        std::filesystem::remove(path);
+        return {};
+    }
+    return path;
+}
+
+// Reads the tile-1 cell centers out of the C96 grid_spec fixture with plain
+// netcdf (the AMIO dataset in the fixture covers the separate field file).
+static bool read_c96_tile_centers(const std::string& spec_file, std::vector<double>& lon, std::vector<double>& lat) {
+    constexpr int n = 96;
+    int file_id = -1;
+    if (nc_open(spec_file.c_str(), NC_NOWRITE, &file_id) != NC_NOERR) return false;
+    int lon_id = -1, lat_id = -1;
+    bool ok = nc_inq_varid(file_id, "grid_lont", &lon_id) == NC_NOERR && nc_inq_varid(file_id, "grid_latt", &lat_id) == NC_NOERR;
+    std::vector<float> lon_f(static_cast<size_t>(n) * n), lat_f(static_cast<size_t>(n) * n);
+    if (ok) {
+        ok = nc_get_var_float(file_id, lon_id, lon_f.data()) == NC_NOERR && nc_get_var_float(file_id, lat_id, lat_f.data()) == NC_NOERR;
+    }
+    nc_close(file_id);
+    if (!ok) return false;
+    lon.assign(lon_f.begin(), lon_f.end());
+    lat.assign(lat_f.begin(), lat_f.end());
+    return true;
+}
+
+// Source side of the mixed-geometry review case (ufs-community/CECE#124):
+// a global rectilinear CF-bounds inventory, MACCity-4x5-style, loaded as an
+// AMIO dataset so the production load_grid_geometry path produces the strip
+// cell mesh.
+class RectilinearInventoryFixture : public ::testing::Test {
+   protected:
+    amio_core_handle core{nullptr};
+    amio_dataset_handle dataset{nullptr};
+    std::filesystem::path inventory_file;
+    std::string spec_file;
+
+    void SetUp() override {
+        spec_file = find_grid_file("C96_grid_spec.tile1.nc");
+        if (!std::filesystem::exists(spec_file)) return;
+        inventory_file = write_rectilinear_inventory_file();
+        if (inventory_file.empty()) return;
+        const auto manifest = std::string("backend: netcdf4\npath: ") + inventory_file.string() +
+                              "\ndata_model: enhanced\nstaging_pool:\n  buffer_count: 2\n  buffer_capacity_bytes: 1048576\nworker_pool:\n"
+                              "  threads: 1\nprefetch:\n  depth: 1\n  read_timeout_s: 30\nstaging_timeout_ms: 30000\n";
+        amio_set_parent_communicator(MPI_Comm_c2f(MPI_COMM_SELF));
+        if (amio_init_from_string(manifest.c_str(), "yaml", &core) != AMIO_OK) return;
+        if (amio_open_dataset_from_string(core, manifest.c_str(), "yaml", AMIO_MODE_READ, &dataset) != AMIO_OK) {
+            amio_finalize(core);
+            core = nullptr;
+            dataset = nullptr;
+        }
+    }
+
+    void TearDown() override {
+        if (dataset) amio_close_dataset(dataset);
+        if (core) amio_finalize(core);
+        if (!inventory_file.empty()) std::filesystem::remove(inventory_file);
+    }
+};
+
+// A rectilinear inventory (ConstantLatitude/ConstantLatitudeStrip) against a
+// cubed-sphere destination (GreatCircle/SphericalExcess) must pass
+// prerequisite validation and build conservative weights whose spherical
+// clipping is mass-exact: a constant field maps to the same constant on the
+// tile, and the tile-area-weighted integral of the mapped field equals the
+// analytic integral of that constant over the face. This is the reviewer's
+// mixed-pair use case (MACCity-style emissions inventories onto FV3 grids).
+TEST_F(RectilinearInventoryFixture, RectilinearInventoryToC96TileIsMassConservative) {
+    if (!dataset) GTEST_SKIP() << "Missing test file or AMIO unavailable";
+    constexpr int nx = 72, ny = 45, n = 96;
+
+    const cece::io::GeometrySettings inventory_settings;
+    const cece::io::GridGeometry source = cece::io::load_grid_geometry(dataset, inventory_settings);
+    ASSERT_EQ(source.nx, nx);
+    ASSERT_EQ(source.ny, ny);
+    ASSERT_TRUE(source.has_cell_geometry);
+    ASSERT_TRUE(source.supplied_cells);
+    EXPECT_EQ(source.metadata.provenance, axis::topology::GeometryProvenance::SourceAuthoritative);
+    EXPECT_EQ(source.metadata.boundary_model, axis::topology::BoundaryModel::ConstantLatitude);
+    EXPECT_EQ(source.metadata.area_model, axis::topology::AreaModel::ConstantLatitudeStrip);
+
+    std::vector<double> target_lon, target_lat;
+    ASSERT_TRUE(read_c96_tile_centers(spec_file, target_lon, target_lat));
+
+    cece::io::RegridPlan plan;
+    const bool built = cece::io::build_regrid_plan(dataset, n, n, target_lon, target_lat, "consd", 0, n, "", spec_file, plan);
+    ASSERT_TRUE(built) << "mixed rectilinear->cubed-sphere conservative plan was rejected";
+    EXPECT_TRUE(plan.built);
+    EXPECT_FALSE(plan.identity);
+    EXPECT_EQ(plan.matrix.n_src(), static_cast<std::size_t>(nx) * ny);
+    EXPECT_EQ(plan.matrix.n_dst(), static_cast<std::size_t>(n) * n);
+    EXPECT_GT(plan.matrix.nnz(), 0u);
+
+    // A conservative1st row sum equals one exactly when the source grid fully
+    // covers the sphere, so an all-ones field must map to an all-ones tile.
+    const std::vector<double> source_field(static_cast<size_t>(nx) * ny, 1.0);
+    std::vector<double> mapped;
+    ASSERT_TRUE(cece::io::apply_regrid_plan(plan, 0, false, source_field.data(), nx, ny, n, mapped));
+    ASSERT_EQ(mapped.size(), static_cast<size_t>(n) * n);
+    double max_delta = 0.0;
+    for (const double value : mapped) max_delta = std::max(max_delta, std::abs(value - 1.0));
+    EXPECT_LT(max_delta, 1.0e-9) << "constant field was not preserved by mixed-pair conservative weights";
+
+    // Integral check against the AXIS-computed tile areas: the face of a
+    // unit-sphere cube holds 4*pi/6 steradians, so sum(value * area) must
+    // match the analytic face integral of the constant field.
+    const auto tile_mesh = cece::io::load_mesh_from_file(n, n, 0, spec_file);
+    const auto areas = tile_mesh.cell_areas();
+    ASSERT_EQ(areas.size(), static_cast<std::size_t>(n) * n);
+    double integral = 0.0, total_area = 0.0;
+    for (std::size_t cell = 0; cell < areas.size(); ++cell) {
+        integral += mapped[cell] * areas(cell);
+        total_area += areas(cell);
+    }
+    EXPECT_NEAR(integral, 4.0 * M_PI / 6.0, 1.0e-6);
+    EXPECT_NEAR(integral, total_area, 1.0e-6);
+}
+
+// Exercises the production load_grid_geometry -> build_regrid_plan pipeline on
+// the real C96 tile-1 grid_spec fixture.
+class C96GridSpecAmioFixture : public ::testing::Test {
+   protected:
+    amio_core_handle core{nullptr};
+    amio_dataset_handle dataset{nullptr};
+    std::string spec_file;
+    std::filesystem::path field_file;
+
+    void SetUp() override {
+        spec_file = find_grid_file("C96_grid_spec.tile1.nc");
+        if (!std::filesystem::exists(spec_file)) return;
+        field_file = write_c96_center_field_file(spec_file);
+        if (field_file.empty()) return;
+        const auto manifest = std::string("backend: netcdf4\npath: ") + field_file.string() +
+                              "\ndata_model: enhanced\nstaging_pool:\n  buffer_count: 2\n  buffer_capacity_bytes: 1048576\nworker_pool:\n"
+                              "  threads: 1\nprefetch:\n  depth: 1\n  read_timeout_s: 30\nstaging_timeout_ms: 30000\n";
+        amio_set_parent_communicator(MPI_Comm_c2f(MPI_COMM_SELF));
+        if (amio_init_from_string(manifest.c_str(), "yaml", &core) != AMIO_OK) return;
+        if (amio_open_dataset_from_string(core, manifest.c_str(), "yaml", AMIO_MODE_READ, &dataset) != AMIO_OK) {
+            amio_finalize(core);
+            core = nullptr;
+            dataset = nullptr;
+        }
+    }
+
+    void TearDown() override {
+        if (dataset) amio_close_dataset(dataset);
+        if (core) amio_finalize(core);
+        if (!field_file.empty()) std::filesystem::remove(field_file);
+    }
+};
+
+// Branches A-D of load_mesh_from_file must stamp authoritative great-circle
+// metadata and compute cell areas, otherwise validate_regrid_prerequisites
+// rejects every conservative gridspec file with "unknown provenance".
+TEST_F(C96GridSpecAmioFixture, LoadMeshFromC96GridSpecStampsGreatCircleMetadata) {
+    if (!std::filesystem::exists(spec_file)) GTEST_SKIP() << "Missing test file: " << spec_file;
+
+    const auto mesh = cece::io::load_mesh_from_file(96, 96, 0, spec_file);
+    ASSERT_EQ(mesh.n_cells(), static_cast<std::size_t>(96 * 96));
+
+    const auto metadata = mesh.geometry_metadata();
+    EXPECT_EQ(metadata.provenance, axis::topology::GeometryProvenance::SourceAuthoritative);
+    EXPECT_EQ(metadata.boundary_model, axis::topology::BoundaryModel::GreatCircle);
+    EXPECT_EQ(metadata.area_model, axis::topology::AreaModel::SphericalExcess);
+    EXPECT_TRUE(metadata.longitude_periodicity.increasing);
+
+    // compute_areas() fills the previously empty area view with unit-sphere
+    // spherical-excess areas; the six cubed-sphere tiles partition the sphere,
+    // so one tile sums to 4*pi/6.
+    const auto areas = mesh.cell_areas();
+    ASSERT_EQ(areas.size(), mesh.n_cells());
+    double total = 0.0;
+    for (std::size_t cell = 0; cell < mesh.n_cells(); ++cell) {
+        ASSERT_GT(areas(cell), 0.0) << "cell " << cell << " has a non-positive area";
+        total += areas(cell);
+    }
+    EXPECT_NEAR(total, 4.0 * M_PI / 6.0, 1e-6);
+}
+
+// The reviewer-facing end-to-end check: a conservative plan whose source and
+// destination endpoints both resolve to C96_grid_spec.tile1.nc must pass
+// prerequisite validation and produce weights.
+TEST_F(C96GridSpecAmioFixture, BuildRegridPlanConservativeAcceptsC96GridSpec) {
+    if (!dataset) GTEST_SKIP() << "Missing test file or AMIO unavailable: " << spec_file;
+
+    cece::io::GeometrySettings settings;
+    settings.gridspec_file = spec_file;
+    const cece::io::GridGeometry geometry = cece::io::load_grid_geometry(dataset, settings);
+    ASSERT_EQ(geometry.nx, 96);
+    ASSERT_EQ(geometry.ny, 96);
+    ASSERT_TRUE(geometry.has_cell_geometry);
+    ASSERT_TRUE(geometry.supplied_cells);
+
+    cece::io::RegridPlan plan;
+    const bool built = cece::io::build_regrid_plan(dataset, geometry.nx, geometry.ny, geometry.center_lon, geometry.center_lat, "consd", 0,
+                                                   geometry.ny, spec_file, spec_file, plan);
+    ASSERT_TRUE(built) << "conservative plan from C96 grid_spec was rejected";
+    EXPECT_TRUE(plan.built);
+    EXPECT_FALSE(plan.identity);
+    EXPECT_EQ(plan.file_nx, 96);
+    EXPECT_EQ(plan.file_ny, 96);
+    EXPECT_EQ(plan.j0, 0);
+    EXPECT_EQ(plan.j1, 96);
+    EXPECT_GT(plan.matrix.nnz(), 0u);
+    EXPECT_EQ(plan.matrix.n_src(), static_cast<std::size_t>(96 * 96));
+    EXPECT_EQ(plan.matrix.n_dst(), static_cast<std::size_t>(96 * 96));
+
+    // Identical source/destination grids: every destination row references
+    // its own source row, so the band-scoped read window covers the full grid.
+    EXPECT_EQ(plan.src_j0, 0);
+    EXPECT_EQ(plan.src_rows, 96);
 }
 
 }  // namespace cece::test

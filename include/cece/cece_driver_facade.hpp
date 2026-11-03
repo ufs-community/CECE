@@ -40,8 +40,10 @@ using detail::SimDateTime;
  * configuration + file, never on simulation time.
  */
 struct StreamConfig {
-    std::string input_file_path;    ///< stream["file"]; "" => missing (Req 1.4)
-    std::string input_var_name;     ///< resolved file var name (falls back to model name)
+    std::string input_file_path;      ///< stream["file"]; "" => missing (Req 1.4)
+    std::string input_var_name;       ///< resolved file var name (falls back to model name)
+    std::string input_gridspec_file;  ///< stream["gridspec_file"]; "" => missing
+    cece::io::GeometrySettings source_geometry;
     std::string mapalgo = "consd";  ///< default matches current AdvanceTime
     std::string cadence;            ///< "" => series (time-aware default)
     int yearFirst = 0;              ///< 0 = unknown/climatology
@@ -145,6 +147,11 @@ class CeceDriverOrchestrator {
     bool TeardownHandles();
 
    private:
+    struct SourceGeometryRevision {
+        std::string file_signature;
+        std::uint64_t revision{0};
+    };
+
     using DeviceView3D = Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>;
 
     // Recompose one source record into this rank's LATITUDE-BAND import field:
@@ -273,12 +280,16 @@ class CeceDriverOrchestrator {
     // HandleKey and mapalgo produce the same key and share one regrid plan.
     static std::string StreamKey(const StreamConfig& cfg);
 
+    // Add geometry revisions, canonical method settings and this rank's
+    // destination partition to the stream identity used by the plan cache.
+    std::string GeometryPlanKey(const StreamConfig& cfg) const;
+
     // Invalidate (valid = false) the endpoint cache entry of every variable
-    // whose computed StreamKey matches stream_key. Called when a regrid_plans_
+    // whose computed GeometryPlanKey matches stream_key. Called when a regrid_plans_
     // entry is built or rebuilt for that stream, because cached endpoints depend
     // on the plan and must be rebuilt before reuse (Req 6.2). endpoint_caches_
     // is keyed by var_name while regrid_plans_ is keyed by stream_key, so the
-    // var_name->stream_key mapping is derived from stream_configs_ + StreamKey.
+    // var_name->stream_key mapping is derived from stream_configs_ + GeometryPlanKey.
     void InvalidateEndpointCachesForStream(const std::string& stream_key);
 
     // Tolerance for comparing two resolved bracket weights for equality.
@@ -370,12 +381,15 @@ class CeceDriverOrchestrator {
     // band_.j0 / band_.j1 preserve those identical values (Req 1.1, 1.2, 1.5).
     BandDecomposition band_;
 
-    // Cached regridding plans keyed by Stream_Identity_Key, now
-    // = HandleKey + "|" + mapalgo. Variables that share a HandleKey but differ
-    // in mapalgo get distinct plans; the plan splits only when mapalgo differs.
+    // Cached regridding plans keyed by geometry revision, canonical method,
+    // backend, and local destination partition. AMIO handles remain keyed by
+    // HandleKey and are reused when a geometry file revision changes.
     // The interpolation weights depend only on source grid, target grid, and
     // mapping algorithm — not on the variable name.
     std::unordered_map<std::string, io::RegridPlan> regrid_plans_;
+    // Loaded geometry fingerprints are paired with the source file signature
+    // so the content snapshot is reused while that file revision stays fixed.
+    std::unordered_map<std::string, SourceGeometryRevision> source_geometry_revisions_;
 
     // File record counts keyed by Handle_Identity_Key (input_file_path +
     // data_model + worker_threads + staging_buffer_count). The record-count
@@ -422,6 +436,8 @@ class CeceDriverOrchestrator {
     std::unique_ptr<dagr::GraphOrchestrator> dagr_;
     std::unique_ptr<io::CeceIO> cece_io_;
     std::string gridspec_file_;
+    io::GeometrySettings destination_geometry_settings_;
+    std::string destination_geometry_revision_;
 
     // Test-only access to the private static StreamKey helper. Grants the
     // property test (tests/test_stream_key_properties.cpp) permission to

@@ -1,6 +1,10 @@
 [submodule "extern/helm"]
 	path = extern/helm
 	url = https://github.com/NOAA-EMC/HELM.git
+	# Temporary: tracks the NOAA-EMC/HELM PR #38 feature branch until it merges
+	# into HELM develop, at which point this key and the matching --branch-map
+	# override in .github/workflows/verify_submodules.yml must be removed.
+	branch = feature/unstructured_mesh_generation
 [submodule "extern/yaml-cpp"]
 	path = extern/yaml-cpp
 	url = https://github.com/jbeder/yaml-cpp.git

@@ -1,5 +1,7 @@
 #include <gtest/gtest.h>
 
+#include <cstdio>
+#include <cstdlib>
 #include <cstring>  // for memset
 #include <fstream>
 #include <iostream>
@@ -54,5 +56,13 @@ int main(int argc, char** argv) {
         }
     }
 
-    return RUN_ALL_TESTS();
+    // Hard-exit after RUN_ALL_TESTS instead of running process teardown:
+    // statically linked Kokkos is duplicated across this executable and
+    // libcece_core.so, and interposed static destructors can double-free at
+    // exit under Debug malloc checking (same reason as the shared CECE test
+    // mains; see support/cece_test_teardown_guard.hpp). Output is flushed
+    // first and the exit code still propagates.
+    const int rc = RUN_ALL_TESTS();
+    std::fflush(nullptr);
+    std::_Exit(rc);
 }

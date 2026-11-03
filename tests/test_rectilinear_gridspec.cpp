@@ -5,18 +5,25 @@
 #include <netcdf.h>
 
 #include <Kokkos_Core.hpp>
+#include <axis/solver/weight_generator.hpp>
 #include <chrono>
 #include <filesystem>
 #include <limits>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 #include "cece/cece_regridder_utils.hpp"
 #include "cece/cece_standalone_writer.hpp"
 
 namespace {
+double unit_sphere_strip_area(double west, double east, double south, double north) {
+    constexpr double radians = 3.14159265358979323846 / 180.0;
+    return std::abs(east - west) * radians * (std::sin(north * radians) - std::sin(south * radians));
+}
+
 void nc_check(int rc) {
     if (rc != NC_NOERR) throw std::runtime_error(nc_strerror(rc));
 }
@@ -95,6 +102,10 @@ class RectilinearGridspecTest : public ::testing::Test {
 
 TEST_F(RectilinearGridspecTest, ExplicitBoundsAndSingleRowBand) {
     auto all = mesh(3, 0);
+    const auto metadata = all.geometry_metadata();
+    EXPECT_EQ(metadata.provenance, axis::topology::GeometryProvenance::SourceAuthoritative);
+    EXPECT_EQ(metadata.boundary_model, axis::topology::BoundaryModel::ConstantLatitude);
+    EXPECT_EQ(metadata.area_model, axis::topology::AreaModel::ConstantLatitudeStrip);
     auto nodes = all.node_coords();
     EXPECT_EQ(nodes.extent(0), 24u);
     for (int j = 0; j < 3; ++j) {
@@ -110,6 +121,73 @@ TEST_F(RectilinearGridspecTest, ExplicitBoundsAndSingleRowBand) {
     EXPECT_EQ(band.node_coords().extent(0), 8u);
     EXPECT_EQ(band.node_coords()(0, 1), 88.);
     EXPECT_EQ(band.node_coords()(3, 1), 90.);
+    EXPECT_NEAR(band.cell_areas()(0), unit_sphere_strip_area(lon_bounds[0], lon_bounds[1], 88.0, 90.0), 1e-14);
+}
+
+TEST_F(RectilinearGridspecTest, ExplicitNonuniformBoundsBandRowsMatchGlobalPlanAndKeepProvenance) {
+    using namespace cece::io;
+    auto source = mesh(3, 0);
+    auto global_destination = mesh(3, 0);
+    ASSERT_EQ(source.geometry_metadata().provenance, axis::topology::GeometryProvenance::SourceAuthoritative);
+    ASSERT_EQ(global_destination.geometry_metadata().area_model, axis::topology::AreaModel::ConstantLatitudeStrip);
+
+    axis::solver::RegridConfig config;
+    config.method = axis::solver::InterpolationMethod::Conservative1stOrder;
+    config.norm_type = axis::solver::NormType::DstArea;
+    config.unmapped = axis::solver::UnmappedAction::Ignore;
+    RegridPlan global;
+    global.file_nx = 2;
+    global.file_ny = 3;
+    global.j1 = 3;
+    global.matrix = axis::solver::WeightGenerator::generate<Kokkos::HostSpace>(source, global_destination, config);
+    global.matrix.to_csr();
+    global.built = true;
+    const std::vector<double> input{1., 3., 2., 4., 5., 7.};
+    std::vector<double> global_output;
+    ASSERT_TRUE(apply_regrid_plan(global, 0, false, input.data(), 2, 3, 2, global_output));
+
+    for (const auto [j0, j1] : {std::pair{0, 1}, std::pair{1, 3}}) {
+        auto band_destination = mesh(j1 - j0, j0);
+        ASSERT_EQ(band_destination.geometry_metadata().provenance, axis::topology::GeometryProvenance::SourceAuthoritative);
+        ASSERT_EQ(band_destination.geometry_metadata().area_model, axis::topology::AreaModel::ConstantLatitudeStrip);
+        RegridPlan band;
+        band.file_nx = 2;
+        band.file_ny = 3;
+        band.j0 = j0;
+        band.j1 = j1;
+        band.matrix = axis::solver::WeightGenerator::generate<Kokkos::HostSpace>(source, band_destination, config);
+        band.matrix.to_csr();
+        band.built = true;
+        int first_source_row = 3;
+        int one_past_last_source_row = 0;
+        const auto source_columns = band.matrix.factor_col();
+        for (std::size_t k = 0; k < source_columns.extent(0); ++k) {
+            const int row = static_cast<int>(source_columns(k)) / 2;
+            first_source_row = std::min(first_source_row, row);
+            one_past_last_source_row = std::max(one_past_last_source_row, row + 1);
+        }
+        ASSERT_LT(first_source_row, one_past_last_source_row);
+        band.src_j0 = first_source_row;
+        band.src_rows = one_past_last_source_row - first_source_row;
+        for (std::size_t k = 0; k < source_columns.extent(0); ++k) {
+            const int column = static_cast<int>(source_columns(k));
+            EXPECT_GE(column, band.src_j0 * band.file_nx);
+            EXPECT_LT(column, (band.src_j0 + band.src_rows) * band.file_nx);
+        }
+        std::vector<double> band_output;
+        ASSERT_TRUE(apply_regrid_plan(band, 0, false, input.data(), 2, 3, 2, band_output));
+        for (int j = j0; j < j1; ++j)
+            for (int i = 0; i < 2; ++i) EXPECT_NEAR(band_output[(j - j0) * 2 + i], global_output[j * 2 + i], 1e-12);
+    }
+
+    RegridPlan empty_band;
+    empty_band.file_nx = 2;
+    empty_band.file_ny = 3;
+    empty_band.j0 = empty_band.j1 = 3;
+    empty_band.built = true;
+    std::vector<double> no_rows;
+    EXPECT_TRUE(apply_regrid_plan(empty_band, 0, false, input.data(), 2, 3, 2, no_rows));
+    EXPECT_TRUE(no_rows.empty());
 }
 
 TEST_F(RectilinearGridspecTest, InvalidBandFails) {
@@ -137,6 +215,26 @@ TEST_F(RectilinearGridspecTest, NonfiniteBoundsFail) {
     nc_check(nc_put_var_double(f, v, bad.data()));
     nc_check(nc_close(f));
     EXPECT_THROW(mesh(3, 0), std::runtime_error);
+}
+
+TEST_F(RectilinearGridspecTest, DescendingLatitudeBoundsKeepCellsAndAreasValid) {
+    int f, lat_var, bounds_var;
+    nc_check(nc_open(grid.c_str(), NC_WRITE, &f));
+    nc_check(nc_inq_varid(f, "lat", &lat_var));
+    nc_check(nc_inq_varid(f, "latitude_edges", &bounds_var));
+    const std::vector<double> descending_centres{89.0, -86.0, -89.0};
+    const std::vector<double> descending_bounds{90.0, 88.0, -84.0, -88.0, -88.0, -90.0};
+    nc_check(nc_put_var_double(f, lat_var, descending_centres.data()));
+    nc_check(nc_put_var_double(f, bounds_var, descending_bounds.data()));
+    nc_check(nc_close(f));
+
+    const auto descending = mesh(3, 0);
+    const auto nodes = descending.node_coords();
+    EXPECT_EQ(nodes(0, 1), 88.0);
+    EXPECT_EQ(nodes(2, 1), 90.0);
+    EXPECT_EQ(nodes(16, 1), -90.0);
+    EXPECT_EQ(nodes(18, 1), -88.0);
+    for (std::size_t cell = 0; cell < descending.n_cells(); ++cell) EXPECT_GT(descending.cell_areas()(cell), 0.0);
 }
 TEST_F(RectilinearGridspecTest, WriterPreservesCentresBoundsAndFieldValues) {
     cece::CeceOutputConfig cfg;
