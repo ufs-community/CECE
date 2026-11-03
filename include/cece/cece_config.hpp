@@ -33,14 +33,14 @@ enum class SchemeLanguage : std::uint8_t {
     UNKNOWN   ///< Unspecified / unknown language
 };
 
-inline SchemeLanguage StringToSchemeLanguage(std::string_view lang) {
+constexpr inline SchemeLanguage StringToSchemeLanguage(std::string_view lang) {
     if (lang == "cpp" || lang == "c++" || lang == "cxx" || lang.empty()) return SchemeLanguage::CPP;
     if (lang == "fortran" || lang == "f90" || lang == "f") return SchemeLanguage::FORTRAN;
     if (lang == "python" || lang == "py") return SchemeLanguage::PYTHON;
     return SchemeLanguage::UNKNOWN;
 }
 
-inline std::string_view SchemeLanguageToString(SchemeLanguage lang) {
+constexpr inline std::string_view SchemeLanguageToString(SchemeLanguage lang) {
     switch (lang) {
         case SchemeLanguage::CPP:
             return "cpp";
