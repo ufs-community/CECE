@@ -39,41 +39,36 @@ namespace cece {
 static constexpr int NUM_CLASSES = kNumEmissionClasses;
 
 // Default LDF values per class
-static constexpr double kDefaultLdf[NUM_CLASSES] = {0.9996, 0.80, 0.10, 0.10, 0.10, 0.10, 0.10, 0.00, 0.50, 0.50,
-                                                    0.80,   0.20, 0.80, 0.00, 0.00, 0.20, 1.00, 0.20, 0.00,
-    0.6, 0.2, 0.6, 0.2, 0.2, 0.6, 0.8, 0.4, 0.5};
+static constexpr double kDefaultLdf[NUM_CLASSES] = {0.9996, 0.80, 0.10, 0.10, 0.10, 0.10, 0.10, 0.00, 0.50, 0.50, 0.80, 0.20, 0.80, 0.00,
+                                                    0.00,   0.20, 1.00, 0.20, 0.00, 0.6,  0.2,  0.6,  0.2,  0.2,  0.6,  0.8,  0.4,  0.5};
 
 // Default CT1 values per class
-static constexpr double kDefaultCt1[NUM_CLASSES] = {95.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0,
-                                                    60.0, 80.0, 60.0, 80.0, 80.0, 80.0, 95.0, 80.0, 80.0,
-    80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 130.0};
+static constexpr double kDefaultCt1[NUM_CLASSES] = {95.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 60.0, 80.0, 60.0, 80.0,
+                                                    80.0, 80.0, 95.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 130.0};
 
 // Default Cleo values per class
-static constexpr double kDefaultCleo[NUM_CLASSES] = {2.0,  1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 1.83,
-                                                     1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 2.0,  1.83, 1.83,
-    1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 2.37};
+static constexpr double kDefaultCleo[NUM_CLASSES] = {2.0,  1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 1.83,
+                                                     1.83, 1.83, 2.0,  1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 2.37};
 
 // Default beta values per class
-static constexpr double kDefaultBeta[NUM_CLASSES] = {0.13, 0.13, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.17, 0.17,
-                                                     0.08, 0.10, 0.08, 0.10, 0.13, 0.10, 0.13, 0.10, 0.10,
-    0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.17};
+static constexpr double kDefaultBeta[NUM_CLASSES] = {0.13, 0.13, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.17, 0.17, 0.08, 0.10, 0.08, 0.10,
+                                                     0.13, 0.10, 0.13, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.17};
 
 // Default Anew values per class
-static constexpr double kDefaultAnew[NUM_CLASSES] = {0.05, 0.05, 2.0, 2.0,  2.0,  2.0,  2.0,  0.00, 0.05, 0.05,
-                                                     3.5,  0.05, 3.5, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05,
-    2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 0.4};
+static constexpr double kDefaultAnew[NUM_CLASSES] = {0.05, 0.05, 2.0,  2.0,  2.0,  2.0, 2.0, 0.00, 0.05, 0.05, 3.5, 0.05, 3.5, 0.05,
+                                                     0.05, 0.05, 0.05, 0.05, 0.05, 2.0, 2.0, 2.0,  2.0,  2.0,  2.0, 2.0,  2.0, 0.4};
 
 // Default Agro values per class
-static constexpr double kDefaultAgro[NUM_CLASSES] = {0.6, 0.6, 1.8, 1.8, 1.8, 1.8, 1.8, 0.0, 0.6, 0.6, 3.0, 0.6, 3.0, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6,
-    1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 0.6};
+static constexpr double kDefaultAgro[NUM_CLASSES] = {0.6, 0.6, 1.8, 1.8, 1.8, 1.8, 1.8, 0.0, 0.6, 0.6, 3.0, 0.6, 3.0, 0.6,
+                                                     0.6, 0.6, 0.6, 0.6, 0.6, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 0.6};
 
 // Default Amat values per class
-static constexpr double kDefaultAmat[NUM_CLASSES] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
-    1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+static constexpr double kDefaultAmat[NUM_CLASSES] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                                                     1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
 
 // Default Aold values per class
-static constexpr double kDefaultAold[NUM_CLASSES] = {0.9, 0.9, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.9, 0.9, 1.2, 0.9, 1.2, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9,
-    1.05, 1.05, 1.05, 1.05, 1.05, 1.05, 1.05, 1.05, 0.95};
+static constexpr double kDefaultAold[NUM_CLASSES] = {0.9, 0.9, 1.0, 1.0, 1.0, 1.0,  1.0,  0.0,  0.9,  0.9,  1.2,  0.9,  1.2,  0.9,
+                                                     0.9, 0.9, 0.9, 0.9, 0.9, 1.05, 1.05, 1.05, 1.05, 1.05, 1.05, 1.05, 1.05, 0.95};
 
 void EmissionActivityCalculator::Initialize(const conf::Value& config) {
     // ---- Allocate device views for per-class coefficients ----
@@ -139,7 +134,8 @@ void EmissionActivityCalculator::Initialize(const conf::Value& config) {
         }
     } else {
         std::cout << "EmissionActivityCalculator: No emission_classes section found, "
-                     "using defaults for all " << NUM_CLASSES << " classes\n";
+                     "using defaults for all "
+                  << NUM_CLASSES << " classes\n";
     }
 
     // ---- Copy to device ----

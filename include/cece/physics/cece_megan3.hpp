@@ -76,10 +76,9 @@ class Megan3Scheme : public BasePhysicsScheme {
     static constexpr int NUM_CLASSES = kNumEmissionClasses;
 
     /// Canonical emission class names in index order.
-    static constexpr const char* CLASS_NAMES[NUM_CLASSES] = {"ISOP", "MBO",    "MT_PINE", "MT_ACYC", "MT_CAMP", "MT_SABI", "MT_AROM",
-                                                             "NO",   "SQT_HR", "SQT_LR",  "MEOH",    "ACTO",    "ETOH",    "ACID",
-                                                             "LVOC", "OXPROD", "STRESS",  "OTHER",   "CO",      "APIN",    "BPIN",
-                                                             "SABI", "CARE",   "LIMO",    "MYRC",    "OCIM",    "OMON",    "FARN"};
+    static constexpr const char* CLASS_NAMES[NUM_CLASSES] = {
+        "ISOP", "MBO",    "MT_PINE", "MT_ACYC", "MT_CAMP", "MT_SABI", "MT_AROM", "NO",   "SQT_HR", "SQT_LR", "MEOH", "ACTO", "ETOH", "ACID",
+        "LVOC", "OXPROD", "STRESS",  "OTHER",   "CO",      "APIN",    "BPIN",    "SABI", "CARE",   "LIMO",   "MYRC", "OCIM", "OMON", "FARN"};
 
     /// @}
 

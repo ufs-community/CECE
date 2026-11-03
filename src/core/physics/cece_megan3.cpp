@@ -43,25 +43,25 @@ static PhysicsRegistration<Megan3Scheme> reg("megan3");
 // by 136.23 kg kmol-1 (C10H16) or 204.36 kg kmol-1 (alpha-farnesene, C15H24).
 // ============================================================================
 static constexpr double kDefaultAef[kNumEmissionClasses] = {
-    1.0e-9,   // ISOP
-    2.0e-10,  // MBO
-    3.0e-10,  // MT_PINE
-    3.0e-10,  // MT_ACYC
-    3.0e-10,  // MT_CAMP
-    3.0e-10,  // MT_SABI
-    3.0e-10,  // MT_AROM
-    0.0,      // NO (soil NO comes from export state)
-    1.0e-10,  // SQT_HR
-    1.0e-10,  // SQT_LR
-    5.0e-10,  // MEOH
-    2.0e-10,  // ACTO
-    2.0e-10,  // ETOH
-    1.0e-10,  // ACID
-    1.0e-10,  // LVOC
-    1.0e-10,  // OXPROD
-    1.0e-10,  // STRESS
-    1.0e-10,  // OTHER
-    3.0e-10,  // CO
+    1.0e-9,                  // ISOP
+    2.0e-10,                 // MBO
+    3.0e-10,                 // MT_PINE
+    3.0e-10,                 // MT_ACYC
+    3.0e-10,                 // MT_CAMP
+    3.0e-10,                 // MT_SABI
+    3.0e-10,                 // MT_AROM
+    0.0,                     // NO (soil NO comes from export state)
+    1.0e-10,                 // SQT_HR
+    1.0e-10,                 // SQT_LR
+    5.0e-10,                 // MEOH
+    2.0e-10,                 // ACTO
+    2.0e-10,                 // ETOH
+    1.0e-10,                 // ACID
+    1.0e-10,                 // LVOC
+    1.0e-10,                 // OXPROD
+    1.0e-10,                 // STRESS
+    1.0e-10,                 // OTHER
+    3.0e-10,                 // CO
     6.277509984476146e-13,   // APIN: 307.87 ug m-2 h-1
     2.427811353892247e-13,   // BPIN: 119.07 ug m-2 h-1
     9.009817275250736e-14,   // SABI:  44.19 ug m-2 h-1
@@ -155,8 +155,8 @@ void Megan3Scheme::Initialize(const conf::Value& config, CeceDiagnosticManager* 
         export_field_names_.push_back("MEGAN_" + sp_name);
     }
 
-    CECE_LOG_INFO("Megan3Scheme: Initialized with " + std::to_string(num_active) + " of " + std::to_string(NUM_CLASSES) + " emission classes active, " +
-                  std::to_string(export_field_names_.size()) + " mechanism species output fields");
+    CECE_LOG_INFO("Megan3Scheme: Initialized with " + std::to_string(num_active) + " of " + std::to_string(NUM_CLASSES) +
+                  " emission classes active, " + std::to_string(export_field_names_.size()) + " mechanism species output fields");
 }
 
 // ============================================================================

@@ -50,7 +50,7 @@ physics_schemes:
           agro: 0.6
           amat: 1.0
           aold: 0.9
-        APIN:  # alpha-pinene
+        APIN: # alpha-pinene
           ldf: 0.6
           ct1: 80.0
           cleo: 1.83
@@ -59,7 +59,7 @@ physics_schemes:
           agro: 1.8
           amat: 1.0
           aold: 1.05
-        BPIN:  # beta-pinene
+        BPIN: # beta-pinene
           ldf: 0.2
           ct1: 80.0
           cleo: 1.83
@@ -68,7 +68,7 @@ physics_schemes:
           agro: 1.8
           amat: 1.0
           aold: 1.05
-        SABI:  # sabinene
+        SABI: # sabinene
           ldf: 0.6
           ct1: 80.0
           cleo: 1.83
@@ -77,7 +77,7 @@ physics_schemes:
           agro: 1.8
           amat: 1.0
           aold: 1.05
-        CARE:  # 3-carene
+        CARE: # 3-carene
           ldf: 0.2
           ct1: 80.0
           cleo: 1.83
@@ -86,7 +86,7 @@ physics_schemes:
           agro: 1.8
           amat: 1.0
           aold: 1.05
-        LIMO:  # limonene
+        LIMO: # limonene
           ldf: 0.2
           ct1: 80.0
           cleo: 1.83
@@ -95,7 +95,7 @@ physics_schemes:
           agro: 1.8
           amat: 1.0
           aold: 1.05
-        MYRC:  # myrcene
+        MYRC: # myrcene
           ldf: 0.6
           ct1: 80.0
           cleo: 1.83
@@ -104,7 +104,7 @@ physics_schemes:
           agro: 1.8
           amat: 1.0
           aold: 1.05
-        OCIM:  # t-beta-ocimene
+        OCIM: # t-beta-ocimene
           ldf: 0.8
           ct1: 80.0
           cleo: 1.83
@@ -113,7 +113,7 @@ physics_schemes:
           agro: 1.8
           amat: 1.0
           aold: 1.05
-        OMON:  # other monoterpenes
+        OMON: # other monoterpenes
           ldf: 0.4
           ct1: 80.0
           cleo: 1.83

@@ -43,11 +43,9 @@ namespace cece {
 /// Note: "NO" is excluded because yaml-cpp YAML 1.1 interprets unquoted "NO"
 /// as boolean false, causing parsing issues even when quoted in some versions.
 /// The "NO" class is tested separately in the real data file tests.
-static const std::vector<std::string> kValidEmissionClasses = {"ISOP",    "MBO",    "MT_PINE", "MT_ACYC", "MT_CAMP", "MT_SABI",
-                                                               "MT_AROM", "SQT_HR", "SQT_LR",  "MEOH",    "ACTO",    "ETOH",
-                                                               "ACID",    "LVOC",   "OXPROD",  "STRESS",  "OTHER",   "CO",
-                                                               "APIN",    "BPIN",   "SABI",    "CARE",    "LIMO",    "MYRC",
-                                                               "OCIM",    "OMON",   "FARN"};
+static const std::vector<std::string> kValidEmissionClasses = {
+    "ISOP",   "MBO",    "MT_PINE", "MT_ACYC", "MT_CAMP", "MT_SABI", "MT_AROM", "SQT_HR", "SQT_LR", "MEOH", "ACTO", "ETOH", "ACID", "LVOC",
+    "OXPROD", "STRESS", "OTHER",   "CO",      "APIN",    "BPIN",    "SABI",    "CARE",   "LIMO",   "MYRC", "OCIM", "OMON", "FARN"};
 
 /// Generate a random alphanumeric string of given length.
 static std::string GenAlphaString(std::size_t len) {
@@ -854,10 +852,10 @@ TEST_F(CB6ConfigLoadingTest, GocartExplicitClassOutputs) {
     auto host_totals = Kokkos::create_mirror_view(class_totals);
     // Unmapped classes (lumped MT_*/SQT_* etc.) must not leak into outputs.
     Kokkos::deep_copy(host_totals, 99.0);
-    const std::map<EmissionClass, double> fluxes = {
-        {EmissionClass::ISOP, 1.0e-9}, {EmissionClass::APIN, 2.0e-9}, {EmissionClass::BPIN, 3.0e-9}, {EmissionClass::SABI, 4.0e-9},
-        {EmissionClass::CARE, 5.0e-9}, {EmissionClass::LIMO, 6.0e-9}, {EmissionClass::MYRC, 7.0e-9}, {EmissionClass::OCIM, 8.0e-9},
-        {EmissionClass::OMON, 9.0e-9}, {EmissionClass::FARN, 1.0e-8}};
+    const std::map<EmissionClass, double> fluxes = {{EmissionClass::ISOP, 1.0e-9}, {EmissionClass::APIN, 2.0e-9}, {EmissionClass::BPIN, 3.0e-9},
+                                                    {EmissionClass::SABI, 4.0e-9}, {EmissionClass::CARE, 5.0e-9}, {EmissionClass::LIMO, 6.0e-9},
+                                                    {EmissionClass::MYRC, 7.0e-9}, {EmissionClass::OCIM, 8.0e-9}, {EmissionClass::OMON, 9.0e-9},
+                                                    {EmissionClass::FARN, 1.0e-8}};
     for (const auto& [source, flux] : fluxes)
         for (int cell = 0; cell < nx * ny; ++cell) host_totals(static_cast<int>(source), cell) = flux;
     Kokkos::deep_copy(class_totals, host_totals);

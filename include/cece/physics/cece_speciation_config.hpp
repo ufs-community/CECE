@@ -78,8 +78,8 @@ inline constexpr int kNumEmissionClasses = static_cast<int>(EmissionClass::COUNT
  */
 inline std::string EmissionClassToString(EmissionClass ec) {
     static const char* names[] = {"ISOP", "MBO",  "MT_PINE", "MT_ACYC", "MT_CAMP", "MT_SABI", "MT_AROM", "NO",    "SQT_HR", "SQT_LR",
-                                  "MEOH", "ACTO", "ETOH",    "ACID",    "LVOC",    "OXPROD",  "STRESS",  "OTHER", "CO",
-                                  "APIN", "BPIN", "SABI",    "CARE",    "LIMO",    "MYRC",    "OCIM",    "OMON",  "FARN"};
+                                  "MEOH", "ACTO", "ETOH",    "ACID",    "LVOC",    "OXPROD",  "STRESS",  "OTHER", "CO",     "APIN",
+                                  "BPIN", "SABI", "CARE",    "LIMO",    "MYRC",    "OCIM",    "OMON",    "FARN"};
     static_assert(sizeof(names) / sizeof(names[0]) == kNumEmissionClasses, "EmissionClass name table out of sync");
     int idx = static_cast<int>(ec);
     if (idx >= 0 && idx < static_cast<int>(EmissionClass::COUNT)) {

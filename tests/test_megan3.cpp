@@ -480,10 +480,9 @@ RC_GTEST_PROP(EmissionActivityProperty, Property9_LeafAgeFractionsSumToUnity, ()
 // ============================================================================
 
 /// Valid emission class names for generating speciation configs.
-static const std::vector<std::string> kValidEmissionClasses = {"ISOP", "MBO",    "MT_PINE", "MT_ACYC", "MT_CAMP", "MT_SABI", "MT_AROM",
-                                                               "NO",   "SQT_HR", "SQT_LR",  "MEOH",    "ACTO",    "ETOH",    "ACID",
-                                                               "LVOC", "OXPROD", "STRESS",  "OTHER",   "CO",      "APIN",    "BPIN",
-                                                               "SABI", "CARE",   "LIMO",    "MYRC",    "OCIM",    "OMON",    "FARN"};
+static const std::vector<std::string> kValidEmissionClasses = {
+    "ISOP", "MBO",    "MT_PINE", "MT_ACYC", "MT_CAMP", "MT_SABI", "MT_AROM", "NO",   "SQT_HR", "SQT_LR", "MEOH", "ACTO", "ETOH", "ACID",
+    "LVOC", "OXPROD", "STRESS",  "OTHER",   "CO",      "APIN",    "BPIN",    "SABI", "CARE",   "LIMO",   "MYRC", "OCIM", "OMON", "FARN"};
 
 /// Generate a random alphanumeric string of given length.
 static std::string GenAlpha(std::size_t len) {
@@ -604,14 +603,12 @@ RC_GTEST_PROP(Megan3SchemeProperty, Property17_MissingConfigDefaultValues, ()) {
 
     // Documented default LDF values per class (from cece_emission_activity.cpp)
     // Explicit MEGANv2.1 classes (APIN..FARN) follow Guenther et al. (2012), Table 4.
-    static constexpr double kDefaultLdf[kNumEmissionClasses] = {0.9996, 0.80, 0.10, 0.10, 0.10, 0.10, 0.10, 0.00, 0.50, 0.50,
-                                                                0.80,   0.20, 0.80, 0.00, 0.00, 0.20, 1.00, 0.20, 0.00,
-                                                                0.6,    0.2,  0.6,  0.2,  0.2,  0.6,  0.8,  0.4,  0.5};
+    static constexpr double kDefaultLdf[kNumEmissionClasses] = {0.9996, 0.80, 0.10, 0.10, 0.10, 0.10, 0.10, 0.00, 0.50, 0.50, 0.80, 0.20, 0.80, 0.00,
+                                                                0.00,   0.20, 1.00, 0.20, 0.00, 0.6,  0.2,  0.6,  0.2,  0.2,  0.6,  0.8,  0.4,  0.5};
 
     // Documented default beta values per class
-    static constexpr double kDefaultBeta[kNumEmissionClasses] = {0.13, 0.13, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.17, 0.17,
-                                                                 0.08, 0.10, 0.08, 0.10, 0.13, 0.10, 0.13, 0.10, 0.10,
-                                                                 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.17};
+    static constexpr double kDefaultBeta[kNumEmissionClasses] = {0.13, 0.13, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.17, 0.17, 0.08, 0.10, 0.08, 0.10,
+                                                                 0.13, 0.10, 0.13, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.17};
 
     // Generate a random subset of optional parameters to include
     // Each parameter has a 50% chance of being included
@@ -686,9 +683,9 @@ RC_GTEST_PROP(Megan3SchemeProperty, Property17_MissingConfigDefaultValues, ()) {
 // ============================================================================
 
 #include <chrono>
-#include <map>
 #include <filesystem>
 #include <fstream>
+#include <map>
 #include <random>
 
 #include "cece/cece_physics_factory.hpp"
@@ -1223,9 +1220,9 @@ TEST_F(Megan3SchemeTest, GocartUsesExplicitTerpenoidClasses) {
     EXPECT_GT(base.at("MEGAN_MTPA"), base.at("MEGAN_LIMO"));
 
     // Lumped MEGAN3 classes are not part of the GOCART mapping.
-    const auto lumped = run(
-        "emission_classes:\n  MT_PINE:\n    default_aef: 1.0e-6\n  MT_ACYC:\n    default_aef: 1.0e-6\n"
-        "  SQT_HR:\n    default_aef: 1.0e-6\n");
+    const auto lumped =
+        run("emission_classes:\n  MT_PINE:\n    default_aef: 1.0e-6\n  MT_ACYC:\n    default_aef: 1.0e-6\n"
+            "  SQT_HR:\n    default_aef: 1.0e-6\n");
     for (const auto& [name, value] : base) EXPECT_DOUBLE_EQ(lumped.at(name), value) << name;
 
     // LIMO is explicit: scaling its AEF scales only MEGAN_LIMO.
