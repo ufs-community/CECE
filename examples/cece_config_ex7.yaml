@@ -26,6 +26,11 @@ driver:
 
 meteorology: {}
 
+# Needed by use_local_time on the CAMS_WEEKLY stream below.
+local_time:
+  enabled: true
+  grid_file: data/utc_grid_720r.rle
+
 temporal_profiles:
   diurnal_traffic:
     [
@@ -143,6 +148,7 @@ cece_data:
       file: "/gpfs/f6/bil-fire3/world-shared/Emissions/nexus/CAMS-TEMPO/v3.1-2021/CAMS-GLOB-TEMPO_Glb_0.1x0.1_tmp_weights_v3.1_weekly.nc"
       # Discrete day-of-week profile (7 records, 0=Monday). Always nearest.
       cadence: "weekly"
+      use_local_time: true # each cell reads the record of its LOCAL weekday, not the UTC weekday
       mapalgo: "bilinear"
       data_model: "classic"
       variables:

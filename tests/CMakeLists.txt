@@ -508,6 +508,32 @@ if(EXISTS "${PROJECT_SOURCE_DIR}/data/OC-em-anthro_CMIP_CEDS_2023.nc")
   )
 endif()
 
+# End-to-end stream use_local_time (weekly cadence): runs the real driver at 1 and
+# 2 ranks and checks each cell reads the record of its local weekday.
+if(EXISTS "${PROJECT_SOURCE_DIR}/data/utc_grid_720r.rle")
+  add_test(
+    NAME test_stream_local_weekday
+    COMMAND
+      ${CMAKE_COMMAND} -E env "MPIEXEC_EXECUTABLE=${MPIEXEC_EXECUTABLE}"
+      "MPIEXEC_NUMPROC_FLAG=${MPIEXEC_NUMPROC_FLAG}" bash
+      ${CMAKE_CURRENT_SOURCE_DIR}/test_stream_local_weekday.sh --driver
+      $<TARGET_FILE:cece_standalone_driver> --grid-file ${PROJECT_SOURCE_DIR}/data/utc_grid_720r.rle
+      --workdir ${CMAKE_BINARY_DIR}/_stream_local_weekday_workdir
+    WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+  )
+  set_tests_properties(
+    test_stream_local_weekday
+    PROPERTIES
+      DEPENDS cece_standalone_driver
+      ENVIRONMENT
+        "FI_PROVIDER=tcp;I_MPI_FABRICS=shm;OMPI_ALLOW_RUN_AS_ROOT=1;OMPI_ALLOW_RUN_AS_ROOT_CONFIRM=1;OMP_PROC_BIND=false"
+      SKIP_RETURN_CODE 77
+      TIMEOUT 300
+      LABELS np2
+      PROCESSORS 2
+  )
+endif()
+
 # --- HELM integration --------------------------------------------------------
 # C++ HELM Unit Tests
 cece_add_gtest(
@@ -905,6 +931,11 @@ if(Python3_Interpreter_FOUND)
   cece_add_pytest(test_hemco_to_cece_python test_converters.py "${PROJECT_SOURCE_DIR}/scripts")
   cece_add_pytest(test_scripts_python test_scripts.py "${PROJECT_SOURCE_DIR}/scripts")
   cece_add_pytest(test_config_schema_python test_config_schema.py "${PROJECT_SOURCE_DIR}/scripts")
+  cece_add_pytest(
+    test_utcoffset_generator_python
+    test_utcoffset_generator.py
+    "${PROJECT_SOURCE_DIR}/scripts"
+  )
   cece_add_pytest(
     test_earthaccess_streams_python
     test_earthaccess_stream_bdsnp_megan3.py

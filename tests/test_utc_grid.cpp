@@ -29,7 +29,7 @@ std::string GridPath() {
 }
 
 /// Reference offsets (quarter-hours) at named probe points, verified against
-/// the rebinned file produced by scripts/python/utcoffset_generator.py.
+/// the shipped file produced by scripts/utcoffset_generator.py.
 struct Probe {
     double lat;
     double lon;
@@ -55,7 +55,7 @@ TEST(UtcGridDecode, ReducedLatticeInvariants) {
     for (int r = kUtcGridRows / 2; r < kUtcGridRows - 1; ++r) {
         EXPECT_GE(grid.ncol[r], grid.ncol[r + 1]) << "row " << r;
     }
-    // Observed range of the shipped snapshot: -12h .. +14h in quarter-hours.
+    // Observed range of the shipped grid: -12h .. +14h in quarter-hours.
     int lo = 127, hi = -128;
     for (const auto v : grid.cells) {
         lo = std::min(lo, static_cast<int>(v));
@@ -67,20 +67,49 @@ TEST(UtcGridDecode, ReducedLatticeInvariants) {
 
 TEST(UtcGridDecode, ProbeCitiesMatchReference) {
     const auto grid = DecodeUtcGridRle(GridPath());
-    // City probes keep their v1 values: each sits far from a timezone border
-    // relative to even the widened cell. The two pole/date-line corner probes
-    // change under the taper (row 0 has 4 columns of 90 deg each) and are
-    // pinned to the rebinned file's values.
+    // City probes sit far from a timezone border relative to even the widened
+    // cell. The two pole/date-line corner probes change under the taper (row 0
+    // has 4 columns of 90 deg each) and are pinned to the shipped file's values.
     const std::vector<Probe> probes = {
         {40.0, -74.0, -20},   // New York (UTC-5)
         {51.5, -0.125, 0},    // London   (UTC+0)
         {28.6, 77.2, 22},     // Delhi    (UTC+5.5)
         {35.68, 139.7, 36},   // Tokyo    (UTC+9)
         {0.0, 0.0, 0},        // Atlantic (0,0)
-        {-33.86, 151.2, 44},  // Sydney   (UTC+11)
+        {-33.86, 151.2, 40},  // Sydney   (UTC+10, standard; AEDT +11 is not used)
         {52.5, 13.4, 4},      // Berlin   (UTC+1)
         {90.0, -180.0, -36},  // N-pole / date-line corner (tapered: was -48)
         {-45.0, 179.99, 48},  // far south, near date line
+    };
+    for (const auto& p : probes) {
+        const int row = UtcGridRowForLat(p.lat);
+        const int col = UtcGridColForLon(p.lon, static_cast<int>(grid.ncol[row]));
+        const int got = static_cast<int>(grid.cells[grid.index(row, col)]);
+        EXPECT_EQ(got, p.quarter_hours) << "probe lat=" << p.lat << " lon=" << p.lon;
+    }
+}
+
+TEST(UtcGridDecode, HoldsStandardTimeNotDaylightTime) {
+    const auto grid = DecodeUtcGridRle(GridPath());
+    // The grid is local STANDARD time: it must not depend on the season, so zones with
+    // DST must show the offset they use outside it in both hemispheres.
+    const std::vector<Probe> probes = {
+        // Southern hemisphere: on DST in January.
+        {-36.85, 174.76, 48},   // Auckland   NZST +12 (NZDT +13)
+        {-37.81, 144.96, 40},   // Melbourne  AEST +10 (AEDT +11)
+        {-34.93, 138.6, 38},    // Adelaide   ACST +9:30 (ACDT +10:30)
+        {-33.45, -70.67, -16},  // Santiago   -4 (-3)
+        // Northern hemisphere: on DST in July.
+        {40.7, -74.0, -20},  // New York   EST -5
+        {52.5, 13.4, 4},     // Berlin     CET +1
+        // tzdata models Ireland as +01 with a negative DST in winter; standard here is GMT.
+        {53.35, -6.26, 0},  // Dublin     GMT +0
+        {51.5, -0.12, 0},   // London     GMT +0
+        // Morocco is +01 all year apart from Ramadan.
+        {33.57, -7.59, 4},  // Casablanca +1
+        // No DST.
+        {30.04, 31.24, 8},    // Cairo      +2
+        {21.3, -157.86, -40}  // Honolulu   -10
     };
     for (const auto& p : probes) {
         const int row = UtcGridRowForLat(p.lat);

@@ -392,7 +392,8 @@ RC_GTEST_PROP(EndpointReuseDecision, HitDecisionIsWeightIndependent, ()) {
     // Small, realistic index/shape space.
     const int i0 = *rc::gen::inRange(0, 12);
     const int i1 = *rc::gen::inRange(0, 12);
-    const double weight = *rc::gen::map(rc::gen::inRange(0, 1000), [](int n) { return n / 1000.0; });
+    // Strictly positive: weight 0 is a single-record step, which never takes Tier 2 (see midmonth_weight0_miss).
+    const double weight = *rc::gen::map(rc::gen::inRange(1, 1000), [](int n) { return n / 1000.0; });
     const int nx = *rc::gen::inRange(1, 16);
     const int ny = *rc::gen::inRange(1, 16);
     const int nlev = *rc::gen::inRange(1, 4);
@@ -418,7 +419,7 @@ RC_GTEST_PROP(EndpointReuseDecision, HitDecisionIsWeightIndependent, ()) {
     // shape) must not change the decision, since the endpoint key excludes the
     // weight. This purity is exactly what guarantees the decision is identical
     // on every rank (all ranks feed the same rank-invariant (i0, i1) and shape).
-    const double other_weight = *rc::gen::map(rc::gen::inRange(0, 1000), [](int n) { return n / 1000.0; });
+    const double other_weight = *rc::gen::map(rc::gen::inRange(1, 1000), [](int n) { return n / 1000.0; });
     RecordBracket resolved_other = resolved;
     resolved_other.weight = other_weight;
     const bool hit_other = EndpointHit(resolved_other, cache, nx, ny, nlev);

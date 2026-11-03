@@ -21,6 +21,7 @@
 #include "cece/cece_fatal.hpp"
 #include "cece/cece_helm_graph.hpp"
 #include "cece/cece_internal.hpp"
+#include "cece/cece_local_time.hpp"
 #include "cece/cece_logger.hpp"
 #include "cece/cece_mpi_env.hpp"
 #include "cece/cece_regridder_utils.hpp"
@@ -204,6 +205,12 @@ StreamConfig CeceDriverOrchestrator::BuildStreamConfig(const YAML::Node& stream,
     // Validate the cadence and warn on knobs that the chosen cadence ignores.
     validate_stream_temporal_config(cfg.cadence, cfg.taxmode, cfg.tintalgo, cfg.yearFirst, cfg.yearLast, cfg.yearAlign,
                                     " (stream file '" + cfg.input_file_path + "')", cfg.time_label);
+    if (stream["use_local_time"]) {
+        cfg.use_local_time = stream["use_local_time"].as<bool>();
+        if (cfg.use_local_time) {
+            validate_stream_local_time(cfg.cadence, cfg.tintalgo, " (stream file '" + cfg.input_file_path + "')");
+        }
+    }
     if (stream["data_model"]) {
         std::string requested_model = stream["data_model"].as<std::string>();
         std::transform(requested_model.begin(), requested_model.end(), requested_model.begin(),
@@ -401,6 +408,10 @@ void CeceDriverOrchestrator::InvalidateEndpointCachesForStream(const std::string
         auto it = endpoint_caches_.find(var_name);
         if (it != endpoint_caches_.end()) {
             it->second.valid = false;
+        }
+        auto local_it = local_weekly_caches_.find(var_name);
+        if (local_it != local_weekly_caches_.end()) {
+            local_it->second.records.clear();
         }
     }
 }
@@ -702,6 +713,7 @@ bool CeceDriverOrchestrator::TeardownHandles() {
     stream_configs_.clear();
     slice_caches_.clear();
     endpoint_caches_.clear();
+    local_weekly_caches_.clear();
     return all_ok;
 }
 
@@ -970,6 +982,79 @@ bool CeceDriverOrchestrator::WriteBandToImport(const std::string& var_name, cons
     core_field.sync_host();
 
     return true;
+}
+
+bool CeceDriverOrchestrator::ComposeLocalWeeklyField(const std::string& var_name, const io::RegridPlan& plan, int field_nlev, int file_nt,
+                                                     const SimDateTime& sim_dt,
+                                                     const std::function<bool(int, std::vector<double>&, int&, int&)>& read_record,
+                                                     void* cece_core_data_ptr, std::vector<double>& ingest_buffer, std::string& failure_detail) {
+    constexpr int kWeeklyRecords = 7;
+    auto* data = static_cast<CeceInternalData*>(cece_core_data_ptr);
+    const cece::LocalTimeService* service = data != nullptr ? data->local_time.get() : nullptr;
+
+    std::string readiness_detail;
+    if (file_nt != kWeeklyRecords) {
+        readiness_detail = "use_local_time requires a weekly file with exactly 7 records; '" + var_name + "' has " + std::to_string(file_nt);
+    } else if (service == nullptr) {
+        readiness_detail = "use_local_time is set for '" + var_name + "' but the local-time service is not initialized (enable local_time)";
+    } else if (!sim_dt.valid) {
+        readiness_detail = "unparseable simulation time for local-weekday selection of '" + var_name + "'";
+    } else if (service->Offsets().extent(0) != static_cast<size_t>(nx_) || service->Offsets().extent(1) != static_cast<size_t>(band_.ny_local)) {
+        readiness_detail = "local-time offsets do not match the band geometry for '" + var_name + "'";
+    }
+    if (!collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, readiness_detail.empty(),
+                              "local-weekday readiness for '" + var_name + "'", readiness_detail)) {
+        failure_detail = readiness_detail;
+        return false;
+    }
+
+    auto& cache = local_weekly_caches_[var_name];
+    if (cache.offsets.data() == nullptr) {
+        cache.offsets = service->HostOffsets();
+    }
+
+    // Every rank reads the same window, so the collectives below match across ranks.
+    const std::array<int, 3> window = weekly_record_window(sim_dt);
+    for (auto it = cache.records.begin(); it != cache.records.end();) {
+        it = std::find(window.begin(), window.end(), it->first) == window.end() ? cache.records.erase(it) : std::next(it);
+    }
+    for (const int record : window) {
+        if (cache.records.count(record) != 0) {
+            continue;
+        }
+        std::vector<double> source;
+        int file_nx = 0;
+        int file_ny = 0;
+        const bool local_read_ok = read_record(record, source, file_nx, file_ny);
+        if (!collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, local_read_ok,
+                                  "weekly record " + std::to_string(record) + " slab readiness for '" + var_name + "'", failure_detail)) {
+            return false;
+        }
+        std::vector<double> band;
+        if (!RegridToBandBuffer(var_name, plan, source, file_nx, file_ny, field_nlev, band, failure_detail)) {
+            return false;
+        }
+        cache.records[record] = std::move(band);
+    }
+
+    // Per cell: the record of the local weekday at this UTC instant.
+    std::array<const double*, 7> record_data{};
+    for (const auto& [record, band] : cache.records) {
+        record_data[static_cast<size_t>(record)] = band.data();
+    }
+    std::string compose_error;
+    const bool local_compose_ok = compose_local_weekly_band(
+        record_data, [&cache](int i, int j) { return cache.offsets(i, j); }, sim_datetime_epoch_secs(sim_dt), nx_, band_.ny_local, field_nlev,
+        ingest_buffer, compose_error);
+    if (!local_compose_ok) {
+        failure_detail = compose_error + " for '" + var_name + "'";
+    }
+    if (!collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, local_compose_ok, "local-weekday composition for '" + var_name + "'",
+                              failure_detail)) {
+        return false;
+    }
+
+    return WriteBandToImport(var_name, ingest_buffer, field_nlev, cece_core_data_ptr, failure_detail);
 }
 
 bool CeceDriverOrchestrator::AssembleBandField(const std::string& var_name, const io::RegridPlan& plan, const std::vector<double>& source,
@@ -1298,6 +1383,7 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                 // calendar field, Stepwise walks the record index (ignores time).
                 const CadenceKind kind = classify_cadence(cadence);
                 const std::string c_lower = to_lower(cadence);
+                const bool local_weekly = cfg.use_local_time;
                 std::string bracket_note;
 
                 if (kind == CadenceKind::Stepwise) {
@@ -1308,7 +1394,7 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                     bracket_note = "stepwise (time ignored)";
                 } else if (kind == CadenceKind::Profile) {
                     bracket = bracket_from_cadence(cadence, tintalgo, sim_dt, file_nt, yearFirst, yearLast, yearAlign, taxmode);
-                    bracket_note = "profile:" + c_lower;
+                    bracket_note = local_weekly ? "profile:weekly (local weekday)" : "profile:" + c_lower;
                 } else {  // Series
                     if (file_nt > 1) {
                         bracket = bracket_from_dataset(read_dataset, time_var, sim_dt, file_nt, tintalgo, yearAlign, taxmode, time_units, calendar,
@@ -1447,7 +1533,11 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                 } else {
                     // ---- Tier 3: interpolation miss / rollover / single record ----
                     // Diagnostic: report which time slice(s) are being read and via which path.
-                    if (bracket.i0 == bracket.i1 || bracket.weight == 0.0) {
+                    if (local_weekly) {
+                        CECE_LOG_INFO("[DRIVER] Composing local-weekday weekly records around UTC record " + std::to_string(bracket.i0 + 1) + "/" +
+                                      std::to_string(file_nt) + " from '" + input_file_path + "' for field '" + var_name + "' (time=" + time_iso8601 +
+                                      ")");
+                    } else if (bracket.i0 == bracket.i1 || bracket.weight == 0.0) {
                         CECE_LOG_INFO("[DRIVER] Reading time slice " + std::to_string(bracket.i0 + 1) + "/" + std::to_string(file_nt) + " from '" +
                                       input_file_path + "' for field '" + var_name + "' (" + bracket_note + ", time=" + time_iso8601 + ")");
                     } else {
@@ -1619,7 +1709,7 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                     std::vector<double> src;
                     int file_nx = 0;
                     int file_ny = 0;
-                    const bool local_lower_ready = bracket_ready && read_slab(bracket.i0, src, file_nx, file_ny);
+                    const bool local_lower_ready = bracket_ready && (local_weekly || read_slab(bracket.i0, src, file_nx, file_ny));
                     bool have_data = collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, local_lower_ready,
                                                           "lower AMIO slab readiness for '" + var_name + "'", failure_detail);
 
@@ -1712,6 +1802,11 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                                 endpoint_cache.valid = false;
                             }
                         }
+                    } else if (have_data && local_weekly) {
+                        // No slice/endpoint caching: the composed field changes whenever any
+                        // cell's local date flips, so each step recomposes from the record cache.
+                        read_success = ComposeLocalWeeklyField(var_name, plan, field_nlev, file_nt, sim_dt, read_slab, cece_core_data_ptr,
+                                                               ingest_buffer, failure_detail);
                     } else if (have_data) {
                         // ---- Tier 3 single-record sub-case (unchanged) ----
                         // Reached when !needs_upper_record and the collective-agreed
