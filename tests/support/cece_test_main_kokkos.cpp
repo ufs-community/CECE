@@ -4,15 +4,18 @@
 #include <gtest/gtest.h>
 
 #include "support/cece_test_environment.hpp"
+#include "support/cece_test_teardown_guard.hpp"
 
-// No test-discovery guard is needed: gtest answers --gtest_list_tests and
-// returns before it runs any Environment::SetUp, and Kokkos is initialized
-// only inside SetUp (cece_test_environment.hpp), so listing never touches them.
+// gtest answers --gtest_list_tests before any Environment::SetUp runs, so
+// listing never initializes Kokkos. The guard below hard-exits every
+// run (listing or not) before process teardown; see
+// cece_test_teardown_guard.hpp.
 int main(int argc, char** argv) {
     ::testing::InitGoogleTest(&argc, argv);
     ::testing::AddGlobalTestEnvironment(new cece::test::TestEnvironment(argc, argv, /*with_mpi=*/false));
     for (const auto& make_environment : cece::test::queued_environments()) {
         ::testing::AddGlobalTestEnvironment(make_environment());
     }
-    return RUN_ALL_TESTS();
+    const int rc = RUN_ALL_TESTS();
+    cece::test::exit_after_tests(rc);
 }

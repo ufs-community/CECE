@@ -110,12 +110,20 @@ endif()
 # --- Shared test harness (support/) ------------------------------------------
 # Shared main() + process-level MPI/HALO/Kokkos environment. Link
 # `cece_test_main` (MAIN MPI_KOKKOS) or `cece_test_main_kokkos` (MAIN KOKKOS) in
-# place of GTest::gtest_main. A test file that needs its own global
+# place of `cece_test_main_default` (MAIN GTEST, the default) when a suite needs
+# the MPI/Kokkos environment. A test file that needs its own global
 # environment adds it with CECE_TEST_ADD_ENVIRONMENT; it is registered after
 # (so torn down before) the MPI/Kokkos one. Initialization happens in
-# Environment::SetUp, which gtest skips for --gtest_list_tests, so test
-# discovery never initializes MPI or Kokkos and no per-file discovery guard is
-# needed.
+# Environment::SetUp, which gtest skips for --gtest_list_tests, so discovery
+# never initializes MPI or Kokkos. Every shared main ends its process with a
+# hard _exit after RUN_ALL_TESTS (support/cece_test_teardown_guard.hpp): the
+# static-linked Kokkos linked into both the test executable and
+# libcece_core.so has interposed statics destructed twice at process teardown,
+# which under Debug malloc checking aborts test discovery deterministically
+# and can abort otherwise-passing runs randomly.
+add_library(cece_test_main_default STATIC support/cece_test_main_default.cpp)
+target_include_directories(cece_test_main_default PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(cece_test_main_default PUBLIC GTest::gtest)
 add_library(cece_test_support STATIC support/cece_test_environment.cpp)
 target_include_directories(cece_test_support PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(cece_test_support PUBLIC cece GTest::gtest)
