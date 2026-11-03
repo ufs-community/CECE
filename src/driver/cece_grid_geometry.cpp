@@ -506,7 +506,7 @@ ValidatedRegridRequest validate_regrid_prerequisites(const GridGeometry& source,
             if (grid.metadata.boundary_model == axis::topology::BoundaryModel::Unspecified ||
                 grid.metadata.area_model == axis::topology::AreaModel::Unspecified)
                 throw RegridError(RegridStage::PrerequisiteValidation, role, settings.canonical_name,
-                                  "conservative edge or area model is unspecified", "Declare compatible boundary and area models for both grids");
+                                  "conservative edge or area model is unspecified", "Declare a supported boundary and area model for this grid");
             if (grid.metadata.boundary_model == axis::topology::BoundaryModel::ConstantLatitude &&
                 (settings.method == RegridMethod::Conservative2 || grid.metadata.area_model != axis::topology::AreaModel::ConstantLatitudeStrip))
                 throw RegridError(RegridStage::PrerequisiteValidation, role, settings.canonical_name,
@@ -523,14 +523,12 @@ ValidatedRegridRequest validate_regrid_prerequisites(const GridGeometry& source,
     if (source.coordinate_system != destination.coordinate_system)
         throw RegridError(RegridStage::PrerequisiteValidation, GridRole::Both, settings.canonical_name,
                           "source and destination coordinate systems differ", "Convert both geometries to the same coordinate system");
-    if ((settings.method == RegridMethod::Conservative1 || settings.method == RegridMethod::Conservative2) &&
-        source.metadata.boundary_model != destination.metadata.boundary_model)
-        throw RegridError(RegridStage::PrerequisiteValidation, GridRole::Both, settings.canonical_name,
-                          "source and destination boundary models do not match", "Prepare both grids with the same supported boundary model");
-    if ((settings.method == RegridMethod::Conservative1 || settings.method == RegridMethod::Conservative2) &&
-        source.metadata.area_model != destination.metadata.area_model)
-        throw RegridError(RegridStage::PrerequisiteValidation, GridRole::Both, settings.canonical_name,
-                          "source and destination area models do not match", "Prepare both grids with compatible area semantics");
+    // Mixed boundary/area models across the pair are allowed: each grid is
+    // internally validated above, and AXIS conservative weight generation
+    // clips the two prepared cell polygons on the sphere without consulting
+    // the declared models. E.g. a rectilinear CF-bounds inventory
+    // (ConstantLatitude/ConstantLatitudeStrip) onto a cubed-sphere target
+    // (GreatCircle/SphericalExcess) is exact first-order conservative.
     if (j0 < 0 || j1 < j0 || j1 > destination.ny)
         throw RegridError(RegridStage::PrerequisiteValidation, GridRole::Destination, settings.canonical_name, "destination row band is out of range",
                           "Use a band contained in the global destination grid");

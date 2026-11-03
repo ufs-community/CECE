@@ -140,7 +140,12 @@ TEST(RegridPrerequisites, DeviceBackendFailsBeforePlanGeneration) {
     }
 }
 
-TEST(RegridPrerequisites, MixedConservativeModelsFailBeforePlanGeneration) {
+// Mixed source/destination geometry models are accepted (ufs-community/CECE#124
+// review): a rectilinear CF-bounds inventory onto a cubed-sphere target is
+// exact first-order conservative because AXIS clips the prepared cell polygons
+// on the sphere regardless of the declared models. Each grid is still
+// internally validated, so the per-grid rejects below must persist.
+TEST(RegridPrerequisites, MixedConservativeModelsAcceptedForPlanGeneration) {
     cece::io::GridGeometry source, destination;
     for (auto* grid : {&source, &destination}) {
         grid->nx = grid->ny = 1;
@@ -151,12 +156,29 @@ TEST(RegridPrerequisites, MixedConservativeModelsFailBeforePlanGeneration) {
         grid->metadata.boundary_model = axis::topology::BoundaryModel::GreatCircle;
         grid->metadata.area_model = axis::topology::AreaModel::SphericalExcess;
     }
+    destination.metadata.boundary_model = axis::topology::BoundaryModel::ConstantLatitude;
     destination.metadata.area_model = axis::topology::AreaModel::ConstantLatitudeStrip;
-    try {
-        (void)cece::io::validate_regrid_prerequisites(source, destination, cece::io::resolve_regrid_method("consd"), 0, 1);
-        FAIL() << "expected mixed area models to fail";
-    } catch (const cece::io::RegridError& error) {
-        EXPECT_EQ(error.role(), cece::io::GridRole::Both);
-        EXPECT_NE(error.reason().find("area models"), std::string::npos);
+    EXPECT_NO_THROW(cece::io::validate_regrid_prerequisites(source, destination, cece::io::resolve_regrid_method("consd"), 0, 1));
+    source.metadata.boundary_model = axis::topology::BoundaryModel::ConstantLatitude;
+    source.metadata.area_model = axis::topology::AreaModel::ConstantLatitudeStrip;
+    EXPECT_NO_THROW(cece::io::validate_regrid_prerequisites(source, destination, cece::io::resolve_regrid_method("consd"), 0, 1));
+}
+
+// Per-grid internal consistency still fails even though cross-pair equality
+// was relaxed: a constant-latitude strip grid cannot serve second-order
+// conservative mapping, and an unspecified model is never accepted.
+TEST(RegridPrerequisites, MixedPairsStillRequirePerGridConsistency) {
+    cece::io::GridGeometry source, destination;
+    for (auto* grid : {&source, &destination}) {
+        grid->nx = grid->ny = 1;
+        grid->center_lon = {0.0};
+        grid->center_lat = {0.0};
+        grid->has_cell_geometry = true;
+        grid->metadata.provenance = axis::topology::GeometryProvenance::SourceAuthoritative;
+        grid->metadata.boundary_model = axis::topology::BoundaryModel::GreatCircle;
+        grid->metadata.area_model = axis::topology::AreaModel::SphericalExcess;
     }
+    destination.metadata.boundary_model = axis::topology::BoundaryModel::ConstantLatitude;
+    destination.metadata.area_model = axis::topology::AreaModel::Unspecified;
+    EXPECT_THROW(cece::io::validate_regrid_prerequisites(source, destination, cece::io::resolve_regrid_method("consd"), 0, 1), cece::io::RegridError);
 }

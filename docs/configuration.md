@@ -184,9 +184,13 @@ Geometry handling has three stages: CECE loads ordered centers and any selected
 cell boundaries; it checks the selected method against both grids; then it
 builds the regrid plan. Nearest-neighbor uses the loaded sample positions and
 does not require polygons. Bilinear and bicubic require supported structured
-source stencils. Conservative mapping requires trusted boundaries with
-compatible boundary and area models; approximate curvilinear reconstruction
-does not qualify. Current verified strip support is host first-order only.
+source stencils. Conservative mapping requires trusted boundaries and a
+boundary/area model pair that is consistent *within each grid*; source and
+destination grids may use different models (for example a rectilinear
+constant-latitude inventory onto a cubed-sphere target), because AXIS clips
+the prepared cell polygons exactly on the sphere. Approximate curvilinear
+reconstruction does not qualify. Current verified strip support is host
+first-order only.
 Unknown methods and selected geometry read/validation failures stop processing
 with a stage-specific diagnostic.
 
