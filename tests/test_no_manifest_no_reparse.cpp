@@ -57,7 +57,7 @@ fs::path FacadeSourcePath() {
 }
 
 // Read a whole text file into a string.
-std::string ReadFile(const std::string& path) {
+std::string ReadFile(const fs::path& path) {
     std::ifstream ifs(path, std::ios::binary);
     EXPECT_TRUE(ifs.good()) << "could not open " << path;
     std::ostringstream ss;

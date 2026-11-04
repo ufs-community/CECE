@@ -571,7 +571,7 @@ static axis::topology::UnstructuredMesh<Kokkos::HostSpace> load_mesh_from_file(i
 }
 
 axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_axis_mesh(int nx, int nband, int j0, const std::vector<double>& lons,
-                                                                    const std::vector<double>& lats, const std::string& gridspec_file) {
+                                                                    const std::vector<double>& lats, const fs::path& gridspec_file) {
     if (!gridspec_file.empty() && gridspec_file != "none" && gridspec_file != "NONE") {
         return load_mesh_from_file(nx, nband, j0, gridspec_file);
     }
@@ -820,7 +820,7 @@ bool same_spherical_grid_coordinates(int nx, int ny, const std::vector<double>& 
 }
 
 bool build_regrid_plan(amio_dataset_handle read_dataset, int nx, int ny, const std::vector<double>& target_lons,
-                       const std::vector<double>& target_lats, const std::string& map_algo, int j0, int j1, const std::string& gridspec_file,
+                       const std::vector<double>& target_lats, const std::string& map_algo, int j0, int j1, const fs::path& gridspec_file,
                        RegridPlan& plan) {
     // Read a 1-D, 2-D or 3-D coordinate variable, trying several common naming conventions.
     auto read_coord = [&](const std::vector<std::string>& candidate_names, std::vector<double>& out, int& nx_val, int& ny_val, bool wrap_lon) {

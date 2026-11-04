@@ -11,13 +11,15 @@
  * @version 1.0
  */
 
+#include "cece/cece_config_path.hpp"
+
 #include <mutex>
 #include <string>
 
 namespace cece {
 
 // Global config file path (default: cece_config.yaml)
-static std::string g_config_file_path = "cece_config.yaml";
+static fs::path g_config_file_path = "cece_config.yaml";
 static std::mutex g_config_path_mutex;
 
 /**
@@ -28,8 +30,8 @@ static std::mutex g_config_path_mutex;
  *
  * @param config_path C-string path to the configuration file
  */
-void SetConfigFilePath(const char* config_path) {
-    if (config_path == nullptr) {
+void SetConfigFilePath(const fs::path& config_path) {
+    if (config_path.empty()) {
         return;
     }
     std::lock_guard<std::mutex> lock(g_config_path_mutex);
@@ -45,7 +47,7 @@ void SetConfigFilePath(const char* config_path) {
  *
  * @return std::string copy of the current config file path
  */
-std::string GetConfigFilePath() {
+fs::path GetConfigFilePath() {
     std::lock_guard<std::mutex> lock(g_config_path_mutex);
     return g_config_file_path;
 }
@@ -69,7 +71,7 @@ void cece_set_config_file_path(const char* config_path, int path_len) {
     std::string path(config_path, path_len);
     // Trim trailing spaces (Fortran strings are often padded)
     path.erase(path.find_last_not_of(" \t\n\r\f\v") + 1);
-    cece::SetConfigFilePath(path.c_str());
+    cece::SetConfigFilePath(fs::path(path));
 }
 
 }  // extern "C"

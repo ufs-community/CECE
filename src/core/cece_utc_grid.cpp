@@ -36,10 +36,10 @@ std::uint16_t ReadU16Le(const unsigned char* p) {
 
 }  // namespace
 
-UtcGrid DecodeUtcGridRle(const std::string& path) {
+UtcGrid DecodeUtcGridRle(const fs::path& path) {
     std::FILE* f = std::fopen(path.c_str(), "rb");
     if (!f) {
-        throw std::runtime_error("utc_grid: cannot open grid file '" + path + "'");
+        throw std::runtime_error("utc_grid: cannot open grid file '" + std::string(path) + "'");
     }
 
     // --- header: magic (4) + nrows (2) + ncol[nrows] (2*nrows) ---
@@ -54,11 +54,11 @@ UtcGrid DecodeUtcGridRle(const std::string& path) {
     }
     if (!ok) {
         std::fclose(f);
-        throw std::runtime_error("utc_grid: bad magic or short header in '" + path + "'");
+        throw std::runtime_error("utc_grid: bad magic or short header in '" + std::string(path) + "'");
     }
     if (nrows_u16 == 0) {
         std::fclose(f);
-        throw std::runtime_error("utc_grid: zero-row grid in '" + path + "'");
+        throw std::runtime_error("utc_grid: zero-row grid in '" + std::string(path) + "'");
     }
 
     UtcGrid grid;
@@ -68,7 +68,7 @@ UtcGrid DecodeUtcGridRle(const std::string& path) {
         unsigned char le[2];
         if (!ReadExact(f, le, 2)) {
             std::fclose(f);
-            throw std::runtime_error("utc_grid: truncated ncol table in '" + path + "'");
+            throw std::runtime_error("utc_grid: truncated ncol table in '" + std::string(path) + "'");
         }
         grid.ncol[static_cast<std::size_t>(r)] = ReadU16Le(le);
     }
@@ -86,18 +86,19 @@ UtcGrid DecodeUtcGridRle(const std::string& path) {
     while (grid.cells.size() < total) {
         if (std::fread(token, 1, 3, f) != 3) {
             std::fclose(f);
-            throw std::runtime_error("utc_grid: RLE stream in '" + path + "' ended after " + std::to_string(grid.cells.size()) + " of " +
+            throw std::runtime_error("utc_grid: RLE stream in '" + std::string(path) + "' ended after " + std::to_string(grid.cells.size()) + " of " +
                                      std::to_string(total) + " cells (corrupt)");
         }
         const std::uint16_t run_length = ReadU16Le(token);
         const std::int8_t offset = static_cast<std::int8_t>(token[2]);
         if (run_length == 0) {
             std::fclose(f);
-            throw std::runtime_error("utc_grid: zero-length run in '" + path + "' (corrupt)");
+            throw std::runtime_error("utc_grid: zero-length run in '" + std::string(path) + "' (corrupt)");
         }
         if (grid.cells.size() + run_length > total) {
             std::fclose(f);
-            throw std::runtime_error("utc_grid: RLE stream in '" + path + "' expands beyond " + std::to_string(total) + " cells (corrupt)");
+            throw std::runtime_error("utc_grid: RLE stream in '" + std::string(path) + "' expands beyond " + std::to_string(total) +
+                                     " cells (corrupt)");
         }
         grid.cells.resize(grid.cells.size() + run_length, offset);
     }
@@ -106,7 +107,7 @@ UtcGrid DecodeUtcGridRle(const std::string& path) {
     const bool no_trailing = std::fread(&extra, 1, 1, f) == 0;
     std::fclose(f);
     if (!no_trailing) {
-        throw std::runtime_error("utc_grid: trailing data after " + std::to_string(total) + " cells in '" + path + "' (corrupt)");
+        throw std::runtime_error("utc_grid: trailing data after " + std::to_string(total) + " cells in '" + std::string(path) + "' (corrupt)");
     }
     return grid;
 }

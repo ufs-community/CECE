@@ -60,7 +60,7 @@ DualView3D CeceDiagnosticManager::RegisterDiagnostic(const std::string& name, in
 }
 
 void CeceDiagnosticManager::WriteDiagnostics(const DiagnosticConfig& config, int hour, int day_of_week, const CeceExportState& export_state,
-                                             const std::string& output_path) {
+                                             const fs::path& output_path) {
     // Stub implementation
 }
 

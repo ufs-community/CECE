@@ -7,6 +7,7 @@
 #include <mpi.h>
 
 #include <conf/conf.hpp>
+#include <filesystem>
 #include <memory>
 #include <string>
 #include <tick/tick.hpp>
@@ -14,6 +15,8 @@
 #include <vector>
 
 #include "cece/cece_band_decomposition.hpp"
+
+namespace fs = std::filesystem;
 
 namespace cece {
 
@@ -44,7 +47,7 @@ struct GridSpec {
     GridTopology topology = GridTopology::Rectilinear;
     std::vector<double> lon_coords;
     std::vector<double> lat_coords;
-    std::string gridspec_file;  ///< Optional; forwarded to the writer for bounds.
+    fs::path gridspec_file;  ///< Optional; forwarded to the writer for bounds.
 
     /// Resolve the target grid from the CECE YAML configuration, exactly as
     /// the standalone driver has always done: named regular grids (F/R via
@@ -53,7 +56,7 @@ struct GridSpec {
     /// handling), or uniform extents from driver.grid. Throws
     /// std::invalid_argument with a named diagnostic on any failure —
     /// never a silent fallback.
-    static GridSpec from_yaml(const std::string& config_file, conf::Config& config);
+    static GridSpec from_yaml(const fs::path& config_file, conf::Config& config);
 
     /**
      * @brief Build the target grid from a parent NUOPC component's ESMF
@@ -82,7 +85,7 @@ struct GridSpec {
      * @param gridspec_file  Optional GRIDSPEC/mesh file backing the ESMF object.
      */
     static GridSpec from_esmf(int nx, int ny, int nz, bool is_rad, const std::vector<double>& lon, const std::vector<double>& lat,
-                              const std::string& gridspec_file = "");
+                              const fs::path& gridspec_file = "");
 
     /// Human-readable identity (topology + dims + coordinate counts), used
     /// in the precedence warning so a run names the grid it ignored.
@@ -136,7 +139,7 @@ class CeceSimulation {
     /// logging a named diagnostic (bad grid, core init failure, ...).
     /// mpi_comm is the real MPI communicator for band decomposition and the
     /// writer gather (MPI_COMM_WORLD in both drivers today).
-    static std::unique_ptr<CeceSimulation> create(const std::string& config_path, const GridSpec& grid, MPI_Comm comm, int* rc_out);
+    static std::unique_ptr<CeceSimulation> create(const fs::path& config_path, const GridSpec& grid, MPI_Comm comm, int* rc_out);
 
     /// Advance one timestep: ingest at step_start_iso, run the compute core,
     /// write the output record stamped with elapsed time derived from
@@ -156,7 +159,7 @@ class CeceSimulation {
     }
 
     /// The configuration file the simulation was created from.
-    const std::string& config_path() const {
+    const fs::path& config_path() const {
         return config_path_;
     }
 
@@ -209,7 +212,7 @@ class CeceSimulation {
     /// from a CECE YAML. Exposed so the C-ABI facade's ESMF entry can supply
     /// GridSpec.nz — which must always come from config, never from a 2-D
     /// ESMF grid object. Throws std::invalid_argument on a non-positive value.
-    static int nz_from_config(const std::string& config_path);
+    static int nz_from_config(const fs::path& config_path);
 
     /// Reject a configured nz that conflicts with the input data's declared
     /// vertical levels. A stream variable may carry its own `levels:` count
@@ -217,7 +220,7 @@ class CeceSimulation {
     /// and differs from the configured nz, the input cannot be stacked onto
     /// the target layers, so creation fails loudly rather than silently
     /// reinterpreting the vertical dimension. Throws std::invalid_argument.
-    static void validate_nz_against_streams(const std::string& config_path, int nz);
+    static void validate_nz_against_streams(const fs::path& config_path, int nz);
 
     ~CeceSimulation();
 
@@ -231,7 +234,7 @@ class CeceSimulation {
     /// catch-all so no exception can cross the C ABI, and turns thrown
     /// diagnostics into the logged failure return. Reports status through
     /// rc_out exactly like create().
-    static std::unique_ptr<CeceSimulation> create_internal(const std::string& config_path, const GridSpec& grid, MPI_Comm comm, int* rc_out);
+    static std::unique_ptr<CeceSimulation> create_internal(const fs::path& config_path, const GridSpec& grid, MPI_Comm comm, int* rc_out);
 
     CeceSimulation() = default;
 
@@ -248,7 +251,7 @@ class CeceSimulation {
     GridSpec grid_;
     BandDecomposition band_;
     MPI_Comm comm_ = MPI_COMM_WORLD;
-    std::string config_path_;
+    fs::path config_path_;
     /// Band-local persistent export buffers (nx x ny_local x nz) keyed by
     /// field name. Kept alive for the simulation lifetime; the core writes
     /// results back through these pointers (SyncAndCopyState).

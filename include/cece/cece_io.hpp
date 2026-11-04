@@ -2,9 +2,12 @@
 #define CECE_IO_HPP
 
 #include <Kokkos_Core.hpp>
+#include <filesystem>
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+namespace fs = std::filesystem;
 
 namespace cece {
 namespace io {
@@ -14,7 +17,7 @@ class CeceIO {
     CeceIO() = default;
     ~CeceIO() = default;
 
-    void Initialize(const std::string& config_file, int nx, int ny, int nz);
+    void Initialize(const fs::path& config_file, int nx, int ny, int nz);
     void Finalize();
 
     std::vector<std::string> GetOutputVarNames() const {

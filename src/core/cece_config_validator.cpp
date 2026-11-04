@@ -10,6 +10,8 @@
 
 #include "cece/cece_logger.hpp"
 
+namespace fs = std::filesystem;
+
 namespace {
 
 constexpr int kMinOutputStagingBufferCount = 1;
@@ -106,9 +108,9 @@ void ConfigValidator::ValidateLayers(const conf::Value& config, ValidationResult
             result.errors.push_back({"layers[" + std::to_string(i) + "].file", "Layer file path is missing",
                                      "Add a 'file' field with the path to the emission data file"});
         } else {
-            std::string file_path = layer["file"].as_string();
+            fs::path file_path = layer["file"].as_string();
             if (!FileExists(file_path)) {
-                result.errors.push_back({"layers[" + std::to_string(i) + "].file", "File not found: " + file_path,
+                result.errors.push_back({"layers[" + std::to_string(i) + "].file", "File not found: " + file_path.native(),
                                          "Verify the file path is correct and the file exists"});
             }
         }
@@ -168,10 +170,10 @@ void ConfigValidator::ValidateDataStreams(const conf::Value& config, ValidationR
     const auto& cece_data = config["cece_data"];
 
     if (cece_data["streams_yaml"]) {
-        std::string streams_file = cece_data["streams_yaml"].as_string();
+        fs::path streams_file = cece_data["streams_yaml"].as_string();
         if (!FileExists(streams_file)) {
-            result.errors.push_back(
-                {"cece_data.streams_yaml", "Streams file not found: " + streams_file, "Verify the streams file path is correct and the file exists"});
+            result.errors.push_back({"cece_data.streams_yaml", "Streams file not found: " + streams_file.native(),
+                                     "Verify the streams file path is correct and the file exists"});
         }
     }
 
@@ -257,11 +259,11 @@ void ConfigValidator::ValidateOutput(const conf::Value& config, ValidationResult
     }
 }
 
-bool ConfigValidator::FileExists(const std::string& path) {
+bool ConfigValidator::FileExists(const fs::path& path) {
     return std::filesystem::exists(path) && std::filesystem::is_regular_file(path);
 }
 
-bool ConfigValidator::DirectoryIsWritable(const std::string& path) {
+bool ConfigValidator::DirectoryIsWritable(const fs::path& path) {
     if (!std::filesystem::exists(path)) {
         return true;  // Directory doesn't exist yet, can be created
     }

@@ -74,7 +74,7 @@ class CouplingConfigTest : public ::testing::Test {
         return cece::ParseConfig(path_);
     }
 
-    std::string path_;
+    fs::path path_;
 };
 
 TEST_F(CouplingConfigTest, AbsentSectionAdvertisesNothing) {
@@ -195,11 +195,11 @@ TEST_F(CouplingConfigTest, QueryCountsMatchParsedSection) {
 )YAML"));
 
     int count = -1, rc = -1;
-    cece_nuopc_export_count(path_.c_str(), static_cast<int>(path_.size()), &count, &rc);
+    cece_nuopc_export_count(path_.c_str(), static_cast<int>(path_.native().size()), &count, &rc);
     EXPECT_EQ(rc, 0);
     EXPECT_EQ(count, 2);
 
-    cece_nuopc_import_count(path_.c_str(), static_cast<int>(path_.size()), &count, &rc);
+    cece_nuopc_import_count(path_.c_str(), static_cast<int>(path_.native().size()), &count, &rc);
     EXPECT_EQ(rc, 0);
     EXPECT_EQ(count, 1);
 }
@@ -207,7 +207,7 @@ TEST_F(CouplingConfigTest, QueryCountsMatchParsedSection) {
 TEST_F(CouplingConfigTest, QueryAbsentSectionReturnsZero) {
     WriteFile(path_, kBaseConfig);
     int count = -1, rc = -1;
-    cece_nuopc_export_count(path_.c_str(), static_cast<int>(path_.size()), &count, &rc);
+    cece_nuopc_export_count(path_.c_str(), static_cast<int>(path_.native().size()), &count, &rc);
     EXPECT_EQ(rc, 0);
     EXPECT_EQ(count, 0);
 }
@@ -227,16 +227,16 @@ TEST_F(CouplingConfigTest, QuerySpecReturnsAlphabeticalOrderAndDefaults) {
     int key_len = 0, std_len = 0, units_len = 0, name_len = 0, rc = -1;
 
     // Index 0 must be the alphabetically first key ("nox").
-    cece_nuopc_export_spec(path_.c_str(), static_cast<int>(path_.size()), 0, key, sizeof(key), &key_len, std_name, sizeof(std_name), &std_len, units,
-                           sizeof(units), &units_len, name, sizeof(name), &name_len, &rc);
+    cece_nuopc_export_spec(path_.c_str(), static_cast<int>(path_.native().size()), 0, key, sizeof(key), &key_len, std_name, sizeof(std_name),
+                           &std_len, units, sizeof(units), &units_len, name, sizeof(name), &name_len, &rc);
     ASSERT_EQ(rc, 0);
     EXPECT_EQ(std::string(key, key_len), "nox");
     EXPECT_EQ(std::string(std_name, std_len), "nox_standard");
     EXPECT_EQ(units_len, 0);  // unset optional => caller omits the argument
     EXPECT_EQ(std::string(name, name_len), "nox_flux");
 
-    cece_nuopc_export_spec(path_.c_str(), static_cast<int>(path_.size()), 1, key, sizeof(key), &key_len, std_name, sizeof(std_name), &std_len, units,
-                           sizeof(units), &units_len, name, sizeof(name), &name_len, &rc);
+    cece_nuopc_export_spec(path_.c_str(), static_cast<int>(path_.native().size()), 1, key, sizeof(key), &key_len, std_name, sizeof(std_name),
+                           &std_len, units, sizeof(units), &units_len, name, sizeof(name), &name_len, &rc);
     ASSERT_EQ(rc, 0);
     EXPECT_EQ(std::string(key, key_len), "oc");
     EXPECT_EQ(std::string(units, units_len), "kg m-2 s-1");
@@ -247,8 +247,8 @@ TEST_F(CouplingConfigTest, QueryIndexOutOfRangeFails) {
     WriteFile(path_, WithNuopc("nuopc:\n  export_fields:\n    oc:\n      standard_name: \"oc_standard\"\n"));
     char key[256], std_name[256], units[256], name[256];
     int key_len = 0, std_len = 0, units_len = 0, name_len = 0, rc = -1;
-    cece_nuopc_export_spec(path_.c_str(), static_cast<int>(path_.size()), 5, key, sizeof(key), &key_len, std_name, sizeof(std_name), &std_len, units,
-                           sizeof(units), &units_len, name, sizeof(name), &name_len, &rc);
+    cece_nuopc_export_spec(path_.c_str(), static_cast<int>(path_.native().size()), 5, key, sizeof(key), &key_len, std_name, sizeof(std_name),
+                           &std_len, units, sizeof(units), &units_len, name, sizeof(name), &name_len, &rc);
     EXPECT_NE(rc, 0);
 }
 
@@ -256,8 +256,8 @@ TEST_F(CouplingConfigTest, QueryBufferTooSmallFailsWithoutTruncation) {
     WriteFile(path_, WithNuopc("nuopc:\n  export_fields:\n    oc:\n      standard_name: \"a_quite_long_standard_name_here\"\n"));
     char key[256], std_name[8], units[256], name[256];
     int key_len = 0, std_len = 0, units_len = 0, name_len = 0, rc = -1;
-    cece_nuopc_export_spec(path_.c_str(), static_cast<int>(path_.size()), 0, key, sizeof(key), &key_len, std_name, sizeof(std_name), &std_len, units,
-                           sizeof(units), &units_len, name, sizeof(name), &name_len, &rc);
+    cece_nuopc_export_spec(path_.c_str(), static_cast<int>(path_.native().size()), 0, key, sizeof(key), &key_len, std_name, sizeof(std_name),
+                           &std_len, units, sizeof(units), &units_len, name, sizeof(name), &name_len, &rc);
     EXPECT_NE(rc, 0);
 }
 
@@ -265,7 +265,7 @@ TEST_F(CouplingConfigTest, QueryInvalidConfigFails) {
     // Species referenced by nuopc: that does not exist => parse failure => rc != 0.
     WriteFile(path_, WithNuopc("nuopc:\n  export_fields:\n    dust:\n      standard_name: \"x\"\n"));
     int count = 0, rc = -1;
-    cece_nuopc_export_count(path_.c_str(), static_cast<int>(path_.size()), &count, &rc);
+    cece_nuopc_export_count(path_.c_str(), static_cast<int>(path_.native().size()), &count, &rc);
     EXPECT_NE(rc, 0);
 }
 

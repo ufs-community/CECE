@@ -6,7 +6,9 @@
 #ifndef CECE_CONFIG_PATH_HPP
 #define CECE_CONFIG_PATH_HPP
 
-#include <string>
+#include <filesystem>
+
+namespace fs = std::filesystem;
 
 namespace cece {
 
@@ -15,14 +17,14 @@ namespace cece {
  *
  * @param config_path Path to the configuration file
  */
-void SetConfigFilePath(const char* config_path);
+void SetConfigFilePath(const fs::path& config_path);
 
 /**
  * @brief Get the current configuration file path.
  *
  * @return Copy of the current config file path (thread-safe)
  */
-std::string GetConfigFilePath();
+fs::path GetConfigFilePath();
 
 }  // namespace cece
 

@@ -69,8 +69,8 @@ void Megan3Scheme::Initialize(const conf::Value& config, CeceDiagnosticManager* 
     history_ = MeganHistory::FromConfig(config);
 
     // ---- Load speciation configuration ----
-    std::string mechanism_path = "data/speciation/spc_cb6.yaml";
-    std::string speciation_path = "data/speciation/map_cb6.yaml";
+    fs::path mechanism_path = "data/speciation/spc_cb6.yaml";
+    fs::path speciation_path = "data/speciation/map_cb6.yaml";
     std::string speciation_dataset = "MEGAN";
 
     if (config["mechanism_file"]) {

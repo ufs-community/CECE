@@ -21,9 +21,12 @@
  */
 
 #include <conf/value.hpp>
+#include <filesystem>
 #include <string>
 #include <unordered_map>
 #include <vector>
+
+namespace fs = std::filesystem;
 
 namespace cece {
 
@@ -167,7 +170,7 @@ class SpeciationConfigLoader {
      * @throws conf::Conf_Error if configuration syntax is invalid.
      * @throws std::invalid_argument if validation fails or dataset not found.
      */
-    SpeciationConfig Load(const std::string& mechanism_path, const std::string& mapping_path, const std::string& dataset = "MEGAN") const;
+    SpeciationConfig Load(const fs::path& mechanism_path, const fs::path& mapping_path, const std::string& dataset = "MEGAN") const;
 
     /**
      * @brief Serialize a SpeciationConfig back to valid YAML strings.
