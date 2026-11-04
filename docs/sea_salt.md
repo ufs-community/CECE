@@ -1,68 +1,116 @@
-# Sea Salt
+# Sea Salt (GEOS-12)
 
 ## Overview
 
-Computes size-resolved sea salt aerosol emissions from ocean surfaces using the Gong (2003) source function. The scheme integrates the normalized particle source function over accumulation mode (SALA) and coarse mode (SALC) size ranges, then scales by wind speed and sea surface temperature (SST).
+Computes size-resolved sea salt aerosol emissions over open ocean using the
+GEOS-12 (GEOS-Chem 2012) scheme: the Gong (2003) source function with the
+Jaeglé et al. (2011) sea surface temperature (SST) correction, an optional
+Fan & Toon (2011) Weibull wind-speed correction, and a Great Lakes / Caspian
+Sea deep-lake mask. Each GOCART size bin is sub-integrated over `NR = 10`
+linear dry-radius sub-bins and published as its own mass and number emission
+field. It is a GPU-portable native Kokkos scheme.
 
 References:
-- Gong, S.L., et al. (2003), A parameterization of sea-salt aerosol source function for sub- and super-micron particles, *Global Biogeochem. Cycles*, 17(4).
+- Gong, S.L. (2003), A parameterization of sea-salt aerosol source function for sub- and super-micron particles, *Global Biogeochem. Cycles*, 17(4).
+- Jaeglé, L., et al. (2011), Global distribution of sea salt aerosols: new constraints from in situ and remote sensing observations, *Atmos. Chem. Phys.*, 11.
+- Fan, T., and Toon, O.B. (2011), Modeling sea-salt aerosol in a coupled climate and sectional microphysical model, *Atmos. Chem. Phys.*, 11.
 
-## Registration Names
+## Registration Name
 
-- Native C++: `"sea_salt"`
-- Fortran bridge: `"sea_salt_fortran"`
+- Native C++ (Kokkos): `"sea_salt_geos12"`
 
 ## Configuration Parameters
 
 | YAML Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `integration_step` | double | 0.05 | Integration step size for Gong source function [μm] |
-| `r80_dry_ratio` | double | 2.0 | Ratio of r80 (radius at 80% RH) to dry radius |
-| `sea_salt_density` | double | 2200.0 | Sea salt particle density [kg/m³] |
-| `r_sala_min` | double | 0.01 | Minimum dry radius for accumulation mode [μm] |
-| `r_sala_max` | double | 0.5 | Maximum dry radius for accumulation mode [μm] |
-| `r_salc_min` | double | 0.5 | Minimum dry radius for coarse mode [μm] |
-| `r_salc_max` | double | 8.0 | Maximum dry radius for coarse mode [μm] |
-| `sst_coeff` | sequence[4] | [0.329, 0.0904, -0.00717, 0.000207] | SST scaling polynomial coefficients |
-| `u_power` | double | 3.41 | Wind speed power-law exponent |
+| `mechanism_file` | string | `data/speciation/spc_cb6_gocart.yaml` | MICM mechanism file providing per-bin aerosol properties (density, lower/upper/effective dry radius). |
+| `speciation_file` | string | `data/speciation/map_cb6_gocart.yaml` | Aerosol map selecting which bins to emit and their per-bin scale. |
+| `speciation_dataset` | string | `SEASALT` | Dataset within the map that selects the sea salt bins. |
+| `weibull_flag` | bool | `false` | Enable the Fan & Toon (2011) Weibull wind-speed correction. |
+| `scale_factor` | double | `1.0` | Global tuning scale factor. |
+
+Per-bin size properties (density, dry-radius ranges) come from the mechanism
+file, not from individual YAML keys. The default GOCART dataset defines five
+bins (`seas1`..`seas5`).
 
 ## Import Fields
 
-| Field Name | Units | Description |
+Resolved through `input_mapping`. `LAT`/`LON` are published by the driver from
+the target grid.
+
+| Internal Name | Units | Description |
 | --- | --- | --- |
-| `wind_speed` | m/s | 10-meter wind speed |
-| `tskin` | K | Sea surface skin temperature |
+| `frocean` | 1 | Ocean fraction |
+| `frseaice` | 1 | Sea-ice fraction |
+| `lat` | deg | Latitude |
+| `lon` | deg | Longitude |
+| `sst` | K | Sea surface temperature |
+| `u10m` | m/s | 10-m eastward wind |
+| `v10m` | m/s | 10-m northward wind |
+| `ustar` | m/s | Friction velocity (drives the Gong source function) |
 
 ## Export Fields
 
+One field per named size bin, plus column totals.
+
 | Field Name | Units | Description |
 | --- | --- | --- |
-| `secondary_input` | kg/m²/s | Accumulation mode (SALA) sea salt emissions |
-| `coarse_input` | kg/m²/s | Coarse mode (SALC) sea salt emissions |
+| `seasalt_mass_<bin>` | kg/m²/s | Mass emission flux per bin (e.g. `seasalt_mass_seas1`) |
+| `seasalt_number_<bin>` | #/m²/s | Number emission flux per bin |
+| `seasalt_mass_total` | kg/m²/s | Sum of per-bin mass emissions |
+| `seasalt_number_total` | #/m²/s | Sum of per-bin number emissions |
+
+The static per-bin effective dry radius is exposed as the
+`seasalt_effective_radius` diagnostic.
 
 ## Algorithm
 
-1. During initialization, integrate the Gong (2003) normalized source function `dF/dr80` over the SALA and SALC size ranges to compute reference mass emission rates (`srrc_SALA_`, `srrc_SALC_`).
-2. At each grid cell, compute SST scaling using a cubic polynomial (Horner's method): `scale = c0 + SST*(c1 + SST*(c2 + SST*c3))`, with SST clamped to [0, 30] °C.
-3. Compute wind factor as `u^u_pow` (default u^3.41).
-4. Emission = `scale * u_factor * reference_rate` for each mode.
+For each ocean cell (`frocean - frseaice > 0`):
+
+1. Compute the 10-m wind speed and the optional Weibull correction factor
+   (uses the incomplete gamma function; cells whose evaluation overflows are
+   skipped).
+2. Apply the Jaeglé et al. (2011) SST correction (skin temperature clamped to
+   [-0.1, 36] °C, result clamped to [0, 7]).
+3. Apply the Great Lakes (lat 40.5-50, lon 267-285 °E) and Caspian Sea
+   (lat 35-48, lon 45-56 °E) deep-lake mask.
+4. For each bin, sub-integrate the Gong (2003) source function over `NR = 10`
+   dry-radius sub-bins using the wet radius at 80% RH (`R80FAC = 1.65`),
+   accumulating both number and mass (mass uses the per-bin density).
+5. Scale by ocean fraction × deep-lake mask × Weibull × SST correction ×
+   `scale_factor`, and clamp to non-negative.
 
 ## YAML Configuration Example
 
 ```yaml
 physics_schemes:
-- name: sea_salt
-  options:
-    r_sala_min: 0.01
-    r_sala_max: 0.5
-    r_salc_min: 0.5
-    r_salc_max: 8.0
-    u_power: 3.41
-    sst_coeff: [0.329, 0.0904, -0.00717, 0.000207]
+  - name: sea_salt_geos12
+    language: cpp
+    options:
+      mechanism_file: data/speciation/spc_cb6_gocart.yaml
+      speciation_file: data/speciation/map_cb6_gocart.yaml
+      speciation_dataset: SEASALT
+      weibull_flag: false
+      scale_factor: 1.0
+      input_mapping:
+        frocean: FROCEAN
+        frseaice: FRSEAICE
+        lat: LAT
+        lon: LON
+        sst: SST
+        u10m: U10M
+        v10m: V10M
+        ustar: USTAR
+      output_mapping:
+        seasalt_mass_total: SS_MASS_TOTAL
+        seasalt_number_total: SS_NUMB_TOTAL
 ```
 
 ## Implementation Notes
 
-- Available as both native C++ (Kokkos) and Fortran bridge implementations
-- SALA and SALC are computed in separate Kokkos kernels and independently `MarkModified`
-- The Gong source function integration is performed once during `Initialize`; only the wind/SST scaling runs per timestep
+- GPU-portable native Kokkos scheme; the emission kernel runs on the device and
+  writes per-bin fields directly (no host round-trip).
+- Per-bin properties and the aerosol map are loaded once during `Initialize`
+  via the shared speciation loader; only the emission kernel runs per timestep.
+- The former Fortran bridge (`sea_salt_geos12_fortran`) and the legacy
+  `sea_salt` / `sea_salt_fortran` schemes have been retired.

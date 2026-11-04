@@ -100,7 +100,7 @@ physics_schemes:
     refresh_interval_seconds: 300            # Every base step (5 min)
     options: { ... }
 
-  - name: "sea_salt"
+  - name: "sea_salt_geos12"
     language: "cpp"
     refresh_interval_seconds: 1800           # Every 30 min
     options: { ... }
@@ -409,7 +409,7 @@ List of physics schemes to instantiate and execute during the Run phase. Physics
 
 | Key | Type | Description |
 | --- | --- | --- |
-| `name` | String | Registered scheme name (e.g., "sea_salt", "megan", "dust") |
+| `name` | String | Registered scheme name (e.g., "sea_salt_geos12", "megan", "dust") |
 | `language` | String | Implementation language: `cpp` or `fortran` |
 | `refresh_interval_seconds` | Integer | (Optional) Execution interval in seconds. Must be a positive multiple of `timestep_seconds`. Default: `0` (use `timestep_seconds`, i.e., run every step). |
 | `options` | Map | Scheme-specific configuration parameters |
@@ -418,7 +418,7 @@ List of physics schemes to instantiate and execute during the Run phase. Physics
 
 | Scheme Name | Description | Key Parameters |
 | ----------- | ----------- | -------------- |
-| `sea_salt` | Marine aerosol emissions | `r_sala_min`, `r_salc_max`, `sea_salt_density` |
+| `sea_salt_geos12` | [Size-resolved marine aerosol emissions (GEOS-12)](sea_salt.md) | `mechanism_file`, `speciation_dataset`, `weibull_flag` |
 | `megan` | [Biogenic isoprene emissions](megan.md), with `megan21` (legacy alias `native`) and `hemco_3_12_1` methods | `megan_method`, `aef`, `hemco_co2_inhibition`, history settings |
 | `megan3` | [19-class C++ biogenic emissions and chemical speciation](megan.md#megan3-multi-species-multi-class); bulk runtime activity factors, not complete upstream MEGAN3 parity | `mechanism_file`, `speciation_file`, `emission_classes` |
 | `bdsnp` | [Berkeley-Dalhousie Soil NOx Parameterization (BDSNP) or YL95 soil NO emissions](soil_nox.md) | `soil_no_method`, `use_soil_temperature` |
@@ -450,14 +450,14 @@ equivalent to canonical C++ `bdsnp`. See
 **Example:**
 ```yaml
 physics_schemes:
-  - name: "sea_salt"
+  - name: "sea_salt_geos12"
     language: "cpp"
     options:
-      r_sala_min: 0.01          # Minimum accumulation mode radius [μm]
-      r_sala_max: 0.5           # Maximum accumulation mode radius [μm]
-      r_salc_min: 0.5           # Minimum coarse mode radius [μm]
-      r_salc_max: 8.0           # Maximum coarse mode radius [μm]
-      sea_salt_density: 2200.0  # Particle density [kg/m³]
+      mechanism_file: data/speciation/spc_cb6_gocart.yaml   # Per-bin properties
+      speciation_file: data/speciation/map_cb6_gocart.yaml  # Aerosol bin map
+      speciation_dataset: SEASALT                           # Bins to emit
+      weibull_flag: false                                   # Weibull wind correction
+      scale_factor: 1.0                                     # Global tuning factor
 
   - name: "megan"
     language: "cpp"
@@ -658,8 +658,7 @@ diagnostics:
     - "co"
     - "nox"
     - "isoprene"
-    - "sea_salt_accumulation"
-    - "sea_salt_coarse"
+    - "sea_salt_total"
 ```
 
 ---

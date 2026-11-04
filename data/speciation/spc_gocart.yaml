@@ -1,0 +1,47 @@
+# GOCART Species Definition (MICM/OpenAtmos format)
+#
+# Mechanism file: the GOCART 5 aerosol size bins.  Aerosol
+# bins carry size-bin properties (density and dry-radius bounds).
+# This single file serves the GOCART aerosol schemes (GEOS-12 sea salt).
+#
+# References:
+#   - GOCART sea salt size bins
+name: GOCART
+species:
+  #may add gas phase in the future
+  # --- GOCART sea salt aerosol size bins (5 dry-radius bins) ---
+  - name: seas1
+    molecular weight [kg mol-1]: 0.05844
+    is_aerosol: true
+    density [kg m-3]: 2200.0
+    lower_radius [um]: 0.03
+    upper_radius [um]: 0.1
+    effective_radius [um]: 0.079
+  - name: seas2
+    molecular weight [kg mol-1]: 0.05844
+    is_aerosol: true
+    density [kg m-3]: 2200.0
+    lower_radius [um]: 0.1
+    upper_radius [um]: 0.5
+    effective_radius [um]: 0.316
+  - name: seas3
+    molecular weight [kg mol-1]: 0.05844
+    is_aerosol: true
+    density [kg m-3]: 2200.0
+    lower_radius [um]: 0.5
+    upper_radius [um]: 1.5
+    effective_radius [um]: 0.898
+  - name: seas4
+    molecular weight [kg mol-1]: 0.05844
+    is_aerosol: true
+    density [kg m-3]: 2200.0
+    lower_radius [um]: 1.5
+    upper_radius [um]: 5.0
+    effective_radius [um]: 2.83
+  - name: seas5
+    molecular weight [kg mol-1]: 0.05844
+    is_aerosol: true
+    density [kg m-3]: 2200.0
+    lower_radius [um]: 5.0
+    upper_radius [um]: 10.0
+    effective_radius [um]: 7.5
