@@ -2,9 +2,10 @@
 # The normal CECE driver needs these fields bound by a meteorology provider;
 # it does not ingest the options.column_test fixture block.
 physics_schemes:
-  - name: briggs
+  - name: plume_rise
     language: cpp
     options:
+      method: briggs
       input_mapping:
         layer_surface_height: ZF
         layer_center_height: ZH

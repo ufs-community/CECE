@@ -5,8 +5,9 @@ This directory contains example YAML configuration files demonstrating various C
 ## Example Descriptions
 
 ### cece_config_briggs.yaml
-**Native Briggs Point-Source Column Validation**
+**Native Briggs Method via the Plume-Rise Framework**
 - Original NOAA/CMAQ 5.3.1 35-layer meteorology profile and stack inputs
+- Selects `plume_rise` with `method: briggs`
 - Plume centerline height and conservative per-layer fractions
 - Self-contained test fixture consumed by `test_briggs`, not the standalone driver
 - See [Briggs physics and validation](../docs/briggs.md) for running instructions

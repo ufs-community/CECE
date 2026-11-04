@@ -13,6 +13,7 @@
 
 #include "cece/cece_physics_factory.hpp"
 #include "cece/physics/cece_briggs.hpp"
+#include "cece/physics/cece_plume_rise.hpp"
 
 namespace cece {
 namespace {
@@ -156,6 +157,43 @@ TEST_F(BriggsTest, ExampleYamlAndEveryReferenceLayer) {
     check(219.41083364358906, {{4, 0.25398545808009954}, {5, 0.74601454191990046}});
     // Default-real (32-bit) upstream output allows for its roundoff.
     check(219.410492, {{4, 0.253992230}, {5, 0.746007740}}, 5.0e-4);
+}
+
+TEST_F(BriggsTest, LegacyBriggsFactoryNameRemainsAvailable) {
+    PhysicsSchemeConfig factory_config;
+    factory_config.name = "briggs";
+    auto factory_scheme = PhysicsFactory::CreateScheme(factory_config);
+    ASSERT_NE(factory_scheme, nullptr);
+    auto options = config["physics_schemes"][0]["options"];
+    factory_scheme->Initialize(conf::Value::from_raw(&options), nullptr);
+    factory_scheme->Run(imports, exports);
+    check(219.41083364358906, {{4, 0.25398545808009954}, {5, 0.74601454191990046}});
+}
+
+TEST_F(BriggsTest, OmittedMethodDefaultsToBriggs) {
+    auto options = config["physics_schemes"][0]["options"];
+    options.remove("method");
+    PlumeRiseScheme scheme;
+    scheme.Initialize(conf::Value::from_raw(&options), nullptr);
+    scheme.Run(imports, exports);
+    check(219.41083364358906, {{4, 0.25398545808009954}, {5, 0.74601454191990046}});
+}
+
+TEST_F(BriggsTest, PlannedAndUnknownMethodsFailExplicitly) {
+    auto options = config["physics_schemes"][0]["options"];
+    for (const auto* method : {"sofiev", "freitas", "grell_freitas", "not_a_method"}) {
+        options["method"] = method;
+        PlumeRiseScheme scheme;
+        try {
+            scheme.Initialize(conf::Value::from_raw(&options), nullptr);
+            FAIL() << "Expected unsupported method to be rejected: " << method;
+        } catch (const std::invalid_argument& error) {
+            EXPECT_NE(std::string(error.what()).find(method), std::string::npos);
+            EXPECT_NE(std::string(error.what()).find("briggs"), std::string::npos);
+        }
+    }
+    EXPECT_EQ(PlumeRiseMethodFactory::AvailableMethods(), std::vector<std::string>{"briggs"});
+    EXPECT_THROW(PlumeRiseMethodFactory::RegisterMethod("briggs", [] { return std::make_unique<BriggsScheme>(); }), std::invalid_argument);
 }
 
 TEST_F(BriggsTest, StableAndZeroHeatFluxReference) {

@@ -9,11 +9,13 @@
 #include <stdexcept>
 
 #include "cece/cece_physics_factory.hpp"
+#include "cece/physics/cece_plume_rise.hpp"
 
 namespace cece {
 namespace {
 
 PhysicsRegistration<BriggsScheme> register_briggs("briggs");
+PlumeRiseMethodRegistration<BriggsScheme> register_briggs_method("briggs");
 
 enum Input { ZF, ZH, PRES, TA, QV, UW, VW, HFX, HMIX, USTAR, TSFC, PSFC, STKDM, STKHT, STKTK, STKVE, INPUT_COUNT };
 constexpr std::array<const char*, INPUT_COUNT> names = {

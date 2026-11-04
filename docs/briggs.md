@@ -1,12 +1,65 @@
 # Briggs (1969) point-source plume rise
 
-The native `briggs` physics scheme implements the
+The native Briggs plume-rise method implements the
 [NOAA standalone Briggs model ported from CMAQ 5.3.1](https://github.com/noaa-oar-arl/briggs_plumerise),
 revision `4c1ebe6ff28941a4df727ed1af078e49778451ff`.
 It computes one independent stack plume per horizontal column using
 double-precision Kokkos kernels, with no Fortran implementation or runtime bridge.
-The scheme is registered with `PhysicsFactory` and supports the usual
-`input_mapping` and `output_mapping` options.
+It is available through the general `plume_rise` physics scheme and supports the
+usual `input_mapping` and `output_mapping` options.
+
+## Plume-rise method selection
+
+The physics-scheme name is `plume_rise`. Its `method` option selects the
+plume-rise algorithm independently of the CECE scheme lifecycle:
+
+```yaml
+physics_schemes:
+  - name: plume_rise
+    language: cpp
+    options:
+      method: briggs
+```
+
+`method` defaults to `briggs` if omitted. The old top-level physics-scheme name
+`briggs` remains registered as a backwards-compatible alias and invokes the
+same implementation. New configurations should use `plume_rise` with an
+explicit `method`.
+
+Plume-rise implementations are registered separately through
+`PlumeRiseMethodRegistration<T>` and selected by `PlumeRiseScheme`. Each method
+is a `PhysicsScheme` implementation that receives the same CECE import/export
+states and configuration mappings. This keeps method-specific calculations
+separate while sharing the physics-scheme interface, factory entry, field
+mappings, and lifecycle. An unregistered or not-yet-implemented method fails
+during initialization with a list of currently implemented methods; it does
+not silently fall back to Briggs.
+
+Currently registered method:
+
+- `briggs` — implemented and validated for point-source stacks.
+
+Reserved for future implementation (not yet available):
+
+- `sofiev` — fire plume-rise approach based on fire radiative power and
+  atmospheric boundary-layer/free-tropospheric stability inputs.
+- `freitas` — vegetation-fire plume-rise parameterization.
+- `grell_freitas` — retained as a distinct possible selector, not treated as
+  an alias for `freitas`.
+
+The comparison paper cited below evaluates **Briggs, Freitas, and Sofiev**.
+It does not name a “Grell–Freitas plume-rise scheme”; Grell and Freitas is the
+name of a separate scale- and aerosol-aware convective parameterization.
+Accordingly `freitas` is the canonical selector for the paper’s three-scheme
+comparison. `grell_freitas` is reserved only to avoid conflating the two
+parameterizations and is not implemented.
+
+The general framework does not assume that methods share identical inputs.
+Briggs uses stack geometry, exit temperature and velocity, heat flux, and
+layer meteorology; future fire methods can consume FRP and other method-specific
+fields through the same configured mappings. Converting FRP to a Briggs heat
+flux, where desired, belongs in an explicit upstream conversion or a documented
+Briggs input adapter; it is not implicitly performed by this method selector.
 
 ## Field contract
 
@@ -100,7 +153,8 @@ interpretation of all Briggs formulations.
 
 ## Example and validation
 
-[cece_config_briggs.yaml](../examples/cece_config_briggs.yaml) contains mappings,
+[cece_config_briggs.yaml](../examples/cece_config_briggs.yaml) selects
+`plume_rise` with `method: briggs` and contains mappings,
 the supplied 35-level profile path and all nine surface/stack numeric inputs.
 Its `options.column_test` block is consumed by the native unit test, **not** by the normal
 CECE standalone driver. Production use binds these imports and the two exports
@@ -155,6 +209,13 @@ velocity, top-layer overflow, two-layer profiles, missing fields, invalid shapes
 nonfinite inputs, arithmetic overflow, aliased exports and invalid physical inputs.
 
 ## Attribution and permission
+
+The method-selection design is motivated in part by Li et al. (2023),
+[“Impacts of estimated plume rise on PM2.5 exceedance prediction during extreme
+wildfire events: a comparison of three schemes (Briggs, Freitas, and Sofiev)”](https://doi.org/10.5194/acp-23-3083-2023),
+*Atmospheric Chemistry and Physics*, 23, 3083–3101. The article compares
+three schemes; CECE’s selector reserves those method names without claiming
+the Freitas or Sofiev methods are implemented.
 
 Reference: Briggs, G. A., 1969, *Plume Rise*, USAEC Critical Review Series,
 TID-25075, NTIS, 81 pp. The standalone port credits Patrick Campbell (February
