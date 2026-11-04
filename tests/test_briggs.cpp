@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <yaml-cpp/yaml.h>
 
 #include <Kokkos_Core.hpp>
 #include <algorithm>
@@ -9,7 +10,6 @@
 #include <sstream>
 #include <stdexcept>
 #include <vector>
-#include <yaml-cpp/yaml.h>
 
 #include "cece/cece_physics_factory.hpp"
 #include "cece/physics/cece_briggs.hpp"
@@ -235,23 +235,20 @@ TEST_F(BriggsTest, MultilayerNeutralReference) {
     synthetic();
     set("sensible_heat_flux", 0.0);
     scheme.Run(imports, exports);
-    check(477.32459292859915, {{3, 0.23905441946483702}, {4, 0.33746777144513102},
-                             {5, 0.33746777144513102}, {6, 0.086010037644900977}});
+    check(477.32459292859915, {{3, 0.23905441946483702}, {4, 0.33746777144513102}, {5, 0.33746777144513102}, {6, 0.086010037644900977}});
 }
 
 TEST_F(BriggsTest, MultilayerUnstableReference) {
     synthetic();
     scheme.Run(imports, exports);
-    check(474.44001884101391, {{3, 0.24631947225526329}, {4, 0.34078514714852198},
-                             {5, 0.34078514714852198}, {6, 0.072110233447692809}});
+    check(474.44001884101391, {{3, 0.24631947225526329}, {4, 0.34078514714852198}, {5, 0.34078514714852198}, {6, 0.072110233447692809}});
 }
 
 TEST_F(BriggsTest, MultilayerStableReference) {
     synthetic();
     set("sensible_heat_flux", -25.0);
     scheme.Run(imports, exports);
-    check(464.96859893176463, {{3, 0.27121203127330257}, {4, 0.35215161245356275},
-                             {5, 0.35215161245356275}, {6, 0.024484743819571855}});
+    check(464.96859893176463, {{3, 0.27121203127330257}, {4, 0.35215161245356275}, {5, 0.35215161245356275}, {6, 0.024484743819571855}});
 }
 
 TEST_F(BriggsTest, RepeatedRunsOverwriteOutputs) {
@@ -408,8 +405,8 @@ TEST_F(BriggsTest, NonfiniteInputsRejectedBeforeOutputMutation) {
 }
 
 TEST_F(BriggsTest, InvalidPhysicalInputsRejected) {
-    for (const auto* name : {"PRES", "TA", "QV", "mixing_height", "friction_velocity", "surface_temperature",
-                             "surface_pressure", "stack_diameter", "stack_height", "stack_temperature", "stack_velocity"}) {
+    for (const auto* name : {"PRES", "TA", "QV", "mixing_height", "friction_velocity", "surface_temperature", "surface_pressure", "stack_diameter",
+                             "stack_height", "stack_temperature", "stack_velocity"}) {
         SCOPED_TRACE(name);
         set(name, -1.0);
         EXPECT_THROW(scheme.Run(imports, exports), std::invalid_argument);

@@ -19,9 +19,9 @@ PlumeRiseMethodRegistration<BriggsScheme> register_briggs_method("briggs");
 
 enum Input { ZF, ZH, PRES, TA, QV, UW, VW, HFX, HMIX, USTAR, TSFC, PSFC, STKDM, STKHT, STKTK, STKVE, INPUT_COUNT };
 constexpr std::array<const char*, INPUT_COUNT> names = {
-    "layer_surface_height", "layer_center_height", "pressure", "temperature", "water_vapor_mixing_ratio", "eastward_wind",
-    "northward_wind", "sensible_heat_flux", "mixing_height", "friction_velocity", "surface_temperature", "surface_pressure",
-    "stack_diameter", "stack_height", "stack_temperature", "stack_velocity"};
+    "layer_surface_height", "layer_center_height", "pressure",          "temperature",       "water_vapor_mixing_ratio", "eastward_wind",
+    "northward_wind",       "sensible_heat_flux",  "mixing_height",     "friction_velocity", "surface_temperature",      "surface_pressure",
+    "stack_diameter",       "stack_height",        "stack_temperature", "stack_velocity"};
 constexpr double gravity = 9.80622;
 constexpr double small = 3.0e-5;
 constexpr double hcrit = 3.0e-6;
@@ -31,7 +31,9 @@ struct Column {
     Kokkos::Array<InputView, INPUT_COUNT> fields;
     int i, j, nz;
 
-    KOKKOS_FUNCTION double get(Input field, int k = 0) const { return fields[field](i, j, k); }
+    KOKKOS_FUNCTION double get(Input field, int k = 0) const {
+        return fields[field](i, j, k);
+    }
     KOKKOS_FUNCTION double wind(int k) const {
         return Kokkos::sqrt(get(UW, k) * get(UW, k) + get(VW, k) * get(VW, k));
     }
@@ -41,8 +43,8 @@ struct Column {
     }
     KOKKOS_FUNCTION double face_temperature(int k) const {
         const int other = k + 1 < nz ? k + 1 : k - 1;
-        return virtual_temperature(k) + (virtual_temperature(other) - virtual_temperature(k)) *
-                                           (get(ZF, k) - get(ZH, k)) / (get(ZH, other) - get(ZH, k));
+        return virtual_temperature(k) +
+               (virtual_temperature(other) - virtual_temperature(k)) * (get(ZF, k) - get(ZH, k)) / (get(ZH, other) - get(ZH, k));
     }
     KOKKOS_FUNCTION double gradient(int k) const {
         if (k == 0) k = 1;
@@ -76,7 +78,9 @@ KOKKOS_FUNCTION double stable(double buoyancy, double wind, double stability) {
     return 2.6 * Kokkos::pow(buoyancy / (wind * stability), 1.0 / 3.0);
 }
 
-KOKKOS_FUNCTION double unstable(double buoyancy, double wind) { return 30.0 * Kokkos::pow(buoyancy / wind, 0.6); }
+KOKKOS_FUNCTION double unstable(double buoyancy, double wind) {
+    return 30.0 * Kokkos::pow(buoyancy / wind, 0.6);
+}
 
 KOKKOS_FUNCTION double centerline(const Column& c) {
     const double height = c.get(STKHT);
@@ -106,8 +110,7 @@ KOKKOS_FUNCTION double centerline(const Column& c) {
         double dh;
         if (c.get(HMIX) <= height) {
             if (c.gradient(stack_layer) > 0.001) {
-                const double stable_momentum = 0.646 * Kokkos::pow(velocity * velocity * diameter * diameter /
-                                                                     (exhaust * wind_stack), 1.0 / 3.0) *
+                const double stable_momentum = 0.646 * Kokkos::pow(velocity * velocity * diameter * diameter / (exhaust * wind_stack), 1.0 / 3.0) *
                                                Kokkos::sqrt(ambient) / Kokkos::pow(c.gradient(stack_layer), 1.0 / 6.0);
                 momentum = Kokkos::fmin(momentum, stable_momentum);
             }
@@ -155,8 +158,7 @@ KOKKOS_FUNCTION double centerline(const Column& c) {
             if (regime == 1) {
                 residual = wind * Kokkos::pow(remaining / 45.0, 5.0 / 3.0);
             } else if (regime == 2) {
-                residual = Kokkos::pow(remaining, 5.0 / 3.0) * wind * ustar * ustar /
-                           (2.664 * Kokkos::pow(height + (2.0 / 3.0) * rise, 2.0 / 3.0));
+                residual = Kokkos::pow(remaining, 5.0 / 3.0) * wind * ustar * ustar / (2.664 * Kokkos::pow(height + (2.0 / 3.0) * rise, 2.0 / 3.0));
             } else {
                 residual = wind * stability * remaining * remaining * remaining / 59.319;
             }
@@ -187,8 +189,8 @@ void BriggsScheme::Run(CeceImportState& import_state, CeceExportState& export_st
     }
     auto height = ResolveExport("plume_centerline_height", export_state);
     auto fractions = ResolveExport("plume_fractions", export_state);
-    RequireFields("Briggs", {{MapOutput("plume_centerline_height"), height.data() != nullptr},
-                            {MapOutput("plume_fractions"), fractions.data() != nullptr}});
+    RequireFields("Briggs",
+                  {{MapOutput("plume_centerline_height"), height.data() != nullptr}, {MapOutput("plume_fractions"), fractions.data() != nullptr}});
     if (height.data() == fractions.data()) throw std::invalid_argument("Briggs height and fraction exports must not alias");
     for (int f = 0; f < INPUT_COUNT; ++f) {
         if (fields[f].data() == height.data() || fields[f].data() == fractions.data()) {
@@ -201,8 +203,8 @@ void BriggsScheme::Run(CeceImportState& import_state, CeceExportState& export_st
     if (nx < 1 || ny < 1 || nz < 2) throw std::invalid_argument("Briggs requires nonempty columns with at least two layers");
     for (int f = 0; f < INPUT_COUNT; ++f) {
         const auto& v = fields[f];
-        const bool depth_valid = f < HFX ? v.extent(2) == static_cast<std::size_t>(nz)
-                                        : v.extent(2) == 1 || v.extent(2) == static_cast<std::size_t>(nz);
+        const bool depth_valid =
+            f < HFX ? v.extent(2) == static_cast<std::size_t>(nz) : v.extent(2) == 1 || v.extent(2) == static_cast<std::size_t>(nz);
         if (v.extent(0) != static_cast<std::size_t>(nx) || v.extent(1) != static_cast<std::size_t>(ny) || !depth_valid) {
             throw std::invalid_argument("Briggs input shape mismatch: " + MapInput(names[f]));
         }
@@ -224,13 +226,13 @@ void BriggsScheme::Run(CeceImportState& import_state, CeceExportState& export_st
             }
             for (int k = 0; k < nz; ++k) {
                 const double bottom = k == 0 ? 0.0 : c.get(ZF, k - 1);
-                valid = valid && c.get(ZF, k) > bottom && c.get(ZH, k) > bottom && c.get(ZH, k) < c.get(ZF, k) &&
-                        c.get(PRES, k) > 0.0 && c.get(TA, k) > 0.0 && c.get(QV, k) >= 0.0;
+                valid = valid && c.get(ZF, k) > bottom && c.get(ZH, k) > bottom && c.get(ZH, k) < c.get(ZF, k) && c.get(PRES, k) > 0.0 &&
+                        c.get(TA, k) > 0.0 && c.get(QV, k) >= 0.0;
                 if (k > 0) valid = valid && c.get(PRES, k) <= c.get(PRES, k - 1);
                 valid = valid && Kokkos::isfinite(c.wind(k)) && Kokkos::isfinite(c.gradient(k));
             }
-            valid = valid && c.get(HMIX) >= 0.0 && c.get(USTAR) >= 0.0 && c.get(TSFC) > 0.0 && c.get(PSFC) > 0.0 &&
-                    c.get(STKDM) > 0.0 && c.get(STKHT) >= 0.0 && c.get(STKTK) > 0.0 && c.get(STKVE) >= 0.0;
+            valid = valid && c.get(HMIX) >= 0.0 && c.get(USTAR) >= 0.0 && c.get(TSFC) > 0.0 && c.get(PSFC) > 0.0 && c.get(STKDM) > 0.0 &&
+                    c.get(STKHT) >= 0.0 && c.get(STKTK) > 0.0 && c.get(STKVE) >= 0.0;
             const int nearest = c.nearest_center();
             valid = valid && Kokkos::isfinite(c.buoyancy(nearest)) && Kokkos::isfinite(c.momentum(nearest)) &&
                     Kokkos::isfinite(gravity * c.get(HFX) / c.get(TA));
@@ -248,8 +250,7 @@ void BriggsScheme::Run(CeceImportState& import_state, CeceExportState& export_st
             const Column c{fields, i, j, nz};
             const double center = centerline(c);
             centers(i, j) = center;
-            if (!Kokkos::isfinite(center) || center < c.get(STKHT) ||
-                !Kokkos::isfinite(c.get(STKHT) + 1.5 * (center - c.get(STKHT)))) {
+            if (!Kokkos::isfinite(center) || center < c.get(STKHT) || !Kokkos::isfinite(c.get(STKHT) + 1.5 * (center - c.get(STKHT)))) {
                 ++count;
             }
         },
