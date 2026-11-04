@@ -199,7 +199,7 @@ cece_add_gtest(test_k14_properties)
 # Speciation Config Property Tests (MEGAN3)
 cece_add_gtest(test_speciation MAIN KOKKOS LINK ${RAPIDCHECK} SOURCE_DIR_DEFINE)
 # MEGAN3 Canopy Model Property Tests
-cece_add_gtest(test_megan3 MAIN KOKKOS LINK ${RAPIDCHECK})
+cece_add_gtest(test_megan3 MAIN KOKKOS LINK ${RAPIDCHECK} SOURCE_DIR_DEFINE)
 # BDSNP Soil NO Property Tests
 cece_add_gtest(test_bdsnp MAIN KOKKOS LINK ${RAPIDCHECK})
 # Canonical BDSNP production-kernel regression tests

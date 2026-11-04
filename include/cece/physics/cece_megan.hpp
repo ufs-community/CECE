@@ -331,10 +331,10 @@ namespace cece {
 // only validate caller-supplied effective histories for stateless execution.
 
 /// Scalar effective histories for native C++ MEGAN and MEGAN3.
-/// Defaults preserve the previous behavior; no history evolution is performed.
+/// Defaults are fixed fallback inputs; no history evolution is performed.
 struct MeganHistory {
     double temperature_k = 297.0;
-    double par_wm2 = 400.0;
+    double par_wm2 = 84.0;
     double days_between_lai = 30.0;
     int day_of_year = 180;
     bool leaf_age_uses_history = false;

@@ -5,7 +5,8 @@
  * @file cece_megan3.hpp
  * @brief MEGAN3-class biogenic emissions and chemical mechanism speciation.
  *
- * Computes 19 emission classes using bulk activity factors and chemical
+ * Computes MEGAN3 emission classes (19 lumped classes plus explicit MEGANv2.1
+ * terpenoid classes) using bulk activity factors and chemical
  * mechanism speciation. Multilayer canopy helpers are not yet wired into this
  * runtime calculation. Consumes soil NO from the export state (produced by BdsnpScheme
  * or another soil NO scheme) rather than computing it internally.
@@ -32,8 +33,8 @@ namespace cece {
  * @brief Native C++ MEGAN3-class activity and speciation scheme.
  *
  * Orchestrates the CanopyModel, EmissionActivityCalculator, SpeciationEngine,
- * and SpeciationConfigLoader to compute emissions for 19 MEGAN3 emission
- * classes and convert them to mechanism-specific output species.
+ * and SpeciationConfigLoader to compute emissions for the MEGAN3 emission
+ * classes referenced by the speciation mapping and convert them to mechanism-specific output species.
  *
  * Usage in YAML configuration:
  * @code
@@ -72,12 +73,12 @@ class Megan3Scheme : public BasePhysicsScheme {
     /// @{
 
     /// Number of MEGAN3 emission classes.
-    static constexpr int NUM_CLASSES = 19;
+    static constexpr int NUM_CLASSES = kNumEmissionClasses;
 
     /// Canonical emission class names in index order.
-    static constexpr const char* CLASS_NAMES[19] = {"ISOP", "MBO",    "MT_PINE", "MT_ACYC", "MT_CAMP", "MT_SABI", "MT_AROM",
-                                                    "NO",   "SQT_HR", "SQT_LR",  "MEOH",    "ACTO",    "ETOH",    "ACID",
-                                                    "LVOC", "OXPROD", "STRESS",  "OTHER",   "CO"};
+    static constexpr const char* CLASS_NAMES[NUM_CLASSES] = {
+        "ISOP", "MBO",    "MT_PINE", "MT_ACYC", "MT_CAMP", "MT_SABI", "MT_AROM", "NO",   "SQT_HR", "SQT_LR", "MEOH", "ACTO", "ETOH", "ACID",
+        "LVOC", "OXPROD", "STRESS",  "OTHER",   "CO",      "APIN",    "BPIN",    "SABI", "CARE",   "LIMO",   "MYRC", "OCIM", "OMON", "FARN"};
 
     /// @}
 
@@ -85,15 +86,21 @@ class Megan3Scheme : public BasePhysicsScheme {
     /// @{
 
     /// Per-class default AEF amount fluxes [kmol class m-2 s-1].
-    Kokkos::View<double[19], Kokkos::DefaultExecutionSpace> default_aef_;
+    Kokkos::View<double[NUM_CLASSES], Kokkos::DefaultExecutionSpace> default_aef_;
 
-    /// Intermediate 19-class amount fluxes [kmol class m-2 s-1].
+    /// Per-class flag: true when the speciation mapping references the class.
+    Kokkos::View<bool[NUM_CLASSES], Kokkos::DefaultExecutionSpace> class_active_;
+
+    /// Intermediate per-class amount fluxes [kmol class m-2 s-1].
     Kokkos::View<double**, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> class_totals_;
 
     /// @}
 
     /// Registered mechanism species export field names (with "MEGAN_" prefix).
     std::vector<std::string> export_field_names_;
+
+    /// Host copy of class_active_.
+    bool host_class_active_[NUM_CLASSES] = {};
 };
 
 }  // namespace cece

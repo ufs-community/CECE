@@ -2,8 +2,8 @@
  * @file cece_megan3.cpp
  * @brief MEGAN3-class biogenic emissions and chemical mechanism speciation.
  *
- * Implements the Megan3Scheme orchestrator that computes emissions for 19
- * MEGAN3 emission classes using bulk vegetation activity factors and chemical
+ * Implements the Megan3Scheme orchestrator that computes emissions for the
+ * MEGAN3 emission classes (19 lumped classes plus explicit MEGANv2.1 terpenoids) using bulk vegetation activity factors and chemical
  * mechanism speciation. Multilayer canopy helpers are not used by this kernel.
  *
  * Registered as "megan3" via PhysicsRegistration. The existing "megan" scheme
@@ -36,27 +36,41 @@ static PhysicsRegistration<Megan3Scheme> reg("megan3");
 
 // ============================================================================
 // Default AEF amount fluxes [kmol class m-2 s-1]
+//
+// Explicit MEGANv2.1 classes (APIN..FARN) use the arithmetic mean of the 15
+// plant-functional-type emission factors in Guenther et al. (2012), Table 2
+// [ug compound m-2 h-1], converted with 1e-9 kg ug-1 / 3600 s h-1 and divided
+// by 136.23 kg kmol-1 (C10H16) or 204.36 kg kmol-1 (alpha-farnesene, C15H24).
 // ============================================================================
-static constexpr double kDefaultAef[19] = {
-    1.0e-9,   // ISOP
-    2.0e-10,  // MBO
-    3.0e-10,  // MT_PINE
-    3.0e-10,  // MT_ACYC
-    3.0e-10,  // MT_CAMP
-    3.0e-10,  // MT_SABI
-    3.0e-10,  // MT_AROM
-    0.0,      // NO (soil NO comes from export state)
-    1.0e-10,  // SQT_HR
-    1.0e-10,  // SQT_LR
-    5.0e-10,  // MEOH
-    2.0e-10,  // ACTO
-    2.0e-10,  // ETOH
-    1.0e-10,  // ACID
-    1.0e-10,  // LVOC
-    1.0e-10,  // OXPROD
-    1.0e-10,  // STRESS
-    1.0e-10,  // OTHER
-    3.0e-10   // CO
+static constexpr double kDefaultAef[kNumEmissionClasses] = {
+    1.0e-9,                  // ISOP
+    2.0e-10,                 // MBO
+    3.0e-10,                 // MT_PINE
+    3.0e-10,                 // MT_ACYC
+    3.0e-10,                 // MT_CAMP
+    3.0e-10,                 // MT_SABI
+    3.0e-10,                 // MT_AROM
+    0.0,                     // NO (soil NO comes from export state)
+    1.0e-10,                 // SQT_HR
+    1.0e-10,                 // SQT_LR
+    5.0e-10,                 // MEOH
+    2.0e-10,                 // ACTO
+    2.0e-10,                 // ETOH
+    1.0e-10,                 // ACID
+    1.0e-10,                 // LVOC
+    1.0e-10,                 // OXPROD
+    1.0e-10,                 // STRESS
+    1.0e-10,                 // OTHER
+    3.0e-10,                 // CO
+    6.277509984476146e-13,   // APIN: 307.87 ug m-2 h-1
+    2.427811353892247e-13,   // BPIN: 119.07 ug m-2 h-1
+    9.009817275250736e-14,   // SABI:  44.19 ug m-2 h-1
+    9.939617368230743e-14,   // CARE:  48.75 ug m-2 h-1
+    1.2951952172388203e-13,  // LIMO:  63.52 ug m-2 h-1
+    7.628710704391537e-14,   // MYRC:  37.41 ug m-2 h-1
+    1.6285095195760983e-13,  // OCIM:  79.87 ug m-2 h-1
+    2.3380938010608427e-13,  // OMON: 114.67 ug m-2 h-1
+    4.4674249508855105e-14   // FARN:  32.87 ug m-2 h-1
 };
 
 // ============================================================================
@@ -91,7 +105,7 @@ void Megan3Scheme::Initialize(const conf::Value& config, CeceDiagnosticManager* 
     speciation_engine_.Initialize(spec_config);
 
     // ---- Read per-class default AEF values from YAML ----
-    default_aef_ = Kokkos::View<double[19], Kokkos::DefaultExecutionSpace>("megan3_default_aef");
+    default_aef_ = Kokkos::View<double[NUM_CLASSES], Kokkos::DefaultExecutionSpace>("megan3_default_aef");
     auto h_default_aef = Kokkos::create_mirror_view(default_aef_);
 
     for (int i = 0; i < NUM_CLASSES; ++i) {
@@ -117,6 +131,22 @@ void Megan3Scheme::Initialize(const conf::Value& config, CeceDiagnosticManager* 
 
     Kokkos::deep_copy(default_aef_, h_default_aef);
 
+    // ---- Only classes referenced by the speciation mapping are computed ----
+    class_active_ = Kokkos::View<bool[NUM_CLASSES], Kokkos::DefaultExecutionSpace>("megan3_class_active");
+    auto h_class_active = Kokkos::create_mirror_view(class_active_);
+    for (int i = 0; i < NUM_CLASSES; ++i) {
+        host_class_active_[i] = false;
+    }
+    for (const auto& mapping : spec_config.mappings) {
+        host_class_active_[static_cast<int>(mapping.emission_class)] = true;
+    }
+    int num_active = 0;
+    for (int i = 0; i < NUM_CLASSES; ++i) {
+        h_class_active(i) = host_class_active_[i];
+        num_active += host_class_active_[i] ? 1 : 0;
+    }
+    Kokkos::deep_copy(class_active_, h_class_active);
+
     // ---- Register dynamic export fields with "MEGAN_" prefix ----
     const auto& mech_species = speciation_engine_.GetMechanismSpeciesNames();
     export_field_names_.clear();
@@ -125,8 +155,8 @@ void Megan3Scheme::Initialize(const conf::Value& config, CeceDiagnosticManager* 
         export_field_names_.push_back("MEGAN_" + sp_name);
     }
 
-    CECE_LOG_INFO("Megan3Scheme: Initialized with " + std::to_string(NUM_CLASSES) + " emission classes, " +
-                  std::to_string(export_field_names_.size()) + " mechanism species output fields");
+    CECE_LOG_INFO("Megan3Scheme: Initialized with " + std::to_string(num_active) + " of " + std::to_string(NUM_CLASSES) +
+                  " emission classes active, " + std::to_string(export_field_names_.size()) + " mechanism species output fields");
 }
 
 // ============================================================================
@@ -184,9 +214,12 @@ void Megan3Scheme::Run(CeceImportState& import_state, CeceExportState& export_st
     Kokkos::deep_copy(aef_grid, 0.0);
 
     // Track which classes have gridded AEF fields
-    bool has_aef_field[19] = {false};
+    bool has_aef_field[NUM_CLASSES] = {false};
 
     for (int c = 0; c < NUM_CLASSES; ++c) {
+        if (!host_class_active_[c]) {
+            continue;
+        }
         std::string aef_field_name = std::string("AEF_") + CLASS_NAMES[c];
         auto aef_view = ResolveImport(aef_field_name, import_state);
         if (aef_view.data() != nullptr) {
@@ -205,7 +238,7 @@ void Megan3Scheme::Run(CeceImportState& import_state, CeceExportState& export_st
     // Fill missing AEF fields with default values
     auto d_default_aef = default_aef_;
     for (int c = 0; c < NUM_CLASSES; ++c) {
-        if (!has_aef_field[c]) {
+        if (host_class_active_[c] && !has_aef_field[c]) {
             int class_idx = c;
             Kokkos::parallel_for(
                 "FillDefaultAEF", Kokkos::RangePolicy<Kokkos::DefaultExecutionSpace>(0, num_cells),
@@ -217,13 +250,13 @@ void Megan3Scheme::Run(CeceImportState& import_state, CeceExportState& export_st
     // ---- Read soil_nox_emissions from export state for NO class ----
     auto soil_nox_view = ResolveExport("soil_nox_emissions", export_state);
     bool has_soil_nox = (soil_nox_view.data() != nullptr);
-    if (!has_soil_nox) {
+    if (!has_soil_nox && host_class_active_[static_cast<int>(EmissionClass::NO)]) {
         CECE_LOG_WARNING(
             "Megan3Scheme: soil_nox_emissions not found in export state, "
             "setting soil NO contribution to zero");
     }
 
-    // ---- Allocate class_totals_ (19 x num_cells) ----
+    // ---- Allocate class_totals_ (NUM_CLASSES x num_cells) ----
     class_totals_ = Kokkos::View<double**, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>("megan3_class_totals", NUM_CLASSES, num_cells);
     Kokkos::deep_copy(class_totals_, 0.0);
 
@@ -237,6 +270,7 @@ void Megan3Scheme::Run(CeceImportState& import_state, CeceExportState& export_st
     auto d_amat = activity_calc_.coefficients_.amat;
     auto d_aold = activity_calc_.coefficients_.aold;
     auto d_bidir = activity_calc_.bidirectional_;
+    auto d_class_active = class_active_;
     double gamma_co2_val = activity_calc_.gamma_co2_;
     bool enable_wind_stress = activity_calc_.enable_wind_stress_;
     bool enable_temp_stress = activity_calc_.enable_temp_stress_;
@@ -269,7 +303,7 @@ void Megan3Scheme::Run(CeceImportState& import_state, CeceExportState& export_st
     auto d_class_totals = class_totals_;
     int local_nx = nx;
 
-    // ---- Main Kokkos kernel: compute 19 class totals ----
+    // ---- Main Kokkos kernel: compute active class totals ----
     Kokkos::parallel_for(
         "Megan3Kernel", Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<2>>({0, 0}, {nx, ny}), KOKKOS_LAMBDA(int i, int j) {
             double T = temp(i, j, 0);
@@ -308,8 +342,8 @@ void Megan3Scheme::Run(CeceImportState& import_state, CeceExportState& export_st
             double g_par = get_gamma_par_pceea(pdr, pdf, PAR_AVG, sc, doy, WM2_TO_UMOL, PTOA_C1, PTOA_C2, GP_C1, GP_C2, GP_C3, GP_C4);
 
             // Compute per-class emissions
-            for (int c = 0; c < 19; ++c) {
-                if (c == NO_CLASS_IDX) {
+            for (int c = 0; c < NUM_CLASSES; ++c) {
+                if (c == NO_CLASS_IDX || !d_class_active(c)) {
                     continue;
                 }
 
