@@ -129,6 +129,13 @@ class PerformanceDiagnostics {
         return empty;
     }
 
+    const std::unordered_map<std::string, TimingData>& Timings() const {
+        return timing_data_;
+    }
+    const std::unordered_map<std::string, MemoryData>& Memory() const {
+        return memory_data_;
+    }
+
     /**
      * @brief Print timing summary
      */

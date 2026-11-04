@@ -497,13 +497,12 @@ def get_diagnostics() -> dict:
     Returns
     -------
     dict
-        Dictionary containing diagnostic information such as timing data
-        and performance counters. Currently returns an empty dict as
-        diagnostics are not yet exposed via pybind11.
+        Dictionary with ``timings`` and ``memory`` mappings keyed by component
+        name. Timing records contain total, average, minimum, and maximum
+        milliseconds plus call count. Memory records contain current and peak
+        bytes. Either mapping may be empty when no values have been recorded.
     """
-    # pybind11 module does not expose a diagnostics endpoint yet;
-    # return empty dict as a safe default.
-    return {}
+    return _cece_core.get_diagnostics()
 
 
 def reset_diagnostics() -> None:
@@ -512,9 +511,8 @@ def reset_diagnostics() -> None:
 
     Notes
     -----
-    Currently a no-op as diagnostics are not yet exposed via pybind11.
     """
-    # No-op: diagnostics are not yet exposed via pybind11.
+    _cece_core.reset_diagnostics()
 
 
 def get_last_error() -> str | None:

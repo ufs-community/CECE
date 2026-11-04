@@ -42,7 +42,7 @@ namespace cece {
  * This scheme inherits from BasePhysicsScheme, which provides:
  * - ResolveImport(name, state): Retrieve input fields with caching
  * - ResolveExport(name, state): Retrieve output fields with caching
- * - ResolveDiagnostic(name, nx, ny, nz): Register/retrieve diagnostic fields
+ * - ResolveDiagnostic(name, units, long_name): Register/retrieve diagnostic fields
  * - MarkModified(name, state): Signal device-side field updates
  * - Input/output field name mapping via YAML config
  *
@@ -73,6 +73,9 @@ class {{ class_name }} : public BasePhysicsScheme {
      *       first to set up field name mappings and diagnostics
      */
     void Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) override;
+
+    /// Resolve diagnostic handles after the realized grid has been allocated.
+    void BindDiagnostics(CeceDiagnosticManager* diag_manager) override;
 
     /**
      * @brief Execute the physics scheme for one time step.
@@ -129,7 +132,7 @@ class {{ class_name }} : public BasePhysicsScheme {
     // Register diagnostic fields in Initialize() using ResolveDiagnostic()
     // and write to them in Run() to output intermediate variables.
     // Example:
-    //   temperature_factor_ = ResolveDiagnostic("temperature_factor", nx, ny, nz,
+    //   temperature_factor_ = ResolveDiagnostic("temperature_factor",
     //                                            "dimensionless", "Temperature scaling factor");
 
     {% for diagnostic in diagnostics %}

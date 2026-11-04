@@ -7,6 +7,7 @@
 #include "cece/cece_config_validator.hpp"
 #include "cece/cece_kokkos_config.hpp"
 #include "cece/cece_logger.hpp"
+#include "cece/cece_performance_diagnostics.hpp"
 #include "cece/cece_stacking_engine.hpp"
 #include "cece/cece_state.hpp"
 #include "conf/config.hpp"
@@ -62,7 +63,7 @@ struct PyStateResolverMaps {
 
 class PyCeceStateResolver : private PyStateResolverMaps, public cece::CeceStateResolver {
    public:
-    PyCeceStateResolver(const cece::CeceImportState& imp, const cece::CeceExportState& exp, std::unordered_map<std::string, std::string> met_map,
+    PyCeceStateResolver(const cece::CeceImportState& imp, cece::CeceExportState& exp, std::unordered_map<std::string, std::string> met_map,
                         std::unordered_map<std::string, std::string> sf_map = {}, std::unordered_map<std::string, std::string> mask_map = {})
         : PyStateResolverMaps{std::move(met_map), std::move(sf_map), std::move(mask_map)}, cece::CeceStateResolver(imp, exp, met, sf, mask) {}
 };
@@ -376,7 +377,7 @@ PYBIND11_MODULE(_cece_core, m) {
     // --- CeceStateResolver Binding ---
 
     py::class_<PyCeceStateResolver, cece::FieldResolver>(m, "CeceStateResolver")
-        .def(py::init<const cece::CeceImportState&, const cece::CeceExportState&, std::unordered_map<std::string, std::string>,
+        .def(py::init<const cece::CeceImportState&, cece::CeceExportState&, std::unordered_map<std::string, std::string>,
                       std::unordered_map<std::string, std::string>, std::unordered_map<std::string, std::string>>(),
              py::arg("import_state"), py::arg("export_state"), py::arg("met_mapping"),
              py::arg("sf_mapping") = std::unordered_map<std::string, std::string>{},
@@ -481,6 +482,36 @@ PYBIND11_MODULE(_cece_core, m) {
             }
         },
         "Get the current CECE log level as a string.");
+
+    m.def(
+        "get_diagnostics",
+        []() {
+            const auto& diagnostics = cece::PerformanceDiagnostics::GetInstance();
+            py::dict timings;
+            for (const auto& [name, timing] : diagnostics.Timings()) {
+                py::dict record;
+                record["total_time_ms"] = timing.total_time_ms;
+                record["call_count"] = timing.call_count;
+                record["average_time_ms"] = timing.GetAverageTime();
+                record["min_time_ms"] = timing.min_time_ms;
+                record["max_time_ms"] = timing.max_time_ms;
+                timings[py::str(name)] = std::move(record);
+            }
+            py::dict memory;
+            for (const auto& [name, values] : diagnostics.Memory()) {
+                py::dict record;
+                record["current_memory_bytes"] = values.current_memory_bytes;
+                record["peak_memory_bytes"] = values.peak_memory_bytes;
+                memory[py::str(name)] = std::move(record);
+            }
+            py::dict result;
+            result["timings"] = std::move(timings);
+            result["memory"] = std::move(memory);
+            return result;
+        },
+        "Return timing and memory diagnostics grouped by component name.");
+
+    m.def("reset_diagnostics", []() { cece::PerformanceDiagnostics::GetInstance().Clear(); }, "Clear all accumulated timing and memory diagnostics.");
 
     // --- Execution Space Bindings ---
 

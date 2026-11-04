@@ -10,10 +10,12 @@ void amio_set_parent_communicator(MPI_Fint comm);
 }
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <ctime>
 #include <filesystem>
 #include <iomanip>
+#include <limits>
 #include <set>
 #include <sstream>
 #include <stdexcept>
@@ -510,10 +512,22 @@ void CeceStandaloneWriter::WriteCoordinateVariables(amio_dataset_handle_t datase
     write_and_wait(dataset, "time", &time_val, AMIO_DTYPE_F64, &time_shape, config_.amio_staging_timeout_ms);
 }
 
-int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, DualView3D>& fields, double time_seconds, int step) {
+int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, DualView3D>& fields,
+                                        const std::map<std::string, DiagnosticOut>& diagnostics, double time_seconds, int step) {
     if (!initialized_ || !config_.enabled) return 0;
 
     if (step % config_.frequency_steps != 0) return 0;
+
+    // A diagnostic may never reuse a coordinate variable name, a bounds/mesh
+    // name, or the name of a field already written as species. Reject before
+    // anything is opened so a refused write leaves no partial file.
+    for (const auto& [name, diagnostic] : diagnostics) {
+        if (IsWriterManagedName(name) || config_.fields.Contains(name)) {
+            CECE_LOG_ERROR("Diagnostic '" + name + "' collides with a coordinate variable or an existing output field — refusing to write");
+            return -1;
+        }
+        (void)diagnostic;
+    }
 
     int rank = 0;
     const bool mpi_live = mpi_environment_ready();
@@ -596,6 +610,10 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
                     m_file << ", \"" << field.name << "\"";
                 }
             }
+            for (const auto& [diag_name, diagnostic] : diagnostics) {
+                (void)diagnostic;
+                m_file << ", \"" << diag_name << "\"";
+            }
             m_file << "]\nvariables:\n"
                    << "  lon:\n"
                    << "    attributes:\n"
@@ -656,6 +674,24 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
                         m_file << "      mesh: \"mesh\"\n"
                                << "      location: \"face\"\n";
                     }
+                }
+            }
+            // Diagnostic variables: metadata comes from the registry, and the
+            // structural coordinates/mesh/location attributes match species so
+            // both channels describe the same grid.
+            for (const auto& [diag_name, diagnostic] : diagnostics) {
+                m_file << "  " << diag_name << ":\n"
+                       << "    attributes:\n";
+                if (!diagnostic.units.empty()) {
+                    m_file << "      units: \"" << diagnostic.units << "\"\n";
+                }
+                if (!diagnostic.long_name.empty()) {
+                    m_file << "      long_name: \"" << diagnostic.long_name << "\"\n";
+                }
+                m_file << "      coordinates: \"time lev lat lon\"\n";
+                if (ny_ == 1) {
+                    m_file << "      mesh: \"mesh\"\n"
+                           << "      location: \"face\"\n";
                 }
             }
             manifest_content = m_file.str();
@@ -824,9 +860,8 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
                 for (int k = 0; k < nz_; ++k) {
                     for (int jrel = 0; jrel < ny_local; ++jrel) {
                         for (int i = 0; i < nx_; ++i) {
-                            size_t kokkos_idx = static_cast<size_t>(i) + static_cast<size_t>(jrel) * nx_ + static_cast<size_t>(k) * nx_ * ny_local;
                             size_t send_idx = static_cast<size_t>(k) * band_level_elems + static_cast<size_t>(jrel) * nx_ + i;
-                            send_buf[send_idx] = h_view.data()[kokkos_idx];
+                            send_buf[send_idx] = h_view(i, jrel, k);
                         }
                     }
                 }
@@ -904,6 +939,89 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
                         skip_file_work = true;
                     }
                 }  // field write (file owner only)
+            }
+        }
+
+        // Diagnostic fields are rank-local just like export fields. Keep every
+        // rank in the same sorted diagnostic order and gather one level at a
+        // time to the file owner before writing the global field.
+        for (const auto& [diag_name, diagnostic] : diagnostics) {
+            const auto& h_view = diagnostic.host;
+            const size_t band_total = static_cast<size_t>(nx_) * ny_local * nz_;
+            const bool local_shape_ok = h_view.size() == band_total;
+            if (!local_shape_ok) {
+                CECE_LOG_ERROR("Size mismatch in diagnostic '" + diag_name + "': h_view.size()=" + std::to_string(h_view.size()) +
+                               " expected band-local=" + std::to_string(band_total));
+            }
+            int all_shape_ok = local_shape_ok ? 1 : 0;
+            if (do_gather) {
+                int global_shape_ok = 0;
+                const int shape_rc = MPI_Allreduce(&all_shape_ok, &global_shape_ok, 1, MPI_INT, MPI_MIN, comm_);
+                if (shape_rc != MPI_SUCCESS) {
+                    CECE_LOG_ERROR("MPI_Allreduce failed while validating diagnostic '" + diag_name + "' (rc=" + std::to_string(shape_rc) + ")");
+                    skip_file_work = true;
+                } else {
+                    all_shape_ok = global_shape_ok;
+                }
+            }
+            if (!all_shape_ok) {
+                skip_file_work = true;
+            }
+
+            std::vector<double> send_buf(band_total, 0.0);
+            if (local_shape_ok) {
+                for (int k = 0; k < nz_; ++k) {
+                    for (int jrel = 0; jrel < ny_local; ++jrel) {
+                        for (int i = 0; i < nx_; ++i) {
+                            const size_t send_idx = static_cast<size_t>(k) * band_level_elems + static_cast<size_t>(jrel) * nx_ + i;
+                            send_buf[send_idx] = h_view(i, jrel, k);
+                        }
+                    }
+                }
+            }
+
+            std::vector<double> global_field;
+            if (!do_gather) {
+                global_field = std::move(send_buf);
+            } else {
+                if (rank == 0) {
+                    global_field.assign(static_cast<size_t>(nz_) * global_level_elems, 0.0);
+                }
+                const int sendcount = static_cast<int>(band_level_elems);
+                for (int k = 0; k < nz_; ++k) {
+                    const double* level_send = sendcount == 0 ? nullptr : send_buf.data() + static_cast<size_t>(k) * band_level_elems;
+                    double* level_recv = (rank == 0) ? global_field.data() + static_cast<size_t>(k) * global_level_elems : nullptr;
+                    const int gather_rc = MPI_Gatherv(level_send, sendcount, MPI_DOUBLE, level_recv, (rank == 0) ? recvcounts.data() : nullptr,
+                                                      (rank == 0) ? recvdispls.data() : nullptr, MPI_DOUBLE, 0, comm_);
+                    if (gather_rc != MPI_SUCCESS) {
+                        CECE_LOG_ERROR("Output_Gather MPI_Gatherv failed for diagnostic '" + diag_name + "' (level " + std::to_string(k) +
+                                       ", rc=" + std::to_string(gather_rc) + ")");
+                        skip_file_work = true;
+                    }
+                }
+            }
+
+            if (!skip_file_work && rank0_writes) {
+                try {
+                    amio_shape_t field_shape;
+                    std::memset(&field_shape, 0, sizeof(field_shape));
+                    if (ny_ == 1) {
+                        field_shape.rank = 3;
+                        field_shape.extents[0] = 1;
+                        field_shape.extents[1] = nz_;
+                        field_shape.extents[2] = nx_;
+                    } else {
+                        field_shape.rank = 4;
+                        field_shape.extents[0] = 1;
+                        field_shape.extents[1] = nz_;
+                        field_shape.extents[2] = ny_;
+                        field_shape.extents[3] = nx_;
+                    }
+                    write_and_wait(dataset, diag_name.c_str(), global_field.data(), AMIO_DTYPE_F64, &field_shape, config_.amio_staging_timeout_ms);
+                } catch (const std::exception& e) {
+                    CECE_LOG_ERROR(std::string("[CECE] Writer diagnostic write failed: ") + e.what());
+                    skip_file_work = true;
+                }
             }
         }
 
@@ -1004,10 +1122,58 @@ void cece_core_write_step(void* data_ptr, double time_seconds, int step_index, i
     // Critical: ensure all computations complete before writing
     Kokkos::fence();
 
-    int w = g_standalone_writer->WriteTimeStep(d->export_state.fields, time_seconds, step_index);
+    // Diagnostics reach the file only when the output block opts them in
+    // (absent opt-in means the payload stays empty and the file is
+    // unchanged). Two publication rules apply on top of the opt-in:
+    //   - selection: a non-empty diagnostics:variables publishes exactly
+    //     those names; empty/absent publishes all registered.
+    //   - cadence: diagnostics ride file writes but publish only when due,
+    //     i.e. interval 0 (every file write) or the elapsed time since the
+    //     last publication reached output_interval_seconds.
+    // Values are always read fresh from the registry, so a diagnostic that
+    // became due between file writes is carried, never dropped or
+    // duplicated.
+    std::map<std::string, cece::DiagnosticOut> diagnostics;
+    const bool channel_open = d->config.output_config.include_diagnostics && d->diagnostic_manager;
+    const int interval = d->config.diagnostics.output_interval_seconds;
+    const double last_publish = g_standalone_writer->LastDiagnosticPublishTime();
+    const double elapsed = time_seconds - last_publish;
+    const double cadence = static_cast<double>(interval);
+    const double cadence_tolerance =
+        8.0 * std::numeric_limits<double>::epsilon() * std::max({1.0, std::abs(time_seconds), std::abs(last_publish), cadence});
+    const bool due = last_publish < 0.0 || interval == 0 || elapsed + cadence_tolerance >= cadence;
+    if (channel_open && due) {
+        const auto& selection = d->config.diagnostics.variables;
+        if (!selection.empty()) {
+            d->diagnostic_manager->WarnUnregisteredSelection(selection);
+        }
+        // Order() gives the stable first-seen enumeration; Fields() holds the
+        // allocated data. Iterate the order so manifests stay deterministic.
+        for (const auto& name : d->diagnostic_manager->Order()) {
+            const auto& fields = d->diagnostic_manager->Fields();
+            auto it = fields.find(name);
+            if (it == fields.end()) {
+                continue;  // still pending (no grid) — nothing to publish
+            }
+            if (!selection.empty() && std::find(selection.begin(), selection.end(), name) == selection.end()) {
+                continue;  // not selected
+            }
+            cece::DiagnosticOut out;
+            out.host = d->diagnostic_manager->SyncHost(name);
+            out.units = it->second.units;
+            out.long_name = it->second.long_name;
+            diagnostics.emplace(name, std::move(out));
+        }
+    }
+
+    int w = g_standalone_writer->WriteTimeStep(d->export_state.fields, diagnostics, time_seconds, step_index);
 
     // Critical: sync to ensure all I/O completes before returning
     Kokkos::fence();
+
+    if (w == 0 && !diagnostics.empty()) {
+        g_standalone_writer->MarkDiagnosticsPublished(time_seconds);
+    }
 
     if (w != 0) {
         CECE_LOG_WARNING("cece_core_write_step - WriteTimeStep returned " + std::to_string(w));
