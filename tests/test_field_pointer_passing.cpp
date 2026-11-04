@@ -23,17 +23,9 @@
 #include <string>
 #include <vector>
 
+#include "cece/cece_c_api.h"
 #include "cece/cece_internal.hpp"
 #include "support/cece_test_environment.hpp"
-
-extern "C" {
-void cece_core_initialize_p1(void** data_ptr_ptr, int* rc);
-void cece_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc);
-void cece_core_get_species_count(void* data_ptr, int* count, int* rc);
-void cece_core_get_species_name(void* data_ptr, int* index, char* name, int* name_len, int* rc);
-void cece_core_bind_fields(void* data_ptr, void** field_ptrs, int* num_fields, int* rc);
-void cece_core_finalize(void* data_ptr, int* rc);
-}
 
 // Global ESMF / Kokkos environment
 class ESMFEnvironment : public ::testing::Environment {

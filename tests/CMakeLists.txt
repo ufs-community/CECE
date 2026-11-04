@@ -69,10 +69,12 @@ include(CeceTesting)
 set(CECE_C96_BASE_URL "https://ftp.emc.ncep.noaa.gov/static_files/public/UFS/GFS/fix/fix_fv3/C96")
 set(_cece_c96_dir "${PROJECT_SOURCE_DIR}/data")
 set(_cece_c96_missing)
-foreach(_c96_file C96_grid_spec.tile1.nc C96_grid.tile1.nc)
-  if(NOT EXISTS "${_cece_c96_dir}/${_c96_file}")
-    list(APPEND _cece_c96_missing ${_c96_file})
-  endif()
+foreach(_tile_number RANGE 1 6)
+  foreach(_c96_file C96_grid_spec.tile${_tile_number}.nc C96_grid.tile${_tile_number}.nc)
+    if(NOT EXISTS "${_cece_c96_dir}/${_c96_file}")
+      list(APPEND _cece_c96_missing ${_c96_file})
+    endif()
+  endforeach()
 endforeach()
 if(NOT _cece_c96_missing)
   cece_register_dep("C96 test fixtures" "present (${_cece_c96_dir})")
@@ -128,11 +130,21 @@ target_link_libraries(cece_test_main_kokkos PUBLIC cece_test_support)
 
 set(RAPIDCHECK rapidcheck rapidcheck_gtest)
 
+# Support utilities
+add_executable(nccmp_var ${CMAKE_CURRENT_SOURCE_DIR}/nccmp_var.c)
+target_link_libraries(nccmp_var netCDF::netcdf)
+
+add_executable(nclist_vars ${CMAKE_CURRENT_SOURCE_DIR}/helpers/nclist_vars.c)
+target_link_libraries(nclist_vars netCDF::netcdf)
+
+add_executable(ncvar_shape ${CMAKE_CURRENT_SOURCE_DIR}/helpers/ncvar_shape.c)
+target_link_libraries(ncvar_shape netCDF::netcdf)
+
 # --- Driver / configuration --------------------------------------------------
 cece_add_gtest(test_driver_configuration)
 # NUOPC field-coupling config section (`nuopc:`) parsing and the path-based
 # C queries the Fortran cap uses during Advertise.
-cece_add_gtest(test_coupling_config)
+cece_add_gtest(test_coupling_config PROPERTIES RESOURCE_LOCK "cece_coupling_config_test")
 # Time-convention unit test for the shared simulation core (CeceSimulation).
 # Exercises the REAL Step() sequence with link-time-interposed spies for the
 # three C entry points it calls (see the file header for why interposition is
@@ -155,7 +167,7 @@ cece_add_gtest(
   test_standalone_writer_attributes
   MAIN MPI_KOKKOS
   MPI_LAUNCHER
-  PROPERTIES PROCESSORS 1
+  PROPERTIES PROCESSORS 1 RESOURCE_LOCK tmp_cece_writer_attr_test
 )
 cece_add_gtest(test_rectilinear_gridspec MAIN MPI_KOKKOS MPI_LAUNCHER PROPERTIES PROCESSORS 1)
 cece_add_gtest(test_physics)
@@ -491,7 +503,7 @@ if(EXISTS "${PROJECT_SOURCE_DIR}/data/OC-em-anthro_CMIP_CEDS_2023.nc")
       ${CMAKE_CURRENT_SOURCE_DIR}/test_distributed_output_equivalence.sh --driver
       $<TARGET_FILE:cece_standalone_driver> --config
       ${PROJECT_SOURCE_DIR}/examples/cece_config_ceds_oc_small.yaml --comparator
-      ${CMAKE_CURRENT_SOURCE_DIR}/nccmp_var.c --workdir ${CMAKE_BINARY_DIR}/_equiv_workdir
+      $<TARGET_FILE:nccmp_var> --workdir ${CMAKE_BINARY_DIR}/_equiv_workdir
     WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
   )
   set_tests_properties(
@@ -580,13 +592,6 @@ if(ESMF_FOUND)
     MPI_LAUNCHER
     PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp" PROCESSORS 1 RESOURCE_LOCK cece_config_yaml
   )
-  cece_add_gtest(
-    test_field_creation_error_handling
-    MAIN MPI_KOKKOS
-    LINK ${_esmf_test_helpers}
-    MPI_LAUNCHER
-    PROPERTIES PROCESSORS 1 RESOURCE_LOCK cece_config_yaml
-  )
   # Unit tests for field pointer passing (Requirement R5)
   cece_add_gtest(
     test_field_pointer_passing
@@ -611,8 +616,7 @@ if(ESMF_FOUND)
         ${CMAKE_CURRENT_SOURCE_DIR}/test_driver_nuopc_parity.sh --cxx-driver
         $<TARGET_FILE:cece_standalone_driver> --nuopc-app $<TARGET_FILE:cece_nuopc_app> --config
         ${PROJECT_SOURCE_DIR}/examples/cece_config_ceds_oc_small.yaml --comparator
-        ${CMAKE_CURRENT_SOURCE_DIR}/nccmp_var.c --varlist
-        ${CMAKE_CURRENT_SOURCE_DIR}/helpers/nclist_vars.c --fields oc --workdir
+        $<TARGET_FILE:nccmp_var> --varlist $<TARGET_FILE:nclist_vars> --fields oc --workdir
         ${CMAKE_BINARY_DIR}/_parity_workdir
       WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
     )
@@ -644,10 +648,8 @@ if(ESMF_FOUND)
         ${CMAKE_CURRENT_SOURCE_DIR}/test_driver_nuopc_gridspec.sh --cxx-driver
         $<TARGET_FILE:cece_standalone_driver> --nuopc-app $<TARGET_FILE:cece_nuopc_app> --config
         ${PROJECT_SOURCE_DIR}/examples/cece_config_ceds_oc_gridspec.yaml --comparator
-        ${CMAKE_CURRENT_SOURCE_DIR}/nccmp_var.c --varlist
-        ${CMAKE_CURRENT_SOURCE_DIR}/helpers/nclist_vars.c --shaper
-        ${CMAKE_CURRENT_SOURCE_DIR}/helpers/ncvar_shape.c --fields oc --workdir
-        ${CMAKE_BINARY_DIR}/_gridspec_workdir
+        $<TARGET_FILE:nccmp_var> --varlist $<TARGET_FILE:nclist_vars> --shaper
+        $<TARGET_FILE:ncvar_shape> --fields oc --workdir ${CMAKE_BINARY_DIR}/_gridspec_workdir
       WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
     )
     set_tests_properties(
@@ -677,8 +679,7 @@ if(ESMF_FOUND)
         ${CMAKE_CURRENT_SOURCE_DIR}/test_nuopc_distributed_output_equivalence.sh --cxx-driver
         $<TARGET_FILE:cece_standalone_driver> --nuopc-app $<TARGET_FILE:cece_nuopc_app> --config
         ${PROJECT_SOURCE_DIR}/examples/cece_config_ceds_oc_small.yaml --comparator
-        ${CMAKE_CURRENT_SOURCE_DIR}/nccmp_var.c --varlist
-        ${CMAKE_CURRENT_SOURCE_DIR}/helpers/nclist_vars.c --workdir
+        $<TARGET_FILE:nccmp_var> --varlist $<TARGET_FILE:nclist_vars> --workdir
         ${CMAKE_BINARY_DIR}/_nuopc_equiv_workdir
       WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
     )

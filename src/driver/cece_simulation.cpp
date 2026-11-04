@@ -33,14 +33,9 @@
 
 // CECE Core C-linkage lifecycle functions (framework-free C ABI, declared
 // the same way the standalone driver has always declared them).
+#include "cece/cece_c_api.h"
+
 extern "C" {
-void cece_set_config_file_path(const char* config_path, int path_len);
-void cece_run_log_setup(const char* config_path, int path_len);
-void cece_core_initialize_p1(void** data_ptr_ptr, int* rc);
-void cece_core_realize(void* data_ptr, int* rc);
-void cece_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc);
-void cece_core_run(void* data_ptr, int hour, int day_of_week, int* rc);
-void cece_core_finalize(void* data_ptr, int* rc);
 void cece_core_writer_initialize_with_coords(void* data_ptr, int nx, int ny, int nz, const double* lon_coords, int lon_len, const double* lat_coords,
                                              int lat_len, const char* start_time_iso8601, int start_time_len, int mpi_comm_f, int* rc);
 void cece_core_write_step(void* data_ptr, double time_seconds, int step_index, int* rc);
