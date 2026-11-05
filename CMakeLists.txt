@@ -662,12 +662,15 @@ if(DOXYGEN_FOUND)
   set(DOXYGEN_GROUP_GRAPHS YES)
   set(DOXYGEN_PREDEFINED "KOKKOS_LAMBDA=[]" "KOKKOS_FUNCTION=" "KOKKOS_INLINE_FUNCTION=inline")
 
+  set(DOXYGEN_WARN_AS_ERROR FAIL_ON_WARNINGS_PRINT)
+  set(DOXYGEN_WARN_NO_PARAMDOC YES)
+  set(DOXYGEN_WARN_IF_UNDOCUMENTED NO)
+
   doxygen_add_docs(
     cece_docs
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     COMMENT "Generating CECE API documentation with Doxygen"
-    ALL
   )
 else()
   message(STATUS "Doxygen not found. API documentation generation disabled.")
