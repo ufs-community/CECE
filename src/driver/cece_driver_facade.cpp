@@ -235,16 +235,6 @@ StreamConfig CeceDriverOrchestrator::BuildStreamConfig(const YAML::Node& stream,
     return cfg;
 }
 
-void CeceDriverOrchestrator::ResolveStreamConfigs() {
-    // Thin wrapper: run the pure YAML->StreamConfig resolution against
-    // config_file_ and store the results into this orchestrator's members.
-    // The actual resolution lives in the static ResolveStreamConfigsFromFile so
-    // it can be exercised in isolation by tests (Property 4) via the SAME code
-    // path without constructing a full orchestrator (which requires MPI/DAGR/
-    // CeceIO setup). Production behavior is unchanged.
-    ResolveStreamConfigsFromFile(config_file_, stream_configs_, gridspec_file_);
-}
-
 void CeceDriverOrchestrator::ResolveStreamConfigsFromFile(const std::string& config_file, std::unordered_map<std::string, StreamConfig>& out_configs,
                                                           std::string& out_gridspec_file) {
     // Parse config_file exactly once. On a YAML error keep the orchestrator
@@ -604,7 +594,7 @@ CeceDriverOrchestrator::CeceDriverOrchestrator(const std::string& config_file, i
     // preserves the previous constructor's driver-block validation (a < 1
     // amio_worker_threads / amio_staging_buffer_count throws) and its
     // YAML::Exception robustness (gridspec_file_ = "" on a bad/missing file).
-    ResolveStreamConfigs();
+    ResolveStreamConfigsFromFile(config_file_, stream_configs_, gridspec_file_);
     has_earthaccess_streams_ = HasEarthAccessStreams(config_file_);
     if (has_earthaccess_streams_) {
         CECE_LOG_INFO("[DRIVER] Earthaccess streams detected; standalone helper ingestion will run before local AMIO ingestion each timestep.");

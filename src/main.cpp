@@ -86,7 +86,7 @@ int main(int argc, char* argv[]) {
         //    diagnostic on any failure — never a silent fallback.
         cece::GridSpec grid_spec;
         try {
-            grid_spec = cece::GridSpec::from_yaml(config_file, config);
+            grid_spec = cece::GridSpec::from_yaml(config);
         } catch (const std::exception& e) {
             cece::LogFatal(std::string{"[DRIVER FATAL] (rank "} + std::to_string(my_rank) + ") grid resolution failed: " + e.what());
             Kokkos::finalize();

@@ -12,27 +12,10 @@
 
 #include <iostream>
 
+#include "cece/cece_c_api.h"
+
 extern "C" {
-
-/**
- * @brief Core realize function (implemented in cece_core_realize.cpp)
- * This is the actual implementation that only needs data_ptr and rc.
- */
-void cece_core_realize_impl(void* data_ptr, int* rc);
-
-/**
- * @brief 2-parameter wrapper for cece_core_realize (called by Fortran cap).
- *
- * This wrapper is used by the Fortran cap to call the realize phase.
- *
- * @param data_ptr Pointer to CeceInternalData structure
- * @param rc Return code (0 = success, non-zero = error)
- *
- * Requirements: 10.2, 10.3
- */
-void cece_core_realize(void* data_ptr, int* rc) {
-    cece_core_realize_impl(data_ptr, rc);
-}
+void cece_core_realize(void*, int*);
 
 /**
  * @brief 5-parameter wrapper for cece_core_realize (called by tests).
@@ -79,7 +62,7 @@ void cece_core_realize_with_states(void* data_ptr, void* importState_ptr, void* 
     // data_ptr can be null for testing purposes
 
     // Call the core realize function
-    cece_core_realize_impl(data_ptr, rc);
+    cece_core_realize(data_ptr, rc);
 }
 
 }  // extern "C"
