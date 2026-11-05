@@ -830,6 +830,8 @@ if(Python3_Interpreter_FOUND)
     PyYAML
     matplotlib
     netCDF4
+    h5py
+    h5netcdf
     numpy
   )
 
