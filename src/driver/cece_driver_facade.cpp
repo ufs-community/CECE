@@ -250,7 +250,7 @@ void CeceDriverOrchestrator::ResolveStreamConfigsFromFile(const std::string& con
     // robust (out_gridspec_file = "", out_configs left empty) so the existing
     // collective gates in AdvanceTime surface any downstream problem, matching
     // the legacy inline parse which simply found no matching variable.
-    conf::Config config;
+    conf::Config config = conf::Config::from_string("");
     try {
         config = conf::Config::from_file(config_file);
     } catch (const conf::Conf_Error& e) {
