@@ -1,10 +1,10 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
-#include <yaml-cpp/yaml.h>
 
 #include <algorithm>
 #include <cerrno>
+#include <conf/conf.hpp>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -72,16 +72,16 @@ fs::path resolve_earthaccess_helper(const std::string& config_file) {
 
     const fs::path config_path = fs::absolute(fs::path(config_file));
     try {
-        YAML::Node config = YAML::LoadFile(config_file);
-        const YAML::Node configured = config["driver"]["earthaccess_helper"];
-        if (configured && configured.IsScalar()) {
-            fs::path helper_path(configured.as<std::string>());
+        conf::Config config = conf::Config::from_file(config_file);
+        const conf::Value configured = config.at("driver.earthaccess_helper");
+        if (configured && configured.kind() == conf::Node_Kind::Scalar) {
+            fs::path helper_path(configured.as_string());
             if (helper_path.is_relative()) {
                 helper_path = config_path.parent_path() / helper_path;
             }
             return helper_path;
         }
-    } catch (const YAML::Exception& ex) {
+    } catch (const conf::Conf_Error& ex) {
         // The main driver parse reports malformed configuration elsewhere.
         // Continue to conventional helper locations for a useful diagnostic.
         CECE_LOG_DEBUG(std::string("[DRIVER] Could not read earthaccess_helper override: ") + ex.what());
@@ -104,14 +104,16 @@ fs::path resolve_earthaccess_helper(const std::string& config_file) {
 /** Return whether the config includes any streams handled by EarthAccess. */
 bool CeceDriverOrchestrator::HasEarthAccessStreams(const std::string& config_file) {
     try {
-        YAML::Node config = YAML::LoadFile(config_file);
-        if (!config["cece_data"] || !config["cece_data"]["streams"]) return false;
-        for (const auto& stream : config["cece_data"]["streams"]) {
-            if (stream["source"] && stream["source"].as<std::string>() == "earthaccess") {
+        conf::Config config = conf::Config::from_file(config_file);
+        if (!config.has("cece_data.streams")) return false;
+        conf::Value streams_list = config.at("cece_data.streams");
+        for (std::size_t i = 0; i < streams_list.size(); ++i) {
+            const auto& stream = streams_list[i];
+            if (stream["source"] && stream["source"].as_string() == "earthaccess") {
                 return true;
             }
         }
-    } catch (const YAML::Exception&) {
+    } catch (const conf::Conf_Error&) {
         return false;
     }
     return false;

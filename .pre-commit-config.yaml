@@ -73,3 +73,11 @@ repos:
         language: python
         additional_dependencies: [PyYAML]
         files: ^(examples/.*\.ya?ml|scripts/examples/.*\.ya?ml|tests/(data/)?[^/]*\.ya?ml|README\.md|docs/.*\.md)$
+
+      - id: no-yaml-cpp
+        name: Avoid yaml-ccp
+        description: Avoid YAML-cpp calls in CECE code
+        language: pygrep
+        types_or: ["c", "c++"]
+        exclude: "tests/test_.*\\.cpp"
+        entry: "^[^/]*YAML::"
