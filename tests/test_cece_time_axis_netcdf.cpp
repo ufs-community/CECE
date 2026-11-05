@@ -33,6 +33,8 @@ extern "C" {
 void amio_set_parent_communicator(MPI_Fint comm);
 }
 
+namespace fs = std::filesystem;
+
 namespace cece {
 namespace {
 
@@ -48,7 +50,7 @@ struct AxisSpec {
 
 /// Write a small CF-ish file whose time axis follows @p spec. Returns false if
 /// the netCDF library rejects anything, so callers can skip.
-bool write_axis_file(const std::string& path, const AxisSpec& spec) {
+bool write_axis_file(const fs::path& path, const AxisSpec& spec) {
     int ncid = -1;
     if (nc_create(path.c_str(), NC_NETCDF4 | NC_CLOBBER, &ncid) != NC_NOERR) return false;
 
@@ -100,7 +102,7 @@ bool write_axis_file(const std::string& path, const AxisSpec& spec) {
     return ok;
 }
 
-void write_manifest(const std::string& path, const std::string& data_path) {
+void write_manifest(const fs::path& path, const std::string& data_path) {
     std::ofstream f(path);
     f << "backend: netcdf4\n"
       << "path: " << data_path << "\n"
@@ -156,8 +158,8 @@ class AmioFixture {
 
    private:
     static int counter_;
-    std::string nc_path_;
-    std::string manifest_path_;
+    fs::path nc_path_;
+    fs::path manifest_path_;
     bool wrote_ = false;
     amio_core_handle core_ = nullptr;
     amio_dataset_handle dataset_ = nullptr;

@@ -122,7 +122,7 @@ void cece_sim_create(const char* config_path, int path_len, const CeceGridSpec* 
         return;
     }
 
-    const std::string path = cstr_to_string(config_path, path_len);
+    const fs::path path = cstr_to_string(config_path, path_len);
     const cece::GridSpec spec = to_grid_spec(*grid);
     MPI_Comm comm = (mpi_comm_f != 0) ? MPI_Comm_f2c(static_cast<MPI_Fint>(mpi_comm_f)) : MPI_COMM_WORLD;
 
@@ -177,7 +177,7 @@ void cece_sim_create_from_yaml(const char* config_path, int path_len, int mpi_co
     // Keeping both steps behind one C entry lets the cap reach parity by
     // construction without marshalling coordinate buffers through Fortran.
     try {
-        const std::string path = cstr_to_string(config_path, path_len);
+        const fs::path path = cstr_to_string(config_path, path_len);
         conf::Config config = conf::Config::from_file(path);
         const cece::GridSpec spec = cece::GridSpec::from_yaml(path, config);
 
@@ -191,9 +191,9 @@ void cece_sim_create_from_yaml(const char* config_path, int path_len, int mpi_co
         c_grid.lat_coords = spec.lat_coords.data();
         c_grid.lat_len = static_cast<int>(spec.lat_coords.size());
         c_grid.gridspec_file = spec.gridspec_file.empty() ? nullptr : spec.gridspec_file.c_str();
-        c_grid.gridspec_file_len = static_cast<int>(spec.gridspec_file.size());
+        c_grid.gridspec_file_len = static_cast<int>(spec.gridspec_file.native().size());
 
-        cece_sim_create(path.c_str(), static_cast<int>(path.length()), &c_grid, mpi_comm_f, out_sim, rc);
+        cece_sim_create(path.c_str(), static_cast<int>(path.native().length()), &c_grid, mpi_comm_f, out_sim, rc);
     } catch (const std::exception& e) {
         cece::LogFatal(std::string("[SIM FATAL] cece_sim_create_from_yaml grid resolution failed: ") + e.what());
         set_out(rc, -1);
@@ -241,7 +241,7 @@ void cece_sim_describe_yaml_grid(const char* config_path, int path_len, char* bu
         return;
     }
     try {
-        const std::string path = cstr_to_string(config_path, path_len);
+        const fs::path path = cstr_to_string(config_path, path_len);
         conf::Config config = conf::Config::from_file(path);
         const std::string desc = cece::GridSpec::from_yaml(path, config).describe();
         *buf_len_out = static_cast<int>(desc.size());
@@ -321,7 +321,7 @@ void cece_sim_create_from_esmf(const char* config_path, int path_len, int nx, in
 
     try {
         const cece::GridSpec spec = cece::GridSpec::from_esmf(nx, ny, nz, is_rad != 0, lon, lat);
-        const std::string path = cstr_to_string(config_path, path_len);
+        const fs::path path = cstr_to_string(config_path, path_len);
 
         CeceGridSpec c_grid{};
         c_grid.nx = spec.nx;
@@ -335,7 +335,7 @@ void cece_sim_create_from_esmf(const char* config_path, int path_len, int nx, in
         c_grid.gridspec_file = nullptr;
         c_grid.gridspec_file_len = 0;
 
-        cece_sim_create(path.c_str(), static_cast<int>(path.length()), &c_grid, mpi_comm_f, out_sim, rc);
+        cece_sim_create(path.c_str(), static_cast<int>(path.native().length()), &c_grid, mpi_comm_f, out_sim, rc);
     } catch (const std::exception& e) {
         cece::LogFatal(std::string("[SIM FATAL] cece_sim_create_from_esmf rejected the grid: ") + e.what());
         set_out(rc, -1);
@@ -375,7 +375,7 @@ void cece_sim_clock_info(const char* config_path, int path_len, int* timestep_se
     }
 
     try {
-        const std::string path = cstr_to_string(config_path, path_len);
+        const fs::path path = cstr_to_string(config_path, path_len);
         conf::Config config = conf::Config::from_file(path);
         const std::string start_str = config.get_string("driver.start_time");
         const std::string end_str = config.get_string("driver.end_time");

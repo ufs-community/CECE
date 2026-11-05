@@ -265,9 +265,9 @@ TEST_F(LocalTimeServiceTest, SeamIsolationNoConcreteProviderReferencesInConsumer
     // bindings must depend only on the LocalTimeService / IUtcOffsetProvider
     // seam — never on the concrete StaticGridOffsetProvider (or the decoder),
     // so a future DST provider can be swapped in at the init entry alone.
-    const std::vector<std::string> consumers = {std::string(CECE_SOURCE_DIR) + "/src/core/cece_stacking_engine.cpp",
-                                                std::string(CECE_SOURCE_DIR) + "/src/core/cece_config_parser.cpp",
-                                                std::string(CECE_SOURCE_DIR) + "/src/python/cece_pybind.cpp"};
+    const std::vector<fs::path> consumers = {fs::path(CECE_SOURCE_DIR) / fs::path("src/core/cece_stacking_engine.cpp"),
+                                             fs::path(CECE_SOURCE_DIR) / fs::path("src/core/cece_config_parser.cpp"),
+                                             fs::path(CECE_SOURCE_DIR) / fs::path("src/python/cece_pybind.cpp")};
     for (const auto& path : consumers) {
         std::ifstream in(path);
         ASSERT_TRUE(static_cast<bool>(in)) << "missing consumer source: " << path;

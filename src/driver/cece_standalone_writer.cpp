@@ -241,7 +241,7 @@ int CeceStandaloneWriter::Initialize(const std::string& start_time_iso8601, int 
 }
 
 int CeceStandaloneWriter::InitializeWithCoords(const std::string& start_time_iso8601, int nx, int ny, int nz, const std::vector<double>& lon_coords,
-                                               const std::vector<double>& lat_coords, const std::string& gridspec_file) {
+                                               const std::vector<double>& lat_coords, const fs::path& gridspec_file) {
     if (!config_.enabled) return 0;
 
     // Check for duplicate longitude values (only for rectilinear grids)
@@ -292,14 +292,14 @@ int CeceStandaloneWriter::InitializeWithCoords(const std::string& start_time_iso
     return 0;
 }
 
-std::string CeceStandaloneWriter::ResolveFilename(double time_seconds_since_start) const {
+fs::path CeceStandaloneWriter::ResolveFilename(double time_seconds_since_start) const {
     std::tm tm = ParseISO8601(start_time_iso8601_);
     std::time_t time = std::mktime(&tm);
     time += static_cast<std::time_t>(time_seconds_since_start);
     std::tm* new_tm = std::localtime(&time);
 
     fs::path p = fs::path(config_.directory) / FormatTime(*new_tm, config_.filename_pattern);
-    return p.string();
+    return p;
 }
 
 void CeceStandaloneWriter::WriteCoordinateVariables(amio_dataset_handle_t dataset, double time_seconds) {
@@ -523,8 +523,8 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
 
     CECE_LOG_INFO("[CECE] Writing time step " + std::to_string(step) + " (t=" + std::to_string(time_seconds) + ") via AMIO");
 
-    std::string filename = ResolveFilename(time_seconds);
-    CECE_LOG_INFO("[CECE] Output file: " + filename);
+    fs::path filename = ResolveFilename(time_seconds);
+    CECE_LOG_INFO("[CECE] Output file: " + filename.native());
 
     // The writer manifest is built in memory (rank 0) and broadcast to the peer ranks,
     // then handed directly to AMIO via amio_init_from_string / amio_open_dataset_from_string.
@@ -947,7 +947,7 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
             return -1;
         }
         if (rank == 0) {
-            CECE_LOG_INFO("[CECE] Successfully wrote " + filename + " via AMIO");
+            CECE_LOG_INFO("[CECE] Successfully wrote " + filename.native() + " via AMIO");
         }
 
     } catch (const std::exception& e) {

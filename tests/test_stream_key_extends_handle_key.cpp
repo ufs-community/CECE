@@ -74,7 +74,7 @@ namespace {
 // generator in tests/test_stream_key_properties.cpp.
 rc::Gen<StreamConfig> genStreamConfig() {
     return rc::gen::apply(
-        [](std::string input_file_path, std::string input_var_name, std::string mapalgo, std::string cadence, std::string tintalgo,
+        [](fs::path input_file_path, std::string input_var_name, std::string mapalgo, std::string cadence, std::string tintalgo,
            std::string data_model, bool data_model_explicit, int amio_worker_threads, int amio_staging_buffer_count,
            int amio_staging_buffer_capacity_bytes, int amio_prefetch_depth) {
             StreamConfig cfg;
@@ -153,10 +153,10 @@ RC_GTEST_PROP(StreamKeyExtends, Property5_ManifestFieldDiffersBothKeysDiffer, ()
 
     // Ban the reserved separator from the string manifest fields and mapalgo so
     // the six-field HandleKey concatenation is injective on the tuple.
-    RC_PRE(a.input_file_path.find('|') == std::string::npos);
+    RC_PRE(a.input_file_path.native().find('|') == std::string::npos);
     RC_PRE(a.data_model.find('|') == std::string::npos);
     RC_PRE(a.mapalgo.find('|') == std::string::npos);
-    RC_PRE(b.input_file_path.find('|') == std::string::npos);
+    RC_PRE(b.input_file_path.native().find('|') == std::string::npos);
     RC_PRE(b.data_model.find('|') == std::string::npos);
 
     // Only meaningful when the manifest tuple actually differs in some field.

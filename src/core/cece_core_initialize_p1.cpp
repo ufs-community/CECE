@@ -167,7 +167,7 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
     }
 
     // 2. Parse YAML configuration
-    const std::string config_path = cece::GetConfigFilePath();
+    const fs::path config_path = cece::GetConfigFilePath();
     std::cout << "INFO: Parsing " << config_path << std::endl;
     std::cout << "DEBUG: Full config path: '" << config_path << "'" << std::endl;
     cece::CeceConfig config;

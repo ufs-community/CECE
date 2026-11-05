@@ -102,7 +102,7 @@ fs::path resolve_earthaccess_helper(const std::string& config_file) {
 }  // namespace
 
 /** Return whether the config includes any streams handled by EarthAccess. */
-bool CeceDriverOrchestrator::HasEarthAccessStreams(const std::string& config_file) {
+bool CeceDriverOrchestrator::HasEarthAccessStreams(const fs::path& config_file) {
     try {
         YAML::Node config = YAML::LoadFile(config_file);
         if (!config["cece_data"] || !config["cece_data"]["streams"]) return false;

@@ -31,14 +31,14 @@ void parse_iso8601_to_esmf_time_c_wrapper(const char* iso_str, int* yy, int* mm,
 namespace {
 
 // Helper function to write a test config file
-void WriteTestConfig(const std::string& filename, const std::string& content) {
+void WriteTestConfig(const fs::path& filename, const std::string& content) {
     std::ofstream file(filename);
     file << content;
     file.close();
 }
 
 // Helper function to clean up test files
-void CleanupTestFile(const std::string& filename) {
+void CleanupTestFile(const fs::path& filename) {
     std::remove(filename.c_str());
 }
 
@@ -94,7 +94,7 @@ class DriverConfigValidationTest : public ::testing::Test {
         CleanupTestFile(test_config_file);
     }
 
-    std::string test_config_file;
+    fs::path test_config_file;
 };
 
 // ============================================================================
