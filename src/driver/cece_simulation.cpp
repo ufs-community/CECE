@@ -479,10 +479,10 @@ CeceSimulation::~CeceSimulation() {
 }
 
 int CeceSimulation::nz_from_config(const std::string& config_path) {
-    conf::Config config = conf::Config::from_file(config_path);
+    cece::CeceConfig config = cece::ParseConfig(config_path);
     int nz = 1;
-    if (config.has("driver.grid")) {
-        nz = config.get_or("driver.grid.nz", 1);
+    if (true) {
+        nz = config.driver_config.grid.nz;
     }
     if (nz <= 0) {
         throw std::invalid_argument("driver.grid.nz must be positive (got " + std::to_string(nz) + ")");
@@ -491,27 +491,24 @@ int CeceSimulation::nz_from_config(const std::string& config_path) {
 }
 
 void CeceSimulation::validate_nz_against_streams(const std::string& config_path, int nz) {
-    conf::Config config = conf::Config::from_file(config_path);
-    if (!config.has("cece_data.streams")) {
+    cece::CeceConfig config = cece::ParseConfig(config_path);
+    if (config.cece_data.streams.size() == 0) {
         return;
     }
-    const conf::Value streams = config.at("cece_data.streams");
+    const std::vector<CeceDataStreamConfig> streams = config.cece_data.streams;
     for (std::size_t s = 0; s < streams.size(); ++s) {
-        const conf::Value vars = streams[s]["variables"];
-        if (!vars.is_defined()) {
-            continue;
-        }
+        const std::vector<cece::CeceDataVariableConfig> vars = streams[s].variables;
         for (std::size_t v = 0; v < vars.size(); ++v) {
-            const conf::Value var = vars[v];
-            const conf::Value levels_val = var["levels"];
-            if (!levels_val.is_defined()) {
+            const CeceDataVariableConfig var = vars[v];
+            const int levels_val = var.field_levels;
+            if (levels_val <= 0) {
                 continue;  // inherits the grid nz (the data model's default)
             }
-            const int levels = levels_val.as_int();
+            const int levels = levels_val;
             if (levels > 1 && levels != nz) {
-                throw std::invalid_argument("[GRID] configured nz=" + std::to_string(nz) + " conflicts with stream variable '" +
-                                            var["model"].string_or(var["file"].string_or("<unnamed>")) + "' declaring levels=" +
-                                            std::to_string(levels) + "; the input data cannot be stacked onto the target layers");
+                throw std::invalid_argument("[GRID] configured nz=" + std::to_string(nz) + " conflicts with stream variable '" + var.name_in_model +
+                                            "' declaring levels=" + std::to_string(levels) +
+                                            "; the input data cannot be stacked onto the target layers");
             }
         }
     }

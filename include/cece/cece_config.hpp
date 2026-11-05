@@ -430,10 +430,10 @@ struct DriverGridConfig {
     int nx = 4;               ///< Grid points in X direction (default: 4).
     int ny = 4;               ///< Grid points in Y direction (default: 4).
     int nz = 1;               ///< Grid points in Z (vertical) direction (default: 1).
-    double lon_min = -135.0;  ///< Minimum longitude (default: -135.0).
-    double lon_max = 135.0;   ///< Maximum longitude (default: 135.0).
-    double lat_min = -67.5;   ///< Minimum latitude (default: -67.5).
-    double lat_max = 67.5;    ///< Maximum latitude (default: 67.5).
+    double lon_min = -180.0;  ///< Minimum longitude (default: -180.0).
+    double lon_max = 180.0;   ///< Maximum longitude (default: 180.0).
+    double lat_min = -90.0;   ///< Minimum latitude (default: -90.0).
+    double lat_max = 90.0;    ///< Maximum latitude (default: 90.0).
     std::string grid_name = "";
 };
 
@@ -464,6 +464,7 @@ struct DriverConfig {
     int amio_staging_buffer_capacity_bytes = 33554432;
     int amio_prefetch_depth = 2;  ///< AMIO read look-ahead depth (default: 2). Lower = fewer in-flight slabs.
     fs::path earthaccess_helper;  ///< Absolute path to earthacess standalone ingest helper script
+    fs::path log_file;            ///< Log file for CECE output
 };
 
 /**
@@ -557,6 +558,7 @@ struct CeceConfig {
  * @throws std::exception if the file is invalid or missing.
  */
 CeceConfig ParseConfig(const std::string& filename);
+CeceConfig ParseConfigFromValue(conf::Value);
 
 /**
  * @brief Adds a new emission species with its layers to an existing config at runtime.

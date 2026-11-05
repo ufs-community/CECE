@@ -27,6 +27,7 @@
 #include <vector>
 
 #include "cece/cece_amio_utils.hpp"
+#include "cece/cece_config.hpp"
 #include "cece/cece_grid_detail.hpp"
 #include "cece/cece_grid_geometry.hpp"
 #include "cece/cece_logger.hpp"
@@ -74,6 +75,7 @@ struct CoordRead {
 /// radian conversion (when `is_radian`), and longitude wrapping (when
 /// `wrap_lon`). A decode failure logs and yields not-found (empty extents) so
 /// an unreadable variable can never pass as a loaded gridspec.
+// TODO: merge with cece_regridder_utils.cpp:build_regrid_plan:read_coord
 CoordRead read_coord(amio_dataset_handle dataset, const std::vector<std::string>& names, bool is_radian, bool wrap_lon) {
     CoordRead result;
     for (const auto& name : names) {
@@ -175,19 +177,19 @@ std::string probe_coord_name(amio_dataset_handle dataset, const std::vector<std:
 /// the first data stream's file. `explicit_gridspec` reports which one it
 /// was: an explicit file that fails to load is fatal, while a stream-inferred
 /// miss simply falls through to generated coordinates.
-std::string gridspec_input_file(conf::Config& config, bool& explicit_gridspec) {
+fs::path gridspec_input_file(const CeceConfig& config, bool& explicit_gridspec) {
     explicit_gridspec = false;
-    auto gridspec_opt = config.try_string("driver.gridspec_file");
-    if (gridspec_opt.has_value() && !gridspec_opt->empty() && *gridspec_opt != "none" && *gridspec_opt != "NONE") {
+    auto gridspec_opt = config.driver_config.gridspec_file;
+    if (!gridspec_opt.empty() && gridspec_opt != "none" && gridspec_opt != "NONE") {
         explicit_gridspec = true;
-        return *gridspec_opt;
+        return gridspec_opt;
     }
-    if (config.has("cece_data.streams")) {
-        auto streams = config.at("cece_data.streams");
+    if (config.cece_data.streams.size() > 0) {
+        auto streams = config.cece_data.streams;
         if (streams.size() > 0) {
-            auto file_val = streams[static_cast<std::size_t>(0)]["file"];
-            if (file_val.is_defined()) {
-                return file_val.as_string();
+            auto file_val = streams[static_cast<std::size_t>(0)].file_paths[0];
+            if (!file_val.empty()) {
+                return file_val;
             }
         }
     }
@@ -262,7 +264,7 @@ FileGridLoad load_gridspec_coords(amio_dataset_handle dataset, int nx, int ny) {
 
 }  // namespace
 
-GridSpec GridSpec::from_yaml(conf::Config& config) {
+GridSpec GridSpec::from_config(const cece::CeceConfig& config) {
     GridSpec spec;
 
     // --- A. Grid dimensions ------------------------------------------------
@@ -270,12 +272,12 @@ GridSpec GridSpec::from_yaml(conf::Config& config) {
     int ny = 0;
     int nz = 1;
     std::string grid_name = "";
-    if (config.has("driver.grid")) {
-        nz = config.get_or("driver.grid.nz", 1);
-        grid_name = config.get_or<std::string>("driver.grid.grid_name", "");
+    if (true) {
+        nz = config.driver_config.grid.nz;
+        grid_name = config.driver_config.grid.grid_name;
         if (grid_name.empty()) {
-            nx = config.get_or("driver.grid.nx", 0);
-            ny = config.get_or("driver.grid.ny", 0);
+            nx = config.driver_config.grid.nx;
+            ny = config.driver_config.grid.ny;
         } else {
             try {
                 auto parsed = axis::topology::NamedGridRegistry::parse(grid_name);
@@ -283,8 +285,8 @@ GridSpec GridSpec::from_yaml(conf::Config& config) {
                     int expected_nx = 4 * parsed.number;
                     int expected_ny = 2 * parsed.number;
 
-                    int declared_nx = config.get_or("driver.grid.nx", 0);
-                    int declared_ny = config.get_or("driver.grid.ny", 0);
+                    int declared_nx = config.driver_config.grid.nx;
+                    int declared_ny = config.driver_config.grid.ny;
                     if (declared_nx != 0 && declared_ny != 0) {
                         if (declared_nx != expected_nx || declared_ny != expected_ny) {
                             throw std::invalid_argument("Grid dimensions nx=" + std::to_string(declared_nx) + ", ny=" + std::to_string(declared_ny) +
@@ -383,10 +385,10 @@ GridSpec GridSpec::from_yaml(conf::Config& config) {
                     "input files!");
             }
 
-            double lon_min = config.get_or("driver.grid.lon_min", -180.0);
-            double lon_max = config.get_or("driver.grid.lon_max", 180.0);
-            double lat_min = config.get_or("driver.grid.lat_min", -90.0);
-            double lat_max = config.get_or("driver.grid.lat_max", 90.0);
+            double lon_min = config.driver_config.grid.lon_min;
+            double lon_max = config.driver_config.grid.lon_max;
+            double lat_min = config.driver_config.grid.lat_min;
+            double lat_max = config.driver_config.grid.lat_max;
 
             double dlon = (lon_max - lon_min) / nx;
             double dlat = (lat_max - lat_min) / ny;

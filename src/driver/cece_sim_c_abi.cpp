@@ -178,8 +178,8 @@ void cece_sim_create_from_yaml(const char* config_path, int path_len, int mpi_co
     // construction without marshalling coordinate buffers through Fortran.
     try {
         const std::string path = cstr_to_string(config_path, path_len);
-        conf::Config config = conf::Config::from_file(path);
-        const cece::GridSpec spec = cece::GridSpec::from_yaml(config);
+        const cece::CeceConfig config = cece::ParseConfig(path);
+        const cece::GridSpec spec = cece::GridSpec::from_config(config);
 
         CeceGridSpec c_grid{};
         c_grid.nx = spec.nx;
@@ -242,8 +242,8 @@ void cece_sim_describe_yaml_grid(const char* config_path, int path_len, char* bu
     }
     try {
         const std::string path = cstr_to_string(config_path, path_len);
-        conf::Config config = conf::Config::from_file(path);
-        const std::string desc = cece::GridSpec::from_yaml(config).describe();
+        cece::CeceConfig config = cece::ParseConfig(path);
+        const std::string desc = cece::GridSpec::from_config(config).describe();
         *buf_len_out = static_cast<int>(desc.size());
         // Mirror the sibling nuopc_copy_str contract: the buffer holds the
         // description plus its NUL terminator, so a caller that treats buf as a
@@ -376,10 +376,10 @@ void cece_sim_clock_info(const char* config_path, int path_len, int* timestep_se
 
     try {
         const std::string path = cstr_to_string(config_path, path_len);
-        conf::Config config = conf::Config::from_file(path);
-        const std::string start_str = config.get_string("driver.start_time");
-        const std::string end_str = config.get_string("driver.end_time");
-        const int timestep_seconds = config.get_int("driver.timestep_seconds");
+        cece::CeceConfig config = cece::ParseConfig(path);
+        const std::string start_str = config.driver_config.start_time;
+        const std::string end_str = config.driver_config.end_time;
+        const int timestep_seconds = config.driver_config.timestep_seconds;
 
         tick::Gregorian_Calendar cal;
         const tick::Time_Point start = cal.to_time_point(tick::parse_iso8601(start_str));

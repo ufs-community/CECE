@@ -74,7 +74,6 @@ int main(int argc, char* argv[]) {
         cece_core_initialize_p1(&cece_data, &rc);
 
         // --- Load configuration up front (grid, timing, streams parsed below) ---
-        conf::Config yaml_config = conf::Config::from_file(config_file);
         cece::CeceConfig config = static_cast<cece::CeceInternalData*>(cece_data)->config;
 
         // Configure run logging (optional log file, per-rank stdout suppression)
@@ -91,7 +90,7 @@ int main(int argc, char* argv[]) {
         //    diagnostic on any failure — never a silent fallback.
         cece::GridSpec grid_spec;
         try {
-            grid_spec = cece::GridSpec::from_yaml(yaml_config);
+            grid_spec = cece::GridSpec::from_config(config);
         } catch (const std::exception& e) {
             cece::LogFatal(std::string{"[DRIVER FATAL] (rank "} + std::to_string(my_rank) + ") grid resolution failed: " + e.what());
             Kokkos::finalize();

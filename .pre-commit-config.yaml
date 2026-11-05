@@ -76,11 +76,19 @@ repos:
 
       - id: no-yaml-cpp
         name: Avoid yaml-ccp
-        description: Avoid yaml-cpp calls in CECE code
+        description: Avoid YAML-cpp calls in CECE code
         language: pygrep
         types_or: ["c", "c++"]
         exclude: "tests/test_.*\\.cpp"
         entry: "YAML::|#include <yaml-cpp"
+
+      - id: conf-only-in-parseconfig
+        name: Use conf only in ParseConfig
+        description: Limit config file parsing to the config-file-parsing function
+        language: pygrep
+        types_or: ["c", "c++"]
+        exclude: "src/core/cece_config_parser.cpp|include/cece/cece_config.hpp|include/cece/physics/|include/cece/physics_scheme.hpp|src/core/physics/|cece_config_validator|src/python/cece_pybind.cpp|tests/"
+        entry: "^[^/]*conf::"
 
       - id: no-raw-cpp-stdout
         name: Disallow raw std::cout / std::cerr / printf

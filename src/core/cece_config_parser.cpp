@@ -55,17 +55,12 @@ std::optional<RegridMethodSettings> parse_regrid_method(const std::string& metho
 
 }  // namespace io
 
-CeceConfig ParseConfig(const std::string& filename) {
-    struct stat buffer;
-    if (stat(filename.c_str(), &buffer) != 0) throw std::runtime_error("File not found: " + filename);
-    conf::Config parsed = conf::Config::from_file(filename);
-    conf::Value root = parsed.root();
+static inline std::string string_or(const conf::Value& node, const std::string& key, const std::string& fallback = std::string{}) {
+    return node[key].string_or(fallback);
+}
+
+CeceConfig ParseConfigFromValue(const conf::Value root) {
     CeceConfig config;
-
-    auto string_or = [](const conf::Value& node, const std::string& key, const std::string& fallback = std::string{}) {
-        return node[key].string_or(fallback);
-    };
-
     conf::Value species = root["species"];
     if (species && species.kind() == conf::Node_Kind::Map) {
         for (const auto& species_name : species.keys()) {
@@ -439,11 +434,9 @@ CeceConfig ParseConfig(const std::string& filename) {
             if (!fs::exists(helper_path)) {
                 throw std::runtime_error("Earthaccess standalone ingest helper script not found");
             }
-            if (helper_path.is_relative()) {
-                helper_path = fs::path(filename).parent_path() / helper_path;
-            }
             config.driver_config.earthaccess_helper = helper_path;
         }
+        config.driver_config.log_file = string_or(driver, "log_file");
     }
 
     // Optional NUOPC field-coupling section. Declares the fields CECE advertises
@@ -500,6 +493,19 @@ CeceConfig ParseConfig(const std::string& filename) {
     }
 
     config.output_config.fields.SetTimeUnits(config.driver_config.start_time);
+    return config;
+}
+
+CeceConfig ParseConfig(const std::string& filename) {
+    struct stat buffer;
+    if (stat(filename.c_str(), &buffer) != 0) throw std::runtime_error("File not found: " + filename);
+    conf::Config parsed = conf::Config::from_file(filename);
+    conf::Value root = parsed.root();
+    CeceConfig config = ParseConfigFromValue(root);
+    // TODO: earthaccess helper lookup
+    if (config.driver_config.earthaccess_helper.is_relative()) {
+        config.driver_config.earthaccess_helper = fs::path(filename).parent_path() / config.driver_config.earthaccess_helper;
+    }
     return config;
 }
 
