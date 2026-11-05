@@ -398,7 +398,7 @@ TEST(StreamConfigResolution, FileListsNeedExactlyOneEntry) {
     EXPECT_EQ(configs.at("CO").input_file_path, "co.nc");
 
     configs.clear();
-    TempFile multiple("cece_data:\n  streams:\n    - name: CO\n      file: [a.nc, b.nc]\n");
+    TempFile multiple("driver:\n\ncece_data:\n  streams:\n    - name: CO\n      file: [a.nc, b.nc]\n");
     EXPECT_THROW(StreamConfigTestAccess::Resolve(multiple.path, configs, gridspec), std::invalid_argument);
 }
 
