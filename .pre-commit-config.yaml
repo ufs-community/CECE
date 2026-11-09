@@ -80,4 +80,4 @@ repos:
         language: pygrep
         types_or: ["c", "c++"]
         exclude: "tests/test_.*\\.cpp"
-        entry: "YAML::"
+        entry: "YAML::|#include <yaml-cpp"
