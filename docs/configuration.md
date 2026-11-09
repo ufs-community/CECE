@@ -676,6 +676,8 @@ Configuration for data streams that read external emission inventories and auxil
 | `file` | String | Path to NetCDF data file(s) |
 | `refresh_interval_seconds` | Integer | (Optional) Data ingestion interval in seconds. Must be a positive multiple of `timestep_seconds`. Default: `0` (use `timestep_seconds`, i.e., ingest every step). |
 | `cadence` | String | (Optional) How file records are addressed: `series` (default), `daily`, `monthly`, `hourly`, `weekly`, or `stepwise`. See [Record Selection](#record-selection-cadence). |
+| `kind` | String | (Optional) Data stream kind: `grid` (default) or `point` (in development). Gridded data uses spatial regridding. Point data ignores regridding. |
+| `format` | String | (Optional) Required if `kind` is `point`. Specifies the format of the point stream. Currently supported: `point_nc` (see [Point Stack Format](point_stack_format.md)), and `volcano_rc` (in development). |
 | `time_var` | String | (Optional) Name of the time coordinate variable. Default: `time` (falls back to `Time`, `t`, `valid_time`). |
 | `time_units` | String | (Optional) Override for the time variable's CF `units` attribute (e.g. `"hours since 2020-01-01 00:00:00"`). Use when the file's attribute is missing or non-standard. |
 | `calendar` | String | (Optional) Override for the time variable's CF `calendar` attribute: `gregorian`/`standard`/`proleptic_gregorian`, `noleap`/`365_day`, or `360_day`. |
@@ -685,7 +687,8 @@ Configuration for data streams that read external emission inventories and auxil
 | `taxmode` | String | Behavior when the simulation time falls outside the file's coverage: `cycle` (default, clamp to the closest covered year), `extend` (clamp to the nearest end), or `limit` (fail). |
 | `tintalgo` | String | Temporal interpolation: `linear` or `nearest`. Default: `nearest`. Ignored by the `stepwise` cadence. |
 | `time_label` | String | (Optional) Where each time coordinate sits in the interval its record describes: `auto` (default), `start`, `center`, or `end`. Applies to decoded time axes. See [Time Labels](#time-labels-time_label). |
-| `mapalgo` | String | Spatial regridding: `consd` (default), `bilinear`, `consf`, `nn`, `redist`, or `passthrough`. `passthrough` requires identical dimensions and ordered source/target coordinates, then copies without AXIS regridding. |
+| `mapalgo` | String | Spatial regridding: `consd` (default), `bilinear`, `consf`, `nn`, `redist`, or `passthrough`. `passthrough` requires identical dimensions and ordered source/target coordinates, then copies without AXIS regridding. Not permitted for `kind: point`. |
+| `meshfile` | String | (Optional) Path to a SCRIP mesh file describing the source grid structure, overriding dimension-inferred grids. Not permitted for `kind: point`. |
 | `data_model` | String | (Optional) AMIO NetCDF data model for reads: `enhanced`, `classic`, or `auto`. Default behavior is auto (`enhanced` first, then `classic` fallback on backend open failure). |
 | `use_local_time` | Boolean | (Optional) With `cadence: weekly` and `tintalgo: nearest` only: each cell reads the weekly record of its **local** weekday instead of the UTC weekday. Requires `local_time.enabled` and a 7-record file. Default: `false`. See [Local-weekday weekly profiles](#local-weekday-weekly-profiles-use_local_time). |
 | `variables` | List | (Optional) Variable mappings between file and model. If omitted, null, or empty, the stream `name` is used for both names and the standalone driver logs a warning. A mapping may be a string shorthand or a map with a required `model` name and optional `file` name; omitted `file` defaults to `model`. |

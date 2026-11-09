@@ -169,7 +169,24 @@ StreamConfig CeceDriverOrchestrator::BuildStreamConfig(const YAML::Node& stream,
         }
     }
     cfg.input_var_name = file_name;
-    if (stream["mapalgo"]) {
+    if (stream["kind"]) {
+        cfg.kind = stream["kind"].as<std::string>();
+    }
+    if (stream["format"]) {
+        cfg.format = stream["format"].as<std::string>();
+    }
+    if (cfg.kind == "point") {
+        if (stream["mapalgo"]) {
+            throw std::invalid_argument("cece_data.streams: mapalgo is not permitted on point streams.");
+        }
+        if (stream["meshfile"]) {
+            throw std::invalid_argument("cece_data.streams: meshfile is not permitted on point streams.");
+        }
+        if (stream["use_local_time"] && stream["use_local_time"].as<bool>()) {
+            throw std::invalid_argument("cece_data.streams: use_local_time is not supported on point streams.");
+        }
+        cfg.mapalgo = "";
+    } else if (stream["mapalgo"]) {
         cfg.mapalgo = cece::to_lower(stream["mapalgo"].as<std::string>());
     }
     if (stream["cadence"]) {
@@ -374,6 +391,8 @@ std::string CeceDriverOrchestrator::BuildManifestContent(const StreamConfig& cfg
     m_content << "backend: netcdf4\n"
               << "path: " << cfg.input_file_path << "\n"
               << "data_model: " << data_model << "\n"
+              << "stream_kind: " << cfg.kind << "\n"
+              << "stream_format: " << cfg.format << "\n"
               << "staging_pool:\n"
               << "  buffer_count: " << cfg.amio_staging_buffer_count << "\n"
               << "  buffer_capacity_bytes: " << cfg.amio_staging_buffer_capacity_bytes << "\n"
@@ -427,7 +446,7 @@ std::string CeceDriverOrchestrator::HandleKey(const StreamConfig& cfg) {
     // cannot appear in NetCDF file paths, so the concatenation is unambiguous
     // (Req 11.1). Variables reading the same file/manifest share one open AMIO
     // handle set and one file record count even when mapalgo differs.
-    return cfg.input_file_path + "|" + cfg.data_model + "|" + std::to_string(cfg.amio_worker_threads) + "|" +
+    return cfg.input_file_path + "|" + cfg.data_model + "|" + cfg.kind + "|" + cfg.format + "|" + std::to_string(cfg.amio_worker_threads) + "|" +
            std::to_string(cfg.amio_staging_buffer_count) + "|" + std::to_string(cfg.amio_staging_buffer_capacity_bytes) + "|" +
            std::to_string(cfg.amio_prefetch_depth);
 }
@@ -1159,6 +1178,12 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
         auto cfg_it = stream_configs_.find(var_name);
         const bool has_stream_config = cfg_it != stream_configs_.end();
         const StreamConfig cfg = has_stream_config ? cfg_it->second : StreamConfig{};
+
+        // Short-circuit point streams here because they do not use AMIO-described grids
+        if (cfg.kind == "point") {
+            CECE_LOG_WARNING("[DRIVER] Stream kind 'point' is not implemented yet and is being ignored for variable '" + var_name + "'.");
+            continue;
+        }
 
         std::string input_file_path = cfg.input_file_path;
         std::string input_var_name = cfg.input_var_name;

@@ -1232,3 +1232,64 @@ TEST_F(DriverConfigurationTest, StreamLocalTimeRejectsInvalidCombinations) {
     WriteConfigFile(test_config_file, config_with_stream("true", "      source: earthaccess\n      cadence: weekly\n      use_local_time: true\n"));
     EXPECT_THROW(ParseConfig(test_config_file), std::invalid_argument);
 }
+
+TEST_F(DriverConfigurationTest, PointStreamValidConfig) {
+    WriteConfigFile(test_config_file, R"(
+cece_data:
+  streams:
+    - name: point_volcano
+      file: volc.nc
+      kind: point
+      format: volcano_rc
+physics_schemes: []
+)");
+    const CeceConfig config = ParseConfig(test_config_file);
+    ASSERT_EQ(config.cece_data.streams.size(), 1);
+    EXPECT_EQ(config.cece_data.streams[0].kind, "point");
+    EXPECT_EQ(config.cece_data.streams[0].format, "volcano_rc");
+    EXPECT_EQ(config.cece_data.streams[0].mapalgo, "");
+}
+
+TEST_F(DriverConfigurationTest, PointStreamRejectsMapalgo) {
+    ExpectConfigInvalidArgument(test_config_file, R"(
+cece_data:
+  streams:
+    - name: point_volcano
+      file: volc.nc
+      kind: point
+      format: volcano_rc
+      mapalgo: consd
+physics_schemes: []
+)",
+                                "cece_data.streams[0]: mapalgo is not permitted on point streams.");
+}
+
+TEST_F(DriverConfigurationTest, PointStreamRejectsMeshfile) {
+    ExpectConfigInvalidArgument(test_config_file, R"(
+cece_data:
+  streams:
+    - name: point_volcano
+      file: volc.nc
+      kind: point
+      format: volcano_rc
+      meshfile: mesh.nc
+physics_schemes: []
+)",
+                                "cece_data.streams[0]: meshfile is not permitted on point streams.");
+}
+
+TEST_F(DriverConfigurationTest, PointStreamRejectsUseLocalTime) {
+    ExpectConfigInvalidArgument(test_config_file, R"(
+local_time:
+  enabled: true
+cece_data:
+  streams:
+    - name: point_volcano
+      file: volc.nc
+      kind: point
+      format: volcano_rc
+      use_local_time: true
+physics_schemes: []
+)",
+                                "cece_data.streams[0]: use_local_time is not supported on point streams.");
+}

@@ -213,13 +213,30 @@ CeceConfig ParseConfig(const std::string& filename) {
             }
             stream.taxmode = string_or(node, "taxmode", stream.taxmode);
             stream.tintalgo = string_or(node, "tintalgo", stream.tintalgo);
-            stream.mapalgo = to_lower(string_or(node, "mapalgo", stream.mapalgo));
+
+            stream.kind = string_or(node, "kind", "grid");
+            stream.format = string_or(node, "format");
+            if (stream.kind == "point") {
+                if (node["mapalgo"]) {
+                    throw std::invalid_argument("cece_data.streams[" + std::to_string(i) + "]: mapalgo is not permitted on point streams.");
+                }
+                if (node["meshfile"]) {
+                    throw std::invalid_argument("cece_data.streams[" + std::to_string(i) + "]: meshfile is not permitted on point streams.");
+                }
+                if (node["use_local_time"].bool_or(false)) {
+                    throw std::invalid_argument("cece_data.streams[" + std::to_string(i) + "]: use_local_time is not supported on point streams.");
+                }
+                stream.mapalgo = "";
+            } else {
+                stream.mapalgo = to_lower(string_or(node, "mapalgo", stream.mapalgo));
+            }
+
             stream.dtlimit = node["dtlimit"].int_or(stream.dtlimit);
             stream.yearFirst = node["yearFirst"].int_or(stream.yearFirst);
             stream.yearLast = node["yearLast"].int_or(stream.yearLast);
             stream.yearAlign = node["yearAlign"].int_or(stream.yearAlign);
             stream.offset = node["offset"].int_or(stream.offset);
-            stream.meshfile = string_or(node, "meshfile");
+            stream.meshfile = stream.kind == "point" ? "" : string_or(node, "meshfile");
             stream.lev_dimname = string_or(node, "lev_dimname", stream.lev_dimname);
             stream.time_var = string_or(node, "time_var", stream.time_var);
             stream.lon_var = string_or(node, "lon_var", stream.lon_var);

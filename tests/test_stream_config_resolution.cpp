@@ -515,4 +515,39 @@ RC_GTEST_PROP(StreamConfigResolutionProperty, Property4_ResolutionMatchesLegacy,
     }
 }
 
+TEST(StreamConfigResolution, PointStreamValidConfig) {
+    TempFile fixture(R"(
+cece_data:
+  streams:
+    - name: CO
+      file: point.nc
+      kind: point
+      format: point_nc
+physics_schemes: []
+)");
+    std::unordered_map<std::string, StreamConfig> configs;
+    std::string gridspec;
+    StreamConfigTestAccess::Resolve(fixture.path, configs, gridspec);
+    ASSERT_EQ(configs.size(), 1);
+    EXPECT_EQ(configs["CO"].kind, "point");
+    EXPECT_EQ(configs["CO"].format, "point_nc");
+    EXPECT_EQ(configs["CO"].mapalgo, "");
+}
+
+TEST(StreamConfigResolution, PointStreamRejectsMapalgo) {
+    TempFile fixture(R"(
+cece_data:
+  streams:
+    - name: CO
+      file: point.nc
+      kind: point
+      format: point_nc
+      mapalgo: consd
+physics_schemes: []
+)");
+    std::unordered_map<std::string, StreamConfig> configs;
+    std::string gridspec;
+    EXPECT_THROW(StreamConfigTestAccess::Resolve(fixture.path, configs, gridspec), std::invalid_argument);
+}
+
 }  // namespace cece
