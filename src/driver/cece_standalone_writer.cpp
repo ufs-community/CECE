@@ -974,13 +974,13 @@ void CeceStandaloneWriter::Finalize() {
 
 }  // namespace cece
 
-extern "C" {
-
 #include <Kokkos_Core.hpp>
 
 #include "cece/cece_internal.hpp"
 
 std::unique_ptr<cece::CeceStandaloneWriter> g_standalone_writer;
+
+extern "C" {
 
 void cece_core_write_step(void* data_ptr, double time_seconds, int step_index, int* rc) {
     if (rc != nullptr) *rc = 0;
