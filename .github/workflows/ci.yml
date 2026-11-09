@@ -145,7 +145,7 @@ jobs:
           build/bin/cece_nuopc_app
 
           # TODO: Revert cece_config_ex1 to pre-cece_config_ex7 state
-          for i in $(seq 2 6);
+          for i in $(seq 1 6);
           do
               build/bin/cece_nuopc_app -y examples/cece_config_ex${i}.yaml
               build/cece_standalone_driver examples/cece_config_ex${i}.yaml
