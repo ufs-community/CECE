@@ -21,7 +21,7 @@ from typing import Any
 
 import numpy as np
 import yaml
-from earthaccess_common_helpers import (
+from _earthaccess_common_helpers import (
     _auth_strategy,
     _effective_provider,
     _first_data_link,
