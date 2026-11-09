@@ -89,13 +89,6 @@ jobs:
             echo "Coverage report generated"
           fi
 
-      - name: Run cubed-sphere tests
-        run: |
-          source /opt/spack-environment/activate.sh
-          set -euo pipefail
-          ./tests/test_all_cubed_sphere_tiles.sh
-          ./tests/test_all_cubed_sphere_tiles_0_360.sh
-
       - name: Run all checked-in examples
         run: |
           source /opt/spack-environment/activate.sh
@@ -150,3 +143,10 @@ jobs:
               build/bin/cece_nuopc_app -y examples/cece_config_ex${i}.yaml
               build/cece_standalone_driver examples/cece_config_ex${i}.yaml
           done
+
+      - name: Run cubed-sphere tests
+        run: |
+          source /opt/spack-environment/activate.sh
+          set -euo pipefail
+          ./tests/test_all_cubed_sphere_tiles.sh
+          ./tests/test_all_cubed_sphere_tiles_0_360.sh
