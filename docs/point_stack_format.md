@@ -16,38 +16,38 @@ This document defines a standard NetCDF format for stationary point source emiss
 
 ## 2. Global Attributes
 
-| Attribute Name | Requirement | Type | Permitted / Required Value | Description | 
-| ----- | ----- | ----- | ----- | ----- | 
-| `Conventions` | **Required** | `string` | `"CF-1.13"` | Identifies the file as conforming to CF Version 1.13. | 
-| `featureType` | **Required** | `string` | `"timeSeries"` | Identifies the Discrete Sampling Geometry (DSG) type. | 
-| `title` | Optional | `string` | User-defined | Short dataset descriptive title. | 
-| `source` | Optional | `string` | User-defined | Upstream model, inventory, or tool used to create the file. | 
-| `history` | Optional | `string` | User-defined | Audit trail of file creation or modifications. | 
+| Attribute Name | Requirement | Type | Permitted / Required Value | Description |
+| ----- | ----- | ----- | ----- | ----- |
+| `Conventions` | **Required** | `string` | `"CF-1.13"` | Identifies the file as conforming to CF Version 1.13. |
+| `featureType` | **Required** | `string` | `"timeSeries"` | Identifies the Discrete Sampling Geometry (DSG) type. |
+| `title` | Optional | `string` | User-defined | Short dataset descriptive title. |
+| `source` | Optional | `string` | User-defined | Upstream model, inventory, or tool used to create the file. |
+| `history` | Optional | `string` | User-defined | Audit trail of file creation or modifications. |
 
 ## 3. Dimensions
 
-| Dimension Name | Requirement | Dimension Policy | Size / Bound | Description | 
-| ----- | ----- | ----- | ----- | ----- | 
-| `stack` | **Required** | Fixed Name | Fixed integer ($N_{\text{stacks}} \ge 1$) | Number of individual point sources / stacks. | 
-| `time` | **Required** | Fixed Name | Fixed integer or `UNLIMITED` ($N_{\text{time}} \ge 1$) | Synchronized temporal emission steps (e.g., hourly). | 
+| Dimension Name | Requirement | Dimension Policy | Size / Bound | Description |
+| ----- | ----- | ----- | ----- | ----- |
+| `stack` | **Required** | Fixed Name | Fixed integer ($N_{\text{stacks}} \ge 1$) | Number of individual point sources / stacks. |
+| `time` | **Required** | Fixed Name | Fixed integer or `UNLIMITED` ($N_{\text{time}} \ge 1$) | Synchronized temporal emission steps (e.g., hourly). |
 
 ## 4. Master Variable Specification Matrix
 
-| Variable Name | Requirement | Name Policy | Data Type | Dimensions | Unit Policy | Allowed / Required Units | Attributes Required | 
-| ----- | ----- | ----- | ----- | ----- | ----- | ----- | ----- | 
-| `time` | **Required** | **Fixed** | `double` (`f8`) | `(time)` | User-defined epoch | `<time-unit> since <epoch>` | `standard_name`, `units`, `calendar`, `axis` | 
-| `latitude` | **Required** | **Fixed** | `float` (`f4`) | `(stack)` | **Fixed** | `"degrees_north"` | `standard_name`, `units`, `axis` | 
-| `longitude` | **Required** | **Fixed** | `float` (`f4`) | `(stack)` | **Fixed** | `"degrees_east"` | `standard_name`, `units`, `axis` | 
-| `stack_id` | Optional | **Fixed** | `string` | `(stack)` | None | None | `cf_role = "timeseries_id"` | 
-| `facility_id` | Optional | **Fixed** | `string` | `(stack)` | None | None | `long_name` | 
-| `unit_id` | Optional | **Fixed** | `string` | `(stack)` | None | None | `long_name` | 
-| `scc` | Optional | **Fixed** | `string` | `(stack)` | None | None | `long_name` | 
-| `STKHT` | **Required** | **Fixed** | `float` (`f4`) | `(stack)` | **Fixed** | `"m"` | `units`, `coordinates`, `_FillValue` | 
-| `STKDM` | **Required** | **Fixed** | `float` (`f4`) | `(stack)` | **Fixed** | `"m"` | `units`, `coordinates`, `_FillValue` | 
-| `STKTK` | **Required** | **Fixed** | `float` (`f4`) | `(stack)` | **Fixed** | `"K"` | `units`, `coordinates`, `_FillValue` | 
-| `STKVE` | **Required** | **Fixed** | `float` (`f4`) | `(stack)` | **Fixed** | `"m s-1"` | `units`, `coordinates`, `_FillValue` | 
-| `STKFLW` | **Required** | **Fixed** | `float` (`f4`) | `(stack)` | **Fixed** | `"m3 s-1"` | `units`, `coordinates`, `_FillValue` | 
-| *`<SPECIES_NAME>`* | **Required** (at least 1) | **User-Selected** | `float` (`f4`) | `(time, stack)` | **User-Selected** | Any valid UDUNITS rate (e.g., `mol s-1`, `g s-1`) | `units`, `coordinates`, `_FillValue` | 
+| Variable Name | Requirement | Name Policy | Data Type | Dimensions | Unit Policy | Allowed / Required Units | Attributes Required |
+| ----- | ----- | ----- | ----- | ----- | ----- | ----- | ----- |
+| `time` | **Required** | **Fixed** | `double` (`f8`) | `(time)` | User-defined epoch | `<time-unit> since <epoch>` | `standard_name`, `units`, `calendar`, `axis` |
+| `latitude` | **Required** | **Fixed** | `float` (`f4`) | `(stack)` | **Fixed** | `"degrees_north"` | `standard_name`, `units`, `axis` |
+| `longitude` | **Required** | **Fixed** | `float` (`f4`) | `(stack)` | **Fixed** | `"degrees_east"` | `standard_name`, `units`, `axis` |
+| `stack_id` | Optional | **Fixed** | `string` | `(stack)` | None | None | `cf_role = "timeseries_id"` |
+| `facility_id` | Optional | **Fixed** | `string` | `(stack)` | None | None | `long_name` |
+| `unit_id` | Optional | **Fixed** | `string` | `(stack)` | None | None | `long_name` |
+| `scc` | Optional | **Fixed** | `string` | `(stack)` | None | None | `long_name` |
+| `STKHT` | **Required** | **Fixed** | `float` (`f4`) | `(stack)` | **Fixed** | `"m"` | `units`, `coordinates`, `_FillValue` |
+| `STKDM` | **Required** | **Fixed** | `float` (`f4`) | `(stack)` | **Fixed** | `"m"` | `units`, `coordinates`, `_FillValue` |
+| `STKTK` | **Required** | **Fixed** | `float` (`f4`) | `(stack)` | **Fixed** | `"K"` | `units`, `coordinates`, `_FillValue` |
+| `STKVE` | **Required** | **Fixed** | `float` (`f4`) | `(stack)` | **Fixed** | `"m s-1"` | `units`, `coordinates`, `_FillValue` |
+| `STKFLW` | **Required** | **Fixed** | `float` (`f4`) | `(stack)` | **Fixed** | `"m3 s-1"` | `units`, `coordinates`, `_FillValue` |
+| *`<SPECIES_NAME>`* | **Required** (at least 1) | **User-Selected** | `float` (`f4`) | `(time, stack)` | **User-Selected** | Any valid UDUNITS rate (e.g., `mol s-1`, `g s-1`) | `units`, `coordinates`, `_FillValue` |
 
 ## 5. Detailed Variable Definitions
 
@@ -272,7 +272,7 @@ All parameters in this group must remain time-invariant and use exact CMAQ varia
 * **Units Policy**: **Fixed** to `"m3 s-1"`
 
 * **Formula**:
-  
+
 
   $$
   \text{STKFLW} = \text{STKVE} \times \pi \left(\frac{\text{STKDM}}{2}\right)^2

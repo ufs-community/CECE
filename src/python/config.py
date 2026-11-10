@@ -680,11 +680,11 @@ class DataStreamConfig:
             raise ValueError("variables must be a non-empty list")
         for variable in self.variables:
             variable.validate()
-        
+
         _validate_string(self.kind, "stream kind")
         if self.kind not in ("grid", "point"):
             raise ValueError(f"Invalid kind: {self.kind}")
-        
+
         _validate_string(self.format, "stream format", allow_empty=True)
         if self.kind == "point":
             if self.format not in ("volcano_rc", "point_nc"):
@@ -802,18 +802,24 @@ class DataStreamConfig:
             return _validate_string(values.get(key, default), f"{where}.{key}").lower()
 
         kind = normalized("kind", "grid")
-        
+
         if kind == "point":
             if "mapalgo" in values:
                 raise ValueError(f"{where}: mapalgo is not permitted on point streams.")
             if "meshfile" in values:
-                raise ValueError(f"{where}: meshfile is not permitted on point streams.")
+                raise ValueError(
+                    f"{where}: meshfile is not permitted on point streams."
+                )
             if values.get("use_local_time"):
-                raise ValueError(f"{where}: use_local_time is not supported on point streams.")
+                raise ValueError(
+                    f"{where}: use_local_time is not supported on point streams."
+                )
             mapalgo = ""
             meshfile = ""
         else:
-            mapalgo = _validate_string(values.get("mapalgo", "consd"), f"{where}.mapalgo").lower()
+            mapalgo = _validate_string(
+                values.get("mapalgo", "consd"), f"{where}.mapalgo"
+            ).lower()
             meshfile = values.get("meshfile", "")
 
         result = cls(
@@ -821,7 +827,9 @@ class DataStreamConfig:
             file_paths=files,
             variables=variables,
             kind=kind,
-            format=_validate_string(values.get("format", ""), f"{where}.format", allow_empty=True),
+            format=_validate_string(
+                values.get("format", ""), f"{where}.format", allow_empty=True
+            ),
             taxmode=normalized("taxmode", "cycle"),
             tintalgo=normalized("tintalgo", "nearest"),
             mapalgo=mapalgo,
@@ -1657,7 +1665,7 @@ class CeceConfig:
         unknown_options = set(stream_options) - allowed_options
         if unknown_options:
             raise ValueError(f"Unknown data stream option: {min(unknown_options)}")
-        
+
         # When kind is 'point', mapalgo must be empty to avoid validation failure
         if kind == "point":
             mapalgo = ""

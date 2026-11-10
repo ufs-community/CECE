@@ -529,6 +529,7 @@ def test_nuopc_rejects_unknown_attribute():
             "nuopc": {"export_fields": {"oc": {"standard_name": "x", "rank": 2}}},
         })
 
+
 def test_point_stream_valid():
     parsed = config.CeceConfig.from_dict({
         "cece_data": {
@@ -547,6 +548,7 @@ def test_point_stream_valid():
     assert stream.format == "volcano_rc"
     assert stream.mapalgo == ""
 
+
 def test_point_stream_rejects_invalid_format():
     with pytest.raises(ValueError, match="Invalid format for point stream: bad_format"):
         config.CeceConfig.from_dict({
@@ -562,6 +564,7 @@ def test_point_stream_rejects_invalid_format():
             }
         })
 
+
 def test_point_stream_rejects_mapalgo_meshfile_use_local_time():
     base_stream = {
         "name": "volcano",
@@ -569,13 +572,20 @@ def test_point_stream_rejects_mapalgo_meshfile_use_local_time():
         "kind": "point",
         "format": "point_nc",
     }
-    
-    with pytest.raises(ValueError, match="mapalgo is not permitted on point streams"):
-        config.CeceConfig.from_dict({"cece_data": {"streams": [{**base_stream, "mapalgo": "consd"}]}})
-        
-    with pytest.raises(ValueError, match="meshfile is not permitted on point streams"):
-        config.CeceConfig.from_dict({"cece_data": {"streams": [{**base_stream, "meshfile": "mesh.nc"}]}})
-        
-    with pytest.raises(ValueError, match="use_local_time is not supported on point streams"):
-        config.CeceConfig.from_dict({"cece_data": {"streams": [{**base_stream, "use_local_time": True}]}})
 
+    with pytest.raises(ValueError, match="mapalgo is not permitted on point streams"):
+        config.CeceConfig.from_dict({
+            "cece_data": {"streams": [{**base_stream, "mapalgo": "consd"}]}
+        })
+
+    with pytest.raises(ValueError, match="meshfile is not permitted on point streams"):
+        config.CeceConfig.from_dict({
+            "cece_data": {"streams": [{**base_stream, "meshfile": "mesh.nc"}]}
+        })
+
+    with pytest.raises(
+        ValueError, match="use_local_time is not supported on point streams"
+    ):
+        config.CeceConfig.from_dict({
+            "cece_data": {"streams": [{**base_stream, "use_local_time": True}]}
+        })
