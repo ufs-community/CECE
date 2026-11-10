@@ -686,15 +686,7 @@ class DataStreamConfig:
             raise ValueError(f"Invalid kind: {self.kind}")
 
         _validate_string(self.format, "stream format", allow_empty=True)
-        if self.kind == "point":
-            if self.format not in ("volcano_rc", "point_nc"):
-                raise ValueError(f"Invalid format for point stream: {self.format}")
-            if self.mapalgo:
-                raise ValueError("mapalgo is not permitted on point streams")
-            if self.meshfile:
-                raise ValueError("meshfile is not permitted on point streams")
-            if self.use_local_time:
-                raise ValueError("use_local_time is not supported on point streams")
+        self._validate_point_stream()
 
         for key, allowed in _STREAM_ENUM_VALUES.items():
             if self.kind == "point" and key == "mapalgo":
@@ -732,6 +724,17 @@ class DataStreamConfig:
             "calendar",
         ):
             _validate_string(getattr(self, key), key, allow_empty=True)
+
+    def _validate_point_stream(self) -> None:
+        if self.kind == "point":
+            if self.format not in ("volcano_rc", "point_nc"):
+                raise ValueError(f"Invalid format for point stream: {self.format}")
+            if self.mapalgo:
+                raise ValueError("mapalgo is not permitted on point streams")
+            if self.meshfile:
+                raise ValueError("meshfile is not permitted on point streams")
+            if self.use_local_time:
+                raise ValueError("use_local_time is not supported on point streams")
 
     def _validate_local_time(self) -> None:
         if not isinstance(self.use_local_time, bool):
