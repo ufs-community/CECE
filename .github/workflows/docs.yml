@@ -2,6 +2,8 @@ name: Deploy Documentation
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [develop]
   workflow_dispatch:
 
 jobs:
@@ -30,8 +32,18 @@ jobs:
       - name: Build documentation
         run: zensical build
 
+      - name: Upload built docs artifact
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: cece-docs-pr-${{ github.event.pull_request.number }}-${{ github.run_number }}
+          path: ./site/**
+          retention-days: 3
+          if-no-files-found: error
+
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v4
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: ./site
