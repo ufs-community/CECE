@@ -282,8 +282,8 @@ void CeceDriverOrchestrator::ResolveStreamConfigsFromFile(const std::string& con
     int amio_staging_buffer_count = 8;
     int amio_staging_buffer_capacity_bytes = 33554432;  // 32 MiB per buffer
     int amio_prefetch_depth = 2;
-    conf::Value config_driver = config.at("driver");
-    if (config_driver) {
+    if (config.has("driver")) {
+        conf::Value config_driver = config.at("driver");
         if (config_driver["gridspec_file"]) {
             out_gridspec_file = config_driver["gridspec_file"].as_string();
         }
@@ -314,7 +314,7 @@ void CeceDriverOrchestrator::ResolveStreamConfigsFromFile(const std::string& con
         }
     }
 
-    if (!config.at("cece_data") || !config.at("cece_data.streams")) {
+    if (!config.has("cece_data") || !config.has("cece_data.streams")) {
         return;
     }
 
