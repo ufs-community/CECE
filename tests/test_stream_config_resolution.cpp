@@ -368,7 +368,7 @@ TEST(StreamConfigResolution, HandWrittenFixtureMatchesLegacyParse) {
 
 TEST(StreamConfigResolution, MissingVariablesDefaultToStreamName) {
     for (const std::string& variables : {std::string{}, std::string("      variables:\n"), std::string("      variables: []\n")}) {
-        TempFile fixture("driver:\n\ncece_data:\n  streams:\n    - name: CO\n      file: co.nc\n" + variables);
+        TempFile fixture("cece_data:\n  streams:\n    - name: CO\n      file: co.nc\n" + variables);
         std::unordered_map<std::string, StreamConfig> configs;
         std::string gridspec;
 
@@ -381,7 +381,7 @@ TEST(StreamConfigResolution, MissingVariablesDefaultToStreamName) {
 }
 
 TEST(StreamConfigResolution, RejectsVariableMappingsWithoutModelNames) {
-    TempFile fixture("driver:\n\ncece_data:\n  streams:\n    - name: CO\n      file: co.nc\n      variables:\n        - file: CO_FILE\n");
+    TempFile fixture("cece_data:\n  streams:\n    - name: CO\n      file: co.nc\n      variables:\n        - file: CO_FILE\n");
     std::unordered_map<std::string, StreamConfig> configs;
     std::string gridspec;
 
@@ -392,18 +392,18 @@ TEST(StreamConfigResolution, FileListsNeedExactlyOneEntry) {
     std::unordered_map<std::string, StreamConfig> configs;
     std::string gridspec;
 
-    TempFile single("driver:\n\ncece_data:\n  streams:\n    - name: CO\n      file: [co.nc]\n");
+    TempFile single("cece_data:\n  streams:\n    - name: CO\n      file: [co.nc]\n");
     StreamConfigTestAccess::Resolve(single.path, configs, gridspec);
     ASSERT_TRUE(configs.count("CO"));
     EXPECT_EQ(configs.at("CO").input_file_path, "co.nc");
 
     configs.clear();
-    TempFile multiple("driver:\n\ncece_data:\n  streams:\n    - name: CO\n      file: [a.nc, b.nc]\n");
+    TempFile multiple("cece_data:\n  streams:\n    - name: CO\n      file: [a.nc, b.nc]\n");
     EXPECT_THROW(StreamConfigTestAccess::Resolve(multiple.path, configs, gridspec), std::invalid_argument);
 }
 
 TEST(StreamConfigResolution, RejectsInterpolationAlias) {
-    TempFile fixture("driver:\n\ncece_data:\n  streams:\n    - name: CO\n      file: co.nc\n      interpolation: linear\n");
+    TempFile fixture("cece_data:\n  streams:\n    - name: CO\n      file: co.nc\n      interpolation: linear\n");
     std::unordered_map<std::string, StreamConfig> configs;
     std::string gridspec;
 
