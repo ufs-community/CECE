@@ -596,7 +596,7 @@ CeceDriverOrchestrator::CeceDriverOrchestrator(const std::string& config_file, i
     // variable, plus driver-level values and gridspec_file_ (Req 1.1). This
     // preserves the previous constructor's driver-block validation (a < 1
     // amio_worker_threads / amio_staging_buffer_count throws) and its
-    // conf::Conf_error robustness (gridspec_file_ = "" on a bad/missing file).
+    // conf::Conf_Error robustness (gridspec_file_ = "" on a bad/missing file).
     ResolveStreamConfigsFromFile(config_file_, stream_configs_, gridspec_file_);
     has_earthaccess_streams_ = HasEarthAccessStreams(config_file_);
     if (has_earthaccess_streams_) {
