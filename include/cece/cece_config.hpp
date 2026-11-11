@@ -169,6 +169,7 @@ struct CeceDataStreamConfig {
     std::string lon_var = "lon";       ///< Name of longitude coordinate variable.
     std::string lat_var = "lat";       ///< Name of latitude coordinate variable.
     int refresh_interval_seconds = 0;  ///< Refresh interval in seconds (0 means use base timestep).
+    bool use_local_time = false;       ///< Select weekly profile records by each cell's local weekday (requires local_time.enabled).
 };
 
 /**

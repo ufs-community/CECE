@@ -347,6 +347,49 @@ def test_local_time_rejects_unknown_keys():
         config.CeceConfig.from_dict({"local_time": {"grid": "x.rle"}})
 
 
+def _stream_local_time_config(enabled, **stream_keys):
+    return {
+        "local_time": {"enabled": enabled},
+        "cece_data": {
+            "streams": [
+                {
+                    "name": "weekly",
+                    "file": "weekly.nc",
+                    "variables": ["FW"],
+                    "cadence": "weekly",
+                    "use_local_time": True,
+                    **stream_keys,
+                }
+            ]
+        },
+    }
+
+
+def test_stream_use_local_time_round_trips():
+    parsed = config.CeceConfig.from_dict(_stream_local_time_config(True))
+
+    dumped = parsed.to_dict()
+    assert dumped["cece_data"]["streams"][0]["use_local_time"] is True
+    assert config.CeceConfig.from_dict(dumped).to_dict() == dumped
+
+
+def test_stream_use_local_time_requires_enabled_local_time():
+    with pytest.raises(ValueError, match=r"streams\[0\].*local_time\.enabled is false"):
+        config.CeceConfig.from_dict(_stream_local_time_config(False))
+
+
+@pytest.mark.parametrize(
+    ("stream_keys", "message"),
+    [
+        ({"cadence": "hourly"}, "only supported with cadence: weekly"),
+        ({"tintalgo": "linear"}, "requires tintalgo: nearest"),
+    ],
+)
+def test_stream_use_local_time_rejects_unsupported_options(stream_keys, message):
+    with pytest.raises(ValueError, match=message):
+        config.CeceConfig.from_dict(_stream_local_time_config(True, **stream_keys))
+
+
 def test_stream_enum_types_fail_as_configuration_errors():
     invalid = {
         "cece_data": {

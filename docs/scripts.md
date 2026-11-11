@@ -22,6 +22,13 @@ Automates the creation of example CECE configuration files and generates downloa
 ./scripts/setup_hemco_examples.sh
 ```
 
+### `utcoffset_generator.py`
+Generates the cosine-reduced UTC-offset grid read by `local_time` (see [Configuration](configuration.md)). `--from-timezones` rasterizes the globe with `timezonefinder`, storing each cell's standard (non-DST) offset, and raises if any cell cannot be resolved; `--rebin` resamples an existing grid file instead.
+```bash
+pip install timezonefinder
+python scripts/utcoffset_generator.py --from-timezones -o data/utc_grid_720r.rle
+```
+
 ### `stage_earthaccess_streams.py`
 Stages NASA Earthdata-backed `source: earthaccess` streams into CECE's native per-step cache format. Run it on a login or data-transfer node with outbound HTTPS access, then point compute jobs at the staged directory with `CECE_EARTHACCESS_STAGE_DIR`.
 
@@ -108,4 +115,10 @@ python scripts/visualize_stack.py --config cece_config.yaml --output stacking_pl
 Similar to `visualize_stack.py`, but specifically visualizes the fused kernel plan used by the optimized CECE engine.
 ```bash
 python scripts/visualize_optimized_stack.py --config cece_config.yaml --output optimized_plan.png
+```
+
+### `plot_utc_grid.py`
+Plots the UTC-offset grid used by `local_time` (`data/utc_grid_720r.rle`) as an Equal Earth map of decimal-hour offsets, with coastlines and country borders. It prints the data's offset range and fails if any offset falls outside the plotted -12 to +14 hour range. Requires `numpy`, `matplotlib` and `cartopy`; Natural Earth data is downloaded on first run.
+```bash
+python scripts/plot_utc_grid.py -o utc_offset_map.png
 ```
