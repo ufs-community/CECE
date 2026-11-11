@@ -17,6 +17,7 @@
 #include <string>
 
 #include "cece/cece_internal.hpp"
+#include "cece/cece_logger.hpp"
 
 extern "C" {
 
@@ -626,19 +627,19 @@ void cece_core_set_import_field(void* data_ptr, const char* name, int name_len, 
     }
 
     if (data_ptr == nullptr) {
-        std::cerr << "ERROR: cece_core_set_import_field - data_ptr is null" << std::endl;
+        CECE_LOG_ERROR("cece_core_set_import_field - data_ptr is null");
         if (rc != nullptr) *rc = -1;
         return;
     }
 
     if (name == nullptr || name_len <= 0) {
-        std::cerr << "ERROR: cece_core_set_import_field - invalid name argument" << std::endl;
+        CECE_LOG_ERROR("cece_core_set_import_field - invalid name argument");
         if (rc != nullptr) *rc = -1;
         return;
     }
 
     if (field_data == nullptr) {
-        std::cerr << "ERROR: cece_core_set_import_field - field_data is null" << std::endl;
+        CECE_LOG_ERROR("cece_core_set_import_field - field_data is null");
         if (rc != nullptr) *rc = -1;
         return;
     }
@@ -656,8 +657,8 @@ void cece_core_set_import_field(void* data_ptr, const char* name, int name_len, 
 
     internal_data->import_state.fields[name_str] = dv;
 
-    std::cout << "INFO: cece_core_set_import_field - registered import field '" << name_str << "' (" << nx << "x" << ny << "x" << nz << ")"
-              << std::endl;
+    CECE_LOG_INFO("cece_core_set_import_field - registered import field '" + name_str + "' (" + std::to_string(nx) + "x" + std::to_string(ny) + "x" +
+                  std::to_string(nz) + ")");
 
     if (rc != nullptr) {
         *rc = 0;
@@ -985,7 +986,8 @@ void nuopc_fill_spec(const std::vector<std::pair<std::string, cece::NuopcFieldSp
                      int name_cap, int* name_len, int* rc) {
     if (rc != nullptr) *rc = 0;
     if (index < 0 || static_cast<size_t>(index) >= fields.size()) {
-        std::cerr << "ERROR: cece_nuopc_" << label << "_spec - index out of range: " << index << " (size: " << fields.size() << ")" << std::endl;
+        CECE_LOG_ERROR("cece_nuopc_" + label + "_spec - index out of range: " + std::to_string(index) + " (size: " + std::to_string(fields.size()) +
+                       ")");
         if (rc != nullptr) *rc = -1;
         return;
     }
@@ -995,7 +997,7 @@ void nuopc_fill_spec(const std::vector<std::pair<std::string, cece::NuopcFieldSp
     // buffers untouched.
     if (static_cast<int>(cfg_key.size()) >= key_cap || static_cast<int>(spec.standard_name.size()) >= std_cap ||
         static_cast<int>(spec.units.size()) >= units_cap || static_cast<int>(spec.name.size()) >= name_cap) {
-        std::cerr << "ERROR: cece_nuopc_" << label << "_spec - output buffer too small for field '" << cfg_key << "'" << std::endl;
+        CECE_LOG_ERROR("cece_nuopc_" + label + "_spec - output buffer too small for field '" + cfg_key + "'");
         if (rc != nullptr) *rc = -1;
         return;
     }
@@ -1023,7 +1025,7 @@ void nuopc_count(const char* config_path, int path_len, const char* label, bool 
         cece::CeceConfig config = cece::ParseConfig(yaml_path);
         *count = is_export ? static_cast<int>(config.nuopc.export_fields.size()) : static_cast<int>(config.nuopc.import_fields.size());
     } catch (const std::exception& e) {
-        std::cerr << "ERROR: cece_nuopc_" << label << "_count - failed to parse config: " << e.what() << std::endl;
+        CECE_LOG_ERROR(std::string("cece_nuopc_") + label + "_count - failed to parse config: " + e.what());
         if (rc != nullptr) *rc = -1;
     }
 }
@@ -1050,7 +1052,7 @@ void cece_nuopc_export_spec(const char* config_path, int path_len, int index, ch
         nuopc_fill_spec(config.nuopc.export_fields, index, "export", species, species_cap, species_len, std_name, std_cap, std_len, units, units_cap,
                         units_len, name, name_cap, name_len, rc);
     } catch (const std::exception& e) {
-        std::cerr << "ERROR: cece_nuopc_export_spec - failed to parse config: " << e.what() << std::endl;
+        CECE_LOG_ERROR(std::string("cece_nuopc_export_spec - failed to parse config: ") + e.what());
         if (rc != nullptr) *rc = -1;
     }
 }
@@ -1073,7 +1075,7 @@ void cece_nuopc_import_spec(const char* config_path, int path_len, int index, ch
         nuopc_fill_spec(config.nuopc.import_fields, index, "import", field, field_cap, field_len, std_name, std_cap, std_len, units, units_cap,
                         units_len, name, name_cap, name_len, rc);
     } catch (const std::exception& e) {
-        std::cerr << "ERROR: cece_nuopc_import_spec - failed to parse config: " << e.what() << std::endl;
+        CECE_LOG_ERROR(std::string("cece_nuopc_import_spec - failed to parse config: ") + e.what());
         if (rc != nullptr) *rc = -1;
     }
 }

@@ -8,7 +8,6 @@
 #   - GOCART sea salt size bins
 name: GOCART
 species:
-  #may add gas phase in the future
   # --- GOCART sea salt aerosol size bins (5 dry-radius bins) ---
   - name: seas1
     molecular weight [kg mol-1]: 0.05844

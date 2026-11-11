@@ -1,6 +1,6 @@
 /**
  * @file test_seasalt_geos12_runtime.cpp
- * @brief Runtime acceptance tests for the GEOS-12 sea salt Fortran bridge.
+ * @brief Runtime acceptance tests for the native Kokkos GEOS-12 sea salt scheme.
  *
  * Exercises the native SeaSaltGeos12Scheme end-to-end: physical invariants
  * (land/ice masking, wind and density dependence, non-negativity), diagnostic
@@ -249,14 +249,44 @@ TEST_F(SeaSaltGeos12RuntimeTest, ExportTotalsEqualPerBinSum) {
 }
 
 TEST_F(SeaSaltGeos12RuntimeTest, EffectiveRadiusDiagnosticMatchesConfig) {
-    CeceDiagnosticManager diag;
-    CeceExportState out;
-    Run(MakeConfig(), Met{}, out, 1, 1, &diag);
+    // The diagnostic is static (species_radius_), filled once and cached across
+    // timesteps. Drive the SAME scheme instance over two consecutive steps and
+    // verify the per-bin effective radius is correct on both (the cache must not
+    // go stale or skip the initial fill).
+    constexpr int nx = 1;
+    constexpr int ny = 1;
+    const Met met{};
 
-    auto radius_diag = diag.RegisterDiagnostic("seasalt_effective_radius", 1, 1, kNs);
-    radius_diag.sync_host();
+    CeceImportState import_state;
+    import_state.fields["frocean"] = MakeField("frocean", nx, ny, 1, met.frocean);
+    import_state.fields["frseaice"] = MakeField("frseaice", nx, ny, 1, met.frseaice);
+    import_state.fields["lat"] = MakeField("lat", nx, ny, 1, met.lat);
+    import_state.fields["lon"] = MakeField("lon", nx, ny, 1, met.lon);
+    import_state.fields["sst"] = MakeField("sst", nx, ny, 1, met.sst);
+    import_state.fields["u10m"] = MakeField("u10m", nx, ny, 1, met.u10m);
+    import_state.fields["v10m"] = MakeField("v10m", nx, ny, 1, met.v10m);
+    import_state.fields["ustar"] = MakeField("ustar", nx, ny, 1, met.ustar);
+
+    CeceExportState export_state;
+    export_state.fields["seasalt_mass_total"] = MakeField("seasalt_mass_total", nx, ny, 1, 0.0);
+    export_state.fields["seasalt_number_total"] = MakeField("seasalt_number_total", nx, ny, 1, 0.0);
     for (int n = 0; n < kNs; ++n) {
-        EXPECT_DOUBLE_EQ(radius_diag.view_host()(0, 0, n), r_eff_[static_cast<std::size_t>(n)]);
+        export_state.fields[MassField(n)] = MakeField(MassField(n), nx, ny, 1, 0.0);
+        export_state.fields[NumberField(n)] = MakeField(NumberField(n), nx, ny, 1, 0.0);
+    }
+
+    CeceDiagnosticManager diag;
+    conf::Config config = MakeConfig();
+    SeaSaltGeos12Scheme scheme;
+    scheme.Initialize(config.root(), &diag);
+
+    for (int step = 0; step < 2; ++step) {
+        scheme.Run(import_state, export_state);
+        auto radius_diag = diag.RegisterDiagnostic("seasalt_effective_radius", nx, ny, kNs);
+        radius_diag.sync_host();
+        for (int n = 0; n < kNs; ++n) {
+            EXPECT_DOUBLE_EQ(radius_diag.view_host()(0, 0, n), r_eff_[static_cast<std::size_t>(n)]) << "step " << step << " bin " << n;
+        }
     }
 }
 
@@ -285,15 +315,3 @@ TEST_F(SeaSaltGeos12RuntimeTest, GoldenRegressionForFixedInputs) {
 
 }  // namespace
 }  // namespace cece
-
-int main(int argc, char** argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    if (!Kokkos::is_initialized()) {
-        Kokkos::initialize(argc, argv);
-    }
-    const int result = RUN_ALL_TESTS();
-    if (Kokkos::is_initialized()) {
-        Kokkos::finalize();
-    }
-    return result;
-}

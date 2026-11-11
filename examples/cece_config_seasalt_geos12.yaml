@@ -1,7 +1,7 @@
 # GEOS-12 Sea Salt Emission Example Configuration
 #
-# Demonstrates the GEOS-12 (GEOS-Chem 2012) sea salt emission scheme via the
-# Fortran bridge. Emissions are size-resolved across 5 dry-radius bins. Each
+# Demonstrates the GEOS-12 (GEOS-Chem 2012) sea salt emission scheme (native
+# Kokkos implementation). Emissions are size-resolved across 5 dry-radius bins. Each
 # bin is published as its OWN export field (seasalt_mass_<bin>,
 # seasalt_number_<bin>), so the grid vertical dimension `nz` keeps its normal
 # meaning (vertical levels; 1 here for a surface flux) and is not overloaded to
@@ -20,7 +20,6 @@ driver:
   timestep_seconds: 3600
   log_file: "cece.log"
   grid:
-    #grid_name: "F360"  1440 x 720
     nx: 384
     ny: 192
     lon_min: -180.0
@@ -66,9 +65,11 @@ physics_schemes:
       speciation_dataset: SEASALT
 
 cece_data:
+  # Offline MERRA-2 met driver. These NetCDF files are large and not shipped
+  # with the repo; place them under data/MERRA2/ (or symlink) before running.
   streams:
     - name: OFFLINE_MET1
-      file: /scratch4/NAGAPE/arl/Wei.K.Li/Data/MERRA2/MERRA2.20150101.CN.05x0625.nc4
+      file: data/MERRA2/MERRA2.20150101.CN.05x0625.nc4
       yearFirst: 2015
       yearLast: 2015
       yearAlign: 2015
@@ -78,7 +79,7 @@ cece_data:
       variables:
         - { file: FROCEAN, model: FROCEAN } # model must match input_mapping RHS
     - name: OFFLINE_MET2
-      file: /scratch4/NAGAPE/arl/Wei.K.Li/Data/MERRA2/MERRA2.20211220.A1.05x0625.nc4
+      file: data/MERRA2/MERRA2.20211220.A1.05x0625.nc4
       yearFirst: 2021
       yearLast: 2021
       yearAlign: 2021

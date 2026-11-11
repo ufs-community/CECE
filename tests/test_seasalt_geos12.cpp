@@ -165,17 +165,20 @@ TEST(SeaSaltGeos12SchemeTest, ProducesNonNegativeEmissionsOverOcean) {
     EXPECT_GE(total.view_host()(0, 0, 0), mass.view_host()(0, 0, 0));
 }
 
+TEST(SeaSaltGeos12SchemeTest, MismatchedImportExtentsThrowsInvalidArgument) {
+    CeceImportState import_state;
+    CeceExportState export_state;
+    AddOceanImports(import_state, 1, 1);
+    // u10m sized (2, 1, 1) mismatches frocean (1, 1, 1); the scheme must reject
+    // it rather than index out of bounds on the device.
+    import_state.fields["u10m"] = MakeField("u10m", 2, 1, 1, 5.0);
+    AddOutputs(export_state, 1, 1, 5);
+
+    SeaSaltGeos12Scheme scheme;
+    conf::Config cfg = MakeConfig(WriteMechanismFile("valid"), WriteMapFile("valid"));
+    scheme.Initialize(cfg.root(), nullptr);
+    EXPECT_THROW(scheme.Run(import_state, export_state), std::invalid_argument);
+}
+
 }  // namespace
 }  // namespace cece
-
-int main(int argc, char** argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    if (!Kokkos::is_initialized()) {
-        Kokkos::initialize(argc, argv);
-    }
-    const int result = RUN_ALL_TESTS();
-    if (Kokkos::is_initialized()) {
-        Kokkos::finalize();
-    }
-    return result;
-}

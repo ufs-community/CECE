@@ -197,8 +197,8 @@ std::unique_ptr<CeceSimulation> CeceSimulation::create_internal(const std::strin
         std::vector<double> lat2d(band_cells);
         const double* lon = grid.lon_coords.data();
         const double* lat = grid.lat_coords.data();
-        if (ny == 1) {
-            // Unstructured / single-row mesh: each of the nx cells carries its own lon and lat.
+        if (grid.topology == GridTopology::Unstructured) {
+            // Unstructured / single-row mesh (ny == 1): each of the nx cells carries its own lon and lat.
             for (int i = 0; i < nx; ++i) {
                 lon2d[i] = lon[i];
                 lat2d[i] = lat[i];

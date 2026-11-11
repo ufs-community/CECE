@@ -443,8 +443,8 @@ physics_schemes:
   - name: "sea_salt_geos12"
     language: "cpp"
     options:
-      mechanism_file: data/speciation/spc_cb6_gocart.yaml   # Per-bin properties
-      speciation_file: data/speciation/map_cb6_gocart.yaml  # Aerosol bin map
+      mechanism_file: data/speciation/spc_gocart.yaml   # Per-bin properties
+      speciation_file: data/speciation/map_gocart.yaml  # Aerosol bin map
       speciation_dataset: SEASALT                           # Bins to emit
       weibull_flag: false                                   # Weibull wind correction
       scale_factor: 1.0                                     # Global tuning factor
@@ -622,6 +622,7 @@ output[TERP] = (class_total[MT_PINE] × 0.5 + class_total[MT_ACYC] × 0.3 + ...)
 | RACM2 | `data/speciation/spc_racm2.yaml` | `data/speciation/map_racm2.yaml` | 43 |
 | SAPRC07 | `data/speciation/spc_saprc07.yaml` | `data/speciation/map_saprc07.yaml` | 38 |
 | CRACMM2 | `data/speciation/spc_cracmm.yaml` | `data/speciation/map_cracmm.yaml` | 56 |
+| GOCART | `data/speciation/spc_gocart.yaml` | `data/speciation/map_gocart.yaml` | 5 (sea salt aerosol size bins; used by `sea_salt_geos12`) |
 
 ### Adding a Custom Mechanism
 

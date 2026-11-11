@@ -40,7 +40,7 @@ SpeciationConfig SpeciationConfigLoader::ParseMechanism(const conf::Value& node)
         MechanismSpecies sp{entry["name"].as_string(), entry["molecular weight [kg mol-1]"].as_double() * 1000.0};
         if (sp.molecular_weight <= 0.0) throw std::invalid_argument("Mechanism species '" + sp.name + "' has non-positive molecular weight");
 
-        // GOES-12 addition: aerosol size-bin species declare themselves and carry size properties.
+        // GEOS-12 addition: aerosol size-bin species declare themselves and carry size properties.
         if (entry["is_aerosol"] && entry["is_aerosol"].as_bool()) {
             sp.is_aerosol = true;
             for (const char* key : {"density [kg m-3]", "lower_radius [um]", "upper_radius [um]"})
@@ -87,7 +87,7 @@ void SpeciationConfigLoader::ParseMapping(const conf::Value& node, SpeciationCon
                 std::transform(normalized.begin(), normalized.end(), normalized.begin(),
                                [](unsigned char c) { return static_cast<char>(std::toupper(c)); });
                 if (!StringToEmissionClass(normalized, emission_class)) {
-                    // GOES-12 addition: allow an aerosol size-bin identity source; the class
+                    // GEOS-12 addition: allow an aerosol size-bin identity source; the class
                     // names an aerosol species defined in the mechanism, not a gas class.
                     bool is_aerosol_source = false;
                     for (const auto& sp : config.species)
@@ -136,14 +136,29 @@ std::string SpeciationConfigLoader::ToYaml(const SpeciationConfig& config) {
     for (const auto& species : config.species) {
         out << "  - name: \"" << species.name << "\"\n";
         out << "    molecular weight [kg mol-1]: " << species.molecular_weight / 1000.0 << "\n";
+        // Aerosol size-bin species must round-trip their size properties, else
+        // they reload as gas species and their identity mappings fail to parse.
+        if (species.is_aerosol) {
+            out << "    is_aerosol: true\n";
+            out << "    density [kg m-3]: " << species.density << "\n";
+            out << "    lower_radius [um]: " << species.lower_radius << "\n";
+            out << "    upper_radius [um]: " << species.upper_radius << "\n";
+            out << "    effective_radius [um]: " << species.effective_radius << "\n";
+        }
     }
     out << "mechanism: \"" << config.mechanism_name << "\"\ndatasets:\n  \"" << config.dataset_name << "\":\n";
     std::unordered_map<std::string, std::vector<const SpeciationMapping*>> grouped;
     for (const auto& mapping : config.mappings) grouped[mapping.mechanism_species].push_back(&mapping);
     for (const auto& [species, mappings] : grouped) {
         out << "    \"" << species << "\":\n";
-        for (const auto* mapping : mappings)
-            out << "      \"" << EmissionClassToString(mapping->emission_class) << "\": " << mapping->scale_factor << "\n";
+        for (const auto* mapping : mappings) {
+            // COUNT is the aerosol-identity sentinel: the class names the aerosol
+            // species itself (not a gas class), so round-trip the species name
+            // rather than EmissionClassToString's "UNKNOWN".
+            const std::string class_key =
+                mapping->emission_class == EmissionClass::COUNT ? mapping->mechanism_species : EmissionClassToString(mapping->emission_class);
+            out << "      \"" << class_key << "\": " << mapping->scale_factor << "\n";
+        }
     }
     return out.str();
 }

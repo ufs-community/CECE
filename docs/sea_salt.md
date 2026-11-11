@@ -23,8 +23,8 @@ References:
 
 | YAML Key | Type | Default | Description |
 | --- | --- | --- | --- |
-| `mechanism_file` | string | `data/speciation/spc_cb6_gocart.yaml` | MICM mechanism file providing per-bin aerosol properties (density, lower/upper/effective dry radius). |
-| `speciation_file` | string | `data/speciation/map_cb6_gocart.yaml` | Aerosol map selecting which bins to emit and their per-bin scale. |
+| `mechanism_file` | string | `data/speciation/spc_gocart.yaml` | MICM mechanism file providing per-bin aerosol properties (density, lower/upper/effective dry radius). |
+| `speciation_file` | string | `data/speciation/map_gocart.yaml` | Aerosol map selecting which bins to emit and their per-bin scale. |
 | `speciation_dataset` | string | `SEASALT` | Dataset within the map that selects the sea salt bins. |
 | `weibull_flag` | bool | `false` | Enable the Fan & Toon (2011) Weibull wind-speed correction. |
 | `scale_factor` | double | `1.0` | Global tuning scale factor. |
@@ -87,8 +87,8 @@ physics_schemes:
   - name: sea_salt_geos12
     language: cpp
     options:
-      mechanism_file: data/speciation/spc_cb6_gocart.yaml
-      speciation_file: data/speciation/map_cb6_gocart.yaml
+      mechanism_file: data/speciation/spc_gocart.yaml
+      speciation_file: data/speciation/map_gocart.yaml
       speciation_dataset: SEASALT
       weibull_flag: false
       scale_factor: 1.0

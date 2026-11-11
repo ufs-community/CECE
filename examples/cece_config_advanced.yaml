@@ -214,8 +214,8 @@ physics_schemes:
       # aerosol map selects the GOCART bins (seas1..seas5) and their scale.
       # Requires FROCEAN/FRSEAICE/SST/U10M/V10M/USTAR met inputs (LAT/LON are
       # supplied by the driver grid) delivered via cece_data streams.
-      mechanism_file: data/speciation/spc_cb6_gocart.yaml
-      speciation_file: data/speciation/map_cb6_gocart.yaml
+      mechanism_file: data/speciation/spc_gocart.yaml
+      speciation_file: data/speciation/map_gocart.yaml
       speciation_dataset: SEASALT
       weibull_flag: false
       scale_factor: 1.0

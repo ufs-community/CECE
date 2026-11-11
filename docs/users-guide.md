@@ -129,7 +129,8 @@ physics_schemes:
   - name: "sea_salt_geos12"
     language: "cpp"
     options:
-      mechanism_file: data/speciation/spc_cb6_gocart.yaml
+      mechanism_file: data/speciation/spc_gocart.yaml
+      speciation_file: data/speciation/map_gocart.yaml
       speciation_dataset: SEASALT
 
 # Data streams for external inventories

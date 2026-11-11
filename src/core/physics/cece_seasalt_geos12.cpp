@@ -18,13 +18,14 @@
 
 #include <Kokkos_Core.hpp>
 #include <cmath>
-#include <iostream>
+#include <numbers>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
 
+#include "cece/cece_logger.hpp"
 #include "cece/cece_physics_factory.hpp"
 #include "cece/physics/cece_speciation_config.hpp"
 
@@ -59,14 +60,13 @@ double jeagle_sst_correction(double sst) {
 }
 
 /// @brief Upper incomplete Gamma function used by the Weibull correction.
-/// @param[out] ok false if the argument overflows (mirrors the Fortran rc/=0 skip).
+/// @return the incomplete gamma (always >= 0), or a negative sentinel when the
+///         argument overflows (mirrors the Fortran rc/=0 skip).
 KOKKOS_INLINE_FUNCTION
-double ss_igamma(double a, double x, bool& ok) {
-    ok = true;
+double ss_igamma(double a, double x) {
     double xam = -x + a * Kokkos::log(x);
     if (xam > 700.0 || a > 170.0) {
-        ok = false;
-        return 0.0;
+        return -1.0;
     }
     double gout = 0.0;
     if (Kokkos::fabs(x) < 1.0e-30) {
@@ -92,10 +92,10 @@ double ss_igamma(double a, double x, bool& ok) {
 }
 
 /// @brief Fan & Toon (2011) Weibull wind-speed correction factor.
-/// @param[out] ok false if the incomplete-gamma evaluation overflows.
+/// @return the correction factor (>= 0), or a negative value when the
+///         incomplete-gamma evaluation overflows (the cell is then skipped).
 KOKKOS_INLINE_FUNCTION
-double weibull_factor(bool on, double wm, bool& ok) {
-    ok = true;
+double weibull_factor(bool on, double wm) {
     double gweibull = 1.0;
     constexpr double wt = 4.0;
     if (on) {
@@ -105,7 +105,9 @@ double weibull_factor(bool on, double wm, bool& ok) {
             double c = wm / Kokkos::tgamma(1.0 + 1.0 / k);
             double x = Kokkos::pow(wt / c, k);
             double a = 3.41 / k + 1.0;
-            gweibull = Kokkos::pow(c / wm, 3.41) * ss_igamma(a, x, ok);
+            // ss_igamma returns < 0 on overflow; the positive prefactor carries
+            // the sign through, so a negative result signals "skip this cell".
+            gweibull = Kokkos::pow(c / wm, 3.41) * ss_igamma(a, x);
         }
     }
     return gweibull;
@@ -131,8 +133,8 @@ void SeaSaltGeos12Scheme::Initialize(const conf::Value& config, CeceDiagnosticMa
     // Per-bin properties come from the shared MICM mechanism file; the map's
     // aerosol dataset selects which bins (and their emission scale) to emit,
     // using the same nested speciation format and loader as the gas schemes.
-    std::string mechanism_file = "data/speciation/spc_cb6_gocart.yaml";
-    std::string speciation_file = "data/speciation/map_cb6_gocart.yaml";
+    std::string mechanism_file = "data/speciation/spc_gocart.yaml";
+    std::string speciation_file = "data/speciation/map_gocart.yaml";
     std::string dataset = "SEASALT";
     if (config["mechanism_file"].is_defined()) mechanism_file = config["mechanism_file"].as_string();
     if (config["speciation_file"].is_defined()) speciation_file = config["speciation_file"].as_string();
@@ -194,12 +196,14 @@ void SeaSaltGeos12Scheme::Initialize(const conf::Value& config, CeceDiagnosticMa
     Kokkos::deep_copy(rup_d_, h_rup);
     Kokkos::deep_copy(scale_d_, h_scale);
 
-    std::cout << "SeaSaltGeos12Scheme: Initialized " << num_species_ << " bins from '" << mechanism_file << "' + '" << speciation_file
-              << "' (dataset " << dataset << "), weibull_flag=" << weibull_flag_ << ", scale_factor=" << scale_factor_ << ". Export fields:";
+    std::string export_fields;
     for (const auto& name : species_names_) {
-        std::cout << " seasalt_mass_" << name << " seasalt_number_" << name;
+        export_fields += " seasalt_mass_" + name + " seasalt_number_" + name;
     }
-    std::cout << " seasalt_mass_total seasalt_number_total\n";
+    export_fields += " seasalt_mass_total seasalt_number_total";
+    CECE_LOG_INFO("SeaSaltGeos12Scheme: Initialized " + std::to_string(num_species_) + " bins from '" + mechanism_file + "' + '" + speciation_file +
+                  "' (dataset " + dataset + "), weibull_flag=" + (weibull_flag_ ? "true" : "false") +
+                  ", scale_factor=" + std::to_string(scale_factor_) + ". Export fields:" + export_fields);
 }
 
 // ============================================================================
@@ -225,6 +229,26 @@ void SeaSaltGeos12Scheme::Run(CeceImportState& import_state, CeceExportState& ex
     const int ny = static_cast<int>(frocean.extent(1));
     const int ns = num_species_;
 
+    // Every present import/export field is indexed at level 0 over frocean's
+    // (nx, ny); a mismatched field would read/write out of bounds on the device
+    // (or abort the per-bin deep_copy). Validate shape up front and fail with a
+    // clear error. Missing fields are handled by the null guard above (imports)
+    // or skipped (exports), preserving the no-op-when-absent contract.
+    auto require_shape = [nx, ny](const auto& view, const std::string& name) {
+        if (static_cast<int>(view.extent(0)) != nx || static_cast<int>(view.extent(1)) != ny || view.extent(2) < 1) {
+            throw std::invalid_argument("SeaSaltGeos12Scheme: field '" + name + "' has incompatible shape (expected " + std::to_string(nx) + "x" +
+                                        std::to_string(ny) + "x>=1)");
+        }
+    };
+    require_shape(frocean, "frocean");
+    require_shape(frseaice, "frseaice");
+    require_shape(lat, "lat");
+    require_shape(lon, "lon");
+    require_shape(sst, "sst");
+    require_shape(u10m, "u10m");
+    require_shape(v10m, "v10m");
+    require_shape(ustar, "ustar");
+
     // (Re)allocate the per-bin scratch buffers if the grid changed.
     if (static_cast<int>(mass_scratch_.extent(0)) != nx || static_cast<int>(mass_scratch_.extent(1)) != ny ||
         static_cast<int>(mass_scratch_.extent(2)) != ns) {
@@ -237,6 +261,8 @@ void SeaSaltGeos12Scheme::Run(CeceImportState& import_state, CeceExportState& ex
     auto number_total = ResolveExport("seasalt_number_total", export_state);
     const bool has_mass_total = mass_total.data() != nullptr;
     const bool has_number_total = number_total.data() != nullptr;
+    if (has_mass_total) require_shape(mass_total, "seasalt_mass_total");
+    if (has_number_total) require_shape(number_total, "seasalt_number_total");
 
     // Capture members/parameters for the device lambda.
     auto mass_s = mass_scratch_;
@@ -247,7 +273,7 @@ void SeaSaltGeos12Scheme::Run(CeceImportState& import_state, CeceExportState& ex
     auto scale_bin = scale_d_;
     const bool do_weibull = weibull_flag_;
     const double scale_factor = scale_factor_;
-    const double pi = M_PI;
+    const double pi = std::numbers::pi;
 
     Kokkos::parallel_for(
         "SeaSaltGeos12Kernel", Kokkos::MDRangePolicy<Kokkos::DefaultExecutionSpace, Kokkos::Rank<2>>({0, 0}, {nx, ny}), KOKKOS_LAMBDA(int i, int j) {
@@ -265,9 +291,8 @@ void SeaSaltGeos12Scheme::Run(CeceImportState& import_state, CeceExportState& ex
             // 10-m mean wind speed (used only for the Weibull correction).
             double w10m = Kokkos::sqrt(u10m(i, j, 0) * u10m(i, j, 0) + v10m(i, j, 0) * v10m(i, j, 0));
 
-            bool ok = true;
-            double gweibull = weibull_factor(do_weibull, w10m, ok);
-            if (!ok) return;
+            double gweibull = weibull_factor(do_weibull, w10m);
+            if (gweibull < 0.0) return;  // incomplete-gamma overflow: skip cell (Fortran rc/=0)
 
             double fsstemis = jeagle_sst_correction(sst(i, j, 0));
 
@@ -326,17 +351,26 @@ void SeaSaltGeos12Scheme::Run(CeceImportState& import_state, CeceExportState& ex
         const std::string& bin = species_names_[static_cast<std::size_t>(n)];
         auto mass_field = ResolveExport("seasalt_mass_" + bin, export_state);
         if (mass_field.data() != nullptr) {
+            require_shape(mass_field, "seasalt_mass_" + bin);
             Kokkos::deep_copy(Kokkos::subview(mass_field, Kokkos::ALL, Kokkos::ALL, 0), Kokkos::subview(mass_s, Kokkos::ALL, Kokkos::ALL, n));
             MarkModified("seasalt_mass_" + bin, export_state);
         }
         auto number_field = ResolveExport("seasalt_number_" + bin, export_state);
         if (number_field.data() != nullptr) {
+            require_shape(number_field, "seasalt_number_" + bin);
             Kokkos::deep_copy(Kokkos::subview(number_field, Kokkos::ALL, Kokkos::ALL, 0), Kokkos::subview(number_s, Kokkos::ALL, Kokkos::ALL, n));
             MarkModified("seasalt_number_" + bin, export_state);
         }
     }
 
-    // Static per-bin effective radius as a diagnostic (decoupled from grid nz).
+    // Static per-bin effective radius diagnostic (decoupled from grid nz).
+    // species_radius_ is fixed after Initialize, so fill the host mirror and sync
+    // H2D once per grid instead of every timestep: skip when the diagnostic is
+    // already populated at the current extents.
+    if (diag_effective_radius_.view_host().data() != nullptr && diag_effective_radius_.extent(0) == static_cast<std::size_t>(nx) &&
+        diag_effective_radius_.extent(1) == static_cast<std::size_t>(ny) && diag_effective_radius_.extent(2) == static_cast<std::size_t>(ns)) {
+        return;
+    }
     diag_effective_radius_ = ResolveDiagnostic("seasalt_effective_radius", nx, ny, ns, "um", "GEOS-12 sea salt effective dry radius per bin");
     if (diag_effective_radius_.view_host().data() == nullptr || diag_effective_radius_.extent(0) != static_cast<std::size_t>(nx) ||
         diag_effective_radius_.extent(1) != static_cast<std::size_t>(ny) || diag_effective_radius_.extent(2) != static_cast<std::size_t>(ns)) {
