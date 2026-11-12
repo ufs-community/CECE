@@ -74,6 +74,14 @@ repos:
         additional_dependencies: [PyYAML]
         files: ^(examples/.*\.ya?ml|scripts/examples/.*\.ya?ml|tests/(data/)?[^/]*\.ya?ml|README\.md|docs/.*\.md)$
 
+      - id: no-yaml-cpp
+        name: Avoid yaml-ccp
+        description: Avoid yaml-cpp calls in CECE code
+        language: pygrep
+        types_or: ["c", "c++"]
+        exclude: "tests/test_.*\\.cpp"
+        entry: "YAML::|#include <yaml-cpp"
+
       - id: symilar-yaml
         name: symilar-yaml
         description: Check for code duplication in yaml

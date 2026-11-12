@@ -259,9 +259,8 @@ cece_add_gtest(
 )
 cece_add_gtest(
   test_band_regrid_equals_global_rows
-  MAIN MPI_KOKKOS
+  MAIN KOKKOS
   LINK ${RAPIDCHECK}
-  MPI_LAUNCHER
   PROPERTIES ENVIRONMENT "RC_PARAMS=max_success=100"
 )
 # Band-boundary conservation on NON-UNIFORM grids (distributed-domain-decomposition,
@@ -269,9 +268,8 @@ cece_add_gtest(
 # helper + AXIS conservative regrid.
 cece_add_gtest(
   test_band_boundary_conservation
-  MAIN MPI_KOKKOS
-  LINK MPI::MPI_CXX Kokkos::kokkos HELM::AXIS ${RAPIDCHECK}
-  MPI_LAUNCHER
+  MAIN KOKKOS
+  LINK Kokkos::kokkos HELM::AXIS ${RAPIDCHECK}
   PROPERTIES ENVIRONMENT "RC_PARAMS=max_success=100"
 )
 # Band-boundary conservation on CURVILINEAR grids (distributed-domain-decomposition,
@@ -279,9 +277,8 @@ cece_add_gtest(
 # production helper (AXIS synthesize_band_corners) + AXIS conservative regrid.
 cece_add_gtest(
   test_band_boundary_curvilinear
-  MAIN MPI_KOKKOS
-  LINK MPI::MPI_CXX Kokkos::kokkos HELM::AXIS ${RAPIDCHECK}
-  MPI_LAUNCHER
+  MAIN KOKKOS
+  LINK Kokkos::kokkos HELM::AXIS ${RAPIDCHECK}
   PROPERTIES ENVIRONMENT "RC_PARAMS=max_success=100"
 )
 
