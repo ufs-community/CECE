@@ -21,7 +21,6 @@
 // Validates: Requirements 9.1, 9.2, 9.4, 9.5
 
 #include <gtest/gtest.h>
-#include <mpi.h>
 #include <rapidcheck.h>
 #include <rapidcheck/gtest.h>
 

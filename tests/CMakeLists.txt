@@ -267,8 +267,8 @@ cece_add_gtest(
 # production helper (AXIS synthesize_band_corners) + AXIS conservative regrid.
 cece_add_gtest(
   test_band_boundary_curvilinear
-  MAIN MPI_KOKKOS
-  LINK MPI::MPI_CXX Kokkos::kokkos HELM::AXIS ${RAPIDCHECK}
+  MAIN KOKKOS
+  LINK Kokkos::kokkos HELM::AXIS ${RAPIDCHECK}
   MPI_LAUNCHER
   PROPERTIES ENVIRONMENT "RC_PARAMS=max_success=100"
 )
