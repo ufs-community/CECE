@@ -12,8 +12,6 @@
 
 #include <iostream>
 
-#include "cece/cece_c_api.h"
-
 extern "C" {
 void cece_core_realize(void*, int*);
 

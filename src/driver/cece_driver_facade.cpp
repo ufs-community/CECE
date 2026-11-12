@@ -592,7 +592,7 @@ CeceDriverOrchestrator::CeceDriverOrchestrator(const std::string& config_file, i
     // reassigned (Req 1.1, 1.2, 1.5).
     band_ = BandDecomposition::compute(ny_, comm_c_);
 
-    // Parse the YAML once in this function and resolve the StreamConfig for every stream
+    // Parse the YAML and resolve the StreamConfig for every stream
     // variable, plus driver-level values and gridspec_file_ (Req 1.1). This
     // preserves the previous constructor's driver-block validation (a < 1
     // amio_worker_threads / amio_staging_buffer_count throws) and its
