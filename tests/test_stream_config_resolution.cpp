@@ -519,6 +519,8 @@ RC_GTEST_PROP(StreamConfigResolutionProperty, Property4_ResolutionMatchesLegacy,
 
 TEST(StreamConfigResolution, PointStreamValidConfig) {
     TempFile fixture(R"(
+driver:
+
 cece_data:
   streams:
     - name: CO
@@ -538,6 +540,8 @@ physics_schemes: []
 
 TEST(StreamConfigResolution, PointStreamRejectsMapalgo) {
     TempFile fixture(R"(
+driver:
+
 cece_data:
   streams:
     - name: CO
@@ -545,6 +549,42 @@ cece_data:
       kind: point
       format: point_nc
       mapalgo: consd
+physics_schemes: []
+)");
+    std::unordered_map<std::string, StreamConfig> configs;
+    std::string gridspec;
+    EXPECT_THROW(StreamConfigTestAccess::Resolve(fixture.path, configs, gridspec), std::invalid_argument);
+}
+
+TEST(StreamConfigResolution, PointStreamRejectsMeshfile) {
+    TempFile fixture(R"(
+driver:
+
+cece_data:
+  streams:
+    - name: CO
+      file: point.nc
+      kind: point
+      format: point_nc
+      meshfile: grid.nc
+physics_schemes: []
+)");
+    std::unordered_map<std::string, StreamConfig> configs;
+    std::string gridspec;
+    EXPECT_THROW(StreamConfigTestAccess::Resolve(fixture.path, configs, gridspec), std::invalid_argument);
+}
+
+TEST(StreamConfigResolution, PointStreamRejectsUseLocalTime) {
+    TempFile fixture(R"(
+driver:
+
+cece_data:
+  streams:
+    - name: CO
+      file: point.nc
+      kind: point
+      format: point_nc
+      use_local_time: true
 physics_schemes: []
 )");
     std::unordered_map<std::string, StreamConfig> configs;
