@@ -43,8 +43,8 @@ int band_start(int ny, int size, int r) {
     return r * band_base + std::min(r, band_rem);
 }
 
-RegridPlan MakePlanFromMeshes(int src_nx, int src_ny, axis::topology::UnstructuredMesh<Kokkos::HostSpace> src_mesh,
-                              axis::topology::UnstructuredMesh<Kokkos::HostSpace> dst_mesh, int j0, int j1) {
+RegridPlan MakePlanFromMeshes(int src_nx, int src_ny, const axis::topology::UnstructuredMesh<Kokkos::HostSpace>& src_mesh,
+                              const axis::topology::UnstructuredMesh<Kokkos::HostSpace>& dst_mesh, int j0, int j1) {
     RegridPlan plan;
     plan.file_nx = src_nx;
     plan.file_ny = src_ny;
@@ -124,10 +124,11 @@ void check_curv_band_equals_global(int src_nx, int src_ny, const CurvGrid& dst, 
     // corners always use great-circle edges.
     auto src_mesh_g = build_axis_mesh(src_nx, src_ny, src_rect_lons(src_nx), src_rect_lats(src_ny));
     auto dst_mesh_g = build_band_mesh_curvilinear_with_global_corners(nx, 0, ny, dst.lon, dst.lat, dst.lon, dst.lat);
-    RegridPlan gplan = MakePlanFromMeshes(src_nx, src_ny, std::move(src_mesh_g), std::move(dst_mesh_g), 0, ny);
+    RegridPlan gplan = MakePlanFromMeshes(src_nx, src_ny, src_mesh_g, std::move(dst_mesh_g), 0, ny);
     std::vector<double> global;
     RC_ASSERT(apply_regrid_plan(gplan, 0, false, src.data(), src_nx, src_ny, nx, global));
 
+    auto src_mesh_b = build_axis_mesh(src_nx, src_ny, src_rect_lons(src_nx), src_rect_lats(src_ny));
     for (int r = 0; r < size; ++r) {
         const int j0 = band_start(ny, size, r);
         const int j1 = band_start(ny, size, r + 1);
@@ -135,9 +136,8 @@ void check_curv_band_equals_global(int src_nx, int src_ny, const CurvGrid& dst, 
         if (nband <= 0) continue;
         std::vector<double> blon(dst.lon.begin() + static_cast<size_t>(j0) * nx, dst.lon.begin() + static_cast<size_t>(j1) * nx);
         std::vector<double> blat(dst.lat.begin() + static_cast<size_t>(j0) * nx, dst.lat.begin() + static_cast<size_t>(j1) * nx);
-        auto src_mesh_b = build_axis_mesh(src_nx, src_ny, src_rect_lons(src_nx), src_rect_lats(src_ny));
         auto dst_mesh_b = build_band_mesh_curvilinear_with_global_corners(nx, j0, j1, dst.lon, dst.lat, blon, blat);
-        RegridPlan bplan = MakePlanFromMeshes(src_nx, src_ny, std::move(src_mesh_b), std::move(dst_mesh_b), j0, j1);
+        RegridPlan bplan = MakePlanFromMeshes(src_nx, src_ny, src_mesh_b, std::move(dst_mesh_b), j0, j1);
         std::vector<double> band;
         RC_ASSERT(apply_regrid_plan(bplan, 0, false, src.data(), src_nx, src_ny, nx, band));
         for (int jr = 0; jr < nband; ++jr) {
