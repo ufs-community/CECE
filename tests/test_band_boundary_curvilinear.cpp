@@ -118,9 +118,12 @@ void check_curv_band_equals_global(int src_nx, int src_ny, const CurvGrid& dst, 
     for (size_t k = 0; k < src.size(); ++k) src[k] = 1.0 + 0.37 * static_cast<double>(k) - 0.013 * static_cast<double>(k * k % 17);
 
     // Global reference: whole curvilinear grid built the way build_regrid_plan
-    // would for a single rank (AXIS-native synthesize_corners).
+    // does for a single rank (the band helper over [0, ny)). A plain
+    // build_axis_mesh would let AXIS pick constant-latitude edges when the
+    // centers happen to be separable (e.g. dst_nx=2, phase=0), whereas explicit
+    // corners always use great-circle edges.
     auto src_mesh_g = build_axis_mesh(src_nx, src_ny, src_rect_lons(src_nx), src_rect_lats(src_ny));
-    auto dst_mesh_g = build_axis_mesh(nx, ny, dst.lon, dst.lat);
+    auto dst_mesh_g = build_band_mesh_curvilinear_with_global_corners(nx, 0, ny, dst.lon, dst.lat, dst.lon, dst.lat);
     RegridPlan gplan = MakePlanFromMeshes(src_nx, src_ny, std::move(src_mesh_g), std::move(dst_mesh_g), 0, ny);
     std::vector<double> global;
     RC_ASSERT(apply_regrid_plan(gplan, 0, false, src.data(), src_nx, src_ny, nx, global));
@@ -164,6 +167,14 @@ RC_GTEST_PROP(BandBoundaryConservation, CurvilinearBandEqualsGlobal, ()) {
 
     const CurvGrid dst = make_curvilinear(dst_nx, dst_ny, phase);
     check_curv_band_equals_global(src_nx, src_ny, dst, size);
+}
+
+// Regression: dst_nx=2, phase=0 makes the "curvilinear" centers separable, which
+// AXIS's center-only path would treat as rectilinear (constant-latitude edges).
+TEST(BandBoundaryConservation, CurvilinearSeparableCase) {
+    const CurvGrid dst = make_curvilinear(2, 5, 0.0);
+    check_curv_band_equals_global(2, 3, dst, 1);
+    check_curv_band_equals_global(2, 3, dst, 2);
 }
 
 // Fixed regression case: a curvilinear band that reproduces the seam divergence
