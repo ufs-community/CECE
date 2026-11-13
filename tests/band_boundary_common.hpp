@@ -11,14 +11,14 @@
 namespace cece::io {
 namespace {
 
-int band_start(int ny, int size, int r) {
+constexpr int band_start(int ny, int size, int r) {
     const int band_base = ny / size;
     const int band_rem = ny % size;
     return r * band_base + std::min(r, band_rem);
 }
 
-RegridPlan MakePlanFromMeshes(int src_nx, int src_ny, axis::topology::UnstructuredMesh<Kokkos::HostSpace> src_mesh,
-                              axis::topology::UnstructuredMesh<Kokkos::HostSpace> dst_mesh, int j0, int j1) {
+RegridPlan MakePlanFromMeshes(int src_nx, int src_ny, const axis::topology::UnstructuredMesh<Kokkos::HostSpace>& src_mesh,
+                              const axis::topology::UnstructuredMesh<Kokkos::HostSpace>& dst_mesh, int j0, int j1) {
     RegridPlan plan;
     plan.file_nx = src_nx;
     plan.file_ny = src_ny;
