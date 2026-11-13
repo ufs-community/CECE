@@ -159,6 +159,7 @@ cece_add_gtest(
 )
 cece_add_gtest(test_rectilinear_gridspec MAIN MPI_KOKKOS MPI_LAUNCHER PROPERTIES PROCESSORS 1)
 cece_add_gtest(test_physics)
+cece_add_gtest(test_briggs MAIN KOKKOS SOURCE_DIR_DEFINE)
 cece_add_gtest(test_hemco_mimic)
 cece_add_gtest(test_stacking_engine)
 # Local-time support: RLE grid decoder, local-time service, and per-cell

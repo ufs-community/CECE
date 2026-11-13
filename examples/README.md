@@ -4,6 +4,14 @@ This directory contains example YAML configuration files demonstrating various C
 
 ## Example Descriptions
 
+### cece_config_briggs.yaml
+**Native Briggs Method via the Plume-Rise Framework**
+- Original NOAA/CMAQ 5.3.1 35-layer meteorology profile and stack inputs
+- Selects `plume_rise` with `method: briggs`
+- Plume centerline height and conservative per-layer fractions
+- Self-contained test fixture consumed by `test_briggs`, not the standalone driver
+- See [Briggs physics and validation](../docs/briggs.md) for running instructions
+
 ### cece_config_ex1.yaml
 **Basic Single Species Example**
 - Simple CO emissions from a single MACCITY stream
@@ -54,7 +62,7 @@ This directory contains example YAML configuration files demonstrating various C
 
 ## Configuration Sections
 
-All examples include these configurable sections:
+Standalone-driver examples include these configurable sections:
 
 ### Driver Configuration (`driver:`)
 - `start_time`: Simulation start time (ISO8601 format, e.g. "2020-01-01T00:00:00")
