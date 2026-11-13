@@ -6,11 +6,15 @@ on:
     branches: [develop]
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: read
 
     steps:
       - name: Checkout
@@ -29,11 +33,13 @@ jobs:
           python3 -m pip install --upgrade pip
           python3 -m pip install zensical mkdoxy mkdocs-material
 
+      - name: Run Doxygen
+        run: doxygen Doxyfile
+
       - name: Build documentation
         run: zensical build
 
       - name: Upload built docs artifact
-        if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v7
         with:
           name: cece-docs-pr-${{ github.event.pull_request.number }}-${{ github.run_number }}
@@ -41,8 +47,21 @@ jobs:
           retention-days: 3
           if-no-files-found: error
 
+  deploy:
+    runs-on: ubunto-latest
+    permissions:
+      contents: write
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Download built docs artifact
+        uses: actions/download-artifact@@v8
+        with:
+          name: cece-docs-pr-${{ github.event.pull_request.number }}-${{ github.run_number }}
+          path: ./site/**
+          retention-days: 3
+
       - name: Deploy to GitHub Pages
-        uses: peaceiris/actions-gh-pages@v4
+        uses: peaceiris/actions-gh-pages@4f9cc66 # v4.0
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
