@@ -11,8 +11,6 @@
 #include <string>
 #include <vector>
 
-namespace fs = std::filesystem;
-
 namespace cece {
 
 /**
@@ -106,12 +104,12 @@ class ConfigValidator {
     /**
      * @brief Check if file exists
      */
-    static bool FileExists(const fs::path& path);
+    static bool FileExists(const std::filesystem::path& path);
 
     /**
      * @brief Check if directory is writable
      */
-    static bool DirectoryIsWritable(const fs::path& path);
+    static bool DirectoryIsWritable(const std::filesystem::path& path);
 };
 
 }  // namespace cece

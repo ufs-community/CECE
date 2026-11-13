@@ -9,8 +9,6 @@
 
 #include "cece/cece_io.hpp"
 
-namespace fs = std::filesystem;
-
 /**
  * @brief Programmatically compiles a high-level CECE streams YAML configuration
  *        into low-level HELM SPAN buffers and DAGR pipeline tasks.
@@ -19,7 +17,7 @@ namespace fs = std::filesystem;
  * @param cece_io Reference to initialized C++ CeceIO component.
  * @param comm_c Custom MPI communicator to run the HELM graph on.
  */
-void CompileHelmGraph(const fs::path& config_file, std::unique_ptr<dagr::GraphOrchestrator>& dagr, cece::io::CeceIO& cece_io,
+void CompileHelmGraph(const std::filesystem::path& config_file, std::unique_ptr<dagr::GraphOrchestrator>& dagr, cece::io::CeceIO& cece_io,
                       MPI_Comm comm_c = MPI_COMM_WORLD);
 
 #endif  // CECE_HELM_GRAPH_HPP

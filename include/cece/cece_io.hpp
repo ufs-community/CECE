@@ -7,8 +7,6 @@
 #include <unordered_map>
 #include <vector>
 
-namespace fs = std::filesystem;
-
 namespace cece {
 namespace io {
 
@@ -17,7 +15,7 @@ class CeceIO {
     CeceIO() = default;
     ~CeceIO() = default;
 
-    void Initialize(const fs::path& config_file, int nx, int ny, int nz);
+    void Initialize(const std::filesystem::path& config_file, int nx, int ny, int nz);
     void Finalize();
 
     std::vector<std::string> GetOutputVarNames() const {

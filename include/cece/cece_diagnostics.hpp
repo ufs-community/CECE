@@ -9,8 +9,6 @@
 #include "cece/cece_config.hpp"
 #include "cece/cece_state.hpp"
 
-namespace fs = std::filesystem;
-
 namespace cece {
 
 /**
@@ -42,7 +40,7 @@ class CeceDiagnosticManager {
      * @param output_path Optional output directory path.
      */
     void WriteDiagnostics(const DiagnosticConfig& config, int hour, int day_of_week, const CeceExportState& export_state,
-                          const fs::path& output_path = "");
+                          const std::filesystem::path& output_path = "");
 
    private:
     struct DiagnosticField {

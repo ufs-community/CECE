@@ -21,8 +21,6 @@
 #include <utility>
 #include <vector>
 
-namespace fs = std::filesystem;
-
 namespace cece {
 
 /**
@@ -156,7 +154,7 @@ struct CeceDataVariableConfig {
  */
 struct CeceDataStreamConfig {
     std::string name;                               ///< Name of the stream.
-    std::vector<fs::path> file_paths;               ///< Paths to the NetCDF files.
+    std::vector<std::filesystem::path> file_paths;  ///< Paths to the NetCDF files.
     std::vector<CeceDataVariableConfig> variables;  ///< Variables to read from this stream.
     std::string taxmode = "cycle";                  ///< Time axis mode (cycle, extend, etc.).
     std::string tintalgo = "nearest";               ///< Time interpolation algorithm.
@@ -166,7 +164,7 @@ struct CeceDataStreamConfig {
     int yearLast = 0;               ///< Last year in data; zero selects climatological indexing.
     int yearAlign = 0;              ///< Year to align with model time; zero applies no year shift.
     int offset = 0;                 ///< Time offset in seconds.
-    fs::path meshfile;              ///< Path to source mesh file.
+    std::filesystem::path meshfile;    ///< Path to source mesh file.
     std::string lev_dimname = "lev";   ///< Name of vertical dimension.
     std::string time_var = "time";     ///< Name of time coordinate variable.
     std::string lon_var = "lon";       ///< Name of longitude coordinate variable.
@@ -384,7 +382,7 @@ class CeceOutputFieldCollection {
  * @brief Configuration for standalone NetCDF output (Requirement 11.12).
  */
 struct CeceOutputConfig {
-    std::string directory = ".";                                                  ///< Output directory (created if absent).
+    std::filesystem::path directory = ".";                                        ///< Output directory (created if absent).
     std::string filename_pattern = "cece_output_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc";  ///< Filename pattern with time tokens.
     int frequency_steps = 1;                                                      ///< Write every N time steps.
     CeceOutputFieldCollection fields;   ///< Coordinate variables + configured data fields; no data fields means write all export fields.
@@ -404,7 +402,7 @@ struct CeceOutputConfig {
 struct DiagnosticConfig {
     int output_interval_seconds = 0;     ///< Output frequency in seconds.
     std::string grid_type = "native";    ///< "native", "gaussian", or "mesh".
-    fs::path grid_file;                  ///< Path to ESMF mesh file if grid_type is
+    std::filesystem::path grid_file;     ///< Path to ESMF mesh file if grid_type is
                                          ///< "mesh".
     int nx = 0;                          ///< Grid X for Gaussian or native.
     int ny = 0;                          ///< Grid Y for Gaussian or native.
@@ -433,8 +431,9 @@ struct DriverConfig {
     std::string start_time = "2020-01-01T00:00:00";  ///< ISO8601 start time (default: 2020-01-01T00:00:00).
     std::string end_time = "2020-01-02T00:00:00";    ///< ISO8601 end time (default: 2020-01-02T00:00:00).
     int timestep_seconds = 3600;                     ///< Timestep in seconds (default: 3600).
-    fs::path gridspec_file;  ///< Path to ESMF GRIDSPEC NetCDF file (optional). If set, loaded instead of generating a grid from driver.grid params.
-    DriverGridConfig grid;   ///< Grid configuration for generated Gaussian grid.
+    std::filesystem::path
+        gridspec_file;      ///< Path to ESMF GRIDSPEC NetCDF file (optional). If set, loaded instead of generating a grid from driver.grid params.
+    DriverGridConfig grid;  ///< Grid configuration for generated Gaussian grid.
     int stacking_refresh_interval_seconds = 0;  ///< Stacking engine refresh interval in seconds (0 means use base timestep).
     int amio_worker_threads = 1;                ///< Number of AMIO background I/O worker threads (default: 1).
     int amio_staging_buffer_count = 8;          ///< Number of AMIO input staging buffers (default: 8).
@@ -489,8 +488,8 @@ struct NuopcConfig {
  * happens, and temporal scaling behaves exactly as the pre-feature UTC path.
  */
 struct LocalTimeConfig {
-    bool enabled = false;  ///< Master switch for local-time temporal scaling.
-    fs::path grid_file;    ///< Path to the RLE UTC-offset grid; empty => "data/utc_grid_720r.rle".
+    bool enabled = false;             ///< Master switch for local-time temporal scaling.
+    std::filesystem::path grid_file;  ///< Path to the RLE UTC-offset grid; empty => "data/utc_grid_720r.rle".
 };
 
 /**
@@ -539,7 +538,7 @@ struct CeceConfig {
  * @return CeceConfig object containing the parsed species and schemes.
  * @throws std::exception if the file is invalid or missing.
  */
-CeceConfig ParseConfig(const fs::path& filename);
+CeceConfig ParseConfig(const std::filesystem::path& filename);
 
 /**
  * @brief Adds a new emission species with its layers to an existing config at runtime.

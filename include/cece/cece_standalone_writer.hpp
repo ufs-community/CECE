@@ -14,8 +14,6 @@
 #include "cece_compute.hpp"
 #include "cece_config.hpp"
 
-namespace fs = std::filesystem;
-
 namespace cece {
 
 // Opaque AMIO dataset handle (typedef of void* in amio/amio_types.h). The
@@ -37,7 +35,7 @@ class CeceStandaloneWriter {
     int Initialize(const std::string& start_time_iso8601, int nx, int ny, int nz);
 
     int InitializeWithCoords(const std::string& start_time_iso8601, int nx, int ny, int nz, const std::vector<double>& lon_coords,
-                             const std::vector<double>& lat_coords, const fs::path& gridspec_file = "");
+                             const std::vector<double>& lat_coords, const std::filesystem::path& gridspec_file = "");
 
     int WriteTimeStep(const std::unordered_map<std::string, DualView3D>& export_fields, double time_seconds_since_start, int step_index);
 
@@ -59,14 +57,14 @@ class CeceStandaloneWriter {
     std::vector<double> lat_coords_;
     bool use_custom_coords_ = false;
     MPI_Comm comm_ = MPI_COMM_SELF;
-    fs::path gridspec_file_;
+    std::filesystem::path gridspec_file_;
 
     // Band decomposition of the global latitude rows [0, ny_) across comm_.
     // Computed in Initialize/InitializeWithCoords from ny_ + comm_ and used by
     // the Output_Gather in WriteTimeStep to assemble the global field on rank 0.
     BandDecomposition band_;
 
-    fs::path ResolveFilename(double time_seconds_since_start) const;
+    std::filesystem::path ResolveFilename(double time_seconds_since_start) const;
 
     // Write all coordinate variables (lon, lat, lon_bnds, lat_bnds, optional
     // UGRID mesh, lev, time) into an open WRITE-mode dataset. Extracted from

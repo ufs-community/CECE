@@ -24,8 +24,6 @@
 #include "cece/cece_regridder_utils.hpp"
 #include "cece/cece_time_indexing.hpp"
 
-namespace fs = std::filesystem;
-
 namespace cece {
 
 using detail::RecordBracket;
@@ -38,11 +36,11 @@ using detail::SimDateTime;
  * configuration + file, never on simulation time.
  */
 struct StreamConfig {
-    fs::path input_file_path;       ///< stream["file"]; "" => missing (Req 1.4)
-    std::string input_var_name;     ///< resolved file var name (falls back to model name)
-    std::string mapalgo = "consd";  ///< default matches current AdvanceTime
-    std::string cadence;            ///< "" => series (time-aware default)
-    int yearFirst = 0;              ///< 0 = unknown/climatology
+    std::filesystem::path input_file_path;  ///< stream["file"]; "" => missing (Req 1.4)
+    std::string input_var_name;             ///< resolved file var name (falls back to model name)
+    std::string mapalgo = "consd";          ///< default matches current AdvanceTime
+    std::string cadence;                    ///< "" => series (time-aware default)
+    int yearFirst = 0;                      ///< 0 = unknown/climatology
     int yearLast = 0;
     int yearAlign = 0;
     std::string taxmode;               ///< "" defaults to cycle
@@ -116,8 +114,8 @@ struct LocalWeeklyCacheEntry {
 
 class CeceDriverOrchestrator {
    public:
-    CeceDriverOrchestrator(const fs::path& config_file, int nx, int ny, int nz, const double* lon_coords, int lon_len, const double* lat_coords,
-                           int lat_len, MPI_Comm comm_c);
+    CeceDriverOrchestrator(const std::filesystem::path& config_file, int nx, int ny, int nz, const double* lon_coords, int lon_len,
+                           const double* lat_coords, int lat_len, MPI_Comm comm_c);
     ~CeceDriverOrchestrator();
 
     // Prevent copy/move construction and assignment (Rule of Five)
@@ -198,7 +196,7 @@ class CeceDriverOrchestrator {
                                  std::vector<double>& ingest_buffer, std::string& failure_detail);
 
     /** Return whether the YAML config contains streams handled by EarthAccess. */
-    static bool HasEarthAccessStreams(const fs::path& config_file);
+    static bool HasEarthAccessStreams(const std::filesystem::path& config_file);
 
     /**
      * Ingest `source: earthaccess` streams for the current timestep.
@@ -235,8 +233,8 @@ class CeceDriverOrchestrator {
     // exercised in isolation without constructing a full orchestrator (which
     // requires MPI/DAGR/CeceIO). This is the SAME code path production uses; it
     // is not a copy (Req 1.1-1.5, 4.3).
-    static void ResolveStreamConfigsFromFile(const fs::path& config_file, std::unordered_map<std::string, StreamConfig>& out_configs,
-                                             fs::path& out_gridspec_file);
+    static void ResolveStreamConfigsFromFile(const std::filesystem::path& config_file, std::unordered_map<std::string, StreamConfig>& out_configs,
+                                             std::filesystem::path& out_gridspec_file);
 
     // Resolve one stream variable's YAML node into a StreamConfig: field
     // resolution + defaults for file/mapalgo/cadence/tintalgo/data_model plus
@@ -244,7 +242,7 @@ class CeceDriverOrchestrator {
     // ResolveStreamConfigsFromFile stream loop, which had grown to ~40 lines
     // of per-field if/else logic; the loop now keeps only the iteration and
     // first-match-wins bookkeeping. Behavior is unchanged.
-    static StreamConfig BuildStreamConfig(const conf::Value& stream, const std::string& model_name, const fs::path& file_name,
+    static StreamConfig BuildStreamConfig(const conf::Value& stream, const std::string& model_name, const std::filesystem::path& file_name,
                                           int amio_worker_threads, int amio_staging_buffer_count, int amio_staging_buffer_capacity_bytes,
                                           int amio_prefetch_depth);
 
@@ -346,7 +344,7 @@ class CeceDriverOrchestrator {
     // regrid.
     AmioHandleSet* GetOrOpenHandleSet(const std::string& handle_key, const StreamConfig& cfg, std::string& failure_detail);
 
-    fs::path config_file_;
+    std::filesystem::path config_file_;
     int nx_{0}, ny_{0}, nz_{0};
     std::vector<double> target_lons_;
     std::vector<double> target_lats_;
@@ -419,7 +417,7 @@ class CeceDriverOrchestrator {
     // HELM Orchestration and pipeline components
     std::unique_ptr<dagr::GraphOrchestrator> dagr_;
     std::unique_ptr<io::CeceIO> cece_io_;
-    fs::path gridspec_file_;
+    std::filesystem::path gridspec_file_;
 
     // Test-only access to the private static StreamKey helper. Grants the
     // property test (tests/test_stream_key_properties.cpp) permission to
