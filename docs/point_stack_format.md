@@ -2,7 +2,7 @@
 
 This document describes the required format for point source emissions datasets configured with `format: point_nc` (using `kind: point`).
 
-# Specification: CF-1.13 Unified Point Source Emissions NetCDF Format
+## Specification: CF-1.13 Unified Point Source Emissions NetCDF Format
 
 This document defines a standard NetCDF format for stationary point source emissions. It consolidates the two traditional Models-3 IOAPI files used in CMAQ modeling (`STACK_GROUPS` and `INLN`) into a single, fully CF-1.13 compliant dataset using the **Orthogonal Multidimensional Array Representation of Time Series** (CF Conventions, Section 9.3.2 and Appendix H.2.1).
 
@@ -38,7 +38,7 @@ This document defines a standard NetCDF format for stationary point source emiss
 | `time` | **Required** | **Fixed** | `double` (`f8`) | `(time)` | User-defined epoch | `<time-unit> since <epoch>` | `standard_name`, `units`, `calendar`, `axis` |
 | `latitude` | **Required** | **Fixed** | `float` (`f4`) | `(stack)` | **Fixed** | `"degrees_north"` | `standard_name`, `units`, `axis` |
 | `longitude` | **Required** | **Fixed** | `float` (`f4`) | `(stack)` | **Fixed** | `"degrees_east"` | `standard_name`, `units`, `axis` |
-| `stack_id` | Optional | **Fixed** | `string` | `(stack)` | None | None | `cf_role = "timeseries_id"` |
+| `stack_id` | Optional | **Fixed** | `string` | `(stack)` | None | None | `cf_role = "timeseries_id"`, `long_name` |
 | `facility_id` | Optional | **Fixed** | `string` | `(stack)` | None | None | `long_name` |
 | `unit_id` | Optional | **Fixed** | `string` | `(stack)` | None | None | `long_name` |
 | `scc` | Optional | **Fixed** | `string` | `(stack)` | None | None | `long_name` |
@@ -47,7 +47,7 @@ This document defines a standard NetCDF format for stationary point source emiss
 | `STKTK` | **Required** | **Fixed** | `float` (`f4`) | `(stack)` | **Fixed** | `"K"` | `units`, `coordinates`, `_FillValue` |
 | `STKVE` | **Required** | **Fixed** | `float` (`f4`) | `(stack)` | **Fixed** | `"m s-1"` | `units`, `coordinates`, `_FillValue` |
 | `STKFLW` | **Required** | **Fixed** | `float` (`f4`) | `(stack)` | **Fixed** | `"m3 s-1"` | `units`, `coordinates`, `_FillValue` |
-| *`<SPECIES_NAME>`* | **Required** (at least 1) | **User-Selected** | `float` (`f4`) | `(time, stack)` | **User-Selected** | Any valid UDUNITS rate (e.g., `mol s-1`, `g s-1`) | `units`, `coordinates`, `_FillValue` |
+| *`<SPECIES_NAME>`* | **Required** (at least 1) | **User-Selected** | `float` (`f4`) | `(time, stack)` | **User-Selected** | Any valid UDUNITS rate (e.g., `mol m-2 s-1`, `g m-2 s-1`) | `units`, `coordinates`, `_FillValue` |
 
 ## 5. Detailed Variable Definitions
 
@@ -429,14 +429,14 @@ variables:
 
 ## 7. Implementation Checklist for Encoders & Decoders
 
-* \[ \] **Engine Support**: The file writer must set the file format to NetCDF-4 (`NETCDF4`). Classic model formats (`NETCDF3_CLASSIC` or `NETCDF3_64BIT_OFFSET`) cannot be used because they do not support `NC_STRING`.
+- [ ] **Engine Support**: The file writer must set the file format to NetCDF-4 (`NETCDF4`). Classic model formats (`NETCDF3_CLASSIC` or `NETCDF3_64BIT_OFFSET`) cannot be used because they do not support `NC_STRING`.
 
-* \[ \] **Dimensional Consistency**: All emissions variables must possess dimensions in the exact order `(time, stack)`. Static stack parameter variables must have dimension `(stack)`.
+- [ ] **Dimensional Consistency**: All emissions variables must possess dimensions in the exact order `(time, stack)`. Static stack parameter variables must have dimension `(stack)`.
 
-* \[ \] **CF Coordinates Attribute**:
+- [ ] **CF Coordinates Attribute**:
 
   * Any variable with dimensions `(stack)` must declare `coordinates = "latitude longitude"`.
 
   * Any variable with dimensions `(time, stack)` must declare `coordinates = "time latitude longitude"`.
 
-* \[ \] **No Spatial Projection Variables Needed**: Writers must not include `grid_mapping` attributes or Cartesian coordinates ($x$, $y$) unless downstream software explicitly requests them. Latitudes and longitudes alone fulfill CF-1.13 spatial requirements.
+- [ ] **No Spatial Projection Variables Needed**: Writers must not include `grid_mapping` attributes or Cartesian coordinates ($x$, $y$) unless downstream software explicitly requests them. Latitudes and longitudes alone fulfill CF-1.13 spatial requirements.
