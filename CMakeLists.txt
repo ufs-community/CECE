@@ -667,7 +667,6 @@ if(DOXYGEN_FOUND)
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     COMMENT "Generating CECE API documentation with Doxygen"
-    ALL
   )
 else()
   message(STATUS "Doxygen not found. API documentation generation disabled.")
