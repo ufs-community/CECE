@@ -153,25 +153,14 @@ def initialize(config: str | dict | CeceConfig) -> None:
     if not _cece_core.is_kokkos_initialized():
         _cece_core.initialize_kokkos()
 
-    # Load and validate configuration
-    config_obj = _load_config(config)
-    validation = config_obj.validate()
-    if not validation.is_valid:
-        raise CeceConfigError(f"Configuration validation failed:\n{validation}")
-
-    # Create C++ CeceConfig via pybind11
-    # If config is a file path, use ParseConfig directly
-    if isinstance(config, str):
-        path = Path(config)
-        if path.exists() and path.is_file():
-            try:
-                _cpp_config = _cece_core.ParseConfig(str(path))
-            except (RuntimeError, ValueError) as e:
-                raise CeceConfigError(f"Failed to parse config file: {e}")
-        else:
-            # YAML string — serialize to temp file or build config from dict
-            _cpp_config = _build_cpp_config(config_obj)
+    if isinstance(config, str) and (path := Path(config)).exists() and path.is_file():
+        _cpp_config = _cece_core.ParseConfig(str(path))
     else:
+        # Load and validate configuration
+        config_obj = _load_config(config)
+        validation = config_obj.validate()
+        if not validation.is_valid:
+            raise CeceConfigError(f"Configuration validation failed:\n{validation}")
         _cpp_config = _build_cpp_config(config_obj)
 
     _initialized = True
