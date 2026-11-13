@@ -186,7 +186,7 @@ All parameters in this group must remain time-invariant and use exact CMAQ varia
 * **Mandatory Attributes**:
 
   * `standard_name`: `height`
-  
+
   * `units`: `"m"`
 
   * `coordinates`: `"latitude longitude"`
