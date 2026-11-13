@@ -232,7 +232,7 @@ int CeceStandaloneWriter::Initialize(const std::string& start_time_iso8601, int 
     if (!fs::exists(config_.directory)) {
         try {
             fs::create_directories(config_.directory);
-            CECE_LOG_INFO("[CECE] Created output directory: " + config_.directory);
+            CECE_LOG_INFO("[CECE] Created output directory: " + config_.directory.string());
         } catch (const std::exception& e) {
             CECE_LOG_ERROR("[CECE] Failed to create output directory: " + std::string(e.what()));
             return -1;
@@ -527,7 +527,7 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
     CECE_LOG_INFO("[CECE] Writing time step " + std::to_string(step) + " (t=" + std::to_string(time_seconds) + ") via AMIO");
 
     fs::path filename = ResolveFilename(time_seconds);
-    CECE_LOG_INFO("[CECE] Output file: " + filename.native());
+    CECE_LOG_INFO("[CECE] Output file: " + filename.string());
 
     // The writer manifest is built in memory (rank 0) and broadcast to the peer ranks,
     // then handed directly to AMIO via amio_init_from_string / amio_open_dataset_from_string.
@@ -573,7 +573,7 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
             final_attrs["history"] = "Simulated on " + GetCurrentTimestamp() + " UTC";
             final_attrs["references"] = "CECE Documentation: https://ufs-community.github.io/CECE, Repository: https://github.com/ufs-community/cece";
             final_attrs["comment"] = "Target spatial grid: " + std::to_string(nx_) + "x" + std::to_string(ny_) + "x" + std::to_string(nz_);
-            final_attrs["gridspec_file"] = (gridspec_file_.empty() ? "none" : gridspec_file_);
+            final_attrs["gridspec_file"] = (gridspec_file_.empty() ? "none" : gridspec_file_.string());
             final_attrs["date_created"] = GetCurrentTimestamp();
             final_attrs["date_modified"] = GetCurrentTimestamp();
             final_attrs["date_metadata_modified"] = GetCurrentTimestamp();
@@ -950,7 +950,7 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
             return -1;
         }
         if (rank == 0) {
-            CECE_LOG_INFO("[CECE] Successfully wrote " + filename.native() + " via AMIO");
+            CECE_LOG_INFO("[CECE] Successfully wrote " + filename.string() + " via AMIO");
         }
 
     } catch (const std::exception& e) {

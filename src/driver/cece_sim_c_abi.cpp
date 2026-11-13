@@ -191,9 +191,9 @@ void cece_sim_create_from_yaml(const char* config_path, int path_len, int mpi_co
         c_grid.lat_coords = spec.lat_coords.data();
         c_grid.lat_len = static_cast<int>(spec.lat_coords.size());
         c_grid.gridspec_file = spec.gridspec_file.empty() ? nullptr : spec.gridspec_file.c_str();
-        c_grid.gridspec_file_len = static_cast<int>(spec.gridspec_file.native().size());
+        c_grid.gridspec_file_len = static_cast<int>(spec.gridspec_file.string().size());
 
-        cece_sim_create(path.c_str(), static_cast<int>(path.native().length()), &c_grid, mpi_comm_f, out_sim, rc);
+        cece_sim_create(path.c_str(), static_cast<int>(path.string().length()), &c_grid, mpi_comm_f, out_sim, rc);
     } catch (const std::exception& e) {
         cece::LogFatal(std::string("[SIM FATAL] cece_sim_create_from_yaml grid resolution failed: ") + e.what());
         set_out(rc, -1);
@@ -335,7 +335,7 @@ void cece_sim_create_from_esmf(const char* config_path, int path_len, int nx, in
         c_grid.gridspec_file = nullptr;
         c_grid.gridspec_file_len = 0;
 
-        cece_sim_create(path.c_str(), static_cast<int>(path.native().length()), &c_grid, mpi_comm_f, out_sim, rc);
+        cece_sim_create(path.c_str(), static_cast<int>(path.string().length()), &c_grid, mpi_comm_f, out_sim, rc);
     } catch (const std::exception& e) {
         cece::LogFatal(std::string("[SIM FATAL] cece_sim_create_from_esmf rejected the grid: ") + e.what());
         set_out(rc, -1);

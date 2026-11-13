@@ -110,7 +110,7 @@ void ConfigValidator::ValidateLayers(const conf::Value& config, ValidationResult
         } else {
             fs::path file_path = layer["file"].as_string();
             if (!FileExists(file_path)) {
-                result.errors.push_back({"layers[" + std::to_string(i) + "].file", "File not found: " + file_path.native(),
+                result.errors.push_back({"layers[" + std::to_string(i) + "].file", "File not found: " + file_path.string(),
                                          "Verify the file path is correct and the file exists"});
             }
         }
@@ -172,7 +172,7 @@ void ConfigValidator::ValidateDataStreams(const conf::Value& config, ValidationR
     if (cece_data["streams_yaml"]) {
         fs::path streams_file = cece_data["streams_yaml"].as_string();
         if (!FileExists(streams_file)) {
-            result.errors.push_back({"cece_data.streams_yaml", "Streams file not found: " + streams_file.native(),
+            result.errors.push_back({"cece_data.streams_yaml", "Streams file not found: " + streams_file.string(),
                                      "Verify the streams file path is correct and the file exists"});
         }
     }

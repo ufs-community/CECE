@@ -103,7 +103,7 @@ std::string GridSpec::describe() const {
     }
     std::string s = std::string(topo) + " " + std::to_string(nx) + "x" + std::to_string(ny) + "x" + std::to_string(nz);
     if (!gridspec_file.empty()) {
-        s += " (gridspec '" + gridspec_file.native() + "')";
+        s += " (gridspec '" + gridspec_file.string() + "')";
     }
     return s;
 }

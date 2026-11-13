@@ -43,7 +43,7 @@ namespace {
 std::string BuildCoordinateManifest(const fs::path& path) {
     std::ostringstream manifest;
     manifest << "backend: netcdf4\n"
-             << "path: " << path.native() << "\n"
+             << "path: " << path.string() << "\n"
              << "data_model: enhanced\n"
              << "staging_pool:\n"
              << "  buffer_count: 16\n"
@@ -355,7 +355,7 @@ GridSpec GridSpec::from_yaml(const fs::path& config_file, conf::Config& config) 
             } else {
                 amio_rc = amio_open_dataset_from_string(coord_core, coord_manifest_content.c_str(), "yaml", AMIO_MODE_READ, &coord_dataset);
                 if (amio_rc != AMIO_OK) {
-                    CECE_LOG_ERROR("amio_open_dataset_from_string failed for dataset '" + input_file_path.native() + "': " + amio_strerror(amio_rc));
+                    CECE_LOG_ERROR("amio_open_dataset_from_string failed for dataset '" + input_file_path.string() + "': " + amio_strerror(amio_rc));
                 } else {
                     const FileGridLoad file_grid = load_gridspec_coords(coord_dataset, nx, ny);
                     amio_close(coord_dataset);
@@ -376,7 +376,7 @@ GridSpec GridSpec::from_yaml(const fs::path& config_file, conf::Config& config) 
 
         if (is_explicit_gridspec && !loaded_from_file) {
             throw std::invalid_argument("[GRID] Failed to load gridspec coordinates from explicitly specified gridspec file '" +
-                                        input_file_path.native() + "'");
+                                        input_file_path.string() + "'");
         }
 
         if (!loaded_from_file) {

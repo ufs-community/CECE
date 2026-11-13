@@ -14,7 +14,7 @@ namespace cece {
 
 CeceConfig ParseConfig(const fs::path& filename) {
     struct stat buffer;
-    if (stat(filename.c_str(), &buffer) != 0) throw std::runtime_error("File not found: " + filename.native());
+    if (stat(filename.c_str(), &buffer) != 0) throw std::runtime_error("File not found: " + filename.string());
     conf::Config parsed = conf::Config::from_file(filename);
     conf::Value root = parsed.root();
     CeceConfig config;

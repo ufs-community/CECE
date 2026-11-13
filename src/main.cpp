@@ -73,10 +73,10 @@ int main(int argc, char* argv[]) {
         // Configure run logging (optional log file, per-rank stdout suppression)
         // and print the startup banner. Shared with the NUOPC cap so behavior is
         // identical regardless of how CECE is launched.
-        cece_run_log_setup(config_file.c_str(), static_cast<int>(config_file.native().length()));
+        cece_run_log_setup(config_file.c_str(), static_cast<int>(config_file.string().length()));
 
         // Set config file path dynamically
-        cece_set_config_file_path(config_file.c_str(), static_cast<int>(config_file.native().length()));
+        cece_set_config_file_path(config_file.c_str(), static_cast<int>(config_file.string().length()));
 
         // 3. Resolve the target grid: named regular grids (F/R), an explicit or
         //    stream-inferred gridspec file read through AMIO, or uniform extents
@@ -124,11 +124,11 @@ int main(int argc, char* argv[]) {
         c_grid.lat_coords = grid_spec.lat_coords.data();
         c_grid.lat_len = static_cast<int>(grid_spec.lat_coords.size());
         c_grid.gridspec_file = grid_spec.gridspec_file.empty() ? nullptr : grid_spec.gridspec_file.c_str();
-        c_grid.gridspec_file_len = static_cast<int>(grid_spec.gridspec_file.native().size());
+        c_grid.gridspec_file_len = static_cast<int>(grid_spec.gridspec_file.string().size());
 
         CeceSimulation* sim = nullptr;
         int rc = 0;
-        cece_sim_create(config_file.c_str(), static_cast<int>(config_file.native().length()), &c_grid, MPI_Comm_c2f(MPI_COMM_WORLD), &sim, &rc);
+        cece_sim_create(config_file.c_str(), static_cast<int>(config_file.string().length()), &c_grid, MPI_Comm_c2f(MPI_COMM_WORLD), &sim, &rc);
         if (rc < 0 || sim == nullptr) {
             cece::LogFatal("[DRIVER FATAL] (rank " + std::to_string(my_rank) + ") cece_sim_create failed with rc=" + std::to_string(rc));
             Kokkos::finalize();

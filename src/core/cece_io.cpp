@@ -13,7 +13,7 @@ namespace io {
 void CeceIO::Initialize(const fs::path& config_file, int nx, int ny, int nz) {
     std::ifstream f(config_file);
     if (!f.good()) {
-        throw std::runtime_error("File not found: " + config_file.native());
+        throw std::runtime_error("File not found: " + config_file.string());
     }
 
     conf::Config config = conf::Config::from_file(config_file);

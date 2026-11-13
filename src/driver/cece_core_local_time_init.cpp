@@ -91,13 +91,13 @@ void cece_core_local_time_init(void* data_ptr, int nx, int ny, int nz, const dou
         auto dense = cece::DecodeUtcGridRle(grid_file);
         auto provider = std::make_unique<cece::StaticGridOffsetProvider>(std::move(dense));
         internal_data->local_time = cece::LocalTimeService::Create(std::move(provider), lon_vec, lat_vec, nx, band.j0, band.ny_local, start_epoch);
-        CECE_LOG_INFO("[LOCAL_TIME] Local-time service initialized from '" + grid_file.native() + "' (nx=" + std::to_string(nx) +
+        CECE_LOG_INFO("[LOCAL_TIME] Local-time service initialized from '" + grid_file.string() + "' (nx=" + std::to_string(nx) +
                       ", band j0=" + std::to_string(band.j0) + ", ny_local=" + std::to_string(band.ny_local) + ")");
     } catch (const std::exception& e) {
         // The feature was explicitly enabled, so a missing or corrupt grid is a
         // configuration / deployment error: fail the run rather than quietly
         // scaling every layer in UTC mode.
-        CECE_LOG_ERROR(std::string("[LOCAL_TIME] Failed to load UTC-offset grid '") + grid_file.native() + "': " + e.what());
+        CECE_LOG_ERROR(std::string("[LOCAL_TIME] Failed to load UTC-offset grid '") + grid_file.string() + "': " + e.what());
         *rc = -1;
         return;
     }

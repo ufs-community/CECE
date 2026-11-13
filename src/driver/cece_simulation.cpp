@@ -135,8 +135,8 @@ std::unique_ptr<CeceSimulation> CeceSimulation::create_internal(const fs::path& 
     // converts the exception itself into the failure return.
     // 1. Configuration path + run logging (shared with both drivers so the
     //    banner/log behavior is identical regardless of launch path).
-    cece_set_config_file_path(config_path.c_str(), static_cast<int>(config_path.native().length()));
-    cece_run_log_setup(config_path.c_str(), static_cast<int>(config_path.native().length()));
+    cece_set_config_file_path(config_path.c_str(), static_cast<int>(config_path.string().length()));
+    cece_run_log_setup(config_path.c_str(), static_cast<int>(config_path.string().length()));
 
     auto sim = std::unique_ptr<CeceSimulation>(new CeceSimulation());
     sim->config_path_ = config_path;
@@ -187,7 +187,7 @@ std::unique_ptr<CeceSimulation> CeceSimulation::create_internal(const fs::path& 
 
     // 6. Create the driver orchestrator facade (offline AMIO reading + AXIS
     //    regridding pipeline) on the resolved grid coordinates.
-    cece_driver_create(config_path.c_str(), static_cast<int>(config_path.native().length()), nx, ny, nz, grid.lon_coords.data(),
+    cece_driver_create(config_path.c_str(), static_cast<int>(config_path.string().length()), nx, ny, nz, grid.lon_coords.data(),
                        static_cast<int>(grid.lon_coords.size()), grid.lat_coords.data(), static_cast<int>(grid.lat_coords.size()), mpi_comm_f,
                        &sim->driver_ptr_, &rc);
     if (rc < 0) {

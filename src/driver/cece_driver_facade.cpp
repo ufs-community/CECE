@@ -203,11 +203,11 @@ StreamConfig CeceDriverOrchestrator::BuildStreamConfig(const conf::Value& stream
     }
     // Validate the cadence and warn on knobs that the chosen cadence ignores.
     validate_stream_temporal_config(cfg.cadence, cfg.taxmode, cfg.tintalgo, cfg.yearFirst, cfg.yearLast, cfg.yearAlign,
-                                    " (stream file '" + cfg.input_file_path.native() + "')", cfg.time_label);
+                                    " (stream file '" + cfg.input_file_path.string() + "')", cfg.time_label);
     if (stream["use_local_time"]) {
         cfg.use_local_time = stream["use_local_time"].as_bool();
         if (cfg.use_local_time) {
-            validate_stream_local_time(cfg.cadence, cfg.tintalgo, " (stream file '" + cfg.input_file_path.native() + "')");
+            validate_stream_local_time(cfg.cadence, cfg.tintalgo, " (stream file '" + cfg.input_file_path.string() + "')");
         }
     }
     if (stream["data_model"]) {
@@ -430,7 +430,7 @@ std::string CeceDriverOrchestrator::HandleKey(const StreamConfig& cfg) {
     // cannot appear in NetCDF file paths, so the concatenation is unambiguous
     // (Req 11.1). Variables reading the same file/manifest share one open AMIO
     // handle set and one file record count even when mapalgo differs.
-    return cfg.input_file_path.native() + "|" + cfg.data_model + "|" + std::to_string(cfg.amio_worker_threads) + "|" +
+    return cfg.input_file_path.string() + "|" + cfg.data_model + "|" + std::to_string(cfg.amio_worker_threads) + "|" +
            std::to_string(cfg.amio_staging_buffer_count) + "|" + std::to_string(cfg.amio_staging_buffer_capacity_bytes) + "|" +
            std::to_string(cfg.amio_prefetch_depth);
 }
@@ -534,7 +534,7 @@ AmioHandleSet* CeceDriverOrchestrator::GetOrOpenHandleSet(const std::string& han
         } else {
             amio_rc = amio_open_dataset_from_string(read_core, manifest_content.c_str(), "yaml", AMIO_MODE_READ, &read_dataset);
             if (amio_rc != AMIO_OK) {
-                failure_detail = std::string("amio_open_dataset_from_string failed for '") + cfg.input_file_path.native() +
+                failure_detail = std::string("amio_open_dataset_from_string failed for '") + cfg.input_file_path.string() +
                                  "': rc=" + std::to_string(amio_rc) + " (" + amio_strerror(amio_rc) + ")";
             }
         }
@@ -550,7 +550,7 @@ AmioHandleSet* CeceDriverOrchestrator::GetOrOpenHandleSet(const std::string& han
             // a non-explicit stream fell back to a non-"enhanced" model.
             if (!cfg.data_model_explicit && candidate_model != "enhanced") {
                 CECE_LOG_INFO("[DRIVER] AMIO read manifest auto-fell back to data_model='" + candidate_model + "' for " +
-                              cfg.input_file_path.native());
+                              cfg.input_file_path.string());
             }
 
             failure_detail.clear();
@@ -579,7 +579,7 @@ AmioHandleSet* CeceDriverOrchestrator::GetOrOpenHandleSet(const std::string& han
     }
 
     // All candidates failed: leave failure_detail set, cache nothing.
-    CECE_LOG_DEBUG("[DRIVER] amio open failed for " + cfg.input_file_path.native() + " after trying all candidate data models");
+    CECE_LOG_DEBUG("[DRIVER] amio open failed for " + cfg.input_file_path.string() + " after trying all candidate data models");
     return nullptr;
 }
 
@@ -1208,11 +1208,11 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
         std::error_code fs_ec;
         const bool local_file_ready = fs::exists(input_file_path, fs_ec);
         if (!local_file_ready) {
-            CECE_LOG_ERROR("[DRIVER FATAL] File '" + input_file_path.native() +
+            CECE_LOG_ERROR("[DRIVER FATAL] File '" + input_file_path.string() +
                            "' does not exist or is unreadable on this node! (System error: " + fs_ec.message() + ")");
             failure_detail = "input file does not exist or is unreadable: " + fs_ec.message();
         } else {
-            CECE_LOG_DEBUG("[DRIVER] Input file '" + input_file_path.native() + "' successfully verified on local filesystem.");
+            CECE_LOG_DEBUG("[DRIVER] Input file '" + input_file_path.string() + "' successfully verified on local filesystem.");
         }
         if (!collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, local_file_ready, "input-file readiness for '" + var_name + "'",
                                   failure_detail))
@@ -1232,7 +1232,7 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                                                           "AMIO dataset open for '" + var_name + "'", failure_detail);
 
         if (!amio_open_ready) {
-            CECE_LOG_DEBUG("[DRIVER] amio open failed for " + input_file_path.native() + ": " + failure_detail);
+            CECE_LOG_DEBUG("[DRIVER] amio open failed for " + input_file_path.string() + ": " + failure_detail);
         } else {
             failure_detail.clear();
             // Use the retained dataset handle for record discovery, plan
@@ -1289,7 +1289,7 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                     // step instead:
                     // file_nt = 0 makes the collective readiness gate below
                     // report a detailed error for this variable.
-                    CECE_LOG_WARNING("[DRIVER] amio_describe failed for '" + input_var_name + "' in '" + cfg.input_file_path.native() +
+                    CECE_LOG_WARNING("[DRIVER] amio_describe failed for '" + input_var_name + "' in '" + cfg.input_file_path.string() +
                                      "' (rc=" + std::to_string(static_cast<int>(desc_rc)) + "); no record-count fallback is attempted.");
                     file_nt = 0;
                 }
@@ -1402,7 +1402,7 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                 } else {  // Series
                     if (file_nt > 1) {
                         bracket = bracket_from_dataset(read_dataset, time_var, sim_dt, file_nt, tintalgo, yearAlign, taxmode, time_units, calendar,
-                                                       cfg.time_label, "field '" + var_name + "' (file '" + input_file_path.native() + "')");
+                                                       cfg.time_label, "field '" + var_name + "' (file '" + input_file_path.string() + "')");
                     }
                     if (bracket.valid) {
                         bracket_note = "decoded axis";
@@ -1437,14 +1437,14 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                     if (!sim_dt.valid) {
                         // The simulation-time input is malformed, so the data axis cannot fix it.
                         LogFatal("[DRIVER FATAL] Unparseable simulation time '" + time_iso8601 + "' for field '" + var_name +
-                                 "'; the simulation-time input, not the time axis of '" + input_file_path.native() + "', is invalid.");
+                                 "'; the simulation-time input, not the time axis of '" + input_file_path.string() + "', is invalid.");
                     } else if (bracket.out_of_range) {
-                        LogFatal("[DRIVER FATAL] Simulation time " + time_iso8601 + " is outside the coverage of '" + input_file_path.native() +
+                        LogFatal("[DRIVER FATAL] Simulation time " + time_iso8601 + " is outside the coverage of '" + input_file_path.string() +
                                  "' for field '" + var_name + "' (cadence='" + cadence_note +
                                  "', taxmode='limit'). Use taxmode 'extend' to hold the nearest end or 'cycle' to clamp to the closest "
                                  "available year.");
                     } else {
-                        LogFatal("[DRIVER FATAL] Could not resolve a time record for field '" + var_name + "' in '" + input_file_path.native() +
+                        LogFatal("[DRIVER FATAL] Could not resolve a time record for field '" + var_name + "' in '" + input_file_path.string() +
                                  "' (cadence='" + cadence_note +
                                  "'): the time axis is not usable (missing/non-fixed units, records out of ascending order, or a degenerate span) "
                                  "and there is no cadence granularity to fall back on. "
@@ -1539,15 +1539,15 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                     // Diagnostic: report which time slice(s) are being read and via which path.
                     if (local_weekly) {
                         CECE_LOG_INFO("[DRIVER] Composing local-weekday weekly records around UTC record " + std::to_string(bracket.i0 + 1) + "/" +
-                                      std::to_string(file_nt) + " from '" + input_file_path.native() + "' for field '" + var_name +
+                                      std::to_string(file_nt) + " from '" + input_file_path.string() + "' for field '" + var_name +
                                       "' (time=" + time_iso8601 + ")");
                     } else if (bracket.i0 == bracket.i1 || bracket.weight == 0.0) {
                         CECE_LOG_INFO("[DRIVER] Reading time slice " + std::to_string(bracket.i0 + 1) + "/" + std::to_string(file_nt) + " from '" +
-                                      input_file_path.native() + "' for field '" + var_name + "' (" + bracket_note + ", time=" + time_iso8601 + ")");
+                                      input_file_path.string() + "' for field '" + var_name + "' (" + bracket_note + ", time=" + time_iso8601 + ")");
                     } else {
                         CECE_LOG_INFO("[DRIVER] Interpolating time slices " + std::to_string(bracket.i0 + 1) + " & " +
                                       std::to_string(bracket.i1 + 1) + "/" + std::to_string(file_nt) + " (w=" + std::to_string(bracket.weight) +
-                                      ") from '" + input_file_path.native() + "' for field '" + var_name + "' (" + bracket_note +
+                                      ") from '" + input_file_path.string() + "' for field '" + var_name + "' (" + bracket_note +
                                       ", tintalgo=" + tintalgo + ", time=" + time_iso8601 + ")");
                     }
 
@@ -1847,11 +1847,11 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
         // Throw a fatal error on AMIO read failures
         if (!read_success) {
             std::string detail = failure_detail.empty() ? "AMIO open/read failed (no detail)" : failure_detail;
-            CECE_LOG_ERROR("[FATAL ERROR] AMIO read failed for field '" + var_name + "' in file '" + input_file_path.native() +
+            CECE_LOG_ERROR("[FATAL ERROR] AMIO read failed for field '" + var_name + "' in file '" + input_file_path.string() +
                            "'. Reason: " + detail + ". Idealized fallback is disabled!");
             return false;
         } else {
-            CECE_LOG_INFO("[DRIVER] AMIO read succeeded for field '" + var_name + "' - loaded real data from " + input_file_path.native());
+            CECE_LOG_INFO("[DRIVER] AMIO read succeeded for field '" + var_name + "' - loaded real data from " + input_file_path.string());
         }
 
         const size_t expected_ingest_size = static_cast<size_t>(field_nlev) * nx_ * band_.ny_local;
