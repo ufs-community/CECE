@@ -21,6 +21,8 @@
 #include "cece/cece_config.hpp"
 #include "cece/cece_config_path.hpp"
 
+namespace fs = std::filesystem;
+
 extern "C" {
 
 /**
@@ -33,6 +35,7 @@ extern "C" {
  * @param config Map to store parsed key-value pairs
  * @return 0 on success, -1 on error
  */
+// TODO: Work out how exactly this gets linked in a C program
 static int parse_esmf_config_file(const fs::path& config_file, std::map<std::string, std::string>& config) {
     std::ifstream file(config_file);
     if (!file.is_open()) {

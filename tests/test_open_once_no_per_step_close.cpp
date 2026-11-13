@@ -68,6 +68,8 @@
 
 #include "cece/cece_driver_facade.hpp"
 
+namespace fs = std::filesystem;
+
 #ifdef RC_ENABLE_RAPIDCHECK
 #endif
 // RapidCheck is optional per the task. Guard its use so the test still builds

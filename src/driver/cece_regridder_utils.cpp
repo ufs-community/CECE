@@ -17,6 +17,8 @@
 #include "cece/cece_amio_utils.hpp"
 #include "cece/cece_logger.hpp"
 
+namespace fs = std::filesystem;
+
 namespace cece::io {
 
 static std::vector<double> read_coordinate_array(amio_dataset_handle dataset, const std::string& name, bool is_radian, bool wrap_lon,

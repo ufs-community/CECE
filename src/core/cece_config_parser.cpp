@@ -1,6 +1,7 @@
 #include <sys/stat.h>
 
 #include <algorithm>
+#include <filesystem>
 #include <iostream>
 #include <set>
 #include <stdexcept>
@@ -9,6 +10,8 @@
 #include "cece/cece_config.hpp"
 #include "cece/cece_string_utils.hpp"
 #include "conf/config.hpp"
+
+namespace fs = std::filesystem;
 
 namespace cece {
 

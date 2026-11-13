@@ -25,6 +25,8 @@
 #include "cece/cece_fatal.hpp"
 #include "cece/cece_simulation.hpp"
 
+namespace fs = std::filesystem;
+
 namespace {
 
 /// Copy a (possibly non-NUL-terminated) C string buffer into a std::string,

@@ -18,6 +18,8 @@
 
 #include "cece/cece_internal.hpp"
 
+namespace fs = std::filesystem;
+
 extern "C" {
 
 /**

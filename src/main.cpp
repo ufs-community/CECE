@@ -30,6 +30,8 @@
 #include "cece/cece_sim_c_abi.h"
 #include "cece/cece_simulation.hpp"
 
+namespace fs = std::filesystem;
+
 // Run-logging entry points (core C ABI, unchanged). The shared core re-invokes
 // both during cece_sim_create; the redirect, banner, and path are idempotent,
 // but the banner must appear before grid resolution, so the driver calls them

@@ -45,6 +45,8 @@
 
 #include "cece/cece_driver_facade.hpp"
 
+namespace fs = std::filesystem;
+
 namespace cece {
 
 // ============================================================================

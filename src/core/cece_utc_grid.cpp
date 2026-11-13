@@ -22,6 +22,8 @@
 
 #include "cece/utc_grid.hpp"
 
+namespace fs = std::filesystem;
+
 namespace cece {
 namespace {
 

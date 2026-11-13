@@ -16,6 +16,8 @@
 #include <mutex>
 #include <string>
 
+namespace fs = std::filesystem;
+
 namespace cece {
 
 // Global config file path (default: cece_config.yaml)

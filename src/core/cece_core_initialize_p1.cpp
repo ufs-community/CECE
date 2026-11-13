@@ -38,6 +38,8 @@
 #include "cece/cece_stacking_engine.hpp"
 #include "cece/physics_scheme.hpp"
 
+namespace fs = std::filesystem;
+
 extern "C" {
 
 /**

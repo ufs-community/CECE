@@ -31,6 +31,8 @@
 #include "cece/cece_logger.hpp"
 #include "cece/cece_simulation.hpp"
 
+namespace fs = std::filesystem;
+
 namespace {
 
 // Build the in-memory AMIO coordinate-manifest YAML for reading lon/lat out

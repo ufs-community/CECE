@@ -26,6 +26,8 @@
 
 #include "cece/cece_diagnostics.hpp"
 
+namespace fs = std::filesystem;
+
 namespace cece {
 
 /**

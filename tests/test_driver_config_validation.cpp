@@ -17,6 +17,8 @@
 
 #include "cece/cece_config.hpp"
 
+namespace fs = std::filesystem;
+
 // ESMF C API for ISO8601 validation
 extern "C" {
 #include "ESMC.h"

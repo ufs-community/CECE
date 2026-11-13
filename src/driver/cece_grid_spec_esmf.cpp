@@ -24,6 +24,8 @@
 #include "cece/cece_grid_detail.hpp"
 #include "cece/cece_simulation.hpp"
 
+namespace fs = std::filesystem;
+
 namespace cece {
 
 GridSpec GridSpec::from_esmf(int nx, int ny, int nz, bool is_rad, const std::vector<double>& lon, const std::vector<double>& lat,

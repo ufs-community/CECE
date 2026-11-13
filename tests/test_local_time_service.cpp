@@ -21,6 +21,8 @@
 #include "cece/cece_local_time.hpp"
 #include "cece/utc_grid.hpp"
 
+namespace fs = std::filesystem;
+
 #ifndef CECE_SOURCE_DIR
 #define CECE_SOURCE_DIR "."
 #endif

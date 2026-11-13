@@ -25,6 +25,8 @@
 #include "cece/cece_mpi_env.hpp"
 #include "cece/utc_grid.hpp"
 
+namespace fs = std::filesystem;
+
 namespace {
 
 /// Repository default grid path used when local_time.grid_file is empty.

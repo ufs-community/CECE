@@ -31,6 +31,8 @@
 #include "cece/cece_internal.hpp"
 #include "cece/cece_logger.hpp"
 
+namespace fs = std::filesystem;
+
 // CECE Core C-linkage lifecycle functions (framework-free C ABI, declared
 // the same way the standalone driver has always declared them).
 extern "C" {

@@ -19,6 +19,8 @@
 
 #include "cece/cece_config.hpp"
 
+namespace fs = std::filesystem;
+
 extern "C" {
 void cece_nuopc_export_count(const char* config_path, int path_len, int* count, int* rc);
 void cece_nuopc_export_spec(const char* config_path, int path_len, int index, char* species, int species_cap, int* species_len, char* std_name,
@@ -30,7 +32,7 @@ void cece_nuopc_import_spec(const char* config_path, int path_len, int index, ch
 
 namespace {
 
-void WriteFile(const std::string& path, const std::string& content) {
+void WriteFile(const fs::path& path, const std::string& content) {
     std::ofstream f(path);
     f << content;
     f.close();
