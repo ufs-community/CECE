@@ -8,6 +8,7 @@
 #include <chrono>
 #include <filesystem>
 #include <limits>
+#include <map>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -153,7 +154,8 @@ TEST_F(RectilinearGridspecTest, WriterPreservesCentresBoundsAndFieldValues) {
         for (int i = 0; i < 2; ++i) flux.view_host()(i, j, 0) = 1.0 + j * 2 + i;
     flux.modify_host();
     std::unordered_map<std::string, cece::DualView3D> fields{{"isoprene", flux}};
-    ASSERT_EQ(writer.WriteTimeStep(fields, 3600., 0), 0);
+    const std::map<std::string, cece::DiagnosticOut> no_diagnostics;
+    ASSERT_EQ(writer.WriteTimeStep(fields, no_diagnostics, 3600., 0), 0);
     writer.Finalize();
     int f;
     nc_check(nc_open((folder / "output.nc").c_str(), NC_NOWRITE, &f));

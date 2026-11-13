@@ -242,8 +242,8 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
             }
 
             // Initialize the scheme with its configuration
-            // Note: DiagnosticManager will be initialized next, so we pass nullptr for now
-            // Schemes will be re-initialized with the diagnostic manager in Phase 2 if needed
+            // The diagnostic manager and realized grid are not available yet.
+            // Schemes retain diagnostic declarations and bind field handles in Phase 2.
             std::cout << "INFO: Initializing physics scheme: " << scheme_config.name << std::endl;
             scheme->Initialize(scheme_config.options, nullptr);
 

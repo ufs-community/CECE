@@ -48,7 +48,7 @@ class StandaloneWriterAttributesTest : public ::testing::Test {
 
         std::unordered_map<std::string, cece::DualView3D> fields;
         fields.emplace("co", co);
-        EXPECT_EQ(writer.WriteTimeStep(fields, 3600.0, 0), 0);
+        EXPECT_EQ(writer.WriteTimeStep(fields, {}, 3600.0, 0), 0);
         writer.Finalize();
 
         return fs::path(config.directory) / "attr_test_010000.nc";
