@@ -20,6 +20,8 @@ The YAML format for data streams uses a simple key-value syntax:
 stream::<stream_name>
   file_paths = <path1>, <path2>, ...
   variables = <var_in_file:var_in_model>, ...
+  kind = <grid|point>
+  format = <point_nc|volcano_rc>
   taxmode = <cycle|extend|limit>
   tintalgo = <none|linear|nearest|lower|upper>
   mapalgo = <bilinear|patch|...>
@@ -43,13 +45,16 @@ stream::<stream_name>
   - `cycle`: Cycle through data years
   - `extend`: Extend first/last values beyond data range
   - `limit`: Limit to data range
-- `tintalgo`: Temporal interpolation algorithm (default: "linear")
+- `tintalgo`: Temporal interpolation algorithm
   - `none`: No interpolation
   - `linear`: Linear interpolation between time steps
   - `nearest`: Nearest neighbor
   - `lower`: Use lower bound
   - `upper`: Use upper bound
-- `mapalgo`: Spatial mapping algorithm (default: "bilinear")
+- `kind`: Stream data kind (default: "grid"). Point data uses "point" (in development).
+- `format`: Data format string. Required when `kind: point`. Supported: `point_nc` (see [Point Stack Format](point_stack_format.md)) or `volcano_rc` (in development).
+- `mapalgo`: Spatial mapping algorithm (default: "bilinear"). Not permitted for `kind: point`.
+- `meshfile`: Path to a SCRIP mesh file describing the source grid structure. Not permitted for `kind: point`.
 - `dtlimit`: Delta time limit in seconds (default: 1500000000)
 - `yearFirst`: First calendar year in data (default: 1)
 - `yearLast`: Last calendar year in data (default: 1)

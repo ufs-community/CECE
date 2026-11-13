@@ -37,6 +37,8 @@ using detail::SimDateTime;
 struct StreamConfig {
     std::string input_file_path;    ///< stream["file"]; "" => missing (Req 1.4)
     std::string input_var_name;     ///< resolved file var name (falls back to model name)
+    std::string kind = "grid";      ///< stream kind (grid, point)
+    std::string format;             ///< stream format
     std::string mapalgo = "consd";  ///< default matches current AdvanceTime
     std::string cadence;            ///< "" => series (time-aware default)
     int yearFirst = 0;              ///< 0 = unknown/climatology

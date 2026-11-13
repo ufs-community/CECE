@@ -74,12 +74,14 @@ namespace {
 // generator in tests/test_stream_key_properties.cpp.
 rc::Gen<StreamConfig> genStreamConfig() {
     return rc::gen::apply(
-        [](std::string input_file_path, std::string input_var_name, std::string mapalgo, std::string cadence, std::string tintalgo,
-           std::string data_model, bool data_model_explicit, int amio_worker_threads, int amio_staging_buffer_count,
+        [](std::string input_file_path, std::string input_var_name, std::string kind, std::string format, std::string mapalgo, std::string cadence,
+           std::string tintalgo, std::string data_model, bool data_model_explicit, int amio_worker_threads, int amio_staging_buffer_count,
            int amio_staging_buffer_capacity_bytes, int amio_prefetch_depth) {
             StreamConfig cfg;
             cfg.input_file_path = std::move(input_file_path);
             cfg.input_var_name = std::move(input_var_name);
+            cfg.kind = std::move(kind);
+            cfg.format = std::move(format);
             cfg.mapalgo = std::move(mapalgo);
             cfg.cadence = std::move(cadence);
             cfg.tintalgo = std::move(tintalgo);
@@ -92,8 +94,8 @@ rc::Gen<StreamConfig> genStreamConfig() {
             return cfg;
         },
         rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(),
-        rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<bool>(), rc::gen::inRange(1, 65),
-        rc::gen::inRange(1, 65), rc::gen::inRange(1, 65), rc::gen::inRange(1, 65));
+        rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(),
+        rc::gen::arbitrary<bool>(), rc::gen::inRange(1, 65), rc::gen::inRange(1, 65), rc::gen::inRange(1, 65), rc::gen::inRange(1, 65));
 }
 
 }  // namespace
@@ -152,12 +154,15 @@ RC_GTEST_PROP(StreamKeyExtends, Property5_ManifestFieldDiffersBothKeysDiffer, ()
     b.mapalgo = a.mapalgo;
 
     // Ban the reserved separator from the string manifest fields and mapalgo so
-    // the six-field HandleKey concatenation is injective on the tuple.
+    // the eight-field HandleKey concatenation is injective on the tuple.
     RC_PRE(a.input_file_path.find('|') == std::string::npos);
     RC_PRE(a.data_model.find('|') == std::string::npos);
-    RC_PRE(a.mapalgo.find('|') == std::string::npos);
+    RC_PRE(a.kind.find('|') == std::string::npos);
+    RC_PRE(a.format.find('|') == std::string::npos);
     RC_PRE(b.input_file_path.find('|') == std::string::npos);
     RC_PRE(b.data_model.find('|') == std::string::npos);
+    RC_PRE(b.kind.find('|') == std::string::npos);
+    RC_PRE(b.format.find('|') == std::string::npos);
 
     // Only meaningful when the manifest tuple actually differs in some field.
     RC_PRE(a.input_file_path != b.input_file_path || a.data_model != b.data_model || a.amio_worker_threads != b.amio_worker_threads ||

@@ -633,6 +633,8 @@ class DataStreamConfig:
     name: str
     file_paths: list[str] = field(default_factory=list)
     variables: list[DataVariableConfig] = field(default_factory=list)
+    kind: str = "grid"
+    format: str = ""
     taxmode: str = "cycle"
     tintalgo: str = "nearest"
     mapalgo: str = "consd"
@@ -678,7 +680,17 @@ class DataStreamConfig:
             raise ValueError("variables must be a non-empty list")
         for variable in self.variables:
             variable.validate()
+
+        _validate_string(self.kind, "stream kind")
+        if self.kind not in ("grid", "point"):
+            raise ValueError(f"Invalid kind: {self.kind}")
+
+        _validate_string(self.format, "stream format", allow_empty=True)
+        self._validate_point_stream()
+
         for key, allowed in _STREAM_ENUM_VALUES.items():
+            if self.kind == "point" and key == "mapalgo":
+                continue
             value = _validate_string(getattr(self, key), key)
             if value not in allowed:
                 raise ValueError(f"Invalid {key}: {value}")
@@ -713,6 +725,20 @@ class DataStreamConfig:
         ):
             _validate_string(getattr(self, key), key, allow_empty=True)
 
+    def _validate_point_stream(self) -> None:
+        if self.kind == "point":
+            if self.format not in ("volcano_rc", "point_nc"):
+                raise ValueError(f"Invalid format for point stream: {self.format}")
+            if self.mapalgo:
+                raise ValueError("mapalgo is not permitted on point streams")
+            if self.meshfile:
+                raise ValueError("meshfile is not permitted on point streams")
+            if self.use_local_time:
+                raise ValueError("use_local_time is not supported on point streams")
+        else:
+            if self.format:
+                raise ValueError("format is not permitted on grid streams")
+
     def _validate_local_time(self) -> None:
         if not isinstance(self.use_local_time, bool):
             raise ValueError("use_local_time must be a boolean")
@@ -732,6 +758,8 @@ class DataStreamConfig:
             "name",
             "file",
             "variables",
+            "kind",
+            "format",
             "taxmode",
             "tintalgo",
             "mapalgo",
@@ -777,15 +805,31 @@ class DataStreamConfig:
         def normalized(key: str, default: str) -> str:
             return _validate_string(values.get(key, default), f"{where}.{key}").lower()
 
+        kind = normalized("kind", "grid")
+        format = _validate_string(
+            values.get("format", ""), f"{where}.format", allow_empty=True
+        ).lower()
+
+        if kind == "point":
+            mapalgo = _validate_string(
+                values.get("mapalgo", ""), f"{where}.mapalgo", allow_empty=True
+            ).lower()
+            meshfile = values.get("meshfile", "")
+        else:
+            mapalgo = _validate_string(
+                values.get("mapalgo", "consd"), f"{where}.mapalgo"
+            ).lower()
+            meshfile = values.get("meshfile", "")
+
         result = cls(
             name=name,
             file_paths=files,
             variables=variables,
+            kind=kind,
+            format=format,
             taxmode=normalized("taxmode", "cycle"),
             tintalgo=normalized("tintalgo", "nearest"),
-            mapalgo=_validate_string(
-                values.get("mapalgo", "consd"), f"{where}.mapalgo"
-            ).lower(),
+            mapalgo=mapalgo,
             cadence=normalized("cadence", "series"),
             time_label=normalized("time_label", "auto"),
             dtlimit=values.get("dtlimit", 1500000000),
@@ -793,7 +837,7 @@ class DataStreamConfig:
             yearLast=values.get("yearLast", 0),
             yearAlign=values.get("yearAlign", 0),
             offset=values.get("offset", 0),
-            meshfile=values.get("meshfile", ""),
+            meshfile=meshfile,
             lev_dimname=values.get("lev_dimname", "lev"),
             time_var=values.get("time_var", "time"),
             lon_var=values.get("lon_var", "lon"),
@@ -830,9 +874,11 @@ class DataStreamConfig:
             ],
         }
         defaults = {
+            "kind": "grid",
+            "format": "",
             "taxmode": "cycle",
             "tintalgo": "nearest",
-            "mapalgo": "consd",
+            "mapalgo": "consd" if self.kind != "point" else "",
             "cadence": "series",
             "time_label": "auto",
             "dtlimit": 1500000000,
@@ -1531,9 +1577,11 @@ class CeceConfig:
         name: str,
         file_paths: str | list[str],
         variables: dict[str, str] | list[DataVariableConfig] | None = None,
+        kind: str = "grid",
+        format: str = "",
         taxmode: str = "cycle",
         tintalgo: str = "nearest",
-        mapalgo: str = "consd",
+        mapalgo: str | None = None,
         cadence: str = "series",
         time_label: str = "auto",
         **stream_options: Any,
@@ -1551,6 +1599,10 @@ class CeceConfig:
             Mapping of file variable names to model variable names, or a list
             of ``DataVariableConfig`` objects. If omitted or empty, the stream
             name is mapped to itself.
+        kind : str, optional
+            Stream kind. One of ``"grid"`` or ``"point"``. Default is ``"grid"``.
+        format : str, optional
+            Stream format. Required if kind is ``"point"``. Default is empty string.
         taxmode : str, optional
             Behavior outside the file's coverage. One of ``"cycle"``,
             ``"extend"``, or ``"limit"``. Default is ``"cycle"``.
@@ -1610,15 +1662,22 @@ class CeceConfig:
         unknown_options = set(stream_options) - allowed_options
         if unknown_options:
             raise ValueError(f"Unknown data stream option: {min(unknown_options)}")
+
+        # Default mapalgo based on kind
+        if mapalgo is None:
+            mapalgo = "" if kind == "point" else "consd"
+
         stream = DataStreamConfig(
-            name,
-            file_paths,
-            variables,
-            taxmode,
-            tintalgo,
-            mapalgo,
-            cadence,
-            time_label,
+            name=name,
+            file_paths=file_paths,
+            variables=variables,
+            kind=kind,
+            format=format,
+            taxmode=taxmode,
+            tintalgo=tintalgo,
+            mapalgo=mapalgo,
+            cadence=cadence,
+            time_label=time_label,
             **stream_options,
         )
         stream.validate()

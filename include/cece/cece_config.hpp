@@ -155,6 +155,8 @@ struct CeceDataStreamConfig {
     std::string name;                               ///< Name of the stream.
     std::vector<std::string> file_paths;            ///< Paths to the NetCDF files.
     std::vector<CeceDataVariableConfig> variables;  ///< Variables to read from this stream.
+    std::string kind = "grid";                      ///< Stream kind (grid, point).
+    std::string format;                             ///< Stream format (e.g. volcano_rc).
     std::string taxmode = "cycle";                  ///< Time axis mode (cycle, extend, etc.).
     std::string tintalgo = "nearest";               ///< Time interpolation algorithm.
     std::string mapalgo = "consd";  ///< Spatial mapping algorithm: bilinear, consd, consf, nn, redist, passthrough (skip regridding, same-grid data).

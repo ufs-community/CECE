@@ -213,7 +213,36 @@ CeceConfig ParseConfig(const std::string& filename) {
             }
             stream.taxmode = string_or(node, "taxmode", stream.taxmode);
             stream.tintalgo = string_or(node, "tintalgo", stream.tintalgo);
-            stream.mapalgo = to_lower(string_or(node, "mapalgo", stream.mapalgo));
+
+            stream.kind = to_lower(string_or(node, "kind", "grid"));
+            if (stream.kind != "grid" && stream.kind != "point") {
+                throw std::invalid_argument("cece_data.streams[" + std::to_string(i) + "]: invalid kind '" + stream.kind +
+                                            "'. Must be 'grid' or 'point'.");
+            }
+
+            stream.format = to_lower(string_or(node, "format"));
+            if (stream.kind == "point") {
+                if (stream.format != "point_nc" && stream.format != "volcano_rc") {
+                    throw std::invalid_argument("cece_data.streams[" + std::to_string(i) +
+                                                "]: point stream requires format 'point_nc' or 'volcano_rc'.");
+                }
+                if (node["mapalgo"]) {
+                    throw std::invalid_argument("cece_data.streams[" + std::to_string(i) + "]: mapalgo is not permitted on point streams.");
+                }
+                if (node["meshfile"]) {
+                    throw std::invalid_argument("cece_data.streams[" + std::to_string(i) + "]: meshfile is not permitted on point streams.");
+                }
+                if (node["use_local_time"].bool_or(false)) {
+                    throw std::invalid_argument("cece_data.streams[" + std::to_string(i) + "]: use_local_time is not supported on point streams.");
+                }
+                stream.mapalgo = "";
+            } else {
+                if (!stream.format.empty()) {
+                    throw std::invalid_argument("cece_data.streams[" + std::to_string(i) + "]: format is not permitted on grid streams.");
+                }
+                stream.mapalgo = to_lower(string_or(node, "mapalgo", stream.mapalgo));
+            }
+
             stream.dtlimit = node["dtlimit"].int_or(stream.dtlimit);
             stream.yearFirst = node["yearFirst"].int_or(stream.yearFirst);
             stream.yearLast = node["yearLast"].int_or(stream.yearLast);
