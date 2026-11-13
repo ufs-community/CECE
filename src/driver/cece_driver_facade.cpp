@@ -1892,6 +1892,8 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
 
 }  // namespace cece
 
+extern std::unique_ptr<cece::CeceStandaloneWriter> g_standalone_writer;
+
 extern "C" {
 void amio_set_parent_communicator(MPI_Fint comm);
 
@@ -1928,8 +1930,6 @@ void cece_driver_advance_time(void* driver_ptr, const char* time_iso8601, int ti
         if (rc) *rc = -1;
     }
 }
-
-extern std::unique_ptr<cece::CeceStandaloneWriter> g_standalone_writer;
 
 void cece_driver_destroy(void* driver_ptr, int* rc) {
     if (rc != nullptr) {
