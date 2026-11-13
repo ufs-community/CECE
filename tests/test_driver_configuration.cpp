@@ -1293,3 +1293,62 @@ physics_schemes: []
 )",
                                 "cece_data.streams[0]: use_local_time is not supported on point streams.");
 }
+
+TEST_F(DriverConfigurationTest, PointStreamRejectsInvalidKind) {
+    ExpectConfigInvalidArgument(test_config_file, R"(
+driver:
+  timestep: 3600
+cece_data:
+  streams:
+    - name: point_volcano
+      file: volc.nc
+      kind: points
+      format: volcano_rc
+physics_schemes: []
+)",
+                                "cece_data.streams[0]: invalid kind 'points'. Must be 'grid' or 'point'.");
+}
+
+TEST_F(DriverConfigurationTest, PointStreamRejectsInvalidFormat) {
+    ExpectConfigInvalidArgument(test_config_file, R"(
+driver:
+  timestep: 3600
+cece_data:
+  streams:
+    - name: point_volcano
+      file: volc.nc
+      kind: point
+      format: invalid_format
+physics_schemes: []
+)",
+                                "cece_data.streams[0]: point stream requires format 'point_nc' or 'volcano_rc'.");
+}
+
+TEST_F(DriverConfigurationTest, PointStreamRequiresFormat) {
+    ExpectConfigInvalidArgument(test_config_file, R"(
+driver:
+  timestep: 3600
+cece_data:
+  streams:
+    - name: point_volcano
+      file: volc.nc
+      kind: point
+physics_schemes: []
+)",
+                                "cece_data.streams[0]: point stream requires format 'point_nc' or 'volcano_rc'.");
+}
+
+TEST_F(DriverConfigurationTest, GridStreamRejectsFormat) {
+    ExpectConfigInvalidArgument(test_config_file, R"(
+driver:
+  timestep: 3600
+cece_data:
+  streams:
+    - name: grid_stream
+      file: grid.nc
+      kind: grid
+      format: point_nc
+physics_schemes: []
+)",
+                                "cece_data.streams[0]: format is not permitted on grid streams.");
+}

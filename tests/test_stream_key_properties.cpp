@@ -7,7 +7,7 @@
  * NOTE (Amendment 1, task 8.1): StreamKey was REDEFINED. It no longer returns
  * cfg.input_file_path + "|" + cfg.mapalgo. It now returns
  * HandleKey(cfg) + "|" + cfg.mapalgo, where
- * HandleKey(cfg) = input_file_path + "|" + data_model +"|" + kind "|" + format "|" + worker_threads +
+ * HandleKey(cfg) = input_file_path + "|" + data_model + "|" + kind "|" + format + "|" + worker_threads +
  * "|" + staging_buffer_count + "|" + staging_buffer_capacity_bytes + "|" +
  * prefetch_depth (the capacity/depth fields were added with the AMIO
  * lazy-allocation staging-pool fix so the key tracks every field
@@ -105,7 +105,7 @@ rc::Gen<StreamConfig> genStreamConfig() {
 //
 // For any StreamConfig, StreamKey(cfg) equals exactly the nine-field
 // concatenation HandleKey(cfg) + "|" + cfg.mapalgo, i.e.
-//   input_file_path + "|" + data_model + "|" + kind "|" + format "|" + to_string(worker_threads) +
+//   input_file_path + "|" + data_model + "|" + kind + "|" + format "|" + to_string(worker_threads) +
 //   "|" + to_string(staging_buffer_count) + "|"
 //   + to_string(staging_buffer_capacity_bytes) + "|"
 //   + to_string(prefetch_depth) + "|" + mapalgo.

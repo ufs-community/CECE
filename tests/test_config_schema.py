@@ -589,3 +589,27 @@ def test_point_stream_rejects_mapalgo_meshfile_use_local_time():
         config.CeceConfig.from_dict({
             "cece_data": {"streams": [{**base_stream, "use_local_time": True}]}
         })
+
+
+def test_grid_stream_rejects_format():
+    with pytest.raises(ValueError, match="format is not permitted on grid streams"):
+        config.CeceConfig.from_dict({
+            "cece_data": {
+                "streams": [
+                    {
+                        "name": "grid_stream",
+                        "file": "grid.nc",
+                        "kind": "grid",
+                        "format": "point_nc",
+                    }
+                ]
+            }
+        })
+
+
+def test_add_data_stream_point_rejects_explicit_mapalgo():
+    cfg = config.CeceConfig()
+    with pytest.raises(ValueError, match="mapalgo is not permitted on point streams"):
+        cfg.add_data_stream(
+            "v", "v.nc", kind="point", format="point_nc", mapalgo="bilinear"
+        )

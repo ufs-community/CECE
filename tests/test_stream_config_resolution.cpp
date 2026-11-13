@@ -592,4 +592,54 @@ physics_schemes: []
     EXPECT_THROW(StreamConfigTestAccess::Resolve(fixture.path, configs, gridspec), std::invalid_argument);
 }
 
+TEST(StreamConfigResolution, PointStreamRejectsInvalidFormat) {
+    TempFile fixture(R"(
+driver:
+
+cece_data:
+  streams:
+    - name: CO
+      file: point.nc
+      kind: point
+      format: invalid_format
+physics_schemes: []
+)");
+    std::unordered_map<std::string, StreamConfig> configs;
+    std::string gridspec;
+    EXPECT_THROW(StreamConfigTestAccess::Resolve(fixture.path, configs, gridspec), std::invalid_argument);
+}
+
+TEST(StreamConfigResolution, StreamRejectsInvalidKind) {
+    TempFile fixture(R"(
+driver:
+
+cece_data:
+  streams:
+    - name: CO
+      file: grid.nc
+      kind: points
+physics_schemes: []
+)");
+    std::unordered_map<std::string, StreamConfig> configs;
+    std::string gridspec;
+    EXPECT_THROW(StreamConfigTestAccess::Resolve(fixture.path, configs, gridspec), std::invalid_argument);
+}
+
+TEST(StreamConfigResolution, GridStreamRejectsFormat) {
+    TempFile fixture(R"(
+driver:
+
+cece_data:
+  streams:
+    - name: CO
+      file: grid.nc
+      kind: grid
+      format: point_nc
+physics_schemes: []
+)");
+    std::unordered_map<std::string, StreamConfig> configs;
+    std::string gridspec;
+    EXPECT_THROW(StreamConfigTestAccess::Resolve(fixture.path, configs, gridspec), std::invalid_argument);
+}
+
 }  // namespace cece

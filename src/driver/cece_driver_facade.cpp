@@ -169,12 +169,24 @@ StreamConfig CeceDriverOrchestrator::BuildStreamConfig(const conf::Value& stream
     }
     cfg.input_var_name = file_name;
     if (stream["kind"]) {
-        cfg.kind = stream["kind"].as_string();
+        cfg.kind = cece::to_lower(stream["kind"].as_string());
+    } else {
+        cfg.kind = cece::to_lower(cfg.kind);
     }
+    if (cfg.kind != "grid" && cfg.kind != "point") {
+        throw std::invalid_argument("cece_data stream '" + stream["name"].string_or("") + "': invalid kind '" + cfg.kind +
+                                    "'. Must be 'grid' or 'point'.");
+    }
+
     if (stream["format"]) {
-        cfg.format = stream["format"].as_string();
+        cfg.format = cece::to_lower(stream["format"].as_string());
     }
+
     if (cfg.kind == "point") {
+        if (cfg.format != "point_nc" && cfg.format != "volcano_rc") {
+            throw std::invalid_argument("cece_data stream '" + stream["name"].string_or("") +
+                                        "': point stream requires format 'point_nc' or 'volcano_rc'.");
+        }
         if (stream["mapalgo"]) {
             throw std::invalid_argument("cece_data.streams: mapalgo is not permitted on point streams.");
         }
@@ -185,8 +197,13 @@ StreamConfig CeceDriverOrchestrator::BuildStreamConfig(const conf::Value& stream
             throw std::invalid_argument("cece_data.streams: use_local_time is not supported on point streams.");
         }
         cfg.mapalgo = "";
-    } else if (stream["mapalgo"]) {
-        cfg.mapalgo = cece::to_lower(stream["mapalgo"].as_string());
+    } else {
+        if (!cfg.format.empty()) {
+            throw std::invalid_argument("cece_data stream '" + stream["name"].string_or("") + "': format is not permitted on grid streams.");
+        }
+        if (stream["mapalgo"]) {
+            cfg.mapalgo = cece::to_lower(stream["mapalgo"].as_string());
+        }
     }
     if (stream["cadence"]) {
         cfg.cadence = stream["cadence"].as_string();

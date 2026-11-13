@@ -735,14 +735,15 @@ class DataStreamConfig:
                 raise ValueError("meshfile is not permitted on point streams")
             if self.use_local_time:
                 raise ValueError("use_local_time is not supported on point streams")
+        else:
+            if self.format:
+                raise ValueError("format is not permitted on grid streams")
 
     def _validate_local_time(self) -> None:
         if not isinstance(self.use_local_time, bool):
             raise ValueError("use_local_time must be a boolean")
         if not self.use_local_time:
             return
-        if self.kind == "point":
-            raise ValueError("use_local_time is not supported on point streams")
         if self.cadence != "weekly":
             raise ValueError("use_local_time is only supported with cadence: weekly")
         if self.tintalgo != "nearest":
@@ -805,20 +806,15 @@ class DataStreamConfig:
             return _validate_string(values.get(key, default), f"{where}.{key}").lower()
 
         kind = normalized("kind", "grid")
+        format = _validate_string(
+            values.get("format", ""), f"{where}.format", allow_empty=True
+        ).lower()
 
         if kind == "point":
-            if "mapalgo" in values:
-                raise ValueError(f"{where}: mapalgo is not permitted on point streams.")
-            if "meshfile" in values:
-                raise ValueError(
-                    f"{where}: meshfile is not permitted on point streams."
-                )
-            if values.get("use_local_time"):
-                raise ValueError(
-                    f"{where}: use_local_time is not supported on point streams."
-                )
-            mapalgo = ""
-            meshfile = ""
+            mapalgo = _validate_string(
+                values.get("mapalgo", ""), f"{where}.mapalgo", allow_empty=True
+            ).lower()
+            meshfile = values.get("meshfile", "")
         else:
             mapalgo = _validate_string(
                 values.get("mapalgo", "consd"), f"{where}.mapalgo"
@@ -830,9 +826,7 @@ class DataStreamConfig:
             file_paths=files,
             variables=variables,
             kind=kind,
-            format=_validate_string(
-                values.get("format", ""), f"{where}.format", allow_empty=True
-            ),
+            format=format,
             taxmode=normalized("taxmode", "cycle"),
             tintalgo=normalized("tintalgo", "nearest"),
             mapalgo=mapalgo,
@@ -1587,7 +1581,7 @@ class CeceConfig:
         format: str = "",
         taxmode: str = "cycle",
         tintalgo: str = "nearest",
-        mapalgo: str = "consd",
+        mapalgo: str | None = None,
         cadence: str = "series",
         time_label: str = "auto",
         **stream_options: Any,
@@ -1669,9 +1663,9 @@ class CeceConfig:
         if unknown_options:
             raise ValueError(f"Unknown data stream option: {min(unknown_options)}")
 
-        # When kind is 'point', mapalgo must be empty to avoid validation failure
-        if kind == "point":
-            mapalgo = ""
+        # Default mapalgo based on kind
+        if mapalgo is None:
+            mapalgo = "" if kind == "point" else "consd"
 
         stream = DataStreamConfig(
             name=name,

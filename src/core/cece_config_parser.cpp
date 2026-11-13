@@ -214,9 +214,18 @@ CeceConfig ParseConfig(const std::string& filename) {
             stream.taxmode = string_or(node, "taxmode", stream.taxmode);
             stream.tintalgo = string_or(node, "tintalgo", stream.tintalgo);
 
-            stream.kind = string_or(node, "kind", "grid");
-            stream.format = string_or(node, "format");
+            stream.kind = to_lower(string_or(node, "kind", "grid"));
+            if (stream.kind != "grid" && stream.kind != "point") {
+                throw std::invalid_argument("cece_data.streams[" + std::to_string(i) + "]: invalid kind '" + stream.kind +
+                                            "'. Must be 'grid' or 'point'.");
+            }
+
+            stream.format = to_lower(string_or(node, "format"));
             if (stream.kind == "point") {
+                if (stream.format != "point_nc" && stream.format != "volcano_rc") {
+                    throw std::invalid_argument("cece_data.streams[" + std::to_string(i) +
+                                                "]: point stream requires format 'point_nc' or 'volcano_rc'.");
+                }
                 if (node["mapalgo"]) {
                     throw std::invalid_argument("cece_data.streams[" + std::to_string(i) + "]: mapalgo is not permitted on point streams.");
                 }
@@ -228,6 +237,9 @@ CeceConfig ParseConfig(const std::string& filename) {
                 }
                 stream.mapalgo = "";
             } else {
+                if (!stream.format.empty()) {
+                    throw std::invalid_argument("cece_data.streams[" + std::to_string(i) + "]: format is not permitted on grid streams.");
+                }
                 stream.mapalgo = to_lower(string_or(node, "mapalgo", stream.mapalgo));
             }
 
@@ -236,7 +248,7 @@ CeceConfig ParseConfig(const std::string& filename) {
             stream.yearLast = node["yearLast"].int_or(stream.yearLast);
             stream.yearAlign = node["yearAlign"].int_or(stream.yearAlign);
             stream.offset = node["offset"].int_or(stream.offset);
-            stream.meshfile = stream.kind == "point" ? "" : string_or(node, "meshfile");
+            stream.meshfile = string_or(node, "meshfile");
             stream.lev_dimname = string_or(node, "lev_dimname", stream.lev_dimname);
             stream.time_var = string_or(node, "time_var", stream.time_var);
             stream.lon_var = string_or(node, "lon_var", stream.lon_var);
