@@ -1,0 +1,73 @@
+# =====================================================================
+# CECE CEDS OC UNSTRUCTURED end-to-end config (nuopc-cap-driver-parity,
+# three-topology verification).
+# =====================================================================
+# A deliberately TINY unstructured-target variant of
+# cece_config_ceds_oc_small.yaml: the same public CEDS 2023 OC anthropogenic
+# emissions source file (0.5 deg global, 720x360, 12 monthly records),
+# summing three sectoral OC fields into a single `oc` species, but regridded
+# onto a flattened 1-D node-row target grid (nx=72, ny=1, nz=1) over a single
+# monthly step. With ny=1 and no gridspec_file, the shared grid-resolution
+# code builds a uniform 1-D row of cell centers spanning the lon/lat window
+# and classifies it as the Unstructured topology — the same shape rules both
+# drivers apply, so the NUOPC cap and the C++ driver must agree bit-for-bit.
+#
+# mapalgo is "bilinear" (not "consd") because conservative remapping of a
+# rectilinear source onto a degenerate single-row band produces an all-zero
+# target field; bilinear interpolation keeps the field non-zero so the parity
+# comparison is meaningful.
+#
+# Used by the cap parity harness (tests/test_driver_nuopc_parity.sh), which
+# rewrites only `output.directory` per driver so the two runs write to
+# distinct dirs that are then compared for bit-for-bit equality.
+driver:
+  start_time: "2023-01-01T00:00:00"
+  end_time: "2023-02-01T00:00:00"
+  timestep_seconds: 2592000 # ~30 days; monthly cadence -> distinct records
+  grid:
+    nx: 72
+    ny: 1
+    lon_min: -180.0
+    lon_max: 180.0
+    lat_min: -90.0
+    lat_max: 90.0
+
+species:
+  oc:
+    - field: "OC_ENE"
+      operation: "add"
+    - field: "OC_IND"
+      operation: "add"
+    - field: "OC_TRA"
+      operation: "add"
+
+cece_data:
+  streams:
+    - name: "CEDS_OC"
+      file: "/work/data/OC-em-anthro_CMIP_CEDS_2023.nc"
+      taxmode: "cycle"
+      tintalgo: "linear"
+      mapalgo: "bilinear"
+      cadence: "monthly"
+      variables:
+        - file: "OC_ene"
+          model: "OC_ENE"
+        - file: "OC_ind"
+          model: "OC_IND"
+        - file: "OC_tra"
+          model: "OC_TRA"
+
+diagnostics:
+  output_interval: 2592000
+  variables: ["oc"]
+
+output:
+  enabled: true
+  directory: ./cece_output_ceds_unstructured
+  filename_pattern: "cece_ceds_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
+  frequency_steps: 1
+  fields:
+    - name: oc
+      attributes:
+        units: "kg m-2 s-1"
+        long_name: "organic_carbon_emission_flux"

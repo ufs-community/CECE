@@ -392,7 +392,8 @@ RC_GTEST_PROP(EndpointReuseDecision, HitDecisionIsWeightIndependent, ()) {
     // Small, realistic index/shape space.
     const int i0 = *rc::gen::inRange(0, 12);
     const int i1 = *rc::gen::inRange(0, 12);
-    const double weight = *rc::gen::map(rc::gen::inRange(0, 1000), [](int n) { return n / 1000.0; });
+    // Strictly positive: weight 0 is a single-record step, which never takes Tier 2 (see midmonth_weight0_miss).
+    const double weight = *rc::gen::map(rc::gen::inRange(1, 1000), [](int n) { return n / 1000.0; });
     const int nx = *rc::gen::inRange(1, 16);
     const int ny = *rc::gen::inRange(1, 16);
     const int nlev = *rc::gen::inRange(1, 4);
@@ -418,7 +419,7 @@ RC_GTEST_PROP(EndpointReuseDecision, HitDecisionIsWeightIndependent, ()) {
     // shape) must not change the decision, since the endpoint key excludes the
     // weight. This purity is exactly what guarantees the decision is identical
     // on every rank (all ranks feed the same rank-invariant (i0, i1) and shape).
-    const double other_weight = *rc::gen::map(rc::gen::inRange(0, 1000), [](int n) { return n / 1000.0; });
+    const double other_weight = *rc::gen::map(rc::gen::inRange(1, 1000), [](int n) { return n / 1000.0; });
     RecordBracket resolved_other = resolved;
     resolved_other.weight = other_weight;
     const bool hit_other = EndpointHit(resolved_other, cache, nx, ny, nlev);
@@ -426,52 +427,3 @@ RC_GTEST_PROP(EndpointReuseDecision, HitDecisionIsWeightIndependent, ()) {
 }
 
 }  // namespace cece::test
-
-// ---------------------------------------------------------------------------
-// Own main() with MPI init, mirroring test_mpi_reuse_decision.cpp. ALL ranks
-// stay alive and run RUN_ALL_TESTS so they participate in the MPI collectives
-// this test issues. Kokkos is not needed (no device work), but MPI must be live
-// for the whole run. Slurm/PMI env is scrubbed so a plain mpirun -np N works in
-// the container without a batch scheduler.
-// ---------------------------------------------------------------------------
-int main(int argc, char** argv) {
-    bool is_discovery = false;
-    for (int i = 1; i < argc; ++i) {
-        if (std::string(argv[i]) == "--gtest_list_tests") {
-            is_discovery = true;
-            break;
-        }
-    }
-
-    if (!is_discovery) {
-        // Prevent Intel/Open MPI from detecting Slurm and attempting a PMI/PMIX
-        // process-manager bootstrap during the test.
-        unsetenv("SLURM_JOB_ID");
-        unsetenv("SLURM_STEP_ID");
-        unsetenv("PMI_RANK");
-        unsetenv("PMI_SIZE");
-        setenv("I_MPI_HYDRA_BOOTSTRAP", "none", 0);
-        setenv("I_MPI_SHM", "disable", 0);
-
-        int mpi_initialized = 0;
-        MPI_Initialized(&mpi_initialized);
-        if (!mpi_initialized) {
-            int provided = 0;
-            MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
-        }
-    }
-
-    ::testing::InitGoogleTest(&argc, argv);
-    const int rc = RUN_ALL_TESTS();
-
-    // Every rank finalizes MPI cleanly at the end (no early rank>0 exit, so all
-    // ranks reach the collectives above).
-    int mpi_initialized = 0;
-    MPI_Initialized(&mpi_initialized);
-    if (mpi_initialized) {
-        int finalized = 0;
-        MPI_Finalized(&finalized);
-        if (!finalized) MPI_Finalize();
-    }
-    return rc;
-}

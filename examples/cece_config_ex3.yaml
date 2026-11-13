@@ -43,7 +43,7 @@ cece_data:
           model: "MACCITY_CO"
 
 diagnostics:
-  output_interval_seconds: 3600
+  output_interval: 3600
   variables: ["co"]
 
 output:

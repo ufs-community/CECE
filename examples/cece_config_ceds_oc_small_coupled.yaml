@@ -1,0 +1,81 @@
+# =====================================================================
+# CECE CEDS OC SMALL + NUOPC field coupling config.
+# =====================================================================
+# Identical to cece_config_ceds_oc_small.yaml except for the added optional
+# `nuopc:` section, which declares the fields CECE advertises to a coupling
+# framework. Used by the NUOPC field-coupling test harness
+# (tests/nuopc_coupling/) and the standalone coupled smoke run.
+#
+# The `nuopc:` section is inert when no peer is connected: every advertised
+# field is pruned at realization, so this file produces the same standalone
+# NetCDF output as the base fixture. Standard names are validated against the
+# active NUOPC Field Dictionary, which the HOST application provides (the
+# preloaded ESMF dictionary holds only the ocean/land surface entries); the
+# test apps load tests/nuopc_coupling/test_field_dictionary.yaml, which defines
+# the names used below.
+driver:
+  start_time: "2023-01-01T00:00:00"
+  end_time: "2023-02-01T00:00:00"
+  timestep_seconds: 2592000 # ~30 days; monthly cadence -> distinct records
+  grid:
+    nx: 72
+    ny: 36
+    lon_min: -180.0
+    lon_max: 180.0
+    lat_min: -90.0
+    lat_max: 90.0
+
+species:
+  oc:
+    - field: "OC_ENE"
+      operation: "add"
+    - field: "OC_IND"
+      operation: "add"
+    - field: "OC_TRA"
+      operation: "add"
+
+cece_data:
+  streams:
+    - name: "CEDS_OC"
+      file: "/work/data/OC-em-anthro_CMIP_CEDS_2023.nc"
+      taxmode: "cycle"
+      tintalgo: "linear"
+      mapalgo: "consd"
+      cadence: "monthly"
+      variables:
+        - file: "OC_ene"
+          model: "OC_ENE"
+        - file: "OC_ind"
+          model: "OC_IND"
+        - file: "OC_tra"
+          model: "OC_TRA"
+
+# Meteorology mapping. Present so the import field declared below resolves to a
+# configured input name; unused met mappings are inert for file ingest.
+meteorology:
+  temperature: air_temperature
+
+nuopc:
+  export_fields:
+    oc:
+      standard_name: "agent_count_emission_flux_of_particulate_organic_matter"
+      units: "kg m-2 s-1"
+  import_fields:
+    temperature:
+      standard_name: "air_temperature"
+      units: "K"
+
+diagnostics:
+  output_interval: 2592000
+  variables: ["oc"]
+
+output:
+  enabled: true
+  directory: ./cece_output_ceds_small_coupled
+  filename_pattern: "cece_ceds_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
+  frequency_steps: 1
+  fields:
+    - name: oc
+      attributes:
+        units: "kg m-2 s-1"
+        long_name: "organic_carbon_emission_flux"

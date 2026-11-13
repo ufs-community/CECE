@@ -240,19 +240,3 @@ RC_GTEST_PROP(ColumnLocalBandInvariance, Property7_GinouxBandInvariant, ()) {
 }
 
 }  // namespace cece
-
-// ---------------------------------------------------------------------------
-// Own main() with a Kokkos scope guard (the schemes launch Kokkos kernels).
-// No MPI is required: the band geometry is derived purely from the block
-// decomposition formula, and the whole test runs single-process.
-// ---------------------------------------------------------------------------
-int main(int argc, char** argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    Kokkos::initialize(argc, argv);
-    int rc = 0;
-    {
-        rc = RUN_ALL_TESTS();
-    }
-    Kokkos::finalize();
-    return rc;
-}

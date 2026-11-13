@@ -27,7 +27,7 @@ namespace cece::test {
 class CeceUtilsTest : public ::testing::Test {
    protected:
     void SetUp() override {
-        // Kokkos and MPI are managed by KokkosMpiEnvironment
+        // Kokkos and MPI are managed by the shared cece_test_main environment
     }
 };
 
@@ -378,82 +378,135 @@ TEST_F(CeceUtilsTest, CoreWriteStepSkipsInitialStep) {
     }
 }
 
-}  // namespace cece::test
-
-// Custom GTest Environment to manage Kokkos & MPI lifecycle globally
-class KokkosMpiEnvironment : public ::testing::Environment {
-   private:
-    int argc_;
-    char** argv_;
-
-   public:
-    KokkosMpiEnvironment(int argc, char** argv) : argc_(argc), argv_(argv) {}
-
-    void SetUp() override {
-        // Initialize MPI first
-        int mpi_initialized = 0;
-        MPI_Initialized(&mpi_initialized);
-        if (!mpi_initialized) {
-            int provided = 0;
-            MPI_Init_thread(&argc_, &argv_, MPI_THREAD_MULTIPLE, &provided);
-        }
-
-        // Initialize Kokkos
-        if (!Kokkos::is_initialized()) {
-            Kokkos::initialize(argc_, argv_);
+static std::string find_grid_file(const std::string& filename) {
+    // The repo's data/ dir is known at compile time (CECE_SOURCE_DIR) so the
+    // lookup works from any build directory; the cwd-relative guesses remain
+    // for builds without the define.
+    std::vector<std::string> candidate_paths = {
+#ifdef CECE_SOURCE_DIR
+        std::string(CECE_SOURCE_DIR) + "/data/" + filename,
+#endif
+        "data/" + filename,
+        "../data/" + filename,
+        "tests/data/" + filename,
+        "../tests/data/" + filename,
+        "/work/data/" + filename,
+    };
+    for (const auto& path : candidate_paths) {
+        if (std::filesystem::exists(path)) {
+            return path;
         }
     }
-    void TearDown() override {
-        // Finalize Kokkos
-        if (Kokkos::is_initialized()) {
-            Kokkos::finalize();
-        }
-
-        // Finalize MPI
-        int mpi_initialized = 0;
-        MPI_Initialized(&mpi_initialized);
-        if (mpi_initialized) {
-            MPI_Finalize();
-        }
-    }
-};
-
-int main(int argc, char** argv) {
-    bool is_discovery = false;
-    for (int i = 1; i < argc; ++i) {
-        if (std::string(argv[i]) == "--gtest_list_tests") {
-            is_discovery = true;
-            break;
-        }
-    }
-
-    if (!is_discovery) {
-        // Prevent Intel MPI from detecting Slurm and attempting PMI/PMIX process manager bootstrap during unit tests
-        unsetenv("SLURM_JOB_ID");
-        unsetenv("SLURM_STEP_ID");
-        unsetenv("PMI_RANK");
-        unsetenv("PMI_SIZE");
-
-        // Configure Intel MPI to allow standalone, local-only execution on login nodes (prevent PMI2/Hydra aborts)
-        setenv("I_MPI_HYDRA_BOOTSTRAP", "none", 0);
-        setenv("I_MPI_SHM", "disable", 0);
-
-        // Initialize MPI to check rank and prevent parallel duplicate execution conflicts of local unit tests
-        int mpi_initialized = 0;
-        MPI_Initialized(&mpi_initialized);
-        if (!mpi_initialized) {
-            int provided = 0;
-            MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
-        }
-        int rank = 0;
-        MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-        if (rank > 0) {
-            MPI_Finalize();
-            return 0;
-        }
-    }
-
-    ::testing::InitGoogleTest(&argc, argv);
-    ::testing::AddGlobalTestEnvironment(new KokkosMpiEnvironment(argc, argv));
-    return RUN_ALL_TESTS();
+    return filename;
 }
+
+TEST_F(CeceUtilsTest, BuildAxisMeshFV3GridSpec) {
+    std::string spec_file = find_grid_file("C96_grid_spec.tile1.nc");
+    ASSERT_TRUE(std::filesystem::exists(spec_file)) << "Missing test file: " << spec_file;
+
+    std::vector<double> dummy_lons(96, 0.0);
+    std::vector<double> dummy_lats(96, 0.0);
+
+    auto mesh = cece::io::build_axis_mesh(96, 96, 0, dummy_lons, dummy_lats, spec_file);
+
+    EXPECT_EQ(mesh.n_cells(), static_cast<size_t>(96 * 96));
+
+    auto node_coords = mesh.node_coords();
+    EXPECT_EQ(node_coords.extent(0), static_cast<size_t>(96 * 96 * 4));
+    EXPECT_EQ(node_coords.extent(1), static_cast<size_t>(2));
+}
+
+TEST_F(CeceUtilsTest, BuildAxisMeshFV3NativeGrid) {
+    std::string grid_file = find_grid_file("C96_grid.tile1.nc");
+    ASSERT_TRUE(std::filesystem::exists(grid_file)) << "Missing test file: " << grid_file;
+
+    std::vector<double> dummy_lons(96, 0.0);
+    std::vector<double> dummy_lats(96, 0.0);
+
+    auto mesh = cece::io::build_axis_mesh(96, 96, 0, dummy_lons, dummy_lats, grid_file);
+
+    EXPECT_EQ(mesh.n_cells(), static_cast<size_t>(96 * 96));
+
+    auto node_coords = mesh.node_coords();
+    EXPECT_EQ(node_coords.extent(0), static_cast<size_t>(96 * 96 * 4));
+    EXPECT_EQ(node_coords.extent(1), static_cast<size_t>(2));
+}
+
+TEST_F(CeceUtilsTest, BuildAxisMeshMPIRankSlicing) {
+    std::string spec_file = find_grid_file("C96_grid_spec.tile1.nc");
+    ASSERT_TRUE(std::filesystem::exists(spec_file)) << "Missing test file: " << spec_file;
+
+    std::vector<double> dummy_lons(96, 0.0);
+    std::vector<double> dummy_lats(48, 0.0);
+
+    // Simulate Rank 0: j0 = 0, nband = 48
+    auto mesh_rank0 = cece::io::build_axis_mesh(96, 48, 0, dummy_lons, dummy_lats, spec_file);
+    EXPECT_EQ(mesh_rank0.n_cells(), static_cast<size_t>(96 * 48));
+    EXPECT_EQ(mesh_rank0.node_coords().extent(0), static_cast<size_t>(96 * 48 * 4));
+
+    // Simulate Rank 1: j0 = 48, nband = 48
+    auto mesh_rank1 = cece::io::build_axis_mesh(96, 48, 48, dummy_lons, dummy_lats, spec_file);
+    EXPECT_EQ(mesh_rank1.n_cells(), static_cast<size_t>(96 * 48));
+    EXPECT_EQ(mesh_rank1.node_coords().extent(0), static_cast<size_t>(96 * 48 * 4));
+
+    // Verify that coordinates for rank 0 and rank 1 are different (rank 1 is higher latitude band)
+    auto coords0 = mesh_rank0.node_coords();
+    auto coords1 = mesh_rank1.node_coords();
+    EXPECT_NE(coords0(0, 1), coords1(0, 1));
+}
+
+TEST_F(CeceUtilsTest, BuildAxisMeshFastFailOnInvalidGridspec) {
+    std::vector<double> dummy_lons(96, 0.0);
+    std::vector<double> dummy_lats(96, 0.0);
+
+    // Non-existent file must throw std::runtime_error
+    EXPECT_THROW(cece::io::build_axis_mesh(96, 96, 0, dummy_lons, dummy_lats, "non_existent_grid.nc"), std::runtime_error);
+
+    // Dimension mismatch must throw std::runtime_error
+    std::string spec_file = find_grid_file("C96_grid_spec.tile1.nc");
+    if (std::filesystem::exists(spec_file)) {
+        EXPECT_THROW(cece::io::build_axis_mesh(200, 200, 0, dummy_lons, dummy_lats, spec_file), std::runtime_error);
+    }
+}
+
+// A projected-grid CF file names its horizontal coordinates "x" and "y" too, but
+// they are cartesian metres on an even-sized cell-centre lattice rather than the
+// odd (2*n + 1) geographic-degree corner lattice of an FV3 supergrid. The
+// supergrid branch must not claim such a file; it should fall through to the
+// unsupported-convention error.
+TEST_F(CeceUtilsTest, BuildAxisMeshRejectsProjectedXyAsSupergrid) {
+    const std::filesystem::path nc_path = std::filesystem::temp_directory_path() / "cece_projected_xy_tile.nc";
+    std::filesystem::remove(nc_path);
+
+    constexpr int nx = 96, ny = 96;
+    int ncid = -1;
+    ASSERT_EQ(nc_create(nc_path.c_str(), NC_CLOBBER | NC_NETCDF4, &ncid), NC_NOERR);
+    int x_dim = -1, y_dim = -1;
+    ASSERT_EQ(nc_def_dim(ncid, "x", nx, &x_dim), NC_NOERR);
+    ASSERT_EQ(nc_def_dim(ncid, "y", ny, &y_dim), NC_NOERR);
+    int x_var = -1, y_var = -1;
+    const int dims[2] = {y_dim, x_dim};
+    ASSERT_EQ(nc_def_var(ncid, "x", NC_DOUBLE, 2, dims, &x_var), NC_NOERR);
+    ASSERT_EQ(nc_def_var(ncid, "y", NC_DOUBLE, 2, dims, &y_var), NC_NOERR);
+    const char x_units[] = "m";
+    const char y_units[] = "m";
+    const char x_name[] = "projection_x_coordinate";
+    const char y_name[] = "projection_y_coordinate";
+    ASSERT_EQ(nc_put_att_text(ncid, x_var, "units", sizeof(x_units) - 1, x_units), NC_NOERR);
+    ASSERT_EQ(nc_put_att_text(ncid, y_var, "units", sizeof(y_units) - 1, y_units), NC_NOERR);
+    ASSERT_EQ(nc_put_att_text(ncid, x_var, "standard_name", sizeof(x_name) - 1, x_name), NC_NOERR);
+    ASSERT_EQ(nc_put_att_text(ncid, y_var, "standard_name", sizeof(y_name) - 1, y_name), NC_NOERR);
+    ASSERT_EQ(nc_enddef(ncid), NC_NOERR);
+    std::vector<double> coords(static_cast<size_t>(nx) * ny, 0.0);
+    ASSERT_EQ(nc_put_var_double(ncid, x_var, coords.data()), NC_NOERR);
+    ASSERT_EQ(nc_put_var_double(ncid, y_var, coords.data()), NC_NOERR);
+    ASSERT_EQ(nc_close(ncid), NC_NOERR);
+
+    std::vector<double> dummy_lons(nx, 0.0);
+    std::vector<double> dummy_lats(ny, 0.0);
+    EXPECT_THROW(cece::io::build_axis_mesh(nx, ny, 0, dummy_lons, dummy_lats, nc_path.string()), std::runtime_error);
+
+    std::filesystem::remove(nc_path);
+}
+
+}  // namespace cece::test

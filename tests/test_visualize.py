@@ -1,7 +1,8 @@
 import os
 import sys
-import yaml
+
 import matplotlib
+import yaml
 
 # Use non-interactive backend for tests
 matplotlib.use("Agg")

@@ -7,8 +7,9 @@ and zero-copy behavior.
 
 import os
 import sys
-import pytest
+
 import numpy as np
+import pytest
 
 # Add the build output directory to the path so _cece_core can be imported
 sys.path.insert(

@@ -44,10 +44,10 @@
 // so a surplus rank (size > ny) has band_start(r) == band_start(r+1) == ny and
 // contributes a zero-count band.
 //
-// Own main() with MPI init (MPI-main pattern, mirrors
-// tests/test_mpi_reuse_decision.cpp / tests/test_halo_gather_equivalence.cpp):
-// does NOT link GTest::gtest_main; all ranks stay alive and run RUN_ALL_TESTS so
-// every rank enters the MPI collectives. Grids are tiny (nx,ny,nz small) for the
+// Runs on the shared cece_test_main environment (MPI initialized before the
+// tests, mirroring tests/test_mpi_reuse_decision.cpp /
+// tests/test_halo_gather_equivalence.cpp); all ranks stay alive and run
+// RUN_ALL_TESTS so every rank enters the MPI collectives. Grids are tiny (nx,ny,nz small) for the
 // ~7 GB container and -np 3 oversubscription.
 //
 // **Validates: Requirements 6.1, 6.2, 6.3, 6.5**
@@ -308,49 +308,3 @@ RC_GTEST_PROP(OutputGatherReconstruction, Property4_MpiGathervEqualsReference, (
 }
 
 }  // namespace cece
-
-// ---------------------------------------------------------------------------
-// Own main() with MPI init (MPI-main pattern, mirrors
-// tests/test_mpi_reuse_decision.cpp / tests/test_halo_gather_equivalence.cpp):
-// ALL ranks stay alive and run RUN_ALL_TESTS so every rank enters the MPI
-// collectives the MPI property issues. Kokkos is not needed (pure host/MPI
-// logic). Slurm/PMI env is scrubbed so a plain mpirun -np N works in the
-// container without a batch scheduler.
-// ---------------------------------------------------------------------------
-int main(int argc, char** argv) {
-    bool is_discovery = false;
-    for (int i = 1; i < argc; ++i) {
-        if (std::string(argv[i]) == "--gtest_list_tests") {
-            is_discovery = true;
-            break;
-        }
-    }
-
-    if (!is_discovery) {
-        unsetenv("SLURM_JOB_ID");
-        unsetenv("SLURM_STEP_ID");
-        unsetenv("PMI_RANK");
-        unsetenv("PMI_SIZE");
-        setenv("I_MPI_HYDRA_BOOTSTRAP", "none", 0);
-        setenv("I_MPI_SHM", "disable", 0);
-
-        int mpi_initialized = 0;
-        MPI_Initialized(&mpi_initialized);
-        if (!mpi_initialized) {
-            int provided = 0;
-            MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
-        }
-    }
-
-    ::testing::InitGoogleTest(&argc, argv);
-    const int rc = RUN_ALL_TESTS();
-
-    int mpi_initialized = 0;
-    MPI_Initialized(&mpi_initialized);
-    if (mpi_initialized) {
-        int finalized = 0;
-        MPI_Finalized(&finalized);
-        if (!finalized) MPI_Finalize();
-    }
-    return rc;
-}

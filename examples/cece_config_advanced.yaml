@@ -146,7 +146,8 @@ species:
       hierarchy: 1
       scale_fields: ["temperature"] # Temperature-dependent emissions
       mask: "land_mask"
-      vdist_method: "PBL" # Distribute in boundary layer
+      vdist:
+        method: pbl # Distribute in boundary layer
       diurnal_cycle: "traffic_diurnal"
 
     # Aircraft emissions at cruise altitude
@@ -154,18 +155,20 @@ species:
       operation: "add"
       category: "transportation"
       hierarchy: 2
-      vdist_method: "HEIGHT"
-      vdist_h_start: 9000.0 # 9-12 km altitude
-      vdist_h_end: 12000.0
+      vdist:
+        method: height
+        h_start: 9000.0 # 9-12 km altitude
+        h_end: 12000.0
 
     # Power plant stacks
     - field: "power_plant_nox"
       operation: "add"
       category: "energy"
       hierarchy: 1
-      vdist_method: "HEIGHT"
-      vdist_h_start: 100.0 # Elevated stack height
-      vdist_h_end: 500.0
+      vdist:
+        method: height
+        h_start: 100.0 # Elevated stack height
+        h_end: 500.0
       diurnal_cycle: "power_diurnal"
       weekly_cycle: "industrial_weekly"
 
@@ -174,9 +177,10 @@ species:
       operation: "add"
       category: "natural"
       hierarchy: 1
-      vdist_method: "PRESSURE"
-      vdist_p_start: 10000.0 # 100-400 hPa
-      vdist_p_end: 40000.0
+      vdist:
+        method: pressure
+        p_start: 10000.0 # 100-400 hPa
+        p_end: 40000.0
 
   # Isoprene with environmental dependencies
   isoprene:
@@ -188,7 +192,8 @@ species:
       scale_fields: ["temperature", "par_direct", "lai"] # Environmental scaling
       mask: "vegetation_mask"
       seasonal_cycle: "growing_season"
-      vdist_method: "PBL"
+      vdist:
+        method: pbl
 
 # Active physics schemes
 physics_schemes:
@@ -268,8 +273,7 @@ cece_data:
 
 # Diagnostic output configuration
 diagnostics:
-  output_interval_seconds: 3600
-  enabled: true
+  output_interval: 3600
   variables:
     - "co"
     - "nox"

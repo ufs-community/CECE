@@ -120,17 +120,7 @@ EmisCO_Anthro    CO   0     1   1    2   kg/m2/s  CO_anthropogenic_emissions
 ```yaml
 diagnostics:
   output_interval: 3600
-  variables:
-    - name: EmisNO_Total
-      species: NO
-      units: kg/m2/s
-      long_name: NO_emission_flux_from_all_sectors
-      dim: 2
-    - name: EmisCO_Anthro
-      species: CO
-      units: kg/m2/s
-      long_name: CO_anthropogenic_emissions
-      dim: 2
+  variables: [EmisNO_Total, EmisCO_Anthro]
 ```
 
 ---
@@ -328,9 +318,12 @@ cece_data:
 
 Multiple scale factors and masks are supported as lists:
 
+<!-- cece-validate: context species.CO -->
 ```yaml
-scale_fields: [sf_temporal, sf_spatial]
-mask: [mask_land, mask_europe]
+- field: emissions
+  operation: add
+  scale_fields: [sf_temporal, sf_spatial]
+  mask: [mask_land, mask_europe]
 ```
 
 ---

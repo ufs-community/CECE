@@ -1,0 +1,64 @@
+# =====================================================================
+# CECE CEDS OC GRIDSPEC (curvilinear-target) config.
+# =====================================================================
+# Parity fixture for the NUOPC cap's curvilinear grid support.
+# Same CEDS OC source and
+# timing as cece_config_ceds_oc_small.yaml, but regridded onto the FV3
+# cubed-sphere tile-1 GRIDSPEC file (data/C96_grid_spec.tile1.nc,
+# 96x96 2-D center coordinates, CF-1.9) instead of a uniform lat-lon
+# grid. Exercises the flattened-curvilinear convention (ny == 1 with
+# nx*ny coordinate arrays) through the shared pipeline and makes the
+# writer emit 2-D curvilinear coordinate variables.
+#
+# The grid dimensions are inherited from the gridspec file, so nx/ny
+# here match it exactly (required when an explicit gridspec_file is
+# given).
+driver:
+  start_time: "2023-01-01T00:00:00"
+  end_time: "2023-02-01T00:00:00"
+  timestep_seconds: 2592000 # ~30 days; monthly cadence -> distinct records
+  gridspec_file: "data/C96_grid_spec.tile1.nc"
+  grid:
+    nx: 96
+    ny: 96
+    nz: 1
+
+species:
+  oc:
+    - field: "OC_ENE"
+      operation: "add"
+    - field: "OC_IND"
+      operation: "add"
+    - field: "OC_TRA"
+      operation: "add"
+
+cece_data:
+  streams:
+    - name: "CEDS_OC"
+      file: "/work/data/OC-em-anthro_CMIP_CEDS_2023.nc"
+      taxmode: "cycle"
+      tintalgo: "linear"
+      mapalgo: "consd"
+      cadence: "monthly"
+      variables:
+        - file: "OC_ene"
+          model: "OC_ENE"
+        - file: "OC_ind"
+          model: "OC_IND"
+        - file: "OC_tra"
+          model: "OC_TRA"
+
+diagnostics:
+  output_interval: 2592000
+  variables: ["oc"]
+
+output:
+  enabled: true
+  directory: ./cece_output_ceds_gridspec
+  filename_pattern: "cece_ceds_curv_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
+  frequency_steps: 1
+  fields:
+    - name: oc
+      attributes:
+        units: "kg m-2 s-1"
+        long_name: "organic_carbon_emission_flux"

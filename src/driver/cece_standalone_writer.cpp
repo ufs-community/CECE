@@ -1,25 +1,28 @@
+
+
 #include "cece/cece_standalone_writer.hpp"
 
 #include <amio/amio.h>
 #include <mpi.h>
 
+#include <Kokkos_Core.hpp>
+#include <algorithm>
+#include <cstring>
+#include <ctime>
+#include <filesystem>
+#include <iomanip>
+#include <set>
+#include <sstream>
+#include <stdexcept>
+#include <vector>
+
+#include "cece/cece_internal.hpp"
+#include "cece/cece_logger.hpp"
 #include "cece/cece_regridder_utils.hpp"
 
 extern "C" {
 void amio_set_parent_communicator(MPI_Fint comm);
 }
-
-#include <algorithm>
-#include <cstring>
-#include <ctime>
-#include <filesystem>
-#include <fstream>
-#include <iomanip>
-#include <set>
-#include <sstream>
-#include <vector>
-
-#include "cece/cece_logger.hpp"
 
 namespace fs = std::filesystem;
 
@@ -33,6 +36,90 @@ std::string GetCurrentTimestamp() {
     char buf[64];
     std::strftime(buf, sizeof(buf), "%Y-%m-%dT%H:%M:%SZ", gmt);
     return std::string(buf);
+}
+
+std::string EscapeYamlDoubleQuoted(const std::string& value) {
+    std::ostringstream escaped;
+    for (const unsigned char character : value) {
+        switch (character) {
+            case '\\':
+                escaped << "\\\\";
+                break;
+            case '"':
+                escaped << "\\\"";
+                break;
+            case '\n':
+                escaped << "\\n";
+                break;
+            case '\r':
+                escaped << "\\r";
+                break;
+            case '\t':
+                escaped << "\\t";
+                break;
+            default:
+                if (character < 0x20 || character == 0x7f) {
+                    escaped << "\\x" << std::hex << std::setw(2) << std::setfill('0') << static_cast<int>(character) << std::dec;
+                } else {
+                    escaped << static_cast<char>(character);
+                }
+        }
+    }
+    return escaped.str();
+}
+
+void WarnUnconsumedGlobalAttributes(const CeceOutputConfig& config) {
+    // Mirrors AMIO's known_global_keys in amio/src/drivers/common/var_attributes.cpp.
+    static const std::set<std::string> kAmioGlobalKeys = {"title",
+                                                          "institution",
+                                                          "source",
+                                                          "history",
+                                                          "references",
+                                                          "comment",
+                                                          "Conventions",
+                                                          "contact",
+                                                          "project",
+                                                          "keywords",
+                                                          "summary",
+                                                          "acknowledgement",
+                                                          "id",
+                                                          "license",
+                                                          "creator_name",
+                                                          "creator_url",
+                                                          "creator_email",
+                                                          "publisher_name",
+                                                          "publisher_url",
+                                                          "publisher_email",
+                                                          "geospatial_bounds",
+                                                          "geospatial_lat_min",
+                                                          "geospatial_lat_max",
+                                                          "geospatial_lon_min",
+                                                          "geospatial_lon_max",
+                                                          "geospatial_vertical_min",
+                                                          "geospatial_vertical_max",
+                                                          "geospatial_vertical_positive",
+                                                          "geospatial_bounds_crs",
+                                                          "geospatial_bounds_vertical_crs",
+                                                          "naming_authority",
+                                                          "processing_level",
+                                                          "standard_name_vocabulary",
+                                                          "time_coverage_start",
+                                                          "time_coverage_end",
+                                                          "time_coverage_duration",
+                                                          "time_coverage_resolution",
+                                                          "date_created",
+                                                          "date_modified",
+                                                          "date_metadata_modified",
+                                                          "cdm_data_type",
+                                                          "featureType",
+                                                          "ncei_template_version",
+                                                          "uuid",
+                                                          "gridspec_file"};
+    for (const auto& [key, value] : config.global_attributes) {
+        if (kAmioGlobalKeys.count(key) == 0) {
+            CECE_LOG_WARNING("[CECE] output.global_attributes." + key + " is not a global attribute AMIO recognizes and will not be written.");
+        }
+    }
 }
 
 std::tm ParseISO8601(const std::string& iso_time) {
@@ -99,6 +186,13 @@ void check_amio_rc(amio_status_t status, const std::string& context) {
     }
 }
 
+void write_and_wait(amio_dataset_handle dataset, const char* variable, const void* data, amio_dtype_t dtype, const amio_shape_t* shape,
+                    int timeout_ms) {
+    amio_io_handle io = nullptr;
+    check_amio_rc(amio_write(dataset, variable, data, dtype, shape, &io), "amio_write(" + std::string(variable) + ")");
+    check_amio_rc(amio_wait(io, timeout_ms), "amio_wait(" + std::string(variable) + ")");
+}
+
 }  // namespace
 
 CeceStandaloneWriter::CeceStandaloneWriter(const CeceOutputConfig& config, MPI_Comm comm)
@@ -106,6 +200,17 @@ CeceStandaloneWriter::CeceStandaloneWriter(const CeceOutputConfig& config, MPI_C
 
 CeceStandaloneWriter::~CeceStandaloneWriter() {
     Finalize();
+}
+
+size_t CeceStandaloneWriter::ResolveStagingBufferCapacity(const CeceOutputConfig& config, int nx, int ny, int nz) {
+    const size_t field_payload_bytes = static_cast<size_t>(nx) * ny * nz * sizeof(double);
+    const size_t configured_capacity = static_cast<size_t>(config.amio_staging_buffer_capacity_bytes);
+    const size_t staging_capacity = std::max(configured_capacity, field_payload_bytes);
+    if (staging_capacity > 1073741824ULL) {
+        throw std::runtime_error("largest output field requires " + std::to_string(staging_capacity) +
+                                 " bytes, exceeding AMIO's 1 GiB per-buffer limit");
+    }
+    return staging_capacity;
 }
 
 int CeceStandaloneWriter::Initialize(const std::string& start_time_iso8601, int nx, int ny, int nz) {
@@ -122,6 +227,7 @@ int CeceStandaloneWriter::Initialize(const std::string& start_time_iso8601, int 
     band_ = cece::BandDecomposition::compute(ny_, comm_);
 
     CECE_LOG_INFO("[CECE] Initializing AMIO standalone writer with start time: " + start_time_iso8601);
+    WarnUnconsumedGlobalAttributes(config_);
 
     if (!fs::exists(config_.directory)) {
         try {
@@ -174,6 +280,7 @@ int CeceStandaloneWriter::InitializeWithCoords(const std::string& start_time_iso
     band_ = cece::BandDecomposition::compute(ny_, comm_);
 
     CECE_LOG_INFO("[CECE] Initializing AMIO standalone writer with coordinates: " + start_time_iso8601);
+    WarnUnconsumedGlobalAttributes(config_);
 
     if (!fs::exists(config_.directory)) {
         try {
@@ -225,8 +332,7 @@ void CeceStandaloneWriter::WriteCoordinateVariables(amio_dataset_handle_t datase
         lon_shape.rank = 1;
         lon_shape.extents[0] = nx_;
     }
-    amio_io_handle lon_io = nullptr;
-    check_amio_rc(amio_write(dataset, "lon", lon_values.data(), AMIO_DTYPE_F64, &lon_shape, &lon_io), "amio_write(lon)");
+    write_and_wait(dataset, "lon", lon_values.data(), AMIO_DTYPE_F64, &lon_shape, config_.amio_staging_timeout_ms);
 
     // Step 5: Write lat coordinate variable
     std::vector<double> lat_values;
@@ -248,8 +354,7 @@ void CeceStandaloneWriter::WriteCoordinateVariables(amio_dataset_handle_t datase
         lat_shape.rank = 1;
         lat_shape.extents[0] = (ny_ == 1) ? nx_ : ny_;
     }
-    amio_io_handle lat_io = nullptr;
-    check_amio_rc(amio_write(dataset, "lat", lat_values.data(), AMIO_DTYPE_F64, &lat_shape, &lat_io), "amio_write(lat)");
+    write_and_wait(dataset, "lat", lat_values.data(), AMIO_DTYPE_F64, &lat_shape, config_.amio_staging_timeout_ms);
 
     // Step 5b: Compute and write cell boundary coordinate variables (bounds) using the AXIS mesh directly!
     std::vector<double> lon_bnds_values;
@@ -258,7 +363,7 @@ void CeceStandaloneWriter::WriteCoordinateVariables(amio_dataset_handle_t datase
     amio_shape_t lat_bnds_shape{};
 
     // Build the destination AXIS mesh dynamically using our unified mesh builder
-    auto dst_mesh = cece::io::build_axis_mesh(nx_, ny_, lon_values, lat_values, gridspec_file_);
+    auto dst_mesh = cece::io::build_axis_mesh(nx_, ny_, 0, lon_values, lat_values, gridspec_file_);
 
     auto node_coords = dst_mesh.node_coords();
     auto conn_offsets = dst_mesh.conn_offsets();
@@ -375,11 +480,8 @@ void CeceStandaloneWriter::WriteCoordinateVariables(amio_dataset_handle_t datase
         if (lat_bnds_values[i] > 90.0) lat_bnds_values[i] = 90.0;
     }
 
-    amio_io_handle lon_bnds_io = nullptr;
-    check_amio_rc(amio_write(dataset, "lon_bnds", lon_bnds_values.data(), AMIO_DTYPE_F64, &lon_bnds_shape, &lon_bnds_io), "amio_write(lon_bnds)");
-
-    amio_io_handle lat_bnds_io = nullptr;
-    check_amio_rc(amio_write(dataset, "lat_bnds", lat_bnds_values.data(), AMIO_DTYPE_F64, &lat_bnds_shape, &lat_bnds_io), "amio_write(lat_bnds)");
+    write_and_wait(dataset, "lon_bnds", lon_bnds_values.data(), AMIO_DTYPE_F64, &lon_bnds_shape, config_.amio_staging_timeout_ms);
+    write_and_wait(dataset, "lat_bnds", lat_bnds_values.data(), AMIO_DTYPE_F64, &lat_bnds_shape, config_.amio_staging_timeout_ms);
 
     // Step 5c: Write mesh topology variable for unstructured UGRID mesh
     if (ny_ == 1) {
@@ -388,8 +490,7 @@ void CeceStandaloneWriter::WriteCoordinateVariables(amio_dataset_handle_t datase
         std::memset(&mesh_shape, 0, sizeof(mesh_shape));
         mesh_shape.rank = 1;
         mesh_shape.extents[0] = 1;
-        amio_io_handle mesh_io = nullptr;
-        check_amio_rc(amio_write(dataset, "mesh", &mesh_val, AMIO_DTYPE_I32, &mesh_shape, &mesh_io), "amio_write(mesh)");
+        write_and_wait(dataset, "mesh", &mesh_val, AMIO_DTYPE_I32, &mesh_shape, config_.amio_staging_timeout_ms);
     }
 
     // Step 6: Write lev coordinate variable
@@ -401,8 +502,7 @@ void CeceStandaloneWriter::WriteCoordinateVariables(amio_dataset_handle_t datase
     std::memset(&lev_shape, 0, sizeof(lev_shape));
     lev_shape.rank = 1;
     lev_shape.extents[0] = nz_;
-    amio_io_handle lev_io = nullptr;
-    check_amio_rc(amio_write(dataset, "lev", lev_values.data(), AMIO_DTYPE_F64, &lev_shape, &lev_io), "amio_write(lev)");
+    write_and_wait(dataset, "lev", lev_values.data(), AMIO_DTYPE_F64, &lev_shape, config_.amio_staging_timeout_ms);
 
     // Step 7: Write time coordinate variable
     double time_val = time_seconds;
@@ -410,8 +510,7 @@ void CeceStandaloneWriter::WriteCoordinateVariables(amio_dataset_handle_t datase
     std::memset(&time_shape, 0, sizeof(time_shape));
     time_shape.rank = 1;
     time_shape.extents[0] = 1;
-    amio_io_handle time_io = nullptr;
-    check_amio_rc(amio_write(dataset, "time", &time_val, AMIO_DTYPE_F64, &time_shape, &time_io), "amio_write(time)");
+    write_and_wait(dataset, "time", &time_val, AMIO_DTYPE_F64, &time_shape, config_.amio_staging_timeout_ms);
 }
 
 int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, DualView3D>& fields, double time_seconds, int step) {
@@ -449,18 +548,22 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
             // then broadcast so every rank opens with byte-identical content).
             std::ostringstream m_file;
 
+            const size_t staging_capacity = ResolveStagingBufferCapacity(config_, nx_, ny_, nz_);
+            const int output_threads = std::max(1, config_.amio_worker_threads);
+
             m_file << "backend: netcdf4\n"
                    << "path: " << filename << "\n"
                    << "data_model: enhanced\n"
                    << "staging_pool:\n"
-                   << "  buffer_count: 1\n"
-                   << "  buffer_capacity_bytes: 33554432\n"
+                   << "  buffer_count: " << config_.amio_staging_buffer_count << "\n"
+                   << "  buffer_capacity_bytes: " << staging_capacity << "\n"
+                   << "  max_buffer_count: " << config_.amio_staging_buffer_count << "\n"
                    << "worker_pool:\n"
-                   << "  threads: 1\n"
+                   << "  threads: " << output_threads << "\n"
                    << "prefetch:\n"
                    << "  depth: 1\n"
                    << "  read_timeout_s: 60\n"
-                   << "staging_timeout_ms: 10000\n";
+                   << "staging_timeout_ms: " << config_.amio_staging_timeout_ms << "\n";
 
             std::map<std::string, std::string> final_attrs;
             final_attrs["title"] = "CECE Standalone Emissions Simulation Output";
@@ -481,7 +584,7 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
 
             m_file << "global_attributes:\n";
             for (const auto& [key, value] : final_attrs) {
-                m_file << "  " << key << ": \"" << value << "\"\n";
+                m_file << "  \"" << EscapeYamlDoubleQuoted(key) << "\": \"" << EscapeYamlDoubleQuoted(value) << "\"\n";
             }
             // The collection is seeded with the coordinate variables and
             // carries time's units from config initialization (SetTimeUnits),
@@ -798,9 +901,7 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
                             field_shape.extents[3] = nx_;
                         }
 
-                        amio_io_handle field_io = nullptr;
-                        check_amio_rc(amio_write(dataset, name.c_str(), global_field.data(), AMIO_DTYPE_F64, &field_shape, &field_io),
-                                      "amio_write(" + name + ")");
+                        write_and_wait(dataset, name.c_str(), global_field.data(), AMIO_DTYPE_F64, &field_shape, config_.amio_staging_timeout_ms);
                     } catch (const std::exception& e) {
                         CECE_LOG_ERROR(std::string("[CECE] Writer field write failed for '") + name + "': " + e.what());
                         skip_file_work = true;
@@ -865,22 +966,18 @@ int CeceStandaloneWriter::WriteTimeStep(const std::unordered_map<std::string, Du
 void CeceStandaloneWriter::Finalize() {
     if (!initialized_) return;
 
-    std::cout << "[RANK:0000] [INFO] [CECE] CeceStandaloneWriter finalizing...\n";
+    CECE_LOG_INFO("[CECE] CeceStandaloneWriter finalizing...");
 
     lon_coords_.clear();
     lat_coords_.clear();
 
     initialized_ = false;
-    std::cout << "[RANK:0000] [INFO] [CECE] CeceStandaloneWriter finalized successfully\n";
+    CECE_LOG_INFO("[CECE] CeceStandaloneWriter finalized successfully");
 }
 
 }  // namespace cece
 
 extern "C" {
-
-#include <Kokkos_Core.hpp>
-
-#include "cece/cece_internal.hpp"
 
 std::unique_ptr<cece::CeceStandaloneWriter> g_standalone_writer;
 
@@ -888,7 +985,7 @@ void cece_core_write_step(void* data_ptr, double time_seconds, int step_index, i
     if (rc != nullptr) *rc = 0;
 
     if (data_ptr == nullptr) {
-        std::cerr << "ERROR: cece_core_write_step - data_ptr is null" << std::endl;
+        CECE_LOG_ERROR("cece_core_write_step - data_ptr is null");
         if (rc != nullptr) *rc = -1;
         return;
     }
@@ -912,7 +1009,7 @@ void cece_core_write_step(void* data_ptr, double time_seconds, int step_index, i
     Kokkos::fence();
 
     if (w != 0) {
-        std::cerr << "WARNING: cece_core_write_step - WriteTimeStep returned " << w << std::endl;
+        CECE_LOG_WARNING("cece_core_write_step - WriteTimeStep returned " + std::to_string(w));
         if (rc != nullptr) *rc = w;
     }
 }

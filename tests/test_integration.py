@@ -9,9 +9,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "build" / "src" / "python"))
 
-import pytest
-import numpy as np
 import cece
+import numpy as np
+import pytest
 
 
 class TestBasicWorkflow:
@@ -208,12 +208,13 @@ class TestStateFieldOperations:
         state = cece.CeceState(nx=10, ny=10, nz=10)
 
         # Add multiple fields
+        rng = np.random.default_rng(0)
         fields = {
             "temperature": np.ones((10, 10, 10), dtype=np.float64) * 298.15,
             "pressure": np.ones((10, 10, 10), dtype=np.float64) * 101325,
             "humidity": np.ones((10, 10, 10), dtype=np.float64) * 0.5,
-            "wind_u": np.random.randn(10, 10, 10).astype(np.float64),
-            "wind_v": np.random.randn(10, 10, 10).astype(np.float64),
+            "wind_u": rng.standard_normal((10, 10, 10)).astype(np.float64),
+            "wind_v": rng.standard_normal((10, 10, 10)).astype(np.float64),
         }
 
         for name, field in fields.items():
@@ -283,7 +284,8 @@ class TestArrayConversionWorkflow:
         assert np.allclose(retrieved_f, f_order)
 
         # Test mixed operations
-        mixed = np.random.randn(10, 10, 10).astype(np.float64)
+        rng = np.random.default_rng(0)
+        mixed = rng.standard_normal((10, 10, 10)).astype(np.float64)
         state.add_import_field("mixed", mixed)
         retrieved_mixed = state.get_import_field("mixed")
         assert np.allclose(retrieved_mixed, mixed)

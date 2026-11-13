@@ -125,22 +125,98 @@ EOF
 done
 
 # ========================================================================
-# Verify all 6 tile output NetCDF files exist and have correct shapes
+# Verify all 6 tile output NetCDF files exist, have correct shapes, and
+# calculate total spatial emission mass conservation integrals across tiles
 # ========================================================================
 echo "========================================================================"
-echo " Verifying generated output shapes for all 6 curvilinear tiles..."
+echo " Verifying generated output shapes & mass integrals for all 6 tiles..."
 echo "========================================================================"
-for tile in 1 2 3 4 5 6; do
-    python3 -c "
+python3 -c "
 import netCDF4 as nc
-f = nc.Dataset('cece_output/cece_c96_tile${tile}_20200101_010000.nc')
-lon_shape = f.variables['lon'].shape
-lat_shape = f.variables['lat'].shape
-lon_bnds_shape = f.variables['lon_bnds'].shape
-co_shape = f.variables['co'].shape
-print(f'Tile ${tile} -> lon:{lon_shape}, lat:{lat_shape}, lon_bnds:{lon_bnds_shape}, co:{co_shape}')
+import numpy as np
+
+total_co_mass_rate = 0.0
+for tile in range(1, 7):
+    f_out = nc.Dataset(f'cece_output/cece_c96_tile{tile}_20200101_010000.nc')
+    f_grid = nc.Dataset(f'data/C96_grid_spec.tile{tile}.nc')
+    lon_shape = f_out.variables['lon'].shape
+    lat_shape = f_out.variables['lat'].shape
+    lon_bnds_shape = f_out.variables['lon_bnds'].shape
+    co = f_out.variables['co'][:]
+    area = f_grid.variables['area'][:]
+    if co.ndim == 3:
+        co = co[0]
+    tile_mass = float(np.sum(co * area))
+    total_co_mass_rate += tile_mass
+    print(f'Tile {tile} -> lon:{lon_shape}, lat:{lat_shape}, lon_bnds:{lon_bnds_shape}, co:{co.shape}, CO flux mass: {tile_mass:.6e} kg/s')
+
+print(f'Total C96 CO emission mass rate across all 6 tiles: {total_co_mass_rate:.6e} kg/s')
+assert total_co_mass_rate > 0.0, 'Total emission mass rate must be positive!'
 "
-done
+
+# ========================================================================
+# Verify bit-for-bit identity between serial (-np 1) and multi-rank (-np 2) MPI
+# ========================================================================
+echo "========================================================================"
+echo " Verifying serial (-np 1) vs multi-rank (-np 2) bit-for-bit equality..."
+echo "========================================================================"
+mkdir -p cece_output_serial
+cat <<EOF > examples/cece_config_ex9_serial.yaml
+driver:
+  start_time: "2020-01-01T00:00:00"
+  end_time: "2020-01-01T01:00:00"
+  timestep_seconds: 3600
+  gridspec_file: "data/C96_grid_spec.tile1.nc"
+  grid:
+    nx: 96
+    ny: 96
+
+species:
+  co:
+    - field: "MACCITY_CO"
+      operation: "add"
+
+cece_data:
+  streams:
+    - name: "MACCITY_CO"
+      file: "/work/data/MACCity_4x5.nc"
+      yearFirst: 2000
+      yearLast: 2010
+      yearAlign: 2020
+      taxmode: "cycle"
+      tintalgo: "linear"
+      mapalgo: "consd"
+      variables:
+        - file: "MACCity"
+          model: "MACCITY_CO"
+
+output:
+  enabled: true
+  directory: ./cece_output_serial
+  filename_pattern: "cece_c96_serial_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
+  frequency_steps: 1
+  fields:
+    - name: co
+EOF
+
+./setup.sh -c "OMP_NUM_THREADS=1 OMP_PROC_BIND=false mpirun --allow-run-as-root -np 1 ./build/cece_standalone_driver examples/cece_config_ex9_serial.yaml"
+rm examples/cece_config_ex9_serial.yaml
+
+python3 -c "
+import netCDF4 as nc
+import numpy as np
+
+f_multi = nc.Dataset('cece_output/cece_c96_tile1_20200101_010000.nc')
+f_serial = nc.Dataset('cece_output_serial/cece_c96_serial_20200101_010000.nc')
+
+co_multi = f_multi.variables['co'][:]
+co_serial = f_serial.variables['co'][:]
+
+diff = np.max(np.abs(co_multi - co_serial))
+print(f'Max absolute difference between -np 1 and -np 2: {diff}')
+assert diff == 0.0, f'Bit-for-bit assertion failed! Diff = {diff}'
+print('SUCCESS: Bit-for-bit serial vs multi-rank equivalence ASSERTION PASSED!')
+"
 
 # Note: Real C96 grid and gridspec files are kept in the 'data/' directory as a local cache.
 

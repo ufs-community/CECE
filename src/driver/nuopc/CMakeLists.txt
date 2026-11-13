@@ -5,7 +5,7 @@ set(CMAKE_Fortran_MODULE_DIRECTORY ${CMAKE_BINARY_DIR}/modules)
 # NUOPC Model Cap target for CECE
 # -----------------------------------------------------------------------
 # Compile the official production-grade NUOPC Cap as a static library
-add_library(cece_nuopc_cap STATIC cece_cap.F90)
+add_library(cece_nuopc_cap STATIC cece_cap.F90 cece_cap_grid.F90)
 
 target_include_directories(
   cece_nuopc_cap

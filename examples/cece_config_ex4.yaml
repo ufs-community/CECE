@@ -1,12 +1,10 @@
 # =====================================================================
-# CECE Example 4: CCPP Physics Schemes processing
+# CECE Example 4: Biomass-burning data ingestion
 # =====================================================================
-# This example tests CCPP physical scheme integrations, running diurnal
-# and seasonal scaling variation calculations.
+# This example demonstrates loading an inventory stream into a species layer.
 #
 # Key Features Tested:
-#   - Dynamic diurnal/seasonal variation scaling factors.
-#   - Physics scheme parameter ingestion and runtime scheduling.
+#   - Inventory stream configuration and species-layer mapping.
 #   - 24-hour simulation cycle for full day-night profiling.
 # =====================================================================
 driver:
@@ -22,21 +20,9 @@ driver:
     lat_max: 90.0
 
 species:
-  no:
+  "no":
     - field: "HTAP_NO"
       operation: "add"
-
-physics_schemes:
-  - name: "GFED"
-    language: "cpp"
-    options:
-      version: "GFED4"
-  - name: "DayCycleAndSeasonVariation"
-    options:
-      amplitude_diurnal: 0.5
-      phase_diurnal_hours: 14.0
-      amplitude_seasonal: 0.3
-      phase_seasonal_days: 180.0
 
 cece_data:
   streams:
@@ -52,7 +38,7 @@ cece_data:
           model: "HTAP_NO"
 
 diagnostics:
-  output_interval_seconds: 3600
+  output_interval: 3600
   variables: ["no"]
 
 output:

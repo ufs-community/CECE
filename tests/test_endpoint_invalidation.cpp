@@ -44,7 +44,7 @@
 // include/cece/cece_driver_facade.hpp Task 4.3). No production signature, logic,
 // or visibility is changed. No Kokkos/MPI is needed for the ladder itself, but
 // linking the cece library pulls in Kokkos/AXIS static globals, so — like the
-// sizing sibling — this provides its own main() with a KokkosMpiEnvironment for
+// sizing sibling — this runs on the shared cece_test_main environment for
 // clean process teardown.
 //
 // The ladder reproduced here is byte-for-byte the same reproduction used by the
@@ -417,54 +417,3 @@ TEST(EndpointInvalidation, InjectedComputeFailureInvalidatesEntryAndSetsDetail) 
 }
 
 }  // namespace cece
-
-// ============================================================================
-// Kokkos + MPI global test environment and custom main().
-//
-// Linking the cece library pulls in Kokkos/AXIS static globals whose teardown
-// must run after a matched Kokkos::initialize/finalize; providing an explicit
-// environment (mirroring test_endpoint_sizing.cpp / test_endpoint_blend_equivalence.cpp)
-// keeps process teardown clean. The strong main() here overrides gtest_main's
-// weak one.
-// ============================================================================
-namespace {
-
-class KokkosMpiEnvironment : public ::testing::Environment {
-   public:
-    KokkosMpiEnvironment(int argc, char** argv) : argc_(argc), argv_(argv) {}
-
-    void SetUp() override {
-        int mpi_initialized = 0;
-        MPI_Initialized(&mpi_initialized);
-        if (!mpi_initialized) {
-            int provided = 0;
-            MPI_Init_thread(&argc_, &argv_, MPI_THREAD_MULTIPLE, &provided);
-        }
-        if (!Kokkos::is_initialized()) {
-            Kokkos::initialize(argc_, argv_);
-        }
-    }
-
-    void TearDown() override {
-        if (Kokkos::is_initialized()) {
-            Kokkos::finalize();
-        }
-        int mpi_initialized = 0;
-        MPI_Initialized(&mpi_initialized);
-        if (mpi_initialized) {
-            MPI_Finalize();
-        }
-    }
-
-   private:
-    int argc_;
-    char** argv_;
-};
-
-}  // namespace
-
-int main(int argc, char** argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    ::testing::AddGlobalTestEnvironment(new KokkosMpiEnvironment(argc, argv));
-    return RUN_ALL_TESTS();
-}

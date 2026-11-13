@@ -25,7 +25,7 @@ species:
   co:
     - field: "MACCITY_CO"
       operation: "add"
-  no:
+  "no":
     - field: "MACCITY_NO"
       operation: "add"
 
@@ -53,7 +53,7 @@ cece_data:
           model: "MACCITY_NO"
 
 diagnostics:
-  output_interval_seconds: 2592000
+  output_interval: 2592000
   variables: ["co", "no"]
 
 output:

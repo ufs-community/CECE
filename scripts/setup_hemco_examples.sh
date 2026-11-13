@@ -24,6 +24,20 @@ EOF
 
 # Example 1: Add global anthropogenic emissions (MACCity CO)
 cat <<EOF > examples/cece_config_ex1.yaml
+driver:
+  start_time: "2014-07-01T00:00:00"
+  end_time: "2014-07-01T05:00:00"
+  timestep_seconds: 3600
+  grid:
+    # Global rectilinear target; the driver regrids the 4x5 MACCity
+    # source onto it. lon/lat_min/max are cell edges.
+    nx: 72
+    ny: 46
+    lon_min: -180.0
+    lon_max: 180.0
+    lat_min: -90.0
+    lat_max: 90.0
+
 meteorology:
   hourly_scalfact: HOURLY_SCALFACT
 
@@ -34,10 +48,13 @@ species:
       scale: 1.0
       scale_fields: ["hourly_scalfact"]
 
-cdeps_inline_config:
+cece_data:
   streams:
     - name: "MACCITY"
       file: "data/MACCity_4x5.nc"
+      variables:
+        - file: "MACCity"
+          model: "MACCITY"
     - name: "HOURLY_SCALFACT"
       file: "data/hourly.nc"
 EOF
@@ -63,10 +80,13 @@ species:
       mask: "mask_europe"
       scale_fields: ["hourly_scalfact"]
 
-cdeps_inline_config:
+cece_data:
   streams:
     - name: "MACCITY_CO"
       file: "data/MACCity_4x5.nc"
+      variables:
+        - file: "MACCity"
+          model: "MACCITY_CO"
     - name: "EMEP_CO"
       file: "data/EMEP_2000.nc"
     - name: "HOURLY_SCALFACT"
@@ -89,10 +109,13 @@ species:
       hierarchy: 1
       operation: "add"
 
-cdeps_inline_config:
+cece_data:
   streams:
     - name: "MACCITY_CO"
       file: "data/MACCity_4x5.nc"
+      variables:
+        - file: "MACCity"
+          model: "MACCITY_CO"
     - name: "AEIC_CO"
       file: "data/AEIC.nc"
 EOF
@@ -100,12 +123,6 @@ generate_download_script 3 "HEMCO/MACCITY/v2014-07/MACCity_4x5.nc" "HEMCO/AEIC/v
 
 # Example 4: Add biomass burning emissions
 cat <<EOF > examples/cece_config_ex4.yaml
-physics_schemes:
-  - name: "GFED"
-    language: "cpp"
-    options:
-      version: "GFED4"
-
 species:
   co:
     - field: "MACCITY_CO"
@@ -113,10 +130,13 @@ species:
       hierarchy: 1
       operation: "add"
 
-cdeps_inline_config:
+cece_data:
   streams:
     - name: "MACCITY_CO"
       file: "data/MACCity_4x5.nc"
+      variables:
+        - file: "MACCity"
+          model: "MACCITY_CO"
     - name: "GFED_WDL"
       file: "data/GFED4_gen.025x025.199701.nc"
 EOF
@@ -128,17 +148,20 @@ species:
   co:
     - field: "MACCITY_CO"
       operation: "add"
-  no:
+  "no":
     - field: "MACCITY_NO"
       operation: "add"
   so2:
     - field: "MACCITY_SO2"
       operation: "add"
 
-cdeps_inline_config:
+cece_data:
   streams:
     - name: "MACCITY_CO"
       file: "data/MACCity_4x5.nc"
+      variables:
+        - file: "MACCity"
+          model: "MACCITY_CO"
     - name: "MACCITY_NO"
       file: "data/MACCity_anthro_NOx_2000-2010_16080.nc"
     - name: "MACCITY_SO2"
@@ -149,7 +172,7 @@ generate_download_script 5 "HEMCO/MACCITY/v2014-07/MACCity_4x5.nc" "HEMCO/MACCIT
 # Example 6: Non-separated inventories
 cat <<EOF > examples/cece_config_ex6.yaml
 species:
-  no:
+  "no":
     - field: "EDGAR_NO_POW"
       category: "anthropogenic"
       operation: "add"
@@ -157,7 +180,7 @@ species:
       category: "anthropogenic"
       operation: "add"
 
-cdeps_inline_config:
+cece_data:
   streams:
     - name: "EDGAR_NO_POW"
       file: "data/EDGAR_v43.NOx.POW.nc"

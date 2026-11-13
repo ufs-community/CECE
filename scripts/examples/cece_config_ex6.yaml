@@ -1,5 +1,5 @@
 species:
-  no:
+  "no":
     - field: "EDGAR_NO_POW"
       category: "anthropogenic"
       operation: "add"
@@ -7,7 +7,7 @@ species:
       category: "anthropogenic"
       operation: "add"
 
-cdeps_inline_config:
+cece_data:
   streams:
     - name: "EDGAR_NO_POW"
       file: "data/EDGAR_v43.NOx.POW.nc"

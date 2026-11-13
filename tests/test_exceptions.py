@@ -4,31 +4,32 @@ Tests for exception classes (exceptions.py).
 Tests the exception hierarchy, error code mapping, and formatting.
 """
 
-import pytest
 import sys
 from pathlib import Path
+
+import pytest
 
 # Add src/python to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src" / "python"))
 
 from exceptions import (
-    CECE_SUCCESS,
-    CECE_ERROR_INVALID_CONFIG,
-    CECE_ERROR_INVALID_STATE,
-    CECE_ERROR_COMPUTATION_FAILED,
-    CECE_ERROR_MEMORY_ALLOCATION,
-    CECE_ERROR_INVALID_EXECUTION_SPACE,
-    CECE_ERROR_NOT_INITIALIZED,
     CECE_ERROR_ALREADY_INITIALIZED,
-    CECE_ERROR_FIELD_NOT_FOUND,
+    CECE_ERROR_COMPUTATION_FAILED,
     CECE_ERROR_DIMENSION_MISMATCH,
-    CeceException,
-    CeceConfigError,
-    CeceComputationError,
-    CeceStateError,
-    CeceExecutionSpaceError,
-    error_code_to_exception,
+    CECE_ERROR_FIELD_NOT_FOUND,
+    CECE_ERROR_INVALID_CONFIG,
+    CECE_ERROR_INVALID_EXECUTION_SPACE,
+    CECE_ERROR_INVALID_STATE,
+    CECE_ERROR_MEMORY_ALLOCATION,
+    CECE_ERROR_NOT_INITIALIZED,
+    CECE_SUCCESS,
     RECOVERY_SUGGESTIONS,
+    CeceComputationError,
+    CeceConfigError,
+    CeceException,
+    CeceExecutionSpaceError,
+    CeceStateError,
+    error_code_to_exception,
 )
 
 
@@ -265,7 +266,7 @@ class TestRecoverySuggestions:
 
     def test_recovery_suggestions_are_lists(self):
         """Test that all recovery suggestions are lists."""
-        for code, suggestions in RECOVERY_SUGGESTIONS.items():
+        for suggestions in RECOVERY_SUGGESTIONS.values():
             assert isinstance(suggestions, list)
             assert len(suggestions) > 0
             for suggestion in suggestions:

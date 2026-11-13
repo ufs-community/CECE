@@ -43,14 +43,14 @@ Computes volcanic sulfur dioxide (SO₂) emissions as a point source with vertic
 ## YAML Configuration Example
 
 ```yaml
-physics:
-  - name: volcano
-    config:
-      target_i: 50
-      target_j: 30
-      sulfur_emission: 1000.0
-      elevation: 1500.0
-      cloud_top: 8000.0
+physics_schemes:
+- name: volcano
+  options:
+    target_i: 50
+    target_j: 30
+    sulfur_emission: 1000.0
+    elevation: 1500.0
+    cloud_top: 8000.0
 ```
 
 ## Implementation Notes

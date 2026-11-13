@@ -10,10 +10,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "build" / "src" / "python"))
 
-import pytest
-import numpy as np
-from hypothesis import given, strategies as st, settings, HealthCheck
 import cece
+import numpy as np
+import pytest
+from hypothesis import HealthCheck, given, settings
+from hypothesis import strategies as st
 
 
 # Strategies for generating test data

@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: Apache-2.0
 
 import os
+from typing import ClassVar
 
 from spack.package import *
 
@@ -56,7 +57,7 @@ class Cece(CMakePackage):
     # On macOS with Apple Clang, OpenMP requires llvm-openmp
     depends_on("llvm-openmp", when="+openmp platform=darwin", type=("build", "link"))
 
-    depends_on("python@3.8:", when="+python", type=("build", "run"))
+    depends_on("python@3.10:", when="+python", type=("build", "run"))
 
     # Compiler requirements — C++20 support needed
     conflicts("%gcc@:10", msg="CECE requires C++20 support (GCC 11+)")
@@ -67,8 +68,8 @@ class Cece(CMakePackage):
     conflicts("+cuda +hip", msg="Cannot enable both CUDA and HIP simultaneously")
 
     # Only build the library and standalone app, skip test targets and docs
-    build_targets = ["cece", "cece_nuopc_app"]
-    install_targets = ["install"]
+    build_targets: ClassVar[list] = ["cece", "cece_nuopc_app"]
+    install_targets: ClassVar[list] = ["install"]
 
     def cmake_args(self):
         args = [
@@ -82,24 +83,21 @@ class Cece(CMakePackage):
         ]
 
         # On macOS with Apple Clang, help CMake find OpenMP
-        if "+openmp" in self.spec and self.spec.satisfies("platform=darwin"):
-            if "llvm-openmp" in self.spec:
-                libomp = self.spec["llvm-openmp"]
-                omp_inc = libomp.prefix.include
-                omp_lib = join_path(libomp.prefix.lib, "libomp.dylib")
-                args.extend(
-                    [
-                        self.define(
-                            "OpenMP_C_FLAGS", f"-Xpreprocessor -fopenmp -I{omp_inc}"
-                        ),
-                        self.define(
-                            "OpenMP_CXX_FLAGS", f"-Xpreprocessor -fopenmp -I{omp_inc}"
-                        ),
-                        self.define("OpenMP_C_LIB_NAMES", "omp"),
-                        self.define("OpenMP_CXX_LIB_NAMES", "omp"),
-                        self.define("OpenMP_omp_LIBRARY", omp_lib),
-                    ]
-                )
+        if (
+            "+openmp" in self.spec
+            and self.spec.satisfies("platform=darwin")
+            and "llvm-openmp" in self.spec
+        ):
+            libomp = self.spec["llvm-openmp"]
+            omp_inc = libomp.prefix.include
+            omp_lib = join_path(libomp.prefix.lib, "libomp.dylib")
+            args.extend([
+                self.define("OpenMP_C_FLAGS", f"-Xpreprocessor -fopenmp -I{omp_inc}"),
+                self.define("OpenMP_CXX_FLAGS", f"-Xpreprocessor -fopenmp -I{omp_inc}"),
+                self.define("OpenMP_C_LIB_NAMES", "omp"),
+                self.define("OpenMP_CXX_LIB_NAMES", "omp"),
+                self.define("OpenMP_omp_LIBRARY", omp_lib),
+            ])
 
         # Workaround for bundled yaml-cpp requiring old cmake_minimum_required
         args.append(self.define("CMAKE_POLICY_VERSION_MINIMUM", "3.5"))

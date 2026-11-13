@@ -117,6 +117,8 @@ struct EmissionLayer {
     std::string diurnal_cycle;              ///< Name of the diurnal cycle to apply (24 factors).
     std::string weekly_cycle;               ///< Name of the weekly cycle to apply (7 factors).
     std::string seasonal_cycle;             ///< Name of the seasonal cycle to apply (12 factors).
+    bool use_local_time = false;            ///< Evaluate this layer's temporal cycles at local
+                                            ///< time (requires local_time.enabled; default UTC).
 
     // Vertical distribution
     VerticalDistributionMethod vdist_method = VerticalDistributionMethod::SINGLE;  ///< Method for vertical distribution.
@@ -154,20 +156,20 @@ struct CeceDataStreamConfig {
     std::vector<std::string> file_paths;            ///< Paths to the NetCDF files.
     std::vector<CeceDataVariableConfig> variables;  ///< Variables to read from this stream.
     std::string taxmode = "cycle";                  ///< Time axis mode (cycle, extend, etc.).
-    std::string tintalgo = "linear";                ///< Time interpolation algorithm.
-    std::string mapalgo =
-        "bilinear";            ///< Spatial mapping algorithm: bilinear, consd, consf, nn, redist, passthrough (skip regridding, same-grid data).
-    int dtlimit = 1500000000;  ///< Delta time limit in seconds.
-    int yearFirst = 1;         ///< First year in data.
-    int yearLast = 1;          ///< Last year in data.
-    int yearAlign = 1;         ///< Year to align with model time.
-    int offset = 0;            ///< Time offset in seconds.
-    std::string meshfile;      ///< Path to source mesh file.
+    std::string tintalgo = "nearest";               ///< Time interpolation algorithm.
+    std::string mapalgo = "consd";  ///< Spatial mapping algorithm: bilinear, consd, consf, nn, redist, passthrough (skip regridding, same-grid data).
+    int dtlimit = 1500000000;       ///< Delta time limit in seconds.
+    int yearFirst = 0;              ///< First year in data; zero selects climatological indexing.
+    int yearLast = 0;               ///< Last year in data; zero selects climatological indexing.
+    int yearAlign = 0;              ///< Year to align with model time; zero applies no year shift.
+    int offset = 0;                 ///< Time offset in seconds.
+    std::string meshfile;           ///< Path to source mesh file.
     std::string lev_dimname = "lev";   ///< Name of vertical dimension.
     std::string time_var = "time";     ///< Name of time coordinate variable.
     std::string lon_var = "lon";       ///< Name of longitude coordinate variable.
     std::string lat_var = "lat";       ///< Name of latitude coordinate variable.
     int refresh_interval_seconds = 0;  ///< Refresh interval in seconds (0 means use base timestep).
+    bool use_local_time = false;       ///< Select weekly profile records by each cell's local weekday (requires local_time.enabled).
 };
 
 /**
@@ -382,11 +384,14 @@ struct CeceOutputConfig {
     std::string directory = ".";                                                  ///< Output directory (created if absent).
     std::string filename_pattern = "cece_output_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc";  ///< Filename pattern with time tokens.
     int frequency_steps = 1;                                                      ///< Write every N time steps.
-    CeceOutputFieldCollection fields;  ///< Coordinate variables + configured data fields; no data fields means write all export fields.
-    bool include_diagnostics = false;  ///< Also write diagnostic fields when true.
-    bool enabled = false;              ///< True when an output block is present in the YAML.
-    int amio_worker_threads = -1;      ///< Number of AMIO background I/O worker threads (default: -1, meaning use fallback).
-    std::unordered_map<std::string, std::string> global_attributes;  ///< Custom global attributes to write verbatim on the output file.
+    CeceOutputFieldCollection fields;   ///< Coordinate variables + configured data fields; no data fields means write all export fields.
+    bool include_diagnostics = false;   ///< Also write diagnostic fields when true.
+    bool enabled = false;               ///< True when an output block is present in the YAML.
+    int amio_worker_threads = -1;       ///< Number of AMIO background I/O worker threads (default: -1, meaning use fallback).
+    int amio_staging_buffer_count = 2;  ///< Number of output staging buffers.
+    int amio_staging_buffer_capacity_bytes = 67108864;               ///< Minimum bytes per output staging buffer (64 MiB).
+    int amio_staging_timeout_ms = 60000;                             ///< Output staging acquisition/write wait timeout.
+    std::unordered_map<std::string, std::string> global_attributes;  ///< Global attributes passed to AMIO's recognized-key manifest parser.
 };
 
 /**
@@ -443,6 +448,50 @@ struct DriverConfig {
 };
 
 /**
+ * @struct NuopcFieldSpec
+ * @brief One field CECE advertises to a NUOPC host component.
+ *
+ * Carries only what a config author can legitimately choose: the coupling
+ * framework's standard name, optional units (when omitted the framework's
+ * canonical units are used), and an optional state-item name (when omitted the
+ * species or input key itself names the field). Rank, vertical extent, and the
+ * geometry transfer offer are derived from the field's role, never configured.
+ */
+struct NuopcFieldSpec {
+    std::string standard_name;  ///< Coupling-framework standard name (required; must not contain '/').
+    std::string units;          ///< Units string; empty means "use the dictionary canonical units".
+    std::string name;           ///< State item name; empty means "use the species/input key".
+};
+
+/**
+ * @struct NuopcConfig
+ * @brief Parsed contents of the optional top-level `nuopc:` config section.
+ *
+ * Both lists are kept sorted alphabetically by key so every rank advertises
+ * fields in the identical order regardless of YAML document order. An absent
+ * or empty section leaves both lists empty, which means zero advertised
+ * fields and unchanged standalone behavior.
+ */
+struct NuopcConfig {
+    /// Export fields: (species key, spec) pairs sorted by species key.
+    std::vector<std::pair<std::string, NuopcFieldSpec>> export_fields;
+    /// Import fields: (input name, spec) pairs sorted by input name.
+    std::vector<std::pair<std::string, NuopcFieldSpec>> import_fields;
+};
+
+/**
+ * @struct LocalTimeConfig
+ * @brief Configuration for the local-time service.
+ *
+ * Opt-in: when disabled (default) no grid file is opened, no allocation
+ * happens, and temporal scaling behaves exactly as the pre-feature UTC path.
+ */
+struct LocalTimeConfig {
+    bool enabled = false;   ///< Master switch for local-time temporal scaling.
+    std::string grid_file;  ///< Path to the RLE UTC-offset grid; empty => "data/utc_grid_720r.rle".
+};
+
+/**
  * @struct CeceConfig
  * @brief Top-level configuration for CECE.
  */
@@ -472,8 +521,14 @@ struct CeceConfig {
     CeceOutputConfig output_config;
     /// Configuration for the standalone NUOPC driver (optional).
     DriverConfig driver_config;
+    /// Configuration for the local-time service.
+    LocalTimeConfig local_time;
     /// Registry of meteorology variable internal names to their external aliases.
     std::unordered_map<std::string, std::vector<std::string>> met_registry;
+    /// Fields advertised to a NUOPC host (from the optional `nuopc:` section).
+    /// Empty when the section is absent: CECE then advertises nothing and runs
+    /// exactly as before coupling support.
+    NuopcConfig nuopc;
 };
 
 /**

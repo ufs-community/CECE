@@ -285,15 +285,3 @@ TEST_F(BdsnpRuntimeTest, MissingAndMalformedProductionContractFailsLoudly) {
 
 }  // namespace
 }  // namespace cece
-
-int main(int argc, char** argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    if (!Kokkos::is_initialized()) {
-        Kokkos::initialize(argc, argv);
-    }
-    const int result = RUN_ALL_TESTS();
-    if (Kokkos::is_initialized()) {
-        Kokkos::finalize();
-    }
-    return result;
-}

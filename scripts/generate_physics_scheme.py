@@ -39,14 +39,16 @@ Configuration Format:
         description: "Intermediate computation result"
 """
 
-import yaml
-import sys
 import os
+import sys
+import textwrap
 from pathlib import Path
+
+import yaml
 from jinja2 import Environment, FileSystemLoader, TemplateNotFound
 
 
-def validate_config(config):
+def validate_config(config):  # noqa: C901
     """
     Validate the scheme configuration YAML.
 
@@ -111,12 +113,37 @@ def validate_config(config):
     return errors
 
 
-def generate_scheme(config_path):
-    """
-    Generate physics scheme files from configuration.
+def _banner_print(text: str) -> None:
+    """Print text as banner.
 
-    Args:
-        config_path (str): Path to the YAML configuration file.
+    Print a blank line, a line of =, the text, and another line of =
+
+    Parameters
+    ----------
+    text : str
+        The text to print
+    """
+    banner_line = "=" * 70
+    print("", banner_line, text, banner_line, sep="\n")
+
+
+def _load_and_validate_config(config_path: str) -> dict:
+    """Load YAML config from path, validate and return.
+
+    Exit program if config invalid.
+
+    Parameters
+    ----------
+    config_path : str
+        Path to the YAML configuration file.
+
+    Returns
+    -------
+    config : dict
+
+    Raises
+    ------
+    SystemExit
     """
     if not os.path.exists(config_path):
         print(f"Error: Config file {config_path} not found.")
@@ -132,6 +159,17 @@ def generate_scheme(config_path):
         for error in errors:
             print(f"  - {error}")
         sys.exit(1)
+    return config
+
+
+def generate_scheme(config_path: str):
+    """
+    Generate physics scheme files from configuration.
+
+    Args:
+        config_path (str): Path to the YAML configuration file.
+    """
+    config = _load_and_validate_config(config_path)
 
     # Extract configuration
     scheme = config["scheme"]
@@ -164,75 +202,81 @@ def generate_scheme(config_path):
     Path("include/cece/physics").mkdir(parents=True, exist_ok=True)
     Path("src/physics").mkdir(parents=True, exist_ok=True)
 
-    # Generate C++ Header
     try:
+        # Generate C++ Header
         hpp_template = env.get_template("physics_scheme.hpp.jinja2")
         hpp_path = f"include/cece/physics/{header_name}"
         with open(hpp_path, "w") as f:
             f.write(hpp_template.render(context))
         print(f"✓ Generated: {hpp_path}")
-    except TemplateNotFound as e:
-        print(f"Error: Template not found: {e}")
-        sys.exit(1)
 
-    # Generate C++ Implementation
-    try:
+        # Generate C++ Implementation
         cpp_template = env.get_template("physics_scheme.cpp.jinja2")
         cpp_path = f"src/physics/{cpp_name}"
         with open(cpp_path, "w") as f:
             f.write(cpp_template.render(context))
         print(f"✓ Generated: {cpp_path}")
-    except TemplateNotFound as e:
-        print(f"Error: Template not found: {e}")
-        sys.exit(1)
 
-    # Generate Fortran Kernel (optional)
-    if generate_fortran:
-        try:
+        # Generate Fortran Kernel (optional)
+        if generate_fortran:
             f90_template = env.get_template("physics_kernel.F90.jinja2")
             f90_path = f"src/physics/{f90_name}"
             with open(f90_path, "w") as f:
                 f.write(f90_template.render(context))
             print(f"✓ Generated: {f90_path}")
-        except TemplateNotFound as e:
-            print(f"Error: Template not found: {e}")
-            sys.exit(1)
+
+    except TemplateNotFound as e:
+        print(f"Error: Template not found: {e}")
+        sys.exit(1)
 
     # Generate CMakeLists.txt integration instructions
-    print("\n" + "=" * 70)
-    print("Next Steps:")
-    print("=" * 70)
-    print("\n1. Add the following to CMakeLists.txt in the src/physics section:")
-    print(f"   add_library(cece_physics_{scheme_name} {cpp_name})")
-    print(f"   target_link_libraries(cece_physics_{scheme_name} PUBLIC cece_core)")
-    print(f"   target_link_libraries(cece_core PUBLIC cece_physics_{scheme_name})")
+    _banner_print("Next Steps:")
+    print(
+        textwrap.dedent(f"""
+      1. Add the following to CMakeLists.txt in the src/physics section:
+         add_library(cece_physics_{scheme_name} {cpp_name})
+         target_link_libraries(cece_physics_{scheme_name} PUBLIC cece_core)
+         target_link_libraries(cece_core PUBLIC cece_physics_{scheme_name})""")
+    )
 
+    section_counter = 2
     if generate_fortran:
-        print("\n2. If using Fortran kernel, add to CMakeLists.txt:")
-        print("   enable_language(Fortran)")
-        print(f"   add_library(cece_physics_{scheme_name}_fortran {f90_name})")
         print(
-            f"   target_link_libraries(cece_physics_{scheme_name} PUBLIC cece_physics_{scheme_name}_fortran)"
+            textwrap.dedent(f"""
+          {section_counter:d}. If using Fortran kernel, add to CMakeLists.txt:
+             enable_language(Fortran)
+             add_library(cece_physics_{scheme_name}_fortran {f90_name})
+             target_link_libraries(cece_physics_{scheme_name} PUBLIC cece_physics_{scheme_name}_fortran)""")
         )
+        section_counter += 1
 
-    print("\n3. Implement the physics logic in:")
-    print(f"   - {cpp_path} (Run method)")
+    print(
+        textwrap.dedent(f"""
+      {section_counter:d}. Implement the physics logic in:
+         - {cpp_path} (Run method)""")
+    )
     if generate_fortran:
         print(f"   - {f90_path} (Fortran kernel)")
+    section_counter += 1
 
-    print("\n4. Configure the scheme in your YAML config:")
-    print("   physics_schemes:")
-    print(f"     - name: {scheme_name}")
-    print("       options:")
+    print(
+        textwrap.dedent(f"""
+      {section_counter:d}. Configure the scheme in your YAML config:
+         physics_schemes:
+           - name: {scheme_name}
+             options:""")
+    )
     for opt in config.get("options", []):
         print(f"         {opt['name']}: {opt['default']}")
+    section_counter += 1
 
-    print("\n5. Run tests to verify the scheme compiles and runs:")
-    print("   cd build && ctest --output-on-failure")
+    print(
+        textwrap.dedent(f"""
+      {section_counter:d}. Run tests to verify the scheme compiles and runs:
+         cd build && ctest --output-on-failure""")
+    )
 
-    print("\n" + "=" * 70)
-    print(f"Successfully generated scheme: {class_name} ({scheme_name})")
-    print("=" * 70)
+    _banner_print(f"Successfully generated scheme: {class_name} ({scheme_name})")
 
 
 if __name__ == "__main__":

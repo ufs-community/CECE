@@ -24,9 +24,9 @@
 // ctest default); once MPI_Init has run it is not re-reachable, so under a
 // launcher that case is covered structurally by the NULL / size-1 discipline.
 //
-// The test file is intentionally self-contained (its own translation unit,
-// its own CMake target, its own main()) so it never touches the Property 1
-// test file (task 2.1) or its target.
+// The test file is intentionally self-contained (its own translation unit and
+// CMake target, on the shared cece_test_main harness) so it never touches the
+// Property 1 test file (task 2.1) or its target.
 //
 // Validates: Requirements 1.3, 8.5
 
@@ -164,69 +164,30 @@ TEST(BandSingleRankEdge, NullCommIsWholeGrid) {
     EXPECT_EQ(band.ny_local, ny);
 }
 
-}  // namespace cece
+// Req 8.5: compute() before MPI_Init must short-circuit to the whole grid.
+// The shared test environment initializes MPI inside RUN_ALL_TESTS, so this
+// probe runs at static-initialization time, before main(), while MPI is
+// genuinely uninitialized; the test below asserts the recorded result.
+namespace {
+struct PreMpiProbe {
+    bool mpi_was_initialized;
+    int j0;
+    int j1;
+    int ny_local;
+};
+const PreMpiProbe kPreMpiProbe = [] {
+    int already = 0;
+    MPI_Initialized(&already);
+    const BandDecomposition band = BandDecomposition::compute(720, MPI_COMM_WORLD);
+    return PreMpiProbe{already != 0, band.j0, band.j1, band.ny_local};
+}();
+}  // namespace
 
-// ---------------------------------------------------------------------------
-// Own main() with MPI init, mirroring tests/test_collective_gate_equivalence.cpp.
-//
-// The "MPI uninitialized" short-circuit (Req 8.5) is validated deterministically
-// BEFORE MPI_Init, but only when the binary runs as a single process (the ctest
-// default). Under a launcher (--gtest_list_tests discovery or a real mpirun),
-// we skip that pre-init check: probing/aborting it there is neither meaningful
-// nor safe. After the (optional) pre-init check, MPI is initialized so the
-// MPI_COMM_SELF property (Property 2b) can run. All ranks run RUN_ALL_TESTS.
-//
-// Slurm/PMI env is scrubbed so a plain `mpirun -np N` works in the container
-// without a batch scheduler.
-// ---------------------------------------------------------------------------
-int main(int argc, char** argv) {
-    bool is_discovery = false;
-    for (int i = 1; i < argc; ++i) {
-        if (std::string(argv[i]) == "--gtest_list_tests") {
-            is_discovery = true;
-            break;
-        }
-    }
-
-    // Validate the MPI-uninitialized short-circuit (Req 8.5) while MPI is
-    // genuinely uninitialized. Reachable only in the single-process discovery-
-    // free path; harmless to skip otherwise.
-    if (!is_discovery) {
-        int already = 0;
-        MPI_Initialized(&already);
-        if (!already) {
-            const cece::BandDecomposition band = cece::BandDecomposition::compute(720, MPI_COMM_WORLD);
-            if (!(band.j0 == 0 && band.j1 == 720 && band.ny_local == 720)) {
-                std::fprintf(stderr,
-                             "FATAL: compute() before MPI_Init did not short-circuit to whole_grid "
-                             "(j0=%d j1=%d ny_local=%d)\n",
-                             band.j0, band.j1, band.ny_local);
-                return 1;
-            }
-        }
-
-        unsetenv("SLURM_JOB_ID");
-        unsetenv("SLURM_STEP_ID");
-        unsetenv("PMI_RANK");
-        unsetenv("PMI_SIZE");
-
-        int mpi_initialized = 0;
-        MPI_Initialized(&mpi_initialized);
-        if (!mpi_initialized) {
-            int provided = 0;
-            MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
-        }
-    }
-
-    ::testing::InitGoogleTest(&argc, argv);
-    const int rc = RUN_ALL_TESTS();
-
-    int mpi_initialized = 0;
-    MPI_Initialized(&mpi_initialized);
-    if (mpi_initialized) {
-        int finalized = 0;
-        MPI_Finalized(&finalized);
-        if (!finalized) MPI_Finalize();
-    }
-    return rc;
+TEST(BandSingleRankEdge, ComputeBeforeMpiInitIsWholeGrid) {
+    ASSERT_FALSE(kPreMpiProbe.mpi_was_initialized) << "probe must run before MPI_Init";
+    EXPECT_EQ(kPreMpiProbe.j0, 0);
+    EXPECT_EQ(kPreMpiProbe.j1, 720);
+    EXPECT_EQ(kPreMpiProbe.ny_local, 720);
 }
+
+}  // namespace cece

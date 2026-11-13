@@ -173,7 +173,7 @@ config = cece.CeceConfig.from_dict({
 config = cece.CeceConfig()
 layer = cece.EmissionLayer(field_name="CO_ANTHRO", operation="add", scale=1.5)
 config.add_species("CO", [layer])
-config.add_physics_scheme("megan", language="fortran")
+config.add_physics_scheme("megan", language="cpp")
 
 # Validate
 result = config.validate()
@@ -429,7 +429,7 @@ logger.info("Starting CECE computation")
 
 - CMake 3.20+
 - C++20 compiler
-- Python 3.8+ with development headers
+- Python 3.10+ with development headers
 - Kokkos (fetched automatically via CMake FetchContent)
 - pybind11 v2.12.0 (fetched automatically via CMake FetchContent)
 

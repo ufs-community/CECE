@@ -8,8 +8,9 @@ StackingEngine.Execute, and C++ exception translation during compute.
 import os
 import sys
 import threading
-import pytest
+
 import numpy as np
+import pytest
 
 # Add the build output directory to the path so _cece_core can be imported
 sys.path.insert(
@@ -104,7 +105,7 @@ class TestGILRelease:
 
     def test_compute_emissions_releases_gil(self):
         """Verify ComputeEmissions releases the GIL by running a Python thread concurrently."""
-        config, import_state, export_state, resolver = _make_compute_setup()
+        config, _import_state, _export_state, resolver = _make_compute_setup()
 
         # Track whether a concurrent thread ran
         thread_ran = threading.Event()
@@ -125,7 +126,7 @@ class TestGILRelease:
 
     def test_stacking_engine_execute_releases_gil(self):
         """Verify StackingEngine.Execute releases the GIL."""
-        config, import_state, export_state, resolver = _make_compute_setup()
+        config, _import_state, _export_state, resolver = _make_compute_setup()
         engine = _cece_core.StackingEngine(config)
 
         thread_ran = threading.Event()
@@ -154,11 +155,8 @@ class TestComputeExceptionTranslation:
         export_state = _cece_core.CeceExportState()
         resolver = _cece_core.CeceStateResolver(import_state, export_state, {})
 
-        # Empty config = no species = should be a no-op or raise, not crash
-        try:
-            _cece_core.compute_emissions(config, resolver, 4, 4, 1)
-        except Exception as e:
-            assert isinstance(e, Exception)
+        # Empty config = no species = no work to perform.
+        _cece_core.compute_emissions(config, resolver, 4, 4, 1)
 
     def test_stacking_engine_execute_with_empty_config_no_crash(self):
         """Test StackingEngine.Execute with empty config doesn't crash."""
@@ -168,11 +166,8 @@ class TestComputeExceptionTranslation:
         resolver = _cece_core.CeceStateResolver(import_state, export_state, {})
 
         engine = _cece_core.StackingEngine(config)
-        # Empty config = no species = should be a no-op or raise, not crash
-        try:
-            engine.Execute(resolver, 4, 4, 1)
-        except Exception as e:
-            assert isinstance(e, Exception)
+        # Empty config = no species = no work to perform.
+        engine.Execute(resolver, 4, 4, 1)
 
 
 if __name__ == "__main__":

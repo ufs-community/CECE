@@ -1,19 +1,28 @@
-"""Unit tests for scripts/verify_submodules.py."""
+"""Unit tests for scripts/verify_submodules.py.
+
+Fully offline: `git ls-remote` is never run. Tests that verify the live
+checkout answer it through `offline_git`, which stubs that one verb and
+delegates every other git call to the real function; an autouse guard fails
+any test that would reach the network without a stub.
+"""
 
 from __future__ import annotations
 
-from pathlib import Path
 import subprocess
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
+
+import pytest
 
 # Add scripts directory to sys.path
 SCRIPTS_DIR = Path(__file__).resolve().parent.parent / "scripts"
 sys.path.insert(0, str(SCRIPTS_DIR))
 
-from verify_submodules import (  # noqa: E402
+import verify_submodules as vsm  # the module; `verify_submodules` below is its function
+from verify_submodules import (
     SubmoduleStatus,
     UpstreamRemoteConfig,
     VerificationStatus,
@@ -29,6 +38,38 @@ from verify_submodules import (  # noqa: E402
     resolve_submodule_target_branch,
     verify_submodules,
 )
+
+_REAL_RUN_GIT = vsm.run_git_cmd
+
+
+def offline_git(remote_heads: dict[str, str]):
+    """A run_git_cmd that answers `git ls-remote <url> refs/heads/<branch>`
+    from `remote_heads` (branch -> sha) and delegates every other git call to
+    the real function. Local git stays real; the network verb never runs."""
+
+    def fake(args: list[str], cwd: Path | None = None) -> tuple[int, str, str]:
+        if args and args[0] == "ls-remote":
+            ref = args[-1]
+            sha = remote_heads.get(ref.rsplit("/", 1)[-1])
+            return (0, f"{sha}\t{ref}", "") if sha else (0, "", "")
+        return _REAL_RUN_GIT(args, cwd=cwd)
+
+    return fake
+
+
+@pytest.fixture(autouse=True)
+def _no_remote_git(monkeypatch):
+    """No test in this module may reach a remote: an unstubbed ls-remote is a
+    test bug, surfaced here instead of as a slow or flaky network call."""
+
+    def refuse(args, cwd=None):
+        if args and args[0] == "ls-remote":
+            raise AssertionError(
+                "git ls-remote reached the network; use offline_git() in this test"
+            )
+        return _REAL_RUN_GIT(args, cwd=cwd)
+
+    monkeypatch.setattr(vsm, "run_git_cmd", refuse)
 
 
 class TestVerifySubmodules(unittest.TestCase):
@@ -111,8 +152,17 @@ class TestVerifySubmodules(unittest.TestCase):
             ),
         ]
 
-        all_ok = log_verification_report(statuses, target_branch="develop")
+        with self.assertLogs("verify_submodules", level="INFO") as captured:
+            all_ok = log_verification_report(
+                statuses, target_branch="develop", excluded=["extern/yaml-cpp"]
+            )
         self.assertTrue(all_ok)
+        self.assertTrue(
+            any(
+                "Excluded from verification (1): extern/yaml-cpp" in line
+                for line in captured.output
+            )
+        )
 
     def test_log_verification_report_mismatch(self) -> None:
         statuses = [
@@ -178,10 +228,15 @@ class TestVerifySubmodules(unittest.TestCase):
                 )
             ]
 
-            generate_step_summary(statuses, "develop", summary_file)
+            generate_step_summary(
+                statuses, "develop", summary_file, excluded=["extern/yaml-cpp"]
+            )
             self.assertTrue(summary_file.exists())
             content = summary_file.read_text(encoding="utf-8")
             self.assertIn("## Submodule Verification Report", content)
+            self.assertIn(
+                "**Excluded from verification (1):** `extern/yaml-cpp`", content
+            )
             self.assertIn("[`extern/helm`](https://github.com/example/helm)", content)
             self.assertIn(
                 "[`develop`](https://github.com/example/helm/tree/develop)", content
@@ -202,8 +257,8 @@ class TestVerifySubmodules(unittest.TestCase):
 
     def test_get_web_url_from_remote(self) -> None:
         self.assertEqual(
-            get_web_url_from_remote("https://github.com/bbakernoaa/HELM-Project.git"),
-            "https://github.com/bbakernoaa/HELM-Project",
+            get_web_url_from_remote("https://github.com/NOAA-EMC/HELM.git"),
+            "https://github.com/NOAA-EMC/HELM",
         )
         self.assertEqual(
             get_web_url_from_remote("git@github.com:bbakernoaa/amio.git"),
@@ -227,11 +282,12 @@ class TestVerifySubmodules(unittest.TestCase):
         self.assertIn("--target-branch", stdout)
 
     def test_get_declared_submodules_live_repo(self) -> None:
-        """Verify get_declared_submodules finds both direct and nested submodules in CECE."""
+        """The live checkout declares exactly CECE's two submodules: HELM carries
+        AMIO in-tree (no nested .gitmodules), so the set is exact on purpose —
+        a future layout change must update this test."""
         repo_root = SCRIPTS_DIR.parent
         declared = get_declared_submodules(repo_root)
-        self.assertIn("extern/helm", declared)
-        self.assertIn("extern/helm/libs/amio", declared)
+        self.assertEqual(declared, {"extern/helm", "extern/yaml-cpp"})
 
     def test_get_declared_submodules_empty_when_no_gitmodules(self) -> None:
         """Verify get_declared_submodules returns empty set if .gitmodules is absent."""
@@ -264,18 +320,16 @@ class TestVerifySubmodules(unittest.TestCase):
     def test_upstream_remote_config_and_branch_validation(self) -> None:
         """Ensure verification enforces canonical remotes and rejects conflicting .gitmodules branches."""
         config = UpstreamRemoteConfig()
-        # Verify canonical remotes for bbakernoaa-hosted upstream repositories
+        # The one canonical remote: HELM. AMIO is in-tree in HELM, not a
+        # nested submodule, so it has no entry.
+        self.assertEqual(set(config.canonical_remotes), {"extern/helm"})
         self.assertEqual(
             config.canonical_remotes["extern/helm"],
-            "https://github.com/bbakernoaa/HELM-Project",
-        )
-        self.assertEqual(
-            config.canonical_remotes["extern/helm/libs/amio"],
-            "https://github.com/bbakernoaa/amio",
+            "https://github.com/NOAA-EMC/HELM",
         )
 
         def _mock_git(
-            url: str = "https://github.com/bbakernoaa/HELM-Project.git",
+            url: str = "https://github.com/NOAA-EMC/HELM.git",
             branch: str | None = None,
             sha: str = "9e2f6751",
             remote_head: str | None = None,
@@ -309,7 +363,7 @@ class TestVerifySubmodules(unittest.TestCase):
             with patch("verify_submodules.run_git_cmd") as mock_git:
                 # 1. Test unauthorized fork drift rejection
                 mock_git.side_effect = _mock_git(
-                    url="https://github.com/attacker/HELM-Project.git"
+                    url="https://github.com/attacker/HELM.git"
                 )
                 statuses_fork = verify_submodules(
                     repo_root=repo_root,
@@ -357,33 +411,90 @@ class TestVerifySubmodules(unittest.TestCase):
         self.assertFalse(is_submodule_excluded("extern/foo_other", excludes))
         self.assertFalse(is_submodule_excluded("extern/baz", excludes))
 
-    def test_exclude_submodules_via_config(self) -> None:
-        """Verify submodule exclusion works via UpstreamRemoteConfig."""
-        repo_root = SCRIPTS_DIR.parent
-        # In live CECE repo, we have extern/helm and extern/helm/libs/amio
-        # 1. Exclude nested submodule via UpstreamRemoteConfig
-        config_nested = UpstreamRemoteConfig(
-            excluded_submodules={"extern/helm/libs/amio"}
+    def test_default_excluded_submodules(self) -> None:
+        """Third-party submodules pinned to a release are excluded by default."""
+        config = UpstreamRemoteConfig()
+        self.assertIn("extern/yaml-cpp", config.excluded_submodules)
+        self.assertTrue(
+            is_submodule_excluded("extern/yaml-cpp", config.excluded_submodules)
         )
-        statuses = verify_submodules(
-            repo_root=repo_root,
-            target_branch="develop",
-            branch_map={},
-            upstream_config=config_nested,
+        self.assertFalse(
+            is_submodule_excluded("extern/helm", config.excluded_submodules)
         )
-        paths = {s.path for s in statuses}
-        self.assertIn("extern/helm", paths)
-        self.assertNotIn("extern/helm/libs/amio", paths)
 
-        # 2. Exclude top-level submodule via UpstreamRemoteConfig (which also excludes its nested children)
-        config_all = UpstreamRemoteConfig(excluded_submodules={"extern/helm"})
-        statuses_all = verify_submodules(
-            repo_root=repo_root,
-            target_branch="develop",
-            branch_map={},
-            upstream_config=config_all,
+    def test_live_checkout_verifies_helm_offline(self) -> None:
+        """The real checkout, end to end, with only `git ls-remote` stubbed:
+        `.gitmodules`, `git submodule status`, the remote-URL lookup and the
+        canonical-remote check all run against the tree as it is."""
+        repo_root = SCRIPTS_DIR.parent
+        code, status_out, err = _REAL_RUN_GIT(
+            ["submodule", "status", "extern/helm"], cwd=repo_root
         )
-        self.assertEqual(statuses_all, [])
+        self.assertEqual(code, 0, err)
+        ((status_char, committed_sha, path),) = parse_submodule_status_lines(status_out)
+        self.assertEqual(path, "extern/helm")
+        self.assertNotEqual(status_char, "-", "extern/helm must be initialized")
+
+        # A developer's clone may point extern/helm at a fork; the canonical
+        # check still runs, against whatever the checkout's remote is.
+        live_remote = get_submodule_remote_url(repo_root, "extern/helm")
+        self.assertIsNotNone(live_remote)
+        defaults = UpstreamRemoteConfig()
+        config = UpstreamRemoteConfig(
+            canonical_remotes={"extern/helm": live_remote},
+            excluded_submodules=set(defaults.excluded_submodules),
+        )
+
+        # 1. Upstream HEAD == committed pointer: OK; yaml-cpp excluded by default.
+        with patch(
+            "verify_submodules.run_git_cmd", offline_git({"develop": committed_sha})
+        ):
+            statuses = verify_submodules(
+                repo_root=repo_root,
+                target_branch="develop",
+                branch_map={},
+                upstream_config=config,
+            )
+        self.assertEqual([s.path for s in statuses], ["extern/helm"])
+        self.assertEqual(statuses[0].status, VerificationStatus.OK)
+        self.assertEqual(statuses[0].expected_sha, committed_sha)
+        self.assertFalse(statuses[0].is_nested)
+
+        # 2. Upstream HEAD is some other commit: OUT_OF_SYNC, resolved locally
+        #    (rev-list on an unknown object fails gracefully -> "Drift detected").
+        with patch("verify_submodules.run_git_cmd", offline_git({"develop": "0" * 40})):
+            drifted = verify_submodules(
+                repo_root=repo_root,
+                target_branch="develop",
+                branch_map={},
+                upstream_config=config,
+            )
+        self.assertEqual(drifted[0].status, VerificationStatus.OUT_OF_SYNC)
+        self.assertIn("Drift detected", drifted[0].detail)
+
+        # 3. Excluding the top-level submodule leaves nothing to verify.
+        config_all = UpstreamRemoteConfig(
+            canonical_remotes={"extern/helm": live_remote},
+            excluded_submodules={"extern/helm", *defaults.excluded_submodules},
+        )
+        with patch(
+            "verify_submodules.run_git_cmd", offline_git({"develop": committed_sha})
+        ):
+            self.assertEqual(
+                verify_submodules(
+                    repo_root=repo_root,
+                    target_branch="develop",
+                    branch_map={},
+                    upstream_config=config_all,
+                ),
+                [],
+            )
+
+    def test_unstubbed_ls_remote_is_refused(self) -> None:
+        """The module guard: reaching for the network without offline_git fails."""
+        with self.assertRaises(AssertionError) as ctx:
+            get_remote_branch_head_sha("https://github.com/example/repo.git", "develop")
+        self.assertIn("use offline_git()", str(ctx.exception))
 
     def test_get_gitmodules_property_nested_submodule(self) -> None:
         """Verify _get_gitmodules_property resolves properties across nested .gitmodules files."""
@@ -397,7 +508,7 @@ class TestVerifySubmodules(unittest.TestCase):
 
             # Top-level .gitmodules declares extern/helm
             (repo_root / ".gitmodules").write_text(
-                '[submodule "extern/helm"]\n\tpath = extern/helm\n\turl = https://github.com/bbakernoaa/HELM-Project.git\n',
+                '[submodule "extern/helm"]\n\tpath = extern/helm\n\turl = https://github.com/NOAA-EMC/HELM.git\n',
                 encoding="utf-8",
             )
             # Nested .gitmodules declares libs/amio
@@ -409,7 +520,7 @@ class TestVerifySubmodules(unittest.TestCase):
             # Query top-level submodule
             self.assertEqual(
                 _get_gitmodules_property(repo_root, "extern/helm", "url"),
-                "https://github.com/bbakernoaa/HELM-Project.git",
+                "https://github.com/NOAA-EMC/HELM.git",
             )
             # Query nested submodule
             self.assertEqual(

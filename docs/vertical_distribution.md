@@ -22,8 +22,10 @@ Places all emissions in a specific vertical layer index.
 species:
   aircraft_co:
     - field: "aircraft_emissions"
-      vdist_method: "SINGLE"
-      vdist_layer_start: 25    # Place all emissions in layer 25
+      operation: add
+      vdist:
+        method: single
+        layer_start: 25         # Place all emissions in layer 25
 ```
 
 **Algorithm:**
@@ -46,9 +48,11 @@ Distributes emissions evenly across a range of layer indices.
 species:
   industrial_nox:
     - field: "stack_emissions"
-      vdist_method: "RANGE"
-      vdist_layer_start: 1     # Start at surface layer
-      vdist_layer_end: 5       # End at layer 5
+      operation: add
+      vdist:
+        method: range
+        layer_start: 1          # Start at surface layer
+        layer_end: 5            # End at layer 5
 ```
 
 **Algorithm:**
@@ -74,9 +78,11 @@ Distributes emissions based on atmospheric pressure bounds.
 species:
   lightning_nox:
     - field: "lightning_production"
-      vdist_method: "PRESSURE"
-      vdist_p_start: 10000.0   # 100 hPa (upper troposphere)
-      vdist_p_end: 40000.0     # 400 hPa (mid troposphere)
+      operation: add
+      vdist:
+        method: pressure
+        p_start: 10000.0        # 100 hPa (upper troposphere)
+        p_end: 40000.0          # 400 hPa (mid troposphere)
 ```
 
 **Algorithm:**
@@ -116,9 +122,11 @@ Distributes emissions based on geometric height above surface.
 species:
   aircraft_nox:
     - field: "cruise_emissions"
-      vdist_method: "HEIGHT"
-      vdist_h_start: 9000.0    # 9 km altitude
-      vdist_h_end: 12000.0     # 12 km altitude
+      operation: add
+      vdist:
+        method: height
+        h_start: 9000.0         # 9 km altitude
+        h_end: 12000.0          # 12 km altitude
 ```
 
 **Algorithm:**
@@ -158,7 +166,9 @@ Distributes emissions within the planetary boundary layer based on meteorologica
 species:
   surface_co:
     - field: "anthropogenic_co"
-      vdist_method: "PBL"
+      operation: add
+      vdist:
+        method: pbl
       # No additional parameters needed - uses PBL height field
 ```
 
@@ -207,8 +217,8 @@ CECE supports multiple vertical coordinate systems for distribution calculations
 
 ### Terrain-Following Coordinates
 ```yaml
-vertical_config:
-  type: "FV3"                    # FV3/GFDL coordinate system
+vertical_grid:
+  type: "fv3"                    # FV3/GFDL coordinate system
   ak_field: "hybrid_ak"          # Hybrid coordinate coefficients
   bk_field: "hybrid_bk"
   p_surf_field: "surface_pressure"
@@ -216,16 +226,16 @@ vertical_config:
 
 ### Height Coordinates
 ```yaml
-vertical_config:
-  type: "WRF"                    # Height-based coordinates
+vertical_grid:
+  type: "wrf"                    # Height-based coordinates
   z_field: "height_levels"       # Geometric heights
   pbl_field: "pbl_height"
 ```
 
 ### MPAS Coordinates
 ```yaml
-vertical_config:
-  type: "MPAS"                   # MPAS mesh coordinates
+vertical_grid:
+  type: "mpas"                   # MPAS mesh coordinates
   z_field: "zgrid"               # Height levels
   pbl_field: "pbl_height"
 ```
@@ -265,33 +275,41 @@ species:
   nox:
     # Surface traffic emissions in PBL
     - field: "surface_traffic_nox"
+      operation: add
       category: "transportation"
       hierarchy: 1
-      vdist_method: "PBL"
+      vdist:
+        method: pbl
 
     # Shipping emissions in marine boundary layer
     - field: "shipping_nox"
+      operation: add
       category: "transportation"
       hierarchy: 2
-      vdist_method: "HEIGHT"
-      vdist_h_start: 0.0
-      vdist_h_end: 100.0         # Stack height ~100m
+      vdist:
+        method: height
+        h_start: 0.0
+        h_end: 100.0             # Stack height ~100m
 
     # Aircraft emissions at cruise altitude
     - field: "aircraft_nox"
+      operation: add
       category: "transportation"
       hierarchy: 3
-      vdist_method: "HEIGHT"
-      vdist_h_start: 9000.0      # Cruise altitude 9-12 km
-      vdist_h_end: 12000.0
+      vdist:
+        method: height
+        h_start: 9000.0           # Cruise altitude 9-12 km
+        h_end: 12000.0
 
     # Lightning production in free troposphere
     - field: "lightning_nox"
+      operation: add
       category: "natural"
       hierarchy: 1
-      vdist_method: "PRESSURE"
-      vdist_p_start: 10000.0     # 100-400 hPa
-      vdist_p_end: 40000.0
+      vdist:
+        method: pressure
+        p_start: 10000.0          # 100-400 hPa
+        p_end: 40000.0
 ```
 
 ### Seasonal PBL Variations
@@ -304,7 +322,9 @@ temporal_profiles:
 species:
   dust:
     - field: "dust_emissions"
-      vdist_method: "PBL"
+      operation: add
+      vdist:
+        method: pbl
       seasonal_cycle: "pbl_seasonal"  # Account for seasonal PBL height changes
 ```
 
@@ -316,27 +336,33 @@ species:
   aircraft_co:
     # Takeoff and landing (0-3 km)
     - field: "airport_co"
+      operation: add
       category: "aviation"
       hierarchy: 1
-      vdist_method: "HEIGHT"
-      vdist_h_start: 0.0
-      vdist_h_end: 3000.0
+      vdist:
+        method: height
+        h_start: 0.0
+        h_end: 3000.0
 
     # Climb and descent (3-9 km)
     - field: "climb_descent_co"
+      operation: add
       category: "aviation"
       hierarchy: 2
-      vdist_method: "HEIGHT"
-      vdist_h_start: 3000.0
-      vdist_h_end: 9000.0
+      vdist:
+        method: height
+        h_start: 3000.0
+        h_end: 9000.0
 
     # Cruise (9-12 km)
     - field: "cruise_co"
+      operation: add
       category: "aviation"
       hierarchy: 3
-      vdist_method: "HEIGHT"
-      vdist_h_start: 9000.0
-      vdist_h_end: 12000.0
+      vdist:
+        method: height
+        h_start: 9000.0
+        h_end: 12000.0
 ```
 
 ## Validation and Quality Assurance
@@ -356,7 +382,7 @@ Enable vertical distribution diagnostics to validate results:
 
 ```yaml
 diagnostics:
-  output_interval_seconds: 3600
+  output_interval: 3600
   variables:
     - "emissions_2d_input"      # Original 2D emissions
     - "emissions_3d_output"     # Final 3D emissions

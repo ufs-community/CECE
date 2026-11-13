@@ -1,0 +1,21 @@
+# =====================================================================
+# Minimal NUOPC Field Dictionary for the CECE field-coupling tests.
+# =====================================================================
+# The preloaded ESMF NUOPC Field Dictionary contains only the ocean/land
+# surface entries documented in the NUOPC reference (§2.2.2); it does NOT
+# include the emission or meteorology standard names CECE advertises. In a
+# real coupled application the HOST loads the full community dictionary; for
+# these tests the driver app emulates that by loading this file via
+# NUOPC_FieldDictionarySetupFile before adding components.
+#
+# Keep this list EXACTLY the set of names used by the coupled test configs:
+# adding an extra name here weakens the negative test (an unknown name must be
+# rejected at NUOPC_Advertise).
+field_dictionary:
+  entries:
+    - standard_name: agent_count_emission_flux_of_particulate_organic_matter
+      canonical_units: kg m-2 s-1
+      description: CECE aggregated organic-carbon emission flux (test entry)
+    - standard_name: air_temperature
+      canonical_units: K
+      description: Near-surface air temperature

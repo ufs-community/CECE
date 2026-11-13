@@ -14,9 +14,31 @@ The recommended way to develop CECE is using the provided Docker container:
 Inside the container:
 ```bash
 mkdir build && cd build
-cmake ..
+cmake .. -DCECE_MPIEXEC_CONTAINER_FLAGS=ON
 make -j4
 ```
+
+`CECE_MPIEXEC_CONTAINER_FLAGS` (default `OFF`) appends
+`--allow-run-as-root`/`--oversubscribe` to the `mpiexec` test launches.
+The container needs both (tests run as root with oversubscribed CPUs);
+HPC systems need neither, and Intel MPI's `mpiexec` rejects
+`--allow-run-as-root` outright — so leave it `OFF` outside containers.
+The maintained container workflows (`scripts/build-and-test-container.py`,
+CI) pass it automatically; only manual in-container configures like the
+one above need it spelled out.
+
+`scripts/build-and-test-container.py` builds and tests in the container
+from the host. Build only what you need and bound the parallelism with
+`--target` (repeatable) and `--jobs`:
+```bash
+python3 scripts/build-and-test-container.py --no-test --target cece_standalone_driver --jobs 4
+```
+Without `--target` it builds everything (the `all` target); without `--jobs`
+it uses the CPU count.
+
+To run the test suite on an HPC Slurm system (inside an sbatch
+allocation, with `srun` or the MPI's own `mpiexec` as the launcher), see
+[scripts/run-tests-slurm.README.md](scripts/run-tests-slurm.README.md).
 
 ### 3. Run Examples
 CECE provides several example configurations to demonstrate different capabilities:
@@ -90,3 +112,7 @@ CECE is built on a modular architecture:
 ## Development
 
 See [AGENTS.md](AGENTS.md) for detailed developer guidelines and coding standards.
+
+## Super Intelligence (SI) Disclosure
+
+Portions of this code were generated/augmented using agentic SI models and has been reviewed and validated consistent with NOAA's [SI Statement](https://www.noaa.gov/nao-216-128-artificial-intelligence-in-noaa).

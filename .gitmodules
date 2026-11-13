@@ -1,3 +1,7 @@
 [submodule "extern/helm"]
 	path = extern/helm
-	url = https://github.com/bbakernoaa/HELM-Project.git
+	url = https://github.com/NOAA-EMC/HELM.git
+[submodule "extern/yaml-cpp"]
+	path = extern/yaml-cpp
+	url = https://github.com/jbeder/yaml-cpp.git
+	shallow = true

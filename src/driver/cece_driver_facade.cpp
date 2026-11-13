@@ -1,7 +1,6 @@
 #include "cece/cece_driver_facade.hpp"
 
 #include <amio/amio.h>
-#include <yaml-cpp/yaml.h>
 
 #include <Kokkos_Core.hpp>
 #include <algorithm>
@@ -12,7 +11,6 @@
 #include <dagr/logging.hpp>
 #include <filesystem>
 #include <fstream>
-#include <iostream>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -22,6 +20,7 @@
 #include "cece/cece_fatal.hpp"
 #include "cece/cece_helm_graph.hpp"
 #include "cece/cece_internal.hpp"
+#include "cece/cece_local_time.hpp"
 #include "cece/cece_logger.hpp"
 #include "cece/cece_mpi_env.hpp"
 #include "cece/cece_regridder_utils.hpp"
@@ -147,7 +146,7 @@ bool CeceDriverOrchestrator::CallCollectiveIntMatches(MPI_Comm comm, int local_v
     return collective_int_matches(&wrapper, comm, local_value, name, failure_detail);
 }
 
-StreamConfig CeceDriverOrchestrator::BuildStreamConfig(const YAML::Node& stream, const std::string& model_name, const std::string& file_name,
+StreamConfig CeceDriverOrchestrator::BuildStreamConfig(const conf::Value& stream, const std::string& model_name, const std::string& file_name,
                                                        int amio_worker_threads, int amio_staging_buffer_count, int amio_staging_buffer_capacity_bytes,
                                                        int amio_prefetch_depth) {
     // Resolve one stream variable's YAML node into a StreamConfig. Field
@@ -156,51 +155,58 @@ StreamConfig CeceDriverOrchestrator::BuildStreamConfig(const YAML::Node& stream,
     // Missing file path is recorded as empty (not thrown); the existing
     // collective gate in AdvanceTime surfaces it later (Req 1.4).
     if (stream["file"]) {
-        if (!stream["file"].IsSequence()) {
-            cfg.input_file_path = stream["file"].as<std::string>();
+        const conf::Value file = stream["file"];
+        if (file.kind() == conf::Node_Kind::Sequence) {
+            cfg.input_file_path = file[0].as_string();
         } else {
-            cfg.input_file_path = stream["file"][0].as<std::string>();
+            cfg.input_file_path = file.as_string();
         }
     }
     cfg.input_var_name = file_name;
     if (stream["mapalgo"]) {
-        cfg.mapalgo = stream["mapalgo"].as<std::string>();
+        cfg.mapalgo = cece::to_lower(stream["mapalgo"].as_string());
     }
     if (stream["cadence"]) {
-        cfg.cadence = stream["cadence"].as<std::string>();
+        cfg.cadence = stream["cadence"].as_string();
     }
     if (stream["yearFirst"]) {
-        cfg.yearFirst = stream["yearFirst"].as<int>();
+        cfg.yearFirst = stream["yearFirst"].as_int();
     }
     if (stream["yearLast"]) {
-        cfg.yearLast = stream["yearLast"].as<int>();
+        cfg.yearLast = stream["yearLast"].as_int();
     }
     if (stream["yearAlign"]) {
-        cfg.yearAlign = stream["yearAlign"].as<int>();
+        cfg.yearAlign = stream["yearAlign"].as_int();
     }
     if (stream["taxmode"]) {
-        cfg.taxmode = stream["taxmode"].as<std::string>();
+        cfg.taxmode = stream["taxmode"].as_string();
     }
     if (stream["time_label"]) {
-        cfg.time_label = stream["time_label"].as<std::string>();
+        cfg.time_label = stream["time_label"].as_string();
     }
     if (stream["tintalgo"]) {
-        cfg.tintalgo = stream["tintalgo"].as<std::string>();
+        cfg.tintalgo = stream["tintalgo"].as_string();
     }
     if (stream["time_var"]) {
-        cfg.time_var = stream["time_var"].as<std::string>();
+        cfg.time_var = stream["time_var"].as_string();
     }
     if (stream["time_units"]) {
-        cfg.time_units = stream["time_units"].as<std::string>();
+        cfg.time_units = stream["time_units"].as_string();
     }
     if (stream["calendar"]) {
-        cfg.calendar = stream["calendar"].as<std::string>();
+        cfg.calendar = stream["calendar"].as_string();
     }
     // Validate the cadence and warn on knobs that the chosen cadence ignores.
     validate_stream_temporal_config(cfg.cadence, cfg.taxmode, cfg.tintalgo, cfg.yearFirst, cfg.yearLast, cfg.yearAlign,
                                     " (stream file '" + cfg.input_file_path + "')", cfg.time_label);
+    if (stream["use_local_time"]) {
+        cfg.use_local_time = stream["use_local_time"].as_bool();
+        if (cfg.use_local_time) {
+            validate_stream_local_time(cfg.cadence, cfg.tintalgo, " (stream file '" + cfg.input_file_path + "')");
+        }
+    }
     if (stream["data_model"]) {
-        std::string requested_model = stream["data_model"].as<std::string>();
+        std::string requested_model = stream["data_model"].as_string();
         std::transform(requested_model.begin(), requested_model.end(), requested_model.begin(),
                        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
         if (requested_model == "classic" || requested_model == "enhanced") {
@@ -239,10 +245,10 @@ void CeceDriverOrchestrator::ResolveStreamConfigsFromFile(const std::string& con
     // robust (out_gridspec_file = "", out_configs left empty) so the existing
     // collective gates in AdvanceTime surface any downstream problem, matching
     // the legacy inline parse which simply found no matching variable.
-    YAML::Node config;
+    conf::Config config = conf::Config::from_string("");
     try {
-        config = YAML::LoadFile(config_file);
-    } catch (const YAML::Exception& e) {
+        config = conf::Config::from_file(config_file);
+    } catch (const conf::Conf_Error& e) {
         out_gridspec_file = "";
         return;
     }
@@ -254,56 +260,88 @@ void CeceDriverOrchestrator::ResolveStreamConfigsFromFile(const std::string& con
     int amio_staging_buffer_count = 8;
     int amio_staging_buffer_capacity_bytes = 33554432;  // 32 MiB per buffer
     int amio_prefetch_depth = 2;
-    if (config["driver"]) {
-        if (config["driver"]["gridspec_file"]) {
-            out_gridspec_file = config["driver"]["gridspec_file"].as<std::string>();
+    conf::Value config_driver = config.at("driver");
+    if (config_driver) {
+        if (config_driver["gridspec_file"]) {
+            out_gridspec_file = config_driver["gridspec_file"].as_string();
         }
-        if (config["driver"]["amio_worker_threads"]) {
-            amio_worker_threads = config["driver"]["amio_worker_threads"].as<int>();
+        if (config_driver["amio_worker_threads"]) {
+            amio_worker_threads = config_driver["amio_worker_threads"].as_int();
             if (amio_worker_threads < 1) {
                 throw std::invalid_argument("driver.amio_worker_threads must be >= 1; got " + std::to_string(amio_worker_threads) + ".");
             }
         }
-        if (config["driver"]["amio_staging_buffer_count"]) {
-            amio_staging_buffer_count = config["driver"]["amio_staging_buffer_count"].as<int>();
+        if (config_driver["amio_staging_buffer_count"]) {
+            amio_staging_buffer_count = config_driver["amio_staging_buffer_count"].as_int();
             if (amio_staging_buffer_count < 1) {
                 throw std::invalid_argument("driver.amio_staging_buffer_count must be >= 1; got " + std::to_string(amio_staging_buffer_count) + ".");
             }
         }
-        if (config["driver"]["amio_staging_buffer_capacity_bytes"]) {
-            amio_staging_buffer_capacity_bytes = config["driver"]["amio_staging_buffer_capacity_bytes"].as<int>();
+        if (config_driver["amio_staging_buffer_capacity_bytes"]) {
+            amio_staging_buffer_capacity_bytes = config_driver["amio_staging_buffer_capacity_bytes"].as_int();
             if (amio_staging_buffer_capacity_bytes < 1) {
                 throw std::invalid_argument("driver.amio_staging_buffer_capacity_bytes must be >= 1; got " +
                                             std::to_string(amio_staging_buffer_capacity_bytes) + ".");
             }
         }
-        if (config["driver"]["amio_prefetch_depth"]) {
-            amio_prefetch_depth = config["driver"]["amio_prefetch_depth"].as<int>();
+        if (config_driver["amio_prefetch_depth"]) {
+            amio_prefetch_depth = config_driver["amio_prefetch_depth"].as_int();
             if (amio_prefetch_depth < 1) {
                 throw std::invalid_argument("driver.amio_prefetch_depth must be >= 1; got " + std::to_string(amio_prefetch_depth) + ".");
             }
         }
     }
 
-    if (!config["cece_data"] || !config["cece_data"]["streams"]) {
+    if (!config.at("cece_data") || !config.at("cece_data.streams")) {
         return;
     }
 
-    // Walk every stream and populate a StreamConfig for each model variable,
-    // keyed by model name. Field resolution + defaults mirror the legacy inline
-    // AdvanceTime parse exactly.
-    for (const auto& stream : config["cece_data"]["streams"]) {
-        for (const auto& var : stream["variables"]) {
+    // Filter EarthAccess streams before resolving local AMIO mappings.
+    std::vector<conf::Value> local_streams;
+    conf::Value streams_list = config.at("cece_data.streams");
+    for (std::size_t i = 0; i < streams_list.size(); ++i) {
+        const auto& stream = streams_list[i];
+        if (!stream["source"] || stream["source"].as_string() != "earthaccess") {
+            local_streams.push_back(stream);
+        }
+    }
+
+    // Walk each local stream and populate a StreamConfig for every model
+    // variable. Streams without variables map their name to itself.
+    for (const auto& stream : local_streams) {
+        if (stream["interpolation"]) {
+            throw std::invalid_argument("cece_data stream '" + stream["name"].string_or("") + "': unknown key 'interpolation'; use 'tintalgo'");
+        }
+        const conf::Value variables = stream["variables"];
+        if (!variables || variables.kind() == conf::Node_Kind::Null || (variables.kind() == conf::Node_Kind::Sequence && variables.size() == 0)) {
+            const std::string stream_name = stream["name"].string_or("");
+            if (stream_name.empty()) {
+                throw std::invalid_argument("cece_data stream requires a name for automatic variable mapping");
+            }
+            CECE_LOG_WARNING("[DRIVER] cece_data stream '" + stream_name + "' has no variables; mapping file variable '" + stream_name +
+                             "' to model field '" + stream_name + "'. Add an explicit 'variables' entry to silence this warning.");
+            out_configs.emplace(stream_name, BuildStreamConfig(stream, stream_name, stream_name, amio_worker_threads, amio_staging_buffer_count,
+                                                               amio_staging_buffer_capacity_bytes, amio_prefetch_depth));
+            continue;
+        }
+        if (variables.kind() != conf::Node_Kind::Sequence) {
+            throw std::invalid_argument("cece_data stream variables must be a list");
+        }
+        for (std::size_t i = 0; i < variables.size(); ++i) {
+            const auto& var = variables[i];
             std::string model_name;
             std::string file_name;
-            if (var.IsScalar()) {
-                model_name = var.as<std::string>();
+            if (var.kind() == conf::Node_Kind::Scalar) {
+                model_name = var.as_string();
                 file_name = model_name;
-            } else if (var.IsMap() && var["model"]) {
-                model_name = var["model"].as<std::string>();
-                file_name = var["file"] ? var["file"].as<std::string>() : model_name;
+            } else if (var.kind() == conf::Node_Kind::Map && var["model"]) {
+                model_name = var["model"].as_string();
+                file_name = var["file"] ? var["file"].as_string() : model_name;
             } else {
-                continue;
+                throw std::invalid_argument("cece_data variable mappings require a non-empty 'model'");
+            }
+            if (model_name.empty() || file_name.empty()) {
+                throw std::invalid_argument("cece_data variable mappings require non-empty file and model names");
             }
 
             // Match the legacy inline parse's first-match-wins behavior: it
@@ -368,6 +406,10 @@ void CeceDriverOrchestrator::InvalidateEndpointCachesForStream(const std::string
         auto it = endpoint_caches_.find(var_name);
         if (it != endpoint_caches_.end()) {
             it->second.valid = false;
+        }
+        auto local_it = local_weekly_caches_.find(var_name);
+        if (local_it != local_weekly_caches_.end()) {
+            local_it->second.records.clear();
         }
     }
 }
@@ -559,8 +601,12 @@ CeceDriverOrchestrator::CeceDriverOrchestrator(const std::string& config_file, i
     // variable, plus driver-level values and gridspec_file_ (Req 1.1). This
     // preserves the previous constructor's driver-block validation (a < 1
     // amio_worker_threads / amio_staging_buffer_count throws) and its
-    // YAML::Exception robustness (gridspec_file_ = "" on a bad/missing file).
+    // conf::Conf_Error robustness (gridspec_file_ = "" on a bad/missing file).
     ResolveStreamConfigs();
+    has_earthaccess_streams_ = HasEarthAccessStreams(config_file_);
+    if (has_earthaccess_streams_) {
+        CECE_LOG_INFO("[DRIVER] Earthaccess streams detected; standalone helper ingestion will run before local AMIO ingestion each timestep.");
+    }
 
     cece_io_ = std::make_unique<io::CeceIO>();
     cece_io_->Initialize(config_file_, nx_, ny_, nz_);
@@ -665,6 +711,7 @@ bool CeceDriverOrchestrator::TeardownHandles() {
     stream_configs_.clear();
     slice_caches_.clear();
     endpoint_caches_.clear();
+    local_weekly_caches_.clear();
     return all_ok;
 }
 
@@ -935,6 +982,79 @@ bool CeceDriverOrchestrator::WriteBandToImport(const std::string& var_name, cons
     return true;
 }
 
+bool CeceDriverOrchestrator::ComposeLocalWeeklyField(const std::string& var_name, const io::RegridPlan& plan, int field_nlev, int file_nt,
+                                                     const SimDateTime& sim_dt,
+                                                     const std::function<bool(int, std::vector<double>&, int&, int&)>& read_record,
+                                                     void* cece_core_data_ptr, std::vector<double>& ingest_buffer, std::string& failure_detail) {
+    constexpr int kWeeklyRecords = 7;
+    auto* data = static_cast<CeceInternalData*>(cece_core_data_ptr);
+    const cece::LocalTimeService* service = data != nullptr ? data->local_time.get() : nullptr;
+
+    std::string readiness_detail;
+    if (file_nt != kWeeklyRecords) {
+        readiness_detail = "use_local_time requires a weekly file with exactly 7 records; '" + var_name + "' has " + std::to_string(file_nt);
+    } else if (service == nullptr) {
+        readiness_detail = "use_local_time is set for '" + var_name + "' but the local-time service is not initialized (enable local_time)";
+    } else if (!sim_dt.valid) {
+        readiness_detail = "unparseable simulation time for local-weekday selection of '" + var_name + "'";
+    } else if (service->Offsets().extent(0) != static_cast<size_t>(nx_) || service->Offsets().extent(1) != static_cast<size_t>(band_.ny_local)) {
+        readiness_detail = "local-time offsets do not match the band geometry for '" + var_name + "'";
+    }
+    if (!collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, readiness_detail.empty(),
+                              "local-weekday readiness for '" + var_name + "'", readiness_detail)) {
+        failure_detail = readiness_detail;
+        return false;
+    }
+
+    auto& cache = local_weekly_caches_[var_name];
+    if (cache.offsets.data() == nullptr) {
+        cache.offsets = service->HostOffsets();
+    }
+
+    // Every rank reads the same window, so the collectives below match across ranks.
+    const std::array<int, 3> window = weekly_record_window(sim_dt);
+    for (auto it = cache.records.begin(); it != cache.records.end();) {
+        it = std::find(window.begin(), window.end(), it->first) == window.end() ? cache.records.erase(it) : std::next(it);
+    }
+    for (const int record : window) {
+        if (cache.records.count(record) != 0) {
+            continue;
+        }
+        std::vector<double> source;
+        int file_nx = 0;
+        int file_ny = 0;
+        const bool local_read_ok = read_record(record, source, file_nx, file_ny);
+        if (!collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, local_read_ok,
+                                  "weekly record " + std::to_string(record) + " slab readiness for '" + var_name + "'", failure_detail)) {
+            return false;
+        }
+        std::vector<double> band;
+        if (!RegridToBandBuffer(var_name, plan, source, file_nx, file_ny, field_nlev, band, failure_detail)) {
+            return false;
+        }
+        cache.records[record] = std::move(band);
+    }
+
+    // Per cell: the record of the local weekday at this UTC instant.
+    std::array<const double*, 7> record_data{};
+    for (const auto& [record, band] : cache.records) {
+        record_data[static_cast<size_t>(record)] = band.data();
+    }
+    std::string compose_error;
+    const bool local_compose_ok = compose_local_weekly_band(
+        record_data, [&cache](int i, int j) { return cache.offsets(i, j); }, sim_datetime_epoch_secs(sim_dt), nx_, band_.ny_local, field_nlev,
+        ingest_buffer, compose_error);
+    if (!local_compose_ok) {
+        failure_detail = compose_error + " for '" + var_name + "'";
+    }
+    if (!collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, local_compose_ok, "local-weekday composition for '" + var_name + "'",
+                              failure_detail)) {
+        return false;
+    }
+
+    return WriteBandToImport(var_name, ingest_buffer, field_nlev, cece_core_data_ptr, failure_detail);
+}
+
 bool CeceDriverOrchestrator::AssembleBandField(const std::string& var_name, const io::RegridPlan& plan, const std::vector<double>& source,
                                                int file_nx, int file_ny, int field_nlev, DeviceView3D stream_view, void* cece_core_data_ptr,
                                                std::vector<double>& ingest_buffer, std::string& failure_detail) {
@@ -1006,6 +1126,11 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
     // Parse the current simulation datetime once. Every cadence except
     // 'stepwise' uses these calendar fields to select the correct file record.
     const SimDateTime sim_dt = parse_sim_datetime(time_iso8601);
+
+    if (!IngestEarthAccessStreams(time_iso8601, cece_core_data_ptr)) {
+        CECE_LOG_ERROR("[DRIVER FATAL] Earthaccess stream ingestion failed for timestep '" + time_iso8601 + "'");
+        return false;
+    }
 
     // B. Push CeceIO's newly computed emission views into CECE's data ingestor
     for (const auto& var_name : cece_io_->GetOutputVarNames()) {
@@ -1153,8 +1278,9 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                     // historical binary search probed amio_read at ~20 record
                     // indices, each probe a full-record read — exactly the
                     // traffic this band-scoped design exists to avoid — and
-                    // CECE always builds against the pinned AMIO submodule,
-                    // which provides amio_describe. Fail the step instead:
+                    // CECE always builds against the AMIO pinned through HELM's
+                    // submodule pointer, which provides amio_describe. Fail the
+                    // step instead:
                     // file_nt = 0 makes the collective readiness gate below
                     // report a detailed error for this variable.
                     CECE_LOG_WARNING("[DRIVER] amio_describe failed for '" + input_var_name + "' in '" + cfg.input_file_path +
@@ -1255,6 +1381,7 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                 // calendar field, Stepwise walks the record index (ignores time).
                 const CadenceKind kind = classify_cadence(cadence);
                 const std::string c_lower = to_lower(cadence);
+                const bool local_weekly = cfg.use_local_time;
                 std::string bracket_note;
 
                 if (kind == CadenceKind::Stepwise) {
@@ -1265,7 +1392,7 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                     bracket_note = "stepwise (time ignored)";
                 } else if (kind == CadenceKind::Profile) {
                     bracket = bracket_from_cadence(cadence, tintalgo, sim_dt, file_nt, yearFirst, yearLast, yearAlign, taxmode);
-                    bracket_note = "profile:" + c_lower;
+                    bracket_note = local_weekly ? "profile:weekly (local weekday)" : "profile:" + c_lower;
                 } else {  // Series
                     if (file_nt > 1) {
                         bracket = bracket_from_dataset(read_dataset, time_var, sim_dt, file_nt, tintalgo, yearAlign, taxmode, time_units, calendar,
@@ -1301,7 +1428,11 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
 
                 if (!bracket.valid) {
                     const std::string cadence_note = (cadence.empty() ? std::string("series (default)") : cadence);
-                    if (bracket.out_of_range) {
+                    if (!sim_dt.valid) {
+                        // The simulation-time input is malformed, so the data axis cannot fix it.
+                        LogFatal("[DRIVER FATAL] Unparseable simulation time '" + time_iso8601 + "' for field '" + var_name +
+                                 "'; the simulation-time input, not the time axis of '" + input_file_path + "', is invalid.");
+                    } else if (bracket.out_of_range) {
                         LogFatal("[DRIVER FATAL] Simulation time " + time_iso8601 + " is outside the coverage of '" + input_file_path +
                                  "' for field '" + var_name + "' (cadence='" + cadence_note +
                                  "', taxmode='limit'). Use taxmode 'extend' to hold the nearest end or 'cycle' to clamp to the closest "
@@ -1400,7 +1531,11 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                 } else {
                     // ---- Tier 3: interpolation miss / rollover / single record ----
                     // Diagnostic: report which time slice(s) are being read and via which path.
-                    if (bracket.i0 == bracket.i1 || bracket.weight == 0.0) {
+                    if (local_weekly) {
+                        CECE_LOG_INFO("[DRIVER] Composing local-weekday weekly records around UTC record " + std::to_string(bracket.i0 + 1) + "/" +
+                                      std::to_string(file_nt) + " from '" + input_file_path + "' for field '" + var_name + "' (time=" + time_iso8601 +
+                                      ")");
+                    } else if (bracket.i0 == bracket.i1 || bracket.weight == 0.0) {
                         CECE_LOG_INFO("[DRIVER] Reading time slice " + std::to_string(bracket.i0 + 1) + "/" + std::to_string(file_nt) + " from '" +
                                       input_file_path + "' for field '" + var_name + "' (" + bracket_note + ", time=" + time_iso8601 + ")");
                     } else {
@@ -1572,7 +1707,7 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                     std::vector<double> src;
                     int file_nx = 0;
                     int file_ny = 0;
-                    const bool local_lower_ready = bracket_ready && read_slab(bracket.i0, src, file_nx, file_ny);
+                    const bool local_lower_ready = bracket_ready && (local_weekly || read_slab(bracket.i0, src, file_nx, file_ny));
                     bool have_data = collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, local_lower_ready,
                                                           "lower AMIO slab readiness for '" + var_name + "'", failure_detail);
 
@@ -1665,6 +1800,11 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                                 endpoint_cache.valid = false;
                             }
                         }
+                    } else if (have_data && local_weekly) {
+                        // No slice/endpoint caching: the composed field changes whenever any
+                        // cell's local date flips, so each step recomposes from the record cache.
+                        read_success = ComposeLocalWeeklyField(var_name, plan, field_nlev, file_nt, sim_dt, read_slab, cece_core_data_ptr,
+                                                               ingest_buffer, failure_detail);
                     } else if (have_data) {
                         // ---- Tier 3 single-record sub-case (unchanged) ----
                         // Reached when !needs_upper_record and the collective-agreed

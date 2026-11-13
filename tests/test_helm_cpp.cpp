@@ -3,7 +3,6 @@
 
 #include <Kokkos_Core.hpp>
 #include <dagr/dagr.hpp>
-#include <halo/environment.hpp>
 
 #include "cece/cece_helm_graph.hpp"
 #include "cece/cece_io.hpp"
@@ -72,61 +71,4 @@ TEST(HelmTest, TestEndToEndDriverLoopStub) {
     EXPECT_EQ(rc, 0);
     EXPECT_NE(cece_data_ptr, nullptr);
     cece_core_finalize(cece_data_ptr, &rc);
-}
-
-// Custom GTest Environment to manage Kokkos & MPI lifecycle globally
-class KokkosMpiEnvironment : public ::testing::Environment {
-   private:
-    int argc_;
-    char** argv_;
-
-   public:
-    KokkosMpiEnvironment(int argc, char** argv) : argc_(argc), argv_(argv) {}
-
-    void SetUp() override {
-        // Initialize MPI first
-        int mpi_initialized = 0;
-        MPI_Initialized(&mpi_initialized);
-        if (!mpi_initialized) {
-            int provided = 0;
-            MPI_Init_thread(&argc_, &argv_, MPI_THREAD_MULTIPLE, &provided);
-        }
-
-        // Initialize Kokkos
-        if (!Kokkos::is_initialized()) {
-            Kokkos::initialize(argc_, argv_);
-        }
-
-        // Initialize HALO Environment
-        halo::Environment::initialize();
-    }
-    void TearDown() override {
-        // Finalize Kokkos
-        if (Kokkos::is_initialized()) {
-            Kokkos::finalize();
-        }
-
-        // Finalize MPI
-        int mpi_initialized = 0;
-        MPI_Initialized(&mpi_initialized);
-        if (mpi_initialized) {
-            MPI_Finalize();
-        }
-    }
-};
-
-int main(int argc, char** argv) {
-    // Prevent Intel MPI from detecting Slurm and attempting PMI/PMIX process manager bootstrap during unit tests
-    unsetenv("SLURM_JOB_ID");
-    unsetenv("SLURM_STEP_ID");
-    unsetenv("PMI_RANK");
-    unsetenv("PMI_SIZE");
-
-    // Configure Intel MPI to allow standalone, local-only execution on login nodes (prevent PMI2/Hydra aborts)
-    setenv("I_MPI_HYDRA_BOOTSTRAP", "none", 0);
-    setenv("I_MPI_SHM", "disable", 0);
-
-    ::testing::InitGoogleTest(&argc, argv);
-    ::testing::AddGlobalTestEnvironment(new KokkosMpiEnvironment(argc, argv));
-    return RUN_ALL_TESTS();
 }

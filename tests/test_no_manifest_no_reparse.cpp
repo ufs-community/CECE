@@ -13,7 +13,7 @@
  *      memory (`BuildManifestContent` returns a std::string) and consumed via
  *      the string-based AMIO entry points (`amio_init_from_string` /
  *      `amio_open_dataset_from_string`). There is no `std::ofstream` of a
- *      manifest path in `AdvanceTime` (or anywhere in the facade) anymore.
+ *      manifest path in `AdvanceTime` or `GetOrOpenHandleSet` anymore.
  *
  *   2. NO per-step YAML re-parse: the config is parsed exactly once, at
  *      construction, via `ResolveStreamConfigsFromFile` (which is the only
@@ -123,9 +123,15 @@ TEST(NoManifestNoReparse, FacadeNeverWritesManifestFile) {
         << "facade still references the on-disk manifest filename 'amio_read_manifest_facade_*'";
     EXPECT_EQ(src.find("read_manifest_path"), std::string::npos) << "facade still references a 'read_manifest_path' (on-disk manifest path)";
 
-    // Belt-and-braces: there is no std::ofstream anywhere in the facade (the
-    // manifest was the only thing the driver ever wrote to disk here).
-    EXPECT_EQ(src.find("std::ofstream"), std::string::npos) << "facade still contains a std::ofstream (manifest is meant to be in-memory only)";
+    // Belt-and-braces: GetOrOpenHandleSet (the AMIO read-manifest open path)
+    // contains no std::ofstream — the manifest it builds is never written to
+    // disk. (The facade legitimately uses std::ofstream elsewhere, e.g. to
+    // stage target lon/lat coordinate files for the earthaccess helper
+    // process, which is unrelated to the AMIO manifest.)
+    const std::string handle_set_body = ExtractMemberBody(src, "GetOrOpenHandleSet");
+    ASSERT_FALSE(handle_set_body.empty());
+    EXPECT_EQ(handle_set_body.find("std::ofstream"), std::string::npos)
+        << "GetOrOpenHandleSet contains a std::ofstream (the AMIO manifest is meant to be in-memory only)";
 
     // The in-memory manifest path IS used: BuildManifestContent feeds the
     // string-based AMIO entry points.
@@ -188,21 +194,21 @@ TEST(NoManifestNoReparse, AdvanceTimeDoesNotReparseYaml) {
     ASSERT_FALSE(src.empty());
 
     // Sanity: the construction-time parse still exists somewhere in the file.
-    EXPECT_NE(src.find("YAML::LoadFile"), std::string::npos)
-        << "expected a construction-time YAML::LoadFile in the facade (in ResolveStreamConfigsFromFile)";
+    EXPECT_NE(src.find("conf::Config::from_file"), std::string::npos)
+        << "expected a construction-time conf::Config::from_file in the facade (in ResolveStreamConfigsFromFile)";
 
     // The AdvanceTime body must contain no YAML parse.
     const std::string advance_body = ExtractMemberBody(src, "AdvanceTime");
     ASSERT_FALSE(advance_body.empty());
-    EXPECT_EQ(advance_body.find("YAML::LoadFile"), std::string::npos)
-        << "AdvanceTime re-parses the YAML configuration per step (YAML::LoadFile found)";
-    EXPECT_EQ(advance_body.find("YAML::Load("), std::string::npos) << "AdvanceTime parses YAML per step (YAML::Load found)";
+    EXPECT_EQ(advance_body.find("conf::Config::from_file"), std::string::npos)
+        << "AdvanceTime re-parses the YAML configuration per step (conf::Config::from_file found)";
+    EXPECT_EQ(advance_body.find("conf::Config::from_file("), std::string::npos) << "AdvanceTime parses YAML per step (conf::Config::from_file found)";
 
     // And the config-resolution helper is the (only) legitimate parse site.
     const std::string resolve_body = ExtractMemberBody(src, "ResolveStreamConfigsFromFile");
     ASSERT_FALSE(resolve_body.empty());
-    EXPECT_NE(resolve_body.find("YAML::LoadFile"), std::string::npos)
-        << "expected ResolveStreamConfigsFromFile to hold the sole construction-time YAML::LoadFile";
+    EXPECT_NE(resolve_body.find("conf::Config::from_file"), std::string::npos)
+        << "expected ResolveStreamConfigsFromFile to hold the sole construction-time conf::Config::from_file";
 }
 
 }  // namespace cece

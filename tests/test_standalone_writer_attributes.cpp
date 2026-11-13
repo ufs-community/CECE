@@ -5,6 +5,7 @@
 #include <netcdf.h>
 
 #include <Kokkos_Core.hpp>
+#include <cstdlib>
 #include <filesystem>
 #include <map>
 #include <optional>
@@ -72,6 +73,22 @@ class StandaloneWriterAttributesTest : public ::testing::Test {
         return value;
     }
 
+    static std::optional<std::string> ReadGlobalTextAttribute(const fs::path& nc_path, const std::string& attribute) {
+        int nc_id = -1;
+        EXPECT_EQ(nc_open(nc_path.c_str(), NC_NOWRITE, &nc_id), NC_NOERR) << "cannot open " << nc_path;
+
+        size_t length = 0;
+        const int rc = nc_inq_attlen(nc_id, NC_GLOBAL, attribute.c_str(), &length);
+        std::optional<std::string> value;
+        if (rc == NC_NOERR) {
+            std::string text(length, '\0');
+            EXPECT_EQ(nc_get_att_text(nc_id, NC_GLOBAL, attribute.c_str(), text.data()), NC_NOERR);
+            value = text;
+        }
+        nc_close(nc_id);
+        return value;
+    }
+
     // Configs are constructed fully formed (the collection is immutable
     // after construction apart from SetTimeUnits): co's attributes are a
     // parameter rather than patched in afterwards.
@@ -100,6 +117,25 @@ TEST_F(StandaloneWriterAttributesTest, DisabledConfigWritesNothing) {
     const fs::path nc_path = WriteOneStep(config);
     EXPECT_FALSE(fs::exists(nc_path)) << "disabled writer produced " << nc_path;
     EXPECT_TRUE(fs::is_empty(out_dir_)) << "disabled writer left files in the output directory";
+}
+
+TEST_F(StandaloneWriterAttributesTest, HighResolutionFieldRaisesStagingCapacityWithoutAllocation) {
+    cece::CeceOutputConfig config = BaseConfig();
+    config.amio_staging_buffer_capacity_bytes = 33554432;
+
+    EXPECT_EQ(cece::CeceStandaloneWriter::ResolveStagingBufferCapacity(config, 3600, 1800, 1), 51840000U);
+    EXPECT_THROW(cece::CeceStandaloneWriter::ResolveStagingBufferCapacity(config, 20000, 10000, 1), std::runtime_error);
+}
+
+TEST_F(StandaloneWriterAttributesTest, ConfiguredOutputAmioSettingsProduceOutput) {
+    cece::CeceOutputConfig config = BaseConfig();
+    config.amio_worker_threads = 2;
+    config.amio_staging_buffer_count = 2;
+    config.amio_staging_buffer_capacity_bytes = 1;
+    config.amio_staging_timeout_ms = 30000;
+
+    const fs::path nc_path = WriteOneStep(config);
+    EXPECT_TRUE(fs::exists(nc_path));
 }
 
 // RED before the units fix: the writer fabricated units ("mol mol-1") and a
@@ -154,16 +190,16 @@ TEST_F(StandaloneWriterAttributesTest, ConfiguredFieldAttributesReachTheOutput) 
     EXPECT_EQ(*long_name, "carbon_monoxide_emission_flux");
 }
 
-}  // namespace
+TEST_F(StandaloneWriterAttributesTest, GlobalAttributesEscapeYamlQuotesAndBackslashes) {
+    cece::CeceOutputConfig config = BaseConfig();
+    config.global_attributes["title"] = R"(Run "quoted" with \ path)";
 
-// Custom main: AMIO requires an initialized MPI environment, and the writer
-// uses Kokkos views — both are process-wide lifecycles owned here.
-int main(int argc, char** argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    MPI_Init(&argc, &argv);
-    Kokkos::initialize(argc, argv);
-    const int rc = RUN_ALL_TESTS();
-    Kokkos::finalize();
-    MPI_Finalize();
-    return rc;
+    const fs::path nc_path = WriteOneStep(config);
+    ASSERT_TRUE(fs::exists(nc_path)) << nc_path << " was not written";
+
+    const auto title = ReadGlobalTextAttribute(nc_path, "title");
+    ASSERT_TRUE(title.has_value());
+    EXPECT_EQ(*title, R"(Run "quoted" with \ path)");
 }
+
+}  // namespace

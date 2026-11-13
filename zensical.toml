@@ -9,6 +9,7 @@ nav = [
     { "Core Concepts" = "concepts.md" },
     { "User's Guide" = "users-guide.md" },
     { "Configuration" = "configuration.md" },
+    { "NUOPC Cap Parity" = "nuopc_cap_parity.md" },
     { "Tutorial" = "tutorial.md" },
     { "Scripts & Utilities" = "scripts.md" },
     { "Examples" = "examples.md" },

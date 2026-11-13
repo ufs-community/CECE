@@ -20,6 +20,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <limits>
 #include <stdexcept>
 #include <string>
 #include <tick/tick.hpp>
@@ -901,6 +902,22 @@ TEST(CeceAxisDecode, HourlyAxisSteppedHourlyNeedsNoLabelInference) {
     }
 }
 
+TEST(CeceAxisDecode, StartLabelledCycleSeamOpensTheNextCycle) {
+    using namespace cece::detail;
+
+    // Cycling puts midnight of day 3 exactly halfway across the wrap gap between
+    // the last half-hour center and the first of the next cycle. Like the
+    // in-range ties, it resolves to the record that opens at that instant.
+    const std::vector<double> raw = two_day_hourly_axis();
+    for (int hour = 0; hour < 24; ++hour) {
+        char iso[32];
+        std::snprintf(iso, sizeof(iso), "2000-01-03T%02d:00:00", hour);
+        const RecordBracket br = bracket_from_coords(raw, kTwoDayHourlyUnits, "gregorian", parse_sim_datetime(iso), "nearest", 0, "cycle", "start");
+        ASSERT_TRUE(br.valid) << iso;
+        EXPECT_EQ(br.i0, hour) << iso;
+    }
+}
+
 TEST(CeceAxisDecode, IntervalLabelBoundaryInstantOpensTheNextRecord) {
     using namespace cece::detail;
 
@@ -1372,6 +1389,145 @@ TEST(CeceAxisDecode, DecodeRejectsDegenerateAxisSpan) {
     EXPECT_TRUE(bracket_from_coords({5.0}, "days since 2000-01-01", "gregorian", dt, "nearest").valid);
 }
 
+TEST(CeceAxisDecode, DecodeRejectsNonFiniteOrOverflowingAxis) {
+    using namespace cece::detail;
+
+    // Values with no nanosecond representation degrade to the arithmetic path
+    // rather than being rounded into an arbitrary record index.
+    const SimDateTime dt = parse_sim_datetime("2000-01-02T05:00:00");
+    const double nan = std::numeric_limits<double>::quiet_NaN();
+
+    std::vector<double> interior_nan = two_day_hourly_axis();
+    interior_nan[10] = nan;
+    const RecordBracket a = bracket_from_coords(interior_nan, kTwoDayHourlyUnits, "gregorian", dt, "nearest");
+    EXPECT_FALSE(a.valid);
+    EXPECT_FALSE(a.out_of_range);
+
+    // netCDF's default double fill, as an unwritten trailing record reads back.
+    std::vector<double> filled = two_day_hourly_axis();
+    filled.back() = 9.969209968386869e36;
+    const RecordBracket b = bracket_from_coords(filled, kTwoDayHourlyUnits, "gregorian", dt, "nearest");
+    EXPECT_FALSE(b.valid);
+    EXPECT_FALSE(b.out_of_range);
+
+    // CF bounds go through the same conversion.
+    std::vector<double> bounds;
+    for (int k = 0; k < 48; ++k) {
+        bounds.push_back(k);
+        bounds.push_back(k + 1);
+    }
+    bounds[20] = nan;
+    EXPECT_FALSE(bracket_from_coords(two_day_hourly_axis(), kTwoDayHourlyUnits, "gregorian", dt, "nearest", 0, "", "auto", bounds).valid);
+}
+
+TEST(CeceAxisDecode, DecodeRejectsAReferenceTickCannotRepresent) {
+    using namespace cece::detail;
+
+    // The records are 1750-01-01..03, but TICK cannot place a 1700 reference.
+    // Degrading beats decoding every record from a silently wrapped epoch.
+    const std::vector<double> raw = {18262.0, 18263.0, 18264.0};
+    const SimDateTime dt = parse_sim_datetime("1750-01-02T00:00:00");
+    const RecordBracket br = bracket_from_coords(raw, "days since 1700-01-01", "gregorian", dt, "nearest");
+    EXPECT_FALSE(br.valid);
+    EXPECT_FALSE(br.out_of_range);
+}
+
+TEST(CeceAxisDecode, DecodeAcceptsFirstRecordBeyondTheDurationRange) {
+    using namespace cece::detail;
+
+    // 1750 and 2043 are both TICK dates, but 293 years apart is more than an
+    // int64 nanosecond duration holds. Only the absolute timestamps must fit.
+    const auto day_number = [](int y, int m, int d) {
+        return tick::Gregorian_Calendar::to_time_point(tick::Date_Time{y, m, d, 0, 0, 0, 0}).nanos() / tick::nanos_per_day;
+    };
+    const double first = static_cast<double>(day_number(2043, 1, 1) - day_number(1750, 1, 1));
+    std::vector<double> raw(365);
+    for (int k = 0; k < 365; ++k) raw[k] = first + k;
+
+    const char* units = "days since 1750-01-01 00:00:00";
+    const SimDateTime march = parse_sim_datetime("2043-03-01T00:00:00");
+    const RecordBracket centered = bracket_from_coords(raw, units, "gregorian", march, "nearest", 0, "limit", "center");
+    ASSERT_TRUE(centered.valid);
+    EXPECT_EQ(centered.i0, 59);
+
+    // "auto" must still read the midnight stamps as interval starts, centring
+    // each record at noon: 18:00 is 6 h past Mar 1's centre and 18 h short of
+    // Mar 2's, where an instantaneous reading would pick Mar 2.
+    const SimDateTime evening = parse_sim_datetime("2043-03-01T18:00:00");
+    const RecordBracket inferred = bracket_from_coords(raw, units, "gregorian", evening, "nearest", 0, "limit", "auto");
+    ASSERT_TRUE(inferred.valid);
+    EXPECT_EQ(inferred.i0, 59);
+}
+
+TEST(CeceAxisDecode, DecodeSimTimeFartherFromTheFileThanAnInt64Duration) {
+    using namespace cece::detail;
+
+    // A 1750 file driving a 2043 run: both are TICK dates, but they are further
+    // apart than an int64 nanosecond duration holds.
+    const std::vector<double> raw = two_day_hourly_axis();
+    const char* units = "hours since 1750-01-01 00:00:00";
+    const SimDateTime later = parse_sim_datetime("2043-01-02T05:00:00");
+
+    const RecordBracket ext = bracket_from_coords(raw, units, "gregorian", later, "nearest", 0, "extend", "center");
+    ASSERT_TRUE(ext.valid);
+    EXPECT_EQ(ext.i0, 47);
+
+    const RecordBracket lim = bracket_from_coords(raw, units, "gregorian", later, "nearest", 0, "limit", "center");
+    EXPECT_FALSE(lim.valid);
+    EXPECT_TRUE(lim.out_of_range);
+
+    // 107017 days separate the two midnights, an odd count, so the 48-hour cycle is on its second day.
+    const RecordBracket cyc = bracket_from_coords(raw, units, "gregorian", later, "nearest", 0, "cycle", "center");
+    ASSERT_TRUE(cyc.valid);
+    EXPECT_EQ(cyc.i0, 29);
+
+    // The mirror case: a file near the top of TICK's range and a run near the bottom.
+    const SimDateTime earlier = parse_sim_datetime("1750-06-01T00:00:00");
+    const RecordBracket held = bracket_from_coords(raw, "hours since 2300-01-01 00:00:00", "gregorian", earlier, "nearest", 0, "extend", "center");
+    ASSERT_TRUE(held.valid);
+    EXPECT_EQ(held.i0, 0);
+}
+
+TEST(CeceAxisDecode, CycleRejectsAPeriodBeyondAnInt64Duration) {
+    using namespace cece::detail;
+
+    // Two records 200 years apart infer a 400-year cycle, which no int64
+    // duration holds. Only "cycle" needs the period.
+    const char* units = "days since 1800-01-01 00:00:00";
+    const std::vector<double> raw = {0.0, 73148.0};  // 1800-01-01 and 2000-04-10
+    const SimDateTime dt = parse_sim_datetime("2100-01-01T00:00:00");
+
+    const RecordBracket cyc = bracket_from_coords(raw, units, "gregorian", dt, "nearest", 0, "cycle", "center");
+    EXPECT_FALSE(cyc.valid);
+    EXPECT_FALSE(cyc.out_of_range);
+
+    const RecordBracket ext = bracket_from_coords(raw, units, "gregorian", dt, "nearest", 0, "extend", "center");
+    ASSERT_TRUE(ext.valid);
+    EXPECT_EQ(ext.i0, 1);
+}
+
+TEST(CeceAxisDecode, IntervalLabelRejectsACentreBeyondTickRange) {
+    using namespace cece::detail;
+
+    // TICK's range ends in April 2318. A start label mirrors the final 7.5-year
+    // spacing half past the last stamp, to 2321; the records themselves, and
+    // the annual-cycle probe one span on from 2310, stay inside it.
+    const auto day_number = [](int y, int m, int d) {
+        return tick::Gregorian_Calendar::to_time_point(tick::Date_Time{y, m, d, 0, 0, 0, 0}).nanos() / tick::nanos_per_day;
+    };
+    const char* units = "days since 2026-01-01 00:00:00";
+    const std::vector<double> raw = {static_cast<double>(day_number(2310, 1, 1)), static_cast<double>(day_number(2317, 7, 1))};
+    const SimDateTime dt = parse_sim_datetime("2300-01-01T00:00:00");
+
+    const RecordBracket started = bracket_from_coords(raw, units, "gregorian", dt, "nearest", 0, "extend", "start");
+    EXPECT_FALSE(started.valid);
+    EXPECT_FALSE(started.out_of_range);
+
+    const RecordBracket centered = bracket_from_coords(raw, units, "gregorian", dt, "nearest", 0, "extend", "center");
+    ASSERT_TRUE(centered.valid);
+    EXPECT_EQ(centered.i0, 0);
+}
+
 // ============================================================================
 // Dated hourly meteorology: a file holding 48 hourly records (two full days)
 // driving a two-day run must resolve each simulation hour to the record for
@@ -1611,6 +1767,134 @@ TEST(CeceAxisDecode, DecodePackedTimeAxis) {
     const RecordBracket wrong = bracket_from_coords(unscaled, kTwoDayHourlyUnits, "gregorian", dt, "nearest");
     ASSERT_TRUE(wrong.valid);
     EXPECT_EQ(wrong.i0, 14);
+}
+
+TEST(CeceLocalWeekly, EpochSecondsMatchKnownInstant) {
+    using namespace cece::detail;
+    EXPECT_EQ(sim_datetime_epoch_secs(parse_sim_datetime("2026-01-15T06:00:00")), 1768456800);
+    EXPECT_EQ(sim_datetime_epoch_secs(parse_sim_datetime("1970-01-01T00:00:01")), 1);
+}
+
+TEST(CeceLocalWeekly, RecordIsMondayZeroAndFollowsLocalDate) {
+    using namespace cece::detail;
+    constexpr std::int64_t kHour = 3600;
+    const std::int64_t monday_0200 = sim_datetime_epoch_secs(parse_sim_datetime("2026-01-12T02:00:00"));
+    EXPECT_EQ(weekly_record_from_local_secs(monday_0200), 0);
+    // UTC-8 is still Sunday evening when it is Monday 02:00Z.
+    EXPECT_EQ(weekly_record_from_local_secs(monday_0200 - 8 * kHour), 6);
+    // UTC+12 is already Monday 14:00; UTC+22h would be Tuesday.
+    EXPECT_EQ(weekly_record_from_local_secs(monday_0200 + 12 * kHour), 0);
+    EXPECT_EQ(weekly_record_from_local_secs(monday_0200 + 22 * kHour), 1);
+    // Sunday UTC is the last record.
+    EXPECT_EQ(weekly_record_from_local_secs(sim_datetime_epoch_secs(parse_sim_datetime("2026-01-18T12:00:00"))), 6);
+}
+
+TEST(CeceLocalWeekly, WindowIsUtcDayAndNeighbours) {
+    using namespace cece::detail;
+    // 2026-01-15 is a Thursday (record 3).
+    EXPECT_EQ(weekly_record_window(parse_sim_datetime("2026-01-15T06:00:00")), (std::array<int, 3>{2, 3, 4}));
+    // Monday wraps back to Sunday, Sunday wraps forward to Monday.
+    EXPECT_EQ(weekly_record_window(parse_sim_datetime("2026-01-12T00:00:00")), (std::array<int, 3>{6, 0, 1}));
+    EXPECT_EQ(weekly_record_window(parse_sim_datetime("2026-01-18T00:00:00")), (std::array<int, 3>{5, 6, 0}));
+}
+
+TEST(CeceLocalWeekly, WindowCoversEveryOffsetAtEveryInstant) {
+    using namespace cece::detail;
+    // Every quarter-hour of a week against every quarter-hour offset in [-12h, +14h].
+    const std::int64_t week_start = sim_datetime_epoch_secs(parse_sim_datetime("2026-01-12T00:00:00"));
+    constexpr std::int64_t kQuarter = 900;
+    for (std::int64_t utc = week_start; utc < week_start + 7 * 86400; utc += kQuarter) {
+        const int day_index = static_cast<int>((utc - week_start) / 86400);
+        SimDateTime dt;
+        dt.day_of_week = day_index % 7 + 1;  // week_start is a Monday
+        const std::array<int, 3> window = weekly_record_window(dt);
+        for (std::int64_t offset = -12 * 3600; offset <= 14 * 3600; offset += kQuarter) {
+            const int record = weekly_record_from_local_secs(utc + offset);
+            EXPECT_NE(std::find(window.begin(), window.end(), record), window.end()) << "utc=" << utc << " offset=" << offset << " record=" << record;
+        }
+    }
+}
+
+TEST(CeceLocalWeekly, ComposePicksEachCellsLocalWeekdayRecord) {
+    using namespace cece::detail;
+    constexpr int kNx = 4;
+    constexpr int kNy = 2;
+    constexpr int kLevels = 2;
+    constexpr std::int64_t kHour = 3600;
+    // Record r holds r + 1 at level 0 and 100 * (r + 1) at level 1, everywhere.
+    const std::size_t band_spatial = kNx * kNy;
+    std::vector<std::vector<double>> bands(7, std::vector<double>(kLevels * band_spatial));
+    std::array<const double*, 7> records{};
+    for (int r = 0; r < 7; ++r) {
+        std::fill_n(bands[r].begin(), band_spatial, r + 1.0);
+        std::fill_n(bands[r].begin() + band_spatial, band_spatial, 100.0 * (r + 1));
+        records[r] = bands[r].data();
+    }
+    // Columns: UTC-8, UTC, UTC+5:45, UTC+14; both rows identical.
+    const std::array<std::int64_t, kNx> offsets = {-8 * kHour, 0, 5 * kHour + 2700, 14 * kHour};
+    const auto offset_at = [&](int i, int) { return offsets[static_cast<std::size_t>(i)]; };
+
+    // Monday 2026-01-12 20:00Z: only UTC+5:45 and UTC+14 are past midnight (Tuesday).
+    std::vector<double> out;
+    std::string error;
+    ASSERT_TRUE(compose_local_weekly_band(records, offset_at, sim_datetime_epoch_secs(parse_sim_datetime("2026-01-12T20:00:00")), kNx, kNy, kLevels,
+                                          out, error))
+        << error;
+    ASSERT_EQ(out.size(), kLevels * band_spatial);
+    const std::array<double, kNx> expected_level0 = {1.0, 1.0, 2.0, 2.0};
+    for (int j = 0; j < kNy; ++j) {
+        for (int i = 0; i < kNx; ++i) {
+            EXPECT_DOUBLE_EQ(out[j * kNx + i], expected_level0[i]) << "i=" << i << " j=" << j;
+            EXPECT_DOUBLE_EQ(out[band_spatial + j * kNx + i], 100.0 * expected_level0[i]) << "i=" << i << " j=" << j;
+        }
+    }
+
+    // Monday 2026-01-12 02:00Z: UTC-8 is still Sunday (record 6), the rest are Monday.
+    ASSERT_TRUE(compose_local_weekly_band(records, offset_at, sim_datetime_epoch_secs(parse_sim_datetime("2026-01-12T02:00:00")), kNx, kNy, kLevels,
+                                          out, error))
+        << error;
+    const std::array<double, kNx> expected_early = {7.0, 1.0, 1.0, 1.0};
+    for (int i = 0; i < kNx; ++i) EXPECT_DOUBLE_EQ(out[i], expected_early[i]) << "i=" << i;
+}
+
+TEST(CeceLocalWeekly, ComposeWithZeroOffsetsMatchesUtcRecord) {
+    using namespace cece::detail;
+    const SimDateTime dt = parse_sim_datetime("2026-01-15T06:00:00");  // Thursday -> record 3
+    std::vector<double> record(6, 0.0);
+    for (std::size_t k = 0; k < record.size(); ++k) record[k] = 0.25 * static_cast<double>(k) + 1.0;
+    std::array<const double*, 7> records{};
+    records[static_cast<std::size_t>(dt.day_of_week - 1)] = record.data();
+
+    std::vector<double> out;
+    std::string error;
+    ASSERT_TRUE(compose_local_weekly_band(
+        records, [](int, int) { return std::int64_t{0}; }, sim_datetime_epoch_secs(dt), 3, 2, 1, out, error))
+        << error;
+    EXPECT_EQ(out, record);
+}
+
+TEST(CeceLocalWeekly, ComposeFailsWhenRecordOutsideWindowIsNeeded) {
+    using namespace cece::detail;
+    const SimDateTime dt = parse_sim_datetime("2026-01-15T06:00:00");
+    std::vector<double> record(1, 1.0);
+    std::array<const double*, 7> records{};
+    for (const int r : weekly_record_window(dt)) records[static_cast<std::size_t>(r)] = record.data();
+
+    // A corrupt 3-day offset lands two local days ahead, beyond the loaded window.
+    std::vector<double> out;
+    std::string error;
+    EXPECT_FALSE(
+        compose_local_weekly_band(records, [](int, int) { return std::int64_t{3 * 86400}; }, sim_datetime_epoch_secs(dt), 1, 1, 1, out, error));
+    EXPECT_NE(error.find("259200"), std::string::npos) << error;
+}
+
+TEST(CeceStreamConfigValidation, LocalTimeRequiresWeeklyNearest) {
+    using namespace cece::detail;
+    EXPECT_NO_THROW(validate_stream_local_time("weekly", "nearest", ""));
+    EXPECT_NO_THROW(validate_stream_local_time("Weekly", "", ""));
+    EXPECT_THROW(validate_stream_local_time("hourly", "nearest", ""), std::invalid_argument);
+    EXPECT_THROW(validate_stream_local_time("", "nearest", ""), std::invalid_argument);
+    EXPECT_THROW(validate_stream_local_time("weekly", "linear", ""), std::invalid_argument);
 }
 
 }  // namespace cece

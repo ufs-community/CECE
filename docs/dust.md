@@ -12,7 +12,6 @@ References:
 ## Registration Names
 
 - Native C++: `"dust"`
-- Fortran bridge: `"dust_fortran"`
 
 ## Configuration Parameters
 
@@ -48,17 +47,17 @@ References:
 ## YAML Configuration Example
 
 ```yaml
-physics:
-  - name: dust
-    config:
-      tuning_factor: 9.375e-10
-      particle_density: 2500.0
-      particle_diameter: 1.46e-6
+physics_schemes:
+- name: dust
+  options:
+    tuning_factor: 9.375e-10
+    particle_density: 2500.0
+    particle_diameter: 1.46e-6
 ```
 
 ## Implementation Notes
 
-- Available as both native C++ (Kokkos) and Fortran bridge implementations
+- Implemented natively in C++ (Kokkos)
 - This is the legacy single-bin Ginoux scheme; for multi-bin GOCART2G Ginoux, see the `ginoux` scheme
 - Threshold velocity is computed once during `Initialize` and reused each timestep
 - The scheme operates on 2D (surface) fields only

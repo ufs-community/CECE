@@ -534,11 +534,3 @@ TEST_F(ClockGatedRunLoopTest, ComponentTypesPreservedInDueList) {
     EXPECT_EQ(stream_names.count("stream_x"), 1u);
     EXPECT_EQ(stacking_names.count("stacking"), 1u);
 }
-
-int main(int argc, char** argv) {
-    Kokkos::initialize(argc, argv);
-    ::testing::InitGoogleTest(&argc, argv);
-    const int result = RUN_ALL_TESTS();
-    Kokkos::finalize();
-    return result;
-}

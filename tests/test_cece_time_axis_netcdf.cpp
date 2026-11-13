@@ -305,30 +305,3 @@ TEST(CeceTimeAxisNetcdf, AppliesTaxmodeToTimesOutsideTheFile) {
 }
 
 }  // namespace cece
-
-namespace {
-
-class MpiEnvironment : public ::testing::Environment {
-   public:
-    void SetUp() override {
-        int initialized = 0;
-        MPI_Initialized(&initialized);
-        if (!initialized) {
-            int provided = 0;
-            MPI_Init_thread(nullptr, nullptr, MPI_THREAD_MULTIPLE, &provided);
-        }
-    }
-    void TearDown() override {
-        int initialized = 0;
-        MPI_Initialized(&initialized);
-        if (initialized) MPI_Finalize();
-    }
-};
-
-}  // namespace
-
-int main(int argc, char** argv) {
-    ::testing::InitGoogleTest(&argc, argv);
-    ::testing::AddGlobalTestEnvironment(new MpiEnvironment());
-    return RUN_ALL_TESTS();
-}

@@ -157,6 +157,7 @@ The CECE scheme generator automates the creation of physics scheme scaffolding f
 
 Create a YAML file describing your scheme (e.g., `my_scheme_config.yaml`):
 
+<!-- cece-validate: skip -->
 ```yaml
 scheme:
   name: MyEmissionScheme
@@ -233,6 +234,7 @@ target_link_libraries(cece_core PUBLIC cece_physics_my_emission_scheme)
 
 Add the scheme to your CECE configuration file:
 
+<!-- cece-validate: context physics_schemes -->
 ```yaml
 physics_schemes:
   - name: my_emission_scheme
@@ -521,6 +523,7 @@ void MyScheme::Initialize(const YAML::Node& config, CeceDiagnosticManager* diag_
 
 ### YAML Configuration Example
 
+<!-- cece-validate: context physics_schemes -->
 ```yaml
 physics_schemes:
   - name: my_scheme
@@ -602,14 +605,16 @@ auto base_emissions = ResolveInput("emissions", import_state, export_state);
 
 Map internal names to external field names via YAML:
 
+<!-- cece-validate: context physics_schemes -->
 ```yaml
 physics_schemes:
   - name: my_scheme
-    input_mapping:
-      temp: temperature
-      solar: solar_radiation
-    output_mapping:
-      emis: emissions
+    options:
+      input_mapping:
+        temp: temperature
+        solar: solar_radiation
+      output_mapping:
+        emis: emissions
 ```
 
 Then use internal names in code:
@@ -657,11 +662,10 @@ void MyScheme::Run(CeceImportState& import_state, CeceExportState& export_state)
 
 ### Diagnostic Output
 
-Diagnostic fields are automatically written to NetCDF output if enabled in configuration:
+To include a diagnostic field in NetCDF output, list it explicitly under `output.fields`:
 
 ```yaml
 output:
-  diagnostics: true
   fields:
     - emissions
     - temperature_factor

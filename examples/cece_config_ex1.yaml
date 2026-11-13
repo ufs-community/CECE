@@ -173,7 +173,7 @@ cece_data:
           model: "CAMS_MONTHLY_ind"
 
 diagnostics:
-  output_interval_seconds: 3600
+  output_interval: 3600
   variables: ["nox"]
 
 output:

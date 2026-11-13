@@ -9,7 +9,7 @@
 //
 // **Validates: Requirements 1.4, 3.4, 3.5, 6.6, 7.4**
 //
-// This is a focused MPI-main harness (own main(), no gtest_main, mirroring
+// This is a focused MPI harness (shared cece_test_main environment, mirroring
 // tests/test_halo_multirank_integration.cpp) that drives the REAL Output_Gather
 // primitive sequence the writer issues — per-level MPI_Gatherv with
 // band_.row_counts/row_displs scaled by nx_, followed by a single MPI_Bcast of
@@ -348,49 +348,3 @@ TEST(SurplusRankLockstep, MultiFieldSequenceLockStep) {
 }
 
 }  // namespace cece
-
-// ============================================================================
-// Own main() with MPI init (MPI-main pattern, mirrors
-// tests/test_halo_multirank_integration.cpp): ALL ranks stay alive and run
-// RUN_ALL_TESTS so every rank — including the surplus ny_local==0 ranks — enters
-// the MPI collectives this test issues. No Kokkos needed (the harness uses only
-// std::vector + BandDecomposition + MPI). Slurm/PMI env is scrubbed so a plain
-// mpirun -np N works in the container without a batch scheduler.
-// ============================================================================
-int main(int argc, char** argv) {
-    bool is_discovery = false;
-    for (int i = 1; i < argc; ++i) {
-        if (std::string(argv[i]) == "--gtest_list_tests") {
-            is_discovery = true;
-            break;
-        }
-    }
-
-    if (!is_discovery) {
-        unsetenv("SLURM_JOB_ID");
-        unsetenv("SLURM_STEP_ID");
-        unsetenv("PMI_RANK");
-        unsetenv("PMI_SIZE");
-        setenv("I_MPI_HYDRA_BOOTSTRAP", "none", 0);
-        setenv("I_MPI_SHM", "disable", 0);
-
-        int mpi_initialized = 0;
-        MPI_Initialized(&mpi_initialized);
-        if (!mpi_initialized) {
-            int provided = 0;
-            MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
-        }
-    }
-
-    ::testing::InitGoogleTest(&argc, argv);
-    const int rc = RUN_ALL_TESTS();
-
-    int mpi_initialized = 0;
-    MPI_Initialized(&mpi_initialized);
-    if (mpi_initialized) {
-        int finalized = 0;
-        MPI_Finalized(&finalized);
-        if (!finalized) MPI_Finalize();
-    }
-    return rc;
-}

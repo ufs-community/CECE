@@ -2,10 +2,12 @@
 
 #include <algorithm>
 #include <iostream>
+#include <set>
 #include <stdexcept>
 #include <string>
 
 #include "cece/cece_config.hpp"
+#include "cece/cece_string_utils.hpp"
 #include "conf/config.hpp"
 
 namespace cece {
@@ -41,6 +43,7 @@ CeceConfig ParseConfig(const std::string& filename) {
                 layer.diurnal_cycle = string_or(node, "diurnal_cycle");
                 layer.weekly_cycle = string_or(node, "weekly_cycle");
                 layer.seasonal_cycle = string_or(node, "seasonal_cycle");
+                layer.use_local_time = node["use_local_time"].bool_or(layer.use_local_time);
                 conf::Value vdist = node["vdist"];
                 if (vdist && vdist.is_defined()) {
                     std::string method = string_or(vdist, "method");
@@ -89,6 +92,26 @@ CeceConfig ParseConfig(const std::string& filename) {
     };
     read_cycles(root["temporal_cycles"], config.temporal_cycles);
     read_cycles(root["temporal_profiles"], config.temporal_profiles);
+
+    conf::Value local_time = root["local_time"];
+    if (local_time && local_time.kind() == conf::Node_Kind::Map) {
+        config.local_time.enabled = local_time["enabled"].bool_or(config.local_time.enabled);
+        config.local_time.grid_file = string_or(local_time, "grid_file", config.local_time.grid_file);
+    }
+
+    // A layer that explicitly opts into local-time scaling while the feature is
+    // disabled would silently fall back to UTC scaling; reject it instead.
+    if (!config.local_time.enabled) {
+        for (const auto& [species_name, layers] : config.species_layers) {
+            for (const auto& layer : layers) {
+                if (layer.use_local_time) {
+                    throw std::invalid_argument("Species '" + species_name + "' layer '" + layer.field_name +
+                                                "' sets use_local_time but local_time.enabled is false. Enable the local_time section or remove "
+                                                "use_local_time from the layer.");
+                }
+            }
+        }
+    }
 
     conf::Value schemes = root["physics_schemes"];
     for (std::size_t i = 0; schemes && i < schemes.size(); ++i) {
@@ -142,27 +165,55 @@ CeceConfig ParseConfig(const std::string& filename) {
         conf::Value streams = data["streams"];
         for (std::size_t i = 0; i < streams.size(); ++i) {
             conf::Value node = streams[i];
+            if (string_or(node, "source") == "earthaccess") {
+                if (node["use_local_time"].bool_or(false)) {
+                    throw std::invalid_argument("cece_data.streams[" + std::to_string(i) +
+                                                "]: use_local_time is not supported for earthaccess streams.");
+                }
+                continue;
+            }
             CeceDataStreamConfig stream;
             stream.name = string_or(node, "name");
             conf::Value files = node["file"];
             if (files)
                 stream.file_paths = files.kind() == conf::Node_Kind::Sequence ? files.as_string_list() : std::vector<std::string>{files.as_string()};
             conf::Value variables = node["variables"];
-            for (std::size_t j = 0; j < variables.size(); ++j) {
+            if (!variables || variables.kind() == conf::Node_Kind::Null || (variables.kind() == conf::Node_Kind::Sequence && variables.size() == 0)) {
+                if (stream.name.empty()) {
+                    throw std::invalid_argument("cece_data.streams[" + std::to_string(i) + "] requires a name for automatic variable mapping");
+                }
+                stream.variables.push_back({stream.name, stream.name});
+            } else if (variables.kind() != conf::Node_Kind::Sequence) {
+                throw std::invalid_argument("cece_data.streams[" + std::to_string(i) + "].variables must be a list");
+            }
+            if (node["interpolation"]) {
+                throw std::invalid_argument("cece_data.streams[" + std::to_string(i) + "]: unknown key 'interpolation'; use 'tintalgo'");
+            }
+            for (std::size_t j = 0; variables && j < variables.size(); ++j) {
                 conf::Value value = variables[j];
                 CeceDataVariableConfig variable;
-                if (value.kind() == conf::Node_Kind::Scalar)
+                if (value.kind() == conf::Node_Kind::Scalar) {
                     variable.name_in_file = variable.name_in_model = value.as_string();
-                else {
-                    variable.name_in_file = string_or(value, "file");
+                } else if (value.kind() == conf::Node_Kind::Map) {
                     variable.name_in_model = string_or(value, "model");
+                    if (variable.name_in_model.empty()) {
+                        throw std::invalid_argument("cece_data.streams[" + std::to_string(i) + "].variables[" + std::to_string(j) +
+                                                    "] requires a non-empty 'model'");
+                    }
+                    variable.name_in_file = string_or(value, "file", variable.name_in_model);
+                } else {
+                    throw std::invalid_argument("cece_data.streams[" + std::to_string(i) + "].variables[" + std::to_string(j) +
+                                                "] must be a string or mapping");
+                }
+                if (variable.name_in_file.empty() || variable.name_in_model.empty()) {
+                    throw std::invalid_argument("cece_data.streams[" + std::to_string(i) + "].variables[" + std::to_string(j) +
+                                                "] requires non-empty file and model names");
                 }
                 stream.variables.push_back(std::move(variable));
             }
-            if (variables.size() == 0 && !stream.name.empty()) stream.variables.push_back({stream.name, stream.name});
             stream.taxmode = string_or(node, "taxmode", stream.taxmode);
-            stream.tintalgo = string_or(node, "tintalgo", string_or(node, "interpolation", stream.tintalgo));
-            stream.mapalgo = string_or(node, "mapalgo", stream.mapalgo);
+            stream.tintalgo = string_or(node, "tintalgo", stream.tintalgo);
+            stream.mapalgo = to_lower(string_or(node, "mapalgo", stream.mapalgo));
             stream.dtlimit = node["dtlimit"].int_or(stream.dtlimit);
             stream.yearFirst = node["yearFirst"].int_or(stream.yearFirst);
             stream.yearLast = node["yearLast"].int_or(stream.yearLast);
@@ -174,6 +225,21 @@ CeceConfig ParseConfig(const std::string& filename) {
             stream.lon_var = string_or(node, "lon_var", stream.lon_var);
             stream.lat_var = string_or(node, "lat_var", stream.lat_var);
             stream.refresh_interval_seconds = node["refresh_interval_seconds"].int_or(0);
+            stream.use_local_time = node["use_local_time"].bool_or(false);
+            if (stream.use_local_time) {
+                const std::string where = "cece_data.streams[" + std::to_string(i) + "] ('" + stream.name + "')";
+                if (!config.local_time.enabled) {
+                    throw std::invalid_argument(where +
+                                                " sets use_local_time but local_time.enabled is false. Enable the local_time section or "
+                                                "remove use_local_time from the stream.");
+                }
+                if (to_lower(string_or(node, "cadence")) != "weekly") {
+                    throw std::invalid_argument(where + ": use_local_time is only supported with cadence: weekly.");
+                }
+                if (to_lower(stream.tintalgo) != "nearest") {
+                    throw std::invalid_argument(where + ": use_local_time requires tintalgo: nearest.");
+                }
+            }
             config.cece_data.streams.push_back(std::move(stream));
         }
     }
@@ -184,6 +250,26 @@ CeceConfig ParseConfig(const std::string& filename) {
         config.output_config.directory = string_or(output, "directory", config.output_config.directory);
         config.output_config.filename_pattern = string_or(output, "filename_pattern", config.output_config.filename_pattern);
         config.output_config.frequency_steps = output["frequency_steps"].int_or(config.output_config.frequency_steps);
+        conf::Value global_attributes = output["global_attributes"];
+        if (global_attributes && global_attributes.kind() != conf::Node_Kind::Map) {
+            throw std::invalid_argument("output.global_attributes must be a mapping");
+        }
+        if (global_attributes) {
+            for (const auto& key : global_attributes.keys()) {
+                if (global_attributes[key].kind() != conf::Node_Kind::Scalar) {
+                    throw std::invalid_argument("output.global_attributes." + key + " must be a string, number, or boolean");
+                }
+                const std::string value = global_attributes[key].as_string();
+                const auto has_control = [](const std::string& text) {
+                    return std::any_of(text.begin(), text.end(), [](unsigned char character) { return character < 0x20 || character == 0x7f; });
+                };
+                if (key.find_first_not_of(" \t\r\n") == std::string::npos || has_control(key) || has_control(value)) {
+                    throw std::invalid_argument(
+                        "output.global_attributes keys must be non-empty and keys/values must not contain control characters");
+                }
+                config.output_config.global_attributes[key] = value;
+            }
+        }
         conf::Value fields = output["fields"];
         for (std::size_t i = 0; i < fields.size(); ++i) {
             conf::Value value = fields[i];
@@ -200,6 +286,28 @@ CeceConfig ParseConfig(const std::string& filename) {
                 throw std::invalid_argument("output.amio_worker_threads must be >= 1; got " + std::to_string(threads) + ".");
             }
             config.output_config.amio_worker_threads = threads;
+        }
+        if (output["amio_staging_buffer_count"]) {
+            int count = output["amio_staging_buffer_count"].as_int();
+            if (count < 1 || count > 4096) {
+                throw std::invalid_argument("output.amio_staging_buffer_count must be in [1, 4096]; got " + std::to_string(count) + ".");
+            }
+            config.output_config.amio_staging_buffer_count = count;
+        }
+        if (output["amio_staging_buffer_capacity_bytes"]) {
+            int capacity = output["amio_staging_buffer_capacity_bytes"].as_int();
+            if (capacity < 1 || capacity > 1073741824) {
+                throw std::invalid_argument("output.amio_staging_buffer_capacity_bytes must be in [1, 1073741824]; got " + std::to_string(capacity) +
+                                            ".");
+            }
+            config.output_config.amio_staging_buffer_capacity_bytes = capacity;
+        }
+        if (output["amio_staging_timeout_ms"]) {
+            int timeout = output["amio_staging_timeout_ms"].as_int();
+            if (timeout < 1 || timeout > 60000) {
+                throw std::invalid_argument("output.amio_staging_timeout_ms must be in [1, 60000]; got " + std::to_string(timeout) + ".");
+            }
+            config.output_config.amio_staging_timeout_ms = timeout;
         }
     }
 
@@ -247,6 +355,60 @@ CeceConfig ParseConfig(const std::string& filename) {
             config.driver_config.amio_prefetch_depth = depth;
         }
     }
+
+    // Optional NUOPC field-coupling section. Declares the fields CECE advertises
+    // to a host component. An absent section, or an empty `nuopc:` map, leaves
+    // both lists empty, so CECE advertises nothing and behaves exactly as before
+    // coupling support. Entries are validated against the sections they reference
+    // and sorted alphabetically by key so every rank advertises in identical order
+    // regardless of YAML document order.
+    conf::Value nuopc = root["nuopc"];
+    if (nuopc && nuopc.kind() == conf::Node_Kind::Map) {
+        // The set of input names a host may provide: keys of the meteorology,
+        // scale-factor, and mask mappings (surface met-style inputs). Emission
+        // inventory stream variables are not host-importable in this section.
+        std::set<std::string> input_keys;
+        for (const auto& [k, v] : config.met_mapping) input_keys.insert(k);
+        for (const auto& [k, v] : config.scale_factor_mapping) input_keys.insert(k);
+        for (const auto& [k, v] : config.mask_mapping) input_keys.insert(k);
+
+        auto read_field_map = [&](const conf::Value& node, const std::string& section, const std::set<std::string>& valid_keys,
+                                  const std::string& key_kind, std::vector<std::pair<std::string, NuopcFieldSpec>>& output) {
+            if (!node || node.kind() != conf::Node_Kind::Map) return;
+            for (const auto& key : node.keys()) {
+                if (!valid_keys.count(key)) {
+                    throw std::invalid_argument("nuopc." + section + ": '" + key + "' is not a configured " + key_kind + ".");
+                }
+                conf::Value entry = node[key];
+                if (entry.kind() != conf::Node_Kind::Map) {
+                    throw std::invalid_argument("nuopc." + section + "." + key + " must be a mapping of field attributes.");
+                }
+                for (const auto& sub : entry.keys()) {
+                    if (sub != "standard_name" && sub != "units" && sub != "name") {
+                        throw std::invalid_argument("nuopc." + section + "." + key + ": unknown attribute '" + sub + "'.");
+                    }
+                }
+                NuopcFieldSpec spec;
+                spec.standard_name = string_or(entry, "standard_name");
+                spec.units = string_or(entry, "units");
+                spec.name = string_or(entry, "name");
+                if (spec.standard_name.empty()) {
+                    throw std::invalid_argument("nuopc." + section + "." + key + ": 'standard_name' is required and must be non-empty.");
+                }
+                if (spec.standard_name.find('/') != std::string::npos || spec.name.find('/') != std::string::npos) {
+                    throw std::invalid_argument("nuopc." + section + "." + key + ": 'standard_name' and 'name' must not contain '/'.");
+                }
+                output.emplace_back(key, std::move(spec));
+            }
+            std::sort(output.begin(), output.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+        };
+
+        std::set<std::string> species_keys;
+        for (const auto& [species_name, layers] : config.species_layers) species_keys.insert(species_name);
+        read_field_map(nuopc["export_fields"], "export_fields", species_keys, "emission species", config.nuopc.export_fields);
+        read_field_map(nuopc["import_fields"], "import_fields", input_keys, "meteorology/scale-factor/mask input", config.nuopc.import_fields);
+    }
+
     config.output_config.fields.SetTimeUnits(config.driver_config.start_time);
     return config;
 }
