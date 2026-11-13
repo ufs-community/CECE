@@ -77,7 +77,6 @@
  */
 
 #include <gtest/gtest.h>
-#include <mpi.h>
 #include <rapidcheck.h>
 #include <rapidcheck/gtest.h>
 

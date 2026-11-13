@@ -5,6 +5,7 @@
 #include <mpi.h>
 
 #include <Kokkos_Core.hpp>
+#include <conf/conf.hpp>
 #include <cstddef>
 #include <dagr/dagr.hpp>
 #include <filesystem>
@@ -24,12 +25,6 @@
 #include "cece/cece_time_indexing.hpp"
 
 namespace fs = std::filesystem;
-
-// Forward declaration only: the header never touches yaml-cpp; the member
-// taking a const YAML::Node& is defined in the .cpp, which includes yaml.h.
-namespace YAML {
-class Node;
-}
 
 namespace cece {
 
@@ -249,8 +244,9 @@ class CeceDriverOrchestrator {
     // ResolveStreamConfigsFromFile stream loop, which had grown to ~40 lines
     // of per-field if/else logic; the loop now keeps only the iteration and
     // first-match-wins bookkeeping. Behavior is unchanged.
-    static StreamConfig BuildStreamConfig(const YAML::Node& stream, const std::string& model_name, const fs::path& file_name, int amio_worker_threads,
-                                          int amio_staging_buffer_count, int amio_staging_buffer_capacity_bytes, int amio_prefetch_depth);
+    static StreamConfig BuildStreamConfig(const conf::Value& stream, const std::string& model_name, const fs::path& file_name,
+                                          int amio_worker_threads, int amio_staging_buffer_count, int amio_staging_buffer_capacity_bytes,
+                                          int amio_prefetch_depth);
 
     // Build the in-memory AMIO manifest YAML for one stream, byte-for-byte
     // identical to the manifest the legacy inline AdvanceTime code wrote to
