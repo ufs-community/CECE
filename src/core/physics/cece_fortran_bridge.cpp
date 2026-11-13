@@ -14,7 +14,7 @@
 // Declare the external Fortran function (implemented in legacy_fortran.F90)
 extern "C" {
 void run_legacy_fortran(double* temp, double* wind, double* nox, int nx, int ny, int nz);
-}
+}  // extern "C"
 
 namespace cece {
 

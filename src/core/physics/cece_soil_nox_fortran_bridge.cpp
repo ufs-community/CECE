@@ -6,7 +6,7 @@
 
 extern "C" {
 void run_soil_nox_fortran(double* temp, double* gwet, double* soil_nox, int nx, int ny, int nz);
-}
+}  // extern "C"
 
 namespace cece {
 

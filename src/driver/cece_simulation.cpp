@@ -42,7 +42,7 @@ void cece_core_write_step(void* data_ptr, double time_seconds, int step_index, i
 void cece_core_set_export_field(void* data_ptr, const char* name, int name_len, const double* field_data, int nx, int ny, int nz, int* rc);
 void cece_core_local_time_init(void* data_ptr, int nx, int ny, int nz, const double* lon_coords, int lon_len, const double* lat_coords, int lat_len,
                                int mpi_comm_f, int* rc);
-}
+}  // extern "C"
 
 namespace cece {
 
