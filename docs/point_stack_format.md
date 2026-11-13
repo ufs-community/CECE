@@ -368,6 +368,7 @@ variables:
     // =========================================================================
     float STKHT(stack) ;
         STKHT:long_name = "Physical stack height above ground level" ;
+        STKHT:standard_name = "height" ;
         STKHT:units = "m" ;
         STKHT:coordinates = "latitude longitude" ;
         STKHT:_FillValue = -999.0f ;
