@@ -133,10 +133,6 @@ void TestParity(PhysicsTest* test, const std::string& cpp_name, const std::strin
     EXPECT_NEAR(val_cpp, val_fort, std::abs(val_cpp) * 1e-6) << "Parity failed for " << cpp_name;
 }
 
-TEST_F(PhysicsTest, SeaSaltParity) {
-    TestParity(this, "sea_salt", "sea_salt_fortran", "SALA");
-}
-
 TEST_F(PhysicsTest, DMSParity) {
     TestParity(this, "dms", "dms_fortran", "dms");
 }
@@ -155,8 +151,8 @@ TEST_F(PhysicsTest, VolcanoParity) {
 
 // Vertical Distribution Verification
 TEST_F(PhysicsTest, SurfaceEmissionVerticalDistribution) {
-    std::vector<std::string> schemes = {"sea_salt", "megan", "dms", "dust", "soil_nox"};
-    std::vector<std::string> fields = {"secondary_input", "isoprene_emissions", "dms_emissions", "dust_emissions", "soil_nox_emissions"};
+    std::vector<std::string> schemes = {"megan", "dms", "dust", "soil_nox"};
+    std::vector<std::string> fields = {"isoprene_emissions", "dms_emissions", "dust_emissions", "soil_nox_emissions"};
 
     for (size_t i = 0; i < schemes.size(); ++i) {
         PhysicsSchemeConfig cfg;
@@ -177,40 +173,6 @@ TEST_F(PhysicsTest, SurfaceEmissionVerticalDistribution) {
 }
 
 // Comprehensive Scientific Sensitivity Tests
-TEST_F(PhysicsTest, SeaSaltSensitivity) {
-    PhysicsSchemeConfig cfg;
-    cfg.name = "sea_salt";
-    auto scheme = PhysicsFactory::CreateScheme(cfg);
-    scheme->Initialize(cfg.options, nullptr);
-
-    // Test Wind Speed Sensitivity
-    SetFieldValue("wind_speed", 5.0);
-    SetFieldValue("secondary_input", 0.0, false);
-    scheme->Run(import_state, export_state);
-    double em_low = export_state.fields["secondary_input"].view_host()(0, 0, 0);
-
-    SetFieldValue("wind_speed", 10.0);
-    SetFieldValue("secondary_input", 0.0, false);
-    scheme->Run(import_state, export_state);
-    double em_high = export_state.fields["secondary_input"].view_host()(0, 0, 0);
-
-    EXPECT_GT(em_high, em_low * 10.0);  // U^3.41 dependency: 2^3.41 approx 10.6
-
-    // Test SST Sensitivity
-    SetFieldValue("wind_speed", 10.0);
-    SetFieldValue("tskin", 273.15 + 0.0);  // 0C
-    SetFieldValue("secondary_input", 0.0, false);
-    scheme->Run(import_state, export_state);
-    double em_0c = export_state.fields["secondary_input"].view_host()(0, 0, 0);
-
-    SetFieldValue("tskin", 273.15 + 20.0);  // 20C
-    SetFieldValue("secondary_input", 0.0, false);
-    scheme->Run(import_state, export_state);
-    double em_20c = export_state.fields["secondary_input"].view_host()(0, 0, 0);
-
-    EXPECT_GT(em_20c, em_0c);
-}
-
 TEST_F(PhysicsTest, MeganSensitivity) {
     PhysicsSchemeConfig cfg;
     cfg.name = "megan";

@@ -807,4 +807,61 @@ TEST_F(CB6ConfigLoadingTest, LoadCB6SpeciationConfig) {
     EXPECT_TRUE(found_isop_mapping) << "ISOP->ISOP mapping should exist";
 }
 
+// GEOS-12 aerosol round-trip: ToYaml must preserve aerosol size properties and
+// aerosol-identity mappings so a serialized SEASALT config re-parses equivalently.
+// Without the fix, reload throws ("Invalid emission class 'UNKNOWN'") and aerosol
+// bins degrade to gas species.
+TEST_F(CB6ConfigLoadingTest, ToYamlRoundTripsSeaSaltAerosol) {
+    const std::string src_dir = CECE_SOURCE_DIR;
+    SpeciationConfigLoader loader;
+    const SpeciationConfig original =
+        loader.Load(src_dir + "/data/speciation/spc_gocart.yaml", src_dir + "/data/speciation/map_gocart.yaml", "SEASALT");
+
+    // Confirm the fixture actually exercises the aerosol path.
+    bool any_aerosol = false;
+    for (const auto& sp : original.species) any_aerosol |= sp.is_aerosol;
+    ASSERT_TRUE(any_aerosol) << "SEASALT dataset must contain aerosol species";
+    ASSERT_FALSE(original.mappings.empty());
+
+    // ToYaml emits one combined document (mechanism + mapping sections), so the
+    // same temp file feeds both ParseMechanism and ParseMapping via Load.
+    const std::string yaml = SpeciationConfigLoader::ToYaml(original);
+    const std::string tmp = "/tmp/cece_spec_aerosol_roundtrip.yaml";
+    {
+        std::ofstream ofs(tmp);
+        ofs << yaml;
+    }
+    SpeciationConfig reloaded;
+    ASSERT_NO_THROW(reloaded = loader.Load(tmp, tmp, "SEASALT")) << "serialized aerosol config must re-parse";
+    std::remove(tmp.c_str());
+
+    // Species: aerosol flags and size properties survive serialization.
+    ASSERT_EQ(reloaded.species.size(), original.species.size());
+    std::unordered_map<std::string, const MechanismSpecies*> by_name;
+    for (const auto& sp : reloaded.species) by_name[sp.name] = &sp;
+    for (const auto& o : original.species) {
+        auto it = by_name.find(o.name);
+        ASSERT_NE(it, by_name.end()) << "species missing after round-trip: " << o.name;
+        const MechanismSpecies& r = *it->second;
+        EXPECT_EQ(r.is_aerosol, o.is_aerosol) << o.name;
+        if (o.is_aerosol) {
+            EXPECT_DOUBLE_EQ(r.density, o.density) << o.name;
+            EXPECT_DOUBLE_EQ(r.lower_radius, o.lower_radius) << o.name;
+            EXPECT_DOUBLE_EQ(r.upper_radius, o.upper_radius) << o.name;
+            EXPECT_DOUBLE_EQ(r.effective_radius, o.effective_radius) << o.name;
+        }
+    }
+
+    // Mappings: aerosol-identity mappings (COUNT sentinel) survive with scale.
+    ASSERT_EQ(reloaded.mappings.size(), original.mappings.size());
+    auto key = [](const SpeciationMapping& m) { return m.mechanism_species + "|" + std::to_string(static_cast<int>(m.emission_class)); };
+    std::unordered_map<std::string, double> original_scale;
+    for (const auto& m : original.mappings) original_scale[key(m)] = m.scale_factor;
+    for (const auto& m : reloaded.mappings) {
+        auto it = original_scale.find(key(m));
+        ASSERT_NE(it, original_scale.end()) << "mapping missing after round-trip: " << m.mechanism_species;
+        EXPECT_DOUBLE_EQ(m.scale_factor, it->second) << m.mechanism_species;
+    }
+}
+
 }  // namespace cece
