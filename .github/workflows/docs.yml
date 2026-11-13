@@ -54,7 +54,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     steps:
       - name: Download built docs artifact
-        uses: actions/download-artifact@@v8
+        uses: actions/download-artifact@v8
         with:
           name: cece-docs-pr-${{ github.event.pull_request.number }}-${{ github.run_number }}
           path: ./site/**
