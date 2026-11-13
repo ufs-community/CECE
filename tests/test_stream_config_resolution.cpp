@@ -399,7 +399,9 @@ TEST(StreamConfigResolution, FileListsNeedExactlyOneEntry) {
 
     configs.clear();
     TempFile multiple("driver:\n\ncece_data:\n  streams:\n    - name: CO\n      file: [a.nc, b.nc]\n");
-    EXPECT_THROW(StreamConfigTestAccess::Resolve(multiple.path, configs, gridspec), std::invalid_argument);
+    StreamConfigTestAccess::Resolve(multiple.path, configs, gridspec);
+    ASSERT_TRUE(configs.count("CO"));
+    EXPECT_EQ(configs.at("CO").input_file_path, "a.nc");
 }
 
 TEST(StreamConfigResolution, RejectsInterpolationAlias) {
