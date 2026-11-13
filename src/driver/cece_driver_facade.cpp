@@ -298,13 +298,17 @@ void CeceDriverOrchestrator::ResolveStreamConfigsFromFile(const std::string& con
         }
     }
 
-    if (!config["cece_data"] || !config["cece_data"]["streams"]) {
+    conf::Value cece_data = config["cece_data"];
+    if (cece_data.kind() != conf::Node_Kind::Map) {
+        return;
+    }
+    conf::Value streams_list = config["cece_data"]["streams"];
+    if (streams_list.kind() != conf::Node_Kind::Sequence) {
         return;
     }
 
     // Filter EarthAccess streams before resolving local AMIO mappings.
     std::vector<conf::Value> local_streams;
-    conf::Value streams_list = config["cece_data"]["streams"];
     for (std::size_t i = 0; i < streams_list.size(); ++i) {
         const auto& stream = streams_list[i];
         if (!stream["source"] || stream["source"].as_string() != "earthaccess") {

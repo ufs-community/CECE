@@ -412,8 +412,6 @@ TEST(StreamConfigResolution, RejectsInterpolationAlias) {
 
 TEST(StreamConfigResolution, MapalgoIsNormalizedToLowercase) {
     TempFile fixture(
-        "driver:\n"
-        "\n"
         "cece_data:\n"
         "  streams:\n"
         "    - name: CO\n"
