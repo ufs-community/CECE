@@ -81,3 +81,17 @@ repos:
         types_or: ["c", "c++"]
         exclude: "tests/test_.*\\.cpp"
         entry: "YAML::|#include <yaml-cpp"
+
+      - id: no-raw-cpp-stdout
+        name: Disallow raw std::cout / std::cerr / printf
+        language: pygrep
+        types_or: [c, c++]
+        exclude: ^(tests/|include/cece/cece_logger\.hpp|src/core/cece_run_info\.cpp)
+        entry: '\bstd::(cout|cerr|clog)\b|\b(v?printf|puts|putchar)\s*\(|\bfprintf\s*\(\s*(stdout|stderr)\b'
+
+      - id: no-weird-cpp-stdout
+        name: Avoid the other C I/O functions in CECE Core
+        language: pygrep
+        types_or: [c, c++]
+        files: "src/core"
+        entry: '\bf?put[sc]\s*\('

@@ -17,6 +17,7 @@
 #include <string>
 
 #include "cece/cece_internal.hpp"
+#include "cece/cece_logger.hpp"
 
 extern "C" {
 
@@ -35,7 +36,7 @@ void cece_core_get_species_count(void* data_ptr, int* count, int* rc) {
     }
 
     if (data_ptr == nullptr) {
-        std::cerr << "ERROR: cece_core_get_species_count - data_ptr is null" << std::endl;
+        CECE_LOG_ERROR("ERROR: cece_core_get_species_count - data_ptr is null\n");
         if (rc != nullptr) {
             *rc = -1;
         }
@@ -43,7 +44,7 @@ void cece_core_get_species_count(void* data_ptr, int* count, int* rc) {
     }
 
     if (count == nullptr) {
-        std::cerr << "ERROR: cece_core_get_species_count - count pointer is null" << std::endl;
+        CECE_LOG_ERROR("ERROR: cece_core_get_species_count - count pointer is null\n");
         if (rc != nullptr) {
             *rc = -1;
         }

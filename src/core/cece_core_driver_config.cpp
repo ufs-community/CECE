@@ -13,13 +13,19 @@
  */
 
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <map>
 #include <sstream>
+#include <string>
 
 #include "cece/cece_config.hpp"
 #include "cece/cece_config_path.hpp"
+#include "cece/cece_logger.hpp"
+
+namespace fs = std::filesystem;
+using namespace std::literals::string_literals;
 
 extern "C" {
 
@@ -36,7 +42,7 @@ extern "C" {
 static int parse_esmf_config_file(const std::string& config_file, std::map<std::string, std::string>& config) {
     std::ifstream file(config_file);
     if (!file.is_open()) {
-        std::cerr << "ERROR: Failed to open config file: " << config_file << "\n";
+      CECE_LOG_ERROR("ERROR: Failed to open config file: "s + config_file.string() + "\n"s;
         return -1;
     }
 
