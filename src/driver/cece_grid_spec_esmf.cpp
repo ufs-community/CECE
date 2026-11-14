@@ -24,10 +24,12 @@
 #include "cece/cece_grid_detail.hpp"
 #include "cece/cece_simulation.hpp"
 
+namespace fs = std::filesystem;
+
 namespace cece {
 
 GridSpec GridSpec::from_esmf(int nx, int ny, int nz, bool is_rad, const std::vector<double>& lon, const std::vector<double>& lat,
-                             const std::string& gridspec_file) {
+                             const fs::path& gridspec_file) {
     GridSpec spec;
     spec.nx = nx;
     spec.ny = ny;
@@ -103,7 +105,7 @@ std::string GridSpec::describe() const {
     }
     std::string s = std::string(topo) + " " + std::to_string(nx) + "x" + std::to_string(ny) + "x" + std::to_string(nz);
     if (!gridspec_file.empty()) {
-        s += " (gridspec '" + gridspec_file + "')";
+        s += " (gridspec '" + gridspec_file.string() + "')";
     }
     return s;
 }

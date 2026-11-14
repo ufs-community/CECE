@@ -9,10 +9,12 @@
 #include <stdexcept>
 #include <tick/duration.hpp>
 
-void CompileHelmGraph(const std::string& config_file, std::unique_ptr<dagr::GraphOrchestrator>& dagr, cece::io::CeceIO& cece_io, MPI_Comm comm_c) {
+namespace fs = std::filesystem;
+
+void CompileHelmGraph(const fs::path& config_file, std::unique_ptr<dagr::GraphOrchestrator>& dagr, cece::io::CeceIO& cece_io, MPI_Comm comm_c) {
     std::ifstream f(config_file);
     if (!f.good()) {
-        throw std::runtime_error("File not found: " + config_file);
+        throw std::runtime_error("File not found: " + config_file.string());
     }
     // Build the Pipeline_Config dynamically from standard YAML
     dagr::Pipeline_Config pc;

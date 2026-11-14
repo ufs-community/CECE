@@ -20,9 +20,9 @@ TEST(CCPPLinkTest, CompileIsolation) {
 
     // CMake supplies the fixture path; out-of-source builds and arbitrary
     // working directories must exercise the same core-link isolation test.
-    const std::string config_file = CECE_TEST_CONFIG;
+    const std::filesystem::path config_file = CECE_TEST_CONFIG;
     ASSERT_TRUE(std::filesystem::is_regular_file(config_file));
-    cece_set_config_file_path(config_file.c_str(), static_cast<int>(config_file.length()));
+    cece_set_config_file_path(config_file.c_str(), static_cast<int>(config_file.native().length()));
 
     // Phase 1 Initialization
     cece_core_initialize_p1(&data_ptr, &rc);

@@ -20,6 +20,8 @@ extern "C" {
 void cece_core_write_step(void* data_ptr, double time_seconds, int step_index, int* rc);
 }
 
+namespace fs = std::filesystem;
+
 extern std::unique_ptr<cece::CeceStandaloneWriter> g_standalone_writer;
 
 namespace cece::test {
@@ -138,7 +140,7 @@ TEST_F(CeceUtilsTest, IdentityRegridPlanRejectsDimensionsDifferentFromVerifiedGr
 TEST_F(CeceUtilsTest, StandaloneWriterPreservesHemco4x5CoordinateCenters) {
     constexpr int nx = 72;
     constexpr int ny = 46;
-    const std::string test_dir = "test_output_dir_hemco_coords_" + std::to_string(getpid());
+    const fs::path test_dir = "test_output_dir_hemco_coords_" + std::to_string(getpid());
 
     std::vector<double> lons(nx);
     for (int i = 0; i < nx; ++i) {
@@ -172,7 +174,7 @@ TEST_F(CeceUtilsTest, StandaloneWriterPreservesHemco4x5CoordinateCenters) {
     ASSERT_EQ(writer.WriteTimeStep(fields, 3600.0, 1), 0);
     writer.Finalize();
 
-    const std::string output_path = test_dir + "/hemco_grid.nc";
+    const fs::path output_path = test_dir / "hemco_grid.nc";
     int ncid = -1;
     ASSERT_EQ(nc_open(output_path.c_str(), NC_NOWRITE, &ncid), NC_NOERR);
 
@@ -194,7 +196,7 @@ TEST_F(CeceUtilsTest, StandaloneWriterPreservesHemco4x5CoordinateCenters) {
 }
 
 TEST_F(CeceUtilsTest, StandaloneWriterDuplicateCoordsDetection) {
-    std::string test_dir = "test_output_dir_" + std::to_string(getpid());
+    fs::path test_dir = "test_output_dir_" + std::to_string(getpid());
     CeceOutputConfig config;
     config.enabled = true;
     config.directory = test_dir;
@@ -229,7 +231,7 @@ TEST_F(CeceUtilsTest, StandaloneWriterDuplicateCoordsDetection) {
 }
 
 TEST_F(CeceUtilsTest, StandaloneWriterCustomCommunicator) {
-    std::string test_dir = "test_output_dir_comm_" + std::to_string(getpid());
+    fs::path test_dir = "test_output_dir_comm_" + std::to_string(getpid());
     CeceOutputConfig config;
     config.enabled = true;
     config.directory = test_dir;
@@ -254,7 +256,7 @@ TEST_F(CeceUtilsTest, StandaloneWriterCustomCommunicator) {
 }
 
 TEST_F(CeceUtilsTest, StandaloneWriterDuplicateFieldsFiltering) {
-    std::string test_dir = "test_output_dir_fields_" + std::to_string(getpid());
+    fs::path test_dir = "test_output_dir_fields_" + std::to_string(getpid());
     CeceOutputConfig config;
     config.enabled = true;
     config.directory = test_dir;
@@ -292,7 +294,7 @@ TEST_F(CeceUtilsTest, StandaloneWriterDuplicateFieldsFiltering) {
     writer.Finalize();
 
     // Verify file exists
-    std::string expected_file = test_dir + "/cece_output_20260629_120000.nc";
+    fs::path expected_file = test_dir / "cece_output_20260629_120000.nc";
     EXPECT_TRUE(std::filesystem::exists(expected_file));
 
     if (std::filesystem::exists(test_dir)) {
@@ -301,7 +303,7 @@ TEST_F(CeceUtilsTest, StandaloneWriterDuplicateFieldsFiltering) {
 }
 
 TEST_F(CeceUtilsTest, CoreWriteStepSkipsInitialStep) {
-    std::string test_dir = "test_output_dir_core_write_" + std::to_string(getpid());
+    fs::path test_dir = "test_output_dir_core_write_" + std::to_string(getpid());
 
     // Create internal data and configure output
     cece::CeceInternalData d;
@@ -378,19 +380,19 @@ TEST_F(CeceUtilsTest, CoreWriteStepSkipsInitialStep) {
     }
 }
 
-static std::string find_grid_file(const std::string& filename) {
+static fs::path find_grid_file(const fs::path& filename) {
     // The repo's data/ dir is known at compile time (CECE_SOURCE_DIR) so the
     // lookup works from any build directory; the cwd-relative guesses remain
     // for builds without the define.
-    std::vector<std::string> candidate_paths = {
+    std::vector<fs::path> candidate_paths = {
 #ifdef CECE_SOURCE_DIR
-        std::string(CECE_SOURCE_DIR) + "/data/" + filename,
+        fs::path(CECE_SOURCE_DIR) / fs::path("data") / filename,
 #endif
-        "data/" + filename,
-        "../data/" + filename,
-        "tests/data/" + filename,
-        "../tests/data/" + filename,
-        "/work/data/" + filename,
+        fs::path("data") / filename,
+        fs::path("../data") / filename,
+        fs::path("tests/data") / filename,
+        fs::path("../tests/data") / filename,
+        fs::path("/work/data") / filename,
     };
     for (const auto& path : candidate_paths) {
         if (std::filesystem::exists(path)) {
@@ -401,7 +403,7 @@ static std::string find_grid_file(const std::string& filename) {
 }
 
 TEST_F(CeceUtilsTest, BuildAxisMeshFV3GridSpec) {
-    std::string spec_file = find_grid_file("C96_grid_spec.tile1.nc");
+    fs::path spec_file = find_grid_file("C96_grid_spec.tile1.nc");
     ASSERT_TRUE(std::filesystem::exists(spec_file)) << "Missing test file: " << spec_file;
 
     std::vector<double> dummy_lons(96, 0.0);
@@ -417,7 +419,7 @@ TEST_F(CeceUtilsTest, BuildAxisMeshFV3GridSpec) {
 }
 
 TEST_F(CeceUtilsTest, BuildAxisMeshFV3NativeGrid) {
-    std::string grid_file = find_grid_file("C96_grid.tile1.nc");
+    fs::path grid_file = find_grid_file("C96_grid.tile1.nc");
     ASSERT_TRUE(std::filesystem::exists(grid_file)) << "Missing test file: " << grid_file;
 
     std::vector<double> dummy_lons(96, 0.0);
@@ -433,7 +435,7 @@ TEST_F(CeceUtilsTest, BuildAxisMeshFV3NativeGrid) {
 }
 
 TEST_F(CeceUtilsTest, BuildAxisMeshMPIRankSlicing) {
-    std::string spec_file = find_grid_file("C96_grid_spec.tile1.nc");
+    fs::path spec_file = find_grid_file("C96_grid_spec.tile1.nc");
     ASSERT_TRUE(std::filesystem::exists(spec_file)) << "Missing test file: " << spec_file;
 
     std::vector<double> dummy_lons(96, 0.0);
@@ -463,7 +465,7 @@ TEST_F(CeceUtilsTest, BuildAxisMeshFastFailOnInvalidGridspec) {
     EXPECT_THROW(cece::io::build_axis_mesh(96, 96, 0, dummy_lons, dummy_lats, "non_existent_grid.nc"), std::runtime_error);
 
     // Dimension mismatch must throw std::runtime_error
-    std::string spec_file = find_grid_file("C96_grid_spec.tile1.nc");
+    fs::path spec_file = find_grid_file("C96_grid_spec.tile1.nc");
     if (std::filesystem::exists(spec_file)) {
         EXPECT_THROW(cece::io::build_axis_mesh(200, 200, 0, dummy_lons, dummy_lats, spec_file), std::runtime_error);
     }

@@ -20,6 +20,8 @@
 #include "cece/cece_config_path.hpp"
 #include "cece/cece_internal.hpp"
 
+namespace fs = std::filesystem;
+
 extern "C" {
 
 /**
@@ -66,7 +68,7 @@ void cece_core_realize_impl(void* data_ptr, int* rc) {
     // Parse YAML configuration to validate field requirements
     cece::CeceConfig config;
     try {
-        const std::string& config_path = cece::GetConfigFilePath();
+        const fs::path config_path = cece::GetConfigFilePath();
         config = cece::ParseConfig(config_path);
     } catch (const std::exception& e) {
         std::cerr << "ERROR in cece_core_realize: Failed to parse config: " << e.what() << std::endl;

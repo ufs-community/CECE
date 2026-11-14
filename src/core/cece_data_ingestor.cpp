@@ -257,7 +257,7 @@ std::string CeceDataIngestor::SerializeStreamESMFConfig(const CeceDataConfig& co
         oss << "stream_data_files" << idx << ": ";
         for (size_t i = 0; i < stream.file_paths.size(); ++i) {
             if (i > 0) oss << ", ";
-            oss << stream.file_paths[i];
+            oss << std::string(stream.file_paths[i]);
         }
         oss << "\n";
 
@@ -307,7 +307,7 @@ std::string CeceDataIngestor::SerializeStreamYaml(const CeceDataConfig& config) 
         // Input files (YAML array format)
         oss << "    input_files:\n";
         for (const auto& file_path : stream.file_paths) {
-            oss << "      - \"" << file_path << "\"\n";
+            oss << "      - \"" << std::string(file_path) << "\"\n";
         }
 
         // Field mappings (use inline YAML object format like TIDE test examples)

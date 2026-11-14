@@ -35,7 +35,9 @@ species:
 
     def test_validate_malformed_yaml_raises_value_error(self):
         malformed_yaml = "{{{{not valid yaml: [["
-        with pytest.raises(ValueError, match="YAML parse error"):
+        with pytest.raises(
+            ValueError, match="Configuration parse error: yaml-cpp: error at"
+        ):
             _cece_core.ConfigValidator.ValidateConfig(malformed_yaml)
 
     def test_validation_result_methods(self):

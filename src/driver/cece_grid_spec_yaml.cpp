@@ -31,6 +31,8 @@
 #include "cece/cece_logger.hpp"
 #include "cece/cece_simulation.hpp"
 
+namespace fs = std::filesystem;
+
 namespace {
 
 // Build the in-memory AMIO coordinate-manifest YAML for reading lon/lat out
@@ -40,10 +42,10 @@ namespace {
 // file (e.g. Lustre) races when multiple MPI ranks per node truncate/rewrite
 // the same path concurrently, which produces torn reads (empty/partial YAML)
 // and spurious open failures — hence in-memory.
-std::string BuildCoordinateManifest(const std::string& path) {
+std::string BuildCoordinateManifest(const fs::path& path) {
     std::ostringstream manifest;
     manifest << "backend: netcdf4\n"
-             << "path: " << path << "\n"
+             << "path: " << path.string() << "\n"
              << "data_model: enhanced\n"
              << "staging_pool:\n"
              << "  buffer_count: 16\n"
@@ -174,7 +176,7 @@ std::string probe_coord_name(amio_dataset_handle dataset, const std::vector<std:
 /// the first data stream's file. `explicit_gridspec` reports which one it
 /// was: an explicit file that fails to load is fatal, while a stream-inferred
 /// miss simply falls through to generated coordinates.
-std::string gridspec_input_file(conf::Config& config, bool& explicit_gridspec) {
+fs::path gridspec_input_file(conf::Config& config, bool& explicit_gridspec) {
     explicit_gridspec = false;
     auto gridspec_opt = config.try_string("driver.gridspec_file");
     if (gridspec_opt.has_value() && !gridspec_opt->empty() && *gridspec_opt != "none" && *gridspec_opt != "NONE") {
@@ -261,7 +263,7 @@ FileGridLoad load_gridspec_coords(amio_dataset_handle dataset, int nx, int ny) {
 
 }  // namespace
 
-GridSpec GridSpec::from_yaml(const std::string& config_file, conf::Config& config) {
+GridSpec GridSpec::from_yaml(const fs::path& config_file, conf::Config& config) {
     GridSpec spec;
 
     // --- A. Grid dimensions ------------------------------------------------
@@ -340,7 +342,7 @@ GridSpec GridSpec::from_yaml(const std::string& config_file, conf::Config& confi
         spec.topology = GridTopology::Rectilinear;
     } else {
         bool is_explicit_gridspec = false;
-        const std::string input_file_path = gridspec_input_file(config, is_explicit_gridspec);
+        const fs::path input_file_path = gridspec_input_file(config, is_explicit_gridspec);
         bool loaded_from_file = false;
 
         if (!input_file_path.empty()) {
@@ -355,7 +357,7 @@ GridSpec GridSpec::from_yaml(const std::string& config_file, conf::Config& confi
             } else {
                 amio_rc = amio_open_dataset_from_string(coord_core, coord_manifest_content.c_str(), "yaml", AMIO_MODE_READ, &coord_dataset);
                 if (amio_rc != AMIO_OK) {
-                    CECE_LOG_ERROR("amio_open_dataset_from_string failed for dataset '" + input_file_path + "': " + amio_strerror(amio_rc));
+                    CECE_LOG_ERROR("amio_open_dataset_from_string failed for dataset '" + input_file_path.string() + "': " + amio_strerror(amio_rc));
                 } else {
                     const FileGridLoad file_grid = load_gridspec_coords(coord_dataset, nx, ny);
                     amio_close(coord_dataset);
@@ -375,8 +377,8 @@ GridSpec GridSpec::from_yaml(const std::string& config_file, conf::Config& confi
         }
 
         if (is_explicit_gridspec && !loaded_from_file) {
-            throw std::invalid_argument("[GRID] Failed to load gridspec coordinates from explicitly specified gridspec file '" + input_file_path +
-                                        "'");
+            throw std::invalid_argument("[GRID] Failed to load gridspec coordinates from explicitly specified gridspec file '" +
+                                        input_file_path.string() + "'");
         }
 
         if (!loaded_from_file) {

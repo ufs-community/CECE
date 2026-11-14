@@ -7,6 +7,7 @@
 #define CECE_CONFIG_VALIDATOR_HPP
 
 #include <conf/value.hpp>
+#include <filesystem>
 #include <string>
 #include <vector>
 
@@ -103,12 +104,12 @@ class ConfigValidator {
     /**
      * @brief Check if file exists
      */
-    static bool FileExists(const std::string& path);
+    static bool FileExists(const std::filesystem::path& path);
 
     /**
      * @brief Check if directory is writable
      */
-    static bool DirectoryIsWritable(const std::string& path);
+    static bool DirectoryIsWritable(const std::filesystem::path& path);
 };
 
 }  // namespace cece

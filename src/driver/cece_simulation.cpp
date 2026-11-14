@@ -31,6 +31,8 @@
 #include "cece/cece_internal.hpp"
 #include "cece/cece_logger.hpp"
 
+namespace fs = std::filesystem;
+
 // CECE Core C-linkage lifecycle functions (framework-free C ABI, declared
 // the same way the standalone driver has always declared them).
 extern "C" {
@@ -81,7 +83,7 @@ void DecomposeIso8601(const std::string& iso, int& hour, int& day_of_week) {
 
 }  // namespace
 
-std::unique_ptr<CeceSimulation> CeceSimulation::create(const std::string& config_path, const GridSpec& grid, MPI_Comm comm, int* rc_out) {
+std::unique_ptr<CeceSimulation> CeceSimulation::create(const fs::path& config_path, const GridSpec& grid, MPI_Comm comm, int* rc_out) {
     if (rc_out) {
         *rc_out = 0;
     }
@@ -99,7 +101,7 @@ std::unique_ptr<CeceSimulation> CeceSimulation::create(const std::string& config
     }
 }
 
-std::unique_ptr<CeceSimulation> CeceSimulation::create_internal(const std::string& config_path, const GridSpec& grid, MPI_Comm comm, int* rc_out) {
+std::unique_ptr<CeceSimulation> CeceSimulation::create_internal(const fs::path& config_path, const GridSpec& grid, MPI_Comm comm, int* rc_out) {
     auto fail = [&](int code, const std::string& msg) {
         CECE_LOG_ERROR("[SIM] " + msg);
         if (rc_out) {
@@ -135,8 +137,8 @@ std::unique_ptr<CeceSimulation> CeceSimulation::create_internal(const std::strin
     // converts the exception itself into the failure return.
     // 1. Configuration path + run logging (shared with both drivers so the
     //    banner/log behavior is identical regardless of launch path).
-    cece_set_config_file_path(config_path.c_str(), static_cast<int>(config_path.length()));
-    cece_run_log_setup(config_path.c_str(), static_cast<int>(config_path.length()));
+    cece_set_config_file_path(config_path.c_str(), static_cast<int>(config_path.string().length()));
+    cece_run_log_setup(config_path.c_str(), static_cast<int>(config_path.string().length()));
 
     auto sim = std::unique_ptr<CeceSimulation>(new CeceSimulation());
     sim->config_path_ = config_path;
@@ -187,7 +189,7 @@ std::unique_ptr<CeceSimulation> CeceSimulation::create_internal(const std::strin
 
     // 6. Create the driver orchestrator facade (offline AMIO reading + AXIS
     //    regridding pipeline) on the resolved grid coordinates.
-    cece_driver_create(config_path.c_str(), static_cast<int>(config_path.length()), nx, ny, nz, grid.lon_coords.data(),
+    cece_driver_create(config_path.c_str(), static_cast<int>(config_path.string().length()), nx, ny, nz, grid.lon_coords.data(),
                        static_cast<int>(grid.lon_coords.size()), grid.lat_coords.data(), static_cast<int>(grid.lat_coords.size()), mpi_comm_f,
                        &sim->driver_ptr_, &rc);
     if (rc < 0) {
@@ -483,7 +485,7 @@ CeceSimulation::~CeceSimulation() {
     }
 }
 
-int CeceSimulation::nz_from_config(const std::string& config_path) {
+int CeceSimulation::nz_from_config(const fs::path& config_path) {
     conf::Config config = conf::Config::from_file(config_path);
     int nz = 1;
     if (config.has("driver.grid")) {
@@ -495,7 +497,7 @@ int CeceSimulation::nz_from_config(const std::string& config_path) {
     return nz;
 }
 
-void CeceSimulation::validate_nz_against_streams(const std::string& config_path, int nz) {
+void CeceSimulation::validate_nz_against_streams(const fs::path& config_path, int nz) {
     conf::Config config = conf::Config::from_file(config_path);
     if (!config.has("cece_data.streams")) {
         return;

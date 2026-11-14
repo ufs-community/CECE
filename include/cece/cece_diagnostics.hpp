@@ -1,6 +1,7 @@
 #ifndef CECE_DIAGNOSTICS_HPP
 #define CECE_DIAGNOSTICS_HPP
 
+#include <filesystem>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -39,7 +40,7 @@ class CeceDiagnosticManager {
      * @param output_path Optional output directory path.
      */
     void WriteDiagnostics(const DiagnosticConfig& config, int hour, int day_of_week, const CeceExportState& export_state,
-                          const std::string& output_path = "");
+                          const std::filesystem::path& output_path = "");
 
    private:
     struct DiagnosticField {

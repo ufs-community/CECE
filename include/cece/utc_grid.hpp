@@ -7,7 +7,7 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <string>
+#include <filesystem>
 #include <vector>
 
 namespace cece {
@@ -68,7 +68,7 @@ struct UtcGrid {
  * @return Decoded grid; every cell value is in [-128, 127] quarter-hours.
  * @throws std::runtime_error on open/read failure, bad magic, or length mismatch.
  */
-UtcGrid DecodeUtcGridRle(const std::string& path);
+UtcGrid DecodeUtcGridRle(const std::filesystem::path& path);
 
 /**
  * @brief Resolve the row index for a latitude (cell-center floor mapping).

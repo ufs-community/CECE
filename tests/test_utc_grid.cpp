@@ -11,11 +11,14 @@
 
 #include <cstdint>
 #include <cstdio>
+#include <filesystem>
 #include <fstream>
 #include <string>
 #include <vector>
 
 #include "cece/utc_grid.hpp"
+
+namespace fs = std::filesystem;
 
 #ifndef CECE_SOURCE_DIR
 #define CECE_SOURCE_DIR "."
@@ -24,8 +27,8 @@
 namespace cece {
 namespace {
 
-std::string GridPath() {
-    return std::string(CECE_SOURCE_DIR) + "/data/utc_grid_720r.rle";
+fs::path GridPath() {
+    return fs::path(CECE_SOURCE_DIR) / "data/utc_grid_720r.rle";
 }
 
 /// Reference offsets (quarter-hours) at named probe points, verified against
