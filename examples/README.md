@@ -52,6 +52,29 @@ This directory contains example YAML configuration files demonstrating various C
 - Different data source temporal configurations
 - Regional grid matching ex5
 
+### MEGAN3 GOCART Speciation
+
+[cece_config_megan3_gocart.yaml](cece_config_megan3_gocart.yaml) selects the
+GOCART mechanism and mapping files and writes `MEGAN_ISOP`, `MEGAN_LIMO`,
+`MEGAN_MTPA`, and `MEGAN_MTPO` in kg m-2 s-1.
+
+Replace its `/path/to` inputs with files on the specified grid. LIMO, MTPA,
+and MTPO follow the offline HEMCO MEGANv2.1 GOCART lumping from explicit
+MEGANv2.1 compound classes: LIMO = limonene; MTPA = α-pinene + β-pinene +
+sabinene + 3-carene; MTPO = myrcene + t-β-ocimene + other monoterpenes. Each
+class uses Guenther et al. (2012) Table 4 parameters. Emission factors come
+from the `MEGAN_AEF` stream, which supplies a gridded `AEF_<CLASS>` field in
+kmol compound m-2 s-1 for each active class (`AEF_ISOP`, `AEF_APIN`,
+`AEF_BPIN`, `AEF_SABI`, `AEF_CARE`, `AEF_LIMO`, `AEF_MYRC`, `AEF_OCIM`,
+`AEF_OMON`), so no scalar `default_aef` is configured. See
+[the mapping](../docs/megan.md#gocart-biogenic-precursors-ufs-gcafs-v1).
+
+With the standalone driver built, run from the repository root:
+
+```bash
+./build/bin/cece_nuopc_app examples/cece_config_megan3_gocart.yaml
+```
+
 ## Configuration Sections
 
 All examples include these configurable sections:

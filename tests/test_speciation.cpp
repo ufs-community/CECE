@@ -43,9 +43,9 @@ namespace cece {
 /// Note: "NO" is excluded because yaml-cpp YAML 1.1 interprets unquoted "NO"
 /// as boolean false, causing parsing issues even when quoted in some versions.
 /// The "NO" class is tested separately in the real data file tests.
-static const std::vector<std::string> kValidEmissionClasses = {"ISOP",    "MBO",    "MT_PINE", "MT_ACYC", "MT_CAMP", "MT_SABI",
-                                                               "MT_AROM", "SQT_HR", "SQT_LR",  "MEOH",    "ACTO",    "ETOH",
-                                                               "ACID",    "LVOC",   "OXPROD",  "STRESS",  "OTHER",   "CO"};
+static const std::vector<std::string> kValidEmissionClasses = {
+    "ISOP",   "MBO",    "MT_PINE", "MT_ACYC", "MT_CAMP", "MT_SABI", "MT_AROM", "SQT_HR", "SQT_LR", "MEOH", "ACTO", "ETOH", "ACID", "LVOC",
+    "OXPROD", "STRESS", "OTHER",   "CO",      "APIN",    "BPIN",    "SABI",    "CARE",   "LIMO",   "MYRC", "OCIM", "OMON", "FARN"};
 
 /// Generate a random alphanumeric string of given length.
 static std::string GenAlphaString(std::size_t len) {
@@ -483,7 +483,7 @@ RC_GTEST_PROP(SpeciationProperty, Property3_NonPositiveScaleFactor, ()) {
 // Helper: Generate configs for engine tests
 // ============================================================================
 
-/// Generate a simple speciation config where each of the 19 emission classes
+/// Generate a simple speciation config where each emission class
 /// has exactly one mapping to a unique mechanism species.
 static rc::Gen<SpeciationConfig> genSimpleEngineConfig() {
     return rc::gen::exec([]() {
@@ -491,8 +491,8 @@ static rc::Gen<SpeciationConfig> genSimpleEngineConfig() {
         config.mechanism_name = "TEST_MECH";
         config.dataset_name = "MEGAN";
 
-        // Create 19 mechanism species, one per emission class
-        for (int c = 0; c < 19; ++c) {
+        // Create one mechanism species per emission class
+        for (int c = 0; c < kNumEmissionClasses; ++c) {
             MechanismSpecies sp;
             sp.name = "MECH_" + std::to_string(c);
             sp.molecular_weight = 10.0 + (*rc::gen::inRange(0, 1901)) / 10.0;
@@ -500,7 +500,7 @@ static rc::Gen<SpeciationConfig> genSimpleEngineConfig() {
         }
 
         // Create one mapping per class
-        for (int c = 0; c < 19; ++c) {
+        for (int c = 0; c < kNumEmissionClasses; ++c) {
             SpeciationMapping mapping;
             mapping.mechanism_species = "MECH_" + std::to_string(c);
             mapping.emission_class = static_cast<EmissionClass>(c);
@@ -529,9 +529,9 @@ static rc::Gen<SpeciationConfig> genMultiMappingConfig() {
         }
 
         // Create 1-3 mappings per emission class, targeting random mechanism species
-        auto num_classes_used = *rc::gen::inRange(1, 20);
+        auto num_classes_used = *rc::gen::inRange(1, kNumEmissionClasses + 1);
         for (int c = 0; c < num_classes_used; ++c) {
-            int class_idx = c % 19;
+            int class_idx = c % kNumEmissionClasses;
             auto num_maps = *rc::gen::inRange(1, 4);
             for (int m = 0; m < num_maps; ++m) {
                 SpeciationMapping mapping;
@@ -599,11 +599,11 @@ RC_GTEST_PROP(SpeciationProperty, Property10_PipelineCorrectness, ()) {
     int nx = 1, ny = 1;
     int num_cells = 1;
 
-    // Generate 19 non-negative class totals
-    Kokkos::View<double**, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> class_totals_rw("class_totals", 19, num_cells);
+    // Generate non-negative class totals
+    Kokkos::View<double**, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> class_totals_rw("class_totals", kNumEmissionClasses, num_cells);
     auto h_ct = Kokkos::create_mirror_view(class_totals_rw);
 
-    for (int c = 0; c < 19; ++c) {
+    for (int c = 0; c < kNumEmissionClasses; ++c) {
         h_ct(c, 0) = (*rc::gen::inRange(0, 10001)) * 1e-10;
     }
     Kokkos::deep_copy(class_totals_rw, h_ct);
@@ -656,10 +656,10 @@ RC_GTEST_PROP(SpeciationProperty, Property10_SimpleConfigCorrectness, ()) {
     int nx = 2, ny = 2;
     int num_cells = nx * ny;
 
-    Kokkos::View<double**, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> class_totals_rw("class_totals", 19, num_cells);
+    Kokkos::View<double**, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> class_totals_rw("class_totals", kNumEmissionClasses, num_cells);
     auto h_ct = Kokkos::create_mirror_view(class_totals_rw);
 
-    for (int c = 0; c < 19; ++c) {
+    for (int c = 0; c < kNumEmissionClasses; ++c) {
         for (int cell = 0; cell < num_cells; ++cell) {
             h_ct(c, cell) = (*rc::gen::inRange(0, 10001)) * 1e-10;
         }
@@ -714,10 +714,10 @@ RC_GTEST_PROP(SpeciationProperty, Property17_AccumulationDeterminism, ()) {
     int nx = 3, ny = 3;
     int num_cells = nx * ny;
 
-    Kokkos::View<double**, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> class_totals_rw("class_totals", 19, num_cells);
+    Kokkos::View<double**, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace> class_totals_rw("class_totals", kNumEmissionClasses, num_cells);
     auto h_ct = Kokkos::create_mirror_view(class_totals_rw);
 
-    for (int c = 0; c < 19; ++c) {
+    for (int c = 0; c < kNumEmissionClasses; ++c) {
         for (int cell = 0; cell < num_cells; ++cell) {
             h_ct(c, cell) = (*rc::gen::inRange(0, 10001)) * 1e-10;
         }
@@ -805,6 +805,85 @@ TEST_F(CB6ConfigLoadingTest, LoadCB6SpeciationConfig) {
         }
     }
     EXPECT_TRUE(found_isop_mapping) << "ISOP->ISOP mapping should exist";
+}
+
+TEST_F(CB6ConfigLoadingTest, LoadGocartSpeciationConfig) {
+    std::string src_dir = CECE_SOURCE_DIR;
+    SpeciationConfigLoader loader;
+    auto config = loader.Load(src_dir + "/data/speciation/spc_gocart.yaml", src_dir + "/data/speciation/map_gocart.yaml");
+    EXPECT_EQ(config.mechanism_name, "GOCART");
+    EXPECT_EQ(config.dataset_name, "MEGAN");
+    ASSERT_EQ(config.species.size(), 4u);
+    ASSERT_EQ(config.mappings.size(), 9u);
+    const std::vector<std::string> expected_names = {"ISOP", "LIMO", "MTPA", "MTPO"};
+    for (std::size_t index = 0; index < expected_names.size(); ++index) {
+        EXPECT_EQ(config.species[index].name, expected_names[index]);
+        EXPECT_DOUBLE_EQ(config.species[index].molecular_weight, index == 0 ? 68.12 : 136.23);
+    }
+    std::map<std::string, std::map<std::string, double>> profiles;
+    for (const auto& mapping : config.mappings) {
+        profiles[mapping.mechanism_species][EmissionClassToString(mapping.emission_class)] = mapping.scale_factor;
+    }
+    // GOCART lumping from explicit compound classes, excluding FARN.
+    EXPECT_EQ(profiles["ISOP"], (std::map<std::string, double>{{"ISOP", 1.0}}));
+    EXPECT_EQ(profiles["LIMO"], (std::map<std::string, double>{{"LIMO", 1.0}}));
+    EXPECT_EQ(profiles["MTPA"], (std::map<std::string, double>{{"APIN", 1.0}, {"BPIN", 1.0}, {"SABI", 1.0}, {"CARE", 1.0}}));
+    EXPECT_EQ(profiles["MTPO"], (std::map<std::string, double>{{"MYRC", 1.0}, {"OCIM", 1.0}, {"OMON", 1.0}}));
+    TempFile serialized(SpeciationConfigLoader::ToYaml(config), "_gocart.yaml");
+    auto restored = loader.Load(serialized.path, serialized.path);
+    EXPECT_EQ(restored.mappings.size(), config.mappings.size());
+    std::map<std::string, std::map<std::string, double>> restored_profiles;
+    for (const auto& mapping : restored.mappings)
+        restored_profiles[mapping.mechanism_species][EmissionClassToString(mapping.emission_class)] = mapping.scale_factor;
+    EXPECT_EQ(restored_profiles, profiles);
+}
+
+TEST_F(CB6ConfigLoadingTest, GocartExplicitClassOutputs) {
+    std::string src_dir = CECE_SOURCE_DIR;
+    SpeciationConfigLoader loader;
+    auto config = loader.Load(src_dir + "/data/speciation/spc_gocart.yaml", src_dir + "/data/speciation/map_gocart.yaml");
+    SpeciationEngine engine;
+    engine.Initialize(config);
+    constexpr int nx = 2;
+    constexpr int ny = 3;
+    Kokkos::View<double**, Kokkos::LayoutLeft> class_totals("gocart_classes", kNumEmissionClasses, nx * ny);
+    auto host_totals = Kokkos::create_mirror_view(class_totals);
+    // Unmapped classes (lumped MT_*/SQT_* etc.) must not leak into outputs.
+    Kokkos::deep_copy(host_totals, 99.0);
+    const std::map<EmissionClass, double> fluxes = {{EmissionClass::ISOP, 1.0e-9},
+                                                    {EmissionClass::APIN, 2.0e-9},
+                                                    {EmissionClass::BPIN, 3.0e-9},
+                                                    {EmissionClass::SABI, 4.0e-9},
+                                                    {EmissionClass::CARE, 5.0e-9},
+                                                    {EmissionClass::LIMO, 6.0e-9},
+                                                    {EmissionClass::MYRC, 7.0e-9},
+                                                    {EmissionClass::OCIM, 8.0e-9},
+                                                    {EmissionClass::OMON, 9.0e-9},
+                                                    // FARN remains supported as a class but is not mapped to GOCART.
+                                                    {EmissionClass::FARN, 1.0e-8}};
+    for (const auto& [source, flux] : fluxes)
+        for (int cell = 0; cell < nx * ny; ++cell) host_totals(static_cast<int>(source), cell) = flux;
+    Kokkos::deep_copy(class_totals, host_totals);
+    auto results = RunEngineAndCollect(engine, class_totals, engine.GetMechanismSpeciesNames(), nx, ny);
+    EXPECT_NEAR(results.at("ISOP"), nx * ny * 68.12e-9, 1.0e-20);
+    EXPECT_NEAR(results.at("LIMO"), nx * ny * 136.23 * 6.0e-9, 1.0e-18);
+    EXPECT_NEAR(results.at("MTPA"), nx * ny * 136.23 * 14.0e-9, 1.0e-18);
+    EXPECT_NEAR(results.at("MTPO"), nx * ny * 136.23 * 24.0e-9, 1.0e-18);
+    for (const auto& [source, flux] : fluxes) {
+        Kokkos::deep_copy(class_totals, 0.0);
+        Kokkos::deep_copy(Kokkos::subview(class_totals, static_cast<int>(source), Kokkos::ALL()), flux);
+        results = RunEngineAndCollect(engine, class_totals, engine.GetMechanismSpeciesNames(), nx, ny);
+        for (const auto& species : config.species) {
+            double expected = 0.0;
+            for (const auto& mapping : config.mappings)
+                if (mapping.mechanism_species == species.name && mapping.emission_class == source)
+                    expected += nx * ny * flux * mapping.scale_factor * species.molecular_weight;
+            EXPECT_NEAR(results.at(species.name), expected, 1.0e-18);
+        }
+    }
+    Kokkos::deep_copy(class_totals, 0.0);
+    results = RunEngineAndCollect(engine, class_totals, engine.GetMechanismSpeciesNames(), nx, ny);
+    for (const auto& [name, value] : results) EXPECT_DOUBLE_EQ(value, 0.0);
 }
 
 }  // namespace cece

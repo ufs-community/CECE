@@ -5,7 +5,7 @@
  * @file cece_emission_activity.hpp
  * @brief Vegetation emission activity factor calculator (MEGVEA).
  *
- * Computes all gamma factors for each of the 19 MEGAN3 emission classes.
+ * Computes all gamma factors for each MEGAN3 emission class.
  * Reuses the existing KOKKOS_INLINE_FUNCTION gamma functions from
  * cece_megan.cpp (gamma_lai, gamma_t_li, gamma_t_ld, gamma_par, gamma_co2,
  * gamma_age, gamma_sm) and adds new ones for canopy depth, wind stress,
@@ -27,23 +27,23 @@ namespace cece {
  * @struct EmissionClassCoefficients
  * @brief Per-class coefficient set stored in a struct-of-arrays layout on device.
  *
- * Each Kokkos::View holds one coefficient value for each of the 19 MEGAN3
- * emission classes, indexed by the EmissionClass enum.
+ * Each Kokkos::View holds one coefficient value for each MEGAN3
+ * emission class, indexed by the EmissionClass enum.
  */
 struct EmissionClassCoefficients {
-    Kokkos::View<double[19], Kokkos::DefaultExecutionSpace> ldf;   ///< Light dependence fraction [0-1]
-    Kokkos::View<double[19], Kokkos::DefaultExecutionSpace> ct1;   ///< Temperature coefficient 1
-    Kokkos::View<double[19], Kokkos::DefaultExecutionSpace> cleo;  ///< Emission coefficient (Cleo)
-    Kokkos::View<double[19], Kokkos::DefaultExecutionSpace> beta;  ///< Temperature response coefficient
-    Kokkos::View<double[19], Kokkos::DefaultExecutionSpace> anew;  ///< Relative emission factor (new leaves)
-    Kokkos::View<double[19], Kokkos::DefaultExecutionSpace> agro;  ///< Relative emission factor (growing leaves)
-    Kokkos::View<double[19], Kokkos::DefaultExecutionSpace> amat;  ///< Relative emission factor (mature leaves)
-    Kokkos::View<double[19], Kokkos::DefaultExecutionSpace> aold;  ///< Relative emission factor (old leaves)
+    Kokkos::View<double[kNumEmissionClasses], Kokkos::DefaultExecutionSpace> ldf;   ///< Light dependence fraction [0-1]
+    Kokkos::View<double[kNumEmissionClasses], Kokkos::DefaultExecutionSpace> ct1;   ///< Temperature coefficient 1
+    Kokkos::View<double[kNumEmissionClasses], Kokkos::DefaultExecutionSpace> cleo;  ///< Emission coefficient (Cleo)
+    Kokkos::View<double[kNumEmissionClasses], Kokkos::DefaultExecutionSpace> beta;  ///< Temperature response coefficient
+    Kokkos::View<double[kNumEmissionClasses], Kokkos::DefaultExecutionSpace> anew;  ///< Relative emission factor (new leaves)
+    Kokkos::View<double[kNumEmissionClasses], Kokkos::DefaultExecutionSpace> agro;  ///< Relative emission factor (growing leaves)
+    Kokkos::View<double[kNumEmissionClasses], Kokkos::DefaultExecutionSpace> amat;  ///< Relative emission factor (mature leaves)
+    Kokkos::View<double[kNumEmissionClasses], Kokkos::DefaultExecutionSpace> aold;  ///< Relative emission factor (old leaves)
 };
 
 /**
  * @class EmissionActivityCalculator
- * @brief Computes all gamma factors for each of the 19 emission classes.
+ * @brief Computes all gamma factors for each emission class.
  *
  * Manages per-class coefficients and configuration for the MEGVEA algorithm.
  * The actual gamma computations are performed by KOKKOS_INLINE_FUNCTION
@@ -180,7 +180,7 @@ class EmissionActivityCalculator {
     // ---- Bidirectional exchange flags per class ----
 
     /// Per-class bidirectional exchange flag stored on device.
-    Kokkos::View<bool[19], Kokkos::DefaultExecutionSpace> bidirectional_;
+    Kokkos::View<bool[kNumEmissionClasses], Kokkos::DefaultExecutionSpace> bidirectional_;
 };
 
 }  // namespace cece
