@@ -157,11 +157,6 @@ StreamConfig CeceDriverOrchestrator::BuildStreamConfig(const conf::Value& stream
     if (stream["file"]) {
         const conf::Value file = stream["file"];
         if (file.kind() == conf::Node_Kind::Sequence) {
-            if (file.size() != 1) {
-                throw std::invalid_argument("cece_data stream '" + stream["name"].string_or("") +
-                                            "': the standalone driver reads one file per stream; got a list of " + std::to_string(file.size()) +
-                                            " files");
-            }
             cfg.input_file_path = file[0].as_string();
         } else {
             cfg.input_file_path = file.as_string();
