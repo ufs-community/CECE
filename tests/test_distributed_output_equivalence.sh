@@ -54,7 +54,7 @@ set -u
 
 DRIVER=""
 CONFIG_TEMPLATE=""
-COMPARATOR_SRC=""
+COMPARATOR_BIN=""
 WORKDIR=""
 VAR="oc"
 RANKS=(1 2 3)
@@ -63,7 +63,7 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --driver)     DRIVER="$2"; shift 2 ;;
         --config)     CONFIG_TEMPLATE="$2"; shift 2 ;;
-        --comparator) COMPARATOR_SRC="$2"; shift 2 ;;
+        --comparator) COMPARATOR_BIN="$2"; shift 2 ;;
         --workdir)    WORKDIR="$2"; shift 2 ;;
         --var)        VAR="$2"; shift 2 ;;
         *) echo "ERROR: unrecognized argument: $1" >&2; exit 2 ;;
@@ -74,12 +74,12 @@ fail() { echo "FAIL: $*" >&2; exit 1; }
 
 [ -n "$DRIVER" ]          || fail "--driver is required"
 [ -n "$CONFIG_TEMPLATE" ] || fail "--config is required"
-[ -n "$COMPARATOR_SRC" ]  || fail "--comparator is required"
+[ -n "$COMPARATOR_BIN" ]  || fail "--comparator is required"
 [ -n "$WORKDIR" ]         || fail "--workdir is required"
 
 [ -x "$DRIVER" ]          || fail "driver not found or not executable: $DRIVER"
 [ -f "$CONFIG_TEMPLATE" ] || fail "config template not found: $CONFIG_TEMPLATE"
-[ -f "$COMPARATOR_SRC" ]  || fail "comparator source not found: $COMPARATOR_SRC"
+[ -f "$COMPARATOR_BIN" ]  || fail "comparator source not found: $COMPARATOR_BIN"
 
 echo "========================================================================"
 echo " Feature: distributed-domain-decomposition"
@@ -100,23 +100,6 @@ cleanup() {
     fi
 }
 trap cleanup EXIT
-
-# ------------------------------------------------------------------------
-# 1. Build the NetCDF comparator against the container NetCDF-C.
-# ------------------------------------------------------------------------
-COMPARATOR_BIN="$WORKDIR/nccmp_var"
-CC_BIN="${CC:-cc}"
-NC_CONFIG="${NC_CONFIG:-nc-config}"
-NC_CFLAGS="$($NC_CONFIG --cflags 2>/dev/null)"
-NC_LIBS="$($NC_CONFIG --libs 2>/dev/null)"
-if [ -z "$NC_LIBS" ]; then
-    NC_LIBS="-lnetcdf"
-fi
-
-echo "--- Compiling comparator: $CC_BIN $COMPARATOR_SRC $NC_CFLAGS -o $COMPARATOR_BIN $NC_LIBS -lm"
-# shellcheck disable=SC2086
-"$CC_BIN" "$COMPARATOR_SRC" $NC_CFLAGS -O2 -o "$COMPARATOR_BIN" $NC_LIBS -lm \
-    || fail "failed to compile NetCDF comparator"
 
 # ------------------------------------------------------------------------
 # 2. Run the driver at each rank count into a distinct output dir.

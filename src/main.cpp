@@ -34,10 +34,7 @@
 // both during cece_sim_create; the redirect, banner, and path are idempotent,
 // but the banner must appear before grid resolution, so the driver calls them
 // first.
-extern "C" {
-void cece_set_config_file_path(const char* config_path, int path_len);
-void cece_run_log_setup(const char* config_path, int path_len);
-}
+#include "cece/cece_c_api.h"
 
 int main(int argc, char* argv[]) {
     // 1. Initialize MPI with thread support

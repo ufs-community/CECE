@@ -22,7 +22,7 @@
 
 extern "C" {
 void amio_set_parent_communicator(MPI_Fint comm);
-}
+}  // extern "C"
 
 namespace fs = std::filesystem;
 

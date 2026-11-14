@@ -27,6 +27,7 @@ import yaml
 _REPO_ROOT = Path(__file__).parent.parent
 sys.path.insert(0, str(_REPO_ROOT / "build" / "src" / "python"))
 sys.path.insert(0, str(_REPO_ROOT / "src" / "python"))
+sys.path.append(str(_REPO_ROOT / "scripts"))
 
 # Load earthaccess_resolver and stream_bridge directly from source so that
 # their relative-import package context is not required in the test environment.
@@ -96,7 +97,7 @@ except ImportError:
     _H5NETCDF_AVAILABLE = False
 
 try:
-    import earthaccess  # noqa: F401
+    import earthaccess
 
     _EARTHACCESS_AVAILABLE = True
 except ImportError:
@@ -825,6 +826,7 @@ class TestStandaloneEarthAccessIngestHelper:
 
         _standalone_ingest_mod._raise_if_unsupported_granule_format(stream, granules)
 
+    @requires_h5netcdf
     def test_helper_downloads_before_opening_when_download_dir_is_set(self, tmp_path):
         mock_ea = MagicMock()
         mock_ea.login.return_value = MagicMock()
@@ -945,6 +947,7 @@ class TestStandaloneEarthAccessIngestHelper:
                 [MagicMock()], tmp_path / "granules", "GES_DISC"
             )
 
+    @requires_h5netcdf
     def test_stage_preflight_validates_downloaded_variables(self):
         dataset = MagicMock()
         dataset.variables = {
@@ -971,6 +974,7 @@ class TestStandaloneEarthAccessIngestHelper:
         mock_xr.open_dataset.assert_called_once_with("sample.nc4", engine="h5netcdf")
         mock_xr.open_dataset.return_value.__exit__.assert_called_once()
 
+    @requires_h5netcdf
     def test_stage_preflight_reports_missing_downloaded_variables(self):
         dataset = MagicMock()
         dataset.variables = {"PARDR": MagicMock(), "time": MagicMock()}
@@ -1012,6 +1016,7 @@ class TestStandaloneEarthAccessIngestHelper:
                 ["sample.nc4"],
             )
 
+    @requires_xarray
     def test_helper_interpolates_to_target_grid(self):
         ds = xr.Dataset(
             {
@@ -1386,8 +1391,6 @@ class TestLiveEarthDataIntegration:
 
     def test_smap_granule_search_returns_results(self):
         """CMR search for one SMAP SPL4SMGP granule must return ≥1 result."""
-        import earthaccess
-
         earthaccess.login(strategy="environment")
         granules = earthaccess.search_data(
             short_name="SPL4SMGP",
@@ -1399,8 +1402,6 @@ class TestLiveEarthDataIntegration:
 
     def test_modis_lai_granule_search_returns_results(self):
         """CMR search for one MODIS MCD15A2H granule must return ≥1 result."""
-        import earthaccess
-
         earthaccess.login(strategy="environment")
         granules = earthaccess.search_data(
             short_name="MCD15A2H",
@@ -1413,8 +1414,6 @@ class TestLiveEarthDataIntegration:
 
     def test_smap_granule_can_be_opened_as_fsspec_stream(self):
         """At least one SMAP granule must open as a readable fsspec file object."""
-        import earthaccess
-
         earthaccess.login(strategy="environment")
         granules = earthaccess.search_data(
             short_name="SPL4SMGP",
@@ -1874,9 +1873,12 @@ class TestFsspecTuningKnobs:
 
 @requires_h5netcdf
 class TestEarthAccessOpenWithLocalFixtureFiles:
-    """Only earthaccess.login/search_data/open are mocked; the fixture files are
+    """Check EarthAccess functionality with pre-downloaded files.
+
+    Only earthaccess.login/search_data/open are mocked; the fixture files are
     real NetCDF4 files on disk, read through the unmocked xarray/h5netcdf path.
-    Allows CI to exercise real file I/O without live EDL credentials."""
+    Allows CI to exercise real file I/O without live EDL credentials.
+    """
 
     @pytest.fixture
     def smap_fixture_path(self, tmp_path):

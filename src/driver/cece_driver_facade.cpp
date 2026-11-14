@@ -33,7 +33,7 @@ namespace fs = std::filesystem;
 extern "C" {
 void cece_ingestor_set_field(void* data_ptr, const char* field_name, int name_len, const double* field_data, int n_lev, int n_elem, int* rc);
 void amio_set_parent_communicator(MPI_Fint comm);
-}
+}  // extern "C"
 
 namespace cece {
 
@@ -1895,8 +1895,6 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
 extern std::unique_ptr<cece::CeceStandaloneWriter> g_standalone_writer;
 
 extern "C" {
-void amio_set_parent_communicator(MPI_Fint comm);
-
 void cece_driver_create(const char* yaml_path, int path_len, int nx, int ny, int nz, const double* lon_coords, int lon_len, const double* lat_coords,
                         int lat_len, int mpi_comm_f, void** driver_ptr_out, int* rc) {
     if (rc) *rc = 0;
