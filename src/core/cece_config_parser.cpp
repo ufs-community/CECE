@@ -181,9 +181,9 @@ CeceConfig ParseConfig(const fs::path& filename) {
             if (files) {
                 if (files.kind() == conf::Node_Kind::Sequence) {
                     std::vector<std::string> tmp_paths = files.as_string_list();
-                    stream.file_paths = std::vector<fs::path>(tmp_paths.begin(), tmp_paths.end());
+                    stream.file_paths.assign(tmp_paths.begin(), tmp_paths.end());
                 } else {
-                    stream.file_paths = std::vector<fs::path>{fs::path(files.as_string())};
+                    stream.file_paths.assign(1, fs::path(files.as_string()));
                 }
             }
             conf::Value variables = node["variables"];
