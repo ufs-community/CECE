@@ -26,7 +26,10 @@
 #include <string>
 
 // Gamma functions (including get_gamma_co2) are defined in cece_megan.hpp
+#include "cece/cece_logger.hpp"
 #include "cece/physics/cece_megan.hpp"
+
+using namespace std::literals::string_literals;
 
 namespace cece {
 
@@ -109,7 +112,7 @@ void EmissionActivityCalculator::Initialize(const conf::Value& config) {
 
             EmissionClass ec;
             if (!StringToEmissionClass(class_name, ec)) {
-                std::cout << "EmissionActivityCalculator: Unknown emission class '" << class_name << "', skipping\n";
+                CECE_LOG_WARNING("EmissionActivityCalculator: Unknown emission class '"s + class_name + "', skipping\n"s);
                 continue;
             }
 
@@ -128,8 +131,9 @@ void EmissionActivityCalculator::Initialize(const conf::Value& config) {
             }
         }
     } else {
-        std::cout << "EmissionActivityCalculator: No emission_classes section found, "
-                     "using defaults for all 19 classes\n";
+        CECE_LOG_WARNING(
+            "EmissionActivityCalculator: No emission_classes section found, "
+            "using defaults for all 19 classes\n");
     }
 
     // ---- Copy to device ----
@@ -178,9 +182,10 @@ void EmissionActivityCalculator::Initialize(const conf::Value& config) {
     bool use_wilkinson = (co2_method_ == "wilkinson");
     gamma_co2_ = get_gamma_co2(co2_concentration_, gamma_co2_coeff_1, gamma_co2_coeff_2, use_wilkinson);
 
-    std::cout << "EmissionActivityCalculator: Initialized with " << NUM_CLASSES << " emission classes, co2_method=" << co2_method_
-              << ", co2=" << co2_concentration_ << " ppm, gamma_co2=" << gamma_co2_ << ", wind_stress=" << (enable_wind_stress_ ? "on" : "off")
-              << ", temp_stress=" << (enable_temp_stress_ ? "on" : "off") << ", aq_stress=" << (enable_aq_stress_ ? "on" : "off") << "\n";
+    CECE_LOG_INFO("EmissionActivityCalculator: Initialized with "s + std::to_string(NUM_CLASSES) + " emission classes, co2_method="s + co2_method_ +
+                  ", co2="s + std::to_string(co2_concentration_) + " ppm, gamma_co2="s + std::to_string(gamma_co2_) + ", wind_stress="s +
+                  (enable_wind_stress_ ? "on"s : "off"s) + ", temp_stress="s + (enable_temp_stress_ ? "on"s : "off"s) + ", aq_stress="s +
+                  (enable_aq_stress_ ? "on"s : "off"s) + "\n"s);
 }
 
 }  // namespace cece

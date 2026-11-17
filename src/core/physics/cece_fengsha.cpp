@@ -26,6 +26,8 @@
 #include "cece/cece_logger.hpp"
 #include "cece/cece_physics_factory.hpp"
 
+using namespace std::literals::string_literals;
+
 namespace {
 
 /// @brief Compute Kok (2011) normalized dust aerosol size distribution.
@@ -144,7 +146,8 @@ void FengshaScheme::Initialize(const conf::Value& config, CeceDiagnosticManager*
         has_custom_distribution_ = false;
     }
 
-    std::cout << "FengshaScheme: Initialized. alpha=" << alpha_ << " gamma=" << gamma_ << " kvhmax=" << kvhmax_ << "\n";
+    CECE_LOG_INFO("FengshaScheme: Initialized. alpha="s + std::to_string(alpha_) + " gamma="s + std::to_string(gamma_) + " kvhmax="s +
+                  std::to_string(kvhmax_) + "\n"s);
 }
 
 void FengshaScheme::Run(CeceImportState& import_state, CeceExportState& export_state) {

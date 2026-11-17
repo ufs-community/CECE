@@ -25,7 +25,10 @@
 #include <cmath>
 #include <iostream>
 
+#include "cece/cece_logger.hpp"
 #include "cece/cece_physics_factory.hpp"
+
+using namespace std::literals::string_literals;
 
 namespace cece {
 
@@ -90,7 +93,7 @@ void DustScheme::Initialize(const conf::Value& config, CeceDiagnosticManager* di
         ch_dust_ = config["tuning_factor"].as_double();
     }
 
-    std::cout << "DustScheme: Initialized. U_TS0=" << u_ts0_ << " CH_DUST=" << ch_dust_ << "\n";
+    CECE_LOG_INFO("DustScheme: Initialized. U_TS0="s + std::to_string(u_ts0_) + " CH_DUST="s + std::to_string(ch_dust_) + "\n"s);
 }
 
 void DustScheme::Run(CeceImportState& import_state, CeceExportState& export_state) {

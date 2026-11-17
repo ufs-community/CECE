@@ -76,7 +76,7 @@ void ExampleEmissionGeneration::Run(CeceImportState& import_state, CeceExportSta
     // Key points:
     // - Use Kokkos::DefaultExecutionSpace for automatic device dispatch
     // - Use KOKKOS_LAMBDA for device-compatible lambda functions
-    // - Avoid std::cout or file I/O inside kernels
+    // - Avoid terminal or file I/O inside kernels
     // - Use Kokkos::atomic_add for race-condition-free accumulation
     // - Use Kokkos::parallel_reduce for global reductions
 
