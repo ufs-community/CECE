@@ -19,7 +19,6 @@
 // Validates: Requirements 3.1, 3.2, 7.1
 
 #include <gtest/gtest.h>
-#include <mpi.h>
 #include <rapidcheck.h>
 #include <rapidcheck/gtest.h>
 
