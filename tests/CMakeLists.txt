@@ -132,7 +132,7 @@ set(RAPIDCHECK rapidcheck rapidcheck_gtest)
 cece_add_gtest(test_driver_configuration)
 # NUOPC field-coupling config section (`nuopc:`) parsing and the path-based
 # C queries the Fortran cap uses during Advertise.
-cece_add_gtest(test_coupling_config)
+cece_add_gtest(test_coupling_config PROPERTIES RESOURCE_LOCK cece_coupling_config_test_yaml)
 # Time-convention unit test for the shared simulation core (CeceSimulation).
 # Exercises the REAL Step() sequence with link-time-interposed spies for the
 # three C entry points it calls (see the file header for why interposition is
