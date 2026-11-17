@@ -193,23 +193,23 @@ StreamConfig CeceDriverOrchestrator::BuildStreamConfig(const conf::Value& stream
     }
     const bool has_input_gridspec = static_cast<bool>(stream["input_gridspec_file"]);
     const bool has_gridspec_alias = static_cast<bool>(stream["gridspec_file"]);
-    const std::string input_gridspec = has_input_gridspec ? stream["input_gridspec_file"].as<std::string>() : "";
-    const std::string gridspec_alias = has_gridspec_alias ? stream["gridspec_file"].as<std::string>() : "";
+    const std::string input_gridspec = has_input_gridspec ? stream["input_gridspec_file"].as_string() : "";
+    const std::string gridspec_alias = has_gridspec_alias ? stream["gridspec_file"].as_string() : "";
     if (has_input_gridspec && has_gridspec_alias && input_gridspec != gridspec_alias) {
-        throw std::invalid_argument("cece_data stream '" + stream["name"].as<std::string>("") +
+        throw std::invalid_argument("cece_data stream '" + stream["name"].string_or("") +
                                     "': input_gridspec_file and gridspec_file specify different paths");
     }
     cfg.input_gridspec_file = has_input_gridspec ? input_gridspec : gridspec_alias;
     cfg.source_geometry.gridspec_file = cfg.input_gridspec_file;
-    cfg.source_geometry.longitude_variable = stream["longitude_variable"].as<std::string>("");
-    cfg.source_geometry.latitude_variable = stream["latitude_variable"].as<std::string>("");
+    cfg.source_geometry.longitude_variable = stream["longitude_variable"].string_or("");
+    cfg.source_geometry.latitude_variable = stream["latitude_variable"].string_or("");
     if (stream["geometry_reconstruction"]) {
-        const std::string reconstruction = cece::to_lower(stream["geometry_reconstruction"].as<std::string>());
+        const std::string reconstruction = cece::to_lower(stream["geometry_reconstruction"].as_string());
         try {
             if (reconstruction.empty()) throw std::invalid_argument("empty policy");
             cfg.source_geometry.reconstruction = cece::io::parse_reconstruction_model(reconstruction);
         } catch (const std::invalid_argument&) {
-            throw std::invalid_argument("cece_data stream '" + stream["name"].as<std::string>("") + "': unsupported geometry_reconstruction '" +
+            throw std::invalid_argument("cece_data stream '" + stream["name"].string_or("") + "': unsupported geometry_reconstruction '" +
                                         reconstruction + "'");
         }
     }
@@ -311,7 +311,7 @@ void CeceDriverOrchestrator::ResolveStreamConfigsFromFile(const std::string& con
     int amio_staging_buffer_count = 8;
     int amio_staging_buffer_capacity_bytes = 33554432;  // 32 MiB per buffer
     int amio_prefetch_depth = 2;
-    conf::Value config_driver = config.at("driver");
+    conf::Value config_driver = config.root()["driver"];
     if (config_driver) {
         if (config_driver["gridspec_file"]) {
             out_gridspec_file = config_driver["gridspec_file"].as_string();
@@ -343,13 +343,11 @@ void CeceDriverOrchestrator::ResolveStreamConfigsFromFile(const std::string& con
         }
     }
 
-    if (!config.at("cece_data") || !config.at("cece_data.streams")) {
-        return;
-    }
+    conf::Value streams_list = config.root()["cece_data"]["streams"];
+    if (!streams_list) return;
 
     // Filter EarthAccess streams before resolving local AMIO mappings.
     std::vector<conf::Value> local_streams;
-    conf::Value streams_list = config.at("cece_data.streams");
     for (std::size_t i = 0; i < streams_list.size(); ++i) {
         const auto& stream = streams_list[i];
         if (!stream["source"] || stream["source"].as_string() != "earthaccess") {

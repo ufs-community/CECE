@@ -440,6 +440,29 @@ TEST(StreamConfigResolution, MapalgoIsNormalizedToLowercase) {
     EXPECT_EQ(actual["CO"].mapalgo, "bilinear");
 }
 
+TEST(StreamConfigResolution, MissingStreamSectionsLeaveConfigEmpty) {
+    for (const std::string& yaml : {std::string("driver: {}\n"), std::string("cece_data: {}\n")}) {
+        TempFile fixture(yaml);
+        std::unordered_map<std::string, StreamConfig> configs;
+        std::string gridspec;
+        EXPECT_NO_THROW(StreamConfigTestAccess::Resolve(fixture.path, configs, gridspec));
+        EXPECT_TRUE(configs.empty());
+    }
+}
+
+TEST(StreamConfigResolution, ResolvesGeometrySettings) {
+    TempFile fixture("cece_data:\n  streams:\n    - name: X\n      file: x.nc\n"
+                     "      longitude_variable: xlon\n      latitude_variable: xlat\n"
+                     "      geometry_reconstruction: Rectilinear_Midpoint\n");
+    std::unordered_map<std::string, StreamConfig> configs;
+    std::string gridspec;
+    StreamConfigTestAccess::Resolve(fixture.path, configs, gridspec);
+    ASSERT_EQ(configs.count("X"), 1u);
+    EXPECT_EQ(configs.at("X").source_geometry.longitude_variable, "xlon");
+    EXPECT_EQ(configs.at("X").source_geometry.latitude_variable, "xlat");
+    EXPECT_EQ(configs.at("X").source_geometry.reconstruction, io::ReconstructionModel::RectilinearMidpoint);
+}
+
 TEST(StreamConfigResolution, GridSpecAliasAcceptsEqualValuesAndRejectsConflicts) {
     const auto resolve_yaml = [](const std::string& fields) {
         TempFile fixture("cece_data:\n  streams:\n    - name: X\n      file: /tmp/x.nc\n      " + fields + "      variables: [X]\n");
