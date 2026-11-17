@@ -21,6 +21,7 @@
 
 #include "cece/cece_amio_utils.hpp"
 #include "cece/cece_fatal.hpp"
+#include "cece/cece_fnv1a.hpp"
 #include "cece/cece_helm_graph.hpp"
 #include "cece/cece_internal.hpp"
 #include "cece/cece_local_time.hpp"
@@ -47,19 +48,13 @@ namespace {
 std::string coordinate_revision(const std::vector<double>& longitude, const std::vector<double>& latitude, int nx, int ny) {
     // FNV-1a over dimensions and exact IEEE-754 coordinate bits: the destination
     // grid is immutable for this facade instance, so compute this once.
-    std::uint64_t hash = 1469598103934665603ULL;
-    auto add = [&](std::uint64_t value) {
-        for (int byte = 0; byte < 8; ++byte) {
-            const unsigned int shift = static_cast<unsigned int>(byte * 8);
-            hash ^= (value >> shift) & 0xffULL;
-            hash *= 1099511628211ULL;
-        }
-    };
+    cece::detail::Fnv1aHasher hasher;
+    auto add = [&](std::uint64_t value) { hasher.add(value); };
     add(static_cast<std::uint64_t>(nx));
     add(static_cast<std::uint64_t>(ny));
     for (double value : longitude) add(std::bit_cast<std::uint64_t>(value));
     for (double value : latitude) add(std::bit_cast<std::uint64_t>(value));
-    return std::to_string(hash);
+    return std::to_string(hasher.value());
 }
 
 std::string file_revision(const std::string& path) {
@@ -68,7 +63,7 @@ std::string file_revision(const std::string& path) {
     const auto size = fs::file_size(path, size_error);
     const auto modified = fs::last_write_time(path, time_error);
     if (size_error || time_error) return path + "|unavailable";
-    return path + "|" + std::to_string(size) + "|" + std::to_string(modified.time_since_epoch().count());
+    return path + "|" + std::to_string(size) + "|" + std::to_string(static_cast<long long>(modified.time_since_epoch().count()));
 }
 
 // Reimplemented on halo::allreduce<int> (Decision C): the size>1 branch reduces
@@ -211,17 +206,13 @@ StreamConfig CeceDriverOrchestrator::BuildStreamConfig(const YAML::Node& stream,
     cfg.source_geometry.latitude_variable = stream["latitude_variable"].as<std::string>("");
     if (stream["geometry_reconstruction"]) {
         const std::string reconstruction = cece::to_lower(stream["geometry_reconstruction"].as<std::string>());
-        if (reconstruction == "none")
-            cfg.source_geometry.reconstruction = cece::io::ReconstructionModel::None;
-        else if (reconstruction == "rectilinear_midpoint")
-            cfg.source_geometry.reconstruction = cece::io::ReconstructionModel::RectilinearMidpoint;
-        else if (reconstruction == "gaussian_latlon")
-            cfg.source_geometry.reconstruction = cece::io::ReconstructionModel::GaussianLatLon;
-        else if (reconstruction == "curvilinear_approximate")
-            cfg.source_geometry.reconstruction = cece::io::ReconstructionModel::CurvilinearApproximate;
-        else
+        try {
+            if (reconstruction.empty()) throw std::invalid_argument("empty policy");
+            cfg.source_geometry.reconstruction = cece::io::parse_reconstruction_model(reconstruction);
+        } catch (const std::invalid_argument&) {
             throw std::invalid_argument("cece_data stream '" + stream["name"].as<std::string>("") + "': unsupported geometry_reconstruction '" +
                                         reconstruction + "'");
+        }
     }
     cfg.input_var_name = file_name;
     if (stream["mapalgo"]) {
@@ -697,16 +688,16 @@ CeceDriverOrchestrator::CeceDriverOrchestrator(const std::string& config_file, i
     // YAML::Exception robustness (gridspec_file_ = "" on a bad/missing file).
     ResolveStreamConfigs();
     try {
-        const YAML::Node root = YAML::LoadFile(config_file_);
-        const YAML::Node driver = root["driver"];
+        const auto parsed = conf::Config::from_file(config_file_);
+        const auto driver = parsed.root()["driver"];
         if (driver) {
             destination_geometry_settings_.gridspec_file = gridspec_file_;
-            destination_geometry_settings_.named_grid = driver["grid"]["grid_name"].as<std::string>("");
-            destination_geometry_settings_.longitude_variable = driver["longitude_variable"].as<std::string>("");
-            destination_geometry_settings_.latitude_variable = driver["latitude_variable"].as<std::string>("");
-            destination_geometry_settings_.reconstruction = io::parse_reconstruction_model(driver["geometry_reconstruction"].as<std::string>("none"));
+            destination_geometry_settings_.named_grid = driver["grid"]["grid_name"].string_or("");
+            destination_geometry_settings_.longitude_variable = driver["longitude_variable"].string_or("");
+            destination_geometry_settings_.latitude_variable = driver["latitude_variable"].string_or("");
+            destination_geometry_settings_.reconstruction = io::parse_reconstruction_model(driver["geometry_reconstruction"].string_or("none"));
         }
-    } catch (const YAML::Exception& error) {
+    } catch (const conf::Conf_Error& error) {
         // Match ResolveStreamConfigs' existing behavior for a missing/bad
         // configuration file; no destination overrides are applied.
         CECE_LOG_DEBUG("[DRIVER] Could not read destination geometry settings: " + std::string(error.what()));

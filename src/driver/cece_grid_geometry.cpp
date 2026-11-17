@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// CECE — Chemical Emissions Coupling Engine
+// CECE — Community Emissions Computing Engine
 
 #include "cece/cece_grid_geometry.hpp"
 
@@ -19,18 +19,16 @@
 #include <utility>
 
 #include "cece/cece_amio_utils.hpp"
+#include "cece/cece_fnv1a.hpp"
+#include "cece/cece_logger.hpp"
+#include "cece/cece_string_utils.hpp"
 
 namespace cece::io {
 
+// Hash all geometry affecting plan reuse in a stable byte order using FNV-1a.
 std::uint64_t grid_geometry_revision(const GridGeometry& geometry) {
-    std::uint64_t hash = 1469598103934665603ULL;
-    auto add = [&](std::uint64_t value) {
-        for (int byte = 0; byte < 8; ++byte) {
-            const unsigned int shift = static_cast<unsigned int>(byte * 8);
-            hash ^= (value >> shift) & 0xffULL;
-            hash *= 1099511628211ULL;
-        }
-    };
+    cece::detail::Fnv1aHasher hasher;
+    auto add = [&](std::uint64_t value) { hasher.add(value); };
     auto add_values = [&](const std::vector<double>& values) {
         add(values.size());
         for (double value : values) add(std::bit_cast<std::uint64_t>(value));
@@ -71,14 +69,10 @@ std::uint64_t grid_geometry_revision(const GridGeometry& geometry) {
         add(areas.extent(0));
         for (std::size_t i = 0; i < areas.extent(0); ++i) add(std::bit_cast<std::uint64_t>(areas[i]));
     }
-    return hash;
+    return hasher.value();
 }
 namespace {
-std::string lower(std::string value) {
-    std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-    return value;
-}
-
+/// Render a pipeline stage in an actionable error.
 std::string stage_name(RegridStage stage) {
     switch (stage) {
         case RegridStage::GeometryLoad:
@@ -88,9 +82,10 @@ std::string stage_name(RegridStage stage) {
         case RegridStage::PlanBuild:
             return "plan build";
     }
-    return "regridding";
+    throw std::invalid_argument("unknown regridding stage");
 }
 
+/// Render the endpoint to which an error applies.
 std::string role_name(GridRole role) {
     switch (role) {
         case GridRole::Source:
@@ -102,23 +97,16 @@ std::string role_name(GridRole role) {
         case GridRole::None:
             return "request";
     }
-    return "request";
+    throw std::invalid_argument("unknown grid role");
 }
 }  // namespace
 
-ReconstructionModel parse_reconstruction_model(const std::string& name) {
-    const std::string value = lower(name);
-    if (value.empty() || value == "none") return ReconstructionModel::None;
-    if (value == "rectilinear_midpoint") return ReconstructionModel::RectilinearMidpoint;
-    if (value == "gaussian_latlon") return ReconstructionModel::GaussianLatLon;
-    if (value == "curvilinear_approximate") return ReconstructionModel::CurvilinearApproximate;
-    throw std::invalid_argument("unsupported geometry reconstruction policy '" + name + "'");
-}
-
+/// Generate an AXIS named mesh and derive its ordered center axes.
 static GridGeometry generate_named_grid_geometry(const std::string& name) {
     const auto parsed = axis::topology::NamedGridRegistry::parse(name);
     int nx = 0;
     int ny = 0;
+    // AXIS names F for full Gaussian grids and R for regular lat/lon grids.
     if (parsed.family == 'F') {
         nx = 4 * parsed.number;
         ny = 2 * parsed.number;
@@ -219,6 +207,69 @@ RegridError::RegridError(RegridStage stage, GridRole role, std::string method, s
       reason_(std::move(reason)),
       correction_(std::move(correction)) {}
 
+namespace {
+/// Construct cells from the supplied structured corner lattice.
+PreparedGeometry prepare_explicit_cells(PreparedGeometry prepared, const GridGeometry& source, const GeometrySettings& settings, bool curvilinear,
+                                        std::size_t ncell, axis::topology::LongitudePeriodicity seam) {
+    Kokkos::View<double*, Kokkos::HostSpace> lon("geometry_centers_lon", ncell), lat("geometry_centers_lat", ncell);
+    for (std::size_t k = 0; k < ncell; ++k) {
+        lon(k) = source.center_lon[curvilinear ? k : k % static_cast<std::size_t>(source.nx)];
+        lat(k) = source.center_lat[curvilinear ? k : k / static_cast<std::size_t>(source.nx)];
+    }
+    Kokkos::View<double*, Kokkos::HostSpace> corner_lon("geometry_corner_lon", source.corner_lon.size());
+    Kokkos::View<double*, Kokkos::HostSpace> corner_lat("geometry_corner_lat", source.corner_lat.size());
+    for (std::size_t k = 0; k < source.corner_lon.size(); ++k) {
+        corner_lon(k) = source.corner_lon[k];
+        corner_lat(k) = source.corner_lat[k];
+    }
+    axis::topology::StructuredGrid<Kokkos::HostSpace> grid(source.nx, source.ny, std::move(lon), std::move(lat), source.coordinate_system);
+    grid.set_corners(std::move(corner_lon), std::move(corner_lat));
+    prepared.cells = grid.to_unstructured(axis::topology::CornerPolicy::RequireExplicit, seam);
+    auto metadata = source.metadata;
+    const auto builder_metadata = prepared.cells->geometry_metadata();
+    if (metadata.provenance == axis::topology::GeometryProvenance::Unspecified) metadata.provenance = builder_metadata.provenance;
+    if (metadata.boundary_model == axis::topology::BoundaryModel::Unspecified) metadata.boundary_model = builder_metadata.boundary_model;
+    if (metadata.area_model == axis::topology::AreaModel::Unspecified) metadata.area_model = builder_metadata.area_model;
+    const auto& source_periodicity = source.metadata.longitude_periodicity;
+    const bool source_declared_periodicity = source_periodicity.periodic || source_periodicity.period != 360.0 || !source_periodicity.increasing;
+    if (!settings.longitude_periodicity.has_value() && !source_declared_periodicity)
+        metadata.longitude_periodicity = builder_metadata.longitude_periodicity;
+    prepared.cells->set_geometry_metadata(metadata);
+    prepared.metadata = metadata;
+    return prepared;
+}
+
+/// Construct cells using the explicitly selected reconstruction policy.
+PreparedGeometry prepare_reconstructed_cells(PreparedGeometry prepared, const GridGeometry& source, const GeometrySettings& settings,
+                                             bool curvilinear, std::size_t ncell, axis::topology::LongitudePeriodicity seam) {
+    Kokkos::View<double*, Kokkos::HostSpace> lon("geometry_centers_lon", ncell), lat("geometry_centers_lat", ncell);
+    for (std::size_t k = 0; k < ncell; ++k) {
+        lon(k) = source.center_lon[curvilinear ? k : k % static_cast<std::size_t>(source.nx)];
+        lat(k) = source.center_lat[curvilinear ? k : k / static_cast<std::size_t>(source.nx)];
+    }
+    axis::topology::StructuredGrid<Kokkos::HostSpace> grid(source.nx, source.ny, std::move(lon), std::move(lat), source.coordinate_system);
+    const auto policy = settings.reconstruction == ReconstructionModel::RectilinearMidpoint ? axis::topology::CornerPolicy::RectilinearMidpoint
+                                                                                            : axis::topology::CornerPolicy::CurvilinearApproximate;
+    prepared.cells = grid.to_unstructured(policy, seam);
+    prepared.metadata = prepared.cells->geometry_metadata();
+    if (settings.reconstruction == ReconstructionModel::RectilinearMidpoint) {
+        prepared.metadata.provenance = axis::topology::GeometryProvenance::DeclaredGridModel;
+        prepared.cells->set_geometry_metadata(prepared.metadata);
+    }
+    return prepared;
+}
+
+/// Retain an already constructed mesh after checking its cell ordering.
+PreparedGeometry prepare_supplied_cells(PreparedGeometry prepared, const GridGeometry& source, std::size_t ncell) {
+    if (source.supplied_cells->n_cells() != ncell)
+        throw RegridError(RegridStage::GeometryLoad, GridRole::Both, {}, "supplied cell count does not match center layout",
+                          "Verify that grid cells and field centers use the same ordering and dimensions");
+    prepared.cells = *source.supplied_cells;
+    prepared.metadata = source.metadata;
+    return prepared;
+}
+}  // namespace
+
 PreparedGeometry prepare_grid_geometry(std::shared_ptr<const GridGeometry> geometry, const GeometrySettings& settings) {
     if (!geometry)
         throw RegridError(RegridStage::GeometryLoad, GridRole::Both, {}, "geometry snapshot is null", "Load an owned geometry snapshot first");
@@ -226,6 +277,8 @@ PreparedGeometry prepare_grid_geometry(std::shared_ptr<const GridGeometry> geome
     prepared.geometry = std::move(geometry);
     prepared.metadata = prepared.geometry->metadata;
     const auto& source = *prepared.geometry;
+    CECE_LOG_DEBUG("[GEOMETRY] Preparing " + std::to_string(source.nx) + "x" + std::to_string(source.ny) + " grid from " + source.provenance +
+                   " with reconstruction policy " + std::to_string(static_cast<int>(settings.reconstruction)));
     if (source.nx <= 0 || source.ny <= 0)
         throw RegridError(RegridStage::GeometryLoad, GridRole::Both, {}, "grid dimensions must be positive", "Check coordinate dimensions");
 
@@ -255,14 +308,7 @@ PreparedGeometry prepare_grid_geometry(std::shared_ptr<const GridGeometry> geome
             throw RegridError(RegridStage::GeometryLoad, GridRole::Both, {}, "center coordinate is invalid for its coordinate system",
                               "Check coordinate units and geographic latitude range");
 
-    if (source.supplied_cells) {
-        if (source.supplied_cells->n_cells() != ncell)
-            throw RegridError(RegridStage::GeometryLoad, GridRole::Both, {}, "supplied cell count does not match center layout",
-                              "Verify that grid cells and field centers use the same ordering and dimensions");
-        prepared.cells = *source.supplied_cells;
-        prepared.metadata = source.metadata;
-        return prepared;
-    }
+    if (source.supplied_cells) return prepare_supplied_cells(std::move(prepared), source, ncell);
 
     const std::size_t corner_columns = static_cast<std::size_t>(source.nx) + 1;
     const std::size_t corner_rows = static_cast<std::size_t>(source.ny) + 1;
@@ -272,32 +318,7 @@ PreparedGeometry prepare_grid_geometry(std::shared_ptr<const GridGeometry> geome
         if (!supplied_lattice)
             throw RegridError(RegridStage::GeometryLoad, GridRole::Both, {}, "explicit bounds are not a valid structured corner lattice",
                               "Correct the bounds dimensions for the declared grid");
-        Kokkos::View<double*, Kokkos::HostSpace> lon("geometry_centers_lon", ncell), lat("geometry_centers_lat", ncell);
-        for (std::size_t k = 0; k < ncell; ++k) {
-            lon(k) = source.center_lon[curvilinear ? k : k % static_cast<std::size_t>(source.nx)];
-            lat(k) = source.center_lat[curvilinear ? k : k / static_cast<std::size_t>(source.nx)];
-        }
-        Kokkos::View<double*, Kokkos::HostSpace> corner_lon("geometry_corner_lon", source.corner_lon.size());
-        Kokkos::View<double*, Kokkos::HostSpace> corner_lat("geometry_corner_lat", source.corner_lat.size());
-        for (std::size_t k = 0; k < source.corner_lon.size(); ++k) {
-            corner_lon(k) = source.corner_lon[k];
-            corner_lat(k) = source.corner_lat[k];
-        }
-        axis::topology::StructuredGrid<Kokkos::HostSpace> grid(source.nx, source.ny, std::move(lon), std::move(lat), source.coordinate_system);
-        grid.set_corners(std::move(corner_lon), std::move(corner_lat));
-        prepared.cells = grid.to_unstructured(axis::topology::CornerPolicy::RequireExplicit, seam);
-        auto metadata = source.metadata;
-        const auto builder_metadata = prepared.cells->geometry_metadata();
-        if (metadata.provenance == axis::topology::GeometryProvenance::Unspecified) metadata.provenance = builder_metadata.provenance;
-        if (metadata.boundary_model == axis::topology::BoundaryModel::Unspecified) metadata.boundary_model = builder_metadata.boundary_model;
-        if (metadata.area_model == axis::topology::AreaModel::Unspecified) metadata.area_model = builder_metadata.area_model;
-        const auto& source_periodicity = source.metadata.longitude_periodicity;
-        const bool source_declared_periodicity = source_periodicity.periodic || source_periodicity.period != 360.0 || !source_periodicity.increasing;
-        if (!settings.longitude_periodicity.has_value() && !source_declared_periodicity)
-            metadata.longitude_periodicity = builder_metadata.longitude_periodicity;
-        prepared.cells->set_geometry_metadata(metadata);
-        prepared.metadata = metadata;
-        return prepared;
+        return prepare_explicit_cells(std::move(prepared), source, settings, curvilinear, ncell, seam);
     }
 
     switch (settings.reconstruction) {
@@ -322,21 +343,7 @@ PreparedGeometry prepare_grid_geometry(std::shared_ptr<const GridGeometry> geome
                               "Supply a Gaussian geometry adapter or explicit bounds");
     }
 
-    Kokkos::View<double*, Kokkos::HostSpace> lon("geometry_centers_lon", ncell), lat("geometry_centers_lat", ncell);
-    for (std::size_t k = 0; k < ncell; ++k) {
-        lon(k) = source.center_lon[curvilinear ? k : k % static_cast<std::size_t>(source.nx)];
-        lat(k) = source.center_lat[curvilinear ? k : k / static_cast<std::size_t>(source.nx)];
-    }
-    axis::topology::StructuredGrid<Kokkos::HostSpace> grid(source.nx, source.ny, std::move(lon), std::move(lat), source.coordinate_system);
-    const auto policy = settings.reconstruction == ReconstructionModel::RectilinearMidpoint ? axis::topology::CornerPolicy::RectilinearMidpoint
-                                                                                            : axis::topology::CornerPolicy::CurvilinearApproximate;
-    prepared.cells = grid.to_unstructured(policy, seam);
-    prepared.metadata = prepared.cells->geometry_metadata();
-    if (settings.reconstruction == ReconstructionModel::RectilinearMidpoint) {
-        prepared.metadata.provenance = axis::topology::GeometryProvenance::DeclaredGridModel;
-        prepared.cells->set_geometry_metadata(prepared.metadata);
-    }
-    return prepared;
+    return prepare_reconstructed_cells(std::move(prepared), source, settings, curvilinear, ncell, seam);
 }
 
 GeometryPartition partition_grid_geometry(std::shared_ptr<const GridGeometry> geometry, int j0, int j1) {
@@ -408,27 +415,9 @@ GeometryPartition partition_grid_geometry(std::shared_ptr<const GridGeometry> ge
 }
 
 RegridMethodSettings resolve_regrid_method(const std::string& method_name) {
-    const std::string name = lower(method_name);
-    RegridMethodSettings result;
-    if (name == "nearest" || name == "near" || name == "nn") {
-        result.method = RegridMethod::Nearest;
-        result.canonical_name = "nearest";
-    } else if (name == "bilinear" || name == "bilin" || name == "bi") {
-        result.method = RegridMethod::Bilinear;
-        result.canonical_name = "bilinear";
-    } else if (name == "cubic" || name == "bicubic" || name == "cu") {
-        result.method = RegridMethod::Bicubic;
-        result.canonical_name = "bicubic";
-    } else if (name == "conss" || name == "conservative2nd" || name == "cons2nd") {
-        result.method = RegridMethod::Conservative2;
-        result.canonical_name = "conservative2nd";
-    } else if (name == "consd" || name == "conservative" || name == "cons" || name == "conservative1st") {
-        result.method = RegridMethod::Conservative1;
-        result.canonical_name = "conservative1st";
-    } else if (name == "passthrough") {
-        result.method = RegridMethod::Passthrough;
-        result.canonical_name = "passthrough";
-    } else if (name == "consf") {
+    if (const auto settings = parse_regrid_method(method_name)) return *settings;
+    const std::string name = cece::to_lower(method_name);
+    if (name == "consf") {
         // consf implies source-area (source-fraction) normalization, which the host AXIS path does not
         // implement; the destination-normalized behavior would silently be consd. Reject until distinct
         // semantics exist (see ufs-community/CECE#124 review discussion).
@@ -446,7 +435,6 @@ RegridMethodSettings resolve_regrid_method(const std::string& method_name) {
         throw RegridError(RegridStage::PrerequisiteValidation, GridRole::None, method_name, "unknown regridding method",
                           "Use nearest, bilinear, bicubic, consd, conss, or passthrough");
     }
-    return result;
 }
 
 ValidatedRegridRequest validate_regrid_prerequisites(const GridGeometry& source, const GridGeometry& destination,
@@ -623,12 +611,8 @@ GridGeometry load_grid_geometry(amio_dataset_handle dataset, const GeometrySetti
         throw RegridError(RegridStage::GeometryLoad, GridRole::Source, {}, "source longitude or latitude coordinates could not be discovered",
                           "Configure the coordinate variable names or use a supported naming convention");
 
-    auto normalized_units = [](std::string value) {
-        std::transform(value.begin(), value.end(), value.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
-        return value;
-    };
-    const auto lon_units = normalized_units(longitude.units);
-    const auto lat_units = normalized_units(latitude.units);
+    const auto lon_units = cece::to_lower(longitude.units);
+    const auto lat_units = cece::to_lower(latitude.units);
     if ((longitude.name == "x" || latitude.name == "y") && (lon_units.empty() || lat_units.empty()))
         throw RegridError(RegridStage::GeometryLoad, GridRole::Source, {}, "ambiguous x/y coordinates have no geographic units",
                           "Add geographic CF units or select longitude/latitude variables explicitly");

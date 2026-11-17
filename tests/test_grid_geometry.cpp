@@ -9,10 +9,18 @@
 #include <string>
 #include <vector>
 
+#include "cece/cece_fnv1a.hpp"
 #include "cece/cece_grid_geometry.hpp"
 #include "cece/cece_regridder_utils.hpp"
 
 extern "C" void amio_set_parent_communicator(MPI_Fint comm);
+
+TEST(GeometryFingerprint, UsesStandardFnv1aAndLittleEndianWords) {
+    cece::detail::Fnv1aHasher hasher;
+    EXPECT_EQ(hasher.value(), 14695981039346656037ULL);
+    hasher.add(0x0807060504030201ULL);
+    EXPECT_EQ(hasher.value(), 0x7eb5108b368a78edULL);
+}
 
 namespace {
 void nc_check(int rc) {

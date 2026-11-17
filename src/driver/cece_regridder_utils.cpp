@@ -144,7 +144,7 @@ static bool looks_like_fv3_supergrid(amio_dataset_handle dataset, int nx, int nb
 }
 
 // Read a CF rectilinear axis and its explicitly named cell bounds. Do not infer
-// polar edges from centres or wrap longitudes: either operation changes the
+// polar edges from centers or wrap longitudes: either operation changes the
 // supplied grid. Unsupported/malformed bounds must fail, not silently regrid.
 static std::vector<double> read_rectilinear_bounds(amio_dataset_handle dataset, const char* axis_name, int count, bool latitude) {
     auto text_attribute = [&](const char* attribute) {
@@ -168,28 +168,29 @@ static std::vector<double> read_rectilinear_bounds(amio_dataset_handle dataset, 
         throw std::runtime_error("CF rectilinear bounds must have shape [axis, 2]: " + bounds_name);
     }
     int points = 0;
-    const auto centres = read_coordinate_array(dataset, axis_name, false, false, points);
-    if (points != count) throw std::runtime_error("CF rectilinear centre count mismatch");
+    const auto centers = read_coordinate_array(dataset, axis_name, false, false, points);
+    if (points != count) throw std::runtime_error("CF rectilinear center count mismatch");
     const auto bounds = read_coordinate_array(dataset, bounds_name, false, false, points);
     if (static_cast<size_t>(points) != 2 * static_cast<size_t>(count)) throw std::runtime_error("CF rectilinear bounds count mismatch");
     for (int i = 0; i < count; ++i) {
         const size_t offset = 2 * static_cast<size_t>(i);
         double lo = bounds[offset], hi = bounds[offset + 1];
-        const double centre = centres[i];
-        if (!std::isfinite(lo) || !std::isfinite(hi) || !std::isfinite(centre) || std::abs(hi - lo) <= 1e-12) {
+        const double center = centers[i];
+        if (!std::isfinite(lo) || !std::isfinite(hi) || !std::isfinite(center) || std::abs(hi - lo) <= 1e-12) {
             throw std::runtime_error("Invalid CF rectilinear cell bounds: " + bounds_name);
         }
         if (latitude) {
+            // Latitude bounds must be physical and contain their cell center.
             const double low = std::min(lo, hi), high = std::max(lo, hi);
-            if (low < -90.0 || high > 90.0 || centre < low - 1e-10 || centre > high + 1e-10)
+            if (low < -90.0 || high > 90.0 || center < low - 1e-10 || center > high + 1e-10)
                 throw std::runtime_error("Invalid CF rectilinear cell bounds: " + bounds_name);
         } else {
             // This adapter has no grid-wide seam declaration, so longitude
             // pairs must be consistently ordered and cannot cross the seam.
-            if (!(lo < hi) || hi - lo > 180.0 || centre < lo - 1e-10 || centre > hi + 1e-10)
+            if (!(lo < hi) || hi - lo > 180.0 || center < lo - 1e-10 || center > hi + 1e-10)
                 throw std::runtime_error("Invalid CF rectilinear cell bounds: " + bounds_name);
         }
-        if (i > 0 && (centres[i] == centres[i - 1] || (i > 1 && ((centres[i] > centres[i - 1]) != (centres[1] > centres[0]))))) {
+        if (i > 0 && (centers[i] == centers[i - 1] || (i > 1 && ((centers[i] > centers[i - 1]) != (centers[1] > centers[0]))))) {
             throw std::runtime_error(std::string("Nonmonotonic CF rectilinear axis: ") + axis_name);
         }
     }
@@ -692,11 +693,16 @@ axis::topology::UnstructuredMesh<Kokkos::HostSpace> load_mesh_from_file(int nx, 
             int64_t bnd_ts = 0;
             const bool has_lon_bnd_shape = amio_describe(dataset, lon_bounds_name.c_str(), &lon_bnd_shape, &bnd_ts) == AMIO_OK;
             const bool has_lat_bnd_shape = amio_describe(dataset, lat_bounds_name.c_str(), &lat_bnd_shape, &bnd_ts) == AMIO_OK;
-            auto axis_is_1d_bounds = [](const amio_shape_t& shape) {
-                // CF axis bounds are (axis, nv) or (nv, axis) with nv == 2.
-                // Per-cell corner lists carry a dimension of 4 instead.
-                return shape.rank == 2 && (shape.extents[0] == 2 || shape.extents[1] == 2) && shape.extents[0] != 4 && shape.extents[1] != 4;
+            auto axis_is_1d_bounds = [](const amio_shape_t& coordinate, const amio_shape_t& bounds) {
+                // The coordinate rank distinguishes a four-point axis from
+                // per-cell corner lists, whose bounds also contain a 4.
+                return coordinate.rank == 1 && bounds.rank == 2 &&
+                       ((bounds.extents[0] == coordinate.extents[0] && bounds.extents[1] == 2) ||
+                        (bounds.extents[0] == 2 && bounds.extents[1] == coordinate.extents[0]));
             };
+            amio_shape_t lon_shape{}, lat_shape{};
+            const bool has_lon_shape = amio_describe(dataset, cf_lon_name.c_str(), &lon_shape, &bnd_ts) == AMIO_OK;
+            const bool has_lat_shape = amio_describe(dataset, cf_lat_name.c_str(), &lat_shape, &bnd_ts) == AMIO_OK;
             // Return the bounds as interleaved [count][2] pairs. A (count, nv)
             // array already flattens that way; a (nv, count) array stores the
             // low and high edges as two contiguous blocks and must be reordered.
@@ -721,8 +727,8 @@ axis::topology::UnstructuredMesh<Kokkos::HostSpace> load_mesh_from_file(int nx, 
                 }
                 return std::vector<double>(values);
             };
-            const bool is_1d_rectilinear =
-                has_lon_bnd_shape && has_lat_bnd_shape && axis_is_1d_bounds(lon_bnd_shape) && axis_is_1d_bounds(lat_bnd_shape);
+            const bool is_1d_rectilinear = has_lon_shape && has_lat_shape && has_lon_bnd_shape && has_lat_bnd_shape &&
+                                           axis_is_1d_bounds(lon_shape, lon_bnd_shape) && axis_is_1d_bounds(lat_shape, lat_bnd_shape);
 
             // 5. Read the boundary arrays using the names we just resolved.
             //    Wrapping +180° longitudes is only safe for per-cell corner

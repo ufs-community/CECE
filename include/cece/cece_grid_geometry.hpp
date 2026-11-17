@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: Apache-2.0
-// CECE — Chemical Emissions Coupling Engine
+// CECE — Community Emissions Computing Engine
 
 #ifndef CECE_GRID_GEOMETRY_HPP
 #define CECE_GRID_GEOMETRY_HPP
@@ -15,10 +15,9 @@
 #include <string>
 #include <vector>
 
-namespace cece::io {
+#include "cece/cece_geometry_config.hpp"
 
-enum class ReconstructionModel : std::uint8_t { None, RectilinearMidpoint, GaussianLatLon, CurvilinearApproximate };
-ReconstructionModel parse_reconstruction_model(const std::string& name);
+namespace cece::io {
 
 /// Geometry choices are deliberately independent of the interpolation method.
 struct GeometrySettings {
@@ -115,6 +114,7 @@ GeometryPartition partition_grid_geometry(std::shared_ptr<const GridGeometry> ge
 /// Prepared host geometry keeps the original center arrays and metadata next
 /// to optional finalized cell geometry. The mesh is absent for sample-only
 /// grids and its metadata must agree with the inherited model declaration.
+/// CECE retains the input snapshot and policy metadata; AXIS constructs the mesh.
 struct PreparedGeometry {
     std::shared_ptr<const GridGeometry> geometry;
     std::optional<axis::topology::UnstructuredMesh<Kokkos::HostSpace>> cells;
@@ -130,16 +130,8 @@ axis::topology::UnstructuredMesh<Kokkos::HostSpace> load_mesh_from_file(int nx, 
 GridGeometry load_grid_geometry(amio_dataset_handle dataset, const GeometrySettings& settings = {});
 
 /// Stage 1: apply only the geometry policy explicitly present in settings.
+/// Shared ownership keeps the immutable coordinate snapshot alive for the prepared mesh.
 PreparedGeometry prepare_grid_geometry(std::shared_ptr<const GridGeometry> geometry, const GeometrySettings& settings);
-
-enum class RegridMethod : std::uint8_t { Nearest, Bilinear, Bicubic, Conservative1, Conservative2, Passthrough };
-
-struct RegridMethodSettings {
-    RegridMethod method{RegridMethod::Conservative1};
-    std::string canonical_name{"consd"};
-    std::string normalization{"dstarea"};
-    std::string unmapped{"ignore"};
-};
 
 enum class RegridBackend : std::uint8_t { Host, Device };
 

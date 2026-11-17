@@ -327,7 +327,8 @@ GridSpec GridSpec::from_yaml(const std::string& config_file, conf::Config& confi
         try {
             const auto named_geometry = cece::io::load_named_grid_geometry(grid_name);
             if (named_geometry.nx != nx || named_geometry.ny != ny)
-                throw std::invalid_argument("AXIS named grid dimensions do not match its parsed family and number");
+                throw std::invalid_argument("AXIS named grid '" + grid_name + "' returned " + std::to_string(named_geometry.nx) + "x" +
+                                            std::to_string(named_geometry.ny) + "; expected " + std::to_string(nx) + "x" + std::to_string(ny));
             file_lons = named_geometry.center_lon;
             file_lats = named_geometry.center_lat;
         } catch (const std::exception& e) {

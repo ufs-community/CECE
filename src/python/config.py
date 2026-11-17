@@ -18,6 +18,7 @@ import math
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
 from typing import Any
 
 # Support both package (relative) and direct-module import
@@ -549,6 +550,15 @@ class DataVariableConfig:
         return result
 
 
+class GeometryReconstruction(str, Enum):
+    """Supported geometry reconstruction policies (also compatible with Python 3.10)."""
+
+    NONE = "none"
+    RECTILINEAR_MIDPOINT = "rectilinear_midpoint"
+    GAUSSIAN_LATLON = "gaussian_latlon"
+    CURVILINEAR_APPROXIMATE = "curvilinear_approximate"
+
+
 _STREAM_ENUM_VALUES = {
     "taxmode": {"cycle", "extend", "limit"},
     "tintalgo": {"linear", "nearest"},
@@ -719,10 +729,7 @@ class DataStreamConfig:
         ):
             _validate_string(getattr(self, key), key, allow_empty=True)
         if self.geometry_reconstruction not in {
-            "none",
-            "rectilinear_midpoint",
-            "gaussian_latlon",
-            "curvilinear_approximate",
+            value.value for value in GeometryReconstruction
         }:
             raise ValueError(
                 f"Invalid geometry_reconstruction: {self.geometry_reconstruction}"
@@ -989,10 +996,7 @@ class DriverConfig:
             _validate_string(getattr(self, key), f"driver.{key}", allow_empty=True)
         _validate_string(self.geometry_reconstruction, "driver.geometry_reconstruction")
         if self.geometry_reconstruction not in {
-            "none",
-            "rectilinear_midpoint",
-            "gaussian_latlon",
-            "curvilinear_approximate",
+            value.value for value in GeometryReconstruction
         }:
             raise ValueError(
                 f"Invalid driver.geometry_reconstruction: {self.geometry_reconstruction}"
