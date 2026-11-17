@@ -169,7 +169,7 @@ TEST_F(CeceUtilsTest, StandaloneWriterPreservesHemco4x5CoordinateCenters) {
     test_field.modify<Kokkos::HostSpace>();
     std::unordered_map<std::string, DualView3D> fields;
     fields["test_field"] = test_field;
-    ASSERT_EQ(writer.WriteTimeStep(fields, 3600.0, 1), 0);
+    ASSERT_EQ(writer.WriteTimeStep(fields, {}, 3600.0, 1), 0);
     writer.Finalize();
 
     const std::string output_path = test_dir + "/hemco_grid.nc";
@@ -286,7 +286,7 @@ TEST_F(CeceUtilsTest, StandaloneWriterDuplicateFieldsFiltering) {
     fields["lon"] = lon_field_view;  // This should be skipped safely!
 
     // Write a time step
-    int rc_write = writer.WriteTimeStep(fields, 0.0, 0);
+    int rc_write = writer.WriteTimeStep(fields, {}, 0.0, 0);
     EXPECT_EQ(rc_write, 0);  // Should succeed and write test_field, skipping lon!
 
     writer.Finalize();

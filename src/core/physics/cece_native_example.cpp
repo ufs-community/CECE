@@ -28,10 +28,8 @@ void NativePhysicsExample::Initialize(const conf::Value& config, CeceDiagnosticM
     }
 
     std::cout << "NativePhysicsExample: Initialized.\n";
-    if (diag_manager != nullptr) {
-        // Register an example diagnostic variable
-        diag_manager->RegisterDiagnostic("native_example_diag", 1, 1, 1);
-    }
+    // Record this declaration in Phase 1 and allocate it during binding.
+    ResolveDiagnostic("native_example_diag");
 }
 
 /**
@@ -56,7 +54,7 @@ void NativePhysicsExample::Run(CeceImportState& import_state, CeceExportState& e
     int ny = static_cast<int>(nox.extent(1));
     int nz = static_cast<int>(nox.extent(2));
 
-    auto multiplier_diag = ResolveDiagnostic("nox_multiplier_effect", nx, ny, nz);
+    auto multiplier_diag = ResolveDiagnostic("nox_multiplier_effect");
 
     double default_multiplier = multiplier_;
 

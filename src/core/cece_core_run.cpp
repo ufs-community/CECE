@@ -128,11 +128,10 @@ void ExecuteStepUnconditional(cece::CeceInternalData& d, int hour, int day_of_we
 }
 
 void SyncAndCopyState(cece::CeceInternalData& d) {
-    // Mark all export fields as modified on the device since they are computed on the device
-    // by the Stacking Engine and physics schemes, ensuring Kokkos copies device updates to host.
-    // Also copy the synced host values of managed views back to the persistent unmanaged export pointers!
+    // Each writer marks its own export fields as modified. Sync only fields
+    // already marked by the stacking engine or a physics scheme, then copy
+    // persistent host values back to the coupled model.
     for (auto& [name, field] : d.export_state.fields) {
-        field.modify<Kokkos::DefaultExecutionSpace>();
         field.sync_host();
 
         auto it = d.persistent_export_ptrs.find(name);
@@ -142,6 +141,24 @@ void SyncAndCopyState(cece::CeceInternalData& d) {
             // sized nx*ny_local*nz (band extent; == nx*ny*nz on a single rank).
             UnmanagedHost h_view(it->second, d.nx, d.ny_local, d.nz);
             Kokkos::deep_copy(h_view, field.view_host());
+        }
+    }
+
+    // Diagnostic registry fields are rank-local (nx, ny_local, nz); sync and
+    // copy directly into the coupled model's rank-local buffers.
+    // No-ops in standalone: persistent_diagnostic_ptrs is empty there.
+    if (!d.persistent_diagnostic_ptrs.empty() && d.diagnostic_manager) {
+        for (auto& [name, ptr] : d.persistent_diagnostic_ptrs) {
+            if (ptr == nullptr) {
+                continue;
+            }
+            auto host = d.diagnostic_manager->SyncHost(name);
+            if (!d.diagnostic_manager->Fields().contains(name)) {
+                continue;  // Advertised but never allocated on this grid.
+            }
+            using UnmanagedHost = Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+            UnmanagedHost h_view(ptr, d.nx, d.ny_local, d.nz);
+            Kokkos::deep_copy(h_view, host);
         }
     }
 

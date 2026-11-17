@@ -549,6 +549,19 @@ class DataVariableConfig:
         return result
 
 
+# Names the NetCDF writer always owns. A ``diagnostics:variables`` entry may
+# never reuse one; kept in sync with ``IsWriterManagedName`` in
+# ``include/cece/cece_config.hpp``.
+_WRITER_MANAGED_NAMES = frozenset({
+    "lon",
+    "lat",
+    "lev",
+    "time",
+    "lon_bnds",
+    "lat_bnds",
+    "mesh",
+})
+
 _STREAM_ENUM_VALUES = {
     "taxmode": {"cycle", "extend", "limit"},
     "tintalgo": {"linear", "nearest"},
@@ -1039,6 +1052,7 @@ class OutputConfig:
     directory: str = "."
     filename_pattern: str = "cece_output_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
     frequency_steps: int = 1
+    include_diagnostics: bool = False
     fields: list[OutputFieldConfig] = field(default_factory=list)
     amio_worker_threads: int | None = None
     amio_staging_buffer_count: int = 2
@@ -1049,6 +1063,8 @@ class OutputConfig:
     def validate(self) -> None:
         if not isinstance(self.enabled, bool):
             raise ValueError("output.enabled must be a boolean")
+        if not isinstance(self.include_diagnostics, bool):
+            raise ValueError("output.include_diagnostics must be a boolean")
         _validate_string(self.directory, "output.directory")
         _validate_string(self.filename_pattern, "output.filename_pattern")
         _validate_global_attributes(self.global_attributes, "output.global_attributes")
@@ -1094,6 +1110,7 @@ class OutputConfig:
                 "directory",
                 "filename_pattern",
                 "frequency_steps",
+                "include_diagnostics",
                 "fields",
                 "amio_worker_threads",
                 "amio_staging_buffer_count",
@@ -1113,6 +1130,7 @@ class OutputConfig:
                 "filename_pattern", "cece_output_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
             ),
             frequency_steps=values.get("frequency_steps", 1),
+            include_diagnostics=values.get("include_diagnostics", False),
             fields=[
                 OutputFieldConfig.from_dict(item, f"{where}.fields[{index}]")
                 for index, item in enumerate(raw_fields)
@@ -1133,7 +1151,12 @@ class OutputConfig:
 
 @dataclass
 class DiagnosticsConfig:
-    output_interval: int = 0
+    output_interval_seconds: int = 0
+    # Deprecated alias for output_interval_seconds, kept so configs written
+    # before the rename still validate. None means the alias was absent.
+    # When both keys are present the canonical one wins, matching the C++
+    # parser.
+    output_interval: int | None = None
     grid_type: str = "native"
     grid_file: str = ""
     nx: int = 0
@@ -1143,9 +1166,15 @@ class DiagnosticsConfig:
 
     def validate(self) -> None:
         _validate_string(self.grid_type, "diagnostics.grid_type")
-        _validate_integer(self.output_interval, "diagnostics.output_interval")
-        if self.output_interval < 0:
-            raise ValueError("diagnostics.output_interval must be non-negative")
+        _validate_integer(
+            self.output_interval_seconds, "diagnostics.output_interval_seconds"
+        )
+        if self.output_interval_seconds < 0:
+            raise ValueError("diagnostics.output_interval_seconds must be non-negative")
+        if self.output_interval is not None:
+            _validate_integer(self.output_interval, "diagnostics.output_interval")
+            if self.output_interval < 0:
+                raise ValueError("diagnostics.output_interval must be non-negative")
         if self.grid_type not in {"native", "gaussian", "mesh"}:
             raise ValueError(f"Invalid diagnostics.grid_type: {self.grid_type}")
         _validate_string(self.grid_file, "diagnostics.grid_file", allow_empty=True)
@@ -1169,11 +1198,24 @@ class DiagnosticsConfig:
             values = _require_mapping(data, where)
             _reject_unknown_keys(
                 values,
-                {"output_interval", "grid_type", "grid_file", "nx", "ny", "variables"},
+                {
+                    "output_interval",
+                    "output_interval_seconds",
+                    "grid_type",
+                    "grid_file",
+                    "nx",
+                    "ny",
+                    "variables",
+                },
                 where,
             )
+            alias = values.get("output_interval")
+            canonical = values.get("output_interval_seconds")
+            if canonical is None:
+                canonical = alias if alias is not None else 0
             result = cls(
-                output_interval=values.get("output_interval", 0),
+                output_interval_seconds=canonical,
+                output_interval=alias,
                 grid_type=values.get("grid_type", "native"),
                 grid_file=values.get("grid_file", ""),
                 nx=values.get("nx", 0),
@@ -1380,7 +1422,12 @@ class ValidationResult:
     ...         print(err)
     """
 
-    def __init__(self, is_valid: bool = True, errors: list[str] | None = None) -> None:
+    def __init__(
+        self,
+        is_valid: bool = True,
+        errors: list[str] | None = None,
+        warnings: list[str] | None = None,
+    ) -> None:
         """
         Initialize validation result.
 
@@ -1390,9 +1437,14 @@ class ValidationResult:
             Whether validation passed. Default is ``True``.
         errors : list of str or None, optional
             List of error messages. Default is ``None`` (empty list).
+        warnings : list of str or None, optional
+            List of non-fatal advisories. They never flip ``is_valid`` and
+            never fail ``from_dict``; they surface likely-stale config for a
+            human to look at. Default is ``None`` (empty list).
         """
         self.is_valid = is_valid
         self.errors = errors or []
+        self.warnings = warnings or []
 
     def __bool__(self) -> bool:
         """Return ``True`` if validation passed."""
@@ -1400,9 +1452,16 @@ class ValidationResult:
 
     def __str__(self) -> str:
         """Return a human-readable summary of the validation result."""
+        parts: list[str] = []
         if self.is_valid:
-            return "Validation passed"
-        return "Validation failed:\n" + "\n".join(f"  - {e}" for e in self.errors)
+            parts.append("Validation passed")
+        else:
+            parts.append(
+                "Validation failed:\n" + "\n".join(f"  - {e}" for e in self.errors)
+            )
+        if self.warnings:
+            parts.append("Warnings:\n" + "\n".join(f"  - {w}" for w in self.warnings))
+        return "\n".join(parts)
 
 
 class CeceConfig:
@@ -1765,6 +1824,22 @@ class CeceConfig:
                     lambda factors=factors: _validate_temporal_factors(factors),
                 )
 
+        errors.extend(self._temporal_cycle_reference_errors())
+
+        diag_errors, diag_warnings = self._diagnostics_surface_checks()
+        errors.extend(diag_errors)
+
+        return ValidationResult(
+            is_valid=len(errors) == 0, errors=errors, warnings=diag_warnings
+        )
+
+    def _temporal_cycle_reference_errors(self) -> list[str]:
+        """Species-layer temporal cycle references against defined cycles.
+
+        Returns the error strings; they are appended to the aggregate list by
+        ``validate`` so the per-section ``capture`` helper stays local there.
+        """
+        errors: list[str] = []
         available_cycles = set(self._temporal_cycles) | set(self._temporal_profiles)
         expected_lengths = {
             "diurnal_cycle": 24,
@@ -1794,8 +1869,55 @@ class CeceConfig:
                             f"{expected_length} factors; "
                             f"got {len(factors)}"
                         )
+        return errors
 
-        return ValidationResult(is_valid=len(errors) == 0, errors=errors)
+    def _diagnostics_surface_checks(self) -> tuple[list[str], list[str]]:
+        """Cross-section rules for the diagnostics publication surface.
+
+        Mirrors the C++ parser: the checks only run when the channel is live
+        (``output.include_diagnostics`` true), so a dormant block stays inert
+        and existing configs keep loading unchanged. Returns ``(errors,
+        warnings)``; warnings never fail validation.
+        """
+        errors: list[str] = []
+        warnings: list[str] = []
+        diagnostics = self._diagnostics_config
+        output = self._output_config
+        driver = self._driver_config
+        if diagnostics is None or output is None:
+            return errors, warnings
+        if not output.include_diagnostics:
+            # Dormant block: advisory only. Species names here were valid
+            # before the diagnostics surface existed and would be rejected
+            # the moment the channel is enabled.
+            for name in diagnostics.variables:
+                if name in self._species:
+                    warnings.append(
+                        f"diagnostics:variables entry '{name}' names a declared "
+                        "species; enabling output.include_diagnostics would "
+                        "reject it (the list filters scheme diagnostics, not "
+                        "species emissions)."
+                    )
+            return errors, warnings
+        interval = diagnostics.output_interval_seconds
+        timestep = driver.timestep_seconds if driver is not None else 0
+        if interval > 0 and timestep >= 1 and interval % timestep != 0:
+            errors.append(
+                f"diagnostics.output_interval_seconds ({interval}) must be a "
+                f"multiple of driver.timestep_seconds ({timestep})."
+            )
+        for name in diagnostics.variables:
+            if name in _WRITER_MANAGED_NAMES:
+                errors.append(
+                    f"diagnostics:variables entry '{name}' collides with a "
+                    "reserved coordinate variable name."
+                )
+            elif name in self._species:
+                errors.append(
+                    f"diagnostics:variables entry '{name}' collides with a "
+                    "declared species name."
+                )
+        return errors, warnings
 
     def to_yaml(self) -> str:
         """
@@ -1907,7 +2029,12 @@ class CeceConfig:
                 diagnostics.variables
                 if diagnostics.sequence_form
                 else {
-                    "output_interval": diagnostics.output_interval,
+                    "output_interval_seconds": diagnostics.output_interval_seconds,
+                    **(
+                        {"output_interval": diagnostics.output_interval}
+                        if diagnostics.output_interval is not None
+                        else {}
+                    ),
                     "grid_type": diagnostics.grid_type,
                     "grid_file": diagnostics.grid_file,
                     "nx": diagnostics.nx,
@@ -1922,6 +2049,7 @@ class CeceConfig:
                 "directory": output.directory,
                 "filename_pattern": output.filename_pattern,
                 "frequency_steps": output.frequency_steps,
+                "include_diagnostics": output.include_diagnostics,
                 "fields": [
                     {"name": item.name, "attributes": item.attributes}
                     for item in output.fields

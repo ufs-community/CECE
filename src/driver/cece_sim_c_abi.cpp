@@ -23,6 +23,7 @@
 #include <vector>
 
 #include "cece/cece_fatal.hpp"
+#include "cece/cece_logger.hpp"
 #include "cece/cece_simulation.hpp"
 
 namespace {
@@ -108,6 +109,23 @@ void extent_of(const std::vector<double>& v, double* lo, double* hi) {
         if (lo != nullptr && x < *lo) *lo = x;
         if (hi != nullptr && x > *hi) *hi = x;
     }
+}
+
+/// Copy a std::string into a caller-owned fixed buffer, NUL-terminating it.
+/// Truncation is an error (rc = -1 with a logged diagnostic naming the
+/// field), never silent — same rule as the cece_core_diagnostic_* ABI, so a
+/// cap buffer too small to hold real metadata fails loudly instead of
+/// advertising a wrong value. On success *len_out receives the length.
+bool abi_copy_str(const std::string& value, const char* label, char* buf, int buf_max, int* len_out, int* rc) {
+    set_out(len_out, static_cast<int>(value.size()));
+    if (static_cast<int>(value.size()) >= buf_max) {
+        CECE_LOG_ERROR(std::string("[SIM] ") + label + " - buffer too small (" + std::to_string(buf_max) + ") for '" + value + "'");
+        set_out(rc, -1);
+        return false;
+    }
+    std::memcpy(buf, value.data(), value.size());
+    buf[value.size()] = '\0';
+    return true;
 }
 
 }  // namespace
@@ -353,6 +371,64 @@ void cece_sim_bind_export_field(CeceSimulation* sim, const char* species, int sp
     cece::CeceSimulation& cpp_sim = *reinterpret_cast<cece::CeceSimulation*>(sim);
     const std::string name = cstr_to_string(species, species_len);
     cpp_sim.bind_export_field(name, data_ptr, nx, ny_local, nz, rc);
+}
+
+void cece_sim_diagnostic_units(CeceSimulation* sim, const char* name, int name_len, char* units, int units_max, int* units_len_out, int* rc) {
+    set_out(rc, 0);
+    set_out(units_len_out, 0);
+    if (sim == nullptr || name == nullptr || units == nullptr || rc == nullptr) {
+        set_out(rc, -1);
+        return;
+    }
+    cece::CeceSimulation& cpp_sim = *reinterpret_cast<cece::CeceSimulation*>(sim);
+    const std::string diag_name = cstr_to_string(name, name_len);
+    std::string units_str, long_name_str;
+    if (!cpp_sim.diagnostic_metadata(diag_name, units_str, long_name_str, rc)) {
+        return;
+    }
+    abi_copy_str(units_str, "cece_sim_diagnostic_units", units, units_max, units_len_out, rc);
+}
+
+void cece_sim_diagnostic_long_name(CeceSimulation* sim, const char* name, int name_len, char* long_name, int long_name_max, int* long_name_len_out,
+                                   int* rc) {
+    set_out(rc, 0);
+    set_out(long_name_len_out, 0);
+    if (sim == nullptr || name == nullptr || long_name == nullptr || rc == nullptr) {
+        set_out(rc, -1);
+        return;
+    }
+    cece::CeceSimulation& cpp_sim = *reinterpret_cast<cece::CeceSimulation*>(sim);
+    const std::string diag_name = cstr_to_string(name, name_len);
+    std::string units_str, long_name_str;
+    if (!cpp_sim.diagnostic_metadata(diag_name, units_str, long_name_str, rc)) {
+        return;
+    }
+    abi_copy_str(long_name_str, "cece_sim_diagnostic_long_name", long_name, long_name_max, long_name_len_out, rc);
+}
+
+void cece_sim_bind_diagnostic_field(CeceSimulation* sim, const char* name, int name_len, double* data_ptr, int nx, int ny_local, int nz, int* rc) {
+    set_out(rc, 0);
+    if (sim == nullptr || name == nullptr || rc == nullptr) {
+        set_out(rc, -1);
+        return;
+    }
+
+    cece::CeceSimulation& cpp_sim = *reinterpret_cast<cece::CeceSimulation*>(sim);
+    const std::string diag_name = cstr_to_string(name, name_len);
+    cpp_sim.bind_diagnostic_field(diag_name, data_ptr, nx, ny_local, nz, rc);
+}
+
+void cece_sim_diagnostic_host_copy(CeceSimulation* sim, const char* name, int name_len, double* out, int out_max, int* count_out, int* rc) {
+    set_out(rc, 0);
+    set_out(count_out, 0);
+    if (sim == nullptr || name == nullptr || out == nullptr || rc == nullptr) {
+        set_out(rc, -1);
+        return;
+    }
+
+    cece::CeceSimulation& cpp_sim = *reinterpret_cast<cece::CeceSimulation*>(sim);
+    const std::string diag_name = cstr_to_string(name, name_len);
+    cpp_sim.diagnostic_host_copy(diag_name, out, out_max, count_out, rc);
 }
 
 void cece_sim_set_import_field(CeceSimulation* sim, const char* field, int field_len, const double* data_ptr, int nx, int ny_local, int* rc) {

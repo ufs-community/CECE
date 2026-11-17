@@ -99,6 +99,51 @@ via `--field-dictionary <path.yaml>`; without the flag the preloaded
 dictionary applies and advertising specialized names fails as it would in an
 under-provisioned host.
 
+### Diagnostic export channel
+
+Scheme diagnostics reach a host the same way emissions do, with one different
+gate: they are advertised from `output.include_diagnostics` plus the schemes'
+own declarations, so a `nuopc:` section is not required for them. When the flag
+is `true`, the cap advertises every selected diagnostic into its export state;
+when it is `false` or absent — the default — the diagnostic channel count is
+zero and species behavior is untouched.
+
+- **One standard name, many fields.** Diagnostics have no community standard
+  name of their own, so each is advertised as `StandardName='generic_tracer'`
+  with the diagnostic's own name as the state item name. Multiple diagnostics
+  therefore coexist in one export state, and the name is what distinguishes
+  them — it is also what a host connection matches on.
+- **Metadata is stamped at realize, not advertise.** ESMF 8.9.1 does not carry
+  the `Units`/`LongName` passed to `NUOPC_Advertise` onto the state item, so the
+  cap reads them from the diagnostic registry and sets them on the field with
+  `ESMF_AttributeSet` immediately before `NUOPC_Realize`. Consumers then see
+  `Units` and `LongName` on the realized field. Registry metadata that is empty
+  is omitted rather than written as a blank.
+- **The cap self-ensures its dictionary entry.** `generic_tracer` is not in
+  ESMF's preloaded dictionary, so the cap checks
+  `NUOPC_FieldDictionaryHasEntry` and calls `NUOPC_FieldDictionaryAddEntry` only
+  when the entry is genuinely absent. Hosts need no custom dictionary for
+  diagnostics; species exports still depend on the host dictionary exactly as
+  before.
+- **The fields exist even with no peer.** Unlike the species exports, which are
+  pruned at realization when nothing connects to them, an advertised diagnostic
+  is realized, allocated, and bound to the simulation's storage either way. A
+  standalone NUOPC host can inspect the export state, and the values it finds
+  equal the same step's file-channel values — both channels read the same
+  registry.
+- **Selection is shared with the file channel.** The cap enumerates the names
+  from the config before the registry exists, applying the same
+  `diagnostics:variables` filter as the writer, so the two channels cannot
+  disagree about which names are offered. A name advertised but never registered
+  by any scheme aborts realization with the name in the error message.
+
+Verification: `ctest -R test_diagnostics_coupled` runs two cases — `values`
+(the advertised channel carries the registry `Units`/`LongName`, and the field
+buffer equals the registry values for the same step) and `optout` (no
+`include_diagnostics`, so the export state holds no diagnostic channel). Each
+scenario runs in its own process, because the core finalizes Kokkos at teardown
+and Kokkos cannot be re-initialized in a process that has finalized it.
+
 ## Running the parity checks
 
 All commands below run inside the ESMF-enabled dev container

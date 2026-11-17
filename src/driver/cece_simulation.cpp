@@ -19,6 +19,7 @@
 #include <mpi.h>
 
 #include <Kokkos_Core.hpp>
+#include <cstring>
 #include <ctime>
 #include <memory>
 #include <string>
@@ -39,6 +40,7 @@ void cece_run_log_setup(const char* config_path, int path_len);
 void cece_core_initialize_p1(void** data_ptr_ptr, int* rc);
 void cece_core_realize(void* data_ptr, int* rc);
 void cece_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc);
+void cece_core_set_band_geometry(void* data_ptr, int ny_local, int j0, int* rc);
 void cece_core_run(void* data_ptr, int hour, int day_of_week, int* rc);
 void cece_core_finalize(void* data_ptr, int* rc);
 void cece_core_writer_initialize_with_coords(void* data_ptr, int nx, int ny, int nz, const double* lon_coords, int lon_len, const double* lat_coords,
@@ -157,6 +159,12 @@ std::unique_ptr<CeceSimulation> CeceSimulation::create_internal(const std::strin
         return fail(rc, "cece_core_realize failed with rc=" + std::to_string(rc));
     }
 
+    sim->band_ = BandDecomposition::compute(ny, comm);
+    cece_core_set_band_geometry(sim->core_data_ptr_, sim->band_.ny_local, sim->band_.j0, &rc);
+    if (rc < 0) {
+        return fail(rc, "cece_core_set_band_geometry failed with rc=" + std::to_string(rc));
+    }
+
     // 4. Phase 2: complete grid binding (dynamically sized).
     cece_core_initialize_p2(sim->core_data_ptr_, &nx, &ny, &nz, &rc);
     if (rc < 0) {
@@ -174,7 +182,6 @@ std::unique_ptr<CeceSimulation> CeceSimulation::create_internal(const std::strin
     //    only the rank's band via SyncAndCopyState, and the writer assembles
     //    the global field at output time. On a single rank ny_local == ny,
     //    byte-identical to the replicated allocation.
-    sim->band_ = BandDecomposition::compute(ny, comm);
     for (const cece::CeceOutputField& field : parsed_config.output_config.fields.GetDataFields()) {
         std::vector<double>& buffer = sim->export_buffers_[field.name] =
             std::vector<double>(static_cast<std::size_t>(nx) * sim->band_.ny_local * nz, 0.0);
@@ -353,6 +360,152 @@ bool CeceSimulation::bind_export_field(const std::string& species, double* data_
     data->persistent_export_ptrs[species] = data_ptr;
     CECE_LOG_INFO("[SIM] Bound export field '" + species + "' to coupled storage (" + std::to_string(nx) + "x" + std::to_string(ny_local) + "x" +
                   std::to_string(nz) + ")");
+    return true;
+}
+
+bool CeceSimulation::diagnostic_metadata(const std::string& name, std::string& units, std::string& long_name, int* rc) {
+    if (rc != nullptr) {
+        *rc = 0;
+    }
+
+    auto fail = [&](const std::string& msg) {
+        CECE_LOG_ERROR("[SIM] cece_sim_diagnostic_metadata: " + msg);
+        if (rc != nullptr) {
+            *rc = -1;
+        }
+        return false;
+    };
+
+    if (core_data_ptr_ == nullptr) {
+        return fail("simulation has no core data (not created, or already finalized)");
+    }
+    auto* data = static_cast<cece::CeceInternalData*>(core_data_ptr_);
+    const auto* manager = data->diagnostic_manager.get();
+    if (manager == nullptr) {
+        return fail("diagnostic registry is absent (core phase 1/2 did not create it)");
+    }
+
+    // Metadata lives with whichever map holds the name: allocated fields win
+    // (they carry the first-non-empty-wins metadata from registration); a
+    // pending declaration (registered before SetGrid, not yet promoted) also
+    // has valid metadata. Anything else is an advertised-but-unregistered
+    // name: the realization-abort edge case, naming the offender.
+    const auto& fields = manager->Fields();
+    if (auto it = fields.find(name); it != fields.end()) {
+        units = it->second.units;
+        long_name = it->second.long_name;
+        return true;
+    }
+    const auto& pending = manager->PendingDeclarations();
+    if (auto it = pending.find(name); it != pending.end()) {
+        units = it->second.units;
+        long_name = it->second.long_name;
+        return true;
+    }
+    return fail("no scheme registered diagnostic '" + name + "' (advertised from config, but never declared)");
+}
+
+bool CeceSimulation::bind_diagnostic_field(const std::string& name, double* data_ptr, int nx, int ny_local, int nz, int* rc) {
+    if (rc != nullptr) {
+        *rc = 0;
+    }
+
+    auto fail = [&](const std::string& msg) {
+        CECE_LOG_ERROR("[SIM] cece_sim_bind_diagnostic_field: " + msg);
+        if (rc != nullptr) {
+            *rc = -1;
+        }
+        return false;
+    };
+
+    if (core_data_ptr_ == nullptr) {
+        return fail("simulation has no core data (not created, or already finalized)");
+    }
+    if (data_ptr == nullptr && ny_local != 0) {
+        return fail("null data pointer for diagnostic '" + name + "'");
+    }
+    if (nx <= 0 || ny_local < 0 || nz <= 0) {
+        return fail("invalid extents (" + std::to_string(nx) + ", " + std::to_string(ny_local) + ", " + std::to_string(nz) + ") for diagnostic '" +
+                    name + "'");
+    }
+
+    auto* data = static_cast<cece::CeceInternalData*>(core_data_ptr_);
+    const auto* manager = data->diagnostic_manager.get();
+    if (manager == nullptr) {
+        return fail("diagnostic registry is absent (core phase 1/2 did not create it)");
+    }
+
+    // Typo guard: the name must be a registered or pending
+    // diagnostic. The advertise list is path-derived, so a config name no
+    // scheme declared fails here with the name in the message.
+    if (!manager->Fields().contains(name) && !manager->PendingDeclarations().contains(name)) {
+        return fail("'" + name + "' is not a registered diagnostic");
+    }
+
+    // The ESMF field and diagnostic registry both carry this rank's band.
+    if (nx != data->nx || ny_local != manager->ny() || nz != data->nz) {
+        return fail("extent mismatch for diagnostic '" + name + "': field (" + std::to_string(nx) + ", " + std::to_string(ny_local) + ", " +
+                    std::to_string(nz) + ") != core grid (" + std::to_string(data->nx) + ", *, " + std::to_string(data->nz) + ")");
+    }
+    if (ny_local != band_.ny_local || ny_local != data->ny_local) {
+        return fail("band mismatch for diagnostic '" + name + "': field ny_local=" + std::to_string(ny_local) +
+                    " != facade band ny_local=" + std::to_string(band_.ny_local));
+    }
+
+    // ESMF owns this band-local memory; the core only copies into it. A null
+    // pointer is valid for surplus ranks that own zero rows.
+    data->persistent_diagnostic_ptrs[name] = data_ptr;
+    CECE_LOG_INFO("[SIM] Bound diagnostic '" + name + "' to coupled storage (" + std::to_string(nx) + "x" + std::to_string(ny_local) + "x" +
+                  std::to_string(nz) + ")");
+    return true;
+}
+
+bool CeceSimulation::diagnostic_host_copy(const std::string& name, double* out, int out_max, int* count_out, int* rc) {
+    if (rc != nullptr) {
+        *rc = 0;
+    }
+    if (count_out != nullptr) {
+        *count_out = 0;
+    }
+
+    auto fail = [&](const std::string& msg) {
+        CECE_LOG_ERROR("[SIM] cece_sim_diagnostic_host_copy: " + msg);
+        if (rc != nullptr) {
+            *rc = -1;
+        }
+        return false;
+    };
+
+    if (core_data_ptr_ == nullptr) {
+        return fail("simulation has no core data (not created, or already finalized)");
+    }
+    if (out == nullptr && out_max != 0) {
+        return fail("null destination buffer for diagnostic '" + name + "'");
+    }
+    auto* data = static_cast<cece::CeceInternalData*>(core_data_ptr_);
+    auto* manager = data->diagnostic_manager.get();
+    if (manager == nullptr) {
+        return fail("diagnostic registry is absent (core phase 1/2 did not create it)");
+    }
+
+    if (!manager->Fields().contains(name)) {
+        return fail("'" + name + "' is not an allocated diagnostic");
+    }
+    auto host = manager->SyncHost(name);
+
+    // Sync the registry view to host exactly like the standalone writer does
+    // (fresh values each call), then hand back the flat LayoutLeft buffer.
+    const int total = static_cast<int>(host.size());
+    if (count_out != nullptr) {
+        *count_out = total;
+    }
+    if (total > out_max) {
+        return fail("destination buffer too small for diagnostic '" + name + "': capacity " + std::to_string(out_max) + " < " +
+                    std::to_string(total));
+    }
+    if (total > 0) {
+        std::memcpy(out, host.data(), static_cast<size_t>(total) * sizeof(double));
+    }
     return true;
 }
 
