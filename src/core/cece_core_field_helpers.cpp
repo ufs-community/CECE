@@ -507,14 +507,15 @@ void cece_core_get_ingestor_streams_path(void* data_ptr, char* streams_path, int
     outfile.close();
 
     // Return filename
-    if (filename.string().length() >= 512) {  // Assuming 512 is buffer size from Fortran
+    ssize_t filename_strlen = filename.string().length();
+    if (filename_strlen >= 512) {  // Assuming 512 is buffer size from Fortran
         std::cerr << "ERROR: streams path too long" << std::endl;
         if (rc != nullptr) *rc = -1;
         return;
     }
 
     std::strncpy(streams_path, filename.c_str(), 512);
-    *path_len = filename.string().length();
+    *path_len = filename_strlen;
 
     if (rc != nullptr) {
         *rc = 0;
