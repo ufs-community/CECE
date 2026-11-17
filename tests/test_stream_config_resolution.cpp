@@ -451,9 +451,10 @@ TEST(StreamConfigResolution, MissingStreamSectionsLeaveConfigEmpty) {
 }
 
 TEST(StreamConfigResolution, ResolvesGeometrySettings) {
-    TempFile fixture("cece_data:\n  streams:\n    - name: X\n      file: x.nc\n"
-                     "      longitude_variable: xlon\n      latitude_variable: xlat\n"
-                     "      geometry_reconstruction: Rectilinear_Midpoint\n");
+    TempFile fixture(
+        "cece_data:\n  streams:\n    - name: X\n      file: x.nc\n"
+        "      longitude_variable: xlon\n      latitude_variable: xlat\n"
+        "      geometry_reconstruction: Rectilinear_Midpoint\n");
     std::unordered_map<std::string, StreamConfig> configs;
     std::string gridspec;
     StreamConfigTestAccess::Resolve(fixture.path, configs, gridspec);
