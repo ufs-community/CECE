@@ -1,5 +1,103 @@
 # GRIDSPEC File Input Support
 
+## Source geometry for regridding
+
+`driver.gridspec_file` selects the model/destination grid used by the standalone
+driver. A stream's source geometry is configured separately under
+`cece_data.streams` with `input_gridspec_file` (or its `gridspec_file` alias):
+
+```yaml
+cece_data:
+  streams:
+    - name: emissions
+      file: emissions.nc
+      input_gridspec_file: emissions_grid.nc
+      longitude_variable: lon
+      latitude_variable: lat
+      geometry_reconstruction: none
+```
+
+When both stream path keys are present, they must have the same value. The
+source coordinate variable names are optional; without them CECE detects
+supported conventional names. Selected gridspec cell geometry takes
+precedence over reconstruction. CECE does not infer cell edges
+from centers by default. Use a non-default `geometry_reconstruction` only when
+the input grid meets that model's assumptions; `curvilinear_approximate` is
+explicitly approximate and does not qualify as authoritative conservative
+geometry. Conservative methods require usable source and destination cell
+boundaries with compatible geometry models. Center-only input remains valid for
+sample methods such as nearest-neighbor.
+
+### Geometry reconstruction policies
+
+`geometry_reconstruction` is an explicit declaration for center-only grids; it
+does not override usable bounds or gridspec geometry. The same values are
+available on a stream (source geometry) and under `driver` (destination
+geometry):
+
+```yaml
+driver:
+  geometry_reconstruction: rectilinear_midpoint # destination grid
+
+cece_data:
+  streams:
+    - name: emissions
+      file: emissions.nc
+      geometry_reconstruction: rectilinear_midpoint # this stream's source grid
+```
+
+Choose one of these exact scalar values: `none`, `rectilinear_midpoint`,
+`gaussian_latlon`, and `curvilinear_approximate`. Their meanings are:
+
+| Value | Meaning and appropriate use |
+| --- | --- |
+| `none` | Default. Do not infer boundaries. Supplied bounds/gridspec geometry are still used; center-based methods can work without cell boundaries. |
+| `rectilinear_midpoint` | Infer edges halfway between separable 1-D longitude and latitude centers; extrapolate the outer edges from end spacing. For known rectilinear grids such as MACCity 4x5. |
+| `gaussian_latlon` | Declares Gaussian latitude-band geometry. For a named `F<N>` destination grid, AXIS `NamedGridRegistry` already supplies its authoritative mesh, so this option is unnecessary. For other center-only grids, Gaussian weights or explicit bounds must be supplied by a supported geometry source; this setting alone cannot derive them. |
+| `curvilinear_approximate` | Approximate corners from flattened 2-D curvilinear centers. Approximate only; not trusted for conservative remapping. |
+
+For conservative mapping, prefer authoritative cell bounds or a supported
+gridspec. Reconstruction is suitable only when the declared model accurately
+describes the grid. In particular, do not choose midpoint reconstruction just
+because it makes a center-only file pass validation.
+
+### CF and UGRID metadata
+
+CECE automatically recognizes supported geometry conventions in NetCDF files;
+it does not require every file to have a separate `geometry_reconstruction`
+setting:
+
+- **CF rectilinear bounds:** 1-D `lon` and `lat` axes with `bounds` attributes
+  naming two-vertex bounds arrays are read automatically. Both axes must have
+  valid geographic units and bounds. Malformed or incomplete declared bounds
+  cause an error instead of silently falling back to inferred edges.
+- **UGRID/MPAS:** The mesh-topology route reads supported MPAS-style
+  `latVertex`/`lonVertex`, `verticesOnCell`, and `nEdgesOnCell` arrays and uses
+  their polygon connectivity. This is a specific supported layout, not a
+  promise to read every possible UGRID encoding.
+- **Other gridspecs:** CECE also has adapters for supported SCRIP, FV3/UFS
+  `grid_spec`, and FV3 supergrid layouts. Use the relevant gridspec as the
+  source or destination geometry.
+
+When a CF `bounds` attribute is present, CECE validates the named arrays; it
+does not ignore bad bounds and substitute a reconstruction policy. For other
+CF curvilinear bounds layouts or UGRID variants, use a supported gridspec
+adapter or provide a compatible explicit geometry file.
+
+For rectilinear source data, the shared geometry loader also follows each CF
+coordinate's `bounds` attribute when both longitude and latitude bounds are
+present as two-vertex arrays. These supplied cell bounds are retained even for
+center-only methods. If only one axis advertises bounds, or a selected bounds
+variable has an invalid shape/value, geometry loading fails. A configured
+`input_gridspec_file` takes precedence over bounds attached to the source data.
+Curvilinear CF bounds and other non-rectilinear conventions should be selected
+through a gridspec adapter until their ordering and boundary models are
+supported directly.
+
+Older stream configurations that put a source path in `gridspec_file` may keep
+using that alias. For clarity, migrate it to `input_gridspec_file`; keep
+`driver.gridspec_file` for the destination grid.
+
 ## Overview
 
 The CECE driver supports loading a pre-generated ESMF GRIDSPEC NetCDF file for spatial discretization.

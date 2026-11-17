@@ -45,12 +45,16 @@ _REAL_RUN_GIT = vsm.run_git_cmd
 def offline_git(remote_heads: dict[str, str]):
     """A run_git_cmd that answers `git ls-remote <url> refs/heads/<branch>`
     from `remote_heads` (branch -> sha) and delegates every other git call to
-    the real function. Local git stays real; the network verb never runs."""
+    the real function. Local git stays real; the network verb never runs.
+
+    Branch names may contain slashes (feature branches), so the lookup strips
+    the `refs/heads/` prefix rather than the last path segment."""
 
     def fake(args: list[str], cwd: Path | None = None) -> tuple[int, str, str]:
         if args and args[0] == "ls-remote":
             ref = args[-1]
-            sha = remote_heads.get(ref.rsplit("/", 1)[-1])
+            branch = ref.removeprefix("refs/heads/")
+            sha = remote_heads.get(branch)
             return (0, f"{sha}\t{ref}", "") if sha else (0, "", "")
         return _REAL_RUN_GIT(args, cwd=cwd)
 
@@ -425,7 +429,15 @@ class TestVerifySubmodules(unittest.TestCase):
     def test_live_checkout_verifies_helm_offline(self) -> None:
         """The real checkout, end to end, with only `git ls-remote` stubbed:
         `.gitmodules`, `git submodule status`, the remote-URL lookup and the
-        canonical-remote check all run against the tree as it is."""
+        canonical-remote check all run against the tree as it is.
+
+        While PR #124 depends on the HELM feature branch, `.gitmodules` pins
+        `extern/helm` to that branch and the CI workflow passes the matching
+        `--branch-map`; the expected branch is therefore read from the tree
+        instead of assuming it equals the parent target branch. Once HELM #38
+        merges and the pin returns to `develop`, this resolves to `develop`
+        again with no test edits.
+        """
         repo_root = SCRIPTS_DIR.parent
         code, status_out, err = _REAL_RUN_GIT(
             ["submodule", "status", "extern/helm"], cwd=repo_root
@@ -434,6 +446,10 @@ class TestVerifySubmodules(unittest.TestCase):
         ((status_char, committed_sha, path),) = parse_submodule_status_lines(status_out)
         self.assertEqual(path, "extern/helm")
         self.assertNotEqual(status_char, "-", "extern/helm must be initialized")
+
+        expected_branch = (
+            vsm.get_gitmodules_configured_branch(repo_root, "extern/helm") or "develop"
+        )
 
         # A developer's clone may point extern/helm at a fork; the canonical
         # check still runs, against whatever the checkout's remote is.
@@ -447,11 +463,12 @@ class TestVerifySubmodules(unittest.TestCase):
 
         # 1. Upstream HEAD == committed pointer: OK; yaml-cpp excluded by default.
         with patch(
-            "verify_submodules.run_git_cmd", offline_git({"develop": committed_sha})
+            "verify_submodules.run_git_cmd",
+            offline_git({expected_branch: committed_sha}),
         ):
             statuses = verify_submodules(
                 repo_root=repo_root,
-                target_branch="develop",
+                target_branch=expected_branch,
                 branch_map={},
                 upstream_config=config,
             )
@@ -462,10 +479,13 @@ class TestVerifySubmodules(unittest.TestCase):
 
         # 2. Upstream HEAD is some other commit: OUT_OF_SYNC, resolved locally
         #    (rev-list on an unknown object fails gracefully -> "Drift detected").
-        with patch("verify_submodules.run_git_cmd", offline_git({"develop": "0" * 40})):
+        with patch(
+            "verify_submodules.run_git_cmd",
+            offline_git({expected_branch: "0" * 40}),
+        ):
             drifted = verify_submodules(
                 repo_root=repo_root,
-                target_branch="develop",
+                target_branch=expected_branch,
                 branch_map={},
                 upstream_config=config,
             )
@@ -478,12 +498,13 @@ class TestVerifySubmodules(unittest.TestCase):
             excluded_submodules={"extern/helm", *defaults.excluded_submodules},
         )
         with patch(
-            "verify_submodules.run_git_cmd", offline_git({"develop": committed_sha})
+            "verify_submodules.run_git_cmd",
+            offline_git({expected_branch: committed_sha}),
         ):
             self.assertEqual(
                 verify_submodules(
                     repo_root=repo_root,
-                    target_branch="develop",
+                    target_branch=expected_branch,
                     branch_map={},
                     upstream_config=config_all,
                 ),
