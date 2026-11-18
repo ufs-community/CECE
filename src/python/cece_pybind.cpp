@@ -216,13 +216,13 @@ PYBIND11_MODULE(_cece_core, m) {
                     throw py::value_error("Array must be 3D, got " + std::to_string(typed_arr.ndim()) + "D");
                 }
 
-                py::array_t<double> fortran_arr;
+                py::array_t<double, py::array::f_style> fortran_arr;
 
                 // Check if Fortran-contiguous (column-major)
-                if ((typed_arr.flags() & py::array::f_style) != 0) {
+                if ((static_cast<unsigned long>(typed_arr.flags()) & py::array::f_style) != 0) {
                     // Fortran-contiguous: use directly (zero-copy wrap)
                     fortran_arr = typed_arr;
-                } else if ((typed_arr.flags() & py::array::c_style) != 0) {
+                } else if ((static_cast<unsigned long>(typed_arr.flags()) & py::array::c_style) != 0) {
                     // C-contiguous: convert to Fortran order, log warning
                     auto& logger = cece::CeceLogger::GetInstance();
                     logger.LogWarning("Array for field '" + name + "' is C-contiguous; converting to Fortran order (copy overhead)");
@@ -283,12 +283,12 @@ PYBIND11_MODULE(_cece_core, m) {
                     throw py::value_error("Array must be 3D, got " + std::to_string(typed_arr.ndim()) + "D");
                 }
 
-                py::array_t<double> fortran_arr;
+                py::array_t<double, py::array::f_style> fortran_arr;
 
                 // Check if Fortran-contiguous (column-major)
-                if ((typed_arr.flags() & py::array::f_style) != 0) {
+                if ((static_cast<unsigned long>(typed_arr.flags()) & py::array::f_style) != 0) {
                     fortran_arr = typed_arr;
-                } else if ((typed_arr.flags() & py::array::c_style) != 0) {
+                } else if ((static_cast<unsigned long>(typed_arr.flags()) & py::array::c_style) != 0) {
                     py::module_ np = py::module_::import("numpy");
                     fortran_arr = np.attr("asfortranarray")(typed_arr);
                 } else {
