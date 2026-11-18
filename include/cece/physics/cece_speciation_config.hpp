@@ -5,7 +5,8 @@
  * @file cece_speciation_config.hpp
  * @brief Data structures and loader for chemical mechanism speciation configuration.
  *
- * Defines the 19 MEGAN3 emission classes, speciation data structures (MechanismSpecies,
+ * Defines the 28 MEGAN3 emission classes (19 lumped MEGAN3 classes plus 9
+ * explicit MEGANv2.1 terpenoid compound classes), speciation data structures (MechanismSpecies,
  * SpeciationMapping, SpeciationConfig), and the SpeciationConfigLoader class that reads
  * mechanism species from MICM/OpenAtmos configuration files and emission speciation
  * mappings from CECE-specific dataset-oriented YAML files.
@@ -29,7 +30,11 @@ namespace cece {
 
 /**
  * @enum EmissionClass
- * @brief The 19 MEGAN3 biogenic emission categories.
+ * @brief The MEGAN3 biogenic emission categories.
+ *
+ * Indices 0-18 are the lumped MEGAN3 classes. Indices 19-27 are explicit
+ * MEGANv2.1 compound classes (Guenther et al., 2012, Tables 1, 2, and 4) used by
+ * mappings that need individual terpenoids, e.g. GOCART MTPA/MTPO/LIMO.
  */
 enum class EmissionClass : int {
     ISOP = 0,
@@ -51,8 +56,20 @@ enum class EmissionClass : int {
     STRESS,
     OTHER,
     CO,
-    COUNT = 19
+    APIN,  ///< alpha-pinene
+    BPIN,  ///< beta-pinene
+    SABI,  ///< sabinene
+    CARE,  ///< 3-carene
+    LIMO,  ///< limonene
+    MYRC,  ///< myrcene
+    OCIM,  ///< t-beta-ocimene
+    OMON,  ///< other monoterpenes (MEGANv2.1 34-compound class)
+    FARN,  ///< alpha-farnesene
+    COUNT = 28
 };
+
+/// Number of MEGAN3 emission classes (EmissionClass::COUNT).
+inline constexpr int kNumEmissionClasses = static_cast<int>(EmissionClass::COUNT);
 
 /**
  * @brief Converts an EmissionClass enum value to its string name.
@@ -61,7 +78,9 @@ enum class EmissionClass : int {
  */
 inline std::string EmissionClassToString(EmissionClass ec) {
     static const char* names[] = {"ISOP", "MBO",  "MT_PINE", "MT_ACYC", "MT_CAMP", "MT_SABI", "MT_AROM", "NO",    "SQT_HR", "SQT_LR",
-                                  "MEOH", "ACTO", "ETOH",    "ACID",    "LVOC",    "OXPROD",  "STRESS",  "OTHER", "CO"};
+                                  "MEOH", "ACTO", "ETOH",    "ACID",    "LVOC",    "OXPROD",  "STRESS",  "OTHER", "CO",     "APIN",
+                                  "BPIN", "SABI", "CARE",    "LIMO",    "MYRC",    "OCIM",    "OMON",    "FARN"};
+    static_assert(sizeof(names) / sizeof(names[0]) == kNumEmissionClasses, "EmissionClass name table out of sync");
     int idx = static_cast<int>(ec);
     if (idx >= 0 && idx < static_cast<int>(EmissionClass::COUNT)) {
         return names[idx];
@@ -83,7 +102,10 @@ inline bool StringToEmissionClass(const std::string& name, EmissionClass& ec) {
         {"SQT_LR", EmissionClass::SQT_LR},   {"MEOH", EmissionClass::MEOH},       {"ACTO", EmissionClass::ACTO},
         {"ETOH", EmissionClass::ETOH},       {"ACID", EmissionClass::ACID},       {"LVOC", EmissionClass::LVOC},
         {"OXPROD", EmissionClass::OXPROD},   {"STRESS", EmissionClass::STRESS},   {"OTHER", EmissionClass::OTHER},
-        {"CO", EmissionClass::CO},
+        {"CO", EmissionClass::CO},           {"APIN", EmissionClass::APIN},       {"BPIN", EmissionClass::BPIN},
+        {"SABI", EmissionClass::SABI},       {"CARE", EmissionClass::CARE},       {"LIMO", EmissionClass::LIMO},
+        {"MYRC", EmissionClass::MYRC},       {"OCIM", EmissionClass::OCIM},       {"OMON", EmissionClass::OMON},
+        {"FARN", EmissionClass::FARN},
     };
     auto it = lookup.find(name);
     if (it != lookup.end()) {
