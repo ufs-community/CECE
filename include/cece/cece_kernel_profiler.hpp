@@ -205,13 +205,12 @@ class KernelProfiler {
     static void PrintComparison(const std::vector<KernelMetrics>& metrics_list) {
         std::cout << "\n=== Kernel Performance Comparison ===\n";
         std::cout << std::left << std::setw(30) << "Kernel" << std::setw(15) << "Time (ms)" << std::setw(15) << "BW (GB/s)" << std::setw(15)
-                  << "Efficiency (%)" << std::endl;
+                  << "Efficiency (%)\n";
         std::cout << std::string(75, '-') + "\n"s;
 
         for (const auto& m : metrics_list) {
             std::cout << std::left << std::setw(30) << m.kernel_name << std::fixed << std::setprecision(4) << std::setw(15) << m.execution_time_ms
-                      << std::setprecision(2) << std::setw(15) << m.memory_bandwidth_gbps << std::setw(15) << m.bandwidth_efficiency_percent
-                      << std::endl;
+                      << std::setprecision(2) << std::setw(15) << m.memory_bandwidth_gbps << std::setw(15) << m.bandwidth_efficiency_percent + "\n"s;
         }
     }
 };

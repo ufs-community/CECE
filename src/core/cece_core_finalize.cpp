@@ -41,7 +41,7 @@ void cece_core_finalize(void* data_ptr, int* rc) {
     }
 
     if (data_ptr == nullptr) {
-        std::cerr << "ERROR in cece_core_finalize: data_ptr is null\n";
+        CECE_LOG_ERROR("ERROR in cece_core_finalize: data_ptr is null\n");
         if (rc != nullptr) {
             *rc = -1;
         }

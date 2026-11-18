@@ -13,6 +13,7 @@
  * Requirements: R4, R5
  */
 
+#include <cstdint>
 #include <filesystem>
 #include <iostream>
 #include <string>
@@ -21,6 +22,15 @@
 #include "cece/cece_logger.hpp"
 
 namespace fs = std::filesystem;
+
+namespace std {
+
+inline std::string to_string(void* ptr) {
+    std::intptr_t ptr_int = reinterpret_cast<std::intptr_t>(ptr);
+    return std::to_string(ptr_int);
+}
+
+}  // namespace std
 
 extern "C" {
 
@@ -177,9 +187,9 @@ void cece_core_get_grid_config(void* data_ptr, int* nx, int* ny, int* nz, double
     *lat_min = internal_data->config.driver_config.grid.lat_min;
     *lat_max = internal_data->config.driver_config.grid.lat_max;
 
-    std::cout << "INFO: Grid config retrieved: nx="s + std::to_string(*nx) + " ny="s + std::to_string(*ny) + " nz="s + std::to_string(*nz) +
-                     " lon_min="s + std::to_string(*lon_min) + " lon_max="
-              << *lon_max << " lat_min=" << *lat_min << " lat_max=" << *lat_max << std::endl;
+    CECE_LOG_INFO("INFO: Grid config retrieved: nx="s + std::to_string(*nx) + " ny="s + std::to_string(*ny) + " nz="s + std::to_string(*nz) +
+                  " lon_min="s + std::to_string(*lon_min) + " lon_max=" + std::to_string(*lon_max) + " lat_min="s + std::to_string(*lat_min) +
+                  " lat_max=" + std::to_string(*lat_max) + "\n"s);
 }
 
 /**
@@ -243,9 +253,8 @@ void cece_core_get_timing_config(void* data_ptr, char* start_time, char* end_tim
 
     *timestep_seconds = driver_config.timestep_seconds;
 
-    std::cout << "INFO: Timing config retrieved: start="s + start_time + " end="s + end_time + " timestep="s + std::to_string(*timestep_seconds) +
-                     " seconds"
-              << std::endl;
+    CECE_LOG_INFO("INFO: Timing config retrieved: start="s + start_time + " end="s + end_time + " timestep="s + std::to_string(*timestep_seconds) +
+                  " seconds\n"s);
 }
 
 /**
@@ -332,8 +341,8 @@ void cece_read_timing_config(const char* config_path, int path_len, char* start_
 
         *timestep_seconds = timestep_default;
 
-        std::cout << "INFO: Driver timing config loaded: start="s + start_time + " end="s + end_time + " timestep=" << *timestep_seconds << " seconds"
-                  << std::endl;
+        CECE_LOG_INFO("INFO: Driver timing config loaded: start="s + start_time + " end="s + end_time + " timestep="s +
+                      std::to_string(*timestep_seconds) + " seconds\n"s);
 
     } catch (const std::exception& e) {
         CECE_LOG_ERROR("ERROR: Failed to read timing config from "s + config_path + ": "s + e.what() + "\n"s);
@@ -431,8 +440,8 @@ void cece_core_bind_fields(void* data_ptr, void** field_ptrs, int* num_fields, i
         internal_data->field_pointers.push_back(field_ptrs[idx]);
         internal_data->field_names.push_back(species_name);
 
-        std::cout << "INFO: cece_core_bind_fields - bound field "s + std::to_string(idx) + " for species "s + species_name + " at address "
-                  << field_ptrs[idx] << std::endl;
+        CECE_LOG_INFO("INFO: cece_core_bind_fields - bound field "s + std::to_string(idx) + " for species "s + species_name + " at address " +
+                      std::to_string(field_ptrs[idx]) + "\n"s);
 
         ++idx;
     }
@@ -685,8 +694,8 @@ void cece_core_get_input_field_name(void* data_ptr, int* index, char* name, int*
     int idx = *index;
 
     if (idx < 0 || idx >= static_cast<int>(internal_data->unique_input_fields.size())) {
-        std::cerr << "ERROR: cece_core_get_input_field_name - index out of bounds: "s + std::to_string(idx) + " (size: "
-                  << internal_data->unique_input_fields.size() << ")" << std::endl;
+        CECE_LOG_ERROR("ERROR: cece_core_get_input_field_name - index out of bounds: "s + std::to_string(idx) +
+                       " (size: " + std::to_string(internal_data->unique_input_fields.size()) + ")\n");
         if (rc != nullptr) {
             *rc = -1;
         }
@@ -881,8 +890,8 @@ void cece_core_get_external_field_name(void* data_ptr, int* index, char* name, i
     int idx = *index;
 
     if (idx < 0 || idx >= static_cast<int>(internal_data->external_esmf_fields.size())) {
-        std::cerr << "ERROR: cece_core_get_external_field_name - index out of bounds: " << idx
-                  << " (size: " << internal_data->external_esmf_fields.size() << ")" << std::endl;
+        CECE_LOG_ERROR("ERROR: cece_core_get_external_field_name - index out of bounds: " + std::to_string(idx) + " (size: "s +
+                       std::to_string(internal_data->external_esmf_fields.size()) + ")\n");
         if (rc != nullptr) {
             *rc = -1;
         }

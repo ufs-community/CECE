@@ -50,7 +50,7 @@ inline void SetRealStdoutBuf(std::streambuf* buf) {
  */
 inline void LogFatal(const std::string& message) {
     std::ostream log_out(RealStdoutBuf());
-    log_out << message << std::endl;
+    log_out << message + "\n"s;
     std::cerr << message + "\n"s;
 }
 
