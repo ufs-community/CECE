@@ -86,7 +86,7 @@ repos:
         name: Disallow raw std::cout / std::cerr / printf
         language: pygrep
         types_or: [c, c++]
-        exclude: ^(tests/|include/cece/cece_logger\.hpp|include/cece/cece_fatal\.hpp||src/core/cece_run_info\.cpp)
+        exclude: ^(tests/|include/cece/cece_(logger|fatal)\.hpp|src/core/cece_run_info\.cpp)
         entry: '\bstd::(cout|cerr|clog)\b|\b(v?printf|puts|putchar)\s*\(|\bfprintf\s*\(\s*(stdout|stderr)\b'
 
       - id: no-weird-cpp-stdout
