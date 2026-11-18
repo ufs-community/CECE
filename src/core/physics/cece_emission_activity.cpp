@@ -30,52 +30,57 @@
 
 namespace cece {
 
-/// Default per-class coefficient values for the 19 MEGAN3 emission classes.
+/// Default per-class coefficient values for the MEGAN3 emission classes.
 /// Order matches the EmissionClass enum: ISOP, MBO, MT_PINE, MT_ACYC, MT_CAMP,
 /// MT_SABI, MT_AROM, NO, SQT_HR, SQT_LR, MEOH, ACTO, ETOH, ACID, LVOC,
-/// OXPROD, STRESS, OTHER, CO.
-static constexpr int NUM_CLASSES = static_cast<int>(EmissionClass::COUNT);
+/// OXPROD, STRESS, OTHER, CO, then the explicit MEGANv2.1 classes APIN, BPIN,
+/// SABI, CARE, LIMO, MYRC, OCIM, OMON, FARN. Explicit-class values follow
+/// Guenther et al. (2012), Table 4.
+static constexpr int NUM_CLASSES = kNumEmissionClasses;
 
 // Default LDF values per class
-static constexpr double kDefaultLdf[NUM_CLASSES] = {0.9996, 0.80, 0.10, 0.10, 0.10, 0.10, 0.10, 0.00, 0.50, 0.50,
-                                                    0.80,   0.20, 0.80, 0.00, 0.00, 0.20, 1.00, 0.20, 0.00};
+static constexpr double kDefaultLdf[NUM_CLASSES] = {0.9996, 0.80, 0.10, 0.10, 0.10, 0.10, 0.10, 0.00, 0.50, 0.50, 0.80, 0.20, 0.80, 0.00,
+                                                    0.00,   0.20, 1.00, 0.20, 0.00, 0.6,  0.2,  0.6,  0.2,  0.2,  0.6,  0.8,  0.4,  0.5};
 
 // Default CT1 values per class
-static constexpr double kDefaultCt1[NUM_CLASSES] = {95.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0,
-                                                    60.0, 80.0, 60.0, 80.0, 80.0, 80.0, 95.0, 80.0, 80.0};
+static constexpr double kDefaultCt1[NUM_CLASSES] = {95.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 60.0, 80.0, 60.0, 80.0,
+                                                    80.0, 80.0, 95.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 80.0, 130.0};
 
 // Default Cleo values per class
-static constexpr double kDefaultCleo[NUM_CLASSES] = {2.0,  1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 1.83,
-                                                     1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 2.0,  1.83, 1.83};
+static constexpr double kDefaultCleo[NUM_CLASSES] = {2.0,  1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 1.83,
+                                                     1.83, 1.83, 2.0,  1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 1.83, 2.37};
 
 // Default beta values per class
-static constexpr double kDefaultBeta[NUM_CLASSES] = {0.13, 0.13, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.17, 0.17,
-                                                     0.08, 0.10, 0.08, 0.10, 0.13, 0.10, 0.13, 0.10, 0.10};
+static constexpr double kDefaultBeta[NUM_CLASSES] = {0.13, 0.13, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.17, 0.17, 0.08, 0.10, 0.08, 0.10,
+                                                     0.13, 0.10, 0.13, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.17};
 
 // Default Anew values per class
-static constexpr double kDefaultAnew[NUM_CLASSES] = {0.05, 0.05, 2.0, 2.0,  2.0,  2.0,  2.0,  0.00, 0.05, 0.05,
-                                                     3.5,  0.05, 3.5, 0.05, 0.05, 0.05, 0.05, 0.05, 0.05};
+static constexpr double kDefaultAnew[NUM_CLASSES] = {0.05, 0.05, 2.0,  2.0,  2.0,  2.0, 2.0, 0.00, 0.05, 0.05, 3.5, 0.05, 3.5, 0.05,
+                                                     0.05, 0.05, 0.05, 0.05, 0.05, 2.0, 2.0, 2.0,  2.0,  2.0,  2.0, 2.0,  2.0, 0.4};
 
 // Default Agro values per class
-static constexpr double kDefaultAgro[NUM_CLASSES] = {0.6, 0.6, 1.8, 1.8, 1.8, 1.8, 1.8, 0.0, 0.6, 0.6, 3.0, 0.6, 3.0, 0.6, 0.6, 0.6, 0.6, 0.6, 0.6};
+static constexpr double kDefaultAgro[NUM_CLASSES] = {0.6, 0.6, 1.8, 1.8, 1.8, 1.8, 1.8, 0.0, 0.6, 0.6, 3.0, 0.6, 3.0, 0.6,
+                                                     0.6, 0.6, 0.6, 0.6, 0.6, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 1.8, 0.6};
 
 // Default Amat values per class
-static constexpr double kDefaultAmat[NUM_CLASSES] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+static constexpr double kDefaultAmat[NUM_CLASSES] = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0,
+                                                     1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
 
 // Default Aold values per class
-static constexpr double kDefaultAold[NUM_CLASSES] = {0.9, 0.9, 1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.9, 0.9, 1.2, 0.9, 1.2, 0.9, 0.9, 0.9, 0.9, 0.9, 0.9};
+static constexpr double kDefaultAold[NUM_CLASSES] = {0.9, 0.9, 1.0, 1.0, 1.0, 1.0,  1.0,  0.0,  0.9,  0.9,  1.2,  0.9,  1.2,  0.9,
+                                                     0.9, 0.9, 0.9, 0.9, 0.9, 1.05, 1.05, 1.05, 1.05, 1.05, 1.05, 1.05, 1.05, 0.95};
 
 void EmissionActivityCalculator::Initialize(const conf::Value& config) {
     // ---- Allocate device views for per-class coefficients ----
-    coefficients_.ldf = Kokkos::View<double[19], Kokkos::DefaultExecutionSpace>("eac_ldf");
-    coefficients_.ct1 = Kokkos::View<double[19], Kokkos::DefaultExecutionSpace>("eac_ct1");
-    coefficients_.cleo = Kokkos::View<double[19], Kokkos::DefaultExecutionSpace>("eac_cleo");
-    coefficients_.beta = Kokkos::View<double[19], Kokkos::DefaultExecutionSpace>("eac_beta");
-    coefficients_.anew = Kokkos::View<double[19], Kokkos::DefaultExecutionSpace>("eac_anew");
-    coefficients_.agro = Kokkos::View<double[19], Kokkos::DefaultExecutionSpace>("eac_agro");
-    coefficients_.amat = Kokkos::View<double[19], Kokkos::DefaultExecutionSpace>("eac_amat");
-    coefficients_.aold = Kokkos::View<double[19], Kokkos::DefaultExecutionSpace>("eac_aold");
-    bidirectional_ = Kokkos::View<bool[19], Kokkos::DefaultExecutionSpace>("eac_bidir");
+    coefficients_.ldf = Kokkos::View<double[kNumEmissionClasses], Kokkos::DefaultExecutionSpace>("eac_ldf");
+    coefficients_.ct1 = Kokkos::View<double[kNumEmissionClasses], Kokkos::DefaultExecutionSpace>("eac_ct1");
+    coefficients_.cleo = Kokkos::View<double[kNumEmissionClasses], Kokkos::DefaultExecutionSpace>("eac_cleo");
+    coefficients_.beta = Kokkos::View<double[kNumEmissionClasses], Kokkos::DefaultExecutionSpace>("eac_beta");
+    coefficients_.anew = Kokkos::View<double[kNumEmissionClasses], Kokkos::DefaultExecutionSpace>("eac_anew");
+    coefficients_.agro = Kokkos::View<double[kNumEmissionClasses], Kokkos::DefaultExecutionSpace>("eac_agro");
+    coefficients_.amat = Kokkos::View<double[kNumEmissionClasses], Kokkos::DefaultExecutionSpace>("eac_amat");
+    coefficients_.aold = Kokkos::View<double[kNumEmissionClasses], Kokkos::DefaultExecutionSpace>("eac_aold");
+    bidirectional_ = Kokkos::View<bool[kNumEmissionClasses], Kokkos::DefaultExecutionSpace>("eac_bidir");
 
     // ---- Create host mirrors ----
     auto h_ldf = Kokkos::create_mirror_view(coefficients_.ldf);
@@ -129,7 +134,8 @@ void EmissionActivityCalculator::Initialize(const conf::Value& config) {
         }
     } else {
         std::cout << "EmissionActivityCalculator: No emission_classes section found, "
-                     "using defaults for all 19 classes\n";
+                     "using defaults for all "
+                  << NUM_CLASSES << " classes\n";
     }
 
     // ---- Copy to device ----
