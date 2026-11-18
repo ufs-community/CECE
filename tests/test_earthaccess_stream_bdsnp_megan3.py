@@ -1012,6 +1012,7 @@ class TestStandaloneEarthAccessIngestHelper:
                 ["sample.nc4"],
             )
 
+    @requires_xarray
     def test_helper_interpolates_to_target_grid(self):
         ds = xr.Dataset(
             {

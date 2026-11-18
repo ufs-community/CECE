@@ -51,9 +51,18 @@ file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/cece")
 
 # Copy Python source files to build directory (excluding old binding files)
 file(
-  COPY __init__.py config.py state.py exceptions.py utils.py py.typed
+  COPY
+    __init__.py
+    config.py
+    state.py
+    exceptions.py
+    utils.py
+    py.typed
+    earthaccess_resolver.py
+    stream_bridge.py
   DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/cece"
 )
+file(COPY ../../pyproject.toml DESTINATION "${CMAKE_CURRENT_BINARY_DIR}")
 
 # Create setup.py for installation
 file(

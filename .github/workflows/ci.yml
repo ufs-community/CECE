@@ -59,7 +59,7 @@ jobs:
           # to exercise the ESMF-gated tests below.
           # CECE_MPIEXEC_CONTAINER_FLAGS: CI runs tests as root in a
           # container, so mpiexec needs the container-only preflags.
-          cmake .. -DENABLE_ESMF=ON -DCECE_MPIEXEC_CONTAINER_FLAGS=ON -DMPIEXEC_PREFLAGS="--allow-run-as-root;--oversubscribe"
+          cmake .. -DENABLE_ESMF=ON -DCECE_MPIEXEC_CONTAINER_FLAGS=ON -DMPIEXEC_PREFLAGS="--allow-run-as-root;--oversubscribe" -DBUILD_PYTHON_BINDINGS=ON
 
           # Build. Make will only build what has changed.
           make -j$(nproc)
