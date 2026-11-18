@@ -22,15 +22,12 @@
 #include "cece/cece_logger.hpp"
 
 namespace fs = std::filesystem;
-
-namespace std {
+using std::to_string;
 
 inline std::string to_string(void* ptr) {
     std::intptr_t ptr_int = reinterpret_cast<std::intptr_t>(ptr);
     return std::to_string(ptr_int);
 }
-
-}  // namespace std
 
 extern "C" {
 
@@ -441,7 +438,7 @@ void cece_core_bind_fields(void* data_ptr, void** field_ptrs, int* num_fields, i
         internal_data->field_names.push_back(species_name);
 
         CECE_LOG_INFO("INFO: cece_core_bind_fields - bound field "s + std::to_string(idx) + " for species "s + species_name + " at address " +
-                      std::to_string(field_ptrs[idx]) + "\n"s);
+                      to_string(field_ptrs[idx]) + "\n"s);
 
         ++idx;
     }
