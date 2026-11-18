@@ -133,10 +133,10 @@ class PerformanceDiagnostics {
      * @brief Print timing summary
      */
     void PrintTimingSummary() const {
-        std::cout << "\n=== CECE Performance Timing Summary ===" << std::endl;
-        std::cout << std::string(70, '-') << std::endl;
-        std::cout << "Component                    | Total (ms) | Calls | Avg (ms) | Min (ms) | Max (ms)" << std::endl;
-        std::cout << std::string(70, '-') << std::endl;
+        std::cout << "\n=== CECE Performance Timing Summary ===\n";
+        std::cout << std::string(70, '-') + "\n"s;
+        std::cout << "Component                    | Total (ms) | Calls | Avg (ms) | Min (ms) | Max (ms)\n";
+        std::cout << std::string(70, '-') + "\n"s;
 
         double total_time = 0.0;
         for (const auto& [name, timing] : timing_data_) {
@@ -145,19 +145,19 @@ class PerformanceDiagnostics {
                    timing.min_time_ms, timing.max_time_ms);
         }
 
-        std::cout << std::string(70, '-') << std::endl;
+        std::cout << std::string(70, '-') + "\n"s;
         printf("%-28s | %10.2f |\n", "TOTAL", total_time);
-        std::cout << std::string(70, '-') << std::endl;
+        std::cout << std::string(70, '-') + "\n"s;
     }
 
     /**
      * @brief Print memory summary
      */
     void PrintMemorySummary() const {
-        std::cout << "\n=== CECE Memory Usage Summary ===" << std::endl;
-        std::cout << std::string(60, '-') << std::endl;
-        std::cout << "Component                    | Current (MB) | Peak (MB)" << std::endl;
-        std::cout << std::string(60, '-') << std::endl;
+        std::cout << "\n=== CECE Memory Usage Summary ===\n";
+        std::cout << std::string(60, '-') + "\n"s;
+        std::cout << "Component                    | Current (MB) | Peak (MB)\n";
+        std::cout << std::string(60, '-') + "\n"s;
 
         long long total_current = 0;
         long long total_peak = 0;
@@ -167,9 +167,9 @@ class PerformanceDiagnostics {
             printf("%-28s | %12.2f | %8.2f\n", name.c_str(), mem.current_memory_bytes / 1024.0 / 1024.0, mem.peak_memory_bytes / 1024.0 / 1024.0);
         }
 
-        std::cout << std::string(60, '-') << std::endl;
+        std::cout << std::string(60, '-') + "\n"s;
         printf("%-28s | %12.2f | %8.2f\n", "TOTAL", total_current / 1024.0 / 1024.0, total_peak / 1024.0 / 1024.0);
-        std::cout << std::string(60, '-') << std::endl;
+        std::cout << std::string(60, '-') + "\n"s;
     }
 
     /**

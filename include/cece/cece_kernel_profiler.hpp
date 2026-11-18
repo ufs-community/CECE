@@ -187,13 +187,14 @@ class KernelProfiler {
      * @param metrics Metrics to print
      */
     static void PrintMetrics(const KernelMetrics& metrics) {
-        std::cout << "\n=== Kernel Profile: " << metrics.kernel_name << " ===" << std::endl;
-        std::cout << "Grid: " << metrics.grid_size_x << "x" << metrics.grid_size_y << "x" << metrics.grid_size_z << std::endl;
-        std::cout << "Execution Space: " << Kokkos::DefaultExecutionSpace::name() << std::endl;
-        std::cout << "Execution Time: " << std::fixed << std::setprecision(4) << metrics.execution_time_ms << " ms" << std::endl;
-        std::cout << "Memory Bandwidth: " << std::fixed << std::setprecision(2) << metrics.memory_bandwidth_gbps << " GB/s" << std::endl;
-        std::cout << "Peak Bandwidth: " << std::fixed << std::setprecision(2) << metrics.peak_bandwidth_gbps << " GB/s" << std::endl;
-        std::cout << "Bandwidth Efficiency: " << std::fixed << std::setprecision(2) << metrics.bandwidth_efficiency_percent << "%" << std::endl;
+        std::cout << "\n=== Kernel Profile: "s + std::to_string(metrics.kernel_name) + " ===\n";
+        std::cout << "Grid: "s + std::to_string(metrics.grid_size_x) + "x"s + std::to_string(metrics.grid_size_y) + "x"s +
+                         std::to_string(metrics.grid_size_z) + "\n"s;
+        std::cout << "Execution Space: " << Kokkos::DefaultExecutionSpace::name() + "\n"s;
+        std::cout << "Execution Time: " << std::fixed << std::setprecision(4) << metrics.execution_time_ms << " ms\n";
+        std::cout << "Memory Bandwidth: " << std::fixed << std::setprecision(2) << metrics.memory_bandwidth_gbps << " GB/s\n";
+        std::cout << "Peak Bandwidth: " << std::fixed << std::setprecision(2) << metrics.peak_bandwidth_gbps << " GB/s\n";
+        std::cout << "Bandwidth Efficiency: " << std::fixed << std::setprecision(2) << metrics.bandwidth_efficiency_percent << "%\n";
     }
 
     /**
@@ -202,10 +203,10 @@ class KernelProfiler {
      * @param metrics_list Vector of metrics to compare
      */
     static void PrintComparison(const std::vector<KernelMetrics>& metrics_list) {
-        std::cout << "\n=== Kernel Performance Comparison ===" << std::endl;
+        std::cout << "\n=== Kernel Performance Comparison ===\n";
         std::cout << std::left << std::setw(30) << "Kernel" << std::setw(15) << "Time (ms)" << std::setw(15) << "BW (GB/s)" << std::setw(15)
                   << "Efficiency (%)" << std::endl;
-        std::cout << std::string(75, '-') << std::endl;
+        std::cout << std::string(75, '-') + "\n"s;
 
         for (const auto& m : metrics_list) {
             std::cout << std::left << std::setw(30) << m.kernel_name << std::fixed << std::setprecision(4) << std::setw(15) << m.execution_time_ms

@@ -49,7 +49,7 @@
  *
  * // Get default execution space name
  * std::string space_name = cece::GetDefaultExecutionSpaceName();
- * std::cout << "Using: " << space_name << std::endl;
+ * std::cout << "Using: "s + space_name + "\n"s;
  * ```
  *
  * ## Performance Portability
@@ -74,6 +74,8 @@
 #include <iostream>
 #include <string>
 
+using namespace std::literals::string_literals;
+
 namespace cece {
 
 /**
@@ -95,39 +97,39 @@ inline std::string GetDefaultExecutionSpaceName() {
  * - GPU device ID (if CUDA/HIP enabled)
  */
 inline void PrintKokkosConfiguration() {
-    std::cout << "=== Kokkos Configuration ===" << std::endl;
-    std::cout << "Default Execution Space: " << GetDefaultExecutionSpaceName() << std::endl;
+    std::cout << "=== Kokkos Configuration ===\n";
+    std::cout << "Default Execution Space: "s + GetDefaultExecutionSpaceName() + "\n"s;
 
-    std::cout << "Available Execution Spaces:" << std::endl;
+    std::cout << "Available Execution Spaces:\n";
 #ifdef KOKKOS_ENABLE_SERIAL
-    std::cout << "  - Serial" << std::endl;
+    std::cout << "  - Serial\n";
 #endif
 #ifdef KOKKOS_ENABLE_OPENMP
-    std::cout << "  - OpenMP" << std::endl;
+    std::cout << "  - OpenMP\n";
 #endif
 #ifdef KOKKOS_ENABLE_CUDA
-    std::cout << "  - CUDA" << std::endl;
+    std::cout << "  - CUDA\n";
 #endif
 #ifdef KOKKOS_ENABLE_HIP
-    std::cout << "  - HIP" << std::endl;
+    std::cout << "  - HIP\n";
 #endif
 
 #ifdef KOKKOS_ENABLE_OPENMP
-    std::cout << "OpenMP Configuration:" << std::endl;
-    std::cout << "  - Threads: " << Kokkos::OpenMP().concurrency() << std::endl;
+    std::cout << "OpenMP Configuration:\n";
+    std::cout << "  - Threads: " << std::to_string(Kokkos::OpenMP().concurrency()) + "\n"s;
 #endif
 
 #ifdef KOKKOS_ENABLE_CUDA
-    std::cout << "CUDA Configuration:" << std::endl;
-    std::cout << "  - Device: " << Kokkos::Cuda::device_id() << std::endl;
+    std::cout << "CUDA Configuration:\n";
+    std::cout << "  - Device: " << std::to_string(Kokkos::Cuda::device_id()) + "\n"s;
 #endif
 
 #ifdef KOKKOS_ENABLE_HIP
-    std::cout << "HIP Configuration:" << std::endl;
-    std::cout << "  - Device: " << Kokkos::HIP::device_id() << std::endl;
+    std::cout << "HIP Configuration:\n";
+    std::cout << "  - Device: " << std::to_string(Kokkos::HIP::device_id()) + "\n"s;
 #endif
 
-    std::cout << "=============================" << std::endl;
+    std::cout << "=============================\n";
 }
 
 /**

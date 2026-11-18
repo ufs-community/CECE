@@ -18,6 +18,9 @@
 #include <ostream>
 #include <string>
 
+// TODO: Move this functionality to cece_logger.hpp
+using namespace std::literals::string_literals;
+
 namespace cece {
 
 /**
@@ -48,7 +51,7 @@ inline void SetRealStdoutBuf(std::streambuf* buf) {
 inline void LogFatal(const std::string& message) {
     std::ostream log_out(RealStdoutBuf());
     log_out << message << std::endl;
-    std::cerr << message << std::endl;
+    std::cerr << message + "\n"s;
 }
 
 }  // namespace cece
