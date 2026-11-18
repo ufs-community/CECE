@@ -71,6 +71,7 @@
 #define CECE_KOKKOS_CONFIG_HPP
 
 #include <Kokkos_Core.hpp>
+#include <cstdlib>
 #include <iostream>
 #include <string>
 
@@ -170,7 +171,7 @@ inline int GetOpenMPThreadCount() {
 #ifdef KOKKOS_ENABLE_OPENMP
     const char* num_threads = std::getenv("OMP_NUM_THREADS");
     if (num_threads != nullptr) {
-        int threads = std::atoi(num_threads);
+        int threads = std::stoi(num_threads);
         if (threads > 0) {
             return threads;
         }
