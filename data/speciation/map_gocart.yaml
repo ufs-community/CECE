@@ -1,0 +1,24 @@
+# GOCART Speciation Mapping File (CECE dataset-oriented format)
+# Maps seasalt emission classes directly to GOCART mechanism species
+# with per-class scale factors.
+#
+# Format: mechanism species → { emission class: scale factor }
+# Scale factors represent the fractional contribution of each emission class
+# to each mechanism species.
+#
+# References:
+#   - GOCART-2G sea salt component codes
+
+mechanism: GOCART
+datasets:
+  SEASALT:
+    seas1:
+      seas1: 1.0
+    seas2:
+      seas2: 1.0
+    seas3:
+      seas3: 1.0
+    seas4:
+      seas4: 1.0
+    seas5:
+      seas5: 1.0

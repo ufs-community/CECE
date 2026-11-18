@@ -307,7 +307,7 @@ class ClockGatedRunLoopBackwardCompatTest : public ::testing::Test {
         // All intervals = base_timestep (300s) → every component due every step
         std::vector<ClockComponent> components = {
             {ComponentType::kPhysicsScheme, "megan", 300},
-            {ComponentType::kPhysicsScheme, "sea_salt", 300},
+            {ComponentType::kPhysicsScheme, "sea_salt_geos12", 300},
             {ComponentType::kDataStream, "anthropogenic", 300},
             {ComponentType::kStackingEngine, "stacking", 300},
         };
@@ -331,7 +331,7 @@ TEST_F(ClockGatedRunLoopBackwardCompatTest, AllComponentsDueEveryStep) {
                                                   << ")";
 
         EXPECT_TRUE(IsDue(step, "megan"));
-        EXPECT_TRUE(IsDue(step, "sea_salt"));
+        EXPECT_TRUE(IsDue(step, "sea_salt_geos12"));
         EXPECT_TRUE(IsDue(step, "anthropogenic"));
         EXPECT_TRUE(IsDue(step, "stacking"));
     }

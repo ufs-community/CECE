@@ -17,6 +17,7 @@
 #include <string>
 
 #include "cece/cece_internal.hpp"
+#include "cece/cece_logger.hpp"
 
 extern "C" {
 
@@ -606,6 +607,65 @@ void cece_core_set_export_field(void* data_ptr, const char* name, int name_len, 
 }
 
 /**
+ * @brief Register/populate an import field from a host array (deep-copied).
+ *
+ * Unlike export fields, import fields are not written back to disk, so no
+ * persistent pointer is retained — the data is copied into a managed DualView
+ * that owns its memory for the simulation lifetime. Used by the driver to
+ * publish grid-derived fields (e.g. LAT/LON) that schemes consume via imports.
+ *
+ * @param data_ptr   Pointer to CeceInternalData.
+ * @param name       Field name (not null-terminated; use name_len).
+ * @param name_len   Length of the name string.
+ * @param field_data Raw pointer to the host field data (LayoutLeft nx*ny*nz).
+ * @param nx, ny, nz Grid dimensions.
+ * @param rc         Return code (0 = success, -1 = error).
+ */
+void cece_core_set_import_field(void* data_ptr, const char* name, int name_len, const double* field_data, int nx, int ny, int nz, int* rc) {
+    if (rc != nullptr) {
+        *rc = 0;
+    }
+
+    if (data_ptr == nullptr) {
+        CECE_LOG_ERROR("cece_core_set_import_field - data_ptr is null");
+        if (rc != nullptr) *rc = -1;
+        return;
+    }
+
+    if (name == nullptr || name_len <= 0) {
+        CECE_LOG_ERROR("cece_core_set_import_field - invalid name argument");
+        if (rc != nullptr) *rc = -1;
+        return;
+    }
+
+    if (field_data == nullptr) {
+        CECE_LOG_ERROR("cece_core_set_import_field - field_data is null");
+        if (rc != nullptr) *rc = -1;
+        return;
+    }
+
+    auto* internal_data = static_cast<cece::CeceInternalData*>(data_ptr);
+    std::string name_str(name, static_cast<size_t>(name_len));
+
+    using UnmanagedHostConst = Kokkos::View<const double***, Kokkos::LayoutLeft, Kokkos::HostSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>>;
+    UnmanagedHostConst h_view(field_data, nx, ny, nz);
+
+    cece::DualView3D dv(name_str, nx, ny, nz);
+    Kokkos::deep_copy(dv.view_host(), h_view);
+    dv.modify_host();
+    dv.sync_device();
+
+    internal_data->import_state.fields[name_str] = dv;
+
+    CECE_LOG_INFO("cece_core_set_import_field - registered import field '" + name_str + "' (" + std::to_string(nx) + "x" + std::to_string(ny) + "x" +
+                  std::to_string(nz) + ")");
+
+    if (rc != nullptr) {
+        *rc = 0;
+    }
+}
+
+/**
  * @brief Get the number of unique input fields required by the configuration.
  *
  * @param data_ptr Pointer to CeceInternalData
@@ -926,7 +986,8 @@ void nuopc_fill_spec(const std::vector<std::pair<std::string, cece::NuopcFieldSp
                      int name_cap, int* name_len, int* rc) {
     if (rc != nullptr) *rc = 0;
     if (index < 0 || static_cast<size_t>(index) >= fields.size()) {
-        std::cerr << "ERROR: cece_nuopc_" << label << "_spec - index out of range: " << index << " (size: " << fields.size() << ")" << std::endl;
+        CECE_LOG_ERROR("cece_nuopc_" + label + "_spec - index out of range: " + std::to_string(index) + " (size: " + std::to_string(fields.size()) +
+                       ")");
         if (rc != nullptr) *rc = -1;
         return;
     }
@@ -936,7 +997,7 @@ void nuopc_fill_spec(const std::vector<std::pair<std::string, cece::NuopcFieldSp
     // buffers untouched.
     if (static_cast<int>(cfg_key.size()) >= key_cap || static_cast<int>(spec.standard_name.size()) >= std_cap ||
         static_cast<int>(spec.units.size()) >= units_cap || static_cast<int>(spec.name.size()) >= name_cap) {
-        std::cerr << "ERROR: cece_nuopc_" << label << "_spec - output buffer too small for field '" << cfg_key << "'" << std::endl;
+        CECE_LOG_ERROR("cece_nuopc_" + label + "_spec - output buffer too small for field '" + cfg_key + "'");
         if (rc != nullptr) *rc = -1;
         return;
     }
@@ -964,7 +1025,7 @@ void nuopc_count(const char* config_path, int path_len, const char* label, bool 
         cece::CeceConfig config = cece::ParseConfig(yaml_path);
         *count = is_export ? static_cast<int>(config.nuopc.export_fields.size()) : static_cast<int>(config.nuopc.import_fields.size());
     } catch (const std::exception& e) {
-        std::cerr << "ERROR: cece_nuopc_" << label << "_count - failed to parse config: " << e.what() << std::endl;
+        CECE_LOG_ERROR(std::string("cece_nuopc_") + label + "_count - failed to parse config: " + e.what());
         if (rc != nullptr) *rc = -1;
     }
 }
@@ -991,7 +1052,7 @@ void cece_nuopc_export_spec(const char* config_path, int path_len, int index, ch
         nuopc_fill_spec(config.nuopc.export_fields, index, "export", species, species_cap, species_len, std_name, std_cap, std_len, units, units_cap,
                         units_len, name, name_cap, name_len, rc);
     } catch (const std::exception& e) {
-        std::cerr << "ERROR: cece_nuopc_export_spec - failed to parse config: " << e.what() << std::endl;
+        CECE_LOG_ERROR(std::string("cece_nuopc_export_spec - failed to parse config: ") + e.what());
         if (rc != nullptr) *rc = -1;
     }
 }
@@ -1014,7 +1075,7 @@ void cece_nuopc_import_spec(const char* config_path, int path_len, int index, ch
         nuopc_fill_spec(config.nuopc.import_fields, index, "import", field, field_cap, field_len, std_name, std_cap, std_len, units, units_cap,
                         units_len, name, name_cap, name_len, rc);
     } catch (const std::exception& e) {
-        std::cerr << "ERROR: cece_nuopc_import_spec - failed to parse config: " << e.what() << std::endl;
+        CECE_LOG_ERROR(std::string("cece_nuopc_import_spec - failed to parse config: ") + e.what());
         if (rc != nullptr) *rc = -1;
     }
 }
