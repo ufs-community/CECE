@@ -186,25 +186,33 @@ struct CeceDataConfig {
 /// never receive a coordinates attribute of their own. Listed in the
 /// written field shape order [time, lev, lat, lon] — the order of the
 /// default coordinates attribute derived below.
-inline constexpr std::array<std::string_view, 4> kCoordinateNames{"time", "lev", "lat", "lon"};
+constexpr std::array<std::string_view, 4> kCoordinateNames{"time", "lev", "lat", "lon"};
 
 inline bool IsCoordinateName(std::string_view name) {
     return std::ranges::find(kCoordinateNames, name) != kCoordinateNames.end();
 }
 
+/** @brief Convert a list of coordinates into a CF coordinate attribute
+ *
+ * @param coord_names The list of coordinates
+ * @return A suitable value for the CF coordinates attribute
+ */
+template <typename string_type, size_t N>
+inline std::string cf_coordinates_attribute_from_list(const std::array<string_type, N>& coord_names) {
+    std::string result = "";
+    if (N > 0) {
+        result = coord_names[0];
+    }
+    for (size_t i = 1; i < N; ++i) {
+        result += static_cast<std::string>(" ") + static_cast<std::string>(coord_names[i]);
+    }
+    return result;
+}
+
 /// Default CF coordinates attribute for data fields: the coordinate names
 /// joined in written-shape order. Structural, so every data field gets it
 /// unless the entry configures its own coordinates value.
-inline const std::string kDefaultCoordinates = [] {
-    std::string joined;
-    for (const std::string_view name : kCoordinateNames) {
-        if (!joined.empty()) {
-            joined += ' ';
-        }
-        joined += name;
-    }
-    return joined;
-}();
+inline const std::string kDefaultCoordinates = cf_coordinates_attribute_from_list(kCoordinateNames);
 
 /**
  * @struct CeceOutputField
