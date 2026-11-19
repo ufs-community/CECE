@@ -1,0 +1,1 @@
+Synthetic test-only factor asset. Not a scientific coefficient source.

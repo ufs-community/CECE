@@ -1,8 +1,12 @@
 # Fire emissions: implementation status
 
-The fire feature is **not operational yet**. No `fire` physics scheme, NOAA
-decoder, preparation command, production chemistry profile or Ursa fire-run
-script is currently available. Existing fire-free runtime behavior is unchanged.
+The fire feature is **not operational end to end yet**. The `fire` physics
+scheme is registered and can map an explicitly staged synthetic/test inventory
+to isolated `FIRE_` mass-flux fields, including exact-target bypass. The CECE
+driver does not yet stage prepared/coupled inventories or advertise/populate
+those export fields; no NOAA decoder, preparation command, production chemistry
+profile or Ursa fire-run script is available. Existing fire-free runtime
+behavior is unchanged.
 Building the core now requires system OpenSSL Crypto for input verification
 (see the [developer guide](developer_guide.md#development-environment)).
 
@@ -79,8 +83,26 @@ profile certification, metadata agreement or duplicate scaling within actual
 inputs. Those checks require pending manifest/schedule readers and
 profile/runtime integration.
 The [configuration validation CLI](../scripts/validate_cece_config.py) reuses the
-Python checks but still rejects `fire` as unregistered until the runtime scheme
-is implemented. Do not treat successful option parsing as an executable example.
+Python checks and recognizes the registered `fire` scheme. Do not treat
+successful option parsing as an executable ingestion example: driver-side
+provider staging and output-field registration are still pending.
+
+## Synthetic mapping scheme
+
+`FireScheme` accepts a validated bulk inventory through its staging API, applies
+the hash-pinned target profile and required-species list, sums mapped component
+masses, and exports each configured `FIRE_` field as kg m-2 s-1 over the
+inventory's exact interval and cell areas. Exact-target inputs can bypass bulk
+mapping only when their target id and version exactly match the configured
+target. The scheme rejects missing staged intervals, missing/wrong-sized output
+fields, non-mass output units and invalid mass/area values rather than creating
+zero-filled outputs.
+
+These are in-memory scheme boundaries exercised with explicitly synthetic,
+non-production assets. They do not imply that manifests are decoded, temporal
+or spatial allocation is invoked by the scheme, nor that the CECE driver is
+currently staging inventory data. Core provider lifecycle and export-field
+integration remain pending.
 
 ## Bounded provider foundation
 
@@ -163,8 +185,10 @@ redistribution information and independent expected values/tolerances.
 deliberately artificial coefficients and hand-derived expectations. Its content
 digest is recorded in the registry. It must not be used in production.
 
-The native fire selectors and Python configuration tests currently exercise
-fixture consistency, option/input validation and test-helper device round trips.
+The native fire selectors and Python configuration tests exercise fixture
+consistency, option/input validation, synthetic typed profile loading/mapping,
+registered-scheme mass-flux export, exact-target bypass and test-helper device
+round trips.
 The conservation selector also checks interval subdivision, extensive/density
 equivalence, partial support, mixed components and generated AXIS weights across
 global longitude conventions and polar rows.

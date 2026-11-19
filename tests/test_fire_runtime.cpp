@@ -8,6 +8,9 @@
 #include <vector>
 
 #include "cece/cece_fire_input.hpp"
+#include "cece/cece_physics_factory.hpp"
+#include "cece/physics/cece_fire.hpp"
+#include "conf/config.hpp"
 #include "support/cece_fire_test_fixtures.hpp"
 
 namespace {
@@ -90,6 +93,51 @@ TEST(test_fire_runtime, ContentVerificationUsesKnownSha256AndReadsChangedFiles) 
     file.Write(std::string(1000000, 'a'));
     EXPECT_EQ(cece::FireFileSha256(file.path), cece::FireContentSha256(std::string(1000000, 'a')));
     EXPECT_THROW(cece::FireFileSha256(file.path + ".missing"), std::runtime_error);
+}
+
+TEST(test_fire_runtime, RegisteredFireSchemeMapsBulkMassAndExportsSurfaceFlux) {
+    cece::PhysicsSchemeConfig scheme_config;
+    scheme_config.name = "fire";
+    auto scheme = cece::PhysicsFactory::CreateScheme(scheme_config);
+    ASSERT_NE(scheme, nullptr);
+    auto* fire_scheme = dynamic_cast<cece::FireScheme*>(scheme.get());
+    ASSERT_NE(fire_scheme, nullptr);
+
+    const auto profile_path = std::string(CECE_SOURCE_DIR) + "/tests/data/fire/synthetic_target_profile.yaml";
+    auto options = conf::Config::from_string(
+        "chemistry_state: bulk\n"
+        "target_id: SYNTHETIC\n"
+        "target_version: test-v1\n"
+        "fire_mapping_file: " +
+        profile_path + "\nrequested_species: [CO]\n");
+    fire_scheme->Initialize(options.root(), nullptr);
+    fire_scheme->StageBulkInventory(ProviderInventory());
+
+    cece::CeceImportState imports;
+    cece::CeceExportState exports;
+    exports.fields.emplace("FIRE_CO", cece::DualView3D("FIRE_CO", 1, 1, 1));
+    fire_scheme->Run(imports, exports);
+    auto output = exports.fields.at("FIRE_CO").view_host();
+    EXPECT_NEAR(output(0, 0, 0), 5.0 / (25.0 * 3600.0), 1e-14);
+    EXPECT_THROW(fire_scheme->Run(imports, exports), std::runtime_error);
+}
+
+TEST(test_fire_runtime, TargetSpecificFireInventoryBypassesBulkMappingForExactTarget) {
+    cece::FireScheme scheme;
+    auto options = conf::Config::from_string(
+        "chemistry_state: target_specific\n"
+        "target_id: mechanism-a\n"
+        "target_version: 3\n");
+    scheme.Initialize(options.root(), nullptr);
+    auto inventory = ProviderInventory();
+    scheme.StageTargetSpecificInventory({inventory.Data().identity, "mechanism-a", "3", {{"CO", "kg"}}, {5.0}});
+
+    cece::CeceImportState imports;
+    cece::CeceExportState exports;
+    exports.fields.emplace("FIRE_CO", cece::DualView3D("FIRE_CO", 1, 1, 1));
+    scheme.Run(imports, exports);
+    auto output = exports.fields.at("FIRE_CO").view_host();
+    EXPECT_NEAR(output(0, 0, 0), 5.0 / (25.0 * 3600.0), 1e-14);
 }
 
 TEST(test_fire_runtime, PreparedAndCoupledProvidersShareCacheAndLifecycle) {

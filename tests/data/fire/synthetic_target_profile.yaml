@@ -1,0 +1,51 @@
+schema_version: 1
+production_eligible: false
+identity:
+  id: synthetic-fire-profile
+  version: test-v1
+  target_id: SYNTHETIC
+  target_version: test-v1
+assets:
+  - name: synthetic-factor-note
+    path: synthetic_target_asset.txt
+    sha256: 27b788e16aaf8e1d809f4f8bee22fbeb407535fe5c3bc23338ed47bcac468d79
+mechanism_species:
+  - {name: FIRE_CO, molecular_weight_g_mol: 28.0}
+  - {name: FIRE_NO, molecular_weight_g_mol: 30.0}
+  - {name: FIRE_NO2, molecular_weight_g_mol: 46.0}
+  - {name: FIRE_VOC, molecular_weight_g_mol: 44.0}
+typed_mappings:
+  - {source_species: CO, target_species: FIRE_CO, basis: mass, factor: 1.0, output_unit: kg}
+  - {source_species: NOX, target_species: FIRE_NO, basis: mass, factor: 0.25, output_unit: kg}
+  - {source_species: NOX, target_species: FIRE_NO2, basis: mass, factor: 0.75, output_unit: kg}
+  - {source_species: VOC, target_species: FIRE_VOC, basis: mass, factor: 1.0, output_unit: kg}
+conversion_factors:
+  source_molecular_weights_g_mol: {CO: 28.0, NOX: 46.0, VOC: 44.0}
+  target_molecular_weights_g_mol: {FIRE_CO: 28.0, FIRE_NO: 30.0, FIRE_NO2: 46.0, FIRE_VOC: 44.0}
+  source_carbon_numbers: {CO: 1.0, NOX: 1.0, VOC: 2.0}
+  target_carbon_numbers: {FIRE_CO: 1.0, FIRE_NO: 1.0, FIRE_NO2: 1.0, FIRE_VOC: 2.0}
+  aerosol_factors: {}
+nox_partition:
+  reference_basis: NO2
+  no_mass_fraction: 0.25
+  no2_mass_fraction: 0.75
+  no_target_species: FIRE_NO
+  no2_target_species: FIRE_NO2
+oc_om_policy:
+  kind: convert_with_factor
+  om_per_oc: 1.4
+source_disposition:
+  CO: {kind: mapped}
+  NOX: {kind: mapped}
+  VOC: {kind: mapped}
+  CO2: {kind: excluded, reason: synthetic profile intentionally excludes CO2}
+  CH4: {kind: excluded, reason: synthetic profile intentionally excludes CH4}
+  PM25: {kind: excluded, reason: synthetic profile intentionally excludes particulate pools}
+  TPM: {kind: excluded, reason: synthetic profile intentionally excludes particulate pools}
+  SO2: {kind: excluded, reason: synthetic profile intentionally excludes SO2}
+  OC: {kind: excluded, reason: synthetic profile intentionally excludes particulate pools}
+  BC: {kind: excluded, reason: synthetic profile intentionally excludes particulate pools}
+  NH3: {kind: excluded, reason: synthetic profile intentionally excludes NH3}
+budgets_tolerances:
+  relative: 1.0e-6
+  absolute: 1.0e-12
