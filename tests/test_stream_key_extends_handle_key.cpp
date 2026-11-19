@@ -36,6 +36,8 @@
 #include "cece/cece_driver_facade.hpp"
 #include "stream_config_generator.hpp"
 
+namespace fs = std::filesystem;
+
 namespace cece {
 
 // ============================================================================
@@ -119,10 +121,10 @@ RC_GTEST_PROP(StreamKeyExtends, Property5_ManifestFieldDiffersBothKeysDiffer, ()
 
     // Ban the reserved separator from the string manifest fields and mapalgo so
     // the six-field HandleKey concatenation is injective on the tuple.
-    RC_PRE(a.input_file_path.find('|') == std::string::npos);
+    RC_PRE(a.input_file_path.native().find('|') == std::string::npos);
     RC_PRE(a.data_model.find('|') == std::string::npos);
     RC_PRE(a.mapalgo.find('|') == std::string::npos);
-    RC_PRE(b.input_file_path.find('|') == std::string::npos);
+    RC_PRE(b.input_file_path.native().find('|') == std::string::npos);
     RC_PRE(b.data_model.find('|') == std::string::npos);
 
     // Only meaningful when the manifest tuple actually differs in some field.

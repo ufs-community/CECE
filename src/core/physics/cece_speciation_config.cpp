@@ -11,9 +11,9 @@
 
 namespace cece {
 
-SpeciationConfig SpeciationConfigLoader::Load(const std::string& mechanism_path, const std::string& mapping_path, const std::string& dataset) const {
-    if (!std::filesystem::exists(mechanism_path)) throw std::runtime_error("Mechanism file not found: " + mechanism_path);
-    if (!std::filesystem::exists(mapping_path)) throw std::runtime_error("Mapping file not found: " + mapping_path);
+SpeciationConfig SpeciationConfigLoader::Load(const fs::path& mechanism_path, const fs::path& mapping_path, const std::string& dataset) const {
+    if (!std::filesystem::exists(mechanism_path)) throw std::runtime_error("Mechanism file not found: " + mechanism_path.native());
+    if (!std::filesystem::exists(mapping_path)) throw std::runtime_error("Mapping file not found: " + mapping_path.native());
 
     conf::Config mechanism = conf::Config::from_file(mechanism_path);
     conf::Config mapping = conf::Config::from_file(mapping_path);

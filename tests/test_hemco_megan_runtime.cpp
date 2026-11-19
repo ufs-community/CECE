@@ -14,6 +14,7 @@
 #include <cmath>
 #include <conf/config.hpp>
 #include <conf/error.hpp>
+#include <filesystem>
 #include <fstream>
 #include <limits>
 #include <numbers>
@@ -24,6 +25,8 @@
 #include <vector>
 
 #include "cece/physics/cece_megan.hpp"
+
+namespace fs = std::filesystem;
 
 namespace cece::hemco_megan::v3_12_1 {
 
@@ -58,7 +61,7 @@ struct OracleRow {
     double expected;
 };
 
-std::vector<OracleRow> LoadOracle(const std::string& path) {
+std::vector<OracleRow> LoadOracle(const fs::path& path) {
     std::vector<OracleRow> rows;
     std::ifstream stream(path);
     if (!stream.is_open()) return rows;
@@ -84,7 +87,7 @@ std::vector<OracleRow> gOracleRows;
 
 struct OracleLoader {
     OracleLoader() {
-        const std::string path = std::string(CECE_SOURCE_DIR) + "/tests/data/hemco_megan/hemco_3_12_1_megan_reference.csv";
+        const fs::path path = fs::path(CECE_SOURCE_DIR) / "tests/data/hemco_megan/hemco_3_12_1_megan_reference.csv";
         gOracleRows = LoadOracle(path);
     }
 } gLoader;

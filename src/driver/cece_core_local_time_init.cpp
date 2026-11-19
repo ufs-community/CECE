@@ -25,6 +25,8 @@
 #include "cece/cece_mpi_env.hpp"
 #include "cece/utc_grid.hpp"
 
+namespace fs = std::filesystem;
+
 namespace {
 
 /// Repository default grid path used when local_time.grid_file is empty.
@@ -85,20 +87,19 @@ void cece_core_local_time_init(void* data_ptr, int nx, int ny, int nz, const dou
     std::vector<double> lon_vec(lon_coords, lon_coords + lon_len);
     std::vector<double> lat_vec(lat_coords, lat_coords + lat_len);
     const std::int64_t start_epoch = internal_data->clock ? internal_data->clock->StartEpochSeconds() : 0;
-    const std::string grid_file =
-        internal_data->config.local_time.grid_file.empty() ? kDefaultUtcGridFile : internal_data->config.local_time.grid_file;
+    const fs::path grid_file = internal_data->config.local_time.grid_file.empty() ? kDefaultUtcGridFile : internal_data->config.local_time.grid_file;
 
     try {
         auto dense = cece::DecodeUtcGridRle(grid_file);
         auto provider = std::make_unique<cece::StaticGridOffsetProvider>(std::move(dense));
         internal_data->local_time = cece::LocalTimeService::Create(std::move(provider), lon_vec, lat_vec, nx, band.j0, band.ny_local, start_epoch);
-        CECE_LOG_INFO("[LOCAL_TIME] Local-time service initialized from '" + grid_file + "' (nx=" + std::to_string(nx) +
+        CECE_LOG_INFO("[LOCAL_TIME] Local-time service initialized from '" + grid_file.string() + "' (nx=" + std::to_string(nx) +
                       ", band j0=" + std::to_string(band.j0) + ", ny_local=" + std::to_string(band.ny_local) + ")");
     } catch (const std::exception& e) {
         // The feature was explicitly enabled, so a missing or corrupt grid is a
         // configuration / deployment error: fail the run rather than quietly
         // scaling every layer in UTC mode.
-        CECE_LOG_ERROR(std::string("[LOCAL_TIME] Failed to load UTC-offset grid '") + grid_file + "': " + e.what());
+        CECE_LOG_ERROR(std::string("[LOCAL_TIME] Failed to load UTC-offset grid '") + grid_file.string() + "': " + e.what());
         *rc = -1;
         return;
     }

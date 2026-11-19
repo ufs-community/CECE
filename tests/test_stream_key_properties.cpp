@@ -46,6 +46,8 @@
 #include "cece/cece_driver_facade.hpp"
 #include "stream_config_generator.hpp"
 
+namespace fs = std::filesystem;
+
 namespace cece {
 
 // ============================================================================
@@ -78,7 +80,7 @@ struct StreamKeyTestAccess {
 // ============================================================================
 RC_GTEST_PROP(StreamKeyProperty, Property1_Concatenation, ()) {
     const StreamConfig cfg = *genStreamConfig();
-    const std::string expected = cfg.input_file_path + "|" + cfg.data_model + "|" + std::to_string(cfg.amio_worker_threads) + "|" +
+    const std::string expected = cfg.input_file_path.native() + "|" + cfg.data_model + "|" + std::to_string(cfg.amio_worker_threads) + "|" +
                                  std::to_string(cfg.amio_staging_buffer_count) + "|" + std::to_string(cfg.amio_staging_buffer_capacity_bytes) + "|" +
                                  std::to_string(cfg.amio_prefetch_depth) + "|" + cfg.mapalgo;
     RC_ASSERT(StreamKeyTestAccess::Key(cfg) == expected);
@@ -144,10 +146,10 @@ RC_GTEST_PROP(StreamKeyProperty, Property1_UnequalWhenPathOrAlgoDiffers, ()) {
 
     // The separator ban only needs to hold to keep concatenation unambiguous.
     // Discard cases where a string key field contains the reserved separator.
-    RC_PRE(a.input_file_path.find('|') == std::string::npos);
+    RC_PRE(a.input_file_path.native().find('|') == std::string::npos);
     RC_PRE(a.data_model.find('|') == std::string::npos);
     RC_PRE(a.mapalgo.find('|') == std::string::npos);
-    RC_PRE(b.input_file_path.find('|') == std::string::npos);
+    RC_PRE(b.input_file_path.native().find('|') == std::string::npos);
     RC_PRE(b.data_model.find('|') == std::string::npos);
     RC_PRE(b.mapalgo.find('|') == std::string::npos);
 

@@ -1,6 +1,7 @@
 #include <sys/stat.h>
 
 #include <algorithm>
+#include <filesystem>
 #include <iostream>
 #include <set>
 #include <stdexcept>
@@ -10,11 +11,13 @@
 #include "cece/cece_string_utils.hpp"
 #include "conf/config.hpp"
 
+namespace fs = std::filesystem;
+
 namespace cece {
 
-CeceConfig ParseConfig(const std::string& filename) {
+CeceConfig ParseConfig(const fs::path& filename) {
     struct stat buffer;
-    if (stat(filename.c_str(), &buffer) != 0) throw std::runtime_error("File not found: " + filename);
+    if (stat(filename.c_str(), &buffer) != 0) throw std::runtime_error("File not found: " + filename.string());
     conf::Config parsed = conf::Config::from_file(filename);
     conf::Value root = parsed.root();
     CeceConfig config;
@@ -175,8 +178,14 @@ CeceConfig ParseConfig(const std::string& filename) {
             CeceDataStreamConfig stream;
             stream.name = string_or(node, "name");
             conf::Value files = node["file"];
-            if (files)
-                stream.file_paths = files.kind() == conf::Node_Kind::Sequence ? files.as_string_list() : std::vector<std::string>{files.as_string()};
+            if (files) {
+                if (files.kind() == conf::Node_Kind::Sequence) {
+                    std::vector<std::string> tmp_paths = files.as_string_list();
+                    stream.file_paths.assign(tmp_paths.begin(), tmp_paths.end());
+                } else {
+                    stream.file_paths.assign(1, fs::path(files.as_string()));
+                }
+            }
             conf::Value variables = node["variables"];
             if (!variables || variables.kind() == conf::Node_Kind::Null || (variables.kind() == conf::Node_Kind::Sequence && variables.size() == 0)) {
                 if (stream.name.empty()) {
