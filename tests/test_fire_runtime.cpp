@@ -8,10 +8,15 @@
 #include <vector>
 
 #include "cece/cece_fire_input.hpp"
+#include "cece/cece_fire_runtime.hpp"
+#include "cece/cece_internal.hpp"
 #include "cece/cece_physics_factory.hpp"
 #include "cece/physics/cece_fire.hpp"
 #include "conf/config.hpp"
 #include "support/cece_fire_test_fixtures.hpp"
+
+extern "C" void cece_core_run(void* data_ptr, int hour, int day_of_week, int* rc);
+extern "C" void cece_core_finalize(void* data_ptr, int* rc);
 
 namespace {
 using namespace cece::test::fire;
@@ -111,7 +116,9 @@ TEST(test_fire_runtime, RegisteredFireSchemeMapsBulkMassAndExportsSurfaceFlux) {
         "fire_mapping_file: " +
         profile_path + "\nrequested_species: [CO]\n");
     fire_scheme->Initialize(options.root(), nullptr);
-    fire_scheme->StageBulkInventory(ProviderInventory());
+    EXPECT_EQ(fire_scheme->ExportFieldNames(), std::vector<std::string>{"FIRE_CO"});
+    const auto inventory = ProviderInventory();
+    fire_scheme->StageBorrowedBulkInventory(inventory);
 
     cece::CeceImportState imports;
     cece::CeceExportState exports;
@@ -138,6 +145,215 @@ TEST(test_fire_runtime, TargetSpecificFireInventoryBypassesBulkMappingForExactTa
     scheme.Run(imports, exports);
     auto output = exports.fields.at("FIRE_CO").view_host();
     EXPECT_NEAR(output(0, 0, 0), 5.0 / (25.0 * 3600.0), 1e-14);
+}
+
+class MockFireRuntimeAdapter final : public cece::FireRuntimeAdapter {
+   public:
+    explicit MockFireRuntimeAdapter(bool* finalized_out = nullptr) : finalized_out(finalized_out) {}
+
+    void Initialize(const cece::FireConfig&, int, int, int) override {
+        initialized = true;
+    }
+
+    cece::FireRuntimeInventoryView PrepareInterval(const cece::FireRuntimeIntervalRequest&) override {
+        prepared = true;
+        if (fail_prepare) throw std::runtime_error("mock interval preparation failure");
+        return std::cref(inventory);
+    }
+
+    void CommitInterval() override {
+        committed = true;
+        if (fail_commit) throw std::runtime_error("mock interval commit failure");
+    }
+
+    void AbortInterval() noexcept override {
+        aborted = true;
+    }
+
+    void Finalize() override {
+        finalized = true;
+        if (finalized_out) *finalized_out = true;
+        if (fail_finalize) throw std::runtime_error("mock adapter finalization failure");
+    }
+
+    cece::FireBulkInventory inventory{ProviderInventory()};
+    bool initialized = false;
+    bool prepared = false;
+    bool committed = false;
+    bool aborted = false;
+    bool finalized = false;
+    bool fail_finalize = false;
+    bool fail_prepare = false;
+    bool fail_commit = false;
+    bool* finalized_out = nullptr;
+};
+
+std::string FireSchemeOptions() {
+    return "chemistry_state: bulk\n"
+           "target_id: SYNTHETIC\n"
+           "target_version: test-v1\n"
+           "fire_mapping_file: " +
+           std::string(CECE_SOURCE_DIR) + "/tests/data/fire/synthetic_target_profile.yaml\nrequested_species: [CO]\n";
+}
+
+MockFireRuntimeAdapter* ConfigureCoreFireRuntime(cece::CeceInternalData& state, bool fail_prepare = false, bool fail_commit = false) {
+    cece::PhysicsSchemeConfig config;
+    config.name = "fire";
+    config.refresh_interval_seconds = 3600;
+    config.fire = cece::FireConfig{cece::FireInputMode::Product, cece::FireInputProvider::Prepared, cece::FireCutoffMode::Fixed};
+    config.fire->availability_cutoff = cece::FireUtcTime("2022-07-02T00:00:00Z");
+    config.options = conf::Config::from_string(FireSchemeOptions()).root();
+    state.config.physics_schemes.push_back(config);
+
+    auto scheme = std::make_unique<cece::FireScheme>();
+    scheme->Initialize(config.options, nullptr);
+    state.active_schemes.push_back(std::move(scheme));
+    state.clock = std::make_unique<cece::CeceClock>("2022-07-01T00:00:00", "2022-07-01T01:00:00", 3600,
+                                                    std::vector<cece::ClockComponent>{{cece::ComponentType::kPhysicsScheme, "fire", 3600}});
+    state.nx = state.ny = state.ny_local = state.nz = 1;
+    state.export_state.fields.emplace("FIRE_CO", cece::DualView3D("FIRE_CO", 1, 1, 1));
+
+    auto adapter = std::make_unique<MockFireRuntimeAdapter>();
+    adapter->fail_prepare = fail_prepare;
+    adapter->fail_commit = fail_commit;
+    auto* mock = adapter.get();
+    adapter->Initialize(*config.fire, 1, 1, 1);
+    state.fire_runtime_adapter = std::move(adapter);
+    state.fire_runtime_initialized = true;
+    return mock;
+}
+
+TEST(test_fire_runtime, RuntimeAdapterRegistryFailsExplicitlyUntilProviderIsRegistered) {
+    EXPECT_EQ(cece::CreateFireRuntimeAdapter(cece::FireInputProvider::Prepared), nullptr);
+    cece::RegisterFireRuntimeAdapter(cece::FireInputProvider::Prepared, []() { return std::make_unique<MockFireRuntimeAdapter>(); });
+    auto adapter = cece::CreateFireRuntimeAdapter(cece::FireInputProvider::Prepared);
+    ASSERT_NE(adapter, nullptr);
+    auto* mock = dynamic_cast<MockFireRuntimeAdapter*>(adapter.get());
+    ASSERT_NE(mock, nullptr);
+    const cece::FireConfig config{cece::FireInputMode::Product, cece::FireInputProvider::Prepared, cece::FireCutoffMode::Fixed};
+    adapter->Initialize(config, 1, 1, 1);
+    const cece::FireRuntimeIntervalRequest request{cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T01:00:00Z"), std::nullopt,
+                                                   3600};
+    const auto inventory = adapter->PrepareInterval(request);
+    ASSERT_TRUE(mock->initialized);
+    ASSERT_TRUE(mock->prepared);
+    ASSERT_TRUE(std::holds_alternative<std::reference_wrapper<const cece::FireBulkInventory>>(inventory));
+    EXPECT_EQ(&std::get<std::reference_wrapper<const cece::FireBulkInventory>>(inventory).get(), &mock->inventory);
+    adapter->CommitInterval();
+    EXPECT_TRUE(mock->committed);
+    adapter->AbortInterval();
+    EXPECT_TRUE(mock->aborted);
+    adapter->Finalize();
+    EXPECT_TRUE(mock->finalized);
+    EXPECT_THROW(cece::RegisterFireRuntimeAdapter(cece::FireInputProvider::Prepared, []() { return std::make_unique<MockFireRuntimeAdapter>(); }),
+                 std::logic_error);
+}
+
+TEST(test_fire_runtime, UtcTimestampCanBeDerivedFromClockEpochSeconds) {
+    const cece::FireUtcTime start("2022-07-01T00:00:00Z");
+    const auto end = cece::FireUtcTime::FromEpochSeconds(start.EpochSeconds() + 3600);
+    EXPECT_EQ(end.ToString(), "2022-07-01T01:00:00Z");
+    EXPECT_THROW(cece::FireUtcTime::FromEpochSeconds(std::numeric_limits<std::int64_t>::max()), std::invalid_argument);
+}
+
+TEST(test_fire_runtime, FireExportDescriptorsRequireConfiguredFieldsAndFluxUnits) {
+    const auto bulk_config = conf::Config::from_string(FireSchemeOptions());
+    cece::FireScheme bulk_scheme;
+    bulk_scheme.Initialize(bulk_config.root(), nullptr);
+
+    cece::CeceConfig output_config;
+    output_config.output_config.enabled = true;
+    output_config.output_config.fields.push_back({"FIRE_CO", {{"units", "kg m-2 s-1"}}});
+    EXPECT_NO_THROW(cece::ValidateFireExportDescriptors(output_config, bulk_scheme));
+
+    auto invalid_units = output_config;
+    invalid_units.output_config.fields = cece::CeceOutputFieldCollection{};
+    invalid_units.output_config.fields.push_back({"FIRE_CO", {{"units", "kg"}}});
+    EXPECT_THROW(cece::ValidateFireExportDescriptors(invalid_units, bulk_scheme), std::invalid_argument);
+
+    cece::CeceConfig nuopc_config;
+    nuopc_config.nuopc.export_fields.emplace_back("FIRE_CO", cece::NuopcFieldSpec{"fire carbon monoxide", "kg m-2 s-1", ""});
+    EXPECT_NO_THROW(cece::ValidateFireExportDescriptors(nuopc_config, bulk_scheme));
+    nuopc_config.nuopc.export_fields.front().second.units.clear();
+    EXPECT_THROW(cece::ValidateFireExportDescriptors(nuopc_config, bulk_scheme), std::invalid_argument);
+
+    const auto target_options = conf::Config::from_string("chemistry_state: target_specific\ntarget_id: MECHANISM\ntarget_version: v1\n");
+    cece::FireScheme target_scheme;
+    target_scheme.Initialize(target_options.root(), nullptr);
+    cece::CeceConfig target_config;
+    target_config.output_config.enabled = true;
+    target_config.output_config.fields.push_back({"FIRE_CO", {{"units", "kg m-2 s-1"}}});
+    EXPECT_NO_THROW(cece::ValidateFireExportDescriptors(target_config, target_scheme));
+}
+
+TEST(test_fire_runtime, CoreCommitsPreparedFireOnlyAfterExportSyncSucceeds) {
+    cece::CeceInternalData state;
+    auto* adapter = ConfigureCoreFireRuntime(state);
+    int rc = -1;
+    cece_core_run(&state, 0, 0, &rc);
+    EXPECT_EQ(rc, 1);
+    EXPECT_TRUE(adapter->prepared);
+    EXPECT_TRUE(adapter->committed);
+    EXPECT_FALSE(adapter->aborted);
+    EXPECT_FALSE(state.fire_interval_pending);
+    EXPECT_EQ(state.fire_last_committed_elapsed_seconds, 3600);
+    EXPECT_NEAR(state.export_state.fields.at("FIRE_CO").view_host()(0, 0, 0), 5.0 / (25.0 * 3600.0), 1e-14);
+}
+
+TEST(test_fire_runtime, CoreAbortsPreparedFireWhenCommitFails) {
+    cece::CeceInternalData state;
+    auto* adapter = ConfigureCoreFireRuntime(state, false, true);
+    int rc = 0;
+    cece_core_run(&state, 0, 0, &rc);
+    EXPECT_EQ(rc, -1);
+    EXPECT_TRUE(adapter->prepared);
+    EXPECT_TRUE(adapter->committed);
+    EXPECT_TRUE(adapter->aborted);
+    EXPECT_FALSE(state.fire_interval_pending);
+    EXPECT_EQ(state.fire_last_committed_elapsed_seconds, 0);
+}
+
+TEST(test_fire_runtime, CorePropagatesPreparationFailureAndAbortsAdapter) {
+    cece::CeceInternalData state;
+    auto* adapter = ConfigureCoreFireRuntime(state, true);
+    int rc = 0;
+    cece_core_run(&state, 0, 0, &rc);
+    EXPECT_EQ(rc, -1);
+    EXPECT_TRUE(adapter->prepared);
+    EXPECT_FALSE(adapter->committed);
+    EXPECT_TRUE(adapter->aborted);
+    EXPECT_FALSE(state.fire_interval_pending);
+}
+
+TEST(test_fire_runtime, CoreRunWithoutFireKeepsLegacyUnconditionalPath) {
+    cece::CeceInternalData state;
+    int rc = -1;
+    cece_core_run(&state, 0, 0, &rc);
+    EXPECT_EQ(rc, 0);
+    EXPECT_EQ(state.fire_runtime_adapter, nullptr);
+}
+
+TEST(test_fire_runtime, CoreFinalizesInitializedFireAdapterAndReportsCleanupFailure) {
+    bool finalized = false;
+    auto* state = new cece::CeceInternalData();
+    auto adapter = std::make_unique<MockFireRuntimeAdapter>(&finalized);
+    state->fire_runtime_adapter = std::move(adapter);
+    state->fire_runtime_initialized = true;
+    int rc = -1;
+    cece_core_finalize(state, &rc);
+    EXPECT_EQ(rc, 0);
+    EXPECT_TRUE(finalized);
+
+    finalized = false;
+    state = new cece::CeceInternalData();
+    auto failing_adapter = std::make_unique<MockFireRuntimeAdapter>(&finalized);
+    failing_adapter->fail_finalize = true;
+    state->fire_runtime_adapter = std::move(failing_adapter);
+    state->fire_runtime_initialized = true;
+    rc = 0;
+    cece_core_finalize(state, &rc);
+    EXPECT_EQ(rc, -2);
+    EXPECT_TRUE(finalized);
 }
 
 TEST(test_fire_runtime, PreparedAndCoupledProvidersShareCacheAndLifecycle) {

@@ -36,6 +36,7 @@
 #include "cece/cece_internal.hpp"
 #include "cece/cece_physics_factory.hpp"
 #include "cece/cece_stacking_engine.hpp"
+#include "cece/physics/cece_fire.hpp"
 #include "cece/physics_scheme.hpp"
 
 extern "C" {
@@ -226,6 +227,17 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
     std::cout << "INFO: Initializing physics schemes" << std::endl;
     for (const auto& scheme_config : config.physics_schemes) {
         try {
+            if (scheme_config.fire) {
+                if (internal_data->fire_runtime_adapter) {
+                    throw std::invalid_argument("Only one fire physics scheme can be configured per CECE component");
+                }
+                internal_data->fire_runtime_adapter = cece::CreateFireRuntimeAdapter(scheme_config.fire->input_provider);
+                if (!internal_data->fire_runtime_adapter) {
+                    const auto provider = scheme_config.fire->input_provider == cece::FireInputProvider::Prepared ? "prepared" : "coupled";
+                    throw std::runtime_error("No FireRuntimeAdapter is registered for the '" + std::string(provider) +
+                                             "' provider; register an adapter before configuring the fire scheme");
+                }
+            }
             std::cout << "INFO: Creating physics scheme: " << scheme_config.name << std::endl;
             auto scheme = cece::PhysicsFactory::CreateScheme(scheme_config);
 
@@ -246,11 +258,24 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
             // Schemes will be re-initialized with the diagnostic manager in Phase 2 if needed
             std::cout << "INFO: Initializing physics scheme: " << scheme_config.name << std::endl;
             scheme->Initialize(scheme_config.options, nullptr);
+            if (auto* fire_scheme = dynamic_cast<cece::FireScheme*>(scheme.get())) {
+                cece::ValidateFireExportDescriptors(config, *fire_scheme);
+            }
 
             internal_data->active_schemes.push_back(std::move(scheme));
             std::cout << "INFO: Successfully initialized physics scheme: " << scheme_config.name << std::endl;
         } catch (const std::exception& e) {
             std::cerr << "ERROR: Failed to initialize physics scheme '" << scheme_config.name << "': " << e.what() << std::endl;
+            if (rc != nullptr) {
+                *rc = -1;
+            }
+            delete internal_data;
+            if (kokkos_initialized_here && Kokkos::is_initialized()) {
+                Kokkos::finalize();
+            }
+            return;
+        } catch (...) {
+            std::cerr << "ERROR: Physics scheme initialization threw an unknown exception for '" << scheme_config.name << "'" << std::endl;
             if (rc != nullptr) {
                 *rc = -1;
             }

@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <conf/conf.hpp>
 #include <cstring>
 #include <fstream>
@@ -962,6 +963,11 @@ void nuopc_count(const char* config_path, int path_len, const char* label, bool 
     try {
         std::string yaml_path(config_path, path_len);
         cece::CeceConfig config = cece::ParseConfig(yaml_path);
+        const bool fire_enabled = std::any_of(config.physics_schemes.begin(), config.physics_schemes.end(),
+                                              [](const cece::PhysicsSchemeConfig& scheme) { return scheme.fire.has_value(); });
+        if (is_export && fire_enabled && config.nuopc.export_fields.empty()) {
+            throw std::invalid_argument("Fire scheme requires explicit nuopc.export_fields for the coupled driver");
+        }
         *count = is_export ? static_cast<int>(config.nuopc.export_fields.size()) : static_cast<int>(config.nuopc.import_fields.size());
     } catch (const std::exception& e) {
         std::cerr << "ERROR: cece_nuopc_" << label << "_count - failed to parse config: " << e.what() << std::endl;

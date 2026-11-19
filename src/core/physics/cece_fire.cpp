@@ -99,6 +99,8 @@ void FireScheme::Initialize(const conf::Value& config, CeceDiagnosticManager* di
     BasePhysicsScheme::Initialize(config, diag_manager);
     staged_bulk_.reset();
     staged_target_specific_.reset();
+    staged_bulk_view_ = nullptr;
+    staged_target_specific_view_ = nullptr;
     profile_.reset();
     requested_species_.clear();
     target_id_ = config["target_id"].string_or("");
@@ -128,19 +130,69 @@ void FireScheme::Initialize(const conf::Value& config, CeceDiagnosticManager* di
     }
 }
 
+std::vector<std::string> FireScheme::ExportFieldNames() const {
+    std::vector<std::string> names;
+    if (!profile_) return names;
+    std::set<FireBulkSpecies> requested(requested_species_.begin(), requested_species_.end());
+    std::map<std::string, std::string> targets;
+    for (const auto& mapping : profile_->mappings) {
+        if (!requested.contains(mapping.source_species)) continue;
+        if (mapping.output_unit != "kg") {
+            throw std::invalid_argument("FireScheme currently exports only mass-based target fields in kg");
+        }
+        targets.emplace(mapping.target_species, mapping.output_unit);
+    }
+    if (targets.empty()) throw std::invalid_argument("Fire target profile produces no requested target fields");
+    std::set<std::string> output_names;
+    for (const auto& target : profile_->mechanism_species) {
+        if (!targets.contains(target.name)) continue;
+        const auto name = target.name.starts_with("FIRE_") ? target.name : "FIRE_" + target.name;
+        auto output_name = MapOutput(name);
+        if (!output_names.insert(output_name).second) {
+            throw std::invalid_argument("Fire target fields map to duplicate output '" + output_name + "'");
+        }
+        names.push_back(std::move(output_name));
+    }
+    return names;
+}
+
 void FireScheme::StageBulkInventory(FireBulkInventory inventory) {
     if (!profile_) throw std::logic_error("Fire bulk inventory cannot be staged unless bulk chemistry is configured");
-    if (staged_bulk_ || staged_target_specific_) throw std::logic_error("Fire scheme already has an unconsumed interval staged");
+    if (staged_bulk_view_ || staged_target_specific_view_) throw std::logic_error("Fire scheme already has an unconsumed interval staged");
     staged_bulk_.emplace(std::move(inventory));
+    staged_bulk_view_ = &*staged_bulk_;
 }
 
 void FireScheme::StageTargetSpecificInventory(FireTargetSpecificInventory inventory) {
     if (profile_) throw std::logic_error("Fire target-specific inventory cannot be staged when bulk chemistry is configured");
-    if (staged_bulk_ || staged_target_specific_) throw std::logic_error("Fire scheme already has an unconsumed interval staged");
+    if (staged_bulk_view_ || staged_target_specific_view_) throw std::logic_error("Fire scheme already has an unconsumed interval staged");
     if (inventory.target_id != target_id_ || inventory.target_version != target_version_) {
         throw std::invalid_argument("Fire target-specific inventory target id/version does not match the configured target");
     }
     staged_target_specific_.emplace(std::move(inventory));
+    staged_target_specific_view_ = &*staged_target_specific_;
+}
+
+void FireScheme::StageBorrowedBulkInventory(const FireBulkInventory& inventory) {
+    if (!profile_) throw std::logic_error("Fire bulk inventory cannot be staged unless bulk chemistry is configured");
+    if (staged_bulk_view_ || staged_target_specific_view_) throw std::logic_error("Fire scheme already has an unconsumed interval staged");
+    staged_bulk_view_ = &inventory;
+}
+
+void FireScheme::StageBorrowedTargetSpecificInventory(const FireTargetSpecificInventory& inventory) {
+    if (profile_) throw std::logic_error("Fire target-specific inventory cannot be staged when bulk chemistry is configured");
+    if (staged_bulk_view_ || staged_target_specific_view_) throw std::logic_error("Fire scheme already has an unconsumed interval staged");
+    if (inventory.target_id != target_id_ || inventory.target_version != target_version_) {
+        throw std::invalid_argument("Fire target-specific inventory target id/version does not match the configured target");
+    }
+    staged_target_specific_view_ = &inventory;
+}
+
+void FireScheme::DiscardStagedInventory() noexcept {
+    staged_bulk_view_ = nullptr;
+    staged_target_specific_view_ = nullptr;
+    staged_bulk_.reset();
+    staged_target_specific_.reset();
 }
 
 void FireScheme::ExportMassFlux(const FireInputIdentity& identity, const std::vector<FireMappedField>& fields, const std::vector<double>& mass_kg,
@@ -196,8 +248,8 @@ void FireScheme::ExportMassFlux(const FireInputIdentity& identity, const std::ve
 
 void FireScheme::Run(CeceImportState& import_state, CeceExportState& export_state) {
     (void)import_state;
-    if (staged_bulk_) {
-        const auto mapped = MapFireBulkInventory(*staged_bulk_, *profile_, requested_species_);
+    if (staged_bulk_view_) {
+        const auto mapped = MapFireBulkInventory(*staged_bulk_view_, *profile_, requested_species_);
         const auto cells = mapped.source_identity.Metadata().grid_definition->CellCount();
         const auto component_count = mapped.component_ids.size();
         std::vector<double> mass_kg(mapped.fields.size() * cells, 0);
@@ -209,11 +261,14 @@ void FireScheme::Run(CeceImportState& import_state, CeceExportState& export_stat
             }
         }
         ExportMassFlux(mapped.source_identity, mapped.fields, mass_kg, export_state);
+        staged_bulk_view_ = nullptr;
         staged_bulk_.reset();
         return;
     }
-    if (staged_target_specific_) {
-        ExportMassFlux(staged_target_specific_->source_identity, staged_target_specific_->fields, staged_target_specific_->mass_kg, export_state);
+    if (staged_target_specific_view_) {
+        ExportMassFlux(staged_target_specific_view_->source_identity, staged_target_specific_view_->fields, staged_target_specific_view_->mass_kg,
+                       export_state);
+        staged_target_specific_view_ = nullptr;
         staged_target_specific_.reset();
         return;
     }
@@ -532,6 +587,21 @@ FireMappedInventory MapFireBulkInventory(const FireBulkInventory& inventory, con
     }
     for (const auto& field : result.fields) result.budgets.push_back({field.target_species, field.unit, budgets[{field.target_species, field.unit}]});
     return result;
+}
+
+FireTargetSpecificInventory FireProductEmissionsInterval::ToTargetSpecificInventory(std::string_view target_id,
+                                                                                     std::string_view target_version) const {
+    const auto& data = Data();
+    if (data.chemistry_state != FireProductChemistryState::TargetSpecific || !data.target_identity) {
+        throw std::invalid_argument("Bulk fire products cannot be converted to a target-specific inventory");
+    }
+    if (data.target_identity->id != target_id || data.target_identity->version != target_version) {
+        throw std::invalid_argument("Fire product target identity does not match the requested target id/version");
+    }
+    std::vector<FireMappedField> fields;
+    fields.reserve(data.target_fields.size());
+    for (const auto& field : data.target_fields) fields.push_back({field.target_species, field.unit});
+    return {data.product_identity.common_identity, data.target_identity->id, data.target_identity->version, std::move(fields), data.target_mass_kg};
 }
 
 }  // namespace cece

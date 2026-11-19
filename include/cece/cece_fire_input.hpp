@@ -6,11 +6,13 @@
 #include <compare>
 #include <cstddef>
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 namespace Kokkos {
@@ -24,14 +26,18 @@ enum class NormType : std::uint8_t;
 
 namespace cece {
 
+struct FireTargetSpecificInventory;
+
 class FireUtcTime {
    public:
     explicit FireUtcTime(std::string_view utc);
+    static FireUtcTime FromEpochSeconds(std::int64_t epoch_seconds);
     auto operator<=>(const FireUtcTime&) const = default;
     std::int64_t EpochSeconds() const;
     std::string ToString() const;
 
    private:
+    explicit FireUtcTime(std::chrono::sys_seconds value) : value_(value) {}
     std::chrono::sys_seconds value_;
 };
 
@@ -146,6 +152,81 @@ class FireBulkInventory {
    private:
     FireBulkInventoryData data_;
 };
+
+enum class FireProductQuantityKind { IntervalMass, MeanRate, Flux };
+enum class FireProductSpeciesAvailability { Available, Unavailable };
+enum class FireProductChemistryState { Bulk, TargetSpecific };
+enum class FireProductScalingKind { Unscaled, Applied };
+
+struct FireProductIdentity {
+    std::string product_id;
+    std::string version;
+    std::string variant;
+    FireInputIdentity common_identity;
+};
+
+struct FireProductQuantitySemantics {
+    FireProductQuantityKind kind;
+    std::string units;
+};
+
+struct FireProductTargetIdentity {
+    std::string id;
+    std::string version;
+};
+
+struct FireProductScalingState {
+    FireProductScalingKind kind = FireProductScalingKind::Unscaled;
+    std::optional<FireProfileIdentity> profile;
+};
+
+struct FireProductDiagnostics {
+    std::optional<std::vector<double>> frp_mw;
+    std::optional<std::vector<double>> fre_mj;
+    std::optional<std::vector<double>> dry_matter_kg;
+};
+
+struct FireProductTargetField {
+    std::string target_species;
+    std::string unit;
+};
+
+struct FireProductEmissionsIntervalData {
+    explicit FireProductEmissionsIntervalData(FireProductIdentity identity) : product_identity(std::move(identity)) {}
+
+    FireProductIdentity product_identity;
+    std::vector<FireBulkSpecies> species;
+    std::map<FireBulkSpecies, FireProductSpeciesAvailability> species_availability;
+    std::map<FireBulkSpecies, FireProductQuantitySemantics> quantity_semantics;
+    // Product species, cell order, retaining the original declared units.
+    std::vector<double> source_values;
+    // Product species, cell order, normalized to kg/cell/interval.
+    std::vector<double> mass_kg;
+    std::vector<FireQualityState> quality_state;
+    std::vector<double> coverage_fraction;
+    FireProductDiagnostics optional_diagnostics;
+    FireProductChemistryState chemistry_state = FireProductChemistryState::Bulk;
+    std::optional<FireProductTargetIdentity> target_identity;
+    std::vector<FireProductTargetField> target_fields;
+    // Target field, cell order, extensive masses in kg.
+    std::vector<double> target_mass_kg;
+    FireProductScalingState scaling_state;
+};
+
+class FireProductEmissionsInterval {
+   public:
+    explicit FireProductEmissionsInterval(FireProductEmissionsIntervalData data);
+    const FireProductEmissionsIntervalData& Data() const;
+    const std::vector<double>& MassKg() const;
+    void RequireSpecies(const std::vector<FireBulkSpecies>& species) const;
+    void ValidateScaling(const std::optional<FireProfileIdentity>& requested_profile) const;
+    FireTargetSpecificInventory ToTargetSpecificInventory(std::string_view target_id, std::string_view target_version) const;
+
+   private:
+    FireProductEmissionsIntervalData data_;
+};
+
+void ValidateFireProductIntervalSet(const std::vector<std::reference_wrapper<const FireProductEmissionsInterval>>& intervals);
 
 std::string FireContentSha256(std::string_view bytes);
 std::string FireFileSha256(const std::string& path);

@@ -3,10 +3,16 @@
 The fire feature is **not operational end to end yet**. The `fire` physics
 scheme is registered and can map an explicitly staged synthetic/test inventory
 to isolated `FIRE_` mass-flux fields, including exact-target bypass. The CECE
-driver does not yet stage prepared/coupled inventories or advertise/populate
-those export fields; no NOAA decoder, preparation command, production chemistry
-profile or Ursa fire-run script is available. Existing fire-free runtime
-behavior is unchanged.
+core now exposes a typed prepared/coupled runtime-adapter registry, prepares
+interval data before scheme execution, commits only after export synchronization,
+and validates configured export descriptors. Fire exports must be declared in
+`output.fields` and/or `nuopc.export_fields` with units `kg m-2 s-1`; bulk
+profile fields are derived from requested mappings, while target-specific names
+must be declared explicitly. No prepared or coupled adapter is
+registered in this repository yet, so configuring `fire` fails explicitly rather
+than silently running without data. No NOAA decoder, preparation command,
+production chemistry profile or Ursa fire-run script is available. Existing
+fire-free runtime behavior is unchanged.
 Building the core now requires system OpenSSL Crypto for input verification
 (see the [developer guide](developer_guide.md#development-environment)).
 
@@ -26,6 +32,15 @@ Building the core now requires system OpenSSL Crypto for input verification
 - Component-resolved, selected-species inventory masses in kg, source/profile
   identities, coverage and quality. Components retain their own biome/composition
   references. Species totals are calculated from those components.
+- Product intervals with explicit availability for all eleven canonical species,
+  source-grid cell areas, quality/coverage, and normalized kg/cell/interval
+  masses. Supported source units are `kg/cell/interval`, `kg s-1`, and
+  `kg m-2 s-1`; rates and fluxes are integrated over the exact UTC interval
+  and source-cell areas. Overlapping intervals for the same product are rejected.
+- Target-specific products retain their target id/version and kg fields and
+  bypass bulk mapping only on an exact target match. Optional FRP, FRE, and dry
+  matter diagnostics do not replace product mass or trigger emissions derivation;
+  scaling identities are retained and a second scaling application is rejected.
 - Explicit NOx reference mass, VOC profile and particulate-pool definitions when
   those species are selected. No combined total of overlapping particulate pools
   is exposed. Optional FRE/dry-matter diagnostics remain absent unless supplied.
@@ -81,11 +96,11 @@ contributions nonoverlapping. This prevents accidental duplicate fire mass.
 This validation checks declarations, not asset existence, schedule contents,
 profile certification, metadata agreement or duplicate scaling within actual
 inputs. Those checks require pending manifest/schedule readers and
-profile/runtime integration.
+provider implementations.
 The [configuration validation CLI](../scripts/validate_cece_config.py) reuses the
 Python checks and recognizes the registered `fire` scheme. Do not treat
-successful option parsing as an executable ingestion example: driver-side
-provider staging and output-field registration are still pending.
+successful option parsing as an executable ingestion example: no concrete
+prepared/coupled adapter is registered yet.
 
 ## Synthetic mapping scheme
 
@@ -99,10 +114,11 @@ fields, non-mass output units and invalid mass/area values rather than creating
 zero-filled outputs.
 
 These are in-memory scheme boundaries exercised with explicitly synthetic,
-non-production assets. They do not imply that manifests are decoded, temporal
-or spatial allocation is invoked by the scheme, nor that the CECE driver is
-currently staging inventory data. Core provider lifecycle and export-field
-integration remain pending.
+non-production assets. `FireRuntimeAdapter` implementations own input loading,
+normalization and bounded provider lifecycle; the core borrows their prepared
+inventory for `FireScheme::Run` and signals commit or abort around export
+synchronization. No concrete adapter currently decodes manifests or binds host
+fields, and temporal or spatial allocation is not invoked by the scheme.
 
 ## Bounded provider foundation
 

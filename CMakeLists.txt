@@ -475,6 +475,7 @@ set(
   src/core/physics/cece_ginoux.cpp
   src/core/physics/cece_k14.cpp
   src/core/physics/cece_volcano.cpp
+  src/core/cece_fire_runtime.cpp
   src/core/physics/cece_fire.cpp
   src/core/physics/cece_speciation_config.cpp
   src/core/physics/cece_speciation_engine.cpp

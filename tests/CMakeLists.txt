@@ -132,6 +132,7 @@ set(RAPIDCHECK rapidcheck rapidcheck_gtest)
 cece_add_gtest(test_fire_config LINK yaml-cpp::yaml-cpp SOURCE_DIR_DEFINE)
 cece_add_gtest(test_fire_science LINK yaml-cpp::yaml-cpp SOURCE_DIR_DEFINE)
 cece_add_gtest(test_fire_speciation LINK yaml-cpp::yaml-cpp SOURCE_DIR_DEFINE)
+cece_add_gtest(test_fire_products SOURCE_DIR_DEFINE)
 cece_add_gtest(test_fire_runtime MAIN KOKKOS SOURCE_DIR_DEFINE)
 cece_add_gtest(test_fire_conservation MAIN KOKKOS)
 

@@ -110,8 +110,15 @@ class FireScheme final : public BasePhysicsScheme {
     void Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) override;
     void Run(CeceImportState& import_state, CeceExportState& export_state) override;
 
+    std::vector<std::string> ExportFieldNames() const;
     void StageBulkInventory(FireBulkInventory inventory);
     void StageTargetSpecificInventory(FireTargetSpecificInventory inventory);
+    void StageBorrowedBulkInventory(const FireBulkInventory& inventory);
+    void StageBorrowedTargetSpecificInventory(const FireTargetSpecificInventory& inventory);
+    void DiscardStagedInventory() noexcept;
+    void Finalize() override {
+        DiscardStagedInventory();
+    }
 
    private:
     void ExportMassFlux(const FireInputIdentity& identity, const std::vector<FireMappedField>& fields, const std::vector<double>& mass_kg,
@@ -123,6 +130,8 @@ class FireScheme final : public BasePhysicsScheme {
     std::vector<FireBulkSpecies> requested_species_;
     std::optional<FireBulkInventory> staged_bulk_;
     std::optional<FireTargetSpecificInventory> staged_target_specific_;
+    const FireBulkInventory* staged_bulk_view_ = nullptr;
+    const FireTargetSpecificInventory* staged_target_specific_view_ = nullptr;
 };
 
 /**

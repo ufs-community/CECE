@@ -23,6 +23,7 @@
  */
 
 #include <Kokkos_Core.hpp>
+#include <algorithm>
 #include <iostream>
 #include <set>
 #include <string>
@@ -104,6 +105,28 @@ void cece_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc)
 
     std::cout << "INFO: Grid dimensions received: nx=" << internal_data->nx << ", ny=" << internal_data->ny << ", nz=" << internal_data->nz
               << std::endl;
+
+    if (internal_data->fire_runtime_adapter) {
+        const auto fire_scheme = std::find_if(internal_data->config.physics_schemes.begin(), internal_data->config.physics_schemes.end(),
+                                              [](const cece::PhysicsSchemeConfig& scheme) { return scheme.fire.has_value(); });
+        if (fire_scheme == internal_data->config.physics_schemes.end()) {
+            std::cerr << "ERROR in cece_core_initialize_p2: Fire runtime adapter has no matching fire configuration" << std::endl;
+            if (rc != nullptr) *rc = -1;
+            return;
+        }
+        try {
+            internal_data->fire_runtime_adapter->Initialize(*fire_scheme->fire, internal_data->nx, internal_data->ny, internal_data->nz);
+            internal_data->fire_runtime_initialized = true;
+        } catch (const std::exception& e) {
+            std::cerr << "ERROR: Failed to initialize Fire runtime adapter: " << e.what() << std::endl;
+            if (rc != nullptr) *rc = -1;
+            return;
+        } catch (...) {
+            std::cerr << "ERROR: Fire runtime adapter initialization threw an unknown exception" << std::endl;
+            if (rc != nullptr) *rc = -1;
+            return;
+        }
+    }
 
     // 3. Initialize data ingestor if streams are configured
     if (!internal_data->config.cece_data.streams.empty()) {

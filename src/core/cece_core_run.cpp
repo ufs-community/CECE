@@ -25,12 +25,14 @@
  * @version 1.0
  */
 
+#include <algorithm>
 #include <chrono>
 #include <iostream>
 #include <stdexcept>
 #include <thread>
 
 #include "cece/cece_clock.hpp"
+#include "cece/cece_fire_runtime.hpp"
 #include "cece/cece_internal.hpp"
 #include "cece/cece_logger.hpp"
 #include "cece/cece_stacking_engine.hpp"
@@ -48,15 +50,69 @@ void IngestEmissions(cece::CeceInternalData& d) {
     d.ingestor.IngestEmissionsInline(d.config.cece_data, d.import_state, d.nx, d.ny_local, d.nz);
 }
 
-void RunPhysicsSchemeByName(cece::CeceInternalData& d, const std::string& scheme_name) {
+void RunPhysicsSchemeByName(cece::CeceInternalData& d, const std::string& scheme_name, const cece::StepResult* step) {
     for (size_t i = 0; i < d.active_schemes.size(); ++i) {
         if (i < d.config.physics_schemes.size() && d.config.physics_schemes[i].name == scheme_name) {
-            if (d.active_schemes[i]) {
+            if (d.active_schemes[i] && d.config.physics_schemes[i].fire) {
+                if (!step || !d.clock) throw std::runtime_error("Fire runtime requires the CECE clock for interval boundaries");
+                if (!d.fire_runtime_adapter || !d.fire_runtime_initialized) {
+                    throw std::runtime_error("Fire runtime adapter is unavailable or not initialized");
+                }
+                auto* fire_scheme = dynamic_cast<cece::FireScheme*>(d.active_schemes[i].get());
+                if (!fire_scheme) throw std::logic_error("Fire configuration is attached to a non-Fire physics scheme");
+                if (step->elapsed_seconds <= d.fire_last_committed_elapsed_seconds) {
+                    throw std::invalid_argument("Fire clock interval must advance beyond the last committed interval");
+                }
+                const auto start_epoch = d.clock->StartEpochSeconds();
+                const auto& fire_config = *d.config.physics_schemes[i].fire;
+                cece::FireRuntimeIntervalRequest request{
+                    cece::FireUtcTime::FromEpochSeconds(start_epoch + d.fire_last_committed_elapsed_seconds),
+                    cece::FireUtcTime::FromEpochSeconds(start_epoch + step->elapsed_seconds),
+                    fire_config.cutoff_mode == cece::FireCutoffMode::Fixed ? fire_config.availability_cutoff : std::nullopt, step->elapsed_seconds};
+                try {
+                    const auto inventory = d.fire_runtime_adapter->PrepareInterval(request);
+                    if (const auto* bulk = std::get_if<std::reference_wrapper<const cece::FireBulkInventory>>(&inventory)) {
+                        fire_scheme->StageBorrowedBulkInventory(bulk->get());
+                    } else {
+                        fire_scheme->StageBorrowedTargetSpecificInventory(
+                            std::get<std::reference_wrapper<const cece::FireTargetSpecificInventory>>(inventory).get());
+                    }
+                    d.active_schemes[i]->Run(d.import_state, d.export_state);
+                    d.fire_pending_elapsed_seconds = step->elapsed_seconds;
+                    d.fire_interval_pending = true;
+                } catch (...) {
+                    fire_scheme->DiscardStagedInventory();
+                    d.fire_runtime_adapter->AbortInterval();
+                    throw;
+                }
+            } else if (d.active_schemes[i]) {
                 d.active_schemes[i]->Run(d.import_state, d.export_state);
             }
             break;
         }
     }
+}
+
+void CommitPendingFireInterval(cece::CeceInternalData& d) {
+    if (!d.fire_interval_pending) return;
+    try {
+        d.fire_runtime_adapter->CommitInterval();
+        d.fire_last_committed_elapsed_seconds = d.fire_pending_elapsed_seconds;
+        d.fire_interval_pending = false;
+    } catch (...) {
+        d.fire_runtime_adapter->AbortInterval();
+        d.fire_interval_pending = false;
+        throw;
+    }
+}
+
+void AbortPendingFireInterval(cece::CeceInternalData& d) noexcept {
+    if (!d.fire_interval_pending) return;
+    for (auto& scheme : d.active_schemes) {
+        if (auto* fire_scheme = dynamic_cast<cece::FireScheme*>(scheme.get())) fire_scheme->DiscardStagedInventory();
+    }
+    if (d.fire_runtime_adapter) d.fire_runtime_adapter->AbortInterval();
+    d.fire_interval_pending = false;
 }
 
 void ExecuteStackingEngine(cece::CeceInternalData& d, int hour, int day_of_week, int month = 0, std::int64_t elapsed_seconds = 0) {
@@ -80,7 +136,7 @@ void ExecuteClockComponent(cece::CeceInternalData& d, const cece::ClockComponent
             break;
         }
         case cece::ComponentType::kPhysicsScheme: {
-            RunPhysicsSchemeByName(d, comp->name);
+            RunPhysicsSchemeByName(d, comp->name, &step);
             break;
         }
         case cece::ComponentType::kStackingEngine: {
@@ -118,8 +174,12 @@ void ExecuteStepUnconditional(cece::CeceInternalData& d, int hour, int day_of_we
 
     IngestEmissions(d);
 
-    for (auto& scheme : d.active_schemes) {
+    for (std::size_t i = 0; i < d.active_schemes.size(); ++i) {
+        auto& scheme = d.active_schemes[i];
         if (scheme) {
+            if (i < d.config.physics_schemes.size() && d.config.physics_schemes[i].fire) {
+                throw std::runtime_error("Fire scheme cannot run without CECE clock interval metadata");
+            }
             scheme->Run(d.import_state, d.export_state);
         }
     }
@@ -182,11 +242,14 @@ void cece_core_run(void* data_ptr, int hour, int day_of_week, int* rc) {
         }
 
         SyncAndCopyState(*d);
+        CommitPendingFireInterval(*d);
 
     } catch (const std::exception& e) {
+        if (data_ptr) AbortPendingFireInterval(*static_cast<cece::CeceInternalData*>(data_ptr));
         std::cerr << "CECE_Run: " << e.what() << "\n";
         *rc = -1;
     } catch (...) {
+        if (data_ptr) AbortPendingFireInterval(*static_cast<cece::CeceInternalData*>(data_ptr));
         std::cerr << "CECE_Run: unknown\n";
         *rc = -1;
     }

@@ -105,6 +105,15 @@ class Sha256 {
 
 FireUtcTime::FireUtcTime(std::string_view utc) : value_(ParseUtc(utc)) {}
 
+FireUtcTime FireUtcTime::FromEpochSeconds(std::int64_t epoch_seconds) {
+    const auto value = std::chrono::sys_seconds(std::chrono::seconds(epoch_seconds));
+    const std::chrono::year_month_day date(std::chrono::floor<std::chrono::days>(value));
+    if (!date.ok() || int(date.year()) < 1 || int(date.year()) > 9999) {
+        throw std::invalid_argument("Fire UTC epoch seconds are outside the supported Gregorian timestamp range");
+    }
+    return FireUtcTime(value);
+}
+
 std::int64_t FireUtcTime::EpochSeconds() const {
     return value_.time_since_epoch().count();
 }
@@ -371,6 +380,225 @@ double FireBulkInventory::SpeciesBudgetKg(FireBulkSpecies species) const {
         throw std::overflow_error("Fire inventory species budget overflow for source '" + data_.identity.Metadata().source_id + "'");
     }
     return total;
+}
+
+FireProductEmissionsInterval::FireProductEmissionsInterval(FireProductEmissionsIntervalData data) : data_(std::move(data)) {
+    const auto invalid = [&](std::string_view reason) {
+        throw std::invalid_argument("Fire product '" + data_.product_identity.product_id + "': " + std::string(reason));
+    };
+    const auto& identity = data_.product_identity;
+    if (!IsNonempty(identity.product_id) || !IsNonempty(identity.version) || !IsNonempty(identity.variant)) {
+        invalid("product_id, version and variant must be nonempty");
+    }
+    const auto& common = identity.common_identity.Metadata();
+    if (identity.version != common.product_version) invalid("product version must match the common source identity");
+    const std::size_t cells = common.grid_definition->CellCount();
+    if (data_.quality_state.size() != cells || data_.coverage_fraction.size() != cells) {
+        invalid("quality_state and coverage_fraction must describe every grid cell");
+    }
+    for (std::size_t cell = 0; cell < cells; ++cell) {
+        if (!std::isfinite(data_.coverage_fraction[cell]) || data_.coverage_fraction[cell] <= 0.0 || data_.coverage_fraction[cell] > 1.0) {
+            invalid("coverage_fraction must be finite and in (0,1]");
+        }
+        const auto state = data_.quality_state[cell];
+        if (state != FireQualityState::Observed && state != FireQualityState::Reconstructed && state != FireQualityState::ValidZero) {
+            invalid("quality_state must be observed, reconstructed or valid_zero");
+        }
+    }
+    const auto validate_diagnostic = [&](const std::optional<std::vector<double>>& values, std::string_view name) {
+        if (!values) return;
+        if (values->size() != cells ||
+            !std::all_of(values->begin(), values->end(), [](double value) { return std::isfinite(value) && value >= 0.0; })) {
+            invalid(std::string(name) + " must contain one finite nonnegative value per cell");
+        }
+    };
+    validate_diagnostic(data_.optional_diagnostics.frp_mw, "FRP diagnostics");
+    validate_diagnostic(data_.optional_diagnostics.fre_mj, "FRE diagnostics");
+    validate_diagnostic(data_.optional_diagnostics.dry_matter_kg, "dry-matter diagnostics");
+    if (data_.scaling_state.kind == FireProductScalingKind::Applied) {
+        if (!data_.scaling_state.profile) invalid("an applied scaling state requires its profile identity");
+        ValidateProfile(*data_.scaling_state.profile, "Fire product scaling state");
+    } else if (data_.scaling_state.kind == FireProductScalingKind::Unscaled) {
+        if (data_.scaling_state.profile) invalid("an unscaled product cannot carry a scaling profile");
+    } else {
+        invalid("scaling_state is invalid");
+    }
+
+    if (data_.chemistry_state == FireProductChemistryState::Bulk) {
+        if (data_.target_identity || !data_.target_fields.empty() || !data_.target_mass_kg.empty()) {
+            invalid("bulk chemistry cannot carry target-specific identity or fields");
+        }
+        if (data_.species.empty() || data_.species.size() > kBulkSpeciesNames.size()) {
+            invalid("bulk chemistry requires at least one recognized source species");
+        }
+        if (data_.species_availability.size() != kBulkSpeciesNames.size()) {
+            invalid("species_availability must explicitly describe all eleven canonical species");
+        }
+        std::set<FireBulkSpecies> unique_species;
+        for (const auto species : data_.species) {
+            FireSpeciesName(species);
+            if (!unique_species.insert(species).second) invalid("bulk species list contains a duplicate");
+            const auto availability = data_.species_availability.find(species);
+            if (availability == data_.species_availability.end() || availability->second != FireProductSpeciesAvailability::Available) {
+                invalid("each declared source species must be marked available");
+            }
+        }
+        for (std::size_t index = 0; index < kBulkSpeciesNames.size(); ++index) {
+            const auto species = static_cast<FireBulkSpecies>(index);
+            const auto found = data_.species_availability.find(species);
+            if (found == data_.species_availability.end()) invalid("species_availability has a missing canonical species");
+            if (found->second != FireProductSpeciesAvailability::Available && found->second != FireProductSpeciesAvailability::Unavailable) {
+                invalid("species_availability contains an invalid state");
+            }
+            const bool declared = unique_species.contains(species);
+            if ((found->second == FireProductSpeciesAvailability::Available) != declared) {
+                invalid("species_availability must agree with the declared species list");
+            }
+        }
+        if (data_.quantity_semantics.size() != data_.species.size()) {
+            invalid("quantity_semantics must describe every declared species exactly once");
+        }
+        if (data_.species.size() > std::numeric_limits<std::size_t>::max() / cells ||
+            data_.source_values.size() != data_.species.size() * cells) {
+            invalid("source_values must have species, cell dimensions");
+        }
+        if (!data_.mass_kg.empty() && data_.mass_kg.size() != data_.source_values.size()) {
+            invalid("mass_kg must be empty or have species, cell dimensions");
+        }
+        std::vector<double> normalized(data_.source_values.size());
+        const auto& areas = common.grid_definition->Definition().area_m2;
+        for (std::size_t species_index = 0; species_index < data_.species.size(); ++species_index) {
+            const auto species = data_.species[species_index];
+            const auto semantics = data_.quantity_semantics.find(species);
+            if (semantics == data_.quantity_semantics.end()) invalid("quantity_semantics is missing a declared species");
+            double multiplier = 1.0;
+            switch (semantics->second.kind) {
+                case FireProductQuantityKind::IntervalMass:
+                    if (semantics->second.units != "kg/cell/interval") invalid("interval-mass units must be kg/cell/interval");
+                    break;
+                case FireProductQuantityKind::MeanRate:
+                    if (semantics->second.units != "kg s-1") invalid("mean-rate units must be kg s-1");
+                    multiplier = static_cast<double>(identity.common_identity.DurationSeconds());
+                    break;
+                case FireProductQuantityKind::Flux:
+                    if (semantics->second.units != "kg m-2 s-1") invalid("flux units must be kg m-2 s-1");
+                    break;
+                default:
+                    invalid("quantity_semantics contains an invalid quantity kind");
+            }
+            for (std::size_t cell = 0; cell < cells; ++cell) {
+                const std::size_t offset = species_index * cells + cell;
+                const double value = data_.source_values[offset];
+                if (!std::isfinite(value) || value < 0.0) invalid("source quantities must be finite and nonnegative");
+                double mass = value * multiplier;
+                if (semantics->second.kind == FireProductQuantityKind::Flux) {
+                    mass *= areas[cell] * static_cast<double>(identity.common_identity.DurationSeconds());
+                }
+                if (!std::isfinite(mass) || (data_.quality_state[cell] == FireQualityState::ValidZero && mass != 0.0)) {
+                    invalid("normalized mass must be finite and valid_zero cells must contain only zero mass");
+                }
+                if (!data_.mass_kg.empty() &&
+                    (!std::isfinite(data_.mass_kg[offset]) ||
+                     std::abs(data_.mass_kg[offset] - mass) > 1e-12 * std::max({1.0, std::abs(data_.mass_kg[offset]), std::abs(mass)}))) {
+                    invalid("provided mass_kg must match normalized source quantities within relative tolerance 1e-12");
+                }
+                normalized[offset] = mass;
+            }
+        }
+        for (const auto& [species, semantics] : data_.quantity_semantics) {
+            (void)semantics;
+            if (!unique_species.contains(species)) invalid("quantity_semantics contains an undeclared species");
+        }
+        data_.mass_kg = std::move(normalized);
+    } else if (data_.chemistry_state == FireProductChemistryState::TargetSpecific) {
+        if (!data_.target_identity || !IsNonempty(data_.target_identity->id) || !IsNonempty(data_.target_identity->version)) {
+            invalid("target-specific chemistry requires a nonempty target identity");
+        }
+        if (!data_.species.empty() || !data_.quantity_semantics.empty() || !data_.source_values.empty() || !data_.mass_kg.empty()) {
+            invalid("target-specific chemistry must bypass bulk species and quantity data");
+        }
+        if (data_.species_availability.size() != kBulkSpeciesNames.size()) {
+            invalid("species_availability must explicitly describe all eleven canonical species");
+        }
+        for (std::size_t index = 0; index < kBulkSpeciesNames.size(); ++index) {
+            const auto found = data_.species_availability.find(static_cast<FireBulkSpecies>(index));
+            if (found == data_.species_availability.end() || found->second != FireProductSpeciesAvailability::Unavailable) {
+                invalid("target-specific chemistry cannot claim bulk species availability");
+            }
+        }
+        if (data_.target_fields.empty() || data_.target_fields.size() > std::numeric_limits<std::size_t>::max() / cells ||
+            data_.target_mass_kg.size() != data_.target_fields.size() * cells) {
+            invalid("target-specific fields and mass_kg must have target-field, cell dimensions");
+        }
+        std::set<std::string> target_species;
+        for (const auto& field : data_.target_fields) {
+            if (!IsNonempty(field.target_species) || field.unit != "kg" || !target_species.insert(field.target_species).second) {
+                invalid("target-specific fields must have unique nonempty species names and kg units");
+            }
+        }
+        for (std::size_t offset = 0; offset < data_.target_mass_kg.size(); ++offset) {
+            const double mass = data_.target_mass_kg[offset];
+            const auto cell = offset % cells;
+            if (!std::isfinite(mass) || mass < 0.0 ||
+                (data_.quality_state[cell] == FireQualityState::ValidZero && mass != 0.0)) {
+                invalid("target-specific mass_kg must be finite and nonnegative, with valid_zero cells containing only zero mass");
+            }
+        }
+    } else {
+        invalid("chemistry_state is invalid");
+    }
+}
+
+const FireProductEmissionsIntervalData& FireProductEmissionsInterval::Data() const {
+    return data_;
+}
+
+const std::vector<double>& FireProductEmissionsInterval::MassKg() const {
+    return data_.mass_kg;
+}
+
+void FireProductEmissionsInterval::RequireSpecies(const std::vector<FireBulkSpecies>& species) const {
+    if (data_.chemistry_state != FireProductChemistryState::Bulk) {
+        throw std::invalid_argument("Bulk species cannot be requested from a target-specific fire product");
+    }
+    std::set<FireBulkSpecies> unique;
+    for (const auto requested : species) {
+        FireSpeciesName(requested);
+        if (!unique.insert(requested).second) throw std::invalid_argument("Requested fire product species contain a duplicate");
+        const auto found = data_.species_availability.find(requested);
+        if (found == data_.species_availability.end() || found->second != FireProductSpeciesAvailability::Available) {
+            throw std::invalid_argument("Fire product '" + data_.product_identity.product_id + "' does not provide requested species '" +
+                                        std::string(FireSpeciesName(requested)) + "'");
+        }
+    }
+}
+
+void FireProductEmissionsInterval::ValidateScaling(const std::optional<FireProfileIdentity>& requested_profile) const {
+    if (!requested_profile) return;
+    ValidateProfile(*requested_profile, "Requested fire product scaling");
+    if (data_.scaling_state.kind == FireProductScalingKind::Applied) {
+        if (requested_profile->id == data_.scaling_state.profile->id && requested_profile->version == data_.scaling_state.profile->version &&
+            requested_profile->content_sha256 == data_.scaling_state.profile->content_sha256) {
+            throw std::invalid_argument("Fire product scaling profile '" + requested_profile->id + "' has already been applied");
+        }
+        throw std::invalid_argument("A scaled fire product cannot receive a second scaling profile");
+    }
+}
+
+void ValidateFireProductIntervalSet(const std::vector<std::reference_wrapper<const FireProductEmissionsInterval>>& intervals) {
+    for (std::size_t first = 0; first < intervals.size(); ++first) {
+        const auto& lhs = intervals[first].get().Data();
+        for (std::size_t second = first + 1; second < intervals.size(); ++second) {
+            const auto& rhs = intervals[second].get().Data();
+            if (lhs.product_identity.product_id != rhs.product_identity.product_id) continue;
+            const auto& lhs_metadata = lhs.product_identity.common_identity.Metadata();
+            const auto& rhs_metadata = rhs.product_identity.common_identity.Metadata();
+            if (lhs_metadata.interval_start < rhs_metadata.interval_end && rhs_metadata.interval_start < lhs_metadata.interval_end) {
+                throw std::invalid_argument("Overlapping intervals for fire product '" + lhs.product_identity.product_id +
+                                            "' have competing versions or variants");
+            }
+        }
+    }
 }
 
 std::string FireContentSha256(std::string_view bytes) {

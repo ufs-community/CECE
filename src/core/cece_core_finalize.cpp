@@ -48,6 +48,7 @@ void cece_core_finalize(void* data_ptr, int* rc) {
     }
 
     auto* internal_data = static_cast<cece::CeceInternalData*>(data_ptr);
+    bool finalize_error = false;
 
     // Synchronize all Kokkos operations before cleanup.
     // A single fence is a full device barrier — multiple fences add no benefit.
@@ -62,6 +63,12 @@ void cece_core_finalize(void* data_ptr, int* rc) {
         internal_data->ingestor.ClearCache();
     } catch (const std::exception& e) {
         std::cerr << "WARNING: Data ingestor cache clear threw: " << e.what() << "\n";
+        finalize_error = true;
+    }
+
+    if (internal_data->fire_interval_pending && internal_data->fire_runtime_adapter) {
+        internal_data->fire_runtime_adapter->AbortInterval();
+        internal_data->fire_interval_pending = false;
     }
 
     // 2. Finalize all physics schemes (Req 4.15 - release Kokkos views held by schemes)
@@ -72,7 +79,21 @@ void cece_core_finalize(void* data_ptr, int* rc) {
                 scheme->Finalize();
             } catch (const std::exception& e) {
                 std::cerr << "WARNING: Physics scheme Finalize threw: " << e.what() << "\n";
+                finalize_error = true;
             }
+        }
+    }
+
+    if (internal_data->fire_runtime_adapter && internal_data->fire_runtime_initialized) {
+        try {
+            internal_data->fire_runtime_adapter->Finalize();
+            internal_data->fire_runtime_initialized = false;
+        } catch (const std::exception& e) {
+            std::cerr << "WARNING: Fire runtime adapter Finalize threw: " << e.what() << "\n";
+            finalize_error = true;
+        } catch (...) {
+            std::cerr << "WARNING: Fire runtime adapter Finalize threw an unknown exception\n";
+            finalize_error = true;
         }
     }
 
@@ -88,11 +109,13 @@ void cece_core_finalize(void* data_ptr, int* rc) {
         std::cout << "INFO: CeceInternalData deleted\n";
     } catch (const std::exception& e) {
         std::cerr << "WARNING: Exception during CeceInternalData cleanup: " << e.what() << "\n";
+        finalize_error = true;
         if (rc != nullptr) {
             *rc = -2;  // Non-fatal error
         }
     } catch (...) {
         std::cerr << "WARNING: Unknown exception during CeceInternalData cleanup\n";
+        finalize_error = true;
         if (rc != nullptr) {
             *rc = -2;  // Non-fatal error
         }
@@ -106,10 +129,10 @@ void cece_core_finalize(void* data_ptr, int* rc) {
     } else {
         std::cout << "INFO: Skipping Kokkos finalization (owned by host framework)\n";
     }
-    std::cout << "INFO: CECE Finalize completed successfully\n";
+    std::cout << (finalize_error ? "WARNING: CECE Finalize completed with cleanup errors\n" : "INFO: CECE Finalize completed successfully\n");
 
     if (rc != nullptr) {
-        *rc = 0;
+        *rc = finalize_error ? -2 : 0;
     }
 }
 
