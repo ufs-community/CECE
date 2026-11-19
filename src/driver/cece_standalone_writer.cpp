@@ -20,10 +20,6 @@
 #include "cece/cece_logger.hpp"
 #include "cece/cece_regridder_utils.hpp"
 
-extern "C" {
-void amio_set_parent_communicator(MPI_Fint comm);
-}  // extern "C"
-
 namespace fs = std::filesystem;
 
 namespace cece {
