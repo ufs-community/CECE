@@ -137,7 +137,6 @@ class TestParseConfig:
 
     # TODO: Get CECE to use passed config rather than re-parsing
     # config file any time it needs a variable.
-    @pytest.mark.xfail(reason="CECE re-parses YAML rather than using passed config")
     def test_parse_valid_config(self):
         config_path = os.path.join(
             os.path.dirname(__file__), "..", "examples", "cece_config_ex1.yaml"
