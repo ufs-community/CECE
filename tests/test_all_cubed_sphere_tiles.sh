@@ -5,50 +5,39 @@
 
 set -e
 
-# ========================================================================
-# Download real C96 grid and gridspec files if they are missing
-# ========================================================================
-mkdir -p data
-
-download_file_if_missing() {
-    local filename=$1
-    local filepath="data/${filename}"
-    local url="https://ftp.emc.ncep.noaa.gov/static_files/public/UFS/GFS/fix/fix_fv3/C96/${filename}"
-
-    if [ ! -f "$filepath" ] || [ ! -s "$filepath" ]; then
-        echo "Downloading ${filename} from NOAA..."
-        if command -v curl >/dev/null 2>&1; then
-            curl -s -S -L -o "$filepath" "$url"
-        elif command -v wget >/dev/null 2>&1; then
-            wget -q -O "$filepath" "$url"
-        else
-            echo "Error: Neither curl nor wget found. Cannot download ${filename}." >&2
-            exit 1
-        fi
-    fi
-}
-
-for tile in 1 2 3 4 5 6; do
-    download_file_if_missing "C96_grid.tile${tile}.nc"
-    download_file_if_missing "C96_grid_spec.tile${tile}.nc"
-done
+bash $(dirname $0)/download_c96_grid_files.sh
 
 # Ensure output directory exists
 mkdir -p cece_output
+if (( $# == 0 )) ; then
+   lon_range_tag="" ;
+elif [[ "$1" == 360 ]] ; then
+    lon_range_tag="_0_360"
+else
+    echo "Usage: $0 [360]"
+    exit 1
+fi
 
 # ========================================================================
 # Run the C96 simulation for all 6 tiles sequentially
 # ========================================================================
 echo "========================================================================"
 echo " Executing standalone driver on all 6 curvilinear tiles..."
+if [[ -n "${lon_range_tag}" ]] ; then
+    echo "with [0, 360] inputs"
+fi
 echo "========================================================================"
 for tile in 1 2 3 4 5 6; do
     echo "------------------------------------------------------------------------"
     echo " Running simulation for Tile ${tile}..."
+    if [[ -n "${lon_range_tag}" ]] ; then
+	echo "with [0, 360] inputs"
+    fi
     echo "------------------------------------------------------------------------"
 
     # Generate temporary config file for this specific tile
-    cat <<EOF > examples/cece_config_ex9_tile${tile}.yaml
+    tile_yaml_name="examples/cece_config_ex9_tile${tile}${lon_range_tag}.yaml"
+    cat <<EOF > "${tile_yaml_name}"
 # =====================================================================
 # CECE Example 9 - Tile ${tile} Temporary Test Configuration
 # =====================================================================
@@ -62,17 +51,17 @@ driver:
     ny: 96
 
 species:
-  co:
+  "co":
     - field: "MACCITY_CO"
       operation: "add"
-  no:
+  "no":
     - field: "MACCITY_NO"
       operation: "add"
 
 cece_data:
   streams:
     - name: "MACCITY_CO"
-      file: "/work/data/MACCity_4x5.nc"
+      file: "/work/data/MACCity_4x5${lon_range_tag}.nc"
       yearFirst: 2000
       yearLast: 2010
       yearAlign: 2020
@@ -83,7 +72,7 @@ cece_data:
         - file: "MACCity"
           model: "MACCITY_CO"
     - name: "MACCITY_NO"
-      file: "/work/data/MACCity_anthro_NOx_2000-2010_16080.nc"
+      file: "/work/data/MACCity_anthro_NOx_2000-2010_16080${lon_range_tag}.nc"
       yearFirst: 2000
       yearLast: 2010
       yearAlign: 2020
@@ -101,7 +90,7 @@ diagnostics:
 output:
   enabled: true
   directory: ./cece_output
-  filename_pattern: "cece_c96_tile${tile}_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
+  filename_pattern: "cece_c96_tile${tile}${lon_range_tag}_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
   frequency_steps: 1
   global_attributes:
     title: "My Custom C96 Tile ${tile} Simulation"
@@ -118,10 +107,10 @@ output:
 EOF
 
     # Run simulation inside the container
-    ./setup.sh -c "OMP_NUM_THREADS=1 OMP_PROC_BIND=false mpirun --allow-run-as-root -np 2 ./build/cece_standalone_driver examples/cece_config_ex9_tile${tile}.yaml"
+    ./setup.sh -c "OMP_NUM_THREADS=1 OMP_PROC_BIND=false mpirun --allow-run-as-root -np 2 ./build/cece_standalone_driver ${tile_yaml_name}"
 
     # Clean up temporary config file
-    rm examples/cece_config_ex9_tile${tile}.yaml
+    rm "${tile_yaml_name}"
 done
 
 # ========================================================================
@@ -136,23 +125,40 @@ import netCDF4 as nc
 import numpy as np
 
 total_co_mass_rate = 0.0
+total_no_mass_rate = 0.0
 for tile in range(1, 7):
-    f_out = nc.Dataset(f'cece_output/cece_c96_tile{tile}_20200101_010000.nc')
+    f_out = nc.Dataset(f'cece_output/cece_c96_tile{tile}${lon_range_tag}_20200101_010000.nc')
     f_grid = nc.Dataset(f'data/C96_grid_spec.tile{tile}.nc')
     lon_shape = f_out.variables['lon'].shape
     lat_shape = f_out.variables['lat'].shape
     lon_bnds_shape = f_out.variables['lon_bnds'].shape
     co = f_out.variables['co'][:]
+    co_shape = co.shape
     area = f_grid.variables['area'][:]
     if co.ndim == 3:
         co = co[0]
     tile_mass = float(np.sum(co * area))
     total_co_mass_rate += tile_mass
-    print(f'Tile {tile} -> lon:{lon_shape}, lat:{lat_shape}, lon_bnds:{lon_bnds_shape}, co:{co.shape}, CO flux mass: {tile_mass:.6e} kg/s')
+    no = f_out.variables['no'][:]
+    no_shape = no.shape
+    if no.ndim == 3:
+        no = no[0]
+    tile_no_mass = float(np.sum(no * area))
+    total_no_mass_rate += tile_no_mass
+    print(f'Tile {tile} -> lon:{lon_shape}, lat:{lat_shape}, lon_bnds:{lon_bnds_shape}, co:{co_shape}, no:{no_shape}')
+    print(f'CO flux mass: {tile_mass:.6e} kg/s, 'NO flux mass: {tile_no_mass:.6e} kg/s')
+    f_out.close()
+    f_grid.close()
 
 print(f'Total C96 CO emission mass rate across all 6 tiles: {total_co_mass_rate:.6e} kg/s')
+print(f'Total C96 NO emission mass rate across all 6 tiles: {total_no_mass_rate:.6e} kg/s')
 assert total_co_mass_rate > 0.0, 'Total emission mass rate must be positive!'
 "
+
+if [[ -n "${lon_range_tag}" ]] ; then
+    # The 0-360 script ends here
+    exit 0
+fi
 
 # ========================================================================
 # Verify bit-for-bit identity between serial (-np 1) and multi-rank (-np 2) MPI

@@ -480,9 +480,9 @@ RC_GTEST_PROP(EmissionActivityProperty, Property9_LeafAgeFractionsSumToUnity, ()
 // ============================================================================
 
 /// Valid emission class names for generating speciation configs.
-static const std::vector<std::string> kValidEmissionClasses = {"ISOP", "MBO",    "MT_PINE", "MT_ACYC", "MT_CAMP", "MT_SABI", "MT_AROM",
-                                                               "NO",   "SQT_HR", "SQT_LR",  "MEOH",    "ACTO",    "ETOH",    "ACID",
-                                                               "LVOC", "OXPROD", "STRESS",  "OTHER",   "CO"};
+static const std::vector<std::string> kValidEmissionClasses = {
+    "ISOP", "MBO",    "MT_PINE", "MT_ACYC", "MT_CAMP", "MT_SABI", "MT_AROM", "NO",   "SQT_HR", "SQT_LR", "MEOH", "ACTO", "ETOH", "ACID",
+    "LVOC", "OXPROD", "STRESS",  "OTHER",   "CO",      "APIN",    "BPIN",    "SABI", "CARE",   "LIMO",   "MYRC", "OCIM", "OMON", "FARN"};
 
 /// Generate a random alphanumeric string of given length.
 static std::string GenAlpha(std::size_t len) {
@@ -602,12 +602,13 @@ RC_GTEST_PROP(Megan3SchemeProperty, Property17_MissingConfigDefaultValues, ()) {
     static constexpr bool kDefaultAqStress = false;
 
     // Documented default LDF values per class (from cece_emission_activity.cpp)
-    static constexpr double kDefaultLdf[19] = {0.9996, 0.80, 0.10, 0.10, 0.10, 0.10, 0.10, 0.00, 0.50, 0.50,
-                                               0.80,   0.20, 0.80, 0.00, 0.00, 0.20, 1.00, 0.20, 0.00};
+    // Explicit MEGANv2.1 classes (APIN..FARN) follow Guenther et al. (2012), Table 4.
+    static constexpr double kDefaultLdf[kNumEmissionClasses] = {0.9996, 0.80, 0.10, 0.10, 0.10, 0.10, 0.10, 0.00, 0.50, 0.50, 0.80, 0.20, 0.80, 0.00,
+                                                                0.00,   0.20, 1.00, 0.20, 0.00, 0.6,  0.2,  0.6,  0.2,  0.2,  0.6,  0.8,  0.4,  0.5};
 
     // Documented default beta values per class
-    static constexpr double kDefaultBeta[19] = {0.13, 0.13, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.17, 0.17,
-                                                0.08, 0.10, 0.08, 0.10, 0.13, 0.10, 0.13, 0.10, 0.10};
+    static constexpr double kDefaultBeta[kNumEmissionClasses] = {0.13, 0.13, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.17, 0.17, 0.08, 0.10, 0.08, 0.10,
+                                                                 0.13, 0.10, 0.13, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.10, 0.17};
 
     // Generate a random subset of optional parameters to include
     // Each parameter has a 50% chance of being included
@@ -669,7 +670,7 @@ RC_GTEST_PROP(Megan3SchemeProperty, Property17_MissingConfigDefaultValues, ()) {
     auto h_beta = Kokkos::create_mirror_view(calc.coefficients_.beta);
     Kokkos::deep_copy(h_beta, calc.coefficients_.beta);
 
-    for (int c = 0; c < 19; ++c) {
+    for (int c = 0; c < kNumEmissionClasses; ++c) {
         RC_ASSERT(std::abs(h_ldf(c) - kDefaultLdf[c]) < 1e-10);
         RC_ASSERT(std::abs(h_beta(c) - kDefaultBeta[c]) < 1e-10);
     }
@@ -684,6 +685,7 @@ RC_GTEST_PROP(Megan3SchemeProperty, Property17_MissingConfigDefaultValues, ()) {
 #include <chrono>
 #include <filesystem>
 #include <fstream>
+#include <map>
 #include <random>
 
 #include "cece/cece_physics_factory.hpp"
@@ -806,7 +808,7 @@ TEST(MeganHistoryTest, DefaultsAndOverrides) {
     auto defaults = conf::Config::from_string("{}");
     const auto a = MeganHistory::FromConfig(defaults.root());
     EXPECT_DOUBLE_EQ(a.temperature_k, 297.0);
-    EXPECT_DOUBLE_EQ(a.par_wm2, 400.0);
+    EXPECT_DOUBLE_EQ(a.par_wm2, 84.0);
     EXPECT_DOUBLE_EQ(a.days_between_lai, 30.0);
     EXPECT_EQ(a.day_of_year, 180);
     EXPECT_FALSE(a.leaf_age_uses_history);
@@ -845,7 +847,7 @@ TEST_F(Megan3SchemeTest, EffectiveHistoryOptionsReachRuntime) {
     };
     const double original = run("");
     ASSERT_GT(original, 0.0);
-    EXPECT_DOUBLE_EQ(original, run("temperature_history_k: 297\npar_history_wm2: 400\ndays_between_lai: 30\nday_of_year: 180\n"));
+    EXPECT_DOUBLE_EQ(original, run("temperature_history_k: 297\npar_history_wm2: 84\ndays_between_lai: 30\nday_of_year: 180\n"));
     EXPECT_NE(original, run("temperature_history_k: 288.15\n"));
     EXPECT_NE(original, run("par_history_wm2: 78\n"));
     EXPECT_NE(original, run("day_of_year: 1\n"));
@@ -1188,6 +1190,124 @@ TEST_F(Megan3SchemeTest, BdsnpToMegan3Pipeline) {
     auto& dv_no_soil_zero = export_state.fields["MEGAN_NO"];
     dv_no_soil_zero.sync<Kokkos::HostSpace>();
     EXPECT_DOUBLE_EQ(dv_no_soil_zero.view_host()(0, 0, 0), 0.0);
+}
+
+// ============================================================================
+// Test: GOCART outputs come from explicit MEGANv2.1 classes, not lumped MT_*
+// ============================================================================
+
+TEST_F(Megan3SchemeTest, GocartUsesExplicitTerpenoidClasses) {
+    const std::string src_dir = CECE_SOURCE_DIR;
+    for (const auto* name : {"MEGAN_LIMO", "MEGAN_MTPA", "MEGAN_MTPO"}) export_state.fields[name] = create_dv(name, 0.0);
+    auto run = [&](const std::string& extra) {
+        const std::string text = "mechanism_file: \"" + src_dir + "/data/speciation/spc_gocart.yaml\"\nspeciation_file: \"" + src_dir +
+                                 "/data/speciation/map_gocart.yaml\"\n" + extra;
+        auto config = conf::Config::from_string(text);
+        Megan3Scheme scheme;
+        scheme.Initialize(config.root(), nullptr);
+        scheme.Run(import_state, export_state);
+        std::map<std::string, double> values;
+        for (const auto* name : {"MEGAN_ISOP", "MEGAN_LIMO", "MEGAN_MTPA", "MEGAN_MTPO"}) {
+            auto& field = export_state.fields.at(name);
+            field.sync<Kokkos::HostSpace>();
+            values[name] = field.view_host()(0, 0, 0);
+        }
+        return values;
+    };
+    const auto base = run("");
+    for (const auto& [name, value] : base) EXPECT_GT(value, 0.0) << name;
+    // Mean-PFT Table 2 factors: MTPA (APIN+BPIN+SABI+CARE) dominates LIMO.
+    EXPECT_GT(base.at("MEGAN_MTPA"), base.at("MEGAN_LIMO"));
+
+    // Lumped MEGAN3 classes are not part of the GOCART mapping.
+    const auto lumped =
+        run("emission_classes:\n  MT_PINE:\n    default_aef: 1.0e-6\n  MT_ACYC:\n    default_aef: 1.0e-6\n"
+            "  SQT_HR:\n    default_aef: 1.0e-6\n");
+    for (const auto& [name, value] : base) EXPECT_DOUBLE_EQ(lumped.at(name), value) << name;
+
+    // LIMO is explicit: scaling its AEF scales only MEGAN_LIMO.
+    const auto limo = run("emission_classes:\n  LIMO:\n    default_aef: 2.5903904344776406e-13\n");
+    EXPECT_NEAR(limo.at("MEGAN_LIMO"), 2.0 * base.at("MEGAN_LIMO"), 1.0e-12 * base.at("MEGAN_LIMO"));
+    EXPECT_DOUBLE_EQ(limo.at("MEGAN_MTPA"), base.at("MEGAN_MTPA"));
+    EXPECT_DOUBLE_EQ(limo.at("MEGAN_MTPO"), base.at("MEGAN_MTPO"));
+
+    // Gridded AEF_<CLASS> fields override explicit-class defaults.
+    import_state.fields["AEF_BPIN"] = create_dv("aef_bpin", 0.0);
+    const auto no_bpin = run("");
+    EXPECT_LT(no_bpin.at("MEGAN_MTPA"), base.at("MEGAN_MTPA"));
+    EXPECT_DOUBLE_EQ(no_bpin.at("MEGAN_LIMO"), base.at("MEGAN_LIMO"));
+}
+
+// ============================================================================
+// Test: the GOCART example streams a gridded AEF_<CLASS> for every active class
+// ============================================================================
+
+TEST_F(Megan3SchemeTest, GocartExampleReadsGriddedAefPerClass) {
+    const std::filesystem::path src_dir = CECE_SOURCE_DIR;
+    auto example = conf::Config::from_file((src_dir / "examples/cece_config_megan3_gocart.yaml").string());
+    auto mapping = conf::Config::from_file((src_dir / "data/speciation/map_gocart.yaml").string());
+
+    std::set<std::string> stream_fields;
+    const auto streams = example.root()["cece_data"]["streams"];
+    for (std::size_t s = 0; s < streams.size(); ++s) {
+        const auto variables = streams[s]["variables"];
+        for (std::size_t v = 0; v < variables.size(); ++v) stream_fields.insert(variables[v]["model"].as_string());
+    }
+
+    // Each mapped MEGAN class must have a gridded stream and no scalar default.
+    std::map<std::string, std::string> class_to_output;
+    const auto datasets = mapping.root()["datasets"]["MEGAN"];
+    for (const auto& target : datasets.keys()) {
+        for (const auto& cls : datasets[target].keys()) class_to_output[cls] = "MEGAN_" + target;
+    }
+    const auto options = example.root()["physics_schemes"][std::size_t{0}]["options"];
+    const auto classes = options["emission_classes"];
+    ASSERT_FALSE(class_to_output.empty());
+    for (const auto& [cls, output] : class_to_output) {
+        EXPECT_TRUE(stream_fields.count("AEF_" + cls)) << "missing AEF_" << cls << " stream";
+        ASSERT_TRUE(classes[cls].is_defined()) << cls;
+        EXPECT_FALSE(classes[cls]["default_aef"].is_defined()) << cls;
+    }
+
+    for (const auto* name : {"MEGAN_ISOP", "MEGAN_LIMO", "MEGAN_MTPA", "MEGAN_MTPO"}) export_state.fields[name] = create_dv(name, 0.0);
+    for (const auto& [cls, output] : class_to_output) import_state.fields["AEF_" + cls] = create_dv("aef_" + cls, 0.0);
+
+    // Example mechanism paths are relative to the repository root.
+    const auto previous_dir = std::filesystem::current_path();
+    std::filesystem::current_path(src_dir);
+    Megan3Scheme scheme;
+    scheme.Initialize(options, nullptr);
+    std::filesystem::current_path(previous_dir);
+
+    auto run = [&]() {
+        scheme.Run(import_state, export_state);
+        std::map<std::string, double> values;
+        for (const auto* name : {"MEGAN_ISOP", "MEGAN_LIMO", "MEGAN_MTPA", "MEGAN_MTPO"}) {
+            auto& field = export_state.fields.at(name);
+            field.sync<Kokkos::HostSpace>();
+            values[name] = field.view_host()(0, 0, 0);
+        }
+        return values;
+    };
+
+    // Zero gridded AEFs give zero emissions: no scalar default leaks in.
+    for (const auto& [name, value] : run()) EXPECT_DOUBLE_EQ(value, 0.0) << name;
+
+    // Each class's gridded AEF drives only the output it is lumped into.
+    for (const auto& [cls, output] : class_to_output) SetFieldValue("AEF_" + cls, 1.0e-12);
+    const auto base = run();
+    for (const auto& [cls, output] : class_to_output) {
+        SetFieldValue("AEF_" + cls, 3.0e-12);
+        const auto bumped = run();
+        SetFieldValue("AEF_" + cls, 1.0e-12);
+        for (const auto& [name, value] : base) {
+            if (name == output) {
+                EXPECT_GT(bumped.at(name), value) << cls << " -> " << name;
+            } else {
+                EXPECT_DOUBLE_EQ(bumped.at(name), value) << cls << " -> " << name;
+            }
+        }
+    }
 }
 
 }  // namespace cece
