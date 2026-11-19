@@ -62,7 +62,6 @@ file(
     stream_bridge.py
   DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/cece"
 )
-file(COPY ../../pyproject.toml DESTINATION "${CMAKE_CURRENT_BINARY_DIR}")
 
 # Create setup.py for installation
 file(
@@ -72,7 +71,7 @@ file(
 setup(
     name='cece',
     version='0.1.0',
-    description='Python interface to CECE (Atmospheric Chemistry Emissions System)',
+    description='Python interface to CECE (Community Emissions Computing Engine)',
     author='CECE Development Team',
     packages=find_packages(),
     package_data={

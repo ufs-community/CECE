@@ -92,6 +92,55 @@ static void cece_exception_translator(std::exception_ptr p) {
     }
 }
 
+inline py::array_t<double, py::array::f_style> contiguous_f8_array_to_f_style(const std::string& name, const py::array& arr) {
+    // Validate dtype is float64
+    if (!py::isinstance<py::array_t<double>>(arr)) {
+        throw py::value_error("Array dtype must be float64, got " + std::string(py::str(arr.dtype())));
+    }
+    py::array_t<double> typed_arr = arr.cast<py::array_t<double>>();
+
+    // Validate array is 3D
+    if (typed_arr.ndim() != 3) {
+        throw py::value_error("Array must be 3D, got " + std::to_string(typed_arr.ndim()) + "D");
+    }
+
+    py::array_t<double, py::array::f_style> fortran_arr;
+
+    // Check if Fortran-contiguous (column-major)
+    if ((static_cast<unsigned long>(typed_arr.flags()) & py::array::f_style) != 0) {
+        fortran_arr = typed_arr;
+    } else if ((static_cast<unsigned long>(typed_arr.flags()) & py::array::c_style) != 0) {
+        // C-contiguous: convert to Fortran order, log warning
+        auto& logger = cece::CeceLogger::GetInstance();
+        logger.LogWarning("Array for field '" + name + "' is C-contiguous; converting to Fortran order (copy overhead)");
+
+        py::module_ np = py::module_::import("numpy");
+        fortran_arr = np.attr("asfortranarray")(typed_arr);
+    } else {
+        throw py::value_error("Array must be either C-contiguous or Fortran-contiguous");
+    }
+    return fortran_arr;
+}
+
+inline cece::DualView3D f8_f_style_array_to_dualview3d(const std::string& field_name, const py::array_t<double, py::array::f_style>& fortran_arr) {
+    // Get buffer info from the Fortran-contiguous array
+    py::buffer_info buf = fortran_arr.request();
+    auto* ptr = static_cast<double*>(buf.ptr);
+    int nx = static_cast<int>(buf.shape[0]);
+    int ny = static_cast<int>(buf.shape[1]);
+    int nz = static_cast<int>(buf.shape[2]);
+
+    // Create UnmanagedHostView3D wrapping the buffer pointer (zero-copy)
+    cece::UnmanagedHostView3D unmanaged_view(ptr, nx, ny, nz);
+
+    // Create DualView3D, deep-copy from unmanaged view, sync to device
+    cece::DualView3D dual_view(field_name, nx, ny, nz);
+    Kokkos::deep_copy(dual_view.view_host(), unmanaged_view);
+    dual_view.modify_host();
+    dual_view.sync_device();
+    return dual_view;
+}
+
 PYBIND11_MODULE(_cece_core, m) {
     m.doc() = "CECE C++ core bindings via pybind11";
 
@@ -205,48 +254,10 @@ PYBIND11_MODULE(_cece_core, m) {
         .def(
             "set_field",
             [](cece::CeceImportState& self, const std::string& name, py::array arr) {
-                // Validate dtype is float64
-                if (!py::isinstance<py::array_t<double>>(arr)) {
-                    throw py::value_error("Array dtype must be float64, got " + std::string(py::str(arr.dtype())));
-                }
-                py::array_t<double> typed_arr = arr.cast<py::array_t<double>>();
-
-                // Validate array is 3D
-                if (typed_arr.ndim() != 3) {
-                    throw py::value_error("Array must be 3D, got " + std::to_string(typed_arr.ndim()) + "D");
-                }
-
-                py::array_t<double, py::array::f_style> fortran_arr;
-
-                // Check if Fortran-contiguous (column-major)
-                if ((static_cast<unsigned long>(typed_arr.flags()) & py::array::f_style) != 0) {
-                    // Fortran-contiguous: use directly (zero-copy wrap)
-                    fortran_arr = typed_arr;
-                } else if ((static_cast<unsigned long>(typed_arr.flags()) & py::array::c_style) != 0) {
-                    // C-contiguous: convert to Fortran order, log warning
-                    auto& logger = cece::CeceLogger::GetInstance();
-                    logger.LogWarning("Array for field '" + name + "' is C-contiguous; converting to Fortran order (copy overhead)");
-                    py::module_ np = py::module_::import("numpy");
-                    fortran_arr = np.attr("asfortranarray")(typed_arr);
-                } else {
-                    throw py::value_error("Array must be either C-contiguous or Fortran-contiguous");
-                }
-
-                // Get buffer info from the Fortran-contiguous array
-                py::buffer_info buf = fortran_arr.request();
-                auto* ptr = static_cast<double*>(buf.ptr);
-                int nx = static_cast<int>(buf.shape[0]);
-                int ny = static_cast<int>(buf.shape[1]);
-                int nz = static_cast<int>(buf.shape[2]);
-
-                // Create UnmanagedHostView3D wrapping the buffer pointer (zero-copy)
-                cece::UnmanagedHostView3D unmanaged_view(ptr, nx, ny, nz);
+                py::array_t<double, py::array::f_style> fortran_arr = contiguous_f8_array_to_f_style(name, arr);
 
                 // Create DualView3D, deep-copy from unmanaged view, sync to device
-                cece::DualView3D dual_view("field_" + name, nx, ny, nz);
-                Kokkos::deep_copy(dual_view.view_host(), unmanaged_view);
-                dual_view.modify_host();
-                dual_view.sync_device();
+                cece::DualView3D dual_view = f8_f_style_array_to_dualview3d("field_" + name, fortran_arr);
 
                 // Store in fields map
                 self.fields[name] = dual_view;
@@ -272,44 +283,10 @@ PYBIND11_MODULE(_cece_core, m) {
         .def(
             "set_field",
             [](cece::CeceExportState& self, const std::string& name, py::array arr) {
-                // Validate dtype is float64
-                if (!py::isinstance<py::array_t<double>>(arr)) {
-                    throw py::value_error("Array dtype must be float64, got " + std::string(py::str(arr.dtype())));
-                }
-                py::array_t<double> typed_arr = arr.cast<py::array_t<double>>();
-
-                // Validate array is 3D
-                if (typed_arr.ndim() != 3) {
-                    throw py::value_error("Array must be 3D, got " + std::to_string(typed_arr.ndim()) + "D");
-                }
-
-                py::array_t<double, py::array::f_style> fortran_arr;
-
-                // Check if Fortran-contiguous (column-major)
-                if ((static_cast<unsigned long>(typed_arr.flags()) & py::array::f_style) != 0) {
-                    fortran_arr = typed_arr;
-                } else if ((static_cast<unsigned long>(typed_arr.flags()) & py::array::c_style) != 0) {
-                    py::module_ np = py::module_::import("numpy");
-                    fortran_arr = np.attr("asfortranarray")(typed_arr);
-                } else {
-                    throw py::value_error("Array must be either C-contiguous or Fortran-contiguous");
-                }
-
-                // Get buffer info from the Fortran-contiguous array
-                py::buffer_info buf = fortran_arr.request();
-                auto* ptr = static_cast<double*>(buf.ptr);
-                int nx = static_cast<int>(buf.shape[0]);
-                int ny = static_cast<int>(buf.shape[1]);
-                int nz = static_cast<int>(buf.shape[2]);
-
-                // Create UnmanagedHostView3D wrapping the buffer pointer (zero-copy)
-                cece::UnmanagedHostView3D unmanaged_view(ptr, nx, ny, nz);
+                py::array_t<double, py::array::f_style> fortran_arr = contiguous_f8_array_to_f_style(name, arr);
 
                 // Create DualView3D, deep-copy from unmanaged view, sync to device
-                cece::DualView3D dual_view("export_" + name, nx, ny, nz);
-                Kokkos::deep_copy(dual_view.view_host(), unmanaged_view);
-                dual_view.modify_host();
-                dual_view.sync_device();
+                cece::DualView3D dual_view = f8_f_style_array_to_dualview3d("export_" + name, fortran_arr);
 
                 // Store in fields map
                 self.fields[name] = dual_view;

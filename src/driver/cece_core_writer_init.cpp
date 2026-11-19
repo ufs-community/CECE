@@ -13,9 +13,6 @@
 #include "cece/cece_mpi_env.hpp"
 #include "cece/cece_standalone_writer.hpp"
 
-namespace cece {
-class CeceStandaloneWriter;
-}
 extern std::unique_ptr<cece::CeceStandaloneWriter> g_standalone_writer;
 
 namespace {
