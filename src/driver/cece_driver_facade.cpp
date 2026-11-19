@@ -32,7 +32,6 @@ namespace fs = std::filesystem;
 
 extern "C" {
 void cece_ingestor_set_field(void* data_ptr, const char* field_name, int name_len, const double* field_data, int n_lev, int n_elem, int* rc);
-void amio_set_parent_communicator(MPI_Fint comm);
 }  // extern "C"
 
 namespace cece {
