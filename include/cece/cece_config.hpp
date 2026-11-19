@@ -25,9 +25,6 @@
 
 namespace cece {
 
-enum class FireInputMode { Product, DeriveFrp };
-enum class FireInputProvider { Prepared, Coupled };
-enum class FireTimeAllocation { Uniform, SourceResolved, Profile };
 enum class FireChemistryState { Bulk, TargetSpecific };
 
 struct FireConfig {

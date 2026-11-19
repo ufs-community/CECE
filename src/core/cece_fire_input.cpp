@@ -1,8 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 #include "cece/cece_fire_input.hpp"
 
+#include <openssl/evp.h>
+
 #include <algorithm>
+#include <axis/solver/apply.hpp>
+#include <axis/solver/regrid_config.hpp>
 #include <cmath>
+#include <fstream>
 #include <iomanip>
 #include <limits>
 #include <set>
@@ -63,6 +68,38 @@ bool IsParticulate(FireBulkSpecies species) {
 }
 
 constexpr std::array<std::string_view, 11> kBulkSpeciesNames = {"CO2", "CO", "CH4", "PM25", "TPM", "SO2", "OC", "BC", "NOX", "NH3", "VOC"};
+
+class Sha256 {
+   public:
+    Sha256() : context_(EVP_MD_CTX_new(), EVP_MD_CTX_free) {
+        if (!context_ || EVP_DigestInit_ex(context_.get(), EVP_sha256(), nullptr) != 1) {
+            throw std::runtime_error("Fire SHA256 initialization failed");
+        }
+    }
+    void Update(std::string_view bytes) {
+        if (!bytes.empty() && EVP_DigestUpdate(context_.get(), bytes.data(), bytes.size()) != 1) {
+            throw std::runtime_error("Fire SHA256 update failed");
+        }
+    }
+    std::string Finish() {
+        std::array<unsigned char, EVP_MAX_MD_SIZE> digest{};
+        unsigned int size = 0;
+        if (EVP_DigestFinal_ex(context_.get(), digest.data(), &size) != 1 || size != 32) {
+            throw std::runtime_error("Fire SHA256 finalization failed");
+        }
+        constexpr char hex[] = "0123456789abcdef";
+        std::string result;
+        result.reserve(64);
+        for (unsigned int i = 0; i < size; ++i) {
+            result.push_back(hex[digest[i] >> 4]);
+            result.push_back(hex[digest[i] & 15]);
+        }
+        return result;
+    }
+
+   private:
+    std::unique_ptr<EVP_MD_CTX, decltype(&EVP_MD_CTX_free)> context_;
+};
 
 }  // namespace
 
@@ -334,6 +371,443 @@ double FireBulkInventory::SpeciesBudgetKg(FireBulkSpecies species) const {
         throw std::overflow_error("Fire inventory species budget overflow for source '" + data_.identity.Metadata().source_id + "'");
     }
     return total;
+}
+
+std::string FireContentSha256(std::string_view bytes) {
+    Sha256 digest;
+    digest.Update(bytes);
+    return digest.Finish();
+}
+
+std::string FireFileSha256(const std::string& path) {
+    std::ifstream input(path, std::ios::binary);
+    if (!input) throw std::runtime_error("Cannot open fire input for SHA256 verification: " + path);
+    Sha256 digest;
+    std::array<char, 65536> buffer{};
+    while (input.read(buffer.data(), buffer.size()) || input.gcount() > 0) {
+        digest.Update(std::string_view(buffer.data(), static_cast<std::size_t>(input.gcount())));
+    }
+    if (!input.eof() || input.bad()) throw std::runtime_error("Cannot read fire input for SHA256 verification: " + path);
+    return digest.Finish();
+}
+
+FireIntervalProvider::FireIntervalProvider(FireInputProvider provider, FireProviderLimits limits, FireRevisionIdentity identity,
+                                           std::optional<FireProviderCheckpoint> checkpoint)
+    : provider_(provider), limits_(limits), checkpoint_{std::move(identity), std::nullopt, std::nullopt} {
+    if (provider_ != FireInputProvider::Prepared && provider_ != FireInputProvider::Coupled) {
+        throw std::invalid_argument("Fire provider must be prepared or coupled");
+    }
+    if (limits_.slots == 0 || limits_.cells_per_interval == 0 || limits_.components_per_interval == 0 || limits_.metadata_bytes_per_interval == 0) {
+        throw std::invalid_argument("Fire provider slot, cell, component and metadata bounds must be positive");
+    }
+    if (!IsNonempty(checkpoint_.identity.run) || !IsNonempty(checkpoint_.identity.revision) ||
+        checkpoint_.identity.run.size() > limits_.metadata_bytes_per_interval ||
+        checkpoint_.identity.revision.size() > limits_.metadata_bytes_per_interval) {
+        throw std::invalid_argument("Fire provider requires bounded, nonempty run and revision identities");
+    }
+    if (checkpoint) {
+        if (checkpoint->identity != checkpoint_.identity || checkpoint->committed_end.has_value() != checkpoint->committed_cutoff.has_value()) {
+            throw std::invalid_argument("Fire provider checkpoint requires matching run/revision and paired committed end/cutoff");
+        }
+        checkpoint_ = std::move(*checkpoint);
+    }
+    slots_.resize(limits_.slots);
+}
+
+std::string FireIntervalProvider::CacheIdentity(const FireBulkInventory& inventory, const FireCacheContext& context) const {
+    const auto& data = inventory.Data();
+    const auto& metadata = data.identity.Metadata();
+    if (metadata.grid_definition->CellCount() > limits_.cells_per_interval || data.component_ids.size() > limits_.components_per_interval) {
+        throw std::invalid_argument("Fire interval exceeds provider cell/component bounds");
+    }
+    std::string key;
+    const auto append = [&](std::string_view value) {
+        const auto length = std::to_string(value.size()) + ":";
+        if (length.size() > limits_.metadata_bytes_per_interval - key.size() ||
+            value.size() > limits_.metadata_bytes_per_interval - key.size() - length.size()) {
+            throw std::invalid_argument("Fire interval exceeds provider metadata bound");
+        }
+        key.append(length).append(value);
+    };
+    const auto profile = [&](const FireProfileIdentity& value) {
+        ValidateProfile(value, "Fire cache identity");
+        append(value.id);
+        append(value.version);
+        append(value.content_sha256);
+    };
+    const auto optional_profile = [&](const std::optional<FireProfileIdentity>& value) {
+        append(value ? "present" : "absent");
+        if (value) profile(*value);
+    };
+    const auto optional_hash = [&](const std::optional<std::string>& value) {
+        append(value ? "present" : "absent");
+        if (value) {
+            if (!IsSha256(*value)) throw std::invalid_argument("Fire cache identity requires lowercase SHA256 references");
+            append(*value);
+        }
+    };
+    if (context.mode != FireInputMode::Product && context.mode != FireInputMode::DeriveFrp) {
+        throw std::invalid_argument("Fire cache identity requires product or derive_frp mode");
+    }
+    if (context.mode == FireInputMode::Product) {
+        if (context.scientific_profile || !context.product_time_allocation) {
+            throw std::invalid_argument("Fire product cache requires temporal policy and prohibits scientific derivation profile");
+        }
+        const auto allocation = *context.product_time_allocation;
+        if (allocation != FireTimeAllocation::Uniform && allocation != FireTimeAllocation::SourceResolved &&
+            allocation != FireTimeAllocation::Profile) {
+            throw std::invalid_argument("Fire cache identity has unsupported temporal policy");
+        }
+        if ((allocation == FireTimeAllocation::Profile) != context.product_time_profile.has_value()) {
+            throw std::invalid_argument("Fire temporal profile must be present only for profile allocation");
+        }
+    } else if (!context.scientific_profile || context.product_time_allocation || context.product_time_profile) {
+        throw std::invalid_argument("Fire derivation cache requires scientific profile and prohibits product temporal options");
+    }
+    if ((metadata.cutoff_mode == FireCutoffMode::Fixed && context.cutoff_schedule_sha256) ||
+        (metadata.cutoff_mode == FireCutoffMode::HostSupplied && provider_ == FireInputProvider::Prepared && !context.cutoff_schedule_sha256)) {
+        throw std::invalid_argument("Fire cache cutoff schedule is incompatible with cutoff mode/provider");
+    }
+    append("cece-fire-cache-v1");
+    append(checkpoint_.identity.run);
+    append(checkpoint_.identity.revision);
+    append(context.mode == FireInputMode::Product ? "product" : "derive_frp");
+    append(std::to_string(metadata.schema_version));
+    append(metadata.source_id);
+    append(metadata.product_version);
+    append(metadata.algorithm_version);
+    append(metadata.delivery_id);
+    append(metadata.content_sha256);
+    append(metadata.interval_start.ToString());
+    append(metadata.interval_end.ToString());
+    append(metadata.acquired_at.ToString());
+    append(metadata.available_at.ToString());
+    append(metadata.availability_cutoff.ToString());
+    append(metadata.cutoff_mode == FireCutoffMode::Fixed ? "fixed" : "host_supplied");
+    append(metadata.grid_definition->Definition().grid_id);
+    append(metadata.grid_definition->Definition().grid_sha256);
+    profile(context.quality_rules);
+    optional_profile(context.scientific_profile);
+    optional_profile(context.scaling_profile);
+    profile(context.target_profile);
+    optional_hash(context.source_manifest_sha256);
+    optional_hash(context.cutoff_schedule_sha256);
+    append(context.product_time_allocation ? std::to_string(static_cast<int>(*context.product_time_allocation)) : "absent");
+    optional_profile(context.product_time_profile);
+    append(std::to_string(data.species.size()));
+    for (const auto species : data.species) append(FireSpeciesName(species));
+    append(std::to_string(data.component_ids.size()));
+    for (const auto& id : data.component_ids) {
+        append(id);
+        profile(data.component_profiles.at(id).biome);
+        profile(data.component_profiles.at(id).composition);
+    }
+    if (data.nox_reference_basis)
+        append(*data.nox_reference_basis == FireNoxReferenceBasis::NO ? "NO" : "NO2");
+    else
+        append("absent");
+    optional_profile(data.voc_profile);
+    append(data.particulate_overlap ? "present" : "absent");
+    if (data.particulate_overlap) {
+        profile(data.particulate_overlap->definition);
+        append(std::to_string(data.particulate_overlap->pool_definitions.size()));
+        for (const auto& [species, definition] : data.particulate_overlap->pool_definitions) {
+            append(FireSpeciesName(species));
+            append(definition);
+        }
+    }
+    append(std::to_string(data.accepted_source_sha256.size()));
+    const auto source_offset = key.size();
+    std::set<std::string_view> sources;
+    for (const auto& hash : data.accepted_source_sha256) {
+        append(hash);
+        sources.insert(hash);
+    }
+    // Validate the metadata bound before canonicalizing provenance order.
+    key.resize(source_offset);
+    for (const auto hash : sources) append(hash);
+    return FireContentSha256(key);
+}
+
+void FireIntervalProvider::ValidateForward(const FireIdentityMetadata& metadata) const {
+    if (checkpoint_.committed_end && metadata.interval_start < *checkpoint_.committed_end) {
+        throw std::invalid_argument(
+            "Fire interval already committed or overlaps committed output; use an explicit new run/revision for reprocessing");
+    }
+    if (checkpoint_.committed_cutoff && metadata.availability_cutoff < *checkpoint_.committed_cutoff) {
+        throw std::invalid_argument("Fire availability cutoff cannot move backward in a forward run");
+    }
+}
+
+void FireIntervalProvider::StagePrepared(std::size_t slot, FireBulkInventory inventory, const FireCacheContext& context, const std::string& path) {
+    Stage(slot, std::move(inventory), context, FireInputProvider::Prepared, path);
+}
+
+void FireIntervalProvider::StageCoupled(std::size_t slot, FireBulkInventory inventory, const FireCacheContext& context, std::string_view bytes) {
+    Stage(slot, std::move(inventory), context, FireInputProvider::Coupled, bytes);
+}
+
+void FireIntervalProvider::Stage(std::size_t index, FireBulkInventory inventory, const FireCacheContext& context, FireInputProvider source,
+                                 std::string_view content) {
+    auto& slot = slots_.at(index);
+    if (slot.status.state == FireIntervalState::Consumed) throw std::logic_error("Evict consumed fire slot before reuse");
+    const auto previous = slot.status;
+    slot.inventory.reset();
+    slot.status = {};
+    const auto& metadata = inventory.Data().identity.Metadata();
+    slot.status.interval_start = metadata.interval_start;
+    slot.status.interval_end = metadata.interval_end;
+    slot.status.availability_cutoff = metadata.availability_cutoff;
+    const auto reject = [&](const std::string& reason) {
+        slot.status.state = FireIntervalState::Rejected;
+        slot.status.rejection_reason = reason.substr(0, limits_.metadata_bytes_per_interval);
+    };
+    try {
+        if (source != provider_) throw std::invalid_argument("Fire input source does not match configured provider");
+        if (previous.state == FireIntervalState::Ready &&
+            (previous.interval_start != metadata.interval_start || previous.interval_end != metadata.interval_end)) {
+            throw std::invalid_argument("Cannot replace an unconsumed fire interval with different time support");
+        }
+        ValidateForward(metadata);
+        for (std::size_t other = 0; other < slots_.size(); ++other) {
+            const auto& status = slots_[other].status;
+            if (other != index && status.state == FireIntervalState::Ready && *status.interval_start < metadata.interval_end &&
+                metadata.interval_start < *status.interval_end) {
+                throw std::invalid_argument("Fire interval overlaps another ready slot");
+            }
+        }
+        slot.status.cache_identity = CacheIdentity(inventory, context);
+        const auto digest = source == FireInputProvider::Prepared ? FireFileSha256(std::string(content)) : FireContentSha256(content);
+        if (digest != metadata.content_sha256) throw std::runtime_error("Fire input content SHA256 mismatch");
+        slot.inventory.emplace(std::move(inventory));
+        slot.status.state = FireIntervalState::Ready;
+    } catch (const std::invalid_argument& error) {
+        reject(error.what());
+        throw;
+    } catch (const std::runtime_error& error) {
+        reject(error.what());
+        throw;
+    }
+}
+
+const FireBulkInventory& FireIntervalProvider::Ready(std::size_t slot) const {
+    const auto& entry = slots_.at(slot);
+    if (entry.status.state != FireIntervalState::Ready || !entry.inventory) throw std::logic_error("Fire interval is not ready");
+    return *entry.inventory;
+}
+
+const FireIntervalStatus& FireIntervalProvider::Status(std::size_t slot) const {
+    return slots_.at(slot).status;
+}
+
+void FireIntervalProvider::Consume(std::size_t index, std::string_view expected_cache_identity) {
+    auto& slot = slots_.at(index);
+    const auto& metadata = Ready(index).Data().identity.Metadata();
+    if (expected_cache_identity != slot.status.cache_identity) throw std::invalid_argument("Fire cache identity changed before commit");
+    ValidateForward(metadata);
+    for (std::size_t other = 0; other < slots_.size(); ++other) {
+        if (other != index && slots_[other].status.state == FireIntervalState::Ready &&
+            *slots_[other].status.interval_start < metadata.interval_start) {
+            throw std::invalid_argument("Consume earlier ready fire intervals before committing later output");
+        }
+    }
+    checkpoint_.committed_end = metadata.interval_end;
+    checkpoint_.committed_cutoff = metadata.availability_cutoff;
+    slot.inventory.reset();
+    slot.status.state = FireIntervalState::Consumed;
+}
+
+void FireIntervalProvider::Evict(std::size_t slot) {
+    auto& entry = slots_.at(slot);
+    if (entry.status.state == FireIntervalState::Ready) throw std::logic_error("Cannot evict unconsumed ready fire interval");
+    entry.inventory.reset();
+    entry.status = {};
+}
+
+std::size_t FireIntervalProvider::SlotCount() const {
+    return slots_.size();
+}
+
+FireProviderCheckpoint FireIntervalProvider::Checkpoint() const {
+    return checkpoint_;
+}
+
+std::int64_t FireIntervalOverlapSeconds(const FireUtcTime& first_start, const FireUtcTime& first_end, const FireUtcTime& second_start,
+                                        const FireUtcTime& second_end) {
+    if (first_end <= first_start || second_end <= second_start) {
+        throw std::invalid_argument("Fire overlap requires two positive half-open UTC intervals");
+    }
+    return std::max<std::int64_t>(0, std::min(first_end, second_end).EpochSeconds() - std::max(first_start, second_start).EpochSeconds());
+}
+
+FireAllocatedMass FireAllocateConservativeMass(const FireBulkInventory& inventory, std::shared_ptr<const FireGrid> target_grid,
+                                               const axis::solver::InterpolationMatrix<Kokkos::HostSpace>& matrix,
+                                               axis::solver::NormType normalization, const FireUtcTime& requested_start,
+                                               const FireUtcTime& requested_end) {
+    using axis::solver::NormType;
+    using Policy = Kokkos::RangePolicy<Kokkos::DefaultHostExecutionSpace, Kokkos::IndexType<std::size_t>>;
+    constexpr double relative_tolerance = 1e-6;
+    constexpr double absolute_tolerance = 1e-12;
+    const auto close = [&](double first, double second) {
+        return std::isfinite(first) && std::isfinite(second) &&
+               std::abs(first - second) <= absolute_tolerance + relative_tolerance * std::max(std::abs(first), std::abs(second));
+    };
+    const auto& data = inventory.Data();
+    const auto& metadata = data.identity.Metadata();
+    const auto overlap = FireIntervalOverlapSeconds(metadata.interval_start, metadata.interval_end, requested_start, requested_end);
+    if (!target_grid || matrix.n_src() != metadata.grid_definition->CellCount() || matrix.n_dst() != target_grid->CellCount() ||
+        (normalization != NormType::DstArea && normalization != NormType::FracArea)) {
+        throw std::invalid_argument("Fire conservative operator dimensions/normalization must match source and target grids");
+    }
+    const auto ns = matrix.n_src(), nt = matrix.n_dst();
+    const auto aa = matrix.area_a(), ab = matrix.area_b(), fa = matrix.frac_a(), fb = matrix.frac_b();
+    const auto weights = matrix.factor_list();
+    const auto rows = matrix.factor_row(), columns = matrix.factor_col();
+    if (aa.extent(0) != ns || fa.extent(0) != ns || ab.extent(0) != nt || fb.extent(0) != nt || rows.extent(0) != matrix.nnz() ||
+        columns.extent(0) != matrix.nnz()) {
+        throw std::invalid_argument("Fire conservative operator lacks complete areas, fractions or indices");
+    }
+    const auto& source_area = metadata.grid_definition->Definition().area_m2;
+    const auto& target_area = target_grid->Definition().area_m2;
+    if (!std::isfinite(aa[0]) || aa[0] <= 0) throw std::invalid_argument("Fire source operator area must be finite and positive");
+    const double area_scale = source_area[0] / aa[0];
+    if (!std::isfinite(area_scale) || area_scale <= 0) throw std::invalid_argument("Fire operator physical-area scale is invalid");
+    const auto validate_area = [&](auto areas, auto fractions, const std::vector<double>& physical) {
+        for (std::size_t i = 0; i < physical.size(); ++i) {
+            if (!std::isfinite(areas[i]) || areas[i] <= 0 || !std::isfinite(fractions[i]) || fractions[i] < 0 ||
+                fractions[i] > 1 + absolute_tolerance || !close(physical[i] / areas[i], area_scale)) {
+                throw std::invalid_argument("Fire conservative areas/fractions are invalid or inconsistent with physical grid areas");
+            }
+        }
+    };
+    validate_area(aa, fa, source_area);
+    validate_area(ab, fb, target_area);
+    std::vector<double> row_sum(nt, 0), covered_area(ns, 0);
+    for (std::size_t k = 0; k < matrix.nnz(); ++k) {
+        const auto row = rows[k], column = columns[k];
+        if (row < 0 || column < 0 || static_cast<std::size_t>(row) >= nt || static_cast<std::size_t>(column) >= ns || !std::isfinite(weights[k]) ||
+            weights[k] < 0) {
+            throw std::invalid_argument("Fire conservative operator requires valid indices and finite nonnegative first-order weights");
+        }
+        row_sum[row] += weights[k];
+        covered_area[column] += weights[k] * ab[row] * (normalization == NormType::FracArea ? fb[row] : 1);
+    }
+    for (std::size_t i = 0; i < ns; ++i) {
+        if (!close(covered_area[i] / aa[i], fa[i])) throw std::invalid_argument("Fire conservative operator violates source coverage budget");
+    }
+    for (std::size_t j = 0; j < nt; ++j) {
+        const double expected = normalization == NormType::DstArea ? fb[j] : (fb[j] > 0 ? 1 : 0);
+        if (!close(row_sum[j], expected)) throw std::invalid_argument("Fire conservative operator violates destination normalization/coverage");
+    }
+    const auto fields = data.component_ids.size() * data.species.size();
+    if (nt > std::numeric_limits<std::size_t>::max() / fields) {
+        throw std::invalid_argument("Fire target mass dimensions overflow");
+    }
+    FireAllocatedMass result{data.identity,
+                             target_grid,
+                             requested_start,
+                             requested_end,
+                             overlap,
+                             data.species,
+                             data.component_ids,
+                             data.component_profiles,
+                             std::vector<double>(fields * nt, 0),
+                             std::vector<double>(nt, 0),
+                             std::vector<FireQualityState>(nt, FireQualityState::Unavailable),
+                             {},
+                             {},
+                             data.accepted_source_sha256,
+                             data.nox_reference_basis,
+                             data.voc_profile,
+                             data.particulate_overlap,
+                             std::nullopt,
+                             std::nullopt,
+                             std::nullopt,
+                             std::nullopt};
+    const double mass_fraction = static_cast<double>(overlap) / data.identity.DurationSeconds();
+    const double time_coverage = static_cast<double>(overlap) / (requested_end.EpochSeconds() - requested_start.EpochSeconds());
+    std::vector<double> density(ns), destination_density(nt);
+    const auto apply = [&]() {
+        axis::solver::apply<Kokkos::HostSpace>(matrix, axis::field_view<const double, 1>(density.data(), ns),
+                                               axis::field_view<double, 1>(destination_density.data(), nt));
+    };
+    const auto allocate = [&](const double* source_values, double* target_values) {
+        auto* source_density = density.data();
+        const auto* physical_source_area = source_area.data();
+        const auto* physical_target_area = target_area.data();
+        const auto* target_density = destination_density.data();
+        Kokkos::parallel_for("fire::extensive_to_density", Policy(0, ns),
+                             [=](std::size_t i) { source_density[i] = source_values[i] * mass_fraction / physical_source_area[i]; });
+        Kokkos::fence("fire::source_density_ready");
+        apply();
+        Kokkos::parallel_for("fire::density_to_extensive", Policy(0, nt), [=](std::size_t j) {
+            target_values[j] = target_density[j] * physical_target_area[j] * (normalization == NormType::FracArea ? fb[j] : 1);
+        });
+        double input = 0, supported = 0, output = 0;
+        Kokkos::parallel_reduce("fire::input_budget", Policy(0, ns), [=](std::size_t i, double& sum) { sum += source_values[i]; }, input);
+        Kokkos::parallel_reduce(
+            "fire::supported_budget", Policy(0, ns), [=](std::size_t i, double& sum) { sum += source_values[i] * mass_fraction * fa[i]; }, supported);
+        Kokkos::parallel_reduce("fire::output_budget", Policy(0, nt), [=](std::size_t j, double& sum) { sum += target_values[j]; }, output);
+        if (!std::isfinite(input) || !close(supported, output)) {
+            throw std::runtime_error("Fire extensive quantity budget is nonfinite or fails conservative allocation tolerance");
+        }
+        return std::array<double, 3>{input, supported, output};
+    };
+    for (std::size_t s = 0; s < data.species.size(); ++s) {
+        result.species_budgets.push_back({data.species[s], std::nullopt, 0, 0, 0});
+    }
+    for (std::size_t component = 0; component < data.component_ids.size(); ++component) {
+        for (std::size_t s = 0; s < data.species.size(); ++s) {
+            const auto offset = (component * data.species.size() + s) * ns;
+            const auto target_offset = (component * data.species.size() + s) * nt;
+            const auto [input, supported, output] = allocate(data.mass_kg.data() + offset, result.mass_kg.data() + target_offset);
+            result.component_budgets.push_back({data.species[s], data.component_ids[component], input, supported, output});
+            auto& total = result.species_budgets[s];
+            total.input_kg += input;
+            total.supported_input_kg += supported;
+            total.output_kg += output;
+        }
+    }
+    for (const auto& budget : result.species_budgets) {
+        if (!std::isfinite(budget.input_kg) || !close(budget.supported_input_kg, budget.output_kg)) {
+            throw std::runtime_error("Fire species kg budget is nonfinite or fails conservation tolerance");
+        }
+        if (data.fre_mj) {
+            result.fre_mj.emplace(nt, 0);
+            const auto [input, supported, output] = allocate(data.fre_mj->data(), result.fre_mj->data());
+            result.fre_budget = FireEnergyBudgetMj{input, supported, output};
+        }
+        if (data.dry_matter_kg) {
+            result.dry_matter_kg.emplace(nt, 0);
+            const auto [input, supported, output] = allocate(data.dry_matter_kg->data(), result.dry_matter_kg->data());
+            result.dry_matter_budget = FireDryMatterBudgetKg{input, supported, output};
+        }
+    }
+    // Coverage is diagnostic support, not another multiplier on supported mass.
+    const auto* source_coverage = data.coverage_fraction.data();
+    auto* coverage_density = density.data();
+    Kokkos::parallel_for("fire::source_coverage", Policy(0, ns), [=](std::size_t i) { coverage_density[i] = source_coverage[i] * time_coverage; });
+    Kokkos::fence("fire::coverage_ready");
+    apply();
+    for (std::size_t j = 0; j < nt; ++j) {
+        const double coverage = destination_density[j] * (normalization == NormType::FracArea ? fb[j] : 1);
+        if (!std::isfinite(coverage) || coverage < 0 || coverage > 1 + relative_tolerance) {
+            throw std::runtime_error("Fire target coverage is invalid after conservative allocation");
+        }
+        result.coverage_fraction[j] = std::min(1.0, coverage);
+        if (coverage > 0) result.quality_state[j] = FireQualityState::ValidZero;
+    }
+    for (std::size_t k = 0; k < matrix.nnz(); ++k) {
+        const auto row = rows[k], column = columns[k];
+        if (result.coverage_fraction[row] <= 0 || weights[k] <= 0) continue;
+        const auto quality = data.quality_state[column];
+        auto& target_quality = result.quality_state[row];
+        if (quality == FireQualityState::Reconstructed)
+            target_quality = FireQualityState::Reconstructed;
+        else if (quality == FireQualityState::Observed && target_quality != FireQualityState::Reconstructed)
+            target_quality = FireQualityState::Observed;
+    }
+    return result;
 }
 
 }  // namespace cece

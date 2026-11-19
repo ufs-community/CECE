@@ -87,6 +87,9 @@ endif()
 
 include(FetchContent)
 
+# Fire input integrity uses the system cryptographic implementation, also offline.
+find_package(OpenSSL REQUIRED COMPONENTS Crypto)
+
 # Master switch for the FetchContent fallbacks. When OFF, every dependency must
 # resolve via find_package() and configure never reaches for the network.
 option(CECE_FETCH_DEPS "Allow FetchContent fallbacks when find_package() fails" ON)
@@ -548,6 +551,7 @@ else()
 endif()
 
 target_link_libraries(cece_core PUBLIC HELM::LOGS)
+target_link_libraries(cece_core PRIVATE OpenSSL::Crypto HELM::AXIS)
 
 if(netCDF_FOUND)
   target_link_libraries(cece_core PUBLIC netCDF::netcdf)
