@@ -24,9 +24,11 @@ from typing import Any
 try:
     from enum import StrEnum
 except ImportError:
+
     class StrEnum(str, Enum):
         __str__ = str.__str__
         __format__ = str.__format__
+
 
 # Support both package (relative) and direct-module import
 try:

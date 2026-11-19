@@ -32,8 +32,7 @@ namespace fs = std::filesystem;
 
 extern "C" {
 void cece_ingestor_set_field(void* data_ptr, const char* field_name, int name_len, const double* field_data, int n_lev, int n_elem, int* rc);
-void amio_set_parent_communicator(MPI_Fint comm);
-}
+}  // extern "C"
 
 namespace cece {
 
@@ -284,13 +283,14 @@ void CeceDriverOrchestrator::ResolveStreamConfigsFromFile(const std::string& con
     // robust (out_gridspec_file = "", out_configs left empty) so the existing
     // collective gates in AdvanceTime surface any downstream problem, matching
     // the legacy inline parse which simply found no matching variable.
-    conf::Config config = conf::Config::from_string("");
+    conf::Config config_conf = conf::Config::from_string("");
     try {
-        config = conf::Config::from_file(config_file);
+        config_conf = conf::Config::from_file(config_file);
     } catch (const conf::Conf_Error& e) {
         out_gridspec_file = "";
         return;
     }
+    conf::Value config = config_conf.root();
 
     // Driver-level values shared by every StreamConfig. Preserve the existing
     // constructor validation: a < 1 value is rejected with std::invalid_argument
@@ -299,7 +299,7 @@ void CeceDriverOrchestrator::ResolveStreamConfigsFromFile(const std::string& con
     int amio_staging_buffer_count = 8;
     int amio_staging_buffer_capacity_bytes = 33554432;  // 32 MiB per buffer
     int amio_prefetch_depth = 2;
-    conf::Value config_driver = config.at("driver");
+    conf::Value config_driver = config["driver"];
     if (config_driver) {
         if (config_driver["gridspec_file"]) {
             out_gridspec_file = config_driver["gridspec_file"].as_string();
@@ -331,13 +331,17 @@ void CeceDriverOrchestrator::ResolveStreamConfigsFromFile(const std::string& con
         }
     }
 
-    if (!config.has("cece_data") || !config.has("cece_data.streams")) {
+    conf::Value cece_data = config["cece_data"];
+    if (cece_data.kind() != conf::Node_Kind::Map) {
+        return;
+    }
+    conf::Value streams_list = config["cece_data"]["streams"];
+    if (streams_list.kind() != conf::Node_Kind::Sequence) {
         return;
     }
 
     // Filter EarthAccess streams before resolving local AMIO mappings.
     std::vector<conf::Value> local_streams;
-    conf::Value streams_list = config.at("cece_data.streams");
     for (std::size_t i = 0; i < streams_list.size(); ++i) {
         const auto& stream = streams_list[i];
         if (!stream["source"] || stream["source"].as_string() != "earthaccess") {
@@ -1937,8 +1941,6 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
 extern std::unique_ptr<cece::CeceStandaloneWriter> g_standalone_writer;
 
 extern "C" {
-void amio_set_parent_communicator(MPI_Fint comm);
-
 void cece_driver_create(const char* yaml_path, int path_len, int nx, int ny, int nz, const double* lon_coords, int lon_len, const double* lat_coords,
                         int lat_len, int mpi_comm_f, void** driver_ptr_out, int* rc) {
     if (rc) *rc = 0;

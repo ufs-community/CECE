@@ -420,7 +420,7 @@ List of physics schemes to instantiate and execute during the Run phase. Physics
 | ----------- | ----------- | -------------- |
 | `sea_salt` | Marine aerosol emissions | `r_sala_min`, `r_salc_max`, `sea_salt_density` |
 | `megan` | [Biogenic isoprene emissions](megan.md), with `megan21` (legacy alias `native`) and `hemco_3_12_1` methods | `megan_method`, `aef`, `hemco_co2_inhibition`, history settings |
-| `megan3` | [19-class C++ biogenic emissions and chemical speciation](megan.md#megan3-multi-species-multi-class); bulk runtime activity factors, not complete upstream MEGAN3 parity | `mechanism_file`, `speciation_file`, `emission_classes` |
+| `megan3` | [MEGAN3-class C++ biogenic emissions and chemical speciation](megan.md#megan3-multi-species-multi-class); bulk runtime activity factors, not complete upstream MEGAN3 parity | `mechanism_file`, `speciation_file`, `emission_classes` |
 | `bdsnp` | [Berkeley-Dalhousie Soil NOx Parameterization (BDSNP) or YL95 soil NO emissions](soil_nox.md) | `soil_no_method`, `use_soil_temperature` |
 | `dust` | Mineral dust emissions | `particle_density`, `tuning_factor` |
 | `lightning` | Lightning NOx production | `yield_land`, `yield_ocean` |
@@ -566,7 +566,7 @@ datasets:
 - `mechanism` key is required and must match the SPC file's `name`
 - `datasets` section is required; each key is a dataset name (e.g., `MEGAN`)
 - Each mechanism species entry maps emission class names to positive scale factors
-- Valid emission classes: `ISOP`, `MBO`, `MT_PINE`, `MT_ACYC`, `MT_CAMP`, `MT_SABI`, `MT_AROM`, `NO`, `SQT_HR`, `SQT_LR`, `MEOH`, `ACTO`, `ETOH`, `ACID`, `LVOC`, `OXPROD`, `STRESS`, `OTHER`, `CO`
+- Valid emission classes: `ISOP`, `MBO`, `MT_PINE`, `MT_ACYC`, `MT_CAMP`, `MT_SABI`, `MT_AROM`, `NO`, `SQT_HR`, `SQT_LR`, `MEOH`, `ACTO`, `ETOH`, `ACID`, `LVOC`, `OXPROD`, `STRESS`, `OTHER`, `CO`, and the explicit MEGANv2.1 compound classes `APIN`, `BPIN`, `SABI`, `CARE`, `LIMO`, `MYRC`, `OCIM`, `OMON`, `FARN`
 - All mechanism species referenced in the MAP must exist in the SPC file
 
 ### Using SPC/MAP with MEGAN3
@@ -636,7 +636,7 @@ output[TERP] = (class_total[MT_PINE] × 0.5 + class_total[MT_ACYC] × 0.3 + ...)
 ### Adding a Custom Mechanism
 
 1. Create an SPC file with your mechanism species and molecular weights (kg/mol)
-2. Create a MAP file with a `MEGAN` dataset mapping the 19 emission classes to your species
+2. Create a MAP file with a `MEGAN` dataset mapping MEGAN3 emission classes to your species
 3. Set `mechanism_file` and `speciation_file` in the MEGAN3 config to your file paths
 
 ---

@@ -11,14 +11,14 @@
  * consequence is that two variables reading the same file/manifest share one
  * open handle set and one record count even when they request a different
  * mapalgo, but they still get separate regrid plans. HandleKey tracks every
- * field BuildManifestContent consumes (with the AMIO lazy-allocation fix that
- * is input_file_path + data_model + worker_threads + staging_buffer_count +
- * staging_buffer_capacity_bytes + prefetch_depth).
+ * field BuildManifestContent consumes:
+ * input_file_path + data_model + kind + format + worker_threads + staging_buffer_count +
+ * staging_buffer_capacity_bytes + prefetch_depth.
  *
  * Properties tested:
  *   1. Vary ONLY mapalgo: HandleKey is shared (-> shared handle + record count)
  *      but StreamKey differs (-> separate plans).
- *   2. Vary a manifest field (input_file_path / data_model /
+ *   2. Vary a manifest field (input_file_path / data_model / kind / format /
  *      amio_worker_threads / amio_staging_buffer_count /
  *      amio_staging_buffer_capacity_bytes / amio_prefetch_depth) so the
  *      manifest tuple differs: BOTH HandleKey and StreamKey differ.
@@ -34,6 +34,7 @@
 #include <string>
 
 #include "cece/cece_driver_facade.hpp"
+#include "stream_config_generator.hpp"
 
 namespace cece {
 
@@ -62,43 +63,6 @@ struct StreamKeyExtendsAccess {
         return CeceDriverOrchestrator::StreamKey(cfg);
     }
 };
-
-namespace {
-
-// Generate an arbitrary StreamConfig. Every field is populated with arbitrary
-// (but constrained-to-sane) values so the tests exercise the key derivation
-// against noise in the non-key fields. The manifest-relevant fields
-// (input_file_path, data_model, amio_worker_threads, amio_staging_buffer_count,
-// amio_staging_buffer_capacity_bytes, amio_prefetch_depth) and mapalgo are
-// drawn from a broad space to stress the concatenation formulas. Mirrors the
-// generator in tests/test_stream_key_properties.cpp.
-rc::Gen<StreamConfig> genStreamConfig() {
-    return rc::gen::apply(
-        [](std::string input_file_path, std::string input_var_name, std::string kind, std::string format, std::string mapalgo, std::string cadence,
-           std::string tintalgo, std::string data_model, bool data_model_explicit, int amio_worker_threads, int amio_staging_buffer_count,
-           int amio_staging_buffer_capacity_bytes, int amio_prefetch_depth) {
-            StreamConfig cfg;
-            cfg.input_file_path = std::move(input_file_path);
-            cfg.input_var_name = std::move(input_var_name);
-            cfg.kind = std::move(kind);
-            cfg.format = std::move(format);
-            cfg.mapalgo = std::move(mapalgo);
-            cfg.cadence = std::move(cadence);
-            cfg.tintalgo = std::move(tintalgo);
-            cfg.data_model = std::move(data_model);
-            cfg.data_model_explicit = data_model_explicit;
-            cfg.amio_worker_threads = amio_worker_threads;
-            cfg.amio_staging_buffer_count = amio_staging_buffer_count;
-            cfg.amio_staging_buffer_capacity_bytes = amio_staging_buffer_capacity_bytes;
-            cfg.amio_prefetch_depth = amio_prefetch_depth;
-            return cfg;
-        },
-        rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(),
-        rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(),
-        rc::gen::arbitrary<bool>(), rc::gen::inRange(1, 65), rc::gen::inRange(1, 65), rc::gen::inRange(1, 65), rc::gen::inRange(1, 65));
-}
-
-}  // namespace
 
 // ============================================================================
 // Property 5a: Vary ONLY mapalgo -> shared HandleKey, distinct StreamKey.
@@ -139,7 +103,7 @@ RC_GTEST_PROP(StreamKeyExtends, Property5_MapalgoOnlySharesHandleSplitsStream, (
 // (shared-handle, split-plan)
 // **Validates: Requirements 11.6**
 //
-// When the manifest tuple (input_file_path, data_model, amio_worker_threads,
+// When the manifest tuple (input_file_path, data_model, kind, format, amio_worker_threads,
 // amio_staging_buffer_count, amio_staging_buffer_capacity_bytes,
 // amio_prefetch_depth) differs, both the coarser HandleKey and the finer
 // StreamKey differ. The "|" separator ban on the string manifest fields keeps
@@ -153,7 +117,7 @@ RC_GTEST_PROP(StreamKeyExtends, Property5_ManifestFieldDiffersBothKeysDiffer, ()
     // manifest tuple, not mapalgo.
     b.mapalgo = a.mapalgo;
 
-    // Ban the reserved separator from the string manifest fields and mapalgo so
+    // Ban the reserved separator from the string manifest fields so
     // the eight-field HandleKey concatenation is injective on the tuple.
     RC_PRE(a.input_file_path.find('|') == std::string::npos);
     RC_PRE(a.data_model.find('|') == std::string::npos);
@@ -165,8 +129,8 @@ RC_GTEST_PROP(StreamKeyExtends, Property5_ManifestFieldDiffersBothKeysDiffer, ()
     RC_PRE(b.format.find('|') == std::string::npos);
 
     // Only meaningful when the manifest tuple actually differs in some field.
-    RC_PRE(a.input_file_path != b.input_file_path || a.data_model != b.data_model || a.amio_worker_threads != b.amio_worker_threads ||
-           a.amio_staging_buffer_count != b.amio_staging_buffer_count ||
+    RC_PRE(a.input_file_path != b.input_file_path || a.data_model != b.data_model || a.kind != b.kind || a.format != b.format ||
+           a.amio_worker_threads != b.amio_worker_threads || a.amio_staging_buffer_count != b.amio_staging_buffer_count ||
            a.amio_staging_buffer_capacity_bytes != b.amio_staging_buffer_capacity_bytes || a.amio_prefetch_depth != b.amio_prefetch_depth);
 
     // Manifest tuple differs -> HandleKey differs (separate handle + count).
@@ -174,6 +138,23 @@ RC_GTEST_PROP(StreamKeyExtends, Property5_ManifestFieldDiffersBothKeysDiffer, ()
 
     // ... and therefore StreamKey (HandleKey + "|" + mapalgo) differs too.
     RC_ASSERT(StreamKeyExtendsAccess::SKey(a) != StreamKeyExtendsAccess::SKey(b));
+}
+
+TEST(StreamKeyExtends, KindOrFormatAloneChangesBothKeys) {
+    StreamConfig point;
+    point.input_file_path = "emissions.nc";
+    point.kind = "point";
+    point.format = "point_nc";
+
+    StreamConfig other_kind = point;
+    other_kind.kind = "grid";
+    EXPECT_NE(StreamKeyExtendsAccess::HKey(point), StreamKeyExtendsAccess::HKey(other_kind));
+    EXPECT_NE(StreamKeyExtendsAccess::SKey(point), StreamKeyExtendsAccess::SKey(other_kind));
+
+    StreamConfig other_format = point;
+    other_format.format = "volcano_rc";
+    EXPECT_NE(StreamKeyExtendsAccess::HKey(point), StreamKeyExtendsAccess::HKey(other_format));
+    EXPECT_NE(StreamKeyExtendsAccess::SKey(point), StreamKeyExtendsAccess::SKey(other_format));
 }
 
 // ============================================================================
