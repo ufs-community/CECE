@@ -22,8 +22,14 @@
 #include <utility>
 #include <vector>
 
+#include "cece/cece_c_api.h"
+#include "cece/cece_config.hpp"
 #include "cece/cece_fatal.hpp"
 #include "cece/cece_simulation.hpp"
+
+extern "C" {
+void cece_core_initialize_p1(void** data_ptr_ptr, int* rc);
+}
 
 namespace {
 
@@ -171,6 +177,9 @@ void cece_sim_create_from_yaml(const char* config_path, int path_len, int mpi_co
         set_out(rc, -1);
         return;
     }
+    // TODO: Work out how to call GridSpecFfrom_yaml with output from this function
+    cece_core_initialize_p1(nullptr, rc);
+    // cece::CeceConfig config = cece::ParseConfig(config_path);
 
     // Standalone (no parent grid) branch: resolve the grid from YAML with the
     // exact same code the C++ driver runs, then build the simulation on it.

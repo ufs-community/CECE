@@ -69,7 +69,7 @@ species:
 cece_data:
   streams:
     - name: "MACCITY_CO"
-      file: "/work/data/MACCity_4x5.nc"
+      file: "data/MACCity_4x5.nc"
       cadence: "monthly"
       yearAlign: 2020 # Simulation year 2020 aligns to the first file year
       taxmode: "cycle" # Reuse the file's coverage outside its range
@@ -79,7 +79,7 @@ cece_data:
         - file: "MACCity"
           model: "MACCITY_CO"
     - name: "EMEP_CO"
-      file: "/work/data/EMEP.2000.co.nc"
+      file: "data/EMEP.2000.co.nc"
       cadence: "monthly"
       yearAlign: 2020
       taxmode: "cycle"
@@ -89,7 +89,7 @@ cece_data:
         - file: "MACCity"
           model: "EMEP_CO"
     - name: "MASK_EUROPE"
-      file: "/work/data/Canada_mask.gen.1x1.nc"
+      file: "data/Canada_mask.gen.1x1.nc"
       # Static single-record mask: no temporal keys are needed, the driver
       # always resolves to record 0.
       mapalgo: "consd"

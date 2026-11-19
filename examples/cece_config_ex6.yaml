@@ -34,7 +34,7 @@ species:
 cece_data:
   streams:
     - name: "EDGAR_NO_POW"
-      file: "/work/data/EDGAR_v43.NOx.POW.nc"
+      file: "/work/data/EDGAR_v43.NOx.POW.0.1x0.1.nc"
       cadence: "monthly"
       yearAlign: 2020 # Simulation year 2020 aligns to the first file year
       taxmode: "cycle"

@@ -6,6 +6,7 @@ set -e
 
 mkdir -p examples
 mkdir -p scripts/data_download
+script_dir=$(dirname $0)
 
 # Helper to generate download script for an example
 generate_download_script() {
@@ -14,10 +15,11 @@ generate_download_script() {
     shift
     cat <<EOF > "$script_file"
 #!/bin/bash
+set -euo pipefail
 mkdir -p data
 EOF
     for path in "$@"; do
-        echo "./scripts/download_hemco_data.py $path -o data/\$(basename $path)" >> "$script_file"
+        echo "${script_dir}/download_hemco_data.py $path -o data/\$(basename $path)" >> "$script_file"
     done
     chmod +x "$script_file"
 }
@@ -183,10 +185,10 @@ species:
 cece_data:
   streams:
     - name: "EDGAR_NO_POW"
-      file: "data/EDGAR_v43.NOx.POW.nc"
+      file: "data/EDGAR_v43.NOx.POW.0.1x0.1.nc"
     - name: "CEDS_NO_AGR"
       file: "data/ALK4_butanes-em-total-anthro_CEDS_1970.nc"
 EOF
-generate_download_script 6 "HEMCO/EDGARv43/v2014-10/EDGAR_v43.NOx.POW.nc" "HEMCO/CEDS/v2020-08/1970/ALK4_butanes-em-total-anthro_CEDS_1970.nc"
+generate_download_script 6 "HEMCO/EDGARv43/v2016-11/EDGAR_v43.NOx.POW.0.1x0.1.nc" "HEMCO/CEDS/v2020-08/1970/ALK4_butanes-em-total-anthro_CEDS_1970.nc"
 
 echo "All 6 CECE example configurations created in the 'examples/' directory."
