@@ -485,7 +485,7 @@ PYBIND11_MODULE(_cece_core, m) {
     // --- Execution Space Bindings ---
 
     m.def(
-        "get_default_execution_space_name", []() { return cece::GetDefaultExecutionSpaceName(); },
+        "get_default_execution_space_name", []() { return Kokkos::DefaultExecutionSpace::name(); },
         "Get the name of the default Kokkos execution space.");
 
     m.def(
