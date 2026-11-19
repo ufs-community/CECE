@@ -20,8 +20,11 @@
 #include <iostream>
 #include <stdexcept>
 
+#include "cece/cece_logger.hpp"
 #include "cece/cece_physics_factory.hpp"
 #include "cece/physics/cece_bdsnp_fortran.hpp"
+
+using namespace std::literals::string_literals;
 
 extern "C" {
 /**
@@ -62,11 +65,11 @@ void BdsnpFortranScheme::Initialize(const conf::Value& config, CeceDiagnosticMan
         soil_no_method_ = config["soil_no_method"].as_string();
     }
     if (soil_no_method_ != "bdsnp" && soil_no_method_ != "yl95") {
-        std::cout << "BdsnpFortranScheme: WARNING - Unknown soil_no_method '" << soil_no_method_ << "', falling back to 'bdsnp'\n";
+        CECE_LOG_WARNING("BdsnpFortranScheme: WARNING - Unknown soil_no_method '"s + soil_no_method_ + "', falling back to 'bdsnp'\n"s);
         soil_no_method_ = "bdsnp";
     }
 
-    std::cout << "BdsnpFortranScheme: Initialized with soil_no_method='" << soil_no_method_ << "'\n";
+    CECE_LOG_INFO("BdsnpFortranScheme: Initialized with soil_no_method='"s + soil_no_method_ + "'\n"s);
 }
 
 // ============================================================================
