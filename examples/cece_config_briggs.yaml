@@ -1,0 +1,34 @@
+# Self-contained column test configuration, consumed by test_briggs.
+# The normal CECE driver needs these fields bound by a meteorology provider;
+# it does not ingest the options.column_test fixture block.
+physics_schemes:
+  - name: plume_rise
+    language: cpp
+    options:
+      method: briggs
+      input_mapping:
+        layer_surface_height: ZF
+        layer_center_height: ZH
+        pressure: PRES
+        temperature: TA
+        water_vapor_mixing_ratio: QV
+        eastward_wind: UW
+        northward_wind: VW
+      output_mapping:
+        plume_centerline_height: plume_height
+        plume_fractions: plume_fraction
+      column_test:
+        profile: tests/data/briggs/input_profile.txt # Relative to repository root
+        nx: 2
+        ny: 2
+        nz: 35
+        surface_inputs:
+          sensible_heat_flux: 25.0 # Upstream numeric HFX, passed without conversion
+          mixing_height: 500.0 # m above ground
+          friction_velocity: 0.2 # m/s
+          surface_temperature: 291.0 # K
+          surface_pressure: 980.0 # hPa
+          stack_diameter: 7.0 # m
+          stack_height: 181.0 # m above ground
+          stack_temperature: 348.0 # K
+          stack_velocity: 27.0 # m/s
