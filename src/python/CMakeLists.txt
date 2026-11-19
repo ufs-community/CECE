@@ -51,7 +51,15 @@ file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/cece")
 
 # Copy Python source files to build directory (excluding old binding files)
 file(
-  COPY __init__.py config.py state.py exceptions.py utils.py py.typed
+  COPY
+    __init__.py
+    config.py
+    state.py
+    exceptions.py
+    utils.py
+    py.typed
+    earthaccess_resolver.py
+    stream_bridge.py
   DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/cece"
 )
 
@@ -63,7 +71,7 @@ file(
 setup(
     name='cece',
     version='0.1.0',
-    description='Python interface to CECE (Atmospheric Chemistry Emissions System)',
+    description='Python interface to CECE (Community Emissions Computing Engine)',
     author='CECE Development Team',
     packages=find_packages(),
     package_data={

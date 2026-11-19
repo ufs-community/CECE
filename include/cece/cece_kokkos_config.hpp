@@ -71,8 +71,11 @@
 #define CECE_KOKKOS_CONFIG_HPP
 
 #include <Kokkos_Core.hpp>
+#include <cstdlib>
 #include <iostream>
 #include <string>
+
+#include "cece/cece_logger.hpp"
 
 namespace cece {
 
@@ -170,9 +173,13 @@ inline int GetOpenMPThreadCount() {
 #ifdef KOKKOS_ENABLE_OPENMP
     const char* num_threads = std::getenv("OMP_NUM_THREADS");
     if (num_threads != nullptr) {
-        int threads = std::atoi(num_threads);
-        if (threads > 0) {
-            return threads;
+        try {
+            int threads = std::stoi(num_threads);
+            if (threads > 0) {
+                return threads;
+            }
+        } catch (const std::exception& e) {
+            CECE_LOG_WARNING("OMP_NUM_THREADS not numeric");
         }
     }
     return Kokkos::OpenMP().concurrency();

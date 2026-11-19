@@ -920,7 +920,7 @@ if(Python3_Interpreter_FOUND)
       COMMAND ${VENV_PYTHON} -m pytest ${CMAKE_CURRENT_SOURCE_DIR}/${script} ${ARGN}
       WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
     )
-    set_tests_properties(${name} PROPERTIES FIXTURES_REQUIRED "python_deps_installed")
+    set_tests_properties(${name} PROPERTIES FIXTURES_REQUIRED "python_deps_installed" LABELS python)
     if(pythonpath)
       set_tests_properties(${name} PROPERTIES ENVIRONMENT "PYTHONPATH=${pythonpath}")
     endif()
