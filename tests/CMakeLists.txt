@@ -128,6 +128,12 @@ target_link_libraries(cece_test_main_kokkos PUBLIC cece_test_support)
 
 set(RAPIDCHECK rapidcheck rapidcheck_gtest)
 
+# --- Fire fixture infrastructure (not production science certification) -------
+cece_add_gtest(test_fire_config LINK yaml-cpp::yaml-cpp SOURCE_DIR_DEFINE)
+cece_add_gtest(test_fire_science LINK yaml-cpp::yaml-cpp SOURCE_DIR_DEFINE)
+cece_add_gtest(test_fire_speciation LINK yaml-cpp::yaml-cpp SOURCE_DIR_DEFINE)
+cece_add_gtest(test_fire_runtime MAIN KOKKOS)
+
 # --- Driver / configuration --------------------------------------------------
 cece_add_gtest(test_driver_configuration)
 # NUOPC field-coupling config section (`nuopc:`) parsing and the path-based

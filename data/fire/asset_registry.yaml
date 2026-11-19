@@ -1,0 +1,138 @@
+schema_version: 1
+production_support: false
+policy:
+  activation: >-
+    Production assets require immutable version, SHA256, documented redistribution
+    rights, applicability and independent scientific verification before activation.
+    A public URL is not verification or permission to redistribute.
+  missing_assets: Fail explicitly; never substitute synthetic data or MEGAN factors.
+  references: Relative asset paths resolve against this registry.
+  synthetic: >-
+    Synthetic fixtures are test-only, with independent arithmetic expectations.
+    They do not certify NOAA adapters, algorithms or chemistry targets.
+assets:
+  - asset_id: synthetic-constant-power-v1
+    category: synthetic_fixture
+    kind: synthetic
+    status: test_only
+    production_use: false
+    version: "1"
+    local_path: ../../tests/data/fire/synthetic_interval.yaml
+    reference: cece:synthetic-constant-power-v1
+    content_sha256: 82b4bc14949e9dbe11e55a6040f18b0acab9d8e7cca60cf78ed9607ba5eaa460
+    redistribution:
+      permitted: true
+      basis: Original CECE synthetic test data; Apache-2.0.
+    verification: Hand-derived energy, eleven species masses/fluxes and artificial mass split in fixture.
+  - asset_id: gbbepx-product-reference
+    category: product
+    kind: scientific_reference
+    status: blocked
+    reference: https://www.ospo.noaa.gov/products/land/gbbepx/
+    version: null
+    content_sha256: null
+    redistribution: {permitted: null, basis: Not yet verified for representative granule.}
+    blocker: Need actual granule, variable/unit/calendar/QA/version/variant metadata and independent totals.
+  - asset_id: rave-product-reference
+    category: product
+    kind: scientific_reference
+    status: blocked
+    reference: https://zenodo.org/records/17362980
+    version: "dataset V2.0; granule revision unverified"
+    content_sha256: null
+    redistribution: {permitted: null, basis: Verify dataset license and selected granule rights.}
+    blocker: Need representative hourly granule, algorithm/scaling identity and independent totals.
+  - asset_id: abi-sensor-reference
+    category: sensor
+    kind: scientific_reference
+    status: blocked
+    reference: https://www.ospo.noaa.gov/resources/documents/pdf/RAVE_ATBD.pdf
+    version: null
+    content_sha256: null
+    redistribution: {permitted: null, basis: Granule and reference-scene rights not yet verified.}
+    blocker: Need ABI FRP with footprints, parallax, viewing angle, QA, cloud and acquisition/availability metadata.
+  - asset_id: viirs-375m-sensor-reference
+    category: sensor
+    kind: scientific_reference
+    status: blocked
+    reference: https://www.ospo.noaa.gov/resources/documents/pdf/RAVE_ATBD.pdf
+    version: null
+    content_sha256: null
+    redistribution: {permitted: null, basis: Granule and reference-scene rights not yet verified.}
+    blocker: Need JPSS VIIRS 375 m FRP with geometry, coverage, QA and acquisition/availability metadata.
+  - asset_id: rave-atbd-2.1-unscaled
+    category: algorithm
+    kind: scientific_reference
+    status: blocked
+    reference: https://www.ospo.noaa.gov/resources/documents/pdf/RAVE_ATBD.pdf
+    version: "ATBD 2.1; not EUM 2.2 or dataset V2.0"
+    content_sha256: null
+    redistribution: {permitted: null, basis: Document and derived-table redistribution not yet verified.}
+    blocker: >-
+      Pin document; independently verify full eleven-species factors, combustion,
+      quality/cloud/overlap corrections, geographic applicability and approved
+      reference tolerances. Undocumented polar rules remain unsupported.
+  - asset_id: rave-ancillary-reference
+    category: ancillary
+    kind: scientific_reference
+    status: blocked
+    reference: https://www.ospo.noaa.gov/resources/documents/pdf/RAVE_ATBD.pdf
+    version: null
+    content_sha256: null
+    redistribution: {permitted: null, basis: Matching ancillary package rights not yet verified.}
+    blocker: >-
+      Need compatible land-cover/ecoregion maps, diurnal cycles and local-solar-time
+      basis, analysis-grid geometry and retrospective gap/age rules. No causal
+      profile is certified by the retrospective baseline.
+  - asset_id: fire-AM4
+    category: target
+    target_id: AM4
+    kind: scientific_reference
+    status: blocked
+    reference: null
+    version: null
+    content_sha256: null
+    redistribution: {permitted: null, basis: Authoritative fire target assets not yet obtained.}
+    blocker: Exact target species, fire VOC composition, NOx mass/partition and aerosol budgets required.
+  - asset_id: fire-CB6
+    category: target
+    target_id: CB6
+    kind: scientific_reference
+    status: blocked
+    reference: null
+    version: null
+    content_sha256: null
+    redistribution: {permitted: null, basis: Authoritative fire target assets not yet obtained.}
+    blocker: Exact revision, independently verified fire factors, NOx/VOC basis and aerosol conventions required.
+  - asset_id: fire-CRACMM2
+    category: target
+    target_id: CRACMM2
+    kind: scientific_reference
+    status: blocked
+    reference: null
+    version: null
+    content_sha256: null
+    redistribution: {permitted: null, basis: Authoritative fire target assets not yet obtained.}
+    blocker: Verify exact species revision and fire factors; existing MEGAN mapping is not a fire profile.
+  - asset_id: fire-RACM2
+    category: target
+    target_id: RACM2
+    kind: scientific_reference
+    status: blocked
+    reference: null
+    version: null
+    content_sha256: null
+    redistribution: {permitted: null, basis: Authoritative fire target assets not yet obtained.}
+    blocker: Exact fire composition, conversion bases and independent budgets required.
+  - asset_id: fire-GOCART2G
+    category: target
+    target_id: GOCART2G
+    kind: scientific_reference
+    status: blocked
+    reference: null
+    version: null
+    content_sha256: null
+    redistribution: {permitted: null, basis: Authoritative fire target assets not yet obtained.}
+    blocker: >-
+      Need fire aerosol species, OC/OM, bins/modes and number conversions plus
+      explicit gas dispositions. Existing GOCART maps and GOCART2G dust are not substitutes.

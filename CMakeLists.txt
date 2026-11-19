@@ -453,6 +453,7 @@ set(
   CECE_CORE_SRCS
   src/core/cece_band_decomposition.cpp
   src/core/cece_clock.cpp
+  src/core/cece_fire_input.cpp
   src/core/cece_config_parser.cpp
   src/core/cece_compute.cpp
   src/core/cece_local_time.cpp

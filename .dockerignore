@@ -23,6 +23,7 @@ __pycache__/
 .venv*/
 venv*/
 *.egg-info/
+.env*
 
 # Generated / large runtime artifacts
 *.nc

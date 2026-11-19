@@ -34,6 +34,9 @@ dist/
 venv*/
 .venv*/
 
+# Local environment credentials
+.env*
+
 # Local Poetry dependency resolution
 /poetry.lock
 
