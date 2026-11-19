@@ -2,10 +2,11 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include <Kokkos_Core.hpp>
+
 #include "cece/cece_compute.hpp"
 #include "cece/cece_config.hpp"
 #include "cece/cece_config_validator.hpp"
-#include "cece/cece_kokkos_config.hpp"
 #include "cece/cece_logger.hpp"
 #include "cece/cece_stacking_engine.hpp"
 #include "cece/cece_state.hpp"

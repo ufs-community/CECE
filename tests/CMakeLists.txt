@@ -174,8 +174,6 @@ cece_add_gtest(test_ingest_setfield_bypass)
 cece_add_gtest(test_ingest_copyback_neutralized)
 cece_add_gtest(test_hemco_parity)
 
-# Kokkos Configuration Tests (Requirement 6.13-6.18, 6.21)
-cece_add_gtest(test_kokkos_configuration MAIN KOKKOS)
 # Comprehensive Property-Based Test Suite (Task 11.1)
 cece_add_gtest(test_properties MAIN KOKKOS)
 # Test Suite Idempotence (Requirement 8.16)
