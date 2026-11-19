@@ -1201,7 +1201,7 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
 
         // Short-circuit point streams here because they do not use AMIO-described grids
         if (cfg.kind == "point") {
-            CECE_LOG_WARNING("[DRIVER] Stream kind 'point' is not implemented yet and is being ignored for variable '" + var_name + "'.");
+            CECE_LOG_ERROR("[DRIVER FATAL] Stream kind 'point' is not implemented yet and is being ignored for variable '" + var_name + "'.");
             continue;
         }
 

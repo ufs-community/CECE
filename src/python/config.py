@@ -18,7 +18,15 @@ import math
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum, unique
 from typing import Any
+
+try:
+    from enum import StrEnum
+except ImportError:
+    class StrEnum(str, Enum):
+        __str__ = str.__str__
+        __format__ = str.__format__
 
 # Support both package (relative) and direct-module import
 try:
@@ -549,6 +557,12 @@ class DataVariableConfig:
         return result
 
 
+@unique
+class DataStreamKind(StrEnum):
+    GRID = "grid"
+    POINT = "point"
+
+
 _STREAM_ENUM_VALUES = {
     "taxmode": {"cycle", "extend", "limit"},
     "tintalgo": {"linear", "nearest"},
@@ -682,8 +696,10 @@ class DataStreamConfig:
             variable.validate()
 
         _validate_string(self.kind, "stream kind")
-        if self.kind not in ("grid", "point"):
-            raise ValueError(f"Invalid kind: {self.kind}")
+        try:
+            DataStreamKind(self.kind)
+        except ValueError:
+            raise ValueError(f"Invalid kind: {self.kind}") from None
 
         _validate_string(self.format, "stream format", allow_empty=True)
         self._validate_point_stream()

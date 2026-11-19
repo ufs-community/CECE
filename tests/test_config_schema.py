@@ -549,6 +549,18 @@ def test_point_stream_valid():
     assert stream.mapalgo == ""
 
 
+def test_stream_rejects_invalid_kind():
+    stream = config.DataStreamConfig(
+        name="stream",
+        file_paths=["stream.nc"],
+        variables=[config.DataVariableConfig(file="field", model="field")],
+        kind="raster",
+    )
+
+    with pytest.raises(ValueError, match="Invalid kind: raster"):
+        stream.validate()
+
+
 def test_point_stream_rejects_invalid_format():
     with pytest.raises(ValueError, match="Invalid format for point stream: bad_format"):
         config.CeceConfig.from_dict({
