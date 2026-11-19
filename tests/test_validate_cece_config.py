@@ -11,6 +11,41 @@ sys.modules[SPEC.name] = validator
 SPEC.loader.exec_module(validator)
 
 
+def test_fire_options_are_checked_before_the_cli_registration_gate(tmp_path, capsys):
+    import yaml
+
+    fixture = yaml.safe_load(
+        (Path(__file__).parent / "data/fire/config_cases.yaml").read_text()
+    )
+    path = tmp_path / "fire.yaml"
+    options = dict(fixture["base_options"], product_time_allocation="invalid")
+    path.write_text(
+        yaml.safe_dump({"physics_schemes": [{"name": "fire", "options": options}]})
+    )
+    assert validator.main([str(path)]) == 1
+    assert "product_time_allocation" in capsys.readouterr().err
+
+
+def test_valid_fire_options_do_not_imply_a_registered_runtime_scheme(tmp_path, capsys):
+    import yaml
+
+    fixture = yaml.safe_load(
+        (Path(__file__).parent / "data/fire/config_cases.yaml").read_text()
+    )
+    path = tmp_path / "fire.yaml"
+    path.write_text(
+        yaml.safe_dump({
+            "physics_schemes": [{"name": "fire", "options": fixture["base_options"]}]
+        })
+    )
+    result = validator.main([str(path)])
+    if "fire" in validator.discover_registered_schemes():
+        assert result == 0
+    else:
+        assert result == 1
+        assert "unregistered physics scheme 'fire'" in capsys.readouterr().err
+
+
 def test_indented_yaml_fence_is_dedented_and_keeps_its_source_line(tmp_path, capsys):
     markdown = tmp_path / "guide.md"
     markdown.write_text(

@@ -1,12 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 #include <gtest/gtest.h>
+#include <unistd.h>
 #include <yaml-cpp/yaml.h>
 
+#include <filesystem>
+#include <fstream>
 #include <limits>
 #include <set>
 #include <string>
 
+#include "cece/cece_config.hpp"
+#include "cece/cece_config_validator.hpp"
 #include "cece/cece_fire_input.hpp"
+#include "conf/config.hpp"
 
 namespace {
 cece::FireGridDefinition MakeGridDefinition() {
@@ -59,6 +65,117 @@ cece::FireBulkInventoryData MakeInventoryData() {
             std::nullopt};
 }
 }  // namespace
+
+TEST(test_fire_config, SharedNativeConfigurationCases) {
+    const auto fixtures = YAML::LoadFile(std::string(CECE_SOURCE_DIR) + "/tests/data/fire/config_cases.yaml");
+    for (const auto& test : fixtures["cases"]) {
+        SCOPED_TRACE(test["id"].as<std::string>());
+        auto options = YAML::Clone(fixtures["base_options"]);
+        if (test["set"]) {
+            for (const auto& entry : test["set"]) options[entry.first.as<std::string>()] = entry.second;
+        }
+        if (test["unset"]) {
+            for (const auto& key : test["unset"]) options.remove(key.as<std::string>());
+        }
+        YAML::Node root;
+        root["physics_schemes"][0]["name"] = "fire";
+        root["physics_schemes"][0]["options"] = options;
+        if (test["duplicate_fire"]) root["physics_schemes"].push_back(YAML::Clone(root["physics_schemes"][0]));
+        const auto document = conf::Config::from_string(YAML::Dump(root));
+        const auto validation = cece::ConfigValidator::ValidateConfig(document.root());
+        std::vector<std::string> fire_errors;
+        for (const auto& error : validation.errors) {
+            if (error.field.starts_with("physics_schemes[")) fire_errors.push_back(error.message);
+        }
+        EXPECT_EQ(fire_errors.empty(), test["valid"].as<bool>());
+        if (!test["valid"].as<bool>()) {
+            ASSERT_FALSE(fire_errors.empty());
+            EXPECT_NE(fire_errors.front().find(test["error"].as<std::string>()), std::string::npos) << fire_errors.front();
+        }
+        char path[] = "/tmp/cece-fire-config-XXXXXX";
+        const int descriptor = mkstemp(path);
+        ASSERT_GE(descriptor, 0);
+        close(descriptor);
+        struct Cleanup {
+            const char* path;
+            ~Cleanup() {
+                std::remove(path);
+            }
+        } cleanup{path};
+        std::ofstream(path) << YAML::Dump(root);
+        if (test["valid"].as<bool>()) {
+            const auto parsed = cece::ParseConfig(path);
+            ASSERT_EQ(parsed.physics_schemes.size(), 1);
+            ASSERT_TRUE(parsed.physics_schemes[0].fire);
+            EXPECT_EQ(parsed.physics_schemes[0].fire->target_id, options["target_id"].as<std::string>());
+        } else {
+            try {
+                (void)cece::ParseConfig(path);
+                ADD_FAILURE() << "Invalid fire configuration was accepted";
+            } catch (const std::exception& error) {
+                EXPECT_NE(std::string(error.what()).find(test["error"].as<std::string>()), std::string::npos) << error.what();
+            }
+        }
+    }
+}
+
+TEST(test_fire_config, FireFreeSchemesDoNotGainFireValidationOrTypedOptions) {
+    char path[] = "/tmp/cece-fire-disabled-XXXXXX";
+    const int descriptor = mkstemp(path);
+    ASSERT_GE(descriptor, 0);
+    close(descriptor);
+    struct Cleanup {
+        const char* path;
+        ~Cleanup() {
+            std::remove(path);
+        }
+    } cleanup{path};
+    std::ofstream(path) << "physics_schemes:\n  - name: NativeExample\n    options: {arbitrary_existing_option: value}\n";
+    const auto parsed = cece::ParseConfig(path);
+    ASSERT_EQ(parsed.physics_schemes.size(), 1);
+    EXPECT_FALSE(parsed.physics_schemes.front().fire);
+}
+
+TEST(test_fire_config, TypedFireOptionsPreserveDefaultsAndExplicitInputPolicy) {
+    const auto fixtures = YAML::LoadFile(std::string(CECE_SOURCE_DIR) + "/tests/data/fire/config_cases.yaml");
+    const auto document = conf::Config::from_string(YAML::Dump(fixtures["base_options"]));
+    const auto options = cece::ParseFireConfig(document.root());
+    EXPECT_EQ(options.mode, cece::FireInputMode::Product);
+    EXPECT_EQ(options.input_provider, cece::FireInputProvider::Prepared);
+    EXPECT_EQ(options.product_time_allocation, cece::FireTimeAllocation::SourceResolved);
+    EXPECT_EQ(options.requested_species.size(), 11);
+    EXPECT_EQ(options.cutoff_mode, cece::FireCutoffMode::Fixed);
+    ASSERT_TRUE(options.availability_cutoff);
+    EXPECT_EQ(options.availability_cutoff->ToString(), "2022-07-02T00:00:00Z");
+    EXPECT_EQ(options.scaling, "none");
+    EXPECT_EQ(options.missing_policy, "error");
+    EXPECT_FALSE(options.max_gap_seconds);
+    EXPECT_FALSE(options.max_observation_age_seconds);
+    EXPECT_TRUE(options.scientific_profile.empty());
+}
+
+TEST(test_fire_config, ManifestSymlinkAliasesAreRejected) {
+    char source[] = "/tmp/cece-fire-source-XXXXXX";
+    const int descriptor = mkstemp(source);
+    ASSERT_GE(descriptor, 0);
+    close(descriptor);
+    const auto alias = std::string(source) + ".alias";
+    struct Cleanup {
+        const char* source;
+        std::string alias;
+        ~Cleanup() {
+            std::remove(alias.c_str());
+            std::remove(source);
+        }
+    } cleanup{source, alias};
+    std::filesystem::create_symlink(source, alias);
+    const auto fixtures = YAML::LoadFile(std::string(CECE_SOURCE_DIR) + "/tests/data/fire/config_cases.yaml");
+    auto options = YAML::Clone(fixtures["base_options"]);
+    options["source_manifest"] = source;
+    options["input_manifest"] = alias;
+    const auto document = conf::Config::from_string(YAML::Dump(options));
+    EXPECT_THROW(cece::ParseFireConfig(document.root()), std::invalid_argument);
+}
 
 TEST(test_fire_config, GridRetainsDateLineAndPolarBoundsWithoutInventingAreas) {
     auto definition = MakeGridDefinition();

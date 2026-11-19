@@ -13,6 +13,7 @@
 #include <functional>
 #include <initializer_list>
 #include <map>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -20,7 +21,46 @@
 #include <utility>
 #include <vector>
 
+#include "cece/cece_fire_input.hpp"
+
 namespace cece {
+
+enum class FireInputMode { Product, DeriveFrp };
+enum class FireInputProvider { Prepared, Coupled };
+enum class FireTimeAllocation { Uniform, SourceResolved, Profile };
+enum class FireChemistryState { Bulk, TargetSpecific };
+
+struct FireConfig {
+    FireConfig(FireInputMode selected_mode, FireInputProvider provider, FireCutoffMode cutoff)
+        : mode(selected_mode), input_provider(provider), cutoff_mode(cutoff) {}
+
+    FireInputMode mode;
+    FireInputProvider input_provider;
+    std::string source_manifest;
+    std::string input_manifest;
+    std::string product_adapter;
+    std::optional<FireTimeAllocation> product_time_allocation;
+    std::string product_time_profile;
+    std::string scientific_profile;
+    std::string mechanism_file;
+    std::string fire_mapping_file;
+    std::string target_id;
+    std::string target_version;
+    FireChemistryState chemistry_state = FireChemistryState::Bulk;
+    std::vector<FireBulkSpecies> requested_species;
+    std::string missing_policy = "error";
+    std::string reconstruction_policy;
+    std::optional<int> max_gap_seconds;
+    FireCutoffMode cutoff_mode;
+    std::optional<FireUtcTime> availability_cutoff;
+    std::string cutoff_schedule;
+    std::optional<int> max_observation_age_seconds;
+    std::string scaling = "none";
+    std::map<std::string, std::string> input_mapping;
+    std::map<std::string, std::string> output_mapping;
+};
+
+FireConfig ParseFireConfig(const conf::Value& options);
 
 /**
  * @enum SchemeLanguage
@@ -63,6 +103,7 @@ struct PhysicsSchemeConfig {
     SchemeLanguage language_type = SchemeLanguage::CPP;    ///< Implementation language enum.
     conf::Value options = conf::Value::from_raw(nullptr);  ///< Scheme-specific options.
     int refresh_interval_seconds = 0;                      ///< Refresh interval in seconds (0 means use base timestep).
+    std::optional<FireConfig> fire;
 };
 
 /**

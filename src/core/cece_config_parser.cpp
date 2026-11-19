@@ -114,6 +114,7 @@ CeceConfig ParseConfig(const std::string& filename) {
     }
 
     conf::Value schemes = root["physics_schemes"];
+    bool has_fire = false;
     for (std::size_t i = 0; schemes && i < schemes.size(); ++i) {
         conf::Value node = schemes[i];
         PhysicsSchemeConfig scheme;
@@ -121,6 +122,13 @@ CeceConfig ParseConfig(const std::string& filename) {
         scheme.language = string_or(node, "language", "cpp");
         scheme.language_type = StringToSchemeLanguage(scheme.language);
         if (node["options"]) scheme.options = node["options"];
+        if (scheme.name == "fire") {
+            if (has_fire) {
+                throw std::invalid_argument("physics_schemes: duplicate fire contributions may overlap; configure one fire contribution");
+            }
+            has_fire = true;
+            scheme.fire = ParseFireConfig(scheme.options);
+        }
         scheme.refresh_interval_seconds = node["refresh_interval_seconds"].int_or(0);
         config.physics_schemes.push_back(std::move(scheme));
     }

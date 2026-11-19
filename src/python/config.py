@@ -15,9 +15,11 @@ cece.initialize : Initialize CECE with a configuration.
 from __future__ import annotations
 
 import math
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 # Support both package (relative) and direct-module import
@@ -435,6 +437,184 @@ class LocalTimeConfig:
         return result
 
 
+_FIRE_SPECIES = (
+    "CO2",
+    "CO",
+    "CH4",
+    "PM25",
+    "TPM",
+    "SO2",
+    "OC",
+    "BC",
+    "NOX",
+    "NH3",
+    "VOC",
+)
+_FIRE_TARGETS = {"AM4", "CB6", "CRACMM2", "RACM2", "GOCART2G"}
+
+
+def _validate_fire_options(options: Any) -> None:  # noqa: C901, PLR0915
+    where = "fire.options"
+    values = _require_mapping(options, where)
+    _reject_unknown_keys(
+        values,
+        {
+            "mode",
+            "input_provider",
+            "source_manifest",
+            "input_manifest",
+            "product_adapter",
+            "product_time_allocation",
+            "product_time_profile",
+            "scientific_profile",
+            "mechanism_file",
+            "fire_mapping_file",
+            "target_id",
+            "target_version",
+            "chemistry_state",
+            "requested_species",
+            "missing_policy",
+            "reconstruction_policy",
+            "max_gap_seconds",
+            "cutoff_mode",
+            "availability_cutoff",
+            "cutoff_schedule",
+            "max_observation_age_seconds",
+            "scaling",
+            "input_mapping",
+            "output_mapping",
+        },
+        where,
+    )
+
+    def text(key: str, default: str | None = None) -> str:
+        if key not in values:
+            if default is not None:
+                return default
+            raise ValueError(f"{where}.{key}: is required")
+        return _validate_string(values[key], f"{where}.{key}")
+
+    def choice(key: str, allowed: set[str], default: str | None = None) -> str:
+        value = text(key, default)
+        if value not in allowed:
+            raise ValueError(f"{where}.{key}: must be one of {sorted(allowed)}")
+        return value
+
+    def prohibit(key: str) -> None:
+        if key in values:
+            raise ValueError(
+                f"{where}.{key}: is prohibited for the selected mode/policy"
+            )
+
+    def positive(key: str, required: bool = False) -> None:
+        if key not in values:
+            if required:
+                raise ValueError(f"{where}.{key}: is required")
+            return
+        value = _validate_integer(values[key], f"{where}.{key}")
+        if not 0 < value <= 2147483647:
+            raise ValueError(
+                f"{where}.{key}: must be a positive integer no larger than 2147483647"
+            )
+
+    mode = choice("mode", {"product", "derive_frp"})
+    provider = choice("input_provider", {"prepared", "coupled"})
+    source_manifest = text("source_manifest", "")
+    if provider == "prepared":
+        input_manifest = text("input_manifest")
+    else:
+        prohibit("input_manifest")
+        input_manifest = ""
+    if (
+        source_manifest
+        and input_manifest
+        and Path(source_manifest).resolve() == Path(input_manifest).resolve()
+    ):
+        raise ValueError(
+            f"{where}.source_manifest: must be distinct from input_manifest"
+        )
+    chemistry = choice("chemistry_state", {"bulk", "target_specific"}, "bulk")
+    if mode == "product":
+        text("product_adapter")
+        allocation = choice(
+            "product_time_allocation", {"uniform", "source_resolved", "profile"}
+        )
+        if allocation == "profile":
+            text("product_time_profile")
+        else:
+            prohibit("product_time_profile")
+        prohibit("scientific_profile")
+    else:
+        for key in (
+            "product_adapter",
+            "product_time_allocation",
+            "product_time_profile",
+        ):
+            prohibit(key)
+        if chemistry != "bulk":
+            raise ValueError(
+                f"{where}.chemistry_state: derive_frp requires bulk chemistry"
+            )
+        text("scientific_profile")
+    text("mechanism_file")
+    if chemistry == "bulk":
+        text("fire_mapping_file")
+    else:
+        prohibit("fire_mapping_file")
+    choice("target_id", _FIRE_TARGETS)
+    text("target_version")
+    species = values.get("requested_species", list(_FIRE_SPECIES))
+    _validate_string_list(species, f"{where}.requested_species")
+    if (
+        not species
+        or len(set(species)) != len(species)
+        or any(item not in _FIRE_SPECIES for item in species)
+    ):
+        raise ValueError(
+            f"{where}.requested_species: requires a nonempty unique list of canonical bulk species"
+        )
+    missing = choice("missing_policy", {"error", "reconstruct"}, "error")
+    if missing == "reconstruct":
+        text("reconstruction_policy")
+        positive("max_gap_seconds", required=True)
+    else:
+        prohibit("reconstruction_policy")
+        prohibit("max_gap_seconds")
+    positive(
+        "max_observation_age_seconds",
+        required=mode == "derive_frp" or missing == "reconstruct",
+    )
+    cutoff = choice("cutoff_mode", {"fixed", "host_supplied"})
+    if cutoff == "fixed":
+        timestamp = text("availability_cutoff")
+        if (
+            re.fullmatch(
+                r"[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z", timestamp
+            )
+            is None
+        ):
+            raise ValueError(
+                f"{where}.availability_cutoff: requires Gregorian YYYY-MM-DDTHH:MM:SSZ"
+            )
+        try:
+            datetime.strptime(timestamp, "%Y-%m-%dT%H:%M:%SZ")
+        except ValueError as error:
+            raise ValueError(f"{where}.availability_cutoff: {error}") from error
+        prohibit("cutoff_schedule")
+    else:
+        prohibit("availability_cutoff")
+        text("cutoff_schedule", "" if provider == "coupled" else None)
+    text("scaling", "none")
+    for key in ("input_mapping", "output_mapping"):
+        if key in values:
+            mapping = _validate_string_mapping(values[key], f"{where}.{key}")
+            for name, value in mapping.items():
+                _validate_string(name, f"{where}.{key} key")
+                _validate_string(value, f"{where}.{key}.{name}")
+            if key == "output_mapping" and len(set(mapping.values())) != len(mapping):
+                raise ValueError(f"{where}.output_mapping: output names must be unique")
+
+
 @dataclass
 class PhysicsSchemeConfig:
     """
@@ -484,6 +664,8 @@ class PhysicsSchemeConfig:
         ]:
             raise ValueError(f"Invalid language: {self.language}")
         _require_mapping(self.options, "scheme options")
+        if self.name == "fire":
+            _validate_fire_options(self.options)
         _validate_integer(self.refresh_interval_seconds, "refresh_interval_seconds")
         if self.refresh_interval_seconds < 0:
             raise ValueError("refresh_interval_seconds must be non-negative")
@@ -1706,6 +1888,10 @@ class CeceConfig:
         # Validate physics schemes
         for index, scheme in enumerate(self._physics_schemes):
             capture(f"physics_schemes[{index}]", scheme.validate)
+        if sum(scheme.name == "fire" for scheme in self._physics_schemes) > 1:
+            errors.append(
+                "physics_schemes: duplicate fire contributions may overlap; configure one fire contribution"
+            )
 
         # Validate data streams
         for index, stream in enumerate(self._cece_data.get("streams", [])):

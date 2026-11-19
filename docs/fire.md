@@ -31,6 +31,53 @@ metadata, missing composition, nonfinite/negative mass and unavailable input
 cannot silently become valid zero-emission inventories. Partial positive
 coverage is retained explicitly; runtime missing-policy enforcement is pending.
 
+## Fire option validation
+
+The native parser exposes typed `PhysicsSchemeConfig.fire` options when the
+scheme name is `fire`. Python uses the existing
+`PhysicsSchemeConfig(name="fire", options={...})` representation and validates
+the same option combinations. No defaults are inserted into the Python options
+dictionary, preserving serialization.
+
+Both reject unknown keys and require an explicit mode, provider, target revision
+and cutoff policy. `prepared` requires `input_manifest`; `coupled` prohibits
+that prepared-file reference. Optional `source_manifest` is exclusively a
+preparation input, must differ from the prepared output (including symlink
+aliases), and is not required merely to parse a prepared runtime configuration.
+Paths retain the existing working-directory-relative convention.
+
+- Product mode requires `product_adapter` and `product_time_allocation`
+  (`uniform`, `source_resolved` or `profile`). Only `profile` accepts and requires
+  `product_time_profile`. Scientific derivation profiles are prohibited.
+- Derivation requires `scientific_profile`, positive
+  `max_observation_age_seconds`, and bulk chemistry; product options are prohibited.
+- `chemistry_state` defaults to `bulk`, requiring `fire_mapping_file`.
+  `target_specific` is product-only and prohibits a second mapping file.
+  `mechanism_file`, `target_id` and `target_version` are always required.
+- `requested_species` defaults to all eleven canonical bulk identifiers;
+  explicit lists must be nonempty, unique and canonical.
+- `cutoff_mode: fixed` requires `availability_cutoff` in strict UTC and prohibits
+  `cutoff_schedule`. `host_supplied` prohibits a fixed timestamp and requires a
+  schedule path for prepared inputs; a coupled host may optionally provide a
+  matching schedule.
+- `missing_policy: reconstruct` requires a named `reconstruction_policy`,
+  positive `max_gap_seconds` and positive `max_observation_age_seconds`.
+  The default `error` policy prohibits reconstruction options.
+  Integer bounds are 1-2147483647 seconds.
+- `scaling` defaults to `none`. Mapping dictionaries require nonempty strings;
+  explicit output aliases must be unique.
+
+Only one fire contribution is accepted per configuration: the current contract
+does not identify independent spatial supports sufficiently to prove multiple
+contributions nonoverlapping. This prevents accidental duplicate fire mass.
+
+This validation checks declarations, not asset existence, schedule contents,
+profile certification, metadata agreement or duplicate scaling within actual
+inputs. Those checks require the pending provider/profile implementation.
+The [configuration validation CLI](../scripts/validate_cece_config.py) reuses the
+Python checks but still rejects `fire` as unregistered until the runtime scheme
+is implemented. Do not treat successful option parsing as an executable example.
+
 ## Fixtures and scientific gates
 
 [The asset registry](../data/fire/asset_registry.yaml) distinguishes synthetic
@@ -45,7 +92,10 @@ redistribution information and independent expected values/tolerances.
 deliberately artificial coefficients and hand-derived expectations. Its content
 digest is recorded in the registry. It must not be used in production.
 
-The four `test_fire_*` selectors currently exercise fixture consistency, input
-validation and test-helper device round trips only. Passing these checks does
+The native fire selectors and Python configuration tests currently exercise
+fixture consistency, option/input validation and test-helper device round trips.
+The [shared option cases](../tests/data/fire/config_cases.yaml) exercise native
+and Python acceptance; neither suite loads production scientific assets.
+Passing these checks does
 not certify NOAA science, chemical mapping, coupled parity, offline operation
 or high-resolution memory behavior.

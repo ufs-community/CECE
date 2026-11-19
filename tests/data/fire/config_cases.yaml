@@ -1,0 +1,383 @@
+schema_version: 1
+base_options:
+  mode: product
+  input_provider: prepared
+  source_manifest: fire_sources/raw.yaml
+  input_manifest: fire_inputs/manifest.yaml
+  product_adapter: synthetic-product-v1
+  product_time_allocation: source_resolved
+  mechanism_file: fire_profiles/species.yaml
+  fire_mapping_file: fire_profiles/mapping.yaml
+  target_id: CB6
+  target_version: synthetic-v1
+  cutoff_mode: fixed
+  availability_cutoff: "2022-07-02T00:00:00Z"
+cases:
+  - { id: product_defaults, valid: true }
+  - { id: uniform, valid: true, set: { product_time_allocation: uniform } }
+  - {
+      id: profile,
+      valid: true,
+      set:
+        {
+          product_time_allocation: profile,
+          product_time_profile: profiles/hourly.yaml,
+        },
+    }
+  - {
+      id: coupled,
+      valid: true,
+      set: { input_provider: coupled },
+      unset: [input_manifest],
+    }
+  - { id: runtime_without_raw_sources, valid: true, unset: [source_manifest] }
+  - {
+      id: prepared_schedule,
+      valid: true,
+      set: { cutoff_mode: host_supplied, cutoff_schedule: cutoffs.yaml },
+      unset: [availability_cutoff],
+    }
+  - {
+      id: coupled_host,
+      valid: true,
+      set: { input_provider: coupled, cutoff_mode: host_supplied },
+      unset: [availability_cutoff, input_manifest],
+    }
+  - id: derive
+    valid: true
+    set:
+      {
+        mode: derive_frp,
+        scientific_profile: science.yaml,
+        max_observation_age_seconds: 3600,
+      }
+    unset: [product_adapter, product_time_allocation]
+  - id: reconstruct
+    valid: true
+    set:
+      {
+        missing_policy: reconstruct,
+        reconstruction_policy: verified-retrospective-v1,
+        max_gap_seconds: 3600,
+        max_observation_age_seconds: 7200,
+      }
+  - {
+      id: target_specific,
+      valid: true,
+      set: { chemistry_state: target_specific },
+      unset: [fire_mapping_file],
+    }
+  - { id: explicit_species, valid: true, set: { requested_species: [CO2, CO] } }
+  - { id: am4, valid: true, set: { target_id: AM4 } }
+  - { id: cracmm2, valid: true, set: { target_id: CRACMM2 } }
+  - { id: racm2, valid: true, set: { target_id: RACM2 } }
+  - { id: gocart2g, valid: true, set: { target_id: GOCART2G } }
+  - {
+      id: optional_mapping,
+      valid: true,
+      set:
+        {
+          input_mapping: { fire_mass_CO: host_CO },
+          output_mapping: { FIRE_CO: fire_CO },
+        },
+    }
+  - { id: unknown_option, valid: false, set: { typo: value }, error: unknown }
+  - { id: missing_mode, valid: false, unset: [mode], error: mode }
+  - { id: invalid_mode, valid: false, set: { mode: both }, error: mode }
+  - {
+      id: missing_provider,
+      valid: false,
+      unset: [input_provider],
+      error: input_provider,
+    }
+  - {
+      id: invalid_provider,
+      valid: false,
+      set: { input_provider: remote },
+      error: input_provider,
+    }
+  - {
+      id: missing_manifest,
+      valid: false,
+      unset: [input_manifest],
+      error: input_manifest,
+    }
+  - {
+      id: null_manifest,
+      valid: false,
+      set: { input_manifest: null },
+      error: input_manifest,
+    }
+  - {
+      id: colliding_manifests,
+      valid: false,
+      set: { input_manifest: fire_sources/../fire_sources/raw.yaml },
+      error: source_manifest,
+    }
+  - {
+      id: coupled_manifest,
+      valid: false,
+      set: { input_provider: coupled },
+      error: input_manifest,
+    }
+  - {
+      id: missing_adapter,
+      valid: false,
+      unset: [product_adapter],
+      error: product_adapter,
+    }
+  - {
+      id: missing_allocation,
+      valid: false,
+      unset: [product_time_allocation],
+      error: product_time_allocation,
+    }
+  - {
+      id: invalid_allocation,
+      valid: false,
+      set: { product_time_allocation: linear },
+      error: product_time_allocation,
+    }
+  - {
+      id: missing_time_profile,
+      valid: false,
+      set: { product_time_allocation: profile },
+      error: product_time_profile,
+    }
+  - {
+      id: unused_time_profile,
+      valid: false,
+      set: { product_time_profile: profile.yaml },
+      error: product_time_profile,
+    }
+  - {
+      id: product_science,
+      valid: false,
+      set: { scientific_profile: science.yaml },
+      error: scientific_profile,
+    }
+  - {
+      id: missing_species_definition,
+      valid: false,
+      unset: [mechanism_file],
+      error: mechanism_file,
+    }
+  - {
+      id: missing_mapping,
+      valid: false,
+      unset: [fire_mapping_file],
+      error: fire_mapping_file,
+    }
+  - {
+      id: unsupported_target,
+      valid: false,
+      set: { target_id: GOCART },
+      error: target_id,
+    }
+  - {
+      id: empty_version,
+      valid: false,
+      set: { target_version: " " },
+      error: target_version,
+    }
+  - {
+      id: empty_species,
+      valid: false,
+      set: { requested_species: [] },
+      error: requested_species,
+    }
+  - {
+      id: duplicate_species,
+      valid: false,
+      set: { requested_species: [CO, CO] },
+      error: requested_species,
+    }
+  - {
+      id: noncanonical_species,
+      valid: false,
+      set: { requested_species: [PM2.5] },
+      error: requested_species,
+    }
+  - {
+      id: missing_cutoff,
+      valid: false,
+      unset: [cutoff_mode],
+      error: cutoff_mode,
+    }
+  - {
+      id: invalid_cutoff_mode,
+      valid: false,
+      set: { cutoff_mode: wall_clock },
+      error: cutoff_mode,
+    }
+  - {
+      id: fixed_missing_time,
+      valid: false,
+      unset: [availability_cutoff],
+      error: availability_cutoff,
+    }
+  - {
+      id: invalid_date,
+      valid: false,
+      set: { availability_cutoff: "2022-02-29T00:00:00Z" },
+      error: availability_cutoff,
+    }
+  - {
+      id: local_time,
+      valid: false,
+      set: { availability_cutoff: "2022-07-02T00:00:00" },
+      error: availability_cutoff,
+    }
+  - {
+      id: fixed_schedule,
+      valid: false,
+      set: { cutoff_schedule: cutoffs.yaml },
+      error: cutoff_schedule,
+    }
+  - {
+      id: host_has_fixed_cutoff,
+      valid: false,
+      set: { cutoff_mode: host_supplied, cutoff_schedule: cutoffs.yaml },
+      error: availability_cutoff,
+    }
+  - {
+      id: host_missing_schedule,
+      valid: false,
+      set: { cutoff_mode: host_supplied },
+      unset: [availability_cutoff],
+      error: cutoff_schedule,
+    }
+  - {
+      id: invalid_missing_policy,
+      valid: false,
+      set: { missing_policy: zero },
+      error: missing_policy,
+    }
+  - {
+      id: missing_reconstruction,
+      valid: false,
+      set: { missing_policy: reconstruct },
+      error: reconstruction_policy,
+    }
+  - {
+      id: unused_reconstruction,
+      valid: false,
+      set: { reconstruction_policy: profile },
+      error: reconstruction_policy,
+    }
+  - {
+      id: unused_gap,
+      valid: false,
+      set: { max_gap_seconds: 3600 },
+      error: max_gap_seconds,
+    }
+  - {
+      id: nonpositive_age,
+      valid: false,
+      set: { max_observation_age_seconds: 0 },
+      error: max_observation_age_seconds,
+    }
+  - {
+      id: fractional_age,
+      valid: false,
+      set: { max_observation_age_seconds: 1.5 },
+      error: max_observation_age_seconds,
+    }
+  - {
+      id: boolean_age,
+      valid: false,
+      set: { max_observation_age_seconds: true },
+      error: max_observation_age_seconds,
+    }
+  - {
+      id: overflow_age,
+      valid: false,
+      set: { max_observation_age_seconds: 2147483648 },
+      error: max_observation_age_seconds,
+    }
+  - {
+      id: empty_raw_manifest,
+      valid: false,
+      set: { source_manifest: "" },
+      error: source_manifest,
+    }
+  - {
+      id: empty_schedule,
+      valid: false,
+      set: { cutoff_mode: host_supplied, cutoff_schedule: "" },
+      unset: [availability_cutoff],
+      error: cutoff_schedule,
+    }
+  - {
+      id: negative_gap,
+      valid: false,
+      set:
+        {
+          missing_policy: reconstruct,
+          reconstruction_policy: profile,
+          max_gap_seconds: -1,
+        },
+      error: max_gap_seconds,
+    }
+  - {
+      id: non_utc_timestamp,
+      valid: false,
+      set: { availability_cutoff: "2022-07-02T00:00:00+00:00" },
+      error: availability_cutoff,
+    }
+  - { id: bad_scaling, valid: false, set: { scaling: "" }, error: scaling }
+  - {
+      id: target_mapping_twice,
+      valid: false,
+      set: { chemistry_state: target_specific },
+      error: fire_mapping_file,
+    }
+  - {
+      id: invalid_chemistry_state,
+      valid: false,
+      set: { chemistry_state: speciated },
+      error: chemistry_state,
+    }
+  - {
+      id: invalid_input_mapping,
+      valid: false,
+      set: { input_mapping: [] },
+      error: input_mapping,
+    }
+  - {
+      id: conflicting_output_mapping,
+      valid: false,
+      set: { output_mapping: { FIRE_CO: same, FIRE_CO2: same } },
+      error: output_mapping,
+    }
+  - { id: duplicate_fire, valid: false, duplicate_fire: true, error: fire }
+  - id: derive_missing_science
+    valid: false
+    set: { mode: derive_frp, max_observation_age_seconds: 3600 }
+    unset: [product_adapter, product_time_allocation]
+    error: scientific_profile
+  - id: derive_missing_age
+    valid: false
+    set: { mode: derive_frp, scientific_profile: science.yaml }
+    unset: [product_adapter, product_time_allocation]
+    error: max_observation_age_seconds
+  - id: derive_product_options
+    valid: false
+    set:
+      {
+        mode: derive_frp,
+        scientific_profile: science.yaml,
+        max_observation_age_seconds: 3600,
+      }
+    error: product_adapter
+  - id: derive_target_specific
+    valid: false
+    set:
+      {
+        mode: derive_frp,
+        chemistry_state: target_specific,
+        scientific_profile: science.yaml,
+        max_observation_age_seconds: 3600,
+      }
+    unset: [product_adapter, product_time_allocation, fire_mapping_file]
+    error: chemistry_state
