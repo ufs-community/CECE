@@ -540,9 +540,7 @@ def test_point_stream_valid(mapalgo):
     }
     if mapalgo is not None:
         source["mapalgo"] = mapalgo
-    parsed = config.CeceConfig.from_dict({
-        "cece_data": {"streams": [source]}
-    })
+    parsed = config.CeceConfig.from_dict({"cece_data": {"streams": [source]}})
     stream = parsed.cece_data["streams"][0]
     assert stream.kind == "point"
     assert stream.format == "volcano_rc"
@@ -575,7 +573,9 @@ def test_point_stream_programmatic_default_and_serialization():
     assert cfg.cece_data["streams"][1].mapalgo == "passthrough"
 
     stream.mapalgo = "consd"
-    with pytest.raises(ValueError, match="mapalgo must be passthrough on point streams"):
+    with pytest.raises(
+        ValueError, match="mapalgo must be passthrough on point streams"
+    ):
         stream.to_dict()
 
 
@@ -615,7 +615,9 @@ def test_point_stream_rejects_mapalgo_meshfile_use_local_time():
         "format": "point_nc",
     }
 
-    with pytest.raises(ValueError, match="mapalgo must be passthrough on point streams"):
+    with pytest.raises(
+        ValueError, match="mapalgo must be passthrough on point streams"
+    ):
         config.CeceConfig.from_dict({
             "cece_data": {"streams": [{**base_stream, "mapalgo": "consd"}]}
         })
@@ -644,7 +646,9 @@ def test_point_stream_accepts_empty_meshfile():
     stream = config.DataStreamConfig.from_dict(source)
     assert "meshfile" not in stream.to_dict()
     cfg = config.CeceConfig()
-    cfg.add_data_stream("point", "point.nc", kind="point", format="point_nc", meshfile="")
+    cfg.add_data_stream(
+        "point", "point.nc", kind="point", format="point_nc", meshfile=""
+    )
     assert "meshfile" not in cfg.to_dict()["cece_data"]["streams"][0]
 
 
@@ -692,7 +696,9 @@ def test_grid_stream_rejects_format():
 
 def test_add_data_stream_point_rejects_explicit_mapalgo():
     cfg = config.CeceConfig()
-    with pytest.raises(ValueError, match="mapalgo must be passthrough on point streams"):
+    with pytest.raises(
+        ValueError, match="mapalgo must be passthrough on point streams"
+    ):
         cfg.add_data_stream(
             "v", "v.nc", kind="point", format="point_nc", mapalgo="bilinear"
         )

@@ -585,7 +585,8 @@ cece_data:
       file: point.nc
       kind: point
       format: point_nc
-      meshfile: )" + value + R"(
+      meshfile: )" + value +
+                         R"(
 physics_schemes: []
 )");
         std::unordered_map<std::string, StreamConfig> configs;
