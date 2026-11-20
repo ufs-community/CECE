@@ -48,6 +48,7 @@ enum class FireTimeAllocation { Uniform, SourceResolved, Profile };
 enum class FireTemporalProfileTimeBasis { Utc, LocalSolar };
 
 enum class FireLongitudeConvention { Unspecified, Minus180To180, ZeroTo360 };
+enum class FireGridAreaModel { ConstantLatitudeEdges, GreatCircleEdges };
 
 struct FireGridDefinition {
     std::string grid_id;
@@ -98,7 +99,9 @@ class FireGrid {
 };
 
 std::shared_ptr<const FireGrid> MakeRectilinearFireGrid(int nx, int ny, const std::vector<double>& longitude_deg,
-                                                        const std::vector<double>& latitude_deg);
+                                                        const std::vector<double>& latitude_deg,
+                                                        FireGridAreaModel area_model = FireGridAreaModel::ConstantLatitudeEdges);
+double FireGreatCirclePolygonArea(const std::array<double, 4>& longitude_deg, const std::array<double, 4>& latitude_deg);
 
 struct FireIdentityMetadata {
     int schema_version = 0;
@@ -161,6 +164,7 @@ struct FireBulkInventoryData {
     std::optional<FireParticulateOverlap> particulate_overlap;
     std::optional<std::vector<double>> fre_mj;
     std::optional<std::vector<double>> dry_matter_kg;
+    std::vector<std::string> unprofiled_component_ids;
 };
 
 class FireBulkInventory {
@@ -403,6 +407,7 @@ struct FireAllocatedMass {
     std::optional<FireDryMatterBudgetKg> dry_matter_budget;
     FireTimeAllocation time_allocation = FireTimeAllocation::Uniform;
     std::optional<FireProfileIdentity> time_profile;
+    std::vector<std::string> unprofiled_component_ids;
 };
 
 std::int64_t FireIntervalOverlapSeconds(const FireUtcTime& first_start, const FireUtcTime& first_end, const FireUtcTime& second_start,

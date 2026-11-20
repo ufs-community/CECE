@@ -1,0 +1,214 @@
+driver:
+  start_time: '2023-02-24T00:00:00'
+  end_time: '2023-02-25T00:00:00'
+  timestep_seconds: 86400
+  grid:
+    nx: 72
+    ny: 46
+    nz: 1
+    lon_min: 235.0
+    lon_max: 294.0
+    lat_min: 25.0
+    lat_max: 49.0
+vertical_grid:
+  type: none
+physics_schemes:
+- name: fire
+  language: cpp
+  options:
+    mode: product
+    input_provider: prepared
+    source_manifest: examples/fire_sources/gbbepx_v4r0.yaml
+    input_manifest: examples/fire_inputs/gbbepx/manifest.yaml
+    product_adapter: gbbepx-v4r0
+    product_time_allocation: source_resolved
+    chemistry_state: bulk
+    requested_species:
+    - CO
+    - PM25
+    target_id: CB6
+    target_version: cb6r5_ae7_aq
+    mechanism_file: data/fire/cb6_fire_target_species.yaml
+    fire_mapping_file: data/fire/cb6_fire_speciation_profile.yaml
+    missing_policy: error
+    cutoff_mode: fixed
+    availability_cutoff: '2023-02-26T00:00:00Z'
+    scaling: none
+output:
+  enabled: true
+  directory: ./cece_output_gbbepx_cb6_speciation
+  filename_pattern: cece_fire_gbbepx_cb6_speciation_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc
+  frequency_steps: 1
+  fields:
+  - name: FIRE_NO
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire NO emission flux
+  - name: FIRE_NO2
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire NO2 emission flux
+  - name: FIRE_SO2
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire SO2 emission flux
+  - name: FIRE_NH3
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire NH3 emission flux
+  - name: FIRE_CO
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire CO emission flux
+  - name: FIRE_ACET
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire ACET emission flux
+  - name: FIRE_ALD2
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire ALD2 emission flux
+  - name: FIRE_ALDX
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire ALDX emission flux
+  - name: FIRE_BENZ
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire BENZ emission flux
+  - name: FIRE_CH4
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire CH4 emission flux
+  - name: FIRE_ETH
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire ETH emission flux
+  - name: FIRE_ETHA
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire ETHA emission flux
+  - name: FIRE_ETHY
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire ETHY emission flux
+  - name: FIRE_ETOH
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire ETOH emission flux
+  - name: FIRE_FORM
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire FORM emission flux
+  - name: FIRE_IOLE
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire IOLE emission flux
+  - name: FIRE_ISOP
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire ISOP emission flux
+  - name: FIRE_KET
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire KET emission flux
+  - name: FIRE_MEOH
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire MEOH emission flux
+  - name: FIRE_OLE
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire OLE emission flux
+  - name: FIRE_PAR
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire PAR emission flux
+  - name: FIRE_PRPA
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire PRPA emission flux
+  - name: FIRE_TERP
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire TERP emission flux
+  - name: FIRE_TOL
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire TOL emission flux
+  - name: FIRE_UNR
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire UNR emission flux
+  - name: FIRE_XYL
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire XYL emission flux
+  - name: FIRE_PAL
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire PAL emission flux
+  - name: FIRE_PCA
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire PCA emission flux
+  - name: FIRE_PCL
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire PCL emission flux
+  - name: FIRE_PEC
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire PEC emission flux
+  - name: FIRE_PFE
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire PFE emission flux
+  - name: FIRE_PK
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire PK emission flux
+  - name: FIRE_PMG
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire PMG emission flux
+  - name: FIRE_PMN
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire PMN emission flux
+  - name: FIRE_PMOTHR
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire PMOTHR emission flux
+  - name: FIRE_PNA
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire PNA emission flux
+  - name: FIRE_PNCOM
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire PNCOM emission flux
+  - name: FIRE_PNH4
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire PNH4 emission flux
+  - name: FIRE_PNO3
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire PNO3 emission flux
+  - name: FIRE_POC
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire POC emission flux
+  - name: FIRE_PSI
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire PSI emission flux
+  - name: FIRE_PSO4
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire PSO4 emission flux
+  - name: FIRE_PTI
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire PTI emission flux

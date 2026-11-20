@@ -305,6 +305,22 @@ TEST(test_fire_config, InventoryRejectsIncompleteCompositionSpeciesAndMass) {
     EXPECT_NO_THROW(cece::FireBulkInventory{invalid});
 }
 
+TEST(test_fire_config, InventoryAllowsExplicitlyUnprofiledProductComponents) {
+    auto data = MakeInventoryData();
+    data.component_profiles.clear();
+    data.unprofiled_component_ids = data.component_ids;
+    const cece::FireBulkInventory inventory(std::move(data));
+    EXPECT_EQ(inventory.Data().unprofiled_component_ids, (std::vector<std::string>{"component-a", "component-b"}));
+
+    auto invalid = MakeInventoryData();
+    invalid.component_profiles.erase("component-b");
+    EXPECT_THROW(cece::FireBulkInventory{invalid}, std::invalid_argument);
+
+    invalid = MakeInventoryData();
+    invalid.unprofiled_component_ids = {"component-b", "component-b"};
+    EXPECT_THROW(cece::FireBulkInventory{invalid}, std::invalid_argument);
+}
+
 TEST(test_fire_config, InventoryDistinguishesUnavailableAndValidZeroWithCoverageAndProvenance) {
     auto data = MakeInventoryData();
     data.quality_state[0] = cece::FireQualityState{};
@@ -332,6 +348,14 @@ TEST(test_fire_config, InventoryDistinguishesUnavailableAndValidZeroWithCoverage
 
 TEST(test_fire_config, InventoryRequiresExplicitDefinitionsForOverlappingParticulatePools) {
     auto data = MakeInventoryData();
+    data.species = {cece::FireBulkSpecies::PM25};
+    data.mass_kg = {3.0, 1.0};
+    EXPECT_NO_THROW(cece::FireBulkInventory{data});
+    data = MakeInventoryData();
+    data.species = {cece::FireBulkSpecies::OC, cece::FireBulkSpecies::BC};
+    data.mass_kg = {3.0, 1.0, 5.0, 2.0};
+    EXPECT_NO_THROW(cece::FireBulkInventory{data});
+    data = MakeInventoryData();
     data.species = {cece::FireBulkSpecies::PM25, cece::FireBulkSpecies::OC};
     data.mass_kg = {3.0, 1.0, 5.0, 2.0};
     EXPECT_THROW(cece::FireBulkInventory{data}, std::invalid_argument);

@@ -1,0 +1,330 @@
+schema_version: 1
+production_eligible: false
+mapping_factor_semantics: independent_coefficients
+identity:
+  id: cb6-fire-co-pm25-factor-profile
+  version: manifest-v1
+  target_id: CB6
+  target_version: cb6r5_ae7_aq
+assets:
+- name: verified-factor-manifest
+  path: cb6_fire_factors_manifest.yaml
+  sha256: 9663de2c90e4ef0a75b7309b8de21b0b84b93130860a28997fd9471848741469
+- name: pinned-aqm-configuration-excerpt
+  path: cb6_fire_config.txt
+  sha256: 97aad6bc1a59e93f95f386e031462ce550ceb15d2703720a6bac200b7e4fd943
+- name: fire-specific-target-species
+  path: cb6_fire_target_species.yaml
+  sha256: 597bba1f680f6a3468330b50f73798e7d4f7a3dbdf688ff1d6f1ad41029bce1d
+mechanism_species:
+- name: 'NO'
+- name: NO2
+- name: SO2
+- name: NH3
+- name: CO
+- name: ACET
+- name: ALD2
+- name: ALDX
+- name: BENZ
+- name: CH4
+- name: ETH
+- name: ETHA
+- name: ETHY
+- name: ETOH
+- name: FORM
+- name: IOLE
+- name: ISOP
+- name: KET
+- name: MEOH
+- name: OLE
+- name: PAR
+- name: PRPA
+- name: TERP
+- name: TOL
+- name: UNR
+- name: XYL
+- name: PAL
+- name: PCA
+- name: PCL
+- name: PEC
+- name: PFE
+- name: PK
+- name: PMG
+- name: PMN
+- name: PMOTHR
+- name: PNA
+- name: PNCOM
+- name: PNH4
+- name: PNO3
+- name: POC
+- name: PSI
+- name: PSO4
+- name: PTI
+typed_mappings:
+- source_species: CO
+  target_species: 'NO'
+  basis: mass
+  factor: 0.045
+  output_unit: kg
+- source_species: CO
+  target_species: NO2
+  basis: mass
+  factor: 0.005
+  output_unit: kg
+- source_species: CO
+  target_species: SO2
+  basis: mass
+  factor: 0.008
+  output_unit: kg
+- source_species: CO
+  target_species: NH3
+  basis: mass
+  factor: 0.015
+  output_unit: kg
+- source_species: CO
+  target_species: CO
+  basis: mass
+  factor: 1.0
+  output_unit: kg
+- source_species: CO
+  target_species: ACET
+  basis: mass
+  factor: 0.0011
+  output_unit: kg
+- source_species: CO
+  target_species: ALD2
+  basis: mass
+  factor: 0.001
+  output_unit: kg
+- source_species: CO
+  target_species: ALDX
+  basis: mass
+  factor: 0.003
+  output_unit: kg
+- source_species: CO
+  target_species: BENZ
+  basis: mass
+  factor: 0.001
+  output_unit: kg
+- source_species: CO
+  target_species: CH4
+  basis: mass
+  factor: 0.0092
+  output_unit: kg
+- source_species: CO
+  target_species: ETH
+  basis: mass
+  factor: 0.0022
+  output_unit: kg
+- source_species: CO
+  target_species: ETHA
+  basis: mass
+  factor: 0.0011
+  output_unit: kg
+- source_species: CO
+  target_species: ETHY
+  basis: mass
+  factor: 0.0005
+  output_unit: kg
+- source_species: CO
+  target_species: ETOH
+  basis: mass
+  factor: 0.0
+  output_unit: kg
+- source_species: CO
+  target_species: FORM
+  basis: mass
+  factor: 0.0043
+  output_unit: kg
+- source_species: CO
+  target_species: IOLE
+  basis: mass
+  factor: 0.0005
+  output_unit: kg
+- source_species: CO
+  target_species: ISOP
+  basis: mass
+  factor: 0.0002
+  output_unit: kg
+- source_species: CO
+  target_species: KET
+  basis: mass
+  factor: 0.0003
+  output_unit: kg
+- source_species: CO
+  target_species: MEOH
+  basis: mass
+  factor: 0.0039
+  output_unit: kg
+- source_species: CO
+  target_species: OLE
+  basis: mass
+  factor: 0.0034
+  output_unit: kg
+- source_species: CO
+  target_species: PAR
+  basis: mass
+  factor: 0.0075
+  output_unit: kg
+- source_species: CO
+  target_species: PRPA
+  basis: mass
+  factor: 0.0005
+  output_unit: kg
+- source_species: CO
+  target_species: TERP
+  basis: mass
+  factor: 0.0004
+  output_unit: kg
+- source_species: CO
+  target_species: TOL
+  basis: mass
+  factor: 0.0013
+  output_unit: kg
+- source_species: CO
+  target_species: UNR
+  basis: mass
+  factor: 0.01
+  output_unit: kg
+- source_species: CO
+  target_species: XYL
+  basis: mass
+  factor: 0.0003
+  output_unit: kg
+- source_species: PM25
+  target_species: PAL
+  basis: mass
+  factor: 0.0006
+  output_unit: kg
+- source_species: PM25
+  target_species: PCA
+  basis: mass
+  factor: 0.0039
+  output_unit: kg
+- source_species: PM25
+  target_species: PCL
+  basis: mass
+  factor: 0.0415
+  output_unit: kg
+- source_species: PM25
+  target_species: PEC
+  basis: mass
+  factor: 0.0949
+  output_unit: kg
+- source_species: PM25
+  target_species: PFE
+  basis: mass
+  factor: 0.0004
+  output_unit: kg
+- source_species: PM25
+  target_species: PK
+  basis: mass
+  factor: 0.0294
+  output_unit: kg
+- source_species: PM25
+  target_species: PMG
+  basis: mass
+  factor: 0.0003
+  output_unit: kg
+- source_species: PM25
+  target_species: PMN
+  basis: mass
+  factor: 0.0
+  output_unit: kg
+- source_species: PM25
+  target_species: PMOTHR
+  basis: mass
+  factor: 0.0137
+  output_unit: kg
+- source_species: PM25
+  target_species: PNA
+  basis: mass
+  factor: 0.0057
+  output_unit: kg
+- source_species: PM25
+  target_species: PNCOM
+  basis: mass
+  factor: 0.3232
+  output_unit: kg
+- source_species: PM25
+  target_species: PNH4
+  basis: mass
+  factor: 0.0088
+  output_unit: kg
+- source_species: PM25
+  target_species: PNO3
+  basis: mass
+  factor: 0.0013
+  output_unit: kg
+- source_species: PM25
+  target_species: POC
+  basis: mass
+  factor: 0.4618
+  output_unit: kg
+- source_species: PM25
+  target_species: PSI
+  basis: mass
+  factor: 0.0018
+  output_unit: kg
+- source_species: PM25
+  target_species: PSO4
+  basis: mass
+  factor: 0.0126
+  output_unit: kg
+- source_species: PM25
+  target_species: PTI
+  basis: mass
+  factor: 0.0001
+  output_unit: kg
+conversion_factors:
+  source_molecular_weights_g_mol: {}
+  target_molecular_weights_g_mol: {}
+  source_carbon_numbers: {}
+  target_carbon_numbers: {}
+  aerosol_factors: {}
+oc_om_policy:
+  kind: preserve_oc
+source_disposition:
+  CO2:
+    kind: excluded
+    reason: Not consumed in factor mode; CO/PM25 factors generate overlapping target species. Select the separate
+      native profile to use product fields directly.
+  CO:
+    kind: mapped
+  CH4:
+    kind: excluded
+    reason: Not consumed in factor mode; CO/PM25 factors generate overlapping target species. Select the separate
+      native profile to use product fields directly.
+  PM25:
+    kind: mapped
+  TPM:
+    kind: excluded
+    reason: Not consumed in factor mode; CO/PM25 factors generate overlapping target species. Select the separate
+      native profile to use product fields directly.
+  SO2:
+    kind: excluded
+    reason: Not consumed in factor mode; CO/PM25 factors generate overlapping target species. Select the separate
+      native profile to use product fields directly.
+  OC:
+    kind: excluded
+    reason: Not consumed in factor mode; CO/PM25 factors generate overlapping target species. Select the separate
+      native profile to use product fields directly.
+  BC:
+    kind: excluded
+    reason: Not consumed in factor mode; CO/PM25 factors generate overlapping target species. Select the separate
+      native profile to use product fields directly.
+  NOX:
+    kind: excluded
+    reason: Not consumed in factor mode; CO/PM25 factors generate overlapping target species. Select the separate
+      native profile to use product fields directly.
+  NH3:
+    kind: excluded
+    reason: Not consumed in factor mode; CO/PM25 factors generate overlapping target species. Select the separate
+      native profile to use product fields directly.
+  VOC:
+    kind: excluded
+    reason: Not consumed in factor mode; CO/PM25 factors generate overlapping target species. Select the separate
+      native profile to use product fields directly.
+budgets_tolerances:
+  relative: 1.0e-06
+  absolute: 1.0e-12

@@ -32,6 +32,38 @@ TEST(test_fire_speciation, LoadsTypedSyntheticProfileAndVerifiesEveryReferencedA
     EXPECT_EQ(loaded.identity.content_sha256, cece::FireFileSha256(profile));
 }
 
+TEST(test_fire_speciation, GeneratedCb6ProfilesRetainIndependentManifestCoefficients) {
+    const auto root = std::string(CECE_SOURCE_DIR) + "/data/fire/";
+    const auto factor_profile = cece::LoadFireTargetProfile(root + "cb6_fire_speciation_profile.yaml", "CB6", "cb6r5_ae7_aq");
+    EXPECT_EQ(factor_profile.mapping_factor_semantics, cece::FireMappingFactorSemantics::IndependentCoefficients);
+    EXPECT_FALSE(factor_profile.production_eligible);
+    ASSERT_EQ(factor_profile.mappings.size(), 43);
+    ASSERT_EQ(factor_profile.mechanism_species.size(), 43);
+
+    double co_total = 0;
+    double pm25_total = 0;
+    bool zero_coefficient_preserved = false;
+    for (const auto& mapping : factor_profile.mappings) {
+        EXPECT_EQ(mapping.basis, cece::FireMappingBasis::Mass);
+        EXPECT_EQ(mapping.output_unit, "kg");
+        if (mapping.source_species == cece::FireBulkSpecies::CO) co_total += mapping.factor;
+        if (mapping.source_species == cece::FireBulkSpecies::PM25) {
+            pm25_total += mapping.factor;
+            zero_coefficient_preserved |= mapping.target_species == "PMN" && mapping.factor == 0;
+        }
+    }
+    EXPECT_NEAR(co_total, 1.1247, 1e-12);
+    EXPECT_NEAR(pm25_total, 1.0, 1e-12);
+    EXPECT_TRUE(zero_coefficient_preserved);
+    EXPECT_EQ(factor_profile.dispositions.at(cece::FireBulkSpecies::CO).kind, cece::FireSourceDispositionKind::Mapped);
+    EXPECT_EQ(factor_profile.dispositions.at(cece::FireBulkSpecies::PM25).kind, cece::FireSourceDispositionKind::Mapped);
+    EXPECT_EQ(factor_profile.dispositions.at(cece::FireBulkSpecies::SO2).kind, cece::FireSourceDispositionKind::Excluded);
+
+    const auto native_profile = cece::LoadFireTargetProfile(root + "cb6_fire_native_profile.yaml", "CB6", "cb6r5_ae7_aq");
+    EXPECT_EQ(native_profile.mappings.size(), 7);
+    EXPECT_EQ(native_profile.dispositions.at(cece::FireBulkSpecies::PM25).kind, cece::FireSourceDispositionKind::Excluded);
+}
+
 TEST(test_fire_speciation, ProfileLoaderRejectsUnverifiedAssetsAndTargetRevisionMismatch) {
     const std::string source = std::string(CECE_SOURCE_DIR) + "/tests/data/fire/synthetic_target_profile.yaml";
     EXPECT_THROW(cece::LoadFireTargetProfile(source, "CB6", "test-v1"), std::invalid_argument);
@@ -81,6 +113,54 @@ TEST(test_fire_speciation, ProfileLoaderRejectsIncompleteOrDimensionallyInvalidD
     rejects([](YAML::Node& profile) { profile["oc_om_policy"].remove("om_per_oc"); });
     rejects([](YAML::Node& profile) { profile["budgets_tolerances"]["relative"] = 2.0; });
     rejects([](YAML::Node& profile) { profile["source_disposition"]["CO"]["kind"] = "excluded"; });
+    rejects([](YAML::Node& profile) { profile["mapping_factor_semantics"] = "normalize_coefficients"; });
+}
+
+TEST(test_fire_speciation, IndependentCoefficientsPreserveVerifiedNonUnitFactorSums) {
+    const std::string source = std::string(CECE_SOURCE_DIR) + "/tests/data/fire/synthetic_target_profile.yaml";
+    const auto asset = (std::filesystem::path(source).parent_path() / "synthetic_target_asset.txt").string();
+    auto profile_yaml = YAML::LoadFile(source);
+    profile_yaml["assets"][0]["path"] = asset;
+    profile_yaml["mapping_factor_semantics"] = "independent_coefficients";
+    profile_yaml["typed_mappings"][0]["factor"] = 1.1247;
+
+    char name[] = "/tmp/cece-fire-independent-factors-XXXXXX";
+    const int descriptor = mkstemp(name);
+    ASSERT_GE(descriptor, 0);
+    close(descriptor);
+    struct Cleanup {
+        const char* path;
+        ~Cleanup() { std::remove(path); }
+    } cleanup{name};
+    std::ofstream(name) << YAML::Dump(profile_yaml);
+
+    const auto profile = cece::LoadFireTargetProfile(name, "SYNTHETIC", "test-v1");
+    EXPECT_EQ(profile.mapping_factor_semantics, cece::FireMappingFactorSemantics::IndependentCoefficients);
+    EXPECT_DOUBLE_EQ(profile.mappings.front().factor, 1.1247);
+
+    auto grid = std::make_shared<const cece::FireGrid>(cece::FireGridDefinition{
+        "independent-factor-grid", std::string(64, 'b'), 1, 1, {0}, {0}, {{{-1, 1, 1, -1}}}, {{{-1, -1, 1, 1}}}, {25}, "EPSG:4326",
+        cece::FireLongitudeConvention::Minus180To180});
+    const cece::FireProfileIdentity component_profile{"synthetic", "1", std::string(64, 'c')};
+    const cece::FireBulkInventory inventory({
+        cece::FireInputIdentity({1, "synthetic", "product", "algorithm", "delivery", std::string(64, 'a'),
+                                cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T01:00:00Z"),
+                                cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T00:00:00Z"),
+                                cece::FireUtcTime("2022-07-01T02:00:00Z"), cece::FireCutoffMode::Fixed, grid}),
+        {cece::FireBulkSpecies::CO}, {"component"}, {{"component", {component_profile, component_profile}},},
+        {2}, {cece::FireQualityState::Observed}, {1}, {std::string(64, 'a')}, std::nullopt, std::nullopt, std::nullopt, std::nullopt,
+        std::nullopt});
+    const auto mapped = cece::MapFireBulkInventory(inventory, profile, {cece::FireBulkSpecies::CO});
+    ASSERT_EQ(mapped.values.size(), 1);
+    EXPECT_NEAR(mapped.values.front(), 2.2494, 1e-12);
+
+    auto product_data = inventory.Data();
+    product_data.component_profiles.clear();
+    product_data.unprofiled_component_ids = {"component"};
+    const cece::FireBulkInventory product_inventory(std::move(product_data));
+    const auto product_mapped = cece::MapFireBulkInventory(product_inventory, profile, {cece::FireBulkSpecies::CO});
+    EXPECT_NEAR(product_mapped.values.front(), 2.2494, 1e-12);
+    EXPECT_EQ(product_mapped.unprofiled_component_ids, std::vector<std::string>{"component"});
 }
 
 TEST(test_fire_speciation, LoadsVersionedUtcAndLocalSolarTemporalProfiles) {
@@ -219,6 +299,12 @@ TEST(test_fire_speciation, CompositionSpecificMappingsSelectExactComponentProfil
     unresolved_data.component_profiles.at("b").composition.id = "unlisted-composition";
     const cece::FireBulkInventory unresolved(std::move(unresolved_data));
     EXPECT_THROW(cece::MapFireBulkInventory(unresolved, profile, {cece::FireBulkSpecies::CO}), std::invalid_argument);
+
+    auto unprofiled_data = inventory.Data();
+    unprofiled_data.component_profiles.clear();
+    unprofiled_data.unprofiled_component_ids = {"a", "b"};
+    const cece::FireBulkInventory unprofiled(std::move(unprofiled_data));
+    EXPECT_THROW(cece::MapFireBulkInventory(unprofiled, profile, {cece::FireBulkSpecies::CO}), std::invalid_argument);
 }
 
 TEST(test_fire_speciation, MapperRejectsMissingSpeciesBasisMismatchAndUnmappedRequests) {

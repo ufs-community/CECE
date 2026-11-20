@@ -41,7 +41,7 @@ fixtures:
       latitude_deg: -40.8
       longitude_deg: -65.1
       CO_flux_kg_s_m2: 1.463242327304215e-08
-      CO_mass_kg: 118329.8014639274
+      CO_mass_kg: 118329.80010385235
       MeanFRP_MW: 24.62002182006836
     notes: >-
       The CO mass expectation independently multiplies the source flux by the

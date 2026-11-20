@@ -445,6 +445,29 @@ TEST(test_fire_runtime, ProviderEnforcesCutoffMonotonicityAndRestoredCommitWater
                  std::invalid_argument);
 }
 
+TEST(test_fire_runtime, CacheIdentityRecordsAbsentCompositionAndDerivationRequiresIt) {
+    auto inventory_data = ProviderInventory().Data();
+    inventory_data.component_profiles.clear();
+    inventory_data.unprofiled_component_ids = {"component"};
+    cece::FireBulkInventory inventory(std::move(inventory_data));
+
+    cece::FireIntervalProvider product_provider(cece::FireInputProvider::Coupled, {1, 1, 1, 8192}, {"run", "r"});
+    product_provider.StageCoupled(0, inventory, ProviderContext(), "abc");
+    const auto unprofiled_key = product_provider.Status(0).cache_identity;
+    cece::FireIntervalProvider profiled_provider(cece::FireInputProvider::Coupled, {1, 1, 1, 8192}, {"run", "r"});
+    profiled_provider.StageCoupled(0, ProviderInventory(), ProviderContext(), "abc");
+    EXPECT_NE(unprofiled_key, profiled_provider.Status(0).cache_identity);
+
+    auto derive_context = ProviderContext();
+    derive_context.mode = cece::FireInputMode::DeriveFrp;
+    derive_context.product_time_allocation.reset();
+    derive_context.scientific_profile = cece::FireProfileIdentity{"science", "1", std::string(64, 'e')};
+    cece::FireIntervalProvider derive_provider(cece::FireInputProvider::Coupled, {1, 1, 1, 8192}, {"run", "r"});
+    EXPECT_THROW(derive_provider.StageCoupled(0, inventory, derive_context, "abc"), std::invalid_argument);
+    EXPECT_EQ(derive_provider.Status(0).state, cece::FireIntervalState::Rejected);
+    EXPECT_NE(derive_provider.Status(0).rejection_reason.find("biome/composition identities"), std::string::npos);
+}
+
 TEST(test_fire_runtime, ProviderAcceptsOutOfOrderUnconsumedDeliveriesAndCanonicalizesSourceSets) {
     cece::FireIntervalProvider provider(cece::FireInputProvider::Coupled, {2, 1, 1, 8192}, {"run", "r"});
     provider.StageCoupled(1, ProviderInventory(std::string(kAbcSha256), "2022-07-01T01:00:00Z", "2022-07-01T02:00:00Z"), ProviderContext(), "abc");

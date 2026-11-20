@@ -1,0 +1,70 @@
+driver:
+  start_time: '2023-02-24T00:00:00'
+  end_time: '2023-02-25T00:00:00'
+  timestep_seconds: 86400
+  grid:
+    nx: 72
+    ny: 46
+    nz: 1
+    lon_min: 235.0
+    lon_max: 294.0
+    lat_min: 25.0
+    lat_max: 49.0
+vertical_grid:
+  type: none
+physics_schemes:
+- name: fire
+  language: cpp
+  options:
+    mode: product
+    input_provider: prepared
+    source_manifest: examples/fire_sources/gbbepx_v4r0.yaml
+    input_manifest: examples/fire_inputs/gbbepx/manifest.yaml
+    product_adapter: gbbepx-v4r0
+    product_time_allocation: source_resolved
+    chemistry_state: bulk
+    requested_species:
+    - CO2
+    - CO
+    - SO2
+    - OC
+    - BC
+    - NH3
+    target_id: CB6
+    target_version: cb6r5_ae7_aq
+    mechanism_file: data/fire/cb6_fire_native_species.yaml
+    fire_mapping_file: data/fire/cb6_fire_native_profile.yaml
+    missing_policy: error
+    cutoff_mode: fixed
+    availability_cutoff: '2023-02-26T00:00:00Z'
+    scaling: none
+output:
+  enabled: true
+  directory: ./cece_output_gbbepx_cb6_native
+  filename_pattern: cece_fire_gbbepx_cb6_native_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc
+  frequency_steps: 1
+  fields:
+  - name: FIRE_CO2
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire CO2 emission flux
+  - name: FIRE_CO
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire CO emission flux
+  - name: FIRE_SO2
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire SO2 emission flux
+  - name: FIRE_OC
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire OC emission flux
+  - name: FIRE_BC
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire BC emission flux
+  - name: FIRE_NH3
+    attributes:
+      units: kg m-2 s-1
+      long_name: fire NH3 emission flux

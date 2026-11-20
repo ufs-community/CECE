@@ -248,6 +248,14 @@ double NormalizeLongitude(double longitude) {
     return longitude;
 }
 
+double CanonicalGbbepxCoordinate(double coordinate, std::string_view axis) {
+    const double canonical = std::round(coordinate * 10.0) / 10.0;
+    if (std::abs(coordinate - canonical) > 5e-5) {
+        throw std::invalid_argument("GBBEPx " + std::string(axis) + " coordinate is not aligned to the supported 0.1-degree grid");
+    }
+    return canonical;
+}
+
 std::shared_ptr<const FireGrid> MakeGbbepxGrid(const NetcdfFile& file, const GridWindow& window) {
     FireGridDefinition definition;
     definition.grid_id = "GBBEPx-all01GRID-v4r0";
@@ -256,8 +264,8 @@ std::shared_ptr<const FireGrid> MakeGbbepxGrid(const NetcdfFile& file, const Gri
     definition.crs = "EPSG:4326";
     definition.longitude_convention = FireLongitudeConvention::ZeroTo360;
 
-    const auto source_latitudes = Coordinates(file, "Latitude", 0, file.Dimension("Latitude"), "Latitude");
-    const auto source_longitudes = Coordinates(file, "Longitude", 0, file.Dimension("Longitude"), "Longitude");
+    auto source_latitudes = Coordinates(file, "Latitude", 0, file.Dimension("Latitude"), "Latitude");
+    auto source_longitudes = Coordinates(file, "Longitude", 0, file.Dimension("Longitude"), "Longitude");
     const auto validate_spacing = [](const std::vector<double>& axis, std::string_view name) {
         for (std::size_t index = 1; index < axis.size(); ++index) {
             if (std::abs((axis[index] - axis[index - 1]) - 0.1) > 5e-5) {
@@ -267,6 +275,8 @@ std::shared_ptr<const FireGrid> MakeGbbepxGrid(const NetcdfFile& file, const Gri
     };
     validate_spacing(source_latitudes, "Latitude");
     validate_spacing(source_longitudes, "Longitude");
+    for (auto& latitude : source_latitudes) latitude = CanonicalGbbepxCoordinate(latitude, "Latitude");
+    for (auto& longitude : source_longitudes) longitude = CanonicalGbbepxCoordinate(longitude, "Longitude");
     if (source_latitudes.size() == 1801 &&
         (std::abs(source_latitudes.front() + 90.0) > 5e-5 || std::abs(source_latitudes.back() - 90.0) > 5e-5)) {
         throw std::invalid_argument("GBBEPx latitude coordinates do not match the supported global grid");
@@ -276,8 +286,10 @@ std::shared_ptr<const FireGrid> MakeGbbepxGrid(const NetcdfFile& file, const Gri
         throw std::invalid_argument("GBBEPx longitude coordinates do not match the supported global grid");
     }
 
-    const auto latitudes = Coordinates(file, "Latitude", window.y_start, window.height, "Latitude");
-    auto longitudes = Coordinates(file, "Longitude", window.x_start, window.width, "Longitude");
+    const auto latitudes = std::vector<double>(source_latitudes.begin() + static_cast<std::ptrdiff_t>(window.y_start),
+                                               source_latitudes.begin() + static_cast<std::ptrdiff_t>(window.y_start + window.height));
+    auto longitudes = std::vector<double>(source_longitudes.begin() + static_cast<std::ptrdiff_t>(window.x_start),
+                                          source_longitudes.begin() + static_cast<std::ptrdiff_t>(window.x_start + window.width));
     for (auto& longitude : longitudes) longitude = NormalizeLongitude(longitude);
     const auto cells = window.width * window.height;
     definition.longitude_deg.resize(cells);
@@ -338,7 +350,7 @@ std::shared_ptr<const FireGrid> MakeRaveGrid(const NetcdfFile& file, const GridW
             definition.latitude_bounds_deg[cell] = {corners_lat[top_left], corners_lat[top_right], corners_lat[bottom_right],
                                                     corners_lat[bottom_left]};
             definition.area_m2[cell] =
-                SphericalCellArea(definition.longitude_bounds_deg[cell], definition.latitude_bounds_deg[cell]);
+                FireGreatCirclePolygonArea(definition.longitude_bounds_deg[cell], definition.latitude_bounds_deg[cell]);
         }
     }
     return MakeGrid(std::move(definition), window);

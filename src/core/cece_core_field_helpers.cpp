@@ -582,6 +582,13 @@ void cece_core_set_export_field(void* data_ptr, const char* name, int name_len, 
     }
 
     auto* internal_data = static_cast<cece::CeceInternalData*>(data_ptr);
+    if (internal_data->ny_local != 0 && internal_data->ny_local != ny) {
+        std::cerr << "ERROR: cece_core_set_export_field - inconsistent local latitude extent " << ny << " (expected " << internal_data->ny_local
+                  << ")" << std::endl;
+        if (rc != nullptr) *rc = -1;
+        return;
+    }
+    internal_data->ny_local = ny;
     std::string name_str(name, static_cast<size_t>(name_len));
 
     // Wrap the externally-owned memory as an unmanaged host view (zero-copy)

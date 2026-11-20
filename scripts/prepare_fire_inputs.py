@@ -55,6 +55,8 @@ _UniqueKeyLoader.add_constructor(
 _SHA256_RE = re.compile(r"[0-9a-f]{64}\Z")
 _UTC_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 _UTC_RE = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z\Z")
+_DRIVER_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S"
+_DRIVER_TIME_RE = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\Z")
 
 
 def _load_yaml(path: Path) -> Any:
@@ -88,6 +90,18 @@ def _utc(value: Any, context: str) -> datetime:
     except ValueError as error:
         raise PreparationError(f"{context} must be a valid UTC timestamp in YYYY-MM-DDTHH:MM:SSZ format") from error
     return parsed
+
+
+def _driver_utc(value: Any, context: str) -> datetime:
+    text = _text(value, context)
+    if _UTC_RE.fullmatch(text):
+        return _utc(text, context)
+    if not _DRIVER_TIME_RE.fullmatch(text):
+        raise PreparationError(f"{context} must use YYYY-MM-DDTHH:MM:SS or YYYY-MM-DDTHH:MM:SSZ format")
+    try:
+        return datetime.strptime(text, _DRIVER_TIME_FORMAT).replace(tzinfo=timezone.utc)
+    except ValueError as error:
+        raise PreparationError(f"{context} must be a valid UTC timestamp") from error
 
 
 def _sha256_file(path: Path) -> str:
@@ -285,8 +299,8 @@ def _select_sources(sources: list[dict[str, Any]]) -> list[dict[str, Any]]:
 
 def _expected_intervals(config: dict[str, Any]) -> list[tuple[datetime, datetime]]:
     driver = _mapping(config.get("driver", {}), "driver")
-    start = _utc(driver.get("start_time"), "driver.start_time")
-    end = _utc(driver.get("end_time"), "driver.end_time")
+    start = _driver_utc(driver.get("start_time"), "driver.start_time")
+    end = _driver_utc(driver.get("end_time"), "driver.end_time")
     step = driver.get("timestep_seconds")
     if isinstance(step, bool) or not isinstance(step, int) or step < 1:
         raise PreparationError("driver.timestep_seconds must be a positive integer")

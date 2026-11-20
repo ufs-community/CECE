@@ -8,14 +8,20 @@
 #include <axis/solver/weight_generator.hpp>
 #include <axis/topology/structured_grid.hpp>
 #include <cmath>
+#include <filesystem>
+#include <limits>
 #include <numbers>
 #include <numeric>
+#include <string>
+#include <utility>
 
 #include "cece/cece_fire_input.hpp"
 
 namespace {
 using Matrix = axis::solver::InterpolationMatrix<Kokkos::HostSpace>;
 using Norm = axis::solver::NormType;
+
+axis::topology::UnstructuredMesh<Kokkos::HostSpace> AxisMesh(const cece::FireGridDefinition& definition);
 
 template <typename T>
 Kokkos::View<T*, Kokkos::HostSpace> HostValues(const std::vector<T>& values) {
@@ -38,6 +44,80 @@ std::shared_ptr<const cece::FireGrid> GridWithAreas(std::vector<double> areas, s
         cece::FireGridDefinition{std::move(id), std::string(64, 'b'), cells, 1, std::vector<double>(cells, 0), std::vector<double>(cells, 0),
                                  std::vector<std::array<double, 4>>(cells, {-1, 1, 1, -1}), std::vector<std::array<double, 4>>(cells, {-1, -1, 1, 1}),
                                  std::move(areas), "EPSG:4326", cece::FireLongitudeConvention::Minus180To180});
+}
+
+cece::FireBulkInventory ProductInventory(const cece::FireProductEmissionsInterval& product) {
+    const auto& data = product.Data();
+    const auto& metadata = data.product_identity.common_identity.Metadata();
+    const auto cells = metadata.grid_definition->CellCount();
+    const auto index_of = [&](cece::FireBulkSpecies requested) {
+        const auto found = std::find(data.species.begin(), data.species.end(), requested);
+        if (found == data.species.end()) throw std::invalid_argument("product fixture lacks a requested fire species");
+        return static_cast<std::size_t>(std::distance(data.species.begin(), found));
+    };
+    const auto co_offset = index_of(cece::FireBulkSpecies::CO) * cells;
+    const auto pm25_offset = index_of(cece::FireBulkSpecies::PM25) * cells;
+    std::vector<double> masses(2 * cells);
+    for (std::size_t cell = 0; cell < cells; ++cell) {
+        masses[cell] = product.MassKg()[co_offset + cell];
+        masses[cells + cell] = product.MassKg()[pm25_offset + cell];
+    }
+
+    return cece::FireBulkInventory({
+        cece::FireInputIdentity(metadata),
+        {cece::FireBulkSpecies::CO, cece::FireBulkSpecies::PM25},
+        {"sample-product"},
+        {{"sample-product",
+          {{"sample-biome", "test-v1", std::string(64, 'c')}, {"sample-composition", "test-v1", std::string(64, 'd')}}}},
+        std::move(masses),
+        data.quality_state,
+        data.coverage_fraction,
+        {metadata.content_sha256},
+        std::nullopt,
+        std::nullopt,
+        std::nullopt,
+        data.optional_diagnostics.fre_mj,
+        data.optional_diagnostics.dry_matter_kg});
+}
+
+Matrix ConservativeMatrix(const cece::FireGrid& source, const cece::FireGrid& target);
+
+std::shared_ptr<const cece::FireGrid> CoarsenedGrid(const cece::FireGrid& source) {
+    const auto& input = source.Definition();
+    double west = input.longitude_bounds_deg.front()[0];
+    double east = west;
+    double south = input.latitude_bounds_deg.front()[0];
+    double north = south;
+    for (const auto& bounds : input.longitude_bounds_deg) {
+        for (const auto value : bounds) {
+            west = std::min(west, value);
+            east = std::max(east, value);
+        }
+    }
+    for (const auto& bounds : input.latitude_bounds_deg) {
+        for (const auto value : bounds) {
+            south = std::min(south, value);
+            north = std::max(north, value);
+        }
+    }
+    cece::FireGridDefinition definition{
+        "coarsened-" + input.grid_id, std::string(64, 'c'), 1, 1, {(west + east) / 2}, {(south + north) / 2},
+        {{{west, east, east, west}}}, {{{south, south, north, north}}}, {1.0}, input.crs, input.longitude_convention};
+    const cece::FireGrid candidate(definition);
+    const auto matrix = ConservativeMatrix(source, candidate);
+    const auto operator_source_area = matrix.area_a();
+    const auto operator_target_area = matrix.area_b();
+    const double area_scale = input.area_m2.front() / operator_source_area[0];
+    definition.area_m2[0] = operator_target_area[0] * area_scale;
+    return std::make_shared<const cece::FireGrid>(std::move(definition));
+}
+
+Matrix ConservativeMatrix(const cece::FireGrid& source, const cece::FireGrid& target) {
+    axis::solver::RegridConfig config;
+    config.method = axis::solver::InterpolationMethod::Conservative1stOrder;
+    config.norm_type = Norm::DstArea;
+    config.extrap_method = axis::solver::ExtrapolationAction::None;
+    return axis::solver::WeightGenerator::generate<Kokkos::HostSpace>(AxisMesh(source.Definition()), AxisMesh(target.Definition()), config);
 }
 
 cece::FireBulkInventory Inventory(std::shared_ptr<const cece::FireGrid> grid = GridWithAreas({25, 75}), std::vector<double> masses = {10, 30, 20, 60},
@@ -400,5 +480,151 @@ TEST(test_fire_conservation, AxisGeneratedSphericalWeightsConserveAcrossDateline
         EXPECT_NEAR(budget.output_kg, budget.supported_input_kg, budget.supported_input_kg * 1e-6);
     }
     for (std::size_t i = 0; i < target->CellCount(); ++i) EXPECT_NEAR(result.coverage_fraction[i], 1, 1e-6);
+}
+
+TEST(test_fire_conservation, ActualRaveDayConservesAcrossTwoSubstepsAndChangingTargetGeometry) {
+    constexpr std::array<cece::FireBulkSpecies, 2> species{cece::FireBulkSpecies::CO, cece::FireBulkSpecies::PM25};
+    constexpr std::array<double, 2> expected_total_kg{71184.0390625, 4368.746002197266};
+    std::array<double, 2> actual_total_kg{};
+    const auto fixture_root = std::filesystem::path(__FILE__).parent_path() / "data/fire/product_samples/rave-24h/";
+
+    for (std::size_t hour = 0; hour < 24; ++hour) {
+        const auto filename = fixture_root / ("hour-" + (hour < 10 ? std::string("0") : std::string()) + std::to_string(hour) + ".nc");
+        cece::FireProductDecodeOptions options;
+        options.availability_cutoff = cece::FireUtcTime("2026-07-03T00:00:00Z");
+        options.cutoff_mode = cece::FireCutoffMode::Fixed;
+        const auto product = cece::DecodeRaveProductFile(filename.string(), options);
+        const auto inventory = ProductInventory(product);
+        const auto source_grid = inventory.Data().identity.Metadata().grid_definition;
+        const auto coarse_grid = CoarsenedGrid(*source_grid);
+        const auto interval_start = inventory.Data().identity.Metadata().interval_start;
+        const auto interval_end = inventory.Data().identity.Metadata().interval_end;
+        const auto middle = cece::FireUtcTime::FromEpochSeconds(interval_start.EpochSeconds() + 1800);
+
+        for (std::size_t substep = 0; substep < 2; ++substep) {
+            const auto target = substep == 0 ? source_grid : coarse_grid;
+            const auto matrix = ConservativeMatrix(*source_grid, *target);
+            const auto start = substep == 0 ? interval_start : middle;
+            const auto end = substep == 0 ? middle : interval_end;
+            const auto allocated = cece::FireAllocateConservativeMass(inventory, target, matrix, Norm::DstArea, start, end);
+            ASSERT_EQ(allocated.species_budgets.size(), species.size());
+            for (std::size_t index = 0; index < species.size(); ++index) {
+                EXPECT_EQ(allocated.species_budgets[index].species, species[index]);
+                EXPECT_NEAR(allocated.species_budgets[index].output_kg,
+                            allocated.species_budgets[index].input_kg * 0.5,
+                            std::max(1e-12, allocated.species_budgets[index].input_kg * 1e-6));
+                actual_total_kg[index] += allocated.species_budgets[index].output_kg;
+            }
+        }
+    }
+
+    for (std::size_t index = 0; index < species.size(); ++index) {
+        EXPECT_NEAR(actual_total_kg[index], expected_total_kg[index], std::max(1e-12, expected_total_kg[index] * 1e-6));
+    }
+}
+
+TEST(test_fire_conservation, RaveRectilinearTargetUsesGreatCircleCellAreas) {
+    cece::FireProductDecodeOptions options;
+    options.availability_cutoff = cece::FireUtcTime("2026-07-03T00:00:00Z");
+    options.cutoff_mode = cece::FireCutoffMode::Fixed;
+    const auto filename = std::filesystem::path(__FILE__).parent_path() / "data/fire/product_samples/RAVE-v2r0-crop.nc";
+    const auto inventory = ProductInventory(cece::DecodeRaveProductFile(filename.string(), options));
+    const auto source_grid = inventory.Data().identity.Metadata().grid_definition;
+    const auto& source = source_grid->Definition();
+    double west = std::numeric_limits<double>::max();
+    double east = -std::numeric_limits<double>::max();
+    double south = std::numeric_limits<double>::max();
+    double north = -std::numeric_limits<double>::max();
+    for (std::size_t cell = 0; cell < source_grid->CellCount(); ++cell) {
+        for (const auto lon : source.longitude_bounds_deg[cell]) {
+            west = std::min(west, lon);
+            east = std::max(east, lon);
+        }
+        for (const auto lat : source.latitude_bounds_deg[cell]) {
+            south = std::min(south, lat);
+            north = std::max(north, lat);
+        }
+    }
+    const auto target = cece::MakeRectilinearFireGrid(2, 2, {west + (east - west) * 0.25, west + (east - west) * 0.75},
+                                                      {south + (north - south) * 0.25, south + (north - south) * 0.75},
+                                                      cece::FireGridAreaModel::GreatCircleEdges);
+    const auto matrix = ConservativeMatrix(*source_grid, *target);
+    const auto interval = inventory.Data().identity.Metadata();
+    const auto allocated = cece::FireAllocateConservativeMass(inventory, target, matrix, Norm::DstArea, interval.interval_start,
+                                                               interval.interval_end);
+    ASSERT_EQ(allocated.species_budgets.size(), 2);
+    for (const auto& budget : allocated.species_budgets) {
+        EXPECT_NEAR(budget.output_kg, budget.supported_input_kg, std::max(1e-12, budget.supported_input_kg * 1e-6));
+    }
+}
+
+TEST(test_fire_conservation, RaveScaledAndUnscaledSelectionsConserveTheirSelectedMasses) {
+    const auto filename = std::filesystem::path(__FILE__).parent_path() / "data/fire/product_samples/RAVE-v2r0-crop.nc";
+    cece::FireProductDecodeOptions scaled_options;
+    scaled_options.availability_cutoff = cece::FireUtcTime("2026-07-03T00:00:00Z");
+    scaled_options.cutoff_mode = cece::FireCutoffMode::Fixed;
+    scaled_options.scaling = cece::FireProductScalingKind::Applied;
+    const auto scaled = ProductInventory(cece::DecodeRaveProductFile(filename.string(), scaled_options));
+
+    auto unscaled_options = scaled_options;
+    unscaled_options.scaling = cece::FireProductScalingKind::Unscaled;
+    const auto unscaled = ProductInventory(cece::DecodeRaveProductFile(filename.string(), unscaled_options));
+    const auto grid = scaled.Data().identity.Metadata().grid_definition;
+    const auto matrix = ConservativeMatrix(*grid, *grid);
+    const auto start = scaled.Data().identity.Metadata().interval_start;
+    const auto middle = cece::FireUtcTime::FromEpochSeconds(start.EpochSeconds() + 1800);
+    const auto end = scaled.Data().identity.Metadata().interval_end;
+
+    const auto split_total = [&](const cece::FireBulkInventory& inventory) {
+        double mass = 0;
+        for (const auto& bounds : {std::pair{start, middle}, std::pair{middle, end}}) {
+            const auto allocated = cece::FireAllocateConservativeMass(inventory, grid, matrix, Norm::DstArea, bounds.first, bounds.second);
+            mass += allocated.species_budgets.at(1).output_kg;
+        }
+        return mass;
+    };
+
+    const double scaled_pm25 = split_total(scaled);
+    const double unscaled_pm25 = split_total(unscaled);
+    EXPECT_NE(scaled_pm25, unscaled_pm25);
+    EXPECT_NEAR(scaled_pm25, scaled.SpeciesBudgetKg(cece::FireBulkSpecies::PM25), scaled_pm25 * 1e-6);
+    EXPECT_NEAR(unscaled_pm25, unscaled.SpeciesBudgetKg(cece::FireBulkSpecies::PM25), unscaled_pm25 * 1e-6);
+}
+
+TEST(test_fire_conservation, ActualGbbepxDayConservesAcrossTwoSubstepsAndRejectsMissingSpecies) {
+    cece::FireProductDecodeOptions options;
+    options.availability_cutoff = cece::FireUtcTime("2023-02-26T00:00:00Z");
+    options.cutoff_mode = cece::FireCutoffMode::Fixed;
+    const auto filename = std::filesystem::path(__FILE__).parent_path() / "data/fire/product_samples/GBBEPx-v4r0-crop.nc";
+    const auto product = cece::DecodeGbbepxProductFile(filename.string(), options);
+    EXPECT_THROW(product.RequireSpecies({cece::FireBulkSpecies::CO, cece::FireBulkSpecies::CH4, cece::FireBulkSpecies::VOC}),
+                 std::invalid_argument);
+
+    const auto inventory = ProductInventory(product);
+    const auto source_grid = inventory.Data().identity.Metadata().grid_definition;
+    const auto coarse_grid = CoarsenedGrid(*source_grid);
+    const auto interval_start = inventory.Data().identity.Metadata().interval_start;
+    const auto interval_end = inventory.Data().identity.Metadata().interval_end;
+    const auto middle = cece::FireUtcTime::FromEpochSeconds(interval_start.EpochSeconds() + 43200);
+    std::array<double, 2> allocated_total_kg{};
+    const std::array<cece::FireBulkSpecies, 2> species{cece::FireBulkSpecies::CO, cece::FireBulkSpecies::PM25};
+
+    for (std::size_t substep = 0; substep < 2; ++substep) {
+        const auto target = substep == 0 ? source_grid : coarse_grid;
+        const auto matrix = ConservativeMatrix(*source_grid, *target);
+        const auto start = substep == 0 ? interval_start : middle;
+        const auto end = substep == 0 ? middle : interval_end;
+        const auto allocated = cece::FireAllocateConservativeMass(inventory, target, matrix, Norm::DstArea, start, end);
+        ASSERT_EQ(allocated.species_budgets.size(), species.size());
+        for (std::size_t index = 0; index < species.size(); ++index) {
+            EXPECT_EQ(allocated.species_budgets[index].species, species[index]);
+            allocated_total_kg[index] += allocated.species_budgets[index].output_kg;
+        }
+    }
+
+    for (std::size_t index = 0; index < species.size(); ++index) {
+        EXPECT_NEAR(allocated_total_kg[index], inventory.SpeciesBudgetKg(species[index]),
+                    std::max(1e-12, inventory.SpeciesBudgetKg(species[index]) * 1e-6));
+    }
 }
 }  // namespace

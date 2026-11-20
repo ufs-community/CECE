@@ -1,23 +1,109 @@
-# Fire emissions: implementation status
+# Fire emissions: product support and limits
 
-The fire feature is **not operational end to end yet**. The `fire` physics
-scheme is registered and can map an explicitly staged synthetic/test inventory
-to isolated `FIRE_` mass-flux fields, including exact-target bypass. The CECE
-core now exposes a typed prepared/coupled runtime-adapter registry, prepares
-interval data before scheme execution, commits only after export synchronization,
-and validates configured export descriptors. Fire exports must be declared in
-`output.fields` and/or `nuopc.export_fields` with units `kg m-2 s-1`; bulk
-profile fields are derived from requested mappings, while target-specific names
-must be declared explicitly. No prepared or coupled adapter is
-registered in this repository yet, so configuring `fire` fails explicitly rather
-than silently running without data. RAVE v2r0 and GBBEPx v4r0 decoders are
-implemented and tested against pinned actual-sample crops, including a complete
-24-hour RAVE reference series. The preparation CLI writes normalized CF-style
-NetCDF intervals and a checksummed manifest for local bulk-product files.
-No production chemistry profile or Ursa fire-run script is available. Existing
-fire-free runtime behavior is unchanged.
-Building the core now requires system OpenSSL Crypto for input verification
-(see the [developer guide](developer_guide.md#development-environment)).
+The prepared bulk-product path is wired for local RAVE v2r0 and GBBEPx v4r0
+inputs: decoders validate source metadata, preparation writes normalized
+interval files, and the prepared runtime verifies manifests, source hashes,
+cutoffs, profile identities, and conservative spatial/temporal allocation.
+Existing fire-free runtime behavior is unchanged. This is not a production
+chemistry certification or an operational Ursa recipe.
+
+The product decoder and preparation support are distinct from chemistry
+approval. The CB6 factor rows are verified against the pinned upstream excerpt
+and confirmed by the user, but the asset registry still marks CB6 production
+use false: redistribution permission is unverified and independent target
+budgets remain pending. Passing parser or sample-conservation tests does not
+remove that gate. RAVE FRP/FRE diagnostics are retained as diagnostics; they do
+not activate an FRP-to-emissions conversion.
+
+Four Phase 3 demonstration configurations are generated from the factor
+manifest by [`scripts/generate_fire_cb6_examples.py`](../scripts/generate_fire_cb6_examples.py):
+
+| Product | Native product species (direct, non-CB6-speciated) | CO/PM2.5 factor profile |
+|---|---|---|
+| Hourly RAVE | [`cece_config_fire_rave_cb6_native.yaml`](../examples/cece_config_fire_rave_cb6_native.yaml) | [`cece_config_fire_rave_cb6_speciation.yaml`](../examples/cece_config_fire_rave_cb6_speciation.yaml) |
+| Daily GBBEPx | [`cece_config_fire_gbbepx_cb6_native.yaml`](../examples/cece_config_fire_gbbepx_cb6_native.yaml) | [`cece_config_fire_gbbepx_cb6_speciation.yaml`](../examples/cece_config_fire_gbbepx_cb6_speciation.yaml) |
+
+The native profile passes selected product fields through unchanged and
+excludes PM25, TPM, NOX and VOC. The factor profile requests only CO and PM25,
+maps them with the 43 manifest coefficients, and excludes all other product
+species. Choose one profile/configuration per run; do not combine their outputs.
+The native outputs retain product-species names and are not CB6 mechanism-ready.
+The factor outputs are exact mass-basis factor targets; they are not a complete
+or production-certified CB6 mechanism. Redistribution rights, independent
+budgets and deployed-mechanism compatibility remain unresolved.
+
+All four configs use a 72x46 CONUS grid, `nz: 1`, surface placement and
+explicit `kg m-2 s-1` exports. The physical longitude extent is -125 to -66
+degrees, represented as 235 to 294 degrees to match the products' 0-to-360
+longitude coordinates. They select source-resolved allocation, fixed UTC
+cutoffs and unscaled inputs. Runtime target-cell areas use AXIS's great-circle
+edge convention; RAVE curvilinear source areas use the same polygon method,
+while GBBEPx source areas retain the regular 0.1-degree product bounds. Run
+preflight from the repository root:
+
+```bash
+python scripts/prepare_fire_inputs.py \
+  --config examples/cece_config_fire_rave_cb6_speciation.yaml \
+  --output-dir examples/fire_inputs/rave --preflight-only
+```
+
+Equivalent config/source-manifest pairs are provided for RAVE native, GBBEPx
+native and GBBEPx factor mode. Preflight checks their actual sample hashes and
+metadata declarations; it does not normalize or run CECE. From the repository
+root, build the normalizer and driver, normalize once per product, then run
+each native or factor configuration separately:
+
+```bash
+cmake --build build --target cece_fire_product_normalize cece_standalone_driver
+export CECE_FIRE_PRODUCT_NORMALIZER=build/cece_fire_product_normalize
+python scripts/prepare_fire_inputs.py \
+  --config examples/cece_config_fire_rave_cb6_speciation.yaml \
+  --output-dir examples/fire_inputs/rave
+python scripts/prepare_fire_inputs.py \
+  --config examples/cece_config_fire_gbbepx_cb6_speciation.yaml \
+  --output-dir examples/fire_inputs/gbbepx
+./build/cece_standalone_driver examples/cece_config_fire_rave_cb6_native.yaml
+./build/cece_standalone_driver examples/cece_config_fire_rave_cb6_speciation.yaml
+./build/cece_standalone_driver examples/cece_config_fire_gbbepx_cb6_native.yaml
+./build/cece_standalone_driver examples/cece_config_fire_gbbepx_cb6_speciation.yaml
+```
+
+CECE driver clock values use `YYYY-MM-DDTHH:MM:SS` without a timezone suffix;
+the preparation helper interprets these driver values as UTC. Product and
+source-manifest timestamps remain explicitly UTC with a trailing `Z`.
+
+Both chemistry choices for a product reuse its normalized input manifest; they
+are alternatives and must not be added together.
+
+| Product | Pinned revision and sample | Interval and units | Species support |
+|---|---|---|---|
+| RAVE | v2r0; 2026-07-01 actual sample and 24 hourly crops in [`tests/data/fire/product_samples/`](../tests/data/fire/product_samples/) | Hourly; normalized to kg/cell/interval | All 11 canonical species; unscaled and embedded scaled variants |
+| GBBEPx | v4r0; 2023-02-24 actual sample and crops in [`tests/data/fire/product_samples/`](../tests/data/fire/product_samples/) | Daily; source flux kg m-2 s-1 integrated over cell area and 86400 seconds | Eight species: CO2, CO, BC, OC, PM2.5, SO2, NH3, NOx; CH4, TPM and VOC unavailable |
+
+Pinned source hashes and independent crop/reference totals are recorded in
+[`data/fire/product_samples_manifest.yaml`](../data/fire/product_samples_manifest.yaml)
+and [`tests/data/fire/product_samples/manifest.yaml`](../tests/data/fire/product_samples/manifest.yaml).
+Requesting a missing GBBEPx species is an error, not an implicit zero.
+
+[`data/fire/cb6_fire_factors_manifest.yaml`](../data/fire/cb6_fire_factors_manifest.yaml)
+records 17 PM2.5-referenced and 26 CO-referenced CB6r5-AE7-AQ rows and their
+source identity. PM2.5 coefficients sum to 1.0; CO coefficients sum to 1.1247.
+Those are observed sums, not normalization instructions. The source excerpt is
+[`data/fire/cb6_fire_config.txt`](../data/fire/cb6_fire_config.txt); its asset
+hash and unresolved redistribution rights are recorded in
+[`data/fire/asset_registry.yaml`](../data/fire/asset_registry.yaml). These
+factors are not a complete production-ready CB6 fire profile: rights,
+independent gas/aerosol budgets and compatibility with the production target
+mechanism must be resolved first.
+
+Exports are extensive target-species mass divided by target cell area and the
+exact model interval, in `kg m-2 s-1`. Declare every `FIRE_` export in
+`output.fields` and/or `nuopc.export_fields` with those units. Fire exports are
+surface fields; existing species vertical-distribution configuration (`vdist`)
+remains responsible for placement in model levels. Select `unscaled` or RAVE's
+embedded `scaled` variant at decode time. CECE rejects repeated scaling and
+does not apply extra fire scaling during preparation. FRP, FRE and dry-matter
+diagnostics do not replace product species mass.
 
 ## Implemented contracts
 
@@ -33,8 +119,10 @@ Building the core now requires system OpenSSL Crypto for input verification
   require a future validated adapter. Date-line crossing and polar bounds are
   retained, not used to invent replacement cell areas.
 - Component-resolved, selected-species inventory masses in kg, source/profile
-  identities, coverage and quality. Components retain their own biome/composition
-  references. Species totals are calculated from those components.
+  identities when supplied, coverage and quality. Product inventories may mark
+  components unprofiled for invariant mappings; composition-specific mappings
+  require matching identities, and FRP-derived inputs require biome/composition
+  metadata. Species totals are calculated from those components.
 - Product intervals with explicit availability for all eleven canonical species,
   source-grid cell areas, quality/coverage, and normalized kg/cell/interval
   masses. Supported source units are `kg/cell/interval`, `kg s-1`, and
@@ -44,19 +132,19 @@ Building the core now requires system OpenSSL Crypto for input verification
   bypass bulk mapping only on an exact target match. Optional FRP, FRE, and dry
   matter diagnostics do not replace product mass or trigger emissions derivation;
   scaling identities are retained and a second scaling application is rejected.
-- Explicit NOx reference mass, VOC profile and particulate-pool definitions when
-  those species are selected. No combined total of overlapping particulate pools
-  is exposed. Optional FRE/dry-matter diagnostics remain absent unless supplied.
+- Explicit NOx reference mass and VOC profiles when those species are selected.
+  A particulate-overlap profile is required when selected PM25/TPM total pools
+  coexist with each other or with OC/BC component pools; no combined total of
+  overlapping pools is exposed. Optional FRE/dry-matter diagnostics remain absent
+  unless supplied.
 
-These are validated in-memory contracts; the RAVE/GBBEPx decoder layer also
-validates pinned product samples and normalizes source quantities to interval
-mass. Product allocation and chemistry integration remain pending.
-Hash fields are checked for syntax; the provider below additionally verifies
-normalized payload bytes. Scientific-profile content verification remains
-pending. Unsupported
-metadata, missing composition, nonfinite/negative mass and unavailable input
-cannot silently become valid zero-emission inventories. Partial positive
-coverage is retained explicitly; runtime missing-policy enforcement is pending.
+These in-memory contracts are used by the decoders, normalized writer and
+prepared-product runtime. Scientific-profile verification and production
+eligibility remain separate approval gates. Unsupported metadata, missing
+composition for a composition-specific mapping, nonfinite/negative mass and
+unavailable input cannot silently become valid zero-emission inventories.
+Partial positive coverage is retained explicitly and not renormalized into
+emissions.
 
 ## Fire option validation
 
@@ -98,14 +186,14 @@ Only one fire contribution is accepted per configuration: the current contract
 does not identify independent spatial supports sufficiently to prove multiple
 contributions nonoverlapping. This prevents accidental duplicate fire mass.
 
-This validation checks declarations, not asset existence, schedule contents,
-profile certification, metadata agreement or duplicate scaling within actual
-inputs. Those checks require pending manifest/schedule readers and
-provider implementations.
+The option parser checks declarations only; the prepared runtime separately
+verifies normalized interval content, manifest/file identity, temporal-profile
+identity and cutoff consistency. Successful parsing does not certify a
+scientific profile.
 The [configuration validation CLI](../scripts/validate_cece_config.py) reuses the
-Python checks and recognizes the registered `fire` scheme. Do not treat
-successful option parsing as an executable ingestion example: no concrete
-prepared/coupled adapter is registered yet.
+Python checks and recognizes the registered `fire` scheme. The prepared adapter
+supports bulk products only; coupled ingestion and target-specific product
+loading are not implemented.
 
 ## Source-manifest preflight
 
@@ -124,9 +212,13 @@ NetCDF file per source interval. Files are staged and checksummed before the
 manifest is atomically committed; failures remove newly committed intervals and
 preserve any previous manifest and files. Each interval file keeps the decoded
 source identity and delivery ID separate from its source-manifest ID. Remote
-acquisition and target-specific products are not supported. The normalized
-manifest is not yet consumed by a prepared runtime adapter, so this is not yet an
-end-to-end CECE workflow.
+acquisition and target-specific products are not supported. The prepared
+runtime consumes the normalized manifest, but still requires a compatible
+mapping profile and a supported rectilinear CECE target grid. Component
+biome/composition identities are required only by composition-specific
+mappings; the Phase 3 invariant product examples do not require them. FRP
+derivation still requires its applicable biome/composition identities. This
+does not imply chemistry certification.
 
 Build the writer and run preparation with:
 
@@ -155,12 +247,16 @@ target. The scheme rejects missing staged intervals, missing/wrong-sized output
 fields, non-mass output units and invalid mass/area values rather than creating
 zero-filled outputs.
 
-These are in-memory scheme boundaries exercised with explicitly synthetic,
-non-production assets. `FireRuntimeAdapter` implementations own input loading,
-normalization and bounded provider lifecycle; the core borrows their prepared
-inventory for `FireScheme::Run` and signals commit or abort around export
-synchronization. No concrete adapter currently decodes manifests or binds host
-fields, and temporal or spatial allocation is not invoked by the scheme.
+The scheme boundary and runtime lifecycle are covered with explicitly
+synthetic, non-production chemistry assets. The prepared adapter loads
+normalized product intervals, allocates them to the model interval/grid, and
+hands the resulting component-resolved inventory to `FireScheme::Run`. Coupled
+provider loading and host-field bindings remain unsupported.
+
+Typed target profiles default to `mapping_factor_semantics: partition`, which
+requires explicit unit-sum factors. The test-only `independent_coefficients`
+mode preserves non-normalized verified coefficients such as the CB6 CO rows;
+it does not certify target budgets or permit production activation.
 
 ## Bounded provider foundation
 
@@ -169,10 +265,8 @@ bulk inventories through prepared-file and coupled-byte staging methods. Both
 verify `identity.content_sha256` against the supplied normalized payload using
 OpenSSL SHA256. Files are read in 64 KiB chunks and checked on every staging
 attempt, including reuse of an unchanged filename. Prepared staging does not
-reopen raw sources. The decoder/host must bind the inventory values and metadata
-to those same bytes; actual decoders and host bindings are not yet implemented.
-The standalone content/file digest helpers can also verify raw assets at their
-future acquisition boundary.
+reopen raw sources. The RAVE/GBBEPx decoders and source-preparation path verify
+raw local assets at their acquisition boundary.
 
 The window has explicit positive limits for slots, cells, components and encoded
 metadata per interval. They bound retained logical data independently of run
@@ -195,10 +289,9 @@ inventory and advances constant-size committed-end/cutoff watermarks. Replayed
 or overlapping committed support, stale cache identities, out-of-order commits
 and backward cutoffs fail. Persist the provider checkpoint with output and
 restore the same run/revision on restart; historical reprocessing requires an
-explicit new run/revision. Durable output/checkpoint atomicity, runtime wiring,
-schedule-content/host agreement, observation-age and causal reconstruction
-enforcement remain later tasks. This in-memory foundation is not a runnable
-fire ingestion workflow or a measured high-resolution memory result.
+explicit new run/revision. Durable output/checkpoint atomicity and measured
+high-resolution memory behavior are not established. This provider foundation
+is distinct from prepared-product runtime loading.
 
 ## Conservative allocation foundation
 
@@ -225,17 +318,19 @@ Space/time coverage is reported without renormalizing missing support. Inventory
 mass already represents supported mass, so coverage is not multiplied into mass
 again. Unmapped or temporally disjoint cells remain unavailable, not valid-zero
 fire. Observed/reconstructed/valid-zero quality remains explicit. This primitive
-does not merge finer source intervals, choose a temporal profile, perform
-chemistry, generate geometry weights or wire runtime ingestion; those remain
-the responsibility of the subsequent product/profile/lifecycle stages.
+is applied independently to retained source intervals by the prepared adapter,
+which then combines component-preserving results over the model interval and
+regenerates conservative weights for each source/target geometry. This does not
+certify target chemistry or replace a validated source composition.
 
 ## Fixtures and scientific gates
 
-[The asset registry](../data/fire/asset_registry.yaml) distinguishes synthetic
-test data from missing scientific prerequisites. All production assets remain
-blocked: representative GBBEPx/RAVE granules, ABI/VIIRS reference scenes, compatible
-RAVE scientific/ancillary assets and fire-specific AM4, CB6, CRACMM2, RACM2 and
-GOCART2G profiles. No MEGAN factor is used as a fire factor.
+[The asset registry](../data/fire/asset_registry.yaml) distinguishes pinned
+product references, verified-but-not-production CB6 factors, synthetic test
+data and blocked scientific prerequisites. ABI/VIIRS reference scenes,
+compatible RAVE derivation/ancillary assets and production-ready fire profiles
+for supported chemistry targets remain unavailable. No MEGAN factor is used
+as a fire factor.
 
 [The fixture schema](../tests/data/fire/fixture_schema.yaml) requires provenance,
 redistribution information and independent expected values/tolerances.
@@ -244,12 +339,13 @@ deliberately artificial coefficients and hand-derived expectations. Its content
 digest is recorded in the registry. It must not be used in production.
 
 The native fire selectors and Python configuration tests exercise fixture
-consistency, option/input validation, synthetic typed profile loading/mapping,
+consistency, option/input validation, typed profile loading/mapping,
 registered-scheme mass-flux export, exact-target bypass and test-helper device
-round trips.
-The conservation selector also checks interval subdivision, extensive/density
-equivalence, partial support, mixed components and generated AXIS weights across
-global longitude conventions and polar rows.
+round trips. Product tests decode pinned RAVE/GBBEPx crops and all 24 RAVE
+hours. Conservation tests include actual RAVE and GBBEPx sample mass allocated
+over multiple model substeps and changing target geometry, alongside interval
+subdivision, extensive/density equivalence, partial support, mixed components
+and generated AXIS weights across global longitude conventions and polar rows.
 The [shared option cases](../tests/data/fire/config_cases.yaml) exercise native
 and Python acceptance; neither suite loads production scientific assets.
 Passing these checks does

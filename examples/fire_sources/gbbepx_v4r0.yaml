@@ -1,0 +1,15 @@
+schema_version: 1
+sources:
+- source_id: gbbepx-v4r0-20230224-day-00
+  adapter_id: gbbepx-v4r0
+  product_id: GBBEPx-all01GRID
+  product_version: v4r0
+  algorithm_version: v4r0
+  variant: unscaled
+  chemistry_state: bulk
+  interval_start: '2023-02-24T00:00:00Z'
+  interval_end: '2023-02-25T00:00:00Z'
+  acquired_at: '2023-02-25T01:34:09Z'
+  available_at: '2023-02-25T01:34:09Z'
+  local_path: ../../data/fire/product_samples/GBBEPx-all01GRID_v4r0_20230224_sample.nc
+  content_sha256: 4dbcff118dd4bf78013d69a260c4700225464f1c0c3301839eb62d74ba40b56c

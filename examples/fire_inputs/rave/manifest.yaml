@@ -1,0 +1,60 @@
+availability_cutoff: '2026-07-03T00:00:00Z'
+chemistry_state: bulk
+cutoff_mode: fixed
+cutoff_schedule_sha256: null
+decoder_version: cece-fire-product-decoder-v1
+intervals:
+- algorithm_version: v2r0
+  availability_cutoff: '2026-07-03T00:00:00Z'
+  available_species: &id001
+  - CO2
+  - CO
+  - CH4
+  - PM25
+  - OC
+  - BC
+  - SO2
+  - TPM
+  - NH3
+  - NOX
+  - VOC
+  chemistry_state: bulk
+  component_id: rave-v2r0-20260701-hour-00
+  component_profile: null
+  content_sha256: 95ae28b5967b5232d5e237539b7d572aa6a3a61a649f467bf6dd05d7d4ea4eef
+  cutoff_mode: fixed
+  grid_sha256: 386bbb1f08e7a84eafb425adf77ffbe00d1d15d5bcd4c958bbbf82ef22397d79
+  interval_end: '2026-07-01T01:00:00Z'
+  interval_start: '2026-07-01T00:00:00Z'
+  path: intervals/20260701_000000_20260701_010000_7cdad6989d28_95ae28b5967b.nc
+  product_id: RAVE-HrlyEmiss-13km
+  product_version: v2r0
+  scaling_profile: null
+  scaling_state: unscaled
+  source_content_sha256: 0ac99097022d50bd9128af93df8268a3d53f96b70bad8d267cfde497ab264141
+  source_id: rave-v2r0-20260701-hour-00
+  species: *id001
+  unavailable_species: []
+  units: kg/cell/interval
+  variant: unscaled
+mode: product
+product_adapter: rave-v2r0
+product_time_allocation: source_resolved
+product_time_profile: null
+schema_version: 1
+source_manifest_sha256: 78139423da25e4a5ff8cf3485e763fc9f6bff34d63570817cbacbe4ab049c4c5
+sources:
+- acquired_at: '2026-07-01T02:02:02Z'
+  adapter_id: rave-v2r0
+  algorithm_version: v2r0
+  available_at: '2026-07-01T02:02:02Z'
+  content_sha256: 0ac99097022d50bd9128af93df8268a3d53f96b70bad8d267cfde497ab264141
+  local_id: ../../data/fire/product_samples/RAVE-HrlyEmiss-13km_v2r0_20260701_sample.nc
+  priority: 0
+  product_id: RAVE-HrlyEmiss-13km
+  product_version: v2r0
+  source_id: rave-v2r0-20260701-hour-00
+  uri: null
+  variant: unscaled
+target_id: CB6
+target_version: cb6r5_ae7_aq

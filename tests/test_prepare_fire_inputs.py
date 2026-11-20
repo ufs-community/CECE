@@ -153,6 +153,18 @@ def test_preflight_does_not_require_normalized_output_to_exist(tmp_path):
     assert not (tmp_path / "fire-output" / "manifest.yaml").exists()
 
 
+def test_preflight_interprets_cece_driver_clock_without_zone_as_utc(tmp_path):
+    config_path, _, _ = _write_inputs(tmp_path)
+    config = yaml.safe_load(config_path.read_text())
+    config["driver"]["start_time"] = "2022-07-01T00:00:00"
+    config["driver"]["end_time"] = "2022-07-01T01:00:00"
+    config_path.write_text(yaml.safe_dump(config, sort_keys=True))
+
+    result = _run(tmp_path, config_path, "--preflight-only")
+
+    assert result.returncode == 0, result.stderr
+
+
 def test_preflight_never_fetches_remote_sources(tmp_path):
     config_path, _, source = _write_inputs(tmp_path)
     remote = _remote_source(source, "remote-source", "d" * 64)

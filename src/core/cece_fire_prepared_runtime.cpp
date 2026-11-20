@@ -202,6 +202,7 @@ class PreparedProductAdapter final : public FireRuntimeAdapter {
 
         const auto target_cells = target_grid_->CellCount();
         std::map<std::string, FireComponentProfile> component_profiles;
+        std::set<std::string> unprofiled_component_ids;
         std::map<std::string, std::vector<double>> component_masses;
         std::vector<double> coverage(target_cells, 0.0);
         std::vector<FireQualityState> quality(target_cells, FireQualityState::Unavailable);
@@ -219,10 +220,20 @@ class PreparedProductAdapter final : public FireRuntimeAdapter {
                                                                 temporal_profile_);
             for (std::size_t component = 0; component < allocated.component_ids.size(); ++component) {
                 const auto& id = allocated.component_ids[component];
-                const auto& profile = allocated.component_profiles.at(id);
-                const auto [found, inserted] = component_profiles.emplace(id, profile);
-                if (!inserted && (found->second.biome != profile.biome || found->second.composition != profile.composition)) {
-                    throw std::invalid_argument("prepared component identity changes biome/composition profile across intervals");
+                const auto profile = allocated.component_profiles.find(id);
+                if (profile != allocated.component_profiles.end()) {
+                    if (unprofiled_component_ids.contains(id)) {
+                        throw std::invalid_argument("prepared component profile availability changes across intervals");
+                    }
+                    const auto [found, inserted] = component_profiles.emplace(id, profile->second);
+                    if (!inserted && (found->second.biome != profile->second.biome || found->second.composition != profile->second.composition)) {
+                        throw std::invalid_argument("prepared component identity changes biome/composition profile across intervals");
+                    }
+                } else {
+                    if (component_profiles.contains(id)) {
+                        throw std::invalid_argument("prepared component profile availability changes across intervals");
+                    }
+                    unprofiled_component_ids.insert(id);
                 }
                 auto& mass = component_masses[id];
                 if (mass.empty()) mass.assign(config_.requested_species.size() * target_cells, 0.0);
@@ -286,6 +297,7 @@ class PreparedProductAdapter final : public FireRuntimeAdapter {
         FireBulkInventoryData inventory_data{std::move(identity), config_.requested_species, std::move(component_ids), std::move(component_profiles),
                                              std::move(mass), std::move(quality), std::move(coverage), std::move(accepted_hashes), nox_basis,
                                              voc_profile, std::nullopt, std::nullopt, std::nullopt};
+        inventory_data.unprofiled_component_ids.assign(unprofiled_component_ids.begin(), unprofiled_component_ids.end());
         pending_inventory_.emplace(std::move(inventory_data));
         pending_ = true;
         return std::cref(*pending_inventory_);
@@ -433,12 +445,14 @@ class PreparedProductAdapter final : public FireRuntimeAdapter {
         const auto path = ManifestPath(manifest_path_, interval.record["path"]);
         const auto normalized_sha256 = Text(interval.record["content_sha256"], "manifest.interval.content_sha256");
         if (FireFileSha256(path.string()) != normalized_sha256) throw std::invalid_argument("prepared fire interval file SHA256 mismatch");
+        std::optional<FireComponentProfile> component_profile;
         const auto& component = interval.record["component_profile"];
-        if (!component || !component.IsMap()) {
-            throw std::invalid_argument("prepared bulk fire interval lacks explicit biome/composition profiles; composition will not be inferred");
+        if (component && component.IsMap()) {
+            component_profile = FireComponentProfile{ProfileIdentity(component["biome"], "component_profile.biome"),
+                                                     ProfileIdentity(component["composition"], "component_profile.composition")};
+        } else if (component && !component.IsNull()) {
+            throw std::invalid_argument("prepared interval component_profile must be a mapping when present");
         }
-        FireComponentProfile component_profile{ProfileIdentity(component["biome"], "component_profile.biome"),
-                                               ProfileIdentity(component["composition"], "component_profile.composition")};
         const auto component_id = Text(interval.record["component_id"], "manifest.interval.component_id");
 
         int file = -1;
@@ -557,9 +571,14 @@ class PreparedProductAdapter final : public FireRuntimeAdapter {
                                       Text(interval.record["cutoff_mode"], "manifest.interval.cutoff_mode") == "fixed" ? FireCutoffMode::Fixed
                                                                                                                        : FireCutoffMode::HostSupplied,
                                       grid};
-        FireBulkInventoryData data{FireInputIdentity(std::move(identity)), config_.requested_species, {component_id},
-                                   {{component_id, std::move(component_profile)}}, std::move(masses), std::move(quality), coverage,
-                                   {interval.source_sha256}, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt};
+        FireBulkInventoryData data{FireInputIdentity(std::move(identity)), config_.requested_species, {component_id}, {}, std::move(masses),
+                                   std::move(quality), coverage, {interval.source_sha256}, std::nullopt, std::nullopt, std::nullopt,
+                                   std::nullopt, std::nullopt};
+        if (component_profile) {
+            data.component_profiles.emplace(component_id, std::move(*component_profile));
+        } else {
+            data.unprofiled_component_ids.push_back(component_id);
+        }
         return {FireBulkInventory(std::move(data)), normalized_sha256};
     }
 

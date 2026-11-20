@@ -12,12 +12,13 @@
 namespace cece {
 
 enum class FireMappingBasis { Mass, Molar, CarbonMolar, Number };
+enum class FireMappingFactorSemantics { Partition, IndependentCoefficients };
 enum class FireSourceDispositionKind { Mapped, DiagnosticOnly, Excluded };
 enum class FireOcOmPolicyKind { PreserveOc, ConvertWithFactor };
 
 struct FireTargetSpecies {
     std::string name;
-    double molecular_weight_g_mol;
+    std::optional<double> molecular_weight_g_mol;
 };
 
 struct FireTypedMapping {
@@ -65,6 +66,7 @@ struct FireTargetProfile {
     std::string target_id;
     std::string target_version;
     bool production_eligible;
+    FireMappingFactorSemantics mapping_factor_semantics = FireMappingFactorSemantics::Partition;
     std::map<std::string, std::string> asset_hashes;
     std::vector<FireTargetSpecies> mechanism_species;
     std::vector<FireTypedMapping> mappings;
@@ -95,6 +97,7 @@ struct FireMappedInventory {
     // Component, target field, cell order; each field retains its declared unit.
     std::vector<double> values;
     std::vector<FireMappedQuantityBudget> budgets;
+    std::vector<std::string> unprofiled_component_ids;
 };
 
 struct FireTargetSpecificInventory {

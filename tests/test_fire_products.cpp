@@ -195,7 +195,7 @@ TEST(test_fire_products, WritesNormalizedRaveGridMassAndIntervalMetadata) {
     EXPECT_DOUBLE_EQ(time_bounds[1], static_cast<double>(metadata.interval_end.EpochSeconds()));
 }
 
-TEST(test_fire_products, PreparedRuntimeLoadsProfiledProductAndPreservesComposition) {
+TEST(test_fire_products, PreparedRuntimeLoadsProductWithoutBiomeOrCompositionProfiles) {
     Kokkos::ScopeGuard kokkos;
     TemporaryProductDirectory temporary;
     const auto profile_path = temporary.path / "temporal_profile.yaml";
@@ -219,8 +219,6 @@ TEST(test_fire_products, PreparedRuntimeLoadsProfiledProductAndPreservesComposit
     const auto normalized_path = temporary.path / "interval.nc";
     cece::WriteNormalizedFireProductFile(product, {"synthetic-source", "profile", temporal_identity}, normalized_path.string());
     const auto normalized_hash = cece::FireFileSha256(normalized_path.string());
-    const cece::FireProfileIdentity biome{"synthetic-biome", "test-v1", std::string(64, 'c')};
-    const cece::FireProfileIdentity composition{"synthetic-composition", "test-v1", std::string(64, 'd')};
     const auto cutoff_schedule_path = temporary.path / "cutoff_schedule.yaml";
     {
         std::ofstream schedule(cutoff_schedule_path);
@@ -263,10 +261,6 @@ TEST(test_fire_products, PreparedRuntimeLoadsProfiledProductAndPreservesComposit
                     "    grid_sha256: " << source_metadata.grid_definition->Definition().grid_sha256 << "\n"
                     "    source_content_sha256: " << source_metadata.content_sha256 << "\n"
                     "    component_id: component-a\n"
-                    "    component_profile:\n"
-                    "      biome: {id: " << biome.id << ", version: " << biome.version << ", content_sha256: " << biome.content_sha256 << "}\n"
-                    "      composition: {id: " << composition.id << ", version: " << composition.version << ", content_sha256: "
-                 << composition.content_sha256 << "}\n"
                     "    path: interval.nc\n"
                     "    content_sha256: " << normalized_hash << "\n";
         ASSERT_TRUE(manifest.good());
@@ -291,8 +285,8 @@ TEST(test_fire_products, PreparedRuntimeLoadsProfiledProductAndPreservesComposit
     ASSERT_EQ(inventory.Data().mass_kg.size(), 1);
     EXPECT_NEAR(inventory.Data().mass_kg.front(), 2.5, 1e-12);
     EXPECT_EQ(inventory.Data().component_ids, std::vector<std::string>{"component-a"});
-    EXPECT_EQ(inventory.Data().component_profiles.at("component-a").biome, biome);
-    EXPECT_EQ(inventory.Data().component_profiles.at("component-a").composition, composition);
+    EXPECT_TRUE(inventory.Data().component_profiles.empty());
+    EXPECT_EQ(inventory.Data().unprofiled_component_ids, std::vector<std::string>{"component-a"});
     ASSERT_TRUE(inventory.Data().identity.AppliedTemporalProfile());
     EXPECT_EQ(*inventory.Data().identity.AppliedTemporalProfile(), temporal_identity);
     adapter->CommitInterval();
@@ -425,8 +419,21 @@ TEST(test_fire_products, DecodesGbbepxV4r0FluxCropAndMarksReducedSpeciesSet) {
     EXPECT_EQ(data.species_availability.at(cece::FireBulkSpecies::CO), cece::FireProductSpeciesAvailability::Available);
     EXPECT_EQ(data.quantity_semantics.at(cece::FireBulkSpecies::CO).kind, cece::FireProductQuantityKind::Flux);
     EXPECT_EQ(data.quantity_semantics.at(cece::FireBulkSpecies::CO).units, "kg m-2 s-1");
+    const auto& grid = metadata.grid_definition->Definition();
+    for (std::size_t row = 0; row < grid.ny; ++row) {
+        for (std::size_t column = 0; column + 1 < grid.nx; ++column) {
+            const auto cell = row * grid.nx + column;
+            EXPECT_DOUBLE_EQ(grid.longitude_bounds_deg[cell][1], grid.longitude_bounds_deg[cell + 1][0]);
+        }
+    }
+    for (std::size_t row = 0; row + 1 < grid.ny; ++row) {
+        for (std::size_t column = 0; column < grid.nx; ++column) {
+            const auto cell = row * grid.nx + column;
+            EXPECT_DOUBLE_EQ(grid.latitude_bounds_deg[cell][2], grid.latitude_bounds_deg[cell + grid.nx][0]);
+        }
+    }
     EXPECT_DOUBLE_EQ(data.source_values[SpeciesIndex(product, cece::FireBulkSpecies::CO) * 4], 1.463242327304215e-08);
-    EXPECT_NEAR(product.MassKg()[SpeciesIndex(product, cece::FireBulkSpecies::CO) * 4], 118329.8014639274, 1e-5);
+    EXPECT_NEAR(product.MassKg()[SpeciesIndex(product, cece::FireBulkSpecies::CO) * 4], 118329.80010385235, 1e-5);
     EXPECT_EQ(data.quality_state.front(), cece::FireQualityState::Observed);
     EXPECT_EQ(data.quality_state[1], cece::FireQualityState::ValidZero);
     ASSERT_TRUE(data.optional_diagnostics.frp_mw);

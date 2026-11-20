@@ -86,6 +86,13 @@ bool IsParticulate(FireBulkSpecies species) {
     return species == FireBulkSpecies::PM25 || species == FireBulkSpecies::TPM || species == FireBulkSpecies::OC || species == FireBulkSpecies::BC;
 }
 
+bool HasOverlappingParticulatePools(const std::set<FireBulkSpecies>& species) {
+    const bool has_pm25 = species.contains(FireBulkSpecies::PM25);
+    const bool has_tpm = species.contains(FireBulkSpecies::TPM);
+    const bool has_component_pool = species.contains(FireBulkSpecies::OC) || species.contains(FireBulkSpecies::BC);
+    return (has_pm25 && has_tpm) || ((has_pm25 || has_tpm) && has_component_pool);
+}
+
 constexpr std::array<std::string_view, 11> kBulkSpeciesNames = {"CO2", "CO", "CH4", "PM25", "TPM", "SO2", "OC", "BC", "NOX", "NH3", "VOC"};
 
 class Sha256 {
@@ -194,10 +201,44 @@ std::size_t FireGrid::CellCount() const {
     return definition_.nx * definition_.ny;
 }
 
+double FireGreatCirclePolygonArea(const std::array<double, 4>& longitude_deg, const std::array<double, 4>& latitude_deg) {
+    struct UnitVector {
+        double x;
+        double y;
+        double z;
+    };
+    std::array<UnitVector, 4> vertices{};
+    for (std::size_t corner = 0; corner < vertices.size(); ++corner) {
+        const double lon = longitude_deg[corner] * std::numbers::pi / 180.0;
+        const double lat = latitude_deg[corner] * std::numbers::pi / 180.0;
+        vertices[corner] = {std::cos(lat) * std::cos(lon), std::cos(lat) * std::sin(lon), std::sin(lat)};
+    }
+    const auto triangle_excess = [&](std::size_t b, std::size_t c) {
+        const auto& a = vertices[0];
+        const auto& vb = vertices[b];
+        const auto& vc = vertices[c];
+        const double cross_x = vb.y * vc.z - vb.z * vc.y;
+        const double cross_y = vb.z * vc.x - vb.x * vc.z;
+        const double cross_z = vb.x * vc.y - vb.y * vc.x;
+        const double numerator = std::abs(a.x * cross_x + a.y * cross_y + a.z * cross_z);
+        const double ab = a.x * vb.x + a.y * vb.y + a.z * vb.z;
+        const double ac = a.x * vc.x + a.y * vc.y + a.z * vc.z;
+        const double bc = vb.x * vc.x + vb.y * vc.y + vb.z * vc.z;
+        return 2.0 * std::atan2(numerator, 1.0 + ab + ac + bc);
+    };
+    constexpr double earth_radius_m = 6371008.8;
+    const double area = (triangle_excess(1, 2) + triangle_excess(2, 3)) * earth_radius_m * earth_radius_m;
+    if (!std::isfinite(area) || area <= 0.0) throw std::invalid_argument("Fire grid contains a degenerate great-circle polygon");
+    return area;
+}
+
 std::shared_ptr<const FireGrid> MakeRectilinearFireGrid(int nx, int ny, const std::vector<double>& longitude_deg,
-                                                        const std::vector<double>& latitude_deg) {
+                                                        const std::vector<double>& latitude_deg, FireGridAreaModel area_model) {
     if (nx < 2 || ny < 2 || longitude_deg.size() != static_cast<std::size_t>(nx) || latitude_deg.size() != static_cast<std::size_t>(ny)) {
         throw std::invalid_argument("Fire runtime target grid requires at least two rectilinear longitude and latitude centers");
+    }
+    if (area_model != FireGridAreaModel::ConstantLatitudeEdges && area_model != FireGridAreaModel::GreatCircleEdges) {
+        throw std::invalid_argument("Fire runtime target grid area model is invalid");
     }
     constexpr double rad = std::numbers::pi / 180.0;
     constexpr double earth_radius_m = 6371008.8;
@@ -269,7 +310,12 @@ std::shared_ptr<const FireGrid> MakeRectilinearFireGrid(int nx, int ny, const st
             definition.latitude_deg.push_back(latitude_deg[j]);
             definition.longitude_bounds_deg.push_back({west, east, east, west});
             definition.latitude_bounds_deg.push_back({south, south, north, north});
-            definition.area_m2.push_back(earth_radius_m * earth_radius_m * lon_step * rad * (std::sin(north * rad) - std::sin(south * rad)));
+            if (area_model == FireGridAreaModel::GreatCircleEdges) {
+                definition.area_m2.push_back(
+                    FireGreatCirclePolygonArea(definition.longitude_bounds_deg.back(), definition.latitude_bounds_deg.back()));
+            } else {
+                definition.area_m2.push_back(earth_radius_m * earth_radius_m * lon_step * rad * (std::sin(north * rad) - std::sin(south * rad)));
+            }
         }
     }
     std::ostringstream identity;
@@ -371,8 +417,14 @@ FireBulkInventory::FireBulkInventory(FireBulkInventoryData data) : data_(std::mo
         }
     }
     std::set<std::string> unique_components;
-    if (data_.component_profiles.size() != components) {
-        invalid("component_profiles must identify every component exactly once");
+    std::set<std::string> unprofiled_components;
+    for (const auto& id : data_.unprofiled_component_ids) {
+        if (!IsNonempty(id) || !unprofiled_components.insert(id).second) {
+            invalid("unprofiled_component_ids must be nonempty and unique");
+        }
+    }
+    if (data_.component_profiles.size() + unprofiled_components.size() != components) {
+        invalid("each component must have exactly one profile identity or be explicitly unprofiled");
     }
     for (const auto& id : data_.component_ids) {
         if (!IsNonempty(id) || !unique_components.insert(id).second) {
@@ -380,10 +432,18 @@ FireBulkInventory::FireBulkInventory(FireBulkInventoryData data) : data_(std::mo
         }
         const auto profile = data_.component_profiles.find(id);
         if (profile == data_.component_profiles.end()) {
-            invalid("missing composition/biome profile for component '" + id + "'");
+            if (!unprofiled_components.contains(id)) invalid("missing profile identity or unprofiled declaration for component '" + id + "'");
+            continue;
         }
+        if (unprofiled_components.contains(id)) invalid("component '" + id + "' cannot be both profiled and unprofiled");
         ValidateProfile(profile->second.biome, context + " component '" + id + "' biome");
         ValidateProfile(profile->second.composition, context + " component '" + id + "' composition");
+    }
+    for (const auto& [id, _] : data_.component_profiles) {
+        if (!unique_components.contains(id)) invalid("component_profiles contains an unknown component '" + id + "'");
+    }
+    for (const auto& id : unprofiled_components) {
+        if (!unique_components.contains(id)) invalid("unprofiled_component_ids contains an unknown component '" + id + "'");
     }
     if (species_count > std::numeric_limits<std::size_t>::max() / cells ||
         components > std::numeric_limits<std::size_t>::max() / (species_count * cells) ||
@@ -438,10 +498,13 @@ FireBulkInventory::FireBulkInventory(FireBulkInventoryData data) : data_(std::mo
     if (data_.voc_profile) {
         ValidateProfile(*data_.voc_profile, context + " voc_profile");
     }
-    for (const auto species : data_.species) {
-        if (IsParticulate(species) && (!data_.particulate_overlap || data_.particulate_overlap->pool_definitions.count(species) == 0 ||
-                                       !IsNonempty(data_.particulate_overlap->pool_definitions.at(species)))) {
-            invalid("particulate_overlap must explicitly define each selected particulate pool");
+    if (HasOverlappingParticulatePools(unique_species) || data_.particulate_overlap) {
+        for (const auto species : data_.species) {
+            if (IsParticulate(species) &&
+                (!data_.particulate_overlap || data_.particulate_overlap->pool_definitions.count(species) == 0 ||
+                 !IsNonempty(data_.particulate_overlap->pool_definitions.at(species)))) {
+                invalid("particulate_overlap must explicitly define each selected particulate pool");
+            }
         }
     }
     if (data_.particulate_overlap) {
@@ -875,6 +938,9 @@ std::string FireIntervalProvider::CacheIdentity(const FireBulkInventory& invento
     } else if (!context.scientific_profile || context.product_time_allocation || context.product_time_profile) {
         throw std::invalid_argument("Fire derivation cache requires scientific profile and prohibits product temporal options");
     }
+    if (context.mode == FireInputMode::DeriveFrp && !data.unprofiled_component_ids.empty()) {
+        throw std::invalid_argument("Fire FRP-derived inputs require biome/composition identities for every component");
+    }
     if ((metadata.cutoff_mode == FireCutoffMode::Fixed && context.cutoff_schedule_sha256) ||
         (metadata.cutoff_mode == FireCutoffMode::HostSupplied && provider_ == FireInputProvider::Prepared && !context.cutoff_schedule_sha256)) {
         throw std::invalid_argument("Fire cache cutoff schedule is incompatible with cutoff mode/provider");
@@ -910,8 +976,14 @@ std::string FireIntervalProvider::CacheIdentity(const FireBulkInventory& invento
     append(std::to_string(data.component_ids.size()));
     for (const auto& id : data.component_ids) {
         append(id);
-        profile(data.component_profiles.at(id).biome);
-        profile(data.component_profiles.at(id).composition);
+        const auto component_profile = data.component_profiles.find(id);
+        if (component_profile == data.component_profiles.end()) {
+            append("unprofiled");
+        } else {
+            append("profiled");
+            profile(component_profile->second.biome);
+            profile(component_profile->second.composition);
+        }
     }
     if (data.nox_reference_basis)
         append(*data.nox_reference_basis == FireNoxReferenceBasis::NO ? "NO" : "NO2");
@@ -1118,16 +1190,19 @@ FireAllocatedMass FireAllocateConservativeMass(const FireBulkInventory& inventor
     if (!std::isfinite(aa[0]) || aa[0] <= 0) throw std::invalid_argument("Fire source operator area must be finite and positive");
     const double area_scale = source_area[0] / aa[0];
     if (!std::isfinite(area_scale) || area_scale <= 0) throw std::invalid_argument("Fire operator physical-area scale is invalid");
-    const auto validate_area = [&](auto areas, auto fractions, const std::vector<double>& physical) {
+    const auto validate_area = [&](auto areas, auto fractions, const std::vector<double>& physical, std::string_view side) {
         for (std::size_t i = 0; i < physical.size(); ++i) {
             if (!std::isfinite(areas[i]) || areas[i] <= 0 || !std::isfinite(fractions[i]) || fractions[i] < 0 ||
                 fractions[i] > 1 + absolute_tolerance || !close(physical[i] / areas[i], area_scale)) {
-                throw std::invalid_argument("Fire conservative areas/fractions are invalid or inconsistent with physical grid areas");
+                throw std::invalid_argument("Fire conservative " + std::string(side) + " area/fraction mismatch at cell " + std::to_string(i) +
+                                            " (physical=" + std::to_string(physical[i]) + ", operator=" + std::to_string(areas[i]) +
+                                            ", physical/operator=" + std::to_string(physical[i] / areas[i]) +
+                                            ", source scale=" + std::to_string(area_scale) + ")");
             }
         }
     };
-    validate_area(aa, fa, source_area);
-    validate_area(ab, fb, target_area);
+    validate_area(aa, fa, source_area, "source");
+    validate_area(ab, fb, target_area, "target");
     std::vector<double> row_sum(nt, 0), covered_area(ns, 0);
     for (std::size_t k = 0; k < matrix.nnz(); ++k) {
         const auto row = rows[k], column = columns[k];
@@ -1171,7 +1246,8 @@ FireAllocatedMass FireAllocateConservativeMass(const FireBulkInventory& inventor
                              std::nullopt,
                              std::nullopt,
                              time_allocation,
-                             time_profile ? std::optional<FireProfileIdentity>(time_profile->identity) : std::nullopt};
+                             time_profile ? std::optional<FireProfileIdentity>(time_profile->identity) : std::nullopt,
+                             data.unprofiled_component_ids};
     const auto overlap_start_utc = std::max(metadata.interval_start, requested_start).EpochSeconds();
     const auto overlap_end_utc = std::min(metadata.interval_end, requested_end).EpochSeconds();
     std::vector<double> mass_fractions(ns, static_cast<double>(overlap) / data.identity.DurationSeconds());
