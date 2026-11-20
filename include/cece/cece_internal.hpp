@@ -40,6 +40,7 @@ struct CeceInternalData {
     std::string start_time_iso8601;    ///< Start time in ISO 8601 format for output.
     std::unique_ptr<CeceClock> clock;  ///< Clock for per-component refresh interval scheduling.
     std::unique_ptr<FireRuntimeAdapter> fire_runtime_adapter;  ///< Provider-specific fire input adapter.
+    std::shared_ptr<const FireGrid> fire_target_grid;           ///< Rectilinear surface grid supplied by the standalone driver.
     std::int64_t fire_last_committed_elapsed_seconds = 0;      ///< End of the last successfully exported fire interval.
     std::int64_t fire_pending_elapsed_seconds = 0;             ///< End of the interval currently awaiting commit.
     bool fire_interval_pending = false;                        ///< A prepared fire interval awaits successful state synchronization.

@@ -26,6 +26,7 @@ struct FireTypedMapping {
     FireMappingBasis basis;
     double factor;
     std::string output_unit;
+    std::optional<FireProfileIdentity> composition_profile;
 };
 
 struct FireConversionFactors {

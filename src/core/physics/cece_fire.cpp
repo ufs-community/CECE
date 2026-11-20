@@ -368,11 +368,21 @@ FireTargetProfile LoadFireTargetProfile(const std::string& path, const std::stri
     for (std::size_t i = 0; i < mappings.size(); ++i) {
         const auto mapping = mappings[i];
         const auto field = "typed_mappings[" + std::to_string(i) + "]";
-        OnlyKeys(mapping, {"source_species", "target_species", "basis", "factor", "output_unit"}, field);
+        OnlyKeys(mapping, {"source_species", "target_species", "basis", "factor", "output_unit", "composition_profile"}, field);
         for (const auto key : {"source_species", "target_species", "basis", "factor", "output_unit"}) Require(mapping, key, field);
         FireTypedMapping typed{ParseSpecies(Text(mapping["source_species"], field + ".source_species"), field + ".source_species"),
                                Text(mapping["target_species"], field + ".target_species"), ParseBasis(Text(mapping["basis"], field + ".basis")),
-                               Positive(mapping["factor"], field + ".factor"), Text(mapping["output_unit"], field + ".output_unit")};
+                               Positive(mapping["factor"], field + ".factor"), Text(mapping["output_unit"], field + ".output_unit"), std::nullopt};
+        if (mapping["composition_profile"]) {
+            const auto composition = mapping["composition_profile"];
+            OnlyKeys(composition, {"id", "version", "content_sha256"}, field + ".composition_profile");
+            for (const auto key : {"id", "version", "content_sha256"}) Require(composition, key, field + ".composition_profile");
+            FireProfileIdentity identity{Text(composition["id"], field + ".composition_profile.id"),
+                                         Text(composition["version"], field + ".composition_profile.version"),
+                                         Text(composition["content_sha256"], field + ".composition_profile.content_sha256")};
+            if (!IsSha256(identity.content_sha256)) Invalid(field + ".composition_profile.content_sha256", "must contain lowercase SHA256");
+            typed.composition_profile = std::move(identity);
+        }
         if (!mechanism_names.contains(typed.target_species)) Invalid(field + ".target_species", "is absent from mechanism_species");
         const auto basis_unit = typed.basis == FireMappingBasis::Mass          ? "kg"
                                 : typed.basis == FireMappingBasis::Molar       ? "kmol"
@@ -434,13 +444,32 @@ FireTargetProfile LoadFireTargetProfile(const std::string& path, const std::stri
     std::map<FireBulkSpecies, std::size_t> mapping_counts;
     std::map<FireBulkSpecies, FireMappingBasis> mapping_basis;
     std::map<FireBulkSpecies, double> factor_totals;
-    for (const auto& mapping : profile.mappings) ++mapping_counts[mapping.source_species];
+    std::map<std::pair<FireBulkSpecies, std::string>, double> component_factor_totals;
+    std::map<FireBulkSpecies, std::size_t> invariant_mapping_counts;
+    for (const auto& mapping : profile.mappings) {
+        ++mapping_counts[mapping.source_species];
+        if (mapping.composition_profile) {
+            component_factor_totals[{mapping.source_species, mapping.composition_profile->id + "\n" + mapping.composition_profile->version + "\n" +
+                                                                 mapping.composition_profile->content_sha256}] += mapping.factor;
+        } else {
+            ++invariant_mapping_counts[mapping.source_species];
+        }
+    }
     for (const auto& mapping : profile.mappings) {
         const auto [it, inserted] = mapping_basis.emplace(mapping.source_species, mapping.basis);
         if (!inserted && it->second != mapping.basis) {
             Invalid("typed_mappings", "one bulk source cannot mix quantity bases");
         }
-        factor_totals[mapping.source_species] += mapping.factor;
+        if (!mapping.composition_profile) factor_totals[mapping.source_species] += mapping.factor;
+    }
+    for (const auto& [key, total] : component_factor_totals) {
+        const auto species = key.first;
+        if (invariant_mapping_counts[species] != 0) {
+            Invalid("typed_mappings", "a source cannot mix invariant and composition-specific mappings");
+        }
+        if (!Close(total, 1)) {
+            Invalid("typed_mappings", "composition-specific mapping factors must form a unit-sum partition for each composition profile");
+        }
     }
     for (const auto species_name : {"CO2", "CO", "CH4", "PM25", "TPM", "SO2", "OC", "BC", "NOX", "NH3", "VOC"}) {
         const auto species = FireSpeciesFromName(species_name);
@@ -463,7 +492,7 @@ FireTargetProfile LoadFireTargetProfile(const std::string& path, const std::stri
         if (disposition.kind == FireSourceDispositionKind::Mapped && mapping_counts[species] == 0) {
             Invalid(field, "mapped sources require at least one typed mapping");
         }
-        if (disposition.kind == FireSourceDispositionKind::Mapped && !Close(factor_totals[species], 1)) {
+        if (disposition.kind == FireSourceDispositionKind::Mapped && invariant_mapping_counts[species] > 0 && !Close(factor_totals[species], 1)) {
             Invalid(field, "mapping factors for each source must form an explicit unit-sum partition");
         }
         if (disposition.kind != FireSourceDispositionKind::Mapped && mapping_counts[species] != 0) {
@@ -529,6 +558,23 @@ FireMappedInventory MapFireBulkInventory(const FireBulkInventory& inventory, con
         throw std::invalid_argument("Fire NOX input reference mass does not match the target profile partition");
     }
 
+    for (const auto species : required) {
+        const bool composition_specific = std::any_of(profile.mappings.begin(), profile.mappings.end(), [&](const auto& mapping) {
+            return mapping.source_species == species && mapping.composition_profile.has_value();
+        });
+        if (!composition_specific) continue;
+        for (const auto& component_id : inventory.Data().component_ids) {
+            const auto& composition = inventory.Data().component_profiles.at(component_id).composition;
+            const bool found = std::any_of(profile.mappings.begin(), profile.mappings.end(), [&](const auto& mapping) {
+                return mapping.source_species == species && mapping.composition_profile == composition;
+            });
+            if (!found) {
+                throw std::invalid_argument("Fire target profile has no composition-specific mapping for source species '" +
+                                            std::string(FireSpeciesName(species)) + "' and component '" + component_id + "'");
+            }
+        }
+    }
+
     std::map<std::string, std::string> target_units;
     for (const auto& mapping : profile.mappings) {
         if (!required.contains(mapping.source_species)) continue;
@@ -558,6 +604,8 @@ FireMappedInventory MapFireBulkInventory(const FireBulkInventory& inventory, con
     for (std::size_t component = 0; component < component_count; ++component) {
         for (const auto& mapping : profile.mappings) {
             if (!required.contains(mapping.source_species)) continue;
+            if (mapping.composition_profile && *mapping.composition_profile != inventory.Data().component_profiles.at(result.component_ids[component]).composition)
+                continue;
             const auto target_index = target_indexes.at(mapping.target_species);
             for (std::size_t cell = 0; cell < cells; ++cell) {
                 const double source_mass = inventory.ComponentMassKg(component, mapping.source_species, cell);

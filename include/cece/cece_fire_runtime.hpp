@@ -35,6 +35,9 @@ class FireRuntimeAdapter {
    public:
     virtual ~FireRuntimeAdapter() = default;
 
+    virtual void SetTargetGrid(std::shared_ptr<const FireGrid> target_grid) {
+        (void)target_grid;
+    }
     virtual void Initialize(const FireConfig& config, int nx, int ny, int nz) = 0;
     virtual FireRuntimeInventoryView PrepareInterval(const FireRuntimeIntervalRequest& request) = 0;
     virtual void CommitInterval() = 0;

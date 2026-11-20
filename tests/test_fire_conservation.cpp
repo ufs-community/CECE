@@ -184,6 +184,46 @@ TEST(test_fire_conservation, ProfileAllocationRejectsInvalidOrRepeatedWeights) {
                  std::invalid_argument);
 }
 
+TEST(test_fire_conservation, LocalSolarProfileShiftsAllocationByCellLongitude) {
+    const auto source = std::make_shared<const cece::FireGrid>(cece::FireGridDefinition{
+        "local-solar-grid", std::string(64, 'b'), 2, 1, {0, 180}, {0, 0}, {{{-1, 0, 0, -1}, {179, 180, 180, 179}}},
+        {{{-1, -1, 1, 1}, {-1, -1, 1, 1}}}, {25, 75}, "EPSG:4326", cece::FireLongitudeConvention::Minus180To180});
+    auto inventory_data = Inventory(source, {100, 100, 100, 100}).Data();
+    auto metadata = inventory_data.identity.Metadata();
+    metadata.interval_start = cece::FireUtcTime("2022-07-01T00:00:00Z");
+    metadata.interval_end = cece::FireUtcTime("2022-07-02T00:00:00Z");
+    metadata.acquired_at = metadata.interval_start;
+    metadata.available_at = metadata.interval_start;
+    metadata.availability_cutoff = cece::FireUtcTime("2022-07-02T01:00:00Z");
+    inventory_data.identity = cece::FireInputIdentity(std::move(metadata));
+    const cece::FireBulkInventory inventory(std::move(inventory_data));
+    const cece::FireTemporalAllocationProfile profile{{"synthetic-local-solar", "1", std::string(64, 'f')},
+                                                       cece::FireTemporalProfileTimeBasis::LocalSolar,
+                                                       86400,
+                                                       {{0, 43200, 1.0 / 43200}, {43200, 86400, 0}}};
+    const auto result = cece::FireAllocateConservativeMass(
+        inventory, source, MakeMatrix({1, 1}, {0, 1}, {0, 1}, {1, 1}, {1, 1}, {25, 75}, {25, 75}), Norm::DstArea,
+        cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T06:00:00Z"), cece::FireTimeAllocation::Profile, profile);
+    ASSERT_EQ(result.mass_kg.size(), 4);
+    EXPECT_DOUBLE_EQ(result.mass_kg[0], 50);
+    EXPECT_DOUBLE_EQ(result.mass_kg[1], 0);
+    EXPECT_DOUBLE_EQ(result.mass_kg[2], 50);
+    EXPECT_DOUBLE_EQ(result.mass_kg[3], 0);
+    ASSERT_EQ(result.species_budgets.size(), 1);
+    EXPECT_DOUBLE_EQ(result.species_budgets[0].input_kg, 400);
+    EXPECT_DOUBLE_EQ(result.species_budgets[0].supported_input_kg, 100);
+    EXPECT_DOUBLE_EQ(result.species_budgets[0].output_kg, 100);
+}
+
+TEST(test_fire_conservation, RectilinearTargetGridUnwrapsLongitudesAcrossDateline) {
+    const auto grid = cece::MakeRectilinearFireGrid(4, 2, {0, 90, -180, -90}, {-45, 45});
+    const auto& definition = grid->Definition();
+    EXPECT_EQ(definition.longitude_convention, cece::FireLongitudeConvention::ZeroTo360);
+    EXPECT_EQ(definition.longitude_deg, (std::vector<double>{0, 90, 180, 270, 0, 90, 180, 270}));
+    EXPECT_EQ(definition.area_m2.size(), 8);
+    EXPECT_TRUE(std::all_of(definition.area_m2.begin(), definition.area_m2.end(), [](double area) { return area > 0; }));
+}
+
 TEST(test_fire_conservation, PartialCoverageIsNotRenormalizedOrReportedAsValidZero) {
     const auto inventory = Inventory(GridWithAreas({25, 75}), {10, 30, 20, 60}, {1, 0.5});
     const auto matrix = MakeMatrix({0.5, 0.5}, {0, 0}, {0, 1}, {1, 1.0 / 3}, {1, 0});

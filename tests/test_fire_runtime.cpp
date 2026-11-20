@@ -223,28 +223,9 @@ MockFireRuntimeAdapter* ConfigureCoreFireRuntime(cece::CeceInternalData& state, 
     return mock;
 }
 
-TEST(test_fire_runtime, RuntimeAdapterRegistryFailsExplicitlyUntilProviderIsRegistered) {
-    EXPECT_EQ(cece::CreateFireRuntimeAdapter(cece::FireInputProvider::Prepared), nullptr);
-    cece::RegisterFireRuntimeAdapter(cece::FireInputProvider::Prepared, []() { return std::make_unique<MockFireRuntimeAdapter>(); });
+TEST(test_fire_runtime, PreparedRuntimeAdapterIsRegisteredAndDuplicateRegistrationFails) {
     auto adapter = cece::CreateFireRuntimeAdapter(cece::FireInputProvider::Prepared);
     ASSERT_NE(adapter, nullptr);
-    auto* mock = dynamic_cast<MockFireRuntimeAdapter*>(adapter.get());
-    ASSERT_NE(mock, nullptr);
-    const cece::FireConfig config{cece::FireInputMode::Product, cece::FireInputProvider::Prepared, cece::FireCutoffMode::Fixed};
-    adapter->Initialize(config, 1, 1, 1);
-    const cece::FireRuntimeIntervalRequest request{cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T01:00:00Z"), std::nullopt,
-                                                   3600};
-    const auto inventory = adapter->PrepareInterval(request);
-    ASSERT_TRUE(mock->initialized);
-    ASSERT_TRUE(mock->prepared);
-    ASSERT_TRUE(std::holds_alternative<std::reference_wrapper<const cece::FireBulkInventory>>(inventory));
-    EXPECT_EQ(&std::get<std::reference_wrapper<const cece::FireBulkInventory>>(inventory).get(), &mock->inventory);
-    adapter->CommitInterval();
-    EXPECT_TRUE(mock->committed);
-    adapter->AbortInterval();
-    EXPECT_TRUE(mock->aborted);
-    adapter->Finalize();
-    EXPECT_TRUE(mock->finalized);
     EXPECT_THROW(cece::RegisterFireRuntimeAdapter(cece::FireInputProvider::Prepared, []() { return std::make_unique<MockFireRuntimeAdapter>(); }),
                  std::logic_error);
 }

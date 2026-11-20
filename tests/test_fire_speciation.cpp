@@ -83,6 +83,34 @@ TEST(test_fire_speciation, ProfileLoaderRejectsIncompleteOrDimensionallyInvalidD
     rejects([](YAML::Node& profile) { profile["source_disposition"]["CO"]["kind"] = "excluded"; });
 }
 
+TEST(test_fire_speciation, LoadsVersionedUtcAndLocalSolarTemporalProfiles) {
+    const auto root = std::string(CECE_SOURCE_DIR) + "/tests/data/fire/";
+    const auto utc = cece::LoadFireTemporalAllocationProfile(root + "temporal_profile_utc.yaml");
+    EXPECT_EQ(utc.identity.id, "synthetic-utc-diurnal");
+    EXPECT_EQ(utc.time_basis, cece::FireTemporalProfileTimeBasis::Utc);
+    EXPECT_EQ(utc.source_cadence_seconds, 7200);
+    ASSERT_EQ(utc.segments.size(), 2);
+    EXPECT_EQ(utc.identity.content_sha256, cece::FireFileSha256(root + "temporal_profile_utc.yaml"));
+
+    const auto solar = cece::LoadFireTemporalAllocationProfile(root + "temporal_profile_local_solar.yaml");
+    EXPECT_EQ(solar.time_basis, cece::FireTemporalProfileTimeBasis::LocalSolar);
+    EXPECT_EQ(solar.source_cadence_seconds, 86400);
+    ASSERT_EQ(solar.segments.size(), 2);
+
+    char name[] = "/tmp/cece-fire-time-profile-XXXXXX";
+    const int descriptor = mkstemp(name);
+    ASSERT_GE(descriptor, 0);
+    close(descriptor);
+    struct Cleanup {
+        const char* path;
+        ~Cleanup() { std::remove(path); }
+    } cleanup{name};
+    auto tampered = YAML::LoadFile(root + "temporal_profile_utc.yaml");
+    tampered["weights"][1]["offset_seconds"] = 3500;
+    std::ofstream(name) << YAML::Dump(tampered);
+    EXPECT_THROW(cece::LoadFireTemporalAllocationProfile(name), std::invalid_argument);
+}
+
 TEST(test_fire_speciation, SyntheticMapperPreservesComponentsAndTypedMassBudgets) {
     auto grid = std::make_shared<const cece::FireGrid>(cece::FireGridDefinition{
         "mapper-grid", std::string(64, 'b'), 2, 1, {0, 1}, {0, 0}, {{{-1, 0, 0, -1}, {0, 1, 1, 0}}},
@@ -126,6 +154,71 @@ TEST(test_fire_speciation, SyntheticMapperPreservesComponentsAndTypedMassBudgets
     EXPECT_EQ(mapped.budgets.size(), mapped.fields.size());
     EXPECT_DOUBLE_EQ(mapped.budgets[field_index("FIRE_NO")].output_quantity, 5);
     EXPECT_DOUBLE_EQ(mapped.budgets[field_index("FIRE_VOC")].output_quantity, 56);
+}
+
+TEST(test_fire_speciation, CompositionSpecificMappingsSelectExactComponentProfiles) {
+    const std::string source = std::string(CECE_SOURCE_DIR) + "/tests/data/fire/synthetic_target_profile.yaml";
+    const std::string asset = (std::filesystem::path(source).parent_path() / "synthetic_target_asset.txt").string();
+    auto profile_yaml = YAML::LoadFile(source);
+    profile_yaml["assets"][0]["path"] = asset;
+    profile_yaml["mechanism_species"].push_back(YAML::Load("{name: FIRE_CO_A, molecular_weight_g_mol: 28.0}"));
+    profile_yaml["mechanism_species"].push_back(YAML::Load("{name: FIRE_CO_B, molecular_weight_g_mol: 28.0}"));
+    YAML::Node mappings(YAML::NodeType::Sequence);
+    for (const auto& mapping : profile_yaml["typed_mappings"]) {
+        if (mapping["source_species"].as<std::string>() != "CO") mappings.push_back(mapping);
+    }
+    mappings.push_back(YAML::Load(
+        "{source_species: CO, target_species: FIRE_CO_A, basis: mass, factor: 1.0, output_unit: kg, "
+        "composition_profile: {id: composition-a, version: '1', "
+        "content_sha256: dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd}}"));
+    mappings.push_back(YAML::Load(
+        "{source_species: CO, target_species: FIRE_CO_B, basis: mass, factor: 1.0, output_unit: kg, "
+        "composition_profile: {id: composition-b, version: '1', "
+        "content_sha256: eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee}}"));
+    profile_yaml["typed_mappings"] = mappings;
+
+    char name[] = "/tmp/cece-fire-composition-profile-XXXXXX";
+    const int descriptor = mkstemp(name);
+    ASSERT_GE(descriptor, 0);
+    close(descriptor);
+    struct Cleanup {
+        const char* path;
+        ~Cleanup() { std::remove(path); }
+    } cleanup{name};
+    std::ofstream(name) << YAML::Dump(profile_yaml);
+    const auto profile = cece::LoadFireTargetProfile(name, "SYNTHETIC", "test-v1");
+
+    const auto grid = std::make_shared<const cece::FireGrid>(cece::FireGridDefinition{
+        "composition-grid", std::string(64, 'b'), 2, 1, {0, 1}, {0, 0}, {{{-1, 0, 0, -1}, {0, 1, 1, 0}}},
+        {{{-1, -1, 1, 1}, {-1, -1, 1, 1}}}, {25, 75}, "EPSG:4326", cece::FireLongitudeConvention::Minus180To180});
+    const cece::FireProfileIdentity biome{"synthetic-biome", "1", std::string(64, 'c')};
+    const cece::FireProfileIdentity comp_a{"composition-a", "1", std::string(64, 'd')};
+    const cece::FireProfileIdentity comp_b{"composition-b", "1", std::string(64, 'e')};
+    cece::FireBulkInventory inventory({
+        cece::FireInputIdentity({1, "synthetic", "product", "algorithm", "delivery", std::string(64, 'a'),
+                                cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T01:00:00Z"),
+                                cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T00:00:00Z"),
+                                cece::FireUtcTime("2022-07-01T02:00:00Z"), cece::FireCutoffMode::Fixed, grid}),
+        {cece::FireBulkSpecies::CO}, {"a", "b"}, {{"a", {biome, comp_a}}, {"b", {biome, comp_b}}},
+        {10, 20, 30, 40}, {cece::FireQualityState::Observed, cece::FireQualityState::Observed}, {1, 1},
+        {std::string(64, 'a')}, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt});
+    const auto mapped = cece::MapFireBulkInventory(inventory, profile, {cece::FireBulkSpecies::CO});
+    ASSERT_EQ(mapped.fields.size(), 2);
+    EXPECT_EQ(mapped.fields[0].target_species, "FIRE_CO_A");
+    EXPECT_EQ(mapped.fields[1].target_species, "FIRE_CO_B");
+    EXPECT_DOUBLE_EQ(mapped.values[0], 10);
+    EXPECT_DOUBLE_EQ(mapped.values[1], 20);
+    EXPECT_DOUBLE_EQ(mapped.values[2], 0);
+    EXPECT_DOUBLE_EQ(mapped.values[3], 0);
+    EXPECT_DOUBLE_EQ(mapped.values[4], 0);
+    EXPECT_DOUBLE_EQ(mapped.values[5], 0);
+    EXPECT_DOUBLE_EQ(mapped.values[6], 30);
+    EXPECT_DOUBLE_EQ(mapped.values[7], 40);
+
+    auto unresolved_data = inventory.Data();
+    unresolved_data.component_profiles.at("b").composition.id = "unlisted-composition";
+    const cece::FireBulkInventory unresolved(std::move(unresolved_data));
+    EXPECT_THROW(cece::MapFireBulkInventory(unresolved, profile, {cece::FireBulkSpecies::CO}), std::invalid_argument);
 }
 
 TEST(test_fire_speciation, MapperRejectsMissingSpeciesBasisMismatchAndUnmappedRequests) {

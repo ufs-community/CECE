@@ -38,6 +38,8 @@ void cece_set_config_file_path(const char* config_path, int path_len);
 void cece_run_log_setup(const char* config_path, int path_len);
 void cece_core_initialize_p1(void** data_ptr_ptr, int* rc);
 void cece_core_realize(void* data_ptr, int* rc);
+void cece_core_fire_set_target_grid(void* data_ptr, int nx, int ny, const double* longitude_deg, int longitude_count, const double* latitude_deg,
+                                    int latitude_count, int* rc);
 void cece_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc);
 void cece_core_run(void* data_ptr, int hour, int day_of_week, int* rc);
 void cece_core_finalize(void* data_ptr, int* rc);
@@ -149,6 +151,12 @@ std::unique_ptr<CeceSimulation> CeceSimulation::create_internal(const std::strin
     cece_core_initialize_p1(&sim->core_data_ptr_, &rc);
     if (rc < 0) {
         return fail(rc, "cece_core_initialize_p1 failed with rc=" + std::to_string(rc));
+    }
+
+    cece_core_fire_set_target_grid(sim->core_data_ptr_, grid.nx, grid.ny, grid.lon_coords.data(),
+                                   static_cast<int>(grid.lon_coords.size()), grid.lat_coords.data(), static_cast<int>(grid.lat_coords.size()), &rc);
+    if (rc < 0) {
+        return fail(rc, "fire target grid initialization failed with rc=" + std::to_string(rc));
     }
 
     // 3. Realize: validate and lock configuration.

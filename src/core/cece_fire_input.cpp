@@ -7,6 +7,9 @@
 #include <axis/solver/apply.hpp>
 #include <axis/solver/regrid_config.hpp>
 #include <cmath>
+#include <conf/config.hpp>
+#include <conf/value.hpp>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <limits>
@@ -61,6 +64,22 @@ void ValidateProfile(const FireProfileIdentity& profile, const std::string& cont
     if (!IsNonempty(profile.id) || !IsNonempty(profile.version) || !IsSha256(profile.content_sha256)) {
         throw std::invalid_argument(context + ": profile requires nonempty id/version and lowercase SHA256");
     }
+}
+
+double TemporalProfileIntegral(const FireTemporalAllocationProfile& profile, double start_seconds, double end_seconds) {
+    const double period = static_cast<double>(profile.source_cadence_seconds);
+    const auto integral_to = [&](double seconds) {
+        const double cycles = std::floor(seconds / period);
+        const double offset = seconds - cycles * period;
+        double result = cycles;
+        for (const auto& segment : profile.segments) {
+            const double covered = std::clamp(offset - static_cast<double>(segment.start_offset_seconds), 0.0,
+                                               static_cast<double>(segment.end_offset_seconds - segment.start_offset_seconds));
+            result += covered * segment.weight_per_second;
+        }
+        return result;
+    };
+    return integral_to(end_seconds) - integral_to(start_seconds);
 }
 
 bool IsParticulate(FireBulkSpecies species) {
@@ -173,6 +192,96 @@ const FireGridDefinition& FireGrid::Definition() const {
 
 std::size_t FireGrid::CellCount() const {
     return definition_.nx * definition_.ny;
+}
+
+std::shared_ptr<const FireGrid> MakeRectilinearFireGrid(int nx, int ny, const std::vector<double>& longitude_deg,
+                                                        const std::vector<double>& latitude_deg) {
+    if (nx < 2 || ny < 2 || longitude_deg.size() != static_cast<std::size_t>(nx) || latitude_deg.size() != static_cast<std::size_t>(ny)) {
+        throw std::invalid_argument("Fire runtime target grid requires at least two rectilinear longitude and latitude centers");
+    }
+    constexpr double rad = std::numbers::pi / 180.0;
+    constexpr double earth_radius_m = 6371008.8;
+    const auto uniform_step = [](const std::vector<double>& coordinates, std::string_view axis) {
+        std::vector<double> differences;
+        differences.reserve(coordinates.size() - 1);
+        for (std::size_t i = 1; i < coordinates.size(); ++i) {
+            const double delta = coordinates[i] - coordinates[i - 1];
+            if (!std::isfinite(delta) || delta <= 0) {
+                throw std::invalid_argument("Fire runtime target " + std::string(axis) + " coordinates must increase strictly");
+            }
+            differences.push_back(delta);
+        }
+        const double step = differences.front();
+        for (const double delta : differences) {
+            if (std::abs(delta - step) > 1e-10 * std::max(1.0, std::abs(step))) {
+                throw std::invalid_argument("Fire runtime target grid requires uniformly spaced rectilinear centers");
+            }
+        }
+        return step;
+    };
+    std::vector<double> unwrapped_longitudes = longitude_deg;
+    for (std::size_t i = 1; i < unwrapped_longitudes.size(); ++i) {
+        double delta = unwrapped_longitudes[i] - unwrapped_longitudes[i - 1];
+        if (delta <= 0) {
+            delta += 360.0;
+            if (delta <= 0) throw std::invalid_argument("Fire runtime target longitude centers contain a duplicate or invalid wrap");
+            unwrapped_longitudes[i] = unwrapped_longitudes[i - 1] + delta;
+        }
+    }
+    const double lon_step = uniform_step(unwrapped_longitudes, "longitude");
+    const double lat_step = uniform_step(latitude_deg, "latitude");
+    if (lon_step * nx > 360.0 + 1e-8 || latitude_deg.front() < -90.0 || latitude_deg.back() > 90.0) {
+        throw std::invalid_argument("Fire runtime target rectilinear extents exceed the supported geographic domain");
+    }
+    const bool zero_to_360 = unwrapped_longitudes.front() >= 0.0 && unwrapped_longitudes.back() > 180.0;
+    const auto longitude_convention = zero_to_360 ? FireLongitudeConvention::ZeroTo360 : FireLongitudeConvention::Minus180To180;
+    const double lon_min = zero_to_360 ? 0.0 : -180.0;
+    const double lon_period = 360.0;
+    const auto wrap = [&](double longitude) {
+        double result = std::fmod(longitude - lon_min, lon_period);
+        if (result < 0) result += lon_period;
+        return result + lon_min;
+    };
+    const double lat_south = std::max(-90.0, latitude_deg.front() - lat_step / 2.0);
+    const double lat_north = std::min(90.0, latitude_deg.back() + lat_step / 2.0);
+    if (lat_north <= lat_south) throw std::invalid_argument("Fire runtime target grid has no positive latitude span");
+
+    FireGridDefinition definition;
+    definition.grid_id = "cece-rectilinear-" + std::to_string(nx) + "x" + std::to_string(ny);
+    definition.nx = static_cast<std::size_t>(nx);
+    definition.ny = static_cast<std::size_t>(ny);
+    definition.crs = "EPSG:4326";
+    definition.longitude_convention = longitude_convention;
+    definition.longitude_deg.reserve(definition.nx * definition.ny);
+    definition.latitude_deg.reserve(definition.nx * definition.ny);
+    definition.longitude_bounds_deg.reserve(definition.nx * definition.ny);
+    definition.latitude_bounds_deg.reserve(definition.nx * definition.ny);
+    definition.area_m2.reserve(definition.nx * definition.ny);
+    for (int j = 0; j < ny; ++j) {
+        const double south = std::max(-90.0, latitude_deg[j] - lat_step / 2.0);
+        const double north = std::min(90.0, latitude_deg[j] + lat_step / 2.0);
+        for (int i = 0; i < nx; ++i) {
+            const double west_unwrapped = unwrapped_longitudes[i] - lon_step / 2.0;
+            const double east_unwrapped = unwrapped_longitudes[i] + lon_step / 2.0;
+            const double west = wrap(west_unwrapped);
+            const double east = wrap(east_unwrapped);
+            definition.longitude_deg.push_back(wrap(unwrapped_longitudes[i]));
+            definition.latitude_deg.push_back(latitude_deg[j]);
+            definition.longitude_bounds_deg.push_back({west, east, east, west});
+            definition.latitude_bounds_deg.push_back({south, south, north, north});
+            definition.area_m2.push_back(earth_radius_m * earth_radius_m * lon_step * rad * (std::sin(north * rad) - std::sin(south * rad)));
+        }
+    }
+    std::ostringstream identity;
+    identity << std::setprecision(17);
+    for (std::size_t cell = 0; cell < definition.area_m2.size(); ++cell) {
+        identity << definition.longitude_deg[cell] << ',' << definition.latitude_deg[cell] << ',' << definition.area_m2[cell];
+        for (const double value : definition.longitude_bounds_deg[cell]) identity << ',' << value;
+        for (const double value : definition.latitude_bounds_deg[cell]) identity << ',' << value;
+        identity << ';';
+    }
+    definition.grid_sha256 = FireContentSha256(identity.str());
+    return std::make_shared<const FireGrid>(std::move(definition));
 }
 
 FireInputIdentity::FireInputIdentity(FireIdentityMetadata metadata, std::optional<FireProfileIdentity> applied_temporal_profile)
@@ -627,6 +736,69 @@ std::string FireFileSha256(const std::string& path) {
     return digest.Finish();
 }
 
+FireTemporalAllocationProfile LoadFireTemporalAllocationProfile(const std::string& path) {
+    if (!std::filesystem::is_regular_file(path)) throw std::runtime_error("Fire temporal profile file not found: " + path);
+    conf::Config file = conf::Config::from_file(path);
+    const auto& root = file.root();
+    const auto invalid = [](std::string_view field, std::string_view reason) {
+        throw std::invalid_argument("Fire temporal profile." + std::string(field) + ": " + std::string(reason));
+    };
+    const std::set<std::string> allowed{"schema_version", "profile_id", "version", "time_basis", "supported_source_cadence_seconds", "weights"};
+    if (root.kind() != conf::Node_Kind::Map) invalid("root", "must be a mapping");
+    for (const auto& key : root.keys()) {
+        if (!allowed.contains(key)) invalid("root", "unknown key '" + key + "'");
+    }
+    if (root["schema_version"].try_int() != std::optional<int>{1}) invalid("schema_version", "only version 1 is supported");
+    const auto nonempty = [&](const conf::Value& node, std::string_view field) {
+        const auto text = node.try_string();
+        if (!text || text->find_first_not_of(" \t\r\n") == std::string::npos) invalid(field, "must be a nonempty string");
+        return *text;
+    };
+    const auto cadence_value = root["supported_source_cadence_seconds"].try_int();
+    if (!cadence_value || *cadence_value <= 0) invalid("supported_source_cadence_seconds", "must be a positive integer");
+    const auto time_basis = nonempty(root["time_basis"], "time_basis");
+    FireTemporalProfileTimeBasis basis;
+    if (time_basis == "UTC") {
+        basis = FireTemporalProfileTimeBasis::Utc;
+    } else if (time_basis == "local_solar_time") {
+        basis = FireTemporalProfileTimeBasis::LocalSolar;
+    } else {
+        invalid("time_basis", "must be UTC or local_solar_time");
+    }
+    const auto weights = root["weights"];
+    if (weights.kind() != conf::Node_Kind::Sequence || weights.size() == 0) invalid("weights", "must be a nonempty sequence");
+    std::vector<FireTemporalWeightSegment> segments;
+    segments.reserve(weights.size());
+    std::int64_t cursor = 0;
+    double integral = 0;
+    for (std::size_t i = 0; i < weights.size(); ++i) {
+        const auto weight = weights[i];
+        const auto field = "weights[" + std::to_string(i) + "]";
+        if (weight.kind() != conf::Node_Kind::Map) invalid(field, "must be a mapping");
+        const std::set<std::string> weight_keys{"offset_seconds", "duration_seconds", "weight_per_second"};
+        for (const auto& key : weight.keys()) {
+            if (!weight_keys.contains(key)) invalid(field, "unknown key '" + key + "'");
+        }
+        const auto offset = weight["offset_seconds"].try_int();
+        const auto duration = weight["duration_seconds"].try_int();
+        const auto rate = weight["weight_per_second"].try_double();
+        if (!offset || !duration || !rate || *offset != cursor || *duration <= 0 || !std::isfinite(*rate) || *rate < 0 ||
+            *offset > *cadence_value || *duration > *cadence_value - *offset) {
+            invalid(field, "weights must be finite, nonnegative, contiguous, positive-duration and within the supported cadence");
+        }
+        const auto end = *offset + *duration;
+        segments.push_back({*offset, end, *rate});
+        integral += static_cast<double>(*duration) * *rate;
+        cursor = end;
+    }
+    if (cursor != *cadence_value || !std::isfinite(integral) || std::abs(integral - 1.0) > 1e-12) {
+        invalid("weights", "segments must cover the supported cadence and integrate to one");
+    }
+    const auto profile_id = nonempty(root["profile_id"], "profile_id");
+    const auto version = nonempty(root["version"], "version");
+    return {{profile_id, version, FireFileSha256(std::filesystem::canonical(path).string())}, basis, *cadence_value, std::move(segments)};
+}
+
 FireIntervalProvider::FireIntervalProvider(FireInputProvider provider, FireProviderLimits limits, FireRevisionIdentity identity,
                                            std::optional<FireProviderCheckpoint> checkpoint)
     : provider_(provider), limits_(limits), checkpoint_{std::move(identity), std::nullopt, std::nullopt} {
@@ -900,11 +1072,12 @@ FireAllocatedMass FireAllocateConservativeMass(const FireBulkInventory& inventor
     if (time_allocation == FireTimeAllocation::Profile) {
         if (!time_profile) throw std::invalid_argument("Fire profile temporal allocation requires a versioned temporal profile");
         ValidateProfile(time_profile->identity, "Fire temporal allocation profile");
-        if (time_profile->time_basis != FireTemporalProfileTimeBasis::Utc) {
-            throw std::invalid_argument("Fire local-solar temporal profiles are not supported by this allocator");
-        }
         if (time_profile->source_cadence_seconds != data.identity.DurationSeconds() || time_profile->segments.empty()) {
             throw std::invalid_argument("Fire temporal profile cadence must match the positive source interval duration");
+        }
+        if (time_profile->time_basis == FireTemporalProfileTimeBasis::LocalSolar &&
+            (time_profile->source_cadence_seconds != 86400 || data.identity.DurationSeconds() != 86400)) {
+            throw std::invalid_argument("Fire local-solar temporal profiles require a complete 24-hour source interval");
         }
         std::int64_t cursor = 0;
         double integral = 0;
@@ -999,18 +1172,27 @@ FireAllocatedMass FireAllocateConservativeMass(const FireBulkInventory& inventor
                              std::nullopt,
                              time_allocation,
                              time_profile ? std::optional<FireProfileIdentity>(time_profile->identity) : std::nullopt};
-    double mass_fraction = static_cast<double>(overlap) / data.identity.DurationSeconds();
+    const auto overlap_start_utc = std::max(metadata.interval_start, requested_start).EpochSeconds();
+    const auto overlap_end_utc = std::min(metadata.interval_end, requested_end).EpochSeconds();
+    std::vector<double> mass_fractions(ns, static_cast<double>(overlap) / data.identity.DurationSeconds());
     if (time_profile) {
-        const auto overlap_start = std::max(metadata.interval_start, requested_start).EpochSeconds() - metadata.interval_start.EpochSeconds();
-        const auto overlap_end = std::min(metadata.interval_end, requested_end).EpochSeconds() - metadata.interval_start.EpochSeconds();
-        mass_fraction = 0;
-        for (const auto& segment : time_profile->segments) {
-            const auto seconds = std::max<std::int64_t>(
-                0, std::min(overlap_end, segment.end_offset_seconds) - std::max(overlap_start, segment.start_offset_seconds));
-            mass_fraction += static_cast<double>(seconds) * segment.weight_per_second;
+        if (time_profile->time_basis == FireTemporalProfileTimeBasis::Utc) {
+            const auto overlap_start = overlap_start_utc - metadata.interval_start.EpochSeconds();
+            const auto overlap_end = overlap_end_utc - metadata.interval_start.EpochSeconds();
+            const double fraction = TemporalProfileIntegral(*time_profile, static_cast<double>(overlap_start), static_cast<double>(overlap_end));
+            std::fill(mass_fractions.begin(), mass_fractions.end(), fraction);
+        } else {
+            const auto& longitudes = metadata.grid_definition->Definition().longitude_deg;
+            for (std::size_t cell = 0; cell < ns; ++cell) {
+                const double local_solar_offset_seconds = longitudes[cell] * 240.0;
+                mass_fractions[cell] = TemporalProfileIntegral(*time_profile, static_cast<double>(overlap_start_utc) + local_solar_offset_seconds,
+                                                               static_cast<double>(overlap_end_utc) + local_solar_offset_seconds);
+            }
         }
-        if (!std::isfinite(mass_fraction) || mass_fraction < 0 || mass_fraction > 1 + absolute_tolerance) {
-            throw std::runtime_error("Fire temporal profile produced an invalid allocation fraction");
+        for (const auto fraction : mass_fractions) {
+            if (!std::isfinite(fraction) || fraction < 0 || fraction > 1 + absolute_tolerance) {
+                throw std::runtime_error("Fire temporal profile produced an invalid allocation fraction");
+            }
         }
     }
     const double time_coverage = static_cast<double>(overlap) / (requested_end.EpochSeconds() - requested_start.EpochSeconds());
@@ -1021,11 +1203,12 @@ FireAllocatedMass FireAllocateConservativeMass(const FireBulkInventory& inventor
     };
     const auto allocate = [&](const double* source_values, double* target_values) {
         auto* source_density = density.data();
+        const auto* temporal_fractions = mass_fractions.data();
         const auto* physical_source_area = source_area.data();
         const auto* physical_target_area = target_area.data();
         const auto* target_density = destination_density.data();
         Kokkos::parallel_for("fire::extensive_to_density", Policy(0, ns),
-                             [=](std::size_t i) { source_density[i] = source_values[i] * mass_fraction / physical_source_area[i]; });
+                             [=](std::size_t i) { source_density[i] = source_values[i] * temporal_fractions[i] / physical_source_area[i]; });
         Kokkos::fence("fire::source_density_ready");
         apply();
         Kokkos::parallel_for("fire::density_to_extensive", Policy(0, nt), [=](std::size_t j) {
@@ -1033,8 +1216,8 @@ FireAllocatedMass FireAllocateConservativeMass(const FireBulkInventory& inventor
         });
         double input = 0, supported = 0, output = 0;
         Kokkos::parallel_reduce("fire::input_budget", Policy(0, ns), [=](std::size_t i, double& sum) { sum += source_values[i]; }, input);
-        Kokkos::parallel_reduce(
-            "fire::supported_budget", Policy(0, ns), [=](std::size_t i, double& sum) { sum += source_values[i] * mass_fraction * fa[i]; }, supported);
+        Kokkos::parallel_reduce("fire::supported_budget", Policy(0, ns),
+                                [=](std::size_t i, double& sum) { sum += source_values[i] * temporal_fractions[i] * fa[i]; }, supported);
         Kokkos::parallel_reduce("fire::output_budget", Policy(0, nt), [=](std::size_t j, double& sum) { sum += target_values[j]; }, output);
         if (!std::isfinite(input) || !close(supported, output)) {
             throw std::runtime_error("Fire extensive quantity budget is nonfinite or fails conservative allocation tolerance");

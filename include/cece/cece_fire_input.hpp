@@ -67,6 +67,7 @@ struct FireProfileIdentity {
     std::string id;
     std::string version;
     std::string content_sha256;
+    bool operator==(const FireProfileIdentity&) const = default;
 };
 
 struct FireTemporalWeightSegment {
@@ -82,6 +83,8 @@ struct FireTemporalAllocationProfile {
     std::vector<FireTemporalWeightSegment> segments;
 };
 
+FireTemporalAllocationProfile LoadFireTemporalAllocationProfile(const std::string& path);
+
 class FireGrid {
    public:
     explicit FireGrid(FireGridDefinition definition);
@@ -93,6 +96,9 @@ class FireGrid {
    private:
     FireGridDefinition definition_;
 };
+
+std::shared_ptr<const FireGrid> MakeRectilinearFireGrid(int nx, int ny, const std::vector<double>& longitude_deg,
+                                                        const std::vector<double>& latitude_deg);
 
 struct FireIdentityMetadata {
     int schema_version = 0;
@@ -407,7 +413,8 @@ std::int64_t FireIntervalOverlapSeconds(const FireUtcTime& first_start, const Fi
  * The caller must generate the first-order AXIS operator from these exact grids;
  * source/destination physical areas must share its area metric up to one scale.
  * Profile weights are nonnegative per-second values covering and integrating to
- * one over the source interval. Local-solar profiles are not yet supported.
+ * one over the source interval. Local-solar profiles use UTC plus longitude/15
+ * and currently require one complete 24-hour source interval.
  * Coverage is never renormalized and no geometric extrapolation is applied.
  * Zero support is unavailable, never evidence of valid zero fire.
  */

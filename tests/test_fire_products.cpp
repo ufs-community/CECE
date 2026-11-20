@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #include <gtest/gtest.h>
+#include <Kokkos_Core.hpp>
 #include <netcdf.h>
 
 #include <algorithm>
@@ -7,6 +8,7 @@
 #include <chrono>
 #include <cmath>
 #include <filesystem>
+#include <fstream>
 #include <functional>
 #include <set>
 #include <stdexcept>
@@ -14,6 +16,7 @@
 #include <string_view>
 #include <utility>
 
+#include "cece/cece_fire_runtime.hpp"
 #include "cece/physics/cece_fire.hpp"
 
 namespace {
@@ -25,11 +28,12 @@ std::shared_ptr<const cece::FireGrid> ProductGrid(double area_m2 = 100.0) {
 }
 
 cece::FireProductEmissionsInterval ProductInterval(const std::string& start, const std::string& end, cece::FireProductQuantityKind kind,
-                                                   std::string units, std::vector<double> values) {
+                                                   std::string units, std::vector<double> values,
+                                                   cece::FireCutoffMode cutoff_mode = cece::FireCutoffMode::Fixed) {
     const cece::FireUtcTime interval_start(start), interval_end(end);
     auto grid = ProductGrid();
     cece::FireIdentityMetadata metadata{1,
-                                        "synthetic-source",
+                                        "GBBEPx",
                                         "product-v1",
                                         "decoder-v1",
                                         "delivery-a",
@@ -39,7 +43,7 @@ cece::FireProductEmissionsInterval ProductInterval(const std::string& start, con
                                         interval_start,
                                         interval_start,
                                         cece::FireUtcTime("2022-07-03T00:00:00Z"),
-                                        cece::FireCutoffMode::Fixed,
+                                        cutoff_mode,
                                         std::move(grid)};
 
     cece::FireProductEmissionsIntervalData data(
@@ -126,6 +130,19 @@ struct TemporaryProductFile {
     }
 };
 
+struct TemporaryProductDirectory {
+    std::filesystem::path path;
+    TemporaryProductDirectory() {
+        path = std::filesystem::temp_directory_path() /
+               ("cece-prepared-fire-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+        std::filesystem::create_directory(path);
+    }
+    ~TemporaryProductDirectory() {
+        std::error_code error;
+        std::filesystem::remove_all(path, error);
+    }
+};
+
 TEST(test_fire_products, WritesNormalizedRaveGridMassAndIntervalMetadata) {
     const auto product = cece::DecodeRaveProductFile(ProductFixturePath("RAVE-v2r0-crop.nc"), ProductDecodeOptions("2026-07-03T00:00:00Z"));
     const auto suffix = std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
@@ -176,6 +193,110 @@ TEST(test_fire_products, WritesNormalizedRaveGridMassAndIntervalMetadata) {
     EXPECT_EQ(nc_get_var_double(temporary.file, time_bounds_variable, time_bounds.data()), NC_NOERR);
     EXPECT_DOUBLE_EQ(time_bounds[0], static_cast<double>(metadata.interval_start.EpochSeconds()));
     EXPECT_DOUBLE_EQ(time_bounds[1], static_cast<double>(metadata.interval_end.EpochSeconds()));
+}
+
+TEST(test_fire_products, PreparedRuntimeLoadsProfiledProductAndPreservesComposition) {
+    Kokkos::ScopeGuard kokkos;
+    TemporaryProductDirectory temporary;
+    const auto profile_path = temporary.path / "temporal_profile.yaml";
+    {
+        std::ofstream profile(profile_path);
+        profile << "schema_version: 1\n"
+                   "profile_id: runtime-profile\n"
+                   "version: test-v1\n"
+                   "time_basis: UTC\n"
+                   "supported_source_cadence_seconds: 86400\n"
+                   "weights:\n"
+                   "  - {offset_seconds: 0, duration_seconds: 21600, weight_per_second: 0.00002314814814814815}\n"
+                   "  - {offset_seconds: 21600, duration_seconds: 64800, weight_per_second: 0.00000771604938271605}\n";
+        ASSERT_TRUE(profile.good());
+    }
+    const cece::FireProfileIdentity temporal_identity{"runtime-profile", "test-v1", cece::FireFileSha256(profile_path.string())};
+    const auto product = ProductInterval("2022-07-01T00:00:00Z", "2022-07-02T00:00:00Z",
+                                         cece::FireProductQuantityKind::IntervalMass, "kg/cell/interval", {5},
+                                         cece::FireCutoffMode::HostSupplied);
+    const auto& source_metadata = product.Data().product_identity.common_identity.Metadata();
+    const auto normalized_path = temporary.path / "interval.nc";
+    cece::WriteNormalizedFireProductFile(product, {"synthetic-source", "profile", temporal_identity}, normalized_path.string());
+    const auto normalized_hash = cece::FireFileSha256(normalized_path.string());
+    const cece::FireProfileIdentity biome{"synthetic-biome", "test-v1", std::string(64, 'c')};
+    const cece::FireProfileIdentity composition{"synthetic-composition", "test-v1", std::string(64, 'd')};
+    const auto cutoff_schedule_path = temporary.path / "cutoff_schedule.yaml";
+    {
+        std::ofstream schedule(cutoff_schedule_path);
+        schedule << "schema_version: 1\n"
+                    "intervals:\n"
+                    "  - {interval_start: 2022-07-01T00:00:00Z, interval_end: 2022-07-01T06:00:00Z, "
+                    "availability_cutoff: 2022-07-03T00:00:00Z}\n";
+        ASSERT_TRUE(schedule.good());
+    }
+    const auto cutoff_schedule_hash = cece::FireFileSha256(cutoff_schedule_path.string());
+    const auto manifest_path = temporary.path / "manifest.yaml";
+    {
+        std::ofstream manifest(manifest_path);
+        manifest << "schema_version: 1\n"
+                    "mode: product\n"
+                    "product_adapter: rave-v2r0\n"
+                    "product_time_allocation: profile\n"
+                    "product_time_profile:\n"
+                    "  profile_id: " << temporal_identity.id << "\n"
+                 << "  version: " << temporal_identity.version << "\n"
+                 << "  content_sha256: " << temporal_identity.content_sha256 << "\n"
+                    "chemistry_state: bulk\n"
+                    "cutoff_mode: host_supplied\n"
+                    "cutoff_schedule_sha256: " << cutoff_schedule_hash << "\n"
+                    "sources:\n"
+                    "  - source_id: synthetic-source\n"
+                    "    acquired_at: 2022-07-01T00:00:00Z\n"
+                    "    available_at: 2022-07-01T00:00:00Z\n"
+                    "    content_sha256: " << source_metadata.content_sha256 << "\n"
+                    "intervals:\n"
+                    "  - source_id: synthetic-source\n"
+                    "    product_id: GBBEPx\n"
+                    "    product_version: product-v1\n"
+                    "    algorithm_version: decoder-v1\n"
+                    "    variant: unscaled\n"
+                    "    interval_start: 2022-07-01T00:00:00Z\n"
+                    "    interval_end: 2022-07-02T00:00:00Z\n"
+                    "    availability_cutoff: 2022-07-03T00:00:00Z\n"
+                    "    cutoff_mode: host_supplied\n"
+                    "    grid_sha256: " << source_metadata.grid_definition->Definition().grid_sha256 << "\n"
+                    "    source_content_sha256: " << source_metadata.content_sha256 << "\n"
+                    "    component_id: component-a\n"
+                    "    component_profile:\n"
+                    "      biome: {id: " << biome.id << ", version: " << biome.version << ", content_sha256: " << biome.content_sha256 << "}\n"
+                    "      composition: {id: " << composition.id << ", version: " << composition.version << ", content_sha256: "
+                 << composition.content_sha256 << "}\n"
+                    "    path: interval.nc\n"
+                    "    content_sha256: " << normalized_hash << "\n";
+        ASSERT_TRUE(manifest.good());
+    }
+
+    cece::FireConfig config{cece::FireInputMode::Product, cece::FireInputProvider::Prepared, cece::FireCutoffMode::HostSupplied};
+    config.input_manifest = manifest_path.string();
+    config.cutoff_schedule = cutoff_schedule_path.string();
+    config.product_adapter = "rave-v2r0";
+    config.product_time_allocation = cece::FireTimeAllocation::Profile;
+    config.product_time_profile = profile_path.string();
+    config.requested_species = {cece::FireBulkSpecies::CO};
+    auto adapter = cece::CreateFireRuntimeAdapter(cece::FireInputProvider::Prepared);
+    ASSERT_NE(adapter, nullptr);
+    adapter->SetTargetGrid(source_metadata.grid_definition);
+    adapter->Initialize(config, 1, 1, 1);
+    const auto inventory_view = adapter->PrepareInterval({cece::FireUtcTime("2022-07-01T00:00:00Z"),
+                                                          cece::FireUtcTime("2022-07-01T06:00:00Z"),
+                                                          std::nullopt, 21600});
+    ASSERT_TRUE(std::holds_alternative<std::reference_wrapper<const cece::FireBulkInventory>>(inventory_view));
+    const auto& inventory = std::get<std::reference_wrapper<const cece::FireBulkInventory>>(inventory_view).get();
+    ASSERT_EQ(inventory.Data().mass_kg.size(), 1);
+    EXPECT_NEAR(inventory.Data().mass_kg.front(), 2.5, 1e-12);
+    EXPECT_EQ(inventory.Data().component_ids, std::vector<std::string>{"component-a"});
+    EXPECT_EQ(inventory.Data().component_profiles.at("component-a").biome, biome);
+    EXPECT_EQ(inventory.Data().component_profiles.at("component-a").composition, composition);
+    ASSERT_TRUE(inventory.Data().identity.AppliedTemporalProfile());
+    EXPECT_EQ(*inventory.Data().identity.AppliedTemporalProfile(), temporal_identity);
+    adapter->CommitInterval();
+    adapter->Finalize();
 }
 
 TEST(test_fire_products, DecodesRaveV2r0SampleCropAndPreservesItsIntervalMasses) {

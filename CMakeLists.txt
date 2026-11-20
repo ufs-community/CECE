@@ -457,6 +457,7 @@ set(
   src/core/cece_band_decomposition.cpp
   src/core/cece_clock.cpp
   src/core/cece_fire_input.cpp
+  src/core/cece_fire_prepared_runtime.cpp
   src/core/cece_fire_product_decoder.cpp
   src/core/cece_fire_product_writer.cpp
   src/core/cece_config_parser.cpp

@@ -33,6 +33,30 @@
 
 extern "C" {
 
+void cece_core_fire_set_target_grid(void* data_ptr, int nx, int ny, const double* longitude_deg, int longitude_count, const double* latitude_deg,
+                                    int latitude_count, int* rc) {
+    if (rc) *rc = 0;
+    if (!data_ptr) {
+        if (rc) *rc = -1;
+        std::cerr << "ERROR in cece_core_fire_set_target_grid: Internal data pointer is null" << std::endl;
+        return;
+    }
+    auto* internal_data = static_cast<cece::CeceInternalData*>(data_ptr);
+    if (!internal_data->fire_runtime_adapter) return;
+    if (!longitude_deg || !latitude_deg || longitude_count <= 0 || latitude_count <= 0 || longitude_count != nx || latitude_count != ny) {
+        if (rc) *rc = -1;
+        std::cerr << "ERROR in cece_core_fire_set_target_grid: Fire requires rectilinear longitude/latitude center arrays" << std::endl;
+        return;
+    }
+    try {
+        internal_data->fire_target_grid = cece::MakeRectilinearFireGrid(
+            nx, ny, std::vector<double>(longitude_deg, longitude_deg + longitude_count), std::vector<double>(latitude_deg, latitude_deg + latitude_count));
+    } catch (const std::exception& error) {
+        if (rc) *rc = -1;
+        std::cerr << "ERROR in cece_core_fire_set_target_grid: " << error.what() << std::endl;
+    }
+}
+
 /**
  * @brief Initialize Phase 2 (IPDv00p2) implementation for CECE.
  *
@@ -115,6 +139,7 @@ void cece_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc)
             return;
         }
         try {
+            if (internal_data->fire_target_grid) internal_data->fire_runtime_adapter->SetTargetGrid(internal_data->fire_target_grid);
             internal_data->fire_runtime_adapter->Initialize(*fire_scheme->fire, internal_data->nx, internal_data->ny, internal_data->nz);
             internal_data->fire_runtime_initialized = true;
         } catch (const std::exception& e) {

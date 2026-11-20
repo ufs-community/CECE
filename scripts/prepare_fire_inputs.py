@@ -167,6 +167,29 @@ def _validate_source_entry(entry: Any, index: int, manifest_path: Path) -> dict[
     available_at = _utc(source["available_at"], f"source_manifest.sources[{index}].available_at")
     if available_at < acquired_at:
         raise PreparationError(f"source {source['source_id']!r}: available_at precedes acquired_at")
+    component_id = source.get("component_id", source["source_id"])
+    if not isinstance(component_id, str) or not component_id.strip():
+        raise PreparationError(f"source {source['source_id']!r}: component_id must be a nonempty string")
+    source["component_id"] = component_id
+    component_profile = source.get("component_profile")
+    if component_profile is not None:
+        component_profile = _mapping(component_profile, f"source {source['source_id']!r}.component_profile")
+        if set(component_profile) != {"biome", "composition"}:
+            raise PreparationError(f"source {source['source_id']!r}.component_profile must contain biome and composition identities")
+        for profile_name, profile in component_profile.items():
+            identity = _mapping(profile, f"source {source['source_id']!r}.component_profile.{profile_name}")
+            if set(identity) != {"id", "version", "content_sha256"}:
+                raise PreparationError(
+                    f"source {source['source_id']!r}.component_profile.{profile_name} requires id, version and content_sha256"
+                )
+            _text(identity["id"], f"source {source['source_id']!r}.component_profile.{profile_name}.id")
+            _text(identity["version"], f"source {source['source_id']!r}.component_profile.{profile_name}.version")
+            digest = identity["content_sha256"]
+            if not isinstance(digest, str) or not _SHA256_RE.fullmatch(digest):
+                raise PreparationError(
+                    f"source {source['source_id']!r}.component_profile.{profile_name}.content_sha256 must be lowercase SHA256"
+                )
+        source["component_profile"] = component_profile
 
     has_local = "local_path" in source
     has_uri = "uri" in source
@@ -323,7 +346,7 @@ def _validate_temporal_profile(options: dict[str, Any], sources: list[dict[str, 
     if not isinstance(weights, list) or not weights:
         raise PreparationError("product_time_profile.weights must be a nonempty list")
     integrated_weight = 0.0
-    weighted_ranges = []
+    cursor = 0
     for index, value in enumerate(weights):
         weight = _mapping(value, f"product_time_profile.weights[{index}]")
         rate = weight.get("weight_per_second")
@@ -345,22 +368,25 @@ def _validate_temporal_profile(options: dict[str, Any], sources: list[dict[str, 
                 f"product_time_profile.weights[{index}] requires nonnegative offset/rate and positive duration"
             )
         integrated_weight += rate * duration
-        if offset + duration > cadence:
-            raise PreparationError(f"product_time_profile.weights[{index}] extends beyond supported source cadence")
-        weighted_ranges.append((offset, offset + duration))
-    weighted_ranges.sort()
-    if any(current[0] < previous[1] for previous, current in zip(weighted_ranges, weighted_ranges[1:])):
-        raise PreparationError("product_time_profile weight intervals must not overlap")
+        if offset != cursor or offset + duration > cadence:
+            raise PreparationError(
+                f"product_time_profile.weights[{index}] must continue complete, ordered coverage of the source cadence"
+            )
+        cursor = offset + duration
+    if cursor != cadence:
+        raise PreparationError("product_time_profile weights must cover the complete supported source cadence")
     if not math.isclose(integrated_weight, 1.0, rel_tol=1e-12, abs_tol=1e-12):
         raise PreparationError("product_time_profile weights must integrate to one")
+    if profile["time_basis"] == "local_solar_time" and cadence != 86400:
+        raise PreparationError("local-solar temporal profiles must use a 24-hour source cadence")
     for source in sources:
         source_cadence = source.get("temporal_resolution_seconds")
         if source_cadence is not None:
             if isinstance(source_cadence, bool) or not isinstance(source_cadence, int) or source_cadence <= 0:
                 raise PreparationError(f"source {source['source_id']!r}: temporal_resolution_seconds must be positive")
-            if source_cadence <= cadence:
+            if source_cadence != cadence:
                 raise PreparationError(
-                    f"source {source['source_id']!r}: product temporal cadence is already resolved at or finer than profile cadence"
+                    f"source {source['source_id']!r}: source cadence must match the temporal profile cadence"
                 )
         if source.get("temporal_profile_id") == profile_id:
             raise PreparationError(f"source {source['source_id']!r}: product temporal profile has already been applied")
@@ -703,6 +729,7 @@ def _normalize(
                     "interval_start": source["interval_start"],
                     "interval_end": source["interval_end"],
                     "availability_cutoff": cutoff.strftime(_UTC_FORMAT),
+                    "cutoff_mode": options["cutoff_mode"],
                     "grid_sha256": normalizer_metadata["grid_sha256"],
                     "species": species,
                     "available_species": species,
@@ -711,6 +738,8 @@ def _normalize(
                     "path": relative_path,
                     "content_sha256": file_sha256,
                     "source_content_sha256": source["_actual_sha256"],
+                    "component_id": source["component_id"],
+                    "component_profile": source.get("component_profile"),
                 }
             )
             output_sources.append(
