@@ -19,31 +19,22 @@
  *
  * Why a test-local manifest builder is faithful and sufficient:
  *   BuildManifestContent (see src/driver/cece_driver_facade.cpp) emits a fixed
- *   YAML block whose ONLY variable inputs are six StreamConfig fields:
+ *   YAML block whose independent inputs are eight StreamConfig fields:
  *     - input_file_path                     (rendered as `path:`)
  *     - data_model                          (the data_model argument; HandleKey
  *                                            passes cfg.data_model, so we build
  *                                            with that)
+ *     - kind                               (rendered as `stream_kind:`)
+ *     - format                             (rendered as `stream_format:`)
  *     - amio_staging_buffer_count           (rendered as `buffer_count:`)
  *     - amio_staging_buffer_capacity_bytes  (rendered as `buffer_capacity_bytes:`)
  *     - amio_worker_threads                 (rendered as `threads:`)
  *     - amio_prefetch_depth                 (rendered as `depth:`)
- *   The capacity/depth fields became variable inputs with the AMIO
- *   lazy-allocation staging-pool fix (they are now configurable), so every
- *   other line is a compile-time constant (backend, read_timeout_s,
- *   staging_timeout_ms). Therefore two manifests are byte-identical iff those
- *   six fields are pairwise equal. HandleKey concatenates exactly those same
- *   six fields (input_file_path | data_model | to_string(worker_threads) |
- *    to_string(staging_buffer_count) | to_string(staging_buffer_capacity_bytes)
- *    | to_string(prefetch_depth)), so manifest-equality reduces to equality of
- *   the six fields, which is precisely what HandleKey encodes. The tests below
- *   assert the iff against a faithful test-local manifest builder over those
- *   six fields, tying each direction back to BuildManifestContent. The
- *   manifest's max_buffer_count line is DERIVED from amio_staging_buffer_count
- *   (min(4096, max(count, count*8))) rather than being an independent field,
- *   so it adds no new key dimension: HandleKey still tracks exactly the six
- *   independent fields BuildManifestContent consumes, and the derived ceiling
- *   is identical whenever the six are (TestManifest reproduces the formula).
+ *   HandleKey concatenates those same fields in this order: input_file_path,
+ *   data_model, kind, format, worker_threads, staging_buffer_count,
+ *   staging_buffer_capacity_bytes, prefetch_depth. The manifest's
+ *   max_buffer_count is derived from amio_staging_buffer_count, so it adds no
+ *   independent key field. All other manifest lines are constant.
  *
  * **Validates: Requirements 11.1, 11.2, 11.3**
  */
@@ -80,9 +71,7 @@ struct HandleKeyTestAccess {
 namespace {
 
 // Faithful test-local reproduction of the manifest bytes that
-// BuildManifestContent(cfg, cfg.data_model) would emit. Only the six
-// manifest-affecting fields vary; every other line is the exact constant
-// BuildManifestContent uses (backend, read_timeout_s, staging_timeout_ms).
+// BuildManifestContent(cfg, cfg.data_model) would emit.
 // This lets the property compare manifests without constructing an orchestrator
 // (BuildManifestContent is a non-static const member that only reads cfg fields
 // + a data_model string). data_model is fixed to cfg.data_model because that is
@@ -97,6 +86,8 @@ std::string TestManifest(const StreamConfig& cfg) {
     m_content << "backend: netcdf4\n"
               << "path: " << cfg.input_file_path << "\n"
               << "data_model: " << cfg.data_model << "\n"
+              << "stream_kind: " << cfg.kind << "\n"
+              << "stream_format: " << cfg.format << "\n"
               << "staging_pool:\n"
               << "  buffer_count: " << cfg.amio_staging_buffer_count << "\n"
               << "  buffer_capacity_bytes: " << cfg.amio_staging_buffer_capacity_bytes << "\n"
@@ -117,20 +108,22 @@ std::string TestManifest(const StreamConfig& cfg) {
 // Feature: regrid-per-stream, Property 4: HandleKey manifest-injectivity
 // **Validates: Requirements 11.1, 11.2, 11.3**
 //
-// If two configs produce a byte-identical manifest (equivalently: the four
+// If two configs produce a byte-identical manifest (equivalently: the eight
 // manifest-affecting fields are pairwise equal), then their HandleKeys are
-// equal. b copies a's four manifest fields but varies every other field
+// equal. b copies a's manifest fields but varies every other field
 // arbitrarily, proving the non-key fields do not influence HandleKey.
 // ============================================================================
 RC_GTEST_PROP(HandleKeyProperty, Property4_ManifestEqualImpliesKeyEqual, ()) {
     const StreamConfig a = *genStreamConfig();
 
     StreamConfig b = *genStreamConfig();
-    // Copy exactly the six manifest-affecting fields; everything else (the
+    // Copy exactly the manifest-affecting fields; everything else (the
     // non-key noise: mapalgo/cadence/tintalgo/input_var_name/data_model_explicit)
     // stays arbitrary.
     b.input_file_path = a.input_file_path;
     b.data_model = a.data_model;
+    b.kind = a.kind;
+    b.format = a.format;
     b.amio_worker_threads = a.amio_worker_threads;
     b.amio_staging_buffer_count = a.amio_staging_buffer_count;
     b.amio_staging_buffer_capacity_bytes = a.amio_staging_buffer_capacity_bytes;
@@ -150,7 +143,7 @@ RC_GTEST_PROP(HandleKeyProperty, Property4_ManifestEqualImpliesKeyEqual, ()) {
 // If two configs share a HandleKey, their manifests are byte-identical. Two
 // independently generated arbitrary configs essentially never collide on the
 // key (RapidCheck would discard every case), so we instead CONSTRUCT the
-// collision: b is generated arbitrarily and then has its four key fields forced
+// collision: b is generated arbitrarily and then has its key fields forced
 // to equal a's. This guarantees HandleKey(a) == HandleKey(b) while leaving all
 // NON-key fields of b arbitrary and (independently) different from a's. The
 // test then asserts the manifests are byte-identical, proving that a key
@@ -158,8 +151,8 @@ RC_GTEST_PROP(HandleKeyProperty, Property4_ManifestEqualImpliesKeyEqual, ()) {
 // the reverse direction of the iff holds and the non-key fields cannot leak
 // into the manifest. The integer knobs render unambiguously via std::to_string,
 // and the "|" separator cannot appear inside the string key fields (guarded
-// with RC_PRE, matching tests/test_stream_key_properties.cpp), so the mapping
-// (four fields) -> key is injective and the collision we build is genuine.
+// with RC_PRE, matching tests/test_stream_key_properties.cpp), so the key
+// mapping is injective and the collision we build is genuine.
 // ============================================================================
 RC_GTEST_PROP(HandleKeyProperty, Property4_KeyEqualImpliesManifestEqual, ()) {
     const StreamConfig a = *genStreamConfig();
@@ -168,12 +161,16 @@ RC_GTEST_PROP(HandleKeyProperty, Property4_KeyEqualImpliesManifestEqual, ()) {
     // appear inside the string-valued key fields.
     RC_PRE(a.input_file_path.find('|') == std::string::npos);
     RC_PRE(a.data_model.find('|') == std::string::npos);
+    RC_PRE(a.kind.find('|') == std::string::npos);
+    RC_PRE(a.format.find('|') == std::string::npos);
 
-    // Build a genuine key collision: force b's six manifest-affecting fields to
+    // Build a genuine key collision: force b's manifest-affecting fields to
     // match a's; every non-key field stays arbitrary.
     StreamConfig b = *genStreamConfig();
     b.input_file_path = a.input_file_path;
     b.data_model = a.data_model;
+    b.kind = a.kind;
+    b.format = a.format;
     b.amio_worker_threads = a.amio_worker_threads;
     b.amio_staging_buffer_count = a.amio_staging_buffer_count;
     b.amio_staging_buffer_capacity_bytes = a.amio_staging_buffer_capacity_bytes;
@@ -193,8 +190,8 @@ RC_GTEST_PROP(HandleKeyProperty, Property4_KeyEqualImpliesManifestEqual, ()) {
 // **Validates: Requirements 11.1, 11.2, 11.3**
 //
 // If two configs produce different manifests, their HandleKeys differ. Together
-// with 4a this closes the iff. Same "|" guard as 4b keeps the mapping
-// (four fields) -> key injective so distinct manifests cannot alias to one key.
+// with 4a this closes the iff. The same "|" guard as 4b keeps the key mapping
+// injective so distinct manifests cannot alias to one key.
 // ============================================================================
 RC_GTEST_PROP(HandleKeyProperty, Property4_ManifestDifferImpliesKeyDiffer, ()) {
     const StreamConfig a = *genStreamConfig();
@@ -202,8 +199,12 @@ RC_GTEST_PROP(HandleKeyProperty, Property4_ManifestDifferImpliesKeyDiffer, ()) {
 
     RC_PRE(a.input_file_path.find('|') == std::string::npos);
     RC_PRE(a.data_model.find('|') == std::string::npos);
+    RC_PRE(a.kind.find('|') == std::string::npos);
+    RC_PRE(a.format.find('|') == std::string::npos);
     RC_PRE(b.input_file_path.find('|') == std::string::npos);
     RC_PRE(b.data_model.find('|') == std::string::npos);
+    RC_PRE(b.kind.find('|') == std::string::npos);
+    RC_PRE(b.format.find('|') == std::string::npos);
 
     // Only meaningful when the manifests actually differ.
     RC_PRE(TestManifest(a) != TestManifest(b));

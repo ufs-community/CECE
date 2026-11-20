@@ -528,3 +528,189 @@ def test_nuopc_rejects_unknown_attribute():
             "species": {"oc": [{"field": "OC", "operation": "add"}]},
             "nuopc": {"export_fields": {"oc": {"standard_name": "x", "rank": 2}}},
         })
+
+
+@pytest.mark.parametrize("mapalgo", [None, "passthrough", "PASSTHROUGH"])
+def test_point_stream_valid(mapalgo):
+    source = {
+        "name": "volcano",
+        "file": "volc.nc",
+        "kind": "point",
+        "format": "volcano_rc",
+    }
+    if mapalgo is not None:
+        source["mapalgo"] = mapalgo
+    parsed = config.CeceConfig.from_dict({"cece_data": {"streams": [source]}})
+    stream = parsed.cece_data["streams"][0]
+    assert stream.kind == "point"
+    assert stream.format == "volcano_rc"
+    assert stream.mapalgo == "passthrough"
+    dumped = parsed.to_dict()
+    assert dumped["cece_data"]["streams"][0]["mapalgo"] == "passthrough"
+    assert config.CeceConfig.from_dict(dumped).to_dict() == dumped
+    assert config.CeceConfig.from_yaml(parsed.to_yaml()).to_dict() == dumped
+
+
+def test_point_stream_programmatic_default_and_serialization():
+    stream = config.DataStreamConfig(
+        name="point",
+        file_paths=["point.nc"],
+        variables=[config.DataVariableConfig(file="point", model="point")],
+        kind="point",
+        format="point_nc",
+    )
+    stream.validate()
+    assert stream.mapalgo == "passthrough"
+    assert stream.to_dict()["mapalgo"] == "passthrough"
+    assert "meshfile" not in stream.to_dict()
+
+    cfg = config.CeceConfig()
+    cfg.add_data_stream("point", "point.nc", kind="point", format="point_nc")
+    assert cfg.to_dict()["cece_data"]["streams"][0]["mapalgo"] == "passthrough"
+    cfg.add_data_stream(
+        "point2", "point.nc", kind="point", format="point_nc", mapalgo="passthrough"
+    )
+    assert cfg.cece_data["streams"][1].mapalgo == "passthrough"
+
+    stream.mapalgo = "consd"
+    with pytest.raises(
+        ValueError, match="mapalgo must be passthrough on point streams"
+    ):
+        stream.to_dict()
+
+
+def test_stream_rejects_invalid_kind():
+    stream = config.DataStreamConfig(
+        name="stream",
+        file_paths=["stream.nc"],
+        variables=[config.DataVariableConfig(file="field", model="field")],
+        kind="raster",
+    )
+
+    with pytest.raises(ValueError, match="Invalid kind: raster"):
+        stream.validate()
+
+
+def test_point_stream_rejects_invalid_format():
+    with pytest.raises(ValueError, match="Invalid format for point stream: bad_format"):
+        config.CeceConfig.from_dict({
+            "cece_data": {
+                "streams": [
+                    {
+                        "name": "volcano",
+                        "file": "volc.nc",
+                        "kind": "point",
+                        "format": "bad_format",
+                    }
+                ]
+            }
+        })
+
+
+def test_point_stream_rejects_mapalgo_meshfile_use_local_time():
+    base_stream = {
+        "name": "volcano",
+        "file": "volc.nc",
+        "kind": "point",
+        "format": "point_nc",
+    }
+
+    with pytest.raises(
+        ValueError, match="mapalgo must be passthrough on point streams"
+    ):
+        config.CeceConfig.from_dict({
+            "cece_data": {"streams": [{**base_stream, "mapalgo": "consd"}]}
+        })
+
+    with pytest.raises(ValueError, match="meshfile is not permitted on point streams"):
+        config.CeceConfig.from_dict({
+            "cece_data": {"streams": [{**base_stream, "meshfile": "mesh.nc"}]}
+        })
+
+    with pytest.raises(
+        ValueError, match="use_local_time is not supported on point streams"
+    ):
+        config.CeceConfig.from_dict({
+            "cece_data": {"streams": [{**base_stream, "use_local_time": True}]}
+        })
+
+
+def test_point_stream_accepts_empty_meshfile():
+    source = {
+        "name": "point",
+        "file": "point.nc",
+        "kind": "point",
+        "format": "point_nc",
+        "meshfile": "",
+    }
+    stream = config.DataStreamConfig.from_dict(source)
+    assert "meshfile" not in stream.to_dict()
+    cfg = config.CeceConfig()
+    cfg.add_data_stream(
+        "point", "point.nc", kind="point", format="point_nc", meshfile=""
+    )
+    assert "meshfile" not in cfg.to_dict()["cece_data"]["streams"][0]
+
+
+def test_point_stream_rejects_null_meshfile():
+    with pytest.raises(ValueError, match="meshfile"):
+        config.DataStreamConfig.from_dict({
+            "name": "point",
+            "file": "point.nc",
+            "kind": "point",
+            "format": "point_nc",
+            "meshfile": None,
+        })
+
+
+def test_direct_point_stream_rejects_meshfile():
+    stream = config.DataStreamConfig(
+        name="point",
+        file_paths=["point.nc"],
+        variables=[config.DataVariableConfig(file="point", model="point")],
+        kind="point",
+        format="point_nc",
+        meshfile="mesh.nc",
+    )
+    with pytest.raises(ValueError, match="meshfile is not permitted on point streams"):
+        stream.validate()
+    with pytest.raises(ValueError, match="meshfile is not permitted on point streams"):
+        stream.to_dict()
+
+
+def test_grid_stream_rejects_format():
+    with pytest.raises(ValueError, match="format is not permitted on grid streams"):
+        config.CeceConfig.from_dict({
+            "cece_data": {
+                "streams": [
+                    {
+                        "name": "grid_stream",
+                        "file": "grid.nc",
+                        "kind": "grid",
+                        "format": "point_nc",
+                    }
+                ]
+            }
+        })
+
+
+def test_add_data_stream_point_rejects_explicit_mapalgo():
+    cfg = config.CeceConfig()
+    with pytest.raises(
+        ValueError, match="mapalgo must be passthrough on point streams"
+    ):
+        cfg.add_data_stream(
+            "v", "v.nc", kind="point", format="point_nc", mapalgo="bilinear"
+        )
+
+
+@pytest.mark.parametrize("mapalgo", ["", "consd", 123])
+def test_point_stream_rejects_invalid_mapalgo(mapalgo):
+    with pytest.raises(ValueError, match="mapalgo"):
+        config.DataStreamConfig.from_dict({
+            "name": "point",
+            "file": "point.nc",
+            "kind": "point",
+            "format": "point_nc",
+            "mapalgo": mapalgo,
+        })

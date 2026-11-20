@@ -22,6 +22,7 @@
 #include <stdexcept>
 
 #include "cece/cece_config.hpp"
+#include "cece/cece_data_ingestor.hpp"
 #include "cece/cece_driver_facade.hpp"
 
 using namespace cece;
@@ -1231,4 +1232,161 @@ TEST_F(DriverConfigurationTest, StreamLocalTimeRejectsInvalidCombinations) {
     // EarthAccess streams never reach the local-time path, so the flag must not be silently ignored.
     WriteConfigFile(test_config_file, config_with_stream("true", "      source: earthaccess\n      cadence: weekly\n      use_local_time: true\n"));
     EXPECT_THROW(ParseConfig(test_config_file), std::invalid_argument);
+}
+
+TEST_F(DriverConfigurationTest, PointStreamValidConfig) {
+    WriteConfigFile(test_config_file, R"(
+cece_data:
+  streams:
+    - name: point_volcano
+      file: volc.nc
+      kind: point
+      format: volcano_rc
+physics_schemes: []
+)");
+    const CeceConfig config = ParseConfig(test_config_file);
+    ASSERT_EQ(config.cece_data.streams.size(), 1);
+    EXPECT_EQ(config.cece_data.streams[0].kind, "point");
+    EXPECT_EQ(config.cece_data.streams[0].format, "volcano_rc");
+    EXPECT_EQ(config.cece_data.streams[0].mapalgo, "passthrough");
+    CeceDataIngestor ingestor;
+    EXPECT_NE(ingestor.SerializeStreamESMFConfig(config.cece_data).find("mapalgo01: passthrough"), std::string::npos);
+    EXPECT_NE(ingestor.SerializeStreamYaml(config.cece_data).find("map_algo: \"passthrough\""), std::string::npos);
+}
+
+TEST_F(DriverConfigurationTest, PointStreamAcceptsExplicitPassthrough) {
+    WriteConfigFile(test_config_file, R"(
+cece_data:
+  streams:
+    - name: point_volcano
+      file: volc.nc
+      kind: point
+      format: point_nc
+      mapalgo: PASSTHROUGH
+physics_schemes: []
+)");
+    const CeceConfig config = ParseConfig(test_config_file);
+    ASSERT_EQ(config.cece_data.streams.size(), 1);
+    EXPECT_EQ(config.cece_data.streams[0].mapalgo, "passthrough");
+}
+
+TEST_F(DriverConfigurationTest, PointStreamRejectsMapalgo) {
+    ExpectConfigInvalidArgument(test_config_file, R"(
+cece_data:
+  streams:
+    - name: point_volcano
+      file: volc.nc
+      kind: point
+      format: volcano_rc
+      mapalgo: consd
+physics_schemes: []
+)",
+                                "cece_data.streams[0]: mapalgo must be passthrough on point streams.");
+}
+
+TEST_F(DriverConfigurationTest, PointStreamRejectsMeshfile) {
+    for (const std::string value : {"mesh.nc", "null"}) {
+        ExpectConfigInvalidArgument(test_config_file, R"(
+cece_data:
+  streams:
+    - name: point_volcano
+      file: volc.nc
+      kind: point
+      format: volcano_rc
+      meshfile: )" + value + R"(
+physics_schemes: []
+)",
+                                    "cece_data.streams[0]: meshfile must be empty on point streams.");
+    }
+}
+
+TEST_F(DriverConfigurationTest, PointStreamAcceptsEmptyMeshfile) {
+    WriteConfigFile(test_config_file, R"(
+cece_data:
+  streams:
+    - name: point_volcano
+      file: volc.nc
+      kind: point
+      format: volcano_rc
+      meshfile: ""
+physics_schemes: []
+)");
+    const CeceConfig config = ParseConfig(test_config_file);
+    ASSERT_EQ(config.cece_data.streams.size(), 1);
+    EXPECT_TRUE(config.cece_data.streams[0].meshfile.empty());
+}
+
+TEST_F(DriverConfigurationTest, PointStreamRejectsUseLocalTime) {
+    ExpectConfigInvalidArgument(test_config_file, R"(
+local_time:
+  enabled: true
+cece_data:
+  streams:
+    - name: point_volcano
+      file: volc.nc
+      kind: point
+      format: volcano_rc
+      use_local_time: true
+physics_schemes: []
+)",
+                                "cece_data.streams[0]: use_local_time is not supported on point streams.");
+}
+
+TEST_F(DriverConfigurationTest, PointStreamRejectsInvalidKind) {
+    ExpectConfigInvalidArgument(test_config_file, R"(
+driver:
+  timestep: 3600
+cece_data:
+  streams:
+    - name: point_volcano
+      file: volc.nc
+      kind: points
+      format: volcano_rc
+physics_schemes: []
+)",
+                                "cece_data.streams[0]: invalid kind 'points'. Must be 'grid' or 'point'.");
+}
+
+TEST_F(DriverConfigurationTest, PointStreamRejectsInvalidFormat) {
+    ExpectConfigInvalidArgument(test_config_file, R"(
+driver:
+  timestep: 3600
+cece_data:
+  streams:
+    - name: point_volcano
+      file: volc.nc
+      kind: point
+      format: invalid_format
+physics_schemes: []
+)",
+                                "cece_data.streams[0]: point stream requires format 'point_nc' or 'volcano_rc'.");
+}
+
+TEST_F(DriverConfigurationTest, PointStreamRequiresFormat) {
+    ExpectConfigInvalidArgument(test_config_file, R"(
+driver:
+  timestep: 3600
+cece_data:
+  streams:
+    - name: point_volcano
+      file: volc.nc
+      kind: point
+physics_schemes: []
+)",
+                                "cece_data.streams[0]: point stream requires format 'point_nc' or 'volcano_rc'.");
+}
+
+TEST_F(DriverConfigurationTest, GridStreamRejectsFormat) {
+    ExpectConfigInvalidArgument(test_config_file, R"(
+driver:
+  timestep: 3600
+cece_data:
+  streams:
+    - name: grid_stream
+      file: grid.nc
+      kind: grid
+      format: point_nc
+physics_schemes: []
+)",
+                                "cece_data.streams[0]: format is not permitted on grid streams.");
 }

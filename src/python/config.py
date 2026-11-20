@@ -18,7 +18,17 @@ import math
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum, unique
 from typing import Any
+
+try:
+    from enum import StrEnum
+except ImportError:
+
+    class StrEnum(str, Enum):
+        __str__ = str.__str__
+        __format__ = str.__format__
+
 
 # Support both package (relative) and direct-module import
 try:
@@ -549,6 +559,12 @@ class DataVariableConfig:
         return result
 
 
+@unique
+class DataStreamKind(StrEnum):
+    GRID = "grid"
+    POINT = "point"
+
+
 _STREAM_ENUM_VALUES = {
     "taxmode": {"cycle", "extend", "limit"},
     "tintalgo": {"linear", "nearest"},
@@ -603,8 +619,10 @@ class DataStreamConfig:
     mapalgo : str, optional
         Spatial mapping algorithm. One of ``"bilinear"``, ``"consd"``,
         ``"consf"``, ``"nn"``, ``"redist"``, or ``"passthrough"``
-        (skip regridding when data is already on the model grid).
-        Default is ``"consd"``.
+        For grid streams, ``"passthrough"`` skips regridding when data is
+        already on the model grid. The default is ``"consd"`` for grid streams
+        and ``"passthrough"`` for point streams; no other value is allowed
+        for point streams.
     cadence : str, optional
         How file records are addressed. One of ``"series"`` (decode the
         file's time axis), ``"daily"``/``"monthly"`` (series with a calendar
@@ -633,9 +651,11 @@ class DataStreamConfig:
     name: str
     file_paths: list[str] = field(default_factory=list)
     variables: list[DataVariableConfig] = field(default_factory=list)
+    kind: str = "grid"
+    format: str = ""
     taxmode: str = "cycle"
     tintalgo: str = "nearest"
-    mapalgo: str = "consd"
+    mapalgo: str | None = None
     cadence: str = "series"
     time_label: str = "auto"
     dtlimit: int = 1500000000
@@ -653,6 +673,10 @@ class DataStreamConfig:
     data_model: str = "auto"
     refresh_interval_seconds: int = 0
     use_local_time: bool = False
+
+    def __post_init__(self) -> None:
+        if self.mapalgo is None:
+            self.mapalgo = "passthrough" if self.kind == "point" else "consd"
 
     def validate(self) -> None:
         """
@@ -678,6 +702,16 @@ class DataStreamConfig:
             raise ValueError("variables must be a non-empty list")
         for variable in self.variables:
             variable.validate()
+
+        _validate_string(self.kind, "stream kind")
+        try:
+            DataStreamKind(self.kind)
+        except ValueError:
+            raise ValueError(f"Invalid kind: {self.kind}") from None
+
+        _validate_string(self.format, "stream format", allow_empty=True)
+        self._validate_point_stream()
+
         for key, allowed in _STREAM_ENUM_VALUES.items():
             value = _validate_string(getattr(self, key), key)
             if value not in allowed:
@@ -713,6 +747,20 @@ class DataStreamConfig:
         ):
             _validate_string(getattr(self, key), key, allow_empty=True)
 
+    def _validate_point_stream(self) -> None:
+        if self.kind == "point":
+            if self.format not in ("volcano_rc", "point_nc"):
+                raise ValueError(f"Invalid format for point stream: {self.format}")
+            if self.mapalgo != "passthrough":
+                raise ValueError("mapalgo must be passthrough on point streams")
+            if self.meshfile:
+                raise ValueError("meshfile is not permitted on point streams")
+            if self.use_local_time:
+                raise ValueError("use_local_time is not supported on point streams")
+        else:
+            if self.format:
+                raise ValueError("format is not permitted on grid streams")
+
     def _validate_local_time(self) -> None:
         if not isinstance(self.use_local_time, bool):
             raise ValueError("use_local_time must be a boolean")
@@ -732,6 +780,8 @@ class DataStreamConfig:
             "name",
             "file",
             "variables",
+            "kind",
+            "format",
             "taxmode",
             "tintalgo",
             "mapalgo",
@@ -777,15 +827,22 @@ class DataStreamConfig:
         def normalized(key: str, default: str) -> str:
             return _validate_string(values.get(key, default), f"{where}.{key}").lower()
 
+        kind = normalized("kind", "grid")
+        format = _validate_string(
+            values.get("format", ""), f"{where}.format", allow_empty=True
+        ).lower()
+
+        mapalgo = normalized("mapalgo", "passthrough" if kind == "point" else "consd")
+
         result = cls(
             name=name,
             file_paths=files,
             variables=variables,
+            kind=kind,
+            format=format,
             taxmode=normalized("taxmode", "cycle"),
             tintalgo=normalized("tintalgo", "nearest"),
-            mapalgo=_validate_string(
-                values.get("mapalgo", "consd"), f"{where}.mapalgo"
-            ).lower(),
+            mapalgo=mapalgo,
             cadence=normalized("cadence", "series"),
             time_label=normalized("time_label", "auto"),
             dtlimit=values.get("dtlimit", 1500000000),
@@ -811,6 +868,12 @@ class DataStreamConfig:
         return result
 
     def to_dict(self) -> dict:
+        if self.kind == "point" and self.mapalgo != "passthrough":
+            raise ValueError("mapalgo must be passthrough on point streams")
+        if self.kind == "point":
+            _validate_string(self.meshfile, "meshfile", allow_empty=True)
+            if self.meshfile:
+                raise ValueError("meshfile is not permitted on point streams")
         result = {
             "name": self.name,
             "file": self.file_paths[0]
@@ -830,6 +893,8 @@ class DataStreamConfig:
             ],
         }
         defaults = {
+            "kind": "grid",
+            "format": "",
             "taxmode": "cycle",
             "tintalgo": "nearest",
             "mapalgo": "consd",
@@ -853,7 +918,7 @@ class DataStreamConfig:
         }
         for key, default in defaults.items():
             value = getattr(self, key)
-            if value != default:
+            if value != default or (key == "mapalgo" and self.kind == "point"):
                 result[key] = value
         return result
 
@@ -1531,9 +1596,11 @@ class CeceConfig:
         name: str,
         file_paths: str | list[str],
         variables: dict[str, str] | list[DataVariableConfig] | None = None,
+        kind: str = "grid",
+        format: str = "",
         taxmode: str = "cycle",
         tintalgo: str = "nearest",
-        mapalgo: str = "consd",
+        mapalgo: str | None = None,
         cadence: str = "series",
         time_label: str = "auto",
         **stream_options: Any,
@@ -1551,6 +1618,10 @@ class CeceConfig:
             Mapping of file variable names to model variable names, or a list
             of ``DataVariableConfig`` objects. If omitted or empty, the stream
             name is mapped to itself.
+        kind : str, optional
+            Stream kind. One of ``"grid"`` or ``"point"``. Default is ``"grid"``.
+        format : str, optional
+            Stream format. Required if kind is ``"point"``. Default is empty string.
         taxmode : str, optional
             Behavior outside the file's coverage. One of ``"cycle"``,
             ``"extend"``, or ``"limit"``. Default is ``"cycle"``.
@@ -1560,8 +1631,10 @@ class CeceConfig:
         mapalgo : str, optional
             Spatial mapping algorithm. One of ``"bilinear"``, ``"consd"``,
             ``"consf"``, ``"nn"``, ``"redist"``, or ``"passthrough"``
-            (skip regridding when data is already on the model grid).
-            Default is ``"consd"``.
+            For grid streams, ``"passthrough"`` skips regridding when data is
+            already on the model grid. The default is ``"consd"`` for grid
+            streams and ``"passthrough"`` for point streams; no other value is
+            allowed for point streams.
         cadence : str, optional
             How file records are addressed: ``"series"``, ``"daily"``,
             ``"monthly"``, ``"hourly"``, ``"weekly"``, or ``"stepwise"``
@@ -1611,14 +1684,16 @@ class CeceConfig:
         if unknown_options:
             raise ValueError(f"Unknown data stream option: {min(unknown_options)}")
         stream = DataStreamConfig(
-            name,
-            file_paths,
-            variables,
-            taxmode,
-            tintalgo,
-            mapalgo,
-            cadence,
-            time_label,
+            name=name,
+            file_paths=file_paths,
+            variables=variables,
+            kind=kind,
+            format=format,
+            taxmode=taxmode,
+            tintalgo=tintalgo,
+            mapalgo=mapalgo,
+            cadence=cadence,
+            time_label=time_label,
             **stream_options,
         )
         stream.validate()

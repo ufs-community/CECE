@@ -515,4 +515,172 @@ RC_GTEST_PROP(StreamConfigResolutionProperty, Property4_ResolutionMatchesLegacy,
     }
 }
 
+TEST(StreamConfigResolution, PointStreamValidConfig) {
+    TempFile fixture(R"(
+driver:
+
+cece_data:
+  streams:
+    - name: CO
+      file: point.nc
+      kind: point
+      format: point_nc
+physics_schemes: []
+)");
+    std::unordered_map<std::string, StreamConfig> configs;
+    std::string gridspec;
+    StreamConfigTestAccess::Resolve(fixture.path, configs, gridspec);
+    ASSERT_EQ(configs.size(), 1);
+    EXPECT_EQ(configs["CO"].kind, "point");
+    EXPECT_EQ(configs["CO"].format, "point_nc");
+    EXPECT_EQ(configs["CO"].mapalgo, "passthrough");
+}
+
+TEST(StreamConfigResolution, PointStreamAcceptsExplicitPassthrough) {
+    TempFile fixture(R"(
+driver:
+
+cece_data:
+  streams:
+    - name: CO
+      file: point.nc
+      kind: point
+      format: volcano_rc
+      mapalgo: PASSTHROUGH
+physics_schemes: []
+)");
+    std::unordered_map<std::string, StreamConfig> configs;
+    std::string gridspec;
+    StreamConfigTestAccess::Resolve(fixture.path, configs, gridspec);
+    ASSERT_EQ(configs.size(), 1);
+    EXPECT_EQ(configs["CO"].mapalgo, "passthrough");
+}
+
+TEST(StreamConfigResolution, PointStreamRejectsMapalgo) {
+    TempFile fixture(R"(
+driver:
+
+cece_data:
+  streams:
+    - name: CO
+      file: point.nc
+      kind: point
+      format: point_nc
+      mapalgo: consd
+physics_schemes: []
+)");
+    std::unordered_map<std::string, StreamConfig> configs;
+    std::string gridspec;
+    EXPECT_THROW(StreamConfigTestAccess::Resolve(fixture.path, configs, gridspec), std::invalid_argument);
+}
+
+TEST(StreamConfigResolution, PointStreamRejectsMeshfile) {
+    for (const std::string value : {"grid.nc", "null"}) {
+        TempFile fixture(R"(
+driver:
+
+cece_data:
+  streams:
+    - name: CO
+      file: point.nc
+      kind: point
+      format: point_nc
+      meshfile: )" + value +
+                         R"(
+physics_schemes: []
+)");
+        std::unordered_map<std::string, StreamConfig> configs;
+        std::string gridspec;
+        EXPECT_THROW(StreamConfigTestAccess::Resolve(fixture.path, configs, gridspec), std::invalid_argument);
+    }
+}
+
+TEST(StreamConfigResolution, PointStreamAcceptsEmptyMeshfile) {
+    TempFile fixture(R"(
+driver:
+
+cece_data:
+  streams:
+    - name: CO
+      file: point.nc
+      kind: point
+      format: point_nc
+      meshfile: ""
+physics_schemes: []
+)");
+    std::unordered_map<std::string, StreamConfig> configs;
+    std::string gridspec;
+    EXPECT_NO_THROW(StreamConfigTestAccess::Resolve(fixture.path, configs, gridspec));
+    ASSERT_EQ(configs.size(), 1);
+    EXPECT_EQ(configs["CO"].mapalgo, "passthrough");
+}
+
+TEST(StreamConfigResolution, PointStreamRejectsUseLocalTime) {
+    TempFile fixture(R"(
+driver:
+
+cece_data:
+  streams:
+    - name: CO
+      file: point.nc
+      kind: point
+      format: point_nc
+      use_local_time: true
+physics_schemes: []
+)");
+    std::unordered_map<std::string, StreamConfig> configs;
+    std::string gridspec;
+    EXPECT_THROW(StreamConfigTestAccess::Resolve(fixture.path, configs, gridspec), std::invalid_argument);
+}
+
+TEST(StreamConfigResolution, PointStreamRejectsInvalidFormat) {
+    TempFile fixture(R"(
+driver:
+
+cece_data:
+  streams:
+    - name: CO
+      file: point.nc
+      kind: point
+      format: invalid_format
+physics_schemes: []
+)");
+    std::unordered_map<std::string, StreamConfig> configs;
+    std::string gridspec;
+    EXPECT_THROW(StreamConfigTestAccess::Resolve(fixture.path, configs, gridspec), std::invalid_argument);
+}
+
+TEST(StreamConfigResolution, StreamRejectsInvalidKind) {
+    TempFile fixture(R"(
+driver:
+
+cece_data:
+  streams:
+    - name: CO
+      file: grid.nc
+      kind: points
+physics_schemes: []
+)");
+    std::unordered_map<std::string, StreamConfig> configs;
+    std::string gridspec;
+    EXPECT_THROW(StreamConfigTestAccess::Resolve(fixture.path, configs, gridspec), std::invalid_argument);
+}
+
+TEST(StreamConfigResolution, GridStreamRejectsFormat) {
+    TempFile fixture(R"(
+driver:
+
+cece_data:
+  streams:
+    - name: CO
+      file: grid.nc
+      kind: grid
+      format: point_nc
+physics_schemes: []
+)");
+    std::unordered_map<std::string, StreamConfig> configs;
+    std::string gridspec;
+    EXPECT_THROW(StreamConfigTestAccess::Resolve(fixture.path, configs, gridspec), std::invalid_argument);
+}
+
 }  // namespace cece
