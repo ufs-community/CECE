@@ -174,7 +174,7 @@ std::string probe_coord_name(amio_dataset_handle dataset, const std::vector<std:
 /// the first data stream's file. `explicit_gridspec` reports which one it
 /// was: an explicit file that fails to load is fatal, while a stream-inferred
 /// miss simply falls through to generated coordinates.
-std::string gridspec_input_file(conf::Config& config, bool& explicit_gridspec) {
+std::string gridspec_input_file(const conf::Config& config, bool& explicit_gridspec) {
     explicit_gridspec = false;
     auto gridspec_opt = config.try_string("driver.gridspec_file");
     if (gridspec_opt.has_value() && !gridspec_opt->empty() && *gridspec_opt != "none" && *gridspec_opt != "NONE") {
@@ -261,7 +261,7 @@ FileGridLoad load_gridspec_coords(amio_dataset_handle dataset, int nx, int ny) {
 
 }  // namespace
 
-GridSpec GridSpec::from_yaml(const std::string& config_file, conf::Config& config) {
+GridSpec GridSpec::from_yaml(const conf::Config& config) {
     GridSpec spec;
 
     // --- A. Grid dimensions ------------------------------------------------

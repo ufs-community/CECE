@@ -67,94 +67,94 @@ namespace cece::hemco_megan::v3_12_1 {
  * code evaluates the full expression, which yields the reciprocal below in
  * double precision.
  */
-inline constexpr double kNormFac = 0.9899364002107353;
+constexpr double kNormFac = 0.9899364002107353;
 
 /** Light-dependent fraction for isoprene (HEMCO 3.12.1, ISOP class). */
-inline constexpr double kLdf = 1.0;
+constexpr double kLdf = 1.0;
 
 /** Exponential temperature sensitivity (β) for the light-independent pathway. */
-inline constexpr double kBeta = 0.13;
+constexpr double kBeta = 0.13;
 
 /** Standard temperature [K] at which light-independent emission = AEF. */
-inline constexpr double kTStd = 303.0;
+constexpr double kTStd = 303.0;
 
 /** Gas constant [kJ mol⁻¹ K⁻¹]. */
-inline constexpr double kR = 8.3144598e-3;
+constexpr double kR = 8.3144598e-3;
 
 /** Activation energy CT1 [kJ mol⁻¹] for light-dependent temperature response. */
-inline constexpr double kCT1 = 95.0;
+constexpr double kCT1 = 95.0;
 
 /** Empirical scaling CEO for light-dependent temperature response. */
-inline constexpr double kCEO = 2.0;
+constexpr double kCEO = 2.0;
 
 /** De-activation energy CT2 [kJ mol⁻¹]. */
-inline constexpr double kCT2 = 200.0;
+constexpr double kCT2 = 200.0;
 
 /** T_opt intercept [K]. */
-inline constexpr double kTOptC1 = 313.0;
+constexpr double kTOptC1 = 313.0;
 
 /** T_opt slope [K K⁻¹]. */
-inline constexpr double kTOptC2 = 0.6;
+constexpr double kTOptC2 = 0.6;
 
 /** Empirical coefficient for e_opt dependence on historical temperature. */
-inline constexpr double kEOptCoeff = 0.08;
+constexpr double kEOptCoeff = 0.08;
 
 /** W m⁻² to µmol m⁻² s⁻¹ conversion factor for PAR. */
-inline constexpr double kWm2ToUmol = 4.766;
+constexpr double kWm2ToUmol = 4.766;
 
 /** PTOA baseline [µmol m⁻² s⁻¹]. */
-inline constexpr double kPtoaC1 = 3000.0;
+constexpr double kPtoaC1 = 3000.0;
 
 /** PTOA seasonal amplitude [µmol m⁻² s⁻¹]. */
-inline constexpr double kPtoaC2 = 99.0;
+constexpr double kPtoaC2 = 99.0;
 
 /** Day-of-year offset in the PTOA cosine. */
-inline constexpr double kPtoaDoyOffset = 10.0;
+constexpr double kPtoaDoyOffset = 10.0;
 
 /** Cold-start direct-PAR history [W m⁻²] when PARDR_DAVG is unavailable. */
-inline constexpr double kParDirectHistoryWm2 = 30.0;
+constexpr double kParDirectHistoryWm2 = 30.0;
 
 /** Cold-start diffuse-PAR history [W m⁻²] when PARDF_DAVG is unavailable. */
-inline constexpr double kParDiffuseHistoryWm2 = 48.0;
+constexpr double kParDiffuseHistoryWm2 = 48.0;
 
 /** Cold-start temperature history [K] when T_DAVG is unavailable. */
-inline constexpr double kTemperatureHistoryK = static_cast<double>(288.15F);
+constexpr double kTemperatureHistoryK = static_cast<double>(288.15F);
 
 /** HEMCO's interval between instantaneous and previous-day LAI. */
-inline constexpr double kDaysBetweenLai = 1.0;
+constexpr double kDaysBetweenLai = 1.0;
 
 /** Day-of-year for the pinned 20 June 2021 analytical reference case. */
-inline constexpr int kReferenceDoy = 171;
+constexpr int kReferenceDoy = 171;
 
 /** CO₂ inhibition coefficient c₁ (Possell and Hewitt 2011). */
-inline constexpr double kGammaCO2C1 = 8.9406;
+constexpr double kGammaCO2C1 = 8.9406;
 
 /** CO₂ inhibition coefficient c₂ (Possell and Hewitt 2011) [ppm⁻¹]. */
-inline constexpr double kGammaCO2C2 = 0.0024;
+constexpr double kGammaCO2C2 = 0.0024;
 
 /** LAI gamma shape coefficient c₁. */
-inline constexpr double kLaiC1 = 0.49;
+constexpr double kLaiC1 = 0.49;
 
 /** LAI gamma shape coefficient c₂. */
-inline constexpr double kLaiC2 = 0.2;
+constexpr double kLaiC2 = 0.2;
 
 /** PCEEA PAR gamma coefficient g₁. */
-inline constexpr double kGpC1 = 1.0;
+constexpr double kGpC1 = 1.0;
 /** PCEEA PAR gamma coefficient g₂. */
-inline constexpr double kGpC2 = 0.0005;
+constexpr double kGpC2 = 0.0005;
 /** PCEEA PAR gamma coefficient g₃. */
-inline constexpr double kGpC3 = 2.46;
+constexpr double kGpC3 = 2.46;
 /** PCEEA PAR gamma coefficient g₄. */
-inline constexpr double kGpC4 = 0.9;
+constexpr double kGpC4 = 0.9;
 
 /** Leaf-age weight for new leaves (isoprene). */
-inline constexpr double kANew = 0.05;
+constexpr double kANew = 0.05;
 /** Leaf-age weight for growing leaves (isoprene). */
-inline constexpr double kAGro = 0.60;
+constexpr double kAGro = 0.60;
 /** Leaf-age weight for mature leaves (isoprene). */
-inline constexpr double kAMat = 1.00;
+constexpr double kAMat = 1.00;
 /** Leaf-age weight for old/senescent leaves (isoprene). */
-inline constexpr double kAOld = 0.90;
+constexpr double kAOld = 0.90;
 
 // ============================================================================
 // Scalar helper functions (pure, stateless)
@@ -359,7 +359,7 @@ struct MeganHistory {
 };
 
 /// Molecular weight of NO. Numerically, g/mol is equivalent to kg/kmol.
-inline constexpr double kSoilNoMolecularWeightKgPerKmol = 30.01;
+constexpr double kSoilNoMolecularWeightKgPerKmol = 30.01;
 
 /// Convert a soil-NO mass flux [kg NO m-2 s-1] to an amount flux [kmol NO m-2
 /// s-1].

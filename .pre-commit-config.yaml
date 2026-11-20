@@ -82,6 +82,13 @@ repos:
         exclude: "tests/test_.*\\.cpp"
         entry: "YAML::|#include <yaml-cpp"
 
+      - id: constexpr-implies-inline
+        name: Constexpr implies inline
+        description: Avoid specifying the redundant inline on constexpr functions and constants
+        language: pygrep
+        types_or: ["c", "c++"]
+        entry: "constexpr inline|inline constexpr"
+
       - id: symilar-yaml
         name: symilar-yaml
         description: Check for code duplication in yaml

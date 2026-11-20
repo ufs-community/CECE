@@ -69,7 +69,7 @@ enum class EmissionClass : int {
 };
 
 /// Number of MEGAN3 emission classes (EmissionClass::COUNT).
-inline constexpr int kNumEmissionClasses = static_cast<int>(EmissionClass::COUNT);
+constexpr int kNumEmissionClasses = static_cast<int>(EmissionClass::COUNT);
 
 /**
  * @brief Converts an EmissionClass enum value to its string name.

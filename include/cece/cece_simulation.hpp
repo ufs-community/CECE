@@ -53,7 +53,7 @@ struct GridSpec {
     /// handling), or uniform extents from driver.grid. Throws
     /// std::invalid_argument with a named diagnostic on any failure —
     /// never a silent fallback.
-    static GridSpec from_yaml(const std::string& config_file, conf::Config& config);
+    static GridSpec from_yaml(const conf::Config& config);
 
     /**
      * @brief Build the target grid from a parent NUOPC component's ESMF
