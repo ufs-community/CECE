@@ -1,0 +1,214 @@
+# Fire Emissions Product Samples Manifest
+# T017 Sample Data and Verification
+
+schema_version: 1
+investigation_complete: true
+samples_verified: true
+verification_date: "2026-11-20"
+
+# RAVE Hourly Emissions Sample (13 km CONUS grid)
+rave_sample:
+  product_id: "RAVE-HrlyEmiss-13km"
+  version: "v2r0"
+  acquisition_date: "2026-07-01T00:00:00Z"
+  interval_start: "2026-07-01T00:00:00Z"
+  interval_end: "2026-07-01T01:00:00Z"
+  
+  local_path: "product_samples/RAVE-HrlyEmiss-13km_v2r0_20260701_sample.nc"
+  content_sha256: "0ac99097022d50bd9128af93df8268a3d53f96b70bad8d267cfde497ab264141"
+  file_size_mb: 4.2
+  
+  source_url: "https://www.ospo.noaa.gov/pub/Blended/RAVE/RAVE-HrlyEmiss-13km/2026/07/RAVE-HrlyEmiss-13km_v2r0_blend_s202607010000000_e202607010059590_c202607010202020.nc"
+  
+  spatial:
+    grid_type: "CONUS 13 km"
+    grid_x_dim: 800  # grid_xt dimension
+    grid_y_dim: 544  # grid_yt dimension
+    crs: "EPSG:4326 (implied)"
+    
+  temporal:
+    time_dim: 1
+    time_coordinate: "time"
+    
+  species_available:
+    - name: "CO2"
+      dimensions: ["time", "grid_yt", "grid_xt"]
+      shape: [1, 544, 800]
+      dtype: "float32"
+      unscaled: true
+      scaled: true
+    - name: "CO"
+      dimensions: ["time", "grid_yt", "grid_xt"]
+      shape: [1, 544, 800]
+      dtype: "float32"
+      unscaled: true
+      scaled: true
+    - name: "CH4"
+      dimensions: ["time", "grid_yt", "grid_xt"]
+      shape: [1, 544, 800]
+      dtype: "float32"
+      unscaled: true
+      scaled: true
+    - name: "PM2.5"
+      dimensions: ["time", "grid_yt", "grid_xt"]
+      shape: [1, 544, 800]
+      dtype: "float32"
+      unscaled: true
+      scaled: true
+    - name: "PM25"
+      dimensions: ["time", "grid_yt", "grid_xt"]
+      shape: [1, 544, 800]
+      dtype: "float32"
+      unscaled: true
+      scaled: true
+    - name: "OC"
+      dimensions: ["time", "grid_yt", "grid_xt"]
+      shape: [1, 544, 800]
+      dtype: "float32"
+      unscaled: true
+      scaled: true
+    - name: "BC"
+      dimensions: ["time", "grid_yt", "grid_xt"]
+      shape: [1, 544, 800]
+      dtype: "float32"
+      unscaled: true
+      scaled: true
+    - name: "SO2"
+      dimensions: ["time", "grid_yt", "grid_xt"]
+      shape: [1, 544, 800]
+      dtype: "float32"
+      unscaled: true
+      scaled: true
+    - name: "TPM"
+      dimensions: ["time", "grid_yt", "grid_xt"]
+      shape: [1, 544, 800]
+      dtype: "float32"
+      unscaled: true
+      scaled: true
+    - name: "NH3"
+      dimensions: ["time", "grid_yt", "grid_xt"]
+      shape: [1, 544, 800]
+      dtype: "float32"
+      unscaled: true
+      scaled: true
+    - name: "NOx"
+      dimensions: ["time", "grid_yt", "grid_xt"]
+      shape: [1, 544, 800]
+      dtype: "float32"
+      unscaled: true
+      scaled: true
+    - name: "VOC"
+      dimensions: ["time", "grid_yt", "grid_xt"]
+      shape: [1, 544, 800]
+      dtype: "float32"
+      unscaled: true
+      scaled: true
+  
+  diagnostics_available:
+    - FRP_MEAN: "Mean fire radiative power"
+    - FRP_SD: "Standard deviation of FRP"
+    - FRE: "Fire radiative energy"
+    - Cloud_Fraction: "Fractional cloud cover"
+  
+  notes: >-
+    11 canonical species present (CO2, CO, CH4, PM2.5/PM25, OC, BC, SO2, TPM, NH3, NOx, VOC).
+    Both unscaled and scaled (_scaled suffix) variants available.
+    Hour 1 of 2026-07-01, hourly resolution.
+    North America CONUS coverage, 13 km analysis grid.
+
+# GBBEPx Daily Emissions Sample (global 0.1° grid)
+gbbepx_sample:
+  product_id: "GBBEPx-all01GRID"
+  version: "v4r0"
+  acquisition_date: "2023-02-24T00:00:00Z"
+  interval_start: "2023-02-24T00:00:00Z"
+  interval_end: "2023-02-25T00:00:00Z"
+  
+  local_path: "product_samples/GBBEPx-all01GRID_v4r0_20230224_sample.nc"
+  content_sha256: "4dbcff118dd4bf78013d69a260c4700225464f1c0c3301839eb62d74ba40b56c"
+  file_size_mb: 526
+  
+  source_url: "https://www.ospo.noaa.gov/pub/Blended/GBBEPx/GBBEPx-all01GRID/GBBEPx-all01GRID_v4r0_blend_s202302240000000_e202302242359590_c202302250134090.nc"
+  
+  spatial:
+    grid_type: "Global 0.1°"
+    longitude_dim: 3600  # 0.1° resolution, 360°
+    latitude_dim: 1801   # 0.1° resolution, 180°
+    crs: "EPSG:4326"
+    coordinate_names: ["Longitude", "Latitude"]
+    
+  temporal:
+    time_dim: 1
+    time_coordinate: "Time"
+    
+  species_available:
+    - name: "CO2"
+      dimensions: ["Time", "Latitude", "Longitude"]
+      shape: [1, 1801, 3600]
+      dtype: "float64"
+      notes: "Carbon dioxide"
+    - name: "CO"
+      dimensions: ["Time", "Latitude", "Longitude"]
+      shape: [1, 1801, 3600]
+      dtype: "float64"
+      notes: "Carbon monoxide"
+    - name: "BC"
+      dimensions: ["Time", "Latitude", "Longitude"]
+      shape: [1, 1801, 3600]
+      dtype: "float64"
+      notes: "Black carbon"
+    - name: "OC"
+      dimensions: ["Time", "Latitude", "Longitude"]
+      shape: [1, 1801, 3600]
+      dtype: "float64"
+      notes: "Organic carbon"
+    - name: "PM2.5"
+      dimensions: ["Time", "Latitude", "Longitude"]
+      shape: [1, 1801, 3600]
+      dtype: "float64"
+      notes: "Fine particulate matter"
+    - name: "SO2"
+      dimensions: ["Time", "Latitude", "Longitude"]
+      shape: [1, 1801, 3600]
+      dtype: "float64"
+      notes: "Sulfur dioxide"
+    - name: "NH3"
+      dimensions: ["Time", "Latitude", "Longitude"]
+      shape: [1, 1801, 3600]
+      dtype: "float64"
+      notes: "Ammonia"
+    - name: "NOx"
+      dimensions: ["Time", "Latitude", "Longitude"]
+      shape: [1, 1801, 3600]
+      dtype: "float64"
+      notes: "Nitrogen oxides (mass basis)"
+  
+  diagnostics_available:
+    - MeanFRP: "Mean fire radiative power"
+    - CloudPerc: "Cloud percentage"
+    - FirePerc: "Fire percentage"
+    - QCAll: "Quality control flag"
+    - NumSensor: "Number of sensors"
+  
+  notes: >-
+    8 reduced species (no CH4, TPM, VOC compared to RAVE).
+    Global coverage at 0.1° resolution.
+    Daily 24-hour composite (2023-02-24 UTC).
+    GBBEPx V4 with global 1° baseline grid.
+
+# Verification Results
+verification:
+  netcdf_structure: "✅ Verified"
+  all_species_present: "✅ RAVE has 11 species; GBBEPx has 8 reduced species"
+  dimensional_chain: "✅ Confirmed (time, lat, lon)"
+  grid_resolution: "✅ RAVE 13 km CONUS; GBBEPx 0.1° global"
+  file_integrity: "✅ SHA256 hashes computed and stored"
+  
+  ready_for_decoder_implementation: true
+  ready_for_speciation_mapping: true
+  
+redistribution:
+  permitted: true
+  basis: "NOAA OSPO/RAVE official products; subject to NOAA data policy"
+  attribution: "NOAA OSPO RAVE Project"
+

@@ -937,6 +937,7 @@ if(Python3_Interpreter_FOUND)
   cece_add_pytest(test_scripts_python test_scripts.py "${PROJECT_SOURCE_DIR}/scripts")
   cece_add_pytest(test_config_schema_python test_config_schema.py "${PROJECT_SOURCE_DIR}/scripts")
   cece_add_pytest(test_fire_config_python test_fire_config.py "${PROJECT_SOURCE_DIR}/scripts")
+  cece_add_pytest(test_prepare_fire_inputs_python test_prepare_fire_inputs.py "")
   cece_add_pytest(
     test_utcoffset_generator_python
     test_utcoffset_generator.py

@@ -10,9 +10,10 @@ and validates configured export descriptors. Fire exports must be declared in
 profile fields are derived from requested mappings, while target-specific names
 must be declared explicitly. No prepared or coupled adapter is
 registered in this repository yet, so configuring `fire` fails explicitly rather
-than silently running without data. No NOAA decoder, preparation command,
-production chemistry profile or Ursa fire-run script is available. Existing
-fire-free runtime behavior is unchanged.
+than silently running without data. No NOAA decoder, production chemistry profile
+or Ursa fire-run script is available. A preparation preflight command validates
+source manifests but does not normalize data. Existing fire-free runtime behavior
+is unchanged.
 Building the core now requires system OpenSSL Crypto for input verification
 (see the [developer guide](developer_guide.md#development-environment)).
 
@@ -101,6 +102,22 @@ The [configuration validation CLI](../scripts/validate_cece_config.py) reuses th
 Python checks and recognizes the registered `fire` scheme. Do not treat
 successful option parsing as an executable ingestion example: no concrete
 prepared/coupled adapter is registered yet.
+
+## Source-manifest preflight
+
+[`prepare_fire_inputs.py`](../scripts/prepare_fire_inputs.py) can validate a
+product-mode source manifest before any normalized output directory exists.
+It reuses the Python CECE configuration validator, verifies local file SHA256
+values, checks declared acquisition/availability cutoffs and source priorities,
+and validates configured cutoff schedules and temporal-profile compatibility.
+Preflight does not contact remote URIs or download sample granules.
+
+Run it with `--preflight-only` to check metadata without creating output. The
+non-preflight path deliberately exits with an unsupported-adapter error: no
+GBBEPx/RAVE decoder or permitted reference sample is registered, so the script
+must not create a success-shaped normalized manifest. Atomic YAML-write and
+overwrite primitives have unit coverage, but are not yet connected to a
+normalization transaction. This is not a usable preparation or runtime workflow.
 
 ## Synthetic mapping scheme
 
