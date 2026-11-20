@@ -45,6 +45,7 @@ enum class FireCutoffMode { Unspecified, Fixed, HostSupplied };
 enum class FireInputMode { Product, DeriveFrp };
 enum class FireInputProvider { Prepared, Coupled };
 enum class FireTimeAllocation { Uniform, SourceResolved, Profile };
+enum class FireTemporalProfileTimeBasis { Utc, LocalSolar };
 
 enum class FireLongitudeConvention { Unspecified, Minus180To180, ZeroTo360 };
 
@@ -60,6 +61,25 @@ struct FireGridDefinition {
     std::vector<double> area_m2;
     std::string crs;
     FireLongitudeConvention longitude_convention = FireLongitudeConvention::Unspecified;
+};
+
+struct FireProfileIdentity {
+    std::string id;
+    std::string version;
+    std::string content_sha256;
+};
+
+struct FireTemporalWeightSegment {
+    std::int64_t start_offset_seconds;
+    std::int64_t end_offset_seconds;
+    double weight_per_second;
+};
+
+struct FireTemporalAllocationProfile {
+    FireProfileIdentity identity;
+    FireTemporalProfileTimeBasis time_basis = FireTemporalProfileTimeBasis::Utc;
+    std::int64_t source_cadence_seconds = 0;
+    std::vector<FireTemporalWeightSegment> segments;
 };
 
 class FireGrid {
@@ -92,13 +112,15 @@ struct FireIdentityMetadata {
 
 class FireInputIdentity {
    public:
-    explicit FireInputIdentity(FireIdentityMetadata metadata);
+    explicit FireInputIdentity(FireIdentityMetadata metadata, std::optional<FireProfileIdentity> applied_temporal_profile = std::nullopt);
     const FireIdentityMetadata& Metadata() const;
+    const std::optional<FireProfileIdentity>& AppliedTemporalProfile() const;
     std::int64_t DurationSeconds() const;
     std::int64_t ObservationAgeSeconds() const;
 
    private:
     FireIdentityMetadata metadata_;
+    std::optional<FireProfileIdentity> applied_temporal_profile_;
 };
 
 enum class FireBulkSpecies { CO2, CO, CH4, PM25, TPM, SO2, OC, BC, NOX, NH3, VOC };
@@ -107,12 +129,6 @@ enum class FireNoxReferenceBasis { Unspecified, NO, NO2 };
 
 FireBulkSpecies FireSpeciesFromName(std::string_view name);
 std::string_view FireSpeciesName(FireBulkSpecies species);
-
-struct FireProfileIdentity {
-    std::string id;
-    std::string version;
-    std::string content_sha256;
-};
 
 struct FireComponentProfile {
     FireProfileIdentity biome;
@@ -379,21 +395,27 @@ struct FireAllocatedMass {
     std::optional<std::vector<double>> dry_matter_kg;
     std::optional<FireEnergyBudgetMj> fre_budget;
     std::optional<FireDryMatterBudgetKg> dry_matter_budget;
+    FireTimeAllocation time_allocation = FireTimeAllocation::Uniform;
+    std::optional<FireProfileIdentity> time_profile;
 };
 
 std::int64_t FireIntervalOverlapSeconds(const FireUtcTime& first_start, const FireUtcTime& first_end, const FireUtcTime& second_start,
                                         const FireUtcTime& second_end);
 
 /**
- * Uniform allocation within one supplied source interval, retaining components.
+ * Temporal allocation within one supplied source interval, retaining components.
  * The caller must generate the first-order AXIS operator from these exact grids;
  * source/destination physical areas must share its area metric up to one scale.
- * No temporal profile, coverage renormalization or geometric extrapolation is
- * applied. Zero support is unavailable, never evidence of valid zero fire.
+ * Profile weights are nonnegative per-second values covering and integrating to
+ * one over the source interval. Local-solar profiles are not yet supported.
+ * Coverage is never renormalized and no geometric extrapolation is applied.
+ * Zero support is unavailable, never evidence of valid zero fire.
  */
 FireAllocatedMass FireAllocateConservativeMass(const FireBulkInventory& inventory, std::shared_ptr<const FireGrid> target_grid,
                                                const axis::solver::InterpolationMatrix<Kokkos::HostSpace>& matrix,
                                                axis::solver::NormType normalization, const FireUtcTime& requested_start,
-                                               const FireUtcTime& requested_end);
+                                               const FireUtcTime& requested_end,
+                                               FireTimeAllocation time_allocation = FireTimeAllocation::Uniform,
+                                               std::optional<FireTemporalAllocationProfile> time_profile = std::nullopt);
 
 }  // namespace cece

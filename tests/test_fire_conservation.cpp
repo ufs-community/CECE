@@ -65,6 +65,13 @@ cece::FireBulkInventory Inventory(std::shared_ptr<const cece::FireGrid> grid = G
          std::nullopt});
 }
 
+cece::FireTemporalAllocationProfile TemporalProfile() {
+    return {{"synthetic-diurnal", "1", std::string(64, 'f')},
+            cece::FireTemporalProfileTimeBasis::Utc,
+            7200,
+            {{0, 3600, 0.75 / 3600}, {3600, 7200, 0.25 / 3600}}};
+}
+
 TEST(test_fire_conservation, HalfOpenOverlapRetainsUtcBoundaryAndPartialSupport) {
     const cece::FireUtcTime start("2022-07-01T23:00:00Z"), middle("2022-07-02T00:00:00Z"), end("2022-07-02T01:00:00Z");
     EXPECT_EQ(cece::FireIntervalOverlapSeconds(start, middle, middle, end), 0);
@@ -89,6 +96,92 @@ TEST(test_fire_conservation, HalfOpenOverlapRetainsUtcBoundaryAndPartialSupport)
     EXPECT_FALSE(first.species_budgets[0].component_id);
     EXPECT_NEAR(first.species_budgets[0].supported_input_kg, 60, 60e-6);
     EXPECT_NEAR(first.species_budgets[0].output_kg, 60, 60e-6);
+}
+
+TEST(test_fire_conservation, ProfileAllocationConservesMassAndRetainsComponentProvenance) {
+    const auto inventory = Inventory();
+    const auto target = GridWithAreas({50, 50}, "target");
+    const auto matrix = MakeMatrix();
+    const auto profile = TemporalProfile();
+    const auto first_half_hour = cece::FireAllocateConservativeMass(
+        inventory, target, matrix, Norm::DstArea, cece::FireUtcTime("2022-07-01T23:00:00Z"),
+        cece::FireUtcTime("2022-07-01T23:30:00Z"), cece::FireTimeAllocation::Profile, profile);
+    EXPECT_EQ(first_half_hour.time_allocation, cece::FireTimeAllocation::Profile);
+    ASSERT_TRUE(first_half_hour.time_profile);
+    EXPECT_EQ(first_half_hour.time_profile->id, profile.identity.id);
+    EXPECT_EQ(first_half_hour.component_ids, inventory.Data().component_ids);
+    EXPECT_EQ(first_half_hour.component_profiles.at("b").composition.id, "synthetic-composition-b");
+    ASSERT_EQ(first_half_hour.component_budgets.size(), 2);
+    EXPECT_DOUBLE_EQ(first_half_hour.component_budgets[0].supported_input_kg, 15);
+    EXPECT_DOUBLE_EQ(first_half_hour.component_budgets[1].supported_input_kg, 30);
+    ASSERT_EQ(first_half_hour.species_budgets.size(), 1);
+    EXPECT_DOUBLE_EQ(first_half_hour.species_budgets[0].input_kg, 120);
+    EXPECT_DOUBLE_EQ(first_half_hour.species_budgets[0].supported_input_kg, 45);
+    EXPECT_DOUBLE_EQ(first_half_hour.species_budgets[0].output_kg, 45);
+
+    const auto second_half_hour = cece::FireAllocateConservativeMass(
+        inventory, target, matrix, Norm::DstArea, cece::FireUtcTime("2022-07-01T23:30:00Z"),
+        cece::FireUtcTime("2022-07-02T00:00:00Z"), cece::FireTimeAllocation::Profile, profile);
+    const auto second_hour = cece::FireAllocateConservativeMass(
+        inventory, target, matrix, Norm::DstArea, cece::FireUtcTime("2022-07-02T00:00:00Z"),
+        cece::FireUtcTime("2022-07-02T01:00:00Z"), cece::FireTimeAllocation::Profile, profile);
+    const auto whole_interval = cece::FireAllocateConservativeMass(
+        inventory, target, matrix, Norm::DstArea, cece::FireUtcTime("2022-07-01T23:00:00Z"),
+        cece::FireUtcTime("2022-07-02T01:00:00Z"), cece::FireTimeAllocation::Profile, profile);
+    for (std::size_t i = 0; i < whole_interval.mass_kg.size(); ++i) {
+        EXPECT_NEAR(first_half_hour.mass_kg[i] + second_half_hour.mass_kg[i] + second_hour.mass_kg[i], whole_interval.mass_kg[i], 1e-12);
+    }
+    EXPECT_DOUBLE_EQ(whole_interval.species_budgets[0].supported_input_kg, 120);
+    EXPECT_DOUBLE_EQ(whole_interval.species_budgets[0].output_kg, 120);
+
+    const auto source_resolved = cece::FireAllocateConservativeMass(
+        inventory, target, matrix, Norm::DstArea, cece::FireUtcTime("2022-07-01T23:00:00Z"),
+        cece::FireUtcTime("2022-07-02T00:00:00Z"), cece::FireTimeAllocation::SourceResolved);
+    EXPECT_EQ(source_resolved.time_allocation, cece::FireTimeAllocation::SourceResolved);
+    EXPECT_DOUBLE_EQ(source_resolved.species_budgets[0].output_kg, 60);
+}
+
+TEST(test_fire_conservation, ProfileAllocationRejectsInvalidOrRepeatedWeights) {
+    const auto inventory = Inventory();
+    const auto target = GridWithAreas({50, 50}, "target");
+    const auto matrix = MakeMatrix();
+    const auto start = cece::FireUtcTime("2022-07-01T23:00:00Z");
+    const auto end = cece::FireUtcTime("2022-07-02T01:00:00Z");
+    EXPECT_THROW(cece::FireAllocateConservativeMass(inventory, target, matrix, Norm::DstArea, start, end,
+                                                    cece::FireTimeAllocation::Profile),
+                 std::invalid_argument);
+
+    auto invalid_integral = TemporalProfile();
+    invalid_integral.segments[0].weight_per_second = 0.74 / 3600;
+    EXPECT_THROW(cece::FireAllocateConservativeMass(inventory, target, matrix, Norm::DstArea, start, end,
+                                                    cece::FireTimeAllocation::Profile, invalid_integral),
+                 std::invalid_argument);
+    auto invalid_coverage = TemporalProfile();
+    invalid_coverage.segments[1].start_offset_seconds = 3601;
+    EXPECT_THROW(cece::FireAllocateConservativeMass(inventory, target, matrix, Norm::DstArea, start, end,
+                                                    cece::FireTimeAllocation::Profile, invalid_coverage),
+                 std::invalid_argument);
+    auto incompatible_cadence = TemporalProfile();
+    incompatible_cadence.source_cadence_seconds = 3600;
+    EXPECT_THROW(cece::FireAllocateConservativeMass(inventory, target, matrix, Norm::DstArea, start, end,
+                                                    cece::FireTimeAllocation::Profile, incompatible_cadence),
+                 std::invalid_argument);
+    auto local_solar = TemporalProfile();
+    local_solar.time_basis = cece::FireTemporalProfileTimeBasis::LocalSolar;
+    EXPECT_THROW(cece::FireAllocateConservativeMass(inventory, target, matrix, Norm::DstArea, start, end,
+                                                    cece::FireTimeAllocation::Profile, local_solar),
+                 std::invalid_argument);
+    EXPECT_THROW(cece::FireAllocateConservativeMass(inventory, target, matrix, Norm::DstArea, start, end,
+                                                    cece::FireTimeAllocation::Uniform, TemporalProfile()),
+                 std::invalid_argument);
+
+    auto weighted_data = inventory.Data();
+    auto metadata = weighted_data.identity.Metadata();
+    weighted_data.identity = cece::FireInputIdentity(std::move(metadata), TemporalProfile().identity);
+    const cece::FireBulkInventory already_weighted(std::move(weighted_data));
+    EXPECT_THROW(cece::FireAllocateConservativeMass(already_weighted, target, matrix, Norm::DstArea, start, end,
+                                                    cece::FireTimeAllocation::Profile, TemporalProfile()),
+                 std::invalid_argument);
 }
 
 TEST(test_fire_conservation, PartialCoverageIsNotRenormalizedOrReportedAsValidZero) {

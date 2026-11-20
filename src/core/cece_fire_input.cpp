@@ -175,7 +175,8 @@ std::size_t FireGrid::CellCount() const {
     return definition_.nx * definition_.ny;
 }
 
-FireInputIdentity::FireInputIdentity(FireIdentityMetadata metadata) : metadata_(std::move(metadata)) {
+FireInputIdentity::FireInputIdentity(FireIdentityMetadata metadata, std::optional<FireProfileIdentity> applied_temporal_profile)
+    : metadata_(std::move(metadata)), applied_temporal_profile_(std::move(applied_temporal_profile)) {
     const auto invalid = [&](std::string_view field, std::string_view reason) {
         throw std::invalid_argument("Fire source '" + metadata_.source_id + "': " + std::string(field) + " " + std::string(reason));
     };
@@ -207,10 +208,17 @@ FireInputIdentity::FireInputIdentity(FireIdentityMetadata metadata) : metadata_(
     if (!metadata_.grid_definition) {
         invalid("grid_definition", "is required with validated grid_id, grid_sha256 and geometry");
     }
+    if (applied_temporal_profile_) {
+        ValidateProfile(*applied_temporal_profile_, "Fire input applied temporal profile");
+    }
 }
 
 const FireIdentityMetadata& FireInputIdentity::Metadata() const {
     return metadata_;
+}
+
+const std::optional<FireProfileIdentity>& FireInputIdentity::AppliedTemporalProfile() const {
+    return applied_temporal_profile_;
 }
 
 std::int64_t FireInputIdentity::DurationSeconds() const {
@@ -648,6 +656,9 @@ std::string FireIntervalProvider::CacheIdentity(const FireBulkInventory& invento
     if (metadata.grid_definition->CellCount() > limits_.cells_per_interval || data.component_ids.size() > limits_.components_per_interval) {
         throw std::invalid_argument("Fire interval exceeds provider cell/component bounds");
     }
+    if (data.identity.AppliedTemporalProfile()) {
+        throw std::invalid_argument("Fire prepared/coupled inputs must retain source-interval masses; temporal profiles are applied during allocation");
+    }
     std::string key;
     const auto append = [&](std::string_view value) {
         const auto length = std::to_string(value.size()) + ":";
@@ -871,7 +882,8 @@ std::int64_t FireIntervalOverlapSeconds(const FireUtcTime& first_start, const Fi
 FireAllocatedMass FireAllocateConservativeMass(const FireBulkInventory& inventory, std::shared_ptr<const FireGrid> target_grid,
                                                const axis::solver::InterpolationMatrix<Kokkos::HostSpace>& matrix,
                                                axis::solver::NormType normalization, const FireUtcTime& requested_start,
-                                               const FireUtcTime& requested_end) {
+                                               const FireUtcTime& requested_end, FireTimeAllocation time_allocation,
+                                               std::optional<FireTemporalAllocationProfile> time_profile) {
     using axis::solver::NormType;
     using Policy = Kokkos::RangePolicy<Kokkos::DefaultHostExecutionSpace, Kokkos::IndexType<std::size_t>>;
     constexpr double relative_tolerance = 1e-6;
@@ -882,6 +894,39 @@ FireAllocatedMass FireAllocateConservativeMass(const FireBulkInventory& inventor
     };
     const auto& data = inventory.Data();
     const auto& metadata = data.identity.Metadata();
+    if (data.identity.AppliedTemporalProfile()) {
+        throw std::invalid_argument("Fire input already has temporal profile weighting applied");
+    }
+    if (time_allocation == FireTimeAllocation::Profile) {
+        if (!time_profile) throw std::invalid_argument("Fire profile temporal allocation requires a versioned temporal profile");
+        ValidateProfile(time_profile->identity, "Fire temporal allocation profile");
+        if (time_profile->time_basis != FireTemporalProfileTimeBasis::Utc) {
+            throw std::invalid_argument("Fire local-solar temporal profiles are not supported by this allocator");
+        }
+        if (time_profile->source_cadence_seconds != data.identity.DurationSeconds() || time_profile->segments.empty()) {
+            throw std::invalid_argument("Fire temporal profile cadence must match the positive source interval duration");
+        }
+        std::int64_t cursor = 0;
+        double integral = 0;
+        for (const auto& segment : time_profile->segments) {
+            if (segment.start_offset_seconds != cursor || segment.end_offset_seconds <= segment.start_offset_seconds ||
+                segment.end_offset_seconds > time_profile->source_cadence_seconds || !std::isfinite(segment.weight_per_second) ||
+                segment.weight_per_second < 0) {
+                throw std::invalid_argument("Fire temporal profile segments must be ordered, contiguous, in-range and nonnegative");
+            }
+            integral += static_cast<double>(segment.end_offset_seconds - segment.start_offset_seconds) * segment.weight_per_second;
+            cursor = segment.end_offset_seconds;
+        }
+        if (cursor != time_profile->source_cadence_seconds || !std::isfinite(integral) || !close(integral, 1)) {
+            throw std::invalid_argument("Fire temporal profile must cover the source interval and have a unit integral");
+        }
+    } else if (time_profile) {
+        throw std::invalid_argument("Fire temporal profiles are only valid with profile allocation");
+    }
+    if (time_allocation != FireTimeAllocation::Uniform && time_allocation != FireTimeAllocation::SourceResolved &&
+        time_allocation != FireTimeAllocation::Profile) {
+        throw std::invalid_argument("Fire temporal allocation policy is invalid");
+    }
     const auto overlap = FireIntervalOverlapSeconds(metadata.interval_start, metadata.interval_end, requested_start, requested_end);
     if (!target_grid || matrix.n_src() != metadata.grid_definition->CellCount() || matrix.n_dst() != target_grid->CellCount() ||
         (normalization != NormType::DstArea && normalization != NormType::FracArea)) {
@@ -951,8 +996,23 @@ FireAllocatedMass FireAllocateConservativeMass(const FireBulkInventory& inventor
                              std::nullopt,
                              std::nullopt,
                              std::nullopt,
-                             std::nullopt};
-    const double mass_fraction = static_cast<double>(overlap) / data.identity.DurationSeconds();
+                             std::nullopt,
+                             time_allocation,
+                             time_profile ? std::optional<FireProfileIdentity>(time_profile->identity) : std::nullopt};
+    double mass_fraction = static_cast<double>(overlap) / data.identity.DurationSeconds();
+    if (time_profile) {
+        const auto overlap_start = std::max(metadata.interval_start, requested_start).EpochSeconds() - metadata.interval_start.EpochSeconds();
+        const auto overlap_end = std::min(metadata.interval_end, requested_end).EpochSeconds() - metadata.interval_start.EpochSeconds();
+        mass_fraction = 0;
+        for (const auto& segment : time_profile->segments) {
+            const auto seconds = std::max<std::int64_t>(
+                0, std::min(overlap_end, segment.end_offset_seconds) - std::max(overlap_start, segment.start_offset_seconds));
+            mass_fraction += static_cast<double>(seconds) * segment.weight_per_second;
+        }
+        if (!std::isfinite(mass_fraction) || mass_fraction < 0 || mass_fraction > 1 + absolute_tolerance) {
+            throw std::runtime_error("Fire temporal profile produced an invalid allocation fraction");
+        }
+    }
     const double time_coverage = static_cast<double>(overlap) / (requested_end.EpochSeconds() - requested_start.EpochSeconds());
     std::vector<double> density(ns), destination_density(nt);
     const auto apply = [&]() {
