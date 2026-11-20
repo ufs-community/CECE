@@ -226,6 +226,32 @@ class FireProductEmissionsInterval {
     FireProductEmissionsIntervalData data_;
 };
 
+struct FireNormalizedProductWriteOptions {
+    std::string source_id;
+    std::string time_allocation;
+    std::optional<FireProfileIdentity> time_profile;
+};
+
+void WriteNormalizedFireProductFile(const FireProductEmissionsInterval& product, const FireNormalizedProductWriteOptions& options,
+                                    const std::string& path);
+
+struct FireProductDecodeWindow {
+    std::size_t x_start = 0;
+    std::size_t y_start = 0;
+    std::size_t width = 0;
+    std::size_t height = 0;
+};
+
+struct FireProductDecodeOptions {
+    FireProductScalingKind scaling = FireProductScalingKind::Unscaled;
+    std::optional<FireProductDecodeWindow> window;
+    std::optional<FireUtcTime> availability_cutoff;
+    FireCutoffMode cutoff_mode = FireCutoffMode::Fixed;
+};
+
+FireProductEmissionsInterval DecodeRaveProductFile(const std::string& path, const FireProductDecodeOptions& options = {});
+FireProductEmissionsInterval DecodeGbbepxProductFile(const std::string& path, const FireProductDecodeOptions& options = {});
+
 void ValidateFireProductIntervalSet(const std::vector<std::reference_wrapper<const FireProductEmissionsInterval>>& intervals);
 
 std::string FireContentSha256(std::string_view bytes);

@@ -457,6 +457,8 @@ set(
   src/core/cece_band_decomposition.cpp
   src/core/cece_clock.cpp
   src/core/cece_fire_input.cpp
+  src/core/cece_fire_product_decoder.cpp
+  src/core/cece_fire_product_writer.cpp
   src/core/cece_config_parser.cpp
   src/core/cece_compute.cpp
   src/core/cece_local_time.cpp
@@ -773,6 +775,9 @@ target_link_libraries(
     yaml-cpp
     MPI::MPI_CXX
 )
+
+add_executable(cece_fire_product_normalize src/core/cece_fire_product_normalize.cpp)
+target_link_libraries(cece_fire_product_normalize PRIVATE cece_core)
 
 # --- Dependency Resolution Summary ---
 get_property(_cece_dep_summary GLOBAL PROPERTY CECE_DEP_SUMMARY)

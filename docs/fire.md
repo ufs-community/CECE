@@ -10,10 +10,12 @@ and validates configured export descriptors. Fire exports must be declared in
 profile fields are derived from requested mappings, while target-specific names
 must be declared explicitly. No prepared or coupled adapter is
 registered in this repository yet, so configuring `fire` fails explicitly rather
-than silently running without data. No NOAA decoder, production chemistry profile
-or Ursa fire-run script is available. A preparation preflight command validates
-source manifests but does not normalize data. Existing fire-free runtime behavior
-is unchanged.
+than silently running without data. RAVE v2r0 and GBBEPx v4r0 decoders are
+implemented and tested against pinned actual-sample crops, including a complete
+24-hour RAVE reference series. The preparation CLI writes normalized CF-style
+NetCDF intervals and a checksummed manifest for local bulk-product files.
+No production chemistry profile or Ursa fire-run script is available. Existing
+fire-free runtime behavior is unchanged.
 Building the core now requires system OpenSSL Crypto for input verification
 (see the [developer guide](developer_guide.md#development-environment)).
 
@@ -46,7 +48,9 @@ Building the core now requires system OpenSSL Crypto for input verification
   those species are selected. No combined total of overlapping particulate pools
   is exposed. Optional FRE/dry-matter diagnostics remain absent unless supplied.
 
-These are validated in-memory contracts, not NOAA decoders or science algorithms.
+These are validated in-memory contracts; the RAVE/GBBEPx decoder layer also
+validates pinned product samples and normalizes source quantities to interval
+mass. Product allocation and chemistry integration remain pending.
 Hash fields are checked for syntax; the provider below additionally verifies
 normalized payload bytes. Scientific-profile content verification remains
 pending. Unsupported
@@ -113,11 +117,32 @@ and validates configured cutoff schedules and temporal-profile compatibility.
 Preflight does not contact remote URIs or download sample granules.
 
 Run it with `--preflight-only` to check metadata without creating output. The
-non-preflight path deliberately exits with an unsupported-adapter error: no
-GBBEPx/RAVE decoder or permitted reference sample is registered, so the script
-must not create a success-shaped normalized manifest. Atomic YAML-write and
-overwrite primitives have unit coverage, but are not yet connected to a
-normalization transaction. This is not a usable preparation or runtime workflow.
+non-preflight path requires the built normalizer executable. It supports local
+bulk RAVE v2r0 and GBBEPx v4r0 inputs, validates source-manifest declarations
+against product metadata, preserves source intervals, and writes one normalized
+NetCDF file per source interval. Files are staged and checksummed before the
+manifest is atomically committed; failures remove newly committed intervals and
+preserve any previous manifest and files. Each interval file keeps the decoded
+source identity and delivery ID separate from its source-manifest ID. Remote
+acquisition and target-specific products are not supported. The normalized
+manifest is not yet consumed by a prepared runtime adapter, so this is not yet an
+end-to-end CECE workflow.
+
+Build the writer and run preparation with:
+
+```bash
+cmake --build build-fire --target cece_fire_product_normalize
+CECE_FIRE_PRODUCT_NORMALIZER=build-fire/cece_fire_product_normalize \
+  python scripts/prepare_fire_inputs.py \
+    --config path/to/product-config.yaml \
+    --output-dir fire_inputs/product
+```
+
+The configured source manifest must use adapter IDs `rave-v2r0` or
+`gbbepx-v4r0`, explicit local file hashes, product/algorithm versions, source
+variant, source interval, acquisition and availability timestamps. GBBEPx v4r0
+advertises only its eight available species; the normalized manifest records
+unavailable species explicitly.
 
 ## Synthetic mapping scheme
 

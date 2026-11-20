@@ -15,8 +15,10 @@ import importlib.util
 import math
 import os
 import re
+import shutil
 import sys
 import tempfile
+import subprocess
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
@@ -466,6 +468,310 @@ def _preflight(config_path: Path, output_dir: Path, *, overwrite: bool = False) 
     return selected
 
 
+def _normalizer_executable() -> Path:
+    configured = os.environ.get("CECE_FIRE_PRODUCT_NORMALIZER")
+    candidate = Path(configured).expanduser() if configured else None
+    if candidate is None:
+        discovered = shutil.which("cece_fire_product_normalize")
+        candidate = Path(discovered) if discovered else None
+    if candidate is None or not candidate.is_file() or not os.access(candidate, os.X_OK):
+        raise PreparationError(
+            "normalized product preparation requires the built cece_fire_product_normalize executable; "
+            "set CECE_FIRE_PRODUCT_NORMALIZER or add it to PATH"
+        )
+    return candidate.resolve()
+
+
+def _source_cutoff(source: dict[str, Any], config: dict[str, Any], options: dict[str, Any]) -> datetime:
+    if options["cutoff_mode"] == "fixed":
+        return _utc(options.get("availability_cutoff"), "fire.options.availability_cutoff")
+    schedule_path = _resolve_path(options.get("cutoff_schedule"), "fire.options.cutoff_schedule")
+    schedule = _validate_schedule(schedule_path, config)
+    source_interval = _interval(source, f"source {source['source_id']!r}")
+    if source_interval is None:
+        raise PreparationError(f"source {source['source_id']!r} requires interval bounds for normalized product output")
+    matching = [
+        cutoff
+        for (start, end), cutoff in schedule.items()
+        if source_interval[0] < end and start < source_interval[1]
+    ]
+    if not matching:
+        raise PreparationError(f"source {source['source_id']!r} does not overlap a requested model interval")
+    return min(matching)
+
+
+def _time_profile_identity(options: dict[str, Any]) -> dict[str, str] | None:
+    if options["product_time_allocation"] != "profile":
+        return None
+    path = _resolve_path(options.get("product_time_profile"), "fire.options.product_time_profile")
+    profile = _mapping(_load_yaml(path), "product_time_profile")
+    return {
+        "profile_id": _text(profile.get("profile_id"), "product_time_profile.profile_id"),
+        "version": _text(profile.get("version"), "product_time_profile.version"),
+        "content_sha256": _sha256_file(path),
+    }
+
+
+def _normalizer_metadata(stdout: str) -> dict[str, str]:
+    values = {}
+    for line in stdout.splitlines():
+        if "=" in line:
+            key, value = line.split("=", 1)
+            values[key] = value
+    grid_sha256 = values.get("grid_sha256")
+    if not isinstance(grid_sha256, str) or not _SHA256_RE.fullmatch(grid_sha256):
+        raise PreparationError("product normalizer did not return a valid grid_sha256")
+    return values
+
+
+def _commit_normalized_file(staged: Path, destination: Path, digest: str) -> bool:
+    if destination.exists():
+        if _sha256_file(destination) != digest:
+            raise OutputError(f"existing normalized interval has unexpected content: {destination}")
+        return False
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temporary_path = None
+    try:
+        with tempfile.NamedTemporaryFile(mode="wb", dir=destination.parent, prefix=f".{destination.name}.", suffix=".tmp", delete=False) as stream:
+            temporary_path = Path(stream.name)
+            with staged.open("rb") as source_stream:
+                shutil.copyfileobj(source_stream, stream)
+            stream.flush()
+            os.fsync(stream.fileno())
+        try:
+            os.link(temporary_path, destination)
+        except FileExistsError:
+            if _sha256_file(destination) != digest:
+                raise OutputError(f"concurrent normalized interval commit differs: {destination}")
+            return False
+        return True
+    finally:
+        if temporary_path is not None:
+            temporary_path.unlink(missing_ok=True)
+
+
+def _normalize(
+    config_path: Path,
+    output_dir: Path,
+    selected: list[dict[str, Any]],
+    *,
+    overwrite: bool = False,
+) -> None:
+    config_path = config_path.resolve()
+    config, options = _load_fire_config(config_path)
+    source_manifest_path = _resolve_path(options["source_manifest"], "fire.options.source_manifest")
+    if options.get("scaling", "none") != "none":
+        raise PreparationError("preparation does not apply additional scaling; select a product variant in source_manifest")
+
+    profile = _time_profile_identity(options)
+    source_manifest_sha256 = _sha256_file(source_manifest_path)
+    cutoff_schedule_sha256 = None
+    if options["cutoff_mode"] == "host_supplied":
+        cutoff_schedule_path = _resolve_path(options.get("cutoff_schedule"), "fire.options.cutoff_schedule")
+        cutoff_schedule_sha256 = _sha256_file(cutoff_schedule_path)
+
+    adapter_defaults = {
+        "rave-v2r0": ("RAVE-HrlyEmiss-13km", "v2r0", ["CO2", "CO", "CH4", "PM25", "OC", "BC", "SO2", "TPM", "NH3", "NOX", "VOC"]),
+        "gbbepx-v4r0": ("GBBEPx-all01GRID", "v4r0", ["CO2", "CO", "SO2", "OC", "BC", "PM25", "NOX", "NH3"]),
+    }
+    output_dir = output_dir.resolve()
+    selected = sorted(selected, key=lambda source: (source.get("interval_start", ""), source["source_id"]))
+    for source in selected:
+        adapter = source["adapter_id"]
+        if adapter not in adapter_defaults:
+            raise PreparationError(f"source {source['source_id']!r}: no verified decoder is registered for adapter {adapter!r}")
+        if source.get("chemistry_state") != "bulk":
+            raise PreparationError(f"source {source['source_id']!r}: product normalization currently supports bulk chemistry only")
+        if "uri" in source:
+            raise PreparationError(f"source {source['source_id']!r}: remote acquisition is not supported by product normalization")
+        if _interval(source, f"source {source['source_id']!r}") is None:
+            raise PreparationError(f"source {source['source_id']!r}: interval_start and interval_end are required for product normalization")
+        variant = source.get("variant")
+        if variant not in {"unscaled", "scaled"}:
+            raise PreparationError(f"source {source['source_id']!r}: variant must be unscaled or scaled")
+        if adapter == "gbbepx-v4r0" and variant != "unscaled":
+            raise PreparationError(f"source {source['source_id']!r}: GBBEPx v4r0 supports only the unscaled variant")
+        expected_product_id, expected_version, _ = adapter_defaults[adapter]
+        if source.get("product_id", expected_product_id) != expected_product_id:
+            raise PreparationError(f"source {source['source_id']!r}: product_id does not match adapter {adapter!r}")
+        if source["product_version"] != expected_version or source["algorithm_version"] != expected_version:
+            raise PreparationError(f"source {source['source_id']!r}: product and algorithm versions do not match adapter {adapter!r}")
+    normalizer = _normalizer_executable()
+    output_sources = []
+    interval_records = []
+    committed_files: list[Path] = []
+    output_dir_existed = output_dir.exists()
+    intervals_dir = output_dir / "intervals"
+    intervals_dir_existed = intervals_dir.exists()
+    output_dir.parent.mkdir(parents=True, exist_ok=True)
+    stage_root = Path(tempfile.mkdtemp(prefix=".cece-fire-stage-", dir=output_dir.parent))
+
+    try:
+        for index, source in enumerate(selected):
+            source_id = source["source_id"]
+            adapter = source["adapter_id"]
+            variant = source.get("variant")
+            expected_product_id, expected_version, species = adapter_defaults[adapter]
+            all_species = ["CO2", "CO", "CH4", "PM25", "TPM", "SO2", "OC", "BC", "NOX", "NH3", "VOC"]
+            unavailable_species = [name for name in all_species if name not in species]
+
+            source_interval = _interval(source, f"source {source_id!r}")
+            assert source_interval is not None
+            cutoff = _source_cutoff(source, config, options)
+            staged = stage_root / f"interval-{index:06d}.nc"
+            command = [
+                str(normalizer),
+                "--adapter",
+                adapter,
+                "--input",
+                source["_resolved_path"],
+                "--output",
+                str(staged),
+                "--source-id",
+                source_id,
+                "--cutoff",
+                cutoff.strftime(_UTC_FORMAT),
+                "--cutoff-mode",
+                options["cutoff_mode"],
+                "--time-allocation",
+                options["product_time_allocation"],
+                "--variant",
+                variant,
+                "--product-id",
+                expected_product_id,
+                "--product-version",
+                expected_version,
+                "--algorithm-version",
+                expected_version,
+                "--interval-start",
+                source["interval_start"],
+                "--interval-end",
+                source["interval_end"],
+                "--acquired-at",
+                source["acquired_at"],
+                "--available-at",
+                source["available_at"],
+                "--content-sha256",
+                source["_actual_sha256"],
+            ]
+            if profile:
+                command.extend(
+                    [
+                        "--profile-id",
+                        profile["profile_id"],
+                        "--profile-version",
+                        profile["version"],
+                        "--profile-sha256",
+                        profile["content_sha256"],
+                    ]
+                )
+            result = subprocess.run(command, capture_output=True, text=True, check=False)
+            if result.returncode != 0:
+                detail = result.stderr.strip() or result.stdout.strip() or f"exit code {result.returncode}"
+                raise PreparationError(f"source {source_id!r}: decoder failed: {detail}")
+            if not staged.is_file():
+                raise OutputError(f"source {source_id!r}: normalizer reported success without creating its interval file")
+            normalizer_metadata = _normalizer_metadata(result.stdout)
+            scaling_profile = None
+            if variant == "scaled":
+                scaling_profile = {
+                    "profile_id": _text(normalizer_metadata.get("scaling_profile_id"), "normalizer scaling profile id"),
+                    "version": _text(normalizer_metadata.get("scaling_profile_version"), "normalizer scaling profile version"),
+                    "content_sha256": normalizer_metadata.get("scaling_profile_sha256"),
+                }
+                if not isinstance(scaling_profile["content_sha256"], str) or not _SHA256_RE.fullmatch(scaling_profile["content_sha256"]):
+                    raise PreparationError(f"source {source_id!r}: normalizer returned an invalid scaling profile hash")
+            file_sha256 = _sha256_file(staged)
+            start_key = source["interval_start"].replace("-", "").replace(":", "").replace("T", "_").replace("Z", "")
+            end_key = source["interval_end"].replace("-", "").replace(":", "").replace("T", "_").replace("Z", "")
+            source_key = hashlib.sha256(source_id.encode("utf-8")).hexdigest()[:12]
+            relative_path = f"intervals/{start_key}_{end_key}_{source_key}_{file_sha256[:12]}.nc"
+            destination = output_dir / relative_path
+            if _commit_normalized_file(staged, destination, file_sha256):
+                committed_files.append(destination)
+
+            interval_records.append(
+                {
+                    "source_id": source_id,
+                    "product_id": expected_product_id,
+                    "product_version": expected_version,
+                    "algorithm_version": expected_version,
+                    "variant": variant,
+                    "chemistry_state": "bulk",
+                    "scaling_state": "applied" if variant == "scaled" else "unscaled",
+                    "scaling_profile": scaling_profile,
+                    "interval_start": source["interval_start"],
+                    "interval_end": source["interval_end"],
+                    "availability_cutoff": cutoff.strftime(_UTC_FORMAT),
+                    "grid_sha256": normalizer_metadata["grid_sha256"],
+                    "species": species,
+                    "available_species": species,
+                    "unavailable_species": unavailable_species,
+                    "units": "kg/cell/interval",
+                    "path": relative_path,
+                    "content_sha256": file_sha256,
+                    "source_content_sha256": source["_actual_sha256"],
+                }
+            )
+            output_sources.append(
+                {
+                    "source_id": source_id,
+                    "adapter_id": adapter,
+                    "product_id": expected_product_id,
+                    "product_version": expected_version,
+                    "algorithm_version": expected_version,
+                    "variant": variant,
+                    "local_id": source.get("local_path"),
+                    "uri": source.get("uri"),
+                    "content_sha256": source["_actual_sha256"],
+                    "acquired_at": source["acquired_at"],
+                    "available_at": source["available_at"],
+                    "priority": source["_priority"],
+                }
+            )
+
+        manifest = {
+            "schema_version": 1,
+            "mode": "product",
+            "decoder_version": "cece-fire-product-decoder-v1",
+            "source_manifest_sha256": source_manifest_sha256,
+            "product_adapter": options["product_adapter"],
+            "product_time_allocation": options["product_time_allocation"],
+            "product_time_profile": profile,
+            "chemistry_state": options.get("chemistry_state", "bulk"),
+            "target_id": options.get("target_id"),
+            "target_version": options.get("target_version"),
+            "cutoff_mode": options["cutoff_mode"],
+            "availability_cutoff": options.get("availability_cutoff"),
+            "cutoff_schedule_sha256": cutoff_schedule_sha256,
+            "sources": output_sources,
+            "intervals": interval_records,
+        }
+        manifest_path = output_dir / "manifest.yaml"
+        if manifest_path.exists() and not overwrite:
+            existing = _mapping(_load_yaml(manifest_path), "existing normalized manifest")
+            if existing != manifest:
+                raise PreparationError("existing normalized manifest differs from prepared outputs; pass --overwrite")
+        else:
+            _atomic_write_yaml(manifest_path, manifest, overwrite=overwrite)
+    except (OSError, PreparationError):
+        for path in committed_files:
+            path.unlink(missing_ok=True)
+        if not intervals_dir_existed:
+            try:
+                intervals_dir.rmdir()
+            except OSError:
+                pass
+        if not output_dir_existed:
+            try:
+                output_dir.rmdir()
+            except OSError:
+                pass
+        raise
+    finally:
+        shutil.rmtree(stage_root)
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", type=Path, required=True, help="CECE configuration with one fire scheme")
@@ -485,9 +791,9 @@ def main(argv: list[str] | None = None) -> int:
                 + ", ".join(source["source_id"] for source in selected)
             )
             return 0
-        raise PreparationError(
-            "no verified fire product decoder is registered; preflight passed but no normalized outputs were written"
-        )
+        _normalize(args.config, args.output_dir, selected, overwrite=args.overwrite)
+        print(f"Normalized {len(selected)} fire product source interval(s) to {args.output_dir.resolve() / 'manifest.yaml'}")
+        return 0
     except PreparationError as error:
         print(f"fire preparation error: {error}", file=sys.stderr)
         return 2

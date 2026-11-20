@@ -458,9 +458,15 @@ TEST(test_fire_config, RegistryDoesNotClaimUnverifiedProductionTargets) {
         if (asset["kind"].as<std::string>() == "synthetic") {
             EXPECT_EQ(asset["status"].as<std::string>(), "test_only");
             EXPECT_FALSE(asset["production_use"].as<bool>());
-        } else {
-            EXPECT_EQ(asset["status"].as<std::string>(), "blocked");
-            EXPECT_FALSE(asset["blocker"].as<std::string>().empty());
+        } else if (asset["category"].as<std::string>() == "target") {
+            if (asset["asset_id"].as<std::string>() == "fire-CB6") {
+                EXPECT_EQ(asset["status"].as<std::string>(), "verified");
+                EXPECT_FALSE(asset["production_use"].as<bool>());
+                EXPECT_FALSE(asset["blocker"].as<std::string>().empty());
+            } else {
+                EXPECT_EQ(asset["status"].as<std::string>(), "blocked");
+                EXPECT_FALSE(asset["blocker"].as<std::string>().empty());
+            }
         }
         if (asset["category"].as<std::string>() == "target") {
             targets.insert(asset["target_id"].as<std::string>());

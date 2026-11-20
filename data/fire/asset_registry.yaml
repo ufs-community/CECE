@@ -145,29 +145,28 @@ assets:
     category: target
     target_id: CB6
     kind: scientific_reference
-    status: completed
-    reference: "https://github.com/noaa-oar-arl/ufs-srweather-app/blob/feature/aqmv8_p2/parm/aqm.rc#L290-L333"
-    version: "CB6r3 fire factors from AQMv8_p2"
-    content_sha256: "computed from extracted factors"
-    local_path: "cb6_fire_factors_manifest.yaml"
-    factor_count: 42  # 17 PM2.5 + 25 gas species
+    status: verified
+    production_use: false
+    reference: "https://github.com/noaa-oar-arl/ufs-srweather-app/blob/130beee95c0bef00a4cc8f24177e4d4db6787cda/parm/aqm.rc#L290-L333"
+    version: "CB6r5-AE7-AQ factors from AQMv8_p2 commit 130beee95c0bef00a4cc8f24177e4d4db6787cda"
+    content_sha256: "97aad6bc1a59e93f95f386e031462ce550ceb15d2703720a6bac200b7e4fd943"
+    source_content_sha256: "323a45f88ace0abd6d58a7fae92abcc5dcce4076738c25962c88d9543da8fa48"
+    local_path: "cb6_fire_config.txt"
+    factor_count: 43  # 17 PM2.5 + 26 CO-referenced rows, including CO
     fire_base_species: ["PM2.5", "CO"]
     redistribution: 
-      permitted: true
-      basis: "NOAA-OAR-ARL official AQMv8 configuration; open source repository"
+      permitted: null
+      basis: "Upstream repository metadata reports NOASSERTION; permission is not established."
     notes: >-
-      CB6r3 fire emission speciation factors extracted from NOAA-OAR-ARL
-      UFS-SRWeather AQMv8_p2 aqm.rc configuration file (lines 290-333).
-      Contains 17 PM2.5 species (mass fractions) and 25 gas species (CO-based).
-      Units: KG/M2/S consistent with RAVE/GBBEPx dimensional chain.
-      PM2.5 distribution: 46.18% POC, 32.32% PNCOM, 9.49% PEC (top 3).
-      VOC speciation includes CH4, aldehydes, olefins, aromatics, etc.
-      Manifest: data/fire/cb6_fire_factors_manifest.yaml
-    verification: "✅ Extracted from official NOAA repository; dimensional units verified; all factors accounted for"
-    combustion_coefficient:
-      value: 0.368
-      unit: "kg/MJ"
-      basis: "RAVE ATBD 2.1"
+      43 rows were matched against the cited immutable source excerpt:
+      17 PM2.5-referenced and 26 CO-referenced, including the CO reference row.
+      The PM2.5 coefficients sum to 1.0; the CO-referenced coefficients sum
+      to 1.1247. The user confirmed these are verified CB6 speciation factors
+      referenced to CO and PM2.5; preserve them without normalization. Independent
+      target budgets and redistribution rights remain unverified. See
+      cb6_fire_factors_manifest.yaml.
+    verification: "User-confirmed factor semantics; all rows matched against pinned source commit and SHA256."
+    blocker: "Production activation requires documented redistribution rights and independently verified CB6r5-AE7-AQ budgets."
   - asset_id: fire-CRACMM2
     category: target
     target_id: CRACMM2

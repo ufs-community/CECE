@@ -1,0 +1,82 @@
+schema_version: 1
+purpose: >-
+  Small, check-in-friendly decoder fixtures cropped from the T017 NOAA OSPO
+  samples. These retain original product variables and metadata for the chosen
+  cells; they are not synthetic data or independent validation scenes.
+
+fixtures:
+  - id: rave-v2r0-crop
+    path: RAVE-v2r0-crop.nc
+    sha256: a70c7fdb74bf59be9d5f7c378dbddb459ab2ca3f56bbc0f94c0ddfe176e453e6
+    derived_from: data/fire/product_samples/RAVE-HrlyEmiss-13km_v2r0_20260701_sample.nc
+    source_sha256: 0ac99097022d50bd9128af93df8268a3d53f96b70bad8d267cfde497ab264141
+    source_window_yx: [0, 632, 2, 2]
+    source_grid_shape_yx: [544, 800]
+    interval:
+      start: "2026-07-01T00:00:00Z"
+      end_exclusive: "2026-07-01T01:00:00Z"
+    expected_cell_00:
+      CO2_kg: 172479.125
+      CO_kg: 11099.603515625
+      FRP_MEAN_MW: 82.14042663574219
+      FRE_MJ: 295705.53125
+    notes: >-
+      The crop contains one observed fire cell and three cells whose product
+      species carry the common RAVE -1 no-emission sentinel. It includes both
+      unscaled and embedded _scaled mass fields. The decoder maps the common
+      sentinels to valid zero emissions and rejects inconsistent per-species
+      fill coverage.
+
+  - id: gbbepx-v4r0-crop
+    path: GBBEPx-v4r0-crop.nc
+    sha256: b3588ba0a24659028505b404a806b11d875e278c6905a87fd0d77910601fab0a
+    derived_from: data/fire/product_samples/GBBEPx-all01GRID_v4r0_20230224_sample.nc
+    source_sha256: 4dbcff118dd4bf78013d69a260c4700225464f1c0c3301839eb62d74ba40b56c
+    source_window_yx: [492, 1149, 2, 2]
+    source_grid_shape_yx: [1801, 3600]
+    interval:
+      start: "2023-02-24T00:00:00Z"
+      end_exclusive: "2023-02-25T00:00:00Z"
+    expected_cell_00:
+      latitude_deg: -40.8
+      longitude_deg: -65.1
+      CO_flux_kg_s_m2: 1.463242327304215e-08
+      CO_mass_kg: 118329.8014639274
+      MeanFRP_MW: 24.62002182006836
+    notes: >-
+      The CO mass expectation independently multiplies the source flux by the
+      spherical area of its 0.1-degree cell and the 86400-second daily interval.
+      The source _FillValue is zero, so zero-valued emissions are retained as
+      valid zero rather than treated as missing coverage.
+
+  - id: gbbepx-v4r0-dateline-crop
+    path: GBBEPx-v4r0-dateline-crop.nc
+    sha256: 335709f8b25e453d3e5a9cbc9026cbca4304242b5bf3d7a914d4e4e5f8e777c9
+    derived_from: data/fire/product_samples/GBBEPx-all01GRID_v4r0_20230224_sample.nc
+    source_sha256: 4dbcff118dd4bf78013d69a260c4700225464f1c0c3301839eb62d74ba40b56c
+    source_window_yx: [900, 1799, 2, 2]
+    source_grid_shape_yx: [1801, 3600]
+    interval:
+      start: "2023-02-24T00:00:00Z"
+      end_exclusive: "2023-02-25T00:00:00Z"
+    expected_cell_00:
+      latitude_deg: 0.0
+      longitude_deg: 359.9
+      longitude_next_cell_deg: 0.0
+    notes: >-
+      This actual-sample crop crosses the longitude normalization seam and
+      checks that wrapped cell bounds remain valid geographic coordinates.
+
+reference_series:
+  - id: rave-v2r0-24-consecutive-hours
+    manifest: rave-24h-manifest.yaml
+    manifest_sha256: c0f69cde1c7ecd1f294f834c07edc15ad53adabb39b31cb2f6eeaa4ed220f917
+    fixture_count: 24
+    source_window_yx: [0, 632, 2, 2]
+    source_grid_shape_yx: [544, 800]
+    interval:
+      start: "2026-07-01T00:00:00Z"
+      end_exclusive: "2026-07-02T00:00:00Z"
+    notes: >-
+      Each fixture records its actual source filename and SHA256. The series
+      manifest provides independently summed species totals for the crop.

@@ -1,7 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 #include <gtest/gtest.h>
+#include <netcdf.h>
 
+#include <algorithm>
+#include <array>
+#include <chrono>
+#include <cmath>
+#include <filesystem>
 #include <functional>
+#include <set>
+#include <stdexcept>
+#include <string>
+#include <string_view>
+#include <utility>
 
 #include "cece/physics/cece_fire.hpp"
 
@@ -47,6 +58,24 @@ cece::FireProductEmissionsInterval ProductInterval(const std::string& start, con
     return cece::FireProductEmissionsInterval(std::move(data));
 }
 
+std::string ProductFixturePath(std::string_view name) {
+    return std::string(CECE_SOURCE_DIR) + "/tests/data/fire/product_samples/" + std::string(name);
+}
+
+cece::FireProductDecodeOptions ProductDecodeOptions(std::string_view cutoff) {
+    cece::FireProductDecodeOptions options;
+    options.availability_cutoff = cece::FireUtcTime(cutoff);
+    options.cutoff_mode = cece::FireCutoffMode::Fixed;
+    return options;
+}
+
+std::size_t SpeciesIndex(const cece::FireProductEmissionsInterval& product, cece::FireBulkSpecies species) {
+    const auto& available = product.Data().species;
+    const auto found = std::find(available.begin(), available.end(), species);
+    if (found == available.end()) throw std::invalid_argument("test requested a species absent from decoded fixture");
+    return static_cast<std::size_t>(std::distance(available.begin(), found));
+}
+
 TEST(test_fire_products, DailyMassAndHourlyRateNormalizeToCellIntervalKg) {
     const auto daily = ProductInterval("2022-07-01T00:00:00Z", "2022-07-02T00:00:00Z", cece::FireProductQuantityKind::IntervalMass,
                                        "kg/cell/interval", {86400});
@@ -85,6 +114,236 @@ TEST(test_fire_products, MissingSpeciesAreDistinctFromValidZero) {
     EXPECT_DOUBLE_EQ(product.MassKg()[0], 0);
     EXPECT_EQ(product.Data().species_availability.at(cece::FireBulkSpecies::CO), cece::FireProductSpeciesAvailability::Available);
     EXPECT_EQ(product.Data().species_availability.at(cece::FireBulkSpecies::NOX), cece::FireProductSpeciesAvailability::Unavailable);
+}
+
+struct TemporaryProductFile {
+    std::filesystem::path path;
+    int file = -1;
+    ~TemporaryProductFile() {
+        if (file >= 0) nc_close(file);
+        std::error_code error;
+        std::filesystem::remove(path, error);
+    }
+};
+
+TEST(test_fire_products, WritesNormalizedRaveGridMassAndIntervalMetadata) {
+    const auto product = cece::DecodeRaveProductFile(ProductFixturePath("RAVE-v2r0-crop.nc"), ProductDecodeOptions("2026-07-03T00:00:00Z"));
+    const auto suffix = std::to_string(std::chrono::steady_clock::now().time_since_epoch().count());
+    const auto path = std::filesystem::temp_directory_path() / ("cece-normalized-fire-" + suffix + ".nc");
+    TemporaryProductFile temporary{path};
+    cece::FireNormalizedProductWriteOptions options{"rave-reference", "source_resolved", std::nullopt};
+    cece::WriteNormalizedFireProductFile(product, options, path.string());
+
+    ASSERT_EQ(nc_open(path.c_str(), NC_NOWRITE, &temporary.file), NC_NOERR);
+    int schema_version = 0;
+    ASSERT_EQ(nc_get_att_int(temporary.file, NC_GLOBAL, "fire_normalized_schema_version", &schema_version), NC_NOERR);
+    EXPECT_EQ(schema_version, 1);
+    const auto& metadata = product.Data().product_identity.common_identity.Metadata();
+    int source_schema_version = 0;
+    ASSERT_EQ(nc_get_att_int(temporary.file, NC_GLOBAL, "source_identity_schema_version", &source_schema_version), NC_NOERR);
+    EXPECT_EQ(source_schema_version, metadata.schema_version);
+    for (const auto& [name, expected] : std::array<std::pair<const char*, std::string>, 3>{
+             std::pair{"source_id", metadata.source_id},
+             std::pair{"source_manifest_id", options.source_id},
+             std::pair{"delivery_id", metadata.delivery_id}}) {
+        std::size_t attribute_length = 0;
+        ASSERT_EQ(nc_inq_attlen(temporary.file, NC_GLOBAL, name, &attribute_length), NC_NOERR);
+        std::string value(attribute_length, '\0');
+        ASSERT_EQ(nc_get_att_text(temporary.file, NC_GLOBAL, name, value.data()), NC_NOERR);
+        EXPECT_EQ(value, expected);
+    }
+    std::size_t available_length = 0;
+    ASSERT_EQ(nc_inq_attlen(temporary.file, NC_GLOBAL, "available_species", &available_length), NC_NOERR);
+    std::string available_species(available_length, '\0');
+    ASSERT_EQ(nc_get_att_text(temporary.file, NC_GLOBAL, "available_species", available_species.data()), NC_NOERR);
+    EXPECT_NE(available_species.find("CO2"), std::string::npos);
+    int mass_variable = -1;
+    ASSERT_EQ(nc_inq_varid(temporary.file, "fire_mass_CO2", &mass_variable), NC_NOERR);
+    std::array<double, 4> mass{};
+    const std::array<std::size_t, 3> start{0, 0, 0};
+    const std::array<std::size_t, 3> count{1, 2, 2};
+    EXPECT_EQ(nc_get_vara_double(temporary.file, mass_variable, start.data(), count.data(), mass.data()), NC_NOERR);
+    EXPECT_DOUBLE_EQ(mass[0], product.MassKg()[SpeciesIndex(product, cece::FireBulkSpecies::CO2) * 4]);
+    std::size_t units_length = 0;
+    ASSERT_EQ(nc_inq_attlen(temporary.file, mass_variable, "units", &units_length), NC_NOERR);
+    std::string units(units_length, '\0');
+    ASSERT_EQ(nc_get_att_text(temporary.file, mass_variable, "units", units.data()), NC_NOERR);
+    EXPECT_EQ(units, "kg cell-1 interval-1");
+
+    int time_bounds_variable = -1;
+    ASSERT_EQ(nc_inq_varid(temporary.file, "time_bounds", &time_bounds_variable), NC_NOERR);
+    std::array<double, 2> time_bounds{};
+    EXPECT_EQ(nc_get_var_double(temporary.file, time_bounds_variable, time_bounds.data()), NC_NOERR);
+    EXPECT_DOUBLE_EQ(time_bounds[0], static_cast<double>(metadata.interval_start.EpochSeconds()));
+    EXPECT_DOUBLE_EQ(time_bounds[1], static_cast<double>(metadata.interval_end.EpochSeconds()));
+}
+
+TEST(test_fire_products, DecodesRaveV2r0SampleCropAndPreservesItsIntervalMasses) {
+    const auto product = cece::DecodeRaveProductFile(ProductFixturePath("RAVE-v2r0-crop.nc"), ProductDecodeOptions("2026-07-03T00:00:00Z"));
+    const auto& data = product.Data();
+    const auto& metadata = data.product_identity.common_identity.Metadata();
+
+    EXPECT_EQ(data.product_identity.product_id, "RAVE-HrlyEmiss-13km");
+    EXPECT_EQ(data.product_identity.version, "v2r0");
+    EXPECT_EQ(data.product_identity.variant, "unscaled");
+    EXPECT_EQ(metadata.interval_start.ToString(), "2026-07-01T00:00:00Z");
+    EXPECT_EQ(metadata.interval_end.ToString(), "2026-07-01T01:00:00Z");
+    EXPECT_EQ(metadata.availability_cutoff.ToString(), "2026-07-03T00:00:00Z");
+    EXPECT_EQ(metadata.cutoff_mode, cece::FireCutoffMode::Fixed);
+    ASSERT_EQ(metadata.grid_definition->Definition().nx, 2);
+    ASSERT_EQ(metadata.grid_definition->Definition().ny, 2);
+    EXPECT_EQ(data.species.size(), 11);
+    EXPECT_EQ(data.source_values.size(), 44);
+    EXPECT_DOUBLE_EQ(data.source_values[SpeciesIndex(product, cece::FireBulkSpecies::CO2) * 4], 172479.125);
+    EXPECT_DOUBLE_EQ(data.source_values[SpeciesIndex(product, cece::FireBulkSpecies::CO) * 4], 11099.603515625);
+    EXPECT_DOUBLE_EQ(product.MassKg()[SpeciesIndex(product, cece::FireBulkSpecies::CO2) * 4], 172479.125);
+    ASSERT_TRUE(data.optional_diagnostics.frp_mw);
+    ASSERT_TRUE(data.optional_diagnostics.fre_mj);
+    EXPECT_DOUBLE_EQ(data.optional_diagnostics.frp_mw->front(), 82.14042663574219);
+    EXPECT_DOUBLE_EQ(data.optional_diagnostics.fre_mj->front(), 295705.53125);
+    EXPECT_EQ(data.quality_state.front(), cece::FireQualityState::Observed);
+    EXPECT_EQ(data.quality_state[1], cece::FireQualityState::ValidZero);
+    EXPECT_DOUBLE_EQ(data.coverage_fraction[1], 1.0);
+    EXPECT_EQ(data.species_availability.at(cece::FireBulkSpecies::VOC), cece::FireProductSpeciesAvailability::Available);
+    EXPECT_EQ(data.species_availability.at(cece::FireBulkSpecies::PM25), cece::FireProductSpeciesAvailability::Available);
+    EXPECT_EQ(data.quantity_semantics.at(cece::FireBulkSpecies::CO).kind, cece::FireProductQuantityKind::IntervalMass);
+    EXPECT_EQ(data.quantity_semantics.at(cece::FireBulkSpecies::CO).units, "kg/cell/interval");
+}
+
+TEST(test_fire_products, DecodesTwentyFourConsecutiveRaveHoursWithStableGridAndReferenceMasses) {
+    constexpr std::array<cece::FireBulkSpecies, 11> species{
+        cece::FireBulkSpecies::CO2, cece::FireBulkSpecies::CO,  cece::FireBulkSpecies::CH4, cece::FireBulkSpecies::PM25,
+        cece::FireBulkSpecies::OC,  cece::FireBulkSpecies::BC,  cece::FireBulkSpecies::SO2, cece::FireBulkSpecies::TPM,
+        cece::FireBulkSpecies::NH3, cece::FireBulkSpecies::NOX, cece::FireBulkSpecies::VOC};
+    constexpr std::array<double, 11> expected_total_kg{
+        1106144.125, 71184.0390625, 3977.9316101074219, 4368.7460021972656, 2470.5048522949219, 293.1107234954834,
+        558.30615997314453, 9002.6873779296875, 1514.4056396484375, 2170.4151000976562, 5303.9086608886719};
+    const cece::FireUtcTime first_start("2026-07-01T00:00:00Z");
+    const auto cutoff = ProductDecodeOptions("2026-07-03T00:00:00Z");
+    std::array<double, 11> actual_total_kg{};
+    std::set<std::string> content_hashes;
+    std::string stable_grid_hash;
+    cece::FireGridDefinition stable_grid;
+
+    for (std::size_t hour = 0; hour < 24; ++hour) {
+        const auto filename = std::string("rave-24h/hour-") + (hour < 10 ? "0" : "") + std::to_string(hour) + ".nc";
+        const auto product = cece::DecodeRaveProductFile(ProductFixturePath(filename), cutoff);
+        const auto& data = product.Data();
+        const auto& metadata = data.product_identity.common_identity.Metadata();
+        const auto expected_start = cece::FireUtcTime::FromEpochSeconds(first_start.EpochSeconds() + static_cast<std::int64_t>(hour) * 3600);
+        const auto expected_end = cece::FireUtcTime::FromEpochSeconds(expected_start.EpochSeconds() + 3600);
+
+        EXPECT_EQ(metadata.interval_start, expected_start);
+        EXPECT_EQ(metadata.interval_end, expected_end);
+        EXPECT_EQ(metadata.availability_cutoff, cutoff.availability_cutoff);
+        ASSERT_EQ(data.species.size(), species.size());
+        ASSERT_EQ(data.source_values.size(), species.size() * 4);
+        ASSERT_TRUE(metadata.grid_definition);
+        const auto& grid = metadata.grid_definition->Definition();
+        if (hour == 0) {
+            stable_grid_hash = grid.grid_sha256;
+            stable_grid = grid;
+        } else {
+            EXPECT_EQ(grid.grid_sha256, stable_grid_hash);
+            EXPECT_EQ(grid.longitude_deg, stable_grid.longitude_deg);
+            EXPECT_EQ(grid.latitude_deg, stable_grid.latitude_deg);
+            EXPECT_EQ(grid.longitude_bounds_deg, stable_grid.longitude_bounds_deg);
+            EXPECT_EQ(grid.latitude_bounds_deg, stable_grid.latitude_bounds_deg);
+            EXPECT_EQ(grid.area_m2, stable_grid.area_m2);
+        }
+        content_hashes.insert(metadata.content_sha256);
+
+        const auto& masses = product.MassKg();
+        for (std::size_t species_index = 0; species_index < species.size(); ++species_index) {
+            ASSERT_EQ(data.species[species_index], species[species_index]);
+            for (std::size_t cell = 0; cell < 4; ++cell) actual_total_kg[species_index] += masses[species_index * 4 + cell];
+        }
+    }
+
+    EXPECT_EQ(content_hashes.size(), 24);
+    for (std::size_t species_index = 0; species_index < species.size(); ++species_index) {
+        EXPECT_NEAR(actual_total_kg[species_index], expected_total_kg[species_index], 1e-6);
+    }
+}
+
+TEST(test_fire_products, DecodesRaveEmbeddedScaledVariantExactlyOnce) {
+    auto options = ProductDecodeOptions("2026-07-03T00:00:00Z");
+    options.scaling = cece::FireProductScalingKind::Applied;
+    const auto scaled = cece::DecodeRaveProductFile(ProductFixturePath("RAVE-v2r0-crop.nc"), options);
+    options.scaling = cece::FireProductScalingKind::Unscaled;
+    const auto unscaled = cece::DecodeRaveProductFile(ProductFixturePath("RAVE-v2r0-crop.nc"), options);
+
+    EXPECT_EQ(scaled.Data().product_identity.variant, "scaled");
+    EXPECT_EQ(scaled.Data().scaling_state.kind, cece::FireProductScalingKind::Applied);
+    ASSERT_TRUE(scaled.Data().scaling_state.profile);
+    EXPECT_EQ(scaled.Data().scaling_state.profile->id, "RAVE-embedded-scaled-variant");
+    const auto pm25_index = SpeciesIndex(scaled, cece::FireBulkSpecies::PM25) * 4;
+    EXPECT_NE(scaled.Data().source_values[pm25_index], unscaled.Data().source_values[pm25_index]);
+    EXPECT_DOUBLE_EQ(scaled.Data().source_values[pm25_index], 1226.1798095703125);
+    EXPECT_THROW(scaled.ValidateScaling(scaled.Data().scaling_state.profile), std::invalid_argument);
+}
+
+TEST(test_fire_products, DecodesGbbepxV4r0FluxCropAndMarksReducedSpeciesSet) {
+    const auto product =
+        cece::DecodeGbbepxProductFile(ProductFixturePath("GBBEPx-v4r0-crop.nc"), ProductDecodeOptions("2023-02-26T00:00:00Z"));
+    const auto& data = product.Data();
+    const auto& metadata = data.product_identity.common_identity.Metadata();
+
+    EXPECT_EQ(data.product_identity.product_id, "GBBEPx-all01GRID");
+    EXPECT_EQ(data.product_identity.version, "v4r0");
+    EXPECT_EQ(metadata.interval_start.ToString(), "2023-02-24T00:00:00Z");
+    EXPECT_EQ(metadata.interval_end.ToString(), "2023-02-25T00:00:00Z");
+    EXPECT_EQ(metadata.availability_cutoff.ToString(), "2023-02-26T00:00:00Z");
+    ASSERT_EQ(metadata.grid_definition->Definition().nx, 2);
+    ASSERT_EQ(metadata.grid_definition->Definition().ny, 2);
+    EXPECT_EQ(metadata.grid_definition->Definition().longitude_convention, cece::FireLongitudeConvention::ZeroTo360);
+    EXPECT_EQ(data.species.size(), 8);
+    EXPECT_EQ(data.species_availability.at(cece::FireBulkSpecies::CH4), cece::FireProductSpeciesAvailability::Unavailable);
+    EXPECT_EQ(data.species_availability.at(cece::FireBulkSpecies::TPM), cece::FireProductSpeciesAvailability::Unavailable);
+    EXPECT_EQ(data.species_availability.at(cece::FireBulkSpecies::VOC), cece::FireProductSpeciesAvailability::Unavailable);
+    EXPECT_EQ(data.species_availability.at(cece::FireBulkSpecies::CO), cece::FireProductSpeciesAvailability::Available);
+    EXPECT_EQ(data.quantity_semantics.at(cece::FireBulkSpecies::CO).kind, cece::FireProductQuantityKind::Flux);
+    EXPECT_EQ(data.quantity_semantics.at(cece::FireBulkSpecies::CO).units, "kg m-2 s-1");
+    EXPECT_DOUBLE_EQ(data.source_values[SpeciesIndex(product, cece::FireBulkSpecies::CO) * 4], 1.463242327304215e-08);
+    EXPECT_NEAR(product.MassKg()[SpeciesIndex(product, cece::FireBulkSpecies::CO) * 4], 118329.8014639274, 1e-5);
+    EXPECT_EQ(data.quality_state.front(), cece::FireQualityState::Observed);
+    EXPECT_EQ(data.quality_state[1], cece::FireQualityState::ValidZero);
+    ASSERT_TRUE(data.optional_diagnostics.frp_mw);
+    EXPECT_DOUBLE_EQ(data.optional_diagnostics.frp_mw->front(), 24.62002182006836);
+    EXPECT_THROW(product.RequireSpecies({cece::FireBulkSpecies::CH4}), std::invalid_argument);
+    EXPECT_THROW(product.RequireSpecies({cece::FireBulkSpecies::TPM}), std::invalid_argument);
+    EXPECT_THROW(product.RequireSpecies({cece::FireBulkSpecies::VOC}), std::invalid_argument);
+}
+
+TEST(test_fire_products, GbbepxDatelineCropKeepsNormalizedCentersAndFiniteCellAreas) {
+    const auto product =
+        cece::DecodeGbbepxProductFile(ProductFixturePath("GBBEPx-v4r0-dateline-crop.nc"), ProductDecodeOptions("2023-02-26T00:00:00Z"));
+    const auto& grid = product.Data().product_identity.common_identity.Metadata().grid_definition->Definition();
+
+    ASSERT_EQ(grid.longitude_deg.size(), 4);
+    EXPECT_NEAR(grid.longitude_deg[0], 359.9, 2e-5);
+    EXPECT_DOUBLE_EQ(grid.longitude_deg[1], 0.0);
+    EXPECT_TRUE(std::all_of(grid.area_m2.begin(), grid.area_m2.end(), [](double area) { return std::isfinite(area) && area > 0; }));
+    EXPECT_TRUE(std::all_of(grid.longitude_bounds_deg.begin(), grid.longitude_bounds_deg.end(), [](const auto& bounds) {
+        return std::all_of(bounds.begin(), bounds.end(), [](double longitude) { return longitude >= 0 && longitude <= 360; });
+    }));
+}
+
+TEST(test_fire_products, ProductDecodersRejectUnsupportedScalingAndWindows) {
+    cece::FireProductDecodeOptions scaled;
+    scaled.availability_cutoff = cece::FireUtcTime("2023-02-26T00:00:00Z");
+    scaled.scaling = cece::FireProductScalingKind::Applied;
+    EXPECT_THROW(cece::DecodeGbbepxProductFile(ProductFixturePath("GBBEPx-v4r0-crop.nc"), scaled), std::invalid_argument);
+
+    cece::FireProductDecodeOptions outside;
+    outside.availability_cutoff = cece::FireUtcTime("2026-07-03T00:00:00Z");
+    outside.window = cece::FireProductDecodeWindow{2, 0, 1, 1};
+    EXPECT_THROW(cece::DecodeRaveProductFile(ProductFixturePath("RAVE-v2r0-crop.nc"), outside), std::invalid_argument);
+}
+
+TEST(test_fire_products, ProductDecodersRequireExplicitAvailabilityCutoff) {
+    EXPECT_THROW(cece::DecodeRaveProductFile(ProductFixturePath("RAVE-v2r0-crop.nc")), std::invalid_argument);
+    EXPECT_THROW(cece::DecodeGbbepxProductFile(ProductFixturePath("GBBEPx-v4r0-crop.nc")), std::invalid_argument);
 }
 
 TEST(test_fire_products, OverlappingProductVariantsAreRejectedRegardlessOfVersion) {
