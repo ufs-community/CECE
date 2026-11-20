@@ -186,16 +186,16 @@ StreamConfig CeceDriverOrchestrator::BuildStreamConfig(const conf::Value& stream
             throw std::invalid_argument("cece_data stream '" + stream["name"].string_or("") +
                                         "': point stream requires format 'point_nc' or 'volcano_rc'.");
         }
-        if (stream["mapalgo"]) {
-            throw std::invalid_argument("cece_data.streams: mapalgo is not permitted on point streams.");
+        if (stream["mapalgo"] && cece::to_lower(stream["mapalgo"].as_string()) != "passthrough") {
+            throw std::invalid_argument("cece_data.streams: mapalgo must be passthrough on point streams.");
         }
-        if (stream["meshfile"]) {
-            throw std::invalid_argument("cece_data.streams: meshfile is not permitted on point streams.");
+        if (stream["meshfile"] && (stream["meshfile"].kind() != conf::Node_Kind::Scalar || !stream["meshfile"].as_string().empty())) {
+            throw std::invalid_argument("cece_data.streams: meshfile must be empty on point streams.");
         }
         if (stream["use_local_time"] && stream["use_local_time"].as_bool()) {
             throw std::invalid_argument("cece_data.streams: use_local_time is not supported on point streams.");
         }
-        cfg.mapalgo = "";
+        cfg.mapalgo = "passthrough";
     } else {
         if (!cfg.format.empty()) {
             throw std::invalid_argument("cece_data stream '" + stream["name"].string_or("") + "': format is not permitted on grid streams.");

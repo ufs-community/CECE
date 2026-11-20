@@ -22,6 +22,7 @@
 #include <stdexcept>
 
 #include "cece/cece_config.hpp"
+#include "cece/cece_data_ingestor.hpp"
 #include "cece/cece_driver_facade.hpp"
 
 using namespace cece;
@@ -1247,7 +1248,26 @@ physics_schemes: []
     ASSERT_EQ(config.cece_data.streams.size(), 1);
     EXPECT_EQ(config.cece_data.streams[0].kind, "point");
     EXPECT_EQ(config.cece_data.streams[0].format, "volcano_rc");
-    EXPECT_EQ(config.cece_data.streams[0].mapalgo, "");
+    EXPECT_EQ(config.cece_data.streams[0].mapalgo, "passthrough");
+    CeceDataIngestor ingestor;
+    EXPECT_NE(ingestor.SerializeStreamESMFConfig(config.cece_data).find("mapalgo01: passthrough"), std::string::npos);
+    EXPECT_NE(ingestor.SerializeStreamYaml(config.cece_data).find("map_algo: \"passthrough\""), std::string::npos);
+}
+
+TEST_F(DriverConfigurationTest, PointStreamAcceptsExplicitPassthrough) {
+    WriteConfigFile(test_config_file, R"(
+cece_data:
+  streams:
+    - name: point_volcano
+      file: volc.nc
+      kind: point
+      format: point_nc
+      mapalgo: PASSTHROUGH
+physics_schemes: []
+)");
+    const CeceConfig config = ParseConfig(test_config_file);
+    ASSERT_EQ(config.cece_data.streams.size(), 1);
+    EXPECT_EQ(config.cece_data.streams[0].mapalgo, "passthrough");
 }
 
 TEST_F(DriverConfigurationTest, PointStreamRejectsMapalgo) {
@@ -1261,21 +1281,39 @@ cece_data:
       mapalgo: consd
 physics_schemes: []
 )",
-                                "cece_data.streams[0]: mapalgo is not permitted on point streams.");
+                                "cece_data.streams[0]: mapalgo must be passthrough on point streams.");
 }
 
 TEST_F(DriverConfigurationTest, PointStreamRejectsMeshfile) {
-    ExpectConfigInvalidArgument(test_config_file, R"(
+    for (const std::string value : {"mesh.nc", "null"}) {
+        ExpectConfigInvalidArgument(test_config_file, R"(
 cece_data:
   streams:
     - name: point_volcano
       file: volc.nc
       kind: point
       format: volcano_rc
-      meshfile: mesh.nc
+      meshfile: )" + value + R"(
 physics_schemes: []
 )",
-                                "cece_data.streams[0]: meshfile is not permitted on point streams.");
+                                    "cece_data.streams[0]: meshfile must be empty on point streams.");
+    }
+}
+
+TEST_F(DriverConfigurationTest, PointStreamAcceptsEmptyMeshfile) {
+    WriteConfigFile(test_config_file, R"(
+cece_data:
+  streams:
+    - name: point_volcano
+      file: volc.nc
+      kind: point
+      format: volcano_rc
+      meshfile: ""
+physics_schemes: []
+)");
+    const CeceConfig config = ParseConfig(test_config_file);
+    ASSERT_EQ(config.cece_data.streams.size(), 1);
+    EXPECT_TRUE(config.cece_data.streams[0].meshfile.empty());
 }
 
 TEST_F(DriverConfigurationTest, PointStreamRejectsUseLocalTime) {

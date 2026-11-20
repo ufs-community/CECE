@@ -53,8 +53,8 @@ stream::<stream_name>
   - `upper`: Use upper bound
 - `kind`: Stream data kind (default: "grid"). Point data uses "point" (in development).
 - `format`: Data format string. Required when `kind: point`. Supported: `point_nc` (see [Point Stack Format](point_stack_format.md)) or `volcano_rc` (in development).
-- `mapalgo`: Spatial mapping algorithm (default: "bilinear"). Not permitted for `kind: point`.
-- `meshfile`: Path to a SCRIP mesh file describing the source grid structure. Not permitted for `kind: point`.
+- `mapalgo`: Spatial mapping algorithm (grid default: "consd"). For `kind: point`, the default and only permitted value is `passthrough`; point ingestion remains in development.
+- `meshfile`: Path to a SCRIP mesh file describing the source grid structure. For `kind: point`, omit it or use an empty string.
 - `dtlimit`: Delta time limit in seconds (default: 1500000000)
 - `yearFirst`: First calendar year in data (default: 1)
 - `yearLast`: Last calendar year in data (default: 1)

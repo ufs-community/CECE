@@ -533,7 +533,27 @@ physics_schemes: []
     ASSERT_EQ(configs.size(), 1);
     EXPECT_EQ(configs["CO"].kind, "point");
     EXPECT_EQ(configs["CO"].format, "point_nc");
-    EXPECT_EQ(configs["CO"].mapalgo, "");
+    EXPECT_EQ(configs["CO"].mapalgo, "passthrough");
+}
+
+TEST(StreamConfigResolution, PointStreamAcceptsExplicitPassthrough) {
+    TempFile fixture(R"(
+driver:
+
+cece_data:
+  streams:
+    - name: CO
+      file: point.nc
+      kind: point
+      format: volcano_rc
+      mapalgo: PASSTHROUGH
+physics_schemes: []
+)");
+    std::unordered_map<std::string, StreamConfig> configs;
+    std::string gridspec;
+    StreamConfigTestAccess::Resolve(fixture.path, configs, gridspec);
+    ASSERT_EQ(configs.size(), 1);
+    EXPECT_EQ(configs["CO"].mapalgo, "passthrough");
 }
 
 TEST(StreamConfigResolution, PointStreamRejectsMapalgo) {
@@ -555,6 +575,26 @@ physics_schemes: []
 }
 
 TEST(StreamConfigResolution, PointStreamRejectsMeshfile) {
+    for (const std::string value : {"grid.nc", "null"}) {
+        TempFile fixture(R"(
+driver:
+
+cece_data:
+  streams:
+    - name: CO
+      file: point.nc
+      kind: point
+      format: point_nc
+      meshfile: )" + value + R"(
+physics_schemes: []
+)");
+        std::unordered_map<std::string, StreamConfig> configs;
+        std::string gridspec;
+        EXPECT_THROW(StreamConfigTestAccess::Resolve(fixture.path, configs, gridspec), std::invalid_argument);
+    }
+}
+
+TEST(StreamConfigResolution, PointStreamAcceptsEmptyMeshfile) {
     TempFile fixture(R"(
 driver:
 
@@ -564,12 +604,14 @@ cece_data:
       file: point.nc
       kind: point
       format: point_nc
-      meshfile: grid.nc
+      meshfile: ""
 physics_schemes: []
 )");
     std::unordered_map<std::string, StreamConfig> configs;
     std::string gridspec;
-    EXPECT_THROW(StreamConfigTestAccess::Resolve(fixture.path, configs, gridspec), std::invalid_argument);
+    EXPECT_NO_THROW(StreamConfigTestAccess::Resolve(fixture.path, configs, gridspec));
+    ASSERT_EQ(configs.size(), 1);
+    EXPECT_EQ(configs["CO"].mapalgo, "passthrough");
 }
 
 TEST(StreamConfigResolution, PointStreamRejectsUseLocalTime) {

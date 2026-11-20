@@ -226,16 +226,16 @@ CeceConfig ParseConfig(const std::string& filename) {
                     throw std::invalid_argument("cece_data.streams[" + std::to_string(i) +
                                                 "]: point stream requires format 'point_nc' or 'volcano_rc'.");
                 }
-                if (node["mapalgo"]) {
-                    throw std::invalid_argument("cece_data.streams[" + std::to_string(i) + "]: mapalgo is not permitted on point streams.");
+                if (node["mapalgo"] && to_lower(node["mapalgo"].as_string()) != "passthrough") {
+                    throw std::invalid_argument("cece_data.streams[" + std::to_string(i) + "]: mapalgo must be passthrough on point streams.");
                 }
-                if (node["meshfile"]) {
-                    throw std::invalid_argument("cece_data.streams[" + std::to_string(i) + "]: meshfile is not permitted on point streams.");
+                if (node["meshfile"] && (node["meshfile"].kind() != conf::Node_Kind::Scalar || !node["meshfile"].as_string().empty())) {
+                    throw std::invalid_argument("cece_data.streams[" + std::to_string(i) + "]: meshfile must be empty on point streams.");
                 }
                 if (node["use_local_time"].bool_or(false)) {
                     throw std::invalid_argument("cece_data.streams[" + std::to_string(i) + "]: use_local_time is not supported on point streams.");
                 }
-                stream.mapalgo = "";
+                stream.mapalgo = "passthrough";
             } else {
                 if (!stream.format.empty()) {
                     throw std::invalid_argument("cece_data.streams[" + std::to_string(i) + "]: format is not permitted on grid streams.");

@@ -145,6 +145,7 @@ TEST(StreamKeyExtends, KindOrFormatAloneChangesBothKeys) {
     point.input_file_path = "emissions.nc";
     point.kind = "point";
     point.format = "point_nc";
+    point.mapalgo = "passthrough";
 
     StreamConfig other_kind = point;
     other_kind.kind = "grid";

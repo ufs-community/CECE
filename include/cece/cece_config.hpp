@@ -159,7 +159,7 @@ struct CeceDataStreamConfig {
     std::string format;                             ///< Stream format (e.g. volcano_rc).
     std::string taxmode = "cycle";                  ///< Time axis mode (cycle, extend, etc.).
     std::string tintalgo = "nearest";               ///< Time interpolation algorithm.
-    std::string mapalgo = "consd";  ///< Spatial mapping algorithm: bilinear, consd, consf, nn, redist, passthrough (skip regridding, same-grid data).
+    std::string mapalgo = "consd";  ///< Grid mapping algorithm; point streams resolve to passthrough.
     int dtlimit = 1500000000;       ///< Delta time limit in seconds.
     int yearFirst = 0;              ///< First year in data; zero selects climatological indexing.
     int yearLast = 0;               ///< Last year in data; zero selects climatological indexing.
