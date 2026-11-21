@@ -332,6 +332,12 @@ compatible RAVE derivation/ancillary assets and production-ready fire profiles
 for supported chemistry targets remain unavailable. No MEGAN factor is used
 as a fire factor.
 
+[The RAVE ATBD manifest](../data/fire/rave_atbd_2_1_manifest.yaml) pins the
+inspected NOAA document and records unresolved cloud-threshold and table-caption
+inconsistencies. [The FRP reference manifest](../tests/data/fire/frp_reference_manifest.yaml)
+records the missing independent sensor scenes and preapproved tolerances.
+Neither manifest installs or certifies a derivation profile.
+
 [The fixture schema](../tests/data/fire/fixture_schema.yaml) requires provenance,
 redistribution information and independent expected values/tolerances.
 [The constant-power fixture](../tests/data/fire/synthetic_interval.yaml) contains

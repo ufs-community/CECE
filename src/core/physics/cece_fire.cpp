@@ -420,7 +420,8 @@ FireTargetProfile LoadFireTargetProfile(const std::string& path, const std::stri
 
     const auto nox = root["nox_partition"];
     if (nox) {
-        OnlyKeys(nox, {"reference_basis", "no_mass_fraction", "no2_mass_fraction", "no_target_species", "no2_target_species"}, "nox_partition");
+        OnlyKeys(nox, {"reference_basis", "no_mass_fraction", "no2_mass_fraction", "no_target_species", "no2_target_species",
+                       "partition_basis"}, "nox_partition");
         for (const auto key : {"reference_basis", "no_mass_fraction", "no2_mass_fraction", "no_target_species", "no2_target_species"})
             Require(nox, key, "nox_partition");
         const auto basis = Text(nox["reference_basis"], "nox_partition.reference_basis");
@@ -430,9 +431,33 @@ FireTargetProfile LoadFireTargetProfile(const std::string& path, const std::stri
                                    Positive(nox["no2_mass_fraction"], "nox_partition.no2_mass_fraction", true),
                                    Text(nox["no_target_species"], "nox_partition.no_target_species"),
                                    Text(nox["no2_target_species"], "nox_partition.no2_target_species")};
-        if (!Close(partition.no_mass_fraction + partition.no2_mass_fraction, 1) || !mechanism_names.contains(partition.no_target_species) ||
-            !mechanism_names.contains(partition.no2_target_species)) {
-            Invalid("nox_partition", "fractions must sum to one and target species must exist in the mechanism");
+        if (!mechanism_names.contains(partition.no_target_species) || !mechanism_names.contains(partition.no2_target_species) ||
+            partition.no_target_species == partition.no2_target_species) {
+            Invalid("nox_partition", "distinct target species must exist in the mechanism");
+        }
+        const auto partition_basis = nox["partition_basis"].string_or("mass");
+        double total = partition.no_mass_fraction + partition.no2_mass_fraction;
+        if (partition_basis == "molar_equivalent") {
+            if (partition.reference_basis != FireNoxReferenceBasis::NO2 ||
+                !profile.conversion_factors.source_molecular_weights_g_mol.contains(FireBulkSpecies::NOX) ||
+                !profile.conversion_factors.target_molecular_weights_g_mol.contains(partition.no_target_species) ||
+                !profile.conversion_factors.target_molecular_weights_g_mol.contains(partition.no2_target_species)) {
+                Invalid("nox_partition", "molar_equivalent requires NO2 reference and source, NO and NO2 molecular weights");
+            }
+            const auto reference_weight = profile.conversion_factors.source_molecular_weights_g_mol.at(FireBulkSpecies::NOX);
+            const auto no_weight = profile.conversion_factors.target_molecular_weights_g_mol.at(partition.no_target_species);
+            const auto no2_weight = profile.conversion_factors.target_molecular_weights_g_mol.at(partition.no2_target_species);
+            if (!Close(reference_weight, no2_weight)) {
+                Invalid("nox_partition", "NO2 target molecular weight must match the NOX reference weight");
+            }
+            total = partition.no_mass_fraction * reference_weight / no_weight +
+                    partition.no2_mass_fraction * reference_weight / no2_weight;
+            partition.partition_basis = FireNoxPartitionBasis::MolarEquivalent;
+        } else if (partition_basis != "mass") {
+            Invalid("nox_partition.partition_basis", "must be mass or molar_equivalent");
+        }
+        if (!Close(total, 1)) {
+            Invalid("nox_partition", "partition must conserve the declared mass or molar-equivalent basis");
         }
         profile.nox_partition = std::move(partition);
     }
@@ -506,6 +531,8 @@ FireTargetProfile LoadFireTargetProfile(const std::string& path, const std::stri
         }
         if (profile.mapping_factor_semantics == FireMappingFactorSemantics::Partition &&
             disposition.kind == FireSourceDispositionKind::Mapped && invariant_mapping_counts[species] > 0 &&
+            !(species == FireBulkSpecies::NOX && profile.nox_partition &&
+              profile.nox_partition->partition_basis == FireNoxPartitionBasis::MolarEquivalent) &&
             !Close(factor_totals[species], 1)) {
             Invalid(field, "mapping factors for each source must form an explicit unit-sum partition");
         }

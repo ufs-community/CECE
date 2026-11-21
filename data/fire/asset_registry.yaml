@@ -94,21 +94,21 @@ assets:
       - https://www.ospo.noaa.gov/resources/documents/pdf/RAVE_ATBD.pdf
       - https://www.star.nesdis.noaa.gov/data/pub0008/akhuff/ACC_Product_Documentation/RAVE_ATBD_v2.pdf
     version: "ATBD 2.1 (not EUM 2.2 or dataset V2.0)"
-    content_sha256: null
+    content_sha256: e04e8e295128f5b3e3850532007b28109f014f0d3306c09dd51cc86c2d391751
     redistribution: {permitted: null, basis: Document and derived-table redistribution not yet verified.}
     notes: >-
       RAVE ATBD v2.1 describes fusion/diurnal reconstruction (section 2.3.1),
       dimensional chain/combustion coefficient (section 2.3.2, equations 5-7),
-      and 11-species emission factors (Table 2: CO2, CO, CH4, PM2.5, OC, BC,
-      SO2, TPM, NH3, NOx, VOCs). Document appears identical at both NOAA OSPO
-      and STAR URLs. Status=in_progress: awaiting SHA256 verification, section
-      2.3 extraction, Table 2 factor verification, and polar rule documentation.
+      and eleven emission-factor rows in Table 2. The OSPO document was hashed
+      on 2026-11-20; the STAR URL returned HTTP 403 and equivalence is not
+      established. Table 2's caption says eight species, and sections 2.3.1.1.1
+      and 2.3.3 disagree about the 95% cloud threshold. The source manifest is
+      rave_atbd_2_1_manifest.yaml; these discrepancies remain unresolved.
     pending: >-
-      Pin document SHA256; independently verify full eleven-species factors,
-      combustion coefficient (baseline 0.368 kg/MJ), quality/cloud/overlap
-      corrections, geographic applicability and approved reference tolerances.
-      Undocumented polar rules must be sourced or explicitly documented as
-      unsupported.
+      Independently verify full eleven-species factors, combustion coefficient
+      (baseline 0.368 kg/MJ), quality/cloud/overlap corrections, geographic
+      applicability and approved reference tolerances. Undocumented polar rules
+      must be sourced or explicitly documented as unsupported.
   - asset_id: rave-ancillary-reference
     category: ancillary
     kind: scientific_reference

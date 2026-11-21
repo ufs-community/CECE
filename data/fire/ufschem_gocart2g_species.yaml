@@ -1,0 +1,15 @@
+schema_version: 1
+identity:
+  target_id: GOCART2G
+  target_version: ufschem-proposed-v1
+purpose: >-
+  Nonproduction Stage 1 fields from the user-supplied UFS-Chem RAVE and
+  GBBEPx specifications. Mechanism compatibility and factor provenance
+  require independent verification.
+species:
+  - {name: BCphobic, source_species: BC}
+  - {name: BCphilic, source_species: BC}
+  - {name: BRCphobic, source_species: OC}
+  - {name: BRCphilic, source_species: OC}
+  - {name: SO2, source_species: SO2}
+  - {name: NH3, source_species: NH3}

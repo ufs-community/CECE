@@ -1,0 +1,20 @@
+schema_version: 1
+status: blocked
+production_acceptance: false
+purpose: >-
+  Tracks independent NOAA ABI/VIIRS reference scenes and approved tolerances
+  required for derivation acceptance. Existing RAVE product crops and synthetic
+  arithmetic fixtures are not independent sensor-to-emissions references.
+algorithm_manifest: ../../../data/fire/rave_atbd_2_1_manifest.yaml
+reference_scenes: []
+required_before_comparison:
+  - Immutable ABI and VIIRS input identities, geometry, QA, times, coverage and hashes.
+  - Compatible algorithm, ancillary and expected-output identities and hashes.
+  - Documented redistribution rights and geographic applicability.
+  - Independently sourced expected energy and eleven-species outputs.
+  - Per-variable units and numerical tolerances approved before comparison.
+  - Explicit reconstruction, cutoff, age, overlap and high-latitude applicability.
+blocker: >-
+  No independent, compatible sensor scenes and approved numerical tolerances
+  have been obtained. Do not populate expectations from CECE outputs or claim
+  NOAA scientific acceptance.

@@ -562,6 +562,49 @@ double FireBulkInventory::SpeciesBudgetKg(FireBulkSpecies species) const {
     return total;
 }
 
+FireBulkInventory SplitFireProductByIgbp(const FireBulkInventory& inventory, const FireIgbpGrid& igbp,
+                                        const std::array<FireComponentProfile, 3>& profiles) {
+    const auto& input = inventory.Data();
+    const auto cells = input.identity.Metadata().grid_definition->CellCount();
+    if (input.component_ids.size() != 1 || input.unprofiled_component_ids.size() != 1 || !input.component_profiles.empty()) {
+        throw std::invalid_argument("IGBP splitting requires exactly one unprofiled product component");
+    }
+    if (igbp.source_grid_sha256 != input.identity.Metadata().grid_definition->Definition().grid_sha256 || igbp.classes.size() != cells) {
+        throw std::invalid_argument("IGBP class grid must match the source inventory grid");
+    }
+    for (const auto& profile : profiles) {
+        if (profile.biome != igbp.identity) {
+            throw std::invalid_argument("IGBP component biome identities must match the class map identity");
+        }
+    }
+    if (input.mass_kg.size() > std::numeric_limits<std::size_t>::max() / 3) {
+        throw std::invalid_argument("IGBP component dimensions overflow");
+    }
+    FireBulkInventoryData result = input;
+    result.component_ids.clear();
+    result.unprofiled_component_ids.clear();
+    result.component_profiles.clear();
+    result.mass_kg.assign(input.mass_kg.size() * 3, 0.0);
+    constexpr std::array<std::string_view, 3> names{"forest", "grassland", "cropland"};
+    for (std::size_t component = 0; component < names.size(); ++component) {
+        const auto id = input.component_ids.front() + "-igbp-" + std::string(names[component]);
+        result.component_ids.push_back(id);
+        result.component_profiles.emplace(id, profiles[component]);
+    }
+    for (std::size_t cell = 0; cell < cells; ++cell) {
+        const int category = igbp.classes[cell];
+        if (category < 1 || category > 17) {
+            throw std::invalid_argument("IGBP class must be in [1,17] for every source grid cell");
+        }
+        const std::size_t component = category <= 5 ? 0 : (category == 12 || category == 14 ? 2 : 1);
+        for (std::size_t species = 0; species < input.species.size(); ++species) {
+            result.mass_kg[(component * input.species.size() + species) * cells + cell] =
+                input.mass_kg[species * cells + cell];
+        }
+    }
+    return FireBulkInventory(std::move(result));
+}
+
 FireProductEmissionsInterval::FireProductEmissionsInterval(FireProductEmissionsIntervalData data) : data_(std::move(data)) {
     const auto invalid = [&](std::string_view reason) {
         throw std::invalid_argument("Fire product '" + data_.product_identity.product_id + "': " + std::string(reason));

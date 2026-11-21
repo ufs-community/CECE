@@ -1,0 +1,76 @@
+schema_version: 1
+profile_id: rave-atbd-2.1-unscaled
+status: blocked
+production_eligible: false
+purpose: >-
+  Provenance and outstanding scientific prerequisites for the proposed RAVE
+  derivation profile. This manifest does not install a runtime profile.
+
+algorithm_document:
+  title: Regional Advanced Baseline Imager and Visible Infrared Imaging Radiometer Suite Emissions Algorithm Theoretical Basis Document
+  version: "2.1"
+  publication_date: "2024-09-03"
+  source_url: https://www.ospo.noaa.gov/resources/documents/pdf/RAVE_ATBD.pdf
+  content_sha256: e04e8e295128f5b3e3850532007b28109f014f0d3306c09dd51cc86c2d391751
+  inspected_at: "2026-11-20"
+  local_distribution: false
+  redistribution:
+    permitted: null
+    basis: Redistribution permission for the document and derived assets has not been verified.
+  notes: >-
+    Hash identifies the document obtained from the source URL on the inspection
+    date, not the algorithm software, ancillary tables, or reference outputs.
+    The separate NOAA STAR URL listed in the asset registry returned HTTP 403
+    during this inspection; equivalence between the two files is unverified.
+
+applicability:
+  emissions_factors: CONUS; global extrapolation is not established.
+  analysis_grid: "0.03-degree longitude/latitude grid, described as approximately 3 km"
+  source_sections: ["1.2.1.3", "2.3.1", "2.3.2"]
+  high_latitude: >-
+    Section 2.3.1.1.1 describes redistribution to eight neighbors using VIIRS
+    weights, but does not specify enough detail to implement and validate the
+    procedure. High-latitude operation remains unsupported without a verified
+    rule and reference cases.
+
+scientific_review:
+  - id: inconsistent_cloud_threshold
+    status: blocked
+    evidence: >-
+      Section 2.3.1.1.1 says correction is not conducted above 95% cloud
+      fraction, while section 2.3.3 says correction is conducted above 95%.
+      Resolve against the verified implementation and reference scenes rather
+      than choosing a rule by assumption.
+  - id: emission_factor_table_caption
+    status: blocked
+    evidence: >-
+      Section 2.3.2 and Table 2 describe eight species but the displayed table
+      contains eleven rows. Verify all rows, units and associated deployed
+      tables independently before installing production coefficients.
+  - id: causal_policy
+    status: blocked
+    evidence: >-
+      Retrospective reconstruction does not establish a causal algorithm.
+      An independently verified causal profile is required for causal use.
+
+required_assets:
+  - id: abi-and-viirs-reference-scenes
+    status: blocked
+    reason: Independent input scenes, expected results, rights and approved per-variable tolerances are not yet available.
+  - id: land-cover-and-ecoregion
+    status: blocked
+    reason: >-
+      Section 1.2.1.3 describes 2019 MODIS land cover aggregated to five
+      classes and North American EPA Level I ecoregions. Exact compatible map
+      bytes, processing method, version, rights and checksums remain unverified.
+  - id: diurnal-and-burn-duration
+    status: blocked
+    reason: Compatible versioned climatology tables, time basis, coverage and checksums have not been verified.
+  - id: observation-geometry-and-quality
+    status: blocked
+    reason: Compatible parallax, geolocation, persistent-anomaly, cloud and VIIRS pixel-area assets need verification.
+  - id: emission-and-scaling-tables
+    status: blocked
+    reason: Deployed table bytes, units, biome mappings, scaling applicability and independent values need verification.
+
+reference_manifest: ../../tests/data/fire/frp_reference_manifest.yaml

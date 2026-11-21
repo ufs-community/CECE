@@ -179,6 +179,16 @@ class FireBulkInventory {
     FireBulkInventoryData data_;
 };
 
+struct FireIgbpGrid {
+    std::string source_grid_sha256;
+    FireProfileIdentity identity;
+    std::vector<int> classes;
+};
+
+// Profiles are ordered forest, grassland/savanna, cropland.
+FireBulkInventory SplitFireProductByIgbp(const FireBulkInventory& inventory, const FireIgbpGrid& igbp,
+                                        const std::array<FireComponentProfile, 3>& profiles);
+
 enum class FireProductQuantityKind { IntervalMass, MeanRate, Flux };
 enum class FireProductSpeciesAvailability { Available, Unavailable };
 enum class FireProductChemistryState { Bulk, TargetSpecific };

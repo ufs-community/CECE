@@ -15,6 +15,7 @@ enum class FireMappingBasis { Mass, Molar, CarbonMolar, Number };
 enum class FireMappingFactorSemantics { Partition, IndependentCoefficients };
 enum class FireSourceDispositionKind { Mapped, DiagnosticOnly, Excluded };
 enum class FireOcOmPolicyKind { PreserveOc, ConvertWithFactor };
+enum class FireNoxPartitionBasis { Mass, MolarEquivalent };
 
 struct FireTargetSpecies {
     std::string name;
@@ -44,6 +45,7 @@ struct FireNoxPartition {
     double no2_mass_fraction;
     std::string no_target_species;
     std::string no2_target_species;
+    FireNoxPartitionBasis partition_basis = FireNoxPartitionBasis::Mass;
 };
 
 struct FireOcOmPolicy {
