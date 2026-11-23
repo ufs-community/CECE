@@ -9,10 +9,23 @@
 
 #include <Kokkos_Core.hpp>
 #include <axis/axis.hpp>
+#include <optional>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
+#include "cece/cece_grid_geometry.hpp"
+
 namespace cece::io {
+
+/// Stage 2: resolve documented names to one explicit method configuration.
+RegridMethodSettings resolve_regrid_method(const std::string& method_name);
+
+/// Stage 2: validate coordinate shape/range and method prerequisites without
+/// constructing meshes or generating weights.
+ValidatedRegridRequest validate_regrid_prerequisites(const GridGeometry& source, const GridGeometry& destination,
+                                                     const RegridMethodSettings& settings, int j0, int j1,
+                                                     RegridBackend backend = RegridBackend::Host);
 
 /// Build an AXIS UnstructuredMesh from rectilinear coordinate arrays or a FV3 NetCDF grid specification file.
 /// The band starts at global row `j0` and spans `nband` rows.
@@ -81,9 +94,15 @@ struct RegridPlan {
     /// build_regrid_plan always sets it for built plans.
     int src_j0 = 0;
     int src_rows = 0;
-    bool identity = false;  ///< copy source cells directly; no AXIS weights are applied
-    bool built = false;     ///< true once weights are generated
+    std::uint64_t source_geometry_revision = 0;  ///< fingerprint of the loaded source snapshot
+    bool identity = false;                       ///< copy source cells directly; no AXIS weights are applied
+    bool built = false;                          ///< true once weights are generated
 };
+
+/// Commit a locally built candidate plan only after collective readiness has
+/// succeeded on every rank. Returns true only when the cache was updated.
+bool publish_regrid_plan_if_ready(bool all_ranks_ready, const std::string& key, std::optional<RegridPlan>& candidate,
+                                  std::unordered_map<std::string, RegridPlan>& plans);
 
 /// Return true when source and target longitude/latitude coordinates describe
 /// the same ordered spherical grid. Rectilinear (lon[nx], lat[ny]) and flattened curvilinear
@@ -97,10 +116,11 @@ bool same_spherical_grid_coordinates(int nx, int ny, const std::vector<double>& 
 /// AMIO dataset to construct the (global) source mesh, builds the destination
 /// sub-mesh for the band, and generates the sparse weight matrix.
 ///
-/// @return true on success; false if coordinates could not be read.
+/// @return true on success; geometry and prerequisite failures throw RegridError.
 bool build_regrid_plan(amio_dataset_handle read_dataset, int nx, int ny, const std::vector<double>& target_lons,
-                       const std::vector<double>& target_lats, const std::string& map_algo, int j0, int j1, const std::string& gridspec_file,
-                       RegridPlan& plan);
+                       const std::vector<double>& target_lats, const std::string& map_algo, int j0, int j1, const std::string& src_gridspec_file,
+                       const std::string& dst_gridspec_file, RegridPlan& plan, const GeometrySettings& source_settings = {},
+                       const GeometrySettings& destination_settings = {});
 
 /// Apply a previously built plan to one source field snapshot, producing the
 /// rank-local destination slice `local_dst` of size nx * (j1 - j0), laid out
