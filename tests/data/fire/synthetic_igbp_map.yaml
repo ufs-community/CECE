@@ -1,8 +1,15 @@
 schema_version: 1
 purpose: Synthetic IGBP classes on the GBBEPx test crop; not observational land cover.
+production_use: false
+axis_order: [latitude, longitude]
+longitude_convention: minus_180_to_180
+missing_policy: error
 grid:
   longitude_deg: [-65.1, -65.0]
   latitude_deg: [-40.8, -40.7]
   class_ids:
     - [1, 10]
     - [12, 14]
+classification_case:
+  class_ids: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+  expected_components: [forest, forest, forest, forest, forest, grassland, grassland, grassland, grassland, grassland, grassland, cropland, grassland, cropland, grassland, grassland, grassland]

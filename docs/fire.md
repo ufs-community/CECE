@@ -338,6 +338,16 @@ inconsistencies. [The FRP reference manifest](../tests/data/fire/frp_reference_m
 records the missing independent sensor scenes and preapproved tolerances.
 Neither manifest installs or certifies a derivation profile.
 
+The candidate NOAA vegetation file's bounded header identifies a 2020 VIIRS
+17-class IGBP product, with class 17 water; it does not establish compatibility
+with RAVE's described 2019 MODIS ancillary, verified grid alignment, or
+redistribution rights. The synthetic splitter assigns class 17 to its
+grassland component as a test contract, not an approved water-fire policy.
+Missing or invalid classes are rejected even for zero-fire cells. No ancillary
+loader or production biome mapping is implied by these synthetic tests.
+The RAVE reference manifest also records a candidate CC-BY-4.0 reprocessed
+output archive; paired sensor inputs and approved tolerances remain missing.
+
 [The fixture schema](../tests/data/fire/fixture_schema.yaml) requires provenance,
 redistribution information and independent expected values/tolerances.
 [The constant-power fixture](../tests/data/fire/synthetic_interval.yaml) contains

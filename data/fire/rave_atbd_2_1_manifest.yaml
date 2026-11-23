@@ -74,3 +74,26 @@ required_assets:
     reason: Deployed table bytes, units, biome mappings, scaling applicability and independent values need verification.
 
 reference_manifest: ../../tests/data/fire/frp_reference_manifest.yaml
+
+candidate_vegetation_source:
+  source_url: https://noaa-oar-arl-nacc-pds.s3.amazonaws.com/inputs/geo-files/canopy_vegetation_type.0.01.nc
+  status: metadata_only_not_approved
+  object_size_bytes: 5184876322
+  last_modified: "2025-02-27T18:19:14Z"
+  etag: "866f3ab10cb5820cbd394f8ae052b730-619"
+  header_byte_range: "0-65535"
+  header_sha256: f9ad1be53925e4471a33f6081b45d6c5d04ed7326d5793bc933c6d2cf10dba31
+  variable: canopy_vegetation_type
+  dimensions: [time, jdim, idim]
+  shape: [1, 18000, 36000]
+  data_type: float64
+  missing_value: 9.99e+20
+  time_units: days since 2020-01-01
+  header_description: 2020 VIIRS IGBP surface type product (17 types)
+  notes: >-
+    Header describes classes 1-17, including water as 17. The units attribute
+    is "m" and does not establish categorical semantics. Coordinate values,
+    class values, aggregation, provenance, redistribution rights and a full
+    content checksum have not been verified. This VIIRS 2020 source is not
+    established as the ATBD's compatible 2019 MODIS ancillary. The multipart
+    ETag is an object identifier, not a content checksum.

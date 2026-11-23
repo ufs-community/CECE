@@ -7,6 +7,20 @@ purpose: >-
   arithmetic fixtures are not independent sensor-to-emissions references.
 algorithm_manifest: ../../../data/fire/rave_atbd_2_1_manifest.yaml
 reference_scenes: []
+candidate_output_dataset:
+  record_url: https://zenodo.org/records/17362980
+  description: >-
+    NOAA/SDSU reprocessed RAVE v2.0 daily files with hourly FRP, FRE and
+    emissions, plus IGBP, EPA Level I ecoregions and grid area. These are
+    candidate expected products, not independently paired sensor input scenes.
+  license: CC-BY-4.0
+  archive:
+    name: RAVE_V2_2020.zip
+    size_bytes: 308847336
+    publisher_md5: ff0b4290cdaad6d104cf02dc3478e389
+  verification: >-
+    Metadata inspected only; archive, contents, compatibility, exact ancillary
+    versions, sensor inputs and independent reference pairs remain unverified.
 required_before_comparison:
   - Immutable ABI and VIIRS input identities, geometry, QA, times, coverage and hashes.
   - Compatible algorithm, ancillary and expected-output identities and hashes.
