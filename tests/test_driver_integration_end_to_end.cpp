@@ -529,15 +529,17 @@ inline std::string RenderConfig(const std::filesystem::path& config_path, const 
 // the full file sequence (cadence) retry until the run completed.
 inline bool RunDriver(const std::filesystem::path& driver, const std::filesystem::path& config, const std::filesystem::path& out_dir,
                       int max_attempts = 8, size_t min_files = 1, int ranks = 1) {
-    const std::string launcher =
-        ranks > 1 ? std::string(CECE_DIAGNOSTICS_MPIEXEC) + " " + CECE_DIAGNOSTICS_MPI_NP_FLAG + " " + std::to_string(ranks) + " " : "";
+    const std::string launcher = ranks > 1 ? std::string(CECE_DIAGNOSTICS_MPIEXEC) + " " + CECE_DIAGNOSTICS_MPI_NP_FLAG + " " +
+                                                 std::to_string(ranks) + " " + CECE_DIAGNOSTICS_MPI_PREFLAGS + " "
+                                           : "";
     const std::string command = launcher + driver.string() + " " + config.string();
+    const auto log_path = out_dir / "driver.log";
     for (int attempt = 0; attempt < max_attempts; ++attempt) {
         std::error_code ec;
         std::filesystem::remove_all(out_dir, ec);
         std::filesystem::create_directories(out_dir, ec);
         // NOLINTNEXTLINE(concurrency-mt-unsafe) - single-threaded test main
-        std::system((command + " >/dev/null 2>&1").c_str());
+        std::system((command + " > \"" + log_path.string() + "\" 2>&1").c_str());
         size_t produced = 0;
         if (!std::filesystem::is_empty(out_dir)) {
             for (const auto& entry : std::filesystem::directory_iterator(out_dir)) {
@@ -549,6 +551,11 @@ inline bool RunDriver(const std::filesystem::path& driver, const std::filesystem
         if (produced >= min_files) {
             return true;
         }
+    }
+    std::ifstream log(log_path);
+    std::cerr << "Driver command: " << command << '\n';
+    if (log) {
+        std::cerr << log.rdbuf();
     }
     return false;
 }

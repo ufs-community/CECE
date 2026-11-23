@@ -771,6 +771,7 @@ target_link_libraries(
 )
 
 if(TARGET test_driver_integration_end_to_end)
+  string(JOIN " " _cece_diagnostics_mpi_preflags ${MPIEXEC_PREFLAGS})
   add_dependencies(test_driver_integration_end_to_end cece_standalone_driver)
   target_compile_definitions(
     test_driver_integration_end_to_end
@@ -779,6 +780,7 @@ if(TARGET test_driver_integration_end_to_end)
       CECE_DIAGNOSTICS_CONFIG="${PROJECT_SOURCE_DIR}/examples/cece_config_diagnostics.yaml"
       CECE_DIAGNOSTICS_MPIEXEC="${MPIEXEC_EXECUTABLE}"
       CECE_DIAGNOSTICS_MPI_NP_FLAG="${MPIEXEC_NUMPROC_FLAG}"
+      CECE_DIAGNOSTICS_MPI_PREFLAGS="${_cece_diagnostics_mpi_preflags}"
   )
 endif()
 
