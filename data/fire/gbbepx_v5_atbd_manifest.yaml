@@ -1,0 +1,63 @@
+schema_version: 1
+profile_id: gbbepx-v5
+status: blocked
+production_eligible: false
+purpose: >-
+  Records evidence and unresolved prerequisites for a GBBEPx V5 derivation
+  reference. This manifest does not install a runtime profile or V5 decoder.
+
+algorithm_document:
+  title: The Global Biomass Burning Emissions Product from VIIRS I-band Observations
+  version: "5"
+  source_url: https://www.star.nesdis.noaa.gov/pub/smcd/akhuff/ACC_Product_Documentation/GBBEPx_V5_ATBD_2024.pdf
+  content_sha256: null
+  access_check: "2026-11-23"
+  access_status: HTTP 403
+  evidence_limit: >-
+    The document itself could not be retrieved or hashed. The notes below are
+    based on search-indexed excerpts and must be checked against the complete,
+    immutable ATBD before they are used as numerical acceptance criteria.
+  redistribution:
+    permitted: null
+    basis: Document and derived-table redistribution rights have not been verified.
+
+upstream_active_fire_document:
+  documentation_index: https://www.star.nesdis.noaa.gov/jpss/Docs.php
+  source_url: https://www.star.nesdis.noaa.gov/jpss/documents/ATBD/ATBD_Iband_ActiveFires_v1.0.pdf
+  title: Algorithm Theoretical Basis Document for NOAA NDE VIIRS I-band (375m) Active Fire
+  version: "1.0"
+  publication_date: "2020-06"
+  content_sha256: 74c696a48f7ac47cbdb641675960a2646057d424881ee4b681a9d7c046f21013
+  scope: >-
+    Upstream VIIRS active-fire product, not the GBBEPx V5 emissions algorithm
+    or its coefficient table. Accessed and hashed on 2026-11-23.
+  redistribution:
+    permitted: null
+    basis: Redistribution rights have not been verified.
+
+methodology:
+  direct_viirs_frp: >-
+    Search-indexed excerpts say V5 estimates emissions directly from VIIRS FRP
+    because two daily VIIRS observations do not determine FRE. It uses
+    cloud-adjusted FRP and empirically derived QFED-referenced coefficients,
+    rather than a required FRP-to-FRE-to-dry-matter conversion.
+  blending: >-
+    Excerpts describe separate VIIRS-satellite emission estimates and blending.
+    Verify exact equations, ordering, valid-data rules, and whether FRP and
+    emission blending use the same policy in the complete ATBD.
+  species: >-
+    NOAA's product page lists BC, CO, CO2, OC, PM2.5, SO2, NH3, and NOx in
+    the 0.1-degree product; verify the exact V5 ATBD and sample variables,
+    units, coefficient availability, and grid-specific output set.
+  product_page: https://www.ospo.noaa.gov/products/land/gbbepx/index.html
+
+required_before_reference:
+  - Retrieve and SHA256-pin the complete V5 ATBD and record redistribution rights.
+  - Verify equation 8 and cloud, temporal and satellite-blending rules against the document and deployed implementation.
+  - Obtain species-specific QFED-referenced coefficients, units, satellite, biome and geographic applicability.
+  - Obtain independent input and output scenes with hashes and preapproved numerical tolerances.
+  - Verify representative V5 product metadata before implementing or claiming V5 decoding.
+blocker: >-
+  V5 coefficient and equation transcription, independent reference scenes,
+  redistribution rights and numerical approval remain unavailable. V4r0
+  product availability does not establish a V5 data or science contract.

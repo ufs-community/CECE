@@ -33,6 +33,47 @@ TEST(test_fire_science, SyntheticReferenceArithmeticIsInternallyConsistent) {
     EXPECT_DOUBLE_EQ(input["combustion_kg_per_mj"].as<double>(), cece::test::fire::kSyntheticFactors.combustion_kg_per_mj);
 }
 
+TEST(test_fire_science, AtbdForestIllustrationHasConsistentPrecedenceAndDimensionalReference) {
+    const auto fixture = YAML::LoadFile(std::string(CECE_SOURCE_DIR) + "/tests/data/fire/rave_atbd_forest_reference.yaml");
+    EXPECT_EQ(fixture["kind"].as<std::string>(), "synthetic");
+    EXPECT_FALSE(fixture["production_use"].as<bool>());
+    const auto input = fixture["inputs"];
+    const auto expected = fixture["expected"];
+    ASSERT_EQ(expected.size(), 4);
+    EXPECT_EQ(expected[0]["units"].as<std::string>(), "MW");
+    EXPECT_EQ(expected[1]["units"].as<std::string>(), "MJ");
+    EXPECT_EQ(expected[2]["units"].as<std::string>(), "kg");
+    EXPECT_EQ(expected[3]["units"].as<std::string>(), "kg");
+    const auto abi = input["abi_calibrated_frp_mw"].as<std::vector<double>>();
+    const auto viirs = input["viirs_corrected_frp_mw"].as<std::vector<double>>();
+    const auto available = input["viirs_available"].as<std::vector<bool>>();
+    const auto fused = expected[0]["values"].as<std::vector<double>>();
+    ASSERT_EQ(abi.size(), 6);
+    ASSERT_EQ(viirs.size(), abi.size());
+    ASSERT_EQ(available.size(), abi.size());
+    ASSERT_EQ(fused.size(), abi.size());
+    EXPECT_EQ(input["slot_duration_seconds"].as<int>(), 600);
+    EXPECT_DOUBLE_EQ(input["combustion_coefficient_kg_per_mj"].as<double>(), 0.368);
+    for (std::size_t i = 0; i < abi.size(); ++i) {
+        EXPECT_DOUBLE_EQ(fused[i], available[i] ? viirs[i] : abi[i]) << i;
+    }
+    double fre = 0;
+    for (const double power : fused) fre += power * input["slot_duration_seconds"].as<double>();
+    EXPECT_DOUBLE_EQ(fre, expected[1]["values"][0].as<double>());
+    const double dry_matter = fre * input["combustion_coefficient_kg_per_mj"].as<double>();
+    EXPECT_NEAR(dry_matter, expected[2]["values"][0].as<double>(), 1e-10);
+    const auto names = input["species"].as<std::vector<std::string>>();
+    const auto factors = input["forest_mean_emission_factors_g_per_kg"].as<std::vector<double>>();
+    const auto masses = expected[3]["values"].as<std::vector<double>>();
+    ASSERT_EQ(names.size(), cece::test::fire::kSpecies.size());
+    ASSERT_EQ(factors.size(), names.size());
+    ASSERT_EQ(masses.size(), names.size());
+    for (std::size_t i = 0; i < names.size(); ++i) {
+        EXPECT_EQ(names[i], cece::test::fire::kSpecies[i]);
+        EXPECT_NEAR(dry_matter * factors[i] / 1000.0, masses[i], 1e-9) << names[i];
+    }
+}
+
 TEST(test_fire_science, SyntheticElevenSpeciesFluxNormalizesToIndependentMasses) {
     const auto fixture = YAML::LoadFile(std::string(CECE_SOURCE_DIR) + "/tests/data/fire/synthetic_interval.yaml");
     const auto grid = std::make_shared<const cece::FireGrid>(cece::FireGridDefinition{
@@ -63,10 +104,24 @@ TEST(test_fire_science, SyntheticElevenSpeciesFluxNormalizesToIndependentMasses)
     for (std::size_t i = 0; i < names.size(); ++i) {
         EXPECT_NEAR(product.MassKg()[i], masses[i].as<double>(), 1e-12) << names[i].as<std::string>();
     }
+    for (std::size_t i = 0; i < names.size(); ++i) {
+        const auto species = data.species[i];
+        data.quantity_semantics.at(species) = {cece::FireProductQuantityKind::MeanRate, "kg s-1"};
+        data.source_values[i] = masses[i].as<double>() / 100.0;
+    }
+    const cece::FireProductEmissionsInterval rate_product(data);
+    for (std::size_t i = 0; i < names.size(); ++i) {
+        EXPECT_NEAR(rate_product.MassKg()[i], masses[i].as<double>(), 1e-12) << names[i].as<std::string>();
+    }
+    data.quantity_semantics.at(data.species[0]).units = "kg m-2 s-1";
+    EXPECT_THROW(cece::FireProductEmissionsInterval{data}, std::invalid_argument);
+    data.quantity_semantics.at(data.species[0]).units = "kg s-1";
     data.quality_state[0] = cece::FireQualityState::ValidZero;
     EXPECT_THROW(cece::FireProductEmissionsInterval{data}, std::invalid_argument);
     std::fill(data.source_values.begin(), data.source_values.end(), 0.0);
-    EXPECT_NO_THROW(cece::FireProductEmissionsInterval{data});
+    const cece::FireProductEmissionsInterval zero_product(data);
+    EXPECT_EQ(zero_product.Data().quality_state[0], cece::FireQualityState::ValidZero);
+    for (const double mass : zero_product.MassKg()) EXPECT_DOUBLE_EQ(mass, 0.0);
     data.quality_state[0] = cece::FireQualityState::Unavailable;
     EXPECT_THROW(cece::FireProductEmissionsInterval{data}, std::invalid_argument);
 }

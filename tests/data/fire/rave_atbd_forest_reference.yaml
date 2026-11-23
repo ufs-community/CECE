@@ -1,0 +1,51 @@
+schema_version: 1
+fixture_id: rave-atbd-2.1-forest-illustrative-v1
+kind: synthetic
+production_use: false
+provenance:
+  reference: https://www.ospo.noaa.gov/resources/documents/pdf/RAVE_ATBD.pdf
+  version: "2.1"
+  content_sha256: e04e8e295128f5b3e3850532007b28109f014f0d3306c09dd51cc86c2d391751
+  redistribution:
+    permitted: false
+    basis: Document and derived-table redistribution rights have not been verified.
+  independent_reference: >-
+    Hypothetical already-calibrated ABI and already-cloud-corrected VIIRS
+    values on one forest grid cell, not a sensor scene. The forest means are
+    transcribed from ATBD Table 2; deployment and table-caption consistency
+    remain unverified. Hand calculation uses section 2.3.1.2's VIIRS
+    precedence and section 2.3.2's 600-second bins and equations 5-7.
+    No cloud, parallax, calibration, temporal matching or gap filling is tested.
+inputs:
+  slot_duration_seconds: 600
+  abi_calibrated_frp_mw: [2, 2, 2, 2, 2, 2]
+  viirs_corrected_frp_mw: [0, 0, 4, 0, 0, 0]
+  viirs_available: [false, false, true, false, false, false]
+  combustion_coefficient_kg_per_mj: 0.368
+  species: [CO2, CO, CH4, PM25, TPM, SO2, OC, BC, NOX, NH3, VOC]
+  forest_mean_emission_factors_g_per_kg: [1598.5, 88.6, 4.92, 12.8, 18.4, 0.70, 6.37, 0.55, 1.91, 0.84, 13.4]
+expected:
+  - quantity: fused_frp
+    units: MW
+    values: [2, 2, 4, 2, 2, 2]
+    method: VIIRS wins at the coincident slot; ABI is used in the other five.
+    relative_tolerance: 1.0e-6
+    zero_absolute_tolerance: 1.0e-12
+  - quantity: fre
+    units: MJ
+    values: [8400]
+    method: "(5 * 2 MW + 4 MW) * 600 s; 1 MW s = 1 MJ."
+    relative_tolerance: 1.0e-6
+    zero_absolute_tolerance: 1.0e-12
+  - quantity: dry_matter
+    units: kg
+    values: [3091.2]
+    method: 8400 MJ times 0.368 kg/MJ.
+    relative_tolerance: 1.0e-6
+    zero_absolute_tolerance: 1.0e-12
+  - quantity: species_mass
+    units: kg
+    values: [4941.2832, 273.88032, 15.208704, 39.56736, 56.87808, 2.16384, 19.690944, 1.70016, 5.904192, 2.596608, 41.42208]
+    method: 3091.2 kg times each forest mean in g/kg divided by 1000.
+    relative_tolerance: 1.0e-6
+    zero_absolute_tolerance: 1.0e-12

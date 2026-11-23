@@ -9,7 +9,7 @@ identity:
 assets:
 - name: verified-factor-manifest
   path: cb6_fire_factors_manifest.yaml
-  sha256: 9663de2c90e4ef0a75b7309b8de21b0b84b93130860a28997fd9471848741469
+  sha256: 3611c9281e3cadcf24486b38d82a83f1a4f8612df9e22c6a95881660f72154f1
 - name: pinned-aqm-configuration-excerpt
   path: cb6_fire_config.txt
   sha256: 97aad6bc1a59e93f95f386e031462ce550ceb15d2703720a6bac200b7e4fd943

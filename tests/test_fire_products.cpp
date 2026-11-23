@@ -277,6 +277,13 @@ TEST(test_fire_products, PreparedRuntimeLoadsProductWithoutBiomeOrCompositionPro
     ASSERT_NE(adapter, nullptr);
     adapter->SetTargetGrid(source_metadata.grid_definition);
     adapter->Initialize(config, 1, 1, 1);
+    EXPECT_THROW(adapter->PrepareInterval({cece::FireUtcTime("2022-07-01T00:00:00Z"),
+                                           cece::FireUtcTime("2022-07-01T06:00:00Z"),
+                                           cece::FireUtcTime("2022-07-03T00:00:01Z"), 21600}),
+                 std::invalid_argument);
+    EXPECT_THROW(adapter->PrepareInterval({cece::FireUtcTime("2022-07-01T00:00:00Z"),
+                                           cece::FireUtcTime("2022-07-01T05:59:59Z"), std::nullopt, 21599}),
+                 std::invalid_argument);
     const auto inventory_view = adapter->PrepareInterval({cece::FireUtcTime("2022-07-01T00:00:00Z"),
                                                           cece::FireUtcTime("2022-07-01T06:00:00Z"),
                                                           std::nullopt, 21600});

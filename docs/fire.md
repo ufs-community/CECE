@@ -348,11 +348,27 @@ loader or production biome mapping is implied by these synthetic tests.
 The RAVE reference manifest also records a candidate CC-BY-4.0 reprocessed
 output archive; paired sensor inputs and approved tolerances remain missing.
 
+The [GBBEPx V5 evidence manifest](../data/fire/gbbepx_v5_atbd_manifest.yaml)
+records a distinct algorithm: available ATBD excerpts describe direct VIIRS
+FRP-to-emissions estimates calibrated to QFED, not the RAVE FRE-to-dry-matter
+chain. The complete V5 ATBD and coefficients have not been verified, and the
+existing V4r0 decoder does not establish V5 support. Supplied product
+emissions continue to bypass all FRP-to-emissions conversion.
+NOAA's linked VIIRS I-band active-fire ATBD documents an upstream sensor
+product; it is not the V5 emissions ATBD.
+
 [The fixture schema](../tests/data/fire/fixture_schema.yaml) requires provenance,
 redistribution information and independent expected values/tolerances.
 [The constant-power fixture](../tests/data/fire/synthetic_interval.yaml) contains
 deliberately artificial coefficients and hand-derived expectations. Its content
 digest is recorded in the registry. It must not be used in production.
+
+The [ATBD forest illustration](../tests/data/fire/rave_atbd_forest_reference.yaml)
+uses hypothetical already-corrected sensor values and transcribed ATBD forest
+means to check the stated precedence and dimensional arithmetic. It is not a
+test of CECE sensor fusion or derivation, a deployed-table verification, or a
+production profile. Document and derived-table redistribution rights remain
+unverified; the fixture records the conservative no-permission status.
 
 The native fire selectors and Python configuration tests exercise fixture
 consistency, option/input validation, typed profile loading/mapping,

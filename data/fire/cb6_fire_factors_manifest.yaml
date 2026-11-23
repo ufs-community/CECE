@@ -124,7 +124,7 @@ summary:
 # Dimensional Chain (from RAVE ATBD)
 dimensional_chain:
   status: "Separate RAVE derivation reference; not part of the CB6 product-factor verification."
-  equation_1: "FRE_MJ = integral(FRP_MW * dt_seconds) / 1,000,000"
+  equation_1: "FRE_MJ = integral(FRP_MW * dt_seconds)"
   equation_2: "dry_matter_kg = FRE_MJ * combustion_coefficient_kg_per_MJ"
   equation_3: "species_mass_kg = dry_matter_kg * emission_factor_kg_per_kg"
   
