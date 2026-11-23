@@ -570,6 +570,7 @@ add_library(
   cece_driver
   SHARED
   src/driver/cece_helm_graph.cpp
+  src/driver/cece_grid_geometry.cpp
   src/driver/cece_regridder_utils.cpp
   src/driver/cece_standalone_writer.cpp
   src/driver/cece_core_local_time_init.cpp

@@ -31,34 +31,11 @@
 #include <string>
 #include <vector>
 
+#include "band_boundary_common.hpp"
 #include "cece/cece_regridder_utils.hpp"
 
 namespace cece::io {
 namespace {
-
-int band_start(int ny, int size, int r) {
-    const int band_base = ny / size;
-    const int band_rem = ny % size;
-    return r * band_base + std::min(r, band_rem);
-}
-
-RegridPlan MakePlanFromMeshes(int src_nx, int src_ny, const axis::topology::UnstructuredMesh<Kokkos::HostSpace>& src_mesh,
-                              const axis::topology::UnstructuredMesh<Kokkos::HostSpace>& dst_mesh, int j0, int j1) {
-    RegridPlan plan;
-    plan.file_nx = src_nx;
-    plan.file_ny = src_ny;
-    plan.j0 = j0;
-    plan.j1 = j1;
-    plan.identity = false;
-    axis::solver::RegridConfig cfg;
-    cfg.method = axis::solver::InterpolationMethod::Conservative1stOrder;
-    cfg.norm_type = axis::solver::NormType::DstArea;
-    cfg.unmapped = axis::solver::UnmappedAction::Ignore;
-    plan.matrix = axis::solver::WeightGenerator::generate<Kokkos::HostSpace>(src_mesh, dst_mesh, cfg);
-    plan.matrix.to_csr();
-    plan.built = true;
-    return plan;
-}
 
 // A curvilinear (2-D) destination center field of shape ny x nx flattened
 // row-major (index j*nx + i). Longitude and latitude both vary in i and j, and
@@ -122,8 +99,21 @@ void check_curv_band_equals_global(int src_nx, int src_ny, const CurvGrid& dst, 
     // centers happen to be separable (e.g. dst_nx=2, phase=0), whereas explicit
     // corners always use great-circle edges.
     auto src_mesh_g = build_axis_mesh(src_nx, src_ny, src_rect_lons(src_nx), src_rect_lats(src_ny));
-    auto dst_mesh_g = build_band_mesh_curvilinear_with_global_corners(nx, 0, ny, dst.lon, dst.lat, dst.lon, dst.lat);
-    RegridPlan gplan = MakePlanFromMeshes(src_nx, src_ny, src_mesh_g, std::move(dst_mesh_g), 0, ny);
+    auto dst_mesh_g = build_axis_mesh(nx, ny, dst.lon, dst.lat);
+    if (size == 1) {
+        const auto dst_mesh_b = build_band_mesh_curvilinear_with_global_corners(nx, 0, ny, dst.lon, dst.lat, dst.lon, dst.lat);
+        const auto global_nodes = dst_mesh_g.node_coords();
+        const auto band_nodes = dst_mesh_b.node_coords();
+        RC_ASSERT(global_nodes.extent(0) == band_nodes.extent(0));
+        RC_ASSERT(global_nodes.extent(1) == band_nodes.extent(1));
+        for (std::size_t node = 0; node < global_nodes.extent(0); ++node)
+            for (std::size_t dim = 0; dim < global_nodes.extent(1); ++dim) RC_ASSERT(global_nodes(node, dim) == band_nodes(node, dim));
+        const auto global_meta = dst_mesh_g.geometry_metadata();
+        const auto band_meta = dst_mesh_b.geometry_metadata();
+        RC_ASSERT(global_meta.boundary_model == band_meta.boundary_model);
+        RC_ASSERT(global_meta.area_model == band_meta.area_model);
+    }
+    RegridPlan gplan = MakePlanFromMeshes(src_nx, src_ny, std::move(src_mesh_g), std::move(dst_mesh_g), 0, ny);
     std::vector<double> global;
     RC_ASSERT(apply_regrid_plan(gplan, 0, false, src.data(), src_nx, src_ny, nx, global));
 

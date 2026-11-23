@@ -44,6 +44,7 @@
 #include <string>
 
 #include "cece/cece_driver_facade.hpp"
+#include "stream_config_generator.hpp"
 
 namespace cece {
 
@@ -62,39 +63,6 @@ struct StreamKeyTestAccess {
     }
 };
 
-namespace {
-
-// Generate an arbitrary StreamConfig. Every field is populated with arbitrary
-// (but constrained-to-sane) values so the tests exercise the key derivation
-// against noise in the non-key fields. input_file_path and mapalgo are drawn
-// from a broad space (including empty strings and characters such as '|' and
-// path separators) to stress the concatenation formula.
-rc::Gen<StreamConfig> genStreamConfig() {
-    return rc::gen::apply(
-        [](std::string input_file_path, std::string input_var_name, std::string mapalgo, std::string cadence, std::string tintalgo,
-           std::string data_model, bool data_model_explicit, int amio_worker_threads, int amio_staging_buffer_count,
-           int amio_staging_buffer_capacity_bytes, int amio_prefetch_depth) {
-            StreamConfig cfg;
-            cfg.input_file_path = std::move(input_file_path);
-            cfg.input_var_name = std::move(input_var_name);
-            cfg.mapalgo = std::move(mapalgo);
-            cfg.cadence = std::move(cadence);
-            cfg.tintalgo = std::move(tintalgo);
-            cfg.data_model = std::move(data_model);
-            cfg.data_model_explicit = data_model_explicit;
-            cfg.amio_worker_threads = amio_worker_threads;
-            cfg.amio_staging_buffer_count = amio_staging_buffer_count;
-            cfg.amio_staging_buffer_capacity_bytes = amio_staging_buffer_capacity_bytes;
-            cfg.amio_prefetch_depth = amio_prefetch_depth;
-            return cfg;
-        },
-        rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(),
-        rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<bool>(), rc::gen::inRange(1, 65),
-        rc::gen::inRange(1, 65), rc::gen::inRange(1, 65), rc::gen::inRange(1, 65));
-}
-
-}  // namespace
-
 // ============================================================================
 // Property 1a: Concatenation correctness (Amendment 1 extended key)
 // Feature: regrid-per-stream, Property 1: StreamKey concatenation correctness
@@ -112,8 +80,10 @@ RC_GTEST_PROP(StreamKeyProperty, Property1_Concatenation, ()) {
     const StreamConfig cfg = *genStreamConfig();
     const std::string expected = cfg.input_file_path + "|" + cfg.data_model + "|" + std::to_string(cfg.amio_worker_threads) + "|" +
                                  std::to_string(cfg.amio_staging_buffer_count) + "|" + std::to_string(cfg.amio_staging_buffer_capacity_bytes) + "|" +
-                                 std::to_string(cfg.amio_prefetch_depth) + "|" + cfg.mapalgo;
-    RC_ASSERT(StreamKeyTestAccess::Key(cfg) == expected);
+                                 std::to_string(cfg.amio_prefetch_depth) + "|" + cfg.mapalgo + "|" + cfg.input_gridspec_file;
+    const std::string expected_with_geometry = expected + "|" + cfg.source_geometry.longitude_variable + "|" + cfg.source_geometry.latitude_variable +
+                                               "|" + std::to_string(static_cast<int>(cfg.source_geometry.reconstruction));
+    RC_ASSERT(StreamKeyTestAccess::Key(cfg) == expected_with_geometry);
 }
 
 // ============================================================================
@@ -133,6 +103,7 @@ RC_GTEST_PROP(StreamKeyProperty, Property1_EqualWhenPathAndAlgoMatch, ()) {
     // b copies a's full key tuple but varies everything else arbitrarily.
     StreamConfig b = *genStreamConfig();
     b.input_file_path = a.input_file_path;
+    b.input_gridspec_file = a.input_gridspec_file;
     b.data_model = a.data_model;
     b.amio_worker_threads = a.amio_worker_threads;
     b.amio_staging_buffer_count = a.amio_staging_buffer_count;

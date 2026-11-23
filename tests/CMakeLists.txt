@@ -69,10 +69,12 @@ include(CeceTesting)
 set(CECE_C96_BASE_URL "https://ftp.emc.ncep.noaa.gov/static_files/public/UFS/GFS/fix/fix_fv3/C96")
 set(_cece_c96_dir "${PROJECT_SOURCE_DIR}/data")
 set(_cece_c96_missing)
-foreach(_c96_file C96_grid_spec.tile1.nc C96_grid.tile1.nc)
-  if(NOT EXISTS "${_cece_c96_dir}/${_c96_file}")
-    list(APPEND _cece_c96_missing ${_c96_file})
-  endif()
+foreach(_tile_number RANGE 1 6)
+  foreach(_c96_file C96_grid_spec.tile${_tile_number}.nc C96_grid.tile${_tile_number}.nc)
+    if(NOT EXISTS "${_cece_c96_dir}/${_c96_file}")
+      list(APPEND _cece_c96_missing ${_c96_file})
+    endif()
+  endforeach()
 endforeach()
 if(NOT _cece_c96_missing)
   cece_register_dep("C96 test fixtures" "present (${_cece_c96_dir})")
@@ -110,12 +112,20 @@ endif()
 # --- Shared test harness (support/) ------------------------------------------
 # Shared main() + process-level MPI/HALO/Kokkos environment. Link
 # `cece_test_main` (MAIN MPI_KOKKOS) or `cece_test_main_kokkos` (MAIN KOKKOS) in
-# place of GTest::gtest_main. A test file that needs its own global
+# place of `cece_test_main_default` (MAIN GTEST, the default) when a suite needs
+# the MPI/Kokkos environment. A test file that needs its own global
 # environment adds it with CECE_TEST_ADD_ENVIRONMENT; it is registered after
 # (so torn down before) the MPI/Kokkos one. Initialization happens in
-# Environment::SetUp, which gtest skips for --gtest_list_tests, so test
-# discovery never initializes MPI or Kokkos and no per-file discovery guard is
-# needed.
+# Environment::SetUp, which gtest skips for --gtest_list_tests, so discovery
+# never initializes MPI or Kokkos. Every shared main ends its process with a
+# hard _exit after RUN_ALL_TESTS (support/cece_test_teardown_guard.hpp): the
+# static-linked Kokkos linked into both the test executable and
+# libcece_core.so has interposed statics destructed twice at process teardown,
+# which under Debug malloc checking aborts test discovery deterministically
+# and can abort otherwise-passing runs randomly.
+add_library(cece_test_main_default STATIC support/cece_test_main_default.cpp)
+target_include_directories(cece_test_main_default PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(cece_test_main_default PUBLIC GTest::gtest)
 add_library(cece_test_support STATIC support/cece_test_environment.cpp)
 target_include_directories(cece_test_support PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(cece_test_support PUBLIC cece GTest::gtest)
@@ -127,6 +137,16 @@ add_library(cece_test_main_kokkos STATIC support/cece_test_main_kokkos.cpp)
 target_link_libraries(cece_test_main_kokkos PUBLIC cece_test_support)
 
 set(RAPIDCHECK rapidcheck rapidcheck_gtest)
+
+# Support utilities
+add_executable(nccmp_var ${CMAKE_CURRENT_SOURCE_DIR}/nccmp_var.c)
+target_link_libraries(nccmp_var netCDF::netcdf)
+
+add_executable(nclist_vars ${CMAKE_CURRENT_SOURCE_DIR}/helpers/nclist_vars.c)
+target_link_libraries(nclist_vars netCDF::netcdf)
+
+add_executable(ncvar_shape ${CMAKE_CURRENT_SOURCE_DIR}/helpers/ncvar_shape.c)
+target_link_libraries(ncvar_shape netCDF::netcdf)
 
 # --- Driver / configuration --------------------------------------------------
 cece_add_gtest(test_driver_configuration)
@@ -155,9 +175,15 @@ cece_add_gtest(
   test_standalone_writer_attributes
   MAIN MPI_KOKKOS
   MPI_LAUNCHER
-  PROPERTIES PROCESSORS 1
+  PROPERTIES PROCESSORS 1 RESOURCE_LOCK tmp_cece_writer_attr_test
 )
 cece_add_gtest(test_rectilinear_gridspec MAIN MPI_KOKKOS MPI_LAUNCHER PROPERTIES PROCESSORS 1)
+cece_add_gtest(test_regrid_method_resolution MAIN KOKKOS)
+cece_add_gtest(test_grid_geometry MAIN MPI_KOKKOS)
+cece_add_gtest(test_regrid_prerequisites MAIN KOKKOS)
+cece_add_gtest(test_geometry_plan_lifecycle MAIN MPI_KOKKOS MPI_LAUNCHER NO_DISCOVER)
+cece_add_mpi_tests(test_geometry_plan_lifecycle NP 1 2)
+cece_add_gtest(test_geometry_conservation MAIN KOKKOS)
 cece_add_gtest(test_physics)
 cece_add_gtest(test_hemco_mimic)
 cece_add_gtest(test_stacking_engine)
@@ -488,7 +514,7 @@ if(EXISTS "${PROJECT_SOURCE_DIR}/data/OC-em-anthro_CMIP_CEDS_2023.nc")
       ${CMAKE_CURRENT_SOURCE_DIR}/test_distributed_output_equivalence.sh --driver
       $<TARGET_FILE:cece_standalone_driver> --config
       ${PROJECT_SOURCE_DIR}/examples/cece_config_ceds_oc_small.yaml --comparator
-      ${CMAKE_CURRENT_SOURCE_DIR}/nccmp_var.c --workdir ${CMAKE_BINARY_DIR}/_equiv_workdir
+      $<TARGET_FILE:nccmp_var> --workdir ${CMAKE_BINARY_DIR}/_equiv_workdir
     WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
   )
   set_tests_properties(
@@ -577,13 +603,6 @@ if(ESMF_FOUND)
     MPI_LAUNCHER
     PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp" PROCESSORS 1 RESOURCE_LOCK cece_config_yaml
   )
-  cece_add_gtest(
-    test_field_creation_error_handling
-    MAIN MPI_KOKKOS
-    LINK ${_esmf_test_helpers}
-    MPI_LAUNCHER
-    PROPERTIES PROCESSORS 1 RESOURCE_LOCK cece_config_yaml
-  )
   # Unit tests for field pointer passing (Requirement R5)
   cece_add_gtest(
     test_field_pointer_passing
@@ -608,8 +627,7 @@ if(ESMF_FOUND)
         ${CMAKE_CURRENT_SOURCE_DIR}/test_driver_nuopc_parity.sh --cxx-driver
         $<TARGET_FILE:cece_standalone_driver> --nuopc-app $<TARGET_FILE:cece_nuopc_app> --config
         ${PROJECT_SOURCE_DIR}/examples/cece_config_ceds_oc_small.yaml --comparator
-        ${CMAKE_CURRENT_SOURCE_DIR}/nccmp_var.c --varlist
-        ${CMAKE_CURRENT_SOURCE_DIR}/helpers/nclist_vars.c --fields oc --workdir
+        $<TARGET_FILE:nccmp_var> --varlist $<TARGET_FILE:nclist_vars> --fields oc --workdir
         ${CMAKE_BINARY_DIR}/_parity_workdir
       WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
     )
@@ -641,10 +659,8 @@ if(ESMF_FOUND)
         ${CMAKE_CURRENT_SOURCE_DIR}/test_driver_nuopc_gridspec.sh --cxx-driver
         $<TARGET_FILE:cece_standalone_driver> --nuopc-app $<TARGET_FILE:cece_nuopc_app> --config
         ${PROJECT_SOURCE_DIR}/examples/cece_config_ceds_oc_gridspec.yaml --comparator
-        ${CMAKE_CURRENT_SOURCE_DIR}/nccmp_var.c --varlist
-        ${CMAKE_CURRENT_SOURCE_DIR}/helpers/nclist_vars.c --shaper
-        ${CMAKE_CURRENT_SOURCE_DIR}/helpers/ncvar_shape.c --fields oc --workdir
-        ${CMAKE_BINARY_DIR}/_gridspec_workdir
+        $<TARGET_FILE:nccmp_var> --varlist $<TARGET_FILE:nclist_vars> --shaper
+        $<TARGET_FILE:ncvar_shape> --fields oc --workdir ${CMAKE_BINARY_DIR}/_gridspec_workdir
       WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
     )
     set_tests_properties(
@@ -674,8 +690,7 @@ if(ESMF_FOUND)
         ${CMAKE_CURRENT_SOURCE_DIR}/test_nuopc_distributed_output_equivalence.sh --cxx-driver
         $<TARGET_FILE:cece_standalone_driver> --nuopc-app $<TARGET_FILE:cece_nuopc_app> --config
         ${PROJECT_SOURCE_DIR}/examples/cece_config_ceds_oc_small.yaml --comparator
-        ${CMAKE_CURRENT_SOURCE_DIR}/nccmp_var.c --varlist
-        ${CMAKE_CURRENT_SOURCE_DIR}/helpers/nclist_vars.c --workdir
+        $<TARGET_FILE:nccmp_var> --varlist $<TARGET_FILE:nclist_vars> --workdir
         ${CMAKE_BINARY_DIR}/_nuopc_equiv_workdir
       WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
     )

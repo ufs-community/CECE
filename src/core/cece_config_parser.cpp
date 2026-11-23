@@ -7,10 +7,50 @@
 #include <string>
 
 #include "cece/cece_config.hpp"
+#include "cece/cece_geometry_config.hpp"
 #include "cece/cece_string_utils.hpp"
 #include "conf/config.hpp"
 
 namespace cece {
+
+namespace io {
+ReconstructionModel parse_reconstruction_model(const std::string& name) {
+    const std::string value = cece::to_lower(name);
+    if (value.empty() || value == "none") return ReconstructionModel::None;
+    if (value == "rectilinear_midpoint") return ReconstructionModel::RectilinearMidpoint;
+    if (value == "gaussian_latlon") return ReconstructionModel::GaussianLatLon;
+    if (value == "curvilinear_approximate") return ReconstructionModel::CurvilinearApproximate;
+    throw std::invalid_argument("unsupported geometry reconstruction policy '" + name + "'");
+}
+
+std::optional<RegridMethodSettings> parse_regrid_method(const std::string& method_name) {
+    const std::string name = cece::to_lower(method_name);
+    RegridMethodSettings result;
+    if (name == "nearest" || name == "near" || name == "nn") {
+        result.method = RegridMethod::Nearest;
+        result.canonical_name = "nearest";
+    } else if (name == "bilinear" || name == "bilin" || name == "bi") {
+        result.method = RegridMethod::Bilinear;
+        result.canonical_name = "bilinear";
+    } else if (name == "cubic" || name == "bicubic" || name == "cu") {
+        result.method = RegridMethod::Bicubic;
+        result.canonical_name = "bicubic";
+    } else if (name == "conss" || name == "conservative2nd" || name == "cons2nd") {
+        result.method = RegridMethod::Conservative2;
+        result.canonical_name = "conservative2nd";
+    } else if (name == "consd" || name == "conservative" || name == "cons" || name == "conservative1st") {
+        result.method = RegridMethod::Conservative1;
+        result.canonical_name = "conservative1st";
+    } else if (name == "passthrough") {
+        result.method = RegridMethod::Passthrough;
+        result.canonical_name = "passthrough";
+    } else {
+        return std::nullopt;
+    }
+    return result;
+}
+
+}  // namespace io
 
 CeceConfig ParseConfig(const std::string& filename) {
     struct stat buffer;
@@ -220,10 +260,26 @@ CeceConfig ParseConfig(const std::string& filename) {
             stream.yearAlign = node["yearAlign"].int_or(stream.yearAlign);
             stream.offset = node["offset"].int_or(stream.offset);
             stream.meshfile = string_or(node, "meshfile");
+            const std::string input_gridspec = string_or(node, "input_gridspec_file");
+            const std::string gridspec_alias = string_or(node, "gridspec_file");
+            if (!input_gridspec.empty() && !gridspec_alias.empty() && input_gridspec != gridspec_alias)
+                throw std::invalid_argument("cece_data.streams[" + std::to_string(i) +
+                                            "]: input_gridspec_file and gridspec_file specify different paths");
+            stream.input_gridspec_file = input_gridspec.empty() ? gridspec_alias : input_gridspec;
+            stream.geometry_reconstruction = to_lower(string_or(node, "geometry_reconstruction", stream.geometry_reconstruction));
+            try {
+                if (stream.geometry_reconstruction.empty()) throw std::invalid_argument("empty policy");
+                (void)io::parse_reconstruction_model(stream.geometry_reconstruction);
+            } catch (const std::invalid_argument&) {
+                throw std::invalid_argument("cece_data.streams[" + std::to_string(i) + "]: unsupported geometry_reconstruction '" +
+                                            stream.geometry_reconstruction + "'");
+            }
             stream.lev_dimname = string_or(node, "lev_dimname", stream.lev_dimname);
             stream.time_var = string_or(node, "time_var", stream.time_var);
             stream.lon_var = string_or(node, "lon_var", stream.lon_var);
             stream.lat_var = string_or(node, "lat_var", stream.lat_var);
+            stream.longitude_variable = string_or(node, "longitude_variable");
+            stream.latitude_variable = string_or(node, "latitude_variable");
             stream.refresh_interval_seconds = node["refresh_interval_seconds"].int_or(0);
             stream.use_local_time = node["use_local_time"].bool_or(false);
             if (stream.use_local_time) {
@@ -317,6 +373,16 @@ CeceConfig ParseConfig(const std::string& filename) {
         config.driver_config.end_time = string_or(driver, "end_time", config.driver_config.end_time);
         config.driver_config.timestep_seconds = driver["timestep_seconds"].int_or(config.driver_config.timestep_seconds);
         config.driver_config.gridspec_file = string_or(driver, "gridspec_file");
+        config.driver_config.longitude_variable = string_or(driver, "longitude_variable");
+        config.driver_config.latitude_variable = string_or(driver, "latitude_variable");
+        config.driver_config.geometry_reconstruction = to_lower(string_or(driver, "geometry_reconstruction", "none"));
+        try {
+            if (config.driver_config.geometry_reconstruction.empty()) throw std::invalid_argument("empty policy");
+            (void)io::parse_reconstruction_model(config.driver_config.geometry_reconstruction);
+        } catch (const std::invalid_argument&) {
+            throw std::invalid_argument("driver.geometry_reconstruction has unsupported value '" + config.driver_config.geometry_reconstruction +
+                                        "'");
+        }
         conf::Value grid = driver["grid"];
         config.driver_config.grid.nx = grid["nx"].int_or(config.driver_config.grid.nx);
         config.driver_config.grid.ny = grid["ny"].int_or(config.driver_config.grid.ny);
