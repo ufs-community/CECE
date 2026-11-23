@@ -3,6 +3,7 @@
 #include <Kokkos_Core.hpp>
 #include <iostream>
 
+#include "cece/cece_logger.hpp"
 #include "cece/cece_physics_factory.hpp"
 
 /**
@@ -30,7 +31,7 @@ static PhysicsRegistration<FortranBridgeExample> register_scheme("fortran_bridge
  */
 void FortranBridgeExample::Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
-    std::cout << "FortranBridgeExample: Initialized.\n";
+    CECE_LOG_INFO("FortranBridgeExample: Initialized.\n");
 }
 
 /**
@@ -82,7 +83,7 @@ void FortranBridgeExample::Run(CeceImportState& import_state, CeceExportState& e
     dv_nox.modify<Kokkos::DefaultHostExecutionSpace::memory_space>();
     dv_nox.sync<Kokkos::DefaultExecutionSpace::memory_space>();
 
-    std::cout << "FortranBridgeExample: Execution complete.\n";
+    CECE_LOG_INFO("FortranBridgeExample: Execution complete.\n");
 }
 
 }  // namespace cece
