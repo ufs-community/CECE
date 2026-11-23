@@ -40,7 +40,6 @@ The migration consolidates the 600+ line C-linkage wrapper (with `void*` casting
 │  cece_config.hpp    cece_state.hpp                  │
 │  cece_compute.hpp   cece_stacking_engine.hpp        │
 │  cece_config_validator.hpp   cece_logger.hpp        │
-│  cece_kokkos_config.hpp                             │
 └─────────────────────────────────────────────────────┘
 ```
 
