@@ -1,7 +1,7 @@
 # Fire Emissions Assets Investigation Status
 
-**Date**: 2026-11-20  
-**Investigator**: Copilot Agent  
+**Date**: 2026-11-20
+**Investigator**: Copilot Agent
 **Scope**: Blocking assets for T017, T018, T030
 
 ## Summary
@@ -20,7 +20,7 @@ Investigation into blocking assets for fire emissions implementation is **COMPLE
 
 **Status Updates**:
 - `gbbepx-product-reference`: blocked → in_progress
-- `rave-product-reference`: blocked → in_progress  
+- `rave-product-reference`: blocked → in_progress
 - `rave-atbd-2.1-unscaled`: blocked → in_progress
 - `rave-ancillary-reference`: blocked → in_progress
 - `fire-CB6`: factor semantics verified; production use remains blocked by rights and independent budgets
@@ -40,7 +40,7 @@ Created comprehensive documentation (72 KB total) in session workspace:
 3. **quick_reference.md** - URLs, checklists, templates, species lists
 4. **immediate_next_steps.md** - Step-by-step action procedures
 5. **assets_research_findings.md** - Research methodology and results
-6. **asset_investigation_plan.md** - Initial investigation scope  
+6. **asset_investigation_plan.md** - Initial investigation scope
 7. **investigation_completion_report.md** - Formal handoff document
 
 ## Critical Findings
@@ -126,7 +126,7 @@ Created comprehensive documentation (72 KB total) in session workspace:
 Completion of T017/T018/T030 will unblock:
 
 - **US1 MVP** (T021-T027): Product-mode GBBEPx/RAVE ingestion
-- **US2 Derivation** (T031-T043): ABI/VIIRS sensor fusion and emissions derivation  
+- **US2 Derivation** (T031-T043): ABI/VIIRS sensor fusion and emissions derivation
 - **US3 Targets** (T044-T055): 5-target chemistry certification (AM4, CB6, CRACMM2, RACM2, GOCART2G)
 - **US4 Integration** (T056-T066): Offline/coupled HPC execution modes
 
@@ -191,6 +191,6 @@ files/
 
 ---
 
-**Status**: ✅ INVESTIGATION COMPLETE  
-**Next Phase**: Asset acquisition and verification (2-3 weeks)  
+**Status**: ✅ INVESTIGATION COMPLETE
+**Next Phase**: Asset acquisition and verification (2-3 weeks)
 **Last Updated**: 2026-11-20

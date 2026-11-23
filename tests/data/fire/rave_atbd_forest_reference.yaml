@@ -23,7 +23,8 @@ inputs:
   viirs_available: [false, false, true, false, false, false]
   combustion_coefficient_kg_per_mj: 0.368
   species: [CO2, CO, CH4, PM25, TPM, SO2, OC, BC, NOX, NH3, VOC]
-  forest_mean_emission_factors_g_per_kg: [1598.5, 88.6, 4.92, 12.8, 18.4, 0.70, 6.37, 0.55, 1.91, 0.84, 13.4]
+  forest_mean_emission_factors_g_per_kg:
+    [1598.5, 88.6, 4.92, 12.8, 18.4, 0.70, 6.37, 0.55, 1.91, 0.84, 13.4]
 expected:
   - quantity: fused_frp
     units: MW
@@ -45,7 +46,20 @@ expected:
     zero_absolute_tolerance: 1.0e-12
   - quantity: species_mass
     units: kg
-    values: [4941.2832, 273.88032, 15.208704, 39.56736, 56.87808, 2.16384, 19.690944, 1.70016, 5.904192, 2.596608, 41.42208]
+    values:
+      [
+        4941.2832,
+        273.88032,
+        15.208704,
+        39.56736,
+        56.87808,
+        2.16384,
+        19.690944,
+        1.70016,
+        5.904192,
+        2.596608,
+        41.42208,
+      ]
     method: 3091.2 kg times each forest mean in g/kg divided by 1000.
     relative_tolerance: 1.0e-6
     zero_absolute_tolerance: 1.0e-12

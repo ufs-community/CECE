@@ -68,13 +68,63 @@ cases:
       unset: [fire_mapping_file],
     }
   - { id: explicit_species, valid: true, set: { requested_species: [CO2, CO] } }
-  - { id: native_diagnostics, valid: true, set: { requested_species: [CO], native_diagnostic_species: [PM25, TPM, NOX, VOC] } }
-  - { id: native_diagnostic_overlap, valid: false, set: { requested_species: [CO, NOX], native_diagnostic_species: [NOX] }, error: native_diagnostic_species }
-  - { id: native_diagnostic_duplicate, valid: false, set: { requested_species: [CO], native_diagnostic_species: [PM25, PM25] }, error: native_diagnostic_species }
-  - { id: native_diagnostic_invalid, valid: false, set: { requested_species: [CO], native_diagnostic_species: [CO] }, error: native_diagnostic_species }
-  - { id: native_diagnostic_empty, valid: false, set: { requested_species: [CO], native_diagnostic_species: [] }, error: native_diagnostic_species }
-  - { id: native_diagnostic_coupled, valid: false, set: { input_provider: coupled, requested_species: [CO], native_diagnostic_species: [NOX] }, unset: [input_manifest], error: native_diagnostic_species }
-  - { id: native_diagnostic_target_specific, valid: false, set: { chemistry_state: target_specific, requested_species: [CO], native_diagnostic_species: [NOX] }, unset: [fire_mapping_file], error: native_diagnostic_species }
+  - {
+      id: native_diagnostics,
+      valid: true,
+      set:
+        {
+          requested_species: [CO],
+          native_diagnostic_species: [PM25, TPM, NOX, VOC],
+        },
+    }
+  - {
+      id: native_diagnostic_overlap,
+      valid: false,
+      set: { requested_species: [CO, NOX], native_diagnostic_species: [NOX] },
+      error: native_diagnostic_species,
+    }
+  - {
+      id: native_diagnostic_duplicate,
+      valid: false,
+      set: { requested_species: [CO], native_diagnostic_species: [PM25, PM25] },
+      error: native_diagnostic_species,
+    }
+  - {
+      id: native_diagnostic_invalid,
+      valid: false,
+      set: { requested_species: [CO], native_diagnostic_species: [CO] },
+      error: native_diagnostic_species,
+    }
+  - {
+      id: native_diagnostic_empty,
+      valid: false,
+      set: { requested_species: [CO], native_diagnostic_species: [] },
+      error: native_diagnostic_species,
+    }
+  - {
+      id: native_diagnostic_coupled,
+      valid: false,
+      set:
+        {
+          input_provider: coupled,
+          requested_species: [CO],
+          native_diagnostic_species: [NOX],
+        },
+      unset: [input_manifest],
+      error: native_diagnostic_species,
+    }
+  - {
+      id: native_diagnostic_target_specific,
+      valid: false,
+      set:
+        {
+          chemistry_state: target_specific,
+          requested_species: [CO],
+          native_diagnostic_species: [NOX],
+        },
+      unset: [fire_mapping_file],
+      error: native_diagnostic_species,
+    }
   - { id: am4, valid: true, set: { target_id: AM4 } }
   - { id: cracmm2, valid: true, set: { target_id: CRACMM2 } }
   - { id: racm2, valid: true, set: { target_id: RACM2 } }

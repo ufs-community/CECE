@@ -15,12 +15,19 @@ def _sha256(path):
 
 
 def _remote_source(source, source_id, digest):
-    remote = dict(source, source_id=source_id, content_sha256=digest, uri=f"https://example.test/{source_id}.nc")
+    remote = dict(
+        source,
+        source_id=source_id,
+        content_sha256=digest,
+        uri=f"https://example.test/{source_id}.nc",
+    )
     remote.pop("local_path")
     return remote
 
 
-def _write_inputs(tmp_path, *, source_entries=None, fire_options=None, schedule=None, profile=None):
+def _write_inputs(
+    tmp_path, *, source_entries=None, fire_options=None, schedule=None, profile=None
+):
     raw = tmp_path / "source.bin"
     raw.write_bytes(b"synthetic fire source")
     source = {
@@ -86,7 +93,15 @@ def _write_inputs(tmp_path, *, source_entries=None, fire_options=None, schedule=
 def _run(tmp_path, config_path, *extra):
     output = tmp_path / "fire-output"
     return subprocess.run(
-        [sys.executable, str(SCRIPT), "--config", str(config_path), "--output-dir", str(output), *extra],
+        [
+            sys.executable,
+            str(SCRIPT),
+            "--config",
+            str(config_path),
+            "--output-dir",
+            str(output),
+            *extra,
+        ],
         cwd=tmp_path,
         capture_output=True,
         text=True,
@@ -95,33 +110,43 @@ def _run(tmp_path, config_path, *extra):
 
 
 def _write_actual_product_inputs(
-    tmp_path, sample_path, *, adapter, product_id, version, start, end, created, run_end, variant="unscaled"
+    tmp_path,
+    sample_path,
+    *,
+    adapter,
+    product_id,
+    version,
+    start,
+    end,
+    created,
+    run_end,
+    variant="unscaled",
 ):
     config_path, options, source = _write_inputs(tmp_path)
     sample_path = sample_path.resolve()
-    source.update(
-        {
-            "adapter_id": adapter,
-            "product_id": product_id,
-            "product_version": version,
-            "algorithm_version": version,
-            "variant": variant,
-            "chemistry_state": "bulk",
-            "local_path": str(sample_path),
-            "content_sha256": _sha256(sample_path),
-            "acquired_at": created,
-            "available_at": created,
-            "interval_start": start,
-            "interval_end": end,
-            "temporal_resolution_seconds": 3600 if adapter == "rave-v2r0" else 86400,
-        }
-    )
+    source.update({
+        "adapter_id": adapter,
+        "product_id": product_id,
+        "product_version": version,
+        "algorithm_version": version,
+        "variant": variant,
+        "chemistry_state": "bulk",
+        "local_path": str(sample_path),
+        "content_sha256": _sha256(sample_path),
+        "acquired_at": created,
+        "available_at": created,
+        "interval_start": start,
+        "interval_end": end,
+        "temporal_resolution_seconds": 3600 if adapter == "rave-v2r0" else 86400,
+    })
     (tmp_path / "sources.yaml").write_text(
         yaml.safe_dump({"schema_version": 1, "sources": [source]}, sort_keys=True)
     )
     config = yaml.safe_load(config_path.read_text())
     options["product_adapter"] = adapter
-    options["availability_cutoff"] = "2026-07-03T00:00:00Z" if adapter == "rave-v2r0" else "2023-02-26T00:00:00Z"
+    options["availability_cutoff"] = (
+        "2026-07-03T00:00:00Z" if adapter == "rave-v2r0" else "2023-02-26T00:00:00Z"
+    )
     config["physics_schemes"][0]["options"] = options
     config["driver"]["start_time"] = start
     config["driver"]["end_time"] = run_end
@@ -218,28 +243,46 @@ def test_conflicting_equal_priority_overlapping_revisions_are_rejected(tmp_path)
 def test_profile_rejects_already_resolved_or_incompatible_source_cadence(tmp_path):
     config_path, _, source = _write_inputs(
         tmp_path,
-        fire_options={"product_time_allocation": "profile", "product_time_profile": "profile.yaml"},
+        fire_options={
+            "product_time_allocation": "profile",
+            "product_time_profile": "profile.yaml",
+        },
         profile={
             "schema_version": 1,
             "profile_id": "hourly",
             "version": "1",
             "time_basis": "UTC",
             "supported_source_cadence_seconds": 86400,
-            "weights": [{"offset_seconds": 0, "duration_seconds": 86400, "weight_per_second": 1 / 86400}],
+            "weights": [
+                {
+                    "offset_seconds": 0,
+                    "duration_seconds": 86400,
+                    "weight_per_second": 1 / 86400,
+                }
+            ],
         },
     )
     source["temporal_resolution_seconds"] = 3600
     config_path, _, _ = _write_inputs(
         tmp_path,
         source_entries=[source],
-        fire_options={"product_time_allocation": "profile", "product_time_profile": "profile.yaml"},
+        fire_options={
+            "product_time_allocation": "profile",
+            "product_time_profile": "profile.yaml",
+        },
         profile={
             "schema_version": 1,
             "profile_id": "hourly",
             "version": "1",
             "time_basis": "UTC",
             "supported_source_cadence_seconds": 86400,
-            "weights": [{"offset_seconds": 0, "duration_seconds": 86400, "weight_per_second": 1 / 86400}],
+            "weights": [
+                {
+                    "offset_seconds": 0,
+                    "duration_seconds": 86400,
+                    "weight_per_second": 1 / 86400,
+                }
+            ],
         },
     )
 
@@ -262,7 +305,10 @@ def test_host_supplied_cutoff_schedule_must_cover_every_model_interval(tmp_path)
     }
     config_path, _, _ = _write_inputs(
         tmp_path,
-        fire_options={"cutoff_mode": "host_supplied", "cutoff_schedule": "cutoffs.yaml"},
+        fire_options={
+            "cutoff_mode": "host_supplied",
+            "cutoff_schedule": "cutoffs.yaml",
+        },
         schedule=schedule,
     )
 
@@ -285,7 +331,10 @@ def test_host_supplied_cutoff_schedule_accepts_complete_interval_coverage(tmp_pa
     }
     config_path, _, _ = _write_inputs(
         tmp_path,
-        fire_options={"cutoff_mode": "host_supplied", "cutoff_schedule": "cutoffs.yaml"},
+        fire_options={
+            "cutoff_mode": "host_supplied",
+            "cutoff_schedule": "cutoffs.yaml",
+        },
         schedule=schedule,
     )
 
@@ -307,7 +356,9 @@ def test_mismatched_existing_manifest_requires_explicit_overwrite(tmp_path):
     assert result.returncode == 2
     assert "manifest" in result.stderr.lower()
 
-    overwritten_preflight = _run(tmp_path, config_path, "--preflight-only", "--overwrite")
+    overwritten_preflight = _run(
+        tmp_path, config_path, "--preflight-only", "--overwrite"
+    )
     assert overwritten_preflight.returncode == 0, overwritten_preflight.stderr
     assert yaml.safe_load((output / "manifest.yaml").read_text()) == {
         "schema_version": 1,
@@ -367,7 +418,17 @@ def test_live_preparation_refuses_unverified_adapter_and_preserves_output(tmp_pa
     ],
 )
 def test_live_preparation_writes_real_product_interval_and_manifest(
-    tmp_path, filename, adapter, product_id, version, start, end, created, run_end, expected_species, variant
+    tmp_path,
+    filename,
+    adapter,
+    product_id,
+    version,
+    start,
+    end,
+    created,
+    run_end,
+    expected_species,
+    variant,
 ):
     sample_path = ROOT / "tests" / "data" / "fire" / "product_samples" / filename
     config_path = _write_actual_product_inputs(
@@ -398,14 +459,20 @@ def test_live_preparation_writes_real_product_interval_and_manifest(
     assert len(interval["species"]) == expected_species
     if variant == "scaled":
         assert interval["scaling_state"] == "applied"
-        assert interval["scaling_profile"]["profile_id"] == "RAVE-embedded-scaled-variant"
+        assert (
+            interval["scaling_profile"]["profile_id"] == "RAVE-embedded-scaled-variant"
+        )
     normalized = output / interval["path"]
     assert normalized.is_file()
     assert _sha256(normalized) == interval["content_sha256"]
 
 
-def test_live_preparation_cleans_committed_intervals_after_later_decode_failure(tmp_path):
-    sample_path = ROOT / "tests" / "data" / "fire" / "product_samples" / "RAVE-v2r0-crop.nc"
+def test_live_preparation_cleans_committed_intervals_after_later_decode_failure(
+    tmp_path,
+):
+    sample_path = (
+        ROOT / "tests" / "data" / "fire" / "product_samples" / "RAVE-v2r0-crop.nc"
+    )
     config_path = _write_actual_product_inputs(
         tmp_path,
         sample_path,
@@ -422,15 +489,13 @@ def test_live_preparation_cleans_committed_intervals_after_later_decode_failure(
     source_manifest_path = tmp_path / "sources.yaml"
     source_manifest = yaml.safe_load(source_manifest_path.read_text())
     second = dict(source_manifest["sources"][0])
-    second.update(
-        {
-            "source_id": "rave-hour-01",
-            "local_path": invalid_source.name,
-            "content_sha256": _sha256(invalid_source),
-            "interval_start": "2026-07-01T01:00:00Z",
-            "interval_end": "2026-07-01T02:00:00Z",
-        }
-    )
+    second.update({
+        "source_id": "rave-hour-01",
+        "local_path": invalid_source.name,
+        "content_sha256": _sha256(invalid_source),
+        "interval_start": "2026-07-01T01:00:00Z",
+        "interval_end": "2026-07-01T02:00:00Z",
+    })
     source_manifest["sources"].append(second)
     source_manifest_path.write_text(yaml.safe_dump(source_manifest, sort_keys=True))
 
@@ -444,7 +509,9 @@ def test_live_preparation_cleans_committed_intervals_after_later_decode_failure(
 
 
 def test_live_preparation_failure_preserves_existing_manifest_and_files(tmp_path):
-    sample_path = ROOT / "tests" / "data" / "fire" / "product_samples" / "RAVE-v2r0-crop.nc"
+    sample_path = (
+        ROOT / "tests" / "data" / "fire" / "product_samples" / "RAVE-v2r0-crop.nc"
+    )
     config_path = _write_actual_product_inputs(
         tmp_path,
         sample_path,
@@ -461,15 +528,13 @@ def test_live_preparation_failure_preserves_existing_manifest_and_files(tmp_path
     source_manifest_path = tmp_path / "sources.yaml"
     source_manifest = yaml.safe_load(source_manifest_path.read_text())
     second = dict(source_manifest["sources"][0])
-    second.update(
-        {
-            "source_id": "rave-hour-01",
-            "local_path": invalid_source.name,
-            "content_sha256": _sha256(invalid_source),
-            "interval_start": "2026-07-01T01:00:00Z",
-            "interval_end": "2026-07-01T02:00:00Z",
-        }
-    )
+    second.update({
+        "source_id": "rave-hour-01",
+        "local_path": invalid_source.name,
+        "content_sha256": _sha256(invalid_source),
+        "interval_start": "2026-07-01T01:00:00Z",
+        "interval_end": "2026-07-01T02:00:00Z",
+    })
     source_manifest["sources"].append(second)
     source_manifest_path.write_text(yaml.safe_dump(source_manifest, sort_keys=True))
 
@@ -488,7 +553,9 @@ def test_live_preparation_failure_preserves_existing_manifest_and_files(tmp_path
         "cutoff_mode": "fixed",
         "availability_cutoff": "2026-07-03T00:00:00Z",
     }
-    (output / "manifest.yaml").write_text(yaml.safe_dump(previous_manifest, sort_keys=True))
+    (output / "manifest.yaml").write_text(
+        yaml.safe_dump(previous_manifest, sort_keys=True)
+    )
     previous_interval = interval_dir / "previous.nc"
     previous_interval.write_bytes(b"previous normalized interval")
 
@@ -519,7 +586,9 @@ def test_atomic_manifest_writer_preserves_old_file_on_replace_failure(tmp_path):
     prepare_fire_inputs.os.replace = fail_replace
     try:
         try:
-            prepare_fire_inputs._atomic_write_yaml(target, {"new": True}, overwrite=True)
+            prepare_fire_inputs._atomic_write_yaml(
+                target, {"new": True}, overwrite=True
+            )
         except OSError as error:
             assert "synthetic replace failure" in str(error)
         else:

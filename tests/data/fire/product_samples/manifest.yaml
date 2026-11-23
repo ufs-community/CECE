@@ -70,7 +70,7 @@ fixtures:
 reference_series:
   - id: rave-v2r0-24-consecutive-hours
     manifest: rave-24h-manifest.yaml
-    manifest_sha256: c0f69cde1c7ecd1f294f834c07edc15ad53adabb39b31cb2f6eeaa4ed220f917
+    manifest_sha256: ffc86fd0a9573cff6752c5987abfb81f8640827dad1a24ac2e86d19932b94b29
     fixture_count: 24
     source_window_yx: [0, 632, 2, 2]
     source_grid_shape_yx: [544, 800]

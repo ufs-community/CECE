@@ -1,15 +1,12 @@
 // SPDX-License-Identifier: Apache-2.0
-#include "cece/cece_fire_runtime.hpp"
+#include <netcdf.h>
 
 #include <Kokkos_Core.hpp>
+#include <algorithm>
+#include <array>
 #include <axis/solver/regrid_config.hpp>
 #include <axis/solver/weight_generator.hpp>
 #include <axis/topology/structured_grid.hpp>
-#include <netcdf.h>
-#include <yaml-cpp/yaml.h>
-
-#include <algorithm>
-#include <array>
 #include <cmath>
 #include <filesystem>
 #include <limits>
@@ -19,6 +16,10 @@
 #include <stdexcept>
 #include <string_view>
 
+#include "cece/cece_fire_runtime.hpp"
+#include "conf/config.hpp"
+#include "conf/value.hpp"
+
 namespace cece {
 namespace {
 
@@ -26,14 +27,14 @@ void NetcdfCheck(int status, std::string_view operation, const std::string& path
     if (status != NC_NOERR) throw std::runtime_error(std::string(operation) + " in '" + path + "': " + nc_strerror(status));
 }
 
-std::string Text(const YAML::Node& node, std::string_view field) {
-    if (!node || !node.IsScalar()) throw std::invalid_argument(std::string(field) + " must be a nonempty string");
-    const auto value = node.as<std::string>();
+std::string Text(const conf::Value& node, std::string_view field) {
+    if (node.kind() != conf::Node_Kind::Scalar) throw std::invalid_argument(std::string(field) + " must be a nonempty string");
+    const auto value = node.as_string();
     if (value.find_first_not_of(" \t\r\n") == std::string::npos) throw std::invalid_argument(std::string(field) + " must be a nonempty string");
     return value;
 }
 
-FireUtcTime Time(const YAML::Node& node, std::string_view field) {
+FireUtcTime Time(const conf::Value& node, std::string_view field) {
     try {
         return FireUtcTime(Text(node, field));
     } catch (const std::exception& error) {
@@ -41,12 +42,12 @@ FireUtcTime Time(const YAML::Node& node, std::string_view field) {
     }
 }
 
-FireProfileIdentity ProfileIdentity(const YAML::Node& node, std::string_view field) {
-    if (!node || !node.IsMap()) throw std::invalid_argument(std::string(field) + " must be a profile identity mapping");
+FireProfileIdentity ProfileIdentity(const conf::Value& node, std::string_view field) {
+    if (node.kind() != conf::Node_Kind::Map) throw std::invalid_argument(std::string(field) + " must be a profile identity mapping");
     FireProfileIdentity result{Text(node["id"], std::string(field) + ".id"), Text(node["version"], std::string(field) + ".version"),
                                Text(node["content_sha256"], std::string(field) + ".content_sha256")};
-    if (result.content_sha256.size() != 64 ||
-        !std::all_of(result.content_sha256.begin(), result.content_sha256.end(), [](char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'); })) {
+    if (result.content_sha256.size() != 64 || !std::all_of(result.content_sha256.begin(), result.content_sha256.end(),
+                                                           [](char c) { return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f'); })) {
         throw std::invalid_argument(std::string(field) + ".content_sha256 must be lowercase SHA256");
     }
     return result;
@@ -65,8 +66,7 @@ std::vector<double> ReadDoubles(int file, const std::string& path, std::string_v
 
 std::string GlobalText(int file, const std::string& path, std::string_view attribute) {
     std::size_t length = 0;
-    NetcdfCheck(nc_inq_attlen(file, NC_GLOBAL, std::string(attribute).c_str(), &length),
-                "missing attribute '" + std::string(attribute) + "'", path);
+    NetcdfCheck(nc_inq_attlen(file, NC_GLOBAL, std::string(attribute).c_str(), &length), "missing attribute '" + std::string(attribute) + "'", path);
     std::string value(length, '\0');
     NetcdfCheck(nc_get_att_text(file, NC_GLOBAL, std::string(attribute).c_str(), value.data()),
                 "cannot read attribute '" + std::string(attribute) + "'", path);
@@ -74,7 +74,7 @@ std::string GlobalText(int file, const std::string& path, std::string_view attri
     return value;
 }
 
-std::filesystem::path ManifestPath(const std::filesystem::path& manifest, const YAML::Node& node) {
+std::filesystem::path ManifestPath(const std::filesystem::path& manifest, const conf::Value& node) {
     const auto relative = std::filesystem::path(Text(node, "interval.path"));
     if (relative.is_absolute()) throw std::invalid_argument("prepared interval paths must be relative to input_manifest");
     const auto root = std::filesystem::canonical(manifest.parent_path());
@@ -121,7 +121,7 @@ axis::solver::InterpolationMatrix<Kokkos::HostSpace> ConservativeMatrix(const Fi
 }
 
 struct PreparedInterval {
-    YAML::Node record;
+    conf::Value record;
     FireUtcTime start;
     FireUtcTime end;
     std::string source_id;
@@ -163,7 +163,8 @@ class PreparedProductAdapter final : public FireRuntimeAdapter {
             temporal_profile_ = LoadFireTemporalAllocationProfile(config.product_time_profile);
         }
         manifest_path_ = std::filesystem::canonical(config.input_manifest);
-        manifest_ = YAML::LoadFile(manifest_path_.string());
+        manifest_config_.emplace(conf::Config::from_file(manifest_path_.string()));
+        manifest_ = manifest_config_->root();
         ValidateManifest();
         LoadCutoffSchedule();
         ReadIntervals();
@@ -176,7 +177,8 @@ class PreparedProductAdapter final : public FireRuntimeAdapter {
         const auto cutoff = ResolveCutoff(request);
         std::vector<const PreparedInterval*> selected;
         for (const auto& interval : intervals_) {
-            if (FireIntervalOverlapSeconds(interval.start, interval.end, request.interval_start, request.interval_end) > 0) selected.push_back(&interval);
+            if (FireIntervalOverlapSeconds(interval.start, interval.end, request.interval_start, request.interval_end) > 0)
+                selected.push_back(&interval);
         }
         if (selected.empty()) throw std::runtime_error("prepared fire manifest has no product support for the requested interval");
         std::sort(selected.begin(), selected.end(), [](const auto* lhs, const auto* rhs) { return lhs->start < rhs->start; });
@@ -191,7 +193,8 @@ class PreparedProductAdapter final : public FireRuntimeAdapter {
                 throw std::invalid_argument("prepared fire product was acquired or available after the requested cutoff");
             }
             const auto prepared_cutoff = Time(interval->record["availability_cutoff"], "interval.availability_cutoff");
-            if (prepared_cutoff > cutoff) throw std::invalid_argument("prepared fire product was normalized using a later cutoff than the runtime request");
+            if (prepared_cutoff > cutoff)
+                throw std::invalid_argument("prepared fire product was normalized using a later cutoff than the runtime request");
             if (prepared_cutoff < interval->acquired_at || prepared_cutoff < interval->available_at) {
                 throw std::invalid_argument("prepared fire product was not available at its recorded normalization cutoff");
             }
@@ -217,9 +220,9 @@ class PreparedProductAdapter final : public FireRuntimeAdapter {
         for (const auto* interval : selected) {
             auto loaded = LoadInterval(*interval);
             const auto matrix = ConservativeMatrix(*loaded.inventory.Data().identity.Metadata().grid_definition, *target_grid_);
-            const auto allocated = FireAllocateConservativeMass(loaded.inventory, target_grid_, matrix, axis::solver::NormType::DstArea,
-                                                                request.interval_start, request.interval_end, *config_.product_time_allocation,
-                                                                temporal_profile_);
+            const auto allocated =
+                FireAllocateConservativeMass(loaded.inventory, target_grid_, matrix, axis::solver::NormType::DstArea, request.interval_start,
+                                             request.interval_end, *config_.product_time_allocation, temporal_profile_);
             for (std::size_t component = 0; component < allocated.component_ids.size(); ++component) {
                 const auto& id = allocated.component_ids[component];
                 const auto profile = allocated.component_profiles.find(id);
@@ -240,7 +243,8 @@ class PreparedProductAdapter final : public FireRuntimeAdapter {
                 auto& mass = component_masses[id];
                 if (mass.empty()) mass.assign(config_.requested_species.size() * target_cells, 0.0);
                 for (std::size_t species = 0; species < allocated.species.size(); ++species) {
-                    const auto destination_species = std::find(config_.requested_species.begin(), config_.requested_species.end(), allocated.species[species]);
+                    const auto destination_species =
+                        std::find(config_.requested_species.begin(), config_.requested_species.end(), allocated.species[species]);
                     if (destination_species == config_.requested_species.end()) continue;
                     const auto destination_index = static_cast<std::size_t>(std::distance(config_.requested_species.begin(), destination_species));
                     const auto offset = (component * allocated.species.size() + species) * target_cells;
@@ -260,11 +264,13 @@ class PreparedProductAdapter final : public FireRuntimeAdapter {
             }
             const auto& input_data = loaded.inventory.Data();
             if (input_data.nox_reference_basis) {
-                if (nox_basis && nox_basis != input_data.nox_reference_basis) throw std::invalid_argument("prepared fire intervals disagree on NOX reference basis");
+                if (nox_basis && nox_basis != input_data.nox_reference_basis)
+                    throw std::invalid_argument("prepared fire intervals disagree on NOX reference basis");
                 nox_basis = input_data.nox_reference_basis;
             }
             if (input_data.voc_profile) {
-                if (voc_profile && voc_profile != input_data.voc_profile) throw std::invalid_argument("prepared fire intervals disagree on VOC composition profile");
+                if (voc_profile && voc_profile != input_data.voc_profile)
+                    throw std::invalid_argument("prepared fire intervals disagree on VOC composition profile");
                 voc_profile = input_data.voc_profile;
             }
             accepted_hashes.push_back(interval->source_sha256);
@@ -294,11 +300,21 @@ class PreparedProductAdapter final : public FireRuntimeAdapter {
                                       cutoff,
                                       config_.cutoff_mode,
                                       target_grid_};
-        auto identity = FireInputIdentity(std::move(metadata), temporal_profile_ ? std::optional<FireProfileIdentity>(temporal_profile_->identity)
-                                                                                 : std::nullopt);
-        FireBulkInventoryData inventory_data{std::move(identity), config_.requested_species, std::move(component_ids), std::move(component_profiles),
-                                             std::move(mass), std::move(quality), std::move(coverage), std::move(accepted_hashes), nox_basis,
-                                             voc_profile, std::nullopt, std::nullopt, std::nullopt};
+        auto identity = FireInputIdentity(std::move(metadata),
+                                          temporal_profile_ ? std::optional<FireProfileIdentity>(temporal_profile_->identity) : std::nullopt);
+        FireBulkInventoryData inventory_data{std::move(identity),
+                                             config_.requested_species,
+                                             std::move(component_ids),
+                                             std::move(component_profiles),
+                                             std::move(mass),
+                                             std::move(quality),
+                                             std::move(coverage),
+                                             std::move(accepted_hashes),
+                                             nox_basis,
+                                             voc_profile,
+                                             std::nullopt,
+                                             std::nullopt,
+                                             std::nullopt};
         inventory_data.unprofiled_component_ids.assign(unprofiled_component_ids.begin(), unprofiled_component_ids.end());
         inventory_data.native_diagnostic_species = config_.native_diagnostic_species;
         pending_inventory_.emplace(std::move(inventory_data));
@@ -320,19 +336,22 @@ class PreparedProductAdapter final : public FireRuntimeAdapter {
     void Finalize() override {
         AbortInterval();
         intervals_.clear();
-        manifest_ = {};
+        source_records_.clear();
+        manifest_ = conf::Value(nullptr);
+        manifest_config_.reset();
         initialized_ = false;
     }
 
    private:
     void ValidateManifest() {
-        if (!manifest_.IsMap() || manifest_["schema_version"].as<int>(-1) != 1 || Text(manifest_["mode"], "manifest.mode") != "product") {
+        if (manifest_.kind() != conf::Node_Kind::Map || manifest_["schema_version"].try_int() != 1 ||
+            Text(manifest_["mode"], "manifest.mode") != "product") {
             throw std::invalid_argument("prepared fire input_manifest must be a schema-v1 product manifest");
         }
         const auto expected_cutoff_mode = config_.cutoff_mode == FireCutoffMode::Fixed ? "fixed" : "host_supplied";
         if (Text(manifest_["product_adapter"], "manifest.product_adapter") != config_.product_adapter ||
             Text(manifest_["product_time_allocation"], "manifest.product_time_allocation") !=
-                (*config_.product_time_allocation == FireTimeAllocation::Uniform     ? "uniform"
+                (*config_.product_time_allocation == FireTimeAllocation::Uniform          ? "uniform"
                  : *config_.product_time_allocation == FireTimeAllocation::SourceResolved ? "source_resolved"
                                                                                           : "profile") ||
             Text(manifest_["cutoff_mode"], "manifest.cutoff_mode") != expected_cutoff_mode) {
@@ -348,17 +367,18 @@ class PreparedProductAdapter final : public FireRuntimeAdapter {
                 Text(profile_node["content_sha256"], "manifest.product_time_profile.content_sha256") != temporal_profile_->identity.content_sha256) {
                 throw std::invalid_argument("prepared fire temporal profile identity/hash does not match the configured profile file");
             }
-        } else if (profile_node && profile_node.IsMap() && !profile_node.IsNull()) {
+        } else if (profile_node.kind() == conf::Node_Kind::Map) {
             throw std::invalid_argument("prepared fire manifest contains a profile while configuration selects no temporal profile");
         }
         const auto sources = manifest_["sources"];
         const auto interval_nodes = manifest_["intervals"];
-        if (!sources || !sources.IsSequence() || sources.size() == 0 || !interval_nodes || !interval_nodes.IsSequence() || interval_nodes.size() == 0 ||
-            interval_nodes.size() > 4096) {
+        if (sources.kind() != conf::Node_Kind::Sequence || sources.size() == 0 || interval_nodes.kind() != conf::Node_Kind::Sequence ||
+            interval_nodes.size() == 0 || interval_nodes.size() > 4096) {
             throw std::invalid_argument("prepared fire manifest requires 1..4096 source intervals and a nonempty sources list");
         }
         source_records_.clear();
-        for (const auto& source : sources) {
+        for (std::size_t i = 0; i < sources.size(); ++i) {
+            const auto source = sources[i];
             const auto id = Text(source["source_id"], "manifest.sources.source_id");
             if (!source_records_.emplace(id, source).second) throw std::invalid_argument("prepared fire manifest has duplicate source_id values");
         }
@@ -366,7 +386,7 @@ class PreparedProductAdapter final : public FireRuntimeAdapter {
 
     void LoadCutoffSchedule() {
         if (config_.cutoff_mode == FireCutoffMode::Fixed) {
-            if (manifest_["cutoff_schedule_sha256"] && !manifest_["cutoff_schedule_sha256"].IsNull()) {
+            if (manifest_["cutoff_schedule_sha256"] && manifest_["cutoff_schedule_sha256"].kind() != conf::Node_Kind::Null) {
                 throw std::invalid_argument("fixed-cutoff prepared fire manifest must not reference a cutoff schedule");
             }
             return;
@@ -375,13 +395,16 @@ class PreparedProductAdapter final : public FireRuntimeAdapter {
         if (FireFileSha256(config_.cutoff_schedule) != schedule_hash) {
             throw std::invalid_argument("prepared fire cutoff_schedule SHA256 does not match the normalized manifest");
         }
-        const auto schedule = YAML::LoadFile(std::filesystem::canonical(config_.cutoff_schedule).string());
-        if (schedule["schema_version"].as<int>(-1) != 1 || !schedule["intervals"] || !schedule["intervals"].IsSequence()) {
+        const auto schedule_config = conf::Config::from_file(std::filesystem::canonical(config_.cutoff_schedule).string());
+        const auto schedule = schedule_config.root();
+        if (schedule["schema_version"].try_int() != 1 || schedule["intervals"].kind() != conf::Node_Kind::Sequence) {
             throw std::invalid_argument("prepared fire cutoff_schedule requires schema_version: 1 and an intervals sequence");
         }
         std::optional<FireUtcTime> previous_cutoff;
         std::optional<FireUtcTime> previous_end;
-        for (const auto& entry : schedule["intervals"]) {
+        const auto entries = schedule["intervals"];
+        for (std::size_t i = 0; i < entries.size(); ++i) {
+            const auto entry = entries[i];
             const auto start_text = Text(entry["interval_start"], "cutoff_schedule.interval_start");
             const auto end_text = Text(entry["interval_end"], "cutoff_schedule.interval_end");
             const auto start = FireUtcTime(start_text);
@@ -415,7 +438,9 @@ class PreparedProductAdapter final : public FireRuntimeAdapter {
 
     void ReadIntervals() {
         intervals_.clear();
-        for (const auto& record : manifest_["intervals"]) {
+        const auto records = manifest_["intervals"];
+        for (std::size_t i = 0; i < records.size(); ++i) {
+            const auto record = records[i];
             const auto source_id = Text(record["source_id"], "manifest.intervals.source_id");
             const auto source = source_records_.find(source_id);
             if (source == source_records_.end()) throw std::invalid_argument("prepared interval references an unknown source_id");
@@ -450,10 +475,10 @@ class PreparedProductAdapter final : public FireRuntimeAdapter {
         if (FireFileSha256(path.string()) != normalized_sha256) throw std::invalid_argument("prepared fire interval file SHA256 mismatch");
         std::optional<FireComponentProfile> component_profile;
         const auto& component = interval.record["component_profile"];
-        if (component && component.IsMap()) {
+        if (component.kind() == conf::Node_Kind::Map) {
             component_profile = FireComponentProfile{ProfileIdentity(component["biome"], "component_profile.biome"),
                                                      ProfileIdentity(component["composition"], "component_profile.composition")};
-        } else if (component && !component.IsNull()) {
+        } else if (component && component.kind() != conf::Node_Kind::Null) {
             throw std::invalid_argument("prepared interval component_profile must be a mapping when present");
         }
         const auto component_id = Text(interval.record["component_id"], "manifest.interval.component_id");
@@ -505,20 +530,22 @@ class PreparedProductAdapter final : public FireRuntimeAdapter {
             lat_corner[cell] = {lat_bounds[cell * 4], lat_bounds[cell * 4 + 1], lat_bounds[cell * 4 + 2], lat_bounds[cell * 4 + 3]};
         }
         const auto grid_id = GlobalText(file, path.string(), "grid_id");
-        auto grid = std::make_shared<const FireGrid>(FireGridDefinition{grid_id, grid_hash, nx, ny, lon, lat, lon_corner, lat_corner, area,
-                                                                       crs, convention});
+        auto grid =
+            std::make_shared<const FireGrid>(FireGridDefinition{grid_id, grid_hash, nx, ny, lon, lat, lon_corner, lat_corner, area, crs, convention});
         if (GlobalText(file, path.string(), "source_manifest_id") != interval.source_id ||
             GlobalText(file, path.string(), "source_id") != Text(interval.record["product_id"], "interval.product_id") ||
             GlobalText(file, path.string(), "source_content_sha256") != interval.source_sha256 ||
             GlobalText(file, path.string(), "interval_start") != interval.start.ToString() ||
             GlobalText(file, path.string(), "interval_end") != interval.end.ToString() ||
-            GlobalText(file, path.string(), "availability_cutoff") != Time(interval.record["availability_cutoff"], "interval.availability_cutoff").ToString() ||
+            GlobalText(file, path.string(), "availability_cutoff") !=
+                Time(interval.record["availability_cutoff"], "interval.availability_cutoff").ToString() ||
             GlobalText(file, path.string(), "cutoff_mode") != Text(interval.record["cutoff_mode"], "interval.cutoff_mode") ||
             GlobalText(file, path.string(), "product_id") != Text(interval.record["product_id"], "interval.product_id") ||
             GlobalText(file, path.string(), "product_version") != Text(interval.record["product_version"], "interval.product_version") ||
             GlobalText(file, path.string(), "algorithm_version") != Text(interval.record["algorithm_version"], "interval.algorithm_version") ||
             GlobalText(file, path.string(), "product_variant") != Text(interval.record["variant"], "interval.variant") ||
-            GlobalText(file, path.string(), "product_time_allocation") != Text(manifest_["product_time_allocation"], "manifest.product_time_allocation")) {
+            GlobalText(file, path.string(), "product_time_allocation") !=
+                Text(manifest_["product_time_allocation"], "manifest.product_time_allocation")) {
             throw std::invalid_argument("prepared fire interval NetCDF identity disagrees with manifest/source metadata");
         }
         const auto profile_id = temporal_profile_ ? temporal_profile_->identity.id : std::string{};
@@ -560,23 +587,33 @@ class PreparedProductAdapter final : public FireRuntimeAdapter {
             throw std::invalid_argument("prepared fire coverage_fraction is outside [0,1]");
         }
         const auto cutoff = Time(interval.record["availability_cutoff"], "manifest.interval.availability_cutoff");
-        FireIdentityMetadata identity{1,
-                                      interval.source_id,
-                                      Text(interval.record["product_version"], "manifest.interval.product_version"),
-                                      Text(interval.record["algorithm_version"], "manifest.interval.algorithm_version"),
-                                      interval.source_id,
-                                      interval.source_sha256,
-                                      interval.start,
-                                      interval.end,
-                                      interval.acquired_at,
-                                      interval.available_at,
-                                      cutoff,
-                                      Text(interval.record["cutoff_mode"], "manifest.interval.cutoff_mode") == "fixed" ? FireCutoffMode::Fixed
-                                                                                                                       : FireCutoffMode::HostSupplied,
-                                      grid};
-        FireBulkInventoryData data{FireInputIdentity(std::move(identity)), config_.requested_species, {component_id}, {}, std::move(masses),
-                                   std::move(quality), coverage, {interval.source_sha256}, std::nullopt, std::nullopt, std::nullopt,
-                                   std::nullopt, std::nullopt};
+        FireIdentityMetadata identity{
+            1,
+            interval.source_id,
+            Text(interval.record["product_version"], "manifest.interval.product_version"),
+            Text(interval.record["algorithm_version"], "manifest.interval.algorithm_version"),
+            interval.source_id,
+            interval.source_sha256,
+            interval.start,
+            interval.end,
+            interval.acquired_at,
+            interval.available_at,
+            cutoff,
+            Text(interval.record["cutoff_mode"], "manifest.interval.cutoff_mode") == "fixed" ? FireCutoffMode::Fixed : FireCutoffMode::HostSupplied,
+            grid};
+        FireBulkInventoryData data{FireInputIdentity(std::move(identity)),
+                                   config_.requested_species,
+                                   {component_id},
+                                   {},
+                                   std::move(masses),
+                                   std::move(quality),
+                                   coverage,
+                                   {interval.source_sha256},
+                                   std::nullopt,
+                                   std::nullopt,
+                                   std::nullopt,
+                                   std::nullopt,
+                                   std::nullopt};
         if (component_profile) {
             data.component_profiles.emplace(component_id, std::move(*component_profile));
         } else {
@@ -589,8 +626,9 @@ class PreparedProductAdapter final : public FireRuntimeAdapter {
     FireConfig config_{FireInputMode::Product, FireInputProvider::Prepared, FireCutoffMode::Fixed};
     std::shared_ptr<const FireGrid> target_grid_;
     std::filesystem::path manifest_path_;
-    YAML::Node manifest_;
-    std::map<std::string, YAML::Node> source_records_;
+    std::optional<conf::Config> manifest_config_;
+    conf::Value manifest_{nullptr};
+    std::map<std::string, conf::Value> source_records_;
     std::vector<PreparedInterval> intervals_;
     std::map<std::pair<std::string, std::string>, FireUtcTime> schedule_cutoffs_;
     std::optional<FireTemporalAllocationProfile> temporal_profile_;

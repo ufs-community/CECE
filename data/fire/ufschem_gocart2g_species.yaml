@@ -7,9 +7,9 @@ purpose: >-
   GBBEPx specifications. Mechanism compatibility and factor provenance
   require independent verification.
 species:
-  - {name: BCphobic, source_species: BC}
-  - {name: BCphilic, source_species: BC}
-  - {name: BRCphobic, source_species: OC}
-  - {name: BRCphilic, source_species: OC}
-  - {name: SO2, source_species: SO2}
-  - {name: NH3, source_species: NH3}
+  - { name: BCphobic, source_species: BC }
+  - { name: BCphilic, source_species: BC }
+  - { name: BRCphobic, source_species: OC }
+  - { name: BRCphilic, source_species: OC }
+  - { name: SO2, source_species: SO2 }
+  - { name: NH3, source_species: NH3 }

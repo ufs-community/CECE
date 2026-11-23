@@ -40,7 +40,7 @@ chemistry_profile_reference:
   mechanism_version: r5
   source_revision: "AQMv8_p2@130beee95c0bef00a4cc8f24177e4d4db6787cda"
   factor_manifest: "../../../data/fire/cb6_fire_factors_manifest.yaml"
-  factor_manifest_sha256: "3611c9281e3cadcf24486b38d82a83f1a4f8612df9e22c6a95881660f72154f1"
+  factor_manifest_sha256: "9b492a495280c9306f1aebc5ad4a2807618bfeef44b4db8063cb5177760c6f50"
   source_excerpt: "../../../data/fire/cb6_fire_config.txt"
   source_excerpt_sha256: "97aad6bc1a59e93f95f386e031462ce550ceb15d2703720a6bac200b7e4fd943"
   verified_base_species: [CO, PM2.5]
@@ -62,7 +62,7 @@ cases:
     sample: "../../../data/fire/product_samples/RAVE-HrlyEmiss-13km_v2r0_20260701_sample.nc"
     sample_sha256: "0ac99097022d50bd9128af93df8268a3d53f96b70bad8d267cfde497ab264141"
     reference_series_manifest: "rave-24h-manifest.yaml"
-    reference_series_manifest_sha256: "c0f69cde1c7ecd1f294f834c07edc15ad53adabb39b31cb2f6eeaa4ed220f917"
+    reference_series_manifest_sha256: "ffc86fd0a9573cff6752c5987abfb81f8640827dad1a24ac2e86d19932b94b29"
     available_species: [CO2, CO, CH4, PM2.5, OC, BC, SO2, TPM, NH3, NOx, VOC]
     scaling_variants: [unscaled, scaled]
     raw_source_manifest: "../../../examples/fire_sources/rave_v2r0.yaml"
@@ -76,7 +76,7 @@ cases:
     sample: "../../../data/fire/product_samples/GBBEPx-all01GRID_v4r0_20230224_sample.nc"
     sample_sha256: "4dbcff118dd4bf78013d69a260c4700225464f1c0c3301839eb62d74ba40b56c"
     decoder_fixture_manifest: "manifest.yaml"
-    decoder_fixture_manifest_sha256: "e3bdc9406599c82c06f685408d8d85866bf04c9cce1be259b044a1f9015355dd"
+    decoder_fixture_manifest_sha256: "75ed7115b3a9205deec3063637fd7c6efebdf4e45a048f5ec77b931db6c18888"
     available_species: [CO2, CO, BC, OC, PM2.5, SO2, NH3, NOx]
     unavailable_species: [CH4, TPM, VOC]
     scaling_variants: [unscaled]

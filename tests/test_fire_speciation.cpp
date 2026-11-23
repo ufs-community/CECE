@@ -68,24 +68,42 @@ TEST(test_fire_speciation, ProposedGocart2gMapsBulkWithoutParticulateDoubleCount
     const auto path = std::string(CECE_SOURCE_DIR) + "/data/fire/ufschem_gocart2g_profile.yaml";
     const auto profile = cece::LoadFireTargetProfile(path, "GOCART2G", "ufschem-proposed-v1");
     EXPECT_FALSE(profile.production_eligible);
-    auto grid = std::make_shared<const cece::FireGrid>(cece::FireGridDefinition{
-        "gocart2g-grid", std::string(64, 'b'), 1, 1, {0}, {0}, {{{-1, 1, 1, -1}}}, {{{-1, -1, 1, 1}}}, {25}, "EPSG:4326",
-        cece::FireLongitudeConvention::Minus180To180});
-    const std::vector<cece::FireBulkSpecies> species{
-        cece::FireBulkSpecies::BC, cece::FireBulkSpecies::OC, cece::FireBulkSpecies::SO2, cece::FireBulkSpecies::NH3,
-        cece::FireBulkSpecies::PM25};
+    auto grid = std::make_shared<const cece::FireGrid>(cece::FireGridDefinition{"gocart2g-grid",
+                                                                                std::string(64, 'b'),
+                                                                                1,
+                                                                                1,
+                                                                                {0},
+                                                                                {0},
+                                                                                {{{-1, 1, 1, -1}}},
+                                                                                {{{-1, -1, 1, 1}}},
+                                                                                {25},
+                                                                                "EPSG:4326",
+                                                                                cece::FireLongitudeConvention::Minus180To180});
+    const std::vector<cece::FireBulkSpecies> species{cece::FireBulkSpecies::BC, cece::FireBulkSpecies::OC, cece::FireBulkSpecies::SO2,
+                                                     cece::FireBulkSpecies::NH3, cece::FireBulkSpecies::PM25};
     for (const std::string source : {"RAVE-HrlyEmiss-13km", "GBBEPx-all01GRID"}) {
-        const cece::FireBulkInventory inventory({
-            cece::FireInputIdentity({1, source, "test", "test", "test", std::string(64, 'a'),
-                                    cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T01:00:00Z"),
-                                    cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T00:00:00Z"),
-                                    cece::FireUtcTime("2022-07-01T01:00:00Z"), cece::FireCutoffMode::Fixed, grid}),
-            species, {"product"}, {}, {10, 6, 4, 2, 20}, {cece::FireQualityState::Observed}, {1}, {std::string(64, 'a')},
-            std::nullopt, std::nullopt, cece::FireParticulateOverlap{{"overlap", "1", std::string(64, 'c')},
-                {{cece::FireBulkSpecies::PM25, "total"}, {cece::FireBulkSpecies::OC, "component"}, {cece::FireBulkSpecies::BC, "component"}}},
-            std::nullopt, std::nullopt, {"product"}});
-        const auto output = cece::MapFireBulkInventory(inventory, profile, {
-            cece::FireBulkSpecies::BC, cece::FireBulkSpecies::OC, cece::FireBulkSpecies::SO2, cece::FireBulkSpecies::NH3});
+        const cece::FireBulkInventory inventory(
+            {cece::FireInputIdentity({1, source, "test", "test", "test", std::string(64, 'a'), cece::FireUtcTime("2022-07-01T00:00:00Z"),
+                                      cece::FireUtcTime("2022-07-01T01:00:00Z"), cece::FireUtcTime("2022-07-01T00:00:00Z"),
+                                      cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T01:00:00Z"),
+                                      cece::FireCutoffMode::Fixed, grid}),
+             species,
+             {"product"},
+             {},
+             {10, 6, 4, 2, 20},
+             {cece::FireQualityState::Observed},
+             {1},
+             {std::string(64, 'a')},
+             std::nullopt,
+             std::nullopt,
+             cece::FireParticulateOverlap{
+                 {"overlap", "1", std::string(64, 'c')},
+                 {{cece::FireBulkSpecies::PM25, "total"}, {cece::FireBulkSpecies::OC, "component"}, {cece::FireBulkSpecies::BC, "component"}}},
+             std::nullopt,
+             std::nullopt,
+             {"product"}});
+        const auto output = cece::MapFireBulkInventory(
+            inventory, profile, {cece::FireBulkSpecies::BC, cece::FireBulkSpecies::OC, cece::FireBulkSpecies::SO2, cece::FireBulkSpecies::NH3});
         ASSERT_EQ(output.fields.size(), 6);
         const std::vector<std::string> names{"BCphobic", "BCphilic", "BRCphobic", "BRCphilic", "SO2", "NH3"};
         const std::vector<double> expected{8, 2, 3, 3, 4, 2};
@@ -130,7 +148,9 @@ TEST(test_fire_speciation, ProfileLoaderRejectsIncompleteOrDimensionallyInvalidD
         close(descriptor);
         struct Cleanup {
             const char* path;
-            ~Cleanup() { std::remove(path); }
+            ~Cleanup() {
+                std::remove(path);
+            }
         } cleanup{name};
         auto profile = YAML::LoadFile(source);
         profile["assets"][0]["path"] = asset;
@@ -165,7 +185,9 @@ TEST(test_fire_speciation, NoxMolarEquivalentPartitionConservesNitrogenRatherTha
     close(descriptor);
     struct Cleanup {
         const char* path;
-        ~Cleanup() { std::remove(path); }
+        ~Cleanup() {
+            std::remove(path);
+        }
     } cleanup{name};
     const auto write_profile = [&] { std::ofstream(name) << YAML::Dump(yaml); };
     write_profile();
@@ -173,18 +195,34 @@ TEST(test_fire_speciation, NoxMolarEquivalentPartitionConservesNitrogenRatherTha
     ASSERT_TRUE(profile.nox_partition);
     EXPECT_EQ(profile.nox_partition->partition_basis, cece::FireNoxPartitionBasis::MolarEquivalent);
 
-    auto grid = std::make_shared<const cece::FireGrid>(cece::FireGridDefinition{
-        "nox-grid", std::string(64, 'b'), 1, 1, {0}, {0}, {{{-1, 1, 1, -1}}}, {{{-1, -1, 1, 1}}}, {25}, "EPSG:4326",
-        cece::FireLongitudeConvention::Minus180To180});
+    auto grid = std::make_shared<const cece::FireGrid>(cece::FireGridDefinition{"nox-grid",
+                                                                                std::string(64, 'b'),
+                                                                                1,
+                                                                                1,
+                                                                                {0},
+                                                                                {0},
+                                                                                {{{-1, 1, 1, -1}}},
+                                                                                {{{-1, -1, 1, 1}}},
+                                                                                {25},
+                                                                                "EPSG:4326",
+                                                                                cece::FireLongitudeConvention::Minus180To180});
     const cece::FireProfileIdentity component{"synthetic", "1", std::string(64, 'c')};
-    cece::FireBulkInventoryData data{
-        cece::FireInputIdentity({1, "synthetic", "product", "algorithm", "delivery", std::string(64, 'a'),
-                                 cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T01:00:00Z"),
-                                 cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T00:00:00Z"),
-                                 cece::FireUtcTime("2022-07-01T02:00:00Z"), cece::FireCutoffMode::Fixed, grid}),
-        {cece::FireBulkSpecies::NOX}, {"component"}, {{"component", {component, component}}}, {46},
-        {cece::FireQualityState::Observed}, {1}, {std::string(64, 'a')}, cece::FireNoxReferenceBasis::NO2, std::nullopt,
-        std::nullopt, std::nullopt, std::nullopt};
+    cece::FireBulkInventoryData data{cece::FireInputIdentity({1, "synthetic", "product", "algorithm", "delivery", std::string(64, 'a'),
+                                                              cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T01:00:00Z"),
+                                                              cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T00:00:00Z"),
+                                                              cece::FireUtcTime("2022-07-01T02:00:00Z"), cece::FireCutoffMode::Fixed, grid}),
+                                     {cece::FireBulkSpecies::NOX},
+                                     {"component"},
+                                     {{"component", {component, component}}},
+                                     {46},
+                                     {cece::FireQualityState::Observed},
+                                     {1},
+                                     {std::string(64, 'a')},
+                                     cece::FireNoxReferenceBasis::NO2,
+                                     std::nullopt,
+                                     std::nullopt,
+                                     std::nullopt,
+                                     std::nullopt};
     const auto mapped = cece::MapFireBulkInventory(cece::FireBulkInventory(data), profile, {cece::FireBulkSpecies::NOX});
     ASSERT_EQ(mapped.values.size(), 2);
     EXPECT_NEAR(mapped.values[0], 27.0, 1e-12);
@@ -218,26 +256,40 @@ TEST(test_fire_speciation, IgbpSplittingPreservesSourceMassAndRejectsUnknownClas
     }
     ASSERT_EQ(classes, (std::vector<int>{1, 10, 12, 14}));
     auto grid = std::make_shared<const cece::FireGrid>(cece::FireGridDefinition{
-        "igbp-grid", std::string(64, 'b'), 2, 2, {-65.1, -65.0, -65.1, -65.0}, {-40.8, -40.8, -40.7, -40.7},
-        {{{-65.15, -65.05, -65.05, -65.15}, {-65.05, -64.95, -64.95, -65.05},
-          {-65.15, -65.05, -65.05, -65.15}, {-65.05, -64.95, -64.95, -65.05}}},
-        {{{-40.85, -40.85, -40.75, -40.75}, {-40.85, -40.85, -40.75, -40.75},
-          {-40.75, -40.75, -40.65, -40.65}, {-40.75, -40.75, -40.65, -40.65}}},
-        {1, 1, 1, 1}, "EPSG:4326", cece::FireLongitudeConvention::Minus180To180});
+        "igbp-grid",
+        std::string(64, 'b'),
+        2,
+        2,
+        {-65.1, -65.0, -65.1, -65.0},
+        {-40.8, -40.8, -40.7, -40.7},
+        {{{-65.15, -65.05, -65.05, -65.15}, {-65.05, -64.95, -64.95, -65.05}, {-65.15, -65.05, -65.05, -65.15}, {-65.05, -64.95, -64.95, -65.05}}},
+        {{{-40.85, -40.85, -40.75, -40.75}, {-40.85, -40.85, -40.75, -40.75}, {-40.75, -40.75, -40.65, -40.65}, {-40.75, -40.75, -40.65, -40.65}}},
+        {1, 1, 1, 1},
+        "EPSG:4326",
+        cece::FireLongitudeConvention::Minus180To180});
     const cece::FireProfileIdentity biome{"igbp", "1", std::string(64, 'c')};
     const std::array<cece::FireComponentProfile, 3> profiles{{
         {biome, {"forest", "1", std::string(64, 'd')}},
         {biome, {"grassland", "1", std::string(64, 'e')}},
         {biome, {"cropland", "1", std::string(64, 'f')}},
     }};
-    cece::FireBulkInventoryData data{
-        cece::FireInputIdentity({1, "synthetic", "product", "algorithm", "delivery", std::string(64, 'a'),
-                                 cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T01:00:00Z"),
-                                 cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T00:00:00Z"),
-                                 cece::FireUtcTime("2022-07-01T02:00:00Z"), cece::FireCutoffMode::Fixed, grid}),
-        {cece::FireBulkSpecies::CO}, {"product"}, {}, {1, 2, 3, 4},
-        std::vector<cece::FireQualityState>(4, cece::FireQualityState::Observed), {1, 1, 1, 1}, {std::string(64, 'a')},
-        std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, {"product"}};
+    cece::FireBulkInventoryData data{cece::FireInputIdentity({1, "synthetic", "product", "algorithm", "delivery", std::string(64, 'a'),
+                                                              cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T01:00:00Z"),
+                                                              cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T00:00:00Z"),
+                                                              cece::FireUtcTime("2022-07-01T02:00:00Z"), cece::FireCutoffMode::Fixed, grid}),
+                                     {cece::FireBulkSpecies::CO},
+                                     {"product"},
+                                     {},
+                                     {1, 2, 3, 4},
+                                     std::vector<cece::FireQualityState>(4, cece::FireQualityState::Observed),
+                                     {1, 1, 1, 1},
+                                     {std::string(64, 'a')},
+                                     std::nullopt,
+                                     std::nullopt,
+                                     std::nullopt,
+                                     std::nullopt,
+                                     std::nullopt,
+                                     {"product"}};
     const cece::FireBulkInventory original(data);
     cece::FireIgbpGrid igbp{std::string(64, 'b'), biome, classes};
     const auto split = cece::SplitFireProductByIgbp(original, igbp, profiles);
@@ -297,13 +349,13 @@ TEST(test_fire_speciation, IgbpSplittingPreservesSourceMassAndRejectsUnknownClas
         EXPECT_DOUBLE_EQ(observed_zero_split.ComponentMassKg(component, cece::FireBulkSpecies::CO, 0), 0);
         EXPECT_DOUBLE_EQ(observed_zero_split.ComponentMassKg(component, cece::FireBulkSpecies::SO2, 0), 0);
     }
-    auto target = cece::LoadFireTargetProfile(std::string(CECE_SOURCE_DIR) + "/tests/data/fire/synthetic_target_profile.yaml",
-                                               "SYNTHETIC", "test-v1");
+    auto target =
+        cece::LoadFireTargetProfile(std::string(CECE_SOURCE_DIR) + "/tests/data/fire/synthetic_target_profile.yaml", "SYNTHETIC", "test-v1");
     target.mappings.clear();
     target.mapping_factor_semantics = cece::FireMappingFactorSemantics::IndependentCoefficients;
     for (std::size_t component = 0; component < profiles.size(); ++component) {
-        target.mappings.push_back({cece::FireBulkSpecies::CO, "FIRE_CO", cece::FireMappingBasis::Mass,
-                                   0.1 * (component + 1), "kg", profiles[component].composition});
+        target.mappings.push_back(
+            {cece::FireBulkSpecies::CO, "FIRE_CO", cece::FireMappingBasis::Mass, 0.1 * (component + 1), "kg", profiles[component].composition});
     }
     const auto mapped = cece::MapFireBulkInventory(observed_zero_split, target, {cece::FireBulkSpecies::CO});
     ASSERT_EQ(mapped.fields.size(), 1);
@@ -338,7 +390,9 @@ TEST(test_fire_speciation, IndependentCoefficientsPreserveVerifiedNonUnitFactorS
     close(descriptor);
     struct Cleanup {
         const char* path;
-        ~Cleanup() { std::remove(path); }
+        ~Cleanup() {
+            std::remove(path);
+        }
     } cleanup{name};
     std::ofstream(name) << YAML::Dump(profile_yaml);
 
@@ -346,18 +400,37 @@ TEST(test_fire_speciation, IndependentCoefficientsPreserveVerifiedNonUnitFactorS
     EXPECT_EQ(profile.mapping_factor_semantics, cece::FireMappingFactorSemantics::IndependentCoefficients);
     EXPECT_DOUBLE_EQ(profile.mappings.front().factor, 1.1247);
 
-    auto grid = std::make_shared<const cece::FireGrid>(cece::FireGridDefinition{
-        "independent-factor-grid", std::string(64, 'b'), 1, 1, {0}, {0}, {{{-1, 1, 1, -1}}}, {{{-1, -1, 1, 1}}}, {25}, "EPSG:4326",
-        cece::FireLongitudeConvention::Minus180To180});
+    auto grid = std::make_shared<const cece::FireGrid>(cece::FireGridDefinition{"independent-factor-grid",
+                                                                                std::string(64, 'b'),
+                                                                                1,
+                                                                                1,
+                                                                                {0},
+                                                                                {0},
+                                                                                {{{-1, 1, 1, -1}}},
+                                                                                {{{-1, -1, 1, 1}}},
+                                                                                {25},
+                                                                                "EPSG:4326",
+                                                                                cece::FireLongitudeConvention::Minus180To180});
     const cece::FireProfileIdentity component_profile{"synthetic", "1", std::string(64, 'c')};
-    const cece::FireBulkInventory inventory({
-        cece::FireInputIdentity({1, "synthetic", "product", "algorithm", "delivery", std::string(64, 'a'),
-                                cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T01:00:00Z"),
-                                cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T00:00:00Z"),
-                                cece::FireUtcTime("2022-07-01T02:00:00Z"), cece::FireCutoffMode::Fixed, grid}),
-        {cece::FireBulkSpecies::CO}, {"component"}, {{"component", {component_profile, component_profile}},},
-        {2}, {cece::FireQualityState::Observed}, {1}, {std::string(64, 'a')}, std::nullopt, std::nullopt, std::nullopt, std::nullopt,
-        std::nullopt});
+    const cece::FireBulkInventory inventory(
+        {cece::FireInputIdentity({1, "synthetic", "product", "algorithm", "delivery", std::string(64, 'a'), cece::FireUtcTime("2022-07-01T00:00:00Z"),
+                                  cece::FireUtcTime("2022-07-01T01:00:00Z"), cece::FireUtcTime("2022-07-01T00:00:00Z"),
+                                  cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T02:00:00Z"), cece::FireCutoffMode::Fixed,
+                                  grid}),
+         {cece::FireBulkSpecies::CO},
+         {"component"},
+         {
+             {"component", {component_profile, component_profile}},
+         },
+         {2},
+         {cece::FireQualityState::Observed},
+         {1},
+         {std::string(64, 'a')},
+         std::nullopt,
+         std::nullopt,
+         std::nullopt,
+         std::nullopt,
+         std::nullopt});
     const auto mapped = cece::MapFireBulkInventory(inventory, profile, {cece::FireBulkSpecies::CO});
     ASSERT_EQ(mapped.values.size(), 1);
     EXPECT_NEAR(mapped.values.front(), 2.2494, 1e-12);
@@ -391,7 +464,9 @@ TEST(test_fire_speciation, LoadsVersionedUtcAndLocalSolarTemporalProfiles) {
     close(descriptor);
     struct Cleanup {
         const char* path;
-        ~Cleanup() { std::remove(path); }
+        ~Cleanup() {
+            std::remove(path);
+        }
     } cleanup{name};
     auto tampered = YAML::LoadFile(root + "temporal_profile_utc.yaml");
     tampered["weights"][1]["offset_seconds"] = 3500;
@@ -400,26 +475,40 @@ TEST(test_fire_speciation, LoadsVersionedUtcAndLocalSolarTemporalProfiles) {
 }
 
 TEST(test_fire_speciation, SyntheticMapperPreservesComponentsAndTypedMassBudgets) {
-    auto grid = std::make_shared<const cece::FireGrid>(cece::FireGridDefinition{
-        "mapper-grid", std::string(64, 'b'), 2, 1, {0, 1}, {0, 0}, {{{-1, 0, 0, -1}, {0, 1, 1, 0}}},
-        {{{-1, -1, 1, 1}, {-1, -1, 1, 1}}}, {25, 75}, "EPSG:4326", cece::FireLongitudeConvention::Minus180To180});
+    auto grid = std::make_shared<const cece::FireGrid>(cece::FireGridDefinition{"mapper-grid",
+                                                                                std::string(64, 'b'),
+                                                                                2,
+                                                                                1,
+                                                                                {0, 1},
+                                                                                {0, 0},
+                                                                                {{{-1, 0, 0, -1}, {0, 1, 1, 0}}},
+                                                                                {{{-1, -1, 1, 1}, {-1, -1, 1, 1}}},
+                                                                                {25, 75},
+                                                                                "EPSG:4326",
+                                                                                cece::FireLongitudeConvention::Minus180To180});
     const cece::FireProfileIdentity biome{"synthetic-biome", "1", std::string(64, 'c')};
     const cece::FireProfileIdentity comp_a{"composition-a", "1", std::string(64, 'd')};
     const cece::FireProfileIdentity comp_b{"composition-b", "1", std::string(64, 'e')};
-    cece::FireBulkInventory inventory({
-        cece::FireInputIdentity({1, "synthetic", "product", "algorithm", "delivery", std::string(64, 'a'),
-                                cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T01:00:00Z"),
-                                cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T00:00:00Z"),
-                                cece::FireUtcTime("2022-07-01T02:00:00Z"), cece::FireCutoffMode::Fixed, grid}),
-        {cece::FireBulkSpecies::CO, cece::FireBulkSpecies::NOX, cece::FireBulkSpecies::VOC}, {"a", "b"},
-        {{"a", {biome, comp_a}}, {"b", {biome, comp_b}}},
-        {10, 20, 2, 4, 8, 12, 30, 40, 6, 8, 16, 20}, {cece::FireQualityState::Observed, cece::FireQualityState::Observed},
-        {1, 0.5}, {std::string(64, 'a')}, cece::FireNoxReferenceBasis::NO2, cece::FireProfileIdentity{"voc", "1", std::string(64, 'f')},
-        std::nullopt, std::nullopt, std::nullopt});
-    const auto profile = cece::LoadFireTargetProfile(std::string(CECE_SOURCE_DIR) + "/tests/data/fire/synthetic_target_profile.yaml",
-                                                     "SYNTHETIC", "test-v1");
-    const auto mapped = cece::MapFireBulkInventory(inventory, profile,
-                                                   {cece::FireBulkSpecies::CO, cece::FireBulkSpecies::NOX, cece::FireBulkSpecies::VOC});
+    cece::FireBulkInventory inventory({cece::FireInputIdentity({1, "synthetic", "product", "algorithm", "delivery", std::string(64, 'a'),
+                                                                cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T01:00:00Z"),
+                                                                cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T00:00:00Z"),
+                                                                cece::FireUtcTime("2022-07-01T02:00:00Z"), cece::FireCutoffMode::Fixed, grid}),
+                                       {cece::FireBulkSpecies::CO, cece::FireBulkSpecies::NOX, cece::FireBulkSpecies::VOC},
+                                       {"a", "b"},
+                                       {{"a", {biome, comp_a}}, {"b", {biome, comp_b}}},
+                                       {10, 20, 2, 4, 8, 12, 30, 40, 6, 8, 16, 20},
+                                       {cece::FireQualityState::Observed, cece::FireQualityState::Observed},
+                                       {1, 0.5},
+                                       {std::string(64, 'a')},
+                                       cece::FireNoxReferenceBasis::NO2,
+                                       cece::FireProfileIdentity{"voc", "1", std::string(64, 'f')},
+                                       std::nullopt,
+                                       std::nullopt,
+                                       std::nullopt});
+    const auto profile =
+        cece::LoadFireTargetProfile(std::string(CECE_SOURCE_DIR) + "/tests/data/fire/synthetic_target_profile.yaml", "SYNTHETIC", "test-v1");
+    const auto mapped =
+        cece::MapFireBulkInventory(inventory, profile, {cece::FireBulkSpecies::CO, cece::FireBulkSpecies::NOX, cece::FireBulkSpecies::VOC});
     EXPECT_EQ(mapped.component_ids, (std::vector<std::string>{"a", "b"}));
     EXPECT_EQ(mapped.component_profiles.at("b").composition.id, "composition-b");
     ASSERT_EQ(mapped.fields.size(), 4);
@@ -455,14 +544,14 @@ TEST(test_fire_speciation, CompositionSpecificMappingsSelectExactComponentProfil
     for (const auto& mapping : profile_yaml["typed_mappings"]) {
         if (mapping["source_species"].as<std::string>() != "CO") mappings.push_back(mapping);
     }
-    mappings.push_back(YAML::Load(
-        "{source_species: CO, target_species: FIRE_CO_A, basis: mass, factor: 1.0, output_unit: kg, "
-        "composition_profile: {id: composition-a, version: '1', "
-        "content_sha256: dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd}}"));
-    mappings.push_back(YAML::Load(
-        "{source_species: CO, target_species: FIRE_CO_B, basis: mass, factor: 1.0, output_unit: kg, "
-        "composition_profile: {id: composition-b, version: '1', "
-        "content_sha256: eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee}}"));
+    mappings.push_back(
+        YAML::Load("{source_species: CO, target_species: FIRE_CO_A, basis: mass, factor: 1.0, output_unit: kg, "
+                   "composition_profile: {id: composition-a, version: '1', "
+                   "content_sha256: dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd}}"));
+    mappings.push_back(
+        YAML::Load("{source_species: CO, target_species: FIRE_CO_B, basis: mass, factor: 1.0, output_unit: kg, "
+                   "composition_profile: {id: composition-b, version: '1', "
+                   "content_sha256: eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee}}"));
     profile_yaml["typed_mappings"] = mappings;
 
     char name[] = "/tmp/cece-fire-composition-profile-XXXXXX";
@@ -471,25 +560,43 @@ TEST(test_fire_speciation, CompositionSpecificMappingsSelectExactComponentProfil
     close(descriptor);
     struct Cleanup {
         const char* path;
-        ~Cleanup() { std::remove(path); }
+        ~Cleanup() {
+            std::remove(path);
+        }
     } cleanup{name};
     std::ofstream(name) << YAML::Dump(profile_yaml);
     const auto profile = cece::LoadFireTargetProfile(name, "SYNTHETIC", "test-v1");
 
-    const auto grid = std::make_shared<const cece::FireGrid>(cece::FireGridDefinition{
-        "composition-grid", std::string(64, 'b'), 2, 1, {0, 1}, {0, 0}, {{{-1, 0, 0, -1}, {0, 1, 1, 0}}},
-        {{{-1, -1, 1, 1}, {-1, -1, 1, 1}}}, {25, 75}, "EPSG:4326", cece::FireLongitudeConvention::Minus180To180});
+    const auto grid = std::make_shared<const cece::FireGrid>(cece::FireGridDefinition{"composition-grid",
+                                                                                      std::string(64, 'b'),
+                                                                                      2,
+                                                                                      1,
+                                                                                      {0, 1},
+                                                                                      {0, 0},
+                                                                                      {{{-1, 0, 0, -1}, {0, 1, 1, 0}}},
+                                                                                      {{{-1, -1, 1, 1}, {-1, -1, 1, 1}}},
+                                                                                      {25, 75},
+                                                                                      "EPSG:4326",
+                                                                                      cece::FireLongitudeConvention::Minus180To180});
     const cece::FireProfileIdentity biome{"synthetic-biome", "1", std::string(64, 'c')};
     const cece::FireProfileIdentity comp_a{"composition-a", "1", std::string(64, 'd')};
     const cece::FireProfileIdentity comp_b{"composition-b", "1", std::string(64, 'e')};
-    cece::FireBulkInventory inventory({
-        cece::FireInputIdentity({1, "synthetic", "product", "algorithm", "delivery", std::string(64, 'a'),
-                                cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T01:00:00Z"),
-                                cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T00:00:00Z"),
-                                cece::FireUtcTime("2022-07-01T02:00:00Z"), cece::FireCutoffMode::Fixed, grid}),
-        {cece::FireBulkSpecies::CO}, {"a", "b"}, {{"a", {biome, comp_a}}, {"b", {biome, comp_b}}},
-        {10, 20, 30, 40}, {cece::FireQualityState::Observed, cece::FireQualityState::Observed}, {1, 1},
-        {std::string(64, 'a')}, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt});
+    cece::FireBulkInventory inventory({cece::FireInputIdentity({1, "synthetic", "product", "algorithm", "delivery", std::string(64, 'a'),
+                                                                cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T01:00:00Z"),
+                                                                cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T00:00:00Z"),
+                                                                cece::FireUtcTime("2022-07-01T02:00:00Z"), cece::FireCutoffMode::Fixed, grid}),
+                                       {cece::FireBulkSpecies::CO},
+                                       {"a", "b"},
+                                       {{"a", {biome, comp_a}}, {"b", {biome, comp_b}}},
+                                       {10, 20, 30, 40},
+                                       {cece::FireQualityState::Observed, cece::FireQualityState::Observed},
+                                       {1, 1},
+                                       {std::string(64, 'a')},
+                                       std::nullopt,
+                                       std::nullopt,
+                                       std::nullopt,
+                                       std::nullopt,
+                                       std::nullopt});
     const auto mapped = cece::MapFireBulkInventory(inventory, profile, {cece::FireBulkSpecies::CO});
     ASSERT_EQ(mapped.fields.size(), 2);
     EXPECT_EQ(mapped.fields[0].target_species, "FIRE_CO_A");
@@ -517,8 +624,7 @@ TEST(test_fire_speciation, CompositionSpecificMappingsSelectExactComponentProfil
     profile_yaml["mapping_factor_semantics"] = "independent_coefficients";
     profile_yaml["typed_mappings"][3]["factor"] = 0.2;
     profile_yaml["typed_mappings"][4]["factor"] = 0.4;
-    profile_yaml["typed_mappings"].push_back(YAML::Load(
-        "{source_species: CO, target_species: FIRE_CO, basis: mass, factor: 1.0, output_unit: kg}"));
+    profile_yaml["typed_mappings"].push_back(YAML::Load("{source_species: CO, target_species: FIRE_CO, basis: mass, factor: 1.0, output_unit: kg}"));
     std::ofstream(name) << YAML::Dump(profile_yaml);
     const auto mixed = cece::LoadFireTargetProfile(name, "SYNTHETIC", "test-v1");
     const auto mixed_output = cece::MapFireBulkInventory(inventory, mixed, {cece::FireBulkSpecies::CO});
@@ -540,20 +646,36 @@ TEST(test_fire_speciation, CompositionSpecificMappingsSelectExactComponentProfil
 }
 
 TEST(test_fire_speciation, MapperRejectsMissingSpeciesBasisMismatchAndUnmappedRequests) {
-    auto grid = std::make_shared<const cece::FireGrid>(cece::FireGridDefinition{
-        "mapper-grid", std::string(64, 'b'), 1, 1, {0}, {0}, {{{-1, 1, 1, -1}}}, {{{-1, -1, 1, 1}}}, {25}, "EPSG:4326",
-        cece::FireLongitudeConvention::Minus180To180});
+    auto grid = std::make_shared<const cece::FireGrid>(cece::FireGridDefinition{"mapper-grid",
+                                                                                std::string(64, 'b'),
+                                                                                1,
+                                                                                1,
+                                                                                {0},
+                                                                                {0},
+                                                                                {{{-1, 1, 1, -1}}},
+                                                                                {{{-1, -1, 1, 1}}},
+                                                                                {25},
+                                                                                "EPSG:4326",
+                                                                                cece::FireLongitudeConvention::Minus180To180});
     const cece::FireProfileIdentity profile_identity{"synthetic", "1", std::string(64, 'c')};
-    cece::FireBulkInventory inventory({
-        cece::FireInputIdentity({1, "synthetic", "product", "algorithm", "delivery", std::string(64, 'a'),
-                                cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T01:00:00Z"),
-                                cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T00:00:00Z"),
-                                cece::FireUtcTime("2022-07-01T02:00:00Z"), cece::FireCutoffMode::Fixed, grid}),
-        {cece::FireBulkSpecies::CO}, {"component"}, {{"component", {profile_identity, profile_identity}}}, {1},
-        {cece::FireQualityState::Observed}, {1}, {std::string(64, 'a')}, std::nullopt, std::nullopt, std::nullopt,
-        std::nullopt, std::nullopt});
-    const auto target = cece::LoadFireTargetProfile(std::string(CECE_SOURCE_DIR) + "/tests/data/fire/synthetic_target_profile.yaml",
-                                                    "SYNTHETIC", "test-v1");
+    cece::FireBulkInventory inventory({cece::FireInputIdentity({1, "synthetic", "product", "algorithm", "delivery", std::string(64, 'a'),
+                                                                cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T01:00:00Z"),
+                                                                cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T00:00:00Z"),
+                                                                cece::FireUtcTime("2022-07-01T02:00:00Z"), cece::FireCutoffMode::Fixed, grid}),
+                                       {cece::FireBulkSpecies::CO},
+                                       {"component"},
+                                       {{"component", {profile_identity, profile_identity}}},
+                                       {1},
+                                       {cece::FireQualityState::Observed},
+                                       {1},
+                                       {std::string(64, 'a')},
+                                       std::nullopt,
+                                       std::nullopt,
+                                       std::nullopt,
+                                       std::nullopt,
+                                       std::nullopt});
+    const auto target =
+        cece::LoadFireTargetProfile(std::string(CECE_SOURCE_DIR) + "/tests/data/fire/synthetic_target_profile.yaml", "SYNTHETIC", "test-v1");
     EXPECT_THROW(cece::MapFireBulkInventory(inventory, target, {cece::FireBulkSpecies::NH3}), std::invalid_argument);
     EXPECT_THROW(cece::MapFireBulkInventory(inventory, target, {cece::FireBulkSpecies::CO2}), std::invalid_argument);
     auto wrong_basis = inventory.Data();
@@ -561,8 +683,7 @@ TEST(test_fire_speciation, MapperRejectsMissingSpeciesBasisMismatchAndUnmappedRe
     wrong_basis.mass_kg.push_back(1);
     wrong_basis.nox_reference_basis = cece::FireNoxReferenceBasis::NO;
     cece::FireBulkInventory nox(std::move(wrong_basis));
-    EXPECT_THROW(cece::MapFireBulkInventory(nox, target, {cece::FireBulkSpecies::CO, cece::FireBulkSpecies::NOX}),
-                 std::invalid_argument);
+    EXPECT_THROW(cece::MapFireBulkInventory(nox, target, {cece::FireBulkSpecies::CO, cece::FireBulkSpecies::NOX}), std::invalid_argument);
     EXPECT_THROW(cece::MapFireBulkInventory(inventory, target, {}), std::invalid_argument);
 }
 

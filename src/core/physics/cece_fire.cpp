@@ -306,8 +306,8 @@ FireTargetProfile LoadFireTargetProfile(const std::string& path, const std::stri
     conf::Config file = conf::Config::from_file(path);
     const auto& root = file.root();
     OnlyKeys(root,
-             {"schema_version", "production_eligible", "mapping_factor_semantics", "identity", "assets", "mechanism_species",
-              "typed_mappings", "conversion_factors", "nox_partition", "oc_om_policy", "source_disposition", "budgets_tolerances"},
+             {"schema_version", "production_eligible", "mapping_factor_semantics", "identity", "assets", "mechanism_species", "typed_mappings",
+              "conversion_factors", "nox_partition", "oc_om_policy", "source_disposition", "budgets_tolerances"},
              "root");
     Require(root, "schema_version", "schema_version");
     if (root["schema_version"].try_int() != std::optional<int>{1}) Invalid("schema_version", "only version 1 is supported");
@@ -406,8 +406,10 @@ FireTargetProfile LoadFireTargetProfile(const std::string& path, const std::stri
         OnlyKeys(mapping, {"source_species", "target_species", "basis", "factor", "output_unit", "composition_profile"}, field);
         for (const auto key : {"source_species", "target_species", "basis", "factor", "output_unit"}) Require(mapping, key, field);
         FireTypedMapping typed{ParseSpecies(Text(mapping["source_species"], field + ".source_species"), field + ".source_species"),
-                               Text(mapping["target_species"], field + ".target_species"), ParseBasis(Text(mapping["basis"], field + ".basis")),
-                               Positive(mapping["factor"], field + ".factor", true), Text(mapping["output_unit"], field + ".output_unit"),
+                               Text(mapping["target_species"], field + ".target_species"),
+                               ParseBasis(Text(mapping["basis"], field + ".basis")),
+                               Positive(mapping["factor"], field + ".factor", true),
+                               Text(mapping["output_unit"], field + ".output_unit"),
                                std::nullopt};
         if (mapping["composition_profile"]) {
             const auto composition = mapping["composition_profile"];
@@ -444,8 +446,8 @@ FireTargetProfile LoadFireTargetProfile(const std::string& path, const std::stri
 
     const auto nox = root["nox_partition"];
     if (nox) {
-        OnlyKeys(nox, {"reference_basis", "no_mass_fraction", "no2_mass_fraction", "no_target_species", "no2_target_species",
-                       "partition_basis"}, "nox_partition");
+        OnlyKeys(nox, {"reference_basis", "no_mass_fraction", "no2_mass_fraction", "no_target_species", "no2_target_species", "partition_basis"},
+                 "nox_partition");
         for (const auto key : {"reference_basis", "no_mass_fraction", "no2_mass_fraction", "no_target_species", "no2_target_species"})
             Require(nox, key, "nox_partition");
         const auto basis = Text(nox["reference_basis"], "nox_partition.reference_basis");
@@ -474,8 +476,7 @@ FireTargetProfile LoadFireTargetProfile(const std::string& path, const std::stri
             if (!Close(reference_weight, no2_weight)) {
                 Invalid("nox_partition", "NO2 target molecular weight must match the NOX reference weight");
             }
-            total = partition.no_mass_fraction * reference_weight / no_weight +
-                    partition.no2_mass_fraction * reference_weight / no2_weight;
+            total = partition.no_mass_fraction * reference_weight / no_weight + partition.no2_mass_fraction * reference_weight / no2_weight;
             partition.partition_basis = FireNoxPartitionBasis::MolarEquivalent;
         } else if (partition_basis != "mass") {
             Invalid("nox_partition.partition_basis", "must be mass or molar_equivalent");
@@ -564,8 +565,8 @@ FireTargetProfile LoadFireTargetProfile(const std::string& path, const std::stri
         if (disposition.kind == FireSourceDispositionKind::Mapped && mapping_counts[species] == 0) {
             Invalid(field, "mapped sources require at least one typed mapping");
         }
-        if (profile.mapping_factor_semantics == FireMappingFactorSemantics::Partition &&
-            disposition.kind == FireSourceDispositionKind::Mapped && invariant_mapping_counts[species] > 0 &&
+        if (profile.mapping_factor_semantics == FireMappingFactorSemantics::Partition && disposition.kind == FireSourceDispositionKind::Mapped &&
+            invariant_mapping_counts[species] > 0 &&
             !(species == FireBulkSpecies::NOX && profile.nox_partition &&
               profile.nox_partition->partition_basis == FireNoxPartitionBasis::MolarEquivalent) &&
             !Close(factor_totals[species], 1)) {
@@ -669,9 +670,14 @@ FireMappedInventory MapFireBulkInventory(const FireBulkInventory& inventory, con
             throw std::invalid_argument("Fire target species '" + mapping.target_species + "' is mapped in incompatible units");
         }
     }
-    FireMappedInventory result{
-        inventory.Data().identity, profile.identity, inventory.Data().component_ids, inventory.Data().component_profiles, {}, {}, {},
-        inventory.Data().unprofiled_component_ids};
+    FireMappedInventory result{inventory.Data().identity,
+                               profile.identity,
+                               inventory.Data().component_ids,
+                               inventory.Data().component_profiles,
+                               {},
+                               {},
+                               {},
+                               inventory.Data().unprofiled_component_ids};
     for (const auto& target : profile.mechanism_species) {
         const auto found = target_units.find(target.name);
         if (found != target_units.end()) result.fields.push_back({target.name, found->second});
@@ -728,7 +734,7 @@ FireMappedInventory MapFireBulkInventory(const FireBulkInventory& inventory, con
 }
 
 FireTargetSpecificInventory FireProductEmissionsInterval::ToTargetSpecificInventory(std::string_view target_id,
-                                                                                     std::string_view target_version) const {
+                                                                                    std::string_view target_version) const {
     const auto& data = Data();
     if (data.chemistry_state != FireProductChemistryState::TargetSpecific || !data.target_identity) {
         throw std::invalid_argument("Bulk fire products cannot be converted to a target-specific inventory");

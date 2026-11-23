@@ -79,7 +79,7 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc);
  * @brief Set the rectilinear target grid required by the configured fire adapter.
  */
 void cece_core_fire_set_target_grid(void* data_ptr, int nx, int ny, const double* longitude_deg, int longitude_count, const double* latitude_deg,
-                                   int latitude_count, int* rc);
+                                    int latitude_count, int* rc);
 
 /**
  * @brief Initialize Phase 2 (IPDv00p2) implementation for CECE.

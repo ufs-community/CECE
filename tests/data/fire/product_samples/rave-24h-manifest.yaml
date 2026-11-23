@@ -1,30 +1,31 @@
 schema_version: 1
-purpose: Twenty-four consecutive hourly RAVE v2r0 reference crops copied from the OSPO samples; source variables
+purpose:
+  Twenty-four consecutive hourly RAVE v2r0 reference crops copied from the OSPO samples; source variables
   and metadata are retained for the selected 2x2 window.
 source_directory: https://www.ospo.noaa.gov/pub/Blended/RAVE/RAVE-HrlyEmiss-13km/2026/07/
 source_window_yx:
-- 0
-- 632
-- 2
-- 2
+  - 0
+  - 632
+  - 2
+  - 2
 source_grid_shape_yx:
-- 544
-- 800
+  - 544
+  - 800
 interval:
-  start: '2026-07-01T00:00:00Z'
-  end_exclusive: '2026-07-02T00:00:00Z'
+  start: "2026-07-01T00:00:00Z"
+  end_exclusive: "2026-07-02T00:00:00Z"
 species_order:
-- CO2
-- CO
-- CH4
-- PM25
-- OC
-- BC
-- SO2
-- TPM
-- NH3
-- NOx
-- VOCs
+  - CO2
+  - CO
+  - CH4
+  - PM25
+  - OC
+  - BC
+  - SO2
+  - TPM
+  - NH3
+  - NOx
+  - VOCs
 expected_species_total_kg:
   CO2: 1106144.125
   CO: 71184.0390625
@@ -38,150 +39,151 @@ expected_species_total_kg:
   NOx: 2170.4151000976562
   VOCs: 5303.908660888672
 fixtures:
-- hour_utc: '2026-07-01T00:00:00Z'
-  path: rave-24h/hour-00.nc
-  fixture_sha256: e0885d56912ac5932d504e9c5c9e1296d4237f878db764648a4c9790454582b2
-  source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607010000000_e202607010059590_c202607010202020.nc
-  source_sha256: 0ac99097022d50bd9128af93df8268a3d53f96b70bad8d267cfde497ab264141
-  date_created: '2026-07-01T02:02:02Z'
-- hour_utc: '2026-07-01T01:00:00Z'
-  path: rave-24h/hour-01.nc
-  fixture_sha256: ceae4804c88a4a1994fec88d2a16de33dab0569374add514e3fc89a681fcbf28
-  source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607010100000_e202607010159590_c202607010302170.nc
-  source_sha256: ac70ad99d73f1a926bfd32faeffb5bf3f9ca001a1fb9e0d630316a813ecb5f9d
-  date_created: '2026-07-01T03:02:17Z'
-- hour_utc: '2026-07-01T02:00:00Z'
-  path: rave-24h/hour-02.nc
-  fixture_sha256: 4a52fc5236912c19bf814982053aa64d071245fba0f941e01ed694f9eccd642f
-  source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607010200000_e202607010259590_c202607010402090.nc
-  source_sha256: 63a77ce6c8becf2de0e0ede3fbf37e886e0f4e569ed28e315725abf3959ae115
-  date_created: '2026-07-01T04:02:09Z'
-- hour_utc: '2026-07-01T03:00:00Z'
-  path: rave-24h/hour-03.nc
-  fixture_sha256: f9be59d9f3b5b6fe821be6e927932e4a8eecb057683621fc91939db4ca004a41
-  source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607010300000_e202607010359590_c202607010502040.nc
-  source_sha256: 0f72c611ecf044a84f3a2b75f571f5277f69f51dc5c384740666f3a1fe45f138
-  date_created: '2026-07-01T05:02:04Z'
-- hour_utc: '2026-07-01T04:00:00Z'
-  path: rave-24h/hour-04.nc
-  fixture_sha256: d3f71fc5345581c0d7678881e12be1d94621f8e43bd55176232a64c1c5ea4b21
-  source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607010400000_e202607010459590_c202607010602060.nc
-  source_sha256: 6bb21a25fb4252053d057c94f5f7657832716739775de04417495c156c6f5854
-  date_created: '2026-07-01T06:02:06Z'
-- hour_utc: '2026-07-01T05:00:00Z'
-  path: rave-24h/hour-05.nc
-  fixture_sha256: 10a6671b22a109d9483409097e2f22604692bd5b9ae548a5134c42694b15907b
-  source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607010500000_e202607010559590_c202607010702090.nc
-  source_sha256: 34a74dc9c52cbb5ef5b32754daf19eff2481da46328dd5caa6a962e934fb1807
-  date_created: '2026-07-01T07:02:09Z'
-- hour_utc: '2026-07-01T06:00:00Z'
-  path: rave-24h/hour-06.nc
-  fixture_sha256: f4689898f86db8aba4b08c7b54663cde2681430d59ac463754ee1e9fd889ebd3
-  source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607010600000_e202607010659590_c202607010802140.nc
-  source_sha256: 16b1eb7a4096dcf8618276d0aec12a7950c916e5da762132091dc89370e96add
-  date_created: '2026-07-01T08:02:14Z'
-- hour_utc: '2026-07-01T07:00:00Z'
-  path: rave-24h/hour-07.nc
-  fixture_sha256: f590ea54c40398ddbe142036fdfffebd6c70b393b6542c827fc6944a10d4bfc0
-  source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607010700000_e202607010759590_c202607010902180.nc
-  source_sha256: 1be770226f4bbfaf7a45352020b93fe5625ad37bd10bea177852b1938fe3e002
-  date_created: '2026-07-01T09:02:18Z'
-- hour_utc: '2026-07-01T08:00:00Z'
-  path: rave-24h/hour-08.nc
-  fixture_sha256: 1b411d49ed22eb2496847f20923ea2d4a4804d5a438c1042ea2c0f1b8518ce33
-  source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607010800000_e202607010859590_c202607011002150.nc
-  source_sha256: d6e08d6808408190b6ce2432ace2432142d58d22793bfbfc823e43627ba9829d
-  date_created: '2026-07-01T10:02:15Z'
-- hour_utc: '2026-07-01T09:00:00Z'
-  path: rave-24h/hour-09.nc
-  fixture_sha256: ed221c0f0003db074545b907716d14cbe34ef8a3f8148cc945d97f771476cc7c
-  source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607010900000_e202607010959590_c202607011102050.nc
-  source_sha256: 8e146e241ba4364f8d13c89de9845bd63152b3c12da40660ac4b8f6a3f891fb4
-  date_created: '2026-07-01T11:02:05Z'
-- hour_utc: '2026-07-01T10:00:00Z'
-  path: rave-24h/hour-10.nc
-  fixture_sha256: 79cb3bc196bd8a64a44d4bf2895b3a3ea94a3ceced597de80dcb909b3aae31cf
-  source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607011000000_e202607011059590_c202607011202030.nc
-  source_sha256: 7d0c2a376684af98477e1537c67d905eff77fab1021d9295340d2b1ca78ec2d6
-  date_created: '2026-07-01T12:02:03Z'
-- hour_utc: '2026-07-01T11:00:00Z'
-  path: rave-24h/hour-11.nc
-  fixture_sha256: 873ba048c70c0b3fe7ab7815b1e35cb4ba2ffe61a1b90517fb1b466dd6bcb030
-  source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607011100000_e202607011159590_c202607011302160.nc
-  source_sha256: a8151b8c74f9399be269c0db0b0360198b4badeb3ce55ce3bb07c4c05d9faeb5
-  date_created: '2026-07-01T13:02:16Z'
-- hour_utc: '2026-07-01T12:00:00Z'
-  path: rave-24h/hour-12.nc
-  fixture_sha256: 8793ed0cec454ae676e419c56ad1467c223b34ae378698226c3e57a3a6bb5dac
-  source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607011200000_e202607011259590_c202607011402100.nc
-  source_sha256: e55b5565404f37adc4c4403f2b390eca3d2d1de952c65eb5c9955d36d61ef002
-  date_created: '2026-07-01T14:02:10Z'
-- hour_utc: '2026-07-01T13:00:00Z'
-  path: rave-24h/hour-13.nc
-  fixture_sha256: b6082e593abeda39deca55da0c5847fa41b1d3d54fa47d2cf6e75e4ed4f25c3e
-  source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607011300000_e202607011359590_c202607011502270.nc
-  source_sha256: deb87d9a570886a44e0f6041b2d3edb0cb5d007f7b21b17d2960cc21530160c9
-  date_created: '2026-07-01T15:02:27Z'
-- hour_utc: '2026-07-01T14:00:00Z'
-  path: rave-24h/hour-14.nc
-  fixture_sha256: 56be7aaf6ebca87519a3de05bab0a8fedd1fa53f7d826430298fe0198a4490c5
-  source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607011400000_e202607011459590_c202607011602160.nc
-  source_sha256: 78684349ef233b87c7dff636cb0e21650eaa05c94c32983f77d8255fabe85d6c
-  date_created: '2026-07-01T16:02:16Z'
-- hour_utc: '2026-07-01T15:00:00Z'
-  path: rave-24h/hour-15.nc
-  fixture_sha256: b18ba544b44bfb14cf3b6f4a6d114f59870f17351f0efe4eddaa0ea2e1b126f6
-  source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607011500000_e202607011559590_c202607011702230.nc
-  source_sha256: 13228c9bd54f0c9374705b94b0f6984bdb8095b16343c299ab203146b75679e0
-  date_created: '2026-07-01T17:02:23Z'
-- hour_utc: '2026-07-01T16:00:00Z'
-  path: rave-24h/hour-16.nc
-  fixture_sha256: af72defd4da0b340dc3cb5b7c0cec6f1980712fea48392d4fa58daab5dd0601a
-  source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607011600000_e202607011659590_c202607011802370.nc
-  source_sha256: 7f914d047308ee0535a85e49c78f1d0eb620392f2561b0cc557b21cfb8d01109
-  date_created: '2026-07-01T18:02:37Z'
-- hour_utc: '2026-07-01T17:00:00Z'
-  path: rave-24h/hour-17.nc
-  fixture_sha256: dbd0d7fa67f38be5664bb7486d9033fc1f6bd90de4ad6faa4c881bede99e7280
-  source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607011700000_e202607011759590_c202607011902210.nc
-  source_sha256: ecef851e3c902552df458c23e1eae419d47b3a19795a06acc016ceb56afcb1e0
-  date_created: '2026-07-01T19:02:21Z'
-- hour_utc: '2026-07-01T18:00:00Z'
-  path: rave-24h/hour-18.nc
-  fixture_sha256: 2e1d564e7c7a0d20dc00a8c0127da599f9fa15c4b476e471029edd69d60a8d5b
-  source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607011800000_e202607011859590_c202607012002170.nc
-  source_sha256: b050d6c4691037f0a2b8e7ae1c0e6633f0f0085dc622a78e91805d48d99d20ad
-  date_created: '2026-07-01T20:02:17Z'
-- hour_utc: '2026-07-01T19:00:00Z'
-  path: rave-24h/hour-19.nc
-  fixture_sha256: 3d9e0c74740f64a1f005d36f36f197ebf502e657a522b4ae2871113b9cb05fd5
-  source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607011900000_e202607011959590_c202607012102150.nc
-  source_sha256: 276df0c0ee9cd1cc1594b6c10b60dc1ddeff25ac64f8a7e867f870fef1777457
-  date_created: '2026-07-01T21:02:15Z'
-- hour_utc: '2026-07-01T20:00:00Z'
-  path: rave-24h/hour-20.nc
-  fixture_sha256: d240737c054f788e04dfb8d67092d434daad5861cd2834892f09bedda54f6715
-  source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607012000000_e202607012059590_c202607012202090.nc
-  source_sha256: 192ef436bd57ed548a6c01c1ea2d2ce776c3e11fc41729559bae7b2ccddd98df
-  date_created: '2026-07-01T22:02:09Z'
-- hour_utc: '2026-07-01T21:00:00Z'
-  path: rave-24h/hour-21.nc
-  fixture_sha256: 97b90c0af0566fdb03b5bf525cc5dcaf2946c90aa8cda7170ca69352ca19817d
-  source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607012100000_e202607012159590_c202607012302040.nc
-  source_sha256: c02e1e8b84eafd026d5cdd7e053ad1083b2e7cb542fbb2437bccd998177de749
-  date_created: '2026-07-01T23:02:04Z'
-- hour_utc: '2026-07-01T22:00:00Z'
-  path: rave-24h/hour-22.nc
-  fixture_sha256: d120c56c4219f457d89ae00ce9bbb8fb33a01c49396a0c3d91b7a94798536f81
-  source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607012200000_e202607012259590_c202607020002050.nc
-  source_sha256: cccba323fa24d797b0cf21f2c0a3550a7fc9ad761ce18ead81b149b9fd7e4ca7
-  date_created: '2026-07-02T00:02:05Z'
-- hour_utc: '2026-07-01T23:00:00Z'
-  path: rave-24h/hour-23.nc
-  fixture_sha256: 9e41675861f613ca0aa1f7845b1a40146cf26cd6cb1e491746f8fdb019b4bd8f
-  source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607012300000_e202607012359590_c202607020102220.nc
-  source_sha256: b01bbf29c310e36f5c6c309774bed6e1f8ae138b7df2f9d208ca038557c45b9c
-  date_created: '2026-07-02T01:02:22Z'
-notes: Expected totals are independently summed from the raw product variables within the stated source window,
+  - hour_utc: "2026-07-01T00:00:00Z"
+    path: rave-24h/hour-00.nc
+    fixture_sha256: e0885d56912ac5932d504e9c5c9e1296d4237f878db764648a4c9790454582b2
+    source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607010000000_e202607010059590_c202607010202020.nc
+    source_sha256: 0ac99097022d50bd9128af93df8268a3d53f96b70bad8d267cfde497ab264141
+    date_created: "2026-07-01T02:02:02Z"
+  - hour_utc: "2026-07-01T01:00:00Z"
+    path: rave-24h/hour-01.nc
+    fixture_sha256: ceae4804c88a4a1994fec88d2a16de33dab0569374add514e3fc89a681fcbf28
+    source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607010100000_e202607010159590_c202607010302170.nc
+    source_sha256: ac70ad99d73f1a926bfd32faeffb5bf3f9ca001a1fb9e0d630316a813ecb5f9d
+    date_created: "2026-07-01T03:02:17Z"
+  - hour_utc: "2026-07-01T02:00:00Z"
+    path: rave-24h/hour-02.nc
+    fixture_sha256: 4a52fc5236912c19bf814982053aa64d071245fba0f941e01ed694f9eccd642f
+    source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607010200000_e202607010259590_c202607010402090.nc
+    source_sha256: 63a77ce6c8becf2de0e0ede3fbf37e886e0f4e569ed28e315725abf3959ae115
+    date_created: "2026-07-01T04:02:09Z"
+  - hour_utc: "2026-07-01T03:00:00Z"
+    path: rave-24h/hour-03.nc
+    fixture_sha256: f9be59d9f3b5b6fe821be6e927932e4a8eecb057683621fc91939db4ca004a41
+    source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607010300000_e202607010359590_c202607010502040.nc
+    source_sha256: 0f72c611ecf044a84f3a2b75f571f5277f69f51dc5c384740666f3a1fe45f138
+    date_created: "2026-07-01T05:02:04Z"
+  - hour_utc: "2026-07-01T04:00:00Z"
+    path: rave-24h/hour-04.nc
+    fixture_sha256: d3f71fc5345581c0d7678881e12be1d94621f8e43bd55176232a64c1c5ea4b21
+    source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607010400000_e202607010459590_c202607010602060.nc
+    source_sha256: 6bb21a25fb4252053d057c94f5f7657832716739775de04417495c156c6f5854
+    date_created: "2026-07-01T06:02:06Z"
+  - hour_utc: "2026-07-01T05:00:00Z"
+    path: rave-24h/hour-05.nc
+    fixture_sha256: 10a6671b22a109d9483409097e2f22604692bd5b9ae548a5134c42694b15907b
+    source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607010500000_e202607010559590_c202607010702090.nc
+    source_sha256: 34a74dc9c52cbb5ef5b32754daf19eff2481da46328dd5caa6a962e934fb1807
+    date_created: "2026-07-01T07:02:09Z"
+  - hour_utc: "2026-07-01T06:00:00Z"
+    path: rave-24h/hour-06.nc
+    fixture_sha256: f4689898f86db8aba4b08c7b54663cde2681430d59ac463754ee1e9fd889ebd3
+    source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607010600000_e202607010659590_c202607010802140.nc
+    source_sha256: 16b1eb7a4096dcf8618276d0aec12a7950c916e5da762132091dc89370e96add
+    date_created: "2026-07-01T08:02:14Z"
+  - hour_utc: "2026-07-01T07:00:00Z"
+    path: rave-24h/hour-07.nc
+    fixture_sha256: f590ea54c40398ddbe142036fdfffebd6c70b393b6542c827fc6944a10d4bfc0
+    source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607010700000_e202607010759590_c202607010902180.nc
+    source_sha256: 1be770226f4bbfaf7a45352020b93fe5625ad37bd10bea177852b1938fe3e002
+    date_created: "2026-07-01T09:02:18Z"
+  - hour_utc: "2026-07-01T08:00:00Z"
+    path: rave-24h/hour-08.nc
+    fixture_sha256: 1b411d49ed22eb2496847f20923ea2d4a4804d5a438c1042ea2c0f1b8518ce33
+    source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607010800000_e202607010859590_c202607011002150.nc
+    source_sha256: d6e08d6808408190b6ce2432ace2432142d58d22793bfbfc823e43627ba9829d
+    date_created: "2026-07-01T10:02:15Z"
+  - hour_utc: "2026-07-01T09:00:00Z"
+    path: rave-24h/hour-09.nc
+    fixture_sha256: ed221c0f0003db074545b907716d14cbe34ef8a3f8148cc945d97f771476cc7c
+    source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607010900000_e202607010959590_c202607011102050.nc
+    source_sha256: 8e146e241ba4364f8d13c89de9845bd63152b3c12da40660ac4b8f6a3f891fb4
+    date_created: "2026-07-01T11:02:05Z"
+  - hour_utc: "2026-07-01T10:00:00Z"
+    path: rave-24h/hour-10.nc
+    fixture_sha256: 79cb3bc196bd8a64a44d4bf2895b3a3ea94a3ceced597de80dcb909b3aae31cf
+    source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607011000000_e202607011059590_c202607011202030.nc
+    source_sha256: 7d0c2a376684af98477e1537c67d905eff77fab1021d9295340d2b1ca78ec2d6
+    date_created: "2026-07-01T12:02:03Z"
+  - hour_utc: "2026-07-01T11:00:00Z"
+    path: rave-24h/hour-11.nc
+    fixture_sha256: 873ba048c70c0b3fe7ab7815b1e35cb4ba2ffe61a1b90517fb1b466dd6bcb030
+    source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607011100000_e202607011159590_c202607011302160.nc
+    source_sha256: a8151b8c74f9399be269c0db0b0360198b4badeb3ce55ce3bb07c4c05d9faeb5
+    date_created: "2026-07-01T13:02:16Z"
+  - hour_utc: "2026-07-01T12:00:00Z"
+    path: rave-24h/hour-12.nc
+    fixture_sha256: 8793ed0cec454ae676e419c56ad1467c223b34ae378698226c3e57a3a6bb5dac
+    source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607011200000_e202607011259590_c202607011402100.nc
+    source_sha256: e55b5565404f37adc4c4403f2b390eca3d2d1de952c65eb5c9955d36d61ef002
+    date_created: "2026-07-01T14:02:10Z"
+  - hour_utc: "2026-07-01T13:00:00Z"
+    path: rave-24h/hour-13.nc
+    fixture_sha256: b6082e593abeda39deca55da0c5847fa41b1d3d54fa47d2cf6e75e4ed4f25c3e
+    source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607011300000_e202607011359590_c202607011502270.nc
+    source_sha256: deb87d9a570886a44e0f6041b2d3edb0cb5d007f7b21b17d2960cc21530160c9
+    date_created: "2026-07-01T15:02:27Z"
+  - hour_utc: "2026-07-01T14:00:00Z"
+    path: rave-24h/hour-14.nc
+    fixture_sha256: 56be7aaf6ebca87519a3de05bab0a8fedd1fa53f7d826430298fe0198a4490c5
+    source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607011400000_e202607011459590_c202607011602160.nc
+    source_sha256: 78684349ef233b87c7dff636cb0e21650eaa05c94c32983f77d8255fabe85d6c
+    date_created: "2026-07-01T16:02:16Z"
+  - hour_utc: "2026-07-01T15:00:00Z"
+    path: rave-24h/hour-15.nc
+    fixture_sha256: b18ba544b44bfb14cf3b6f4a6d114f59870f17351f0efe4eddaa0ea2e1b126f6
+    source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607011500000_e202607011559590_c202607011702230.nc
+    source_sha256: 13228c9bd54f0c9374705b94b0f6984bdb8095b16343c299ab203146b75679e0
+    date_created: "2026-07-01T17:02:23Z"
+  - hour_utc: "2026-07-01T16:00:00Z"
+    path: rave-24h/hour-16.nc
+    fixture_sha256: af72defd4da0b340dc3cb5b7c0cec6f1980712fea48392d4fa58daab5dd0601a
+    source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607011600000_e202607011659590_c202607011802370.nc
+    source_sha256: 7f914d047308ee0535a85e49c78f1d0eb620392f2561b0cc557b21cfb8d01109
+    date_created: "2026-07-01T18:02:37Z"
+  - hour_utc: "2026-07-01T17:00:00Z"
+    path: rave-24h/hour-17.nc
+    fixture_sha256: dbd0d7fa67f38be5664bb7486d9033fc1f6bd90de4ad6faa4c881bede99e7280
+    source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607011700000_e202607011759590_c202607011902210.nc
+    source_sha256: ecef851e3c902552df458c23e1eae419d47b3a19795a06acc016ceb56afcb1e0
+    date_created: "2026-07-01T19:02:21Z"
+  - hour_utc: "2026-07-01T18:00:00Z"
+    path: rave-24h/hour-18.nc
+    fixture_sha256: 2e1d564e7c7a0d20dc00a8c0127da599f9fa15c4b476e471029edd69d60a8d5b
+    source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607011800000_e202607011859590_c202607012002170.nc
+    source_sha256: b050d6c4691037f0a2b8e7ae1c0e6633f0f0085dc622a78e91805d48d99d20ad
+    date_created: "2026-07-01T20:02:17Z"
+  - hour_utc: "2026-07-01T19:00:00Z"
+    path: rave-24h/hour-19.nc
+    fixture_sha256: 3d9e0c74740f64a1f005d36f36f197ebf502e657a522b4ae2871113b9cb05fd5
+    source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607011900000_e202607011959590_c202607012102150.nc
+    source_sha256: 276df0c0ee9cd1cc1594b6c10b60dc1ddeff25ac64f8a7e867f870fef1777457
+    date_created: "2026-07-01T21:02:15Z"
+  - hour_utc: "2026-07-01T20:00:00Z"
+    path: rave-24h/hour-20.nc
+    fixture_sha256: d240737c054f788e04dfb8d67092d434daad5861cd2834892f09bedda54f6715
+    source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607012000000_e202607012059590_c202607012202090.nc
+    source_sha256: 192ef436bd57ed548a6c01c1ea2d2ce776c3e11fc41729559bae7b2ccddd98df
+    date_created: "2026-07-01T22:02:09Z"
+  - hour_utc: "2026-07-01T21:00:00Z"
+    path: rave-24h/hour-21.nc
+    fixture_sha256: 97b90c0af0566fdb03b5bf525cc5dcaf2946c90aa8cda7170ca69352ca19817d
+    source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607012100000_e202607012159590_c202607012302040.nc
+    source_sha256: c02e1e8b84eafd026d5cdd7e053ad1083b2e7cb542fbb2437bccd998177de749
+    date_created: "2026-07-01T23:02:04Z"
+  - hour_utc: "2026-07-01T22:00:00Z"
+    path: rave-24h/hour-22.nc
+    fixture_sha256: d120c56c4219f457d89ae00ce9bbb8fb33a01c49396a0c3d91b7a94798536f81
+    source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607012200000_e202607012259590_c202607020002050.nc
+    source_sha256: cccba323fa24d797b0cf21f2c0a3550a7fc9ad761ce18ead81b149b9fd7e4ca7
+    date_created: "2026-07-02T00:02:05Z"
+  - hour_utc: "2026-07-01T23:00:00Z"
+    path: rave-24h/hour-23.nc
+    fixture_sha256: 9e41675861f613ca0aa1f7845b1a40146cf26cd6cb1e491746f8fdb019b4bd8f
+    source_filename: RAVE-HrlyEmiss-13km_v2r0_blend_s202607012300000_e202607012359590_c202607020102220.nc
+    source_sha256: b01bbf29c310e36f5c6c309774bed6e1f8ae138b7df2f9d208ca038557c45b9c
+    date_created: "2026-07-02T01:02:22Z"
+notes:
+  Expected totals are independently summed from the raw product variables within the stated source window,
   treating the RAVE -1 no-emission sentinel as zero. They verify the decoder returns exact cell-interval mass totals
   over all 24 hours.

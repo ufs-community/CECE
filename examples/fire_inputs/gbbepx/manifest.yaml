@@ -1,42 +1,42 @@
-availability_cutoff: '2023-02-26T00:00:00Z'
+availability_cutoff: "2023-02-26T00:00:00Z"
 chemistry_state: bulk
 cutoff_mode: fixed
 cutoff_schedule_sha256: null
 decoder_version: cece-fire-product-decoder-v1
 intervals:
-- algorithm_version: v4r0
-  availability_cutoff: '2023-02-26T00:00:00Z'
-  available_species: &id001
-  - CO2
-  - CO
-  - SO2
-  - OC
-  - BC
-  - PM25
-  - NOX
-  - NH3
-  chemistry_state: bulk
-  component_id: gbbepx-v4r0-20230224-day-00
-  component_profile: null
-  content_sha256: 107ed9f6ec08da6ee38a81b2282185604285ed221b5ef9e2a59330ccfb8dc7ae
-  cutoff_mode: fixed
-  grid_sha256: b1c07aec8725245c5bbe618624894d813bd4e1542f46982bd6b0dc80d4b20110
-  interval_end: '2023-02-25T00:00:00Z'
-  interval_start: '2023-02-24T00:00:00Z'
-  path: intervals/20230224_000000_20230225_000000_f504da90ac7e_107ed9f6ec08.nc
-  product_id: GBBEPx-all01GRID
-  product_version: v4r0
-  scaling_profile: null
-  scaling_state: unscaled
-  source_content_sha256: 4dbcff118dd4bf78013d69a260c4700225464f1c0c3301839eb62d74ba40b56c
-  source_id: gbbepx-v4r0-20230224-day-00
-  species: *id001
-  unavailable_species:
-  - CH4
-  - TPM
-  - VOC
-  units: kg/cell/interval
-  variant: unscaled
+  - algorithm_version: v4r0
+    availability_cutoff: "2023-02-26T00:00:00Z"
+    available_species: &id001
+      - CO2
+      - CO
+      - SO2
+      - OC
+      - BC
+      - PM25
+      - NOX
+      - NH3
+    chemistry_state: bulk
+    component_id: gbbepx-v4r0-20230224-day-00
+    component_profile: null
+    content_sha256: 107ed9f6ec08da6ee38a81b2282185604285ed221b5ef9e2a59330ccfb8dc7ae
+    cutoff_mode: fixed
+    grid_sha256: b1c07aec8725245c5bbe618624894d813bd4e1542f46982bd6b0dc80d4b20110
+    interval_end: "2023-02-25T00:00:00Z"
+    interval_start: "2023-02-24T00:00:00Z"
+    path: intervals/20230224_000000_20230225_000000_f504da90ac7e_107ed9f6ec08.nc
+    product_id: GBBEPx-all01GRID
+    product_version: v4r0
+    scaling_profile: null
+    scaling_state: unscaled
+    source_content_sha256: 4dbcff118dd4bf78013d69a260c4700225464f1c0c3301839eb62d74ba40b56c
+    source_id: gbbepx-v4r0-20230224-day-00
+    species: *id001
+    unavailable_species:
+      - CH4
+      - TPM
+      - VOC
+    units: kg/cell/interval
+    variant: unscaled
 mode: product
 product_adapter: gbbepx-v4r0
 product_time_allocation: source_resolved
@@ -44,17 +44,17 @@ product_time_profile: null
 schema_version: 1
 source_manifest_sha256: f2acbc4cf44698ad2b580692aa8870e3abbffd365bbeeabcf3ec1e074eae4c3f
 sources:
-- acquired_at: '2023-02-25T01:34:09Z'
-  adapter_id: gbbepx-v4r0
-  algorithm_version: v4r0
-  available_at: '2023-02-25T01:34:09Z'
-  content_sha256: 4dbcff118dd4bf78013d69a260c4700225464f1c0c3301839eb62d74ba40b56c
-  local_id: ../../data/fire/product_samples/GBBEPx-all01GRID_v4r0_20230224_sample.nc
-  priority: 0
-  product_id: GBBEPx-all01GRID
-  product_version: v4r0
-  source_id: gbbepx-v4r0-20230224-day-00
-  uri: null
-  variant: unscaled
+  - acquired_at: "2023-02-25T01:34:09Z"
+    adapter_id: gbbepx-v4r0
+    algorithm_version: v4r0
+    available_at: "2023-02-25T01:34:09Z"
+    content_sha256: 4dbcff118dd4bf78013d69a260c4700225464f1c0c3301839eb62d74ba40b56c
+    local_id: ../../data/fire/product_samples/GBBEPx-all01GRID_v4r0_20230224_sample.nc
+    priority: 0
+    product_id: GBBEPx-all01GRID
+    product_version: v4r0
+    source_id: gbbepx-v4r0-20230224-day-00
+    uri: null
+    variant: unscaled
 target_id: CB6
 target_version: cb6r5_ae7_aq

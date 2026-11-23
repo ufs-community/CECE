@@ -1,4 +1,5 @@
 import importlib.util
+import re
 import sys
 from pathlib import Path
 
@@ -9,6 +10,25 @@ SPEC = importlib.util.spec_from_file_location("cece_config_validator", SCRIPT_PA
 validator = importlib.util.module_from_spec(SPEC)
 sys.modules[SPEC.name] = validator
 SPEC.loader.exec_module(validator)
+
+
+def test_precommit_validates_configs_not_fire_manifests():
+    import yaml
+
+    hooks = yaml.safe_load(
+        (Path(__file__).parents[1] / ".pre-commit-config.yaml").read_text()
+    )["repos"]
+    hook = next(
+        hook
+        for repo in hooks
+        for hook in repo["hooks"]
+        if hook["id"] == "validate-cece-config"
+    )
+    pattern = re.compile(hook["files"])
+    assert pattern.search("examples/cece_config_fire_rave_cb6_native.yaml")
+    assert pattern.search("docs/fire.md")
+    assert not pattern.search("examples/fire_sources/rave_v2r0.yaml")
+    assert not pattern.search("examples/fire_inputs/rave/manifest.yaml")
 
 
 def test_fire_options_are_checked_before_the_cli_registration_gate(tmp_path, capsys):

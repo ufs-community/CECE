@@ -10,9 +10,20 @@ from typing import Any
 
 import yaml
 
-
 ROOT = Path(__file__).resolve().parents[1]
-BULK_SPECIES = ["CO2", "CO", "CH4", "PM25", "TPM", "SO2", "OC", "BC", "NOX", "NH3", "VOC"]
+BULK_SPECIES = [
+    "CO2",
+    "CO",
+    "CH4",
+    "PM25",
+    "TPM",
+    "SO2",
+    "OC",
+    "BC",
+    "NOX",
+    "NH3",
+    "VOC",
+]
 NATIVE_SPECIES = ["CO2", "CO", "CH4", "SO2", "OC", "BC", "NH3"]
 TARGET_ID = "CB6"
 TARGET_VERSION = "cb6r5_ae7_aq"
@@ -31,48 +42,60 @@ def sha256_bytes(value: bytes) -> str:
 
 
 def yaml_bytes(value: Any) -> bytes:
-    return yaml.safe_dump(value, sort_keys=False, allow_unicode=False, width=110).encode("utf-8")
+    return yaml.safe_dump(
+        value, sort_keys=False, allow_unicode=False, width=110
+    ).encode("utf-8")
 
 
 def make_factor_species(manifest: dict[str, Any]) -> dict[str, Any]:
     result = {
         "schema_version": 1,
-        "identity": {"target_id": TARGET_ID, "target_version": TARGET_VERSION, "mechanism_version": "r5"},
+        "identity": {
+            "target_id": TARGET_ID,
+            "target_version": TARGET_VERSION,
+            "mechanism_version": "r5",
+        },
         "purpose": "Fire-specific CB6 factor output species; separate from data/speciation/map_cb6.yaml.",
         "coefficient_semantics": "independent coefficients; values are not normalized",
         "species": [],
     }
-    for source_name, source_species in (("species_mapping_co", "CO"), ("species_mapping_pm25", "PM25")):
+    for source_name, source_species in (
+        ("species_mapping_co", "CO"),
+        ("species_mapping_pm25", "PM25"),
+    ):
         for name, row in manifest[source_name]["factors"].items():
-            result["species"].append(
-                {
-                    "name": name,
-                    "source_species": source_species,
-                    "factor": row["value"],
-                    "output_unit": "kg",
-                    "source_unit_label": row["unit"],
-                    "description": row["name"],
-                }
-            )
+            result["species"].append({
+                "name": name,
+                "source_species": source_species,
+                "factor": row["value"],
+                "output_unit": "kg",
+                "source_unit_label": row["unit"],
+                "description": row["name"],
+            })
     return result
 
 
 def make_factor_profile(
-    manifest_path: Path, species_path: Path, species_sha256: str, source_excerpt_path: Path, manifest: dict[str, Any]
+    manifest_path: Path,
+    species_path: Path,
+    species_sha256: str,
+    source_excerpt_path: Path,
+    manifest: dict[str, Any],
 ) -> dict[str, Any]:
     mappings = []
     target_species = []
-    for source_name, source_species in (("species_mapping_co", "CO"), ("species_mapping_pm25", "PM25")):
+    for source_name, source_species in (
+        ("species_mapping_co", "CO"),
+        ("species_mapping_pm25", "PM25"),
+    ):
         for name, row in manifest[source_name]["factors"].items():
-            mappings.append(
-                {
-                    "source_species": source_species,
-                    "target_species": name,
-                    "basis": "mass",
-                    "factor": row["value"],
-                    "output_unit": "kg",
-                }
-            )
+            mappings.append({
+                "source_species": source_species,
+                "target_species": name,
+                "basis": "mass",
+                "factor": row["value"],
+                "output_unit": "kg",
+            })
             target_species.append({"name": name})
 
     return {
@@ -86,9 +109,21 @@ def make_factor_profile(
             "target_version": TARGET_VERSION,
         },
         "assets": [
-            {"name": "verified-factor-manifest", "path": manifest_path.name, "sha256": sha256(manifest_path)},
-            {"name": "pinned-aqm-configuration-excerpt", "path": source_excerpt_path.name, "sha256": sha256(source_excerpt_path)},
-            {"name": "fire-specific-target-species", "path": species_path.name, "sha256": species_sha256},
+            {
+                "name": "verified-factor-manifest",
+                "path": manifest_path.name,
+                "sha256": sha256(manifest_path),
+            },
+            {
+                "name": "pinned-aqm-configuration-excerpt",
+                "path": source_excerpt_path.name,
+                "sha256": sha256(source_excerpt_path),
+            },
+            {
+                "name": "fire-specific-target-species",
+                "path": species_path.name,
+                "sha256": species_sha256,
+            },
         ],
         "mechanism_species": target_species,
         "typed_mappings": mappings,
@@ -125,7 +160,12 @@ def make_native_species() -> dict[str, Any]:
     }
 
 
-def make_native_profile(manifest_path: Path, species_path: Path, species_sha256: str, source_excerpt_path: Path) -> dict[str, Any]:
+def make_native_profile(
+    manifest_path: Path,
+    species_path: Path,
+    species_sha256: str,
+    source_excerpt_path: Path,
+) -> dict[str, Any]:
     return {
         "schema_version": 1,
         "production_eligible": False,
@@ -137,13 +177,31 @@ def make_native_profile(manifest_path: Path, species_path: Path, species_sha256:
             "target_version": TARGET_VERSION,
         },
         "assets": [
-            {"name": "fire-specific-native-species-definition", "path": species_path.name, "sha256": species_sha256},
-            {"name": "verified-factor-manifest", "path": manifest_path.name, "sha256": sha256(manifest_path)},
-            {"name": "pinned-aqm-configuration-excerpt", "path": source_excerpt_path.name, "sha256": sha256(source_excerpt_path)},
+            {
+                "name": "fire-specific-native-species-definition",
+                "path": species_path.name,
+                "sha256": species_sha256,
+            },
+            {
+                "name": "verified-factor-manifest",
+                "path": manifest_path.name,
+                "sha256": sha256(manifest_path),
+            },
+            {
+                "name": "pinned-aqm-configuration-excerpt",
+                "path": source_excerpt_path.name,
+                "sha256": sha256(source_excerpt_path),
+            },
         ],
         "mechanism_species": [{"name": name} for name in NATIVE_SPECIES],
         "typed_mappings": [
-            {"source_species": name, "target_species": name, "basis": "mass", "factor": 1.0, "output_unit": "kg"}
+            {
+                "source_species": name,
+                "target_species": name,
+                "basis": "mass",
+                "factor": 1.0,
+                "output_unit": "kg",
+            }
             for name in NATIVE_SPECIES
         ],
         "conversion_factors": {
@@ -208,26 +266,53 @@ def make_source_manifest(product: str) -> dict[str, Any]:
     return {"schema_version": 1, "sources": [source]}
 
 
-def make_config(product: str, mode: str, source_species: list[str], output_species: list[str]) -> dict[str, Any]:
+def make_config(
+    product: str, mode: str, source_species: list[str], output_species: list[str]
+) -> dict[str, Any]:
     rave = product == "rave"
     prefix = f"{product}_cb6_{mode}"
     start, end, timestep, cutoff = (
         ("2026-07-01T00:00:00", "2026-07-01T01:00:00", 3600, "2026-07-03T00:00:00Z")
         if rave
-        else ("2023-02-24T00:00:00", "2023-02-25T00:00:00", 86400, "2023-02-26T00:00:00Z")
+        else (
+            "2023-02-24T00:00:00",
+            "2023-02-25T00:00:00",
+            86400,
+            "2023-02-26T00:00:00Z",
+        )
     )
     requested_species = ["CO", "PM25"] if mode == "speciation" else source_species
-    profile = "cb6_fire_speciation_profile.yaml" if mode == "speciation" else "cb6_fire_native_profile.yaml"
-    species_definition = "cb6_fire_target_species.yaml" if mode == "speciation" else "cb6_fire_native_species.yaml"
+    profile = (
+        "cb6_fire_speciation_profile.yaml"
+        if mode == "speciation"
+        else "cb6_fire_native_profile.yaml"
+    )
+    species_definition = (
+        "cb6_fire_target_species.yaml"
+        if mode == "speciation"
+        else "cb6_fire_native_species.yaml"
+    )
     fields = [
         {
             "name": f"FIRE_{name}",
-            "attributes": {"units": "kg m-2 s-1", "long_name": f"fire {name} emission flux"},
+            "attributes": {
+                "units": "kg m-2 s-1",
+                "long_name": f"fire {name} emission flux",
+            },
         }
         for name in output_species
     ]
-    diagnostics = (["PM25", "TPM", "NOX", "VOC"] if rave else ["PM25", "NOX"]) if mode == "native" else []
-    warnings = {"PM25": "overlapping pool", "TPM": "overlapping pool", "NOX": "reference basis unverified", "VOC": "composition unverified"}
+    diagnostics = (
+        (["PM25", "TPM", "NOX", "VOC"] if rave else ["PM25", "NOX"])
+        if mode == "native"
+        else []
+    )
+    warnings = {
+        "PM25": "overlapping pool",
+        "TPM": "overlapping pool",
+        "NOX": "reference basis unverified",
+        "VOC": "composition unverified",
+    }
     fields.extend(
         {
             "name": f"FIRE_NATIVE_{name}",
@@ -267,7 +352,11 @@ def make_config(product: str, mode: str, source_species: list[str], output_speci
                     "product_time_allocation": "source_resolved",
                     "chemistry_state": "bulk",
                     "requested_species": requested_species,
-                    **({"native_diagnostic_species": diagnostics} if diagnostics else {}),
+                    **(
+                        {"native_diagnostic_species": diagnostics}
+                        if diagnostics
+                        else {}
+                    ),
                     "target_id": TARGET_ID,
                     "target_version": TARGET_VERSION,
                     "mechanism_file": f"data/fire/{species_definition}",
@@ -305,10 +394,21 @@ def generated_files() -> dict[Path, bytes]:
         native_species_path: native_species_bytes,
     }
     files[data_fire / "cb6_fire_speciation_profile.yaml"] = yaml_bytes(
-        make_factor_profile(manifest_path, factor_species_path, sha256_bytes(factor_species_bytes), source_excerpt_path, manifest)
+        make_factor_profile(
+            manifest_path,
+            factor_species_path,
+            sha256_bytes(factor_species_bytes),
+            source_excerpt_path,
+            manifest,
+        )
     )
     files[data_fire / "cb6_fire_native_profile.yaml"] = yaml_bytes(
-        make_native_profile(manifest_path, native_species_path, sha256_bytes(native_species_bytes), source_excerpt_path)
+        make_native_profile(
+            manifest_path,
+            native_species_path,
+            sha256_bytes(native_species_bytes),
+            source_excerpt_path,
+        )
     )
     source_dir = ROOT / "examples" / "fire_sources"
     files[source_dir / "rave_v2r0.yaml"] = yaml_bytes(make_source_manifest("rave"))
@@ -325,13 +425,19 @@ def generated_files() -> dict[Path, bytes]:
             ("native", direct_species, direct_species),
         ):
             config_path = example_dir / f"cece_config_fire_{product}_cb6_{mode}.yaml"
-            files[config_path] = yaml_bytes(make_config(product, mode, source_species, output_species))
+            files[config_path] = yaml_bytes(
+                make_config(product, mode, source_species, output_species)
+            )
     return files
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--check", action="store_true", help="fail if generated assets differ from checked-in files")
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="fail if generated assets differ from checked-in files",
+    )
     args = parser.parse_args()
     stale = []
     for path, content in generated_files().items():

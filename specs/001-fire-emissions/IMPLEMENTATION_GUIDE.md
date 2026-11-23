@@ -125,10 +125,10 @@ Final Species Mass:        M [kg] = DM × Factor
 2. **Load & Parse Sample Files** (optional for validation)
    ```python
    import netCDF4 as nc
-   
+
    rave = nc.Dataset('data/fire/product_samples/RAVE-HrlyEmiss-13km_v2r0_20260701_sample.nc')
    gbbepx = nc.Dataset('data/fire/product_samples/GBBEPx-all01GRID_v4r0_20230224_sample.nc')
-   
+
    # Inspect structure
    print(rave.variables.keys())
    print(gbbepx.variables.keys())
@@ -168,7 +168,7 @@ synthetic-profile tests that do not certify production chemistry.
    rave_total_co2_kg:        [from sample]
    rave_total_frp_mw_hours:  [from sample]
    gbbepx_total_co_kg:       [from sample]
-   
+
    # Then verify after processing:
    # (output_total - reference_total) / reference_total <= 0.05
    ```

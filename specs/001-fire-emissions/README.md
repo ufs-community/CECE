@@ -1,7 +1,7 @@
 # Fire Emissions Feature Implementation
 
-**Current Phase**: 🟢 Ready for Implementation (T021-T027)  
-**Investigation Phase**: ✅ Complete (T017-T018)  
+**Current Phase**: 🟢 Ready for Implementation (T021-T027)
+**Investigation Phase**: ✅ Complete (T017-T018)
 **Last Updated**: 2026-11-20
 
 ---
@@ -250,25 +250,25 @@ See any document in this directory for examples.
 
 ## Common Questions
 
-**Q: Where are the actual product files?**  
+**Q: Where are the actual product files?**
 A: `data/fire/product_samples/` - RAVE (4.2 MB) and GBBEPx (526 MB)
 
-**Q: Where do I find variable documentation?**  
+**Q: Where do I find variable documentation?**
 A: `data/fire/product_samples_manifest.yaml` - all 41 RAVE + 26 GBBEPx variables
 
-**Q: Where are the CB6 factors?**  
+**Q: Where are the CB6 factors?**
 A: `data/fire/cb6_fire_factors_manifest.yaml` - 43 transcribed rows; their semantics are not yet production-verified
 
-**Q: What's the combustion coefficient?**  
+**Q: What's the combustion coefficient?**
 A: 0.368 kg/MJ is a separate RAVE ATBD claim and is not part of the CB6 product-factor mapping.
 
-**Q: How do I validate my implementation?**  
+**Q: How do I validate my implementation?**
 A: Use reference totals from actual samples; ±5% tolerance (SC-002)
 
-**Q: Why does GBBEPx only have 8 species?**  
+**Q: Why does GBBEPx only have 8 species?**
 A: Product limitation - it doesn't include CH4, TPM, or VOCs
 
-**Q: How long will T021-T027 take?**  
+**Q: How long will T021-T027 take?**
 A: 2-3 weeks total (1-2 weeks for T021, 1 week for T023, 3-5 days each for T024-T027)
 
 ---

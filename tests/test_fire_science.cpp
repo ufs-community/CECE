@@ -121,14 +121,23 @@ TEST(test_fire_science, AtbdForestIllustrationHasConsistentPrecedenceAndDimensio
 
 TEST(test_fire_science, SyntheticElevenSpeciesFluxNormalizesToIndependentMasses) {
     const auto fixture = YAML::LoadFile(std::string(CECE_SOURCE_DIR) + "/tests/data/fire/synthetic_interval.yaml");
-    const auto grid = std::make_shared<const cece::FireGrid>(cece::FireGridDefinition{
-        "synthetic-science", std::string(64, 'b'), 1, 1, {0}, {0}, {{{-1, 1, 1, -1}}}, {{{-1, -1, 1, 1}}},
-        {fixture["inputs"]["area_m2"].as<double>()}, "EPSG:4326", cece::FireLongitudeConvention::Minus180To180});
-    cece::FireProductEmissionsIntervalData data({"synthetic", "1", "test",
-        cece::FireInputIdentity({1, "synthetic", "1", "test", "test", std::string(64, 'a'),
-            cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T00:01:40Z"),
-            cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T00:00:00Z"),
-            cece::FireUtcTime("2022-07-01T00:01:40Z"), cece::FireCutoffMode::Fixed, grid})});
+    const auto grid = std::make_shared<const cece::FireGrid>(cece::FireGridDefinition{"synthetic-science",
+                                                                                      std::string(64, 'b'),
+                                                                                      1,
+                                                                                      1,
+                                                                                      {0},
+                                                                                      {0},
+                                                                                      {{{-1, 1, 1, -1}}},
+                                                                                      {{{-1, -1, 1, 1}}},
+                                                                                      {fixture["inputs"]["area_m2"].as<double>()},
+                                                                                      "EPSG:4326",
+                                                                                      cece::FireLongitudeConvention::Minus180To180});
+    cece::FireProductEmissionsIntervalData data(
+        {"synthetic", "1", "test",
+         cece::FireInputIdentity({1, "synthetic", "1", "test", "test", std::string(64, 'a'), cece::FireUtcTime("2022-07-01T00:00:00Z"),
+                                  cece::FireUtcTime("2022-07-01T00:01:40Z"), cece::FireUtcTime("2022-07-01T00:00:00Z"),
+                                  cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T00:01:40Z"), cece::FireCutoffMode::Fixed,
+                                  grid})});
     data.quality_state = {cece::FireQualityState::Observed};
     data.coverage_fraction = {1};
     const auto names = fixture["inputs"]["species"];

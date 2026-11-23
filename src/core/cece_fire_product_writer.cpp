@@ -1,6 +1,4 @@
 // SPDX-License-Identifier: Apache-2.0
-#include "cece/cece_fire_input.hpp"
-
 #include <netcdf.h>
 
 #include <array>
@@ -9,6 +7,8 @@
 #include <stdexcept>
 #include <string_view>
 #include <vector>
+
+#include "cece/cece_fire_input.hpp"
 
 namespace cece {
 namespace {
@@ -165,8 +165,7 @@ void WriteNormalizedFireProductFile(const FireProductEmissionsInterval& product,
     TextAttribute(file, NC_GLOBAL, "longitude_convention",
                   grid.longitude_convention == FireLongitudeConvention::ZeroTo360 ? "0_to_360" : "minus180_to_180");
     TextAttribute(file, NC_GLOBAL, "chemistry_state", "bulk");
-    TextAttribute(file, NC_GLOBAL, "scaling_state",
-                  data.scaling_state.kind == FireProductScalingKind::Applied ? "applied" : "unscaled");
+    TextAttribute(file, NC_GLOBAL, "scaling_state", data.scaling_state.kind == FireProductScalingKind::Applied ? "applied" : "unscaled");
     if (data.scaling_state.profile) {
         TextAttribute(file, NC_GLOBAL, "scaling_profile_id", data.scaling_state.profile->id);
         TextAttribute(file, NC_GLOBAL, "scaling_profile_version", data.scaling_state.profile->version);
@@ -208,8 +207,7 @@ void WriteNormalizedFireProductFile(const FireProductEmissionsInterval& product,
     NetcdfCheck(nc_put_att_schar(file, quality_var, "flag_values", NC_BYTE, quality_values.size(), quality_values.data()),
                 "cannot write quality flag values");
     TextAttribute(file, quality_var, "flag_meanings", "observed reconstructed valid_zero");
-    NetcdfCheck(nc_put_att_int(file, crs_var, "epsg_code", NC_INT, 1, std::array<int, 1>{4326}.data()),
-                "cannot write CRS code");
+    NetcdfCheck(nc_put_att_int(file, crs_var, "epsg_code", NC_INT, 1, std::array<int, 1>{4326}.data()), "cannot write CRS code");
     TextAttribute(file, crs_var, "grid_mapping_name", "latitude_longitude");
     TextAttribute(file, crs_var, "spatial_ref", grid.crs);
 

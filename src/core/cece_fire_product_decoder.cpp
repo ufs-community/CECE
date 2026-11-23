@@ -1,6 +1,4 @@
 // SPDX-License-Identifier: Apache-2.0
-#include "cece/cece_fire_input.hpp"
-
 #include <netcdf.h>
 
 #include <algorithm>
@@ -15,6 +13,8 @@
 #include <string_view>
 #include <utility>
 #include <vector>
+
+#include "cece/cece_fire_input.hpp"
 
 namespace cece {
 namespace {
@@ -184,8 +184,8 @@ struct GridWindow {
 };
 
 GridWindow ResolveWindow(const std::optional<FireProductDecodeWindow>& requested, std::size_t nx, std::size_t ny) {
-    const GridWindow window = requested ? GridWindow{requested->x_start, requested->y_start, requested->width, requested->height}
-                                        : GridWindow{0, 0, nx, ny};
+    const GridWindow window =
+        requested ? GridWindow{requested->x_start, requested->y_start, requested->width, requested->height} : GridWindow{0, 0, nx, ny};
     if (window.width == 0 || window.height == 0 || window.x_start > nx || window.y_start > ny || window.width > nx - window.x_start ||
         window.height > ny - window.y_start || window.width > std::numeric_limits<std::size_t>::max() / window.height) {
         throw std::invalid_argument("Fire product decode window is empty or outside the source grid");
@@ -202,8 +202,7 @@ void RequireUnits(const NetcdfFile& file, std::string_view variable_name, std::s
     }
 }
 
-std::vector<double> Coordinates(const NetcdfFile& file, std::string_view name, std::size_t start, std::size_t count,
-                                std::string_view dimension) {
+std::vector<double> Coordinates(const NetcdfFile& file, std::string_view name, std::size_t start, std::size_t count, std::string_view dimension) {
     auto values = file.ReadVector(name, start, count, dimension);
     if (!std::all_of(values.begin(), values.end(), [](double value) { return std::isfinite(value); })) {
         throw std::invalid_argument("Fire product '" + file.Path() + "': coordinate variable '" + std::string(name) + "' has nonfinite values");
@@ -228,8 +227,8 @@ double SphericalCellArea(const std::array<double, 4>& longitude, const std::arra
 std::shared_ptr<const FireGrid> MakeGrid(FireGridDefinition definition, const GridWindow& window) {
     std::ostringstream identity;
     identity << std::setprecision(std::numeric_limits<double>::max_digits10) << definition.grid_id << ':' << definition.crs << ':'
-             << static_cast<int>(definition.longitude_convention) << ':' << window.x_start << ':' << window.y_start << ':' << window.width
-             << ':' << window.height;
+             << static_cast<int>(definition.longitude_convention) << ':' << window.x_start << ':' << window.y_start << ':' << window.width << ':'
+             << window.height;
     const auto append_values = [&identity](const auto& values) {
         for (const auto& value : values) identity << ':' << value;
     };
@@ -277,8 +276,7 @@ std::shared_ptr<const FireGrid> MakeGbbepxGrid(const NetcdfFile& file, const Gri
     validate_spacing(source_longitudes, "Longitude");
     for (auto& latitude : source_latitudes) latitude = CanonicalGbbepxCoordinate(latitude, "Latitude");
     for (auto& longitude : source_longitudes) longitude = CanonicalGbbepxCoordinate(longitude, "Longitude");
-    if (source_latitudes.size() == 1801 &&
-        (std::abs(source_latitudes.front() + 90.0) > 5e-5 || std::abs(source_latitudes.back() - 90.0) > 5e-5)) {
+    if (source_latitudes.size() == 1801 && (std::abs(source_latitudes.front() + 90.0) > 5e-5 || std::abs(source_latitudes.back() - 90.0) > 5e-5)) {
         throw std::invalid_argument("GBBEPx latitude coordinates do not match the supported global grid");
     }
     if (source_longitudes.size() == 3600 &&
@@ -327,10 +325,8 @@ std::shared_ptr<const FireGrid> MakeRaveGrid(const NetcdfFile& file, const GridW
 
     const auto centers_lon = file.ReadGrid("grid_lont", window.x_start, window.y_start, window.width, window.height, "grid_yt", "grid_xt");
     const auto centers_lat = file.ReadGrid("grid_latt", window.x_start, window.y_start, window.width, window.height, "grid_yt", "grid_xt");
-    const auto corners_lon =
-        file.ReadGrid("grid_lon", window.x_start, window.y_start, window.width + 1, window.height + 1, "grid_y", "grid_x");
-    const auto corners_lat =
-        file.ReadGrid("grid_lat", window.x_start, window.y_start, window.width + 1, window.height + 1, "grid_y", "grid_x");
+    const auto corners_lon = file.ReadGrid("grid_lon", window.x_start, window.y_start, window.width + 1, window.height + 1, "grid_y", "grid_x");
+    const auto corners_lat = file.ReadGrid("grid_lat", window.x_start, window.y_start, window.width + 1, window.height + 1, "grid_y", "grid_x");
     const std::size_t corner_width = window.width + 1;
     const std::size_t cells = window.width * window.height;
     definition.longitude_deg = centers_lon;
@@ -349,8 +345,7 @@ std::shared_ptr<const FireGrid> MakeRaveGrid(const NetcdfFile& file, const GridW
                                                      corners_lon[bottom_left]};
             definition.latitude_bounds_deg[cell] = {corners_lat[top_left], corners_lat[top_right], corners_lat[bottom_right],
                                                     corners_lat[bottom_left]};
-            definition.area_m2[cell] =
-                FireGreatCirclePolygonArea(definition.longitude_bounds_deg[cell], definition.latitude_bounds_deg[cell]);
+            definition.area_m2[cell] = FireGreatCirclePolygonArea(definition.longitude_bounds_deg[cell], definition.latitude_bounds_deg[cell]);
         }
     }
     return MakeGrid(std::move(definition), window);
@@ -376,34 +371,25 @@ IntervalMetadata ReadIntervalMetadata(const NetcdfFile& file, std::int64_t expec
 }
 
 FireInputIdentity MakeInputIdentity(const NetcdfFile& file, const std::string& product_id, const std::string& product_version,
-                                    const std::string& content_hash, const IntervalMetadata& interval,
-                                    const FireProductDecodeOptions& options, std::shared_ptr<const FireGrid> grid) {
+                                    const std::string& content_hash, const IntervalMetadata& interval, const FireProductDecodeOptions& options,
+                                    std::shared_ptr<const FireGrid> grid) {
     if (!options.availability_cutoff) {
         throw std::invalid_argument("Fire product decode requires an explicit availability cutoff timestamp");
     }
     if (options.cutoff_mode != FireCutoffMode::Fixed && options.cutoff_mode != FireCutoffMode::HostSupplied) {
         throw std::invalid_argument("Fire product decode requires a fixed or host-supplied availability cutoff mode");
     }
-    return FireInputIdentity({1,
-                              product_id,
-                              product_version,
-                              product_version,
-                              std::filesystem::path(file.Path()).filename().string(),
-                              content_hash,
-                              interval.start,
-                              interval.end,
-                              interval.available_at,
-                              interval.available_at,
-                              *options.availability_cutoff,
-                              options.cutoff_mode,
-                              std::move(grid)});
+    return FireInputIdentity({1, product_id, product_version, product_version, std::filesystem::path(file.Path()).filename().string(), content_hash,
+                              interval.start, interval.end, interval.available_at, interval.available_at, *options.availability_cutoff,
+                              options.cutoff_mode, std::move(grid)});
 }
 
 void SetAvailability(FireProductEmissionsIntervalData& data) {
     for (std::size_t species = 0; species < 11; ++species) {
         const auto canonical = static_cast<FireBulkSpecies>(species);
         const bool present = std::find(data.species.begin(), data.species.end(), canonical) != data.species.end();
-        data.species_availability.emplace(canonical, present ? FireProductSpeciesAvailability::Available : FireProductSpeciesAvailability::Unavailable);
+        data.species_availability.emplace(canonical,
+                                          present ? FireProductSpeciesAvailability::Available : FireProductSpeciesAvailability::Unavailable);
     }
 }
 
@@ -493,15 +479,21 @@ FireProductEmissionsInterval DecodeRaveProductFile(const std::string& path, cons
     const auto interval = ReadIntervalMetadata(file, 3600);
     auto identity = MakeInputIdentity(file, std::string(product_id), std::string(version), content_hash, interval, options, std::move(grid));
 
-    FireProductIdentity product_identity{std::string(product_id),
-                                         std::string(version),
-                                         options.scaling == FireProductScalingKind::Applied ? "scaled" : "unscaled",
-                                         std::move(identity)};
+    FireProductIdentity product_identity{std::string(product_id), std::string(version),
+                                         options.scaling == FireProductScalingKind::Applied ? "scaled" : "unscaled", std::move(identity)};
     FireProductEmissionsIntervalData data(std::move(product_identity));
     const std::array<std::pair<std::string_view, FireBulkSpecies>, 11> species{{
-        {"CO2", FireBulkSpecies::CO2}, {"CO", FireBulkSpecies::CO},     {"CH4", FireBulkSpecies::CH4}, {"PM25", FireBulkSpecies::PM25},
-        {"OC", FireBulkSpecies::OC},   {"BC", FireBulkSpecies::BC},     {"SO2", FireBulkSpecies::SO2}, {"TPM", FireBulkSpecies::TPM},
-        {"NH3", FireBulkSpecies::NH3}, {"NOx", FireBulkSpecies::NOX},   {"VOCs", FireBulkSpecies::VOC},
+        {"CO2", FireBulkSpecies::CO2},
+        {"CO", FireBulkSpecies::CO},
+        {"CH4", FireBulkSpecies::CH4},
+        {"PM25", FireBulkSpecies::PM25},
+        {"OC", FireBulkSpecies::OC},
+        {"BC", FireBulkSpecies::BC},
+        {"SO2", FireBulkSpecies::SO2},
+        {"TPM", FireBulkSpecies::TPM},
+        {"NH3", FireBulkSpecies::NH3},
+        {"NOx", FireBulkSpecies::NOX},
+        {"VOCs", FireBulkSpecies::VOC},
     }};
     const std::size_t cells = window.width * window.height;
     data.quality_state.assign(cells, FireQualityState::ValidZero);
@@ -525,7 +517,8 @@ FireProductEmissionsInterval DecodeRaveProductFile(const std::string& path, cons
             if (output[cell] > 0) data.quality_state[cell] = FireQualityState::Observed;
         }
         data.species.push_back(species[index].second);
-        data.quantity_semantics.emplace(species[index].second, FireProductQuantitySemantics{FireProductQuantityKind::IntervalMass, "kg/cell/interval"});
+        data.quantity_semantics.emplace(species[index].second,
+                                        FireProductQuantitySemantics{FireProductQuantityKind::IntervalMass, "kg/cell/interval"});
     }
     for (std::size_t cell = 0; cell < cells; ++cell) {
         if (missing_union[cell] != missing_intersection[cell]) {
@@ -562,11 +555,16 @@ FireProductEmissionsInterval DecodeGbbepxProductFile(const std::string& path, co
     const auto interval = ReadIntervalMetadata(file, 86400);
     auto identity = MakeInputIdentity(file, std::string(product_id), std::string(version), content_hash, interval, options, std::move(grid));
 
-    FireProductEmissionsIntervalData data(
-        {std::string(product_id), std::string(version), "unscaled", std::move(identity)});
+    FireProductEmissionsIntervalData data({std::string(product_id), std::string(version), "unscaled", std::move(identity)});
     const std::array<std::pair<std::string_view, FireBulkSpecies>, 8> species{{
-        {"CO2", FireBulkSpecies::CO2}, {"CO", FireBulkSpecies::CO}, {"SO2", FireBulkSpecies::SO2}, {"OC", FireBulkSpecies::OC},
-        {"BC", FireBulkSpecies::BC}, {"PM2.5", FireBulkSpecies::PM25}, {"NOx", FireBulkSpecies::NOX}, {"NH3", FireBulkSpecies::NH3},
+        {"CO2", FireBulkSpecies::CO2},
+        {"CO", FireBulkSpecies::CO},
+        {"SO2", FireBulkSpecies::SO2},
+        {"OC", FireBulkSpecies::OC},
+        {"BC", FireBulkSpecies::BC},
+        {"PM2.5", FireBulkSpecies::PM25},
+        {"NOx", FireBulkSpecies::NOX},
+        {"NH3", FireBulkSpecies::NH3},
     }};
     const std::size_t cells = window.width * window.height;
     data.quality_state.assign(cells, FireQualityState::ValidZero);

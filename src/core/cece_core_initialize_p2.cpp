@@ -53,9 +53,8 @@ void cece_core_fire_set_target_grid(void* data_ptr, int nx, int ny, const double
     }
     try {
         auto area_model = cece::FireGridAreaModel::ConstantLatitudeEdges;
-        const auto fire_scheme = std::find_if(
-            internal_data->config.physics_schemes.begin(), internal_data->config.physics_schemes.end(),
-            [](const cece::PhysicsSchemeConfig& scheme) { return scheme.fire.has_value(); });
+        const auto fire_scheme = std::find_if(internal_data->config.physics_schemes.begin(), internal_data->config.physics_schemes.end(),
+                                              [](const cece::PhysicsSchemeConfig& scheme) { return scheme.fire.has_value(); });
         if (fire_scheme != internal_data->config.physics_schemes.end() && fire_scheme->fire->mode == cece::FireInputMode::Product) {
             if (fire_scheme->fire->product_adapter == "rave-v2r0" || fire_scheme->fire->product_adapter == "gbbepx-v4r0") {
                 area_model = cece::FireGridAreaModel::GreatCircleEdges;
@@ -63,9 +62,8 @@ void cece_core_fire_set_target_grid(void* data_ptr, int nx, int ny, const double
                 throw std::invalid_argument("unsupported product adapter for conservative target-grid area semantics");
             }
         }
-        internal_data->fire_target_grid = cece::MakeRectilinearFireGrid(
-            nx, ny, std::vector<double>(longitude_deg, longitude_deg + longitude_count),
-            std::vector<double>(latitude_deg, latitude_deg + latitude_count), area_model);
+        internal_data->fire_target_grid = cece::MakeRectilinearFireGrid(nx, ny, std::vector<double>(longitude_deg, longitude_deg + longitude_count),
+                                                                        std::vector<double>(latitude_deg, latitude_deg + latitude_count), area_model);
     } catch (const std::exception& error) {
         if (rc) *rc = -1;
         CECE_LOG_ERROR("ERROR in cece_core_fire_set_target_grid: "s + error.what() + "\n");

@@ -18,7 +18,8 @@ inputs:
   area_m2: 25.0
   combustion_kg_per_mj: 0.5
   species: [CO2, CO, CH4, PM25, TPM, SO2, OC, BC, NOX, NH3, VOC]
-  emission_factors_kg_per_kg: [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.10, 0.11]
+  emission_factors_kg_per_kg:
+    [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.08, 0.09, 0.10, 0.11]
   artificial_mass_mapping: [0.25, 0.75]
 expected:
   - quantity: fre
@@ -41,7 +42,20 @@ expected:
     zero_absolute_tolerance: 1.0e-12
   - quantity: species_flux
     units: kg m-2 s-1
-    values: [0.0004, 0.0008, 0.0012, 0.0016, 0.0020, 0.0024, 0.0028, 0.0032, 0.0036, 0.0040, 0.0044]
+    values:
+      [
+        0.0004,
+        0.0008,
+        0.0012,
+        0.0016,
+        0.0020,
+        0.0024,
+        0.0028,
+        0.0032,
+        0.0036,
+        0.0040,
+        0.0044,
+      ]
     method: Each independently specified species mass divided by 25 m2 and 100 seconds.
     relative_tolerance: 1.0e-6
     zero_absolute_tolerance: 1.0e-12

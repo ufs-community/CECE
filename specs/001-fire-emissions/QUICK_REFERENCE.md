@@ -1,7 +1,7 @@
 # Fire Emissions Quick Reference
 
-**Last Updated**: 2026-11-20  
-**Investigation Phase Status**: ✅ COMPLETE  
+**Last Updated**: 2026-11-20
+**Investigation Phase Status**: ✅ COMPLETE
 **Implementation Phase Status**: 🟢 READY TO BEGIN
 
 ---
@@ -204,21 +204,21 @@ PAL, PCA, PCL, PEC, PFE, PK, PMG, PMN, PMOTHR, PNA, PNCOM, PNH4, PNO3, POC, PSI,
 
 ### RAVE
 
-**Dimension Names**: grid_yt, grid_xt  
-**Type**: Lambert Conformal Projection  
-**Coverage**: 13 km CONUS only  
+**Dimension Names**: grid_yt, grid_xt
+**Type**: Lambert Conformal Projection
+**Coverage**: 13 km CONUS only
 **Shape**: 800 (xt) × 544 (yt)
 
-**Action**: 
+**Action**:
 - Read grid_yt and grid_xt coordinate arrays from NetCDF
 - May need projection transformation to lat/lon
 - Document grid_id as SHA256 hash of coordinates
 
 ### GBBEPx
 
-**Dimension Names**: Latitude, Longitude  
-**Type**: Rectilinear Lat-Lon  
-**Coverage**: Global  
+**Dimension Names**: Latitude, Longitude
+**Type**: Rectilinear Lat-Lon
+**Coverage**: Global
 **Shape**: 3600 (Longitude) × 1801 (Latitude)
 
 **Action**:

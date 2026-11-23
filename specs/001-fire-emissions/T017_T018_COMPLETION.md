@@ -1,7 +1,7 @@
 # T017 and T018 Completion
 
-**Date**: 2026-11-20  
-**Status**: T017 complete; T018 factor semantics verified  
+**Date**: 2026-11-20
+**Status**: T017 complete; T018 factor semantics verified
 **Investigation Phase**: Product samples and CB6r5-AE7-AQ factor semantics are verified; production chemistry remains gated
 
 ---
@@ -330,6 +330,6 @@ double gbbepx_total_co2 = sum(nc_dataset['CO2'][:])  # kg
 
 ---
 
-**Updated**: 2026-11-20  
-**Investigation Phase**: T017 and T018 complete  
+**Updated**: 2026-11-20
+**Investigation Phase**: T017 and T018 complete
 **Next Phase**: T023 may proceed after explicit source-composition metadata is supplied; CB6 production activation still requires rights and independent budget verification

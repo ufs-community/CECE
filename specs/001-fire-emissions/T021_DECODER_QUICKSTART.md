@@ -1,8 +1,8 @@
 # T021 Decoder Implementation Quick Start
 
-**Task**: T021 [US1] Implement product interval decoding for GBBEPx and RAVE  
-**Status**: 🟢 UNBLOCKED (T017 ✅ T018 ✅)  
-**Prerequisites**: T019 (product interval types) ✅  
+**Task**: T021 [US1] Implement product interval decoding for GBBEPx and RAVE
+**Status**: 🟢 UNBLOCKED (T017 ✅ T018 ✅)
+**Prerequisites**: T019 (product interval types) ✅
 **Deadline**: Part of US1 MVP (2-3 weeks)
 
 ---
@@ -15,7 +15,7 @@
 - `data/fire/product_samples/RAVE-HrlyEmiss-13km_v2r0_20260701_sample.nc` (reference)
 - `data/fire/product_samples/GBBEPx-all01GRID_v4r0_20230224_sample.nc` (reference)
 
-**Output**: 
+**Output**:
 - Two decoder implementations in `src/core/cece_fire_input.cpp`
 - Reference tests in `tests/test_fire_products.cpp`
 
@@ -62,7 +62,7 @@ Coordinates: [-180, 180] longitude, [-90, 90] latitude
 | NOx | ✅ | ✅ | Present in both |
 | VOCs | ✅ | ❌ | GBBEPx missing |
 
-**Action Required**: 
+**Action Required**:
 - Validation must check available species and reject requests for unavailable species
 - For GBBEPx: Throw error if 11-species output requested (need CH4, TPM, VOCs)
 - For RAVE: 11-species output always possible
@@ -70,17 +70,17 @@ Coordinates: [-180, 180] longitude, [-90, 90] latitude
 
 ### Unit Consistency
 
-**RAVE & GBBEPx Units**: Check `product_samples_manifest.yaml` for exact units  
-**Expected Dimension Chain**: 
+**RAVE & GBBEPx Units**: Check `product_samples_manifest.yaml` for exact units
+**Expected Dimension Chain**:
 ```
-FRP [MW/pixel] × time_step [s] 
+FRP [MW/pixel] × time_step [s]
   → FRE [MJ]
   → Dry Matter [kg] = FRE × 0.368 kg/MJ
   → Species Mass [kg] = DM × emission_factor
   → Final Output [kg/m²/s] (after regridding)
 ```
 
-**Action Required**: 
+**Action Required**:
 - Verify input file units match manifest
 - Document unit conversions in decoder code
 - Preserve units through allocation pipeline (T010 already handles this)
@@ -98,15 +98,15 @@ Create base decoder interface:
 class FireProductDecoder {
 public:
   virtual ~FireProductDecoder() = default;
-  
+
   // Open and validate product file
   virtual bool open(const std::string& filepath) = 0;
-  
+
   // Get product metadata
   virtual ProductIdentity get_identity() = 0;
   virtual GridDefinition get_grid() = 0;
   virtual std::vector<std::string> get_available_species() = 0;
-  
+
   // Extract data for one time interval
   virtual ProductEmissionsInterval decode_interval(size_t time_index) = 0;
 };
@@ -122,7 +122,7 @@ private:
   std::unique_ptr<netCDF4::NcFile> file_;
   GridDefinition grid_;
   std::vector<std::string> species_;
-  
+
 public:
   bool open(const std::string& filepath) override {
     // 1. Open NetCDF file
@@ -132,7 +132,7 @@ public:
     // 5. Store metadata
     return true;
   }
-  
+
   ProductEmissionsInterval decode_interval(size_t time_index) override {
     // 1. Read all species at time_index
     // 2. Extract coordinates (grid_yt, grid_xt values)
@@ -191,7 +191,7 @@ private:
   std::unique_ptr<netCDF4::NcFile> file_;
   GridDefinition grid_;
   std::vector<std::string> species_;
-  
+
 public:
   bool open(const std::string& filepath) override {
     // 1. Open NetCDF file
@@ -201,7 +201,7 @@ public:
     // 5. Store metadata
     return true;
   }
-  
+
   ProductEmissionsInterval decode_interval(size_t time_index) override {
     // 1. Read 8 species at time_index (NO CH4/TPM/VOCs!)
     // 2. Extract coordinates (Latitude, Longitude arrays)
@@ -267,7 +267,7 @@ TEST(FireProductDecoderTest, RAVESampleOpensSuccessfully) {
 TEST(FireProductDecoderTest, RAVEReturnsAllElevenSpecies) {
   RAVEDecoder decoder;
   decoder.open("data/fire/product_samples/RAVE-HrlyEmiss-13km_v2r0_20260701_sample.nc");
-  
+
   auto species = decoder.get_available_species();
   ASSERT_EQ(species.size(), 11);
   EXPECT_TRUE(std::find(species.begin(), species.end(), "CO2") != species.end());
@@ -277,7 +277,7 @@ TEST(FireProductDecoderTest, RAVEReturnsAllElevenSpecies) {
 TEST(FireProductDecoderTest, RAVEDecodedIntervalHasCorrectDimensions) {
   RAVEDecoder decoder;
   decoder.open("data/fire/product_samples/RAVE-HrlyEmiss-13km_v2r0_20260701_sample.nc");
-  
+
   auto interval = decoder.decode_interval(0);
   ASSERT_EQ(interval.interval_grid.dimensions["grid_yt"], 544);
   ASSERT_EQ(interval.interval_grid.dimensions["grid_xt"], 800);
@@ -291,7 +291,7 @@ TEST(FireProductDecoderTest, GBBEPxSampleOpensSuccessfully) {
 TEST(FireProductDecoderTest, GBBEPxReturnsEightSpeciesOnly) {
   GBBEPxDecoder decoder;
   decoder.open("data/fire/product_samples/GBBEPx-all01GRID_v4r0_20230224_sample.nc");
-  
+
   auto species = decoder.get_available_species();
   ASSERT_EQ(species.size(), 8);
   EXPECT_FALSE(std::find(species.begin(), species.end(), "CH4") != species.end());
@@ -309,18 +309,18 @@ Add reference validation:
 TEST(FireProductConservationTest, RAVETotalMassMatchesReference) {
   RAVEDecoder decoder;
   decoder.open("data/fire/product_samples/RAVE-HrlyEmiss-13km_v2r0_20260701_sample.nc");
-  
+
   auto interval = decoder.decode_interval(0);
-  
+
   // Compute totals
   double total_co2 = 0.0;
   for (const auto& mass : interval.mass_kg["CO2"]) {
     total_co2 += mass;
   }
-  
+
   // Reference value from product_samples_manifest.yaml
   double reference_co2 = 123456789.0;  // Replace with actual value
-  
+
   // Allow ±5% tolerance (SC-002)
   EXPECT_NEAR(total_co2, reference_co2, reference_co2 * 0.05);
 }

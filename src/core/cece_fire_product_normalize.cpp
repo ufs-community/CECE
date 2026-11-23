@@ -1,6 +1,4 @@
 // SPDX-License-Identifier: Apache-2.0
-#include "cece/cece_fire_input.hpp"
-
 #include <algorithm>
 #include <array>
 #include <cstdlib>
@@ -9,6 +7,8 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+
+#include "cece/cece_fire_input.hpp"
 
 namespace {
 
@@ -41,10 +41,10 @@ std::string Required(const Arguments& arguments, std::string_view name) {
 }
 
 void ValidateOptions(const Arguments& arguments) {
-    constexpr std::array<std::string_view, 17> allowed{
-        "adapter",          "input",          "output",          "source-id",       "cutoff",          "cutoff-mode",
-        "time-allocation",  "variant",        "profile-id",     "profile-version", "profile-sha256",  "product-id",
-        "product-version",  "algorithm-version", "interval-start", "interval-end",   "acquired-at"};
+    constexpr std::array<std::string_view, 17> allowed{"adapter",        "input",           "output",          "source-id",         "cutoff",
+                                                       "cutoff-mode",    "time-allocation", "variant",         "profile-id",        "profile-version",
+                                                       "profile-sha256", "product-id",      "product-version", "algorithm-version", "interval-start",
+                                                       "interval-end",   "acquired-at"};
     for (const auto& [name, value] : arguments) {
         (void)value;
         if (std::find(allowed.begin(), allowed.end(), name) == allowed.end() && name != "available-at" && name != "content-sha256") {
@@ -81,8 +81,7 @@ int main(int argc, char** argv) {
 
         cece::FireProductDecodeOptions decode_options;
         decode_options.availability_cutoff = cutoff;
-        decode_options.cutoff_mode =
-            cutoff_mode_text == "fixed" ? cece::FireCutoffMode::Fixed : cece::FireCutoffMode::HostSupplied;
+        decode_options.cutoff_mode = cutoff_mode_text == "fixed" ? cece::FireCutoffMode::Fixed : cece::FireCutoffMode::HostSupplied;
         decode_options.scaling = variant == "scaled" ? cece::FireProductScalingKind::Applied : cece::FireProductScalingKind::Unscaled;
 
         cece::FireProductEmissionsInterval product = [&]() {
@@ -106,7 +105,7 @@ int main(int argc, char** argv) {
         cece::FireNormalizedProductWriteOptions write_options{source_id, allocation, std::nullopt};
         if (allocation == "profile") {
             write_options.time_profile = cece::FireProfileIdentity{Required(arguments, "profile-id"), Required(arguments, "profile-version"),
-                                                                    Required(arguments, "profile-sha256")};
+                                                                   Required(arguments, "profile-sha256")};
         } else if (arguments.contains("profile-id") || arguments.contains("profile-version") || arguments.contains("profile-sha256")) {
             throw std::invalid_argument("profile identity options require --time-allocation profile");
         }

@@ -39,23 +39,23 @@ species_mapping_pm25:
     to 1.0; this is the resulting coefficient sum, not a normalization operation.
   base_species: "PM2.5"
   factors:
-    PAL:     {value: 0.0006, name: "Aluminum",              unit: "KG/M2/S"}
-    PCA:     {value: 0.0039, name: "Calcium",              unit: "KG/M2/S"}
-    PCL:     {value: 0.0415, name: "Chlorine",             unit: "KG/M2/S"}
-    PEC:     {value: 0.0949, name: "Elemental carbon",     unit: "KG/M2/S"}
-    PFE:     {value: 0.0004, name: "Iron",                 unit: "KG/M2/S"}
-    PK:      {value: 0.0294, name: "Potassium",            unit: "KG/M2/S"}
-    PMG:     {value: 0.0003, name: "Magnesium",            unit: "KG/M2/S"}
-    PMN:     {value: 0.0000, name: "Manganese",            unit: "KG/M2/S"}
-    PMOTHR:  {value: 0.0137, name: "Other PM mass",       unit: "KG/M2/S"}
-    PNA:     {value: 0.0057, name: "Sodium",               unit: "KG/M2/S"}
-    PNCOM:   {value: 0.3232, name: "Noncarbon organic",    unit: "KG/M2/S"}
-    PNH4:    {value: 0.0088, name: "Ammonium",             unit: "KG/M2/S"}
-    PNO3:    {value: 0.0013, name: "Nitrate",              unit: "KG/M2/S"}
-    POC:     {value: 0.4618, name: "Organic carbon",       unit: "KG/M2/S"}
-    PSI:     {value: 0.0018, name: "Silica",               unit: "KG/M2/S"}
-    PSO4:    {value: 0.0126, name: "Sulfate",              unit: "KG/M2/S"}
-    PTI:     {value: 0.0001, name: "Titanium",             unit: "KG/M2/S"}
+    PAL: { value: 0.0006, name: "Aluminum", unit: "KG/M2/S" }
+    PCA: { value: 0.0039, name: "Calcium", unit: "KG/M2/S" }
+    PCL: { value: 0.0415, name: "Chlorine", unit: "KG/M2/S" }
+    PEC: { value: 0.0949, name: "Elemental carbon", unit: "KG/M2/S" }
+    PFE: { value: 0.0004, name: "Iron", unit: "KG/M2/S" }
+    PK: { value: 0.0294, name: "Potassium", unit: "KG/M2/S" }
+    PMG: { value: 0.0003, name: "Magnesium", unit: "KG/M2/S" }
+    PMN: { value: 0.0000, name: "Manganese", unit: "KG/M2/S" }
+    PMOTHR: { value: 0.0137, name: "Other PM mass", unit: "KG/M2/S" }
+    PNA: { value: 0.0057, name: "Sodium", unit: "KG/M2/S" }
+    PNCOM: { value: 0.3232, name: "Noncarbon organic", unit: "KG/M2/S" }
+    PNH4: { value: 0.0088, name: "Ammonium", unit: "KG/M2/S" }
+    PNO3: { value: 0.0013, name: "Nitrate", unit: "KG/M2/S" }
+    POC: { value: 0.4618, name: "Organic carbon", unit: "KG/M2/S" }
+    PSI: { value: 0.0018, name: "Silica", unit: "KG/M2/S" }
+    PSO4: { value: 0.0126, name: "Sulfate", unit: "KG/M2/S" }
+    PTI: { value: 0.0001, name: "Titanium", unit: "KG/M2/S" }
 
 species_mapping_co:
   description: >-
@@ -65,37 +65,43 @@ species_mapping_co:
   base_species: "CO"
   factors:
     # Inorganic gases
-    "NO":    {value: 0.0450, name: "Nitrogen monoxide",        unit: "KG/M2/S"}
-    NO2:     {value: 0.0050, name: "Nitrogen dioxide",         unit: "KG/M2/S"}
-    SO2:     {value: 0.0080, name: "Sulfur dioxide",           unit: "KG/M2/S"}
-    NH3:     {value: 0.0150, name: "Ammonia",                  unit: "KG/M2/S"}
-    CO:      {value: 1.0000, name: "Carbon monoxide (reference)",unit: "KG/M2/S"}
-    
+    "NO": { value: 0.0450, name: "Nitrogen monoxide", unit: "KG/M2/S" }
+    NO2: { value: 0.0050, name: "Nitrogen dioxide", unit: "KG/M2/S" }
+    SO2: { value: 0.0080, name: "Sulfur dioxide", unit: "KG/M2/S" }
+    NH3: { value: 0.0150, name: "Ammonia", unit: "KG/M2/S" }
+    CO: { value: 1.0000, name: "Carbon monoxide (reference)", unit: "KG/M2/S" }
+
     # VOC species (lumped CB6 representation)
-    ACET:    {value: 0.0011, name: "Acetone",                  unit: "KG/M2/S"}
-    ALD2:    {value: 0.0010, name: "Acetaldehyde",             unit: "KG/M2/S"}
-    ALDX:    {value: 0.0030, name: "Higher aldehydes",         unit: "KG/M2/S"}
-    BENZ:    {value: 0.0010, name: "Benzene",                  unit: "KG/M2/S"}
-    CH4:     {value: 0.0092, name: "Methane",                  unit: "KG/M2/S"}
-    ETH:     {value: 0.0022, name: "Ethene",                   unit: "KG/M2/S"}
-    ETHA:    {value: 0.0011, name: "Ethane",                   unit: "KG/M2/S"}
-    ETHY:    {value: 0.0005, name: "Ethyne",                   unit: "KG/M2/S"}
-    ETOH:    {value: 0.0000, name: "Ethanol",                  unit: "KG/M2/S"}
-    FORM:    {value: 0.0043, name: "Formaldehyde",             unit: "KG/M2/S"}
-    IOLE:    {value: 0.0005, name: "Internal olefins",         unit: "KG/M2/S"}
-    ISOP:    {value: 0.0002, name: "Isoprene",                 unit: "KG/M2/S"}
-    KET:     {value: 0.0003, name: "Ketones",                  unit: "KG/M2/S"}
-    MEOH:    {value: 0.0039, name: "Methanol",                 unit: "KG/M2/S"}
-    OLE:     {value: 0.0034, name: "Terminal olefins",         unit: "KG/M2/S"}
-    PAR:     {value: 0.0075, name: "Paraffins",                unit: "KG/M2/S"}
-    PRPA:    {value: 0.0005, name: "Propane",                  unit: "KG/M2/S"}
-    TERP:    {value: 0.0004, name: "Terpenes",                 unit: "KG/M2/S"}
-    TOL:     {value: 0.0013, name: "Toluene",                  unit: "KG/M2/S"}
-    UNR:     {value: 0.0100, name: "Unrecognized VOC",         unit: "KG/M2/S"}
-    XYL:     {value: 0.0003, name: "Xylene",                   unit: "KG/M2/S"}
-  
+    ACET: { value: 0.0011, name: "Acetone", unit: "KG/M2/S" }
+    ALD2: { value: 0.0010, name: "Acetaldehyde", unit: "KG/M2/S" }
+    ALDX: { value: 0.0030, name: "Higher aldehydes", unit: "KG/M2/S" }
+    BENZ: { value: 0.0010, name: "Benzene", unit: "KG/M2/S" }
+    CH4: { value: 0.0092, name: "Methane", unit: "KG/M2/S" }
+    ETH: { value: 0.0022, name: "Ethene", unit: "KG/M2/S" }
+    ETHA: { value: 0.0011, name: "Ethane", unit: "KG/M2/S" }
+    ETHY: { value: 0.0005, name: "Ethyne", unit: "KG/M2/S" }
+    ETOH: { value: 0.0000, name: "Ethanol", unit: "KG/M2/S" }
+    FORM: { value: 0.0043, name: "Formaldehyde", unit: "KG/M2/S" }
+    IOLE: { value: 0.0005, name: "Internal olefins", unit: "KG/M2/S" }
+    ISOP: { value: 0.0002, name: "Isoprene", unit: "KG/M2/S" }
+    KET: { value: 0.0003, name: "Ketones", unit: "KG/M2/S" }
+    MEOH: { value: 0.0039, name: "Methanol", unit: "KG/M2/S" }
+    OLE: { value: 0.0034, name: "Terminal olefins", unit: "KG/M2/S" }
+    PAR: { value: 0.0075, name: "Paraffins", unit: "KG/M2/S" }
+    PRPA: { value: 0.0005, name: "Propane", unit: "KG/M2/S" }
+    TERP: { value: 0.0004, name: "Terpenes", unit: "KG/M2/S" }
+    TOL: { value: 0.0013, name: "Toluene", unit: "KG/M2/S" }
+    UNR: { value: 0.0100, name: "Unrecognized VOC", unit: "KG/M2/S" }
+    XYL: { value: 0.0003, name: "Xylene", unit: "KG/M2/S" }
+
   special_handling:
-    FRP:     {value: 1000000, name: "Fire radiative power",    unit: "MeanFRP_input", notes: "Scaling factor"}
+    FRP:
+      {
+        value: 1000000,
+        name: "Fire radiative power",
+        unit: "MeanFRP_input",
+        notes: "Scaling factor",
+      }
 
 # Speciation Summary
 summary:
@@ -104,22 +110,22 @@ summary:
   non_co_gas_factor_rows: 25
   total_factor_rows: 43
   base_species: ["PM2.5", "CO"]
-  
+
   key_species:
     pm25_largest_contributors:
-      - {species: "POC", fraction: 0.4618, name: "Organic carbon"}
-      - {species: "PNCOM", fraction: 0.3232, name: "Noncarbon organic"}
-      - {species: "PEC", fraction: 0.0949, name: "Elemental carbon"}
-    
+      - { species: "POC", fraction: 0.4618, name: "Organic carbon" }
+      - { species: "PNCOM", fraction: 0.3232, name: "Noncarbon organic" }
+      - { species: "PEC", fraction: 0.0949, name: "Elemental carbon" }
+
     voc_largest_contributors:
-      - {species: "CO", factor: 1.0000, name: "Carbon monoxide (reference)"}
-      - {species: "CH4", factor: 0.0092, name: "Methane"}
-      - {species: "ALDX", factor: 0.0030, name: "Higher aldehydes"}
-      - {species: "OLE", factor: 0.0034, name: "Terminal olefins"}
-    
+      - { species: "CO", factor: 1.0000, name: "Carbon monoxide (reference)" }
+      - { species: "CH4", factor: 0.0092, name: "Methane" }
+      - { species: "ALDX", factor: 0.0030, name: "Higher aldehydes" }
+      - { species: "OLE", factor: 0.0034, name: "Terminal olefins" }
+
     nox_reference_factors:
-      - {species: "NO", factor: 0.0450, notes: "CO-referenced coefficient"}
-      - {species: "NO2", factor: 0.0050, notes: "CO-referenced coefficient"}
+      - { species: "NO", factor: 0.0450, notes: "CO-referenced coefficient" }
+      - { species: "NO2", factor: 0.0050, notes: "CO-referenced coefficient" }
 
 # Dimensional Chain (from RAVE ATBD)
 dimensional_chain:
@@ -127,12 +133,12 @@ dimensional_chain:
   equation_1: "FRE_MJ = integral(FRP_MW * dt_seconds)"
   equation_2: "dry_matter_kg = FRE_MJ * combustion_coefficient_kg_per_MJ"
   equation_3: "species_mass_kg = dry_matter_kg * emission_factor_kg_per_kg"
-  
+
   combustion_coefficient:
     value: 0.368
     unit: "kg/MJ"
     source: "RAVE ATBD 2.1 (Wiedinmyer et al. baseline)"
-  
+
   time_integration:
     FRP_units: "MW (megawatts)"
     dt_units: "seconds"
@@ -147,7 +153,7 @@ validation:
   unit_interpretation: "KG/M2/S output labels are preserved from the source; independent target-budget validation remains pending."
   redistribution_rights: "Unverified; upstream repository metadata reports NOASSERTION."
   independent_budgets: "Pending target-profile budget tests; the factor sums alone do not certify conservation."
-  
+
   next_steps:
     - "Verify redistribution rights before redistributing this asset."
     - "Verify aerosol and gas budgets against an independently documented CB6r5 profile before production activation."
@@ -156,10 +162,13 @@ validation:
 # Implementation Notes
 implementation:
   applicable_mechanism: "CB6r5-AE7-AQ"
-  use_cases: ["Product mode after independent budget, rights, and integration gates pass"]
+  use_cases:
+    [
+      "Product mode after independent budget, rights, and integration gates pass",
+    ]
   speciation_engine_integration: "Not production-enabled; independent budgets and redistribution rights remain unverified."
   mapping_file: "To be created as fire_cb6r5_ae7_aq_factors.yaml"
-  
+
   notes: >-
     The numeric coefficients are preserved exactly as verified against the
     pinned source. The PM2.5-referenced rows sum to 1.0 and the CO-referenced

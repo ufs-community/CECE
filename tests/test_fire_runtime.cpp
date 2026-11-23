@@ -147,8 +147,8 @@ TEST(test_fire_runtime, NativeDiagnosticsRemainSeparateFromMappedEmissions) {
     data.mass_kg = {5, 6, 7, 8, 2};
     data.native_diagnostic_species = {cece::FireBulkSpecies::PM25, cece::FireBulkSpecies::NOX, cece::FireBulkSpecies::VOC};
     cece::FireBulkInventory inventory(data);
-    const auto profile = cece::LoadFireTargetProfile(std::string(CECE_SOURCE_DIR) + "/tests/data/fire/synthetic_target_profile.yaml",
-                                                     "SYNTHETIC", "test-v1");
+    const auto profile =
+        cece::LoadFireTargetProfile(std::string(CECE_SOURCE_DIR) + "/tests/data/fire/synthetic_target_profile.yaml", "SYNTHETIC", "test-v1");
     EXPECT_THROW(cece::MapFireBulkInventory(inventory, profile, {cece::FireBulkSpecies::NOX}), std::invalid_argument);
     data.native_diagnostic_species.clear();
     EXPECT_THROW((void)cece::FireBulkInventory{data}, std::invalid_argument);
@@ -158,8 +158,8 @@ TEST(test_fire_runtime, NativeDiagnosticsRemainSeparateFromMappedEmissions) {
     cece::CeceExportState exports;
     for (const auto& name : scheme.ExportFieldNames()) exports.fields.emplace(name, cece::DualView3D(name, 1, 1, 1));
     scheme.Run(imports, exports);
-    for (const auto& [name, mass] : std::vector<std::pair<std::string, double>>{
-             {"FIRE_CO", 5}, {"FIRE_NATIVE_PM25", 6}, {"FIRE_NATIVE_NOX", 7}, {"FIRE_NATIVE_VOC", 8}}) {
+    for (const auto& [name, mass] :
+         std::vector<std::pair<std::string, double>>{{"FIRE_CO", 5}, {"FIRE_NATIVE_PM25", 6}, {"FIRE_NATIVE_NOX", 7}, {"FIRE_NATIVE_VOC", 8}}) {
         EXPECT_NEAR(exports.fields.at(name).view_host()(0, 0, 0), mass / (25.0 * 3600.0), 1e-14);
     }
 }

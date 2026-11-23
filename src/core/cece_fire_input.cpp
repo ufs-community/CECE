@@ -74,7 +74,7 @@ double TemporalProfileIntegral(const FireTemporalAllocationProfile& profile, dou
         double result = cycles;
         for (const auto& segment : profile.segments) {
             const double covered = std::clamp(offset - static_cast<double>(segment.start_offset_seconds), 0.0,
-                                               static_cast<double>(segment.end_offset_seconds - segment.start_offset_seconds));
+                                              static_cast<double>(segment.end_offset_seconds - segment.start_offset_seconds));
             result += covered * segment.weight_per_second;
         }
         return result;
@@ -233,9 +233,9 @@ double FireGreatCirclePolygonArea(const std::array<double, 4>& longitude_deg, co
 }
 
 std::vector<double> FireApproximateSwathPixelAreas(std::size_t nx, std::size_t ny, const std::vector<double>& longitude_deg,
-                                                  const std::vector<double>& latitude_deg, const std::vector<std::uint8_t>& deleted) {
-    if (nx < 2 || ny < 2 || nx > std::numeric_limits<std::size_t>::max() / ny || longitude_deg.size() != nx * ny ||
-        latitude_deg.size() != nx * ny || deleted.size() != nx * ny) {
+                                                   const std::vector<double>& latitude_deg, const std::vector<std::uint8_t>& deleted) {
+    if (nx < 2 || ny < 2 || nx > std::numeric_limits<std::size_t>::max() / ny || longitude_deg.size() != nx * ny || latitude_deg.size() != nx * ny ||
+        deleted.size() != nx * ny) {
         throw std::invalid_argument("Fire swath area requires matching two-dimensional geolocation and deletion arrays");
     }
     constexpr double rad = std::numbers::pi / 180.0;
@@ -265,13 +265,11 @@ std::vector<double> FireApproximateSwathPixelAreas(std::size_t nx, std::size_t n
             if (deleted[index] > 1) throw std::invalid_argument("Fire swath deletion mask must contain only 0 or 1");
             if (deleted[index]) continue;
             if (!valid(index)) throw std::invalid_argument("Fire swath area requires valid geolocation for every retained pixel");
-            const auto dx = derivative(index, x > 0 ? std::optional{index - 1} : std::nullopt,
-                                       x + 1 < nx ? std::optional{index + 1} : std::nullopt);
-            const auto dy = derivative(index, y > 0 ? std::optional{index - nx} : std::nullopt,
-                                       y + 1 < ny ? std::optional{index + nx} : std::nullopt);
-            const double area = radius_m * radius_m *
-                                std::hypot(dx[1] * dy[2] - dx[2] * dy[1], dx[2] * dy[0] - dx[0] * dy[2],
-                                           dx[0] * dy[1] - dx[1] * dy[0]);
+            const auto dx = derivative(index, x > 0 ? std::optional{index - 1} : std::nullopt, x + 1 < nx ? std::optional{index + 1} : std::nullopt);
+            const auto dy =
+                derivative(index, y > 0 ? std::optional{index - nx} : std::nullopt, y + 1 < ny ? std::optional{index + nx} : std::nullopt);
+            const double area =
+                radius_m * radius_m * std::hypot(dx[1] * dy[2] - dx[2] * dy[1], dx[2] * dy[0] - dx[0] * dy[2], dx[0] * dy[1] - dx[1] * dy[0]);
             if (!std::isfinite(area) || area <= 0.0) throw std::invalid_argument("Fire swath area contains degenerate pixel geometry");
             areas[index] = area;
         }
@@ -466,7 +464,8 @@ FireBulkInventory::FireBulkInventory(FireBulkInventoryData data) : data_(std::mo
     std::set<FireBulkSpecies> diagnostics;
     for (const auto species : data_.native_diagnostic_species) {
         if ((species != FireBulkSpecies::PM25 && species != FireBulkSpecies::TPM && species != FireBulkSpecies::NOX &&
-             species != FireBulkSpecies::VOC) || !unique_species.contains(species) || !diagnostics.insert(species).second) {
+             species != FireBulkSpecies::VOC) ||
+            !unique_species.contains(species) || !diagnostics.insert(species).second) {
             invalid("native_diagnostic_species must be unique selected PM25, TPM, NOX or VOC");
         }
     }
@@ -556,9 +555,8 @@ FireBulkInventory::FireBulkInventory(FireBulkInventoryData data) : data_(std::mo
     }
     if (HasOverlappingParticulatePools(mapped_species) || data_.particulate_overlap) {
         for (const auto species : mapped_species) {
-            if (IsParticulate(species) &&
-                (!data_.particulate_overlap || data_.particulate_overlap->pool_definitions.count(species) == 0 ||
-                 !IsNonempty(data_.particulate_overlap->pool_definitions.at(species)))) {
+            if (IsParticulate(species) && (!data_.particulate_overlap || data_.particulate_overlap->pool_definitions.count(species) == 0 ||
+                                           !IsNonempty(data_.particulate_overlap->pool_definitions.at(species)))) {
                 invalid("particulate_overlap must explicitly define each selected particulate pool");
             }
         }
@@ -628,7 +626,7 @@ FireRaveBiome FireRaveBiomeFromViirsIgbp17(int category) {
 }
 
 FireBulkInventory SplitFireProductByIgbp(const FireBulkInventory& inventory, const FireIgbpGrid& igbp,
-                                        const std::array<FireComponentProfile, 3>& profiles) {
+                                         const std::array<FireComponentProfile, 3>& profiles) {
     const auto& input = inventory.Data();
     const auto cells = input.identity.Metadata().grid_definition->CellCount();
     if (input.component_ids.size() != 1 || input.unprofiled_component_ids.size() != 1 || !input.component_profiles.empty()) {
@@ -672,8 +670,7 @@ FireBulkInventory SplitFireProductByIgbp(const FireBulkInventory& inventory, con
         }
         const std::size_t component = category <= 5 ? 0 : (category == 12 || category == 14 ? 2 : 1);
         for (std::size_t species = 0; species < input.species.size(); ++species) {
-            result.mass_kg[(component * input.species.size() + species) * cells + cell] =
-                input.mass_kg[species * cells + cell];
+            result.mass_kg[(component * input.species.size() + species) * cells + cell] = input.mass_kg[species * cells + cell];
         }
     }
     return FireBulkInventory(std::move(result));
@@ -755,8 +752,7 @@ FireProductEmissionsInterval::FireProductEmissionsInterval(FireProductEmissionsI
         if (data_.quantity_semantics.size() != data_.species.size()) {
             invalid("quantity_semantics must describe every declared species exactly once");
         }
-        if (data_.species.size() > std::numeric_limits<std::size_t>::max() / cells ||
-            data_.source_values.size() != data_.species.size() * cells) {
+        if (data_.species.size() > std::numeric_limits<std::size_t>::max() / cells || data_.source_values.size() != data_.species.size() * cells) {
             invalid("source_values must have species, cell dimensions");
         }
         if (!data_.mass_kg.empty() && data_.mass_kg.size() != data_.source_values.size()) {
@@ -836,8 +832,7 @@ FireProductEmissionsInterval::FireProductEmissionsInterval(FireProductEmissionsI
         for (std::size_t offset = 0; offset < data_.target_mass_kg.size(); ++offset) {
             const double mass = data_.target_mass_kg[offset];
             const auto cell = offset % cells;
-            if (!std::isfinite(mass) || mass < 0.0 ||
-                (data_.quality_state[cell] == FireQualityState::ValidZero && mass != 0.0)) {
+            if (!std::isfinite(mass) || mass < 0.0 || (data_.quality_state[cell] == FireQualityState::ValidZero && mass != 0.0)) {
                 invalid("target-specific mass_kg must be finite and nonnegative, with valid_zero cells containing only zero mass");
             }
         }
@@ -962,8 +957,8 @@ FireTemporalAllocationProfile LoadFireTemporalAllocationProfile(const std::strin
         const auto offset = weight["offset_seconds"].try_int();
         const auto duration = weight["duration_seconds"].try_int();
         const auto rate = weight["weight_per_second"].try_double();
-        if (!offset || !duration || !rate || *offset != cursor || *duration <= 0 || !std::isfinite(*rate) || *rate < 0 ||
-            *offset > *cadence_value || *duration > *cadence_value - *offset) {
+        if (!offset || !duration || !rate || *offset != cursor || *duration <= 0 || !std::isfinite(*rate) || *rate < 0 || *offset > *cadence_value ||
+            *duration > *cadence_value - *offset) {
             invalid(field, "weights must be finite, nonnegative, contiguous, positive-duration and within the supported cadence");
         }
         const auto end = *offset + *duration;
@@ -1009,7 +1004,8 @@ std::string FireIntervalProvider::CacheIdentity(const FireBulkInventory& invento
         throw std::invalid_argument("Fire interval exceeds provider cell/component bounds");
     }
     if (data.identity.AppliedTemporalProfile()) {
-        throw std::invalid_argument("Fire prepared/coupled inputs must retain source-interval masses; temporal profiles are applied during allocation");
+        throw std::invalid_argument(
+            "Fire prepared/coupled inputs must retain source-interval masses; temporal profiles are applied during allocation");
     }
     std::string key;
     const auto append = [&](std::string_view value) {
@@ -1412,8 +1408,9 @@ FireAllocatedMass FireAllocateConservativeMass(const FireBulkInventory& inventor
         });
         double input = 0, supported = 0, output = 0;
         Kokkos::parallel_reduce("fire::input_budget", Policy(0, ns), [=](std::size_t i, double& sum) { sum += source_values[i]; }, input);
-        Kokkos::parallel_reduce("fire::supported_budget", Policy(0, ns),
-                                [=](std::size_t i, double& sum) { sum += source_values[i] * temporal_fractions[i] * fa[i]; }, supported);
+        Kokkos::parallel_reduce(
+            "fire::supported_budget", Policy(0, ns), [=](std::size_t i, double& sum) { sum += source_values[i] * temporal_fractions[i] * fa[i]; },
+            supported);
         Kokkos::parallel_reduce("fire::output_budget", Policy(0, nt), [=](std::size_t j, double& sum) { sum += target_values[j]; }, output);
         if (!std::isfinite(input) || !close(supported, output)) {
             throw std::runtime_error("Fire extensive quantity budget is nonfinite or fails conservative allocation tolerance");

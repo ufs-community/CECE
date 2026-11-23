@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 #include <gtest/gtest.h>
-#include <Kokkos_Core.hpp>
 #include <netcdf.h>
 
+#include <Kokkos_Core.hpp>
 #include <algorithm>
 #include <array>
 #include <chrono>
@@ -22,9 +22,17 @@
 namespace {
 
 std::shared_ptr<const cece::FireGrid> ProductGrid(double area_m2 = 100.0) {
-    return std::make_shared<const cece::FireGrid>(cece::FireGridDefinition{
-        "synthetic-product-grid", std::string(64, 'b'), 1, 1, {0}, {0}, {{{-1, 1, 1, -1}}}, {{{-1, -1, 1, 1}}}, {area_m2}, "EPSG:4326",
-        cece::FireLongitudeConvention::Minus180To180});
+    return std::make_shared<const cece::FireGrid>(cece::FireGridDefinition{"synthetic-product-grid",
+                                                                           std::string(64, 'b'),
+                                                                           1,
+                                                                           1,
+                                                                           {0},
+                                                                           {0},
+                                                                           {{{-1, 1, 1, -1}}},
+                                                                           {{{-1, -1, 1, 1}}},
+                                                                           {area_m2},
+                                                                           "EPSG:4326",
+                                                                           cece::FireLongitudeConvention::Minus180To180});
 }
 
 cece::FireProductEmissionsInterval ProductInterval(const std::string& start, const std::string& end, cece::FireProductQuantityKind kind,
@@ -46,14 +54,13 @@ cece::FireProductEmissionsInterval ProductInterval(const std::string& start, con
                                         cutoff_mode,
                                         std::move(grid)};
 
-    cece::FireProductEmissionsIntervalData data(
-        {"GBBEPx", "product-v1", "unscaled", cece::FireInputIdentity(std::move(metadata))});
+    cece::FireProductEmissionsIntervalData data({"GBBEPx", "product-v1", "unscaled", cece::FireInputIdentity(std::move(metadata))});
     data.species = {cece::FireBulkSpecies::CO};
     for (const auto species : {cece::FireBulkSpecies::CO2, cece::FireBulkSpecies::CO, cece::FireBulkSpecies::CH4, cece::FireBulkSpecies::PM25,
                                cece::FireBulkSpecies::TPM, cece::FireBulkSpecies::SO2, cece::FireBulkSpecies::OC, cece::FireBulkSpecies::BC,
                                cece::FireBulkSpecies::NOX, cece::FireBulkSpecies::NH3, cece::FireBulkSpecies::VOC}) {
         data.species_availability.emplace(species, species == cece::FireBulkSpecies::CO ? cece::FireProductSpeciesAvailability::Available
-                                                                                         : cece::FireProductSpeciesAvailability::Unavailable);
+                                                                                        : cece::FireProductSpeciesAvailability::Unavailable);
     }
     data.quantity_semantics.emplace(cece::FireBulkSpecies::CO, cece::FireProductQuantitySemantics{kind, std::move(units)});
     data.source_values = std::move(values);
@@ -81,8 +88,8 @@ std::size_t SpeciesIndex(const cece::FireProductEmissionsInterval& product, cece
 }
 
 TEST(test_fire_products, DailyMassAndHourlyRateNormalizeToCellIntervalKg) {
-    const auto daily = ProductInterval("2022-07-01T00:00:00Z", "2022-07-02T00:00:00Z", cece::FireProductQuantityKind::IntervalMass,
-                                       "kg/cell/interval", {86400});
+    const auto daily =
+        ProductInterval("2022-07-01T00:00:00Z", "2022-07-02T00:00:00Z", cece::FireProductQuantityKind::IntervalMass, "kg/cell/interval", {86400});
     const auto hourly = ProductInterval("2022-07-01T00:00:00Z", "2022-07-01T01:00:00Z", cece::FireProductQuantityKind::MeanRate, "kg s-1", {2});
     ASSERT_EQ(daily.MassKg().size(), 1);
     EXPECT_DOUBLE_EQ(daily.MassKg()[0], 86400);
@@ -97,22 +104,20 @@ TEST(test_fire_products, FluxUsesSuppliedSourceCellAreaAndIntervalDuration) {
 }
 
 TEST(test_fire_products, AmbiguousUnitsAndInconsistentIdentityAreRejected) {
-    auto invalid_units = ProductInterval("2022-07-01T00:00:00Z", "2022-07-01T01:00:00Z", cece::FireProductQuantityKind::IntervalMass,
-                                         "kg/cell/interval", {1})
-                             .Data();
+    auto invalid_units =
+        ProductInterval("2022-07-01T00:00:00Z", "2022-07-01T01:00:00Z", cece::FireProductQuantityKind::IntervalMass, "kg/cell/interval", {1}).Data();
     invalid_units.quantity_semantics.at(cece::FireBulkSpecies::CO).units = "kg";
     EXPECT_THROW(cece::FireProductEmissionsInterval(std::move(invalid_units)), std::invalid_argument);
 
-    auto invalid_identity = ProductInterval("2022-07-01T00:00:00Z", "2022-07-01T01:00:00Z", cece::FireProductQuantityKind::IntervalMass,
-                                            "kg/cell/interval", {1})
-                                .Data();
+    auto invalid_identity =
+        ProductInterval("2022-07-01T00:00:00Z", "2022-07-01T01:00:00Z", cece::FireProductQuantityKind::IntervalMass, "kg/cell/interval", {1}).Data();
     invalid_identity.product_identity.version = "different-version";
     EXPECT_THROW(cece::FireProductEmissionsInterval(std::move(invalid_identity)), std::invalid_argument);
 }
 
 TEST(test_fire_products, MissingSpeciesAreDistinctFromValidZero) {
-    const auto product = ProductInterval("2022-07-01T00:00:00Z", "2022-07-01T01:00:00Z", cece::FireProductQuantityKind::IntervalMass,
-                                         "kg/cell/interval", {0});
+    const auto product =
+        ProductInterval("2022-07-01T00:00:00Z", "2022-07-01T01:00:00Z", cece::FireProductQuantityKind::IntervalMass, "kg/cell/interval", {0});
     EXPECT_NO_THROW(product.RequireSpecies({cece::FireBulkSpecies::CO}));
     EXPECT_THROW(product.RequireSpecies({cece::FireBulkSpecies::NOX}), std::invalid_argument);
     EXPECT_DOUBLE_EQ(product.MassKg()[0], 0);
@@ -159,10 +164,9 @@ TEST(test_fire_products, WritesNormalizedRaveGridMassAndIntervalMetadata) {
     int source_schema_version = 0;
     ASSERT_EQ(nc_get_att_int(temporary.file, NC_GLOBAL, "source_identity_schema_version", &source_schema_version), NC_NOERR);
     EXPECT_EQ(source_schema_version, metadata.schema_version);
-    for (const auto& [name, expected] : std::array<std::pair<const char*, std::string>, 3>{
-             std::pair{"source_id", metadata.source_id},
-             std::pair{"source_manifest_id", options.source_id},
-             std::pair{"delivery_id", metadata.delivery_id}}) {
+    for (const auto& [name, expected] : std::array<std::pair<const char*, std::string>, 3>{std::pair{"source_id", metadata.source_id},
+                                                                                           std::pair{"source_manifest_id", options.source_id},
+                                                                                           std::pair{"delivery_id", metadata.delivery_id}}) {
         std::size_t attribute_length = 0;
         ASSERT_EQ(nc_inq_attlen(temporary.file, NC_GLOBAL, name, &attribute_length), NC_NOERR);
         std::string value(attribute_length, '\0');
@@ -212,9 +216,8 @@ TEST(test_fire_products, PreparedRuntimeLoadsProductWithoutBiomeOrCompositionPro
         ASSERT_TRUE(profile.good());
     }
     const cece::FireProfileIdentity temporal_identity{"runtime-profile", "test-v1", cece::FireFileSha256(profile_path.string())};
-    const auto product = ProductInterval("2022-07-01T00:00:00Z", "2022-07-02T00:00:00Z",
-                                         cece::FireProductQuantityKind::IntervalMass, "kg/cell/interval", {5},
-                                         cece::FireCutoffMode::HostSupplied);
+    const auto product = ProductInterval("2022-07-01T00:00:00Z", "2022-07-02T00:00:00Z", cece::FireProductQuantityKind::IntervalMass,
+                                         "kg/cell/interval", {5}, cece::FireCutoffMode::HostSupplied);
     const auto& source_metadata = product.Data().product_identity.common_identity.Metadata();
     const auto normalized_path = temporary.path / "interval.nc";
     cece::WriteNormalizedFireProductFile(product, {"synthetic-source", "profile", temporal_identity}, normalized_path.string());
@@ -237,17 +240,23 @@ TEST(test_fire_products, PreparedRuntimeLoadsProductWithoutBiomeOrCompositionPro
                     "product_adapter: rave-v2r0\n"
                     "product_time_allocation: profile\n"
                     "product_time_profile:\n"
-                    "  profile_id: " << temporal_identity.id << "\n"
+                    "  profile_id: "
+                 << temporal_identity.id << "\n"
                  << "  version: " << temporal_identity.version << "\n"
-                 << "  content_sha256: " << temporal_identity.content_sha256 << "\n"
+                 << "  content_sha256: " << temporal_identity.content_sha256
+                 << "\n"
                     "chemistry_state: bulk\n"
                     "cutoff_mode: host_supplied\n"
-                    "cutoff_schedule_sha256: " << cutoff_schedule_hash << "\n"
+                    "cutoff_schedule_sha256: "
+                 << cutoff_schedule_hash
+                 << "\n"
                     "sources:\n"
                     "  - source_id: synthetic-source\n"
                     "    acquired_at: 2022-07-01T00:00:00Z\n"
                     "    available_at: 2022-07-01T00:00:00Z\n"
-                    "    content_sha256: " << source_metadata.content_sha256 << "\n"
+                    "    content_sha256: "
+                 << source_metadata.content_sha256
+                 << "\n"
                     "intervals:\n"
                     "  - source_id: synthetic-source\n"
                     "    product_id: GBBEPx\n"
@@ -258,11 +267,16 @@ TEST(test_fire_products, PreparedRuntimeLoadsProductWithoutBiomeOrCompositionPro
                     "    interval_end: 2022-07-02T00:00:00Z\n"
                     "    availability_cutoff: 2022-07-03T00:00:00Z\n"
                     "    cutoff_mode: host_supplied\n"
-                    "    grid_sha256: " << source_metadata.grid_definition->Definition().grid_sha256 << "\n"
-                    "    source_content_sha256: " << source_metadata.content_sha256 << "\n"
+                    "    grid_sha256: "
+                 << source_metadata.grid_definition->Definition().grid_sha256
+                 << "\n"
+                    "    source_content_sha256: "
+                 << source_metadata.content_sha256
+                 << "\n"
                     "    component_id: component-a\n"
                     "    path: interval.nc\n"
-                    "    content_sha256: " << normalized_hash << "\n";
+                    "    content_sha256: "
+                 << normalized_hash << "\n";
         ASSERT_TRUE(manifest.good());
     }
 
@@ -277,16 +291,14 @@ TEST(test_fire_products, PreparedRuntimeLoadsProductWithoutBiomeOrCompositionPro
     ASSERT_NE(adapter, nullptr);
     adapter->SetTargetGrid(source_metadata.grid_definition);
     adapter->Initialize(config, 1, 1, 1);
-    EXPECT_THROW(adapter->PrepareInterval({cece::FireUtcTime("2022-07-01T00:00:00Z"),
-                                           cece::FireUtcTime("2022-07-01T06:00:00Z"),
+    EXPECT_THROW(adapter->PrepareInterval({cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T06:00:00Z"),
                                            cece::FireUtcTime("2022-07-03T00:00:01Z"), 21600}),
                  std::invalid_argument);
-    EXPECT_THROW(adapter->PrepareInterval({cece::FireUtcTime("2022-07-01T00:00:00Z"),
-                                           cece::FireUtcTime("2022-07-01T05:59:59Z"), std::nullopt, 21599}),
-                 std::invalid_argument);
-    const auto inventory_view = adapter->PrepareInterval({cece::FireUtcTime("2022-07-01T00:00:00Z"),
-                                                          cece::FireUtcTime("2022-07-01T06:00:00Z"),
-                                                          std::nullopt, 21600});
+    EXPECT_THROW(
+        adapter->PrepareInterval({cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T05:59:59Z"), std::nullopt, 21599}),
+        std::invalid_argument);
+    const auto inventory_view =
+        adapter->PrepareInterval({cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T06:00:00Z"), std::nullopt, 21600});
     ASSERT_TRUE(std::holds_alternative<std::reference_wrapper<const cece::FireBulkInventory>>(inventory_view));
     const auto& inventory = std::get<std::reference_wrapper<const cece::FireBulkInventory>>(inventory_view).get();
     ASSERT_EQ(inventory.Data().mass_kg.size(), 1);
@@ -303,9 +315,9 @@ TEST(test_fire_products, PreparedRuntimeLoadsProductWithoutBiomeOrCompositionPro
     auto missing_adapter = cece::CreateFireRuntimeAdapter(cece::FireInputProvider::Prepared);
     missing_adapter->SetTargetGrid(source_metadata.grid_definition);
     missing_adapter->Initialize(config, 1, 1, 1);
-    EXPECT_THROW(missing_adapter->PrepareInterval({cece::FireUtcTime("2022-07-01T00:00:00Z"),
-                                                    cece::FireUtcTime("2022-07-01T06:00:00Z"), std::nullopt, 21600}),
-                 std::invalid_argument);
+    EXPECT_THROW(
+        missing_adapter->PrepareInterval({cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T06:00:00Z"), std::nullopt, 21600}),
+        std::invalid_argument);
     missing_adapter->Finalize();
 }
 
@@ -342,13 +354,13 @@ TEST(test_fire_products, DecodesRaveV2r0SampleCropAndPreservesItsIntervalMasses)
 }
 
 TEST(test_fire_products, DecodesTwentyFourConsecutiveRaveHoursWithStableGridAndReferenceMasses) {
-    constexpr std::array<cece::FireBulkSpecies, 11> species{
-        cece::FireBulkSpecies::CO2, cece::FireBulkSpecies::CO,  cece::FireBulkSpecies::CH4, cece::FireBulkSpecies::PM25,
-        cece::FireBulkSpecies::OC,  cece::FireBulkSpecies::BC,  cece::FireBulkSpecies::SO2, cece::FireBulkSpecies::TPM,
-        cece::FireBulkSpecies::NH3, cece::FireBulkSpecies::NOX, cece::FireBulkSpecies::VOC};
-    constexpr std::array<double, 11> expected_total_kg{
-        1106144.125, 71184.0390625, 3977.9316101074219, 4368.7460021972656, 2470.5048522949219, 293.1107234954834,
-        558.30615997314453, 9002.6873779296875, 1514.4056396484375, 2170.4151000976562, 5303.9086608886719};
+    constexpr std::array<cece::FireBulkSpecies, 11> species{cece::FireBulkSpecies::CO2,  cece::FireBulkSpecies::CO,  cece::FireBulkSpecies::CH4,
+                                                            cece::FireBulkSpecies::PM25, cece::FireBulkSpecies::OC,  cece::FireBulkSpecies::BC,
+                                                            cece::FireBulkSpecies::SO2,  cece::FireBulkSpecies::TPM, cece::FireBulkSpecies::NH3,
+                                                            cece::FireBulkSpecies::NOX,  cece::FireBulkSpecies::VOC};
+    constexpr std::array<double, 11> expected_total_kg{1106144.125,        71184.0390625,      3977.9316101074219, 4368.7460021972656,
+                                                       2470.5048522949219, 293.1107234954834,  558.30615997314453, 9002.6873779296875,
+                                                       1514.4056396484375, 2170.4151000976562, 5303.9086608886719};
     const cece::FireUtcTime first_start("2026-07-01T00:00:00Z");
     const auto cutoff = ProductDecodeOptions("2026-07-03T00:00:00Z");
     std::array<double, 11> actual_total_kg{};
@@ -415,8 +427,7 @@ TEST(test_fire_products, DecodesRaveEmbeddedScaledVariantExactlyOnce) {
 }
 
 TEST(test_fire_products, DecodesGbbepxV4r0FluxCropAndMarksReducedSpeciesSet) {
-    const auto product =
-        cece::DecodeGbbepxProductFile(ProductFixturePath("GBBEPx-v4r0-crop.nc"), ProductDecodeOptions("2023-02-26T00:00:00Z"));
+    const auto product = cece::DecodeGbbepxProductFile(ProductFixturePath("GBBEPx-v4r0-crop.nc"), ProductDecodeOptions("2023-02-26T00:00:00Z"));
     const auto& data = product.Data();
     const auto& metadata = data.product_identity.common_identity.Metadata();
 
@@ -491,8 +502,8 @@ TEST(test_fire_products, ProductDecodersRequireExplicitAvailabilityCutoff) {
 }
 
 TEST(test_fire_products, OverlappingProductVariantsAreRejectedRegardlessOfVersion) {
-    const auto first = ProductInterval("2022-07-01T00:00:00Z", "2022-07-01T01:00:00Z", cece::FireProductQuantityKind::IntervalMass,
-                                       "kg/cell/interval", {1});
+    const auto first =
+        ProductInterval("2022-07-01T00:00:00Z", "2022-07-01T01:00:00Z", cece::FireProductQuantityKind::IntervalMass, "kg/cell/interval", {1});
     auto second_data = first.Data();
     second_data.product_identity.version = "product-v2";
     second_data.product_identity.variant = "scaled";
@@ -502,15 +513,14 @@ TEST(test_fire_products, OverlappingProductVariantsAreRejectedRegardlessOfVersio
     const cece::FireProductEmissionsInterval second(std::move(second_data));
     EXPECT_THROW(cece::ValidateFireProductIntervalSet({std::cref(first), std::cref(second)}), std::invalid_argument);
 
-    const auto next = ProductInterval("2022-07-01T01:00:00Z", "2022-07-01T02:00:00Z", cece::FireProductQuantityKind::IntervalMass,
-                                      "kg/cell/interval", {1});
+    const auto next =
+        ProductInterval("2022-07-01T01:00:00Z", "2022-07-01T02:00:00Z", cece::FireProductQuantityKind::IntervalMass, "kg/cell/interval", {1});
     EXPECT_NO_THROW(cece::ValidateFireProductIntervalSet({std::cref(first), std::cref(next)}));
 }
 
 TEST(test_fire_products, ScalingIdentityIsPreservedAndRepeatedApplicationRejected) {
-    auto data = ProductInterval("2022-07-01T00:00:00Z", "2022-07-01T01:00:00Z", cece::FireProductQuantityKind::IntervalMass,
-                                "kg/cell/interval", {10})
-                    .Data();
+    auto data =
+        ProductInterval("2022-07-01T00:00:00Z", "2022-07-01T01:00:00Z", cece::FireProductQuantityKind::IntervalMass, "kg/cell/interval", {10}).Data();
     const cece::FireProfileIdentity scaling{"synthetic-scale", "1", std::string(64, 'c')};
     data.scaling_state = {cece::FireProductScalingKind::Applied, scaling};
     const cece::FireProductEmissionsInterval scaled(std::move(data));
@@ -520,9 +530,8 @@ TEST(test_fire_products, ScalingIdentityIsPreservedAndRepeatedApplicationRejecte
 }
 
 TEST(test_fire_products, ExactTargetProductBypassesBulkChemistryMapping) {
-    auto data = ProductInterval("2022-07-01T00:00:00Z", "2022-07-01T01:00:00Z", cece::FireProductQuantityKind::IntervalMass,
-                                "kg/cell/interval", {0})
-                    .Data();
+    auto data =
+        ProductInterval("2022-07-01T00:00:00Z", "2022-07-01T01:00:00Z", cece::FireProductQuantityKind::IntervalMass, "kg/cell/interval", {0}).Data();
     data.quality_state = {cece::FireQualityState::Observed};
     data.chemistry_state = cece::FireProductChemistryState::TargetSpecific;
     data.target_identity = cece::FireProductTargetIdentity{"CB6", "revision-7"};
@@ -548,9 +557,8 @@ TEST(test_fire_products, ExactTargetProductBypassesBulkChemistryMapping) {
 }
 
 TEST(test_fire_products, FRPDiagnosticsRemainNonAuthoritativeForProductMass) {
-    auto data = ProductInterval("2022-07-01T00:00:00Z", "2022-07-01T01:00:00Z", cece::FireProductQuantityKind::IntervalMass,
-                                "kg/cell/interval", {12})
-                    .Data();
+    auto data =
+        ProductInterval("2022-07-01T00:00:00Z", "2022-07-01T01:00:00Z", cece::FireProductQuantityKind::IntervalMass, "kg/cell/interval", {12}).Data();
     data.optional_diagnostics.frp_mw = std::vector<double>{100};
     const cece::FireProductEmissionsInterval product(std::move(data));
     ASSERT_TRUE(product.Data().optional_diagnostics.frp_mw);

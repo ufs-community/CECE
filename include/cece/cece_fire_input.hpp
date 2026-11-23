@@ -106,7 +106,7 @@ double FireGreatCirclePolygonArea(const std::array<double, 4>& longitude_deg, co
 // Approximate local spherical Jacobian from swath centers; not polygon overlap
 // or a certified VIIRS footprint. Deleted pixels receive zero area.
 std::vector<double> FireApproximateSwathPixelAreas(std::size_t nx, std::size_t ny, const std::vector<double>& longitude_deg,
-                                                  const std::vector<double>& latitude_deg, const std::vector<std::uint8_t>& deleted);
+                                                   const std::vector<double>& latitude_deg, const std::vector<std::uint8_t>& deleted);
 
 struct FireIdentityMetadata {
     int schema_version = 0;
@@ -200,7 +200,7 @@ FireRaveBiome FireRaveBiomeFromViirsIgbp17(int category);
 // Profiles are ordered forest, grassland/savanna, cropland. IGBP17 water
 // cells require zero mass for every selected species and receive no component.
 FireBulkInventory SplitFireProductByIgbp(const FireBulkInventory& inventory, const FireIgbpGrid& igbp,
-                                        const std::array<FireComponentProfile, 3>& profiles);
+                                         const std::array<FireComponentProfile, 3>& profiles);
 
 enum class FireProductQuantityKind { IntervalMass, MeanRate, Flux };
 enum class FireProductSpeciesAvailability { Available, Unavailable };
@@ -450,8 +450,7 @@ std::int64_t FireIntervalOverlapSeconds(const FireUtcTime& first_start, const Fi
 FireAllocatedMass FireAllocateConservativeMass(const FireBulkInventory& inventory, std::shared_ptr<const FireGrid> target_grid,
                                                const axis::solver::InterpolationMatrix<Kokkos::HostSpace>& matrix,
                                                axis::solver::NormType normalization, const FireUtcTime& requested_start,
-                                               const FireUtcTime& requested_end,
-                                               FireTimeAllocation time_allocation = FireTimeAllocation::Uniform,
+                                               const FireUtcTime& requested_end, FireTimeAllocation time_allocation = FireTimeAllocation::Uniform,
                                                std::optional<FireTemporalAllocationProfile> time_profile = std::nullopt);
 
 }  // namespace cece

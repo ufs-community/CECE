@@ -63,21 +63,20 @@ cece::FireBulkInventory ProductInventory(const cece::FireProductEmissionsInterva
         masses[cells + cell] = product.MassKg()[pm25_offset + cell];
     }
 
-    return cece::FireBulkInventory({
-        cece::FireInputIdentity(metadata),
-        {cece::FireBulkSpecies::CO, cece::FireBulkSpecies::PM25},
-        {"sample-product"},
-        {{"sample-product",
-          {{"sample-biome", "test-v1", std::string(64, 'c')}, {"sample-composition", "test-v1", std::string(64, 'd')}}}},
-        std::move(masses),
-        data.quality_state,
-        data.coverage_fraction,
-        {metadata.content_sha256},
-        std::nullopt,
-        std::nullopt,
-        std::nullopt,
-        data.optional_diagnostics.fre_mj,
-        data.optional_diagnostics.dry_matter_kg});
+    return cece::FireBulkInventory(
+        {cece::FireInputIdentity(metadata),
+         {cece::FireBulkSpecies::CO, cece::FireBulkSpecies::PM25},
+         {"sample-product"},
+         {{"sample-product", {{"sample-biome", "test-v1", std::string(64, 'c')}, {"sample-composition", "test-v1", std::string(64, 'd')}}}},
+         std::move(masses),
+         data.quality_state,
+         data.coverage_fraction,
+         {metadata.content_sha256},
+         std::nullopt,
+         std::nullopt,
+         std::nullopt,
+         data.optional_diagnostics.fre_mj,
+         data.optional_diagnostics.dry_matter_kg});
 }
 
 Matrix ConservativeMatrix(const cece::FireGrid& source, const cece::FireGrid& target);
@@ -100,9 +99,17 @@ std::shared_ptr<const cece::FireGrid> CoarsenedGrid(const cece::FireGrid& source
             north = std::max(north, value);
         }
     }
-    cece::FireGridDefinition definition{
-        "coarsened-" + input.grid_id, std::string(64, 'c'), 1, 1, {(west + east) / 2}, {(south + north) / 2},
-        {{{west, east, east, west}}}, {{{south, south, north, north}}}, {1.0}, input.crs, input.longitude_convention};
+    cece::FireGridDefinition definition{"coarsened-" + input.grid_id,
+                                        std::string(64, 'c'),
+                                        1,
+                                        1,
+                                        {(west + east) / 2},
+                                        {(south + north) / 2},
+                                        {{{west, east, east, west}}},
+                                        {{{south, south, north, north}}},
+                                        {1.0},
+                                        input.crs,
+                                        input.longitude_convention};
     const cece::FireGrid candidate(definition);
     const auto matrix = ConservativeMatrix(source, candidate);
     const auto operator_source_area = matrix.area_a();
@@ -158,9 +165,8 @@ TEST(test_fire_conservation, NativeDiagnosticIdentityAndMassSurviveAllocation) {
     data.mass_kg = {10, 30, 2, 6, 20, 60, 4, 12};
     data.native_diagnostic_species = {cece::FireBulkSpecies::NOX};
     const cece::FireBulkInventory inventory(std::move(data));
-    const auto result = cece::FireAllocateConservativeMass(
-        inventory, GridWithAreas({50, 50}, "target"), MakeMatrix(), Norm::DstArea,
-        cece::FireUtcTime("2022-07-01T23:00:00Z"), cece::FireUtcTime("2022-07-02T01:00:00Z"));
+    const auto result = cece::FireAllocateConservativeMass(inventory, GridWithAreas({50, 50}, "target"), MakeMatrix(), Norm::DstArea,
+                                                           cece::FireUtcTime("2022-07-01T23:00:00Z"), cece::FireUtcTime("2022-07-02T01:00:00Z"));
     EXPECT_EQ(result.native_diagnostic_species, std::vector<cece::FireBulkSpecies>{cece::FireBulkSpecies::NOX});
     ASSERT_EQ(result.species_budgets.size(), 2);
     EXPECT_NEAR(result.species_budgets[1].input_kg, 24.0, 1e-12);
@@ -198,9 +204,9 @@ TEST(test_fire_conservation, ProfileAllocationConservesMassAndRetainsComponentPr
     const auto target = GridWithAreas({50, 50}, "target");
     const auto matrix = MakeMatrix();
     const auto profile = TemporalProfile();
-    const auto first_half_hour = cece::FireAllocateConservativeMass(
-        inventory, target, matrix, Norm::DstArea, cece::FireUtcTime("2022-07-01T23:00:00Z"),
-        cece::FireUtcTime("2022-07-01T23:30:00Z"), cece::FireTimeAllocation::Profile, profile);
+    const auto first_half_hour =
+        cece::FireAllocateConservativeMass(inventory, target, matrix, Norm::DstArea, cece::FireUtcTime("2022-07-01T23:00:00Z"),
+                                           cece::FireUtcTime("2022-07-01T23:30:00Z"), cece::FireTimeAllocation::Profile, profile);
     EXPECT_EQ(first_half_hour.time_allocation, cece::FireTimeAllocation::Profile);
     ASSERT_TRUE(first_half_hour.time_profile);
     EXPECT_EQ(first_half_hour.time_profile->id, profile.identity.id);
@@ -214,24 +220,24 @@ TEST(test_fire_conservation, ProfileAllocationConservesMassAndRetainsComponentPr
     EXPECT_DOUBLE_EQ(first_half_hour.species_budgets[0].supported_input_kg, 45);
     EXPECT_DOUBLE_EQ(first_half_hour.species_budgets[0].output_kg, 45);
 
-    const auto second_half_hour = cece::FireAllocateConservativeMass(
-        inventory, target, matrix, Norm::DstArea, cece::FireUtcTime("2022-07-01T23:30:00Z"),
-        cece::FireUtcTime("2022-07-02T00:00:00Z"), cece::FireTimeAllocation::Profile, profile);
-    const auto second_hour = cece::FireAllocateConservativeMass(
-        inventory, target, matrix, Norm::DstArea, cece::FireUtcTime("2022-07-02T00:00:00Z"),
-        cece::FireUtcTime("2022-07-02T01:00:00Z"), cece::FireTimeAllocation::Profile, profile);
-    const auto whole_interval = cece::FireAllocateConservativeMass(
-        inventory, target, matrix, Norm::DstArea, cece::FireUtcTime("2022-07-01T23:00:00Z"),
-        cece::FireUtcTime("2022-07-02T01:00:00Z"), cece::FireTimeAllocation::Profile, profile);
+    const auto second_half_hour =
+        cece::FireAllocateConservativeMass(inventory, target, matrix, Norm::DstArea, cece::FireUtcTime("2022-07-01T23:30:00Z"),
+                                           cece::FireUtcTime("2022-07-02T00:00:00Z"), cece::FireTimeAllocation::Profile, profile);
+    const auto second_hour =
+        cece::FireAllocateConservativeMass(inventory, target, matrix, Norm::DstArea, cece::FireUtcTime("2022-07-02T00:00:00Z"),
+                                           cece::FireUtcTime("2022-07-02T01:00:00Z"), cece::FireTimeAllocation::Profile, profile);
+    const auto whole_interval =
+        cece::FireAllocateConservativeMass(inventory, target, matrix, Norm::DstArea, cece::FireUtcTime("2022-07-01T23:00:00Z"),
+                                           cece::FireUtcTime("2022-07-02T01:00:00Z"), cece::FireTimeAllocation::Profile, profile);
     for (std::size_t i = 0; i < whole_interval.mass_kg.size(); ++i) {
         EXPECT_NEAR(first_half_hour.mass_kg[i] + second_half_hour.mass_kg[i] + second_hour.mass_kg[i], whole_interval.mass_kg[i], 1e-12);
     }
     EXPECT_DOUBLE_EQ(whole_interval.species_budgets[0].supported_input_kg, 120);
     EXPECT_DOUBLE_EQ(whole_interval.species_budgets[0].output_kg, 120);
 
-    const auto source_resolved = cece::FireAllocateConservativeMass(
-        inventory, target, matrix, Norm::DstArea, cece::FireUtcTime("2022-07-01T23:00:00Z"),
-        cece::FireUtcTime("2022-07-02T00:00:00Z"), cece::FireTimeAllocation::SourceResolved);
+    const auto source_resolved =
+        cece::FireAllocateConservativeMass(inventory, target, matrix, Norm::DstArea, cece::FireUtcTime("2022-07-01T23:00:00Z"),
+                                           cece::FireUtcTime("2022-07-02T00:00:00Z"), cece::FireTimeAllocation::SourceResolved);
     EXPECT_EQ(source_resolved.time_allocation, cece::FireTimeAllocation::SourceResolved);
     EXPECT_DOUBLE_EQ(source_resolved.species_budgets[0].output_kg, 60);
 }
@@ -242,47 +248,54 @@ TEST(test_fire_conservation, ProfileAllocationRejectsInvalidOrRepeatedWeights) {
     const auto matrix = MakeMatrix();
     const auto start = cece::FireUtcTime("2022-07-01T23:00:00Z");
     const auto end = cece::FireUtcTime("2022-07-02T01:00:00Z");
-    EXPECT_THROW(cece::FireAllocateConservativeMass(inventory, target, matrix, Norm::DstArea, start, end,
-                                                    cece::FireTimeAllocation::Profile),
+    EXPECT_THROW(cece::FireAllocateConservativeMass(inventory, target, matrix, Norm::DstArea, start, end, cece::FireTimeAllocation::Profile),
                  std::invalid_argument);
 
     auto invalid_integral = TemporalProfile();
     invalid_integral.segments[0].weight_per_second = 0.74 / 3600;
-    EXPECT_THROW(cece::FireAllocateConservativeMass(inventory, target, matrix, Norm::DstArea, start, end,
-                                                    cece::FireTimeAllocation::Profile, invalid_integral),
-                 std::invalid_argument);
+    EXPECT_THROW(
+        cece::FireAllocateConservativeMass(inventory, target, matrix, Norm::DstArea, start, end, cece::FireTimeAllocation::Profile, invalid_integral),
+        std::invalid_argument);
     auto invalid_coverage = TemporalProfile();
     invalid_coverage.segments[1].start_offset_seconds = 3601;
-    EXPECT_THROW(cece::FireAllocateConservativeMass(inventory, target, matrix, Norm::DstArea, start, end,
-                                                    cece::FireTimeAllocation::Profile, invalid_coverage),
-                 std::invalid_argument);
+    EXPECT_THROW(
+        cece::FireAllocateConservativeMass(inventory, target, matrix, Norm::DstArea, start, end, cece::FireTimeAllocation::Profile, invalid_coverage),
+        std::invalid_argument);
     auto incompatible_cadence = TemporalProfile();
     incompatible_cadence.source_cadence_seconds = 3600;
-    EXPECT_THROW(cece::FireAllocateConservativeMass(inventory, target, matrix, Norm::DstArea, start, end,
-                                                    cece::FireTimeAllocation::Profile, incompatible_cadence),
+    EXPECT_THROW(cece::FireAllocateConservativeMass(inventory, target, matrix, Norm::DstArea, start, end, cece::FireTimeAllocation::Profile,
+                                                    incompatible_cadence),
                  std::invalid_argument);
     auto local_solar = TemporalProfile();
     local_solar.time_basis = cece::FireTemporalProfileTimeBasis::LocalSolar;
-    EXPECT_THROW(cece::FireAllocateConservativeMass(inventory, target, matrix, Norm::DstArea, start, end,
-                                                    cece::FireTimeAllocation::Profile, local_solar),
-                 std::invalid_argument);
-    EXPECT_THROW(cece::FireAllocateConservativeMass(inventory, target, matrix, Norm::DstArea, start, end,
-                                                    cece::FireTimeAllocation::Uniform, TemporalProfile()),
+    EXPECT_THROW(
+        cece::FireAllocateConservativeMass(inventory, target, matrix, Norm::DstArea, start, end, cece::FireTimeAllocation::Profile, local_solar),
+        std::invalid_argument);
+    EXPECT_THROW(cece::FireAllocateConservativeMass(inventory, target, matrix, Norm::DstArea, start, end, cece::FireTimeAllocation::Uniform,
+                                                    TemporalProfile()),
                  std::invalid_argument);
 
     auto weighted_data = inventory.Data();
     auto metadata = weighted_data.identity.Metadata();
     weighted_data.identity = cece::FireInputIdentity(std::move(metadata), TemporalProfile().identity);
     const cece::FireBulkInventory already_weighted(std::move(weighted_data));
-    EXPECT_THROW(cece::FireAllocateConservativeMass(already_weighted, target, matrix, Norm::DstArea, start, end,
-                                                    cece::FireTimeAllocation::Profile, TemporalProfile()),
+    EXPECT_THROW(cece::FireAllocateConservativeMass(already_weighted, target, matrix, Norm::DstArea, start, end, cece::FireTimeAllocation::Profile,
+                                                    TemporalProfile()),
                  std::invalid_argument);
 }
 
 TEST(test_fire_conservation, LocalSolarProfileShiftsAllocationByCellLongitude) {
-    const auto source = std::make_shared<const cece::FireGrid>(cece::FireGridDefinition{
-        "local-solar-grid", std::string(64, 'b'), 2, 1, {0, 180}, {0, 0}, {{{-1, 0, 0, -1}, {179, 180, 180, 179}}},
-        {{{-1, -1, 1, 1}, {-1, -1, 1, 1}}}, {25, 75}, "EPSG:4326", cece::FireLongitudeConvention::Minus180To180});
+    const auto source = std::make_shared<const cece::FireGrid>(cece::FireGridDefinition{"local-solar-grid",
+                                                                                        std::string(64, 'b'),
+                                                                                        2,
+                                                                                        1,
+                                                                                        {0, 180},
+                                                                                        {0, 0},
+                                                                                        {{{-1, 0, 0, -1}, {179, 180, 180, 179}}},
+                                                                                        {{{-1, -1, 1, 1}, {-1, -1, 1, 1}}},
+                                                                                        {25, 75},
+                                                                                        "EPSG:4326",
+                                                                                        cece::FireLongitudeConvention::Minus180To180});
     auto inventory_data = Inventory(source, {100, 100, 100, 100}).Data();
     auto metadata = inventory_data.identity.Metadata();
     metadata.interval_start = cece::FireUtcTime("2022-07-01T00:00:00Z");
@@ -293,12 +306,12 @@ TEST(test_fire_conservation, LocalSolarProfileShiftsAllocationByCellLongitude) {
     inventory_data.identity = cece::FireInputIdentity(std::move(metadata));
     const cece::FireBulkInventory inventory(std::move(inventory_data));
     const cece::FireTemporalAllocationProfile profile{{"synthetic-local-solar", "1", std::string(64, 'f')},
-                                                       cece::FireTemporalProfileTimeBasis::LocalSolar,
-                                                       86400,
-                                                       {{0, 43200, 1.0 / 43200}, {43200, 86400, 0}}};
-    const auto result = cece::FireAllocateConservativeMass(
-        inventory, source, MakeMatrix({1, 1}, {0, 1}, {0, 1}, {1, 1}, {1, 1}, {25, 75}, {25, 75}), Norm::DstArea,
-        cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T06:00:00Z"), cece::FireTimeAllocation::Profile, profile);
+                                                      cece::FireTemporalProfileTimeBasis::LocalSolar,
+                                                      86400,
+                                                      {{0, 43200, 1.0 / 43200}, {43200, 86400, 0}}};
+    const auto result = cece::FireAllocateConservativeMass(inventory, source, MakeMatrix({1, 1}, {0, 1}, {0, 1}, {1, 1}, {1, 1}, {25, 75}, {25, 75}),
+                                                           Norm::DstArea, cece::FireUtcTime("2022-07-01T00:00:00Z"),
+                                                           cece::FireUtcTime("2022-07-01T06:00:00Z"), cece::FireTimeAllocation::Profile, profile);
     ASSERT_EQ(result.mass_kg.size(), 4);
     EXPECT_DOUBLE_EQ(result.mass_kg[0], 50);
     EXPECT_DOUBLE_EQ(result.mass_kg[1], 0);
@@ -525,8 +538,7 @@ TEST(test_fire_conservation, ActualRaveDayConservesAcrossTwoSubstepsAndChangingT
             ASSERT_EQ(allocated.species_budgets.size(), species.size());
             for (std::size_t index = 0; index < species.size(); ++index) {
                 EXPECT_EQ(allocated.species_budgets[index].species, species[index]);
-                EXPECT_NEAR(allocated.species_budgets[index].output_kg,
-                            allocated.species_budgets[index].input_kg * 0.5,
+                EXPECT_NEAR(allocated.species_budgets[index].output_kg, allocated.species_budgets[index].input_kg * 0.5,
                             std::max(1e-12, allocated.species_budgets[index].input_kg * 1e-6));
                 actual_total_kg[index] += allocated.species_budgets[index].output_kg;
             }
@@ -560,13 +572,13 @@ TEST(test_fire_conservation, RaveRectilinearTargetUsesGreatCircleCellAreas) {
             north = std::max(north, lat);
         }
     }
-    const auto target = cece::MakeRectilinearFireGrid(2, 2, {west + (east - west) * 0.25, west + (east - west) * 0.75},
-                                                      {south + (north - south) * 0.25, south + (north - south) * 0.75},
-                                                      cece::FireGridAreaModel::GreatCircleEdges);
+    const auto target =
+        cece::MakeRectilinearFireGrid(2, 2, {west + (east - west) * 0.25, west + (east - west) * 0.75},
+                                      {south + (north - south) * 0.25, south + (north - south) * 0.75}, cece::FireGridAreaModel::GreatCircleEdges);
     const auto matrix = ConservativeMatrix(*source_grid, *target);
     const auto interval = inventory.Data().identity.Metadata();
-    const auto allocated = cece::FireAllocateConservativeMass(inventory, target, matrix, Norm::DstArea, interval.interval_start,
-                                                               interval.interval_end);
+    const auto allocated =
+        cece::FireAllocateConservativeMass(inventory, target, matrix, Norm::DstArea, interval.interval_start, interval.interval_end);
     ASSERT_EQ(allocated.species_budgets.size(), 2);
     for (const auto& budget : allocated.species_budgets) {
         EXPECT_NEAR(budget.output_kg, budget.supported_input_kg, std::max(1e-12, budget.supported_input_kg * 1e-6));
@@ -612,8 +624,7 @@ TEST(test_fire_conservation, ActualGbbepxDayConservesAcrossTwoSubstepsAndRejects
     options.cutoff_mode = cece::FireCutoffMode::Fixed;
     const auto filename = std::filesystem::path(__FILE__).parent_path() / "data/fire/product_samples/GBBEPx-v4r0-crop.nc";
     const auto product = cece::DecodeGbbepxProductFile(filename.string(), options);
-    EXPECT_THROW(product.RequireSpecies({cece::FireBulkSpecies::CO, cece::FireBulkSpecies::CH4, cece::FireBulkSpecies::VOC}),
-                 std::invalid_argument);
+    EXPECT_THROW(product.RequireSpecies({cece::FireBulkSpecies::CO, cece::FireBulkSpecies::CH4, cece::FireBulkSpecies::VOC}), std::invalid_argument);
 
     const auto inventory = ProductInventory(product);
     const auto source_grid = inventory.Data().identity.Metadata().grid_definition;

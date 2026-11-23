@@ -4,5 +4,9 @@ version: test-v1
 time_basis: local_solar_time
 supported_source_cadence_seconds: 86400
 weights:
-  - {offset_seconds: 0, duration_seconds: 43200, weight_per_second: 2.3148148148148148e-5}
-  - {offset_seconds: 43200, duration_seconds: 43200, weight_per_second: 0.0}
+  - {
+      offset_seconds: 0,
+      duration_seconds: 43200,
+      weight_per_second: 2.3148148148148148e-5,
+    }
+  - { offset_seconds: 43200, duration_seconds: 43200, weight_per_second: 0.0 }
