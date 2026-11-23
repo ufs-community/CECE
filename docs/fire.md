@@ -15,6 +15,37 @@ budgets remain pending. Passing parser or sample-conservation tests does not
 remove that gate. RAVE FRP/FRE diagnostics are retained as diagnostics; they do
 not activate an FRP-to-emissions conversion.
 
+## RAVE derivation references
+
+The proposed derivation profile is `rave-atbd-2.1-unscaled`; it is not yet
+implemented. The [RAVE ATBD v2.1](https://www.ospo.noaa.gov/resources/documents/pdf/RAVE_ATBD.pdf)
+describes 10-minute FRP reconstruction and hourly integration, even though its
+diurnal climatologies are built in five-minute bins. The earlier
+[Li et al. (2022)](https://repository.library.noaa.gov/view/noaa/67902/noaa_67902_DS1.pdf)
+study describes five-minute reconstruction, different long-gap burn durations
+and sensor-pair timing, and eight species rather than eleven. They are not
+interchangeable profiles. The ATBD's eleven-row factor table has an
+eight-species caption, so deployed coefficients still require verification.
+
+Both references describe five vegetation groups derived from 2019 MODIS
+land cover and North American EPA Level I ecoregions. The user selected
+VIIRS AST IGBP17 as a land-cover substitute, not an established equivalent:
+its crosswalk, aggregation and compatibility with the reconstruction assets
+must be validated. AST's surface-type climatology is not a fire-radiative-power
+diurnal climatology or an ecoregion map; compatible FRP/burn-duration tables
+and ecoregions are still needed. The
+[RAVE manifest](../data/fire/rave_atbd_2_1_manifest.yaml) records document
+hashes, differences and remaining gates. No raw-sensor RAVE or GBBEPx
+derivation is enabled by these references.
+
+The standalone VIIRS IGBP17-to-RAVE biome crosswalk maps classes 1-5 to
+forest, 6-7 to shrubland, 8-9 to savanna, 10-11 to grassland and 12/14 to
+cropland. It rejects fill, water and classes without a documented five-biome
+mapping rather than treating them as zero fire. It is not connected to input
+preparation or runtime, and its aggregation and compatibility with deployed
+RAVE climatology remain unverified. In the inspected VIIRS file, 0 is fill
+and 17 is water; a 20-class dataset must not be interpreted as IGBP17.
+
 Four Phase 3 demonstration configurations are generated from the factor
 manifest by [`scripts/generate_fire_cb6_examples.py`](../scripts/generate_fire_cb6_examples.py):
 

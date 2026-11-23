@@ -23,6 +23,28 @@ algorithm_document:
     The separate NOAA STAR URL listed in the asset registry returned HTTP 403
     during this inspection; equivalence between the two files is unverified.
 
+related_references:
+  external_users_manual:
+    version: "2.2"
+    publication_date: "2024-08-30"
+    source_url: https://www.ospo.noaa.gov/resources/documents/pdf/RAVE_EUM.pdf
+    content_sha256: c3e2e33d2fbeb25b26a38a305109d8ecaa52550cf1e8d612e493df95c3c4aae0
+    role: Product interfaces and variables; not an algorithm implementation.
+  li_et_al_2022:
+    source_url: https://repository.library.noaa.gov/view/noaa/67902/noaa_67902_DS1.pdf
+    content_sha256: ef01c25ecc7df5aa45a645761b25cdbb257b2123643524a6b8bf1643530682ce
+    role: >-
+      Earlier research algorithm, not evidence that the operational v2.1
+      reconstruction or its eleven-species factor table is identical.
+  goes_r_atbd_index:
+    source_url: https://www.star.nesdis.noaa.gov/goesr/documentation_ATBDs.php
+    notes: >-
+      The inspected index lists ABI Fire / Hot Spot Characterization ATBDs,
+      but no RAVE emissions ATBD revisions 1.0 or 2.0.
+  redistribution:
+    permitted: null
+    basis: Redistribution rights for these references and derived assets have not been verified.
+
 applicability:
   emissions_factors: CONUS; global extrapolation is not established.
   analysis_grid: "0.03-degree longitude/latitude grid, described as approximately 3 km"
@@ -34,6 +56,21 @@ applicability:
     rule and reference cases.
 
 scientific_review:
+  - id: reconstruction_revision
+    status: baseline_selected_compatibility_unverified
+    evidence: >-
+      Li et al. 2022 sections 3.2 and 3.3 describe five-minute CONUS FRP
+      reconstruction and eight species. They use 1 hour around observations
+      during climatological burning hours and 30 minutes otherwise, and
+      contemporaneous sensor pairs within 2.5 minutes. ATBD v2.1 sections
+      2.3.1.2, 2.3.1.3 and 2.3.2 describe 10-minute reconstruction and
+      integration, 2 hours and 1 hour respectively, and pairs within 5
+      minutes. Its climatologies are nevertheless built in five-minute bins.
+      The paper's eight-species table does not supply TPM, VOC or CH4.
+      Do not combine these revisions as if they were one validated algorithm.
+      The user selected ATBD v2.1 as the baseline after these differences were
+      presented; the requested VIIRS land-cover substitution still requires
+      a distinct identity and validation.
   - id: inconsistent_cloud_threshold
     status: blocked
     evidence: >-
@@ -52,6 +89,19 @@ scientific_review:
     evidence: >-
       Retrospective reconstruction does not establish a causal algorithm.
       An independently verified causal profile is required for causal use.
+  - id: user_supplied_rebuild_details
+    status: unverified
+    evidence: >-
+      The user supplied possible retrieval routes and reconstruction details.
+      The proposed one-hour and 30-minute long-gap buffers match Li et al.
+      2022, not ATBD v2.1, which specifies two hours and one hour.
+      EUM v2.2 Table 3-1 describes low quality for large viewing zenith and
+      certain solar zenith angles; it does not establish exclusion from
+      climatology training. The EUM's detection/VIIRS conditions are quality
+      labels, not the proposed training-filter rules. The deployed time basis,
+      minimum sample count, exact outlier threshold and DFT settings remain
+      unverified. ATBD v2.1 section 1.2.1.3 describes 2019 MODIS, not a
+      verified transition to VIIRS AST.
 
 required_assets:
   - id: abi-and-viirs-reference-scenes
@@ -61,8 +111,11 @@ required_assets:
     status: blocked
     reason: >-
       Section 1.2.1.3 describes 2019 MODIS land cover aggregated to five
-      classes and North American EPA Level I ecoregions. Exact compatible map
-      bytes, processing method, version, rights and checksums remain unverified.
+      classes and North American EPA Level I ecoregions. The user selected
+      VIIRS AST IGBP17 for land cover; its categorical crosswalk, aggregation
+      and profile identity remain to be validated. EPA Level I vector data
+      have been inspected as a candidate, but equivalence to the deployed
+      RAVE map and its rasterization and ecoregion identifiers is unverified.
   - id: diurnal-and-burn-duration
     status: blocked
     reason: Compatible versioned climatology tables, time basis, coverage and checksums have not been verified.
@@ -100,9 +153,63 @@ candidate_vegetation_source:
 
 other_candidate_surface_type:
   source_manifest: gbbepx_v5_atbd_manifest.yaml
-  status: metadata_inspected_not_approved
+  status: user_selected_not_validated
   notes: >-
-    NOAA NCEI distributes a 2019 VIIRS annual IGBP17 file with inspected
-    metadata and a full SHA256 recorded in the source manifest. Its year and
-    classes do not establish equivalence to the RAVE profile's 2019 MODIS
-    ancillary or its five-class aggregation.
+    The user selected NOAA NCEI VIIRS AST as the land-cover source. A 2019
+    annual IGBP17 file has inspected metadata and a full SHA256 recorded in
+    the source manifest. Its year and classes do not establish equivalence
+    to the RAVE profile's 2019 MODIS ancillary or its five-class aggregation.
+    AST also offers surface-type climatology maps; these are not FRP diurnal
+    climatology, burn-duration tables, or EPA ecoregion maps.
+  candidate_igbp17_crosswalk:
+    forest: [1, 2, 3, 4, 5]
+    shrubland: [6, 7]
+    savanna: [8, 9]
+    grassland: [10, 11]
+    cropland: [12, 14]
+    unsupported: [13, 15, 16, 17]
+    fill_value: 0
+    status: semantic_mapping_only_not_deployed_validation
+    notes: >-
+      Mapping uses the VIIRS class names and the five groups described in
+      ATBD section 1.2.1.3. The inspected VIIRS IGBP17 file defines 17 as
+      water and 0 as fill, not water. Classes without a documented mapping
+      fail explicitly; this does not assert that they are universally
+      non-burnable. IGBP20 must not be interpreted as IGBP17. The standalone
+      crosswalk is not connected to ancillary ingestion or derivation.
+
+candidate_climatology_access:
+  noaa_access_policy: https://www.ospo.noaa.gov/resources/data-access/policy-on-access.html
+  noaa_request_form: https://www.ospo.noaa.gov/resources/documents/PDFs/OSPO_Data_Access_Request_Form.pdf
+  user_suggested_science_portal: https://sites.google.com/view/rave-emission/diurnal-cycles
+  status: not_obtained
+  notes: >-
+    NOAA's policy describes a request process for access to operational data;
+    its applicability to the RAVE algorithm package has not been verified.
+    The user-suggested science portal redirected to Google sign-in during
+    inspection. The existence, contents, access rights and version of the
+    proposed operational ancillary_data directory have not been independently
+    verified. No access request was submitted.
+
+candidate_ecoregion_source:
+  metadata_url: https://dmap-prod-oms-edc.s3.us-east-1.amazonaws.com/ORD/Ecoregions/cec_na/NA_CEC_Eco_Level1.htm
+  source_url: https://dmap-prod-oms-edc.s3.us-east-1.amazonaws.com/ORD/Ecoregions/cec_na/na_cec_eco_l1.zip
+  status: inspected_candidate_not_validated
+  title: EPA North America Level I Ecoregions
+  metadata_publication_date: "2010-05-01"
+  source_size_bytes: 29312863
+  content_sha256: fa8ddbec5711d3b0c2eeb009036e1c2ec24c5b9768ec1edcbc3735754fbdfa6e
+  format: ESRI shapefile
+  geometry_crs: Sphere ARC INFO Lambert Azimuthal Equal Area
+  code_field: NA_L1CODE
+  name_field: NA_L1NAME
+  inspected_codes: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+  metadata_access_constraints: None
+  metadata_use_constraints: None
+  limitations: >-
+    EPA metadata describes a draft 2010 revision with 15 North American
+    regions; code 0 is water. ATBD v2.1 describes 11 ecoregions for its
+    climatologies. This archive is not the deployed RAVE raster and does not
+    establish its region-code crosswalk, CRS transformation, rasterization,
+    temporal compatibility, or behavior at boundaries and outside coverage.
+    The inspected archive was not retained.

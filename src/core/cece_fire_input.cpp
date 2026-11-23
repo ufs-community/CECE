@@ -609,6 +609,15 @@ double FireBulkInventory::SpeciesBudgetKg(FireBulkSpecies species) const {
     return total;
 }
 
+FireRaveBiome FireRaveBiomeFromViirsIgbp17(int category) {
+    if (category >= 1 && category <= 5) return FireRaveBiome::Forest;
+    if (category >= 6 && category <= 7) return FireRaveBiome::Shrubland;
+    if (category >= 8 && category <= 9) return FireRaveBiome::Savanna;
+    if (category == 10 || category == 11) return FireRaveBiome::Grassland;
+    if (category == 12 || category == 14) return FireRaveBiome::Cropland;
+    throw std::invalid_argument("VIIRS IGBP17 class " + std::to_string(category) + " has no supported RAVE vegetation mapping");
+}
+
 FireBulkInventory SplitFireProductByIgbp(const FireBulkInventory& inventory, const FireIgbpGrid& igbp,
                                         const std::array<FireComponentProfile, 3>& profiles) {
     const auto& input = inventory.Data();

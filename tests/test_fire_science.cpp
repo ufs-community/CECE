@@ -12,6 +12,18 @@
 #include "cece/cece_fire_input.hpp"
 #include "support/cece_fire_test_fixtures.hpp"
 
+TEST(test_fire_science, ViirsIgbp17RaveCandidateCrosswalkRejectsUnmappedClasses) {
+    using Biome = cece::FireRaveBiome;
+    for (const int code : {1, 2, 3, 4, 5}) EXPECT_EQ(cece::FireRaveBiomeFromViirsIgbp17(code), Biome::Forest) << code;
+    for (const int code : {6, 7}) EXPECT_EQ(cece::FireRaveBiomeFromViirsIgbp17(code), Biome::Shrubland) << code;
+    for (const int code : {8, 9}) EXPECT_EQ(cece::FireRaveBiomeFromViirsIgbp17(code), Biome::Savanna) << code;
+    for (const int code : {10, 11}) EXPECT_EQ(cece::FireRaveBiomeFromViirsIgbp17(code), Biome::Grassland) << code;
+    for (const int code : {12, 14}) EXPECT_EQ(cece::FireRaveBiomeFromViirsIgbp17(code), Biome::Cropland) << code;
+    for (const int code : {-1, 0, 13, 15, 16, 17, 18, 20, 255}) {
+        EXPECT_THROW(cece::FireRaveBiomeFromViirsIgbp17(code), std::invalid_argument) << code;
+    }
+}
+
 TEST(test_fire_science, ApproximateSwathAreaHandlesDateLineLatitudeAndDeletedPixels) {
     std::vector<double> longitude{179.99, -180.0, -179.99, 179.99, -180.0, -179.99, 179.99, -180.0, -179.99};
     const std::vector<double> latitude{59.99, 59.99, 59.99, 60.0, 60.0, 60.0, 60.01, 60.01, 60.01};
