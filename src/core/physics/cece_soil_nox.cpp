@@ -31,6 +31,7 @@
 #include <cmath>
 #include <iostream>
 
+#include "cece/cece_logger.hpp"
 #include "cece/cece_physics_factory.hpp"
 
 namespace cece {
@@ -96,7 +97,7 @@ void SoilNoxScheme::Initialize(const conf::Value& config, CeceDiagnosticManager*
     if (config["wet_coeff_1"]) wet_c1_ = config["wet_coeff_1"].as_double();
     if (config["wet_coeff_2"]) wet_c2_ = config["wet_coeff_2"].as_double();
 
-    std::cout << "SoilNoxScheme: Initialized with Hudman et al. (2012) logic." << "\n";
+    CECE_LOG_INFO("SoilNoxScheme: Initialized with Hudman et al. (2012) logic.\n");
 }
 
 void SoilNoxScheme::Run(CeceImportState& import_state, CeceExportState& export_state) {

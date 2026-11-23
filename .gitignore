@@ -68,5 +68,6 @@ specs/
 .github/prompts/
 .kiro/
 .vscode/
+.agents/
 
 .scratch/

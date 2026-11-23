@@ -3,6 +3,7 @@
 #include <Kokkos_Core.hpp>
 #include <iostream>
 
+#include "cece/cece_logger.hpp"
 #include "cece/cece_physics_factory.hpp"
 
 /**
@@ -27,7 +28,7 @@ void NativePhysicsExample::Initialize(const conf::Value& config, CeceDiagnosticM
         multiplier_ = config["multiplier"].as_double();
     }
 
-    std::cout << "NativePhysicsExample: Initialized.\n";
+    CECE_LOG_INFO("NativePhysicsExample: Initialized.\n");
     if (diag_manager != nullptr) {
         // Register an example diagnostic variable
         diag_manager->RegisterDiagnostic("native_example_diag", 1, 1, 1);

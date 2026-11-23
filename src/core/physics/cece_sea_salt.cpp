@@ -31,7 +31,10 @@
 #include <numbers>
 #include <stdexcept>
 
+#include "cece/cece_logger.hpp"
 #include "cece/cece_physics_factory.hpp"
+
+using namespace std::literals::string_literals;
 
 namespace cece {
 
@@ -149,7 +152,7 @@ void SeaSaltScheme::Initialize(const conf::Value& config, CeceDiagnosticManager*
         srrc_SALC_ += n_particles * (4.0 / 3.0 * pi * std::pow(r_mid * 1.0e-6, 3) * ss_dens);
     }
 
-    std::cout << "SeaSaltScheme: Initialized. SALA_REF=" << srrc_SALA_ << " SALC_REF=" << srrc_SALC_ << "\n";
+    CECE_LOG_INFO("SeaSaltScheme: Initialized. SALA_REF="s + std::to_string(srrc_SALA_) + " SALC_REF="s + std::to_string(srrc_SALC_) + "\n"s);
 }
 
 void SeaSaltScheme::Run(CeceImportState& import_state, CeceExportState& export_state) {

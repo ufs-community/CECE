@@ -34,11 +34,14 @@
 #include "cece/cece_config_path.hpp"
 #include "cece/cece_diagnostics.hpp"
 #include "cece/cece_internal.hpp"
+#include "cece/cece_logger.hpp"
 #include "cece/cece_physics_factory.hpp"
 #include "cece/cece_stacking_engine.hpp"
 #include "cece/physics_scheme.hpp"
 
 namespace fs = std::filesystem;
+
+using namespace std::literals::string_literals;
 
 extern "C" {
 
@@ -75,12 +78,12 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
         *rc = 0;
     }
 
-    std::cout << "INFO: CECE Initialize Phase 1 (IPDv00p1) - Core initialization" << std::endl;
+    CECE_LOG_INFO("INFO: CECE Initialize Phase 1 (IPDv00p1) - Core initialization\n");
 
     // 1. Initialize Kokkos if not already initialized
     bool kokkos_initialized_here = false;
     if (!Kokkos::is_initialized()) {
-        std::cout << "INFO: Initializing Kokkos execution space" << std::endl;
+        CECE_LOG_INFO("INFO: Initializing Kokkos execution space\n");
 
         Kokkos::InitializationSettings args;
 
@@ -92,16 +95,16 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
             long threads = std::strtol(num_threads, &end, 10);
             if (end != num_threads && *end == '\0' && threads > 0) {
                 if (threads > std::numeric_limits<int>::max()) {
-                    std::cout << "INFO: OMP_NUM_THREADS value " << threads << " exceeds INT_MAX; "
-                              << "clamping to " << std::numeric_limits<int>::max() << std::endl;
+                    CECE_LOG_WARNING("INFO: OMP_NUM_THREADS value "s + std::to_string(threads) + " exceeds INT_MAX; "s + "clamping to "s +
+                                     std::to_string(std::numeric_limits<int>::max()) + "\n"s);
                     threads = std::numeric_limits<int>::max();
                 }
                 args.set_num_threads(static_cast<int>(threads));
-                std::cout << "INFO: Setting OpenMP threads to " << threads << std::endl;
+                CECE_LOG_INFO("INFO: Setting OpenMP threads to "s + std::to_string(threads) + "\n"s);
             }
         } else {
             // Default to all available threads if not specified
-            std::cout << "INFO: OMP_NUM_THREADS not set - using all available threads" << std::endl;
+            CECE_LOG_INFO("INFO: OMP_NUM_THREADS not set - using all available threads\n");
         }
 #endif
 
@@ -113,15 +116,15 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
             long dev_id = std::strtol(device_id, &end, 10);
             if (end != device_id && *end == '\0' && dev_id >= 0) {
                 if (dev_id > std::numeric_limits<int>::max()) {
-                    std::cout << "WARNING: CECE_DEVICE_ID value " << dev_id << " exceeds INT_MAX - "
-                              << "using default CUDA device (0)" << std::endl;
+                    CECE_LOG_WARNING("WARNING: CECE_DEVICE_ID value "s + std::to_string(dev_id) + " exceeds INT_MAX - "s +
+                                     "using default CUDA device (0)\n"s);
                 } else {
                     args.set_device_id(static_cast<int>(dev_id));
-                    std::cout << "INFO: Setting CUDA device ID to " << dev_id << std::endl;
+                    CECE_LOG_INFO("INFO: Setting CUDA device ID to "s + std::to_string(dev_id) + "\n"s);
                 }
             }
         } else {
-            std::cout << "INFO: CECE_DEVICE_ID not set - using default CUDA device (0)" << std::endl;
+            CECE_LOG_INFO("INFO: CECE_DEVICE_ID not set - using default CUDA device (0)\n");
         }
 #endif
 
@@ -132,54 +135,54 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
             long dev_id = std::strtol(device_id, &end, 10);
             if (end != device_id && *end == '\0' && dev_id >= 0) {
                 if (dev_id > std::numeric_limits<int>::max()) {
-                    std::cout << "WARNING: CECE_DEVICE_ID value " << dev_id << " exceeds INT_MAX - "
-                              << "using default HIP device (0)" << std::endl;
+                    CECE_LOG_WARNING("WARNING: CECE_DEVICE_ID value "s + std::to_string(dev_id) + " exceeds INT_MAX - "s +
+                                     "using default HIP device (0)\n"s);
                 } else {
                     args.set_device_id(static_cast<int>(dev_id));
-                    std::cout << "INFO: Setting HIP device ID to " << dev_id << std::endl;
+                    CECE_LOG_INFO("INFO: Setting HIP device ID to "s + std::to_string(dev_id) + "\n"s);
                 }
             }
         } else {
-            std::cout << "INFO: CECE_DEVICE_ID not set - using default HIP device (0)" << std::endl;
+            CECE_LOG_INFO("INFO: CECE_DEVICE_ID not set - using default HIP device (0)\n");
         }
 #endif
 
         // Log active execution spaces
-        std::cout << "INFO: Active Kokkos execution spaces:" << std::endl;
+        CECE_LOG_INFO("INFO: Active Kokkos execution spaces:\n");
 #ifdef KOKKOS_ENABLE_SERIAL
-        std::cout << "INFO:   - Serial" << std::endl;
+        CECE_LOG_INFO("INFO:   - Serial\n");
 #endif
 #ifdef KOKKOS_ENABLE_OPENMP
-        std::cout << "INFO:   - OpenMP" << std::endl;
+        CECE_LOG_INFO("INFO:   - OpenMP\n");
 #endif
 #ifdef KOKKOS_ENABLE_CUDA
-        std::cout << "INFO:   - CUDA" << std::endl;
+        CECE_LOG_INFO("INFO:   - CUDA\n");
 #endif
 #ifdef KOKKOS_ENABLE_HIP
-        std::cout << "INFO:   - HIP" << std::endl;
+        CECE_LOG_INFO("INFO:   - HIP\n");
 #endif
 
         Kokkos::initialize(args);
         kokkos_initialized_here = true;
-        std::cout << "INFO: Kokkos initialized successfully" << std::endl;
-        std::cout << "INFO: Default execution space: " << Kokkos::DefaultExecutionSpace::name() << std::endl;
+        CECE_LOG_INFO("INFO: Kokkos initialized successfully\n");
+        CECE_LOG_INFO("INFO: Default execution space: "s + Kokkos::DefaultExecutionSpace::name() + "\n"s);
     } else {
-        std::cout << "INFO: Kokkos already initialized - using existing instance" << std::endl;
-        std::cout << "INFO: Default execution space: " << Kokkos::DefaultExecutionSpace::name() << std::endl;
+        CECE_LOG_INFO("INFO: Kokkos already initialized - using existing instance\n");
+        CECE_LOG_INFO("INFO: Default execution space: "s + Kokkos::DefaultExecutionSpace::name() + "\n"s);
     }
 
     // 2. Parse YAML configuration
     const fs::path config_path = cece::GetConfigFilePath();
-    std::cout << "INFO: Parsing " << config_path << std::endl;
-    std::cout << "DEBUG: Full config path: '" << config_path << "'" << std::endl;
+    CECE_LOG_INFO("INFO: Parsing "s + config_path.string() + "\n"s);
+    CECE_LOG_DEBUG("DEBUG: Full config path: '"s + config_path.string() + "'\n"s);
     cece::CeceConfig config;
     try {
         config = cece::ParseConfig(config_path);
-        std::cout << "INFO: Configuration parsed successfully" << std::endl;
-        std::cout << "INFO: Found " << config.species_layers.size() << " emission species" << std::endl;
-        std::cout << "INFO: Found " << config.physics_schemes.size() << " physics schemes" << std::endl;
+        CECE_LOG_INFO("INFO: Configuration parsed successfully\n");
+        CECE_LOG_INFO("INFO: Found "s + std::to_string(config.species_layers.size()) + " emission species\n"s);
+        CECE_LOG_INFO("INFO: Found "s + std::to_string(config.physics_schemes.size()) + " physics schemes\n"s);
     } catch (const std::exception& e) {
-        std::cerr << "ERROR in cece_core_initialize_p1: Failed to parse cece_config.yaml: " << e.what() << std::endl;
+        CECE_LOG_ERROR("ERROR in cece_core_initialize_p1: Failed to parse cece_config.yaml: "s + e.what() + "\n"s);
         if (rc != nullptr) {
             *rc = -1;
         }
@@ -189,7 +192,7 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
         }
         return;
     } catch (...) {
-        std::cerr << "ERROR in cece_core_initialize_p1: Unknown error parsing cece_config.yaml" << std::endl;
+        CECE_LOG_ERROR("ERROR in cece_core_initialize_p1: Unknown error parsing cece_config.yaml\n");
         if (rc != nullptr) {
             *rc = -1;
         }
@@ -201,7 +204,7 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
     }
 
     // 3. Allocate CeceInternalData structure
-    std::cout << "INFO: Allocating internal data structure" << std::endl;
+    CECE_LOG_INFO("INFO: Allocating internal data structure\n");
     auto* internal_data = new cece::CeceInternalData();
     internal_data->config = config;
     internal_data->kokkos_initialized_here = kokkos_initialized_here;
@@ -222,17 +225,17 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
         }
     }
     internal_data->unique_input_fields.assign(unique_fields.begin(), unique_fields.end());
-    std::cout << "INFO: Found " << internal_data->unique_input_fields.size() << " unique input fields required" << std::endl;
+    CECE_LOG_INFO("INFO: Found "s + std::to_string(internal_data->unique_input_fields.size()) + " unique input fields required\n"s);
 
     // 4. Initialize PhysicsFactory and instantiate all physics schemes
-    std::cout << "INFO: Initializing physics schemes" << std::endl;
+    CECE_LOG_INFO("INFO: Initializing physics schemes\n");
     for (const auto& scheme_config : config.physics_schemes) {
         try {
-            std::cout << "INFO: Creating physics scheme: " << scheme_config.name << std::endl;
+            CECE_LOG_INFO("INFO: Creating physics scheme: "s + scheme_config.name + "\n"s);
             auto scheme = cece::PhysicsFactory::CreateScheme(scheme_config);
 
             if (scheme == nullptr) {
-                std::cerr << "ERROR: Failed to create physics scheme '" << scheme_config.name << "' - scheme not registered" << std::endl;
+                CECE_LOG_ERROR("ERROR: Failed to create physics scheme '"s + scheme_config.name + "' - scheme not registered\n"s);
                 if (rc != nullptr) {
                     *rc = -1;
                 }
@@ -246,13 +249,13 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
             // Initialize the scheme with its configuration
             // Note: DiagnosticManager will be initialized next, so we pass nullptr for now
             // Schemes will be re-initialized with the diagnostic manager in Phase 2 if needed
-            std::cout << "INFO: Initializing physics scheme: " << scheme_config.name << std::endl;
+            CECE_LOG_INFO("INFO: Initializing physics scheme: "s + scheme_config.name + "\n"s);
             scheme->Initialize(scheme_config.options, nullptr);
 
             internal_data->active_schemes.push_back(std::move(scheme));
-            std::cout << "INFO: Successfully initialized physics scheme: " << scheme_config.name << std::endl;
+            CECE_LOG_INFO("INFO: Successfully initialized physics scheme: "s + scheme_config.name + "\n"s);
         } catch (const std::exception& e) {
-            std::cerr << "ERROR: Failed to initialize physics scheme '" << scheme_config.name << "': " << e.what() << std::endl;
+            CECE_LOG_ERROR("ERROR: Failed to initialize physics scheme '"s + scheme_config.name + "': " + e.what() + "\n"s);
             if (rc != nullptr) {
                 *rc = -1;
             }
@@ -264,15 +267,15 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
         }
     }
 
-    std::cout << "INFO: Successfully initialized " << internal_data->active_schemes.size() << " physics schemes" << std::endl;
+    CECE_LOG_INFO("INFO: Successfully initialized "s + std::to_string(internal_data->active_schemes.size()) + " physics schemes\n"s);
 
     // 5. Initialize StackingEngine
-    std::cout << "INFO: Initializing StackingEngine" << std::endl;
+    CECE_LOG_INFO("INFO: Initializing StackingEngine\n");
     try {
         internal_data->stacking_engine = std::make_unique<cece::StackingEngine>(config);
-        std::cout << "INFO: StackingEngine initialized successfully" << std::endl;
+        CECE_LOG_INFO("INFO: StackingEngine initialized successfully\n");
     } catch (const std::exception& e) {
-        std::cerr << "ERROR: Failed to initialize StackingEngine: " << e.what() << std::endl;
+        CECE_LOG_ERROR("ERROR: Failed to initialize StackingEngine: "s + e.what() + "\n"s);
         if (rc != nullptr) {
             *rc = -1;
         }
@@ -284,12 +287,12 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
     }
 
     // 6. Initialize DiagnosticManager
-    std::cout << "INFO: Initializing DiagnosticManager" << std::endl;
+    CECE_LOG_INFO("INFO: Initializing DiagnosticManager\n");
     try {
         internal_data->diagnostic_manager = std::make_unique<cece::CeceDiagnosticManager>();
-        std::cout << "INFO: DiagnosticManager initialized successfully" << std::endl;
+        CECE_LOG_INFO("INFO: DiagnosticManager initialized successfully\n");
     } catch (const std::exception& e) {
-        std::cerr << "ERROR: Failed to initialize DiagnosticManager: " << e.what() << std::endl;
+        CECE_LOG_ERROR("ERROR: Failed to initialize DiagnosticManager: "s + e.what() + "\n"s);
         if (rc != nullptr) {
             *rc = -1;
         }
@@ -308,7 +311,7 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
     }
 
     // 8. Construct CeceClock from parsed configuration
-    std::cout << "INFO: Constructing CeceClock for per-component scheduling" << std::endl;
+    CECE_LOG_INFO("INFO: Constructing CeceClock for per-component scheduling\n");
     try {
         // Build the vector of ClockComponent from config
         std::vector<cece::ClockComponent> clock_components;
@@ -343,9 +346,9 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
         internal_data->clock = std::make_unique<cece::CeceClock>(config.driver_config.start_time, config.driver_config.end_time,
                                                                  config.driver_config.timestep_seconds, clock_components);
 
-        std::cout << "INFO: CeceClock constructed with " << clock_components.size() << " components" << std::endl;
+        CECE_LOG_INFO("INFO: CeceClock constructed with "s + std::to_string(clock_components.size()) + " components\n"s);
     } catch (const std::invalid_argument& e) {
-        std::cerr << "ERROR: Failed to construct CeceClock: " << e.what() << std::endl;
+        CECE_LOG_ERROR("ERROR: Failed to construct CeceClock: "s + e.what() + "\n"s);
         if (rc != nullptr) {
             *rc = -1;
         }
@@ -361,7 +364,7 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
         *data_ptr_ptr = internal_data;
     }
 
-    std::cout << "INFO: CECE Initialize Phase 1 completed successfully" << std::endl;
+    CECE_LOG_INFO("INFO: CECE Initialize Phase 1 completed successfully\n");
 
     if (rc != nullptr) {
         *rc = 0;

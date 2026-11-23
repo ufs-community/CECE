@@ -27,6 +27,7 @@
 
 #include "cece/cece_fatal.hpp"
 #include "cece/cece_log_setup.hpp"
+#include "cece/cece_logger.hpp"
 #include "cece/cece_mpi_env.hpp"
 
 #if defined(__has_include)
@@ -37,6 +38,8 @@
 #endif
 
 namespace fs = std::filesystem;
+
+using namespace std::literals::string_literals;
 
 namespace {
 
@@ -118,7 +121,7 @@ void cece_run_log_setup(const char* config_path, int path_len) {
             std::cout.rdbuf(tee_buf);
             stdout_redirected = true;
         } else {
-            std::cerr << "WARNING: Could not open log file '" << log_file_path << "' - continuing with console output only." << std::endl;
+            CECE_LOG_WARNING("WARNING: Could not open log file '"s + log_file_path.string() + "' - continuing with console output only.\n"s);
             delete log_file_stream;
         }
     }
@@ -256,7 +259,7 @@ void cece_run_log_setup(const char* config_path, int path_len) {
         std::cout << RowLabel("Config") << "(could not be parsed for banner details)\n";
     }
 
-    std::cout << "========================================================================" << std::endl;
+    std::cout << "========================================================================\n";
 }
 
 }  // extern "C"

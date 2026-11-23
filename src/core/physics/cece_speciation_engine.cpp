@@ -22,12 +22,16 @@
 #include <stdexcept>
 #include <unordered_map>
 
+#include "cece/cece_logger.hpp"
+
+using namespace std::literals::string_literals;
+
 namespace cece {
 
 void SpeciationEngine::Initialize(const SpeciationConfig& config) {
     num_mappings_ = static_cast<int>(config.mappings.size());
     if (num_mappings_ == 0) {
-        std::cerr << "SpeciationEngine: No mappings in config, nothing to initialize.\n";
+        CECE_LOG_WARNING("SpeciationEngine: No mappings in config, nothing to initialize.\n");
         return;
     }
 
@@ -68,8 +72,8 @@ void SpeciationEngine::Initialize(const SpeciationConfig& config) {
         if (mech_it != mechanism_index_map.end()) {
             h_mechanism_indices(m) = mech_it->second;
         } else {
-            std::cerr << "SpeciationEngine: Mechanism species '" << mapping.mechanism_species
-                      << "' not found in species list, defaulting to index 0.\n";
+            CECE_LOG_WARNING("SpeciationEngine: Mechanism species '"s + mapping.mechanism_species +
+                             "' not found in species list, defaulting to index 0.\n"s);
             h_mechanism_indices(m) = 0;
         }
     }
@@ -85,7 +89,8 @@ void SpeciationEngine::Initialize(const SpeciationConfig& config) {
     Kokkos::deep_copy(mechanism_indices_, h_mechanism_indices);
     Kokkos::deep_copy(molecular_weights_, h_molecular_weights);
 
-    std::cout << "SpeciationEngine: Initialized with " << num_mappings_ << " mappings and " << num_mechanism_species_ << " mechanism species.\n";
+    CECE_LOG_INFO("SpeciationEngine: Initialized with "s + std::to_string(num_mappings_) + " mappings and "s +
+                  std::to_string(num_mechanism_species_) + " mechanism species.\n"s);
 }
 
 void SpeciationEngine::Run(const Kokkos::View<const double**, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>& class_totals,
@@ -140,7 +145,7 @@ void SpeciationEngine::Run(const Kokkos::View<const double**, Kokkos::LayoutLeft
         std::string field_name = "MEGAN_" + mechanism_species_names_[sp];
         auto it = export_state.fields.find(field_name);
         if (it == export_state.fields.end()) {
-            std::cerr << "SpeciationEngine: Export field '" << field_name << "' not found in export state, skipping.\n";
+            CECE_LOG_WARNING("SpeciationEngine: Export field '"s + field_name + "' not found in export state, skipping.\n"s);
             continue;
         }
 

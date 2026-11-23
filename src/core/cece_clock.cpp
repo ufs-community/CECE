@@ -113,7 +113,7 @@ CeceClock::CeceClock(const std::string& start_time_iso8601, const std::string& e
     // The ClockComponent struct does not carry export field information,
     // so full conflict detection (same export field, different intervals)
     // cannot be performed here. When export field metadata is added to
-    // ClockComponent, iterate physics scheme pairs and warn via std::cerr
+    // ClockComponent, iterate physics scheme pairs and warn via CECE_LOG_*
     // if two schemes share an export field but have different intervals.
 }
 
