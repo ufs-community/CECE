@@ -28,6 +28,7 @@
 #include <cmath>
 #include <iostream>
 
+#include "cece/cece_logger.hpp"
 #include "cece/cece_physics_factory.hpp"
 
 namespace cece {
@@ -65,7 +66,7 @@ void VolcanoScheme::Initialize(const conf::Value& config, CeceDiagnosticManager*
     if (config["elevation"]) volcano_elv_ = config["elevation"].as_double();
     if (config["cloud_top"]) volcano_cld_ = config["cloud_top"].as_double();
 
-    std::cout << "VolcanoScheme: Initialized." << "\n";
+    CECE_LOG_INFO("VolcanoScheme: Initialized.\n");
 }
 
 void VolcanoScheme::Run(CeceImportState& import_state, CeceExportState& export_state) {

@@ -19,6 +19,10 @@
 #include <Kokkos_Core.hpp>
 #include <iostream>
 
+#include "cece/cece_logger.hpp"
+
+using namespace std::literals::string_literals;
+
 namespace cece {
 
 void CanopyModel::Initialize(const conf::Value& config) {
@@ -52,7 +56,8 @@ void CanopyModel::Initialize(const conf::Value& config) {
         extinction_coeff_ = config["extinction_coefficient"].as_double();
     }
 
-    std::cout << "CanopyModel: Initialized with " << NUM_LAYERS << " Gaussian layers, extinction_coeff=" << extinction_coeff_ << "\n";
+    CECE_LOG_INFO("CanopyModel: Initialized with "s + std::to_string(NUM_LAYERS) + " Gaussian layers, extinction_coeff="s +
+                  std::to_string(extinction_coeff_) + "\n"s);
 }
 
 }  // namespace cece
