@@ -68,6 +68,9 @@ docs/superpowers/
 specify/
 .specify/
 specs/
+!/specs/
+/specs/*
+!/specs/001-fire-emissions/
 .gemini/
 .github/agents/
 .github/prompts/

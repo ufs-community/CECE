@@ -106,6 +106,53 @@ source-manifest timestamps remain explicitly UTC with a trailing `Z`.
 Both chemistry choices for a product reuse its normalized input manifest; they
 are alternatives and must not be added together.
 
+## Proposed GOCART-2G Stage 1 product examples
+
+The nonproduction [Stage 1 profile](../data/fire/ufschem_gocart2g_stage1_profile.yaml)
+uses the proposed BC 80/20 and OC 50/50 splits and passes SO2 and NH3 through.
+It excludes PM2.5 and TPM to avoid adding overlapping particulate pools. The
+OC-to-BRC mass basis, factors, tracer definitions, rights and independent
+budgets have not been verified against a deployed UFS-Chem mechanism. These
+examples are not operational or production-certified.
+
+The following configurations use existing gridded product emissions, not
+FRP-derived emissions. They require the full local files and hashes identified
+in the [product sample manifest](../data/fire/product_samples_manifest.yaml);
+the GBBEPx sample is approximately 526 MB. Configurations:
+[RAVE](../examples/cece_config_fire_rave_gocart2g_stage1.yaml) and
+[GBBEPx](../examples/cece_config_fire_gbbepx_gocart2g_stage1.yaml).
+From the repository root:
+
+```bash
+cmake --build build --target cece_fire_product_normalize cece_standalone_driver
+export CECE_FIRE_PRODUCT_NORMALIZER=build/cece_fire_product_normalize
+python scripts/prepare_fire_inputs.py \
+  --config examples/cece_config_fire_rave_gocart2g_stage1.yaml \
+  --output-dir examples/fire_inputs/rave_gocart2g_stage1
+python scripts/prepare_fire_inputs.py \
+  --config examples/cece_config_fire_gbbepx_gocart2g_stage1.yaml \
+  --output-dir examples/fire_inputs/gbbepx_gocart2g_stage1
+./build/cece_standalone_driver examples/cece_config_fire_rave_gocart2g_stage1.yaml
+./build/cece_standalone_driver examples/cece_config_fire_gbbepx_gocart2g_stage1.yaml
+```
+
+Each outputs six surface fluxes in `kg m-2 s-1` on the same demonstration
+grid as the CB6 examples. The prepared manifests have target identities and
+must be regenerated for these configurations, rather than reusing the CB6
+manifests. These are standalone demonstrations, not FV3 tile or CATChem
+two-stage output.
+
+AM4.1 Stage 2 is not runnable: preparation does not yet attach verified
+source-grid biome identities or a verified NOx reference basis, and the bulk
+inventory currently loses the product identity needed to enforce
+product-specific coefficients. The mapper can combine direct CO with
+composition-specific outputs only under independent-coefficient semantics,
+with distinct targets and matching component identities; this has synthetic
+tests but does not supply the missing product metadata. Do not substitute one
+product's coefficients for the other or invent missing GBBEPx CH4/VOC. See
+[tasks](../specs/001-fire-emissions/tasks.md) for the remaining implementation
+and certification gates.
+
 | Product | Pinned revision and sample | Interval and units | Species support |
 |---|---|---|---|
 | RAVE | v2r0; 2026-07-01 actual sample and 24 hourly crops in [`tests/data/fire/product_samples/`](../tests/data/fire/product_samples/) | Hourly; normalized to kg/cell/interval | All 11 canonical species; unscaled and embedded scaled variants |
@@ -285,9 +332,12 @@ hands the resulting component-resolved inventory to `FireScheme::Run`. Coupled
 provider loading and host-field bindings remain unsupported.
 
 Typed target profiles default to `mapping_factor_semantics: partition`, which
-requires explicit unit-sum factors. The test-only `independent_coefficients`
-mode preserves non-normalized verified coefficients such as the CB6 CO rows;
-it does not certify target budgets or permit production activation.
+requires explicit unit-sum factors. The nonproduction
+`independent_coefficients` mode preserves non-normalized coefficients such as
+the CB6 CO rows; it does not certify target budgets or permit production
+activation. It permits invariant and composition-specific mappings for the
+same source only when their target names are distinct. Required composition
+identities must still match for every component.
 
 ## Bounded provider foundation
 

@@ -64,6 +64,39 @@ TEST(test_fire_speciation, GeneratedCb6ProfilesRetainIndependentManifestCoeffici
     EXPECT_EQ(native_profile.dispositions.at(cece::FireBulkSpecies::PM25).kind, cece::FireSourceDispositionKind::Excluded);
 }
 
+TEST(test_fire_speciation, ProposedGocart2gStage1MapsBulkWithoutParticulateDoubleCounting) {
+    const auto path = std::string(CECE_SOURCE_DIR) + "/data/fire/ufschem_gocart2g_stage1_profile.yaml";
+    const auto profile = cece::LoadFireTargetProfile(path, "GOCART2G", "ufschem-proposed-v1");
+    EXPECT_FALSE(profile.production_eligible);
+    auto grid = std::make_shared<const cece::FireGrid>(cece::FireGridDefinition{
+        "stage1-grid", std::string(64, 'b'), 1, 1, {0}, {0}, {{{-1, 1, 1, -1}}}, {{{-1, -1, 1, 1}}}, {25}, "EPSG:4326",
+        cece::FireLongitudeConvention::Minus180To180});
+    const std::vector<cece::FireBulkSpecies> species{
+        cece::FireBulkSpecies::BC, cece::FireBulkSpecies::OC, cece::FireBulkSpecies::SO2, cece::FireBulkSpecies::NH3,
+        cece::FireBulkSpecies::PM25};
+    for (const std::string source : {"RAVE-HrlyEmiss-13km", "GBBEPx-all01GRID"}) {
+        const cece::FireBulkInventory inventory({
+            cece::FireInputIdentity({1, source, "test", "test", "test", std::string(64, 'a'),
+                                    cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T01:00:00Z"),
+                                    cece::FireUtcTime("2022-07-01T00:00:00Z"), cece::FireUtcTime("2022-07-01T00:00:00Z"),
+                                    cece::FireUtcTime("2022-07-01T01:00:00Z"), cece::FireCutoffMode::Fixed, grid}),
+            species, {"product"}, {}, {10, 6, 4, 2, 20}, {cece::FireQualityState::Observed}, {1}, {std::string(64, 'a')},
+            std::nullopt, std::nullopt, cece::FireParticulateOverlap{{"overlap", "1", std::string(64, 'c')},
+                {{cece::FireBulkSpecies::PM25, "total"}, {cece::FireBulkSpecies::OC, "component"}, {cece::FireBulkSpecies::BC, "component"}}},
+            std::nullopt, std::nullopt, {"product"}});
+        const auto output = cece::MapFireBulkInventory(inventory, profile, {
+            cece::FireBulkSpecies::BC, cece::FireBulkSpecies::OC, cece::FireBulkSpecies::SO2, cece::FireBulkSpecies::NH3});
+        ASSERT_EQ(output.fields.size(), 6);
+        const std::vector<std::string> names{"BCphobic", "BCphilic", "BRCphobic", "BRCphilic", "SO2", "NH3"};
+        const std::vector<double> expected{8, 2, 3, 3, 4, 2};
+        for (std::size_t i = 0; i < names.size(); ++i) {
+            EXPECT_EQ(output.fields[i].target_species, names[i]);
+            EXPECT_DOUBLE_EQ(output.values[i], expected[i]);
+        }
+        EXPECT_THROW(cece::MapFireBulkInventory(inventory, profile, {cece::FireBulkSpecies::PM25}), std::invalid_argument);
+    }
+}
+
 TEST(test_fire_speciation, ProfileLoaderRejectsUnverifiedAssetsAndTargetRevisionMismatch) {
     const std::string source = std::string(CECE_SOURCE_DIR) + "/tests/data/fire/synthetic_target_profile.yaml";
     EXPECT_THROW(cece::LoadFireTargetProfile(source, "CB6", "test-v1"), std::invalid_argument);
@@ -445,6 +478,30 @@ TEST(test_fire_speciation, CompositionSpecificMappingsSelectExactComponentProfil
     unprofiled_data.unprofiled_component_ids = {"a", "b"};
     const cece::FireBulkInventory unprofiled(std::move(unprofiled_data));
     EXPECT_THROW(cece::MapFireBulkInventory(unprofiled, profile, {cece::FireBulkSpecies::CO}), std::invalid_argument);
+
+    profile_yaml["mapping_factor_semantics"] = "independent_coefficients";
+    profile_yaml["typed_mappings"][3]["factor"] = 0.2;
+    profile_yaml["typed_mappings"][4]["factor"] = 0.4;
+    profile_yaml["typed_mappings"].push_back(YAML::Load(
+        "{source_species: CO, target_species: FIRE_CO, basis: mass, factor: 1.0, output_unit: kg}"));
+    std::ofstream(name) << YAML::Dump(profile_yaml);
+    const auto mixed = cece::LoadFireTargetProfile(name, "SYNTHETIC", "test-v1");
+    const auto mixed_output = cece::MapFireBulkInventory(inventory, mixed, {cece::FireBulkSpecies::CO});
+    ASSERT_EQ(mixed_output.fields.size(), 3);
+    EXPECT_EQ(mixed_output.fields[0].target_species, "FIRE_CO");
+    EXPECT_DOUBLE_EQ(mixed_output.budgets[0].output_quantity, 100);
+    EXPECT_NEAR(mixed_output.budgets[1].output_quantity, 6, 1e-12);
+    EXPECT_NEAR(mixed_output.budgets[2].output_quantity, 28, 1e-12);
+    EXPECT_THROW(cece::MapFireBulkInventory(unprofiled, mixed, {cece::FireBulkSpecies::CO}), std::invalid_argument);
+    EXPECT_THROW(cece::MapFireBulkInventory(unresolved, mixed, {cece::FireBulkSpecies::CO}), std::invalid_argument);
+
+    profile_yaml["typed_mappings"][3]["target_species"] = "FIRE_CO";
+    std::ofstream(name) << YAML::Dump(profile_yaml);
+    EXPECT_THROW(cece::LoadFireTargetProfile(name, "SYNTHETIC", "test-v1"), std::invalid_argument);
+    profile_yaml["typed_mappings"][3]["target_species"] = "FIRE_CO_A";
+    profile_yaml["mapping_factor_semantics"] = "partition";
+    std::ofstream(name) << YAML::Dump(profile_yaml);
+    EXPECT_THROW(cece::LoadFireTargetProfile(name, "SYNTHETIC", "test-v1"), std::invalid_argument);
 }
 
 TEST(test_fire_speciation, MapperRejectsMissingSpeciesBasisMismatchAndUnmappedRequests) {

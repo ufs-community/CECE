@@ -483,13 +483,17 @@ FireTargetProfile LoadFireTargetProfile(const std::string& path, const std::stri
     std::map<FireBulkSpecies, double> factor_totals;
     std::map<std::pair<FireBulkSpecies, std::string>, double> component_factor_totals;
     std::map<FireBulkSpecies, std::size_t> invariant_mapping_counts;
+    std::map<FireBulkSpecies, std::set<std::string>> invariant_targets;
+    std::map<FireBulkSpecies, std::set<std::string>> component_targets;
     for (const auto& mapping : profile.mappings) {
         ++mapping_counts[mapping.source_species];
         if (mapping.composition_profile) {
             component_factor_totals[{mapping.source_species, mapping.composition_profile->id + "\n" + mapping.composition_profile->version + "\n" +
                                                                  mapping.composition_profile->content_sha256}] += mapping.factor;
+            component_targets[mapping.source_species].insert(mapping.target_species);
         } else {
             ++invariant_mapping_counts[mapping.source_species];
+            invariant_targets[mapping.source_species].insert(mapping.target_species);
         }
     }
     for (const auto& mapping : profile.mappings) {
@@ -501,11 +505,18 @@ FireTargetProfile LoadFireTargetProfile(const std::string& path, const std::stri
     }
     for (const auto& [key, total] : component_factor_totals) {
         const auto species = key.first;
-        if (invariant_mapping_counts[species] != 0) {
-            Invalid("typed_mappings", "a source cannot mix invariant and composition-specific mappings");
+        if (invariant_mapping_counts[species] != 0 && profile.mapping_factor_semantics != FireMappingFactorSemantics::IndependentCoefficients) {
+            Invalid("typed_mappings", "mixed invariant and composition-specific mappings require independent coefficients");
         }
         if (profile.mapping_factor_semantics == FireMappingFactorSemantics::Partition && !Close(total, 1)) {
             Invalid("typed_mappings", "composition-specific mapping factors must form a unit-sum partition for each composition profile");
+        }
+        for (const auto& [species, targets] : component_targets) {
+            for (const auto& target : targets) {
+                if (invariant_targets[species].contains(target)) {
+                    Invalid("typed_mappings", "invariant and composition-specific mappings for a source must use distinct targets");
+                }
+            }
         }
     }
     for (const auto species_name : {"CO2", "CO", "CH4", "PM25", "TPM", "SO2", "OC", "BC", "NOX", "NH3", "VOC"}) {
