@@ -64,12 +64,12 @@ TEST(test_fire_speciation, GeneratedCb6ProfilesRetainIndependentManifestCoeffici
     EXPECT_EQ(native_profile.dispositions.at(cece::FireBulkSpecies::PM25).kind, cece::FireSourceDispositionKind::Excluded);
 }
 
-TEST(test_fire_speciation, ProposedGocart2gStage1MapsBulkWithoutParticulateDoubleCounting) {
-    const auto path = std::string(CECE_SOURCE_DIR) + "/data/fire/ufschem_gocart2g_stage1_profile.yaml";
+TEST(test_fire_speciation, ProposedGocart2gMapsBulkWithoutParticulateDoubleCounting) {
+    const auto path = std::string(CECE_SOURCE_DIR) + "/data/fire/ufschem_gocart2g_profile.yaml";
     const auto profile = cece::LoadFireTargetProfile(path, "GOCART2G", "ufschem-proposed-v1");
     EXPECT_FALSE(profile.production_eligible);
     auto grid = std::make_shared<const cece::FireGrid>(cece::FireGridDefinition{
-        "stage1-grid", std::string(64, 'b'), 1, 1, {0}, {0}, {{{-1, 1, 1, -1}}}, {{{-1, -1, 1, 1}}}, {25}, "EPSG:4326",
+        "gocart2g-grid", std::string(64, 'b'), 1, 1, {0}, {0}, {{{-1, 1, 1, -1}}}, {{{-1, -1, 1, 1}}}, {25}, "EPSG:4326",
         cece::FireLongitudeConvention::Minus180To180});
     const std::vector<cece::FireBulkSpecies> species{
         cece::FireBulkSpecies::BC, cece::FireBulkSpecies::OC, cece::FireBulkSpecies::SO2, cece::FireBulkSpecies::NH3,

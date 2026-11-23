@@ -2,17 +2,17 @@ schema_version: 1
 production_eligible: false
 mapping_factor_semantics: partition
 identity:
-  id: ufschem-gocart2g-stage1-proposed
+  id: ufschem-gocart2g-proposed
   version: 1
   target_id: GOCART2G
   target_version: ufschem-proposed-v1
 assets:
   - name: proposed-target-species
     path: ufschem_gocart2g_species.yaml
-    sha256: d036f054e345bb281ba30333960cdf8cb0b71308d328d0f5df251827c6df438e
-  - name: proposed-stage1-factors
-    path: ufschem_gocart2g_stage1_factors.yaml
-    sha256: 6cf1f0dd2803e03fc66737a2a75c8dfff83d50ce256ac9e34d7d596c793d517b
+    sha256: 0ab75119ecce51e353b9e16d67b398f18a3ced518cc076de9d27f03f32e94a1b
+  - name: proposed-gocart2g-factors
+    path: ufschem_gocart2g_factors.yaml
+    sha256: 8952a46801e96c69eeed0f86fad53b828fd2c2ffd8a7f134981270dd87bdba7d
 mechanism_species:
   - {name: BCphobic}
   - {name: BCphilic}
@@ -36,17 +36,17 @@ conversion_factors:
 oc_om_policy:
   kind: preserve_oc
 source_disposition:
-  CO2: {kind: excluded, reason: Not part of proposed Stage 1.}
-  CO: {kind: excluded, reason: Not part of proposed Stage 1.}
-  CH4: {kind: excluded, reason: Not part of proposed Stage 1.}
+  CO2: {kind: excluded, reason: Not part of the proposed GOCART-2G mapping.}
+  CO: {kind: excluded, reason: Not part of the proposed GOCART-2G mapping.}
+  CH4: {kind: excluded, reason: Not part of the proposed GOCART-2G mapping.}
   PM25: {kind: excluded, reason: Excluded to avoid overlap with BC and OC.}
   TPM: {kind: excluded, reason: Excluded to avoid overlap with BC and OC.}
   SO2: {kind: mapped}
   OC: {kind: mapped}
   BC: {kind: mapped}
-  NOX: {kind: excluded, reason: NOx basis and Stage 2 partition require verification.}
+  NOX: {kind: excluded, reason: Not part of the proposed GOCART-2G mapping.}
   NH3: {kind: mapped}
-  VOC: {kind: excluded, reason: Not part of proposed Stage 1.}
+  VOC: {kind: excluded, reason: Not part of the proposed GOCART-2G mapping.}
 budgets_tolerances:
   relative: 1.0e-06
   absolute: 1.0e-12

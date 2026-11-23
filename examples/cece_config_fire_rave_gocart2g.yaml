@@ -12,7 +12,7 @@ physics_schemes:
     mode: product
     input_provider: prepared
     source_manifest: examples/fire_sources/rave_v2r0.yaml
-    input_manifest: examples/fire_inputs/rave_gocart2g_stage1/manifest.yaml
+    input_manifest: examples/fire_inputs/rave_gocart2g/manifest.yaml
     product_adapter: rave-v2r0
     product_time_allocation: source_resolved
     chemistry_state: bulk
@@ -20,15 +20,15 @@ physics_schemes:
     target_id: GOCART2G
     target_version: ufschem-proposed-v1
     mechanism_file: data/fire/ufschem_gocart2g_species.yaml
-    fire_mapping_file: data/fire/ufschem_gocart2g_stage1_profile.yaml
+    fire_mapping_file: data/fire/ufschem_gocart2g_profile.yaml
     missing_policy: error
     cutoff_mode: fixed
     availability_cutoff: '2026-07-03T00:00:00Z'
     scaling: none
 output:
   enabled: true
-  directory: ./cece_output_rave_gocart2g_stage1
-  filename_pattern: cece_fire_rave_gocart2g_stage1_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc
+  directory: ./cece_output_rave_gocart2g
+  filename_pattern: cece_fire_rave_gocart2g_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc
   frequency_steps: 1
   fields:
   - {name: FIRE_BCphobic, attributes: {units: kg m-2 s-1, long_name: fire BCphobic emission flux}}

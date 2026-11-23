@@ -110,9 +110,9 @@ source-manifest timestamps remain explicitly UTC with a trailing `Z`.
 Both chemistry choices for a product reuse its normalized input manifest; they
 are alternatives and must not be added together.
 
-## Proposed GOCART-2G Stage 1 product examples
+## Proposed GOCART-2G product examples
 
-The nonproduction [Stage 1 profile](../data/fire/ufschem_gocart2g_stage1_profile.yaml)
+The nonproduction [GOCART-2G profile](../data/fire/ufschem_gocart2g_profile.yaml)
 uses the proposed BC 80/20 and OC 50/50 splits and passes SO2 and NH3 through.
 It excludes PM2.5 and TPM to avoid adding overlapping particulate pools. The
 OC-to-BRC mass basis, factors, tracer definitions, rights and independent
@@ -123,30 +123,33 @@ The following configurations use existing gridded product emissions, not
 FRP-derived emissions. They require the full local files and hashes identified
 in the [product sample manifest](../data/fire/product_samples_manifest.yaml);
 the GBBEPx sample is approximately 526 MB. Configurations:
-[RAVE](../examples/cece_config_fire_rave_gocart2g_stage1.yaml) and
-[GBBEPx](../examples/cece_config_fire_gbbepx_gocart2g_stage1.yaml).
+[RAVE](../examples/cece_config_fire_rave_gocart2g.yaml) and
+[GBBEPx](../examples/cece_config_fire_gbbepx_gocart2g.yaml).
 From the repository root:
 
 ```bash
 cmake --build build --target cece_fire_product_normalize cece_standalone_driver
 export CECE_FIRE_PRODUCT_NORMALIZER=build/cece_fire_product_normalize
 python scripts/prepare_fire_inputs.py \
-  --config examples/cece_config_fire_rave_gocart2g_stage1.yaml \
-  --output-dir examples/fire_inputs/rave_gocart2g_stage1
+  --config examples/cece_config_fire_rave_gocart2g.yaml \
+  --output-dir examples/fire_inputs/rave_gocart2g
 python scripts/prepare_fire_inputs.py \
-  --config examples/cece_config_fire_gbbepx_gocart2g_stage1.yaml \
-  --output-dir examples/fire_inputs/gbbepx_gocart2g_stage1
-./build/cece_standalone_driver examples/cece_config_fire_rave_gocart2g_stage1.yaml
-./build/cece_standalone_driver examples/cece_config_fire_gbbepx_gocart2g_stage1.yaml
+  --config examples/cece_config_fire_gbbepx_gocart2g.yaml \
+  --output-dir examples/fire_inputs/gbbepx_gocart2g
+./build/cece_standalone_driver examples/cece_config_fire_rave_gocart2g.yaml
+./build/cece_standalone_driver examples/cece_config_fire_gbbepx_gocart2g.yaml
 ```
 
 Each outputs six surface fluxes in `kg m-2 s-1` on the same demonstration
 grid as the CB6 examples. The prepared manifests have target identities and
 must be regenerated for these configurations, rather than reusing the CB6
 manifests. These are standalone demonstrations, not FV3 tile or CATChem
-two-stage output.
+host output. GOCART-2G and AM4.1 are distinct target mappings; neither is a
+processing stage of the other. The GOCART-2G profile identity and example
+paths have been renamed; update existing configurations and regenerate their
+prepared inputs before using the renamed examples.
 
-AM4.1 Stage 2 is not runnable: preparation does not yet attach verified
+The proposed AM4.1 mapping is not runnable: preparation does not yet attach verified
 source-grid biome identities or a verified NOx reference basis, and the bulk
 inventory currently loses the product identity needed to enforce
 product-specific coefficients. The mapper can combine direct CO with

@@ -3,7 +3,7 @@ identity:
   target_id: GOCART2G
   target_version: ufschem-proposed-v1
 purpose: >-
-  Nonproduction Stage 1 fields from the user-supplied UFS-Chem RAVE and
+  Nonproduction GOCART-2G fields from the user-supplied UFS-Chem RAVE and
   GBBEPx specifications. Mechanism compatibility and factor provenance
   require independent verification.
 species:
