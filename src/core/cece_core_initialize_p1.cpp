@@ -34,7 +34,6 @@
 #include "cece/cece_config_path.hpp"
 #include "cece/cece_diagnostics.hpp"
 #include "cece/cece_internal.hpp"
-#include "cece/cece_kokkos_config.hpp"
 #include "cece/cece_logger.hpp"
 #include "cece/cece_physics_factory.hpp"
 #include "cece/cece_stacking_engine.hpp"
@@ -165,8 +164,6 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
         kokkos_initialized_here = true;
         CECE_LOG_INFO("INFO: Kokkos initialized successfully\n");
         CECE_LOG_INFO("INFO: Default execution space: "s + Kokkos::DefaultExecutionSpace::name() + "\n"s);
-
-        cece::PrintKokkosConfiguration();
     } else {
         CECE_LOG_INFO("INFO: Kokkos already initialized - using existing instance\n");
         CECE_LOG_INFO("INFO: Default execution space: "s + Kokkos::DefaultExecutionSpace::name() + "\n"s);
