@@ -28,6 +28,8 @@ driver:
   start_time: "2014-07-01T00:00:00"
   end_time: "2014-07-01T05:00:00"
   timestep_seconds: 3600
+  # The regular target grid is specified by its edge extents below.
+  geometry_reconstruction: "rectilinear_midpoint"
   grid:
     # Global rectilinear target; the driver regrids the 4x5 MACCity
     # source onto it. lon/lat_min/max are cell edges.
@@ -52,11 +54,15 @@ cece_data:
   streams:
     - name: "MACCITY"
       file: "data/MACCity_4x5.nc"
+      # MACCity supplies cell centres without CF bounds; its regular 4x5
+      # geometry is reconstructed from the coordinate midpoints.
+      geometry_reconstruction: "rectilinear_midpoint"
       variables:
         - file: "MACCity"
           model: "MACCITY"
     - name: "HOURLY_SCALFACT"
       file: "data/hourly.nc"
+      geometry_reconstruction: "rectilinear_midpoint"
 EOF
 generate_download_script 1 "HEMCO/MACCITY/v2014-07/MACCity_4x5.nc"
 

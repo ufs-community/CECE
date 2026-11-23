@@ -16,14 +16,18 @@ namespace {
 // (input_file_path, data_model, amio_worker_threads, amio_staging_buffer_count,
 // amio_staging_buffer_capacity_bytes, amio_prefetch_depth) and mapalgo are
 // drawn from a broad space to stress the concatenation formulas.
+// input_gridspec_file is also drawn from a broad string space: it participates
+// in StreamKey (but NOT HandleKey), so the key tests exercise it as both a
+// key-splitting field and a shared-handle noise field.
 rc::Gen<StreamConfig> genStreamConfig() {
     return rc::gen::apply(
-        [](std::string input_file_path, std::string input_var_name, std::string mapalgo, std::string cadence, std::string tintalgo,
-           std::string data_model, bool data_model_explicit, int amio_worker_threads, int amio_staging_buffer_count,
+        [](std::string input_file_path, std::string input_var_name, std::string input_gridspec_file, std::string mapalgo, std::string cadence,
+           std::string tintalgo, std::string data_model, bool data_model_explicit, int amio_worker_threads, int amio_staging_buffer_count,
            int amio_staging_buffer_capacity_bytes, int amio_prefetch_depth) {
             StreamConfig cfg;
             cfg.input_file_path = std::move(input_file_path);
             cfg.input_var_name = std::move(input_var_name);
+            cfg.input_gridspec_file = std::move(input_gridspec_file);
             cfg.mapalgo = std::move(mapalgo);
             cfg.cadence = std::move(cadence);
             cfg.tintalgo = std::move(tintalgo);
@@ -36,8 +40,8 @@ rc::Gen<StreamConfig> genStreamConfig() {
             return cfg;
         },
         rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(),
-        rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<bool>(), rc::gen::inRange(1, 65),
-        rc::gen::inRange(1, 65), rc::gen::inRange(1, 65), rc::gen::inRange(1, 65));
+        rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<std::string>(), rc::gen::arbitrary<bool>(),
+        rc::gen::inRange(1, 65), rc::gen::inRange(1, 65), rc::gen::inRange(1, 65), rc::gen::inRange(1, 65));
 }
 
 }  // namespace

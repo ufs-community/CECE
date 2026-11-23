@@ -68,6 +68,7 @@ cece_data:
       taxmode: "cycle"
       tintalgo: "linear"
       mapalgo: "consd"
+      geometry_reconstruction: "rectilinear_midpoint"
       variables:
         - file: "MACCity"
           model: "MACCITY_CO"
@@ -79,6 +80,7 @@ cece_data:
       taxmode: "cycle"
       tintalgo: "linear"
       mapalgo: "consd"
+      geometry_reconstruction: "rectilinear_midpoint"
       variables:
         - file: "MACCity"
           model: "MACCITY_NO"
@@ -192,6 +194,7 @@ cece_data:
       taxmode: "cycle"
       tintalgo: "linear"
       mapalgo: "consd"
+      geometry_reconstruction: "rectilinear_midpoint"
       variables:
         - file: "MACCity"
           model: "MACCITY_CO"
