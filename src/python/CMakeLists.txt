@@ -79,7 +79,7 @@ setup(
     },
     python_requires='>=3.10',
     install_requires=[
-        'numpy>=1.20',
+        'numpy>=2.2',
         'pyyaml>=5.4',
     ],
     zip_safe=False,

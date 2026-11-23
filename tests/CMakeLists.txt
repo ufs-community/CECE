@@ -839,10 +839,10 @@ if(Python3_Interpreter_FOUND)
   set(
     CECE_PYTHON_TEST_DEPS
     pytest
-    PyYAML
+    PyYAML>=5.4
     matplotlib
     netCDF4
-    numpy
+    numpy>=2.2
   )
 
   # Prefetch the venv + packages at configure time: configure typically runs
