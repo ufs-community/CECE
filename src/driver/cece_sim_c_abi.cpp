@@ -380,13 +380,16 @@ void cece_sim_diagnostic_units(CeceSimulation* sim, const char* name, int name_l
         set_out(rc, -1);
         return;
     }
-    cece::CeceSimulation& cpp_sim = *reinterpret_cast<cece::CeceSimulation*>(sim);
-    const std::string diag_name = cstr_to_string(name, name_len);
-    std::string units_str, long_name_str;
-    if (!cpp_sim.diagnostic_metadata(diag_name, units_str, long_name_str, rc)) {
-        return;
+    try {
+        cece::CeceSimulation& cpp_sim = *reinterpret_cast<cece::CeceSimulation*>(sim);
+        const std::string diag_name = cstr_to_string(name, name_len);
+        std::string units_str, long_name_str;
+        cpp_sim.diagnostic_metadata(diag_name, units_str, long_name_str);
+        abi_copy_str(units_str, "cece_sim_diagnostic_units", units, units_max, units_len_out, rc);
+    } catch (const std::exception& e) {
+        CECE_LOG_ERROR(std::string("[SIM] cece_sim_diagnostic_units: ") + e.what());
+        set_out(rc, -1);
     }
-    abi_copy_str(units_str, "cece_sim_diagnostic_units", units, units_max, units_len_out, rc);
 }
 
 void cece_sim_diagnostic_long_name(CeceSimulation* sim, const char* name, int name_len, char* long_name, int long_name_max, int* long_name_len_out,
@@ -397,13 +400,16 @@ void cece_sim_diagnostic_long_name(CeceSimulation* sim, const char* name, int na
         set_out(rc, -1);
         return;
     }
-    cece::CeceSimulation& cpp_sim = *reinterpret_cast<cece::CeceSimulation*>(sim);
-    const std::string diag_name = cstr_to_string(name, name_len);
-    std::string units_str, long_name_str;
-    if (!cpp_sim.diagnostic_metadata(diag_name, units_str, long_name_str, rc)) {
-        return;
+    try {
+        cece::CeceSimulation& cpp_sim = *reinterpret_cast<cece::CeceSimulation*>(sim);
+        const std::string diag_name = cstr_to_string(name, name_len);
+        std::string units_str, long_name_str;
+        cpp_sim.diagnostic_metadata(diag_name, units_str, long_name_str);
+        abi_copy_str(long_name_str, "cece_sim_diagnostic_long_name", long_name, long_name_max, long_name_len_out, rc);
+    } catch (const std::exception& e) {
+        CECE_LOG_ERROR(std::string("[SIM] cece_sim_diagnostic_long_name: ") + e.what());
+        set_out(rc, -1);
     }
-    abi_copy_str(long_name_str, "cece_sim_diagnostic_long_name", long_name, long_name_max, long_name_len_out, rc);
 }
 
 void cece_sim_bind_diagnostic_field(CeceSimulation* sim, const char* name, int name_len, double* data_ptr, int nx, int ny_local, int nz, int* rc) {
@@ -413,9 +419,14 @@ void cece_sim_bind_diagnostic_field(CeceSimulation* sim, const char* name, int n
         return;
     }
 
-    cece::CeceSimulation& cpp_sim = *reinterpret_cast<cece::CeceSimulation*>(sim);
-    const std::string diag_name = cstr_to_string(name, name_len);
-    cpp_sim.bind_diagnostic_field(diag_name, data_ptr, nx, ny_local, nz, rc);
+    try {
+        cece::CeceSimulation& cpp_sim = *reinterpret_cast<cece::CeceSimulation*>(sim);
+        const std::string diag_name = cstr_to_string(name, name_len);
+        cpp_sim.bind_diagnostic_field(diag_name, data_ptr, nx, ny_local, nz);
+    } catch (const std::exception& e) {
+        CECE_LOG_ERROR(std::string("[SIM] cece_sim_bind_diagnostic_field: ") + e.what());
+        set_out(rc, -1);
+    }
 }
 
 void cece_sim_diagnostic_host_copy(CeceSimulation* sim, const char* name, int name_len, double* out, int out_max, int* count_out, int* rc) {
@@ -426,9 +437,14 @@ void cece_sim_diagnostic_host_copy(CeceSimulation* sim, const char* name, int na
         return;
     }
 
-    cece::CeceSimulation& cpp_sim = *reinterpret_cast<cece::CeceSimulation*>(sim);
-    const std::string diag_name = cstr_to_string(name, name_len);
-    cpp_sim.diagnostic_host_copy(diag_name, out, out_max, count_out, rc);
+    try {
+        cece::CeceSimulation& cpp_sim = *reinterpret_cast<cece::CeceSimulation*>(sim);
+        const std::string diag_name = cstr_to_string(name, name_len);
+        cpp_sim.diagnostic_host_copy(diag_name, out, out_max, count_out);
+    } catch (const std::exception& e) {
+        CECE_LOG_ERROR(std::string("[SIM] cece_sim_diagnostic_host_copy: ") + e.what());
+        set_out(rc, -1);
+    }
 }
 
 void cece_sim_set_import_field(CeceSimulation* sim, const char* field, int field_len, const double* data_ptr, int nx, int ny_local, int* rc) {

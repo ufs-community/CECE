@@ -1,11 +1,12 @@
 #include "cece/cece_driver_facade.hpp"
 
 #include <amio/amio.h>
-#include <yaml-cpp/yaml.h>
 
 #include <Kokkos_Core.hpp>
 #include <algorithm>
 #include <axis/axis.hpp>
+#include <bit>
+#include <cctype>
 #include <cmath>
 #include <conf/conf.hpp>
 #include <cstdint>
@@ -19,8 +20,10 @@
 
 #include "cece/cece_amio_utils.hpp"
 #include "cece/cece_fatal.hpp"
+#include "cece/cece_fnv1a.hpp"
 #include "cece/cece_helm_graph.hpp"
 #include "cece/cece_internal.hpp"
+#include "cece/cece_local_time.hpp"
 #include "cece/cece_logger.hpp"
 #include "cece/cece_mpi_env.hpp"
 #include "cece/cece_regridder_utils.hpp"
@@ -32,14 +35,34 @@ namespace fs = std::filesystem;
 
 extern "C" {
 void cece_ingestor_set_field(void* data_ptr, const char* field_name, int name_len, const double* field_data, int n_lev, int n_elem, int* rc);
-void amio_set_parent_communicator(MPI_Fint comm);
-}
+}  // extern "C"
 
 namespace cece {
 
 using namespace detail;
 
 namespace {
+
+std::string coordinate_revision(const std::vector<double>& longitude, const std::vector<double>& latitude, int nx, int ny) {
+    // FNV-1a over dimensions and exact IEEE-754 coordinate bits: the destination
+    // grid is immutable for this facade instance, so compute this once.
+    cece::detail::Fnv1aHasher hasher;
+    auto add = [&](std::uint64_t value) { hasher.add(value); };
+    add(static_cast<std::uint64_t>(nx));
+    add(static_cast<std::uint64_t>(ny));
+    for (double value : longitude) add(std::bit_cast<std::uint64_t>(value));
+    for (double value : latitude) add(std::bit_cast<std::uint64_t>(value));
+    return std::to_string(hasher.value());
+}
+
+std::string file_revision(const std::string& path) {
+    if (path.empty() || path == "none" || path == "NONE") return "none";
+    std::error_code size_error, time_error;
+    const auto size = fs::file_size(path, size_error);
+    const auto modified = fs::last_write_time(path, time_error);
+    if (size_error || time_error) return path + "|unavailable";
+    return path + "|" + std::to_string(size) + "|" + std::to_string(static_cast<long long>(modified.time_since_epoch().count()));
+}
 
 // Reimplemented on halo::allreduce<int> (Decision C): the size>1 branch reduces
 // the single-element 0/1 readiness flag with MPI_MIN through the orchestrator's
@@ -146,7 +169,7 @@ bool CeceDriverOrchestrator::CallCollectiveIntMatches(MPI_Comm comm, int local_v
     return collective_int_matches(&wrapper, comm, local_value, name, failure_detail);
 }
 
-StreamConfig CeceDriverOrchestrator::BuildStreamConfig(const YAML::Node& stream, const std::string& model_name, const std::string& file_name,
+StreamConfig CeceDriverOrchestrator::BuildStreamConfig(const conf::Value& stream, const std::string& model_name, const std::string& file_name,
                                                        int amio_worker_threads, int amio_staging_buffer_count, int amio_staging_buffer_capacity_bytes,
                                                        int amio_prefetch_depth) {
     // Resolve one stream variable's YAML node into a StreamConfig. Field
@@ -155,57 +178,85 @@ StreamConfig CeceDriverOrchestrator::BuildStreamConfig(const YAML::Node& stream,
     // Missing file path is recorded as empty (not thrown); the existing
     // collective gate in AdvanceTime surfaces it later (Req 1.4).
     if (stream["file"]) {
-        const YAML::Node file = stream["file"];
-        if (file.IsSequence()) {
+        const conf::Value file = stream["file"];
+        if (file.kind() == conf::Node_Kind::Sequence) {
             if (file.size() != 1) {
-                throw std::invalid_argument("cece_data stream '" + stream["name"].as<std::string>("") +
+                throw std::invalid_argument("cece_data stream '" + stream["name"].string_or("") +
                                             "': the standalone driver reads one file per stream; got a list of " + std::to_string(file.size()) +
                                             " files");
             }
-            cfg.input_file_path = file[0].as<std::string>();
+            cfg.input_file_path = file[0].as_string();
         } else {
-            cfg.input_file_path = file.as<std::string>();
+            cfg.input_file_path = file.as_string();
+        }
+    }
+    const bool has_input_gridspec = static_cast<bool>(stream["input_gridspec_file"]);
+    const bool has_gridspec_alias = static_cast<bool>(stream["gridspec_file"]);
+    const std::string input_gridspec = has_input_gridspec ? stream["input_gridspec_file"].as_string() : "";
+    const std::string gridspec_alias = has_gridspec_alias ? stream["gridspec_file"].as_string() : "";
+    if (has_input_gridspec && has_gridspec_alias && input_gridspec != gridspec_alias) {
+        throw std::invalid_argument("cece_data stream '" + stream["name"].string_or("") +
+                                    "': input_gridspec_file and gridspec_file specify different paths");
+    }
+    cfg.input_gridspec_file = has_input_gridspec ? input_gridspec : gridspec_alias;
+    cfg.source_geometry.gridspec_file = cfg.input_gridspec_file;
+    cfg.source_geometry.longitude_variable = stream["longitude_variable"].string_or("");
+    cfg.source_geometry.latitude_variable = stream["latitude_variable"].string_or("");
+    if (stream["geometry_reconstruction"]) {
+        const std::string reconstruction = cece::to_lower(stream["geometry_reconstruction"].as_string());
+        try {
+            if (reconstruction.empty()) throw std::invalid_argument("empty policy");
+            cfg.source_geometry.reconstruction = cece::io::parse_reconstruction_model(reconstruction);
+        } catch (const std::invalid_argument&) {
+            throw std::invalid_argument("cece_data stream '" + stream["name"].string_or("") + "': unsupported geometry_reconstruction '" +
+                                        reconstruction + "'");
         }
     }
     cfg.input_var_name = file_name;
     if (stream["mapalgo"]) {
-        cfg.mapalgo = cece::to_lower(stream["mapalgo"].as<std::string>());
+        cfg.mapalgo = cece::to_lower(stream["mapalgo"].as_string());
     }
     if (stream["cadence"]) {
-        cfg.cadence = stream["cadence"].as<std::string>();
+        cfg.cadence = stream["cadence"].as_string();
     }
     if (stream["yearFirst"]) {
-        cfg.yearFirst = stream["yearFirst"].as<int>();
+        cfg.yearFirst = stream["yearFirst"].as_int();
     }
     if (stream["yearLast"]) {
-        cfg.yearLast = stream["yearLast"].as<int>();
+        cfg.yearLast = stream["yearLast"].as_int();
     }
     if (stream["yearAlign"]) {
-        cfg.yearAlign = stream["yearAlign"].as<int>();
+        cfg.yearAlign = stream["yearAlign"].as_int();
     }
     if (stream["taxmode"]) {
-        cfg.taxmode = stream["taxmode"].as<std::string>();
+        cfg.taxmode = stream["taxmode"].as_string();
     }
     if (stream["time_label"]) {
-        cfg.time_label = stream["time_label"].as<std::string>();
+        cfg.time_label = stream["time_label"].as_string();
     }
     if (stream["tintalgo"]) {
-        cfg.tintalgo = stream["tintalgo"].as<std::string>();
+        cfg.tintalgo = stream["tintalgo"].as_string();
     }
     if (stream["time_var"]) {
-        cfg.time_var = stream["time_var"].as<std::string>();
+        cfg.time_var = stream["time_var"].as_string();
     }
     if (stream["time_units"]) {
-        cfg.time_units = stream["time_units"].as<std::string>();
+        cfg.time_units = stream["time_units"].as_string();
     }
     if (stream["calendar"]) {
-        cfg.calendar = stream["calendar"].as<std::string>();
+        cfg.calendar = stream["calendar"].as_string();
     }
     // Validate the cadence and warn on knobs that the chosen cadence ignores.
     validate_stream_temporal_config(cfg.cadence, cfg.taxmode, cfg.tintalgo, cfg.yearFirst, cfg.yearLast, cfg.yearAlign,
                                     " (stream file '" + cfg.input_file_path + "')", cfg.time_label);
+    if (stream["use_local_time"]) {
+        cfg.use_local_time = stream["use_local_time"].as_bool();
+        if (cfg.use_local_time) {
+            validate_stream_local_time(cfg.cadence, cfg.tintalgo, " (stream file '" + cfg.input_file_path + "')");
+        }
+    }
     if (stream["data_model"]) {
-        std::string requested_model = stream["data_model"].as<std::string>();
+        std::string requested_model = stream["data_model"].as_string();
         std::transform(requested_model.begin(), requested_model.end(), requested_model.begin(),
                        [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
         if (requested_model == "classic" || requested_model == "enhanced") {
@@ -244,13 +295,14 @@ void CeceDriverOrchestrator::ResolveStreamConfigsFromFile(const std::string& con
     // robust (out_gridspec_file = "", out_configs left empty) so the existing
     // collective gates in AdvanceTime surface any downstream problem, matching
     // the legacy inline parse which simply found no matching variable.
-    YAML::Node config;
+    conf::Config config_conf = conf::Config::from_string("");
     try {
-        config = YAML::LoadFile(config_file);
-    } catch (const YAML::Exception& e) {
+        config_conf = conf::Config::from_file(config_file);
+    } catch (const conf::Conf_Error& e) {
         out_gridspec_file = "";
         return;
     }
+    conf::Value config = config_conf.root();
 
     // Driver-level values shared by every StreamConfig. Preserve the existing
     // constructor validation: a < 1 value is rejected with std::invalid_argument
@@ -259,45 +311,52 @@ void CeceDriverOrchestrator::ResolveStreamConfigsFromFile(const std::string& con
     int amio_staging_buffer_count = 8;
     int amio_staging_buffer_capacity_bytes = 33554432;  // 32 MiB per buffer
     int amio_prefetch_depth = 2;
-    if (config["driver"]) {
-        if (config["driver"]["gridspec_file"]) {
-            out_gridspec_file = config["driver"]["gridspec_file"].as<std::string>();
+    conf::Value config_driver = config["driver"];
+    if (config_driver) {
+        if (config_driver["gridspec_file"]) {
+            out_gridspec_file = config_driver["gridspec_file"].as_string();
         }
-        if (config["driver"]["amio_worker_threads"]) {
-            amio_worker_threads = config["driver"]["amio_worker_threads"].as<int>();
+        if (config_driver["amio_worker_threads"]) {
+            amio_worker_threads = config_driver["amio_worker_threads"].as_int();
             if (amio_worker_threads < 1) {
                 throw std::invalid_argument("driver.amio_worker_threads must be >= 1; got " + std::to_string(amio_worker_threads) + ".");
             }
         }
-        if (config["driver"]["amio_staging_buffer_count"]) {
-            amio_staging_buffer_count = config["driver"]["amio_staging_buffer_count"].as<int>();
+        if (config_driver["amio_staging_buffer_count"]) {
+            amio_staging_buffer_count = config_driver["amio_staging_buffer_count"].as_int();
             if (amio_staging_buffer_count < 1) {
                 throw std::invalid_argument("driver.amio_staging_buffer_count must be >= 1; got " + std::to_string(amio_staging_buffer_count) + ".");
             }
         }
-        if (config["driver"]["amio_staging_buffer_capacity_bytes"]) {
-            amio_staging_buffer_capacity_bytes = config["driver"]["amio_staging_buffer_capacity_bytes"].as<int>();
+        if (config_driver["amio_staging_buffer_capacity_bytes"]) {
+            amio_staging_buffer_capacity_bytes = config_driver["amio_staging_buffer_capacity_bytes"].as_int();
             if (amio_staging_buffer_capacity_bytes < 1) {
                 throw std::invalid_argument("driver.amio_staging_buffer_capacity_bytes must be >= 1; got " +
                                             std::to_string(amio_staging_buffer_capacity_bytes) + ".");
             }
         }
-        if (config["driver"]["amio_prefetch_depth"]) {
-            amio_prefetch_depth = config["driver"]["amio_prefetch_depth"].as<int>();
+        if (config_driver["amio_prefetch_depth"]) {
+            amio_prefetch_depth = config_driver["amio_prefetch_depth"].as_int();
             if (amio_prefetch_depth < 1) {
                 throw std::invalid_argument("driver.amio_prefetch_depth must be >= 1; got " + std::to_string(amio_prefetch_depth) + ".");
             }
         }
     }
 
-    if (!config["cece_data"] || !config["cece_data"]["streams"]) {
+    conf::Value cece_data = config["cece_data"];
+    if (cece_data.kind() != conf::Node_Kind::Map) {
+        return;
+    }
+    conf::Value streams_list = config["cece_data"]["streams"];
+    if (streams_list.kind() != conf::Node_Kind::Sequence) {
         return;
     }
 
     // Filter EarthAccess streams before resolving local AMIO mappings.
-    std::vector<YAML::Node> local_streams;
-    for (const auto& stream : config["cece_data"]["streams"]) {
-        if (!stream["source"] || stream["source"].as<std::string>() != "earthaccess") {
+    std::vector<conf::Value> local_streams;
+    for (std::size_t i = 0; i < streams_list.size(); ++i) {
+        const auto& stream = streams_list[i];
+        if (!stream["source"] || stream["source"].as_string() != "earthaccess") {
             local_streams.push_back(stream);
         }
     }
@@ -306,11 +365,11 @@ void CeceDriverOrchestrator::ResolveStreamConfigsFromFile(const std::string& con
     // variable. Streams without variables map their name to itself.
     for (const auto& stream : local_streams) {
         if (stream["interpolation"]) {
-            throw std::invalid_argument("cece_data stream '" + stream["name"].as<std::string>("") + "': unknown key 'interpolation'; use 'tintalgo'");
+            throw std::invalid_argument("cece_data stream '" + stream["name"].string_or("") + "': unknown key 'interpolation'; use 'tintalgo'");
         }
-        const YAML::Node variables = stream["variables"];
-        if (!variables || variables.IsNull() || (variables.IsSequence() && variables.size() == 0)) {
-            const std::string stream_name = stream["name"].as<std::string>("");
+        const conf::Value variables = stream["variables"];
+        if (!variables || variables.kind() == conf::Node_Kind::Null || (variables.kind() == conf::Node_Kind::Sequence && variables.size() == 0)) {
+            const std::string stream_name = stream["name"].string_or("");
             if (stream_name.empty()) {
                 throw std::invalid_argument("cece_data stream requires a name for automatic variable mapping");
             }
@@ -320,18 +379,19 @@ void CeceDriverOrchestrator::ResolveStreamConfigsFromFile(const std::string& con
                                                                amio_staging_buffer_capacity_bytes, amio_prefetch_depth));
             continue;
         }
-        if (!variables.IsSequence()) {
+        if (variables.kind() != conf::Node_Kind::Sequence) {
             throw std::invalid_argument("cece_data stream variables must be a list");
         }
-        for (const auto& var : variables) {
+        for (std::size_t i = 0; i < variables.size(); ++i) {
+            const auto& var = variables[i];
             std::string model_name;
             std::string file_name;
-            if (var.IsScalar()) {
-                model_name = var.as<std::string>();
+            if (var.kind() == conf::Node_Kind::Scalar) {
+                model_name = var.as_string();
                 file_name = model_name;
-            } else if (var.IsMap() && var["model"]) {
-                model_name = var["model"].as<std::string>();
-                file_name = var["file"] ? var["file"].as<std::string>() : model_name;
+            } else if (var.kind() == conf::Node_Kind::Map && var["model"]) {
+                model_name = var["model"].as_string();
+                file_name = var["file"] ? var["file"].as_string() : model_name;
             } else {
                 throw std::invalid_argument("cece_data variable mappings require a non-empty 'model'");
             }
@@ -381,26 +441,66 @@ std::string CeceDriverOrchestrator::BuildManifestContent(const StreamConfig& cfg
 }
 
 std::string CeceDriverOrchestrator::StreamKey(const StreamConfig& cfg) {
-    // Stream identity key = HandleKey extended by mapalgo. It keys the regrid
-    // plan cache (regrid_plans_): variables sharing a HandleKey but requesting
-    // a different mapalgo get distinct StreamKeys and therefore distinct plans,
-    // while everything else is shared at the coarser HandleKey level (Req 11.5).
-    return HandleKey(cfg) + "|" + cfg.mapalgo;
+    // Stream identity key = HandleKey extended by mapalgo and input gridspec.
+    // It keys the regrid plan cache (regrid_plans_): variables sharing a HandleKey
+    // but requesting a different mapalgo get distinct StreamKeys
+    // and therefore distinct plans, while everything else is shared at
+    // the coarser HandleKey level (Req 11.5).
+    return HandleKey(cfg) + "|" + cfg.mapalgo + "|" + cfg.input_gridspec_file + "|" + cfg.source_geometry.longitude_variable + "|" +
+           cfg.source_geometry.latitude_variable + "|" + std::to_string(static_cast<int>(cfg.source_geometry.reconstruction));
+}
+
+std::string CeceDriverOrchestrator::GeometryPlanKey(const StreamConfig& cfg) const {
+    // Single source of truth for method aliases: AXIS-facing resolution in
+    // io::resolve_regrid_method. cfg.mapalgo is already lower-cased at parse
+    // time, so no local normalisation or alias table is needed here. Unknown
+    // names keep their literal spelling so the staged prerequisite error is
+    // still raised by build_regrid_plan (Req 11.5).
+    std::string canonical_method;
+    try {
+        canonical_method = io::resolve_regrid_method(cfg.mapalgo).canonical_name;
+    } catch (const std::exception&) {
+        canonical_method = cfg.mapalgo;
+    }
+
+    const std::string source_file_signature = file_revision(cfg.input_file_path);
+    const std::string geometry_cache_key = HandleKey(cfg) + "|" + cfg.input_gridspec_file + "|" + cfg.source_geometry.longitude_variable + "|" +
+                                           cfg.source_geometry.latitude_variable + "|" +
+                                           std::to_string(static_cast<int>(cfg.source_geometry.reconstruction));
+    std::string source_revision = source_file_signature;
+    const auto geometry_revision = source_geometry_revisions_.find(geometry_cache_key);
+    if (geometry_revision != source_geometry_revisions_.end() && geometry_revision->second.file_signature == source_file_signature)
+        source_revision = source_file_signature + "|geometry=" + std::to_string(geometry_revision->second.revision);
+
+    std::ostringstream key;
+    key << HandleKey(cfg) << "|source_gridspec=" << cfg.input_gridspec_file << "|method=" << canonical_method
+        << "|normalization=dstarea|unmapped=ignore|backend=host|partition=" << band_.j0 << ':' << band_.j1 << "|source_revision=" << source_revision
+        << "|source_gridspec_revision=" << file_revision(cfg.input_gridspec_file) << "|source_coordinates=" << cfg.source_geometry.longitude_variable
+        << ':' << cfg.source_geometry.latitude_variable << ':' << static_cast<int>(cfg.source_geometry.reconstruction)
+        << "|destination_revision=" << destination_geometry_revision_;
+    return key.str();
 }
 
 void CeceDriverOrchestrator::InvalidateEndpointCachesForStream(const std::string& stream_key) {
-    // Plan (re)build invalidation (Req 6.2): endpoint entries are keyed by
-    // var_name while regrid_plans_ is keyed by stream_key, so when the plan for
-    // stream_key is (re)built we must invalidate the endpoint entry of every
-    // variable whose computed StreamKey matches. Only touch entries that
-    // already exist so we do not fabricate empty (default-invalid) entries.
+    // Plan (re)build invalidation: slice and endpoint entries are keyed by
+    // var_name while regrid_plans_ is keyed by stream_key. Invalidate both
+    // cache tiers for every variable whose computed GeometryPlanKey matches. Only
+    // touch entries that already exist so we do not fabricate empty entries.
     for (const auto& [var_name, cfg] : stream_configs_) {
-        if (StreamKey(cfg) != stream_key) {
+        if (GeometryPlanKey(cfg) != stream_key) {
             continue;
         }
         auto it = endpoint_caches_.find(var_name);
         if (it != endpoint_caches_.end()) {
             it->second.valid = false;
+        }
+        auto slice_it = slice_caches_.find(var_name);
+        if (slice_it != slice_caches_.end()) {
+            slice_it->second.valid = false;
+        }
+        auto local_it = local_weekly_caches_.find(var_name);
+        if (local_it != local_weekly_caches_.end()) {
+            local_it->second.records.clear();
         }
     }
 }
@@ -592,8 +692,28 @@ CeceDriverOrchestrator::CeceDriverOrchestrator(const std::string& config_file, i
     // variable, plus driver-level values and gridspec_file_ (Req 1.1). This
     // preserves the previous constructor's driver-block validation (a < 1
     // amio_worker_threads / amio_staging_buffer_count throws) and its
-    // YAML::Exception robustness (gridspec_file_ = "" on a bad/missing file).
+    // conf::Conf_Error robustness (gridspec_file_ = "" on a bad/missing file).
     ResolveStreamConfigs();
+    try {
+        const auto parsed = conf::Config::from_file(config_file_);
+        const auto driver = parsed.root()["driver"];
+        if (driver) {
+            destination_geometry_settings_.gridspec_file = gridspec_file_;
+            destination_geometry_settings_.named_grid = driver["grid"]["grid_name"].string_or("");
+            destination_geometry_settings_.longitude_variable = driver["longitude_variable"].string_or("");
+            destination_geometry_settings_.latitude_variable = driver["latitude_variable"].string_or("");
+            destination_geometry_settings_.reconstruction = io::parse_reconstruction_model(driver["geometry_reconstruction"].string_or("none"));
+        }
+    } catch (const conf::Conf_Error& error) {
+        // Match ResolveStreamConfigs' existing behavior for a missing/bad
+        // configuration file; no destination overrides are applied.
+        CECE_LOG_DEBUG("[DRIVER] Could not read destination geometry settings: " + std::string(error.what()));
+    }
+    destination_geometry_revision_ = coordinate_revision(target_lons_, target_lats_, nx_, ny_) + "|" + file_revision(gridspec_file_) + "|" +
+                                     destination_geometry_settings_.named_grid + ":" + destination_geometry_settings_.longitude_variable + ":" +
+                                     destination_geometry_settings_.latitude_variable + ":" +
+                                     std::to_string(static_cast<int>(destination_geometry_settings_.reconstruction));
+
     has_earthaccess_streams_ = HasEarthAccessStreams(config_file_);
     if (has_earthaccess_streams_) {
         CECE_LOG_INFO("[DRIVER] Earthaccess streams detected; standalone helper ingestion will run before local AMIO ingestion each timestep.");
@@ -702,6 +822,7 @@ bool CeceDriverOrchestrator::TeardownHandles() {
     stream_configs_.clear();
     slice_caches_.clear();
     endpoint_caches_.clear();
+    local_weekly_caches_.clear();
     return all_ok;
 }
 
@@ -972,6 +1093,79 @@ bool CeceDriverOrchestrator::WriteBandToImport(const std::string& var_name, cons
     return true;
 }
 
+bool CeceDriverOrchestrator::ComposeLocalWeeklyField(const std::string& var_name, const io::RegridPlan& plan, int field_nlev, int file_nt,
+                                                     const SimDateTime& sim_dt,
+                                                     const std::function<bool(int, std::vector<double>&, int&, int&)>& read_record,
+                                                     void* cece_core_data_ptr, std::vector<double>& ingest_buffer, std::string& failure_detail) {
+    constexpr int kWeeklyRecords = 7;
+    auto* data = static_cast<CeceInternalData*>(cece_core_data_ptr);
+    const cece::LocalTimeService* service = data != nullptr ? data->local_time.get() : nullptr;
+
+    std::string readiness_detail;
+    if (file_nt != kWeeklyRecords) {
+        readiness_detail = "use_local_time requires a weekly file with exactly 7 records; '" + var_name + "' has " + std::to_string(file_nt);
+    } else if (service == nullptr) {
+        readiness_detail = "use_local_time is set for '" + var_name + "' but the local-time service is not initialized (enable local_time)";
+    } else if (!sim_dt.valid) {
+        readiness_detail = "unparseable simulation time for local-weekday selection of '" + var_name + "'";
+    } else if (service->Offsets().extent(0) != static_cast<size_t>(nx_) || service->Offsets().extent(1) != static_cast<size_t>(band_.ny_local)) {
+        readiness_detail = "local-time offsets do not match the band geometry for '" + var_name + "'";
+    }
+    if (!collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, readiness_detail.empty(),
+                              "local-weekday readiness for '" + var_name + "'", readiness_detail)) {
+        failure_detail = readiness_detail;
+        return false;
+    }
+
+    auto& cache = local_weekly_caches_[var_name];
+    if (cache.offsets.data() == nullptr) {
+        cache.offsets = service->HostOffsets();
+    }
+
+    // Every rank reads the same window, so the collectives below match across ranks.
+    const std::array<int, 3> window = weekly_record_window(sim_dt);
+    for (auto it = cache.records.begin(); it != cache.records.end();) {
+        it = std::find(window.begin(), window.end(), it->first) == window.end() ? cache.records.erase(it) : std::next(it);
+    }
+    for (const int record : window) {
+        if (cache.records.count(record) != 0) {
+            continue;
+        }
+        std::vector<double> source;
+        int file_nx = 0;
+        int file_ny = 0;
+        const bool local_read_ok = read_record(record, source, file_nx, file_ny);
+        if (!collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, local_read_ok,
+                                  "weekly record " + std::to_string(record) + " slab readiness for '" + var_name + "'", failure_detail)) {
+            return false;
+        }
+        std::vector<double> band;
+        if (!RegridToBandBuffer(var_name, plan, source, file_nx, file_ny, field_nlev, band, failure_detail)) {
+            return false;
+        }
+        cache.records[record] = std::move(band);
+    }
+
+    // Per cell: the record of the local weekday at this UTC instant.
+    std::array<const double*, 7> record_data{};
+    for (const auto& [record, band] : cache.records) {
+        record_data[static_cast<size_t>(record)] = band.data();
+    }
+    std::string compose_error;
+    const bool local_compose_ok = compose_local_weekly_band(
+        record_data, [&cache](int i, int j) { return cache.offsets(i, j); }, sim_datetime_epoch_secs(sim_dt), nx_, band_.ny_local, field_nlev,
+        ingest_buffer, compose_error);
+    if (!local_compose_ok) {
+        failure_detail = compose_error + " for '" + var_name + "'";
+    }
+    if (!collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, local_compose_ok, "local-weekday composition for '" + var_name + "'",
+                              failure_detail)) {
+        return false;
+    }
+
+    return WriteBandToImport(var_name, ingest_buffer, field_nlev, cece_core_data_ptr, failure_detail);
+}
+
 bool CeceDriverOrchestrator::AssembleBandField(const std::string& var_name, const io::RegridPlan& plan, const std::vector<double>& source,
                                                int file_nx, int file_ny, int field_nlev, DeviceView3D stream_view, void* cece_core_data_ptr,
                                                std::vector<double>& ingest_buffer, std::string& failure_detail) {
@@ -1077,6 +1271,7 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
 
         std::string input_file_path = cfg.input_file_path;
         std::string input_var_name = cfg.input_var_name;
+        const std::string& input_gridspec_file = cfg.input_gridspec_file;
         const std::string& mapalgo = cfg.mapalgo;
         const std::string& cadence = cfg.cadence;
         const std::string& tintalgo = cfg.tintalgo;
@@ -1093,15 +1288,15 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
         //     file_nt_cache_. Variables reading the same file/manifest share
         //     one open AMIO handle set and one record-count search even when
         //     their mapalgo differs (Req 11.2, 11.3).
-        //   - stream_key (= handle_key + "|" + mapalgo) keys regrid_plans_.
-        //     The plan cache splits only when mapalgo differs; everything else
-        //     stays shared at the coarser handle_key level (Req 11.5, 11.6).
+        //   - stream_key adds geometry revision, canonical method, backend and
+        //     destination partition to handle_key and keys regrid_plans_.
+        //     Geometry changes split plans without splitting AMIO handles.
         //   - slice_caches_ and cece_ingestor_set_field remain keyed by
         //     var_name (Req 5, 12.1).
         // Both keys are identical on every rank because StreamConfig is
         // resolved identically from the same YAML (Req 8.1, 11.8).
         const std::string handle_key = HandleKey(cfg);
-        const std::string stream_key = StreamKey(cfg);
+        std::string stream_key = GeometryPlanKey(cfg);
 
         if (input_file_path.empty()) {
             CECE_LOG_ERROR("[DRIVER FATAL] Input file path not specified for stream variable '" + var_name + "' in configuration!");
@@ -1216,66 +1411,45 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
             //    Weights depend only on the grids, so they are generated once and
             //    reused for every timestep.
             auto plan_it = regrid_plans_.find(stream_key);
+            std::optional<cece::io::RegridPlan> candidate_plan;
             if (file_records_ready && (plan_it == regrid_plans_.end() || !plan_it->second.built)) {
                 cece::io::RegridPlan plan;
-                // An explicit passthrough is safe without reopening coordinate
-                // variables only when the stream and gridspec resolve to the
-                // exact same file.  main.cpp has already loaded and validated
-                // the target coordinates from that file; read_slab below still
-                // verifies every field's horizontal size before copying.
-                std::error_code equivalent_ec;
-                const bool exact_source_target_file = mapalgo == "passthrough" && !gridspec_file_.empty() &&
-                                                      fs::equivalent(fs::path(input_file_path), fs::path(gridspec_file_), equivalent_ec) &&
-                                                      !equivalent_ec;
-
-                if (exact_source_target_file) {
-                    plan.j0 = j0;
-                    plan.j1 = j1;
-                    plan.file_nx = nx_;
-                    plan.file_ny = ny_;
-                    plan.identity = true;
-                    // Identity apply reads source rows [j0, j1) verbatim, so
-                    // the exact window is the band itself (same rule as
-                    // build_regrid_plan's passthrough branch).
-                    plan.src_j0 = j0;
-                    plan.src_rows = j1 - j0;
-                    plan.built = true;
-                    CECE_LOG_INFO("[DRIVER] passthrough verified stream file equals explicit gridspec file for '" + var_name +
-                                  "'; using exact cell copy");
-                    plan_it = regrid_plans_.emplace(stream_key, std::move(plan)).first;
-                    // Plan (re)build invalidates the endpoint cache of every
-                    // variable bound to this stream_key: cached endpoints depend
-                    // on the plan, so a new/rebuilt plan must force a rebuild
-                    // before reuse (Req 6.2).
-                    InvalidateEndpointCachesForStream(stream_key);
+                bool local_plan_built = false;
+                try {
+                    local_plan_built =
+                        cece::io::build_regrid_plan(read_dataset, nx_, ny_, target_lons_, target_lats_, mapalgo, j0, j1, input_gridspec_file,
+                                                    gridspec_file_, plan, cfg.source_geometry, destination_geometry_settings_);
+                } catch (const std::exception& error) {
+                    failure_detail = "regrid plan construction threw an exception: " + std::string(error.what());
+                } catch (...) {
+                    failure_detail = "regrid plan construction threw an unknown exception";
+                }
+                if (!local_plan_built) {
+                    CECE_LOG_DEBUG("[DRIVER] build_regrid_plan failed for '" + var_name + "'");
+                    if (failure_detail.empty()) failure_detail = "regrid plan construction failed (could not read source grid coordinates)";
                 } else {
-                    bool local_plan_built = false;
-                    try {
-                        local_plan_built =
-                            cece::io::build_regrid_plan(read_dataset, nx_, ny_, target_lons_, target_lats_, mapalgo, j0, j1, gridspec_file_, plan);
-                    } catch (const std::exception& error) {
-                        failure_detail = "regrid plan construction threw an exception: " + std::string(error.what());
-                    } catch (...) {
-                        failure_detail = "regrid plan construction threw an unknown exception";
-                    }
-                    if (!local_plan_built) {
-                        CECE_LOG_DEBUG("[DRIVER] build_regrid_plan failed for '" + var_name + "'");
-                        if (failure_detail.empty()) {
-                            failure_detail = "regrid plan construction failed (could not read source grid coordinates)";
-                        }
-                    } else {
-                        plan_it = regrid_plans_.emplace(stream_key, std::move(plan)).first;
-                        // Plan (re)build invalidates the endpoint cache of every
-                        // variable bound to this stream_key: cached endpoints
-                        // depend on the plan, so a new/rebuilt plan must force a
-                        // rebuild before reuse (Req 6.2).
-                        InvalidateEndpointCachesForStream(stream_key);
-                    }
+                    candidate_plan.emplace(std::move(plan));
                 }
             }
-            const bool local_plan_ready = file_records_ready && plan_it != regrid_plans_.end() && plan_it->second.built;
+            const bool local_plan_ready = file_records_ready && ((plan_it != regrid_plans_.end() && plan_it->second.built) ||
+                                                                 (candidate_plan.has_value() && candidate_plan->built));
             const bool all_plans_ready = collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, local_plan_ready,
                                                               "regrid-plan readiness for '" + var_name + "'", failure_detail);
+            if (all_plans_ready && candidate_plan.has_value()) {
+                const std::string source_file_signature = file_revision(cfg.input_file_path);
+                const std::string geometry_cache_key = handle_key + "|" + cfg.input_gridspec_file + "|" + cfg.source_geometry.longitude_variable +
+                                                       "|" + cfg.source_geometry.latitude_variable + "|" +
+                                                       std::to_string(static_cast<int>(cfg.source_geometry.reconstruction));
+                source_geometry_revisions_.insert_or_assign(geometry_cache_key,
+                                                            SourceGeometryRevision{source_file_signature, candidate_plan->source_geometry_revision});
+                stream_key = GeometryPlanKey(cfg);
+                if (cece::io::publish_regrid_plan_if_ready(all_plans_ready, stream_key, candidate_plan, regrid_plans_)) {
+                    plan_it = regrid_plans_.find(stream_key);
+                    // A published replacement invalidates endpoint data bound to
+                    // the previous plan for every variable sharing this stream.
+                    InvalidateEndpointCachesForStream(stream_key);
+                }
+            }
 
             // 3. Read the bracketing record(s) for this timestep, blend in time on
             //    the SOURCE grid, then regrid ONCE. Because regridding is a linear
@@ -1298,6 +1472,7 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                 // calendar field, Stepwise walks the record index (ignores time).
                 const CadenceKind kind = classify_cadence(cadence);
                 const std::string c_lower = to_lower(cadence);
+                const bool local_weekly = cfg.use_local_time;
                 std::string bracket_note;
 
                 if (kind == CadenceKind::Stepwise) {
@@ -1308,7 +1483,7 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                     bracket_note = "stepwise (time ignored)";
                 } else if (kind == CadenceKind::Profile) {
                     bracket = bracket_from_cadence(cadence, tintalgo, sim_dt, file_nt, yearFirst, yearLast, yearAlign, taxmode);
-                    bracket_note = "profile:" + c_lower;
+                    bracket_note = local_weekly ? "profile:weekly (local weekday)" : "profile:" + c_lower;
                 } else {  // Series
                     if (file_nt > 1) {
                         bracket = bracket_from_dataset(read_dataset, time_var, sim_dt, file_nt, tintalgo, yearAlign, taxmode, time_units, calendar,
@@ -1447,7 +1622,11 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                 } else {
                     // ---- Tier 3: interpolation miss / rollover / single record ----
                     // Diagnostic: report which time slice(s) are being read and via which path.
-                    if (bracket.i0 == bracket.i1 || bracket.weight == 0.0) {
+                    if (local_weekly) {
+                        CECE_LOG_INFO("[DRIVER] Composing local-weekday weekly records around UTC record " + std::to_string(bracket.i0 + 1) + "/" +
+                                      std::to_string(file_nt) + " from '" + input_file_path + "' for field '" + var_name + "' (time=" + time_iso8601 +
+                                      ")");
+                    } else if (bracket.i0 == bracket.i1 || bracket.weight == 0.0) {
                         CECE_LOG_INFO("[DRIVER] Reading time slice " + std::to_string(bracket.i0 + 1) + "/" + std::to_string(file_nt) + " from '" +
                                       input_file_path + "' for field '" + var_name + "' (" + bracket_note + ", time=" + time_iso8601 + ")");
                     } else {
@@ -1482,9 +1661,15 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                     auto read_slab = [&](int t_idx, std::vector<double>& out, int& slab_nx, int& slab_ny) -> bool {
                         amio_view_handle slab_view = nullptr;
                         amio_bbox_t bbox{};
-                        const int fny_global_full = have_shape ? static_cast<int>(var_shape.extents[var_shape.rank - 2]) : 0;
-                        const bool use_window = have_shape && var_shape.rank >= 2 && plan.src_rows > 0 && plan.src_j0 >= 0 && fny_global_full > 0 &&
-                                                plan.src_j0 + plan.src_rows <= fny_global_full;
+                        const int fny_global_full = have_shape && var_shape.rank >= 2 ? static_cast<int>(var_shape.extents[var_shape.rank - 2]) : 0;
+                        const int fnx_global_full = have_shape && var_shape.rank >= 2 ? static_cast<int>(var_shape.extents[var_shape.rank - 1]) : 0;
+                        // Only use the row window when describe() agrees with the
+                        // dimensions used to build the plan. Some backends expose
+                        // a non-row-addressable view shape; those safely use the
+                        // full-record path instead.
+                        bool use_window = have_shape && var_shape.rank >= 2 && plan.src_rows > 0 && plan.src_j0 >= 0 &&
+                                          fny_global_full == plan.file_ny && fnx_global_full == plan.file_nx &&
+                                          plan.src_j0 + plan.src_rows <= fny_global_full;
                         if (use_window) {
                             bbox.rank = var_shape.rank;
                             for (int d = 0; d < var_shape.rank; ++d) {
@@ -1496,6 +1681,15 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                             bbox.extents[var_shape.rank - 2] = plan.src_rows;
                         }
                         amio_status_t rc = amio_read(read_dataset, input_var_name.c_str(), t_idx, use_window ? &bbox : nullptr, &slab_view);
+                        if (rc != AMIO_OK && use_window) {
+                            // A described hyperslab can still be unsupported by
+                            // a particular AMIO backend. Retry this record as a
+                            // full read before reporting failure.
+                            if (slab_view) amio_release_view(slab_view);
+                            slab_view = nullptr;
+                            use_window = false;
+                            rc = amio_read(read_dataset, input_var_name.c_str(), t_idx, nullptr, &slab_view);
+                        }
                         if (rc != AMIO_OK) {
                             CECE_LOG_DEBUG("[DRIVER] amio_read('" + input_var_name + "', t=" + std::to_string(t_idx) +
                                            ") failed with rc = " + std::to_string(rc));
@@ -1619,7 +1813,7 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                     std::vector<double> src;
                     int file_nx = 0;
                     int file_ny = 0;
-                    const bool local_lower_ready = bracket_ready && read_slab(bracket.i0, src, file_nx, file_ny);
+                    const bool local_lower_ready = bracket_ready && (local_weekly || read_slab(bracket.i0, src, file_nx, file_ny));
                     bool have_data = collective_all_ready(halo_comm_ ? &*halo_comm_ : nullptr, comm_c_, local_lower_ready,
                                                           "lower AMIO slab readiness for '" + var_name + "'", failure_detail);
 
@@ -1712,6 +1906,11 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
                                 endpoint_cache.valid = false;
                             }
                         }
+                    } else if (have_data && local_weekly) {
+                        // No slice/endpoint caching: the composed field changes whenever any
+                        // cell's local date flips, so each step recomposes from the record cache.
+                        read_success = ComposeLocalWeeklyField(var_name, plan, field_nlev, file_nt, sim_dt, read_slab, cece_core_data_ptr,
+                                                               ingest_buffer, failure_detail);
                     } else if (have_data) {
                         // ---- Tier 3 single-record sub-case (unchanged) ----
                         // Reached when !needs_upper_record and the collective-agreed
@@ -1794,9 +1993,9 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
 
 }  // namespace cece
 
-extern "C" {
-void amio_set_parent_communicator(MPI_Fint comm);
+extern std::unique_ptr<cece::CeceStandaloneWriter> g_standalone_writer;
 
+extern "C" {
 void cece_driver_create(const char* yaml_path, int path_len, int nx, int ny, int nz, const double* lon_coords, int lon_len, const double* lat_coords,
                         int lat_len, int mpi_comm_f, void** driver_ptr_out, int* rc) {
     if (rc) *rc = 0;
@@ -1830,8 +2029,6 @@ void cece_driver_advance_time(void* driver_ptr, const char* time_iso8601, int ti
         if (rc) *rc = -1;
     }
 }
-
-extern std::unique_ptr<cece::CeceStandaloneWriter> g_standalone_writer;
 
 void cece_driver_destroy(void* driver_ptr, int* rc) {
     if (rc != nullptr) {

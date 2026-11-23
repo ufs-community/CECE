@@ -16,6 +16,7 @@
 
 #include "cece/cece_amio_utils.hpp"
 #include "cece/cece_calendar.hpp"
+#include "cece/cece_local_time.hpp"
 #include "cece/cece_logger.hpp"
 #include "cece/cece_string_utils.hpp"
 
@@ -111,6 +112,31 @@ void validate_stream_temporal_config(const std::string& cadence, const std::stri
     if (is_series && (yearFirst != 0 || yearLast != 0)) {
         CECE_LOG_WARNING("[DRIVER] yearFirst/yearLast are only consulted if the time axis cannot be decoded" + where + ".");
     }
+}
+
+void validate_stream_local_time(const std::string& cadence, const std::string& tintalgo, const std::string& where) {
+    if (to_lower(cadence) != "weekly") {
+        throw std::invalid_argument("use_local_time is only supported with cadence: weekly" + where + ".");
+    }
+    const std::string tintalgo_lower = to_lower(tintalgo);
+    if (!tintalgo_lower.empty() && tintalgo_lower != "nearest") {
+        throw std::invalid_argument("use_local_time requires tintalgo: nearest" + where + ".");
+    }
+}
+
+std::int64_t sim_datetime_epoch_secs(const SimDateTime& dt) {
+    return DaysFromCivil(dt.year, dt.month, dt.day) * kSecsPerDay + static_cast<std::int64_t>(dt.hour) * 3600 +
+           static_cast<std::int64_t>(dt.minute) * 60 + dt.second;
+}
+
+int weekly_record_from_local_secs(std::int64_t local_secs) {
+    // LocalDayOfWeekFromSecs is Sunday=0; weekly stream records are Monday=0.
+    return (LocalDayOfWeekFromSecs(local_secs) + 6) % 7;
+}
+
+std::array<int, 3> weekly_record_window(const SimDateTime& dt) {
+    const int today = dt.day_of_week - 1;  // ISO 1=Monday -> record 0
+    return {(today + 6) % 7, today, (today + 1) % 7};
 }
 
 CadenceKind classify_cadence(const std::string& cadence) {

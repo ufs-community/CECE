@@ -18,6 +18,7 @@ import math
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
 from typing import Any
 
 # Support both package (relative) and direct-module import
@@ -562,6 +563,16 @@ _WRITER_MANAGED_NAMES = frozenset({
     "mesh",
 })
 
+
+class GeometryReconstruction(str, Enum):
+    """Supported geometry reconstruction policies (also compatible with Python 3.10)."""
+
+    NONE = "none"
+    RECTILINEAR_MIDPOINT = "rectilinear_midpoint"
+    GAUSSIAN_LATLON = "gaussian_latlon"
+    CURVILINEAR_APPROXIMATE = "curvilinear_approximate"
+
+
 _STREAM_ENUM_VALUES = {
     "taxmode": {"cycle", "extend", "limit"},
     "tintalgo": {"linear", "nearest"},
@@ -583,8 +594,6 @@ _STREAM_ENUM_VALUES = {
         "conservative",
         "cons",
         "conservative1st",
-        "consf",
-        "redist",
     },
     "cadence": {"series", "daily", "monthly", "hourly", "weekly", "stepwise", "step"},
     "time_label": {"auto", "start", "center", "end"},
@@ -615,7 +624,7 @@ class DataStreamConfig:
         Default is ``"nearest"``.
     mapalgo : str, optional
         Spatial mapping algorithm. One of ``"bilinear"``, ``"consd"``,
-        ``"consf"``, ``"nn"``, ``"redist"``, or ``"passthrough"``
+        ``"nn"``, or ``"passthrough"``
         (skip regridding when data is already on the model grid).
         Default is ``"consd"``.
     cadence : str, optional
@@ -629,6 +638,10 @@ class DataStreamConfig:
         Position of each time coordinate relative to the implied valid interval
         associated with the data. One of ``"auto"``, ``"start"``, ``"center"``,
         or ``"end"``. Default is ``"auto"``.
+    use_local_time : bool, optional
+        For ``cadence="weekly"`` with ``tintalgo="nearest"`` only: select each
+        cell's weekly record by its local weekday instead of the UTC weekday.
+        Requires ``local_time.enabled``. Default is ``False``.
 
     Examples
     --------
@@ -653,14 +666,19 @@ class DataStreamConfig:
     yearAlign: int = 0
     offset: int = 0
     meshfile: str = ""
+    input_gridspec_file: str = ""
+    geometry_reconstruction: str = "none"
     lev_dimname: str = "lev"
     time_var: str = "time"
     lon_var: str = "lon"
     lat_var: str = "lat"
+    longitude_variable: str = ""
+    latitude_variable: str = ""
     time_units: str = ""
     calendar: str = ""
     data_model: str = "auto"
     refresh_interval_seconds: int = 0
+    use_local_time: bool = False
 
     def validate(self) -> None:
         """
@@ -709,16 +727,37 @@ class DataStreamConfig:
             raise ValueError("yearLast must be >= yearFirst")
         if self.refresh_interval_seconds < 0:
             raise ValueError("refresh_interval_seconds must be non-negative")
+        self._validate_local_time()
         for key in (
             "meshfile",
+            "input_gridspec_file",
+            "geometry_reconstruction",
             "lev_dimname",
             "time_var",
             "lon_var",
             "lat_var",
+            "longitude_variable",
+            "latitude_variable",
             "time_units",
             "calendar",
         ):
             _validate_string(getattr(self, key), key, allow_empty=True)
+        if self.geometry_reconstruction not in {
+            value.value for value in GeometryReconstruction
+        }:
+            raise ValueError(
+                f"Invalid geometry_reconstruction: {self.geometry_reconstruction}"
+            )
+
+    def _validate_local_time(self) -> None:
+        if not isinstance(self.use_local_time, bool):
+            raise ValueError("use_local_time must be a boolean")
+        if not self.use_local_time:
+            return
+        if self.cadence != "weekly":
+            raise ValueError("use_local_time is only supported with cadence: weekly")
+        if self.tintalgo != "nearest":
+            raise ValueError("use_local_time requires tintalgo: nearest")
 
     @classmethod
     def from_dict(
@@ -740,16 +779,28 @@ class DataStreamConfig:
             "yearAlign",
             "offset",
             "meshfile",
+            "input_gridspec_file",
+            "gridspec_file",
+            "geometry_reconstruction",
             "lev_dimname",
             "time_var",
             "lon_var",
             "lat_var",
+            "longitude_variable",
+            "latitude_variable",
             "time_units",
             "calendar",
             "data_model",
             "refresh_interval_seconds",
+            "use_local_time",
         }
         _reject_unknown_keys(values, allowed, where)
+        input_grid = values.get("input_gridspec_file", "")
+        grid_alias = values.get("gridspec_file", "")
+        if input_grid and grid_alias and input_grid != grid_alias:
+            raise ValueError(
+                f"{where}: input_gridspec_file and gridspec_file specify different paths"
+            )
         files = values.get("file", [])
         if isinstance(files, str):
             files = [files]
@@ -790,14 +841,19 @@ class DataStreamConfig:
             yearAlign=values.get("yearAlign", 0),
             offset=values.get("offset", 0),
             meshfile=values.get("meshfile", ""),
+            input_gridspec_file=input_grid or grid_alias,
+            geometry_reconstruction=normalized("geometry_reconstruction", "none"),
             lev_dimname=values.get("lev_dimname", "lev"),
             time_var=values.get("time_var", "time"),
             lon_var=values.get("lon_var", "lon"),
             lat_var=values.get("lat_var", "lat"),
+            longitude_variable=values.get("longitude_variable", ""),
+            latitude_variable=values.get("latitude_variable", ""),
             time_units=values.get("time_units", ""),
             calendar=values.get("calendar", ""),
             data_model=normalized("data_model", "auto"),
             refresh_interval_seconds=values.get("refresh_interval_seconds", 0),
+            use_local_time=values.get("use_local_time", False),
         )
         try:
             result.validate()
@@ -836,14 +892,19 @@ class DataStreamConfig:
             "yearAlign": 0,
             "offset": 0,
             "meshfile": "",
+            "input_gridspec_file": "",
+            "geometry_reconstruction": "none",
             "lev_dimname": "lev",
             "time_var": "time",
             "lon_var": "lon",
             "lat_var": "lat",
+            "longitude_variable": "",
+            "latitude_variable": "",
             "time_units": "",
             "calendar": "",
             "data_model": "auto",
             "refresh_interval_seconds": 0,
+            "use_local_time": False,
         }
         for key, default in defaults.items():
             value = getattr(self, key)
@@ -909,6 +970,10 @@ class DriverConfig:
     timestep_seconds: int = 3600
     log_file: str | None = None
     gridspec_file: str | None = None
+    longitude_variable: str = ""
+    latitude_variable: str = ""
+    geometry_reconstruction: str = "none"
+
     earthaccess_helper: str | None = None
     grid: GridConfig = field(default_factory=GridConfig)
     stacking_refresh_interval_seconds: int = 0
@@ -941,6 +1006,16 @@ class DriverConfig:
             _validate_string(self.log_file, "driver.log_file")
         if self.gridspec_file is not None:
             _validate_string(self.gridspec_file, "driver.gridspec_file")
+        for key in ("longitude_variable", "latitude_variable"):
+            _validate_string(getattr(self, key), f"driver.{key}", allow_empty=True)
+        _validate_string(self.geometry_reconstruction, "driver.geometry_reconstruction")
+        if self.geometry_reconstruction not in {
+            value.value for value in GeometryReconstruction
+        }:
+            raise ValueError(
+                f"Invalid driver.geometry_reconstruction: {self.geometry_reconstruction}"
+            )
+
         if self.earthaccess_helper is not None:
             _validate_string(self.earthaccess_helper, "driver.earthaccess_helper")
         self.grid.validate()
@@ -981,6 +1056,9 @@ class DriverConfig:
                 "timestep_seconds",
                 "log_file",
                 "gridspec_file",
+                "longitude_variable",
+                "latitude_variable",
+                "geometry_reconstruction",
                 "earthaccess_helper",
                 "grid",
                 "stacking_refresh_interval_seconds",
@@ -1599,7 +1677,7 @@ class CeceConfig:
             ``"nearest"``. Default is ``"nearest"``.
         mapalgo : str, optional
             Spatial mapping algorithm. One of ``"bilinear"``, ``"consd"``,
-            ``"consf"``, ``"nn"``, ``"redist"``, or ``"passthrough"``
+            ``"nn"``, or ``"passthrough"``
             (skip regridding when data is already on the model grid).
             Default is ``"consd"``.
         cadence : str, optional
@@ -1637,14 +1715,19 @@ class CeceConfig:
             "yearAlign",
             "offset",
             "meshfile",
+            "input_gridspec_file",
+            "geometry_reconstruction",
             "lev_dimname",
             "time_var",
             "lon_var",
             "lat_var",
+            "longitude_variable",
+            "latitude_variable",
             "time_units",
             "calendar",
             "data_model",
             "refresh_interval_seconds",
+            "use_local_time",
         }
         unknown_options = set(stream_options) - allowed_options
         if unknown_options:
@@ -1690,6 +1773,24 @@ class CeceConfig:
         _validate_string(name, "temporal profile name")
         _validate_temporal_factors(factors)
         self._temporal_profiles[name] = factors
+
+    def _local_time_disabled_errors(self) -> list[str]:
+        errors = [
+            f"species.{species_name}[{index}]: use_local_time is set "
+            "but local_time.enabled is false; enable the local_time "
+            "section or remove use_local_time from the layer"
+            for species_name, layers in self._species.items()
+            for index, layer in enumerate(layers)
+            if layer.use_local_time is True
+        ]
+        errors.extend(
+            f"cece_data.streams[{index}]: use_local_time is set "
+            "but local_time.enabled is false; enable the local_time "
+            "section or remove use_local_time from the stream"
+            for index, stream in enumerate(self._cece_data.get("streams", []))
+            if stream.use_local_time is True
+        )
+        return errors
 
     def validate(self) -> ValidationResult:  # noqa: C901
         """
@@ -1771,14 +1872,7 @@ class CeceConfig:
         capture("local_time", self._local_time.validate)
         capture("nuopc", self._nuopc.validate)
         if self._local_time.enabled is not True:
-            for species_name, layers in self._species.items():
-                for index, layer in enumerate(layers):
-                    if layer.use_local_time is True:
-                        errors.append(
-                            f"species.{species_name}[{index}]: use_local_time is set "
-                            "but local_time.enabled is false; enable the local_time "
-                            "section or remove use_local_time from the layer"
-                        )
+            errors.extend(self._local_time_disabled_errors())
 
         # Validate temporal cycles
         for section, cycles in (
@@ -2043,6 +2137,9 @@ class CeceConfig:
                 "timestep_seconds": driver.timestep_seconds,
                 "log_file": driver.log_file,
                 "gridspec_file": driver.gridspec_file,
+                "longitude_variable": driver.longitude_variable,
+                "latitude_variable": driver.latitude_variable,
+                "geometry_reconstruction": driver.geometry_reconstruction,
                 "earthaccess_helper": driver.earthaccess_helper,
                 "grid": {
                     "grid_name": driver.grid.grid_name,

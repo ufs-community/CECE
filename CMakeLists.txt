@@ -572,6 +572,7 @@ add_library(
   cece_driver
   SHARED
   src/driver/cece_helm_graph.cpp
+  src/driver/cece_grid_geometry.cpp
   src/driver/cece_regridder_utils.cpp
   src/driver/cece_standalone_writer.cpp
   src/driver/cece_core_local_time_init.cpp
@@ -768,6 +769,17 @@ target_link_libraries(
     yaml-cpp
     MPI::MPI_CXX
 )
+
+if(TARGET test_driver_integration_end_to_end)
+  add_dependencies(test_driver_integration_end_to_end cece_standalone_driver)
+  target_compile_definitions(
+    test_driver_integration_end_to_end
+    PRIVATE CECE_DIAGNOSTICS_DRIVER="$<TARGET_FILE:cece_standalone_driver>"
+    CECE_DIAGNOSTICS_CONFIG="${PROJECT_SOURCE_DIR}/examples/cece_config_diagnostics.yaml"
+    CECE_DIAGNOSTICS_MPIEXEC="${MPIEXEC_EXECUTABLE}"
+    CECE_DIAGNOSTICS_MPI_NP_FLAG="${MPIEXEC_NUMPROC_FLAG}"
+  )
+endif()
 
 # --- Dependency Resolution Summary ---
 get_property(_cece_dep_summary GLOBAL PROPERTY CECE_DEP_SUMMARY)

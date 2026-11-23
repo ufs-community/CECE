@@ -6,6 +6,7 @@ build*/
 cece_output/
 output/
 *.nc
+utc_offset_map.png
 
 # Log files
 *.ESMF_LogFile
@@ -29,6 +30,7 @@ __pycache__/
 # Python packaging
 dist/
 *.egg-info/
+*.whl
 
 # Python venv
 venv*/
@@ -41,6 +43,7 @@ venv*/
 *.tmp
 *.temp
 *~
+\#*\#
 site/
 bin/
 data/*.nc
@@ -66,5 +69,6 @@ specs/
 .github/prompts/
 .kiro/
 .vscode/
+.agents/
 
 .scratch/

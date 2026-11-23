@@ -17,15 +17,11 @@ cece_data:
   streams: []
 
 physics_schemes:
-  - name: example_diagnostic_computation
-    options:
-      diagnostics: [temperature_anomaly]
-      reference_temperature: 298.15
-      compute_quality_flags: false
+  - name: native_example
 
 diagnostics:
   output_interval_seconds: 3600
-  variables: [temperature_anomaly]
+  variables: [native_example_diag]
 
 output:
   enabled: false

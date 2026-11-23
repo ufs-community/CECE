@@ -42,12 +42,16 @@
 #include <gtest/gtest.h>
 #include <rapidcheck.h>
 #include <rapidcheck/gtest.h>
+#include <unistd.h>
 #include <yaml-cpp/yaml.h>
 
 #include <algorithm>
 #include <cctype>
 #include <cstdio>
+#include <cstdlib>
+#include <filesystem>
 #include <fstream>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -199,7 +203,13 @@ void RcAssertStreamConfigEq(const StreamConfig& actual, const StreamConfig& expe
 struct TempFile {
     std::string path;
     explicit TempFile(const std::string& content) {
-        path = "/tmp/cece_stream_cfg_" + std::to_string(reinterpret_cast<uintptr_t>(this)) + ".yaml";
+        std::string pattern = (std::filesystem::temp_directory_path() / "cece_stream_cfg_XXXXXX").string();
+        std::vector<char> filename(pattern.begin(), pattern.end());
+        filename.push_back('\0');
+        const int fd = mkstemp(filename.data());
+        if (fd == -1) throw std::runtime_error("Could not create stream configuration fixture");
+        close(fd);
+        path = filename.data();
         std::ofstream ofs(path);
         ofs << content;
         ofs.close();
@@ -426,6 +436,45 @@ TEST(StreamConfigResolution, MapalgoIsNormalizedToLowercase) {
 
     ASSERT_TRUE(actual.count("CO"));
     EXPECT_EQ(actual["CO"].mapalgo, "bilinear");
+}
+
+TEST(StreamConfigResolution, MissingStreamSectionsLeaveConfigEmpty) {
+    for (const std::string& yaml : {std::string("driver: {}\n"), std::string("cece_data: {}\n")}) {
+        TempFile fixture(yaml);
+        std::unordered_map<std::string, StreamConfig> configs;
+        std::string gridspec;
+        EXPECT_NO_THROW(StreamConfigTestAccess::Resolve(fixture.path, configs, gridspec));
+        EXPECT_TRUE(configs.empty());
+    }
+}
+
+TEST(StreamConfigResolution, ResolvesGeometrySettings) {
+    TempFile fixture(
+        "cece_data:\n  streams:\n    - name: X\n      file: x.nc\n"
+        "      longitude_variable: xlon\n      latitude_variable: xlat\n"
+        "      geometry_reconstruction: Rectilinear_Midpoint\n");
+    std::unordered_map<std::string, StreamConfig> configs;
+    std::string gridspec;
+    StreamConfigTestAccess::Resolve(fixture.path, configs, gridspec);
+    ASSERT_EQ(configs.count("X"), 1u);
+    EXPECT_EQ(configs.at("X").source_geometry.longitude_variable, "xlon");
+    EXPECT_EQ(configs.at("X").source_geometry.latitude_variable, "xlat");
+    EXPECT_EQ(configs.at("X").source_geometry.reconstruction, io::ReconstructionModel::RectilinearMidpoint);
+}
+
+TEST(StreamConfigResolution, GridSpecAliasAcceptsEqualValuesAndRejectsConflicts) {
+    const auto resolve_yaml = [](const std::string& fields) {
+        TempFile fixture("cece_data:\n  streams:\n    - name: X\n      file: /tmp/x.nc\n      " + fields + "      variables: [X]\n");
+        std::unordered_map<std::string, StreamConfig> configs;
+        std::string driver_gridspec;
+        StreamConfigTestAccess::Resolve(fixture.path, configs, driver_gridspec);
+        return configs.at("X").input_gridspec_file;
+    };
+
+    EXPECT_EQ(resolve_yaml("input_gridspec_file: /tmp/grid.nc\n"), "/tmp/grid.nc");
+    EXPECT_EQ(resolve_yaml("gridspec_file: /tmp/grid.nc\n"), "/tmp/grid.nc");
+    EXPECT_EQ(resolve_yaml("input_gridspec_file: /tmp/grid.nc\n      gridspec_file: /tmp/grid.nc\n"), "/tmp/grid.nc");
+    EXPECT_THROW(resolve_yaml("input_gridspec_file: /tmp/a.nc\n      gridspec_file: /tmp/b.nc\n"), std::invalid_argument);
 }
 
 // ============================================================================

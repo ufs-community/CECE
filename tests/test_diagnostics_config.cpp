@@ -28,7 +28,9 @@
 #include <string>
 #include <vector>
 
+#include "cece/cece_c_api.h"
 #include "cece/cece_config.hpp"
+#include "cece/cece_diagnostics.hpp"
 
 using cece::CeceConfig;
 using cece::ParseConfig;
@@ -92,6 +94,50 @@ std::string WithDriverAndDiagnostics(const std::string& diagnostics_block, const
 // ---------------------------------------------------------------------------
 // output.include_diagnostics
 // ---------------------------------------------------------------------------
+
+TEST_F(DiagnosticsConfigTest, AdvertiseFindsIntrinsicDiagnosticsWithoutYamlDeclarations) {
+    WriteConfigFile(path_,
+                    "physics_schemes:\n  - name: native_example\n  - name: k14\n"
+                    "diagnostics:\n  variables: [native_example_diag]\n"
+                    "output:\n  include_diagnostics: true\n");
+    int count = 0;
+    int rc = -1;
+    cece_nuopc_diagnostic_count(path_.c_str(), static_cast<int>(path_.size()), &count, &rc);
+    ASSERT_EQ(rc, 0);
+    ASSERT_EQ(count, 1);
+
+    char name[64]{};
+    int name_len = 0;
+    cece_nuopc_diagnostic_name(path_.c_str(), static_cast<int>(path_.size()), 0, name, sizeof(name), &name_len, &rc);
+    ASSERT_EQ(rc, 0);
+    EXPECT_STREQ(name, "native_example_diag");
+}
+
+TEST_F(DiagnosticsConfigTest, AdvertiseRejectsInvalidConfigPath) {
+    int count = 1;
+    int rc = 0;
+    cece_nuopc_diagnostic_count(nullptr, 1, &count, &rc);
+    EXPECT_LT(rc, 0);
+    EXPECT_EQ(count, 0);
+}
+
+TEST_F(DiagnosticsConfigTest, Phase1RegistersDiagnosticsBeforeGridAllocation) {
+    WriteConfigFile(path_, "physics_schemes:\n  - name: native_example\n");
+    cece_set_config_file_path(path_.c_str(), static_cast<int>(path_.size()));
+
+    void* core = nullptr;
+    int rc = -1;
+    cece_core_initialize_p1(&core, &rc);
+    ASSERT_EQ(rc, 0);
+    ASSERT_NE(core, nullptr);
+
+    int count = 0;
+    cece_core_diagnostic_count(core, &count, &rc);
+    EXPECT_EQ(rc, 0);
+    EXPECT_EQ(count, 2);
+    cece_core_finalize(core, &rc);
+    EXPECT_EQ(rc, 0);
+}
 
 TEST_F(DiagnosticsConfigTest, IncludeDiagnosticsDefaultsFalse) {
     const CeceConfig config = Parse("output:\n  enabled: true\n  directory: ./out\n");

@@ -6,17 +6,11 @@
 #   - The `diagnostics:` block selects which are published and how often.
 #   - `output.include_diagnostics` opts the file channel in.
 #
-# The `example_diagnostic_computation` scheme registers three diagnostics
-# (temperature_anomaly, emission_efficiency, quality_flag). Here only
-# `temperature_anomaly` is selected, published every 2 hours (7200 s, a
-# multiple of the 3600 s timestep). `emission_efficiency` is registered but
-# intentionally dropped by the selection list.
+# The native example scheme writes a demonstration value of 42 without
+# external inputs. Only native_example_diag is published, every 2 hours.
 #
-# Run (standalone):
-#   ./build/bin/cece_standalone_driver examples/cece_config_diagnostics.yaml
-# The newest diag_*.nc in ./cece_output contains `temperature_anomaly` with
-# its registered units/long_name; species/emission variables are unchanged.
-# =====================================================================
+# Run from the repository root:
+#   ./build/cece_standalone_driver examples/cece_config_diagnostics.yaml
 driver:
   start_time: "2020-06-01T00:00:00"
   end_time: "2020-06-01T06:00:00"
@@ -32,15 +26,11 @@ cece_data:
   streams: []
 
 physics_schemes:
-  - name: example_diagnostic_computation
-    options:
-      diagnostics: [temperature_anomaly, emission_efficiency] # scheme declares these
-      reference_temperature: 298.15
-      compute_quality_flags: false
+  - name: native_example
 
 diagnostics:
   output_interval_seconds: 7200 # publish every 2h (multiple of 3600)
-  variables: [temperature_anomaly] # only this one; emission_efficiency dropped
+  variables: [native_example_diag] # only this one; native_example_multiplier dropped
 
 output:
   enabled: true

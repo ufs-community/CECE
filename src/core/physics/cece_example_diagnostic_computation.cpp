@@ -25,21 +25,26 @@ void ExampleDiagnosticComputation::Initialize(const conf::Value& config, CeceDia
         quality_threshold_ = config["quality_threshold"].as_double();
     }
 
-    // Register diagnostic fields
-    // These fields will be written to NetCDF output if diagnostics are enabled
-    temperature_anomaly_ = ResolveDiagnostic("temperature_anomaly", "K", "Temperature deviation from reference");
-    emission_efficiency_ = ResolveDiagnostic("emission_efficiency", "kg/m2/s/K", "Emission per unit temperature anomaly");
-    if (compute_quality_flags_) {
-        quality_flag_ = ResolveDiagnostic("quality_flag", "dimensionless", "Data quality flag (0=good, 1=suspect, 2=bad)");
+    BindDiagnostics(diag_manager);
+}
+
+std::vector<DiagnosticDeclaration> ExampleDiagnosticComputation::DeclaredDiagnostics(const conf::Value& config) const {
+    std::vector<DiagnosticDeclaration> declarations{
+        {"temperature_anomaly", "K", "Temperature deviation from reference"},
+        {"emission_efficiency", "kg/m2/s/K", "Emission per unit temperature anomaly"},
+    };
+    if (!config["compute_quality_flags"] || config["compute_quality_flags"].as_bool()) {
+        declarations.push_back({"quality_flag", "dimensionless", "Data quality flag (0=good, 1=suspect, 2=bad)"});
     }
+    return declarations;
 }
 
 void ExampleDiagnosticComputation::BindDiagnostics(CeceDiagnosticManager* diag_manager) {
     BasePhysicsScheme::BindDiagnostics(diag_manager);
-    temperature_anomaly_ = ResolveDiagnostic("temperature_anomaly", "K", "Temperature deviation from reference");
-    emission_efficiency_ = ResolveDiagnostic("emission_efficiency", "kg/m2/s/K", "Emission per unit temperature anomaly");
+    temperature_anomaly_ = ResolveDiagnostic("temperature_anomaly");
+    emission_efficiency_ = ResolveDiagnostic("emission_efficiency");
     if (compute_quality_flags_) {
-        quality_flag_ = ResolveDiagnostic("quality_flag", "dimensionless", "Data quality flag (0=good, 1=suspect, 2=bad)");
+        quality_flag_ = ResolveDiagnostic("quality_flag");
     }
 }
 

@@ -29,7 +29,7 @@ module cece_cap_mod
 
   private
 
-  public :: CECE_SetServices, CECE_SetConfigPath
+  public :: CECE_SetServices, CECE_SetConfigPath, cece_nuopc_export_spec
   public :: CECE_GetSimPtr, CECE_GetExportState
 
   !> @brief Shared simulation handle (opaque cece::CeceSimulation*).

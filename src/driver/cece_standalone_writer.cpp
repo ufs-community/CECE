@@ -1,14 +1,11 @@
+
+
 #include "cece/cece_standalone_writer.hpp"
 
 #include <amio/amio.h>
 #include <mpi.h>
 
-#include "cece/cece_regridder_utils.hpp"
-
-extern "C" {
-void amio_set_parent_communicator(MPI_Fint comm);
-}
-
+#include <Kokkos_Core.hpp>
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -21,7 +18,9 @@ void amio_set_parent_communicator(MPI_Fint comm);
 #include <stdexcept>
 #include <vector>
 
+#include "cece/cece_internal.hpp"
 #include "cece/cece_logger.hpp"
+#include "cece/cece_regridder_utils.hpp"
 
 namespace fs = std::filesystem;
 
@@ -1092,13 +1091,9 @@ void CeceStandaloneWriter::Finalize() {
 
 }  // namespace cece
 
-extern "C" {
-
-#include <Kokkos_Core.hpp>
-
-#include "cece/cece_internal.hpp"
-
 std::unique_ptr<cece::CeceStandaloneWriter> g_standalone_writer;
+
+extern "C" {
 
 void cece_core_write_step(void* data_ptr, double time_seconds, int step_index, int* rc) {
     if (rc != nullptr) *rc = 0;

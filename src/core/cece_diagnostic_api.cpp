@@ -26,6 +26,7 @@
 #include "cece/cece_diagnostics.hpp"
 #include "cece/cece_internal.hpp"
 #include "cece/cece_logger.hpp"
+#include "cece/cece_physics_factory.hpp"
 
 namespace cece {
 namespace {
@@ -107,20 +108,7 @@ bool lookup_metadata(const cece::CeceDiagnosticManager& manager, int index, std:
     return true;
 }
 
-/**
- * @brief Names the NUOPC cap should advertise, enumerated from the config.
- *
- * The cap runs Advertise before any simulation exists, so the names cannot
- * come from the registry (it is created inside InitializeRealize). This
- * mirrors the path-based species enumeration (cece_nuopc_export_count/_spec)
- * with the writer's selection rules applied so the file and coupled channels
- * never diverge in which names are offered:
- *   - gate: output.include_diagnostics (absent/false => advertise nothing);
- *   - union of each scheme's options.diagnostics list, in config order,
- *     first-seen and deduped (deterministic across ranks);
- *   - filter: diagnostics:variables when non-empty selects exactly those
- *     names; empty/absent selects all declared names.
- */
+/// Discover configured and intrinsic diagnostic declarations before the grid exists.
 std::vector<std::string> advertise_names(const std::string& yaml_path) {
     struct CacheEntry {
         std::filesystem::file_time_type modified;
@@ -149,27 +137,28 @@ std::vector<std::string> advertise_names(const std::string& yaml_path) {
 
     cece::CeceConfig config = cece::ParseConfig(yaml_path);
     std::vector<std::string> names;
-    if (!config.output_config.include_diagnostics) {
-        return names;
-    }
-    for (const auto& scheme : config.physics_schemes) {
-        conf::Value diags = scheme.options["diagnostics"];
-        if (!diags.is_defined()) {
-            continue;
-        }
-        for (std::size_t i = 0; i < diags.size(); ++i) {
-            std::string candidate = diags[i].as_string();
-            if (std::find(names.begin(), names.end(), candidate) == names.end()) {
-                names.push_back(std::move(candidate));
+    if (config.output_config.include_diagnostics) {
+        const auto& selection = config.diagnostics.variables;
+        const auto add_name = [&](const std::string& name) {
+            if ((selection.empty() || std::find(selection.begin(), selection.end(), name) != selection.end()) &&
+                std::find(names.begin(), names.end(), name) == names.end()) {
+                names.push_back(name);
+            }
+        };
+        for (const auto& scheme_config : config.physics_schemes) {
+            const auto configured = scheme_config.options["diagnostics"];
+            if (configured.is_defined()) {
+                for (std::size_t i = 0; i < configured.size(); ++i) {
+                    add_name(configured[i].as_string());
+                }
+            }
+            auto scheme = PhysicsFactory::CreateScheme(scheme_config);
+            if (scheme) {
+                for (const auto& declaration : scheme->DeclaredDiagnostics(scheme_config.options)) {
+                    add_name(declaration.name);
+                }
             }
         }
-    }
-    const auto& selection = config.diagnostics.variables;
-    if (!selection.empty()) {
-        names.erase(
-            std::remove_if(names.begin(), names.end(),
-                           [&selection](const std::string& n) { return std::find(selection.begin(), selection.end(), n) == selection.end(); }),
-            names.end());
     }
     {
         std::lock_guard<std::mutex> lock(cache_mutex);
@@ -362,6 +351,9 @@ void cece_nuopc_diagnostic_count(const char* config_path, int path_len, int* cou
     }
     *count = 0;
     try {
+        if (config_path == nullptr || path_len <= 0) {
+            throw std::invalid_argument("invalid config path");
+        }
         std::string yaml_path(config_path, path_len);
         *count = static_cast<int>(cece::advertise_names(yaml_path).size());
     } catch (const std::exception& e) {
@@ -380,6 +372,9 @@ void cece_nuopc_diagnostic_name(const char* config_path, int path_len, int index
         *name_len_out = 0;
     }
     try {
+        if (config_path == nullptr || path_len <= 0) {
+            throw std::invalid_argument("invalid config path");
+        }
         std::string yaml_path(config_path, path_len);
         std::vector<std::string> names = cece::advertise_names(yaml_path);
         if (index < 0 || static_cast<size_t>(index) >= names.size()) {

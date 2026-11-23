@@ -194,21 +194,21 @@ TEST(NoManifestNoReparse, AdvanceTimeDoesNotReparseYaml) {
     ASSERT_FALSE(src.empty());
 
     // Sanity: the construction-time parse still exists somewhere in the file.
-    EXPECT_NE(src.find("YAML::LoadFile"), std::string::npos)
-        << "expected a construction-time YAML::LoadFile in the facade (in ResolveStreamConfigsFromFile)";
+    EXPECT_NE(src.find("conf::Config::from_file"), std::string::npos)
+        << "expected a construction-time conf::Config::from_file in the facade (in ResolveStreamConfigsFromFile)";
 
     // The AdvanceTime body must contain no YAML parse.
     const std::string advance_body = ExtractMemberBody(src, "AdvanceTime");
     ASSERT_FALSE(advance_body.empty());
-    EXPECT_EQ(advance_body.find("YAML::LoadFile"), std::string::npos)
-        << "AdvanceTime re-parses the YAML configuration per step (YAML::LoadFile found)";
-    EXPECT_EQ(advance_body.find("YAML::Load("), std::string::npos) << "AdvanceTime parses YAML per step (YAML::Load found)";
+    EXPECT_EQ(advance_body.find("conf::Config::from_file"), std::string::npos)
+        << "AdvanceTime re-parses the YAML configuration per step (conf::Config::from_file found)";
+    EXPECT_EQ(advance_body.find("conf::Config::from_file("), std::string::npos) << "AdvanceTime parses YAML per step (conf::Config::from_file found)";
 
     // And the config-resolution helper is the (only) legitimate parse site.
     const std::string resolve_body = ExtractMemberBody(src, "ResolveStreamConfigsFromFile");
     ASSERT_FALSE(resolve_body.empty());
-    EXPECT_NE(resolve_body.find("YAML::LoadFile"), std::string::npos)
-        << "expected ResolveStreamConfigsFromFile to hold the sole construction-time YAML::LoadFile";
+    EXPECT_NE(resolve_body.find("conf::Config::from_file"), std::string::npos)
+        << "expected ResolveStreamConfigsFromFile to hold the sole construction-time conf::Config::from_file";
 }
 
 }  // namespace cece

@@ -19,7 +19,6 @@
 // Validates: Requirements 3.1, 3.2, 7.1
 
 #include <gtest/gtest.h>
-#include <mpi.h>
 #include <rapidcheck.h>
 #include <rapidcheck/gtest.h>
 
@@ -30,34 +29,11 @@
 #include <string>
 #include <vector>
 
+#include "band_boundary_common.hpp"
 #include "cece/cece_regridder_utils.hpp"
 
 namespace cece::io {
 namespace {
-
-int band_start(int ny, int size, int r) {
-    const int band_base = ny / size;
-    const int band_rem = ny % size;
-    return r * band_base + std::min(r, band_rem);
-}
-
-RegridPlan MakePlanFromMeshes(int src_nx, int src_ny, axis::topology::UnstructuredMesh<Kokkos::HostSpace> src_mesh,
-                              axis::topology::UnstructuredMesh<Kokkos::HostSpace> dst_mesh, int j0, int j1) {
-    RegridPlan plan;
-    plan.file_nx = src_nx;
-    plan.file_ny = src_ny;
-    plan.j0 = j0;
-    plan.j1 = j1;
-    plan.identity = false;
-    axis::solver::RegridConfig cfg;
-    cfg.method = axis::solver::InterpolationMethod::Conservative1stOrder;
-    cfg.norm_type = axis::solver::NormType::DstArea;
-    cfg.unmapped = axis::solver::UnmappedAction::Ignore;
-    plan.matrix = axis::solver::WeightGenerator::generate<Kokkos::HostSpace>(src_mesh, dst_mesh, cfg);
-    plan.matrix.to_csr();
-    plan.built = true;
-    return plan;
-}
 
 // Non-uniform latitude centers over [-90, 90] with varying cell widths.
 std::vector<double> nonuniform_lats(int n, double phase) {
@@ -93,6 +69,8 @@ void check_band_equals_global(int src_nx, int src_ny, int dst_nx, int dst_ny, co
     // Global reference: whole-grid band with globally-correct corners == whole grid.
     auto src_mesh_g = build_axis_mesh(src_nx, src_ny, src_lons, src_lats);
     auto dst_mesh_g = build_band_mesh_with_global_corners(dst_nx, 0, dst_ny, dst_lons, dst_lats);
+    RC_ASSERT(src_mesh_g.geometry_metadata().provenance == axis::topology::GeometryProvenance::Reconstructed);
+    RC_ASSERT(dst_mesh_g.geometry_metadata().provenance == axis::topology::GeometryProvenance::Reconstructed);
     RegridPlan gplan = MakePlanFromMeshes(src_nx, src_ny, std::move(src_mesh_g), std::move(dst_mesh_g), 0, dst_ny);
     std::vector<double> global;
     RC_ASSERT(apply_regrid_plan(gplan, 0, false, src.data(), src_nx, src_ny, dst_nx, global));

@@ -193,10 +193,7 @@ TEST_F(DiagnosticsWriterTest, DiagnosticVariableReachesOutputWithMetadata) {
 }
 
 // (b) An empty diagnostics payload changes nothing: the variable inventory is
-// exactly the coordinates plus the configured species. File-level
-// byte equality is not a usable signal here — NetCDF-4/HDF5 embeds a
-// nondeterministic superblock UUID — so the regression proof is the per-
-// variable content checksum in scripts/diagnostics_baseline.sh.
+// exactly the coordinates plus the configured species.
 TEST_F(DiagnosticsWriterTest, EmptyDiagnosticsPayloadChangesNothing) {
     const cece::CeceOutputConfig config = BaseConfig();
 

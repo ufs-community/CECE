@@ -28,8 +28,10 @@ void NativePhysicsExample::Initialize(const conf::Value& config, CeceDiagnosticM
     }
 
     std::cout << "NativePhysicsExample: Initialized.\n";
-    // Record this declaration in Phase 1 and allocate it during binding.
-    ResolveDiagnostic("native_example_diag");
+}
+
+std::vector<DiagnosticDeclaration> NativePhysicsExample::DeclaredDiagnostics(const conf::Value&) const {
+    return {{"native_example_diag", "1", "Example diagnostic value"}, {"native_example_multiplier", "1", "Configured NOx multiplier"}};
 }
 
 /**
@@ -42,6 +44,18 @@ void NativePhysicsExample::Initialize(const conf::Value& config, CeceDiagnosticM
  * @param export_state Output data.
  */
 void NativePhysicsExample::Run(CeceImportState& import_state, CeceExportState& export_state) {
+    // Demonstrate diagnostic publication even on a grid with no input streams.
+    auto example = ResolveDiagnostic("native_example_diag");
+    auto multiplier = ResolveDiagnostic("native_example_multiplier");
+    if (example.view_device().data() != nullptr) {
+        Kokkos::deep_copy(example.view_device(), 42.0);
+        example.modify_device();
+    }
+    if (multiplier.view_device().data() != nullptr) {
+        Kokkos::deep_copy(multiplier.view_device(), multiplier_);
+        multiplier.modify_device();
+    }
+
     auto base_nox = ResolveImport("base_anthropogenic_nox", import_state);
     auto multiplier_input = ResolveInput("multiplier_input", import_state, export_state);
     auto nox = ResolveExport("nox", export_state);

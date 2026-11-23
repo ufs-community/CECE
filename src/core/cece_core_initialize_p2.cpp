@@ -196,22 +196,14 @@ void cece_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc)
     std::cout << "INFO: Cached " << internal_data->esmf_fields.size() << " import field mappings" << std::endl;
 
     // 6. Bind the diagnostic manager into every scheme at the realized grid.
-    // Phase 1 created schemes with a null manager (the grid was unknown), so
-    // SetGrid allocates rank-local fields and BindDiagnostics refreshes scheme
-    // handles without repeating configuration or other initialization work.
+    // Allocate the pending declarations on this rank's band and refresh the
+    // schemes' handles without repeating initialization.
     if (internal_data->diagnostic_manager != nullptr) {
         CECE_LOG_INFO("[CECE] Binding diagnostic manager into " + std::to_string(internal_data->active_schemes.size()) + " schemes at grid " +
                       std::to_string(internal_data->nx) + "x" + std::to_string(internal_data->ny_local) + "x" + std::to_string(internal_data->nz) +
                       " (local band; global ny=" + std::to_string(internal_data->ny) + ")");
 
         internal_data->diagnostic_manager->SetGrid(internal_data->nx, internal_data->ny_local, internal_data->nz);
-
-        std::vector<std::string> species_names;
-        species_names.reserve(internal_data->config.species_layers.size());
-        for (const auto& [species_name, layers] : internal_data->config.species_layers) {
-            species_names.push_back(species_name);
-        }
-        internal_data->diagnostic_manager->SetReservedNames(std::move(species_names));
 
         for (std::size_t i = 0; i < internal_data->active_schemes.size() && i < internal_data->config.physics_schemes.size(); ++i) {
             try {

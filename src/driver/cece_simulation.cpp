@@ -34,22 +34,17 @@
 
 // CECE Core C-linkage lifecycle functions (framework-free C ABI, declared
 // the same way the standalone driver has always declared them).
+#include "cece/cece_c_api.h"
+
 extern "C" {
-void cece_set_config_file_path(const char* config_path, int path_len);
-void cece_run_log_setup(const char* config_path, int path_len);
-void cece_core_initialize_p1(void** data_ptr_ptr, int* rc);
-void cece_core_realize(void* data_ptr, int* rc);
-void cece_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc);
 void cece_core_set_band_geometry(void* data_ptr, int ny_local, int j0, int* rc);
-void cece_core_run(void* data_ptr, int hour, int day_of_week, int* rc);
-void cece_core_finalize(void* data_ptr, int* rc);
 void cece_core_writer_initialize_with_coords(void* data_ptr, int nx, int ny, int nz, const double* lon_coords, int lon_len, const double* lat_coords,
                                              int lat_len, const char* start_time_iso8601, int start_time_len, int mpi_comm_f, int* rc);
 void cece_core_write_step(void* data_ptr, double time_seconds, int step_index, int* rc);
 void cece_core_set_export_field(void* data_ptr, const char* name, int name_len, const double* field_data, int nx, int ny, int nz, int* rc);
 void cece_core_local_time_init(void* data_ptr, int nx, int ny, int nz, const double* lon_coords, int lon_len, const double* lat_coords, int lat_len,
                                int mpi_comm_f, int* rc);
-}
+}  // extern "C"
 
 namespace cece {
 
@@ -363,26 +358,14 @@ bool CeceSimulation::bind_export_field(const std::string& species, double* data_
     return true;
 }
 
-bool CeceSimulation::diagnostic_metadata(const std::string& name, std::string& units, std::string& long_name, int* rc) {
-    if (rc != nullptr) {
-        *rc = 0;
-    }
-
-    auto fail = [&](const std::string& msg) {
-        CECE_LOG_ERROR("[SIM] cece_sim_diagnostic_metadata: " + msg);
-        if (rc != nullptr) {
-            *rc = -1;
-        }
-        return false;
-    };
-
+void CeceSimulation::diagnostic_metadata(const std::string& name, std::string& units, std::string& long_name) {
     if (core_data_ptr_ == nullptr) {
-        return fail("simulation has no core data (not created, or already finalized)");
+        throw std::runtime_error("simulation has no core data (not created, or already finalized)");
     }
     auto* data = static_cast<cece::CeceInternalData*>(core_data_ptr_);
     const auto* manager = data->diagnostic_manager.get();
     if (manager == nullptr) {
-        return fail("diagnostic registry is absent (core phase 1/2 did not create it)");
+        throw std::runtime_error("diagnostic registry is absent (core phase 1/2 did not create it)");
     }
 
     // Metadata lives with whichever map holds the name: allocated fields win
@@ -394,62 +377,51 @@ bool CeceSimulation::diagnostic_metadata(const std::string& name, std::string& u
     if (auto it = fields.find(name); it != fields.end()) {
         units = it->second.units;
         long_name = it->second.long_name;
-        return true;
+        return;
     }
     const auto& pending = manager->PendingDeclarations();
     if (auto it = pending.find(name); it != pending.end()) {
         units = it->second.units;
         long_name = it->second.long_name;
-        return true;
+        return;
     }
-    return fail("no scheme registered diagnostic '" + name + "' (advertised from config, but never declared)");
+    throw std::runtime_error("no scheme registered diagnostic '" + name + "' (advertised from config, but never declared)");
 }
 
-bool CeceSimulation::bind_diagnostic_field(const std::string& name, double* data_ptr, int nx, int ny_local, int nz, int* rc) {
-    if (rc != nullptr) {
-        *rc = 0;
-    }
-
-    auto fail = [&](const std::string& msg) {
-        CECE_LOG_ERROR("[SIM] cece_sim_bind_diagnostic_field: " + msg);
-        if (rc != nullptr) {
-            *rc = -1;
-        }
-        return false;
-    };
-
+void CeceSimulation::bind_diagnostic_field(const std::string& name, double* data_ptr, int nx, int ny_local, int nz) {
     if (core_data_ptr_ == nullptr) {
-        return fail("simulation has no core data (not created, or already finalized)");
+        throw std::runtime_error("simulation has no core data (not created, or already finalized)");
     }
     if (data_ptr == nullptr && ny_local != 0) {
-        return fail("null data pointer for diagnostic '" + name + "'");
+        throw std::runtime_error("null data pointer for diagnostic '" + name + "'");
     }
     if (nx <= 0 || ny_local < 0 || nz <= 0) {
-        return fail("invalid extents (" + std::to_string(nx) + ", " + std::to_string(ny_local) + ", " + std::to_string(nz) + ") for diagnostic '" +
-                    name + "'");
+        throw std::runtime_error("invalid extents (" + std::to_string(nx) + ", " + std::to_string(ny_local) + ", " + std::to_string(nz) +
+                                 ") for diagnostic '" + name + "'");
     }
 
     auto* data = static_cast<cece::CeceInternalData*>(core_data_ptr_);
     const auto* manager = data->diagnostic_manager.get();
     if (manager == nullptr) {
-        return fail("diagnostic registry is absent (core phase 1/2 did not create it)");
+        throw std::runtime_error("diagnostic registry is absent (core phase 1/2 did not create it)");
     }
 
     // Typo guard: the name must be a registered or pending
     // diagnostic. The advertise list is path-derived, so a config name no
     // scheme declared fails here with the name in the message.
     if (!manager->Fields().contains(name) && !manager->PendingDeclarations().contains(name)) {
-        return fail("'" + name + "' is not a registered diagnostic");
+        throw std::runtime_error("'" + name + "' is not a registered diagnostic");
     }
 
     // The ESMF field and diagnostic registry both carry this rank's band.
     if (nx != data->nx || ny_local != manager->ny() || nz != data->nz) {
-        return fail("extent mismatch for diagnostic '" + name + "': field (" + std::to_string(nx) + ", " + std::to_string(ny_local) + ", " +
-                    std::to_string(nz) + ") != core grid (" + std::to_string(data->nx) + ", *, " + std::to_string(data->nz) + ")");
+        throw std::runtime_error("extent mismatch for diagnostic '" + name + "': field (" + std::to_string(nx) + ", " + std::to_string(ny_local) +
+                                 ", " + std::to_string(nz) + ") != core grid (" + std::to_string(data->nx) + ", *, " + std::to_string(data->nz) +
+                                 ")");
     }
     if (ny_local != band_.ny_local || ny_local != data->ny_local) {
-        return fail("band mismatch for diagnostic '" + name + "': field ny_local=" + std::to_string(ny_local) +
-                    " != facade band ny_local=" + std::to_string(band_.ny_local));
+        throw std::runtime_error("band mismatch for diagnostic '" + name + "': field ny_local=" + std::to_string(ny_local) +
+                                 " != facade band ny_local=" + std::to_string(band_.ny_local));
     }
 
     // ESMF owns this band-local memory; the core only copies into it. A null
@@ -457,39 +429,27 @@ bool CeceSimulation::bind_diagnostic_field(const std::string& name, double* data
     data->persistent_diagnostic_ptrs[name] = data_ptr;
     CECE_LOG_INFO("[SIM] Bound diagnostic '" + name + "' to coupled storage (" + std::to_string(nx) + "x" + std::to_string(ny_local) + "x" +
                   std::to_string(nz) + ")");
-    return true;
 }
 
-bool CeceSimulation::diagnostic_host_copy(const std::string& name, double* out, int out_max, int* count_out, int* rc) {
-    if (rc != nullptr) {
-        *rc = 0;
-    }
+void CeceSimulation::diagnostic_host_copy(const std::string& name, double* out, int out_max, int* count_out) {
     if (count_out != nullptr) {
         *count_out = 0;
     }
 
-    auto fail = [&](const std::string& msg) {
-        CECE_LOG_ERROR("[SIM] cece_sim_diagnostic_host_copy: " + msg);
-        if (rc != nullptr) {
-            *rc = -1;
-        }
-        return false;
-    };
-
     if (core_data_ptr_ == nullptr) {
-        return fail("simulation has no core data (not created, or already finalized)");
+        throw std::runtime_error("simulation has no core data (not created, or already finalized)");
     }
     if (out == nullptr && out_max != 0) {
-        return fail("null destination buffer for diagnostic '" + name + "'");
+        throw std::runtime_error("null destination buffer for diagnostic '" + name + "'");
     }
     auto* data = static_cast<cece::CeceInternalData*>(core_data_ptr_);
     auto* manager = data->diagnostic_manager.get();
     if (manager == nullptr) {
-        return fail("diagnostic registry is absent (core phase 1/2 did not create it)");
+        throw std::runtime_error("diagnostic registry is absent (core phase 1/2 did not create it)");
     }
 
     if (!manager->Fields().contains(name)) {
-        return fail("'" + name + "' is not an allocated diagnostic");
+        throw std::runtime_error("'" + name + "' is not an allocated diagnostic");
     }
     auto host = manager->SyncHost(name);
 
@@ -500,13 +460,12 @@ bool CeceSimulation::diagnostic_host_copy(const std::string& name, double* out, 
         *count_out = total;
     }
     if (total > out_max) {
-        return fail("destination buffer too small for diagnostic '" + name + "': capacity " + std::to_string(out_max) + " < " +
-                    std::to_string(total));
+        throw std::runtime_error("destination buffer too small for diagnostic '" + name + "': capacity " + std::to_string(out_max) + " < " +
+                                 std::to_string(total));
     }
     if (total > 0) {
         std::memcpy(out, host.data(), static_cast<size_t>(total) * sizeof(double));
     }
-    return true;
 }
 
 bool CeceSimulation::set_import_field(const std::string& field, const double* data_ptr, int nx, int ny_local, int* rc) {

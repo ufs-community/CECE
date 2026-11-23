@@ -179,7 +179,7 @@ void cece_core_diagnostic_long_name(void* data_ptr, int index, char* long_name, 
 /**
  * @brief Register a caller-owned buffer as the persistent write-back target
  * for the named diagnostic (cap Realize). The name must already be a
- * registered or pending diagnostic and the extents must match the core grid;
+ * registered or pending diagnostic and the extents must match the rank-local core grid;
  * re-registering a name overwrites the previous pointer. The core never
  * frees the buffer (ESMF owns the memory).
  */
@@ -188,7 +188,8 @@ void cece_core_set_diagnostic_field(void* data_ptr, const char* name, int name_l
 /**
  * @brief Count the diagnostics the NUOPC cap should advertise, enumerated
  * from the config YAML at @p config_path (path_len bytes). Valid before any
- * simulation exists; a disabled or empty selection yields zero.
+ * simulation exists. A disabled channel yields zero. An empty selection
+ * advertises all declarations.
  */
 void cece_nuopc_diagnostic_count(const char* config_path, int path_len, int* count, int* rc);
 

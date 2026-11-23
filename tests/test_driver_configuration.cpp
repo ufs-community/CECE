@@ -122,6 +122,22 @@ cece_data:
     EXPECT_EQ(config.cece_data.streams.front().mapalgo, "bilinear");
 }
 
+TEST_F(DriverConfigurationTest, GeometryReconstructionIsNormalizedToLowercase) {
+    WriteConfigFile(test_config_file, R"(
+driver:
+  geometry_reconstruction: Rectilinear_Midpoint
+cece_data:
+  streams:
+    - name: CO
+      file: emissions.nc
+      geometry_reconstruction: Gaussian_LatLon
+)");
+    const auto config = ParseConfig(test_config_file);
+    EXPECT_EQ(config.driver_config.geometry_reconstruction, "rectilinear_midpoint");
+    ASSERT_EQ(config.cece_data.streams.size(), 1);
+    EXPECT_EQ(config.cece_data.streams.front().geometry_reconstruction, "gaussian_latlon");
+}
+
 TEST_F(DriverConfigurationTest, StreamDefaultsMatchStandaloneDriver) {
     WriteConfigFile(test_config_file, R"(
 cece_data:
@@ -1177,5 +1193,58 @@ species:
       use_local_time: true
 )");
 
+    EXPECT_THROW(ParseConfig(test_config_file), std::invalid_argument);
+}
+
+TEST_F(DriverConfigurationTest, StreamLocalTimeOptInParses) {
+    WriteConfigFile(test_config_file, R"(
+local_time:
+  enabled: true
+
+species:
+  CO:
+    - operation: add
+      field: CO_anthro
+
+cece_data:
+  streams:
+    - name: weekly_factors
+      file: weekly.nc
+      cadence: weekly
+      use_local_time: true
+    - name: utc_factors
+      file: weekly.nc
+      cadence: weekly
+)");
+
+    CeceConfig config = ParseConfig(test_config_file);
+    ASSERT_EQ(config.cece_data.streams.size(), 2u);
+    EXPECT_TRUE(config.cece_data.streams[0].use_local_time);
+    EXPECT_FALSE(config.cece_data.streams[1].use_local_time);
+}
+
+TEST_F(DriverConfigurationTest, StreamLocalTimeRejectsInvalidCombinations) {
+    const auto config_with_stream = [](const std::string& local_time_enabled, const std::string& stream_keys) {
+        return "local_time:\n  enabled: " + local_time_enabled +
+               "\n\nspecies:\n  CO:\n    - operation: add\n      field: CO_anthro\n\ncece_data:\n  streams:\n    - name: s\n      file: s.nc\n" +
+               stream_keys;
+    };
+
+    // Feature disabled: would silently fall back to UTC.
+    WriteConfigFile(test_config_file, config_with_stream("false", "      cadence: weekly\n      use_local_time: true\n"));
+    EXPECT_THROW(ParseConfig(test_config_file), std::invalid_argument);
+
+    // Only weekly cadence is supported.
+    WriteConfigFile(test_config_file, config_with_stream("true", "      cadence: hourly\n      use_local_time: true\n"));
+    EXPECT_THROW(ParseConfig(test_config_file), std::invalid_argument);
+    WriteConfigFile(test_config_file, config_with_stream("true", "      use_local_time: true\n"));
+    EXPECT_THROW(ParseConfig(test_config_file), std::invalid_argument);
+
+    // Only nearest record selection is supported.
+    WriteConfigFile(test_config_file, config_with_stream("true", "      cadence: weekly\n      tintalgo: linear\n      use_local_time: true\n"));
+    EXPECT_THROW(ParseConfig(test_config_file), std::invalid_argument);
+
+    // EarthAccess streams never reach the local-time path, so the flag must not be silently ignored.
+    WriteConfigFile(test_config_file, config_with_stream("true", "      source: earthaccess\n      cadence: weekly\n      use_local_time: true\n"));
     EXPECT_THROW(ParseConfig(test_config_file), std::invalid_argument);
 }

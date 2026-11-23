@@ -36,6 +36,12 @@ class PhysicsScheme {
      */
     virtual void Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) = 0;
 
+    /// Declare intrinsic diagnostics using configuration only. The cap may
+    /// query these before Kokkos or the simulation grid is initialized.
+    virtual std::vector<DiagnosticDeclaration> DeclaredDiagnostics(const conf::Value& /*config*/) const {
+        return {};
+    }
+
     /// Bind diagnostics after initialization once the realized grid is known.
     virtual void BindDiagnostics(CeceDiagnosticManager* /*diag_manager*/) {}
 
@@ -95,27 +101,16 @@ class BasePhysicsScheme : public PhysicsScheme {
             }
         }
 
-        if (diag_manager_ != nullptr) {
-            conf::Value diags = config["diagnostics"];
-            if (diags.is_defined()) {
-                for (std::size_t i = 0; i < diags.size(); ++i) {
-                    std::string diag_name = diags[i].as_string();
-                    diag_manager_->RegisterDiagnostic(diag_name);
-                    registered_diagnostics_.push_back(diag_name);
-                }
+        const auto configured = config["diagnostics"];
+        if (configured.is_defined()) {
+            for (std::size_t i = 0; i < configured.size(); ++i) {
+                const auto name = configured[i].as_string();
+                ResolveDiagnostic(name);
+                registered_diagnostics_.push_back(name);
             }
-        } else {
-            // No manager bound (Phase 1): record the config-declared diagnostics
-            // as pending declarations so they survive to Phase 2 binding and cap
-            // advertisement instead of being silently dropped.
-            conf::Value diags = config["diagnostics"];
-            if (diags.is_defined()) {
-                for (std::size_t i = 0; i < diags.size(); ++i) {
-                    std::string diag_name = diags[i].as_string();
-                    RecordPendingDeclaration(diag_name, "", "");
-                    registered_diagnostics_.push_back(diag_name);
-                }
-            }
+        }
+        for (const auto& declaration : DeclaredDiagnostics(config)) {
+            ResolveDiagnostic(declaration.name, declaration.units, declaration.long_name);
         }
     }
 

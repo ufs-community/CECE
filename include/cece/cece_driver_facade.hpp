@@ -4,8 +4,11 @@
 #include <amio/amio.h>
 #include <mpi.h>
 
+#include <Kokkos_Core.hpp>
+#include <conf/conf.hpp>
 #include <cstddef>
 #include <dagr/dagr.hpp>
+#include <functional>
 #include <halo/collectives.hpp>
 #include <halo/communicator.hpp>
 #include <halo/environment.hpp>
@@ -20,15 +23,10 @@
 #include "cece/cece_regridder_utils.hpp"
 #include "cece/cece_time_indexing.hpp"
 
-// Forward declaration only: the header never touches yaml-cpp; the member
-// taking a const YAML::Node& is defined in the .cpp, which includes yaml.h.
-namespace YAML {
-class Node;
-}
-
 namespace cece {
 
 using detail::RecordBracket;
+using detail::SimDateTime;
 
 /**
  * @brief Resolved per-stream-variable configuration.
@@ -37,8 +35,10 @@ using detail::RecordBracket;
  * configuration + file, never on simulation time.
  */
 struct StreamConfig {
-    std::string input_file_path;    ///< stream["file"]; "" => missing (Req 1.4)
-    std::string input_var_name;     ///< resolved file var name (falls back to model name)
+    std::string input_file_path;      ///< stream["file"]; "" => missing (Req 1.4)
+    std::string input_var_name;       ///< resolved file var name (falls back to model name)
+    std::string input_gridspec_file;  ///< stream["gridspec_file"]; "" => missing
+    cece::io::GeometrySettings source_geometry;
     std::string mapalgo = "consd";  ///< default matches current AdvanceTime
     std::string cadence;            ///< "" => series (time-aware default)
     int yearFirst = 0;              ///< 0 = unknown/climatology
@@ -50,6 +50,7 @@ struct StreamConfig {
     std::string time_units;            ///< override for a missing/non-standard "units" attribute
     std::string calendar;              ///< "" -> file attribute, else gregorian
     std::string time_label = "auto";   ///< auto|start|center|end; monthly start auto-detects month-start stamps
+    bool use_local_time = false;       ///< weekly cadence only: pick each cell's record by its local weekday
     std::string data_model = "enhanced";
     bool data_model_explicit = false;                   ///< true => open with only data_model
     int amio_worker_threads = 1;                        ///< driver-level, validated >= 1
@@ -100,6 +101,18 @@ struct EndpointCacheEntry {
     int built_ny = 0;  ///< stores ny_local (this rank's band rows), compared against band_.ny_local
 };
 
+/**
+ * @brief Regridded weekly records held for a use_local_time stream variable.
+ *
+ * Holds at most the 3-record window around the UTC weekday. Each entry is a band
+ * buffer (field_nlev * nx_ * ny_local, [level][jrel][i]) keyed by weekly record
+ * index (0=Monday).
+ */
+struct LocalWeeklyCacheEntry {
+    std::unordered_map<int, std::vector<double>> records;
+    Kokkos::View<std::int32_t**, Kokkos::LayoutLeft, Kokkos::HostSpace> offsets;  ///< band-local UTC offsets (s)
+};
+
 class CeceDriverOrchestrator {
    public:
     CeceDriverOrchestrator(const std::string& config_file, int nx, int ny, int nz, const double* lon_coords, int lon_len, const double* lat_coords,
@@ -129,6 +142,11 @@ class CeceDriverOrchestrator {
     bool TeardownHandles();
 
    private:
+    struct SourceGeometryRevision {
+        std::string file_signature;
+        std::uint64_t revision{0};
+    };
+
     using DeviceView3D = Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>;
 
     // Recompose one source record into this rank's LATITUDE-BAND import field:
@@ -173,6 +191,15 @@ class CeceDriverOrchestrator {
     // global field. Local work plus the single core-import-shape collective gate.
     bool WriteBandToImport(const std::string& var_name, const std::vector<double>& dest_buffer, int field_nlev, void* cece_core_data_ptr,
                            std::string& failure_detail);
+
+    // use_local_time weekly streams: regrid the 3-record window around the UTC
+    // weekday (identical on every rank, so the collectives inside
+    // RegridToBandBuffer stay in lock-step), then fill each band cell from the
+    // record of its LOCAL weekday and write the result to the core import field.
+    // read_record reads source record t_idx into a global-geometry buffer.
+    bool ComposeLocalWeeklyField(const std::string& var_name, const io::RegridPlan& plan, int field_nlev, int file_nt, const SimDateTime& sim_dt,
+                                 const std::function<bool(int, std::vector<double>&, int&, int&)>& read_record, void* cece_core_data_ptr,
+                                 std::vector<double>& ingest_buffer, std::string& failure_detail);
 
     /** Return whether the YAML config contains streams handled by EarthAccess. */
     static bool HasEarthAccessStreams(const std::string& config_file);
@@ -221,7 +248,7 @@ class CeceDriverOrchestrator {
     // ResolveStreamConfigsFromFile stream loop, which had grown to ~40 lines
     // of per-field if/else logic; the loop now keeps only the iteration and
     // first-match-wins bookkeeping. Behavior is unchanged.
-    static StreamConfig BuildStreamConfig(const YAML::Node& stream, const std::string& model_name, const std::string& file_name,
+    static StreamConfig BuildStreamConfig(const conf::Value& stream, const std::string& model_name, const std::string& file_name,
                                           int amio_worker_threads, int amio_staging_buffer_count, int amio_staging_buffer_capacity_bytes,
                                           int amio_prefetch_depth);
 
@@ -248,12 +275,16 @@ class CeceDriverOrchestrator {
     // HandleKey and mapalgo produce the same key and share one regrid plan.
     static std::string StreamKey(const StreamConfig& cfg);
 
+    // Add geometry revisions, canonical method settings and this rank's
+    // destination partition to the stream identity used by the plan cache.
+    std::string GeometryPlanKey(const StreamConfig& cfg) const;
+
     // Invalidate (valid = false) the endpoint cache entry of every variable
-    // whose computed StreamKey matches stream_key. Called when a regrid_plans_
+    // whose computed GeometryPlanKey matches stream_key. Called when a regrid_plans_
     // entry is built or rebuilt for that stream, because cached endpoints depend
     // on the plan and must be rebuilt before reuse (Req 6.2). endpoint_caches_
     // is keyed by var_name while regrid_plans_ is keyed by stream_key, so the
-    // var_name->stream_key mapping is derived from stream_configs_ + StreamKey.
+    // var_name->stream_key mapping is derived from stream_configs_ + GeometryPlanKey.
     void InvalidateEndpointCachesForStream(const std::string& stream_key);
 
     // Tolerance for comparing two resolved bracket weights for equality.
@@ -345,12 +376,15 @@ class CeceDriverOrchestrator {
     // band_.j0 / band_.j1 preserve those identical values (Req 1.1, 1.2, 1.5).
     BandDecomposition band_;
 
-    // Cached regridding plans keyed by Stream_Identity_Key, now
-    // = HandleKey + "|" + mapalgo. Variables that share a HandleKey but differ
-    // in mapalgo get distinct plans; the plan splits only when mapalgo differs.
+    // Cached regridding plans keyed by geometry revision, canonical method,
+    // backend, and local destination partition. AMIO handles remain keyed by
+    // HandleKey and are reused when a geometry file revision changes.
     // The interpolation weights depend only on source grid, target grid, and
     // mapping algorithm — not on the variable name.
     std::unordered_map<std::string, io::RegridPlan> regrid_plans_;
+    // Loaded geometry fingerprints are paired with the source file signature
+    // so the content snapshot is reused while that file revision stays fixed.
+    std::unordered_map<std::string, SourceGeometryRevision> source_geometry_revisions_;
 
     // File record counts keyed by Handle_Identity_Key (input_file_path +
     // data_model + worker_threads + staging_buffer_count). The record-count
@@ -390,10 +424,15 @@ class CeceDriverOrchestrator {
     // (Req 1, 7). Cleared in TeardownHandles (Req 6.3).
     std::unordered_map<std::string, EndpointCacheEntry> endpoint_caches_;
 
+    // Regridded weekly records for use_local_time streams, keyed by model variable name.
+    std::unordered_map<std::string, LocalWeeklyCacheEntry> local_weekly_caches_;
+
     // HELM Orchestration and pipeline components
     std::unique_ptr<dagr::GraphOrchestrator> dagr_;
     std::unique_ptr<io::CeceIO> cece_io_;
     std::string gridspec_file_;
+    io::GeometrySettings destination_geometry_settings_;
+    std::string destination_geometry_revision_;
 
     // Test-only access to the private static StreamKey helper. Grants the
     // property test (tests/test_stream_key_properties.cpp) permission to

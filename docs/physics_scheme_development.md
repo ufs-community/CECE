@@ -634,8 +634,8 @@ Diagnostic fields are optional intermediate variables useful for validation and 
 
 The simplest way to register diagnostics is to declare their names in the
 scheme's YAML options. `BasePhysicsScheme::Initialize` reads the `diagnostics:`
-list and registers each name with the diagnostic manager once the manager and
-simulation grid are available, so a scheme needs no registration code:
+list and registers each name in Phase 1. The manager allocates the fields when
+Phase 2 sets the local grid:
 
 <!-- cece-validate: context physics_schemes -->
 ```yaml
@@ -645,27 +645,29 @@ physics_schemes:
       diagnostics: [temperature_factor, solar_factor]
 ```
 
-A scheme that needs units or a long name for a field — or that derives its
-diagnostic names at runtime instead of listing them in config — can register
-them directly in `Initialize` with `ResolveDiagnostic`:
+Use `DeclaredDiagnostics` for fields declared in C++ or fields with metadata.
+The NUOPC cap calls this method before the runtime or grid exists, so derive
+the declarations from configuration only. The base class registers them
+during initialization.
 
 ```cpp
-void MyScheme::Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) {
-    BasePhysicsScheme::Initialize(config, diag_manager);
+std::vector<DiagnosticDeclaration> MyScheme::DeclaredDiagnostics(const conf::Value&) const {
+    return {{"temperature_factor", "1", "Temperature scaling factor"}};
+}
 
-    temperature_factor_ = ResolveDiagnostic("temperature_factor", "dimensionless",
-                                            "Temperature scaling factor");
+void MyScheme::BindDiagnostics(CeceDiagnosticManager* diag_manager) {
+    BasePhysicsScheme::BindDiagnostics(diag_manager);
+    temperature_factor_ = ResolveDiagnostic("temperature_factor");
 }
 ```
 
-`ResolveDiagnostic` returns the registry's shared `DualView3D` handle for the
-name, registering it if it is not already present. Listing a name in both the
-options and `ResolveDiagnostic` is harmless — the second call returns the same
-field.
+CECE calls `BindDiagnostics` after it sets the rank-local grid. Save the shared
+`DualView3D` handle at that point. Calling `ResolveDiagnostic` with an existing
+name retrieves the same field and preserves its registered metadata.
 
 ### Writing to Diagnostic Fields
 
-Resolve the field once in `Initialize` (as above), take its device view in
+After acquiring the field in `BindDiagnostics`, take its device view in
 `Run`, write inside the Kokkos kernel, and mark the data modified on the device
 so the framework syncs the host copy before output:
 

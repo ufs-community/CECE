@@ -252,16 +252,16 @@ contains
     exportState = CECE_GetExportState()
 
     ! #1: the selected diagnostic is present by its advertised name.
-    call ESMF_StateGet(exportState, 'temperature_anomaly', field, rc=rc)
-    if (rc /= ESMF_SUCCESS) call die('temperature_anomaly absent from exportState', rc)
+    call ESMF_StateGet(exportState, 'native_example_diag', field, rc=rc)
+    if (rc /= ESMF_SUCCESS) call die('native_example_diag absent from exportState', rc)
 
     ! Realized Units/LongName equal the registry.
     call ESMF_AttributeGet(field, name='Units', value=units, rc=rc)
     if (rc /= ESMF_SUCCESS) call die('Units attribute missing', rc)
-    if (trim(units) /= 'K') call fail('Units != K')
+    if (trim(units) /= '1') call fail('Units != 1')
     call ESMF_AttributeGet(field, name='LongName', value=long_name, rc=rc)
     if (rc /= ESMF_SUCCESS) call die('LongName attribute missing', rc)
-    if (trim(long_name) /= 'Temperature deviation from reference') call fail('LongName mismatch')
+    if (trim(long_name) /= 'Example diagnostic value') call fail('LongName mismatch')
 
     ! #2: ESMF buffer == registry host view, element-wise (single rank).
     nullify(fptr)
@@ -279,8 +279,8 @@ contains
     if (.not. c_associated(sim)) call fail('sim handle null after run')
 
     allocate(reg(n_field))
-    call cece_sim_diagnostic_host_copy(sim, 'temperature_anomaly'//c_null_char, &
-      int(len('temperature_anomaly'), c_int), reg, int(n_field, c_int), count_c, c_rc)
+    call cece_sim_diagnostic_host_copy(sim, 'native_example_diag'//c_null_char, &
+      int(len('native_example_diag'), c_int), reg, int(n_field, c_int), count_c, c_rc)
     if (c_rc /= 0) call die('registry host copy failed', int(c_rc))
     if (int(count_c) /= n_field) call fail('registry size != field size')
 
@@ -295,10 +295,7 @@ contains
       end if
     end do
 
-    ! The fixture intentionally has no temperature or emissions imports.
-    ! The example scheme must skip computation instead of substituting zeros
-    ! and manufacturing a plausible-looking temperature anomaly.
-    if (reg(1) /= 0.0_c_double) call fail('diagnostic changed despite missing required inputs')
+    if (any(reg /= 42.0_c_double)) call fail('expected the computed diagnostic value 42')
 
     ! #4 (guard): a name no scheme registered must fail the metadata read and
     ! the binder, each with rc<0. (The config path structurally prevents an
@@ -336,7 +333,7 @@ contains
 
     ! And the export state must contain no diagnostic channel.
     exportState = CECE_GetExportState()
-    call ESMF_StateGet(exportState, 'temperature_anomaly', field, rc=rc)
+    call ESMF_StateGet(exportState, 'native_example_diag', field, rc=rc)
     if (rc == ESMF_SUCCESS) call fail('diagnostic present with include_diagnostics off')
     rc = ESMF_SUCCESS
 

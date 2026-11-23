@@ -23,12 +23,14 @@ Two modes:
   --rebin SOURCE.rle     Resample an existing grid (v1 headerless 1440x2880 or
                          v2 self-describing) onto the reduced lattice by
                          nearest-cell lookup. Pure stdlib, deterministic, and
-                         byte-consistent with the source data. This produces the
-                         shipped file.
+                         byte-consistent with the source data.
 
-  --from-timezones       Rasterize the globe with ``timezonefinder`` at
-                         --ref-date, then emit the reduced layout. Needs the
-                         third-party dep; imported lazily so --rebin never does.
+  --from-timezones       Rasterize the globe with ``timezonefinder`` and emit the
+                         reduced layout. Each cell holds its zone's standard
+                         (non-DST) offset, the smaller of the zone's offsets on
+                         mid-January and mid-July. Needs the third-party dep;
+                         imported lazily so --rebin never does. This produces
+                         the shipped file.
 
 Both write the same header + RLE stream.
 """
@@ -36,6 +38,7 @@ Both write the same header + RLE stream.
 import argparse
 import math
 import struct
+import zoneinfo
 from datetime import datetime, timezone
 
 # ---------------------------------------------------------------------------
@@ -49,6 +52,13 @@ NROWS = 2 * N  # latitude rows: 180 deg / step -> 1440
 STEP = 180.0 / NROWS  # degrees; ~14 km at the equator -> 0.125
 FULL_NCOL = 4 * N  # equatorial / v1 column count -> 2880
 MAGIC = b"UTC1"
+
+# Noon keeps both instants away from the local-midnight date boundary, and both are
+# mid-month, far from any DST transition.
+STANDARD_TIME_REF_DATES = (
+    datetime(2026, 1, 15, 12, tzinfo=timezone.utc),
+    datetime(2026, 7, 15, 12, tzinfo=timezone.utc),
+)
 
 
 def row_center_lat(row: int) -> float:
@@ -134,23 +144,40 @@ def rebin(src_ncols, src_cells) -> bytearray:
 # ---------------------------------------------------------------------------
 # Timezone rasterization (lazy import; only --from-timezones needs it)
 # ---------------------------------------------------------------------------
-def rasterize_from_timezones(ref_date: datetime) -> bytearray:
-    import zoneinfo
+def standard_offset_units(tz_name: str) -> int:
+    """Standard (non-DST) UTC offset of a zone, in 15-minute units.
 
+    This is the smaller of the zone's offsets on the two instants in
+    STANDARD_TIME_REF_DATES. One of them falls in each hemisphere's winter, so the
+    smaller offset is the non-DST one on either side of the equator. It also
+    gives GMT for Ireland, which tzdata models as +01 with a negative DST in
+    winter, and leaves Morocco at +01 because neither instant is in Ramadan.
+    """
+    tz = zoneinfo.ZoneInfo(tz_name)
+    secs = min(
+        ref.astimezone(tz).utcoffset().total_seconds()
+        for ref in STANDARD_TIME_REF_DATES
+    )
+    units = round(secs / 900.0)
+    if not -128 <= units <= 127:
+        raise ValueError(f"{tz_name} offset {secs / 3600:+g} h does not fit in int8")
+    return units
+
+
+def rasterize_from_timezones() -> bytearray:
     from timezonefinder import TimezoneFinder  # lazy: --rebin needs no third-party deps
 
     tf = TimezoneFinder(in_memory=True)
+    zone_offsets: dict = {}
 
     def offset_units(lat: float, lon: float) -> int:
         tz_name = tf.timezone_at(lat=lat, lng=lon)
-        if not tz_name:
-            return 0  # ocean / unresolved -> UTC
-        try:
-            tz = zoneinfo.ZoneInfo(tz_name)
-            secs = ref_date.astimezone(tz).utcoffset().total_seconds()
-            return max(-128, min(127, round(secs / 900.0)))
-        except (zoneinfo.ZoneInfoNotFoundError, OverflowError, ValueError):
-            return 0
+        if tz_name is None:
+            # timezone_at covers oceans (Etc/GMT*), so None means a lookup failure.
+            raise ValueError(f"No timezone found for lat={lat}, lon={lon}")
+        if tz_name not in zone_offsets:
+            zone_offsets[tz_name] = standard_offset_units(tz_name)
+        return zone_offsets[tz_name]
 
     out = bytearray()
     for row in range(NROWS):
@@ -208,15 +235,6 @@ def main():
         default=f"utc_grid_{N}r.rle",
         help="output path (default derived from the grid parameter N)",
     )
-    ap.add_argument(
-        "--ref-date",
-        # Arbitrary mid-month noon UTC snapshot. The shipped grid is produced
-        # with --rebin, so this instant only matters for --from-timezones
-        # regeneration. Noon keeps the snapshot away from the local-midnight
-        # date boundary, and mid-January is far from any DST transition.
-        default="2026-01-15T12:00:00",
-        help="timezone snapshot instant (UTC)",
-    )
     args = ap.parse_args()
 
     ncols = reduced_ncols()
@@ -233,9 +251,8 @@ def main():
         )
         cells = rebin(src_ncols, src_cells)
     else:
-        ref = datetime.fromisoformat(args.ref_date).replace(tzinfo=timezone.utc)
-        print(f"Rasterizing globe from timezones at {ref.isoformat()} ...")
-        cells = rasterize_from_timezones(ref)
+        print("Rasterizing globe from timezones (standard time) ...")
+        cells = rasterize_from_timezones()
 
     size = write_v2(cells, args.output)
     print(f"Success! Saved to {args.output} ({size / 1024:.2f} KB, {total:,} cells)")

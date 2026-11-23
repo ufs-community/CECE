@@ -193,15 +193,8 @@ class CeceSimulation {
     /// against ESMF 8.9.1), so the realized field is the first place a
     /// consumer can read them.
     ///
-    /// The name must exist in the registry (allocated field or pending
-    /// declaration). A name the config selected but no scheme ever registered
-    /// fails with *rc < 0 and a logged diagnostic that names it — this is the
-    /// realization-abort edge case: the advertise set is
-    /// path-derived, so an unregistered selection reaches realize and must
-    /// abort rather than silently drop the channel.
-    ///
-    /// @return true on success; false with *rc < 0 on an unknown name.
-    bool diagnostic_metadata(const std::string& name, std::string& units, std::string& long_name, int* rc);
+    /// Throws if the diagnostic is absent from the registry.
+    void diagnostic_metadata(const std::string& name, std::string& units, std::string& long_name);
 
     /// Bind a realized diagnostic field's ESMF-owned memory as the persistent
     /// write-back target for `name`. Mirrors bind_export_field, but the
@@ -216,9 +209,8 @@ class CeceSimulation {
     /// loudly instead of writing back out of bounds. `data_ptr` is borrowed:
     /// ESMF owns the memory and the core never frees or reallocates it.
     ///
-    /// @return true on success; false with *rc < 0 and a logged diagnostic on
-    ///         unknown name, null/invalid extents, or a band mismatch.
-    bool bind_diagnostic_field(const std::string& name, double* data_ptr, int nx, int ny_local, int nz, int* rc);
+    /// Throws on an unknown name, invalid buffer, or band mismatch.
+    void bind_diagnostic_field(const std::string& name, double* data_ptr, int nx, int ny_local, int nz);
 
     /// Sync the registry field for `name` and copy its rank-local host values
     /// into @p out (LayoutLeft order, nx*ny_local*nz doubles). Used by the coupled
@@ -227,10 +219,9 @@ class CeceSimulation {
     /// single rank the ESMF field is the whole grid, so the two buffers must
     /// be element-for-element identical once the per-advance sync has run.
     ///
-    /// @return true on success; false with *rc < 0 on unknown name, a null
-    ///         out buffer, or insufficient capacity (*count_out still reports
-    ///         the required element count).
-    bool diagnostic_host_copy(const std::string& name, double* out, int out_max, int* count_out, int* rc);
+    /// Throws on invalid input or insufficient capacity. On a capacity error,
+    /// *count_out still reports the required element count.
+    void diagnostic_host_copy(const std::string& name, double* out, int out_max, int* count_out);
 
     /// Copy a connected import field's ESMF-owned host memory into the core's
     /// import state for the current step (the NUOPC import binder). The
