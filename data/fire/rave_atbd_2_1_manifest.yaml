@@ -97,3 +97,12 @@ candidate_vegetation_source:
     content checksum have not been verified. This VIIRS 2020 source is not
     established as the ATBD's compatible 2019 MODIS ancillary. The multipart
     ETag is an object identifier, not a content checksum.
+
+other_candidate_surface_type:
+  source_manifest: gbbepx_v5_atbd_manifest.yaml
+  status: metadata_inspected_not_approved
+  notes: >-
+    NOAA NCEI distributes a 2019 VIIRS annual IGBP17 file with inspected
+    metadata and a full SHA256 recorded in the source manifest. Its year and
+    classes do not establish equivalence to the RAVE profile's 2019 MODIS
+    ancillary or its five-class aggregation.

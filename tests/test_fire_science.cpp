@@ -3,11 +3,44 @@
 #include <yaml-cpp/yaml.h>
 
 #include <algorithm>
+#include <cmath>
+#include <limits>
+#include <numbers>
 #include <stdexcept>
 #include <string>
 
 #include "cece/cece_fire_input.hpp"
 #include "support/cece_fire_test_fixtures.hpp"
+
+TEST(test_fire_science, ApproximateSwathAreaHandlesDateLineLatitudeAndDeletedPixels) {
+    std::vector<double> longitude{179.99, -180.0, -179.99, 179.99, -180.0, -179.99, 179.99, -180.0, -179.99};
+    const std::vector<double> latitude{59.99, 59.99, 59.99, 60.0, 60.0, 60.0, 60.01, 60.01, 60.01};
+    std::vector<std::uint8_t> deleted(9, 0);
+    deleted[0] = 1;
+    const auto areas = cece::FireApproximateSwathPixelAreas(3, 3, longitude, latitude, deleted);
+    ASSERT_EQ(areas.size(), 9);
+    EXPECT_DOUBLE_EQ(areas[0], 0);
+    constexpr double radius_m = 6371008.8;
+    const double radians = 0.01 * std::numbers::pi / 180.0;
+    const double expected = radius_m * radius_m * radians * radians * 0.5;
+    EXPECT_NEAR(areas[4], expected, expected * 1.0e-6);
+    EXPECT_NEAR(areas[5], expected, expected * 1.0e-6);
+    longitude[0] = std::numeric_limits<double>::quiet_NaN();
+    const auto areas_without_deleted_geolocation = cece::FireApproximateSwathPixelAreas(3, 3, longitude, latitude, deleted);
+    EXPECT_DOUBLE_EQ(areas_without_deleted_geolocation[0], 0);
+    EXPECT_NEAR(areas_without_deleted_geolocation[4], expected, expected * 1.0e-6);
+}
+
+TEST(test_fire_science, ApproximateSwathAreaRejectsMissingOrDegenerateGeometry) {
+    std::vector<double> longitude{0, 1, 0, 1};
+    std::vector<double> latitude{0, 0, 1, 1};
+    std::vector<std::uint8_t> deleted(4, 0);
+    EXPECT_THROW(cece::FireApproximateSwathPixelAreas(2, 2, {0}, latitude, deleted), std::invalid_argument);
+    longitude[0] = std::numeric_limits<double>::quiet_NaN();
+    EXPECT_THROW(cece::FireApproximateSwathPixelAreas(2, 2, longitude, latitude, deleted), std::invalid_argument);
+    longitude = {0, 0, 0, 0};
+    EXPECT_THROW(cece::FireApproximateSwathPixelAreas(2, 2, longitude, latitude, deleted), std::invalid_argument);
+}
 
 TEST(test_fire_science, SyntheticReferenceArithmeticIsInternallyConsistent) {
     const auto fixture = YAML::LoadFile(std::string(CECE_SOURCE_DIR) + "/tests/data/fire/synthetic_interval.yaml");

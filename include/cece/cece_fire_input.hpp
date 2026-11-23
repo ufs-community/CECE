@@ -103,6 +103,11 @@ std::shared_ptr<const FireGrid> MakeRectilinearFireGrid(int nx, int ny, const st
                                                         FireGridAreaModel area_model = FireGridAreaModel::ConstantLatitudeEdges);
 double FireGreatCirclePolygonArea(const std::array<double, 4>& longitude_deg, const std::array<double, 4>& latitude_deg);
 
+// Approximate local spherical Jacobian from swath centers; not polygon overlap
+// or a certified VIIRS footprint. Deleted pixels receive zero area.
+std::vector<double> FireApproximateSwathPixelAreas(std::size_t nx, std::size_t ny, const std::vector<double>& longitude_deg,
+                                                  const std::vector<double>& latitude_deg, const std::vector<std::uint8_t>& deleted);
+
 struct FireIdentityMetadata {
     int schema_version = 0;
     std::string source_id;

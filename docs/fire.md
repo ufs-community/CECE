@@ -357,6 +357,12 @@ emissions continue to bypass all FRP-to-emissions conversion.
 NOAA's linked VIIRS I-band active-fire ATBD documents an upstream sensor
 product; it is not the V5 emissions ATBD.
 
+An experimental swath-area helper estimates spherical pixel areas from local
+geolocation-center differences and excludes explicitly marked deleted pixels.
+This is not a certified VIIRS footprint or conservative cell-overlap method,
+and is not connected to a raw-input adapter or a runtime derivation profile.
+Cloud-covered land still requires a separately validated land/water mask.
+
 [The fixture schema](../tests/data/fire/fixture_schema.yaml) requires provenance,
 redistribution information and independent expected values/tolerances.
 [The constant-power fixture](../tests/data/fire/synthetic_interval.yaml) contains

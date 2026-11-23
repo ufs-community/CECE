@@ -17,9 +17,86 @@ algorithm_document:
     The document itself could not be retrieved or hashed. The notes below are
     based on search-indexed excerpts and must be checked against the complete,
     immutable ATBD before they are used as numerical acceptance criteria.
+    A second access attempt on 2026-11-23 also returned HTTP 403. The PDF
+    linked from the OSPO product page was verified as GBBEPx V3.1, not V5.
   redistribution:
     permitted: null
     basis: Document and derived-table redistribution rights have not been verified.
+
+user_supplied_methodology:
+  title: GBBEPx Version 5 Algorithm Theoretical Basis & Methodology
+  filename: GBBEPx_V5_Methodology_and_Equations.pdf
+  content_sha256: 7c3a194a53fd006628d08b77dc52e957b16e1dc588b2759660ffc2d56835d11e
+  inspected_at: "2026-11-23"
+  pages: 4
+  status: candidate_not_independently_verified
+  provenance: >-
+    User-supplied four-page methodology document. It is not the complete
+    2024 V5 ATBD referenced above; its equivalence to the operational V5
+    algorithm and coefficients has not been established.
+  scope: >-
+    Describes direct cloud-adjusted VIIRS FRP conversion, biome and
+    continent stratification, valid-sensor averaging and eight species.
+    It does not provide the full species-by-continent-by-biome V5
+    coefficient table or independent sensor-to-output reference scenes.
+  unresolved:
+    - >-
+      Its continental and biome reference tables reproduce the six-species
+      tables on page 25 of the accessible GBBEPx V3.1 ATBD. They do not
+      establish the missing V5 biome-specific NH3 and NOx coefficients.
+    - >-
+      Its coefficient heading equates 10^-9 kg/J with mg/MJ; these differ
+      by a factor of 1000. Confirm coefficient units from the V5 source.
+    - >-
+      It labels class 0 as water, whereas the inspected NOAA VIIRS IGBP17
+      file uses 0 as fill and 17 as water. Preserve source-specific missing
+      semantics; never silently treat fill as water or valid land.
+    - >-
+      It describes MODIS land cover, while the inspected candidate is VIIRS.
+      Verify the deployed V5 source, crosswalk and aggregation before use.
+    - >-
+      It gives a ratio as a calibration formula, while indexed excerpts of
+      the V5 ATBD describe a regression slope; confirm the regression method,
+      cloud edge cases and deployed blending against the full source.
+
+older_algorithm_document:
+  version: "3.1"
+  source_url: https://www.ospo.noaa.gov/resources/documents/pdf/GBBEPx_ATBD.pdf
+  content_sha256: 419652ea3773f586ed1267d09c04efe406d9b9802831e6b3a6fb2211e7722589
+  inspected_at: "2026-11-23"
+  requested_use: >-
+    The user requested using V3 documentation for missing V5 details.
+    Treat V3-derived information as a separately identified provisional proxy,
+    not as verified V5 coefficients or production science.
+  user_supplied_coefficient_scale:
+    value_kg_per_joule_per_table_unit: 1.0e-12
+    status: user_supplied_not_independently_verified
+    notes: >-
+      The user specified an omitted 10^-12 kg/J scale for V3.1 Table 2-5.
+      The V3.1 table itself does not state that multiplier. The four-page V5
+      summary instead states 10^-9 kg/J and contains a conflicting unit
+      equivalence; do not describe the user-supplied scale as independently
+      verified or apply it to a V5 coefficient table.
+  scope: >-
+    Older MODIS/VIIRS blended algorithm; not evidence that V5 uses the
+    same coefficients, class mapping or correction procedure.
+  proxy_limitations:
+    - >-
+      Table 2-5 provides continental VIIRS coefficients for six species:
+      CO2, CO, PM2.5, OC, BC and SO2. It contains neither NH3 nor NOx,
+      nor a separate coefficient for each biome.
+    - >-
+      The table heading declares kg/J but does not state a multiplier.
+      Independent confirmation of the user-supplied 10^-12 scale remains
+      outstanding.
+    - >-
+      Sections 2.3.2 and 2.3.3 describe an older VIIRS calibration and
+      blending with QFED; tables 1-1 identify 750 m VIIRS input. These do
+      not establish the V5 375 m calibration or sensor-only blend.
+    - >-
+      This document does not supply RAVE ABI/VIIRS fusion, ecoregional
+      diurnal reconstruction, the full eleven-species FRE chain, or the
+      independent V5 input/output scenes needed by T028-T029 and T041.
 
 upstream_active_fire_document:
   documentation_index: https://www.star.nesdis.noaa.gov/jpss/Docs.php
@@ -34,6 +111,45 @@ upstream_active_fire_document:
   redistribution:
     permitted: null
     basis: Redistribution rights have not been verified.
+
+candidate_raw_viirs_pair:
+  status: metadata_inspected_not_runtime_supported
+  source_registry: https://registry.opendata.aws/noaa-jpss/
+  selection: >-
+    User requested a runtime proxy accepting raw VIIRS inputs. This pair
+    was inspected to inform a possible decoder; it is not an output reference
+    and no raw-input runtime adapter has been implemented.
+  fire:
+    source_url: https://noaa-nesdis-n20-pds.s3.amazonaws.com/VIIRS_EFIRE_VIIRSI_EDR/2025/07/01/EFIRE-VIIRSI_v1r3_n20_s202507010000464_e202507010002109_c202507010024494.nc
+    content_sha256: fc5b4f8f61eaecd22ea38a0245d2f2249e617e51b4d1a5b63f90f9e8fa64bdaa
+    product_version: v1r3
+    platform: NOAA-20
+    interval_start: "2025-07-01T00:00:46Z"
+    interval_end: "2025-07-01T00:02:10Z"
+    fire_mask_shape: [1536, 6400]
+    number_of_fire_pixels: 0
+    frp_variable: FP_FireRadiativePower
+    frp_units: MW
+    fire_pixel_area_variable: FP_PixelArea
+    fire_pixel_area_units: km2
+  geolocation:
+    source_url: https://noaa-nesdis-n20-pds.s3.amazonaws.com/VIIRS-IMG-GEO-TC/2025/07/01/GITCO_j01_d20250701_t0000464_e0002109_b39465_c20250701001946833000_oeac_ops.h5
+    content_sha256: 60cdbd7a8b1b7f034d64294213f1ed992fa2e298d1b6e64a8aa2d8ef5578dd0e
+    latitude_path: /All_Data/VIIRS-IMG-GEO-TC_All/Latitude
+    longitude_path: /All_Data/VIIRS-IMG-GEO-TC_All/Longitude
+    shape: [1536, 6400]
+  limitations: >-
+    The active-fire mask distinguishes clouds from clear land and water,
+    but does not separately label cloud-covered land and water. Pixel area
+    is provided for detected fires, not all cloud/clear mask pixels; scan
+    geometry, land/water classification and overlap need explicit treatment
+    for cloud-adjusted FRP. The user proposed geolocation finite differences
+    or VIIRS aggregation geometry and excluding bow-tie-deleted pixels; an
+    experimental finite-difference helper exists, but is neither certified
+    nor connected to ingestion. The sample has no fire pixels and cannot
+    validate FRP decoding. The I-band active-fire ATBD notes that some failed
+    FRP retrievals are encoded as zero, so a zero FRP on a detected fire is
+    not automatically a valid absence of fire.
 
 methodology:
   direct_viirs_frp: >-
@@ -51,10 +167,52 @@ methodology:
     units, coefficient availability, and grid-specific output set.
   product_page: https://www.ospo.noaa.gov/products/land/gbbepx/index.html
 
+candidate_surface_type:
+  dataset_id: VIIRS_AST_NDE
+  metadata_url: https://www.ncei.noaa.gov/metadata/geoportal/rest/metadata/item/gov.noaa.ncdc%3AC01472/html
+  archive_url: https://www.ncei.noaa.gov/data/viirs-annual-surface-type/archive/
+  status: inspected_candidate_not_approved
+  product_id: VIIRS-AST-IGBP17-GEO
+  version: v1r0
+  sample_url: https://www.ncei.noaa.gov/data/viirs-annual-surface-type/archive/VIIRS-AST-IGBP17-GEO_v1r0_multi_s20190101_e20191231_c20200831.nc
+  sample_size_bytes: 30119386
+  sample_sha256: f03c808fed4ecc1b7cdda5d7fcd4ba7ba8e2343c6faa1571c48f7243c08a7700
+  inspected_at: "2026-11-23"
+  temporal_coverage: "2019-01-01 through 2019-12-31"
+  file_creation_date_from_name: "2020-08-31"
+  variable: surface_type
+  data_type: uint8
+  dimensions: [lat, lon]
+  shape: [21600, 43200]
+  fill_value_attribute: 0
+  declared_valid_range: [0, 255]
+  documented_class_ids: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17]
+  class_17: Water Bodies
+  grid:
+    crs: EPSG:4326
+    coordinate_spacing_degrees: 0.00833333333333333
+    first_latitude: 90.0
+    last_latitude: -89.99166666666667
+    first_longitude: -180.0
+    last_longitude: 179.99166666666667
+    coordinate_location: pixel_upper_left_corner
+  redistribution:
+    permitted: null
+    basis: Dataset-specific use and redistribution terms have not been verified.
+  limitations: >-
+    The hash and metadata identify one annual file, not a deployed GBBEPx V5
+    ancillary or an approved biome crosswalk. The variable declares fill_value
+    0 separately from its broad valid_range; do not treat all values in that
+    range as valid IGBP classes. File content classes, grid alignment,
+    categorical aggregation, quality and availability for a particular model
+    cutoff require separate verification. The dataset also provides 20-class
+    products, which must not be silently interpreted as IGBP17.
+
 required_before_reference:
   - Retrieve and SHA256-pin the complete V5 ATBD and record redistribution rights.
   - Verify equation 8 and cloud, temporal and satellite-blending rules against the document and deployed implementation.
   - Obtain species-specific QFED-referenced coefficients, units, satellite, biome and geographic applicability.
+  - Verify the exact deployed land-cover source and biome crosswalk; inspect and validate annual IGBP17 class data and source-grid aggregation.
   - Obtain independent input and output scenes with hashes and preapproved numerical tolerances.
   - Verify representative V5 product metadata before implementing or claiming V5 decoding.
 blocker: >-

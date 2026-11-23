@@ -232,6 +232,53 @@ double FireGreatCirclePolygonArea(const std::array<double, 4>& longitude_deg, co
     return area;
 }
 
+std::vector<double> FireApproximateSwathPixelAreas(std::size_t nx, std::size_t ny, const std::vector<double>& longitude_deg,
+                                                  const std::vector<double>& latitude_deg, const std::vector<std::uint8_t>& deleted) {
+    if (nx < 2 || ny < 2 || nx > std::numeric_limits<std::size_t>::max() / ny || longitude_deg.size() != nx * ny ||
+        latitude_deg.size() != nx * ny || deleted.size() != nx * ny) {
+        throw std::invalid_argument("Fire swath area requires matching two-dimensional geolocation and deletion arrays");
+    }
+    constexpr double rad = std::numbers::pi / 180.0;
+    constexpr double radius_m = 6371008.8;
+    const auto valid = [&](std::size_t index) {
+        return std::isfinite(longitude_deg[index]) && longitude_deg[index] >= -180.0 && longitude_deg[index] <= 180.0 &&
+               std::isfinite(latitude_deg[index]) && latitude_deg[index] >= -90.0 && latitude_deg[index] <= 90.0;
+    };
+    const auto point = [&](std::size_t index) {
+        const double lon = longitude_deg[index] * rad;
+        const double lat = latitude_deg[index] * rad;
+        return std::array<double, 3>{std::cos(lat) * std::cos(lon), std::cos(lat) * std::sin(lon), std::sin(lat)};
+    };
+    const auto derivative = [&](std::size_t center, std::optional<std::size_t> before, std::optional<std::size_t> after) {
+        if (before && !valid(*before)) before.reset();
+        if (after && !valid(*after)) after.reset();
+        if (!before && !after) throw std::invalid_argument("Fire swath area lacks neighboring geolocation");
+        const auto first = point(before.value_or(center));
+        const auto last = point(after.value_or(center));
+        const double divisor = before && after ? 2.0 : 1.0;
+        return std::array<double, 3>{(last[0] - first[0]) / divisor, (last[1] - first[1]) / divisor, (last[2] - first[2]) / divisor};
+    };
+    std::vector<double> areas(nx * ny, 0.0);
+    for (std::size_t y = 0; y < ny; ++y) {
+        for (std::size_t x = 0; x < nx; ++x) {
+            const auto index = y * nx + x;
+            if (deleted[index] > 1) throw std::invalid_argument("Fire swath deletion mask must contain only 0 or 1");
+            if (deleted[index]) continue;
+            if (!valid(index)) throw std::invalid_argument("Fire swath area requires valid geolocation for every retained pixel");
+            const auto dx = derivative(index, x > 0 ? std::optional{index - 1} : std::nullopt,
+                                       x + 1 < nx ? std::optional{index + 1} : std::nullopt);
+            const auto dy = derivative(index, y > 0 ? std::optional{index - nx} : std::nullopt,
+                                       y + 1 < ny ? std::optional{index + nx} : std::nullopt);
+            const double area = radius_m * radius_m *
+                                std::hypot(dx[1] * dy[2] - dx[2] * dy[1], dx[2] * dy[0] - dx[0] * dy[2],
+                                           dx[0] * dy[1] - dx[1] * dy[0]);
+            if (!std::isfinite(area) || area <= 0.0) throw std::invalid_argument("Fire swath area contains degenerate pixel geometry");
+            areas[index] = area;
+        }
+    }
+    return areas;
+}
+
 std::shared_ptr<const FireGrid> MakeRectilinearFireGrid(int nx, int ny, const std::vector<double>& longitude_deg,
                                                         const std::vector<double>& latitude_deg, FireGridAreaModel area_model) {
     if (nx < 2 || ny < 2 || longitude_deg.size() != static_cast<std::size_t>(nx) || latitude_deg.size() != static_cast<std::size_t>(ny)) {
