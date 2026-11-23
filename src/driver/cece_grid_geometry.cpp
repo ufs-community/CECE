@@ -174,6 +174,8 @@ static GridGeometry generate_named_grid_geometry(const std::string& name) {
     result.has_cell_geometry = true;
     result.provenance = "AXIS NamedGridRegistry:" + name;
     result.revision = grid_geometry_revision(result);
+    CECE_LOG_DEBUG("[GEOMETRY] Generated AXIS named grid '" + name + "': " + std::to_string(nx) + "x" + std::to_string(ny) + " (" +
+                   std::to_string(n_cells) + " cells)");
     return result;
 }
 
@@ -236,6 +238,7 @@ PreparedGeometry prepare_explicit_cells(PreparedGeometry prepared, const GridGeo
         metadata.longitude_periodicity = builder_metadata.longitude_periodicity;
     prepared.cells->set_geometry_metadata(metadata);
     prepared.metadata = metadata;
+    CECE_LOG_DEBUG("[GEOMETRY] Built mesh from explicit corner lattice: " + std::to_string(ncell) + " cells");
     return prepared;
 }
 
@@ -256,6 +259,9 @@ PreparedGeometry prepare_reconstructed_cells(PreparedGeometry prepared, const Gr
         prepared.metadata.provenance = axis::topology::GeometryProvenance::DeclaredGridModel;
         prepared.cells->set_geometry_metadata(prepared.metadata);
     }
+    CECE_LOG_DEBUG(std::string("[GEOMETRY] Reconstructed ") +
+                   (settings.reconstruction == ReconstructionModel::RectilinearMidpoint ? "rectilinear_midpoint" : "curvilinear_approximate") +
+                   " mesh from centers: " + std::to_string(ncell) + " cells");
     return prepared;
 }
 
@@ -266,6 +272,7 @@ PreparedGeometry prepare_supplied_cells(PreparedGeometry prepared, const GridGeo
                           "Verify that grid cells and field centers use the same ordering and dimensions");
     prepared.cells = *source.supplied_cells;
     prepared.metadata = source.metadata;
+    CECE_LOG_DEBUG("[GEOMETRY] Retaining supplied cell mesh: " + std::to_string(ncell) + " cells");
     return prepared;
 }
 }  // namespace
@@ -411,6 +418,8 @@ GeometryPartition partition_grid_geometry(std::shared_ptr<const GridGeometry> ge
     }
     partition.cells.emplace(axis::topology::make_unstructured(std::move(local_coords), std::move(conn_offsets), std::move(conn_indices),
                                                               global.coord_system(), std::move(area_view), std::move(mask_view), partition.metadata));
+    CECE_LOG_DEBUG("[GEOMETRY] Partitioned rows [" + std::to_string(j0) + "," + std::to_string(j1) + "): " +
+                   std::to_string(partition.global_cell_indices.size()) + " local cells, " + std::to_string(local_nodes.size()) + " local nodes");
     return partition;
 }
 
@@ -661,6 +670,8 @@ GridGeometry load_grid_geometry(amio_dataset_handle dataset, const GeometrySetti
     geometry.center_lon = std::move(longitude.values);
     geometry.center_lat = std::move(latitude.values);
     geometry.provenance = longitude.name + ";" + latitude.name;
+    CECE_LOG_DEBUG("[GEOMETRY] Loaded AMIO centers from '" + longitude.name + "'/'" + latitude.name + "': " + std::to_string(geometry.nx) + "x" +
+                   std::to_string(geometry.ny) + (geometry.centers_curvilinear ? " (curvilinear)" : " (rectilinear)"));
     const bool selected_gridspec = !settings.gridspec_file.empty() && settings.gridspec_file != "none" && settings.gridspec_file != "NONE";
     // CF rectilinear bounds are independent of the selected regridding method.
     // Preserve the cell boundary pairs as authoritative cells when both axes
@@ -806,7 +817,9 @@ GridGeometry load_grid_geometry(amio_dataset_handle dataset, const GeometrySetti
         geometry.metadata = cells.geometry_metadata();
         geometry.has_cell_geometry = true;
         geometry.supplied_cells = std::make_shared<const axis::topology::UnstructuredMesh<Kokkos::HostSpace>>(std::move(cells));
+        CECE_LOG_DEBUG("[GEOMETRY] Attached gridspec cells from '" + settings.gridspec_file + "'");
     }
+    if (has_lon_bounds && has_lat_bounds) CECE_LOG_DEBUG("[GEOMETRY] Attached CF bounds cells for both coordinate axes");
     geometry.revision = grid_geometry_revision(geometry);
     return geometry;
 }
