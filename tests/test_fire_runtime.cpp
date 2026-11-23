@@ -129,6 +129,41 @@ TEST(test_fire_runtime, RegisteredFireSchemeMapsBulkMassAndExportsSurfaceFlux) {
     EXPECT_THROW(fire_scheme->Run(imports, exports), std::runtime_error);
 }
 
+TEST(test_fire_runtime, NativeDiagnosticsRemainSeparateFromMappedEmissions) {
+    cece::FireScheme scheme;
+    auto options = conf::Config::from_string(
+        "chemistry_state: bulk\n"
+        "target_id: SYNTHETIC\n"
+        "target_version: test-v1\n"
+        "fire_mapping_file: " +
+        std::string(CECE_SOURCE_DIR) +
+        "/tests/data/fire/synthetic_target_profile.yaml\nrequested_species: [CO]\nnative_diagnostic_species: [PM25, NOX, VOC]\n");
+    scheme.Initialize(options.root(), nullptr);
+    EXPECT_EQ(scheme.ExportFieldNames(), (std::vector<std::string>{"FIRE_CO", "FIRE_NATIVE_PM25", "FIRE_NATIVE_NOX", "FIRE_NATIVE_VOC"}));
+
+    auto data = ProviderInventory().Data();
+    data.species = {cece::FireBulkSpecies::CO, cece::FireBulkSpecies::PM25, cece::FireBulkSpecies::NOX, cece::FireBulkSpecies::VOC,
+                    cece::FireBulkSpecies::BC};
+    data.mass_kg = {5, 6, 7, 8, 2};
+    data.native_diagnostic_species = {cece::FireBulkSpecies::PM25, cece::FireBulkSpecies::NOX, cece::FireBulkSpecies::VOC};
+    cece::FireBulkInventory inventory(data);
+    const auto profile = cece::LoadFireTargetProfile(std::string(CECE_SOURCE_DIR) + "/tests/data/fire/synthetic_target_profile.yaml",
+                                                     "SYNTHETIC", "test-v1");
+    EXPECT_THROW(cece::MapFireBulkInventory(inventory, profile, {cece::FireBulkSpecies::NOX}), std::invalid_argument);
+    data.native_diagnostic_species.clear();
+    EXPECT_THROW((void)cece::FireBulkInventory{data}, std::invalid_argument);
+
+    scheme.StageBorrowedBulkInventory(inventory);
+    cece::CeceImportState imports;
+    cece::CeceExportState exports;
+    for (const auto& name : scheme.ExportFieldNames()) exports.fields.emplace(name, cece::DualView3D(name, 1, 1, 1));
+    scheme.Run(imports, exports);
+    for (const auto& [name, mass] : std::vector<std::pair<std::string, double>>{
+             {"FIRE_CO", 5}, {"FIRE_NATIVE_PM25", 6}, {"FIRE_NATIVE_NOX", 7}, {"FIRE_NATIVE_VOC", 8}}) {
+        EXPECT_NEAR(exports.fields.at(name).view_host()(0, 0, 0), mass / (25.0 * 3600.0), 1e-14);
+    }
+}
+
 TEST(test_fire_runtime, TargetSpecificFireInventoryBypassesBulkMappingForExactTarget) {
     cece::FireScheme scheme;
     auto options = conf::Config::from_string(

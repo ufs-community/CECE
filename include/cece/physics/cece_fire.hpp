@@ -134,6 +134,7 @@ class FireScheme final : public BasePhysicsScheme {
     std::string target_version_;
     std::optional<FireTargetProfile> profile_;
     std::vector<FireBulkSpecies> requested_species_;
+    std::vector<FireBulkSpecies> native_diagnostic_species_;
     std::optional<FireBulkInventory> staged_bulk_;
     std::optional<FireTargetSpecificInventory> staged_target_specific_;
     const FireBulkInventory* staged_bulk_view_ = nullptr;

@@ -170,6 +170,8 @@ struct FireBulkInventoryData {
     std::optional<std::vector<double>> fre_mj;
     std::optional<std::vector<double>> dry_matter_kg;
     std::vector<std::string> unprofiled_component_ids;
+    // Product-basis diagnostics are never valid chemistry-mapping inputs.
+    std::vector<FireBulkSpecies> native_diagnostic_species;
 };
 
 class FireBulkInventory {
@@ -429,6 +431,7 @@ struct FireAllocatedMass {
     FireTimeAllocation time_allocation = FireTimeAllocation::Uniform;
     std::optional<FireProfileIdentity> time_profile;
     std::vector<std::string> unprofiled_component_ids;
+    std::vector<FireBulkSpecies> native_diagnostic_species;
 };
 
 std::int64_t FireIntervalOverlapSeconds(const FireUtcTime& first_start, const FireUtcTime& first_end, const FireUtcTime& second_start,

@@ -226,6 +226,18 @@ def make_config(product: str, mode: str, source_species: list[str], output_speci
         }
         for name in output_species
     ]
+    diagnostics = (["PM25", "TPM", "NOX", "VOC"] if rave else ["PM25", "NOX"]) if mode == "native" else []
+    warnings = {"PM25": "overlapping pool", "TPM": "overlapping pool", "NOX": "reference basis unverified", "VOC": "composition unverified"}
+    fields.extend(
+        {
+            "name": f"FIRE_NATIVE_{name}",
+            "attributes": {
+                "units": "kg m-2 s-1",
+                "long_name": f"nonproduction native {name} diagnostic; {warnings[name]}; not model emissions",
+            },
+        }
+        for name in diagnostics
+    )
     return {
         "driver": {
             "start_time": start,
@@ -255,6 +267,7 @@ def make_config(product: str, mode: str, source_species: list[str], output_speci
                     "product_time_allocation": "source_resolved",
                     "chemistry_state": "bulk",
                     "requested_species": requested_species,
+                    **({"native_diagnostic_species": diagnostics} if diagnostics else {}),
                     "target_id": TARGET_ID,
                     "target_version": TARGET_VERSION,
                     "mechanism_file": f"data/fire/{species_definition}",

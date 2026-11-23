@@ -30,6 +30,9 @@ physics_schemes:
     - OC
     - BC
     - NH3
+    native_diagnostic_species:
+    - PM25
+    - NOX
     target_id: CB6
     target_version: cb6r5_ae7_aq
     mechanism_file: data/fire/cb6_fire_native_species.yaml
@@ -68,3 +71,11 @@ output:
     attributes:
       units: kg m-2 s-1
       long_name: fire NH3 emission flux
+  - name: FIRE_NATIVE_PM25
+    attributes:
+      units: kg m-2 s-1
+      long_name: nonproduction native PM25 diagnostic; overlapping pool; not model emissions
+  - name: FIRE_NATIVE_NOX
+    attributes:
+      units: kg m-2 s-1
+      long_name: nonproduction native NOX diagnostic; reference basis unverified; not model emissions

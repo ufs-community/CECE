@@ -67,6 +67,21 @@ The factor outputs are exact mass-basis factor targets; they are not a complete
 or production-certified CB6 mechanism. Redistribution rights, independent
 budgets and deployed-mechanism compatibility remain unresolved.
 
+The native CB6 and proposed GOCART-2G examples also request separate
+`FIRE_NATIVE_*` diagnostics: RAVE provides PM25, TPM, NOX and VOC; GBBEPx
+v4r0 provides PM25 and NOX. These fields are remapped product mass fluxes,
+not CB6 or GOCART-2G species. The NOx reference basis and VOC composition
+are unverified. PM25 and TPM overlap each other and OC/BC-derived fields;
+never add them to each other or to mapped emissions. The diagnostics are
+nonproduction and must not be used as mechanism emissions.
+
+The optional `native_diagnostic_species` list is supported only with prepared
+bulk-product input. It must contain unique PM25, TPM, NOX or VOC entries
+separate from `requested_species`. Missing product fields are errors. These
+diagnostics bypass chemistry mapping and retain an explicit diagnostic-only
+identity through allocation; they do not supply a NOx basis, VOC composition,
+or a particulate-overlap profile for chemistry.
+
 All four configs use a 72x46 CONUS grid, `nz: 1`, surface placement and
 explicit `kg m-2 s-1` exports. The physical longitude extent is -125 to -66
 degrees, represented as 235 to 294 degrees to match the products' 0-to-360
@@ -140,8 +155,9 @@ python scripts/prepare_fire_inputs.py \
 ./build/cece_standalone_driver examples/cece_config_fire_gbbepx_gocart2g.yaml
 ```
 
-Each outputs six surface fluxes in `kg m-2 s-1` on the same demonstration
-grid as the CB6 examples. The prepared manifests have target identities and
+Each outputs six mapped surface fluxes and the available separate native
+diagnostics in `kg m-2 s-1` on the same demonstration grid as the CB6 examples.
+The prepared manifests have target identities and
 must be regenerated for these configurations, rather than reusing the CB6
 manifests. These are standalone demonstrations, not FV3 tile or CATChem
 host output. GOCART-2G and AM4.1 are distinct target mappings; neither is a

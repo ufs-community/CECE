@@ -103,6 +103,7 @@ void FireScheme::Initialize(const conf::Value& config, CeceDiagnosticManager* di
     staged_target_specific_view_ = nullptr;
     profile_.reset();
     requested_species_.clear();
+    native_diagnostic_species_.clear();
     target_id_ = config["target_id"].string_or("");
     target_version_ = config["target_version"].string_or("");
     if (target_id_.empty() || target_version_.empty()) {
@@ -119,6 +120,11 @@ void FireScheme::Initialize(const conf::Value& config, CeceDiagnosticManager* di
         }
         for (const auto& species_name : requested.as_string_list()) {
             requested_species_.push_back(FireSpeciesFromName(species_name));
+        }
+        if (config["native_diagnostic_species"]) {
+            for (const auto& species_name : config["native_diagnostic_species"].as_string_list()) {
+                native_diagnostic_species_.push_back(FireSpeciesFromName(species_name));
+            }
         }
         profile_ = LoadFireTargetProfile(mapping_file, target_id_, target_version_);
     } else if (chemistry_state == "target_specific") {
@@ -152,6 +158,13 @@ std::vector<std::string> FireScheme::ExportFieldNames() const {
             throw std::invalid_argument("Fire target fields map to duplicate output '" + output_name + "'");
         }
         names.push_back(std::move(output_name));
+    }
+    for (const auto species : native_diagnostic_species_) {
+        auto name = MapOutput("FIRE_NATIVE_" + std::string(FireSpeciesName(species)));
+        if (!output_names.insert(name).second) {
+            throw std::invalid_argument("Fire diagnostic fields map to duplicate output '" + name + "'");
+        }
+        names.push_back(std::move(name));
     }
     return names;
 }
@@ -260,7 +273,18 @@ void FireScheme::Run(CeceImportState& import_state, CeceExportState& export_stat
                 }
             }
         }
-        ExportMassFlux(mapped.source_identity, mapped.fields, mass_kg, export_state);
+        auto fields = mapped.fields;
+        for (const auto species : native_diagnostic_species_) {
+            const auto& diagnostics = staged_bulk_view_->Data().native_diagnostic_species;
+            if (std::find(diagnostics.begin(), diagnostics.end(), species) == diagnostics.end()) {
+                throw std::invalid_argument("Fire inventory lacks requested native diagnostic '" + std::string(FireSpeciesName(species)) + "'");
+            }
+            fields.push_back({"FIRE_NATIVE_" + std::string(FireSpeciesName(species)), "kg"});
+            for (std::size_t cell = 0; cell < cells; ++cell) {
+                mass_kg.push_back(staged_bulk_view_->BulkMassKg(species, cell));
+            }
+        }
+        ExportMassFlux(mapped.source_identity, fields, mass_kg, export_state);
         staged_bulk_view_ = nullptr;
         staged_bulk_.reset();
         return;
@@ -597,6 +621,10 @@ FireMappedInventory MapFireBulkInventory(const FireBulkInventory& inventory, con
     std::set<FireBulkSpecies> required;
     for (const auto species : required_species) {
         if (!required.insert(species).second) throw std::invalid_argument("Fire mapping source species requests must be unique");
+        if (std::find(inventory.Data().native_diagnostic_species.begin(), inventory.Data().native_diagnostic_species.end(), species) !=
+            inventory.Data().native_diagnostic_species.end()) {
+            throw std::invalid_argument("Fire native diagnostics cannot be used as mapped chemistry inputs");
+        }
         if (std::find(inventory.Data().species.begin(), inventory.Data().species.end(), species) == inventory.Data().species.end()) {
             throw std::invalid_argument("Fire mapping input lacks requested bulk species '" + std::string(FireSpeciesName(species)) + "'");
         }

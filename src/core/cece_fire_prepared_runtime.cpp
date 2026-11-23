@@ -157,6 +157,8 @@ class PreparedProductAdapter final : public FireRuntimeAdapter {
             throw std::invalid_argument("prepared product adapter requires a temporal policy and requested species");
         }
         config_ = config;
+        config_.requested_species.insert(config_.requested_species.end(), config_.native_diagnostic_species.begin(),
+                                         config_.native_diagnostic_species.end());
         if (*config.product_time_allocation == FireTimeAllocation::Profile) {
             temporal_profile_ = LoadFireTemporalAllocationProfile(config.product_time_profile);
         }
@@ -298,6 +300,7 @@ class PreparedProductAdapter final : public FireRuntimeAdapter {
                                              std::move(mass), std::move(quality), std::move(coverage), std::move(accepted_hashes), nox_basis,
                                              voc_profile, std::nullopt, std::nullopt, std::nullopt};
         inventory_data.unprofiled_component_ids.assign(unprofiled_component_ids.begin(), unprofiled_component_ids.end());
+        inventory_data.native_diagnostic_species = config_.native_diagnostic_species;
         pending_inventory_.emplace(std::move(inventory_data));
         pending_ = true;
         return std::cref(*pending_inventory_);
@@ -579,6 +582,7 @@ class PreparedProductAdapter final : public FireRuntimeAdapter {
         } else {
             data.unprofiled_component_ids.push_back(component_id);
         }
+        data.native_diagnostic_species = config_.native_diagnostic_species;
         return {FireBulkInventory(std::move(data)), normalized_sha256};
     }
 

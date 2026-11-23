@@ -152,6 +152,21 @@ cece::FireTemporalAllocationProfile TemporalProfile() {
             {{0, 3600, 0.75 / 3600}, {3600, 7200, 0.25 / 3600}}};
 }
 
+TEST(test_fire_conservation, NativeDiagnosticIdentityAndMassSurviveAllocation) {
+    auto data = Inventory().Data();
+    data.species = {cece::FireBulkSpecies::CO, cece::FireBulkSpecies::NOX};
+    data.mass_kg = {10, 30, 2, 6, 20, 60, 4, 12};
+    data.native_diagnostic_species = {cece::FireBulkSpecies::NOX};
+    const cece::FireBulkInventory inventory(std::move(data));
+    const auto result = cece::FireAllocateConservativeMass(
+        inventory, GridWithAreas({50, 50}, "target"), MakeMatrix(), Norm::DstArea,
+        cece::FireUtcTime("2022-07-01T23:00:00Z"), cece::FireUtcTime("2022-07-02T01:00:00Z"));
+    EXPECT_EQ(result.native_diagnostic_species, std::vector<cece::FireBulkSpecies>{cece::FireBulkSpecies::NOX});
+    ASSERT_EQ(result.species_budgets.size(), 2);
+    EXPECT_NEAR(result.species_budgets[1].input_kg, 24.0, 1e-12);
+    EXPECT_NEAR(result.species_budgets[1].output_kg, 24.0, 1e-12);
+}
+
 TEST(test_fire_conservation, HalfOpenOverlapRetainsUtcBoundaryAndPartialSupport) {
     const cece::FireUtcTime start("2022-07-01T23:00:00Z"), middle("2022-07-02T00:00:00Z"), end("2022-07-02T01:00:00Z");
     EXPECT_EQ(cece::FireIntervalOverlapSeconds(start, middle, middle, end), 0);

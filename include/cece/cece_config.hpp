@@ -45,6 +45,7 @@ struct FireConfig {
     std::string target_version;
     FireChemistryState chemistry_state = FireChemistryState::Bulk;
     std::vector<FireBulkSpecies> requested_species;
+    std::vector<FireBulkSpecies> native_diagnostic_species;
     std::string missing_policy = "error";
     std::string reconstruction_policy;
     std::optional<int> max_gap_seconds;

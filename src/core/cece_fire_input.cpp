@@ -463,6 +463,15 @@ FireBulkInventory::FireBulkInventory(FireBulkInventoryData data) : data_(std::mo
             invalid("duplicate species '" + std::string(FireSpeciesName(species)) + "'");
         }
     }
+    std::set<FireBulkSpecies> diagnostics;
+    for (const auto species : data_.native_diagnostic_species) {
+        if ((species != FireBulkSpecies::PM25 && species != FireBulkSpecies::TPM && species != FireBulkSpecies::NOX &&
+             species != FireBulkSpecies::VOC) || !unique_species.contains(species) || !diagnostics.insert(species).second) {
+            invalid("native_diagnostic_species must be unique selected PM25, TPM, NOX or VOC");
+        }
+    }
+    auto mapped_species = unique_species;
+    for (const auto species : diagnostics) mapped_species.erase(species);
     std::set<std::string> unique_components;
     std::set<std::string> unprofiled_components;
     for (const auto& id : data_.unprofiled_component_ids) {
@@ -532,21 +541,21 @@ FireBulkInventory::FireBulkInventory(FireBulkInventoryData data) : data_(std::mo
             invalid("accepted_source_sha256 must contain unique valid lowercase SHA256 values");
         }
     }
-    if (unique_species.count(FireBulkSpecies::NOX) != 0 && !data_.nox_reference_basis) {
+    if (mapped_species.count(FireBulkSpecies::NOX) != 0 && !data_.nox_reference_basis) {
         invalid("NOX requires an explicit nox_reference_basis");
     }
     if (data_.nox_reference_basis && *data_.nox_reference_basis != FireNoxReferenceBasis::NO &&
         *data_.nox_reference_basis != FireNoxReferenceBasis::NO2) {
         invalid("nox_reference_basis must be NO or NO2 mass");
     }
-    if (unique_species.count(FireBulkSpecies::VOC) != 0 && !data_.voc_profile) {
+    if (mapped_species.count(FireBulkSpecies::VOC) != 0 && !data_.voc_profile) {
         invalid("VOC requires an explicit versioned/hashed voc_profile");
     }
     if (data_.voc_profile) {
         ValidateProfile(*data_.voc_profile, context + " voc_profile");
     }
-    if (HasOverlappingParticulatePools(unique_species) || data_.particulate_overlap) {
-        for (const auto species : data_.species) {
+    if (HasOverlappingParticulatePools(mapped_species) || data_.particulate_overlap) {
+        for (const auto species : mapped_species) {
             if (IsParticulate(species) &&
                 (!data_.particulate_overlap || data_.particulate_overlap->pool_definitions.count(species) == 0 ||
                  !IsNonempty(data_.particulate_overlap->pool_definitions.at(species)))) {
@@ -1081,6 +1090,8 @@ std::string FireIntervalProvider::CacheIdentity(const FireBulkInventory& invento
     optional_profile(context.product_time_profile);
     append(std::to_string(data.species.size()));
     for (const auto species : data.species) append(FireSpeciesName(species));
+    append(std::to_string(data.native_diagnostic_species.size()));
+    for (const auto species : data.native_diagnostic_species) append(FireSpeciesName(species));
     append(std::to_string(data.component_ids.size()));
     for (const auto& id : data.component_ids) {
         append(id);
@@ -1355,7 +1366,8 @@ FireAllocatedMass FireAllocateConservativeMass(const FireBulkInventory& inventor
                              std::nullopt,
                              time_allocation,
                              time_profile ? std::optional<FireProfileIdentity>(time_profile->identity) : std::nullopt,
-                             data.unprofiled_component_ids};
+                             data.unprofiled_component_ids,
+                             data.native_diagnostic_species};
     const auto overlap_start_utc = std::max(metadata.interval_start, requested_start).EpochSeconds();
     const auto overlap_end_utc = std::min(metadata.interval_end, requested_end).EpochSeconds();
     std::vector<double> mass_fractions(ns, static_cast<double>(overlap) / data.identity.DurationSeconds());

@@ -474,6 +474,7 @@ def _validate_fire_options(options: Any) -> None:  # noqa: C901, PLR0915
             "target_version",
             "chemistry_state",
             "requested_species",
+            "native_diagnostic_species",
             "missing_policy",
             "reconstruction_policy",
             "max_gap_seconds",
@@ -574,6 +575,18 @@ def _validate_fire_options(options: Any) -> None:  # noqa: C901, PLR0915
         raise ValueError(
             f"{where}.requested_species: requires a nonempty unique list of canonical bulk species"
         )
+    if "native_diagnostic_species" in values:
+        diagnostics = values["native_diagnostic_species"]
+        if mode != "product" or provider != "prepared" or chemistry != "bulk":
+            raise ValueError(f"{where}.native_diagnostic_species: requires prepared bulk-product mode")
+        _validate_string_list(diagnostics, f"{where}.native_diagnostic_species")
+        if (
+            not diagnostics
+            or len(set(diagnostics)) != len(diagnostics)
+            or any(item not in {"PM25", "TPM", "NOX", "VOC"} for item in diagnostics)
+            or set(species).intersection(diagnostics)
+        ):
+            raise ValueError(f"{where}.native_diagnostic_species: requires unique PM25, TPM, NOX or VOC entries separate from requested_species")
     missing = choice("missing_policy", {"error", "reconstruct"}, "error")
     if missing == "reconstruct":
         text("reconstruction_policy")

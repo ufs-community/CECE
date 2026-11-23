@@ -592,7 +592,9 @@ including the synthetic IGBP fixture and splitter, are not acceptance evidence.
   checked against native product fluxes as recorded above. The mapping is
   nonproduction; factor provenance, tracer meaning, OC/BRC basis, rights and
   independent deployed-mechanism budgets remain unverified. Full T073 invalid
-  profile and host acceptance requirements remain open.
+  profile and host acceptance requirements remain open. The examples also
+  expose available `FIRE_NATIVE_*` product fields separately as nonproduction
+  diagnostics; they are not mapped GOCART-2G species or certification evidence.
 
   T074 blocker: prepared product inventory components have neither verified
   composition identities nor a NOx basis. In addition, the prepared runtime

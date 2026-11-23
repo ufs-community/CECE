@@ -154,6 +154,15 @@ def test_generated_cb6_profiles_and_product_examples_match_factor_manifest():
                 else "cb6_fire_native_profile.yaml"
             )
             assert options["fire_mapping_file"] == f"data/fire/{expected_profile}"
+            expected_diagnostics = (
+                (["PM25", "TPM", "NOX", "VOC"] if product == "rave" else ["PM25", "NOX"])
+                if mode == "native"
+                else []
+            )
+            assert options.get("native_diagnostic_species", []) == expected_diagnostics
+            assert {field["name"] for field in data["output"]["fields"] if field["name"].startswith("FIRE_NATIVE_")} == {
+                f"FIRE_NATIVE_{name}" for name in expected_diagnostics
+            }
 
     subprocess.run(
         [sys.executable, str(ROOT / "scripts/generate_fire_cb6_examples.py"), "--check"],

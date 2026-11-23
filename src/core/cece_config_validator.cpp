@@ -46,6 +46,7 @@ FireConfig ParseFireConfig(const conf::Value& options) {
                                            "target_version",
                                            "chemistry_state",
                                            "requested_species",
+                                           "native_diagnostic_species",
                                            "missing_policy",
                                            "reconstruction_policy",
                                            "max_gap_seconds",
@@ -153,6 +154,26 @@ FireConfig ParseFireConfig(const conf::Value& options) {
     } else {
         for (const auto* name : {"CO2", "CO", "CH4", "PM25", "TPM", "SO2", "OC", "BC", "NOX", "NH3", "VOC"}) {
             result.requested_species.push_back(FireSpeciesFromName(name));
+        }
+    }
+    if (options["native_diagnostic_species"]) {
+        if (result.mode != FireInputMode::Product || result.input_provider != FireInputProvider::Prepared ||
+            result.chemistry_state != FireChemistryState::Bulk) {
+            invalid("native_diagnostic_species", "requires prepared bulk-product mode");
+        }
+        const auto diagnostics = options["native_diagnostic_species"];
+        if (diagnostics.kind() != conf::Node_Kind::Sequence || diagnostics.size() == 0) {
+            invalid("native_diagnostic_species", "must be a nonempty list");
+        }
+        std::set<FireBulkSpecies> unique(result.requested_species.begin(), result.requested_species.end());
+        for (std::size_t i = 0; i < diagnostics.size(); ++i) {
+            const auto name = diagnostics[i].try_string();
+            if (!name || (*name != "PM25" && *name != "TPM" && *name != "NOX" && *name != "VOC")) {
+                invalid("native_diagnostic_species", "entries must be PM25, TPM, NOX or VOC");
+            }
+            const auto species = FireSpeciesFromName(*name);
+            if (!unique.insert(species).second) invalid("native_diagnostic_species", "must be unique and separate from requested_species");
+            result.native_diagnostic_species.push_back(species);
         }
     }
     result.missing_policy = text("missing_policy", "error");

@@ -298,6 +298,15 @@ TEST(test_fire_products, PreparedRuntimeLoadsProductWithoutBiomeOrCompositionPro
     EXPECT_EQ(*inventory.Data().identity.AppliedTemporalProfile(), temporal_identity);
     adapter->CommitInterval();
     adapter->Finalize();
+
+    config.native_diagnostic_species = {cece::FireBulkSpecies::NOX};
+    auto missing_adapter = cece::CreateFireRuntimeAdapter(cece::FireInputProvider::Prepared);
+    missing_adapter->SetTargetGrid(source_metadata.grid_definition);
+    missing_adapter->Initialize(config, 1, 1, 1);
+    EXPECT_THROW(missing_adapter->PrepareInterval({cece::FireUtcTime("2022-07-01T00:00:00Z"),
+                                                    cece::FireUtcTime("2022-07-01T06:00:00Z"), std::nullopt, 21600}),
+                 std::invalid_argument);
+    missing_adapter->Finalize();
 }
 
 TEST(test_fire_products, DecodesRaveV2r0SampleCropAndPreservesItsIntervalMasses) {

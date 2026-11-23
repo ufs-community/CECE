@@ -17,6 +17,7 @@ physics_schemes:
     product_time_allocation: source_resolved
     chemistry_state: bulk
     requested_species: [BC, OC, SO2, NH3]
+    native_diagnostic_species: [PM25, TPM, NOX, VOC]
     target_id: GOCART2G
     target_version: ufschem-proposed-v1
     mechanism_file: data/fire/ufschem_gocart2g_species.yaml
@@ -37,3 +38,7 @@ output:
   - {name: FIRE_BRCphilic, attributes: {units: kg m-2 s-1, long_name: fire BRCphilic emission flux}}
   - {name: FIRE_SO2, attributes: {units: kg m-2 s-1, long_name: fire SO2 emission flux}}
   - {name: FIRE_NH3, attributes: {units: kg m-2 s-1, long_name: fire NH3 emission flux}}
+  - {name: FIRE_NATIVE_PM25, attributes: {units: kg m-2 s-1, long_name: "nonproduction native PM25 diagnostic; overlapping pool; not model emissions"}}
+  - {name: FIRE_NATIVE_TPM, attributes: {units: kg m-2 s-1, long_name: "nonproduction native TPM diagnostic; overlapping pool; not model emissions"}}
+  - {name: FIRE_NATIVE_NOX, attributes: {units: kg m-2 s-1, long_name: "nonproduction native NOX diagnostic; reference basis unverified; not model emissions"}}
+  - {name: FIRE_NATIVE_VOC, attributes: {units: kg m-2 s-1, long_name: "nonproduction native VOC diagnostic; composition unverified; not model emissions"}}
