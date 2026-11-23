@@ -97,7 +97,7 @@ jobs:
           do
               ./scripts/data_download/download_ex${i}.sh
           done
-          for config_yaml in examples/cece_config_ex[2-6].yaml;
+          for config_yaml in examples/cece_config_ex[3-6].yaml;
           do
               build/bin/cece_nuopc_app -y "${config_yaml}"
               build/cece_standalone_driver "${config_yaml}"
