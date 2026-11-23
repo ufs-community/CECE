@@ -43,13 +43,14 @@
  *
  * ```cpp
  * #include "cece/cece_kokkos_config.hpp"
+ * #include "cece/cece_logger.hpp"
  *
  * // Query available execution spaces
  * cece::PrintKokkosConfiguration();
  *
  * // Get default execution space name
  * std::string space_name = cece::GetDefaultExecutionSpaceName();
- * std::cout << "Using: " << space_name << std::endl;
+ * CECE_LOG_INFO("Using: "s + space_name + "\n"s);
  * ```
  *
  * ## Performance Portability
@@ -71,8 +72,13 @@
 #define CECE_KOKKOS_CONFIG_HPP
 
 #include <Kokkos_Core.hpp>
+#include <cstdlib>
 #include <iostream>
 #include <string>
+
+#include "cece/cece_logger.hpp"
+
+using namespace std::literals::string_literals;
 
 namespace cece {
 
@@ -95,39 +101,39 @@ inline std::string GetDefaultExecutionSpaceName() {
  * - GPU device ID (if CUDA/HIP enabled)
  */
 inline void PrintKokkosConfiguration() {
-    std::cout << "=== Kokkos Configuration ===" << std::endl;
-    std::cout << "Default Execution Space: " << GetDefaultExecutionSpaceName() << std::endl;
+    std::string info_msg = "=== Kokkos Configuration ===\n"s + "Default Execution Space: "s + GetDefaultExecutionSpaceName() + "\n"s;
 
-    std::cout << "Available Execution Spaces:" << std::endl;
+    info_msg += "Available Execution Spaces:\n";
 #ifdef KOKKOS_ENABLE_SERIAL
-    std::cout << "  - Serial" << std::endl;
+    info_msg += "  - Serial\n";
 #endif
 #ifdef KOKKOS_ENABLE_OPENMP
-    std::cout << "  - OpenMP" << std::endl;
+    info_msg += "  - OpenMP\n";
 #endif
 #ifdef KOKKOS_ENABLE_CUDA
-    std::cout << "  - CUDA" << std::endl;
+    info_msg += "  - CUDA\n";
 #endif
 #ifdef KOKKOS_ENABLE_HIP
-    std::cout << "  - HIP" << std::endl;
+    info_msg += "  - HIP\n";
 #endif
 
 #ifdef KOKKOS_ENABLE_OPENMP
-    std::cout << "OpenMP Configuration:" << std::endl;
-    std::cout << "  - Threads: " << Kokkos::OpenMP().concurrency() << std::endl;
+    info_msg += "OpenMP Configuration:\n";
+    info_msg += "  - Threads: " + std::to_string(Kokkos::OpenMP().concurrency()) + "\n"s;
 #endif
 
 #ifdef KOKKOS_ENABLE_CUDA
-    std::cout << "CUDA Configuration:" << std::endl;
-    std::cout << "  - Device: " << Kokkos::Cuda::device_id() << std::endl;
+    info_msg += "CUDA Configuration:\n";
+    info_msg += "  - Device: " + std::to_string(Kokkos::Cuda::device_id()) + "\n"s;
 #endif
 
 #ifdef KOKKOS_ENABLE_HIP
-    std::cout << "HIP Configuration:" << std::endl;
-    std::cout << "  - Device: " << Kokkos::HIP::device_id() << std::endl;
+    info_msg += "HIP Configuration:\n";
+    info_msg += "  - Device: " + std::to_string(Kokkos::HIP::device_id()) + "\n"s;
 #endif
 
-    std::cout << "=============================" << std::endl;
+    info_msg += "=============================\n";
+    CECE_LOG_INFO(info_msg);
 }
 
 /**
@@ -170,7 +176,7 @@ inline int GetOpenMPThreadCount() {
 #ifdef KOKKOS_ENABLE_OPENMP
     const char* num_threads = std::getenv("OMP_NUM_THREADS");
     if (num_threads != nullptr) {
-        int threads = std::atoi(num_threads);
+        int threads = std::stoi(num_threads);
         if (threads > 0) {
             return threads;
         }

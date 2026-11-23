@@ -1,8 +1,8 @@
 #include "cece/physics/cece_native_example.hpp"
 
 #include <Kokkos_Core.hpp>
-#include <iostream>
 
+#include "cece/cece_logger.hpp"
 #include "cece/cece_physics_factory.hpp"
 
 /**
@@ -27,7 +27,7 @@ void NativePhysicsExample::Initialize(const conf::Value& config, CeceDiagnosticM
         multiplier_ = config["multiplier"].as_double();
     }
 
-    std::cout << "NativePhysicsExample: Initialized.\n";
+    CECE_LOG_INFO("NativePhysicsExample: Initialized.");
 }
 
 std::vector<DiagnosticDeclaration> NativePhysicsExample::DeclaredDiagnostics(const conf::Value&) const {
