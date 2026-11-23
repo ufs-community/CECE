@@ -23,7 +23,11 @@
 
 #include "cece/cece_physics_factory.hpp"
 
-#include <iostream>
+#include <string>
+
+#include "cece/cece_logger.hpp"
+
+using namespace std::literals::string_literals;
 
 namespace cece {
 
@@ -50,15 +54,16 @@ std::unique_ptr<PhysicsScheme> PhysicsFactory::CreateScheme(const PhysicsSchemeC
     auto it = registry.find(config.name);
 
     if (it != registry.end()) {
-        std::cout << "CECE_PhysicsFactory: Creating scheme " << config.name << "\n";
+        CECE_LOG_INFO("CECE_PhysicsFactory: Creating scheme "s + config.name + "\n"s);
         return it->second();
     }
 
-    std::cerr << "CECE_PhysicsFactory: Error - Unknown physics scheme '" << config.name << "'. Registered schemes:";
+    std::string errmsg = "CECE_PhysicsFactory: Error - Unknown physics scheme '"s + config.name + "'. Registered schemes:"s;
     for (const auto& [name, _] : registry) {
-        std::cerr << " " << name;
+        errmsg += " "s + name;
     }
-    std::cerr << "\n";
+    errmsg += "\n"s;
+    CECE_LOG_ERROR(errmsg);
     return nullptr;
 }
 

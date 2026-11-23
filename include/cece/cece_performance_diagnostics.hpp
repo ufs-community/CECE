@@ -12,6 +12,13 @@
 #include <unordered_map>
 #include <vector>
 
+constexpr long BYTES_PER_KILOBYTE = 1 << 10;
+constexpr long BYTES_PER_MEGABYTE = 1 << 20;
+
+constexpr double bytes_to_megabytes(long long num_bytes) {
+    return static_cast<double>(num_bytes) / BYTES_PER_MEGABYTE;
+}
+
 namespace cece {
 
 /**
@@ -133,43 +140,53 @@ class PerformanceDiagnostics {
      * @brief Print timing summary
      */
     void PrintTimingSummary() const {
-        std::cout << "\n=== CECE Performance Timing Summary ===" << std::endl;
-        std::cout << std::string(70, '-') << std::endl;
-        std::cout << "Component                    | Total (ms) | Calls | Avg (ms) | Min (ms) | Max (ms)" << std::endl;
-        std::cout << std::string(70, '-') << std::endl;
+        std::string timing_msg = "\n=== CECE Performance Timing Summary ===\n";
+        timing_msg += std::string(70, '-') + "\n"s;
+        timing_msg += "Component                    | Total (ms) | Calls | Avg (ms) | Min (ms) | Max (ms)\n";
+        timing_msg += std::string(70, '-') + "\n"s;
 
         double total_time = 0.0;
         for (const auto& [name, timing] : timing_data_) {
             total_time += timing.total_time_ms;
-            printf("%-28s | %10.2f | %5d | %8.2f | %8.2f | %8.2f\n", name.c_str(), timing.total_time_ms, timing.call_count, timing.GetAverageTime(),
-                   timing.min_time_ms, timing.max_time_ms);
+            // std::format("{:-28s} | {:10.2f} | {:5d} | {:8.2f} | {:8.2f}\n", name, timing.total_time_ms, timing.call_count, timing.GetAverageTime(),
+            //             timing.min_time_ms, timing.max_time_ms);
+            timing_msg += name + " | " + std::to_string(timing.total_time_ms) + " | " + std::to_string(timing.call_count) + " | " +
+                          std::to_string(timing.GetAverageTime()) + " | " + std::to_string(timing.min_time_ms) + " | " +
+                          std::to_string(timing.max_time_ms) + "\n"s;
         }
 
-        std::cout << std::string(70, '-') << std::endl;
-        printf("%-28s | %10.2f |\n", "TOTAL", total_time);
-        std::cout << std::string(70, '-') << std::endl;
+        timing_msg += std::string(70, '-') + "\n"s;
+        // std::format("{:-28s} | {:10.2f} |\n", "TOTAL", total_time);
+        timing_msg += "                       TOTAL | " + std::to_string(total_time) + " |\n";
+        timing_msg += std::string(70, '-') + "\n"s;
+        CECE_LOG_INFO(timing_msg);
     }
 
     /**
      * @brief Print memory summary
      */
     void PrintMemorySummary() const {
-        std::cout << "\n=== CECE Memory Usage Summary ===" << std::endl;
-        std::cout << std::string(60, '-') << std::endl;
-        std::cout << "Component                    | Current (MB) | Peak (MB)" << std::endl;
-        std::cout << std::string(60, '-') << std::endl;
+        std::string mem_msg = "\n=== CECE Memory Usage Summary ===\n";
+        mem_msg += std::string(60, '-') + "\n"s;
+        mem_msg += "Component                    | Current (MB) | Peak (MB)\n";
+        mem_msg += std::string(60, '-') + "\n"s;
 
         long long total_current = 0;
         long long total_peak = 0;
         for (const auto& [name, mem] : memory_data_) {
             total_current += mem.current_memory_bytes;
             total_peak += mem.peak_memory_bytes;
-            printf("%-28s | %12.2f | %8.2f\n", name.c_str(), mem.current_memory_bytes / 1024.0 / 1024.0, mem.peak_memory_bytes / 1024.0 / 1024.0);
+            // std::format("{:-28s} | {:12.2f} | {:8.2f}\n", name, mem.current_memory_bytes / static_cast<double>(BYTES_PER_KILOBYTE),
+            // mem.peak_memory_bytes / static_cast<double>(BYTES_PER_KILOBYTE));
+            mem_msg += name + " | " + bytes_to_megabytes(mem.current_memory_bytes) + " | " + bytes_to_megabytes(mem.peak_memory_bytes) + "\n"s;
         }
 
-        std::cout << std::string(60, '-') << std::endl;
-        printf("%-28s | %12.2f | %8.2f\n", "TOTAL", total_current / 1024.0 / 1024.0, total_peak / 1024.0 / 1024.0);
-        std::cout << std::string(60, '-') << std::endl;
+        mem_msg += std::string(60, '-') + "\n"s;
+        // std::format("{:-28s} | {:12.2f} | {8.2f}\n", "TOTAL", total_current / static_cast<double>(BYTES_PER_KILOBYTE), total_peak /
+        // static_cast<double>(BYTES_PER_KILOBYTE));
+        mem_msg += "TOTAL | " + bytes_to_megabytes(total_current) + " | " + bytes_to_megabytes(total_peak) + "\n"s;
+        mem_msg += std::string(60, '-') + "\n"s;
+        CECE_LOG_INFO(mem_msg);
     }
 
     /**
