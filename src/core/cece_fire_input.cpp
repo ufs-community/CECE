@@ -652,6 +652,15 @@ FireBulkInventory SplitFireProductByIgbp(const FireBulkInventory& inventory, con
         if (category < 1 || category > 17) {
             throw std::invalid_argument("IGBP class must be in [1,17] for every source grid cell");
         }
+        if (category == 17) {
+            for (std::size_t species = 0; species < input.species.size(); ++species) {
+                if (input.mass_kg[species * cells + cell] != 0.0) {
+                    throw std::invalid_argument("IGBP water cell " + std::to_string(cell) + " has positive " +
+                                                std::string(FireSpeciesName(input.species[species])) + " emissions");
+                }
+            }
+            continue;
+        }
         const std::size_t component = category <= 5 ? 0 : (category == 12 || category == 14 ? 2 : 1);
         for (std::size_t species = 0; species < input.species.size(); ++species) {
             result.mass_kg[(component * input.species.size() + species) * cells + cell] =

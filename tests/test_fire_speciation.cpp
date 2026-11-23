@@ -257,6 +257,11 @@ TEST(test_fire_speciation, IgbpSplittingPreservesSourceMassAndRejectsUnknownClas
         const int category = category_ids[index];
         ASSERT_EQ(category, static_cast<int>(index) + 1);
         igbp.classes.assign(4, category);
+        if (expected_components[index] == "water") {
+            EXPECT_EQ(category, 17);
+            EXPECT_THROW(cece::SplitFireProductByIgbp(original, igbp, profiles), std::invalid_argument);
+            continue;
+        }
         const auto result = cece::SplitFireProductByIgbp(original, igbp, profiles);
         for (std::size_t component = 0; component < component_names.size(); ++component) {
             const double expected = component_names[component] == expected_components[index] ? 1.0 : 0.0;
@@ -275,7 +280,37 @@ TEST(test_fire_speciation, IgbpSplittingPreservesSourceMassAndRejectsUnknownClas
     igbp.classes[0] = 17;
     const auto zero_split = cece::SplitFireProductByIgbp(zero_inventory, igbp, profiles);
     EXPECT_EQ(zero_split.Data().quality_state[0], cece::FireQualityState::ValidZero);
-    EXPECT_DOUBLE_EQ(zero_split.ComponentMassKg(1, cece::FireBulkSpecies::CO, 0), 0);
+    for (std::size_t component = 0; component < 3; ++component) {
+        EXPECT_DOUBLE_EQ(zero_split.ComponentMassKg(component, cece::FireBulkSpecies::CO, 0), 0);
+    }
+    EXPECT_DOUBLE_EQ(zero_split.SpeciesBudgetKg(cece::FireBulkSpecies::CO), 9);
+    EXPECT_THROW(cece::SplitFireProductByIgbp(original, igbp, profiles), std::invalid_argument);
+    igbp.classes = {17, 10, 12, 14};
+    auto mixed_species_data = data;
+    mixed_species_data.species.push_back(cece::FireBulkSpecies::SO2);
+    mixed_species_data.mass_kg = {0, 2, 3, 4, 1, 0, 0, 0};
+    EXPECT_THROW(cece::SplitFireProductByIgbp(cece::FireBulkInventory(mixed_species_data), igbp, profiles), std::invalid_argument);
+    mixed_species_data.mass_kg[4] = 0;
+    const auto observed_zero_split = cece::SplitFireProductByIgbp(cece::FireBulkInventory(mixed_species_data), igbp, profiles);
+    EXPECT_EQ(observed_zero_split.Data().quality_state[0], cece::FireQualityState::Observed);
+    for (std::size_t component = 0; component < 3; ++component) {
+        EXPECT_DOUBLE_EQ(observed_zero_split.ComponentMassKg(component, cece::FireBulkSpecies::CO, 0), 0);
+        EXPECT_DOUBLE_EQ(observed_zero_split.ComponentMassKg(component, cece::FireBulkSpecies::SO2, 0), 0);
+    }
+    auto target = cece::LoadFireTargetProfile(std::string(CECE_SOURCE_DIR) + "/tests/data/fire/synthetic_target_profile.yaml",
+                                               "SYNTHETIC", "test-v1");
+    target.mappings.clear();
+    target.mapping_factor_semantics = cece::FireMappingFactorSemantics::IndependentCoefficients;
+    for (std::size_t component = 0; component < profiles.size(); ++component) {
+        target.mappings.push_back({cece::FireBulkSpecies::CO, "FIRE_CO", cece::FireMappingBasis::Mass,
+                                   0.1 * (component + 1), "kg", profiles[component].composition});
+    }
+    const auto mapped = cece::MapFireBulkInventory(observed_zero_split, target, {cece::FireBulkSpecies::CO});
+    ASSERT_EQ(mapped.fields.size(), 1);
+    for (std::size_t component = 0; component < 3; ++component) {
+        EXPECT_DOUBLE_EQ(mapped.values[component * 4], 0);
+    }
+    EXPECT_NEAR(mapped.budgets[0].output_quantity, 2.5, 1e-12);
     igbp.classes[0] = -1;
     EXPECT_THROW(cece::SplitFireProductByIgbp(original, igbp, profiles), std::invalid_argument);
     igbp.classes[0] = 18;

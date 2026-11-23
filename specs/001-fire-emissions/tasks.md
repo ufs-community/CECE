@@ -44,6 +44,35 @@ separately generated native-product outputs times the proposed factors at
 relative tolerance 1e-6 (absolute 1e-20). This is not a production chemistry,
 CATChem host, independent NOAA or FRP-science acceptance.
 
+Product checkpoint recheck (2026-11-23): 93/93 C++ config, product,
+speciation, runtime, conservation and science cases and 91/91 Python config
+and preparation cases passed. The CB6 generator `--check` passed. Full pinned
+RAVE v2r0 and GBBEPx v4r0 samples were normalized and all six native CB6,
+factor CB6 and proposed GOCART-2G Stage 1 standalone runs completed on the
+72x46 grid. All output fields had expected dimensions, finite nonnegative
+values and `kg m-2 s-1` units. For each product, the six Stage 1 fields and
+26 CO-referenced CB6 fields matched native output times their factors; the
+17 PM2.5-referenced fields matched their POC-relative factor ratios. This
+last comparison is not an independent PM2.5 budget; comparisons used relative
+tolerance 1e-6 and absolute tolerance 1e-20. The conservation selection also
+exercised 24 RAVE hourly crops and the GBBEPx daily crop over two substeps.
+Commands:
+
+```sh
+OMP_NUM_THREADS=2 OMP_PROC_BIND=false ctest --test-dir build-fire-t024-session --output-on-failure -R '^test_fire_(config|products|runtime|conservation|speciation|science)\.'
+CECE_FIRE_PRODUCT_NORMALIZER=/workspaces/CECE/build-fire-t024-session/cece_fire_product_normalize PYTHONPATH=/workspaces/CECE/scripts python -m pytest -q tests/test_fire_config.py tests/test_prepare_fire_inputs.py
+python scripts/generate_fire_cb6_examples.py --check
+```
+
+These runs use invariant factors and did not ingest VIIRS AST. The candidate
+five-biome crosswalk passed synthetic class tests. The separate three-component
+product splitter now treats class 17 as water: zero-mass cells receive no
+component, and positive selected-species mass raises an error. Real aligned
+ancillary ingestion and the remaining class policies still need T075/T076.
+The T001-T027 checkpoint remains nonproduction product-mode evidence, not
+completion of biome-dependent profiles, CATChem integration or chemistry
+certification.
+
 ## Format: `[ID] [P?] [Story] Description`
 
 - `[P]` marks disjoint-file work eligible to overlap only after its stated prerequisites. It never overrides dependencies.
@@ -578,12 +607,15 @@ including the synthetic IGBP fixture and splitter, are not acceptance evidence.
   and test a strict product/version guard, and complete verified source-grid
   biome/NOx metadata before enabling real Stage 2 runs. No AM4.1 runtime
   profiles are claimed complete.
-- [ ] T075 [US1] Specify and complete the small `tests/data/fire/synthetic_igbp_map.yaml` fixture and its tests in `tests/test_fire_speciation.cpp` and `tests/test_prepare_fire_inputs.py`: retain its explicitly synthetic 2x2 GBBEPx-crop coordinates and class IDs 1, 10, 12 and 14, add a separate deterministic all-17-class case plus missing, invalid, water and misaligned-grid cases, and define schema/version, axis order, coordinate convention, grid identity and hash as needed by the actual loader. Prove cells map 1-5 to forest, 12 and 14 to cropland, and valid 6-11, 13 and 15-17 to grassland/savanna; check component sums and mixed-biome results before conservative allocation. The proposed missing-value fallback to class 10 must never silently turn unavailable or invalid data into observed land cover: specify an explicit, recorded policy and its applicability, default to error where required by existing FR-012, and test both zero-fire and active-fire cells. Reuse and validate the in-progress `SplitFireProductByIgbp` rather than duplicating it per plan: component-preserving chemistry and attached IGBP contracts (partial).
+- [ ] T075 [US1] Specify and complete the small `tests/data/fire/synthetic_igbp_map.yaml` fixture and its tests in `tests/test_fire_speciation.cpp` and `tests/test_prepare_fire_inputs.py`: retain its explicitly synthetic 2x2 GBBEPx-crop coordinates and class IDs 1, 10, 12 and 14, add a separate deterministic all-17-class case plus missing, invalid, water and misaligned-grid cases, and define schema/version, axis order, coordinate convention, grid identity and hash as needed by the actual loader. Validate mappings of classes 1-5 to forest, 12 and 14 to cropland, and supported 6-11 to grassland/savanna; independently establish the treatment of 13, 15 and 16 and reject or explicitly mask AST class 17 (water), rather than treating it as grassland. Check component sums and mixed-biome results before conservative allocation. The proposed missing-value fallback to class 10 must never silently turn unavailable or invalid data into observed land cover: specify an explicit, recorded policy and its applicability, default to error where required by existing FR-012, and test both zero-fire and active-fire cells. Reuse and validate the in-progress `SplitFireProductByIgbp` rather than duplicating it per plan: component-preserving chemistry and attached IGBP contracts (partial).
 - [ ] T076 [US1] Design and implement bounded, provenance-checked ancillary ingestion/alignment in `scripts/prepare_fire_inputs.py`, `src/core/cece_fire_input.cpp` and the prepared input contract for GBBEPx and RAVE when source-grid biome identity is required. Evaluate the user-provided `https://noaa-oar-arl-nacc-pds.s3.amazonaws.com/inputs/geo-files/canopy_vegetation_type.0.01.nc` as a candidate, not an assumed IGBP class raster: inspect its actual variable schema, class convention, time, coordinates, fill values, license and provenance, and pin immutable identity/checksum and conversion/crosswalk only if independently verified. Its 2026-11-20 HTTP metadata reported 5,184,876,322 bytes; use a documented bounded crop/streaming or pre-staged input rather than a full download in tests. Define and test reproducible categorical 0.01-degree-to-product-grid aggregation, ties, coastline/water, missing coverage, longitude wrap and grid fingerprint alignment; if the dataset contains fractions or a non-IGBP classification, require a scientifically verified mapping rather than guessing. Preserve source-grid composition components and hash ancillary/crosswalk/policy in provenance and cache identity; do not infer biome from target cells. If suitable data or conversion is unavailable, block production use explicitly per FR-008/FR-010/FR-011 and attached ancillary contracts (partial).
 
-  Partial T075/T076 evidence: the synthetic test now checks all 17 declared
-  assignments independently, rejects missing classes for active and valid-zero
-  cells, and checks class 17 and conservation. A bounded candidate NetCDF header
+  Partial T075/T076 evidence: the synthetic test checks all 17 existing
+  assignments and conservation and rejects missing classes for active and
+  valid-zero cells. Class 17 now represents water: synthetic tests check both
+  zero-emission water and rejection of positive emissions over water, including
+  mixed-species and mixed-biome mapping. The speciation, science, product and
+  conservation CTest selection passed 52/52 cases. A bounded candidate NetCDF header
   describes 2020 VIIRS IGBP and is recorded in the ATBD manifest, but its data,
   coordinates, rights, full digest and compatibility remain unverified. No
   ancillary ingestion or verified aggregation has been implemented. The

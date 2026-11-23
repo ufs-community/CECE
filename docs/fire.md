@@ -45,6 +45,10 @@ mapping rather than treating them as zero fire. It is not connected to input
 preparation or runtime, and its aggregation and compatibility with deployed
 RAVE climatology remain unverified. In the inspected VIIRS file, 0 is fill
 and 17 is water; a 20-class dataset must not be interpreted as IGBP17.
+The separate experimental three-component product splitter treats class 17 as
+water: it assigns no biome component when all selected species have zero mass
+and rejects positive emissions over water. Its remaining class assignments,
+AST ingestion and source-grid alignment are not validated for production.
 
 Four Phase 3 demonstration configurations are generated from the factor
 manifest by [`scripts/generate_fire_cb6_examples.py`](../scripts/generate_fire_cb6_examples.py):
@@ -422,8 +426,8 @@ Neither manifest installs or certifies a derivation profile.
 The candidate NOAA vegetation file's bounded header identifies a 2020 VIIRS
 17-class IGBP product, with class 17 water; it does not establish compatibility
 with RAVE's described 2019 MODIS ancillary, verified grid alignment, or
-redistribution rights. The synthetic splitter assigns class 17 to its
-grassland component as a test contract, not an approved water-fire policy.
+redistribution rights. The synthetic product splitter accepts class-17 water
+only when every selected species has zero mass; otherwise it raises an error.
 Missing or invalid classes are rejected even for zero-fire cells. No ancillary
 loader or production biome mapping is implied by these synthetic tests.
 The RAVE reference manifest also records a candidate CC-BY-4.0 reprocessed

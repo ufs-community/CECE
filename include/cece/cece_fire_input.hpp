@@ -195,7 +195,8 @@ enum class FireRaveBiome { Forest, Shrubland, Savanna, Grassland, Cropland };
 // Candidate crosswalk for a verified VIIRS IGBP17 input, not a deployed RAVE map.
 FireRaveBiome FireRaveBiomeFromViirsIgbp17(int category);
 
-// Profiles are ordered forest, grassland/savanna, cropland.
+// Profiles are ordered forest, grassland/savanna, cropland. IGBP17 water
+// cells require zero mass for every selected species and receive no component.
 FireBulkInventory SplitFireProductByIgbp(const FireBulkInventory& inventory, const FireIgbpGrid& igbp,
                                         const std::array<FireComponentProfile, 3>& profiles);
 
