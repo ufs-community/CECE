@@ -64,6 +64,7 @@ driver:
   start_time: "2026-01-12T20:00:00"
   end_time: "2026-01-12T22:00:00"
   timestep_seconds: 3600
+  geometry_reconstruction: "rectilinear_midpoint"
   grid:
     nx: 72
     ny: 36
@@ -87,6 +88,7 @@ cece_data:
       file: "$WORKDIR/weekly.nc"
       cadence: "weekly"
       mapalgo: "consd"
+      geometry_reconstruction: "rectilinear_midpoint"
 $local_time_line
       variables:
         - file: "FW"

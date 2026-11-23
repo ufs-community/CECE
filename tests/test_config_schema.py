@@ -528,3 +528,31 @@ def test_nuopc_rejects_unknown_attribute():
             "species": {"oc": [{"field": "OC", "operation": "add"}]},
             "nuopc": {"export_fields": {"oc": {"standard_name": "x", "rank": 2}}},
         })
+
+
+@pytest.mark.parametrize(
+    "policy", [member.value for member in config.GeometryReconstruction]
+)
+def test_geometry_reconstruction_policies_are_shared(valid_config, policy):
+    valid_config["driver"]["geometry_reconstruction"] = policy
+    valid_config["cece_data"]["streams"][0]["geometry_reconstruction"] = policy
+    result = config.CeceConfig.from_dict(valid_config)
+    assert result.driver.geometry_reconstruction == policy
+    assert (
+        result.to_dict()["cece_data"]["streams"][0].get(
+            "geometry_reconstruction", "none"
+        )
+        == policy
+    )
+
+
+@pytest.mark.parametrize("location", ["driver", "stream"])
+def test_invalid_geometry_reconstruction_is_rejected(valid_config, location):
+    node = (
+        valid_config["driver"]
+        if location == "driver"
+        else valid_config["cece_data"]["streams"][0]
+    )
+    node["geometry_reconstruction"] = "invalid"
+    with pytest.raises(ValueError, match="geometry_reconstruction"):
+        config.CeceConfig.from_dict(valid_config)

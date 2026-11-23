@@ -122,6 +122,22 @@ cece_data:
     EXPECT_EQ(config.cece_data.streams.front().mapalgo, "bilinear");
 }
 
+TEST_F(DriverConfigurationTest, GeometryReconstructionIsNormalizedToLowercase) {
+    WriteConfigFile(test_config_file, R"(
+driver:
+  geometry_reconstruction: Rectilinear_Midpoint
+cece_data:
+  streams:
+    - name: CO
+      file: emissions.nc
+      geometry_reconstruction: Gaussian_LatLon
+)");
+    const auto config = ParseConfig(test_config_file);
+    EXPECT_EQ(config.driver_config.geometry_reconstruction, "rectilinear_midpoint");
+    ASSERT_EQ(config.cece_data.streams.size(), 1);
+    EXPECT_EQ(config.cece_data.streams.front().geometry_reconstruction, "gaussian_latlon");
+}
+
 TEST_F(DriverConfigurationTest, StreamDefaultsMatchStandaloneDriver) {
     WriteConfigFile(test_config_file, R"(
 cece_data:
