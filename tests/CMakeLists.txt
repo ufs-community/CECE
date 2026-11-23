@@ -162,26 +162,19 @@ cece_add_gtest(test_driver_clock_management NO_CECE)
 cece_add_gtest(test_clock_operations_unit NO_CECE)
 cece_add_gtest(test_driver_integration_end_to_end NO_CECE)
 cece_add_gtest(test_cece_ingestor)
-cece_add_gtest(
-  test_cece_utils
-  MAIN MPI_KOKKOS
-  MPI_LAUNCHER
-  SOURCE_DIR_DEFINE
-  PROPERTIES PROCESSORS 1
-)
-cece_add_gtest(test_numerical_equivalence MAIN MPI_KOKKOS MPI_LAUNCHER)
+cece_add_gtest(test_cece_utils MAIN MPI_KOKKOS SOURCE_DIR_DEFINE PROPERTIES PROCESSORS 1)
+cece_add_gtest(test_numerical_equivalence MAIN MPI_KOKKOS)
 cece_add_gtest(test_cece_compute)
 cece_add_gtest(
   test_standalone_writer_attributes
   MAIN MPI_KOKKOS
-  MPI_LAUNCHER
   PROPERTIES PROCESSORS 1 RESOURCE_LOCK tmp_cece_writer_attr_test
 )
-cece_add_gtest(test_rectilinear_gridspec MAIN MPI_KOKKOS MPI_LAUNCHER PROPERTIES PROCESSORS 1)
+cece_add_gtest(test_rectilinear_gridspec MAIN MPI_KOKKOS PROPERTIES PROCESSORS 1)
 cece_add_gtest(test_regrid_method_resolution MAIN KOKKOS)
 cece_add_gtest(test_grid_geometry MAIN MPI_KOKKOS)
 cece_add_gtest(test_regrid_prerequisites MAIN KOKKOS)
-cece_add_gtest(test_geometry_plan_lifecycle MAIN MPI_KOKKOS MPI_LAUNCHER NO_DISCOVER)
+cece_add_gtest(test_geometry_plan_lifecycle MAIN MPI_KOKKOS NO_DISCOVER)
 cece_add_mpi_tests(test_geometry_plan_lifecycle NP 1 2)
 cece_add_gtest(test_geometry_conservation MAIN KOKKOS)
 cece_add_gtest(test_physics)
@@ -245,13 +238,7 @@ cece_add_gtest(test_cece_calendar NO_AS_NEEDED)
 # AMIO View Widening Unit Tests
 cece_add_gtest(test_cece_amio_utils NO_AS_NEEDED)
 # Time Axis Integration Tests (real NetCDF fixtures read through AMIO).
-cece_add_gtest(
-  test_cece_time_axis_netcdf
-  MAIN MPI_KOKKOS
-  NO_AS_NEEDED
-  MPI_LAUNCHER
-  PROPERTIES PROCESSORS 1
-)
+cece_add_gtest(test_cece_time_axis_netcdf MAIN MPI_KOKKOS NO_AS_NEEDED PROPERTIES PROCESSORS 1)
 # CeceClock Run Loop Unit Tests
 cece_add_gtest(test_cece_clock_run_loop MAIN KOKKOS)
 # Bracket-equality Property Tests (driver-io-regrid-perf, Property 5)
@@ -263,12 +250,7 @@ cece_add_gtest(
   LINK ${RAPIDCHECK}
   PROPERTIES ENVIRONMENT "RC_PARAMS=max_success=100"
 )
-cece_add_gtest(
-  test_band_single_rank_properties
-  MAIN MPI_KOKKOS
-  LINK MPI::MPI_CXX ${RAPIDCHECK}
-  MPI_LAUNCHER
-)
+cece_add_gtest(test_band_single_rank_properties MAIN MPI_KOKKOS LINK ${RAPIDCHECK})
 cece_add_gtest(
   test_band_regrid_equals_global_rows
   MAIN KOKKOS
@@ -281,7 +263,7 @@ cece_add_gtest(
 cece_add_gtest(
   test_band_boundary_conservation
   MAIN KOKKOS
-  LINK Kokkos::kokkos HELM::AXIS ${RAPIDCHECK}
+  LINK HELM::AXIS ${RAPIDCHECK}
   PROPERTIES ENVIRONMENT "RC_PARAMS=max_success=100"
 )
 # Band-boundary conservation on CURVILINEAR grids (distributed-domain-decomposition,
@@ -290,7 +272,7 @@ cece_add_gtest(
 cece_add_gtest(
   test_band_boundary_curvilinear
   MAIN KOKKOS
-  LINK Kokkos::kokkos HELM::AXIS ${RAPIDCHECK}
+  LINK HELM::AXIS ${RAPIDCHECK}
   PROPERTIES ENVIRONMENT "RC_PARAMS=max_success=100"
 )
 
@@ -314,46 +296,36 @@ cece_add_gtest(test_open_once_no_per_step_close LINK ${RAPIDCHECK} SOURCE_DIR_DE
 # Cache-hit Skips-work Property Tests (driver-io-regrid-perf, Task 13.3, Req 9.4)
 cece_add_gtest(test_cache_hit_skips_work LINK ${RAPIDCHECK})
 # Regrid Conservation Property Tests (driver-io-regrid-perf, Property 9)
-cece_add_gtest(test_regrid_conservation_properties MAIN MPI_KOKKOS LINK ${RAPIDCHECK} MPI_LAUNCHER)
+cece_add_gtest(test_regrid_conservation_properties MAIN MPI_KOKKOS LINK ${RAPIDCHECK})
 # Shared-plan Equivalence Property Tests (regrid-per-stream, Property 2)
-cece_add_gtest(test_shared_plan_equivalence MAIN MPI_KOKKOS LINK ${RAPIDCHECK} MPI_LAUNCHER)
+cece_add_gtest(test_shared_plan_equivalence MAIN MPI_KOKKOS LINK ${RAPIDCHECK})
 
 # --- Temporal endpoint regrid cache -----------------------------------------
 # Endpoint-blend Equivalence Property Tests (Property 1). Uses
 # apply_regrid_plan + AXIS weight generation (Kokkos).
-cece_add_gtest(test_endpoint_blend_equivalence MAIN MPI_KOKKOS LINK ${RAPIDCHECK} MPI_LAUNCHER)
+cece_add_gtest(test_endpoint_blend_equivalence MAIN MPI_KOKKOS LINK ${RAPIDCHECK})
 # Endpoint Work-reduction Property Tests (Property 2). Pure decision ladder
 # with a WorkSpy; no Kokkos/MPI needed.
 cece_add_gtest(test_endpoint_work_reduction LINK ${RAPIDCHECK})
 # Endpoint per-variable Shared-plan Correctness Property Tests (Property 5).
-cece_add_gtest(test_endpoint_shared_plan MAIN MPI_KOKKOS LINK ${RAPIDCHECK} MPI_LAUNCHER)
+cece_add_gtest(test_endpoint_shared_plan MAIN MPI_KOKKOS LINK ${RAPIDCHECK})
 # Endpoint Tier-precedence Property Tests (Property 3, Task 9.1).
 cece_add_gtest(test_endpoint_tier_precedence LINK ${RAPIDCHECK})
 # Endpoint Sizing and Tier-3 Population Unit/Example Tests (Task 12.1).
-cece_add_gtest(test_endpoint_sizing MAIN MPI_KOKKOS LINK MPI::MPI_CXX Kokkos::kokkos MPI_LAUNCHER)
+cece_add_gtest(test_endpoint_sizing MAIN MPI_KOKKOS)
 # Endpoint Invalidation and Failure unit/example tests (Task 12.2).
-cece_add_gtest(
-  test_endpoint_invalidation
-  MAIN MPI_KOKKOS
-  LINK MPI::MPI_CXX Kokkos::kokkos
-  MPI_LAUNCHER
-)
+cece_add_gtest(test_endpoint_invalidation MAIN MPI_KOKKOS)
 
 # --- Ingest copy consolidation ----------------------------------------------
 # No-stale-data Property Tests (Property 4)
 cece_add_gtest(test_ingest_no_stale_data MAIN KOKKOS LINK ${RAPIDCHECK})
 # Ingest Consolidation Equivalence Property Tests (Property 1). Uses Kokkos
 # DualView3D + deep_copy.
-cece_add_gtest(
-  test_ingest_consolidation_equivalence
-  MAIN MPI_KOKKOS
-  LINK ${RAPIDCHECK}
-  MPI_LAUNCHER
-)
+cece_add_gtest(test_ingest_consolidation_equivalence MAIN MPI_KOKKOS LINK ${RAPIDCHECK})
 # MPI Collective Gate Order Property Tests (Property 3)
 cece_add_gtest(test_ingest_collective_gate_order LINK ${RAPIDCHECK})
 # Ingest single-write Property Tests (Property 2)
-cece_add_gtest(test_ingest_single_write MAIN MPI_KOKKOS LINK ${RAPIDCHECK} MPI_LAUNCHER)
+cece_add_gtest(test_ingest_single_write MAIN MPI_KOKKOS LINK ${RAPIDCHECK})
 
 # --- Multi-rank MPI tests ----------------------------------------------------
 # These run on the shared cece_test_main environment and register at several
@@ -363,18 +335,12 @@ cece_add_gtest(test_ingest_single_write MAIN MPI_KOKKOS LINK ${RAPIDCHECK} MPI_L
 
 # MPI cross-rank reuse-decision integration test (driver-io-regrid-perf,
 # Property 8, Task 12.3).
-cece_add_gtest(test_mpi_reuse_decision MAIN MPI_KOKKOS LINK MPI::MPI_CXX MPI_LAUNCHER NO_DISCOVER)
+cece_add_gtest(test_mpi_reuse_decision MAIN MPI_KOKKOS NO_DISCOVER)
 cece_add_mpi_tests(test_mpi_reuse_decision NP 1 2)
 
 # Endpoint reuse-decision rank-invariance property test
 # (temporal-endpoint-regrid-cache, Property 4, Task 10.1).
-cece_add_gtest(
-  test_endpoint_reuse_decision
-  MAIN MPI_KOKKOS
-  LINK MPI::MPI_CXX ${RAPIDCHECK}
-  MPI_LAUNCHER
-  NO_DISCOVER
-)
+cece_add_gtest(test_endpoint_reuse_decision MAIN MPI_KOKKOS LINK ${RAPIDCHECK} NO_DISCOVER)
 cece_add_mpi_tests(test_endpoint_reuse_decision NP 1 2)
 
 # Fused front-half gate-equivalence property test (cece-halo-collective-adoption,
@@ -383,8 +349,7 @@ cece_add_mpi_tests(test_endpoint_reuse_decision NP 1 2)
 cece_add_gtest(
   test_fused_gate_equivalence
   MAIN MPI_KOKKOS
-  LINK MPI::MPI_CXX HELM::HALO ${RAPIDCHECK}
-  MPI_LAUNCHER
+  LINK HELM::HALO ${RAPIDCHECK}
   NO_DISCOVER
 )
 cece_add_mpi_tests(test_fused_gate_equivalence NP 1 2 4)
@@ -392,13 +357,7 @@ cece_add_mpi_tests(test_fused_gate_equivalence NP 1 2 4)
 # Collective-count independence Property Test (cece-halo-collective-adoption,
 # Property 5, Task 10.4): a PMPI-style spy proves the single-gather assembly
 # issues exactly one Allgatherv and a level-independent collective count.
-cece_add_gtest(
-  test_collective_count
-  MAIN MPI_KOKKOS
-  LINK HELM::HALO MPI::MPI_CXX Kokkos::kokkos ${RAPIDCHECK}
-  MPI_LAUNCHER
-  NO_DISCOVER
-)
+cece_add_gtest(test_collective_count MAIN MPI_KOKKOS LINK HELM::HALO ${RAPIDCHECK} NO_DISCOVER)
 cece_add_mpi_tests(test_collective_count NP 1 2)
 
 # HALO single-gather assembly equivalence Property Test
@@ -407,8 +366,7 @@ cece_add_mpi_tests(test_collective_count NP 1 2)
 cece_add_gtest(
   test_halo_gather_equivalence
   MAIN MPI_KOKKOS
-  LINK HELM::HALO MPI::MPI_CXX Kokkos::kokkos ${RAPIDCHECK}
-  MPI_LAUNCHER
+  LINK HELM::HALO ${RAPIDCHECK}
   NO_DISCOVER
 )
 cece_add_mpi_tests(test_halo_gather_equivalence NP 1 2 4)
@@ -416,50 +374,26 @@ cece_add_mpi_tests(test_halo_gather_equivalence NP 1 2 4)
 # Collective gate-equivalence property tests (cece-halo-collective-adoption,
 # Properties 2 & 3, Task 10.2): collective_all_ready / collective_int_matches
 # against a legacy reference, including the NULL comm / size-1 short circuits.
-cece_add_gtest(
-  test_collective_gate_equivalence
-  MAIN MPI_KOKKOS
-  LINK MPI::MPI_CXX ${RAPIDCHECK}
-  MPI_LAUNCHER
-  NO_DISCOVER
-)
+cece_add_gtest(test_collective_gate_equivalence MAIN MPI_KOKKOS LINK ${RAPIDCHECK} NO_DISCOVER)
 cece_add_mpi_tests(test_collective_gate_equivalence NP 1 2)
 
 # HALO-adoption unit / example / edge-case tests (cece-halo-collective-adoption,
 # Task 10.6): Replicated_Gather_Plan accessors, send_buf index math, the
 # halo_comm_ wrapping decision and the cache-clear invalidation invariant.
-cece_add_gtest(
-  test_halo_adoption_units
-  MAIN MPI_KOKKOS
-  LINK MPI::MPI_CXX HELM::HALO
-  MPI_LAUNCHER
-  NO_DISCOVER
-)
+cece_add_gtest(test_halo_adoption_units MAIN MPI_KOKKOS LINK HELM::HALO NO_DISCOVER)
 cece_add_mpi_tests(test_halo_adoption_units NP 1 2 4)
 
 # HALO-adoption multi-rank integration test (cece-halo-collective-adoption,
 # Task 11.1): the real regrid+gather path primitives under failure injection,
 # np2/np4 cross-rank bit-identity and np1-equivalence to the serial reference.
-cece_add_gtest(
-  test_halo_multirank_integration
-  MAIN MPI_KOKKOS
-  LINK HELM::HALO MPI::MPI_CXX Kokkos::kokkos
-  MPI_LAUNCHER
-  NO_DISCOVER
-)
+cece_add_gtest(test_halo_multirank_integration MAIN MPI_KOKKOS LINK HELM::HALO NO_DISCOVER)
 cece_add_mpi_tests(test_halo_multirank_integration NP 1 2 4)
 
 # --- Distributed domain decomposition (Task 10) ------------------------------
 # 10.1 Output_Gather reconstruction (Property 4). Pure pack/place reassembly +
 # a per-level MPI_Gatherv multi-rank variant, both RapidCheck. Registered at
 # np1/np2/np4 so the surplus-rank (ny < size) case is exercised.
-cece_add_gtest(
-  test_output_gather_reconstruction
-  MAIN MPI_KOKKOS
-  LINK MPI::MPI_CXX ${RAPIDCHECK}
-  MPI_LAUNCHER
-  NO_DISCOVER
-)
+cece_add_gtest(test_output_gather_reconstruction MAIN MPI_KOKKOS LINK ${RAPIDCHECK} NO_DISCOVER)
 cece_add_mpi_tests(
   test_output_gather_reconstruction
   NP 1 2 4
@@ -469,12 +403,7 @@ cece_add_mpi_tests(
 # 10.3 Column-local band invariance (Property 7). Drives the REAL Ginoux scheme
 # over the full global range vs a band and asserts bit-for-bit equality of the
 # band-owned cells. Single-process, Kokkos only.
-cece_add_gtest(
-  test_column_local_band_invariance
-  MAIN KOKKOS
-  LINK Kokkos::kokkos ${RAPIDCHECK}
-  NO_DISCOVER
-)
+cece_add_gtest(test_column_local_band_invariance MAIN KOKKOS LINK ${RAPIDCHECK} NO_DISCOVER)
 add_test(
   NAME test_column_local_band_invariance
   COMMAND $<TARGET_FILE:test_column_local_band_invariance>
@@ -488,13 +417,7 @@ set_tests_properties(
 # 10.4 Collective lock-step with a surplus rank (Property 8). Needs np >= 4 to
 # produce a surplus rank (ny = 2 and ny = 3): registered at np1 (structural)
 # and np4 (surplus path).
-cece_add_gtest(
-  test_surplus_rank_lockstep
-  MAIN MPI_KOKKOS
-  LINK MPI::MPI_CXX
-  MPI_LAUNCHER
-  NO_DISCOVER
-)
+cece_add_gtest(test_surplus_rank_lockstep MAIN MPI_KOKKOS LINK NO_DISCOVER)
 cece_add_mpi_tests(test_surplus_rank_lockstep NP 1 4)
 
 # 10.2 Distributed output equivalence (Property 5 & 6). End-to-end: runs the
@@ -562,7 +485,6 @@ cece_add_gtest(
   MAIN MPI_KOKKOS
   LINK HELM::DAGR HELM::HALO HELM::TICK HELM::SPAN
   SOURCE_DIR_DEFINE
-  MPI_LAUNCHER
   PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp" PROCESSORS 1
 )
 
@@ -570,7 +492,7 @@ cece_add_gtest(
 if(ESMF_FOUND)
   cece_add_gtest(
     test_driver_config_validation
-    LINK iso8601_utils
+    LINK iso8601_utils MPI::MPI_CXX
     MPI_LAUNCHER
     PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp" PROCESSORS 1
   )
@@ -598,7 +520,6 @@ if(ESMF_FOUND)
     test_field_creation
     MAIN MPI_KOKKOS
     LINK ${_esmf_test_helpers}
-    MPI_LAUNCHER
     PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp" PROCESSORS 1 RESOURCE_LOCK cece_config_yaml
   )
   # Unit tests for field pointer passing (Requirement R5)
@@ -606,7 +527,6 @@ if(ESMF_FOUND)
     test_field_pointer_passing
     MAIN MPI_KOKKOS
     LINK ${_esmf_test_helpers}
-    MPI_LAUNCHER
     PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp" PROCESSORS 1 RESOURCE_LOCK cece_config_yaml
   )
 
