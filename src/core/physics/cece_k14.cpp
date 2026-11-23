@@ -25,7 +25,10 @@
 #include <iostream>
 #include <vector>
 
+#include "cece/cece_logger.hpp"
 #include "cece/cece_physics_factory.hpp"
+
+using namespace std::literals::string_literals;
 #include "cece/physics/cece_kok_distribution.hpp"
 using cece::physics::compute_kok_distribution;
 
@@ -136,7 +139,8 @@ void K14Scheme::Initialize(const conf::Value& config, CeceDiagnosticManager* dia
         has_custom_distribution_ = false;
     }
 
-    std::cout << "K14Scheme: Initialized. ch_du=" << ch_du_ << " opt_clay=" << opt_clay_ << " num_bins=" << num_bins_ << "\n";
+    CECE_LOG_INFO("K14Scheme: Initialized. ch_du="s + std::to_string(ch_du_) + " opt_clay="s + std::to_string(opt_clay_) + " num_bins="s +
+                  std::to_string(num_bins_) + "\n");
 }
 
 void K14Scheme::Run(CeceImportState& import_state, CeceExportState& export_state) {
