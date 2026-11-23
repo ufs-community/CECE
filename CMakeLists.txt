@@ -774,10 +774,11 @@ if(TARGET test_driver_integration_end_to_end)
   add_dependencies(test_driver_integration_end_to_end cece_standalone_driver)
   target_compile_definitions(
     test_driver_integration_end_to_end
-    PRIVATE CECE_DIAGNOSTICS_DRIVER="$<TARGET_FILE:cece_standalone_driver>"
-    CECE_DIAGNOSTICS_CONFIG="${PROJECT_SOURCE_DIR}/examples/cece_config_diagnostics.yaml"
-    CECE_DIAGNOSTICS_MPIEXEC="${MPIEXEC_EXECUTABLE}"
-    CECE_DIAGNOSTICS_MPI_NP_FLAG="${MPIEXEC_NUMPROC_FLAG}"
+    PRIVATE
+      CECE_DIAGNOSTICS_DRIVER="$<TARGET_FILE:cece_standalone_driver>"
+      CECE_DIAGNOSTICS_CONFIG="${PROJECT_SOURCE_DIR}/examples/cece_config_diagnostics.yaml"
+      CECE_DIAGNOSTICS_MPIEXEC="${MPIEXEC_EXECUTABLE}"
+      CECE_DIAGNOSTICS_MPI_NP_FLAG="${MPIEXEC_NUMPROC_FLAG}"
   )
 endif()
 
