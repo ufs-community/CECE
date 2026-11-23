@@ -27,7 +27,6 @@
 
 #include <algorithm>
 #include <chrono>
-#include <iostream>
 #include <stdexcept>
 #include <thread>
 
@@ -38,6 +37,8 @@
 #include "cece/cece_stacking_engine.hpp"
 #include "cece/cece_state.hpp"
 #include "cece/physics_scheme.hpp"
+
+using namespace std::literals::string_literals;
 
 namespace {
 
@@ -156,8 +157,8 @@ void ExecuteStepClockGated(cece::CeceInternalData& d, int* rc) {
         return;
     }
 
-    std::cout << "CECE_Run: executing step (hour=" << step.hour_of_day << ", day_of_week=" << step.day_of_week << ", elapsed=" << step.elapsed_seconds
-              << ")\n";
+    CECE_LOG_INFO("CECE_Run: executing step (hour="s + std::to_string(step.hour_of_day) + ", day_of_week="s + std::to_string(step.day_of_week) +
+                  ", elapsed="s + std::to_string(step.elapsed_seconds) + ")\n");
 
     bool ingested = false;
     for (const auto* comp : step.due_components) {
@@ -170,7 +171,7 @@ void ExecuteStepClockGated(cece::CeceInternalData& d, int* rc) {
 }
 
 void ExecuteStepUnconditional(cece::CeceInternalData& d, int hour, int day_of_week) {
-    std::cout << "CECE_Run: executing step (hour=" << hour << ", day_of_week=" << day_of_week << ")\n";
+    CECE_LOG_INFO("CECE_Run: executing step (hour="s + std::to_string(hour) + ", day_of_week="s + std::to_string(day_of_week) + ")\n");
 
     IngestEmissions(d);
 
@@ -230,7 +231,7 @@ void cece_core_run(void* data_ptr, int hour, int day_of_week, int* rc) {
     try {
         auto* d = static_cast<cece::CeceInternalData*>(data_ptr);
         if (!d) {
-            std::cerr << "CECE_Run: null data_ptr\n";
+            CECE_LOG_ERROR("CECE_Run: null data_ptr\n");
             *rc = -1;
             return;
         }
@@ -246,11 +247,11 @@ void cece_core_run(void* data_ptr, int hour, int day_of_week, int* rc) {
 
     } catch (const std::exception& e) {
         if (data_ptr) AbortPendingFireInterval(*static_cast<cece::CeceInternalData*>(data_ptr));
-        std::cerr << "CECE_Run: " << e.what() << "\n";
+        CECE_LOG_ERROR("CECE_Run: "s + e.what() + "\n");
         *rc = -1;
     } catch (...) {
         if (data_ptr) AbortPendingFireInterval(*static_cast<cece::CeceInternalData*>(data_ptr));
-        std::cerr << "CECE_Run: unknown\n";
+        CECE_LOG_ERROR("CECE_Run: unknown\n");
         *rc = -1;
     }
 }

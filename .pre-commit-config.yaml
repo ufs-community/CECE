@@ -82,6 +82,21 @@ repos:
         exclude: "tests/test_.*\\.cpp"
         entry: "YAML::|#include <yaml-cpp"
 
+      - id: no-raw-cpp-stdout
+        name: Disallow raw std::cout / std::cerr / printf
+        language: pygrep
+        types_or: [c, c++]
+        # The fire normalizer is a CLI whose stdout is a machine-readable protocol.
+        exclude: ^(tests/|include/cece/cece_(logger|fatal)\.hpp|src/core/cece_run_info\.cpp|src/core/cece_fire_product_normalize\.cpp$)
+        entry: '\bstd::(cout|cerr|clog)\b|\b(v?printf|puts|putchar)\s*\(|\bfprintf\s*\(\s*(stdout|stderr)\b'
+
+      - id: no-weird-cpp-stdout
+        name: Avoid the other C I/O functions in CECE Core
+        language: pygrep
+        types_or: [c, c++]
+        files: "src/core"
+        entry: '\bf?put[sc]\s*\('
+
       - id: symilar-yaml
         name: symilar-yaml
         description: Check for code duplication in yaml

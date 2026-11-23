@@ -21,7 +21,10 @@
 #include <cmath>
 #include <iostream>
 
+#include "cece/cece_logger.hpp"
 #include "cece/cece_physics_factory.hpp"
+
+using namespace std::literals::string_literals;
 
 namespace cece {
 
@@ -74,7 +77,8 @@ void GinouxScheme::Initialize(const conf::Value& config, CeceDiagnosticManager* 
         Kokkos::deep_copy(particle_radii_, h_radii);
     }
 
-    std::cout << "GinouxScheme: Initialized. ch_du=" << ch_du_ << " grav=" << grav_ << " num_bins=" << num_bins_ << "\n";
+    CECE_LOG_INFO("GinouxScheme: Initialized. ch_du="s + std::to_string(ch_du_) + " grav="s + std::to_string(grav_) + " num_bins="s +
+                  std::to_string(num_bins_) + "\n");
 }
 
 void GinouxScheme::Run(CeceImportState& import_state, CeceExportState& export_state) {

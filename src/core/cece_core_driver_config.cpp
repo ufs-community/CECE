@@ -13,13 +13,19 @@
  */
 
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <map>
 #include <sstream>
+#include <string>
 
 #include "cece/cece_config.hpp"
 #include "cece/cece_config_path.hpp"
+#include "cece/cece_logger.hpp"
+
+namespace fs = std::filesystem;
+using namespace std::literals::string_literals;
 
 extern "C" {
 
@@ -36,7 +42,7 @@ extern "C" {
 static int parse_esmf_config_file(const std::string& config_file, std::map<std::string, std::string>& config) {
     std::ifstream file(config_file);
     if (!file.is_open()) {
-        std::cerr << "ERROR: Failed to open config file: " << config_file << "\n";
+        CECE_LOG_ERROR("ERROR: Failed to open config file: "s + config_file + "\n"s);
         return -1;
     }
 
@@ -53,7 +59,7 @@ static int parse_esmf_config_file(const std::string& config_file, std::map<std::
         // Find the colon separator
         size_t colon_pos = line.find(':');
         if (colon_pos == std::string::npos) {
-            std::cerr << "WARNING: Line " << line_num << " has no colon separator: " << line << "\n";
+            CECE_LOG_WARNING("WARNING: Line "s + std::to_string(line_num) + " has no colon separator: "s + line + "\n");
             continue;
         }
 
@@ -94,18 +100,19 @@ static int parse_esmf_config_file(const std::string& config_file, std::map<std::
  * @param ny Output for grid ny.
  * @param rc Return code (0 on success, -1 on error).
  */
+// TODO: Check for callers and remove
 void cece_core_get_driver_config(const char* config_file, int config_file_len, char* start_time, int start_time_len, char* end_time, int end_time_len,
                                  int* timestep_seconds, char* gridspec_file, int gridspec_file_len, int* nx, int* ny, int* rc) {
     *rc = 0;
 
     if (config_file == nullptr) {
-        std::cerr << "ERROR: cece_core_get_driver_config - null config_file pointer\n";
+        CECE_LOG_ERROR("ERROR: cece_core_get_driver_config - null config_file pointer\n");
         *rc = -1;
         return;
     }
 
     if (start_time == nullptr || end_time == nullptr || gridspec_file == nullptr) {
-        std::cerr << "ERROR: cece_core_get_driver_config - null output buffers\n";
+        CECE_LOG_ERROR("ERROR: cece_core_get_driver_config - null output buffers\n");
         *rc = -1;
         return;
     }
@@ -118,7 +125,7 @@ void cece_core_get_driver_config(const char* config_file, int config_file_len, c
         std::map<std::string, std::string> config;
         int parse_rc = parse_esmf_config_file(config_path, config);
         if (parse_rc != 0) {
-            std::cerr << "ERROR: Failed to parse config file: " << config_path << "\n";
+            CECE_LOG_ERROR("ERROR: Failed to parse config file: "s + config_path + "\n"s);
             *rc = -1;
             return;
         }
@@ -146,7 +153,7 @@ void cece_core_get_driver_config(const char* config_file, int config_file_len, c
             try {
                 timestep_secs = std::stoi(config["timestep_seconds"]);
             } catch (const std::exception& e) {
-                std::cerr << "WARNING: Failed to parse timestep_seconds: " << e.what() << "\n";
+                CECE_LOG_WARNING("WARNING: Failed to parse timestep_seconds: "s + e.what() + "\n"s);
                 timestep_secs = 3600;
             }
         }
@@ -156,7 +163,7 @@ void cece_core_get_driver_config(const char* config_file, int config_file_len, c
             try {
                 grid_nx = std::stoi(config["grid_nx"]);
             } catch (const std::exception& e) {
-                std::cerr << "WARNING: Failed to parse grid_nx: " << e.what() << "\n";
+                CECE_LOG_WARNING("WARNING: Failed to parse grid_nx: "s + e.what() + "\n"s);
                 grid_nx = 4;
             }
         }
@@ -166,7 +173,7 @@ void cece_core_get_driver_config(const char* config_file, int config_file_len, c
             try {
                 grid_ny = std::stoi(config["grid_ny"]);
             } catch (const std::exception& e) {
-                std::cerr << "WARNING: Failed to parse grid_ny: " << e.what() << "\n";
+                CECE_LOG_WARNING("WARNING: Failed to parse grid_ny: "s + e.what() + "\n"s);
                 grid_ny = 4;
             }
         }
@@ -178,7 +185,7 @@ void cece_core_get_driver_config(const char* config_file, int config_file_len, c
 
         // Copy start_time
         if (start_str.length() >= static_cast<size_t>(start_time_len)) {
-            std::cerr << "WARNING: start_time buffer too small, truncating\n";
+            CECE_LOG_WARNING("WARNING: start_time buffer too small, truncating\n");
             std::strncpy(start_time, start_str.c_str(), start_time_len - 1);
             start_time[start_time_len - 1] = '\0';
         } else {
@@ -187,7 +194,7 @@ void cece_core_get_driver_config(const char* config_file, int config_file_len, c
 
         // Copy end_time
         if (end_str.length() >= static_cast<size_t>(end_time_len)) {
-            std::cerr << "WARNING: end_time buffer too small, truncating\n";
+            CECE_LOG_WARNING("WARNING: end_time buffer too small, truncating\n");
             std::strncpy(end_time, end_str.c_str(), end_time_len - 1);
             end_time[end_time_len - 1] = '\0';
         } else {
@@ -206,7 +213,7 @@ void cece_core_get_driver_config(const char* config_file, int config_file_len, c
                 gridspec_file[i] = ' ';
             }
         } else if (gridspec_str.length() >= static_cast<size_t>(gridspec_file_len)) {
-            std::cerr << "WARNING: gridspec_file buffer too small, truncating\n";
+            CECE_LOG_WARNING("WARNING: gridspec_file buffer too small, truncating\n");
             std::strncpy(gridspec_file, gridspec_str.c_str(), gridspec_file_len - 1);
             gridspec_file[gridspec_file_len - 1] = '\0';
         } else {
@@ -227,20 +234,21 @@ void cece_core_get_driver_config(const char* config_file, int config_file_len, c
 
         // Validate timestep_seconds > 0
         if (*timestep_seconds <= 0) {
-            std::cerr << "ERROR: [cece_core_get_driver_config] timestep_seconds must be positive, got: " << *timestep_seconds << "\n";
+            CECE_LOG_ERROR("ERROR: [cece_core_get_driver_config] timestep_seconds must be positive, got: "s + std::to_string(*timestep_seconds) +
+                           "\n"s);
             *rc = -1;
             return;
         }
 
         // Validate grid dimensions nx, ny > 0
         if (*nx <= 0) {
-            std::cerr << "ERROR: [cece_core_get_driver_config] grid_nx must be positive, got: " << *nx << "\n";
+            CECE_LOG_ERROR("ERROR: [cece_core_get_driver_config] grid_nx must be positive, got: "s + std::to_string(*nx) + "\n"s);
             *rc = -1;
             return;
         }
 
         if (*ny <= 0) {
-            std::cerr << "ERROR: [cece_core_get_driver_config] grid_ny must be positive, got: " << *ny << "\n";
+            CECE_LOG_ERROR("ERROR: [cece_core_get_driver_config] grid_ny must be positive, got: "s + std::to_string(*ny) + "\n"s);
             *rc = -1;
             return;
         }
@@ -249,15 +257,16 @@ void cece_core_get_driver_config(const char* config_file, int config_file_len, c
         // after parsing ISO8601 strings to time objects, as string comparison
         // is not reliable for datetime validation.
 
-        std::cout << "INFO: [cece_core_get_driver_config] Successfully read driver config:\n";
-        std::cout << "  start_time: " << start_str << "\n";
-        std::cout << "  end_time: " << end_str << "\n";
-        std::cout << "  timestep_seconds: " << *timestep_seconds << "\n";
-        std::cout << "  gridspec_file: " << (gridspec_str.empty() ? "(none - will generate grid)" : gridspec_str) << "\n";
-        std::cout << "  grid: " << *nx << " x " << *ny << "\n";
+        std::string logmsg = "INFO: [cece_core_get_driver_config] Successfully read driver config:\n"s;
+        logmsg += "  start_time: "s + start_str + "\n"s;
+        logmsg += "  end_time: "s + end_str + "\n"s;
+        logmsg += "  timestep_seconds: "s + std::to_string(*timestep_seconds) + "\n"s;
+        logmsg += "  gridspec_file: "s + (gridspec_str.empty() ? "(none - will generate grid)"s : gridspec_str) + "\n"s;
+        logmsg += "  grid: "s + std::to_string(*nx) + " x "s + std::to_string(*ny) + "\n"s;
+        CECE_LOG_INFO(logmsg);
 
     } catch (const std::exception& e) {
-        std::cerr << "ERROR: cece_core_get_driver_config - Exception: " << e.what() << "\n";
+        CECE_LOG_ERROR("ERROR: cece_core_get_driver_config - Exception: "s + e.what() + "\n"s);
         *rc = -1;
         return;
     }

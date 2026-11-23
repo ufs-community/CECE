@@ -34,7 +34,10 @@
 #include <iostream>
 #include <stdexcept>
 
+#include "cece/cece_logger.hpp"
 #include "cece/cece_physics_factory.hpp"
+
+using namespace std::literals::string_literals;
 
 namespace cece {
 
@@ -131,7 +134,7 @@ void BdsnpScheme::Initialize(const conf::Value& config, CeceDiagnosticManager* d
         } else if (config["a_biome_wet"]) {
             yl95_parameters_.biome_coefficient_wet = config["a_biome_wet"].as_double();
         } else {
-            std::cout << "BdsnpScheme: Using default a_biome_wet = " << yl95_parameters_.biome_coefficient_wet << "\n";
+            CECE_LOG_INFO("BdsnpScheme: Using default a_biome_wet = "s + std::to_string(yl95_parameters_.biome_coefficient_wet) + "\n"s);
         }
 
         if (config["temp_limit"]) {
@@ -139,7 +142,7 @@ void BdsnpScheme::Initialize(const conf::Value& config, CeceDiagnosticManager* d
         } else if (config["tc_max"]) {
             yl95_parameters_.temperature_limit = config["tc_max"].as_double();
         } else {
-            std::cout << "BdsnpScheme: Using default tc_max = " << yl95_parameters_.temperature_limit << "\n";
+            CECE_LOG_INFO("BdsnpScheme: Using default tc_max = "s + std::to_string(yl95_parameters_.temperature_limit) + "\n"s);
         }
 
         if (config["temp_exp_coeff"]) {
@@ -147,7 +150,7 @@ void BdsnpScheme::Initialize(const conf::Value& config, CeceDiagnosticManager* d
         } else if (config["exp_coeff"]) {
             yl95_parameters_.temperature_exponential_coefficient = config["exp_coeff"].as_double();
         } else {
-            std::cout << "BdsnpScheme: Using default exp_coeff = " << yl95_parameters_.temperature_exponential_coefficient << "\n";
+            CECE_LOG_INFO("BdsnpScheme: Using default exp_coeff = "s + std::to_string(yl95_parameters_.temperature_exponential_coefficient) + "\n"s);
         }
 
         if (config["wet_coeff_1"]) {
@@ -155,7 +158,7 @@ void BdsnpScheme::Initialize(const conf::Value& config, CeceDiagnosticManager* d
         } else if (config["wet_c1"]) {
             yl95_parameters_.wetness_coefficient_1 = config["wet_c1"].as_double();
         } else {
-            std::cout << "BdsnpScheme: Using default wet_c1 = " << yl95_parameters_.wetness_coefficient_1 << "\n";
+            CECE_LOG_INFO("BdsnpScheme: Using default wet_c1 = "s + std::to_string(yl95_parameters_.wetness_coefficient_1) + "\n"s);
         }
 
         if (config["wet_coeff_2"]) {
@@ -163,11 +166,11 @@ void BdsnpScheme::Initialize(const conf::Value& config, CeceDiagnosticManager* d
         } else if (config["wet_c2"]) {
             yl95_parameters_.wetness_coefficient_2 = config["wet_c2"].as_double();
         } else {
-            std::cout << "BdsnpScheme: Using default wet_c2 = " << yl95_parameters_.wetness_coefficient_2 << "\n";
+            CECE_LOG_INFO("BdsnpScheme: Using default wet_c2 = "s + std::to_string(yl95_parameters_.wetness_coefficient_2) + "\n"s);
         }
     }
 
-    std::cout << "BdsnpScheme: Initialized with soil_no_method='" << soil_no_method << "'\n";
+    CECE_LOG_INFO("BdsnpScheme: Initialized with soil_no_method='"s + soil_no_method + "'\n"s);
 }
 
 // ============================================================================
