@@ -25,6 +25,11 @@ venv*/
 *.egg-info/
 .env*
 
+# Local JavaScript tooling and secrets
+node_modules/
+coverage/
+.env*
+
 # Generated / large runtime artifacts
 *.nc
 *.nccf

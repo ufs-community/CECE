@@ -6,7 +6,7 @@
 #                  [NO_DISCOVER] [PROPERTIES ...])
 #     Defines a GoogleTest executable and (unless NO_DISCOVER) registers its
 #     cases with gtest_discover_tests. MAIN selects the main():
-#       GTEST      (default) GTest::gtest_main — plain tests, no MPI/Kokkos
+#       GTEST      (default) cece_test_main_default — plain tests, no MPI/Kokkos
 #       MPI_KOKKOS cece_test_main        — MPI + HALO + Kokkos environment (tests/support)
 #       KOKKOS     cece_test_main_kokkos — Kokkos only, no MPI
 #       OWN        GTest::gtest          — the source file provides main()
@@ -37,13 +37,18 @@ include_guard(GLOBAL)
 include(GoogleTest)
 
 # Enumerate GTest cases at ctest time (PRE_TEST) rather than during the build
-# (POST_BUILD). Listing itself is harmless anywhere — the shared test
-# environment initializes MPI/Kokkos only in Environment::SetUp, which gtest
-# skips for --gtest_list_tests — but on CMake >= 3.29 discovery runs through
-# the target's TEST_LAUNCHER, so a build-time listing would invoke `srun -n 1`
-# (or `mpiexec`) on the login/build node. Enumerating at ctest time keeps
-# those launches inside the job allocation. (Cost is small: discovery is a
-# few seconds of a full run.)
+# (POST_BUILD). Listing runs the binary with --gtest_list_tests, before any
+# Environment::SetUp — so discovery never initializes MPI or Kokkos. The
+# shared mains additionally hard-exit every run after RUN_ALL_TESTS, because
+# process-teardown destructors double-free when a static-linked library
+# (Kokkos) is pulled into both the test executable and libcece_core.so and
+# its interposed statics get destructed twice; under Debug malloc checking
+# that aborts discovery (which allocates nothing between the frees) and can
+# abort passing runs at random (support/cece_test_teardown_guard.hpp). On
+# CMake >= 3.29 discovery also runs through the target's TEST_LAUNCHER, so a
+# build-time listing would invoke `srun -n 1` (or `mpiexec`) on the login/build
+# node. Enumerating at ctest time keeps those launches inside the job
+# allocation. (Cost is small: discovery is a few seconds of a full run.)
 set(CMAKE_GTEST_DISCOVER_TESTS_DISCOVERY_MODE PRE_TEST)
 
 set(
@@ -103,7 +108,7 @@ function(cece_add_gtest target)
     set(ARG_MAIN GTEST)
   endif()
   if(ARG_MAIN STREQUAL "GTEST")
-    set(_main GTest::gtest_main)
+    set(_main cece_test_main_default)
   elseif(ARG_MAIN STREQUAL "MPI_KOKKOS")
     set(_main cece_test_main)
   elseif(ARG_MAIN STREQUAL "KOKKOS")
