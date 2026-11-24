@@ -93,7 +93,7 @@ static void cece_exception_translator(std::exception_ptr p) {
     }
 }
 
-inline py::array_t<double, py::array::f_style> contiguous_f8_array_to_f_style(const std::string& name, const py::array& arr) {
+static inline py::array_t<double, py::array::f_style> contiguous_f8_array_to_f_style(const std::string& name, const py::array& arr) {
     // Validate dtype is float64
     if (!py::isinstance<py::array_t<double>>(arr)) {
         throw py::value_error("Array dtype must be float64, got " + std::string(py::str(arr.dtype())));
@@ -123,10 +123,21 @@ inline py::array_t<double, py::array::f_style> contiguous_f8_array_to_f_style(co
     return fortran_arr;
 }
 
-inline cece::DualView3D f8_f_style_array_to_dualview3d(const std::string& field_name, const py::array_t<double, py::array::f_style>& fortran_arr) {
+static inline cece::DualView3D f8_f_style_array_to_dualview3d(const std::string& field_name,
+                                                              const py::array_t<double, py::array::f_style>& fortran_arr) {
     // Get buffer info from the Fortran-contiguous array
     py::buffer_info buf = fortran_arr.request();
+
+    // Validate array is 3D
+    if (fortran_arr.ndim() != 3) {
+        throw py::value_error("Array must be 3D, got " + std::to_string(fortran_arr.ndim()) + "D");
+    }
+
     auto* ptr = static_cast<double*>(buf.ptr);
+
+    if (ptr == nullptr) {
+        throw py::value_error("Array pointer must not be null");
+    }
     int nx = static_cast<int>(buf.shape[0]);
     int ny = static_cast<int>(buf.shape[1]);
     int nz = static_cast<int>(buf.shape[2]);
