@@ -107,12 +107,20 @@ function(cece_add_gtest target)
   if(NOT ARG_MAIN)
     set(ARG_MAIN GTEST)
   endif()
+
+  add_executable(${target} ${ARG_SOURCES})
+  set(_libs)
   if(ARG_MAIN STREQUAL "GTEST")
     set(_main cece_test_main_default)
   elseif(ARG_MAIN STREQUAL "MPI_KOKKOS")
     set(_main cece_test_main)
+    # Intel OneAPI MPI fails with SIGPIPE if MPI_Init is called in a
+    # process not started with mpiexec
+    set(ARG_MPI_LAUNCHER TRUE)
+    list(APPEND _libs MPI::MPI_CXX Kokkos::kokkos)
   elseif(ARG_MAIN STREQUAL "KOKKOS")
     set(_main cece_test_main_kokkos)
+    list(APPEND _libs Kokkos::kokkos)
   elseif(ARG_MAIN STREQUAL "OWN")
     set(_main GTest::gtest)
   else()
@@ -122,14 +130,14 @@ function(cece_add_gtest target)
     )
   endif()
 
-  add_executable(${target} ${ARG_SOURCES})
-  set(_libs)
   if(NOT ARG_NO_CECE)
     list(APPEND _libs cece)
   endif()
   list(APPEND _libs ${ARG_LINK} ${_main})
   target_link_libraries(${target} PRIVATE ${_libs})
-  if(ARG_MPI_LAUNCHER)
+  if(ARG_MPI_LAUNCHER AND NOT ARG_NO_DISCOVER)
+    # if ARG_NO_DISCOVER, TEST_LAUNCHER handling deferred for
+    # whatever sets the test to run: cece_add_mpi_tests is popuilar
     set_target_properties(${target} PROPERTIES TEST_LAUNCHER "${CECE_SERIAL_TEST_MPI_LAUNCHER}")
   endif()
   if(ARG_SOURCE_DIR_DEFINE)
@@ -155,25 +163,15 @@ function(cece_add_mpi_tests target)
   foreach(np IN LISTS ARG_NP)
     set(_name ${target}_np${np})
     set(_env ${ARG_ENVIRONMENT} ${CECE_TEST_MPI_ENVIRONMENT})
-    if(np EQUAL 1)
-      # Single-rank registration. COMMAND is the target NAME, not
-      # $<TARGET_FILE:...>: TEST_LAUNCHER is applied only to target-name
-      # commands, and on HPC (srun launcher) a raw MPI_Init outside a job step
-      # aborts (PMI2_Job_GetId). Where the launcher is absent or ignored
-      # (CMake < 3.29) the binary runs directly, validating the single-rank
-      # paths without a launcher.
-      add_test(NAME ${_name} COMMAND ${target} WORKING_DIRECTORY "${CMAKE_BINARY_DIR}")
-    else()
-      add_test(
-        NAME ${_name}
-        COMMAND
-          ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} ${np} ${MPIEXEC_PREFLAGS}
-          $<TARGET_FILE:${target}> ${MPIEXEC_POSTFLAGS}
-        WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
-      )
-      list(APPEND _env ${CECE_TEST_MPI_ROOT_ENVIRONMENT})
-    endif()
-    set_tests_properties(${_name} PROPERTIES ENVIRONMENT "${_env}")
+    add_test(
+      NAME ${_name}
+      COMMAND
+        ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} ${np} ${MPIEXEC_PREFLAGS}
+        $<TARGET_FILE:${target}> ${MPIEXEC_POSTFLAGS}
+      WORKING_DIRECTORY "${CMAKE_BINARY_DIR}"
+    )
+    list(APPEND _env ${CECE_TEST_MPI_ROOT_ENVIRONMENT})
+    set_tests_properties(${_name} PROPERTIES ENVIRONMENT "${_env}" PROCESSORS ${np})
   endforeach()
 endfunction()
 
