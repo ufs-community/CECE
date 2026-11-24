@@ -178,6 +178,7 @@ cece_add_gtest(test_geometry_plan_lifecycle MAIN MPI_KOKKOS NO_DISCOVER)
 cece_add_mpi_tests(test_geometry_plan_lifecycle NP 1 2)
 cece_add_gtest(test_geometry_conservation MAIN KOKKOS)
 cece_add_gtest(test_physics)
+cece_add_gtest(test_briggs MAIN KOKKOS SOURCE_DIR_DEFINE)
 cece_add_gtest(test_hemco_mimic)
 cece_add_gtest(test_stacking_engine)
 # Local-time support: RLE grid decoder, local-time service, and per-cell
