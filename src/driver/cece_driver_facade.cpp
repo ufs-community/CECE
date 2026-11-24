@@ -590,8 +590,8 @@ AmioHandleSet* CeceDriverOrchestrator::GetOrOpenHandleSet(const std::string& han
     return nullptr;
 }
 
-CeceDriverOrchestrator::CeceDriverOrchestrator(const std::string& config_file, int nx, int ny, int nz, const double* lon_coords, int lon_len,
-                                               const double* lat_coords, int lat_len, MPI_Comm comm_c)
+CeceDriverOrchestrator::CeceDriverOrchestrator(const CeceInternalData* cece_internal, const std::string& config_file, int nx, int ny, int nz,
+                                               const double* lon_coords, int lon_len, const double* lat_coords, int lat_len, MPI_Comm comm_c)
     : config_file_(config_file),
       nx_(nx),
       ny_(ny),
@@ -610,7 +610,7 @@ CeceDriverOrchestrator::CeceDriverOrchestrator(const std::string& config_file, i
     // reassigned (Req 1.1, 1.2, 1.5).
     band_ = BandDecomposition::compute(ny_, comm_c_);
 
-    config_ = ParseConfig(config_file_);
+    config_ = cece_internal->config;
 
     // Parse the YAML once and resolve the StreamConfig for every stream
     // variable, plus driver-level values and gridspec_file_ (Req 1.1). This
@@ -1921,10 +1921,11 @@ bool CeceDriverOrchestrator::AdvanceTime(const std::string& time_iso8601, void* 
 extern std::unique_ptr<cece::CeceStandaloneWriter> g_standalone_writer;
 
 extern "C" {
-void cece_driver_create(const char* yaml_path, int path_len, int nx, int ny, int nz, const double* lon_coords, int lon_len, const double* lat_coords,
-                        int lat_len, int mpi_comm_f, void** driver_ptr_out, int* rc) {
+void cece_driver_create(void* data_ptr, const char* yaml_path, int path_len, int nx, int ny, int nz, const double* lon_coords, int lon_len,
+                        const double* lat_coords, int lat_len, int mpi_comm_f, void** driver_ptr_out, int* rc) {
     if (rc) *rc = 0;
     try {
+        cece::CeceInternalData* cece_internal = static_cast<cece::CeceInternalData*>(data_ptr);
         std::string path(yaml_path, path_len);
 
         // 1. Pass custom parent communicator to AMIO
@@ -1934,7 +1935,7 @@ void cece_driver_create(const char* yaml_path, int path_len, int nx, int ny, int
         MPI_Comm comm_c = MPI_Comm_f2c(static_cast<MPI_Fint>(mpi_comm_f));
 
         // 3. Create orchestrator using the custom communicator
-        auto* driver = new cece::CeceDriverOrchestrator(path, nx, ny, nz, lon_coords, lon_len, lat_coords, lat_len, comm_c);
+        auto* driver = new cece::CeceDriverOrchestrator(cece_internal, path, nx, ny, nz, lon_coords, lon_len, lat_coords, lat_len, comm_c);
         *driver_ptr_out = static_cast<void*>(driver);
     } catch (const std::exception& e) {
         CECE_LOG_ERROR(std::string("cece_driver_create: ") + e.what());
