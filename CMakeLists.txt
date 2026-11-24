@@ -461,6 +461,7 @@ set(
   src/core/cece_physics_factory.cpp
   src/core/cece_provenance.cpp
   src/core/physics/cece_native_example.cpp
+  src/core/physics/cece_example_diagnostic_computation.cpp
   src/core/physics/cece_sea_salt.cpp
   src/core/physics/cece_megan.cpp
   src/core/physics/cece_dms.cpp
@@ -479,6 +480,7 @@ set(
   src/core/physics/cece_bdsnp.cpp
   src/core/cece_data_ingestor.cpp
   src/core/cece_diagnostic_manager.cpp
+  src/core/cece_diagnostic_api.cpp
   src/core/cece_io.cpp
   src/core/cece_core_driver_config.cpp
   src/core/cece_core_realize.cpp
@@ -767,6 +769,20 @@ target_link_libraries(
     yaml-cpp
     MPI::MPI_CXX
 )
+
+if(TARGET test_driver_integration_end_to_end)
+  string(JOIN " " _cece_diagnostics_mpi_preflags ${MPIEXEC_PREFLAGS})
+  add_dependencies(test_driver_integration_end_to_end cece_standalone_driver)
+  target_compile_definitions(
+    test_driver_integration_end_to_end
+    PRIVATE
+      CECE_DIAGNOSTICS_DRIVER="$<TARGET_FILE:cece_standalone_driver>"
+      CECE_DIAGNOSTICS_CONFIG="${PROJECT_SOURCE_DIR}/examples/cece_config_diagnostics.yaml"
+      CECE_DIAGNOSTICS_MPIEXEC="${MPIEXEC_EXECUTABLE}"
+      CECE_DIAGNOSTICS_MPI_NP_FLAG="${MPIEXEC_NUMPROC_FLAG}"
+      CECE_DIAGNOSTICS_MPI_PREFLAGS="${_cece_diagnostics_mpi_preflags}"
+  )
+endif()
 
 # --- Dependency Resolution Summary ---
 get_property(_cece_dep_summary GLOBAL PROPERTY CECE_DEP_SUMMARY)

@@ -347,4 +347,55 @@ TEST(SurplusRankLockstep, MultiFieldSequenceLockStep) {
     }
 }
 
+// Diagnostics publication uses the same band packing and per-level Gatherv,
+// with rank 0 as the only AMIO writer. Exercise that sequence independently:
+// unlike the shared-state gather above, diagnostic values need not be
+// broadcast back to non-owner ranks.
+TEST(SurplusRankLockstep, DiagnosticGatherReconstructsGlobalField) {
+    const int nx = 8;
+    const int ny = 2;  // np4 includes ranks with zero rows
+    const int nz = 3;
+    const int rank = WorldRank();
+    const int size = WorldSize();
+    const BandDecomposition band = BandDecomposition::compute(ny, MPI_COMM_WORLD);
+    const std::vector<double> send = PackBand(band, nx, nz);
+    const std::size_t band_level_elems = static_cast<std::size_t>(nx) * band.ny_local;
+    const std::size_t global_level_elems = static_cast<std::size_t>(nx) * ny;
+    std::vector<double> global;
+    if (rank == 0) global.assign(static_cast<std::size_t>(nz) * global_level_elems, 0.0);
+
+    int gather_count = 0;
+    if (size > 1) {
+        std::vector<int> recvcounts(static_cast<std::size_t>(size));
+        std::vector<int> displacements(static_cast<std::size_t>(size));
+        for (int r = 0; r < size; ++r) {
+            recvcounts[r] = band.row_counts[r] * nx;
+            displacements[r] = band.row_displs[r] * nx;
+        }
+        const int sendcount = static_cast<int>(band_level_elems);
+        for (int k = 0; k < nz; ++k) {
+            const double* send_level = sendcount == 0 ? nullptr : send.data() + static_cast<std::size_t>(k) * band_level_elems;
+            double* recv_level = rank == 0 ? global.data() + static_cast<std::size_t>(k) * global_level_elems : nullptr;
+            ASSERT_EQ(MPI_Gatherv(send_level, sendcount, MPI_DOUBLE, recv_level, rank == 0 ? recvcounts.data() : nullptr,
+                                  rank == 0 ? displacements.data() : nullptr, MPI_DOUBLE, 0, MPI_COMM_WORLD),
+                      MPI_SUCCESS);
+            ++gather_count;
+        }
+    } else {
+        global = send;
+    }
+
+    if (size > 1) {
+        EXPECT_EQ(gather_count, nz);
+        ExpectIntAgreesAcrossRanks(gather_count, "diagnostic per-level gather count");
+    }
+    if (rank == 0) {
+        const std::vector<double> reference = SerialReference(nx, ny, nz);
+        ASSERT_EQ(global.size(), reference.size());
+        for (std::size_t i = 0; i < reference.size(); ++i) {
+            EXPECT_EQ(global[i], reference[i]) << "global diagnostic element " << i;
+        }
+    }
+}
+
 }  // namespace cece

@@ -1,7 +1,6 @@
 #include "cece/physics/cece_native_example.hpp"
 
 #include <Kokkos_Core.hpp>
-#include <iostream>
 
 #include "cece/cece_logger.hpp"
 #include "cece/cece_physics_factory.hpp"
@@ -28,11 +27,11 @@ void NativePhysicsExample::Initialize(const conf::Value& config, CeceDiagnosticM
         multiplier_ = config["multiplier"].as_double();
     }
 
-    CECE_LOG_INFO("NativePhysicsExample: Initialized.\n");
-    if (diag_manager != nullptr) {
-        // Register an example diagnostic variable
-        diag_manager->RegisterDiagnostic("native_example_diag", 1, 1, 1);
-    }
+    CECE_LOG_INFO("NativePhysicsExample: Initialized.");
+}
+
+std::vector<DiagnosticDeclaration> NativePhysicsExample::DeclaredDiagnostics(const conf::Value&) const {
+    return {{"native_example_diag", "1", "Example diagnostic value"}, {"native_example_multiplier", "1", "Configured NOx multiplier"}};
 }
 
 /**
@@ -45,6 +44,18 @@ void NativePhysicsExample::Initialize(const conf::Value& config, CeceDiagnosticM
  * @param export_state Output data.
  */
 void NativePhysicsExample::Run(CeceImportState& import_state, CeceExportState& export_state) {
+    // Demonstrate diagnostic publication even on a grid with no input streams.
+    auto example = ResolveDiagnostic("native_example_diag");
+    auto multiplier = ResolveDiagnostic("native_example_multiplier");
+    if (example.view_device().data() != nullptr) {
+        Kokkos::deep_copy(example.view_device(), 42.0);
+        example.modify_device();
+    }
+    if (multiplier.view_device().data() != nullptr) {
+        Kokkos::deep_copy(multiplier.view_device(), multiplier_);
+        multiplier.modify_device();
+    }
+
     auto base_nox = ResolveImport("base_anthropogenic_nox", import_state);
     auto multiplier_input = ResolveInput("multiplier_input", import_state, export_state);
     auto nox = ResolveExport("nox", export_state);
@@ -57,7 +68,7 @@ void NativePhysicsExample::Run(CeceImportState& import_state, CeceExportState& e
     int ny = static_cast<int>(nox.extent(1));
     int nz = static_cast<int>(nox.extent(2));
 
-    auto multiplier_diag = ResolveDiagnostic("nox_multiplier_effect", nx, ny, nz);
+    auto multiplier_diag = ResolveDiagnostic("nox_multiplier_effect");
 
     double default_multiplier = multiplier_;
 

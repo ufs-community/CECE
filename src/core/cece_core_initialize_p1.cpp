@@ -24,7 +24,6 @@
 #include <Kokkos_Core.hpp>
 #include <conf/value.hpp>
 #include <cstdlib>
-#include <iostream>
 #include <limits>
 #include <memory>
 #include <set>
@@ -225,8 +224,31 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
     internal_data->unique_input_fields.assign(unique_fields.begin(), unique_fields.end());
     CECE_LOG_INFO("INFO: Found "s + std::to_string(internal_data->unique_input_fields.size()) + " unique input fields required\n"s);
 
-    // 4. Initialize PhysicsFactory and instantiate all physics schemes
-    CECE_LOG_INFO("INFO: Initializing physics schemes\n");
+    // 4. Initialize DiagnosticManager
+    CECE_LOG_INFO("INFO: Initializing DiagnosticManager");
+    try {
+        internal_data->diagnostic_manager = std::make_unique<cece::CeceDiagnosticManager>();
+        std::vector<std::string> species_names;
+        species_names.reserve(config.species_layers.size());
+        for (const auto& [name, layers] : config.species_layers) {
+            species_names.push_back(name);
+        }
+        internal_data->diagnostic_manager->SetReservedNames(std::move(species_names));
+        CECE_LOG_INFO("INFO: DiagnosticManager initialized successfully");
+    } catch (const std::exception& e) {
+        CECE_LOG_ERROR("ERROR: Failed to initialize DiagnosticManager: "s + e.what());
+        if (rc != nullptr) {
+            *rc = -1;
+        }
+        delete internal_data;
+        if (kokkos_initialized_here && Kokkos::is_initialized()) {
+            Kokkos::finalize();
+        }
+        return;
+    }
+
+    // 5. Initialize PhysicsFactory and instantiate all physics schemes
+    CECE_LOG_INFO("INFO: Initializing physics schemes");
     for (const auto& scheme_config : config.physics_schemes) {
         try {
             CECE_LOG_INFO("INFO: Creating physics scheme: "s + scheme_config.name + "\n"s);
@@ -245,10 +267,9 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
             }
 
             // Initialize the scheme with its configuration
-            // Note: DiagnosticManager will be initialized next, so we pass nullptr for now
-            // Schemes will be re-initialized with the diagnostic manager in Phase 2 if needed
-            CECE_LOG_INFO("INFO: Initializing physics scheme: "s + scheme_config.name + "\n"s);
-            scheme->Initialize(scheme_config.options, nullptr);
+            // The manager records declarations until Phase 2 sets the grid.
+            CECE_LOG_INFO("INFO: Initializing physics scheme: "s + scheme_config.name);
+            scheme->Initialize(scheme_config.options, internal_data->diagnostic_manager.get());
 
             internal_data->active_schemes.push_back(std::move(scheme));
             CECE_LOG_INFO("INFO: Successfully initialized physics scheme: "s + scheme_config.name + "\n"s);
@@ -267,30 +288,13 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
 
     CECE_LOG_INFO("INFO: Successfully initialized "s + std::to_string(internal_data->active_schemes.size()) + " physics schemes\n"s);
 
-    // 5. Initialize StackingEngine
-    CECE_LOG_INFO("INFO: Initializing StackingEngine\n");
+    // 6. Initialize StackingEngine
+    CECE_LOG_INFO("INFO: Initializing StackingEngine");
     try {
         internal_data->stacking_engine = std::make_unique<cece::StackingEngine>(config);
         CECE_LOG_INFO("INFO: StackingEngine initialized successfully\n");
     } catch (const std::exception& e) {
         CECE_LOG_ERROR("ERROR: Failed to initialize StackingEngine: "s + e.what() + "\n"s);
-        if (rc != nullptr) {
-            *rc = -1;
-        }
-        delete internal_data;
-        if (kokkos_initialized_here && Kokkos::is_initialized()) {
-            Kokkos::finalize();
-        }
-        return;
-    }
-
-    // 6. Initialize DiagnosticManager
-    CECE_LOG_INFO("INFO: Initializing DiagnosticManager\n");
-    try {
-        internal_data->diagnostic_manager = std::make_unique<cece::CeceDiagnosticManager>();
-        CECE_LOG_INFO("INFO: DiagnosticManager initialized successfully\n");
-    } catch (const std::exception& e) {
-        CECE_LOG_ERROR("ERROR: Failed to initialize DiagnosticManager: "s + e.what() + "\n"s);
         if (rc != nullptr) {
             *rc = -1;
         }

@@ -1,0 +1,40 @@
+# =====================================================================
+# CECE Example: Scheme Diagnostics Creation and Export
+# =====================================================================
+# Demonstrates the diagnostics publication path:
+#   - A physics scheme declares diagnostic fields.
+#   - The `diagnostics:` block selects which are published and how often.
+#   - `output.include_diagnostics` opts the file channel in.
+#
+# The native example scheme writes a demonstration value of 42 without
+# external inputs. Only native_example_diag is published, every 2 hours.
+#
+# Run from the repository root:
+#   ./build/cece_standalone_driver examples/cece_config_diagnostics.yaml
+driver:
+  start_time: "2020-06-01T00:00:00"
+  end_time: "2020-06-01T06:00:00"
+  timestep_seconds: 3600
+  grid:
+    nx: 4
+    ny: 4
+    nz: 1
+
+# No species/emissions streams: this example isolates the diagnostic channel.
+species: {}
+cece_data:
+  streams: []
+
+physics_schemes:
+  - name: native_example
+
+diagnostics:
+  output_interval_seconds: 7200 # publish every 2h (multiple of 3600)
+  variables: [native_example_diag] # only this one; native_example_multiplier dropped
+
+output:
+  enabled: true
+  include_diagnostics: true # honored opt-in for the file channel
+  directory: ./cece_output
+  filename_pattern: "diag_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc"
+  frequency_steps: 1

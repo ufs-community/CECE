@@ -52,6 +52,16 @@ This directory contains example YAML configuration files demonstrating various C
 - Different data source temporal configurations
 - Regional grid matching ex5
 
+### cece_config_diagnostics.yaml
+**Scheme Diagnostics Example**
+- Uses `native_example` to produce `native_example_diag` (42 on every cell) and `native_example_multiplier`
+- `diagnostics:variables` selects only `native_example_diag` for publication
+- `output_interval_seconds: 7200` publishes every 2 hours on the 3600-second timestep
+- `output.include_diagnostics: true` enables the file channel (and the coupled channel under the NUOPC app)
+- The species list is empty, so the run isolates the diagnostic channel
+- Runs with either `cece_standalone_driver` or `cece_nuopc_app`
+
+
 ### MEGAN3 GOCART Speciation
 
 [cece_config_megan3_gocart.yaml](cece_config_megan3_gocart.yaml) selects the

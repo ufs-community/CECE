@@ -1,0 +1,27 @@
+# Fixture for the coupled values test. The native example writes 42 on
+# every cell, with no meteorology or emissions inputs.
+# File output is disabled so this exercises the coupled channel alone.
+driver:
+  start_time: "2020-06-01T00:00:00"
+  end_time: "2020-06-01T01:00:00"
+  timestep_seconds: 3600
+  grid:
+    nx: 4
+    ny: 4
+    nz: 1
+
+species: {}
+cece_data:
+  streams: []
+
+physics_schemes:
+  - name: native_example
+
+diagnostics:
+  output_interval_seconds: 3600
+  variables: [native_example_diag]
+
+output:
+  enabled: false
+  include_diagnostics: true
+  directory: ./cece_output

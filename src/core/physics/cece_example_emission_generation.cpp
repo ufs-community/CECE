@@ -37,12 +37,18 @@ void ExampleEmissionGeneration::Initialize(const conf::Value& config, CeceDiagno
         solar_factor_ = config["solar_factor"].as_double();
     }
 
-    // Register diagnostic fields for output
-    // These will be written to NetCDF if diagnostics are enabled
-    if (diag_manager != nullptr) {
-        temperature_factor_ = ResolveDiagnostic("temperature_factor", 1, 1, 1, "dimensionless", "Temperature scaling factor");
-        solar_factor_diag_ = ResolveDiagnostic("solar_factor", 1, 1, 1, "dimensionless", "Solar radiation scaling factor");
-    }
+    BindDiagnostics(diag_manager);
+}
+
+std::vector<DiagnosticDeclaration> ExampleEmissionGeneration::DeclaredDiagnostics(const conf::Value&) const {
+    return {{"temperature_factor", "dimensionless", "Temperature scaling factor"},
+            {"solar_factor", "dimensionless", "Solar radiation scaling factor"}};
+}
+
+void ExampleEmissionGeneration::BindDiagnostics(CeceDiagnosticManager* diag_manager) {
+    BasePhysicsScheme::BindDiagnostics(diag_manager);
+    temperature_factor_ = ResolveDiagnostic("temperature_factor");
+    solar_factor_diag_ = ResolveDiagnostic("solar_factor");
 }
 
 void ExampleEmissionGeneration::Run(CeceImportState& import_state, CeceExportState& export_state) {

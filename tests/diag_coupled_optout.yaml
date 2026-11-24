@@ -1,0 +1,28 @@
+# Fixture for tests/test_diagnostics_coupled.F90 (mode: optout).
+# Identical to the values fixture EXCEPT include_diagnostics is removed:
+# the path query advertises zero names and exportState holds no diagnostic
+# channel. The scheme still declares the diagnostic; only the
+# publication gate differs.
+driver:
+  start_time: "2020-06-01T00:00:00"
+  end_time: "2020-06-01T01:00:00"
+  timestep_seconds: 3600
+  grid:
+    nx: 4
+    ny: 4
+    nz: 1
+
+species: {}
+cece_data:
+  streams: []
+
+physics_schemes:
+  - name: native_example
+
+diagnostics:
+  output_interval_seconds: 3600
+  variables: [native_example_diag]
+
+output:
+  enabled: false
+  directory: ./cece_output

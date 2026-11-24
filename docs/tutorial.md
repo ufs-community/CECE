@@ -98,7 +98,7 @@ exports:
 
 diagnostics:
   - name: intermediate_value
-    units: kg/m3
+    units: "1"
     dimensions: 3D
 
 options:
@@ -127,6 +127,16 @@ This creates:
 Edit `src/physics/cece_my_emission_scheme.cpp` and implement the `Run` method:
 
 ```cpp
+// Add the two overrides and a DualView3D intermediate_ member to the class.
+std::vector<DiagnosticDeclaration> MyEmissionScheme::DeclaredDiagnostics(const conf::Value&) const {
+    return {{"intermediate_value", "1", "Temperature scaling factor"}};
+}
+
+void MyEmissionScheme::BindDiagnostics(CeceDiagnosticManager* manager) {
+    BasePhysicsScheme::BindDiagnostics(manager);
+    intermediate_ = ResolveDiagnostic("intermediate_value");
+}
+
 void MyEmissionScheme::Run(CeceImportState& import_state, CeceExportState& export_state) {
     // Resolve input fields
     auto temperature = ResolveImport("temperature", import_state);
@@ -136,8 +146,7 @@ void MyEmissionScheme::Run(CeceImportState& import_state, CeceExportState& expor
     // Resolve output fields
     auto emissions = ResolveExport("my_emissions", export_state);
 
-    // Resolve diagnostic fields
-    auto intermediate = ResolveDiagnostic("intermediate_value", nx, ny, nz);
+    auto intermediate = intermediate_.view_device();
 
     // Get grid dimensions
     int nx = emissions.extent(0);
@@ -162,13 +171,18 @@ void MyEmissionScheme::Run(CeceImportState& import_state, CeceExportState& expor
             double wind_factor = 1.0 + 0.01 * U;
 
             // Combine factors
-            emissions(i, j) = emission_factor_ * temp_factor * wind_factor;
+            emissions(i, j, 0) = emission_factor_ * temp_factor * wind_factor;
 
             // Store intermediate value for diagnostics
-            intermediate(i, j, 0) = temp_factor;
+            if (intermediate.data() != nullptr) {
+                intermediate(i, j, 0) = temp_factor;
+            }
         });
 
-    // Mark fields as modified
+    Kokkos::fence();
+    if (intermediate.data() != nullptr) {
+        intermediate_.modify_device();
+    }
     MarkModified("my_emissions", export_state);
 }
 ```
@@ -208,7 +222,7 @@ namespace cece {
 
 class MyScheme : public BasePhysicsScheme {
 public:
-    void Initialize(const YAML::Node& config,
+    void Initialize(const conf::Value& config,
                    CeceDiagnosticManager* diag_manager) override;
     void Run(CeceImportState& import_state,
             CeceExportState& export_state) override;
@@ -231,15 +245,15 @@ static PhysicsRegistration<MyScheme> registration_my_scheme("MyScheme");
 
 namespace cece {
 
-void MyScheme::Initialize(const YAML::Node& config,
+void MyScheme::Initialize(const conf::Value& config,
                          CeceDiagnosticManager* diag_manager) {
     BasePhysicsScheme::Initialize(config, diag_manager);
 
     if (config["emission_factor"]) {
-        emission_factor_ = config["emission_factor"].as<double>();
+        emission_factor_ = config["emission_factor"].as_double();
     }
     if (config["temperature_threshold"]) {
-        temperature_threshold_ = config["temperature_threshold"].as<double>();
+        temperature_threshold_ = config["temperature_threshold"].as_double();
     }
 }
 
@@ -324,7 +338,7 @@ namespace cece {
 
 class MyFortranScheme : public BasePhysicsScheme {
 public:
-    void Initialize(const YAML::Node& config,
+    void Initialize(const conf::Value& config,
                    CeceDiagnosticManager* diag_manager) override {
         BasePhysicsScheme::Initialize(config, diag_manager);
     }

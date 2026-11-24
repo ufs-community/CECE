@@ -53,7 +53,9 @@ class ExampleDiagnosticComputation : public BasePhysicsScheme {
     ExampleDiagnosticComputation() = default;
     ~ExampleDiagnosticComputation() override = default;
 
+    std::vector<DiagnosticDeclaration> DeclaredDiagnostics(const conf::Value& config) const override;
     void Initialize(const conf::Value& config, CeceDiagnosticManager* diag_manager) override;
+    void BindDiagnostics(CeceDiagnosticManager* diag_manager) override;
     void Run(CeceImportState& import_state, CeceExportState& export_state) override;
     void Finalize() override;
 
