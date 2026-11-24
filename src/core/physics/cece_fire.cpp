@@ -262,7 +262,8 @@ void FireScheme::ExportMassFlux(const FireInputIdentity& identity, const std::ve
 void FireScheme::Run(CeceImportState& import_state, CeceExportState& export_state) {
     (void)import_state;
     if (staged_bulk_view_) {
-        const auto mapped = MapFireBulkInventory(*staged_bulk_view_, *profile_, requested_species_);
+        if (!profile_) throw std::logic_error("Fire scheme has no initialized target profile");
+        const auto mapped = MapFireBulkInventory(*staged_bulk_view_, profile_.value(), requested_species_);
         const auto cells = mapped.source_identity.Metadata().grid_definition->CellCount();
         const auto component_count = mapped.component_ids.size();
         std::vector<double> mass_kg(mapped.fields.size() * cells, 0);
@@ -312,7 +313,7 @@ FireTargetProfile LoadFireTargetProfile(const std::string& path, const std::stri
     Require(root, "schema_version", "schema_version");
     if (root["schema_version"].try_int() != std::optional<int>{1}) Invalid("schema_version", "only version 1 is supported");
     Require(root, "production_eligible", "production_eligible");
-    if (!root["production_eligible"].try_bool() || *root["production_eligible"].try_bool()) {
+    if (root["production_eligible"].try_bool() != std::optional<bool>{false}) {
         Invalid("production_eligible", "production certification is not available through this loader");
     }
 

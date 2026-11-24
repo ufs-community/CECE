@@ -291,9 +291,9 @@ void WriteNormalizedFireProductFile(const FireProductEmissionsInterval& product,
         NetcdfCheck(nc_put_vara_double(file, species_variables[species_index], start.data(), count.data(), masses.data() + species_index * cells),
                     "cannot write normalized species mass");
     }
-    if (frp_var >= 0) DefineAndWriteDouble(file, frp_var, *data.optional_diagnostics.frp_mw);
-    if (fre_var >= 0) DefineAndWriteDouble(file, fre_var, *data.optional_diagnostics.fre_mj);
-    if (dry_matter_var >= 0) DefineAndWriteDouble(file, dry_matter_var, *data.optional_diagnostics.dry_matter_kg);
+    if (data.optional_diagnostics.frp_mw) DefineAndWriteDouble(file, frp_var, data.optional_diagnostics.frp_mw.value());
+    if (data.optional_diagnostics.fre_mj) DefineAndWriteDouble(file, fre_var, data.optional_diagnostics.fre_mj.value());
+    if (data.optional_diagnostics.dry_matter_kg) DefineAndWriteDouble(file, dry_matter_var, data.optional_diagnostics.dry_matter_kg.value());
     output.Close();
 }
 

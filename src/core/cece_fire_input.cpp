@@ -117,8 +117,9 @@ class Sha256 {
         std::string result;
         result.reserve(64);
         for (unsigned int i = 0; i < size; ++i) {
-            result.push_back(hex[digest[i] >> 4]);
-            result.push_back(hex[digest[i] & 15]);
+            const auto byte = static_cast<unsigned int>(digest[i]);
+            result.push_back(hex[byte >> 4U]);
+            result.push_back(hex[byte & 15U]);
         }
         return result;
     }
@@ -869,8 +870,7 @@ void FireProductEmissionsInterval::ValidateScaling(const std::optional<FireProfi
     if (!requested_profile) return;
     ValidateProfile(*requested_profile, "Requested fire product scaling");
     if (data_.scaling_state.kind == FireProductScalingKind::Applied) {
-        if (requested_profile->id == data_.scaling_state.profile->id && requested_profile->version == data_.scaling_state.profile->version &&
-            requested_profile->content_sha256 == data_.scaling_state.profile->content_sha256) {
+        if (data_.scaling_state.profile == requested_profile) {
             throw std::invalid_argument("Fire product scaling profile '" + requested_profile->id + "' has already been applied");
         }
         throw std::invalid_argument("A scaled fire product cannot receive a second scaling profile");
@@ -930,7 +930,8 @@ FireTemporalAllocationProfile LoadFireTemporalAllocationProfile(const std::strin
         return *text;
     };
     const auto cadence_value = root["supported_source_cadence_seconds"].try_int();
-    if (!cadence_value || *cadence_value <= 0) invalid("supported_source_cadence_seconds", "must be a positive integer");
+    const auto cadence = cadence_value.value_or(0);
+    if (!cadence_value || cadence <= 0) invalid("supported_source_cadence_seconds", "must be a positive integer");
     const auto time_basis = nonempty(root["time_basis"], "time_basis");
     FireTemporalProfileTimeBasis basis;
     if (time_basis == "UTC") {
@@ -957,21 +958,24 @@ FireTemporalAllocationProfile LoadFireTemporalAllocationProfile(const std::strin
         const auto offset = weight["offset_seconds"].try_int();
         const auto duration = weight["duration_seconds"].try_int();
         const auto rate = weight["weight_per_second"].try_double();
-        if (!offset || !duration || !rate || *offset != cursor || *duration <= 0 || !std::isfinite(*rate) || *rate < 0 || *offset > *cadence_value ||
-            *duration > *cadence_value - *offset) {
+        const auto offset_seconds = offset.value_or(-1);
+        const auto duration_seconds = duration.value_or(0);
+        const auto weight_per_second = rate.value_or(std::numeric_limits<double>::quiet_NaN());
+        if (!offset || !duration || !rate || offset_seconds != cursor || duration_seconds <= 0 || !std::isfinite(weight_per_second) ||
+            weight_per_second < 0 || offset_seconds > cadence || duration_seconds > cadence - offset_seconds) {
             invalid(field, "weights must be finite, nonnegative, contiguous, positive-duration and within the supported cadence");
         }
-        const auto end = *offset + *duration;
-        segments.push_back({*offset, end, *rate});
-        integral += static_cast<double>(*duration) * *rate;
+        const auto end = offset_seconds + duration_seconds;
+        segments.push_back({offset_seconds, end, weight_per_second});
+        integral += static_cast<double>(duration_seconds) * weight_per_second;
         cursor = end;
     }
-    if (cursor != *cadence_value || !std::isfinite(integral) || std::abs(integral - 1.0) > 1e-12) {
+    if (cursor != cadence || !std::isfinite(integral) || std::abs(integral - 1.0) > 1e-12) {
         invalid("weights", "segments must cover the supported cadence and integrate to one");
     }
     const auto profile_id = nonempty(root["profile_id"], "profile_id");
     const auto version = nonempty(root["version"], "version");
-    return {{profile_id, version, FireFileSha256(std::filesystem::canonical(path).string())}, basis, *cadence_value, std::move(segments)};
+    return {{profile_id, version, FireFileSha256(std::filesystem::canonical(path).string())}, basis, cadence, std::move(segments)};
 }
 
 FireIntervalProvider::FireIntervalProvider(FireInputProvider provider, FireProviderLimits limits, FireRevisionIdentity identity,
@@ -1169,8 +1173,9 @@ void FireIntervalProvider::Stage(std::size_t index, FireBulkInventory inventory,
         ValidateForward(metadata);
         for (std::size_t other = 0; other < slots_.size(); ++other) {
             const auto& status = slots_[other].status;
-            if (other != index && status.state == FireIntervalState::Ready && *status.interval_start < metadata.interval_end &&
-                metadata.interval_start < *status.interval_end) {
+            if (other == index || status.state != FireIntervalState::Ready) continue;
+            if (!status.interval_start || !status.interval_end) throw std::logic_error("Ready fire interval has incomplete time bounds");
+            if (status.interval_start.value() < metadata.interval_end && metadata.interval_start < status.interval_end.value()) {
                 throw std::invalid_argument("Fire interval overlaps another ready slot");
             }
         }
@@ -1204,8 +1209,10 @@ void FireIntervalProvider::Consume(std::size_t index, std::string_view expected_
     if (expected_cache_identity != slot.status.cache_identity) throw std::invalid_argument("Fire cache identity changed before commit");
     ValidateForward(metadata);
     for (std::size_t other = 0; other < slots_.size(); ++other) {
-        if (other != index && slots_[other].status.state == FireIntervalState::Ready &&
-            *slots_[other].status.interval_start < metadata.interval_start) {
+        const auto& status = slots_[other].status;
+        if (other == index || status.state != FireIntervalState::Ready) continue;
+        if (!status.interval_start) throw std::logic_error("Ready fire interval has no start time");
+        if (status.interval_start.value() < metadata.interval_start) {
             throw std::invalid_argument("Consume earlier ready fire intervals before committing later output");
         }
     }

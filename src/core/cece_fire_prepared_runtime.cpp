@@ -173,6 +173,8 @@ class PreparedProductAdapter final : public FireRuntimeAdapter {
 
     FireRuntimeInventoryView PrepareInterval(const FireRuntimeIntervalRequest& request) override {
         if (!initialized_ || pending_) throw std::logic_error("prepared fire adapter is uninitialized or has an uncommitted interval");
+        if (!config_.product_time_allocation) throw std::logic_error("prepared fire product time allocation is not configured");
+        const auto product_time_allocation = config_.product_time_allocation.value();
         if (request.interval_end <= request.interval_start) throw std::invalid_argument("prepared fire request interval must be positive");
         const auto cutoff = ResolveCutoff(request);
         std::vector<const PreparedInterval*> selected;
@@ -222,7 +224,7 @@ class PreparedProductAdapter final : public FireRuntimeAdapter {
             const auto matrix = ConservativeMatrix(*loaded.inventory.Data().identity.Metadata().grid_definition, *target_grid_);
             const auto allocated =
                 FireAllocateConservativeMass(loaded.inventory, target_grid_, matrix, axis::solver::NormType::DstArea, request.interval_start,
-                                             request.interval_end, *config_.product_time_allocation, temporal_profile_);
+                                             request.interval_end, product_time_allocation, temporal_profile_);
             for (std::size_t component = 0; component < allocated.component_ids.size(); ++component) {
                 const auto& id = allocated.component_ids[component];
                 const auto profile = allocated.component_profiles.find(id);
@@ -348,12 +350,14 @@ class PreparedProductAdapter final : public FireRuntimeAdapter {
             Text(manifest_["mode"], "manifest.mode") != "product") {
             throw std::invalid_argument("prepared fire input_manifest must be a schema-v1 product manifest");
         }
+        if (!config_.product_time_allocation) throw std::logic_error("prepared fire product time allocation is not configured");
+        const auto product_time_allocation = config_.product_time_allocation.value();
         const auto expected_cutoff_mode = config_.cutoff_mode == FireCutoffMode::Fixed ? "fixed" : "host_supplied";
         if (Text(manifest_["product_adapter"], "manifest.product_adapter") != config_.product_adapter ||
             Text(manifest_["product_time_allocation"], "manifest.product_time_allocation") !=
-                (*config_.product_time_allocation == FireTimeAllocation::Uniform          ? "uniform"
-                 : *config_.product_time_allocation == FireTimeAllocation::SourceResolved ? "source_resolved"
-                                                                                          : "profile") ||
+                (product_time_allocation == FireTimeAllocation::Uniform          ? "uniform"
+                 : product_time_allocation == FireTimeAllocation::SourceResolved ? "source_resolved"
+                                                                                 : "profile") ||
             Text(manifest_["cutoff_mode"], "manifest.cutoff_mode") != expected_cutoff_mode) {
             throw std::invalid_argument("prepared fire manifest adapter, temporal policy or cutoff mode does not match configuration");
         }
@@ -486,6 +490,9 @@ class PreparedProductAdapter final : public FireRuntimeAdapter {
         int file = -1;
         NetcdfCheck(nc_open(path.c_str(), NC_NOWRITE, &file), "cannot open prepared interval", path.string());
         struct Close {
+            explicit Close(int* file_ptr) : file(file_ptr) {}
+            Close(const Close&) = delete;
+            Close& operator=(const Close&) = delete;
             int* file;
             ~Close() {
                 if (*file >= 0) nc_close(*file);

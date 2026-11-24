@@ -55,6 +55,9 @@ void RunPhysicsSchemeByName(cece::CeceInternalData& d, const std::string& scheme
     for (size_t i = 0; i < d.active_schemes.size(); ++i) {
         if (i < d.config.physics_schemes.size() && d.config.physics_schemes[i].name == scheme_name) {
             if (d.active_schemes[i] && d.config.physics_schemes[i].fire) {
+                const auto& configured_fire = d.config.physics_schemes[i].fire;
+                if (!configured_fire) throw std::logic_error("Active fire scheme has no fire configuration");
+                const auto& fire_config = configured_fire.value();
                 if (!step || !d.clock) throw std::runtime_error("Fire runtime requires the CECE clock for interval boundaries");
                 if (!d.fire_runtime_adapter || !d.fire_runtime_initialized) {
                     throw std::runtime_error("Fire runtime adapter is unavailable or not initialized");
@@ -65,7 +68,6 @@ void RunPhysicsSchemeByName(cece::CeceInternalData& d, const std::string& scheme
                     throw std::invalid_argument("Fire clock interval must advance beyond the last committed interval");
                 }
                 const auto start_epoch = d.clock->StartEpochSeconds();
-                const auto& fire_config = *d.config.physics_schemes[i].fire;
                 cece::FireRuntimeIntervalRequest request{
                     cece::FireUtcTime::FromEpochSeconds(start_epoch + d.fire_last_committed_elapsed_seconds),
                     cece::FireUtcTime::FromEpochSeconds(start_epoch + step->elapsed_seconds),

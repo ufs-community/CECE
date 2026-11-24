@@ -91,6 +91,9 @@ class FireGrid {
     explicit FireGrid(FireGridDefinition definition);
     FireGrid(const FireGrid&) = default;
     FireGrid& operator=(const FireGrid&) = delete;
+    FireGrid(FireGrid&&) = default;
+    FireGrid& operator=(FireGrid&&) = delete;
+    ~FireGrid() = default;
     const FireGridDefinition& Definition() const;
     std::size_t CellCount() const;
 
@@ -362,6 +365,7 @@ class FireIntervalProvider {
                          std::optional<FireProviderCheckpoint> checkpoint = std::nullopt);
     FireIntervalProvider(const FireIntervalProvider&) = delete;
     FireIntervalProvider& operator=(const FireIntervalProvider&) = delete;
+    ~FireIntervalProvider() = default;
     // Prepared paths refer to normalized payloads, never the raw source archive.
     void StagePrepared(std::size_t slot, FireBulkInventory inventory, const FireCacheContext& context, const std::string& path);
     void StageCoupled(std::size_t slot, FireBulkInventory inventory, const FireCacheContext& context, std::string_view bytes);
