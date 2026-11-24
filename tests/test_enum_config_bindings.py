@@ -135,6 +135,8 @@ class TestEmissionLayer:
 class TestParseConfig:
     """Tests for ParseConfig function."""
 
+    # TODO: Get CECE to use passed config rather than re-parsing
+    # config file any time it needs a variable.
     def test_parse_valid_config(self):
         config_path = os.path.join(
             os.path.dirname(__file__), "..", "examples", "cece_config_ex1.yaml"
