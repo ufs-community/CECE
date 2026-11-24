@@ -29,6 +29,9 @@
 
 #include "cece/cece_data_ingestor.hpp"
 #include "cece/cece_internal.hpp"
+#include "cece/cece_logger.hpp"
+
+using namespace std::literals::string_literals;
 
 extern "C" {
 
@@ -63,13 +66,13 @@ void cece_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc)
         *rc = 0;  // 0 = success in C
     }
 
-    std::cout << "INFO: CECE Initialize Phase 2 (IPDv00p2) - Field binding and data stream setup" << std::endl;
+    CECE_LOG_INFO("INFO: CECE Initialize Phase 2 (IPDv00p2) - Field binding and data stream setup\n");
 
     // 1. Validate that Phase 1 completed successfully
     if (data_ptr == nullptr) {
         // clang-format off
-        std::cerr << "ERROR in cece_core_initialize_p2: Internal data pointer is null - "
-                  << "Phase 1 must complete before Phase 2" << std::endl;
+      CECE_LOG_ERROR("ERROR in cece_core_initialize_p2: Internal data pointer is null - "
+                     "Phase 1 must complete before Phase 2\n");
         // clang-format on
         if (rc != nullptr) {
             *rc = -1;
@@ -78,11 +81,11 @@ void cece_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc)
     }
 
     auto* internal_data = static_cast<cece::CeceInternalData*>(data_ptr);
-    std::cout << "INFO: Internal data structure validated" << std::endl;
+    CECE_LOG_INFO("INFO: Internal data structure validated\n");
 
     // 2. Store grid dimensions passed from Fortran
     if (nx == nullptr || ny == nullptr || nz == nullptr) {
-        std::cerr << "ERROR in cece_core_initialize_p2: Grid dimension pointers are null" << std::endl;
+        CECE_LOG_ERROR("ERROR in cece_core_initialize_p2: Grid dimension pointers are null"s);
         if (rc != nullptr) {
             *rc = -1;
         }
@@ -91,7 +94,8 @@ void cece_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc)
 
     // Validate grid dimensions are positive
     if (*nx <= 0 || *ny <= 0 || *nz <= 0) {
-        std::cerr << "ERROR in cece_core_initialize_p2: Invalid grid dimensions - " << "nx=" << *nx << ", ny=" << *ny << ", nz=" << *nz << std::endl;
+        CECE_LOG_ERROR("ERROR in cece_core_initialize_p2: Invalid grid dimensions - nx="s + std::to_string(*nx) + ", ny="s + std::to_string(*ny) +
+                       ", nz="s + std::to_string(*nz) + "\n"s);
         if (rc != nullptr) {
             *rc = -1;
         }
@@ -102,36 +106,19 @@ void cece_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc)
     internal_data->ny = *ny;
     internal_data->nz = *nz;
 
-    std::cout << "INFO: Grid dimensions received: nx=" << internal_data->nx << ", ny=" << internal_data->ny << ", nz=" << internal_data->nz
-              << std::endl;
+    CECE_LOG_INFO("INFO: Grid dimensions received: nx="s + std::to_string(internal_data->nx) + ", ny="s + std::to_string(internal_data->ny) +
+                  ", nz="s + std::to_string(internal_data->nz) + "\n"s);
 
     // 3. Initialize data ingestor if streams are configured
     if (!internal_data->config.cece_data.streams.empty()) {
-        std::cout << "INFO: cece_data streams configured - initializing data ingestor" << std::endl;
-        std::cout << "INFO: Number of streams: " << internal_data->config.cece_data.streams.size() << std::endl;
-
-        try {
-            // Initialize data streams through the data ingestor
-            // Note: The actual stream initialization happens in the Fortran bridge
-            // This C++ code prepares the configuration and validates it
-            std::cout << "INFO: Data stream configuration validated" << std::endl;
-
-            // Mark streams as initialized (actual initialization happens in Fortran cap)
-            // The Fortran cap will call the stream init with the streams configuration
-            std::cout << "INFO: Data stream initialization will be completed by Fortran cap" << std::endl;
-        } catch (const std::exception& e) {
-            std::cerr << "ERROR: Failed to initialize TIDE: " << e.what() << std::endl;
-            if (rc != nullptr) {
-                *rc = -1;
-            }
-            return;
-        }
+        CECE_LOG_INFO("INFO: cece_data streams configured - initializing data ingestor\n");
+        CECE_LOG_INFO("INFO: Number of streams: "s + std::to_string(internal_data->config.cece_data.streams.size()) + "\n"s);
     } else {
-        std::cout << "INFO: No TIDE streams configured - skipping TIDE initialization" << std::endl;
+        CECE_LOG_INFO("INFO: No TIDE streams configured - skipping driver initialization\n");
     }
 
     // 4. Allocate default mask (all 1.0)
-    std::cout << "INFO: Allocating default mask" << std::endl;
+    CECE_LOG_INFO("INFO: Allocating default mask\n");
     try {
         internal_data->default_mask = Kokkos::View<double***, Kokkos::LayoutLeft, Kokkos::DefaultExecutionSpace>(
             "default_mask", internal_data->nx, internal_data->ny, internal_data->nz);
@@ -139,9 +126,9 @@ void cece_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc)
         // Initialize mask to 1.0 on device
         Kokkos::deep_copy(internal_data->default_mask, 1.0);
 
-        std::cout << "INFO: Default mask allocated and initialized to 1.0" << std::endl;
+        CECE_LOG_INFO("INFO: Default mask allocated and initialized to 1.0\n");
     } catch (const std::exception& e) {
-        std::cerr << "ERROR: Failed to allocate default mask: " << e.what() << std::endl;
+        CECE_LOG_ERROR("ERROR: Failed to allocate default mask: "s + e.what() + "\n"s);
         if (rc != nullptr) {
             *rc = -1;
         }
@@ -149,7 +136,7 @@ void cece_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc)
     }
 
     // 5. Cache field metadata for efficient runtime queries
-    std::cout << "INFO: Caching field metadata" << std::endl;
+    CECE_LOG_INFO("INFO: Caching field metadata");
 
     // Cache import field names (external names from the host model)
     for (const auto& [internal_name, external_name] : internal_data->config.met_mapping) {
@@ -167,9 +154,9 @@ void cece_core_initialize_p2(void* data_ptr, int* nx, int* ny, int* nz, int* rc)
         internal_data->esmf_fields.push_back(internal_name);
     }
 
-    std::cout << "INFO: Cached " << internal_data->esmf_fields.size() << " import field mappings" << std::endl;
+    CECE_LOG_INFO("INFO: Cached "s + std::to_string(internal_data->esmf_fields.size()) + " import field mappings\n"s);
 
-    std::cout << "INFO: CECE Initialize Phase 2 completed successfully" << std::endl;
+    CECE_LOG_INFO("INFO: CECE Initialize Phase 2 completed successfully\n");
 
     if (rc != nullptr) {
         *rc = 0;  // 0 = success
