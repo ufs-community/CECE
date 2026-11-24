@@ -19,6 +19,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstring>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <map>
@@ -32,6 +33,8 @@
 #include "cece/cece_state.hpp"
 #include "cece/physics/cece_speciation_config.hpp"
 #include "cece/physics/cece_speciation_engine.hpp"
+
+namespace fs = std::filesystem;
 
 namespace cece {
 
@@ -59,7 +62,7 @@ static std::string GenAlphaString(std::size_t len) {
 
 /// RAII helper for temporary files.
 struct TempFile {
-    std::string path;
+    fs::path path;
     TempFile(const std::string& content, const std::string& suffix) {
         // Use a unique path based on address to avoid conflicts
         path = "/tmp/cece_spec_test_" + std::to_string(reinterpret_cast<uintptr_t>(this)) + suffix;
@@ -755,9 +758,9 @@ class CB6ConfigLoadingTest : public ::testing::Test {
 };
 
 TEST_F(CB6ConfigLoadingTest, LoadCB6SpeciationConfig) {
-    std::string src_dir = CECE_SOURCE_DIR;
-    std::string spc_path = src_dir + "/data/speciation/spc_cb6.yaml";
-    std::string map_path = src_dir + "/data/speciation/map_cb6.yaml";
+    fs::path src_dir = CECE_SOURCE_DIR;
+    fs::path spc_path = src_dir / fs::path("data/speciation/spc_cb6.yaml");
+    fs::path map_path = src_dir / fs::path("data/speciation/map_cb6.yaml");
 
     SpeciationConfigLoader loader;
     SpeciationConfig config = loader.Load(spc_path, map_path, "MEGAN");

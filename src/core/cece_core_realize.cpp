@@ -23,6 +23,8 @@
 
 using namespace std::literals::string_literals;
 
+namespace fs = std::filesystem;
+
 extern "C" {
 
 /**
@@ -69,7 +71,7 @@ void cece_core_realize_impl(void* data_ptr, int* rc) {
     // Parse YAML configuration to validate field requirements
     cece::CeceConfig config;
     try {
-        const std::string& config_path = cece::GetConfigFilePath();
+        const fs::path config_path = cece::GetConfigFilePath();
         config = cece::ParseConfig(config_path);
     } catch (const std::exception& e) {
         CECE_LOG_ERROR("ERROR in cece_core_realize: Failed to parse config: "s + e.what() + "\n");

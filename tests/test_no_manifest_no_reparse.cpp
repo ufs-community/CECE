@@ -52,12 +52,12 @@ namespace {
 // ----------------------------------------------------------------------------
 
 // Absolute path to the production driver facade translation unit.
-std::string FacadeSourcePath() {
-    return std::string(CECE_SOURCE_DIR) + "/src/driver/cece_driver_facade.cpp";
+fs::path FacadeSourcePath() {
+    return fs::path(CECE_SOURCE_DIR) / fs::path("src/driver/cece_driver_facade.cpp");
 }
 
 // Read a whole text file into a string.
-std::string ReadFile(const std::string& path) {
+std::string ReadFile(const fs::path& path) {
     std::ifstream ifs(path, std::ios::binary);
     EXPECT_TRUE(ifs.good()) << "could not open " << path;
     std::ostringstream ss;

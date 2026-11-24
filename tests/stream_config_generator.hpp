@@ -4,6 +4,8 @@
 
 #include <rapidcheck.h>
 
+#include <filesystem>
+
 namespace cece {
 namespace {
 
@@ -21,9 +23,9 @@ namespace {
 // key-splitting field and a shared-handle noise field.
 rc::Gen<StreamConfig> genStreamConfig() {
     return rc::gen::apply(
-        [](std::string input_file_path, std::string input_var_name, std::string input_gridspec_file, std::string mapalgo, std::string cadence,
-           std::string tintalgo, std::string data_model, bool data_model_explicit, int amio_worker_threads, int amio_staging_buffer_count,
-           int amio_staging_buffer_capacity_bytes, int amio_prefetch_depth) {
+        [](std::filesystem::path input_file_path, std::string input_var_name, std::filesystem::path input_gridspec_file, std::string mapalgo,
+           std::string cadence, std::string tintalgo, std::string data_model, bool data_model_explicit, int amio_worker_threads,
+           int amio_staging_buffer_count, int amio_staging_buffer_capacity_bytes, int amio_prefetch_depth) {
             StreamConfig cfg;
             cfg.input_file_path = std::move(input_file_path);
             cfg.input_var_name = std::move(input_var_name);

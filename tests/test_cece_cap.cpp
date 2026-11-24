@@ -3,6 +3,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>  // for memset
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -10,7 +11,9 @@
 #include "cece/cece_c_api.h"
 // Declare the functions we want to test (decoupled architecture - no ESMF)
 
-static std::string g_config_file = "cece_config.yaml";
+namespace fs = std::filesystem;
+
+static fs::path g_config_file = "cece_config.yaml";
 
 TEST(CECECapTest, Lifecycle) {
     std::cout << "Test: Creating config from: " << g_config_file << std::endl;
@@ -23,7 +26,7 @@ TEST(CECECapTest, Lifecycle) {
     }
 
     // Set the config file path for CECE
-    cece_set_config_file_path(g_config_file.c_str(), static_cast<int>(g_config_file.length()));
+    cece_set_config_file_path(g_config_file.c_str(), static_cast<int>(g_config_file.native().length()));
 
     int rc = -1;
     void* data_ptr = nullptr;

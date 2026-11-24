@@ -8,6 +8,7 @@
 #include <conf/conf.hpp>
 #include <cstddef>
 #include <dagr/dagr.hpp>
+#include <filesystem>
 #include <functional>
 #include <halo/collectives.hpp>
 #include <halo/communicator.hpp>
@@ -35,9 +36,9 @@ using detail::SimDateTime;
  * configuration + file, never on simulation time.
  */
 struct StreamConfig {
-    std::string input_file_path;      ///< stream["file"]; "" => missing (Req 1.4)
-    std::string input_var_name;       ///< resolved file var name (falls back to model name)
-    std::string input_gridspec_file;  ///< stream["gridspec_file"]; "" => missing
+    std::filesystem::path input_file_path;      ///< stream["file"]; "" => missing (Req 1.4)
+    std::string input_var_name;                 ///< resolved file var name (falls back to model name)
+    std::filesystem::path input_gridspec_file;  ///< stream["gridspec_file"]; "" => missing
     cece::io::GeometrySettings source_geometry;
     std::string mapalgo = "consd";  ///< default matches current AdvanceTime
     std::string cadence;            ///< "" => series (time-aware default)
@@ -115,8 +116,8 @@ struct LocalWeeklyCacheEntry {
 
 class CeceDriverOrchestrator {
    public:
-    CeceDriverOrchestrator(const std::string& config_file, int nx, int ny, int nz, const double* lon_coords, int lon_len, const double* lat_coords,
-                           int lat_len, MPI_Comm comm_c);
+    CeceDriverOrchestrator(const std::filesystem::path& config_file, int nx, int ny, int nz, const double* lon_coords, int lon_len,
+                           const double* lat_coords, int lat_len, MPI_Comm comm_c);
     ~CeceDriverOrchestrator();
 
     // Prevent copy/move construction and assignment (Rule of Five)
@@ -202,7 +203,7 @@ class CeceDriverOrchestrator {
                                  std::vector<double>& ingest_buffer, std::string& failure_detail);
 
     /** Return whether the YAML config contains streams handled by EarthAccess. */
-    static bool HasEarthAccessStreams(const std::string& config_file);
+    static bool HasEarthAccessStreams(const std::filesystem::path& config_file);
 
     /**
      * Ingest `source: earthaccess` streams for the current timestep.
@@ -239,8 +240,8 @@ class CeceDriverOrchestrator {
     // exercised in isolation without constructing a full orchestrator (which
     // requires MPI/DAGR/CeceIO). This is the SAME code path production uses; it
     // is not a copy (Req 1.1-1.5, 4.3).
-    static void ResolveStreamConfigsFromFile(const std::string& config_file, std::unordered_map<std::string, StreamConfig>& out_configs,
-                                             std::string& out_gridspec_file);
+    static void ResolveStreamConfigsFromFile(const std::filesystem::path& config_file, std::unordered_map<std::string, StreamConfig>& out_configs,
+                                             std::filesystem::path& out_gridspec_file);
 
     // Resolve one stream variable's YAML node into a StreamConfig: field
     // resolution + defaults for file/mapalgo/cadence/tintalgo/data_model plus
@@ -248,7 +249,7 @@ class CeceDriverOrchestrator {
     // ResolveStreamConfigsFromFile stream loop, which had grown to ~40 lines
     // of per-field if/else logic; the loop now keeps only the iteration and
     // first-match-wins bookkeeping. Behavior is unchanged.
-    static StreamConfig BuildStreamConfig(const conf::Value& stream, const std::string& model_name, const std::string& file_name,
+    static StreamConfig BuildStreamConfig(const conf::Value& stream, const std::string& model_name, const std::filesystem::path& file_name,
                                           int amio_worker_threads, int amio_staging_buffer_count, int amio_staging_buffer_capacity_bytes,
                                           int amio_prefetch_depth);
 
@@ -354,7 +355,7 @@ class CeceDriverOrchestrator {
     // regrid.
     AmioHandleSet* GetOrOpenHandleSet(const std::string& handle_key, const StreamConfig& cfg, std::string& failure_detail);
 
-    std::string config_file_;
+    std::filesystem::path config_file_;
     int nx_{0}, ny_{0}, nz_{0};
     std::vector<double> target_lons_;
     std::vector<double> target_lats_;
@@ -430,7 +431,7 @@ class CeceDriverOrchestrator {
     // HELM Orchestration and pipeline components
     std::unique_ptr<dagr::GraphOrchestrator> dagr_;
     std::unique_ptr<io::CeceIO> cece_io_;
-    std::string gridspec_file_;
+    std::filesystem::path gridspec_file_;
     io::GeometrySettings destination_geometry_settings_;
     std::string destination_geometry_revision_;
 

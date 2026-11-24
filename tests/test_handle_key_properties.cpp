@@ -59,6 +59,8 @@
 #include "cece/cece_driver_facade.hpp"
 #include "stream_config_generator.hpp"
 
+namespace fs = std::filesystem;
+
 namespace cece {
 
 // ============================================================================
@@ -166,7 +168,7 @@ RC_GTEST_PROP(HandleKeyProperty, Property4_KeyEqualImpliesManifestEqual, ()) {
 
     // Keep the concatenation unambiguous: the reserved "|" separator must not
     // appear inside the string-valued key fields.
-    RC_PRE(a.input_file_path.find('|') == std::string::npos);
+    RC_PRE(a.input_file_path.native().find('|') == std::string::npos);
     RC_PRE(a.data_model.find('|') == std::string::npos);
 
     // Build a genuine key collision: force b's six manifest-affecting fields to
@@ -200,9 +202,9 @@ RC_GTEST_PROP(HandleKeyProperty, Property4_ManifestDifferImpliesKeyDiffer, ()) {
     const StreamConfig a = *genStreamConfig();
     const StreamConfig b = *genStreamConfig();
 
-    RC_PRE(a.input_file_path.find('|') == std::string::npos);
+    RC_PRE(a.input_file_path.native().find('|') == std::string::npos);
     RC_PRE(a.data_model.find('|') == std::string::npos);
-    RC_PRE(b.input_file_path.find('|') == std::string::npos);
+    RC_PRE(b.input_file_path.native().find('|') == std::string::npos);
     RC_PRE(b.data_model.find('|') == std::string::npos);
 
     // Only meaningful when the manifests actually differ.

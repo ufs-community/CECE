@@ -19,6 +19,8 @@
 #include "cece/cece_amio_utils.hpp"
 #include "cece/cece_logger.hpp"
 
+namespace fs = std::filesystem;
+
 namespace cece::io {
 
 static std::vector<double> read_coordinate_array(amio_dataset_handle dataset, const std::string& name, bool is_radian, bool wrap_lon,
@@ -790,7 +792,7 @@ axis::topology::UnstructuredMesh<Kokkos::HostSpace> load_mesh_from_file(int nx, 
 }
 
 axis::topology::UnstructuredMesh<Kokkos::HostSpace> build_axis_mesh(int nx, int nband, int j0, const std::vector<double>& lons,
-                                                                    const std::vector<double>& lats, const std::string& gridspec_file) {
+                                                                    const std::vector<double>& lats, const fs::path& gridspec_file) {
     if (!gridspec_file.empty() && gridspec_file != "none" && gridspec_file != "NONE") {
         return load_mesh_from_file(nx, nband, j0, gridspec_file);
     }
@@ -1120,8 +1122,8 @@ bool same_spherical_grid_coordinates(int nx, int ny, const std::vector<double>& 
 }
 
 bool build_regrid_plan(amio_dataset_handle read_dataset, int nx, int ny, const std::vector<double>& target_lons,
-                       const std::vector<double>& target_lats, const std::string& map_algo, int j0, int j1, const std::string& src_gridspec_file,
-                       const std::string& dst_gridspec_file, RegridPlan& plan, const GeometrySettings& source_settings,
+                       const std::vector<double>& target_lats, const std::string& map_algo, int j0, int j1, const fs::path& src_gridspec_file,
+                       const fs::path& dst_gridspec_file, RegridPlan& plan, const GeometrySettings& source_settings,
                        const GeometrySettings& destination_settings) {
     plan = RegridPlan{};
     // Stage 1: load an algorithm-independent owned source geometry snapshot.

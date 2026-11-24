@@ -65,12 +65,12 @@ int run_process(const std::vector<std::string>& args) {
 }
 
 /** Resolve the configured EarthAccess helper or a repository-relative default. */
-fs::path resolve_earthaccess_helper(const std::string& config_file) {
+fs::path resolve_earthaccess_helper(const fs::path& config_file) {
     if (const char* configured = std::getenv("CECE_EARTHACCESS_HELPER")) {
         if (*configured != '\0') return fs::path(configured);
     }
 
-    const fs::path config_path = fs::absolute(fs::path(config_file));
+    const fs::path config_path = fs::absolute(config_file);
     try {
         conf::Config config = conf::Config::from_file(config_file);
         const conf::Value configured = config.at("driver.earthaccess_helper");
@@ -102,7 +102,7 @@ fs::path resolve_earthaccess_helper(const std::string& config_file) {
 }  // namespace
 
 /** Return whether the config includes any streams handled by EarthAccess. */
-bool CeceDriverOrchestrator::HasEarthAccessStreams(const std::string& config_file) {
+bool CeceDriverOrchestrator::HasEarthAccessStreams(const fs::path& config_file) {
     try {
         conf::Config config = conf::Config::from_file(config_file);
         if (!config.has("cece_data.streams")) return false;

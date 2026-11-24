@@ -27,6 +27,8 @@
 namespace fs = std::filesystem;
 using namespace std::literals::string_literals;
 
+namespace fs = std::filesystem;
+
 extern "C" {
 
 /**
@@ -39,10 +41,11 @@ extern "C" {
  * @param config Map to store parsed key-value pairs
  * @return 0 on success, -1 on error
  */
-static int parse_esmf_config_file(const std::string& config_file, std::map<std::string, std::string>& config) {
+// TODO: Work out how exactly this gets linked in a C program
+static int parse_esmf_config_file(const fs::path& config_file, std::map<std::string, std::string>& config) {
     std::ifstream file(config_file);
     if (!file.is_open()) {
-        CECE_LOG_ERROR("ERROR: Failed to open config file: "s + config_file + "\n"s);
+        CECE_LOG_ERROR("ERROR: Failed to open config file: "s + config_file.string() + "\n"s);
         return -1;
     }
 
@@ -119,13 +122,13 @@ void cece_core_get_driver_config(const char* config_file, int config_file_len, c
 
     try {
         // Convert C string to std::string
-        std::string config_path(config_file, config_file_len);
+        fs::path config_path = std::string(config_file, config_file_len);
 
         // Parse the config file
         std::map<std::string, std::string> config;
         int parse_rc = parse_esmf_config_file(config_path, config);
         if (parse_rc != 0) {
-            CECE_LOG_ERROR("ERROR: Failed to parse config file: "s + config_path + "\n"s);
+            CECE_LOG_ERROR("ERROR: Failed to parse config file: "s + config_path.string() + "\n"s);
             *rc = -1;
             return;
         }

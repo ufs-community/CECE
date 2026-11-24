@@ -8,6 +8,7 @@
 
 #include <mpi.h>
 
+#include <filesystem>
 #include <iostream>
 #include <logs/logs.hpp>
 #include <string>
@@ -108,7 +109,7 @@ class CeceLogger {
     /**
      * @brief Log an error message
      */
-    void LogError(const std::string& message, const std::string& file = "", int line = 0) {
+    void LogError(const std::string& message, const std::filesystem::path& file = "", int line = 0) {
         EnsureCommunicatorConfigured();
         logs::Submit_Options opts;
         if (!file.empty() && line > 0) {
@@ -120,7 +121,7 @@ class CeceLogger {
     /**
      * @brief Log a warning message
      */
-    void LogWarning(const std::string& message, const std::string& file = "", int line = 0) {
+    void LogWarning(const std::string& message, const std::filesystem::path& file = "", int line = 0) {
         EnsureCommunicatorConfigured();
         if (logger_.rank() > 0) return;  // Only Rank 0 logs warnings
         logs::Submit_Options opts;
@@ -133,7 +134,7 @@ class CeceLogger {
     /**
      * @brief Log an info message
      */
-    void LogInfo(const std::string& message, const std::string& file = "", int line = 0) {
+    void LogInfo(const std::string& message, const std::filesystem::path& file = "", int line = 0) {
         EnsureCommunicatorConfigured();
         if (logger_.rank() > 0) return;  // Only Rank 0 logs info messages
         logs::Submit_Options opts;
@@ -146,7 +147,7 @@ class CeceLogger {
     /**
      * @brief Log a debug message (logged across all ranks with rank attribution)
      */
-    void LogDebug(const std::string& message, const std::string& file = "", int line = 0) {
+    void LogDebug(const std::string& message, const std::filesystem::path& file = "", int line = 0) {
         EnsureCommunicatorConfigured();
         logs::Submit_Options opts;
         if (!file.empty() && line > 0) {

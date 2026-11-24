@@ -39,6 +39,8 @@
 #include "cece/cece_stacking_engine.hpp"
 #include "cece/physics_scheme.hpp"
 
+namespace fs = std::filesystem;
+
 using namespace std::literals::string_literals;
 
 extern "C" {
@@ -170,9 +172,9 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
     }
 
     // 2. Parse YAML configuration
-    const std::string config_path = cece::GetConfigFilePath();
-    CECE_LOG_INFO("INFO: Parsing "s + config_path + "\n"s);
-    CECE_LOG_DEBUG("DEBUG: Full config path: '"s + config_path + "'\n"s);
+    const fs::path config_path = cece::GetConfigFilePath();
+    CECE_LOG_INFO("INFO: Parsing "s + config_path.string() + "\n"s);
+    CECE_LOG_DEBUG("DEBUG: Full config path: '"s + config_path.string() + "'\n"s);
     cece::CeceConfig config;
     try {
         config = cece::ParseConfig(config_path);

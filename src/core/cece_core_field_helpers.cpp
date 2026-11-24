@@ -29,6 +29,8 @@ inline std::string to_string(void* ptr) {
     return std::to_string(ptr_int);
 }
 
+namespace fs = std::filesystem;
+
 extern "C" {
 
 /**
@@ -306,7 +308,7 @@ void cece_read_timing_config(const char* config_path, int path_len, char* start_
 
     try {
         // Convert C string to std::string
-        std::string yaml_path(config_path, path_len);
+        fs::path yaml_path = std::string(config_path, path_len);
 
         // Parse config file
         conf::Config cfg = conf::Config::from_file(yaml_path);
@@ -509,10 +511,10 @@ void cece_core_get_ingestor_streams_path(void* data_ptr, char* streams_path, int
     std::string config_content = internal_data->ingestor.SerializeStreamYaml(internal_data->config.cece_data);
 
     // Write to file (using .yaml extension for data stream configuration)
-    std::string filename = "cece_data_streams.yaml";
+    fs::path filename = "cece_data_streams.yaml";
     std::ofstream outfile(filename);
     if (!outfile.is_open()) {
-        CECE_LOG_ERROR("ERROR: Failed to open output file for data streams: "s + filename + "\n"s);
+        CECE_LOG_ERROR("ERROR: Failed to open output file for data streams: "s + filename.string() + "\n"s);
         if (rc != nullptr) *rc = -1;
         return;
     }
@@ -520,14 +522,15 @@ void cece_core_get_ingestor_streams_path(void* data_ptr, char* streams_path, int
     outfile.close();
 
     // Return filename
-    if (filename.length() >= 512) {  // Assuming 512 is buffer size from Fortran
+    ssize_t filename_strlen = filename.string().length();
+    if (filename_strlen >= 512) {  // Assuming 512 is buffer size from Fortran
         CECE_LOG_ERROR("ERROR: streams path too long\n");
         if (rc != nullptr) *rc = -1;
         return;
     }
 
     std::strncpy(streams_path, filename.c_str(), 512);
-    *path_len = filename.length();
+    *path_len = filename_strlen;
 
     if (rc != nullptr) {
         *rc = 0;
@@ -977,7 +980,7 @@ void nuopc_count(const char* config_path, int path_len, const char* label, bool 
     }
     *count = 0;
     try {
-        std::string yaml_path(config_path, path_len);
+        fs::path yaml_path = std::string(config_path, path_len);
         cece::CeceConfig config = cece::ParseConfig(yaml_path);
         *count = is_export ? static_cast<int>(config.nuopc.export_fields.size()) : static_cast<int>(config.nuopc.import_fields.size());
     } catch (const std::exception& e) {
@@ -1003,7 +1006,7 @@ void cece_nuopc_export_count(const char* config_path, int path_len, int* count, 
 void cece_nuopc_export_spec(const char* config_path, int path_len, int index, char* species, int species_cap, int* species_len, char* std_name,
                             int std_cap, int* std_len, char* units, int units_cap, int* units_len, char* name, int name_cap, int* name_len, int* rc) {
     try {
-        std::string yaml_path(config_path, path_len);
+        fs::path yaml_path = std::string(config_path, path_len);
         cece::CeceConfig config = cece::ParseConfig(yaml_path);
         nuopc_fill_spec(config.nuopc.export_fields, index, "export", species, species_cap, species_len, std_name, std_cap, std_len, units, units_cap,
                         units_len, name, name_cap, name_len, rc);
@@ -1026,7 +1029,7 @@ void cece_nuopc_import_count(const char* config_path, int path_len, int* count, 
 void cece_nuopc_import_spec(const char* config_path, int path_len, int index, char* field, int field_cap, int* field_len, char* std_name, int std_cap,
                             int* std_len, char* units, int units_cap, int* units_len, char* name, int name_cap, int* name_len, int* rc) {
     try {
-        std::string yaml_path(config_path, path_len);
+        fs::path yaml_path = std::string(config_path, path_len);
         cece::CeceConfig config = cece::ParseConfig(yaml_path);
         nuopc_fill_spec(config.nuopc.import_fields, index, "import", field, field_cap, field_len, std_name, std_cap, std_len, units, units_cap,
                         units_len, name, name_cap, name_len, rc);

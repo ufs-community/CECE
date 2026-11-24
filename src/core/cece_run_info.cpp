@@ -19,6 +19,7 @@
 
 #include <conf/conf.hpp>
 #include <cstdlib>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <memory>
@@ -35,6 +36,8 @@
 #define CECE_HAVE_KOKKOS 1
 #endif
 #endif
+
+namespace fs = std::filesystem;
 
 using namespace std::literals::string_literals;
 
@@ -88,7 +91,7 @@ void cece_run_log_setup(const char* config_path, int path_len) {
     }
 
     // Determine optional log file path.
-    std::string log_file_path;
+    fs::path log_file_path;
     if (config_ok) {
         auto opt = config.try_string("driver.log_file");
         if (!opt.has_value()) {
@@ -118,7 +121,7 @@ void cece_run_log_setup(const char* config_path, int path_len) {
             std::cout.rdbuf(tee_buf);
             stdout_redirected = true;
         } else {
-            CECE_LOG_WARNING("WARNING: Could not open log file '"s + log_file_path + "' - continuing with console output only.\n");
+            CECE_LOG_WARNING("WARNING: Could not open log file '"s + log_file_path.string() + "' - continuing with console output only.\n"s);
             delete log_file_stream;
         }
     }

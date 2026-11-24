@@ -58,6 +58,8 @@
 
 #include "cece/cece_driver_facade.hpp"
 
+namespace fs = std::filesystem;
+
 namespace cece {
 
 // ============================================================================
@@ -72,7 +74,7 @@ namespace cece {
 // touch any production runtime behavior.
 // ============================================================================
 struct StreamConfigTestAccess {
-    static void Resolve(const std::string& config_file, std::unordered_map<std::string, StreamConfig>& out_configs, std::string& out_gridspec_file) {
+    static void Resolve(const fs::path& config_file, std::unordered_map<std::string, StreamConfig>& out_configs, fs::path& out_gridspec_file) {
         CeceDriverOrchestrator::ResolveStreamConfigsFromFile(config_file, out_configs, out_gridspec_file);
     }
 };
@@ -201,7 +203,7 @@ void RcAssertStreamConfigEq(const StreamConfig& actual, const StreamConfig& expe
 
 // RAII temp file for fixtures / generated configs.
 struct TempFile {
-    std::string path;
+    fs::path path;
     explicit TempFile(const std::string& content) {
         std::string pattern = (std::filesystem::temp_directory_path() / "cece_stream_cfg_XXXXXX").string();
         std::vector<char> filename(pattern.begin(), pattern.end());
@@ -223,7 +225,7 @@ struct TempFile {
 // assert exact field-for-field agreement over the union of resolved variables.
 void CompareResolutionAgainstLegacy(const std::string& config_path) {
     std::unordered_map<std::string, StreamConfig> actual;
-    std::string actual_gridspec;
+    fs::path actual_gridspec;
     StreamConfigTestAccess::Resolve(config_path, actual, actual_gridspec);
 
     YAML::Node config = YAML::LoadFile(config_path);
@@ -241,8 +243,8 @@ void CompareResolutionAgainstLegacy(const std::string& config_path) {
 
 // The example configs shipped in examples/ (all contain a cece_data.streams
 // block, per the checked-in files).
-const std::vector<std::string>& ExampleConfigNames() {
-    static const std::vector<std::string> kNames = {
+const std::vector<fs::path>& ExampleConfigNames() {
+    static const std::vector<fs::path> kNames = {
         "cece_config_ex1.yaml", "cece_config_ex2.yaml", "cece_config_ex3.yaml", "cece_config_ex4.yaml", "cece_config_ex5.yaml",
         "cece_config_ex6.yaml", "cece_config_ex7.yaml", "cece_config_ex8.yaml", "cece_config_ex9.yaml",
     };
@@ -258,11 +260,11 @@ const std::vector<std::string>& ExampleConfigNames() {
 // **Validates: Requirements 1.1, 1.5, 4.3**
 // ============================================================================
 TEST(StreamConfigResolution, ExampleConfigsMatchLegacyParse) {
-    const std::string src_dir = CECE_SOURCE_DIR;
+    const fs::path src_dir = CECE_SOURCE_DIR;
     int examples_with_streams = 0;
 
     for (const auto& name : ExampleConfigNames()) {
-        const std::string path = src_dir + "/examples/" + name;
+        const fs::path path = src_dir / fs::path("examples") / fs::path(name);
         std::ifstream probe(path);
         if (!probe.good()) {
             // Example file not present in this checkout; skip rather than fail.
@@ -275,7 +277,7 @@ TEST(StreamConfigResolution, ExampleConfigsMatchLegacyParse) {
             ++examples_with_streams;
         }
 
-        SCOPED_TRACE("example config: " + name);
+        SCOPED_TRACE("example config: " + std::string(name));
         CompareResolutionAgainstLegacy(path);
     }
 
@@ -342,7 +344,7 @@ TEST(StreamConfigResolution, HandWrittenFixtureMatchesLegacyParse) {
     // Also spot-check a couple of resolved fields directly so the fixture is
     // meaningful even if the oracle had a matching bug.
     std::unordered_map<std::string, StreamConfig> actual;
-    std::string gridspec;
+    fs::path gridspec;
     StreamConfigTestAccess::Resolve(fixture.path, actual, gridspec);
 
     ASSERT_TRUE(actual.count("VAR_CLASSIC"));
@@ -380,7 +382,7 @@ TEST(StreamConfigResolution, MissingVariablesDefaultToStreamName) {
     for (const std::string& variables : {std::string{}, std::string("      variables:\n"), std::string("      variables: []\n")}) {
         TempFile fixture("cece_data:\n  streams:\n    - name: CO\n      file: co.nc\n" + variables);
         std::unordered_map<std::string, StreamConfig> configs;
-        std::string gridspec;
+        fs::path gridspec;
 
         StreamConfigTestAccess::Resolve(fixture.path, configs, gridspec);
 
@@ -393,14 +395,14 @@ TEST(StreamConfigResolution, MissingVariablesDefaultToStreamName) {
 TEST(StreamConfigResolution, RejectsVariableMappingsWithoutModelNames) {
     TempFile fixture("cece_data:\n  streams:\n    - name: CO\n      file: co.nc\n      variables:\n        - file: CO_FILE\n");
     std::unordered_map<std::string, StreamConfig> configs;
-    std::string gridspec;
+    fs::path gridspec;
 
     EXPECT_THROW(StreamConfigTestAccess::Resolve(fixture.path, configs, gridspec), std::invalid_argument);
 }
 
 TEST(StreamConfigResolution, FileListsNeedExactlyOneEntry) {
     std::unordered_map<std::string, StreamConfig> configs;
-    std::string gridspec;
+    fs::path gridspec;
 
     TempFile single("cece_data:\n  streams:\n    - name: CO\n      file: [co.nc]\n");
     StreamConfigTestAccess::Resolve(single.path, configs, gridspec);
@@ -415,7 +417,7 @@ TEST(StreamConfigResolution, FileListsNeedExactlyOneEntry) {
 TEST(StreamConfigResolution, RejectsInterpolationAlias) {
     TempFile fixture("cece_data:\n  streams:\n    - name: CO\n      file: co.nc\n      interpolation: linear\n");
     std::unordered_map<std::string, StreamConfig> configs;
-    std::string gridspec;
+    fs::path gridspec;
 
     EXPECT_THROW(StreamConfigTestAccess::Resolve(fixture.path, configs, gridspec), std::invalid_argument);
 }
@@ -431,7 +433,7 @@ TEST(StreamConfigResolution, MapalgoIsNormalizedToLowercase) {
         "        - CO\n");
 
     std::unordered_map<std::string, StreamConfig> actual;
-    std::string gridspec;
+    fs::path gridspec;
     StreamConfigTestAccess::Resolve(fixture.path, actual, gridspec);
 
     ASSERT_TRUE(actual.count("CO"));
@@ -442,7 +444,7 @@ TEST(StreamConfigResolution, MissingStreamSectionsLeaveConfigEmpty) {
     for (const std::string& yaml : {std::string("driver: {}\n"), std::string("cece_data: {}\n")}) {
         TempFile fixture(yaml);
         std::unordered_map<std::string, StreamConfig> configs;
-        std::string gridspec;
+        fs::path gridspec;
         EXPECT_NO_THROW(StreamConfigTestAccess::Resolve(fixture.path, configs, gridspec));
         EXPECT_TRUE(configs.empty());
     }
@@ -454,7 +456,7 @@ TEST(StreamConfigResolution, ResolvesGeometrySettings) {
         "      longitude_variable: xlon\n      latitude_variable: xlat\n"
         "      geometry_reconstruction: Rectilinear_Midpoint\n");
     std::unordered_map<std::string, StreamConfig> configs;
-    std::string gridspec;
+    fs::path gridspec;
     StreamConfigTestAccess::Resolve(fixture.path, configs, gridspec);
     ASSERT_EQ(configs.count("X"), 1u);
     EXPECT_EQ(configs.at("X").source_geometry.longitude_variable, "xlon");
@@ -466,7 +468,7 @@ TEST(StreamConfigResolution, GridSpecAliasAcceptsEqualValuesAndRejectsConflicts)
     const auto resolve_yaml = [](const std::string& fields) {
         TempFile fixture("cece_data:\n  streams:\n    - name: X\n      file: /tmp/x.nc\n      " + fields + "      variables: [X]\n");
         std::unordered_map<std::string, StreamConfig> configs;
-        std::string driver_gridspec;
+        fs::path driver_gridspec;
         StreamConfigTestAccess::Resolve(fixture.path, configs, driver_gridspec);
         return configs.at("X").input_gridspec_file;
     };
@@ -550,7 +552,7 @@ RC_GTEST_PROP(StreamConfigResolutionProperty, Property4_ResolutionMatchesLegacy,
     TempFile fixture(yaml);
 
     std::unordered_map<std::string, StreamConfig> actual;
-    std::string gridspec;
+    fs::path gridspec;
     StreamConfigTestAccess::Resolve(fixture.path, actual, gridspec);
 
     YAML::Node config = YAML::LoadFile(fixture.path);

@@ -68,6 +68,8 @@
 
 #include "cece/cece_driver_facade.hpp"
 
+namespace fs = std::filesystem;
+
 #ifdef RC_ENABLE_RAPIDCHECK
 #endif
 // RapidCheck is optional per the task. Guard its use so the test still builds
@@ -245,7 +247,7 @@ RC_GTEST_PROP(OpenOnceCacheContractProperty, OpenAtMostOncePerVariable, (const s
 // ============================================================================
 
 std::string ReadDriverSource() {
-    const std::string path = std::string(CECE_SOURCE_DIR) + "/src/driver/cece_driver_facade.cpp";
+    const fs::path path = fs::path(CECE_SOURCE_DIR) / fs::path("src/driver/cece_driver_facade.cpp");
     std::ifstream in(path, std::ios::binary);
     EXPECT_TRUE(in.is_open()) << "could not open driver source at " << path;
     std::ostringstream ss;
