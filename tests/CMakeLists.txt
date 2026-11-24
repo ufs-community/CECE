@@ -172,7 +172,7 @@ cece_add_gtest(
 )
 cece_add_gtest(test_rectilinear_gridspec MAIN MPI_KOKKOS PROPERTIES PROCESSORS 1)
 cece_add_gtest(test_regrid_method_resolution MAIN KOKKOS)
-cece_add_gtest(test_grid_geometry MAIN MPI_KOKKOS MPI_LAUNCHER)
+cece_add_gtest(test_grid_geometry MAIN MPI_KOKKOS)
 cece_add_gtest(test_regrid_prerequisites MAIN KOKKOS)
 cece_add_gtest(test_geometry_plan_lifecycle MAIN MPI_KOKKOS NO_DISCOVER)
 cece_add_mpi_tests(test_geometry_plan_lifecycle NP 1 2)
@@ -417,7 +417,7 @@ set_tests_properties(
 # 10.4 Collective lock-step with a surplus rank (Property 8). Needs np >= 4 to
 # produce a surplus rank (ny = 2 and ny = 3): registered at np1 (structural)
 # and np4 (surplus path).
-cece_add_gtest(test_surplus_rank_lockstep MAIN MPI_KOKKOS LINK NO_DISCOVER)
+cece_add_gtest(test_surplus_rank_lockstep MAIN MPI_KOKKOS NO_DISCOVER)
 cece_add_mpi_tests(test_surplus_rank_lockstep NP 1 4)
 
 # 10.2 Distributed output equivalence (Property 5 & 6). End-to-end: runs the
@@ -492,7 +492,7 @@ cece_add_gtest(
 if(ESMF_FOUND)
   cece_add_gtest(
     test_driver_config_validation
-    LINK iso8601_utils MPI::MPI_CXX
+    LINK iso8601_utils
     MPI_LAUNCHER
     PROPERTIES ENVIRONMENT "FI_PROVIDER=tcp" PROCESSORS 1
   )
