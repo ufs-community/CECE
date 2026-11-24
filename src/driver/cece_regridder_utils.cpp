@@ -1119,60 +1119,26 @@ bool same_spherical_grid_coordinates(int nx, int ny, const std::vector<double>& 
     return true;
 }
 
-bool build_regrid_plan(amio_dataset_handle read_dataset, int nx, int ny, const std::vector<double>& target_lons,
-                       const std::vector<double>& target_lats, const std::string& map_algo, int j0, int j1, const std::string& src_gridspec_file,
-                       const std::string& dst_gridspec_file, RegridPlan& plan, const GeometrySettings& source_settings,
-                       const GeometrySettings& destination_settings) {
-    plan = RegridPlan{};
-    // Stage 1: load an algorithm-independent owned source geometry snapshot.
-    GeometrySettings source_geometry_settings = source_settings;
-    source_geometry_settings.gridspec_file = src_gridspec_file;
-    const GridGeometry loaded_source = load_grid_geometry(read_dataset, source_geometry_settings);
-    plan.source_geometry_revision = loaded_source.revision;
-    const auto source_geometry_owner = std::make_shared<const GridGeometry>(loaded_source);
-    const PreparedGeometry prepared_source = prepare_grid_geometry(source_geometry_owner, source_geometry_settings);
+namespace {
+
+bool build_regrid_plan_from_geometry(const PreparedGeometry& prepared_source, int nx, int ny, const std::vector<double>& target_lons,
+                                     const std::vector<double>& target_lats, const std::string& map_algo, int j0, int j1,
+                                     const std::string& src_gridspec_file, const GeometrySettings& prepared_destination_settings, RegridPlan& plan) {
+    const auto& loaded_source = *prepared_source.geometry;
+    const auto& src_lons = loaded_source.center_lon;
+    const auto& src_lats = loaded_source.center_lat;
+    const auto& dst_gridspec_file = prepared_destination_settings.gridspec_file;
     const bool source_has_prepared_cells = prepared_source.cells.has_value();
-    GeometrySettings prepared_destination_settings = destination_settings;
-    prepared_destination_settings.gridspec_file = dst_gridspec_file;
+    plan.source_geometry_revision = loaded_source.revision;
     plan.file_nx = loaded_source.nx;
     plan.file_ny = loaded_source.ny;
-    const std::vector<double>& src_lons = loaded_source.center_lon;
-    const std::vector<double>& src_lats = loaded_source.center_lat;
-
-    return build_regrid_plan_from_coordinates(plan.file_nx, plan.file_ny, src_lons, src_lats, nx, ny, target_lons, target_lats, map_algo, j0, j1,
-                                              gridspec_file, plan);
-}
-
-bool build_regrid_plan_from_coordinates(int source_nx, int source_ny, const std::vector<double>& src_lons, const std::vector<double>& src_lats,
-                                        int nx, int ny, const std::vector<double>& target_lons, const std::vector<double>& target_lats,
-                                        const std::string& map_algo, int j0, int j1, const std::string& gridspec_file, RegridPlan& plan) {
-    auto valid_grid = [](int width, int height, const std::vector<double>& lons, const std::vector<double>& lats) {
-        if (width <= 0 || height <= 0) return false;
-        const auto total = static_cast<std::size_t>(width) * static_cast<std::size_t>(height);
-        if ((lons.size() != static_cast<std::size_t>(width) && lons.size() != total) ||
-            (lats.size() != static_cast<std::size_t>(height) && lats.size() != total))
-            return false;
-        if (width > 1 && height > 1 && ((lons.size() == total) != (lats.size() == total))) return false;
-        auto finite = [](double value) { return std::isfinite(value); };
-        return std::all_of(lons.begin(), lons.end(), finite) && std::all_of(lats.begin(), lats.end(), finite);
-    };
-    if (!valid_grid(source_nx, source_ny, src_lons, src_lats) || !valid_grid(nx, ny, target_lons, target_lats) || j0 < 0 || j1 < j0 || j1 > ny ||
-        (map_algo != "passthrough" && source_ny == 1 && source_nx > 1 && src_lats.size() == 1)) {
-        throw std::invalid_argument("Invalid regrid coordinates, dimensions, or target row bounds");
-    }
-    plan.file_nx = source_nx;
-    plan.file_ny = source_ny;
-    plan.identity = false;
-    plan.built = false;
-    plan.src_j0 = 0;
-    plan.src_rows = 0;
 
     {
         double min_lon = *std::min_element(src_lons.begin(), src_lons.end());
         double max_lon = *std::max_element(src_lons.begin(), src_lons.end());
         double min_lat = *std::min_element(src_lats.begin(), src_lats.end());
         double max_lat = *std::max_element(src_lats.begin(), src_lats.end());
-        CECE_LOG_DEBUG("[DRIVER DEBUG] AMIO retrieved source coordinates successfully! file_nx=" + std::to_string(plan.file_nx) +
+        CECE_LOG_DEBUG("[DRIVER DEBUG] Loaded source coordinates. file_nx=" + std::to_string(plan.file_nx) +
                        ", file_ny=" + std::to_string(plan.file_ny) + ", lon_range=[" + std::to_string(min_lon) + ", " + std::to_string(max_lon) +
                        "], lat_range=[" + std::to_string(min_lat) + ", " + std::to_string(max_lat) + "]");
     }
@@ -1555,6 +1521,53 @@ bool build_regrid_plan_from_coordinates(int source_nx, int source_ny, const std:
 
     plan.built = true;
     return true;
+}
+
+}  // namespace
+
+bool build_regrid_plan(amio_dataset_handle read_dataset, int nx, int ny, const std::vector<double>& target_lons,
+                       const std::vector<double>& target_lats, const std::string& map_algo, int j0, int j1, const std::string& src_gridspec_file,
+                       const std::string& dst_gridspec_file, RegridPlan& plan, const GeometrySettings& source_settings,
+                       const GeometrySettings& destination_settings) {
+    plan = RegridPlan{};
+    // Stage 1: load an algorithm-independent owned source geometry snapshot.
+    GeometrySettings source_geometry_settings = source_settings;
+    source_geometry_settings.gridspec_file = src_gridspec_file;
+    auto source = std::make_shared<const GridGeometry>(load_grid_geometry(read_dataset, source_geometry_settings));
+    const auto prepared_source = prepare_grid_geometry(source, source_geometry_settings);
+    GeometrySettings prepared_destination_settings = destination_settings;
+    prepared_destination_settings.gridspec_file = dst_gridspec_file;
+    return build_regrid_plan_from_geometry(prepared_source, nx, ny, target_lons, target_lats, map_algo, j0, j1, src_gridspec_file,
+                                           prepared_destination_settings, plan);
+}
+
+bool build_regrid_plan_from_coordinates(int source_nx, int source_ny, const std::vector<double>& src_lons, const std::vector<double>& src_lats,
+                                        int nx, int ny, const std::vector<double>& target_lons, const std::vector<double>& target_lats,
+                                        const std::string& map_algo, int j0, int j1, const std::string& gridspec_file, RegridPlan& plan) {
+    auto valid_grid = [](int width, int height, const std::vector<double>& lons, const std::vector<double>& lats) {
+        if (width <= 0 || height <= 0) return false;
+        const auto total = static_cast<std::size_t>(width) * static_cast<std::size_t>(height);
+        if ((lons.size() != static_cast<std::size_t>(width) && lons.size() != total) ||
+            (lats.size() != static_cast<std::size_t>(height) && lats.size() != total))
+            return false;
+        if (width > 1 && height > 1 && ((lons.size() == total) != (lats.size() == total))) return false;
+        auto finite = [](double value) { return std::isfinite(value); };
+        return std::all_of(lons.begin(), lons.end(), finite) && std::all_of(lats.begin(), lats.end(), finite);
+    };
+    if (!valid_grid(source_nx, source_ny, src_lons, src_lats) || !valid_grid(nx, ny, target_lons, target_lats) || j0 < 0 || j1 < j0 || j1 > ny ||
+        (map_algo != "passthrough" && source_ny == 1 && source_nx > 1 && src_lats.size() == 1)) {
+        throw std::invalid_argument("Invalid regrid coordinates, dimensions, or target row bounds");
+    }
+    plan = RegridPlan{};
+    auto source = std::make_shared<GridGeometry>();
+    source->nx = source_nx;
+    source->ny = source_ny;
+    source->center_lon = src_lons;
+    source->center_lat = src_lats;
+    const auto prepared_source = prepare_grid_geometry(std::move(source), {});
+    GeometrySettings destination_settings;
+    destination_settings.gridspec_file = gridspec_file;
+    return build_regrid_plan_from_geometry(prepared_source, nx, ny, target_lons, target_lats, map_algo, j0, j1, {}, destination_settings, plan);
 }
 
 bool publish_regrid_plan_if_ready(bool all_ranks_ready, const std::string& key, std::optional<RegridPlan>& candidate,
