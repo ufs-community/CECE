@@ -79,7 +79,7 @@ namespace {
 
 // Production's interp-mode flag: needs an upper record only when i1 != i0 and
 // the blend weight is strictly positive.
-constexpr inline int InterpMode(const RecordBracket& b) {
+constexpr int InterpMode(const RecordBracket& b) {
     return NeedsUpperRecord(b) ? 1 : 0;
 }
 

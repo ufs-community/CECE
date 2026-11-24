@@ -179,7 +179,7 @@ void cece_sim_create_from_yaml(const char* config_path, int path_len, int mpi_co
     try {
         const std::string path = cstr_to_string(config_path, path_len);
         conf::Config config = conf::Config::from_file(path);
-        const cece::GridSpec spec = cece::GridSpec::from_yaml(path, config);
+        const cece::GridSpec spec = cece::GridSpec::from_yaml(config);
 
         CeceGridSpec c_grid{};
         c_grid.nx = spec.nx;
@@ -243,7 +243,7 @@ void cece_sim_describe_yaml_grid(const char* config_path, int path_len, char* bu
     try {
         const std::string path = cstr_to_string(config_path, path_len);
         conf::Config config = conf::Config::from_file(path);
-        const std::string desc = cece::GridSpec::from_yaml(path, config).describe();
+        const std::string desc = cece::GridSpec::from_yaml(config).describe();
         *buf_len_out = static_cast<int>(desc.size());
         // Mirror the sibling nuopc_copy_str contract: the buffer holds the
         // description plus its NUL terminator, so a caller that treats buf as a

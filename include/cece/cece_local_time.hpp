@@ -17,7 +17,7 @@ namespace cece {
 /**
  * @brief Seconds in a day (UTC arithmetic constant).
  */
-inline constexpr std::int64_t kSecsPerDay = 86400;
+constexpr std::int64_t kSecsPerDay = 86400;
 
 /**
  * @brief Floor division (mathematical division rounding toward -inf).
