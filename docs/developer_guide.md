@@ -15,7 +15,7 @@ CECE is designed as a modular, performance-portable emissions framework. Key com
 ## Global Coding Standards
 *   **Language:** C++20 and Fortran 2008+.
 *   **Style:** Google C++ Style Guide for C++.
-*   **Namespace:** `cece::` (defined in `include/cece/cece.hpp`).
+*   **Namespace:** `cece::` (used by C++ headers under `include/cece`).
 *   **Documentation:** Doxygen format (`/** ... */`) required for all public APIs.
 *   **Memory:** Use `Kokkos::View` for data. Avoid raw pointers.
 *   **ESMF:** Use `ESMC_` C API for C++ bridge. Wrap data in `Kokkos::View` with `Kokkos::MemoryTraits<Kokkos::Unmanaged>`.

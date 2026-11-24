@@ -2,10 +2,11 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include <Kokkos_Core.hpp>
+
 #include "cece/cece_compute.hpp"
 #include "cece/cece_config.hpp"
 #include "cece/cece_config_validator.hpp"
-#include "cece/cece_kokkos_config.hpp"
 #include "cece/cece_logger.hpp"
 #include "cece/cece_performance_diagnostics.hpp"
 #include "cece/cece_stacking_engine.hpp"
@@ -516,7 +517,7 @@ PYBIND11_MODULE(_cece_core, m) {
     // --- Execution Space Bindings ---
 
     m.def(
-        "get_default_execution_space_name", []() { return cece::GetDefaultExecutionSpaceName(); },
+        "get_default_execution_space_name", []() { return Kokkos::DefaultExecutionSpace::name(); },
         "Get the name of the default Kokkos execution space.");
 
     m.def(
