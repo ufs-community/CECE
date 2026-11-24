@@ -27,7 +27,7 @@ species:
 cece_data:
   streams:
     - name: "HTAP_NO"
-      file: "/work/data/HTAPv3_NO_0.1x0.1_2018.nc"
+      file: "data/HTAPv3_NO_0.1x0.1_2018.nc"
       cadence: "monthly"
       yearAlign: 2020 # Simulation year 2020 aligns to the 2018 file year
       taxmode: "extend" # Hold the file's end values outside its coverage
