@@ -87,6 +87,9 @@ endif()
 
 include(FetchContent)
 
+# Fire input integrity uses the system cryptographic implementation, also offline.
+find_package(OpenSSL REQUIRED COMPONENTS Crypto)
+
 # Master switch for the FetchContent fallbacks. When OFF, every dependency must
 # resolve via find_package() and configure never reaches for the network.
 option(CECE_FETCH_DEPS "Allow FetchContent fallbacks when find_package() fails" ON)
@@ -453,6 +456,10 @@ set(
   CECE_CORE_SRCS
   src/core/cece_band_decomposition.cpp
   src/core/cece_clock.cpp
+  src/core/cece_fire_input.cpp
+  src/core/cece_fire_prepared_runtime.cpp
+  src/core/cece_fire_product_decoder.cpp
+  src/core/cece_fire_product_writer.cpp
   src/core/cece_config_parser.cpp
   src/core/cece_compute.cpp
   src/core/cece_local_time.cpp
@@ -471,6 +478,8 @@ set(
   src/core/physics/cece_ginoux.cpp
   src/core/physics/cece_k14.cpp
   src/core/physics/cece_volcano.cpp
+  src/core/cece_fire_runtime.cpp
+  src/core/physics/cece_fire.cpp
   src/core/physics/cece_speciation_config.cpp
   src/core/physics/cece_speciation_engine.cpp
   src/core/physics/cece_canopy_model.cpp
@@ -547,6 +556,7 @@ else()
 endif()
 
 target_link_libraries(cece_core PUBLIC HELM::LOGS)
+target_link_libraries(cece_core PRIVATE OpenSSL::Crypto HELM::AXIS)
 
 if(netCDF_FOUND)
   target_link_libraries(cece_core PUBLIC netCDF::netcdf)
@@ -767,6 +777,9 @@ target_link_libraries(
     yaml-cpp
     MPI::MPI_CXX
 )
+
+add_executable(cece_fire_product_normalize src/core/cece_fire_product_normalize.cpp)
+target_link_libraries(cece_fire_product_normalize PRIVATE cece_core)
 
 # --- Dependency Resolution Summary ---
 get_property(_cece_dep_summary GLOBAL PROPERTY CECE_DEP_SUMMARY)

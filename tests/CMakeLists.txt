@@ -138,6 +138,15 @@ target_link_libraries(cece_test_main_kokkos PUBLIC cece_test_support)
 
 set(RAPIDCHECK rapidcheck rapidcheck_gtest)
 
+# --- Fire fixture infrastructure (not production science certification) -------
+cece_add_gtest(test_fire_config LINK yaml-cpp::yaml-cpp SOURCE_DIR_DEFINE)
+cece_add_gtest(test_fire_science LINK yaml-cpp::yaml-cpp SOURCE_DIR_DEFINE)
+cece_add_gtest(test_fire_reconstruction)
+cece_add_gtest(test_fire_speciation LINK yaml-cpp::yaml-cpp SOURCE_DIR_DEFINE)
+cece_add_gtest(test_fire_products SOURCE_DIR_DEFINE)
+cece_add_gtest(test_fire_runtime MAIN KOKKOS SOURCE_DIR_DEFINE)
+cece_add_gtest(test_fire_conservation MAIN KOKKOS)
+
 # Support utilities
 add_executable(nccmp_var ${CMAKE_CURRENT_SOURCE_DIR}/nccmp_var.c)
 target_link_libraries(nccmp_var netCDF::netcdf)
@@ -941,6 +950,12 @@ if(Python3_Interpreter_FOUND)
   cece_add_pytest(test_hemco_to_cece_python test_converters.py "${PROJECT_SOURCE_DIR}/scripts")
   cece_add_pytest(test_scripts_python test_scripts.py "${PROJECT_SOURCE_DIR}/scripts")
   cece_add_pytest(test_config_schema_python test_config_schema.py "${PROJECT_SOURCE_DIR}/scripts")
+  cece_add_pytest(test_fire_config_python test_fire_config.py "${PROJECT_SOURCE_DIR}/scripts")
+  cece_add_pytest(test_prepare_fire_inputs_python test_prepare_fire_inputs.py "")
+  set_tests_properties(
+    test_prepare_fire_inputs_python
+    PROPERTIES ENVIRONMENT "CECE_FIRE_PRODUCT_NORMALIZER=$<TARGET_FILE:cece_fire_product_normalize>"
+  )
   cece_add_pytest(
     test_utcoffset_generator_python
     test_utcoffset_generator.py

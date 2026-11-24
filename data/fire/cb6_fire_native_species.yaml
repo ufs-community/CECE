@@ -1,0 +1,21 @@
+schema_version: 1
+identity:
+  target_id: CB6
+  target_version: cb6r5_ae7_aq
+purpose: Native product-basis export fields; these are not CB6-speciated mechanism emissions.
+warning: Use instead of, never together with, cb6_fire_speciation_profile.yaml.
+species:
+- name: CO2
+  source_species: CO2
+- name: CO
+  source_species: CO
+- name: CH4
+  source_species: CH4
+- name: SO2
+  source_species: SO2
+- name: OC
+  source_species: OC
+- name: BC
+  source_species: BC
+- name: NH3
+  source_species: NH3

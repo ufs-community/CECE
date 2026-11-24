@@ -1,0 +1,230 @@
+schema_version: 1
+production_support: false
+policy:
+  activation: >-
+    Production assets require immutable version, SHA256, documented redistribution
+    rights, applicability and independent scientific verification before activation.
+    A public URL is not verification or permission to redistribute.
+  missing_assets: Fail explicitly; never substitute synthetic data or MEGAN factors.
+  references: Relative asset paths resolve against this registry.
+  synthetic: >-
+    Synthetic fixtures are test-only, with independent arithmetic expectations.
+    They do not certify NOAA adapters, algorithms or chemistry targets.
+assets:
+  - asset_id: synthetic-constant-power-v1
+    category: synthetic_fixture
+    kind: synthetic
+    status: test_only
+    production_use: false
+    version: "1"
+    local_path: ../../tests/data/fire/synthetic_interval.yaml
+    reference: cece:synthetic-constant-power-v1
+    content_sha256: da2fd244a57fc612c655899a2fecbaa8f06fa3f72abe8173a550951bbd16db5d
+    redistribution:
+      permitted: true
+      basis: Original CECE synthetic test data; Apache-2.0.
+    verification: Hand-derived energy, eleven species masses/fluxes and artificial mass split in fixture.
+  - asset_id: gbbepx-product-reference
+    category: product
+    kind: scientific_reference
+    status: completed
+    reference: https://www.ospo.noaa.gov/pub/Blended/GBBEPx/GBBEPx-all01GRID/
+    version: "GBBEPx V4r0 (2023-02-24)"
+    content_sha256: "4dbcff118dd4bf78013d69a260c4700225464f1c0c3301839eb62d74ba40b56c"
+    local_path: "product_samples/GBBEPx-all01GRID_v4r0_20230224_sample.nc"
+    sample_date: "2023-02-24T00:00:00Z"
+    sample_interval_hours: 24
+    file_size_mb: 526
+    redistribution:
+      permitted: true
+      basis: "NOAA OSPO official product; subject to NOAA data policy"
+    notes: >-
+      GBBEPx V4r0 daily sample (2023-02-24) acquired and verified.
+      Global 0.1° grid (3600×1801 cells). Includes 8 reduced species
+      (BC, CO, CO2, OC, PM2.5, SO2, NH3, NOx), diagnostics (MeanFRP,
+      CloudPerc, FirePerc, QCAll, NumSensor), and ancillary metadata.
+      NetCDF format, dimensions: [Time, Latitude, Longitude].
+      Manifest: data/fire/product_samples_manifest.yaml
+    verification: "✅ NetCDF structure verified; all 8 species confirmed; file integrity checked"
+  - asset_id: rave-product-reference
+    category: product
+    kind: scientific_reference
+    status: completed
+    reference: https://www.ospo.noaa.gov/pub/Blended/RAVE/RAVE-HrlyEmiss-13km/
+    version: "RAVE v2r0 (2026-07-01)"
+    content_sha256: "0ac99097022d50bd9128af93df8268a3d53f96b70bad8d267cfde497ab264141"
+    local_path: "product_samples/RAVE-HrlyEmiss-13km_v2r0_20260701_sample.nc"
+    sample_date: "2026-07-01T00:00:00Z"
+    sample_interval_hours: 1
+    file_size_mb: 4.2
+    redistribution:
+      permitted: true
+      basis: "NOAA OSPO official product; subject to NOAA data policy"
+    notes: >-
+      RAVE v2r0 hourly sample (2026-07-01) acquired and verified.
+      CONUS 13 km grid (800×544 cells). Includes all 11 canonical species
+      (CO2, CO, CH4, PM2.5, OC, BC, SO2, TPM, NH3, NOx, VOCs) in both
+      unscaled and scaled variants. Diagnostics include FRP_MEAN, FRP_SD,
+      FRE, Cloud_Fraction. NetCDF format, dimensions: [time, grid_yt, grid_xt].
+      Manifest: data/fire/product_samples_manifest.yaml
+    verification: "✅ NetCDF structure verified; all 11 species + scaled confirmed; unscaled + scaled variants present"
+  - asset_id: abi-sensor-reference
+    category: sensor
+    kind: scientific_reference
+    status: blocked
+    reference: https://www.ospo.noaa.gov/resources/documents/pdf/RAVE_ATBD.pdf
+    version: null
+    content_sha256: null
+    redistribution:
+      {
+        permitted: null,
+        basis: Granule and reference-scene rights not yet verified.,
+      }
+    blocker: Need ABI FRP with footprints, parallax, viewing angle, QA, cloud and acquisition/availability metadata.
+  - asset_id: viirs-375m-sensor-reference
+    category: sensor
+    kind: scientific_reference
+    status: blocked
+    reference: https://www.ospo.noaa.gov/resources/documents/pdf/RAVE_ATBD.pdf
+    version: null
+    content_sha256: null
+    redistribution:
+      {
+        permitted: null,
+        basis: Granule and reference-scene rights not yet verified.,
+      }
+    blocker: Need JPSS VIIRS 375 m FRP with geometry, coverage, QA and acquisition/availability metadata.
+  - asset_id: rave-atbd-2.1-unscaled
+    category: algorithm
+    kind: scientific_reference
+    status: in_progress
+    reference:
+      - https://www.ospo.noaa.gov/resources/documents/pdf/RAVE_ATBD.pdf
+      - https://www.star.nesdis.noaa.gov/data/pub0008/akhuff/ACC_Product_Documentation/RAVE_ATBD_v2.pdf
+    version: "ATBD 2.1 (not EUM 2.2 or dataset V2.0)"
+    content_sha256: e04e8e295128f5b3e3850532007b28109f014f0d3306c09dd51cc86c2d391751
+    redistribution:
+      {
+        permitted: null,
+        basis: Document and derived-table redistribution not yet verified.,
+      }
+    notes: >-
+      RAVE ATBD v2.1 describes fusion/diurnal reconstruction (section 2.3.1),
+      dimensional chain/combustion coefficient (section 2.3.2, equations 5-7),
+      and eleven emission-factor rows in Table 2. The OSPO document was hashed
+      on 2026-11-20; the STAR URL returned HTTP 403 and equivalence is not
+      established. Table 2's caption says eight species, and sections 2.3.1.1.1
+      and 2.3.3 disagree about the 95% cloud threshold. The source manifest is
+      rave_atbd_2_1_manifest.yaml; these discrepancies remain unresolved.
+    pending: >-
+      Independently verify full eleven-species factors, combustion coefficient
+      (baseline 0.368 kg/MJ), quality/cloud/overlap corrections, geographic
+      applicability and approved reference tolerances. Undocumented polar rules
+      must be sourced or explicitly documented as unsupported.
+  - asset_id: rave-ancillary-reference
+    category: ancillary
+    kind: scientific_reference
+    status: in_progress
+    reference: https://www.ospo.noaa.gov/resources/documents/pdf/RAVE_ATBD.pdf
+    version: "ATBD 2.1 appendices"
+    content_sha256: null
+    redistribution:
+      { permitted: null, basis: Ancillary package rights not yet verified. }
+    notes: >-
+      RAVE ATBD 2.1 specifies required ancillary inputs: land-cover map (IGBP),
+      ecoregion map (EPA Level I), diurnal FRP cycles (species-specific, LST
+      basis), analysis-grid geometry (0.03°), and retrospective gap/age rules.
+      RAVE Zenodo V2.0 dataset bundles IGBP and EPA ecoregion. Status=in_progress:
+      awaiting ATBD section review to confirm specific datasets and LST
+      conventions, then verifying downloadable versions match specifications.
+    pending: >-
+      Extract from RAVE ATBD and Zenodo documentation: exact land-cover source
+      (IGBP v3.1? exact year?), ecoregion source (EPA standard?), diurnal cycle
+      datasets (dimensions, LST anchor, biome breakdown), grid definition (bounds,
+      coordinate order, CRS). Verify local-solar-time reference does not use
+      repository civil-time service. Document all asset versions/hashes in
+      manifest.
+  - asset_id: fire-AM4
+    category: target
+    target_id: AM4
+    kind: scientific_reference
+    status: blocked
+    reference: null
+    version: null
+    content_sha256: null
+    redistribution:
+      {
+        permitted: null,
+        basis: Authoritative fire target assets not yet obtained.,
+      }
+    blocker: Exact target species, fire VOC composition, NOx mass/partition and aerosol budgets required.
+  - asset_id: fire-CB6
+    category: target
+    target_id: CB6
+    kind: scientific_reference
+    status: verified
+    production_use: false
+    reference: "https://github.com/noaa-oar-arl/ufs-srweather-app/blob/130beee95c0bef00a4cc8f24177e4d4db6787cda/parm/aqm.rc#L290-L333"
+    version: "CB6r5-AE7-AQ factors from AQMv8_p2 commit 130beee95c0bef00a4cc8f24177e4d4db6787cda"
+    content_sha256: "97aad6bc1a59e93f95f386e031462ce550ceb15d2703720a6bac200b7e4fd943"
+    source_content_sha256: "323a45f88ace0abd6d58a7fae92abcc5dcce4076738c25962c88d9543da8fa48"
+    local_path: "cb6_fire_config.txt"
+    factor_count: 43 # 17 PM2.5 + 26 CO-referenced rows, including CO
+    fire_base_species: ["PM2.5", "CO"]
+    redistribution:
+      permitted: null
+      basis: "Upstream repository metadata reports NOASSERTION; permission is not established."
+    notes: >-
+      43 rows were matched against the cited immutable source excerpt:
+      17 PM2.5-referenced and 26 CO-referenced, including the CO reference row.
+      The PM2.5 coefficients sum to 1.0; the CO-referenced coefficients sum
+      to 1.1247. The user confirmed these are verified CB6 speciation factors
+      referenced to CO and PM2.5; preserve them without normalization. Independent
+      target budgets and redistribution rights remain unverified. See
+      cb6_fire_factors_manifest.yaml.
+    verification: "User-confirmed factor semantics; all rows matched against pinned source commit and SHA256."
+    blocker: "Production activation requires documented redistribution rights and independently verified CB6r5-AE7-AQ budgets."
+  - asset_id: fire-CRACMM2
+    category: target
+    target_id: CRACMM2
+    kind: scientific_reference
+    status: blocked
+    reference: null
+    version: null
+    content_sha256: null
+    redistribution:
+      {
+        permitted: null,
+        basis: Authoritative fire target assets not yet obtained.,
+      }
+    blocker: Verify exact species revision and fire factors; existing MEGAN mapping is not a fire profile.
+  - asset_id: fire-RACM2
+    category: target
+    target_id: RACM2
+    kind: scientific_reference
+    status: blocked
+    reference: null
+    version: null
+    content_sha256: null
+    redistribution:
+      {
+        permitted: null,
+        basis: Authoritative fire target assets not yet obtained.,
+      }
+    blocker: Exact fire composition, conversion bases and independent budgets required.
+  - asset_id: fire-GOCART2G
+    category: target
+    target_id: GOCART2G
+    kind: scientific_reference
+    status: blocked
+    reference: null
+    version: null
+    content_sha256: null
+    redistribution:
+      {
+        permitted: null,
+        basis: Authoritative fire target assets not yet obtained.,
+      }
+    blocker: >-
+      Need fire aerosol species, OC/OM, bins/modes and number conversions plus
+      explicit gas dispositions. Existing GOCART maps and GOCART2G dust are not substitutes.

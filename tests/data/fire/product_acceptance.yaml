@@ -1,0 +1,60 @@
+schema_version: 1
+status: nonproduction_examples_preflighted_normalized_and_executed
+scope: US1 nonproduction product examples; this is not production certification.
+
+inputs:
+  cases: "product_cases.yaml"
+  source_samples_manifest: "../../../data/fire/product_samples_manifest.yaml"
+  decoder_fixtures_manifest: "product_samples/manifest.yaml"
+  cb6_factor_manifest: "../../../data/fire/cb6_fire_factors_manifest.yaml"
+
+evidence:
+  previously_verified:
+    - "RAVE v2r0 and GBBEPx v4r0 decoders pass pinned actual-sample crop checks."
+    - "The 24 hourly RAVE crop decoder test checks interval identity, stable grid hashes and independent species totals."
+    - "RAVE embedded scaled/unscaled selection and GBBEPx missing-species rejection are covered by product decoder tests."
+    - "CB6 factor rows match the pinned source excerpt; CO and PM2.5 factors are not normalized."
+  added_for_this_checkpoint:
+    - "Conservation tests allocate actual 24-hour RAVE and daily GBBEPx crop masses into two model substeps with alternating target-grid geometry."
+    - "The CB6 mapper schema now distinguishes unit-sum partitions from explicitly declared independent coefficients."
+    - "Generated a hash-pinned CB6 fire factor runtime profile directly from the verified factor manifest; all 43 coefficients, including zeros, are preserved without normalization."
+    - "Added separate native-product and CO/PM25-factor choices, with explicit exclusions to prevent double counting."
+    - "Added hourly RAVE and daily GBBEPx source manifests and four surface-only CECE configurations with kg m-2 s-1 fields."
+    - "All four configurations passed manifest-level preflight using the actual pinned sample files."
+    - "Prepared runtime and inventory now permit explicitly unprofiled product components for invariant mappings; composition-specific mappings and derive_frp cache entries still require identities."
+  local_validation:
+    fire_config_python_tests: "71 passed."
+    preparation_python_tests: "19 passed with the built normalizer."
+    example_preflights: "4 passed."
+    generated_asset_check: passed
+    focused_cpp_tests: "84 passed across config, speciation, products, runtime and conservation suites."
+    rave_normalization: passed
+    gbbepx_normalization: passed
+    standalone_driver: "4 of 4 native/factor product configurations completed and wrote NetCDF output."
+    output_validation: "All 99 FIRE_ fields have finite values and kg m-2 s-1 units."
+    new_conservation_tests_executed: true
+
+unsupported_or_failed:
+  - "These runs establish executable nonproduction examples, not production CB6 support."
+  - "The factor-output and native-bulk profiles are explicitly nonproduction and do not claim independent gas/aerosol budgets or deployed-mechanism compatibility."
+  - "Composition identities remain necessary for Phase 4 FRP derivation and any composition-specific mapping, but are not required for these invariant Phase 3 product examples."
+  - "Coupled product loading, target-specific product input, remote acquisition and curvilinear/unstructured target grids remain unsupported."
+
+artifacts:
+  normalized_output_manifests:
+    - "../../../examples/fire_inputs/rave/manifest.yaml"
+    - "../../../examples/fire_inputs/gbbepx/manifest.yaml"
+  standalone_outputs:
+    - "../../../cece_output_rave_cb6_native/cece_fire_rave_cb6_native_20260701_010000.nc"
+    - "../../../cece_output_rave_cb6_speciation/cece_fire_rave_cb6_speciation_20260701_010000.nc"
+    - "../../../cece_output_gbbepx_cb6_native/cece_fire_gbbepx_cb6_native_20230225_000000.nc"
+    - "../../../cece_output_gbbepx_cb6_speciation/cece_fire_gbbepx_cb6_speciation_20230225_000000.nc"
+  runtime_configurations:
+    - "../../../examples/cece_config_fire_rave_cb6_native.yaml"
+    - "../../../examples/cece_config_fire_rave_cb6_speciation.yaml"
+    - "../../../examples/cece_config_fire_gbbepx_cb6_native.yaml"
+    - "../../../examples/cece_config_fire_gbbepx_cb6_speciation.yaml"
+  required_before_acceptance:
+    - "Permitted immutable CB6 factor redistribution."
+    - "Production-compatible CB6 species/mechanism mapping with independent gas/aerosol budgets."
+    - "Confirm deployed-mechanism compatibility for the selected CB6 release."

@@ -1,0 +1,15 @@
+schema_version: 1
+sources:
+- source_id: rave-v2r0-20260701-hour-00
+  adapter_id: rave-v2r0
+  product_id: RAVE-HrlyEmiss-13km
+  product_version: v2r0
+  algorithm_version: v2r0
+  variant: unscaled
+  chemistry_state: bulk
+  interval_start: '2026-07-01T00:00:00Z'
+  interval_end: '2026-07-01T01:00:00Z'
+  acquired_at: '2026-07-01T02:02:02Z'
+  available_at: '2026-07-01T02:02:02Z'
+  local_path: ../../data/fire/product_samples/RAVE-HrlyEmiss-13km_v2r0_20260701_sample.nc
+  content_sha256: 0ac99097022d50bd9128af93df8268a3d53f96b70bad8d267cfde497ab264141

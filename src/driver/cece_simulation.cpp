@@ -146,6 +146,12 @@ std::unique_ptr<CeceSimulation> CeceSimulation::create_internal(const std::strin
         return fail(rc, "cece_core_initialize_p1 failed with rc=" + std::to_string(rc));
     }
 
+    cece_core_fire_set_target_grid(sim->core_data_ptr_, grid.nx, grid.ny, grid.lon_coords.data(), static_cast<int>(grid.lon_coords.size()),
+                                   grid.lat_coords.data(), static_cast<int>(grid.lat_coords.size()), &rc);
+    if (rc < 0) {
+        return fail(rc, "fire target grid initialization failed with rc=" + std::to_string(rc));
+    }
+
     // 3. Realize: validate and lock configuration.
     cece_core_realize(sim->core_data_ptr_, &rc);
     if (rc < 0) {

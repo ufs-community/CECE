@@ -1,0 +1,87 @@
+driver:
+  start_time: "2023-02-24T00:00:00"
+  end_time: "2023-02-25T00:00:00"
+  timestep_seconds: 86400
+  grid:
+    {
+      nx: 72,
+      ny: 46,
+      nz: 1,
+      lon_min: 235.0,
+      lon_max: 294.0,
+      lat_min: 25.0,
+      lat_max: 49.0,
+    }
+vertical_grid:
+  type: none
+physics_schemes:
+  - name: fire
+    language: cpp
+    options:
+      mode: product
+      input_provider: prepared
+      source_manifest: examples/fire_sources/gbbepx_v4r0.yaml
+      input_manifest: examples/fire_inputs/gbbepx_gocart2g/manifest.yaml
+      product_adapter: gbbepx-v4r0
+      product_time_allocation: source_resolved
+      chemistry_state: bulk
+      requested_species: [BC, OC, SO2, NH3]
+      native_diagnostic_species: [PM25, NOX]
+      target_id: GOCART2G
+      target_version: ufschem-proposed-v1
+      mechanism_file: data/fire/ufschem_gocart2g_species.yaml
+      fire_mapping_file: data/fire/ufschem_gocart2g_profile.yaml
+      missing_policy: error
+      cutoff_mode: fixed
+      availability_cutoff: "2023-02-26T00:00:00Z"
+      scaling: none
+output:
+  enabled: true
+  directory: ./cece_output_gbbepx_gocart2g
+  filename_pattern: cece_fire_gbbepx_gocart2g_{YYYY}{MM}{DD}_{HH}{mm}{ss}.nc
+  frequency_steps: 1
+  fields:
+    - {
+        name: FIRE_BCphobic,
+        attributes:
+          { units: kg m-2 s-1, long_name: fire BCphobic emission flux },
+      }
+    - {
+        name: FIRE_BCphilic,
+        attributes:
+          { units: kg m-2 s-1, long_name: fire BCphilic emission flux },
+      }
+    - {
+        name: FIRE_BRCphobic,
+        attributes:
+          { units: kg m-2 s-1, long_name: fire BRCphobic emission flux },
+      }
+    - {
+        name: FIRE_BRCphilic,
+        attributes:
+          { units: kg m-2 s-1, long_name: fire BRCphilic emission flux },
+      }
+    - {
+        name: FIRE_SO2,
+        attributes: { units: kg m-2 s-1, long_name: fire SO2 emission flux },
+      }
+    - {
+        name: FIRE_NH3,
+        attributes: { units: kg m-2 s-1, long_name: fire NH3 emission flux },
+      }
+    - {
+        name: FIRE_NATIVE_PM25,
+        attributes:
+          {
+            units: kg m-2 s-1,
+            long_name: "nonproduction native PM25 diagnostic; overlapping pool; not model emissions",
+          },
+      }
+    - {
+        name: FIRE_NATIVE_NOX,
+        attributes:
+          {
+            units: kg m-2 s-1,
+            long_name: "nonproduction native NOX diagnostic; reference basis unverified; not model emissions",
+          },
+      }

@@ -63,6 +63,12 @@ For complete configuration reference with all available options and examples, se
 ## Development Environment
 The required development environment is the `jcsda/docker-gnu-openmpi-dev:1.9` Docker container. This container provides the necessary compilers, MPI, and ESMF dependencies.
 
+The core also requires system OpenSSL development headers and `libcrypto` for
+SHA256 input verification. CMake discovers `OpenSSL::Crypto`; on HPC systems,
+make the installed OpenSSL prefix visible through `CMAKE_PREFIX_PATH` or
+`OPENSSL_ROOT_DIR`. Configuration fails explicitly if it is unavailable; no
+network download or external checksum command is used at runtime.
+
 ### ⚠️ IMPORTANT: No Mocking Policy
 **Mocking ESMF or NUOPC is strictly forbidden.** All development and verification must be performed using real ESMF dependencies within the JCSDA Docker environment to ensure real-world parity and stability.
 

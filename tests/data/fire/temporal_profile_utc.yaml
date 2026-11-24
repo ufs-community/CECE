@@ -1,0 +1,16 @@
+schema_version: 1
+profile_id: synthetic-utc-diurnal
+version: test-v1
+time_basis: UTC
+supported_source_cadence_seconds: 7200
+weights:
+  - {
+      offset_seconds: 0,
+      duration_seconds: 3600,
+      weight_per_second: 2.0833333333333333e-4,
+    }
+  - {
+      offset_seconds: 3600,
+      duration_seconds: 3600,
+      weight_per_second: 6.9444444444444444e-5,
+    }

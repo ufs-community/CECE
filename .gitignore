@@ -5,6 +5,10 @@ build*/
 cece_output/
 output/
 *.nc
+!tests/data/fire/product_samples/
+!tests/data/fire/product_samples/*.nc
+!tests/data/fire/product_samples/rave-24h/
+!tests/data/fire/product_samples/rave-24h/*.nc
 utc_offset_map.png
 
 # Log files
@@ -35,6 +39,9 @@ dist/
 venv*/
 .venv*/
 
+# Local environment credentials
+.env*
+
 # Local Poetry dependency resolution
 /poetry.lock
 
@@ -63,6 +70,9 @@ docs/superpowers/
 specify/
 .specify/
 specs/
+!/specs/
+/specs/*
+!/specs/001-fire-emissions/
 .gemini/
 .github/agents/
 .github/prompts/

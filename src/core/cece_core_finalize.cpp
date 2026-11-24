@@ -16,10 +16,12 @@
  */
 
 #include <Kokkos_Core.hpp>
-#include <iostream>
+#include <string>
 
 #include "cece/cece_internal.hpp"
 #include "cece/cece_logger.hpp"
+
+using namespace std::literals::string_literals;
 
 extern "C" {
 
@@ -49,6 +51,7 @@ void cece_core_finalize(void* data_ptr, int* rc) {
     }
 
     auto* internal_data = static_cast<cece::CeceInternalData*>(data_ptr);
+    bool finalize_error = false;
 
     // Synchronize all Kokkos operations before cleanup.
     // A single fence is a full device barrier — multiple fences add no benefit.
@@ -63,6 +66,12 @@ void cece_core_finalize(void* data_ptr, int* rc) {
         internal_data->ingestor.ClearCache();
     } catch (const std::exception& e) {
         CECE_LOG_WARNING("WARNING: Data ingestor cache clear threw: "s + e.what() + "\n");
+        finalize_error = true;
+    }
+
+    if (internal_data->fire_interval_pending && internal_data->fire_runtime_adapter) {
+        internal_data->fire_runtime_adapter->AbortInterval();
+        internal_data->fire_interval_pending = false;
     }
 
     // 2. Finalize all physics schemes (Req 4.15 - release Kokkos views held by schemes)
@@ -73,7 +82,21 @@ void cece_core_finalize(void* data_ptr, int* rc) {
                 scheme->Finalize();
             } catch (const std::exception& e) {
                 CECE_LOG_WARNING("WARNING: Physics scheme Finalize threw: "s + e.what() + "\n");
+                finalize_error = true;
             }
+        }
+    }
+
+    if (internal_data->fire_runtime_adapter && internal_data->fire_runtime_initialized) {
+        try {
+            internal_data->fire_runtime_adapter->Finalize();
+            internal_data->fire_runtime_initialized = false;
+        } catch (const std::exception& e) {
+            CECE_LOG_WARNING("WARNING: Fire runtime adapter Finalize threw: "s + e.what() + "\n");
+            finalize_error = true;
+        } catch (...) {
+            CECE_LOG_WARNING("WARNING: Fire runtime adapter Finalize threw an unknown exception\n");
+            finalize_error = true;
         }
     }
 
@@ -89,11 +112,13 @@ void cece_core_finalize(void* data_ptr, int* rc) {
         CECE_LOG_INFO("INFO: CeceInternalData deleted\n");
     } catch (const std::exception& e) {
         CECE_LOG_WARNING("WARNING: Exception during CeceInternalData cleanup: "s + e.what() + "\n");
+        finalize_error = true;
         if (rc != nullptr) {
             *rc = -2;  // Non-fatal error
         }
     } catch (...) {
         CECE_LOG_WARNING("WARNING: Unknown exception during CeceInternalData cleanup\n");
+        finalize_error = true;
         if (rc != nullptr) {
             *rc = -2;  // Non-fatal error
         }
@@ -107,10 +132,14 @@ void cece_core_finalize(void* data_ptr, int* rc) {
     } else {
         CECE_LOG_INFO("INFO: Skipping Kokkos finalization (owned by host framework)\n");
     }
-    CECE_LOG_INFO("INFO: CECE Finalize completed successfully\n");
+    if (finalize_error) {
+        CECE_LOG_WARNING("WARNING: CECE Finalize completed with cleanup errors\n");
+    } else {
+        CECE_LOG_INFO("INFO: CECE Finalize completed successfully\n");
+    }
 
     if (rc != nullptr) {
-        *rc = 0;
+        *rc = finalize_error ? -2 : 0;
     }
 }
 

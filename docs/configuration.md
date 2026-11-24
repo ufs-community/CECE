@@ -33,6 +33,11 @@ and seam, ordering, and independent area evidence.
 
 CECE is configured using a YAML file, typically named `cece_config.yaml`. This file defines the species to be processed, the source of data, and the active physics schemes.
 
+Fire option declarations are now validated by the native and Python configuration
+APIs, but the runtime scheme is not yet available. See the
+[fire implementation status](fire.md#fire-option-validation) for the implemented
+rules and remaining scientific/runtime gates.
+
 ## Top-Level Structure
 
 This outline shows where each kind of configuration belongs. Sections are optional; include only the ones your run uses.

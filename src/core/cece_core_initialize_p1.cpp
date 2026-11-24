@@ -24,7 +24,6 @@
 #include <Kokkos_Core.hpp>
 #include <conf/value.hpp>
 #include <cstdlib>
-#include <iostream>
 #include <limits>
 #include <memory>
 #include <set>
@@ -37,6 +36,7 @@
 #include "cece/cece_logger.hpp"
 #include "cece/cece_physics_factory.hpp"
 #include "cece/cece_stacking_engine.hpp"
+#include "cece/physics/cece_fire.hpp"
 #include "cece/physics_scheme.hpp"
 
 using namespace std::literals::string_literals;
@@ -229,6 +229,17 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
     CECE_LOG_INFO("INFO: Initializing physics schemes\n");
     for (const auto& scheme_config : config.physics_schemes) {
         try {
+            if (scheme_config.fire) {
+                if (internal_data->fire_runtime_adapter) {
+                    throw std::invalid_argument("Only one fire physics scheme can be configured per CECE component");
+                }
+                internal_data->fire_runtime_adapter = cece::CreateFireRuntimeAdapter(scheme_config.fire->input_provider);
+                if (!internal_data->fire_runtime_adapter) {
+                    const auto provider = scheme_config.fire->input_provider == cece::FireInputProvider::Prepared ? "prepared" : "coupled";
+                    throw std::runtime_error("No FireRuntimeAdapter is registered for the '" + std::string(provider) +
+                                             "' provider; register an adapter before configuring the fire scheme");
+                }
+            }
             CECE_LOG_INFO("INFO: Creating physics scheme: "s + scheme_config.name + "\n"s);
             auto scheme = cece::PhysicsFactory::CreateScheme(scheme_config);
 
@@ -249,11 +260,24 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
             // Schemes will be re-initialized with the diagnostic manager in Phase 2 if needed
             CECE_LOG_INFO("INFO: Initializing physics scheme: "s + scheme_config.name + "\n"s);
             scheme->Initialize(scheme_config.options, nullptr);
+            if (auto* fire_scheme = dynamic_cast<cece::FireScheme*>(scheme.get())) {
+                cece::ValidateFireExportDescriptors(config, *fire_scheme);
+            }
 
             internal_data->active_schemes.push_back(std::move(scheme));
             CECE_LOG_INFO("INFO: Successfully initialized physics scheme: "s + scheme_config.name + "\n"s);
         } catch (const std::exception& e) {
             CECE_LOG_ERROR("ERROR: Failed to initialize physics scheme '"s + scheme_config.name + "': " + e.what() + "\n"s);
+            if (rc != nullptr) {
+                *rc = -1;
+            }
+            delete internal_data;
+            if (kokkos_initialized_here && Kokkos::is_initialized()) {
+                Kokkos::finalize();
+            }
+            return;
+        } catch (...) {
+            CECE_LOG_ERROR("ERROR: Physics scheme initialization threw an unknown exception for '"s + scheme_config.name + "'\n");
             if (rc != nullptr) {
                 *rc = -1;
             }

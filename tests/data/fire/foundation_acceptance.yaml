@@ -1,0 +1,51 @@
+schema_version: 1
+acceptance_kind: synthetic_foundation
+recorded_at_utc: "2026-11-19T22:39:42Z"
+repository_commit: "87de6de"
+implementation_worktree: uncommitted
+environment:
+  container_image: "jcsda/docker-gnu-openmpi-dev:1.9"
+  build_directory: "build-fire-ci"
+  build_targets:
+    - test_coupling_config
+    - test_fire_config
+    - test_fire_science
+    - test_fire_speciation
+    - test_fire_runtime
+    - test_fire_conservation
+test_run:
+  command: >-
+    ctest --test-dir build-fire-ci --output-on-failure
+    -R "^(test_fire_(config|science|speciation|runtime|conservation)\.|test_fire_config_python$)"
+  selectors:
+    - test_fire_config
+    - test_fire_science
+    - test_fire_speciation
+    - test_fire_runtime
+    - test_fire_conservation
+    - test_fire_config_python
+  discovered_cases: 59
+  passed: 59
+  failed: 0
+  empty_selection: false
+additional_runs:
+  - command: "build-fire-ci/test_coupling_config"
+    discovered_cases: 17
+    passed: 17
+    failed: 0
+    coverage:
+      - NUOPC accepts fire-prefixed export keys
+      - coupled driver rejects fire configuration without explicit exports
+total_validated_cases: 76
+runtime_coverage:
+  - registered typed adapter factory and explicit missing-adapter behavior
+  - pre-physics interval preparation and borrowed inventory handoff
+  - commit after successful export synchronization
+  - abort and error propagation for preparation and commit failures
+  - adapter finalization and cleanup error reporting
+  - standalone and NUOPC output descriptor/unit validation
+  - fire-disabled legacy run path
+limitations:
+  - No prepared or coupled runtime adapter is registered in this repository.
+  - No NOAA decoder, host-field metadata binding, or production target profile is accepted.
+  - Synthetic tests do not establish production science or Ursa operational acceptance.

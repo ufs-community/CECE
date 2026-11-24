@@ -60,6 +60,25 @@ std::string WithNuopc(const std::string& nuopc_block) {
     return std::string(kBaseConfig) + "\n" + nuopc_block;
 }
 
+std::string WithFire(const std::string& suffix) {
+    return std::string(kBaseConfig) + R"YAML(
+physics_schemes:
+  - name: fire
+    options:
+      mode: product
+      input_provider: prepared
+      input_manifest: prepared.yaml
+      product_adapter: gbbepx
+      product_time_allocation: uniform
+      cutoff_mode: fixed
+      availability_cutoff: "2022-07-02T00:00:00Z"
+      mechanism_file: mechanism.yaml
+      fire_mapping_file: profile.yaml
+      target_id: CB6
+      target_version: synthetic-v1
+)YAML" + suffix;
+}
+
 class CouplingConfigTest : public ::testing::Test {
    protected:
     void SetUp() override {
@@ -209,6 +228,27 @@ TEST_F(CouplingConfigTest, QueryAbsentSectionReturnsZero) {
     int count = -1, rc = -1;
     cece_nuopc_export_count(path_.c_str(), static_cast<int>(path_.size()), &count, &rc);
     EXPECT_EQ(rc, 0);
+    EXPECT_EQ(count, 0);
+}
+
+TEST_F(CouplingConfigTest, FireExportKeysAreAcceptedAndRequiredByTheCoupledDriver) {
+    WriteFile(path_, WithFire(R"YAML(
+nuopc:
+  export_fields:
+    FIRE_CO:
+      standard_name: fire_carbon_monoxide_flux
+      units: "kg m-2 s-1"
+)YAML"));
+    int count = -1, rc = -1;
+    cece_nuopc_export_count(path_.c_str(), static_cast<int>(path_.size()), &count, &rc);
+    EXPECT_EQ(rc, 0);
+    EXPECT_EQ(count, 1);
+
+    WriteFile(path_, WithFire("nuopc: {}\n"));
+    count = -1;
+    rc = -1;
+    cece_nuopc_export_count(path_.c_str(), static_cast<int>(path_.size()), &count, &rc);
+    EXPECT_NE(rc, 0);
     EXPECT_EQ(count, 0);
 }
 

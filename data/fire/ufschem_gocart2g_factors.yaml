@@ -1,0 +1,12 @@
+schema_version: 1
+status: proposed_nonproduction
+provenance: User-supplied GOCART-2G proposal; not verified against a deployed mechanism or independent factor source.
+mass_fractions:
+  BC: { BCphobic: 0.80, BCphilic: 0.20 }
+  OC: { BRCphobic: 0.50, BRCphilic: 0.50 }
+  SO2: { SO2: 1.0 }
+  NH3: { NH3: 1.0 }
+limitations:
+  - The meaning and mass basis of OC-to-BRC require independent verification.
+  - PM25 and TPM are not additive to BC and OC and are excluded.
+  - The target names and factors are not certified for any deployed mechanism.

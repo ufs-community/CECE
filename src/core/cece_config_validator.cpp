@@ -6,8 +6,10 @@
 #include "cece/cece_config_validator.hpp"
 
 #include <filesystem>
+#include <set>
 #include <sstream>
 
+#include "cece/cece_config.hpp"
 #include "cece/cece_logger.hpp"
 
 namespace {
@@ -22,6 +24,201 @@ constexpr int kMaxOutputStagingTimeoutMs = 60000;
 }  // namespace
 
 namespace cece {
+
+FireConfig ParseFireConfig(const conf::Value& options) {
+    const auto invalid = [](const std::string& field, const std::string& message) {
+        throw std::invalid_argument("fire.options." + field + ": " + message);
+    };
+    if (options.kind() != conf::Node_Kind::Map) {
+        invalid("options", "must be a mapping");
+    }
+    const std::set<std::string> allowed = {"mode",
+                                           "input_provider",
+                                           "source_manifest",
+                                           "input_manifest",
+                                           "product_adapter",
+                                           "product_time_allocation",
+                                           "product_time_profile",
+                                           "scientific_profile",
+                                           "mechanism_file",
+                                           "fire_mapping_file",
+                                           "target_id",
+                                           "target_version",
+                                           "chemistry_state",
+                                           "requested_species",
+                                           "native_diagnostic_species",
+                                           "missing_policy",
+                                           "reconstruction_policy",
+                                           "max_gap_seconds",
+                                           "cutoff_mode",
+                                           "availability_cutoff",
+                                           "cutoff_schedule",
+                                           "max_observation_age_seconds",
+                                           "scaling",
+                                           "input_mapping",
+                                           "output_mapping"};
+    for (const auto& key : options.keys()) {
+        if (allowed.count(key) == 0) invalid(key, "unknown option");
+    }
+    const auto text = [&](const std::string& key, const std::string& fallback = "") {
+        if (!options[key]) return fallback;
+        const auto value = options[key].try_string();
+        if (!value || value->find_first_not_of(" \t\r\n") == std::string::npos) invalid(key, "must be a nonempty string");
+        return *value;
+    };
+    const auto required = [&](const std::string& key) {
+        const auto value = text(key);
+        if (value.empty()) invalid(key, "is required");
+        return value;
+    };
+    const auto prohibit = [&](const std::string& key) {
+        if (options[key]) invalid(key, "is prohibited for the selected mode/policy");
+    };
+    const auto positive = [&](const std::string& key) -> std::optional<int> {
+        if (!options[key]) return std::nullopt;
+        const auto value = options[key].try_int();
+        if (!value || *value <= 0) invalid(key, "must be a positive integer no larger than 2147483647");
+        return value;
+    };
+    const auto mode = required("mode");
+    if (mode != "product" && mode != "derive_frp") invalid("mode", "must be product or derive_frp");
+    const auto provider = required("input_provider");
+    if (provider != "prepared" && provider != "coupled") invalid("input_provider", "must be prepared or coupled");
+    const auto cutoff = required("cutoff_mode");
+    if (cutoff != "fixed" && cutoff != "host_supplied") invalid("cutoff_mode", "must be fixed or host_supplied");
+    FireConfig result(mode == "product" ? FireInputMode::Product : FireInputMode::DeriveFrp,
+                      provider == "prepared" ? FireInputProvider::Prepared : FireInputProvider::Coupled,
+                      cutoff == "fixed" ? FireCutoffMode::Fixed : FireCutoffMode::HostSupplied);
+    result.source_manifest = text("source_manifest");
+    if (result.input_provider == FireInputProvider::Prepared) {
+        result.input_manifest = required("input_manifest");
+    } else {
+        prohibit("input_manifest");
+    }
+    if (!result.source_manifest.empty() && !result.input_manifest.empty() &&
+        std::filesystem::weakly_canonical(result.source_manifest) == std::filesystem::weakly_canonical(result.input_manifest)) {
+        invalid("source_manifest", "must be distinct from input_manifest");
+    }
+    const auto chemistry = text("chemistry_state", "bulk");
+    if (chemistry != "bulk" && chemistry != "target_specific") invalid("chemistry_state", "must be bulk or target_specific");
+    result.chemistry_state = chemistry == "bulk" ? FireChemistryState::Bulk : FireChemistryState::TargetSpecific;
+    if (result.mode == FireInputMode::Product) {
+        result.product_adapter = required("product_adapter");
+        const auto allocation = required("product_time_allocation");
+        if (allocation == "uniform")
+            result.product_time_allocation = FireTimeAllocation::Uniform;
+        else if (allocation == "source_resolved")
+            result.product_time_allocation = FireTimeAllocation::SourceResolved;
+        else if (allocation == "profile")
+            result.product_time_allocation = FireTimeAllocation::Profile;
+        else
+            invalid("product_time_allocation", "must be uniform, source_resolved or profile");
+        if (*result.product_time_allocation == FireTimeAllocation::Profile)
+            result.product_time_profile = required("product_time_profile");
+        else
+            prohibit("product_time_profile");
+        prohibit("scientific_profile");
+    } else {
+        for (const auto* key : {"product_adapter", "product_time_allocation", "product_time_profile"}) prohibit(key);
+        if (result.chemistry_state != FireChemistryState::Bulk) invalid("chemistry_state", "derive_frp requires bulk chemistry");
+        result.scientific_profile = required("scientific_profile");
+    }
+    result.mechanism_file = required("mechanism_file");
+    if (result.chemistry_state == FireChemistryState::Bulk)
+        result.fire_mapping_file = required("fire_mapping_file");
+    else
+        prohibit("fire_mapping_file");
+    result.target_id = required("target_id");
+    if (std::set<std::string>{"AM4", "CB6", "CRACMM2", "RACM2", "GOCART2G"}.count(result.target_id) == 0) {
+        invalid("target_id", "must be AM4, CB6, CRACMM2, RACM2 or GOCART2G");
+    }
+    result.target_version = required("target_version");
+    if (options["requested_species"]) {
+        if (options["requested_species"].kind() != conf::Node_Kind::Sequence || options["requested_species"].size() == 0) {
+            invalid("requested_species", "must be a nonempty list of canonical bulk species");
+        }
+        std::set<FireBulkSpecies> unique;
+        const auto species = options["requested_species"];
+        for (std::size_t i = 0; i < species.size(); ++i) {
+            const auto name = species[i].try_string();
+            if (!name) invalid("requested_species", "entries must be canonical bulk species strings");
+            FireBulkSpecies id;
+            try {
+                id = FireSpeciesFromName(*name);
+            } catch (const std::invalid_argument& error) {
+                throw std::invalid_argument("fire.options.requested_species: " + std::string(error.what()));
+            }
+            if (!unique.insert(id).second) invalid("requested_species", "duplicate species '" + *name + "'");
+            result.requested_species.push_back(id);
+        }
+    } else {
+        for (const auto* name : {"CO2", "CO", "CH4", "PM25", "TPM", "SO2", "OC", "BC", "NOX", "NH3", "VOC"}) {
+            result.requested_species.push_back(FireSpeciesFromName(name));
+        }
+    }
+    if (options["native_diagnostic_species"]) {
+        if (result.mode != FireInputMode::Product || result.input_provider != FireInputProvider::Prepared ||
+            result.chemistry_state != FireChemistryState::Bulk) {
+            invalid("native_diagnostic_species", "requires prepared bulk-product mode");
+        }
+        const auto diagnostics = options["native_diagnostic_species"];
+        if (diagnostics.kind() != conf::Node_Kind::Sequence || diagnostics.size() == 0) {
+            invalid("native_diagnostic_species", "must be a nonempty list");
+        }
+        std::set<FireBulkSpecies> unique(result.requested_species.begin(), result.requested_species.end());
+        for (std::size_t i = 0; i < diagnostics.size(); ++i) {
+            const auto name = diagnostics[i].try_string();
+            if (!name || (*name != "PM25" && *name != "TPM" && *name != "NOX" && *name != "VOC")) {
+                invalid("native_diagnostic_species", "entries must be PM25, TPM, NOX or VOC");
+            }
+            const auto species = FireSpeciesFromName(*name);
+            if (!unique.insert(species).second) invalid("native_diagnostic_species", "must be unique and separate from requested_species");
+            result.native_diagnostic_species.push_back(species);
+        }
+    }
+    result.missing_policy = text("missing_policy", "error");
+    if (result.missing_policy != "error" && result.missing_policy != "reconstruct") invalid("missing_policy", "must be error or reconstruct");
+    if (result.missing_policy == "reconstruct") {
+        result.reconstruction_policy = required("reconstruction_policy");
+        result.max_gap_seconds = positive("max_gap_seconds");
+        if (!result.max_gap_seconds) invalid("max_gap_seconds", "is required for reconstruction");
+    } else {
+        prohibit("reconstruction_policy");
+        prohibit("max_gap_seconds");
+    }
+    result.max_observation_age_seconds = positive("max_observation_age_seconds");
+    if ((result.mode == FireInputMode::DeriveFrp || result.missing_policy == "reconstruct") && !result.max_observation_age_seconds) {
+        invalid("max_observation_age_seconds", "is required for derivation/reconstruction");
+    }
+    if (cutoff == "fixed") {
+        const auto timestamp = required("availability_cutoff");
+        try {
+            result.availability_cutoff.emplace(timestamp);
+        } catch (const std::invalid_argument& error) {
+            invalid("availability_cutoff", error.what());
+        }
+        prohibit("cutoff_schedule");
+    } else {
+        prohibit("availability_cutoff");
+        result.cutoff_schedule = result.input_provider == FireInputProvider::Prepared ? required("cutoff_schedule") : text("cutoff_schedule");
+    }
+    result.scaling = text("scaling", "none");
+    for (const auto& [key, mapping] : {std::pair{"input_mapping", &result.input_mapping}, std::pair{"output_mapping", &result.output_mapping}}) {
+        const auto node = options[key];
+        if (!node) continue;
+        if (node.kind() != conf::Node_Kind::Map) invalid(key, "must map nonempty strings to nonempty strings");
+        std::set<std::string> outputs;
+        for (const auto& name : node.keys()) {
+            const auto value = node[name].try_string();
+            if (name.find_first_not_of(" \t\r\n") == std::string::npos || !value || value->find_first_not_of(" \t\r\n") == std::string::npos) {
+                invalid(key, "must map nonempty strings to nonempty strings");
+            }
+            if (std::string_view(key) == "output_mapping" && !outputs.insert(*value).second) invalid(key, "output names must be unique");
+            mapping->emplace(name, *value);
+        }
+    }
+    return result;
+}
 
 ValidationResult ConfigValidator::ValidateConfig(const conf::Value& config) {
     ValidationResult result;
@@ -197,6 +394,7 @@ void ConfigValidator::ValidatePhysicsSchemes(const conf::Value& config, Validati
         return;
     }
 
+    bool has_fire = false;
     for (size_t i = 0; i < schemes_node.size(); ++i) {
         const auto& scheme = schemes_node[i];
 
@@ -207,6 +405,16 @@ void ConfigValidator::ValidatePhysicsSchemes(const conf::Value& config, Validati
 
         if (scheme["enabled"] && !scheme["enabled"].as_bool()) {
             result.warnings.push_back("physics_schemes[" + std::to_string(i) + "]: Scheme is disabled");
+        }
+        if (scheme["name"].string_or("") == "fire") {
+            const auto field = "physics_schemes[" + std::to_string(i) + "].options";
+            try {
+                if (has_fire) throw std::invalid_argument("duplicate fire contributions may overlap; configure one fire contribution");
+                has_fire = true;
+                (void)ParseFireConfig(scheme["options"]);
+            } catch (const std::invalid_argument& error) {
+                result.errors.push_back({field, error.what(), "Check fire mode, provider, assets and time/cutoff policy options"});
+            }
         }
     }
 }

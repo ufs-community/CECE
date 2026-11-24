@@ -23,6 +23,7 @@ __pycache__/
 .venv*/
 venv*/
 *.egg-info/
+.env*
 
 # Local JavaScript tooling and secrets
 node_modules/

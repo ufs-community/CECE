@@ -154,6 +154,7 @@ CeceConfig ParseConfig(const std::string& filename) {
     }
 
     conf::Value schemes = root["physics_schemes"];
+    bool has_fire = false;
     for (std::size_t i = 0; schemes && i < schemes.size(); ++i) {
         conf::Value node = schemes[i];
         PhysicsSchemeConfig scheme;
@@ -161,6 +162,13 @@ CeceConfig ParseConfig(const std::string& filename) {
         scheme.language = string_or(node, "language", "cpp");
         scheme.language_type = StringToSchemeLanguage(scheme.language);
         if (node["options"]) scheme.options = node["options"];
+        if (scheme.name == "fire") {
+            if (has_fire) {
+                throw std::invalid_argument("physics_schemes: duplicate fire contributions may overlap; configure one fire contribution");
+            }
+            has_fire = true;
+            scheme.fire = ParseFireConfig(scheme.options);
+        }
         scheme.refresh_interval_seconds = node["refresh_interval_seconds"].int_or(0);
         config.physics_schemes.push_back(std::move(scheme));
     }
@@ -437,12 +445,15 @@ CeceConfig ParseConfig(const std::string& filename) {
         for (const auto& [k, v] : config.met_mapping) input_keys.insert(k);
         for (const auto& [k, v] : config.scale_factor_mapping) input_keys.insert(k);
         for (const auto& [k, v] : config.mask_mapping) input_keys.insert(k);
+        const bool fire_enabled = std::any_of(config.physics_schemes.begin(), config.physics_schemes.end(),
+                                              [](const PhysicsSchemeConfig& scheme) { return scheme.fire.has_value(); });
 
         auto read_field_map = [&](const conf::Value& node, const std::string& section, const std::set<std::string>& valid_keys,
                                   const std::string& key_kind, std::vector<std::pair<std::string, NuopcFieldSpec>>& output) {
             if (!node || node.kind() != conf::Node_Kind::Map) return;
             for (const auto& key : node.keys()) {
-                if (!valid_keys.count(key)) {
+                const bool fire_output = section == "export_fields" && fire_enabled && key.starts_with("FIRE_");
+                if (!valid_keys.count(key) && !fire_output) {
                     throw std::invalid_argument("nuopc." + section + ": '" + key + "' is not a configured " + key_kind + ".");
                 }
                 conf::Value entry = node[key];
@@ -471,6 +482,12 @@ CeceConfig ParseConfig(const std::string& filename) {
 
         std::set<std::string> species_keys;
         for (const auto& [species_name, layers] : config.species_layers) species_keys.insert(species_name);
+        if (fire_enabled) {
+            for (const auto& scheme : config.physics_schemes) {
+                if (!scheme.fire) continue;
+                for (const auto& [_, output_name] : scheme.fire->output_mapping) species_keys.insert(output_name);
+            }
+        }
         read_field_map(nuopc["export_fields"], "export_fields", species_keys, "emission species", config.nuopc.export_fields);
         read_field_map(nuopc["import_fields"], "import_fields", input_keys, "meteorology/scale-factor/mask input", config.nuopc.import_fields);
     }

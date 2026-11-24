@@ -1,0 +1,104 @@
+schema_version: 1
+production_eligible: false
+mapping_factor_semantics: independent_coefficients
+identity:
+  id: cb6-fire-native-product-basis
+  version: manifest-v1
+  target_id: CB6
+  target_version: cb6r5_ae7_aq
+assets:
+- name: fire-specific-native-species-definition
+  path: cb6_fire_native_species.yaml
+  sha256: f05fad4d811f106211ef4bc94797ab6c34436aae8d78f2d7a9512e4ebcb2ef80
+- name: verified-factor-manifest
+  path: cb6_fire_factors_manifest.yaml
+  sha256: 9b492a495280c9306f1aebc5ad4a2807618bfeef44b4db8063cb5177760c6f50
+- name: pinned-aqm-configuration-excerpt
+  path: cb6_fire_config.txt
+  sha256: 97aad6bc1a59e93f95f386e031462ce550ceb15d2703720a6bac200b7e4fd943
+mechanism_species:
+- name: CO2
+- name: CO
+- name: CH4
+- name: SO2
+- name: OC
+- name: BC
+- name: NH3
+typed_mappings:
+- source_species: CO2
+  target_species: CO2
+  basis: mass
+  factor: 1.0
+  output_unit: kg
+- source_species: CO
+  target_species: CO
+  basis: mass
+  factor: 1.0
+  output_unit: kg
+- source_species: CH4
+  target_species: CH4
+  basis: mass
+  factor: 1.0
+  output_unit: kg
+- source_species: SO2
+  target_species: SO2
+  basis: mass
+  factor: 1.0
+  output_unit: kg
+- source_species: OC
+  target_species: OC
+  basis: mass
+  factor: 1.0
+  output_unit: kg
+- source_species: BC
+  target_species: BC
+  basis: mass
+  factor: 1.0
+  output_unit: kg
+- source_species: NH3
+  target_species: NH3
+  basis: mass
+  factor: 1.0
+  output_unit: kg
+conversion_factors:
+  source_molecular_weights_g_mol: {}
+  target_molecular_weights_g_mol: {}
+  source_carbon_numbers: {}
+  target_carbon_numbers: {}
+  aerosol_factors: {}
+oc_om_policy:
+  kind: preserve_oc
+source_disposition:
+  CO2:
+    kind: mapped
+  CO:
+    kind: mapped
+  CH4:
+    kind: mapped
+  PM25:
+    kind: excluded
+    reason: Excluded from native mode to avoid overlap with PM2.5/TPM or the NOx/VOC lumps; PM2.5/CO factor-derived
+      outputs are an alternative profile, not an additive contribution.
+  TPM:
+    kind: excluded
+    reason: Excluded from native mode to avoid overlap with PM2.5/TPM or the NOx/VOC lumps; PM2.5/CO factor-derived
+      outputs are an alternative profile, not an additive contribution.
+  SO2:
+    kind: mapped
+  OC:
+    kind: mapped
+  BC:
+    kind: mapped
+  NOX:
+    kind: excluded
+    reason: Excluded from native mode to avoid overlap with PM2.5/TPM or the NOx/VOC lumps; PM2.5/CO factor-derived
+      outputs are an alternative profile, not an additive contribution.
+  NH3:
+    kind: mapped
+  VOC:
+    kind: excluded
+    reason: Excluded from native mode to avoid overlap with PM2.5/TPM or the NOx/VOC lumps; PM2.5/CO factor-derived
+      outputs are an alternative profile, not an additive contribution.
+budgets_tolerances:
+  relative: 1.0e-06
+  absolute: 1.0e-12

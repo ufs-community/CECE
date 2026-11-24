@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <conf/conf.hpp>
 #include <cstring>
 #include <fstream>
@@ -15,7 +16,6 @@
 
 #include <cstdint>
 #include <filesystem>
-#include <iostream>
 #include <string>
 
 #include "cece/cece_internal.hpp"
@@ -596,6 +596,13 @@ void cece_core_set_export_field(void* data_ptr, const char* name, int name_len, 
     }
 
     auto* internal_data = static_cast<cece::CeceInternalData*>(data_ptr);
+    if (internal_data->ny_local != 0 && internal_data->ny_local != ny) {
+        CECE_LOG_ERROR("ERROR: cece_core_set_export_field - inconsistent local latitude extent " + std::to_string(ny) + " (expected " +
+                       std::to_string(internal_data->ny_local) + ")\n");
+        if (rc != nullptr) *rc = -1;
+        return;
+    }
+    internal_data->ny_local = ny;
     std::string name_str(name, static_cast<size_t>(name_len));
 
     // Wrap the externally-owned memory as an unmanaged host view (zero-copy)
@@ -979,6 +986,11 @@ void nuopc_count(const char* config_path, int path_len, const char* label, bool 
     try {
         std::string yaml_path(config_path, path_len);
         cece::CeceConfig config = cece::ParseConfig(yaml_path);
+        const bool fire_enabled = std::any_of(config.physics_schemes.begin(), config.physics_schemes.end(),
+                                              [](const cece::PhysicsSchemeConfig& scheme) { return scheme.fire.has_value(); });
+        if (is_export && fire_enabled && config.nuopc.export_fields.empty()) {
+            throw std::invalid_argument("Fire scheme requires explicit nuopc.export_fields for the coupled driver");
+        }
         *count = is_export ? static_cast<int>(config.nuopc.export_fields.size()) : static_cast<int>(config.nuopc.import_fields.size());
     } catch (const std::exception& e) {
         CECE_LOG_ERROR("ERROR: cece_nuopc_"s + label + "_count - failed to parse config: "s + e.what() + "\n"s);

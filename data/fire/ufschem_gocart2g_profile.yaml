@@ -1,0 +1,88 @@
+schema_version: 1
+production_eligible: false
+mapping_factor_semantics: partition
+identity:
+  id: ufschem-gocart2g-proposed
+  version: 1
+  target_id: GOCART2G
+  target_version: ufschem-proposed-v1
+assets:
+  - name: proposed-target-species
+    path: ufschem_gocart2g_species.yaml
+    sha256: 399b904bf11fce10978a619f5d42441687dba1ab79922d7aabd0e5b5814ce368
+  - name: proposed-gocart2g-factors
+    path: ufschem_gocart2g_factors.yaml
+    sha256: b38f04061aa8ade209e6327911a0f13ee5f4066c11b9b6cf91245c5a60c656f1
+mechanism_species:
+  - { name: BCphobic }
+  - { name: BCphilic }
+  - { name: BRCphobic }
+  - { name: BRCphilic }
+  - { name: SO2 }
+  - { name: NH3 }
+typed_mappings:
+  - {
+      source_species: BC,
+      target_species: BCphobic,
+      basis: mass,
+      factor: 0.80,
+      output_unit: kg,
+    }
+  - {
+      source_species: BC,
+      target_species: BCphilic,
+      basis: mass,
+      factor: 0.20,
+      output_unit: kg,
+    }
+  - {
+      source_species: OC,
+      target_species: BRCphobic,
+      basis: mass,
+      factor: 0.50,
+      output_unit: kg,
+    }
+  - {
+      source_species: OC,
+      target_species: BRCphilic,
+      basis: mass,
+      factor: 0.50,
+      output_unit: kg,
+    }
+  - {
+      source_species: SO2,
+      target_species: SO2,
+      basis: mass,
+      factor: 1.0,
+      output_unit: kg,
+    }
+  - {
+      source_species: NH3,
+      target_species: NH3,
+      basis: mass,
+      factor: 1.0,
+      output_unit: kg,
+    }
+conversion_factors:
+  source_molecular_weights_g_mol: {}
+  target_molecular_weights_g_mol: {}
+  source_carbon_numbers: {}
+  target_carbon_numbers: {}
+  aerosol_factors: {}
+oc_om_policy:
+  kind: preserve_oc
+source_disposition:
+  CO2: { kind: excluded, reason: Not part of the proposed GOCART-2G mapping. }
+  CO: { kind: excluded, reason: Not part of the proposed GOCART-2G mapping. }
+  CH4: { kind: excluded, reason: Not part of the proposed GOCART-2G mapping. }
+  PM25: { kind: excluded, reason: Excluded to avoid overlap with BC and OC. }
+  TPM: { kind: excluded, reason: Excluded to avoid overlap with BC and OC. }
+  SO2: { kind: mapped }
+  OC: { kind: mapped }
+  BC: { kind: mapped }
+  NOX: { kind: excluded, reason: Not part of the proposed GOCART-2G mapping. }
+  NH3: { kind: mapped }
+  VOC: { kind: excluded, reason: Not part of the proposed GOCART-2G mapping. }
+budgets_tolerances:
+  relative: 1.0e-06
+  absolute: 1.0e-12

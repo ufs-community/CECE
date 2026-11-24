@@ -57,6 +57,8 @@ repos:
     hooks:
       - id: prettier
         types_or: [yaml]
+        # These files are byte-for-byte generator outputs, including hashed assets.
+        exclude: ^(data/fire/cb6_fire_(native|target)_species\.yaml|data/fire/cb6_fire_(native|speciation)_profile\.yaml|examples/fire_sources/(rave_v2r0|gbbepx_v4r0)\.yaml|examples/cece_config_fire_(rave|gbbepx)_cb6_(native|speciation)\.yaml)$
 
   - repo: local
     hooks:
@@ -72,7 +74,7 @@ repos:
         entry: python scripts/validate_cece_config.py
         language: python
         additional_dependencies: [PyYAML]
-        files: ^(examples/.*\.ya?ml|scripts/examples/.*\.ya?ml|tests/(data/)?[^/]*\.ya?ml|README\.md|docs/.*\.md)$
+        files: ^(examples/[^/]*\.ya?ml|scripts/examples/[^/]*\.ya?ml|tests/(data/)?[^/]*\.ya?ml|README\.md|docs/.*\.md)$
 
       - id: no-yaml-cpp
         name: Avoid yaml-ccp
@@ -86,7 +88,8 @@ repos:
         name: Disallow raw std::cout / std::cerr / printf
         language: pygrep
         types_or: [c, c++]
-        exclude: ^(tests/|include/cece/cece_(logger|fatal)\.hpp|src/core/cece_run_info\.cpp)
+        # The fire normalizer is a CLI whose stdout is a machine-readable protocol.
+        exclude: ^(tests/|include/cece/cece_(logger|fatal)\.hpp|src/core/cece_run_info\.cpp|src/core/cece_fire_product_normalize\.cpp$)
         entry: '\bstd::(cout|cerr|clog)\b|\b(v?printf|puts|putchar)\s*\(|\bfprintf\s*\(\s*(stdout|stderr)\b'
 
       - id: no-weird-cpp-stdout
