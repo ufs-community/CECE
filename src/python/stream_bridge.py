@@ -10,8 +10,10 @@ import numpy as np
 # Support both package (relative) and direct-module import
 try:
     from .earthaccess_resolver import EarthAccessStreamConfig, EarthAccessStreamResolver
+    from .preparation import select_time
 except ImportError:
     from earthaccess_resolver import EarthAccessStreamConfig, EarthAccessStreamResolver  # type: ignore[no-redef]
+    from preparation import select_time  # type: ignore[no-redef]
 
 if TYPE_CHECKING:
     # Avoid hard dependency on the pybind11 module at import time
@@ -64,22 +66,35 @@ class EarthAccessStreamBridge:
         One entry per ``source: earthaccess`` stream declared in the YAML.
     auth_strategy : str
         Earthdata Login strategy forwarded to :class:`EarthAccessStreamResolver`.
+    time_tolerance : str or datetime.timedelta, optional
+        Maximum nearest-time separation. None preserves legacy unbounded selection.
     """
 
     def __init__(
         self,
         configs: list[EarthAccessStreamConfig],
         auth_strategy: str = "all",
+        *,
+        time_tolerance: Any = None,
     ) -> None:
         resolver = EarthAccessStreamResolver(auth_strategy=auth_strategy)
-        self._datasets = [resolver.open_as_xarray(c) for c in configs]
+        self._datasets = []
+        self._closed = False
+        try:
+            for config in configs:
+                self._datasets.append(resolver.open_as_xarray(config))
+        except Exception:
+            self.close()
+            raise
         self._configs = configs
+        self._time_tolerance = time_tolerance
 
     def inject_at_time(self, import_state: CeceImportState, t: datetime) -> None:
         """Slice remote datasets at time *t* and push arrays into import state.
 
-        Each field is cast to float64 and, when 2-D, shaped to ``(ny, nx)``
-        matching CECE's Fortran-contiguous (LayoutLeft) Kokkos convention.
+        Each field is cast to float64 and ordered ``(longitude, latitude,
+        level)`` for CECE's Fortran-contiguous (LayoutLeft) storage. A surface
+        field receives a singleton level dimension.
 
         Parameters
         ----------
@@ -88,11 +103,60 @@ class EarthAccessStreamBridge:
         t : datetime
             Model wall-clock time; granules are selected by nearest match.
         """
+        if getattr(self, "_closed", False):
+            raise RuntimeError("EarthAccess stream bridge is closed")
         for ds, cfg in zip(self._datasets, self._configs):
-            ds_t = ds.sel(time=t, method="nearest")
+            tolerance = getattr(self, "_time_tolerance", None)
+            ds_t = (
+                select_time(ds, t, tolerance=tolerance)
+                if tolerance is not None
+                else ds.sel(time=t, method="nearest")
+            )
             for nasa_var, mapping in cfg.variable_map.items():
                 cece_field, transform = _variable_target_and_transform(mapping)
-                values = _apply_transform(ds_t[nasa_var].values, transform)
+                field = ds_t[nasa_var]
+                x = [d for d in field.dims if d.lower() in ("x", "lon", "longitude")]
+                y = [d for d in field.dims if d.lower() in ("y", "lat", "latitude")]
+                if len(x) != 1 or len(y) != 1:
+                    raise ValueError(
+                        f"earthaccess field {nasa_var!r} requires named longitude and latitude dimensions"
+                    )
+                extra = [d for d in field.dims if d not in (x[0], y[0])]
+                if len(extra) > 1 or (
+                    extra and extra[0].lower() not in ("level", "lev", "z")
+                ):
+                    raise ValueError(
+                        f"earthaccess field {nasa_var!r} has unsupported extra dimensions: {extra}"
+                    )
+                values = _apply_transform(
+                    field.transpose(x[0], y[0], *extra).values, transform
+                )
+                if not extra:
+                    values = values[..., np.newaxis]
                 arr = np.asfortranarray(values, dtype=np.float64)
                 _validate_injected_field(cece_field, arr)
                 import_state.set_field(cece_field, arr)
+
+    def close(self) -> None:
+        """Close all opened datasets; repeated calls have no effect."""
+        if getattr(self, "_closed", False):
+            return
+        self._closed = True
+        error = None
+        for dataset in self._datasets:
+            try:
+                dataset.close()
+            except Exception as exc:  # noqa: BLE001
+                # Continue closing remaining datasets after any backend error.
+                if error is None:
+                    error = exc
+        if error is not None:
+            raise error
+
+    def __enter__(self):
+        if getattr(self, "_closed", False):
+            raise RuntimeError("EarthAccess stream bridge is closed")
+        return self
+
+    def __exit__(self, *args):
+        self.close()

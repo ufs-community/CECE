@@ -154,6 +154,12 @@ struct CeceSimulationTestAccess {
         sim->finalized_ = false;
         return sim;
     }
+    static void PutExport(CeceSimulation& sim, const std::string& name, std::vector<double> values) {
+        sim.export_buffers_[name] = std::move(values);
+    }
+    static void MarkExternallyBound(CeceSimulation& sim, const std::string& name) {
+        sim.externally_bound_exports_.insert(name);
+    }
 };
 
 }  // namespace cece
@@ -171,6 +177,28 @@ class TimeConventionTest : public ::testing::Test {
         ResetSpies();
     }
 };
+
+TEST_F(TimeConventionTest, SnapshotIsOwnedAndRequiresCompletedStep) {
+    auto sim = cece::CeceSimulationTestAccess::Make("2023-01-01T00:00:00");
+    cece::CeceSimulationTestAccess::PutExport(*sim, "NOX", {1., 2.});
+    EXPECT_THROW(sim->snapshot_export("NOX"), std::logic_error);
+    ASSERT_FALSE(sim->step("2023-01-01T00:00:00", "2023-01-01T01:00:00", 0).error);
+    auto snapshot = sim->snapshot_export("NOX");
+    snapshot[0] = 42.;
+    EXPECT_EQ(sim->snapshot_export("NOX"), (std::vector<double>{1., 2.}));
+    EXPECT_THROW(sim->snapshot_export("missing"), std::invalid_argument);
+    cece::CeceSimulationTestAccess::MarkExternallyBound(*sim, "NOX");
+    EXPECT_THROW(sim->snapshot_export("NOX"), std::logic_error);
+}
+
+TEST_F(TimeConventionTest, FailedStepInvalidatesPreviousSnapshot) {
+    auto sim = cece::CeceSimulationTestAccess::Make("2023-01-01T00:00:00");
+    cece::CeceSimulationTestAccess::PutExport(*sim, "NOX", {1.});
+    ASSERT_FALSE(sim->step("2023-01-01T00:00:00", "2023-01-01T01:00:00", 0).error);
+    g_core_run_rc = -5;
+    ASSERT_TRUE(sim->step("2023-01-01T01:00:00", "2023-01-01T02:00:00", 1).error);
+    EXPECT_THROW(sim->snapshot_export("NOX"), std::logic_error);
+}
 
 // Invariant 2: ingest uses step_start_iso verbatim.
 TEST_F(TimeConventionTest, IngestsAtStepStart) {

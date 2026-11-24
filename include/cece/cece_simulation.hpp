@@ -11,6 +11,7 @@
 #include <string>
 #include <tick/tick.hpp>
 #include <unordered_map>
+#include <unordered_set>
 #include <vector>
 
 #include "cece/cece_band_decomposition.hpp"
@@ -148,6 +149,23 @@ class CeceSimulation {
     /// already flushed). The handle must not be used afterwards.
     void finalize(int& rc_out);
 
+    /** Return an owned copy of one configured, band-local output field.
+     * @param name Configured output field name.
+     * @return Values in LayoutLeft (x, local y, level) order.
+     * @throws std::logic_error before a successful step, after finalization,
+     *         or if output ownership was redirected to a coupled host.
+     * @throws std::invalid_argument for an unknown output field.
+     */
+    std::vector<double> snapshot_export(const std::string& name) const;
+
+    /// Return names of configured output fields.
+    std::vector<std::string> output_names() const;
+
+    /// Return the rank-local destination row band.
+    const BandDecomposition& band() const {
+        return band_;
+    }
+
     /// The resolved target grid the simulation was created with. Exposed for
     /// the C-ABI facade's grid-info entry so the NUOPC cap can set a matching
     /// ESMF grid on its component without re-deriving coordinates.
@@ -204,6 +222,36 @@ class CeceSimulation {
     ///         a name that resolves to no configured input, null/invalid
     ///         extents, or a band mismatch.
     bool set_import_field(const std::string& field, const double* data_ptr, int nx, int ny_local, int* rc);
+    /**
+     * @brief Copy a full surface/profile field into managed import state.
+     *
+     * @param field Configured import name, resolved through CECE mappings.
+     * @param data_ptr Borrowed LayoutLeft host buffer with shape
+     *        (nx, ny_local, nz); the simulation copies its values.
+     * @param nx Longitude extent, equal to the configured grid.
+     * @param ny_local Latitude extent for this rank's band.
+     * @param nz One for a surface field or the configured grid layer count.
+     * @param rc Optional status output; set negative on invalid shape or state.
+     * @return True when the complete field was copied and synced to device.
+     */
+    bool set_import_profile(const std::string& field, const double* data_ptr, int nx, int ny_local, int nz, int* rc);
+
+    /**
+     * @brief Stage an owned external field to apply after each driver ingest.
+     *
+     * Ingest happens at step start. Applying staged values afterward gives the
+     * caller explicit precedence without allowing a configured stream to
+     * silently overwrite the input. A later call replaces this field's values.
+     *
+     * @param field Configured import name, resolved through CECE mappings.
+     * @param values LayoutLeft host values, copied into simulation-owned memory.
+     * @param nx Longitude extent.
+     * @param ny_local Rank-local latitude extent.
+     * @param nz One for a surface or the configured level count for a profile.
+     * @param rc Optional status output; set negative for invalid state or shape.
+     * @return True when the values were retained for upcoming steps.
+     */
+    bool stage_import_field(const std::string& field, const std::vector<double>& values, int nx, int ny_local, int nz, int* rc);
 
     /// Read the configured vertical layer count (driver.grid.nz, default 1)
     /// from a CECE YAML. Exposed so the C-ABI facade's ESMF entry can supply
@@ -253,6 +301,13 @@ class CeceSimulation {
     /// field name. Kept alive for the simulation lifetime; the core writes
     /// results back through these pointers (SyncAndCopyState).
     std::unordered_map<std::string, std::vector<double>> export_buffers_;
+    std::unordered_set<std::string> externally_bound_exports_;
+    struct StagedImportField {
+        std::vector<double> values;
+        int nz = 1;
+    };
+    std::unordered_map<std::string, StagedImportField> staged_import_fields_;
+    bool step_completed_ = false;
     /// Driver-side clock anchors: the configured start time (elapsed output
     /// stamps are measured from it) and the base timestep in seconds.
     tick::Time_Point start_time_{};

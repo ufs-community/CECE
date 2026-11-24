@@ -489,3 +489,11 @@ from cece import _cece_core
 ```
 
 The pybind11 module exposes C++ types directly as Python classes, so there is no need for ctypes function signatures or manual memory management.
+
+## Persistent column and grid physics
+
+For selected physics execution, use the new `cece.Model` interface described in
+[Python column physics](interfaces/python-columns.md). The legacy `compute()`
+entry point performs stacking; it does not execute the full physics lifecycle.
+Per-scheme UFS-compatible flux interfaces are described in
+[CCPP interfaces](interfaces/ccpp.md).

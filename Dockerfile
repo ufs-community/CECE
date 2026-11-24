@@ -30,6 +30,7 @@ RUN apt-get update && apt-get install -y \
     libxml2-dev \
     libgtest-dev \
     python3 \
+    python3-dev \
     python3-venv \
     vim \
     less \
@@ -57,6 +58,7 @@ RUN git clone -b 5.1.1 https://github.com/kokkos/kokkos.git /tmp/kokkos \
       -DCMAKE_INSTALL_PREFIX=/usr/local \
       -DCMAKE_CXX_STANDARD=20 \
       -DCMAKE_POSITION_INDEPENDENT_CODE=ON \
+      -DBUILD_SHARED_LIBS=ON \
       -DKokkos_ENABLE_OPENMP=ON \
       -DKokkos_ENABLE_SERIAL=ON \
     && cmake --build build --parallel $(nproc) \

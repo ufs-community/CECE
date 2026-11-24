@@ -125,6 +125,61 @@ TEST_F(CeceUtilsTest, IdentityRegridPlanCopiesTheOwnedRowsExactly) {
     EXPECT_EQ(destination, source);
 }
 
+TEST_F(CeceUtilsTest, CoordinatePlanPassesThroughIdenticalGridWithoutDataset) {
+    const std::vector<double> lon = {0., 120., 240.};
+    const std::vector<double> lat = {-45., 0., 45.};
+    const std::vector<double> input = {1., 2., 3., 4., 5., 6., 7., 8., 9.};
+    io::RegridPlan plan;
+    ASSERT_TRUE(io::build_regrid_plan_from_coordinates(3, 3, lon, lat, 3, 3, lon, lat, "passthrough", 1, 3, "", plan));
+    std::vector<double> output;
+    ASSERT_TRUE(io::apply_regrid_plan(plan, 0, false, input.data(), 3, 3, 3, output));
+    EXPECT_EQ(output, (std::vector<double>{4., 5., 6., 7., 8., 9.}));
+}
+
+TEST_F(CeceUtilsTest, CoordinatePlanRejectsMixedTargetGeometry) {
+    const std::vector<double> lon = {0., 120., 240.};
+    const std::vector<double> lat = {-45., 0., 45.};
+    const std::vector<double> target_lons = {0., 120., 240., 0., 120., 240., 0., 120., 240.};
+    io::RegridPlan plan;
+    EXPECT_THROW(io::build_regrid_plan_from_coordinates(3, 3, lon, lat, 3, 3, target_lons, lat, "passthrough", 0, 3, "", plan),
+                 std::invalid_argument);
+}
+
+TEST_F(CeceUtilsTest, CoordinatePlanRejectsSingleRowAxisWithoutCellGeometry) {
+    const std::vector<double> lon = {0., 120., 240.};
+    const std::vector<double> source_lat = {0.};
+    const std::vector<double> target_lat = {-45., 0., 45.};
+    io::RegridPlan plan;
+    EXPECT_THROW(io::build_regrid_plan_from_coordinates(3, 1, lon, source_lat, 3, 3, lon, target_lat, "nearest", 0, 0, "", plan),
+                 std::invalid_argument);
+}
+
+TEST_F(CeceUtilsTest, CoordinatePlanInterpolatesConstantFieldWithAxis) {
+    const std::vector<double> lon = {0., 90., 180., 270.};
+    const std::vector<double> lat = {-45., 0., 45.};
+    const std::vector<double> input(12, 2.5);
+    io::RegridPlan plan;
+    ASSERT_TRUE(io::build_regrid_plan_from_coordinates(4, 3, lon, lat, 4, 3, lon, lat, "nearest", 0, 3, "", plan));
+    ASSERT_FALSE(plan.identity);
+    std::vector<double> output;
+    ASSERT_TRUE(io::apply_regrid_plan(plan, 0, false, input.data(), 4, 3, 4, output));
+    ASSERT_EQ(output.size(), input.size());
+    for (double value : output) EXPECT_NEAR(value, 2.5, 1.e-12);
+}
+
+TEST_F(CeceUtilsTest, CoordinatePlanNearestMatchesPythonForDifferentGrids) {
+    const std::vector<double> lon = {0., 90., 180., 270.};
+    const std::vector<double> lat = {-45., 0., 45.};
+    const std::vector<double> target_lon = {20., 100., 200., 280.};
+    const std::vector<double> target_lat = {-30., 30.};
+    const std::vector<double> input = {0., 1., 2., 3., 4., 5., 6., 7., 8., 9., 10., 11.};
+    io::RegridPlan plan;
+    ASSERT_TRUE(io::build_regrid_plan_from_coordinates(4, 3, lon, lat, 4, 2, target_lon, target_lat, "nearest", 0, 2, "", plan));
+    std::vector<double> output;
+    ASSERT_TRUE(io::apply_regrid_plan(plan, 0, false, input.data(), 4, 3, 4, output));
+    EXPECT_EQ(output, (std::vector<double>{0., 1., 2., 3., 8., 9., 10., 11.}));
+}
+
 TEST_F(CeceUtilsTest, IdentityRegridPlanRejectsDimensionsDifferentFromVerifiedGrid) {
     io::RegridPlan plan;
     plan.file_nx = 3;

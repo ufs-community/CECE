@@ -122,9 +122,12 @@ class CeceException(Exception):
         c_call_site: str | None = None,
     ):
         if recovery_suggestions is None:
-            recovery_suggestions = RECOVERY_SUGGESTIONS.get(
-                error_code, RECOVERY_SUGGESTIONS.get(CECE_ERROR_COMPUTATION_FAILED)
+            suggestion_code = (
+                error_code
+                if error_code is not None
+                else getattr(self, "_default_error_code", None)
             )
+            recovery_suggestions = list(RECOVERY_SUGGESTIONS.get(suggestion_code, []))
         self.message = message
         self.error_code = error_code
         self.recovery_suggestions = recovery_suggestions or []
@@ -189,6 +192,8 @@ class CeceConfigError(CeceException):
         C++ source location. Default is ``None``.
     """
 
+    _default_error_code = CECE_ERROR_INVALID_CONFIG
+
 
 class CeceComputationError(CeceException):
     """
@@ -209,6 +214,8 @@ class CeceComputationError(CeceException):
     c_call_site : str or None, optional
         C++ source location. Default is ``None``.
     """
+
+    _default_error_code = CECE_ERROR_COMPUTATION_FAILED
 
 
 class CeceStateError(CeceException):
@@ -231,6 +238,8 @@ class CeceStateError(CeceException):
         C++ source location. Default is ``None``.
     """
 
+    _default_error_code = CECE_ERROR_INVALID_STATE
+
 
 class CeceExecutionSpaceError(CeceException):
     """
@@ -251,6 +260,8 @@ class CeceExecutionSpaceError(CeceException):
     c_call_site : str or None, optional
         C++ source location. Default is ``None``.
     """
+
+    _default_error_code = CECE_ERROR_INVALID_EXECUTION_SPACE
 
 
 def error_code_to_exception(

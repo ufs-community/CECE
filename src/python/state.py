@@ -18,7 +18,7 @@ cece.compute : Execute computation using state fields.
 
 from __future__ import annotations
 
-from collections.abc import Iterator, KeysView
+from collections.abc import Callable, Iterator, KeysView, Mapping
 
 import numpy as np
 
@@ -80,7 +80,7 @@ class CeceField:
         return self._kokkos_view
 
 
-class FieldDict:
+class FieldDict(Mapping[str, np.ndarray]):
     """
     Dictionary-like access to a collection of ``CeceField`` objects.
 
@@ -95,8 +95,11 @@ class FieldDict:
         shared with the owning ``CeceState`` and mutated in place.
     """
 
-    def __init__(self, fields_dict: dict[str, CeceField]) -> None:
+    def __init__(
+        self, fields_dict: dict[str, CeceField], setter: Callable | None = None
+    ) -> None:
         self._fields = fields_dict
+        self._setter = setter
 
     def __getitem__(self, name: str) -> np.ndarray:
         """
@@ -141,7 +144,10 @@ class FieldDict:
         """
         if not isinstance(value, np.ndarray):
             raise TypeError("Field value must be a numpy array")
-        self._fields[name] = CeceField(name, value)
+        if self._setter is not None:
+            self._setter(name, value)
+        else:
+            self._fields[name] = CeceField(name, value)
 
     def __contains__(self, name: object) -> bool:
         """
@@ -158,6 +164,10 @@ class FieldDict:
             ``True`` if the field exists.
         """
         return name in self._fields
+
+    def __len__(self) -> int:
+        """Number of stored fields, consistent with dictionary-like access."""
+        return len(self._fields)
 
     def __iter__(self) -> Iterator[str]:
         """
@@ -272,7 +282,9 @@ class CeceState:
         self.nz: int = nz
         self._import_fields: dict[str, CeceField] = {}
         self._export_fields: dict[str, CeceField] = {}
-        self._import_fields_dict: FieldDict = FieldDict(self._import_fields)
+        self._import_fields_dict: FieldDict = FieldDict(
+            self._import_fields, self.add_import_field
+        )
         self._export_fields_dict: FieldDict = FieldDict(self._export_fields)
 
     def add_import_field(self, name: str, array: np.ndarray | list | tuple) -> None:
@@ -296,7 +308,7 @@ class CeceState:
             If ``array`` is not a NumPy array, list, or tuple.
         ValueError
             If array dimensions do not match ``(nx, ny, nz)`` or the array
-            is not contiguous.
+            has an incompatible shape.
         """
         # Convert to numpy array if needed
         if isinstance(array, (list, tuple)):
@@ -316,18 +328,9 @@ class CeceState:
                 f"Array dimensions {array.shape} don't match state dimensions ({self.nx}, {self.ny}, {self.nz})"
             )
 
-        # Determine layout
-        if array.flags["F_CONTIGUOUS"]:
-            layout = "fortran"
-        elif array.flags["C_CONTIGUOUS"]:
-            layout = "c"
-            # Convert C-order to Fortran-order
-            array = np.asfortranarray(array)
-            layout = "fortran"
-        else:
-            raise ValueError("Array must be C-contiguous or Fortran-contiguous")
-
-        self._import_fields[name] = CeceField(name, array, layout)
+        # Normalize storage without changing the semantic axis order.
+        array = np.asfortranarray(array, dtype=np.float64)
+        self._import_fields[name] = CeceField(name, array, "fortran")
 
     def get_import_field(self, name: str) -> np.ndarray:
         """

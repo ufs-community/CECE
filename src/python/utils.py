@@ -13,6 +13,7 @@ cece.initialize : Uses ``load_config`` internally.
 
 from __future__ import annotations
 
+import errno
 import logging
 import types
 from pathlib import Path
@@ -30,6 +31,19 @@ def _try_import_yaml() -> types.ModuleType:
     except ImportError:
         raise ImportError("PyYAML is required. Install with: pip install pyyaml")
     return yaml
+
+
+def _config_file_path(value: str) -> Path | None:
+    """Distinguish an existing file from YAML without stat-ing multiline text."""
+    if "\n" in value or "\r" in value:
+        return None
+    path = Path(value)
+    try:
+        return path if path.is_file() else None
+    except OSError as error:
+        if error.errno in (errno.ENAMETOOLONG, errno.EINVAL):
+            return None
+        raise
 
 
 def load_config(config: str | dict | CeceConfig) -> CeceConfig:
@@ -76,8 +90,8 @@ def load_config(config: str | dict | CeceConfig) -> CeceConfig:
 
     if isinstance(config, str):
         # Check if it's a file path
-        path = Path(config)
-        if path.exists() and path.is_file():
+        path = _config_file_path(config)
+        if path is not None:
             try:
                 with open(path, "r") as f:
                     yaml_str = f.read()

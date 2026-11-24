@@ -6,6 +6,7 @@ execution space, error handling, and temporal cycles.
 """
 
 import sys
+from collections.abc import Mapping
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "build" / "src" / "python"))
@@ -147,7 +148,7 @@ class TestStateManagement:
 
         # export_fields should be accessible even if empty
         assert hasattr(state, "export_fields")
-        assert isinstance(state.export_fields, dict)
+        assert isinstance(state.export_fields, Mapping)
 
 
 class TestArrayLayoutConversion:
@@ -209,13 +210,15 @@ class TestArrayLayoutConversion:
         except TypeError:
             pass  # Acceptable if float32 is not supported
 
-    def test_array_dtype_int_raises_error(self):
-        """Test that integer arrays raise TypeError."""
+    def test_integer_arrays_convert_to_float64(self):
+        """Integer arrays are accepted and normalized to native float64."""
         state = cece.CeceState(nx=5, ny=5, nz=5)
         field = np.ones((5, 5, 5), dtype=np.int32)
 
-        with pytest.raises(TypeError):
-            state.add_import_field("test", field)
+        state.add_import_field("test", field)
+        result = state.get_import_field("test")
+        assert result.dtype == np.float64
+        np.testing.assert_array_equal(result, field)
 
 
 class TestExecutionSpaceConfiguration:
@@ -248,7 +251,7 @@ class TestExecutionSpaceConfiguration:
 
     def test_set_invalid_execution_space_raises_error(self):
         """Test that setting invalid execution space raises error."""
-        with pytest.raises(RuntimeError):
+        with pytest.raises(cece.CeceExecutionSpaceError):
             cece.set_execution_space("InvalidSpace")
 
     def test_get_execution_space_returns_string(self):

@@ -1094,9 +1094,9 @@ class TestBDSNPFieldInjectionOnHemcoGrid:
         bridge, state = smap_bridge_and_state
         bridge.inject_at_time(state, datetime(2022, 7, 1, 12, 0, 0))
         arr = state._fields["soil_temperature"]
-        # shape is (NY, NX) after sel() drops time dimension
-        assert arr.shape == (NY, NX), (
-            f"Expected HEMCO 4x5 shape ({NY}, {NX}), got {arr.shape}"
+        # CECE stores surface fields as (longitude, latitude, level).
+        assert arr.shape == (NX, NY, 1), (
+            f"Expected HEMCO 4x5 shape ({NX}, {NY}, 1), got {arr.shape}"
         )
 
     def test_soil_temperature_physically_plausible(self, smap_bridge_and_state):
@@ -1224,8 +1224,8 @@ class TestMEGAN3FieldInjectionOnHemcoGrid:
         bridge, state = megan3_bridge_and_state
         bridge.inject_at_time(state, datetime(2022, 7, 1, 12, 0, 0))
         arr = state._fields["leaf_area_index"]
-        assert arr.shape == (NY, NX), (
-            f"Expected HEMCO 4x5 shape ({NY}, {NX}), got {arr.shape}"
+        assert arr.shape == (NX, NY, 1), (
+            f"Expected HEMCO 4x5 shape ({NX}, {NY}, 1), got {arr.shape}"
         )
 
     def test_all_megan3_arrays_fortran_contiguous(self, megan3_bridge_and_state):

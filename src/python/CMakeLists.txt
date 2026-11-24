@@ -36,9 +36,25 @@ else()
 endif()
 
 # Build the pybind11 extension module
-pybind11_add_module(_cece_core cece_pybind.cpp)
+pybind11_add_module(_cece_core cece_pybind.cpp cece_scheme_pybind.cpp)
 
-target_link_libraries(_cece_core PRIVATE cece Kokkos::kokkos)
+target_link_libraries(_cece_core PRIVATE cece_core Kokkos::kokkos)
+
+if(CECE_PYTHON_SIMULATION)
+  get_target_property(_cece_kokkos_type Kokkos::kokkoscore TYPE)
+  if(_cece_kokkos_type STREQUAL "STATIC_LIBRARY")
+    message(
+      FATAL_ERROR
+      "Python simulation requires a shared Kokkos build; static Kokkos can create independent runtimes across extensions. Rebuild Kokkos with -DBUILD_SHARED_LIBS=ON or configure -DCECE_PYTHON_SIMULATION=OFF."
+    )
+  endif()
+  pybind11_add_module(_cece_simulation cece_simulation_pybind.cpp)
+  target_link_libraries(_cece_simulation PRIVATE cece_driver MPI::MPI_CXX)
+  set_target_properties(
+    _cece_simulation
+    PROPERTIES LIBRARY_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/cece"
+  )
+endif()
 
 # Place the compiled .so in the cece package directory
 set_target_properties(
@@ -51,8 +67,27 @@ file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/cece")
 
 # Copy Python source files to build directory (excluding old binding files)
 file(
-  COPY __init__.py config.py state.py exceptions.py utils.py py.typed
+  COPY
+    __init__.py
+    config.py
+    state.py
+    exceptions.py
+    utils.py
+    py.typed
+    earthaccess_resolver.py
+    stream_bridge.py
+    model.py
+    grid.py
+    field_adapter.py
+    preparation.py
+    simulation.py
   DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/cece"
+)
+
+file(COPY sources DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/cece")
+file(
+  COPY "${PROJECT_SOURCE_DIR}/data/speciation"
+  DESTINATION "${CMAKE_CURRENT_BINARY_DIR}/cece/data"
 )
 
 # Create setup.py for installation
@@ -67,7 +102,7 @@ setup(
     author='CECE Development Team',
     packages=find_packages(),
     package_data={
-        'cece': ['*.so', '*.dylib', '*.dll', 'py.typed'],
+        'cece': ['*.so', '*.dylib', '*.dll', 'py.typed', 'data/speciation/*.yaml'],
     },
     python_requires='>=3.10',
     install_requires=[
@@ -93,6 +128,9 @@ add_custom_target(
   DEPENDS _cece_core
   COMMENT "Python CECE package ready in ${CMAKE_CURRENT_BINARY_DIR}/cece"
 )
+if(CECE_PYTHON_SIMULATION)
+  add_dependencies(python_package _cece_simulation)
+endif()
 
 message(STATUS "Python bindings configuration:")
 message(STATUS "  Binding method: pybind11 ${pybind11_VERSION}")
