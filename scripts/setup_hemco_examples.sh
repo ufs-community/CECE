@@ -6,6 +6,7 @@ set -e
 
 mkdir -p examples
 mkdir -p scripts/data_download
+script_dir=$(dirname $0)
 
 # Helper to generate download script for an example
 generate_download_script() {
@@ -14,10 +15,11 @@ generate_download_script() {
     shift
     cat <<EOF > "$script_file"
 #!/bin/bash
+set -euo pipefail
 mkdir -p data
 EOF
     for path in "$@"; do
-        echo "./scripts/download_hemco_data.py $path -o data/\$(basename $path)" >> "$script_file"
+        echo "${script_dir}/download_hemco_data.py $path -o data/\$(basename $path)" >> "$script_file"
     done
     chmod +x "$script_file"
 }
@@ -68,6 +70,9 @@ generate_download_script 1 "HEMCO/MACCITY/v2014-07/MACCity_4x5.nc"
 
 # Example 2: Overlay regional emissions
 cat <<EOF > examples/cece_config_ex2.yaml
+driver:
+  geometry_reconstruction: "rectilinear_midpoint"
+
 meteorology:
   hourly_scalfact: HOURLY_SCALFACT
   mask_europe: MASK_EUROPE
@@ -90,20 +95,26 @@ cece_data:
   streams:
     - name: "MACCITY_CO"
       file: "data/MACCity_4x5.nc"
+      geometry_reconstruction: "rectilinear_midpoint"
       variables:
         - file: "MACCity"
           model: "MACCITY_CO"
     - name: "EMEP_CO"
       file: "data/EMEP_2000.nc"
+      geometry_reconstruction: "rectilinear_midpoint"
     - name: "HOURLY_SCALFACT"
       file: "data/hourly.nc"
     - name: "MASK_EUROPE"
       file: "data/Canada_mask.gen.1x1.nc"
+      geometry_reconstruction: "rectilinear_midpoint"
 EOF
 generate_download_script 2 "HEMCO/MACCITY/v2014-07/MACCity_4x5.nc" "HEMCO/MASKS/v2014-07/Canada_mask.gen.1x1.nc"
 
 # Example 3: Adding the AEIC aircraft emissions
 cat <<EOF > examples/cece_config_ex3.yaml
+driver:
+  geometry_reconstruction: "rectilinear_midpoint"
+
 species:
   co:
     - field: "MACCITY_CO"
@@ -119,16 +130,24 @@ cece_data:
   streams:
     - name: "MACCITY_CO"
       file: "data/MACCity_4x5.nc"
+      geometry_reconstruction: "rectilinear_midpoint"
       variables:
         - file: "MACCity"
           model: "MACCITY_CO"
     - name: "AEIC_CO"
       file: "data/AEIC.nc"
+      geometry_reconstruction: "rectilinear_midpoint"
+      variables:
+        - file: CO
+          model: AEIC_CO
 EOF
 generate_download_script 3 "HEMCO/MACCITY/v2014-07/MACCity_4x5.nc" "HEMCO/AEIC/v2015-01/AEIC.nc"
 
 # Example 4: Add biomass burning emissions
 cat <<EOF > examples/cece_config_ex4.yaml
+driver:
+  geometry_reconstruction: "rectilinear_midpoint"
+
 species:
   co:
     - field: "MACCITY_CO"
@@ -143,13 +162,21 @@ cece_data:
       variables:
         - file: "MACCity"
           model: "MACCITY_CO"
+      geometry_reconstruction: "rectilinear_midpoint"
     - name: "GFED_WDL"
       file: "data/GFED4_gen.025x025.199701.nc"
+      geometry_reconstruction: "rectilinear_midpoint"
+      variables:
+        - file: "DM_TOTL"
+          model: "GFED_WDL"
 EOF
 generate_download_script 4 "HEMCO/MACCITY/v2014-07/MACCity_4x5.nc" "HEMCO/GFED4/v2015-10/1997/GFED4_gen.025x025.199701.nc"
 
 # Example 5: Tell HEMCO to use additional species
 cat <<EOF > examples/cece_config_ex5.yaml
+driver:
+  geometry_reconstruction: "rectilinear_midpoint"
+
 species:
   co:
     - field: "MACCITY_CO"
@@ -165,18 +192,32 @@ cece_data:
   streams:
     - name: "MACCITY_CO"
       file: "data/MACCity_4x5.nc"
+      geometry_reconstruction: "rectilinear_midpoint"
       variables:
         - file: "MACCity"
           model: "MACCITY_CO"
     - name: "MACCITY_NO"
       file: "data/MACCity_anthro_NOx_2000-2010_16080.nc"
+      geometry_reconstruction: "rectilinear_midpoint"
+      time_var: "date"
+      variables:
+        - file: "MACCity"
+          model: "MACCITY_NO"
     - name: "MACCITY_SO2"
       file: "data/MACCity_anthro_SO2_2000-2010_16080.nc"
+      geometry_reconstruction: "rectilinear_midpoint"
+      time_var: "date"
+      variables:
+        - file: "MACCity"
+          model: "MACCITY_SO2"
 EOF
 generate_download_script 5 "HEMCO/MACCITY/v2014-07/MACCity_4x5.nc" "HEMCO/MACCITY/v2014-07/MACCity_anthro_NOx_2000-2010_16080.nc" "HEMCO/MACCITY/v2014-07/MACCity_anthro_SO2_2000-2010_16080.nc"
 
 # Example 6: Non-separated inventories
 cat <<EOF > examples/cece_config_ex6.yaml
+driver:
+  geometry_reconstruction: "rectilinear_midpoint"
+
 species:
   "no":
     - field: "EDGAR_NO_POW"
@@ -189,10 +230,18 @@ species:
 cece_data:
   streams:
     - name: "EDGAR_NO_POW"
-      file: "data/EDGAR_v43.NOx.POW.nc"
+      file: "data/EDGAR_v43.NOx.POW.0.1x0.1.nc"
+      geometry_reconstruction: "rectilinear_midpoint"
+      variables:
+        - file: "emi_nox"
+          model: "EDGAR_NO_POW"
     - name: "CEDS_NO_AGR"
       file: "data/ALK4_butanes-em-total-anthro_CEDS_1970.nc"
+      geometry_reconstruction: "rectilinear_midpoint"
+      variables:
+        - file: "ALK4_butanes_agr"
+          model: "CEDS_NO_AGR"
 EOF
-generate_download_script 6 "HEMCO/EDGARv43/v2014-10/EDGAR_v43.NOx.POW.nc" "HEMCO/CEDS/v2020-08/1970/ALK4_butanes-em-total-anthro_CEDS_1970.nc"
+generate_download_script 6 "HEMCO/EDGARv43/v2016-11/EDGAR_v43.NOx.POW.0.1x0.1.nc" "HEMCO/CEDS/v2020-08/1970/ALK4_butanes-em-total-anthro_CEDS_1970.nc"
 
 echo "All 6 CECE example configurations created in the 'examples/' directory."
