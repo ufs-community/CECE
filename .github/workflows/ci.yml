@@ -154,4 +154,4 @@ jobs:
           source /opt/spack-environment/activate.sh
           set -euo pipefail
           ./tests/test_all_cubed_sphere_tiles.sh
-          ./tests/test_all_cubed_sphere_tiles_0_360.sh
+          ./tests/test_all_cubed_sphere_tiles.sh 360
