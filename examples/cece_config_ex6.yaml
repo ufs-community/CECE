@@ -14,6 +14,7 @@ driver:
   start_time: "2020-01-01T00:00:00"
   end_time: "2020-01-01T04:00:00"
   timestep_seconds: 3600
+  geometry_reconstruction: "rectilinear_midpoint"
   grid:
     nx: 4
     ny: 4
@@ -35,23 +36,25 @@ cece_data:
   streams:
     - name: "EDGAR_NO_POW"
       file: "data/EDGAR_v43.NOx.POW.0.1x0.1.nc"
+      geometry_reconstruction: "rectilinear_midpoint"
       cadence: "monthly"
       yearAlign: 2020 # Simulation year 2020 aligns to the first file year
       taxmode: "cycle"
       tintalgo: "linear"
       mapalgo: "consd"
       variables:
-        - file: "NOx_POW"
+        - file: "emi_nox"
           model: "EDGAR_NO_POW"
     - name: "CEDS_NO_AGR"
       file: "data/ALK4_butanes-em-total-anthro_CEDS_1970.nc"
+      geometry_reconstruction: "rectilinear_midpoint"
       cadence: "monthly"
       yearAlign: 2020 # Simulation year 2020 aligns to the 1970 file year
       taxmode: "extend" # Hold the file's end values outside its coverage
       tintalgo: "linear"
       mapalgo: "consd"
       variables:
-        - file: "ALK4_butanes"
+        - file: "ALK4_butanes_ind"
           model: "CEDS_NO_AGR"
 
 diagnostics:

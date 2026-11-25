@@ -82,16 +82,18 @@ cece_data:
           model: "MACCITY_CO"
     - name: "EMEP_CO"
       file: "data/EMEP.2000.co.nc"
+      geometry_reconstruction: "rectilinear_midpoint"
       cadence: "monthly"
       yearAlign: 2020
       taxmode: "cycle"
       tintalgo: "linear"
       mapalgo: "consd"
       variables:
-        - file: "MACCity"
+        - file: "roadtransport"
           model: "EMEP_CO"
     - name: "MASK_EUROPE"
       file: "data/Canada_mask.gen.1x1.nc"
+      geometry_reconstruction: "rectilinear_midpoint"
       # Static single-record mask: no temporal keys are needed, the driver
       # always resolves to record 0.
       mapalgo: "consd"

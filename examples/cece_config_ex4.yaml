@@ -11,6 +11,7 @@ driver:
   start_time: "2020-01-01T00:00:00"
   end_time: "2020-01-02T00:00:00"
   timestep_seconds: 3600
+  geometry_reconstruction: "rectilinear_midpoint"
   grid:
     nx: 6
     ny: 4
@@ -28,12 +29,12 @@ cece_data:
   streams:
     - name: "HTAP_NO"
       file: "data/HTAPv3_NO_0.1x0.1_2018.nc"
+      geometry_reconstruction: "rectilinear_midpoint"
       cadence: "monthly"
       yearAlign: 2020 # Simulation year 2020 aligns to the 2018 file year
       taxmode: "extend" # Hold the file's end values outside its coverage
       tintalgo: "linear"
       mapalgo: "consd"
-      geometry_reconstruction: "rectilinear_midpoint"
       variables:
         - file: "NO_SHP"
           model: "HTAP_NO"
