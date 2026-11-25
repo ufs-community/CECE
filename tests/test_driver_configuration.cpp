@@ -23,6 +23,7 @@
 
 #include "cece/cece_c_api.h"
 #include "cece/cece_config.hpp"
+#include "cece/cece_config_path.hpp"
 #include "cece/cece_driver_facade.hpp"
 
 using namespace cece;
@@ -54,18 +55,11 @@ static void ExpectConfigInvalidArgument(const std::string& path, const std::stri
 static void ExpectFacadeInvalidArgument(const std::string& path, const std::string& content, const std::string& expected_message) {
     WriteConfigFile(path, content);
     constexpr double coordinate = 0.0;
-    try {
-        cece::CeceInternalData* cece_internal;
-        int rc = 0;
-        cece_core_initialize_p1(reinterpret_cast<void**>(&cece_internal), &rc);
-        if (rc != 0) {
-            throw std::invalid_argument("");
-        }
-        CeceDriverOrchestrator driver(cece_internal, path, 1, 1, 1, &coordinate, 1, &coordinate, 1, MPI_COMM_NULL);
-        FAIL() << "Expected the direct driver facade to reject: " << content;
-    } catch (const std::invalid_argument& error) {
-        EXPECT_EQ(error.what(), expected_message);
-    }
+    cece::CeceInternalData* cece_internal = nullptr;
+    int rc = 0;
+    cece::SetConfigFilePath(path.c_str());
+    cece_core_initialize_p1(reinterpret_cast<void**>(&cece_internal), &rc);
+    EXPECT_NE(rc, 0) << "Configuration error. Expected error: " << expected_message;
 }
 
 // ---------------------------------------------------------------------------

@@ -613,13 +613,12 @@ CeceDriverOrchestrator::CeceDriverOrchestrator(const CeceInternalData* cece_inte
     ResolveStreamConfigsFromConfig(config_, stream_configs_, gridspec_file_);
 
     const DriverConfig& driver = config_.driver_config;
-    if (true) {
-        destination_geometry_settings_.gridspec_file = gridspec_file_;
-        destination_geometry_settings_.named_grid = driver.grid.grid_name;
-        destination_geometry_settings_.longitude_variable = driver.longitude_variable;
-        destination_geometry_settings_.latitude_variable = driver.latitude_variable;
-        destination_geometry_settings_.reconstruction = io::parse_reconstruction_model(driver.geometry_reconstruction);
-    }
+
+    destination_geometry_settings_.gridspec_file = gridspec_file_;
+    destination_geometry_settings_.named_grid = driver.grid.grid_name;
+    destination_geometry_settings_.longitude_variable = driver.longitude_variable;
+    destination_geometry_settings_.latitude_variable = driver.latitude_variable;
+    destination_geometry_settings_.reconstruction = io::parse_reconstruction_model(driver.geometry_reconstruction);
 
     destination_geometry_revision_ = coordinate_revision(target_lons_, target_lats_, nx_, ny_) + "|" + file_revision(gridspec_file_) + "|" +
                                      destination_geometry_settings_.named_grid + ":" + destination_geometry_settings_.longitude_variable + ":" +

@@ -435,7 +435,21 @@ CeceConfig ParseConfigFromValue(const conf::Value root) {
                 throw std::runtime_error("Earthaccess standalone ingest helper script not found");
             }
             config.driver_config.earthaccess_helper = helper_path;
-        }
+        } /* else {
+              const fs::path cwd_helper = fs::current_path() / "scripts" / "cece_earthaccess_standalone_ingest.py";
+              if (fs::exists(cwd_helper)) {
+                config.driver_config.earthaccess_helper = cwd_helper;
+              } else {
+                for (fs::path dir = config_path.parent_path(); !dir.empty(); dir = dir.parent_path()) {
+                  const fs::path candidate = dir / "scripts" / "cece_earthaccess_standalone_ingest.py";
+                  if (fs::exists(candidate)) {
+                    config.driver_config.earthaccess_helper{candidate};
+                    break;
+                  }
+                  if (dir == dir.root_path()) break;
+                }
+              }
+              } */
         config.driver_config.log_file = string_or(driver, "log_file");
     }
 
@@ -503,7 +517,7 @@ CeceConfig ParseConfig(const std::string& filename) {
     conf::Value root = parsed.root();
     CeceConfig config = ParseConfigFromValue(root);
     // TODO: earthaccess helper lookup
-    if (config.driver_config.earthaccess_helper.is_relative()) {
+    if (!config.driver_config.earthaccess_helper.empty() && config.driver_config.earthaccess_helper.is_relative()) {
         config.driver_config.earthaccess_helper = fs::path(filename).parent_path() / config.driver_config.earthaccess_helper;
     }
     return config;

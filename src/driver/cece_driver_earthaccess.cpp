@@ -75,11 +75,7 @@ fs::path resolve_earthaccess_helper(const CeceConfig& config, fs::path config_pa
 
     const fs::path configured = config.driver_config.earthaccess_helper;
     if (!configured.empty()) {
-        fs::path helper_path(configured);
-        if (helper_path.is_relative()) {
-            helper_path = config_path.parent_path() / helper_path;
-        }
-        return helper_path;
+        return configured;
     }
     // // The main driver parse reports malformed configuration elsewhere.
     // // Continue to conventional helper locations for a useful diagnostic.
@@ -87,16 +83,12 @@ fs::path resolve_earthaccess_helper(const CeceConfig& config, fs::path config_pa
 
     const fs::path cwd_helper = fs::current_path() / "scripts" / "cece_earthaccess_standalone_ingest.py";
     if (fs::exists(cwd_helper)) {
-        // // Cache helper location
-        // config.driver_config.earthaccess_helper = cwd_helper;
         return cwd_helper;
     }
 
     for (fs::path dir = config_path.parent_path(); !dir.empty(); dir = dir.parent_path()) {
         const fs::path candidate = dir / "scripts" / "cece_earthaccess_standalone_ingest.py";
         if (fs::exists(candidate)) {
-            //   // Cache helper location
-            // config.driver_config.earthaccess_helper{candidate};
             return candidate;
         }
         if (dir == dir.root_path()) break;
