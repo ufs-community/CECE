@@ -265,15 +265,15 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
         }
     }
 
-    CECE_LOG_INFO("INFO: Successfully initialized "s + std::to_string(internal_data->active_schemes.size()) + " physics schemes\n"s);
+    CECE_LOG_INFO("INFO: Successfully initialized "s + std::to_string(internal_data->active_schemes.size()) + " physics schemes"s);
 
     // 5. Initialize StackingEngine
-    CECE_LOG_INFO("INFO: Initializing StackingEngine\n");
+    CECE_LOG_INFO("INFO: Initializing StackingEngine");
     try {
         internal_data->stacking_engine = std::make_unique<cece::StackingEngine>(config);
-        CECE_LOG_INFO("INFO: StackingEngine initialized successfully\n");
+        CECE_LOG_INFO("INFO: StackingEngine initialized successfully");
     } catch (const std::exception& e) {
-        CECE_LOG_ERROR("ERROR: Failed to initialize StackingEngine: "s + e.what() + "\n"s);
+        CECE_LOG_ERROR("ERROR: Failed to initialize StackingEngine: "s + e.what() + ""s);
         if (rc != nullptr) {
             *rc = -1;
         }
@@ -285,12 +285,12 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
     }
 
     // 6. Initialize DiagnosticManager
-    CECE_LOG_INFO("INFO: Initializing DiagnosticManager\n");
+    CECE_LOG_INFO("INFO: Initializing DiagnosticManager");
     try {
         internal_data->diagnostic_manager = std::make_unique<cece::CeceDiagnosticManager>();
-        CECE_LOG_INFO("INFO: DiagnosticManager initialized successfully\n");
+        CECE_LOG_INFO("INFO: DiagnosticManager initialized successfully");
     } catch (const std::exception& e) {
-        CECE_LOG_ERROR("ERROR: Failed to initialize DiagnosticManager: "s + e.what() + "\n"s);
+        CECE_LOG_ERROR("ERROR: Failed to initialize DiagnosticManager: "s + e.what() + ""s);
         if (rc != nullptr) {
             *rc = -1;
         }
@@ -309,7 +309,7 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
     }
 
     // 8. Construct CeceClock from parsed configuration
-    CECE_LOG_INFO("INFO: Constructing CeceClock for per-component scheduling\n");
+    CECE_LOG_INFO("INFO: Constructing CeceClock for per-component scheduling");
     try {
         // Build the vector of ClockComponent from config
         std::vector<cece::ClockComponent> clock_components;
@@ -344,9 +344,9 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
         internal_data->clock = std::make_unique<cece::CeceClock>(config.driver_config.start_time, config.driver_config.end_time,
                                                                  config.driver_config.timestep_seconds, clock_components);
 
-        CECE_LOG_INFO("INFO: CeceClock constructed with "s + std::to_string(clock_components.size()) + " components\n"s);
+        CECE_LOG_INFO("INFO: CeceClock constructed with "s + std::to_string(clock_components.size()) + " components"s);
     } catch (const std::invalid_argument& e) {
-        CECE_LOG_ERROR("ERROR: Failed to construct CeceClock: "s + e.what() + "\n"s);
+        CECE_LOG_ERROR("ERROR: Failed to construct CeceClock: "s + e.what() + ""s);
         if (rc != nullptr) {
             *rc = -1;
         }
@@ -362,7 +362,7 @@ void cece_core_initialize_p1(void** data_ptr_ptr, int* rc) {
         *data_ptr_ptr = internal_data;
     }
 
-    CECE_LOG_INFO("INFO: CECE Initialize Phase 1 completed successfully\n");
+    CECE_LOG_INFO("INFO: CECE Initialize Phase 1 completed successfully");
 
     if (rc != nullptr) {
         *rc = 0;

@@ -53,7 +53,7 @@ namespace {
 
 // Absolute path to the production driver facade translation unit.
 std::string FacadeSourcePath() {
-    return std::string(CECE_SOURCE_DIR) + "/src/driver/cece_driver_facade.cpp";
+    return fs::path(CECE_SOURCE_DIR) / fs::path("src/driver/cece_driver_facade.cpp");
 }
 
 // Read a whole text file into a string.
@@ -194,8 +194,8 @@ TEST(NoManifestNoReparse, AdvanceTimeDoesNotReparseYaml) {
     ASSERT_FALSE(src.empty());
 
     // Sanity: the construction-time parse still exists somewhere in the file.
-    EXPECT_NE(src.find("conf::Config::from_file"), std::string::npos)
-        << "expected a construction-time conf::Config::from_file in the facade (in ResolveStreamConfigsFromFile)";
+    EXPECT_EQ(src.find("conf::Config::from_file"), std::string::npos)
+        << "expected no construction-time conf::Config::from_file in the facade (in ResolveStreamConfigsFromFile)";
 
     // The AdvanceTime body must contain no YAML parse.
     const std::string advance_body = ExtractMemberBody(src, "AdvanceTime");
@@ -205,10 +205,10 @@ TEST(NoManifestNoReparse, AdvanceTimeDoesNotReparseYaml) {
     EXPECT_EQ(advance_body.find("conf::Config::from_file("), std::string::npos) << "AdvanceTime parses YAML per step (conf::Config::from_file found)";
 
     // And the config-resolution helper is the (only) legitimate parse site.
-    const std::string resolve_body = ExtractMemberBody(src, "ResolveStreamConfigsFromFile");
+    const std::string resolve_body = ExtractMemberBody(src, "ResolveStreamConfigsFromConfig");
     ASSERT_FALSE(resolve_body.empty());
-    EXPECT_NE(resolve_body.find("conf::Config::from_file"), std::string::npos)
-        << "expected ResolveStreamConfigsFromFile to hold the sole construction-time conf::Config::from_file";
+    EXPECT_EQ(resolve_body.find("conf::Config::from_file"), std::string::npos)
+        << "expected ResolveStreamConfigsFromFile to use already-parsed config";
 }
 
 }  // namespace cece

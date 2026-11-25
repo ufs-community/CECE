@@ -25,7 +25,10 @@
 #include <string>
 #include <tick/tick.hpp>
 
+#include "cece/cece_c_api.h"
+#include "cece/cece_config.hpp"
 #include "cece/cece_fatal.hpp"
+#include "cece/cece_internal.hpp"
 #include "cece/cece_logger.hpp"
 #include "cece/cece_sim_c_abi.h"
 #include "cece/cece_simulation.hpp"
@@ -63,17 +66,21 @@ int main(int argc, char* argv[]) {
         if (argc > 1) {
             config_file = argv[1];
         }
+        // Set config file path dynamically
+        cece_set_config_file_path(config_file.c_str(), static_cast<int>(config_file.length()));
+
+        void* cece_data;
+        int rc = 0;
+        cece_core_initialize_p1(&cece_data, &rc);
 
         // --- Load configuration up front (grid, timing, streams parsed below) ---
-        conf::Config config = conf::Config::from_file(config_file);
+        cece::CeceConfig config = static_cast<cece::CeceInternalData*>(cece_data)->config;
 
         // Configure run logging (optional log file, per-rank stdout suppression)
         // and print the startup banner. Shared with the NUOPC cap so behavior is
         // identical regardless of how CECE is launched.
-        cece_run_log_setup(config_file.c_str(), static_cast<int>(config_file.length()));
-
-        // Set config file path dynamically
-        cece_set_config_file_path(config_file.c_str(), static_cast<int>(config_file.length()));
+        cece_run_log_setup(config_file.c_str(), config_file.length());
+        // cece_run_log_setup(config);
 
         // 3. Resolve the target grid: named regular grids (F/R), an explicit or
         //    stream-inferred gridspec file read through AMIO, or uniform extents
@@ -83,7 +90,7 @@ int main(int argc, char* argv[]) {
         //    diagnostic on any failure — never a silent fallback.
         cece::GridSpec grid_spec;
         try {
-            grid_spec = cece::GridSpec::from_yaml(config_file, config);
+            grid_spec = cece::GridSpec::from_config(config);
         } catch (const std::exception& e) {
             cece::LogFatal(std::string{"[DRIVER FATAL] (rank "} + std::to_string(my_rank) + ") grid resolution failed: " + e.what());
             Kokkos::finalize();
@@ -98,9 +105,9 @@ int main(int argc, char* argv[]) {
         //    end_time in timestep_seconds increments. The shared core owns the
         //    authoritative physics calendar; these values only select which
         //    instants to ingest/stamp and when to stop.
-        const std::string start_time_str = config.get_string("driver.start_time");
-        const std::string end_time_str = config.get_string("driver.end_time");
-        const int timestep_seconds = config.get_int("driver.timestep_seconds");
+        const std::string start_time_str = config.driver_config.start_time;
+        const std::string end_time_str = config.driver_config.end_time;
+        const int timestep_seconds = config.driver_config.timestep_seconds;
 
         tick::Gregorian_Calendar cal;
         tick::Time_Point step_start = cal.to_time_point(tick::parse_iso8601(start_time_str));
@@ -124,7 +131,6 @@ int main(int argc, char* argv[]) {
         c_grid.gridspec_file_len = static_cast<int>(grid_spec.gridspec_file.size());
 
         CeceSimulation* sim = nullptr;
-        int rc = 0;
         cece_sim_create(config_file.c_str(), static_cast<int>(config_file.length()), &c_grid, MPI_Comm_c2f(MPI_COMM_WORLD), &sim, &rc);
         if (rc < 0 || sim == nullptr) {
             cece::LogFatal("[DRIVER FATAL] (rank " + std::to_string(my_rank) + ") cece_sim_create failed with rc=" + std::to_string(rc));

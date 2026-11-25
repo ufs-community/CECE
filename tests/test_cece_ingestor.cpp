@@ -92,7 +92,8 @@ TEST_F(IngestorTest, CeceIoAllocatesConfiguredPerVariableLevels) {
     }
 
     cece::io::CeceIO io;
-    ASSERT_NO_THROW(io.Initialize(config_path.string(), 3, 2, 1));
+    cece::CeceConfig config = cece::ParseConfig(config_path.string());
+    ASSERT_NO_THROW(io.Initialize(config, 3, 2, 1));
 
     const auto scalar = io.GetFieldView("scalar_field");
     EXPECT_EQ(scalar.extent(0), 3u);
@@ -140,7 +141,8 @@ TEST_F(IngestorTest, CeceIoSkipsEarthAccessAndMapsImplicitStreams) {
     }
 
     cece::io::CeceIO io;
-    ASSERT_NO_THROW(io.Initialize(config_path.string(), 3, 2, 1));
+    cece::CeceConfig config = cece::ParseConfig(config_path.string());
+    ASSERT_NO_THROW(io.Initialize(config, 3, 2, 1));
     const auto names = io.GetOutputVarNames();
     EXPECT_EQ(names.size(), 4u);
     EXPECT_EQ(names[0], "local_model");
@@ -167,7 +169,9 @@ TEST_F(IngestorTest, CeceIoRejectsEmptyVariableNames) {
             config << "cece_data:\n  streams:\n" << stream;
         }
         cece::io::CeceIO io;
-        EXPECT_THROW(io.Initialize(config_path.string(), 3, 2, 1), std::runtime_error) << stream;
+        cece::CeceConfig config;
+        EXPECT_THROW(config = cece::ParseConfig(config_path.string()), std::invalid_argument) << stream;
+        // EXPECT_THROW(io.Initialize(config, 3, 2, 1), std::runtime_error) << stream;
     }
 
     std::error_code ec;

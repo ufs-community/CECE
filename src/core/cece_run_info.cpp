@@ -24,6 +24,7 @@
 #include <memory>
 #include <string>
 
+#include "cece/cece_config.hpp"
 #include "cece/cece_fatal.hpp"
 #include "cece/cece_log_setup.hpp"
 #include "cece/cece_logger.hpp"
@@ -79,23 +80,20 @@ void cece_run_log_setup(const char* config_path, int path_len) {
 
     // Load configuration (best effort; a parse failure should not be fatal here).
     bool config_ok = false;
-    conf::Config config = conf::Config::from_string("");  // empty placeholder
+    cece::CeceConfig config;
     try {
-        config = conf::Config::from_file(config_file);
+        config = cece::ParseConfig(config_file);
         config_ok = true;
     } catch (const std::exception&) {
         config_ok = false;
     }
 
     // Determine optional log file path.
-    std::string log_file_path;
+    fs::path log_file_path;
     if (config_ok) {
-        auto opt = config.try_string("driver.log_file");
-        if (!opt.has_value()) {
-            opt = config.try_string("output.log_file");
-        }
-        if (opt.has_value()) {
-            log_file_path = *opt;
+        auto opt = config.driver_config.log_file;
+        if (!opt.empty()) {
+            log_file_path = opt;
         }
     }
 
@@ -118,7 +116,7 @@ void cece_run_log_setup(const char* config_path, int path_len) {
             std::cout.rdbuf(tee_buf);
             stdout_redirected = true;
         } else {
-            CECE_LOG_WARNING("WARNING: Could not open log file '"s + log_file_path + "' - continuing with console output only.\n");
+            CECE_LOG_WARNING("WARNING: Could not open log file '"s + log_file_path.string() + "' - continuing with console output only.\n");
             delete log_file_stream;
         }
     }
@@ -177,25 +175,25 @@ void cece_run_log_setup(const char* config_path, int path_len) {
 
     if (config_ok) {
         // Grid.
-        if (config.has("driver.grid")) {
-            std::string grid_name = config.get_or<std::string>("driver.grid.grid_name", "");
+        if (true) {
+            std::string grid_name = config.driver_config.grid.grid_name;
             std::cout << RowLabel("Grid");
             if (!grid_name.empty()) {
                 std::cout << grid_name;
             } else {
-                std::cout << config.get_or("driver.grid.nx", 0) << " x " << config.get_or("driver.grid.ny", 0);
+                std::cout << config.driver_config.grid.nx << " x " << config.driver_config.grid.ny;
             }
-            if (config.has("driver.grid.nz")) {
-                std::cout << " x " << config.get_or("driver.grid.nz", 1) << " (nz)";
+            if (config.driver_config.grid.nz) {
+                std::cout << " x " << config.driver_config.grid.nz << " (nz)";
             }
             std::cout << "\n";
         }
 
         // Simulation window.
-        if (config.has("driver")) {
-            std::string start = config.get_or<std::string>("driver.start_time", "");
-            std::string end = config.get_or<std::string>("driver.end_time", "");
-            int ts = config.get_or("driver.timestep_seconds", 0);
+        if (true) {
+            std::string start = config.driver_config.start_time;
+            std::string end = config.driver_config.end_time;
+            int ts = config.driver_config.timestep_seconds;
             if (!start.empty() && !end.empty()) {
                 std::cout << RowLabel("Simulation window") << start << "  ->  " << end << "\n";
             }
@@ -205,12 +203,11 @@ void cece_run_log_setup(const char* config_path, int path_len) {
         }
 
         // Species.
-        if (config.has("species")) {
+        if (config.species_layers.size() > 0) {
             std::cout << RowLabel("Species");
-            conf::Value species = config.at("species");
-            auto species_keys = species.keys();
+            auto species = config.species_layers;
             bool first = true;
-            for (const auto& sp : species_keys) {
+            for (const auto& [sp, layer] : species) {
                 if (!first) std::cout << ", ";
                 std::cout << sp;
                 first = false;
@@ -220,34 +217,31 @@ void cece_run_log_setup(const char* config_path, int path_len) {
 
         // Output fields. Entries are either a scalar field name or a map
         // with "name" (and optional "attributes").
-        if (config.has("output.fields")) {
+        if (config.output_config.fields.size() > 0) {
             std::cout << RowLabel("Output fields");
-            conf::Value fields = config.at("output.fields");
+            auto fields = config.output_config.fields;
             bool first = true;
-            for (std::size_t i = 0; i < fields.size(); ++i) {
-                conf::Value f = fields[i];
+            for (const auto& f : fields) {
                 if (!first) std::cout << ", ";
-                if (f.kind() == conf::Node_Kind::Map) {
-                    std::cout << f["name"].string_or("(unnamed)");
-                } else {
-                    std::cout << f.string_or("");
-                }
+                std::cout << (f.name.empty() ? "(unnamed)" : f.name);
                 first = false;
             }
             std::cout << "\n";
         }
 
         // Input streams.
-        if (config.has("cece_data.streams")) {
-            conf::Value streams = config.at("cece_data.streams");
+        if (config.cece_data.streams.size() > 0) {
+            auto streams = config.cece_data.streams;
             std::cout << RowLabel("Input streams") << streams.size() << "\n";
             for (std::size_t i = 0; i < streams.size(); ++i) {
-                conf::Value s = streams[i];
-                std::string name = s["name"].string_or("(unnamed)");
-                std::string file = s["file"].string_or("");
+                auto s = streams[i];
+                std::string name = (s.name.empty() ? "(unnamed)" : s.name);
+                auto file_paths = s.file_paths;
                 std::cout << "      - " << name;
-                if (!file.empty()) {
-                    std::cout << "  <-  " << file;
+                if (file_paths.size() > 0) {
+                    for (const auto& file_name : file_paths) {
+                        std::cout << "  <-  " << file_name;
+                    }
                 }
                 std::cout << "\n";
             }

@@ -73,7 +73,8 @@ namespace cece {
 // ============================================================================
 struct StreamConfigTestAccess {
     static void Resolve(const std::string& config_file, std::unordered_map<std::string, StreamConfig>& out_configs, std::string& out_gridspec_file) {
-        CeceDriverOrchestrator::ResolveStreamConfigsFromFile(config_file, out_configs, out_gridspec_file);
+        CeceConfig config = ParseConfig(config_file);
+        CeceDriverOrchestrator::ResolveStreamConfigsFromConfig(config, out_configs, out_gridspec_file);
     }
 };
 
@@ -258,11 +259,13 @@ const std::vector<std::string>& ExampleConfigNames() {
 // **Validates: Requirements 1.1, 1.5, 4.3**
 // ============================================================================
 TEST(StreamConfigResolution, ExampleConfigsMatchLegacyParse) {
-    const std::string src_dir = CECE_SOURCE_DIR;
+    const fs::path src_dir = CECE_SOURCE_DIR;
     int examples_with_streams = 0;
 
     for (const auto& name : ExampleConfigNames()) {
-        const std::string path = src_dir + "/examples/" + name;
+        SCOPED_TRACE(name);
+        const std::string path = src_dir / fs::path("examples") / fs::path(name);
+        SCOPED_TRACE(path);
         std::ifstream probe(path);
         if (!probe.good()) {
             // Example file not present in this checkout; skip rather than fail.

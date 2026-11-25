@@ -149,7 +149,7 @@ add_executable(ncvar_shape ${CMAKE_CURRENT_SOURCE_DIR}/helpers/ncvar_shape.c)
 target_link_libraries(ncvar_shape netCDF::netcdf)
 
 # --- Driver / configuration --------------------------------------------------
-cece_add_gtest(test_driver_configuration)
+cece_add_gtest(test_driver_configuration MAIN KOKKOS)
 # NUOPC field-coupling config section (`nuopc:`) parsing and the path-based
 # C queries the Fortran cap uses during Advertise.
 cece_add_gtest(test_coupling_config PROPERTIES RESOURCE_LOCK cece_coupling_config_test_yaml)

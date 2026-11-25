@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "cece/cece_band_decomposition.hpp"
+#include "cece/cece_internal.hpp"
 #include "cece/cece_io.hpp"
 #include "cece/cece_regridder_utils.hpp"
 #include "cece/cece_time_indexing.hpp"
@@ -115,8 +116,8 @@ struct LocalWeeklyCacheEntry {
 
 class CeceDriverOrchestrator {
    public:
-    CeceDriverOrchestrator(const std::string& config_file, int nx, int ny, int nz, const double* lon_coords, int lon_len, const double* lat_coords,
-                           int lat_len, MPI_Comm comm_c);
+    CeceDriverOrchestrator(const CeceInternalData* cece_internal, const std::string& config_path, int nx, int ny, int nz, const double* lon_coords,
+                           int lon_len, const double* lat_coords, int lat_len, MPI_Comm comm_c);
     ~CeceDriverOrchestrator();
 
     // Prevent copy/move construction and assignment (Rule of Five)
@@ -202,7 +203,7 @@ class CeceDriverOrchestrator {
                                  std::vector<double>& ingest_buffer, std::string& failure_detail);
 
     /** Return whether the YAML config contains streams handled by EarthAccess. */
-    static bool HasEarthAccessStreams(const std::string& config_file);
+    static bool HasEarthAccessStreams(const CeceConfig& config);
 
     /**
      * Ingest `source: earthaccess` streams for the current timestep.
@@ -225,13 +226,6 @@ class CeceDriverOrchestrator {
     // (re)assigned so the wrapper never lags the communicator (Req 7.3).
     void RefreshHaloCommunicator();
 
-    // Parse config_file_ once at construction and populate stream_configs_ for
-    // every model variable, resolving the same fields and defaults the legacy
-    // inline AdvanceTime parse produced. Also resolves the driver-level
-    // amio_worker_threads / amio_staging_buffer_count (validated >= 1) and
-    // gridspec_file_ (Req 1.1-1.5, 4.3).
-    void ResolveStreamConfigs();
-
     // Pure YAML->StreamConfig resolution shared by ResolveStreamConfigs() and
     // the Property 4 test. Parses config_file, fills out_configs (keyed by model
     // variable name) and out_gridspec_file using the exact same field resolution
@@ -239,8 +233,8 @@ class CeceDriverOrchestrator {
     // exercised in isolation without constructing a full orchestrator (which
     // requires MPI/DAGR/CeceIO). This is the SAME code path production uses; it
     // is not a copy (Req 1.1-1.5, 4.3).
-    static void ResolveStreamConfigsFromFile(const std::string& config_file, std::unordered_map<std::string, StreamConfig>& out_configs,
-                                             std::string& out_gridspec_file);
+    static void ResolveStreamConfigsFromConfig(const CeceConfig& config, std::unordered_map<std::string, StreamConfig>& out_configs,
+                                               std::string& out_gridspec_file);
 
     // Resolve one stream variable's YAML node into a StreamConfig: field
     // resolution + defaults for file/mapalgo/cadence/tintalgo/data_model plus
@@ -248,7 +242,7 @@ class CeceDriverOrchestrator {
     // ResolveStreamConfigsFromFile stream loop, which had grown to ~40 lines
     // of per-field if/else logic; the loop now keeps only the iteration and
     // first-match-wins bookkeeping. Behavior is unchanged.
-    static StreamConfig BuildStreamConfig(const conf::Value& stream, const std::string& model_name, const std::string& file_name,
+    static StreamConfig BuildStreamConfig(const CeceDataStreamConfig& stream, const std::string& model_name, const std::string& file_name,
                                           int amio_worker_threads, int amio_staging_buffer_count, int amio_staging_buffer_capacity_bytes,
                                           int amio_prefetch_depth);
 
@@ -360,6 +354,7 @@ class CeceDriverOrchestrator {
     std::vector<double> target_lats_;
     int step_index_{0};
     MPI_Comm comm_c_{MPI_COMM_NULL};
+    CeceConfig config_;
 
     // Long-lived HALO wrapper over comm_c_. Built once when comm_c_ is set to a
     // valid, size>1 communicator (duplicating a non-predefined handle exactly as
@@ -515,8 +510,8 @@ class CeceDriverOrchestrator {
 }  // namespace cece
 
 extern "C" {
-void cece_driver_create(const char* yaml_path, int path_len, int nx, int ny, int nz, const double* lon_coords, int lon_len, const double* lat_coords,
-                        int lat_len, int mpi_comm_f, void** driver_ptr_out, int* rc);
+void cece_driver_create(void* data_ptr, const char* yaml_path, int path_len, int nx, int ny, int nz, const double* lon_coords, int lon_len,
+                        const double* lat_coords, int lat_len, int mpi_comm_f, void** driver_ptr_out, int* rc);
 
 void cece_driver_advance_time(void* driver_ptr, const char* time_iso8601, int time_len, void* cece_core_data_ptr, int* rc);
 

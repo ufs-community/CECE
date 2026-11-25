@@ -6,6 +6,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include "cece/cece_config.hpp"
+
 namespace cece {
 namespace io {
 
@@ -14,7 +16,7 @@ class CeceIO {
     CeceIO() = default;
     ~CeceIO() = default;
 
-    void Initialize(const std::string& config_file, int nx, int ny, int nz);
+    void Initialize(const CeceConfig& config, int nx, int ny, int nz);
     void Finalize();
 
     std::vector<std::string> GetOutputVarNames() const {

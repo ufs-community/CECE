@@ -6,7 +6,6 @@
 
 #include <mpi.h>
 
-#include <conf/conf.hpp>
 #include <memory>
 #include <string>
 #include <tick/tick.hpp>
@@ -14,6 +13,7 @@
 #include <vector>
 
 #include "cece/cece_band_decomposition.hpp"
+#include "cece/cece_config.hpp"
 
 namespace cece {
 
@@ -53,7 +53,7 @@ struct GridSpec {
     /// handling), or uniform extents from driver.grid. Throws
     /// std::invalid_argument with a named diagnostic on any failure —
     /// never a silent fallback.
-    static GridSpec from_yaml(const std::string& config_file, conf::Config& config);
+    static GridSpec from_config(const cece::CeceConfig& config);
 
     /**
      * @brief Build the target grid from a parent NUOPC component's ESMF

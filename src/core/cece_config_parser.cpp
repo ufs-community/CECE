@@ -1,6 +1,7 @@
 #include <sys/stat.h>
 
 #include <algorithm>
+#include <filesystem>
 #include <iostream>
 #include <set>
 #include <stdexcept>
@@ -10,6 +11,8 @@
 #include "cece/cece_geometry_config.hpp"
 #include "cece/cece_string_utils.hpp"
 #include "conf/config.hpp"
+
+namespace fs = std::filesystem;
 
 namespace cece {
 
@@ -52,17 +55,12 @@ std::optional<RegridMethodSettings> parse_regrid_method(const std::string& metho
 
 }  // namespace io
 
-CeceConfig ParseConfig(const std::string& filename) {
-    struct stat buffer;
-    if (stat(filename.c_str(), &buffer) != 0) throw std::runtime_error("File not found: " + filename);
-    conf::Config parsed = conf::Config::from_file(filename);
-    conf::Value root = parsed.root();
+static inline std::string string_or(const conf::Value& node, const std::string& key, const std::string& fallback = std::string{}) {
+    return node[key].string_or(fallback);
+}
+
+CeceConfig ParseConfigFromValue(const conf::Value root) {
     CeceConfig config;
-
-    auto string_or = [](const conf::Value& node, const std::string& key, const std::string& fallback = std::string{}) {
-        return node[key].string_or(fallback);
-    };
-
     conf::Value species = root["species"];
     if (species && species.kind() == conf::Node_Kind::Map) {
         for (const auto& species_name : species.keys()) {
@@ -205,15 +203,17 @@ CeceConfig ParseConfig(const std::string& filename) {
         conf::Value streams = data["streams"];
         for (std::size_t i = 0; i < streams.size(); ++i) {
             conf::Value node = streams[i];
+            CeceDataStreamConfig stream;
+            stream.name = string_or(node, "name");
             if (string_or(node, "source") == "earthaccess") {
                 if (node["use_local_time"].bool_or(false)) {
                     throw std::invalid_argument("cece_data.streams[" + std::to_string(i) +
                                                 "]: use_local_time is not supported for earthaccess streams.");
                 }
+                stream.source = "earthaccess";
+                config.cece_data.streams.push_back(std::move(stream));
                 continue;
             }
-            CeceDataStreamConfig stream;
-            stream.name = string_or(node, "name");
             conf::Value files = node["file"];
             if (files)
                 stream.file_paths = files.kind() == conf::Node_Kind::Sequence ? files.as_string_list() : std::vector<std::string>{files.as_string()};
@@ -241,6 +241,7 @@ CeceConfig ParseConfig(const std::string& filename) {
                                                     "] requires a non-empty 'model'");
                     }
                     variable.name_in_file = string_or(value, "file", variable.name_in_model);
+                    variable.field_levels = value["levels"].int_or(-1);
                 } else {
                     throw std::invalid_argument("cece_data.streams[" + std::to_string(i) + "].variables[" + std::to_string(j) +
                                                 "] must be a string or mapping");
@@ -296,6 +297,14 @@ CeceConfig ParseConfig(const std::string& filename) {
                     throw std::invalid_argument(where + ": use_local_time requires tintalgo: nearest.");
                 }
             }
+            stream.cadence = string_or(node, "cadence");
+            stream.time_label = string_or(node, "time_label");
+            stream.time_units = string_or(node, "time_units");
+            stream.calendar = string_or(node, "calendar", "gregorian");
+            stream.data_model = to_lower(string_or(node, "data_model", "auto"));
+            // if (stream.data_model != "auto" && stream.data_model != "classic" && stream.data_model != "enhanced") {
+            //     throw std::invalid_argument("data_model must be \"auto\", \"classic\", or \"enhanced\"");
+            // }
             config.cece_data.streams.push_back(std::move(stream));
         }
     }
@@ -420,6 +429,28 @@ CeceConfig ParseConfig(const std::string& filename) {
             }
             config.driver_config.amio_prefetch_depth = depth;
         }
+        if (driver["earthaccess_helper"]) {
+            fs::path helper_path = string_or(driver, "earthaccess_helper");
+            if (!fs::exists(helper_path)) {
+                throw std::runtime_error("Earthaccess standalone ingest helper script not found");
+            }
+            config.driver_config.earthaccess_helper = helper_path;
+        } /* else {
+              const fs::path cwd_helper = fs::current_path() / "scripts" / "cece_earthaccess_standalone_ingest.py";
+              if (fs::exists(cwd_helper)) {
+                config.driver_config.earthaccess_helper = cwd_helper;
+              } else {
+                for (fs::path dir = config_path.parent_path(); !dir.empty(); dir = dir.parent_path()) {
+                  const fs::path candidate = dir / "scripts" / "cece_earthaccess_standalone_ingest.py";
+                  if (fs::exists(candidate)) {
+                    config.driver_config.earthaccess_helper{candidate};
+                    break;
+                  }
+                  if (dir == dir.root_path()) break;
+                }
+              }
+              } */
+        config.driver_config.log_file = string_or(driver, "log_file");
     }
 
     // Optional NUOPC field-coupling section. Declares the fields CECE advertises
@@ -476,6 +507,19 @@ CeceConfig ParseConfig(const std::string& filename) {
     }
 
     config.output_config.fields.SetTimeUnits(config.driver_config.start_time);
+    return config;
+}
+
+CeceConfig ParseConfig(const std::string& filename) {
+    struct stat buffer;
+    if (stat(filename.c_str(), &buffer) != 0) throw std::runtime_error("File not found: " + filename);
+    conf::Config parsed = conf::Config::from_file(filename);
+    conf::Value root = parsed.root();
+    CeceConfig config = ParseConfigFromValue(root);
+    // TODO: earthaccess helper lookup
+    if (!config.driver_config.earthaccess_helper.empty() && config.driver_config.earthaccess_helper.is_relative()) {
+        config.driver_config.earthaccess_helper = fs::path(filename).parent_path() / config.driver_config.earthaccess_helper;
+    }
     return config;
 }
 

@@ -10,6 +10,7 @@
 #include <array>
 #include <conf/value.hpp>
 #include <cstddef>
+#include <filesystem>
 #include <functional>
 #include <initializer_list>
 #include <map>
@@ -19,6 +20,8 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
+
+namespace fs = std::filesystem;
 
 namespace cece {
 
@@ -33,14 +36,14 @@ enum class SchemeLanguage : std::uint8_t {
     UNKNOWN   ///< Unspecified / unknown language
 };
 
-inline SchemeLanguage StringToSchemeLanguage(std::string_view lang) {
+constexpr inline SchemeLanguage StringToSchemeLanguage(std::string_view lang) {
     if (lang == "cpp" || lang == "c++" || lang == "cxx" || lang.empty()) return SchemeLanguage::CPP;
     if (lang == "fortran" || lang == "f90" || lang == "f") return SchemeLanguage::FORTRAN;
     if (lang == "python" || lang == "py") return SchemeLanguage::PYTHON;
     return SchemeLanguage::UNKNOWN;
 }
 
-inline std::string_view SchemeLanguageToString(SchemeLanguage lang) {
+constexpr inline std::string_view SchemeLanguageToString(SchemeLanguage lang) {
     switch (lang) {
         case SchemeLanguage::CPP:
             return "cpp";
@@ -145,6 +148,7 @@ struct TemporalCycle {
 struct CeceDataVariableConfig {
     std::string name_in_file;   ///< Variable name in the NetCDF file.
     std::string name_in_model;  ///< Internal name used by CECE.
+    int field_levels = -1;
 };
 
 /**
@@ -168,12 +172,20 @@ struct CeceDataStreamConfig {
     std::string geometry_reconstruction = "none";  ///< Explicit geometry reconstruction policy.
     std::string lev_dimname = "lev";               ///< Name of vertical dimension.
     std::string time_var = "time";                 ///< Name of time coordinate variable.
-    std::string lon_var = "lon";                   ///< Name of longitude coordinate variable.
-    std::string lat_var = "lat";                   ///< Name of latitude coordinate variable.
-    std::string longitude_variable;                ///< Explicit source longitude center variable, when configured.
-    std::string latitude_variable;                 ///< Explicit source latitude center variable, when configured.
+                                                   // TODO: Clarify which of the following pairs is for the files in
+                                                   // file_paths, and which for those in input_gridspec_file
+    std::string lon_var = "lon";                   ///< Name of longitude coordinate variable in file_paths.
+    std::string lat_var = "lat";                   ///< Name of latitude coordinate variable in file_paths.
+    std::string longitude_variable;                ///< Explicit source longitude center variable in input_gridspec_file, when configured.
+    std::string latitude_variable;                 ///< Explicit source latitude center variable in input_gridspec_file, when configured.
     int refresh_interval_seconds = 0;              ///< Refresh interval in seconds (0 means use base timestep).
     bool use_local_time = false;                   ///< Select weekly profile records by each cell's local weekday (requires local_time.enabled).
+    std::string source = "";
+    std::string cadence;              ///< "" => series (time-aware default)
+    std::string time_units;           ///< override for a missing/non-standard "units" attribute
+    std::string calendar;             ///< "" -> file attribute, else gregorian
+    std::string time_label = "auto";  ///< auto|start|center|end; monthly start auto-detects month-start stamps
+    std::string data_model = "auto";
 };
 
 /**
@@ -420,10 +432,11 @@ struct DriverGridConfig {
     int nx = 4;               ///< Grid points in X direction (default: 4).
     int ny = 4;               ///< Grid points in Y direction (default: 4).
     int nz = 1;               ///< Grid points in Z (vertical) direction (default: 1).
-    double lon_min = -135.0;  ///< Minimum longitude (default: -135.0).
-    double lon_max = 135.0;   ///< Maximum longitude (default: 135.0).
-    double lat_min = -67.5;   ///< Minimum latitude (default: -67.5).
-    double lat_max = 67.5;    ///< Maximum latitude (default: 67.5).
+    double lon_min = -180.0;  ///< Minimum longitude (default: -180.0).
+    double lon_max = 180.0;   ///< Maximum longitude (default: 180.0).
+    double lat_min = -90.0;   ///< Minimum latitude (default: -90.0).
+    double lat_max = 90.0;    ///< Maximum latitude (default: 90.0).
+    std::string grid_name = "";
 };
 
 /**
@@ -452,6 +465,8 @@ struct DriverConfig {
     /// input file per rank on the pre-lazy pool).
     int amio_staging_buffer_capacity_bytes = 33554432;
     int amio_prefetch_depth = 2;  ///< AMIO read look-ahead depth (default: 2). Lower = fewer in-flight slabs.
+    fs::path earthaccess_helper;  ///< Absolute path to earthacess standalone ingest helper script
+    fs::path log_file;            ///< Log file for CECE output
 };
 
 /**
@@ -545,6 +560,7 @@ struct CeceConfig {
  * @throws std::exception if the file is invalid or missing.
  */
 CeceConfig ParseConfig(const std::string& filename);
+CeceConfig ParseConfigFromValue(conf::Value);
 
 /**
  * @brief Adds a new emission species with its layers to an existing config at runtime.
