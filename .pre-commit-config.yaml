@@ -76,7 +76,7 @@ repos:
 
       - id: no-yaml-cpp
         name: Avoid yaml-ccp
-        description: Avoid YAML-cpp calls in CECE code
+        description: Avoid yaml-cpp calls in CECE code
         language: pygrep
         types_or: ["c", "c++"]
         exclude: "tests/test_.*\\.cpp"

@@ -172,17 +172,19 @@ struct CeceDataStreamConfig {
     std::string geometry_reconstruction = "none";  ///< Explicit geometry reconstruction policy.
     std::string lev_dimname = "lev";               ///< Name of vertical dimension.
     std::string time_var = "time";                 ///< Name of time coordinate variable.
-    std::string lon_var = "lon";                   ///< Name of longitude coordinate variable.
-    std::string lat_var = "lat";                   ///< Name of latitude coordinate variable.
-    std::string longitude_variable;                ///< Explicit source longitude center variable, when configured.
-    std::string latitude_variable;                 ///< Explicit source latitude center variable, when configured.
+                                                   // TODO: Clarify which of the following pairs is for the files in
+                                                   // file_paths, and which for those in input_gridspec_file
+    std::string lon_var = "lon";                   ///< Name of longitude coordinate variable in file_paths.
+    std::string lat_var = "lat";                   ///< Name of latitude coordinate variable in file_paths.
+    std::string longitude_variable;                ///< Explicit source longitude center variable in input_gridspec_file, when configured.
+    std::string latitude_variable;                 ///< Explicit source latitude center variable in input_gridspec_file, when configured.
     int refresh_interval_seconds = 0;              ///< Refresh interval in seconds (0 means use base timestep).
     bool use_local_time = false;                   ///< Select weekly profile records by each cell's local weekday (requires local_time.enabled).
     std::string source = "";
-    std::string cadence = "";
-    std::string time_label;
-    std::string time_units = "";
-    std::string calendar = "gregorian";
+    std::string cadence;              ///< "" => series (time-aware default)
+    std::string time_units;           ///< override for a missing/non-standard "units" attribute
+    std::string calendar;             ///< "" -> file attribute, else gregorian
+    std::string time_label = "auto";  ///< auto|start|center|end; monthly start auto-detects month-start stamps
     std::string data_model = "auto";
 };
 

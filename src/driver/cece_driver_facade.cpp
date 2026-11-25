@@ -186,26 +186,19 @@ StreamConfig CeceDriverOrchestrator::BuildStreamConfig(const CeceDataStreamConfi
         }
         cfg.input_file_path = file;
     }
-    const bool has_input_gridspec = static_cast<bool>(stream["input_gridspec_file"]);
-    const bool has_gridspec_alias = static_cast<bool>(stream["gridspec_file"]);
-    const std::string input_gridspec = has_input_gridspec ? stream["input_gridspec_file"].as_string() : "";
-    const std::string gridspec_alias = has_gridspec_alias ? stream["gridspec_file"].as_string() : "";
-    if (has_input_gridspec && has_gridspec_alias && input_gridspec != gridspec_alias) {
-        throw std::invalid_argument("cece_data stream '" + stream["name"].string_or("") +
-                                    "': input_gridspec_file and gridspec_file specify different paths");
-    }
-    cfg.input_gridspec_file = has_input_gridspec ? input_gridspec : gridspec_alias;
+    const bool has_input_gridspec = stream.input_gridspec_file.empty();
+    const std::string input_gridspec = stream.input_gridspec_file;
+    cfg.input_gridspec_file = input_gridspec;
     cfg.source_geometry.gridspec_file = cfg.input_gridspec_file;
-    cfg.source_geometry.longitude_variable = stream["longitude_variable"].string_or("");
-    cfg.source_geometry.latitude_variable = stream["latitude_variable"].string_or("");
-    if (stream["geometry_reconstruction"]) {
-        const std::string reconstruction = cece::to_lower(stream["geometry_reconstruction"].as_string());
+    cfg.source_geometry.longitude_variable = stream.longitude_variable;
+    cfg.source_geometry.latitude_variable = stream.latitude_variable;
+    if (!stream.geometry_reconstruction.empty()) {
+        const std::string reconstruction = cece::to_lower(stream.geometry_reconstruction);
         try {
             if (reconstruction.empty()) throw std::invalid_argument("empty policy");
             cfg.source_geometry.reconstruction = cece::io::parse_reconstruction_model(reconstruction);
         } catch (const std::invalid_argument&) {
-            throw std::invalid_argument("cece_data stream '" + stream["name"].string_or("") + "': unsupported geometry_reconstruction '" +
-                                        reconstruction + "'");
+            throw std::invalid_argument("cece_data stream '" + stream.name + "': unsupported geometry_reconstruction '" + reconstruction + "'");
         }
     }
     cfg.input_var_name = file_name;
@@ -619,21 +612,15 @@ CeceDriverOrchestrator::CeceDriverOrchestrator(const CeceInternalData* cece_inte
     // conf::Conf_Error robustness (gridspec_file_ = "" on a bad/missing file).
     ResolveStreamConfigsFromConfig(config_, stream_configs_, gridspec_file_);
 
-    try {
-        const auto parsed = conf::Config::from_file(config_file_);
-        const auto driver = parsed.root()["driver"];
-        if (driver) {
-            destination_geometry_settings_.gridspec_file = gridspec_file_;
-            destination_geometry_settings_.named_grid = driver["grid"]["grid_name"].string_or("");
-            destination_geometry_settings_.longitude_variable = driver["longitude_variable"].string_or("");
-            destination_geometry_settings_.latitude_variable = driver["latitude_variable"].string_or("");
-            destination_geometry_settings_.reconstruction = io::parse_reconstruction_model(driver["geometry_reconstruction"].string_or("none"));
-        }
-    } catch (const conf::Conf_Error& error) {
-        // Match ResolveStreamConfigs' existing behavior for a missing/bad
-        // configuration file; no destination overrides are applied.
-        CECE_LOG_DEBUG("[DRIVER] Could not read destination geometry settings: " + std::string(error.what()));
+    const DriverConfig& driver = config_.driver_config;
+    if (true) {
+        destination_geometry_settings_.gridspec_file = gridspec_file_;
+        destination_geometry_settings_.named_grid = driver.grid.grid_name;
+        destination_geometry_settings_.longitude_variable = driver.longitude_variable;
+        destination_geometry_settings_.latitude_variable = driver.latitude_variable;
+        destination_geometry_settings_.reconstruction = io::parse_reconstruction_model(driver.geometry_reconstruction);
     }
+
     destination_geometry_revision_ = coordinate_revision(target_lons_, target_lats_, nx_, ny_) + "|" + file_revision(gridspec_file_) + "|" +
                                      destination_geometry_settings_.named_grid + ":" + destination_geometry_settings_.longitude_variable + ":" +
                                      destination_geometry_settings_.latitude_variable + ":" +
