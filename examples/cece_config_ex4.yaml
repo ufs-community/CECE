@@ -33,6 +33,7 @@ cece_data:
       taxmode: "extend" # Hold the file's end values outside its coverage
       tintalgo: "linear"
       mapalgo: "consd"
+      geometry_reconstruction: "rectilinear_midpoint"
       variables:
         - file: "NO_SHP"
           model: "HTAP_NO"
